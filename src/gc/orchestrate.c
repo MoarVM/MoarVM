@@ -264,6 +264,19 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
         }
     }
 
+    if (is_coordinator) {
+        uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
+        MVM_store(&tc->instance->gc_completed, 1);
+        uv_cond_broadcast(&tc->instance->cond_gc_completed);
+        uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
+    }
+    else {
+        uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
+        while (!MVM_load(&tc->instance->gc_completed))
+            uv_cond_wait(&tc->instance->cond_gc_completed, &tc->instance->mutex_gc_orchestrate);
+        uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
+    }
+
     /* Signal acknowledgement of completing the cleanup,
      * except for STables, and if we're the final to do
      * so, free the STables, which have been linked. */
@@ -525,6 +538,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         /* Flag that we didn't agree on this run that all the in-trays are
          * cleared (a responsibility of the co-ordinator. */
         MVM_store(&tc->instance->gc_intrays_clearing, 1);
+        MVM_store(&tc->instance->gc_completed, 0);
 
         /* We'll take care of our own work. */
         add_work(tc, tc);

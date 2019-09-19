@@ -187,6 +187,11 @@ struct MVMInstance {
      * join in, but this lets them wait efficieintly. */
     uv_cond_t cond_blocked_can_continue;
 
+    /* Whether the coordinator considers the run to be fully completed,
+     * including cleanup of exited threads. */
+    AO_t gc_completed;
+    uv_cond_t cond_gc_completed;
+
     /* The number of threads that have yet to acknowledge the finish. */
     AO_t gc_ack;
 

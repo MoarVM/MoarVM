@@ -115,6 +115,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     init_mutex(instance->mutex_gc_orchestrate, "GC orchestration");
     init_cond(instance->cond_gc_start, "GC start");
     init_cond(instance->cond_gc_finish, "GC finish");
+    init_cond(instance->cond_gc_completed, "GC completed");
     init_cond(instance->cond_gc_intrays_clearing, "GC intrays clearing");
     init_cond(instance->cond_blocked_can_continue, "GC thread unblock");
 
