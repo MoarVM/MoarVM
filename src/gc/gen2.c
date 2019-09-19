@@ -230,6 +230,7 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
         gen2->size_classes[bin].num_pages = 0;
     }
     { /* transfer the overflows */
+        MVMuint32 i;
         if (gen2->num_overflows + dest_gen2->num_overflows > dest_gen2->alloc_overflows) {
             dest_gen2->alloc_overflows = (
                 gen2->alloc_overflows > dest_gen2->alloc_overflows
@@ -239,6 +240,8 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
             dest_gen2->overflows = MVM_realloc(dest_gen2->overflows,
                 dest_gen2->alloc_overflows * sizeof(MVMCollectable *));
         }
+        for (i = 0; i < gen2->num_overflows; i++)
+            gen2->overflows[i]->owner = dest->thread_id;
         memcpy(
             &dest_gen2->overflows[dest_gen2->num_overflows],
             gen2->overflows,
