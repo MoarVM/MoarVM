@@ -141,7 +141,7 @@ static void code_pair_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
 static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *st, MVMObject *config) {
     CodePairContData *data = (CodePairContData *)st->container_data;
 
-    MVMROOT(tc, config, {
+    MVMROOT2(tc, config, st, {
         MVMString *fetch = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "fetch");
         MVMString *store;
 
