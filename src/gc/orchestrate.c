@@ -220,8 +220,8 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
             MVM_gc_gen2_transfer(other, tc);
             GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
                 "Thread %d run %d : destroying thread %d\n", other->thread_id);
-            MVM_tc_destroy(other);
             tc->gc_work[i].tc = thread_obj->body.tc = NULL;
+            MVM_tc_destroy(other);
             MVM_store(&thread_obj->body.stage, MVM_thread_stage_destroyed);
         }
         else {
