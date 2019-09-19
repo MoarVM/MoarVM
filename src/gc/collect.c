@@ -319,7 +319,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 new_addr = (MVMCollectable *)tc->nursery_alloc;
                 tc->nursery_alloc = (char *)tc->nursery_alloc + MVM_ALIGN_SIZE(item->size);
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : copying an object %p (reprid %d) of size %d to tospace %p\n",
-                    item, REPR(item)->ID, item->size, new_addr);
+                    item, (item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_FRAME)) ? -1 : REPR(item)->ID, item->size, new_addr);
 
                 /* Copy the object to tospace and mark it as seen in the
                  * nursery (so the next time around it will move to the
@@ -331,7 +331,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             /* Store the forwarding pointer and update the original
              * reference. */
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT) && new_addr != item) {
-                GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from referent %p (reprid %d) to %p\n", item_ptr, item, REPR(item)->ID, new_addr);
+                GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from referent %p (reprid %d) to %p\n", item_ptr, item, (item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_FRAME)) ? -1 : REPR(item)->ID, new_addr);
             }
             *item_ptr = new_addr;
             item->sc_forward_u.forwarder = new_addr;
