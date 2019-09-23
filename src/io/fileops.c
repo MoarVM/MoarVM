@@ -254,7 +254,7 @@ MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename, MVMint
             uv_stat_t statbuf = file_info(tc, filename, use_lstat); \
             MVMint64 r = (statbuf.st_mode & S_I ## rwx ## OTH) \
                       || (statbuf.st_uid == geteuid() && (statbuf.st_mode & S_I ## rwx ## USR)) \
-                      || (statbuf.st_uid == getegid() && (statbuf.st_mode & S_I ## rwx ## GRP)); \
+                      || (statbuf.st_gid == getegid() && (statbuf.st_mode & S_I ## rwx ## GRP)); \
             return r ? 1 : 0; \
         } \
     }
