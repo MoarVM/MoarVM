@@ -398,7 +398,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
 
     unsigned int interval_id;
 
-    MVMObject *subscription_queue = NULL;
+    /*MVMObject *subscription_queue = NULL;*/
 
     is_coordinator = what_to_do == MVMGCWhatToDo_All;
 
@@ -416,8 +416,8 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         interval_id = MVM_telemetry_interval_start(tc, "start minor collection");
     }
 
-    if (is_coordinator)
-        start_time = uv_hrtime();
+    /*if (is_coordinator)*/
+        /*start_time = uv_hrtime();*/
 
     /* Do GC work for ourselves and any work threads. */
     for (i = 0, n = tc->gc_work_count ; i < n; i++) {
@@ -432,34 +432,34 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     /* Wait for everybody to agree we're done. */
     finish_gc(tc, gen, is_coordinator);
 
-    if (is_coordinator)
-        end_time = uv_hrtime();
+    /*if (is_coordinator)*/
+        /*end_time = uv_hrtime();*/
 
     /* Finally, as the very last thing ever, the coordinator pushes a bit of
      * info into the subscription queue (if it is set) */
 
-    subscription_queue = tc->instance->subscriptions.subscription_queue;
+    /*subscription_queue = tc->instance->subscriptions.subscription_queue;*/
 
-    if (is_coordinator && subscription_queue && tc->instance->subscriptions.GCEvent) {
-        MVMObject *instance = MVM_repr_alloc(tc, tc->instance->subscriptions.GCEvent);
+    /*if (is_coordinator && subscription_queue && tc->instance->subscriptions.GCEvent) {*/
+        /*MVMObject *instance = MVM_repr_alloc(tc, tc->instance->subscriptions.GCEvent);*/
 
-        MVMArray *arrobj = (MVMArray *)instance;
-        MVMuint64 *data;
+        /*MVMArray *arrobj = (MVMArray *)instance;*/
+        /*MVMuint64 *data;*/
 
-        MVM_repr_pos_set_elems(tc, instance, 7);
+        /*MVM_repr_pos_set_elems(tc, instance, 7);*/
 
-        data = arrobj->body.slots.u64;
+        /*data = arrobj->body.slots.u64;*/
 
-        data[0] = MVM_load(&tc->instance->gc_seq_number);
-        data[1] = start_time;
-        data[2] = start_time - tc->instance->subscriptions.vm_startup_time;
-        data[3] = end_time - start_time;
-        data[4] = gen == MVMGCGenerations_Both;
-        data[5] = tc->gc_promoted_bytes;
-        data[6] = tc->thread_id;
+        /*data[0] = MVM_load(&tc->instance->gc_seq_number);*/
+        /*data[1] = start_time;*/
+        /*data[2] = start_time - tc->instance->subscriptions.vm_startup_time;*/
+        /*data[3] = end_time - start_time;*/
+        /*data[4] = gen == MVMGCGenerations_Both;*/
+        /*data[5] = tc->gc_promoted_bytes;*/
+        /*data[6] = tc->thread_id;*/
 
-        MVM_repr_push_o(tc, tc->instance->subscriptions.subscription_queue, instance);
-    }
+        /*MVM_repr_push_o(tc, tc->instance->subscriptions.subscription_queue, instance);*/
+    /*}*/
 
     MVM_telemetry_interval_stop(tc, interval_id, "finished run_gc");
 }

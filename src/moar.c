@@ -337,6 +337,8 @@ MVMInstance * MVM_vm_create_instance(void) {
         }
     }
 
+    init_mutex(instance->subscriptions.mutex_event_subscription, "vm event subscription mutex");
+
     /* Spesh thread syncing. */
     init_mutex(instance->mutex_spesh_sync, "spesh sync");
     init_cond(instance->cond_spesh_sync, "spesh sync");
@@ -393,8 +395,6 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Back to nursery allocation, now we're set up. */
     MVM_gc_allocate_gen2_default_clear(instance->main_thread);
-
-    init_mutex(instance->subscriptions.mutex_event_subscription, "vm event subscription mutex");
 
     return instance;
 }
