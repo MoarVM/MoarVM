@@ -1,5 +1,6 @@
 #include <moar.h>
 #include <platform/io.h>
+#include <stdarg.h>
 
 /* undocumented, so check if these really hold */
 #if SEEK_SET != FILE_BEGIN   || \
@@ -118,4 +119,35 @@ int MVM_platform_fsync(int fd) {
     if (errno == ENXIO)
         return 0; /* Not something we can flush. */
     return -1;
+}
+
+int MVM_platform_open(const char *pathname, int flags, ...) {
+    va_list args;
+    const int       len       = MultiByteToWideChar(CP_UTF8, 0, pathname, -1, NULL, 0);
+    wchar_t * const wpathname = (wchar_t *)MVM_malloc(len * sizeof(wchar_t));
+                                MultiByteToWideChar(CP_UTF8, 0, pathname, -1, (LPWSTR)wpathname, len);
+    int res;
+    if (flags & _O_CREAT) {
+        va_start(args, flags);
+        res = _wopen(wpathname, flags, va_arg(args, int));
+        va_end(args);
+    }
+    else {
+        res = _wopen(wpathname, flags);
+    }
+    MVM_free(wpathname);
+    return res;
+}
+
+FILE *MVM_platform_fopen(const char *pathname, const char *mode) {
+    int             len       = MultiByteToWideChar(CP_UTF8, 0, pathname, -1, NULL, 0);
+    wchar_t * const wpathname = (wchar_t *)MVM_malloc(len * sizeof(wchar_t));
+                                MultiByteToWideChar(CP_UTF8, 0, pathname, -1, (LPWSTR)wpathname, len);
+                    len       = MultiByteToWideChar(CP_UTF8, 0, mode, -1, NULL, 0);
+    wchar_t * const wmode     = (wchar_t *)MVM_malloc(len * sizeof(wchar_t));
+                                MultiByteToWideChar(CP_UTF8, 0, mode, -1, (LPWSTR)wmode, len);
+    FILE *          res       = _wfopen(wpathname, wmode);
+    MVM_free(wpathname);
+    MVM_free(wmode);
+    return res;
 }

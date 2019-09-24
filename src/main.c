@@ -258,7 +258,7 @@ int wmain(int argc, wchar_t *wargv[])
              getpid()
 #endif
              );
-        fp = fopen(path, "w");
+        fp = MVM_platform_fopen(path, "w");
         if (fp) {
             MVM_telemetry_init(fp);
             telemeh_inited = 1;

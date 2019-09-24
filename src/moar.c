@@ -50,18 +50,18 @@ static FILE *fopen_perhaps_with_pid(char *env_var, char *path, const char *mode)
         /* We expect to pass only a single argument to snprintf here;
          * just bail out if there's more than one directive. */
         if (found_percents > 1) {
-            result = fopen(path, mode);
+            result = MVM_platform_fopen(path, mode);
         } else {
             char *fixed_path = malloc(path_length + 16);
             MVMint64 pid = MVM_proc_getpid(NULL);
             /* We make the brave assumption that
              * pids only go up to 16 characters. */
             snprintf(fixed_path, path_length + 16, path, pid);
-            result = fopen(fixed_path, mode);
+            result = MVM_platform_fopen(fixed_path, mode);
             free(fixed_path);
         }
     } else {
-        result = fopen(path, mode);
+        result = MVM_platform_fopen(path, mode);
     }
 
     if (result)
@@ -283,7 +283,7 @@ MVMInstance * MVM_vm_create_instance(void) {
             char perf_map_filename[32];
             snprintf(perf_map_filename, sizeof(perf_map_filename),
                      "/tmp/perf-%"PRIi64".map", MVM_proc_getpid(NULL));
-            instance->jit_perf_map = fopen(perf_map_filename, "w");
+            instance->jit_perf_map = MVM_platform_fopen(perf_map_filename, "w");
         }
     }
 #endif
