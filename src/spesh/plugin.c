@@ -123,9 +123,15 @@ static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet 
 /* Tries to resolve a plugin by looking at the guards for the position. */
 static MVMObject * resolve_using_guards(MVMThreadContext *tc, MVMuint32 cur_position,
         MVMCallsite *callsite, MVMuint16 *guard_offset, MVMStaticFrame *sf) {
-    MVMSpeshPluginState *ps = get_plugin_state(tc, sf);
-    MVMSpeshPluginGuardSet *gs = guard_set_for_position(tc, cur_position, ps);
-    return gs ? evaluate_guards(tc, gs, callsite, guard_offset) : NULL;
+    MVMStaticFrameSpesh temp_root = {{{0}, STABLE(tc->instance->StaticFrameSpesh)}, {0}};
+    MVMStaticFrameSpesh *temp_root_ptr = &temp_root;
+    MVMObject *result;
+    MVMROOT(tc, temp_root_ptr, {
+        MVMSpeshPluginState *ps = temp_root.body.plugin_state = get_plugin_state(tc, sf);
+        MVMSpeshPluginGuardSet *gs = guard_set_for_position(tc, cur_position, ps);
+        result = gs ? evaluate_guards(tc, gs, callsite, guard_offset) : NULL;
+    });
+    return result;
 }
 
 /* Produces an updated guard set with the given resolution result. Returns
