@@ -190,7 +190,7 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 
 /* Gets the effective size for inlining considerations of a specialization,
  * which is its code size minus the code size of its inlines. */
-MVMuint32 get_effective_size(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
+static MVMint32 get_effective_size(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
     MVMint32 result = cand->bytecode_size;
     MVMuint32 i;
     for (i = 0; i < cand->num_inlines; i++)
@@ -201,7 +201,7 @@ MVMuint32 get_effective_size(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
 }
 
 /* Add deopt usage info to the inlinee. */
-void add_deopt_usages(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 *deopt_usage_info,
+static void add_deopt_usages(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 *deopt_usage_info,
                       MVMSpeshIns **deopt_usage_ins) {
     MVMuint32 usage_idx = 0;
     MVMuint32 ins_idx = 0;
@@ -512,7 +512,7 @@ static void tweak_guard_deopt_idx(MVMSpeshIns *ins, MVMSpeshAnn *ann) {
 }
 
 /* Merges the inlinee's spesh graph into the inliner. */
-MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
                  MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins,
                  MVMSpeshOperand code_ref_reg,
