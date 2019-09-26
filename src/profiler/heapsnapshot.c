@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "platform/io.h"
 
 #ifndef MVM_HEAPSNAPSHOT_FORMAT
 #define MVM_HEAPSNAPSHOT_FORMAT 3

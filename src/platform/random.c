@@ -60,6 +60,7 @@
  * - NetBSD: I have not found evidence it has getentropy() or getrandom()
  *     Note: Uses __NetBSD_Version__ included from file <sys/param.h>. */
 #include "moar.h"
+#include "platform/io.h"
 /* On Unix like platforms that don't support getrandom() or getentropy()
  * we defualt to /dev/urandom. On platforms that do support these calls, we
  * only use /dev/urandom if those calls fail. This is also important on Linux,

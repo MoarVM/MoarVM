@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "platform/io.h"
 
 void MVM_jit_dump_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
     char filename[1024];

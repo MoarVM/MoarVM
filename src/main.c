@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <moar.h>
+#include "platform/io.h"
 
 #if MVM_TRACING
 #  define TRACING_OPT "[--tracing] "
