@@ -123,9 +123,7 @@ int MVM_platform_fsync(int fd) {
 
 int MVM_platform_open(const char *pathname, int flags, ...) {
     va_list args;
-    const int       len       = MultiByteToWideChar(CP_UTF8, 0, pathname, -1, NULL, 0);
-    wchar_t * const wpathname = (wchar_t *)MVM_malloc(len * sizeof(wchar_t));
-                                MultiByteToWideChar(CP_UTF8, 0, pathname, -1, (LPWSTR)wpathname, len);
+    wchar_t *wpathname = UTF8ToUnicode(pathname);
     int res;
     if (flags & _O_CREAT) {
         va_start(args, flags);
@@ -140,13 +138,9 @@ int MVM_platform_open(const char *pathname, int flags, ...) {
 }
 
 FILE *MVM_platform_fopen(const char *pathname, const char *mode) {
-    int             len       = MultiByteToWideChar(CP_UTF8, 0, pathname, -1, NULL, 0);
-    wchar_t * const wpathname = (wchar_t *)MVM_malloc(len * sizeof(wchar_t));
-                                MultiByteToWideChar(CP_UTF8, 0, pathname, -1, (LPWSTR)wpathname, len);
-                    len       = MultiByteToWideChar(CP_UTF8, 0, mode, -1, NULL, 0);
-    wchar_t * const wmode     = (wchar_t *)MVM_malloc(len * sizeof(wchar_t));
-                                MultiByteToWideChar(CP_UTF8, 0, mode, -1, (LPWSTR)wmode, len);
-    FILE *          res       = _wfopen(wpathname, wmode);
+    wchar_t *wpathname = UTF8ToUnicode(pathname);
+    wchar_t *wmode     = UTF8ToUnicode(mode);
+    FILE    *res       = _wfopen(wpathname, wmode);
     MVM_free(wpathname);
     MVM_free(wmode);
     return res;
