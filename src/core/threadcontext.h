@@ -265,6 +265,10 @@ struct MVMThreadContext {
     MVMObject *plugin_guard_args;
     MVMuint32 num_plugin_guards;
 
+    MVMSpeshPluginGuard *temp_plugin_guards;
+    MVMObject *temp_plugin_guard_args;
+    MVMuint32 temp_num_plugin_guards;
+
     /************************************************************************
      * Per-thread state held by assorted VM subsystems
      ************************************************************************/
