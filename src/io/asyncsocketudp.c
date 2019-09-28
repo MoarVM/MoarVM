@@ -526,6 +526,7 @@ typedef struct {
     uv_loop_t        *loop;
     MVMObject        *async_task;
     uv_udp_t         *handle;
+    int               bind;
     struct addrinfo  *records;
     struct addrinfo  *cur_record;
     MVMint64          flags;
@@ -539,30 +540,31 @@ static void do_setup_setup(uv_handle_t *handle) {
     MVMAsyncTask     *t    = (MVMAsyncTask *)ssi->async_task;
     MVMObject        *arr;
 
-    if (ssi->cur_record == NULL) {
-        /* XXX FIXME: if we want to bind and getaddrinfo returns an error, this
-         * branch will get used and the socket will never actually be bound. */
-        ssi->error = uv_udp_init(ssi->loop, ssi->handle);
-        if (ssi->error == 0 && (ssi->flags & 1))
-            ssi->error = uv_udp_set_broadcast(ssi->handle, 1);
-    } else {
-        while (ssi->cur_record != NULL) {
-            if ((ssi->error = uv_udp_init(ssi->loop, ssi->handle)) == 0) {
-                if (ssi->error == 0 && (ssi->flags & 1))
-                    ssi->error = uv_udp_set_broadcast(ssi->handle, 1);
-                ssi->error = uv_udp_bind(ssi->handle, ssi->cur_record->ai_addr, 0);
-            }
-
+    if (ssi->bind) {
+        if (ssi->cur_record == NULL) {
+            /* Clean up. */
+            handle->data = NULL;
+            MVM_free(handle);
+        } else {
+            /* Create and bind the socket. */
+            ssi->error = uv_udp_init(ssi->loop, ssi->handle);
+            if (ssi->error == 0 && ssi->flags & 1)
+                ssi->error = uv_udp_set_broadcast(ssi->handle, 1);
             if (ssi->error == 0)
-                /* Success; finish up below. */
-                break;
-            else {
-                /* Error; try the next address, if any, before throwing. */
+                ssi->error = uv_udp_bind(ssi->handle, ssi->cur_record->ai_addr, 0);
+
+            if (ssi->error != 0) {
+                /* Error; try again with the next address, if any, before throwing. */
                 ssi->cur_record = ssi->cur_record->ai_next;
                 uv_close(handle, do_setup_setup);
                 return;
             }
         }
+    } else {
+        /* Create the socket. */
+        ssi->error = uv_udp_init(ssi->loop, ssi->handle);
+        if (ssi->error == 0 && ssi->flags & 1)
+            ssi->error = uv_udp_set_broadcast(ssi->handle, 1);
     }
 
     MVMROOT(tc, t, {
@@ -593,9 +595,6 @@ static void do_setup_setup(uv_handle_t *handle) {
         });
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
-
-    /* Clean up. */
-    ssi->handle->data = NULL;
 }
 
 
@@ -636,6 +635,7 @@ MVMObject * MVM_io_socket_udp_async(MVMThreadContext *tc, MVMObject *queue,
                                     MVMObject *schedulee, MVMString *host,
                                     MVMint64 port, MVMint64 flags,
                                     MVMObject *async_type) {
+    int              bind    = (host != NULL && IS_CONCRETE(host));
     struct addrinfo *records = NULL;
     MVMAsyncTask    *task;
     SocketSetupInfo *ssi;
@@ -650,7 +650,7 @@ MVMObject * MVM_io_socket_udp_async(MVMThreadContext *tc, MVMObject *queue,
 
     MVMROOT4(tc, queue, schedulee, host, async_type, {
         /* Resolve hostname. (Could be done asynchronously too.) */
-        if (host != NULL && IS_CONCRETE(host))
+        if (bind)
             records = MVM_io_resolve_host_name(tc, host, port, SOCKET_FAMILY_UNSPEC, SOCKET_TYPE_DGRAM, SOCKET_PROTOCOL_UDP, 1);
 
         /* Create async task handle. */
@@ -660,6 +660,7 @@ MVMObject * MVM_io_socket_udp_async(MVMThreadContext *tc, MVMObject *queue,
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &setup_op_table;
     ssi             = MVM_calloc(1, sizeof(SocketSetupInfo));
+    ssi->bind       = bind;
     ssi->records    = records;
     ssi->cur_record = records;
     ssi->flags      = flags;
