@@ -38,12 +38,12 @@ static MVMSpeshPluginGuardSet * guard_set_for_position(MVMThreadContext *tc,
         MVMuint32 cur_position, MVMSpeshPluginState *ps) {
     if (ps) {
         MVMint32 l = 0;
-        MVMint32 r = ps->num_positions - 1;
+        MVMint32 r = ps->body.num_positions - 1;
         while (l <= r) {
             MVMint32 m = l + (r - l) / 2;
-            MVMuint32 test = ps->positions[m].bytecode_position;
+            MVMuint32 test = ps->body.positions[m].bytecode_position;
             if (test == cur_position) {
-                return ps->positions[m].guard_set;
+                return ps->body.positions[m].guard_set;
             }
             if (test < cur_position)
                 l = m + 1;
@@ -123,12 +123,10 @@ static MVMObject * evaluate_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet 
 /* Tries to resolve a plugin by looking at the guards for the position. */
 static MVMObject * resolve_using_guards(MVMThreadContext *tc, MVMuint32 cur_position,
         MVMCallsite *callsite, MVMuint16 *guard_offset, MVMStaticFrame *sf) {
-    MVMStaticFrameSpesh temp_root = {{{0}, STABLE(tc->instance->StaticFrameSpesh)}, {0}};
-    MVMStaticFrameSpesh *temp_root_ptr = &temp_root;
     MVMObject *result;
-    MVMROOT(tc, temp_root_ptr, {
-        MVMSpeshPluginState *ps = temp_root.body.plugin_state = get_plugin_state(tc, sf);
-        MVMSpeshPluginGuardSet *gs = guard_set_for_position(tc, cur_position, ps);
+    MVMSpeshPluginState *ps = get_plugin_state(tc, sf);
+    MVMSpeshPluginGuardSet *gs = guard_set_for_position(tc, cur_position, ps);
+    MVMROOT(tc, ps, { /* keep ps alive in case another thread replaces it during evaluate_guards */
         result = gs ? evaluate_guards(tc, gs, callsite, guard_offset) : NULL;
     });
     return result;
@@ -140,139 +138,131 @@ static MVMObject * resolve_using_guards(MVMThreadContext *tc, MVMuint32 cur_posi
 static MVMint32 already_have_guard(MVMThreadContext *tc, MVMSpeshPluginGuardSet *base_guards) {
     return 0;
 }
+
+static MVMSpeshPluginGuardSet * copy_guard_set(MVMThreadContext *tc, MVMSpeshPluginGuardSet *base_guards) {
+    MVMuint32 insert_pos, i;
+    MVMSpeshPluginGuardSet *result = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMSpeshPluginGuardSet));
+    result->num_guards = (base_guards ? base_guards->num_guards : 0);
+    result->guards = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+            sizeof(MVMSpeshPluginGuard) * result->num_guards);
+    if (base_guards) {
+        memcpy(result->guards, base_guards->guards,
+                base_guards->num_guards * sizeof(MVMSpeshPluginGuard));
+    }
+    return result;
+}
+
 static MVMSpeshPluginGuardSet * append_guard(MVMThreadContext *tc,
         MVMSpeshPluginGuardSet *base_guards, MVMObject *resolved,
-        MVMStaticFrameSpesh *barrier) {
-    MVMSpeshPluginGuardSet *result;
-    if (base_guards && already_have_guard(tc, base_guards)) {
-        result = base_guards;
+        MVMSpeshPluginState *barrier) {
+    MVMuint32 insert_pos, i;
+    MVMSpeshPluginGuardSet *result = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMSpeshPluginGuardSet));
+    result->num_guards = (base_guards ? base_guards->num_guards : 0) +
+        tc->num_plugin_guards + 1; /* + 1 for result node */
+    result->guards = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+            sizeof(MVMSpeshPluginGuard) * result->num_guards);
+    if (base_guards) {
+        memcpy(result->guards, base_guards->guards,
+                base_guards->num_guards * sizeof(MVMSpeshPluginGuard));
+        insert_pos = base_guards->num_guards;
     }
     else {
-        MVMuint32 insert_pos, i;
-        result = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMSpeshPluginGuardSet));
-        result->num_guards = (base_guards ? base_guards->num_guards : 0) +
-            tc->num_plugin_guards + 1; /* + 1 for result node */
-        result->guards = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-                sizeof(MVMSpeshPluginGuard) * result->num_guards);
-        if (base_guards) {
-            memcpy(result->guards, base_guards->guards,
-                    base_guards->num_guards * sizeof(MVMSpeshPluginGuard));
-            insert_pos = base_guards->num_guards;
-        }
-        else {
-            insert_pos = 0;
-        }
-        for (i = 0; i < tc->num_plugin_guards; i++) {
-            result->guards[insert_pos].kind = tc->plugin_guards[i].kind;
-            result->guards[insert_pos].test_idx = tc->plugin_guards[i].test_idx;
-            result->guards[insert_pos].skip_on_fail = 1 + tc->num_plugin_guards - i;
-            switch (tc->plugin_guards[i].kind) {
-                case MVM_SPESH_PLUGIN_GUARD_OBJ:
-                case MVM_SPESH_PLUGIN_GUARD_NOTOBJ:
-                    MVM_ASSIGN_REF(tc, &(barrier->common.header),
-                            result->guards[insert_pos].u.object,
-                            tc->plugin_guards[i].u.object);
-                    break;
-                case MVM_SPESH_PLUGIN_GUARD_TYPE:
-                    MVM_ASSIGN_REF(tc, &(barrier->common.header),
-                            result->guards[insert_pos].u.type,
-                            tc->plugin_guards[i].u.type);
-                    break;
-                case MVM_SPESH_PLUGIN_GUARD_CONC:
-                case MVM_SPESH_PLUGIN_GUARD_TYPEOBJ:
-                    /* These carry no extra argument. */
-                    break;
-                case MVM_SPESH_PLUGIN_GUARD_GETATTR:
-                    MVM_ASSIGN_REF(tc, &(barrier->common.header),
-                            result->guards[insert_pos].u.attr.class_handle,
-                            tc->plugin_guards[i].u.attr.class_handle);
-                    MVM_ASSIGN_REF(tc, &(barrier->common.header),
-                            result->guards[insert_pos].u.attr.name,
-                            tc->plugin_guards[i].u.attr.name);
-                    break;
-                default:
-                    MVM_panic(1, "Unexpected spesh plugin guard type");
-            }
-            insert_pos++;
-        }
-        result->guards[insert_pos].kind = MVM_SPESH_PLUGIN_GUARD_RESULT;
-        MVM_ASSIGN_REF(tc, &(barrier->common.header),
-                result->guards[insert_pos].u.result, resolved);
+        insert_pos = 0;
     }
+    for (i = 0; i < tc->num_plugin_guards; i++) {
+        result->guards[insert_pos].kind = tc->plugin_guards[i].kind;
+        result->guards[insert_pos].test_idx = tc->plugin_guards[i].test_idx;
+        result->guards[insert_pos].skip_on_fail = 1 + tc->num_plugin_guards - i;
+        switch (tc->plugin_guards[i].kind) {
+            case MVM_SPESH_PLUGIN_GUARD_OBJ:
+            case MVM_SPESH_PLUGIN_GUARD_NOTOBJ:
+                MVM_ASSIGN_REF(tc, &(barrier->common.header),
+                        result->guards[insert_pos].u.object,
+                        tc->plugin_guards[i].u.object);
+                break;
+            case MVM_SPESH_PLUGIN_GUARD_TYPE:
+                MVM_ASSIGN_REF(tc, &(barrier->common.header),
+                        result->guards[insert_pos].u.type,
+                        tc->plugin_guards[i].u.type);
+                break;
+            case MVM_SPESH_PLUGIN_GUARD_CONC:
+            case MVM_SPESH_PLUGIN_GUARD_TYPEOBJ:
+                /* These carry no extra argument. */
+                break;
+            case MVM_SPESH_PLUGIN_GUARD_GETATTR:
+                MVM_ASSIGN_REF(tc, &(barrier->common.header),
+                        result->guards[insert_pos].u.attr.class_handle,
+                        tc->plugin_guards[i].u.attr.class_handle);
+                MVM_ASSIGN_REF(tc, &(barrier->common.header),
+                        result->guards[insert_pos].u.attr.name,
+                        tc->plugin_guards[i].u.attr.name);
+                break;
+            default:
+                MVM_panic(1, "Unexpected spesh plugin guard type");
+        }
+        insert_pos++;
+    }
+    result->guards[insert_pos].kind = MVM_SPESH_PLUGIN_GUARD_RESULT;
+    MVM_ASSIGN_REF(tc, &(barrier->common.header),
+            result->guards[insert_pos].u.result, resolved);
     return result;
 }
 
 /* Produces an updated spesh plugin state by adding the updated guards at
  * the specified position. */
-MVMSpeshPluginState * updated_state(MVMThreadContext *tc, MVMSpeshPluginState *base_state,
+MVMSpeshPluginState * update_state(MVMThreadContext *tc, MVMSpeshPluginState *result, MVMSpeshPluginState *base_state,
         MVMuint32 position, MVMSpeshPluginGuardSet *base_guards,
         MVMSpeshPluginGuardSet *new_guards) {
-    MVMSpeshPluginState *result = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            sizeof(MVMSpeshPluginState));
-    result->num_positions = (base_state ? base_state->num_positions : 0) +
+    result->body.num_positions = (base_state ? base_state->body.num_positions : 0) +
         (base_guards == NULL ? 1 : 0);
-    result->positions = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            sizeof(MVMSpeshPluginPosition) * result->num_positions);
+    result->body.positions = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+            sizeof(MVMSpeshPluginPosition) * result->body.num_positions);
     if (base_state) {
         MVMuint32 copy_from = 0;
         MVMuint32 insert_at = 0;
         MVMuint32 inserted = 0;
-        while (!inserted && copy_from < base_state->num_positions) {
-            MVMuint32 bytecode_position = base_state->positions[copy_from].bytecode_position;
+        while (copy_from < base_state->body.num_positions) {
+            MVMuint32 bytecode_position = base_state->body.positions[copy_from].bytecode_position;
             if (bytecode_position < position) {
-                result->positions[insert_at] = base_state->positions[copy_from];
+                result->body.positions[insert_at].bytecode_position = bytecode_position;
+                result->body.positions[insert_at].guard_set
+                    = copy_guard_set(tc, base_state->body.positions[copy_from].guard_set);
                 copy_from++;
                 insert_at++;
             }
             else if (bytecode_position == position) {
                 /* Update of existing state; copy those after this one. */
-                result->positions[insert_at].bytecode_position = position;
-                result->positions[insert_at].guard_set = new_guards;
+                result->body.positions[insert_at].bytecode_position = position;
+                result->body.positions[insert_at].guard_set = new_guards;
                 copy_from++;
                 insert_at++;
                 inserted = 1;
             }
-            else {
+            else if (!inserted) {
                 /* Insert a new position in order. */
-                result->positions[insert_at].bytecode_position = position;
-                result->positions[insert_at].guard_set = new_guards;
+                result->body.positions[insert_at].bytecode_position = position;
+                result->body.positions[insert_at].guard_set = new_guards;
                 insert_at++;
                 inserted = 1;
             }
-            if (inserted && copy_from < base_state->num_positions)
-                memcpy(result->positions + insert_at, base_state->positions + copy_from,
-                        (base_state->num_positions - copy_from) * sizeof(MVMSpeshPluginPosition));
+            else {
+                result->body.positions[insert_at].bytecode_position = bytecode_position;
+                result->body.positions[insert_at].guard_set
+                    = copy_guard_set(tc, base_state->body.positions[copy_from].guard_set);
+                copy_from++;
+                insert_at++;
+            }
         }
         if (!inserted) {
-            result->positions[insert_at].bytecode_position = position;
-            result->positions[insert_at].guard_set = new_guards;
+            result->body.positions[insert_at].bytecode_position = position;
+            result->body.positions[insert_at].guard_set = new_guards;
         }
     }
     else {
-        result->positions[0].bytecode_position = position;
-        result->positions[0].guard_set = new_guards;
+        result->body.positions[0].bytecode_position = position;
+        result->body.positions[0].guard_set = new_guards;
     }
     return result;
-}
-
-/* Schedules replaced guards to be freed. */
-void free_dead_guards(MVMThreadContext *tc, MVMSpeshPluginGuardSet *gs) {
-    if (gs) {
-        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
-                gs->num_guards * sizeof(MVMSpeshPluginGuard), gs->guards);
-        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
-                sizeof(MVMSpeshPluginGuardSet), gs);
-    }
-}
-
-/* Schedules replaced state to be freed. */
-void free_dead_state(MVMThreadContext *tc, MVMSpeshPluginState *ps) {
-    if (ps) {
-        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
-                ps->num_positions * sizeof(MVMSpeshPluginPosition), ps->positions);
-        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
-                sizeof(MVMSpeshPluginState), ps);
-    }
 }
 
 /* Data for use with special return mechanism to store the result of a
@@ -307,44 +297,59 @@ static void restore_prev_spesh_plugin_state(MVMThreadContext *tc, MVMSpeshPlugin
     tc->num_plugin_guards = srd->prev_num_plugin_guards;
 }
 
+static void stash_prev_spesh_plugin_state(MVMThreadContext *tc, MVMSpeshPluginSpecialReturnData *srd) {
+    tc->temp_plugin_guards = srd->prev_plugin_guards;
+    tc->temp_plugin_guard_args = srd->prev_plugin_guard_args;
+    tc->temp_num_plugin_guards = srd->prev_num_plugin_guards;
+}
+
+static void apply_prev_spesh_plugin_state(MVMThreadContext *tc) {
+    tc->plugin_guards = tc->temp_plugin_guards;
+    tc->plugin_guard_args = tc->temp_plugin_guard_args;
+    tc->num_plugin_guards = tc->temp_num_plugin_guards;
+    tc->temp_plugin_guards = NULL;
+    tc->temp_plugin_guard_args = NULL;
+    tc->temp_num_plugin_guards = 0;
+}
+
 /* Callback after a resolver to update the guard structure. */
 static void add_resolution_to_guard_set(MVMThreadContext *tc, void *sr_data) {
     MVMSpeshPluginSpecialReturnData *srd = (MVMSpeshPluginSpecialReturnData *)sr_data;
     MVMSpeshPluginState *base_state = get_plugin_state(tc, srd->sf);
-    MVMSpeshPluginGuardSet *base_guards = guard_set_for_position(tc, srd->position, base_state);
-    if (!base_guards || base_guards->num_guards < MVM_SPESH_GUARD_LIMIT) {
-        MVMSpeshPluginGuardSet *new_guards = append_guard(tc, base_guards, srd->result->o,
-                srd->sf->body.spesh);
-        if (new_guards != base_guards) {
-            MVMSpeshPluginState *new_state = updated_state(tc, base_state, srd->position,
-                    base_guards, new_guards);
-            MVMuint32 committed = MVM_trycas(
-                    &srd->sf->body.spesh->body.plugin_state,
-                    base_state, new_state);
-            if (committed) {
-                free_dead_guards(tc, base_guards);
-                free_dead_state(tc, base_state);
-            }
-            else {
-                /* Lost update race. Discard; a retry will happen naturally. */
-                free_dead_guards(tc, new_guards);
-                free_dead_state(tc, new_state);
+    stash_prev_spesh_plugin_state(tc, srd);
+    MVMROOT(tc, base_state, {
+        MVMSpeshPluginGuardSet *base_guards = guard_set_for_position(tc, srd->position, base_state);
+        if (!base_guards || base_guards->num_guards < MVM_SPESH_GUARD_LIMIT) {
+            if (!base_guards || !already_have_guard(tc, base_guards)) {
+                MVMSpeshPluginState *new_state = (MVMSpeshPluginState *)MVM_repr_alloc_init(tc, tc->instance->SpeshPluginState);
+                MVMSpeshPluginGuardSet *new_guards = append_guard(tc, base_guards, srd->result->o, new_state);
+                MVMuint32 committed;
+                update_state(tc, new_state, base_state, srd->position, base_guards, new_guards);
+                committed = MVM_trycas(
+                        &srd->sf->body.spesh->body.plugin_state,
+                        base_state, new_state);
+                if (committed) {
+                    MVM_gc_write_barrier(tc, (MVMCollectable*)srd->sf->body.spesh, (MVMCollectable *)new_state);
+                }
+                else {
+                    /* Lost update race. Discard; a retry will happen naturally. */
+                }
             }
         }
-    }
-    else {
+        else {
 #if MVM_SPESH_GUARD_DEBUG
-        fprintf(stderr, "Too many plugin guards added (%"PRIu32"); probable spesh plugin bug\n",
-            base_guards->num_guards);
-        MVM_dump_backtrace(tc);
+            fprintf(stderr, "Too many plugin guards added (%"PRIu32"); probable spesh plugin bug\n",
+                base_guards->num_guards);
+            MVM_dump_backtrace(tc);
 #endif
-    }
+        }
+    });
 
     /* Clear up recording state. */
     MVM_fixed_size_free(tc, tc->instance->fsa,
             MVM_SPESH_PLUGIN_GUARD_LIMIT * sizeof(MVMSpeshPluginGuard),
             tc->plugin_guards);
-    restore_prev_spesh_plugin_state(tc, srd);
+    apply_prev_spesh_plugin_state(tc);
 
     MVM_free(srd);
 }
@@ -963,37 +968,5 @@ void MVM_spesh_plugin_guard_list_mark(MVMThreadContext *tc, MVMSpeshPluginGuard 
                     break;
             }
         }
-    }
-}
-
-/* Called from the GC to mark the spesh plugin state. */
-void MVM_spesh_plugin_state_mark(MVMThreadContext *tc, MVMSpeshPluginState *ps,
-                                 MVMGCWorklist *worklist) {
-    if (ps) {
-        MVMuint32 i;
-        for (i = 0; i < ps->num_positions; i++) {
-            MVMSpeshPluginGuardSet *gs = ps->positions[i].guard_set;
-            MVM_spesh_plugin_guard_list_mark(tc, gs->guards, gs->num_guards, worklist);
-        }
-    }
-}
-
-/* Called from the GC when the spesh plugin state should be freed. This means
- * that it is no longer reachable, meaning the static frame and its bytecode
- * also went away. Thus a simple free will suffice. */
-void MVM_spesh_plugin_state_free(MVMThreadContext *tc, MVMSpeshPluginState *ps) {
-    if (ps) {
-        MVMuint32 i;
-        for (i = 0; i < ps->num_positions; i++) {
-            MVM_fixed_size_free(tc, tc->instance->fsa,
-                    ps->positions[i].guard_set->num_guards * sizeof(MVMSpeshPluginGuard),
-                    ps->positions[i].guard_set->guards);
-            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMSpeshPluginGuardSet),
-                    ps->positions[i].guard_set);
-        }
-        MVM_fixed_size_free(tc, tc->instance->fsa,
-                ps->num_positions * sizeof(MVMSpeshPluginPosition),
-                ps->positions);
-        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMSpeshPluginState), ps);
     }
 }

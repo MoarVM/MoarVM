@@ -1,17 +1,3 @@
-/* Data structure that hangs off a static frame's spesh state, holding the
- * guard tree at each applicable bytecode position. It is allocated using the
- * FSA, and freed using the safepointing mechanism; this allows, providing a
- * single read is done before operating, for safe concurrent use. Updated
- * versions are installed using atomic operations. */
-struct MVMSpeshPluginState {
-    /* Array of position states. Held in bytecode index order, which
-     * allows for binary searching. */
-    MVMSpeshPluginPosition *positions;
-
-    /* Number of bytecode positions we have state at. */
-    MVMuint32 num_positions;
-};
-
 /* Pairing of instruction position with the guard set at that position. */
 struct MVMSpeshPluginPosition {
     MVMSpeshPluginGuardSet *guard_set;
@@ -93,5 +79,3 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
 /* Functions for dealing with spesh plugin state. */
 void MVM_spesh_plugin_guard_list_mark(MVMThreadContext *tc, MVMSpeshPluginGuard *guards,
     MVMuint32 num_guards, MVMGCWorklist *worklist);
-void MVM_spesh_plugin_state_mark(MVMThreadContext *tc, MVMSpeshPluginState *ps, MVMGCWorklist *worklist);
-void MVM_spesh_plugin_state_free(MVMThreadContext *tc, MVMSpeshPluginState *ps);
