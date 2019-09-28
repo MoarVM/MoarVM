@@ -207,6 +207,8 @@ typedef struct MVMSpeshPEAAllocation MVMSpeshPEAAllocation;
 typedef struct MVMSpeshPEADeopt MVMSpeshPEADeopt;
 typedef struct MVMSpeshPEAMaterializeInfo MVMSpeshPEAMaterializeInfo;
 typedef struct MVMSpeshPEADeoptPoint MVMSpeshPEADeoptPoint;
+typedef struct MVMSpeshPluginState MVMSpeshPluginState;
+typedef struct MVMSpeshPluginStateBody MVMSpeshPluginStateBody;
 typedef struct MVMConfigurationProgram MVMConfigurationProgram;
 typedef struct MVMSTable MVMSTable;
 typedef struct MVMStaticFrame MVMStaticFrame;
