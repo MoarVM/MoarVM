@@ -61,6 +61,8 @@ typedef enum {
     MVMDebugSteppingMode_STEP_OUT = 3,
 } MVMDebugSteppingMode;
 
+#define MVM_KEEP_FROMSPACES 32
+
 
 /* Information associated with an executing thread. */
 struct MVMThreadContext {
@@ -333,6 +335,10 @@ struct MVMThreadContext {
 
     MVMuint32 cur_file_idx;
     MVMuint32 cur_line_no;
+
+    void *nursery_fromspaces[MVM_KEEP_FROMSPACES];
+    MVMuint32 nursery_fromspace_sizes[MVM_KEEP_FROMSPACES];
+    MVMuint32 current_nursery_fromspace;
 };
 
 MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance);

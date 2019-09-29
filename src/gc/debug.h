@@ -4,7 +4,7 @@
  * 2 = Checks on every object register access (slow)
  * 3 = Collects garbage on every allocation
  */
-#define MVM_GC_DEBUG 0
+#define MVM_GC_DEBUG 3
 
 #if MVM_GC_DEBUG
 #define MVM_ASSERT_NOT_FROMSPACE(tc, c) do { \

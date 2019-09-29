@@ -1,4 +1,5 @@
 #include "moar.h"
+#include <sys/mman.h>
 
 /* Combines a piece of work that will be passed to another thread with the
  * ID of the target thread to pass it to. */
@@ -26,7 +27,7 @@ MVMuint32 MVM_gc_new_thread_nursery_size(MVMInstance *i) {
         ? (MVM_NURSERY_SIZE < MVM_NURSERY_THREAD_START
             ? MVM_NURSERY_SIZE
             : MVM_NURSERY_THREAD_START)
-        : MVM_NURSERY_SIZE;
+        : MVM_NURSERY_THREAD_START;
 }
 
 /* Does a garbage collection run. Exactly what it does is configured by the
@@ -89,17 +90,28 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
          * last tospace size. */
         if (tc->nursery_tospace_size < MVM_NURSERY_SIZE) {
             if (tc->instance->thread_to_blame_for_gc == tc)
-                tc->nursery_tospace_size *= 2;
+                tc->nursery_tospace_size += 4096;
         }
 
         /* If the old fromspace matches the target size, just re-use it. If
          * not, free it and allocate a new tospace. */
-        if (old_fromspace_size == tc->nursery_tospace_size) {
+        if (0 && old_fromspace_size == tc->nursery_tospace_size) {
             tc->nursery_tospace = old_fromspace;
+            mprotect(tc->nursery_tospace, tc->nursery_tospace_size, PROT_READ|PROT_WRITE);
         }
         else {
-            MVM_free(old_fromspace);
-            tc->nursery_tospace = MVM_calloc(1, tc->nursery_tospace_size);
+            mprotect(old_fromspace, old_fromspace_size, PROT_NONE);
+            if (tc->nursery_fromspaces[tc->current_nursery_fromspace]) {
+                mprotect(tc->nursery_fromspaces[tc->current_nursery_fromspace], tc->nursery_fromspace_sizes[tc->current_nursery_fromspace], PROT_READ|PROT_WRITE);
+                MVM_free(tc->nursery_fromspaces[tc->current_nursery_fromspace]);
+            }
+            tc->nursery_fromspace_sizes[tc->current_nursery_fromspace] = old_fromspace_size;
+            tc->nursery_fromspaces[tc->current_nursery_fromspace++] = old_fromspace;
+            if (tc->current_nursery_fromspace >= MVM_KEEP_FROMSPACES)
+                tc->current_nursery_fromspace = 0;
+            //tc->nursery_tospace = MVM_calloc(1, tc->nursery_tospace_size);
+            posix_memalign(&tc->nursery_tospace, 4096, tc->nursery_tospace_size);
+            //memset(tc->nursery_tospace, 0, tc->nursery_tospace_size);
         }
 
         /* Reset nursery allocation pointers to the new tospace. */
@@ -185,6 +197,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
     MVMCollectable   **item_ptr;
     MVMCollectable    *new_addr;
     MVMuint32          gen2count;
+    int exited = MVM_load(&tc->thread_obj->body.stage) == MVM_thread_stage_exited;
 
     /* Grab the second generation allocator; we may move items into the
      * old generation. */
@@ -269,7 +282,11 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
              *   * A persistent ID was requested?
              *   * It is referenced by a gen2 aggregate
              */
-            if (item->flags & (MVM_CF_NURSERY_SEEN | MVM_CF_HAS_OBJECT_ID | MVM_CF_REF_FROM_GEN2)) {
+            if (
+                (item->flags & MVM_CF_NURSERY_SEEN && item->flags & MVM_CF_NURSERY_SEEN2 && item->flags & MVM_CF_NURSERY_SEEN3 && item->flags & MVM_CF_NURSERY_SEEN4)
+                || item->flags & (MVM_CF_HAS_OBJECT_ID | MVM_CF_REF_FROM_GEN2)
+                || exited
+            ) {
                 /* Yes; we should move it to the second generation. Allocate
                  * space in the second generation. */
                 to_gen2 = 1;
@@ -287,8 +304,9 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : copying an object %p of size %d to gen2 %p\n",
                     item, item->size, new_addr);
                 memcpy(new_addr, item, item->size);
-                if (new_addr->flags & MVM_CF_NURSERY_SEEN)
-                    new_addr->flags ^= MVM_CF_NURSERY_SEEN;
+                if (new_addr->flags & (MVM_CF_NURSERY_SEEN | MVM_CF_NURSERY_SEEN2 | MVM_CF_NURSERY_SEEN3 | MVM_CF_NURSERY_SEEN4)) {
+                    new_addr->flags &= (~(MVM_CF_NURSERY_SEEN | MVM_CF_NURSERY_SEEN2 | MVM_CF_NURSERY_SEEN3 | MVM_CF_NURSERY_SEEN4));
+                }
                 new_addr->flags |= MVM_CF_SECOND_GEN;
 
                 /* If it's a frame with an active work area, we need to keep
@@ -325,7 +343,15 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                  * nursery (so the next time around it will move to the
                  * older generation, if it survives). */
                 memcpy(new_addr, item, item->size);
-                new_addr->flags |= MVM_CF_NURSERY_SEEN;
+                {
+                    MVMuint16 seen_flags = (new_addr->flags & MVM_CF_NURSERY_SEEN) >> 3;
+                    seen_flags |= (new_addr->flags & (MVM_CF_NURSERY_SEEN2 | MVM_CF_NURSERY_SEEN3 | MVM_CF_NURSERY_SEEN4)) >> 12;
+                    seen_flags++;
+                    seen_flags <<= 3;
+                    new_addr->flags = new_addr->flags
+                        & (~(MVM_CF_NURSERY_SEEN | MVM_CF_NURSERY_SEEN2 | MVM_CF_NURSERY_SEEN3 | MVM_CF_NURSERY_SEEN4))
+                        | (seen_flags & MVM_CF_NURSERY_SEEN | (seen_flags & (MVM_CF_NURSERY_SEEN2 | MVM_CF_NURSERY_SEEN3 | MVM_CF_NURSERY_SEEN4) >> 9) << 9);
+                }
             }
 
             /* Store the forwarding pointer and update the original

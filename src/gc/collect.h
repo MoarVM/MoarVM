@@ -1,13 +1,13 @@
 /* The maximum size of the nursery area. Note that since it's semi-space
  * copying, we could actually have double this amount allocated per thread. */
-#define MVM_NURSERY_SIZE 4194304
+#define MVM_NURSERY_SIZE 4096 * 1024 * 4
 
 /* The nursery size threads other than the main thread start out with. If
  * they fill it and trigger a GC run, then it is doubled. If they are
  * pulled into a GC run without having themselves filled the nursery, it
  * does not grow. If MVM_NURSERY_SIZE is smaller than this value (as is
  * often done for GC stress testing) then this value will be ignored. */
-#define MVM_NURSERY_THREAD_START 131072
+#define MVM_NURSERY_THREAD_START 4096
 
 /* How many bytes should have been promoted into gen2 before we decide to
  * do a full GC run? This defaults to a percentage of the resident set, with

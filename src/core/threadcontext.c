@@ -14,9 +14,14 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
     /* Set up GC nursery. We only allocate tospace initially, and allocate
      * fromspace the first time this thread GCs, provided it ever does. */
     tc->nursery_tospace_size = MVM_gc_new_thread_nursery_size(instance);
-    tc->nursery_tospace     = MVM_calloc(1, tc->nursery_tospace_size);
+    //tc->nursery_tospace     = MVM_calloc(1, tc->nursery_tospace_size);
+    posix_memalign(&tc->nursery_tospace, 4096, tc->nursery_tospace_size);
+    memset(tc->nursery_tospace, 0, tc->nursery_tospace_size);
     tc->nursery_alloc       = tc->nursery_tospace;
     tc->nursery_alloc_limit = (char *)tc->nursery_alloc + tc->nursery_tospace_size;
+    tc->current_nursery_fromspace = 0;
+    for (i = 0; i < MVM_KEEP_FROMSPACES; i++)
+        tc->nursery_fromspaces[i] = NULL;
 
     /* Set up temporary root handling. */
     tc->num_temproots   = 0;

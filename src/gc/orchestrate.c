@@ -1,6 +1,7 @@
 #include "moar.h"
 #include <platform/threads.h>
 #include "platform/malloc_trim.h"
+#include <sys/mman.h>
 
 /* If we have the job of doing GC for a thread, we add it to our work
  * list. */
@@ -257,6 +258,8 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
 #if MVM_GC_DEBUG >= 3
                 memset(other->nursery_fromspace, 0xef, other->nursery_fromspace_size);
 #endif
+                if (mprotect(other->nursery_fromspace, other->nursery_fromspace_size, PROT_NONE))
+                    fprintf(stderr, "%s on %p %ld\n", strerror(errno), other->nursery_fromspace, other->nursery_fromspace_size);
 
             /* Mark thread free to continue. */
             MVM_cas(&other->gc_status, MVMGCStatus_STOLEN, MVMGCStatus_UNABLE);
