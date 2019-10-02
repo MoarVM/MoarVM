@@ -2,26 +2,20 @@
 
 typedef struct {
     MVMuint32 items;
-    MVMuint32 start;
     MVMuint32 alloc;
 
     MVMProfileCallNode **list;
 } NodeWorklist;
 
 static void add_node(MVMThreadContext *tc, NodeWorklist *list, MVMProfileCallNode *node) {
-    if (list->start + list->items + 1 < list->alloc) {
-        /* Add at the end */
-        list->items++;
-        list->list[list->start + list->items] = node;
-    } else if (list->start > 0) {
-        /* End reached, add to the start now */
-        list->start--;
-        list->list[list->start] = node;
-    } else {
+    if (list->items == list->alloc) {
         /* Filled up the whole list. Make it bigger */
         list->alloc *= 2;
         list->list = MVM_realloc(list->list, list->alloc * sizeof(MVMProfileCallNode *));
     }
+    /* Add at the end */
+    list->list[list->items] = node;
+    list->items++;
 }
 
 static MVMProfileCallNode *take_node(MVMThreadContext *tc, NodeWorklist *list) {
@@ -29,13 +23,8 @@ static MVMProfileCallNode *take_node(MVMThreadContext *tc, NodeWorklist *list) {
     if (list->items == 0) {
         MVM_panic(1, "profiler: tried to take a node from an empty node worklist");
     }
-    if (list->start > 0) {
-        result = list->list[list->start];
-        list->start++;
-    } else {
-        result = list->list[list->start + list->items];
-        list->items--;
-    }
+    list->items--;
+    result = list->list[list->items];
     return result;
 }
 
@@ -846,7 +835,6 @@ void MVM_profile_instrumented_mark_data(MVMThreadContext *tc, MVMGCWorklist *wor
         /* Allocate our worklist on the stack. */
         NodeWorklist nodelist;
         nodelist.items = 0;
-        nodelist.start = 0;
         nodelist.alloc = 256;
         nodelist.list = MVM_malloc(nodelist.alloc * sizeof(MVMProfileCallNode *));
 
