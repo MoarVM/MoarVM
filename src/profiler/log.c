@@ -441,6 +441,7 @@ void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full, MVMuint32 t
     gc->num_dealloc = 0;
     gc->alloc_dealloc = 0;
     gc->deallocs = NULL;
+    gc->num_stolen_gen2roots = 0;
 
     /* Record start time. */
     ptd->cur_gc_start_time = uv_hrtime();
