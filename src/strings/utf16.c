@@ -240,7 +240,7 @@ static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
     }
 
     if (bytes % 2) {
-        MVM_exception_throw_adhoc(tc, "Malformed UTF-16; odd number of bytes");
+        MVM_exception_throw_adhoc(tc, "Malformed UTF-16; odd number of bytes (%"PRIu64")", (MVMuint64)bytes);
     }
 
     utf16_end = utf16 + bytes;
@@ -336,9 +336,9 @@ char * MVM_string_utf16_encode_substr_main(MVMThreadContext *tc, MVMString *str,
 #endif
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
-        MVM_exception_throw_adhoc(tc, "start out of range");
+        MVM_exception_throw_adhoc(tc, "start (%"PRId64") out of range (0..%"PRIu32")", start, strgraphs);
     if (start + lengthu > strgraphs)
-        MVM_exception_throw_adhoc(tc, "length out of range");
+        MVM_exception_throw_adhoc(tc, "length (%"PRId64") out of range (0..%"PRIu32")", length, strgraphs);
 
     if (replacement)
         repl_bytes = (MVMuint8 *) MVM_string_utf16_encode_substr(tc,

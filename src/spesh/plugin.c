@@ -334,7 +334,8 @@ static void add_resolution_to_guard_set(MVMThreadContext *tc, void *sr_data) {
     }
     else {
 #if MVM_SPESH_GUARD_DEBUG
-        fprintf(stderr, "Too many plugin guards added; probable spesh plugin bug\n");
+        fprintf(stderr, "Too many plugin guards added (%"PRIu32"); probable spesh plugin bug\n",
+            base_guards->num_guards);
         MVM_dump_backtrace(tc);
 #endif
     }
@@ -501,7 +502,9 @@ MVMSpeshPluginGuard * get_guard_to_record_into(MVMThreadContext *tc) {
             return &(tc->plugin_guards[tc->num_plugin_guards++]);
         }
         else {
-            MVM_exception_throw_adhoc(tc, "Too many guards recorded by spesh plugin");
+            MVM_exception_throw_adhoc(tc,
+                "Too many guards (%"PRIu32") recorded by spesh plugin, max allowed is %"PRId32"",
+                tc->num_plugin_guards, MVM_SPESH_PLUGIN_GUARD_LIMIT);
         }
     }
     else {

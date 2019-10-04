@@ -27,8 +27,10 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
         sym = (MVMDLLSym *)MVM_dll_find_symbol(tc, lib, ext);
     });
     if (!sym) {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
         uv_mutex_unlock(&tc->instance->mutex_ext_registry);
-        MVM_exception_throw_adhoc(tc, "extension symbol not found");
+        MVM_exception_throw_adhoc_free(tc, waste, "extension symbol (%s) not found", c_name);
     }
 
     entry = MVM_malloc(sizeof *entry);
