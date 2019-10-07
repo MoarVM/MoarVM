@@ -14,7 +14,9 @@ typedef enum {
 } MVMSocketType;
 
 typedef enum {
-    SOCKET_PROTOCOL_TCP = 1,
+    SOCKET_PROTOCOL_IP = 1,
+    SOCKET_PROTOCOL_IPV6,
+    SOCKET_PROTOCOL_TCP,
     SOCKET_PROTOCOL_UDP,
     SOCKET_PROTOCOL_RAW
 } MVMSocketProtocol;
