@@ -14,7 +14,6 @@
     #include <sys/un.h>
 
     typedef int Socket;
-    #define closesocket close
 #endif
 
 #if defined(_MSC_VER)
@@ -226,20 +225,43 @@ MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
     return bytes;
 }
 
-static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
-    if (data->handle) {
-        closesocket(data->handle);
-        data->handle = 0;
-    }
-    return 0;
+static int do_close(MVMThreadContext *tc, Socket s) {
+    int e;
+
+#ifdef _WIN32
+    MVM_gc_mark_thread_blocked(tc);
+    e = closesocket(s);
+    MVM_gc_mark_thread_unblocked(tc);
+#else
+    int saved_errno;
+
+    MVM_gc_mark_thread_blocked(tc);
+    saved_errno = errno;
+    e = close(s);
+    errno = saved_errno;
+    MVM_gc_mark_thread_unblocked(tc);
+#endif
+
+    return e;
 }
 static MVMint64 close_socket(MVMThreadContext *tc, MVMOSHandle *h) {
-    return do_close(tc, (MVMIOSyncSocketData *)h->body.data);
+    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
+
+    if (data->handle) {
+        int e = do_close(tc, data->handle);
+        data->handle = 0;
+        return e;
+    }
+    else
+        return 0;
 }
 
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)d;
-    do_close(tc, data);
+
+    if (data->handle)
+        do_close(tc, data->handle);
+
     MVM_free(data);
 }
 
@@ -431,14 +453,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
             } while (r == -1 && errno == EINTR);
 
             if (MVM_IS_SOCKET_ERROR(r)) {
-                int saved_errno;
-
-                MVM_gc_mark_thread_blocked(tc);
-                saved_errno = errno;
-                close(s);
-                errno = saved_errno;
-                MVM_gc_mark_thread_unblocked(tc);
-
+                do_close(tc, s);
                 errmsg = "connect socket";
                 continue;
             }
@@ -498,14 +513,7 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
             r = bind(s, record->ai_addr, record->ai_addrlen);
             MVM_gc_mark_thread_unblocked(tc);
             if (MVM_IS_SOCKET_ERROR(r)) {
-                int saved_errno;
-
-                MVM_gc_mark_thread_blocked(tc);
-                saved_errno = errno;
-                close(s);
-                errno = saved_errno;
-                MVM_gc_mark_thread_unblocked(tc);
-
+                do_close(tc, s);
                 errmsg = "bind socket";
                 continue;
             }
@@ -514,14 +522,7 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
             r = listen(s, (int)backlog);
             MVM_gc_mark_thread_unblocked(tc);
             if (MVM_IS_SOCKET_ERROR(r)) {
-                int saved_errno;
-
-                MVM_gc_mark_thread_blocked(tc);
-                saved_errno = errno;
-                close(s);
-                errno = saved_errno;
-                MVM_gc_mark_thread_unblocked(tc);
-
+                do_close(tc, s);
                 errmsg = "start listening on socket";
                 continue;
             }
