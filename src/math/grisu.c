@@ -341,7 +341,7 @@ int dtoa_grisu3(double v, char *dst, int size) {
         }
         // Prehandle zero.
         if (!u64) {
-            *s2++ = '0'; *s2 = '\0';
+            *s2++ = '0'; *s2++ = '.'; *s2++ = '0'; *s2 = '\0';
             return (int)(s2 - dst);
         }
         // Prehandle infinity.
