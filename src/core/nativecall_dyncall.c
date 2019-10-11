@@ -834,13 +834,12 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
 }
 
 #ifdef _WIN32
-DLLib* MVM_nativecall_load_lib(const char* path)
-{
+DLLib* MVM_nativecall_load_lib(const char* path) {
     HMODULE module;
     if (path != NULL) {
-        const int       len       = MultiByteToWideChar(CP_UTF8, 0, path, -1, NULL, 0);
+        const int       len   = MultiByteToWideChar(CP_UTF8, 0, path, -1, NULL, 0);
         wchar_t * const wpath = (wchar_t *)MVM_malloc(len * sizeof(wchar_t));
-                                    MultiByteToWideChar(CP_UTF8, 0, path, -1, (LPWSTR)wpath, len);
+                                MultiByteToWideChar(CP_UTF8, 0, path, -1, (LPWSTR)wpath, len);
         module = LoadLibraryW(wpath);
         MVM_free(wpath);
     }
