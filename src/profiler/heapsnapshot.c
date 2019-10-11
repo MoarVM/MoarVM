@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "platform/io.h"
 
 #ifndef MVM_HEAPSNAPSHOT_FORMAT
 #define MVM_HEAPSNAPSHOT_FORMAT 3
@@ -55,7 +56,7 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
 
     path = MVM_string_utf8_encode_C_string(tc, path_str);
 
-    col->fh = fopen(path, "w");
+    col->fh = MVM_platform_fopen(path, "w");
 
     if (!col->fh) {
         char *waste[2] = {path, NULL};

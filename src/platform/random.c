@@ -60,6 +60,7 @@
  * - NetBSD: I have not found evidence it has getentropy() or getrandom()
  *     Note: Uses __NetBSD_Version__ included from file <sys/param.h>. */
 #include "moar.h"
+#include "platform/io.h"
 /* On Unix like platforms that don't support getrandom() or getentropy()
  * we defualt to /dev/urandom. On platforms that do support these calls, we
  * only use /dev/urandom if those calls fail. This is also important on Linux,
@@ -69,7 +70,7 @@
 #if !defined(_WIN32)
     #include <unistd.h>
     MVMint32 MVM_getrandom_urandom (MVMThreadContext *tc, void *out, size_t size) {
-        int fd = open("/dev/urandom", O_RDONLY);
+        int fd = MVM_platform_open("/dev/urandom", O_RDONLY);
         ssize_t num_read = 0;
         if (fd < 0 || (num_read = read(fd, out, size) <= 0)) {
             if (fd) close(fd);

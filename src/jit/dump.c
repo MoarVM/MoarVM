@@ -1,11 +1,12 @@
 #include "moar.h"
+#include "platform/io.h"
 
 void MVM_jit_dump_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
     char filename[1024];
     FILE * dump;
     snprintf(filename, sizeof(filename), "%s/moar-jit-%04d.bin",
              tc->instance->jit_bytecode_dir, code->seq_nr);
-    dump = fopen(filename, "w");
+    dump = MVM_platform_fopen(filename, "w");
     if (dump) {
         fwrite(code->func_ptr, sizeof(char), code->size, dump);
         fclose(dump);
