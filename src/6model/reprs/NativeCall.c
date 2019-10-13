@@ -111,13 +111,29 @@ const MVMREPROps * MVMNativeCall_initialize(MVMThreadContext *tc) {
     return &NativeCall_this_repr;
 }
 
+/* gets the setup state */
+static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMNativeCallBody *body = (MVMNativeCallBody *)data;
+    return (body->lib_handle ? 1 + (body->jitcode ? 1 : 0) : 0);
+}
+
 static const MVMREPROps NativeCall_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
     NULL, /* initialize */
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
-    MVM_REPR_DEFAULT_BOX_FUNCS,
+    {
+        MVM_REPR_DEFAULT_SET_INT,
+        get_int,
+        MVM_REPR_DEFAULT_SET_NUM,
+        MVM_REPR_DEFAULT_GET_NUM,
+        MVM_REPR_DEFAULT_SET_STR,
+        MVM_REPR_DEFAULT_GET_STR,
+        MVM_REPR_DEFAULT_SET_UINT,
+        MVM_REPR_DEFAULT_GET_UINT,
+        MVM_REPR_DEFAULT_GET_BOXED_REF
+    },
     MVM_REPR_DEFAULT_POS_FUNCS,
     MVM_REPR_DEFAULT_ASS_FUNCS,
     MVM_REPR_DEFAULT_ELEMS,
