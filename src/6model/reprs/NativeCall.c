@@ -66,11 +66,50 @@ static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *
  * we just do nothing here since it may well have never been opened. Various
  * more involved approaches are possible. */
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+#ifndef HAVE_LIBFFI
+    MVMNativeCallBody *body = (MVMNativeCallBody *)data;
+    MVMint16 i = 0;
+    MVM_serialization_write_cstr(tc, writer, body->lib_name);
+    MVM_serialization_write_cstr(tc, writer, body->sym_name);
+    MVM_serialization_write_int(tc, writer, body->convention);
+    MVM_serialization_write_int(tc, writer, body->num_args);
+    MVM_serialization_write_int(tc, writer, body->ret_type);
+    /* TODO ffi support */
+    for (i = 0; i < body->num_args; i++) {
+        MVM_serialization_write_int(tc, writer, body->arg_types[i]);
+    }
+    for (i = 0; i < body->num_args; i++) {
+        MVM_serialization_write_ref(tc, writer, body->arg_info[i]);
+    }
+#endif
 }
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     st->size = sizeof(MVMNativeCall);
 }
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
+#ifndef HAVE_LIBFFI
+    MVMNativeCallBody *body = (MVMNativeCallBody *)data;
+    MVMint16 i = 0;
+    if (reader->root.version >= 22) {
+        body->lib_name = MVM_serialization_read_cstr(tc, reader);
+        body->sym_name = MVM_serialization_read_cstr(tc, reader);
+        body->convention = MVM_serialization_read_int(tc, reader);
+        body->num_args = MVM_serialization_read_int(tc, reader);
+        body->ret_type = MVM_serialization_read_int(tc, reader);
+        body->arg_types = MVM_malloc(body->num_args * sizeof(MVMint16));
+        body->arg_info  = MVM_malloc(body->num_args * sizeof(MVMObject*));
+        /* TODO ffi support */
+        for (i = 0; i < body->num_args; i++) {
+            body->arg_types[i] = MVM_serialization_read_int(tc, reader);
+        }
+        for (i = 0; i < body->num_args; i++) {
+            body->arg_info[i] = MVM_serialization_read_ref(tc, reader);
+        }
+        if (body->lib_name && body->sym_name) {
+            MVM_nativecall_setup(tc, body, 0);
+        }
+    }
+#endif
 }
 
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {

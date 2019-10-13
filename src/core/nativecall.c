@@ -633,6 +633,40 @@ MVMJitCode *create_caller_code(MVMThreadContext *tc, MVMNativeCallBody *body) {
     return jitcode;
 }
 
+void MVM_nativecall_setup(MVMThreadContext *tc, MVMNativeCallBody *body, unsigned int interval_id) {
+    /* Try to load the library. */
+    body->lib_handle = MVM_nativecall_load_lib(body->lib_name[0] ? body->lib_name : NULL);
+
+    if (!body->lib_handle) {
+        char *waste[] = { body->lib_name, NULL };
+        MVM_free(body->sym_name);
+        body->lib_name = NULL;
+        body->sym_name = NULL;
+        if (interval_id)
+            MVM_telemetry_interval_stop(tc, interval_id, "error building native call");
+        MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate native library '%s': %s", body->lib_name, dlerror());
+    }
+
+    if (!body->entry_point) {
+        body->entry_point = MVM_nativecall_find_sym(body->lib_handle, body->sym_name);
+        if (!body->entry_point) {
+            char *waste[] = { body->sym_name, body->lib_name, NULL };
+            body->lib_name = NULL;
+            body->sym_name = NULL;
+            if (interval_id)
+                MVM_telemetry_interval_stop(tc, interval_id, "error building native call");
+            MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate symbol '%s' in native library '%s'",
+                body->sym_name, body->lib_name);
+        }
+    }
+
+    if (tc->instance->jit_enabled) {
+        body->jitcode = create_caller_code(tc, body);
+    }
+    else
+        body->jitcode = NULL;
+}
+
 /* Builds up a native call site out of the supplied arguments. */
 MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
         MVMString *sym, MVMString *conv, MVMObject *arg_info, MVMObject *ret_info) {
@@ -649,33 +683,17 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
     /* Initialize the object; grab native call part of its body. */
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
 
-    /* Try to load the library. */
     body->lib_name = lib_name;
-    body->lib_handle = MVM_nativecall_load_lib(lib_name[0] ? lib_name : NULL);
-
-    if (!body->lib_handle) {
-        char *waste[] = { lib_name, NULL };
-        MVM_free(sym_name);
-        MVM_telemetry_interval_stop(tc, interval_id, "error building native call");
-        MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate native library '%s': %s", lib_name, dlerror());
-    }
 
     /* Try to locate the symbol. */
-    if (entry_point_o) {
+    if (entry_point_o && !MVM_is_null(tc, entry_point_o)) {
         body->entry_point = MVM_nativecall_unmarshal_cpointer(tc, entry_point_o, MVM_NATIVECALL_UNMARSHAL_KIND_GENERIC);
         body->sym_name    = sym_name;
         keep_sym_name     = 1;
     }
 
     if (!body->entry_point) {
-        body->entry_point = MVM_nativecall_find_sym(body->lib_handle, sym_name);
-        if (!body->entry_point) {
-            char *waste[] = { sym_name, lib_name, NULL };
-            MVM_telemetry_interval_stop(tc, interval_id, "error building native call");
-            MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate symbol '%s' in native library '%s'",
-                sym_name, lib_name);
-        }
-        body->sym_name = sym_name;
+        body->sym_name    = sym_name;
         keep_sym_name     = 1;
     }
 
@@ -715,11 +733,8 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
 #ifdef HAVE_LIBFFI
     body->ffi_ret_type = MVM_nativecall_get_ffi_type(tc, body->ret_type);
 #endif
-    if (tc->instance->jit_enabled) {
-        body->jitcode = create_caller_code(tc, body);
-    }
-    else
-        body->jitcode = NULL;
+
+    MVM_nativecall_setup(tc, body, interval_id);
 
     MVM_telemetry_interval_stop(tc, interval_id, "nativecall built");
 
