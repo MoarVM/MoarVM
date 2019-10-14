@@ -246,6 +246,35 @@ MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename, MVMint
     }
 }
 #else
+
+static int are_we_group_member(MVMThreadContext *tc, gid_t group) {
+    int len;
+    gid_t *gids;
+    int res;
+    int i;
+    /* Check the user group. */
+    if (getegid() == group)
+        return 1;
+    /* Check the supplementary groups. */
+    len  = getgroups(0, NULL);
+    if (len == 0)
+        return 0;
+    gids = MVM_malloc(len * sizeof(gid_t));
+    res = getgroups(len, gids);
+    if (res < 0) {
+        MVM_free(gids);
+        MVM_exception_throw_adhoc(tc, "Failed to retrieve groups: %s", strerror(errno));
+    }
+    res = 0;
+    for (i = 0; i < len; i++) {
+        if (gids[i] == group) {
+            res = 1;
+            break;
+        }
+    }
+    MVM_free(gids);
+    return res;
+}
 #define FILE_IS(name, rwx) \
     MVMint64 MVM_file_is ## name (MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) { \
         if (!MVM_file_exists(tc, filename, use_lstat)) \
@@ -254,7 +283,8 @@ MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename, MVMint
             uv_stat_t statbuf = file_info(tc, filename, use_lstat); \
             MVMint64 r = (statbuf.st_mode & S_I ## rwx ## OTH) \
                       || (statbuf.st_uid == geteuid() && (statbuf.st_mode & S_I ## rwx ## USR)) \
-                      || (statbuf.st_gid == getegid() && (statbuf.st_mode & S_I ## rwx ## GRP)); \
+                      || (geteuid() == 0) \
+                      || (are_we_group_member(tc, statbuf.st_gid) && (statbuf.st_mode & S_I ## rwx ## GRP)); \
             return r ? 1 : 0; \
         } \
     }
