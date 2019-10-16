@@ -1823,7 +1823,7 @@ static MVMObject * read_array_var(MVMThreadContext *tc, MVMSerializationReader *
  * of deserialize_method_cache_lazy(). See the note before
  * MVM_serialization_read_ref(). */
 static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+    MVMObject *result = MVM_gc_allocate_object(tc, STABLE(tc->instance->boot_types.BOOTHash));
     MVMint32 elems, i;
 
     /* Read the element count. */
@@ -1837,8 +1837,12 @@ static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReade
 
     /* Read in the elements. */
     for (i = 0; i < elems; i++) {
+        MVMRegister value;
         MVMString *key = MVM_serialization_read_str(tc, reader);
-        MVM_repr_bind_key_o(tc, result, key, MVM_serialization_read_ref(tc, reader));
+
+        value.o = MVM_serialization_read_ref(tc, reader);
+
+        MVMHash_bind_key(tc, STABLE(result), result, OBJECT_BODY(result), (MVMObject *)key, value, MVM_reg_obj);
     }
 
     /* Set the SC. */
