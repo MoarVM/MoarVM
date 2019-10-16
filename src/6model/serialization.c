@@ -1914,8 +1914,8 @@ MVM_STATIC_INLINE MVMuint8 read_discrim(MVMThreadContext *tc, MVMSerializationRe
  */
 
 MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMObject *result = NULL;
     assert(tc->allocate_in_gen2);
-    MVMObject *result;
 
     /* Read the discriminator. */
     const int discrim_size = 1;
@@ -1933,7 +1933,12 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
         case REFVAR_VM_INT: {
             MVMint64 value;
             value = MVM_serialization_read_int(tc, reader);
-            result = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, value);
+            if (MVM_INTCACHE_RANGE_CHECK(value))
+                result = MVM_intcache_get(tc, tc->instance->boot_types.BOOTInt, value);
+            if (result == 0) {
+                result = MVM_gc_allocate_object(tc, STABLE(tc->instance->boot_types.BOOTInt));
+                MVMP6int_set_int(tc, STABLE(result), result, OBJECT_BODY(result), value);
+            }
             return result;
         }
         case REFVAR_VM_NUM:
