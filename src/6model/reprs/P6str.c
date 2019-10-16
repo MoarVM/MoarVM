@@ -24,11 +24,11 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVM_ASSIGN_REF(tc, &(dest_root->header), dest_body->value, src_body->value);
 }
 
-static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
+void MVMP6str_set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
     MVM_ASSIGN_REF(tc, &(root->header), ((MVMP6strBody *)data)->value, value);
 }
 
-static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+MVMString * MVMP6str_get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     return ((MVMP6strBody *)data)->value;
 }
 
@@ -134,8 +134,8 @@ static const MVMREPROps P6str_this_repr = {
         MVM_REPR_DEFAULT_GET_INT,
         MVM_REPR_DEFAULT_SET_NUM,
         MVM_REPR_DEFAULT_GET_NUM,
-        set_str,
-        get_str,
+        MVMP6str_set_str,
+        MVMP6str_get_str,
         MVM_REPR_DEFAULT_SET_UINT,
         MVM_REPR_DEFAULT_GET_UINT,
         MVM_REPR_DEFAULT_GET_BOXED_REF
