@@ -125,7 +125,7 @@ const MVMREPROps * MVMP6str_initialize(MVMThreadContext *tc) {
 
 static const MVMREPROps P6str_this_repr = {
     type_object_for,
-    MVM_gc_allocate_object,
+    MVM_gc_allocate_object, /* serialization.c relies on this and the next line */
     NULL, /* initialize */
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
