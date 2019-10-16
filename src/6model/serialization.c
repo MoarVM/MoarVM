@@ -1801,15 +1801,19 @@ static MVMObject * read_obj_ref(MVMThreadContext *tc, MVMSerializationReader *re
 
 /* Reads in an array of variant references. */
 static MVMObject * read_array_var(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+    MVMObject *result = MVM_gc_allocate_object(tc, STABLE(tc->instance->boot_types.BOOTArray));
     MVMint32 elems, i;
 
     /* Read the element count. */
     elems = MVM_serialization_read_int(tc, reader);
 
     /* Read in the elements. */
-    for (i = 0; i < elems; i++)
-        MVM_repr_bind_pos_o(tc, result, i, MVM_serialization_read_ref(tc, reader));
+    for (i = 0; i < elems; i++) {
+        MVMRegister val;
+        val.o = MVM_serialization_read_ref(tc, reader);
+        MVM_VMArray_bind_pos(tc, STABLE(result), result, OBJECT_BODY(result),
+            i, val, MVM_reg_obj);
+    }
 
     /* Set the SC. */
     MVM_sc_set_obj_sc(tc, result, reader->root.sc);
@@ -1853,22 +1857,26 @@ static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReade
 
 /* Reads in an array of integers. */
 static MVMObject * read_array_int(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
+    MVMObject *result = MVM_gc_allocate_object(tc, STABLE(tc->instance->boot_types.BOOTIntArray));
     MVMint64 elems, i;
 
     /* Read the element count. */
     elems = MVM_serialization_read_int(tc, reader);
 
     /* Read in the elements. */
-    for (i = 0; i < elems; i++)
-        MVM_repr_bind_pos_i(tc, result, i, MVM_serialization_read_int(tc, reader));
+    for (i = 0; i < elems; i++) {
+        MVMRegister val;
+        val.i64 = MVM_serialization_read_int(tc, reader);
+        MVM_VMArray_bind_pos(tc, STABLE(result), result, OBJECT_BODY(result),
+            i, val, MVM_reg_int64);
+    }
 
     return result;
 }
 
 /* Reads in an array of strings. */
 static MVMObject * read_array_str(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStrArray);
+    MVMObject *result = MVM_gc_allocate_object(tc, STABLE(tc->instance->boot_types.BOOTStrArray));
     MVMint32 elems, i;
 
     /* Read the element count. */
@@ -1881,8 +1889,12 @@ static MVMObject * read_array_str(MVMThreadContext *tc, MVMSerializationReader *
     }
 
     /* Read in the elements. */
-    for (i = 0; i < elems; i++)
-        MVM_repr_bind_pos_s(tc, result, i, MVM_serialization_read_str(tc, reader));
+    for (i = 0; i < elems; i++) {
+        MVMRegister val;
+        val.s = MVM_serialization_read_str(tc, reader);
+        MVM_VMArray_bind_pos(tc, STABLE(result), result, OBJECT_BODY(result),
+            i, val, MVM_reg_str);
+    }
 
     return result;
 }

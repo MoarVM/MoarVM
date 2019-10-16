@@ -1500,7 +1500,7 @@ void *MVM_VMArray_find_fast_impl_for_jit(MVMThreadContext *tc, MVMSTable *st, MV
 
 static const MVMREPROps VMArray_this_repr = {
     type_object_for,
-    MVM_gc_allocate_object,
+    MVM_gc_allocate_object, /* serialization.c relies on this and the next line */
     NULL, /* initialize */
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
