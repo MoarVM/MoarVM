@@ -1964,9 +1964,12 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
         case REFVAR_VM_ARR_VAR:
             result = read_array_var(tc, reader);
             if (reader->current_object) {
-                MVM_repr_push_o(tc, reader->root.sc->body->owned_objects, result);
-                MVM_repr_push_o(tc, reader->root.sc->body->owned_objects,
-                    reader->current_object);
+                MVMRegister value;
+                MVMObject *owned_objects = reader->root.sc->body->owned_objects;
+                value.o = result;
+                MVM_VMArray_push(tc, STABLE(owned_objects), owned_objects, OBJECT_BODY(owned_objects), value, MVM_reg_obj);
+                value.o = reader->current_object;
+                MVM_VMArray_push(tc, STABLE(owned_objects), owned_objects, OBJECT_BODY(owned_objects), value, MVM_reg_obj);
             }
             return result;
         case REFVAR_VM_ARR_STR:
@@ -1976,9 +1979,12 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
         case REFVAR_VM_HASH_STR_VAR:
             result = read_hash_str_var(tc, reader);
             if (reader->current_object) {
-                MVM_repr_push_o(tc, reader->root.sc->body->owned_objects, result);
-                MVM_repr_push_o(tc, reader->root.sc->body->owned_objects,
-                    reader->current_object);
+                MVMRegister value;
+                MVMObject *owned_objects = reader->root.sc->body->owned_objects;
+                value.o = result;
+                MVM_VMArray_push(tc, STABLE(owned_objects), owned_objects, OBJECT_BODY(owned_objects), value, MVM_reg_obj);
+                value.o = reader->current_object;
+                MVM_VMArray_push(tc, STABLE(owned_objects), owned_objects, OBJECT_BODY(owned_objects), value, MVM_reg_obj);
             }
             return result;
         case REFVAR_STATIC_CODEREF:
