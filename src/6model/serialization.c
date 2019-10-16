@@ -1946,8 +1946,8 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
             MVM_repr_set_num(tc, result, MVM_serialization_read_num(tc, reader));
             return result;
         case REFVAR_VM_STR:
-            result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStr);
-            MVM_repr_set_str(tc, result, MVM_serialization_read_str(tc, reader));
+            result = MVM_gc_allocate_object(tc, STABLE(tc->instance->boot_types.BOOTStr));
+            MVMP6str_set_str(tc, STABLE(result), result, OBJECT_BODY(result), MVM_serialization_read_str(tc, reader));
             return result;
         case REFVAR_VM_ARR_VAR:
             result = read_array_var(tc, reader);
