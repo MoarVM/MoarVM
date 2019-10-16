@@ -135,7 +135,7 @@ static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *
     return &storage_spec;
 }
 
-static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
+void MVM_VMArray_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMuint64        real_index;
@@ -253,9 +253,6 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type, got '%s'", MVM_reg_get_debug_name(tc, repr_data->slot_type));
     }
-}
-void MVM_VMArray_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
-    at_pos(tc, st, root, data, index, value, kind);
 }
 
 static MVMuint64 zero_slots(MVMThreadContext *tc, MVMArrayBody *body,
@@ -376,7 +373,7 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
     body->elems = n;
 }
 
-static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
+void MVM_VMArray_bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMuint64        real_index;
@@ -854,7 +851,7 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
             for (i = 0; i < elems; i++) {
                 MVMRegister to_copy;
                 REPR(src)->pos_funcs.at_pos(tc, STABLE(src), src, s_body, s_offset + i, &to_copy, kind);
-                bind_pos(tc, STABLE(dest), dest, d_body, d_offset + i, to_copy, kind);
+                MVM_VMArray_bind_pos(tc, STABLE(dest), dest, d_body, d_offset + i, to_copy, kind);
             }
         }
     }
@@ -1007,13 +1004,13 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 static void at_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister *result, MVMuint16 kind) {
     if (num_indices != 1)
         MVM_exception_throw_adhoc(tc, "A dynamic array can only be indexed with a single dimension");
-    at_pos(tc, st, root, data, indices[0], result, kind);
+    MVM_VMArray_at_pos(tc, st, root, data, indices[0], result, kind);
 }
 
 static void bind_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister value, MVMuint16 kind) {
     if (num_indices != 1)
         MVM_exception_throw_adhoc(tc, "A dynamic array can only be indexed with a single dimension");
-    bind_pos(tc, st, root, data, indices[0], value, kind);
+    MVM_VMArray_bind_pos(tc, st, root, data, indices[0], value, kind);
 }
 
 static void dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 *num_dimensions, MVMint64 **dimensions) {
@@ -1509,8 +1506,8 @@ static const MVMREPROps VMArray_this_repr = {
     MVM_REPR_DEFAULT_ATTR_FUNCS,
     MVM_REPR_DEFAULT_BOX_FUNCS,
     {
-        at_pos,
-        bind_pos,
+        MVM_VMArray_at_pos,
+        MVM_VMArray_bind_pos,
         set_elems,
         push,
         pop,
