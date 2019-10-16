@@ -82,7 +82,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_str_hash_demolish(tc, hashtable);
 }
 
-static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister *result, MVMuint16 kind) {
+void MVMHash_at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister *result, MVMuint16 kind) {
     MVMHashBody   *body = (MVMHashBody *)data;
     MVMStrHashTable *hashtable = &(body->hashtable);
 
@@ -93,11 +93,8 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     MVMHashEntry *entry = MVM_str_hash_fetch(tc, hashtable, (MVMString *)key_obj);
     result->o = entry != NULL ? entry->value : tc->instance->VMNull;
 }
-void MVMHash_at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister *result, MVMuint16 kind) {
-    at_key(tc, st, root, data, key_obj, result, kind);
-}
 
-static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister value, MVMuint16 kind) {
+void MVMHash_bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister value, MVMuint16 kind) {
     MVMHashBody   *body = (MVMHashBody *)data;
     MVMStrHashTable *hashtable = &(body->hashtable);
 
@@ -119,9 +116,6 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
         entry->hash_handle.key = key;
         MVM_gc_write_barrier(tc, &(root->header), &(key->common.header));
     }
-}
-void MVMHash_bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister value, MVMuint16 kind) {
-    bind_key(tc, st, root, data, key_obj, value, kind);
 }
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMHashBody *body = (MVMHashBody *)data;
@@ -278,8 +272,8 @@ static const MVMREPROps MVMHash_this_repr = {
     MVM_REPR_DEFAULT_BOX_FUNCS,
     MVM_REPR_DEFAULT_POS_FUNCS,
     {
-        at_key,
-        bind_key,
+        MVMHash_at_key,
+        MVMHash_bind_key,
         exists_key,
         delete_key,
         get_value_storage_spec
