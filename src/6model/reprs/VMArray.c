@@ -471,7 +471,7 @@ static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     exit_single_user(tc, body);
 }
 
-static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
+void MVM_VMArray_push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     enter_single_user(tc, body);
@@ -1509,7 +1509,7 @@ static const MVMREPROps VMArray_this_repr = {
         MVM_VMArray_at_pos,
         MVM_VMArray_bind_pos,
         set_elems,
-        push,
+        MVM_VMArray_push,
         pop,
         unshift,
         shift,
