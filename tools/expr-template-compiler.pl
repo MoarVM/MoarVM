@@ -178,7 +178,7 @@ sub is_arrayref {
 sub link_declarations {
     my ($expr, %env) = @_;
     my ($operator, @operands) = @$expr;
-    if ($operator eq 'let:') {
+    if ($operator =~ m/letv?:/) {
         my ($declarations, @expressions) = @operands;
         my @definitions;
         for my $declaration (@$declarations) {
@@ -191,9 +191,8 @@ sub link_declarations {
         for my $expr (@expressions) {
             link_declarations($expr, %env);
         }
-        my $type = expr_type($expressions[$#expressions], \%env);
         # replace statement with DO/DOV
-        @$expr = ($type eq 'void' ? 'dov' : 'do', @definitions, @expressions);
+        @$expr = ($operator eq 'letv:' ? 'dov' : 'do', @definitions, @expressions);
     } else {
         for my $i (1..$#$expr) {
             my $operand = $expr->[$i];
@@ -278,6 +277,9 @@ sub expr_type {
         return expr_type($operands[$#operands], $env);
     } elsif ($operator eq 'copy') {
         return expr_type($operands[0], $env);
+    } elsif ($operator =~ m/^\^\w+/) {
+        # macro, means we're not yet expanded
+        return '?';
     } else {
         my $type = $OPERATOR_TYPES{$operator} || 'reg';
         if ($type eq '?') {
@@ -363,7 +365,7 @@ sub compile_expression {
 
 sub compile_constant {
     my ($compiler, $value, $size) = @_;
-    (undef, $value) = compile_macro($compiler, $value) if is_arrayref($value);
+    (undef, $value) = compile_cmacro($compiler, $value) if is_arrayref($value);
     my $constants = $compiler->{constants};
     my $const_nr = ($constants->{$value} = exists $constants->{$value} ?
                         $constants->{$value} : scalar keys %$constants);
@@ -407,7 +409,7 @@ sub compile_reference {
 sub compile_parameter {
     my ($compiler, $expr) = @_;
     if (is_arrayref($expr)) {
-        return compile_macro($compiler, $expr);
+        return compile_cmacro($compiler, $expr);
     } elsif (looks_like_number($expr)) {
         return '.' => $expr;
     } else {
@@ -415,7 +417,7 @@ sub compile_parameter {
     }
 }
 
-sub compile_macro {
+sub compile_cmacro {
     my ($compiler, $expr) = @_;
     my ($name, @parameters) = @$expr;
     die "Expected a macro expression, got $name"
@@ -496,8 +498,9 @@ sub parse_file {
 
             $macro = link_declarations($macro);
             $macro = apply_macros($macro, $macros);
+            my $type = expr_type($macro, {});
 
-            $macros->{$name} = [ $binding, $macro ];
+            $macros->{$name} = [ $binding, $macro, $type ];
         } elsif ($keyword eq 'template:') {
             my $opcode   = shift @$tree;
             my $template = shift @$tree;
