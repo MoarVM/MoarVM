@@ -781,7 +781,7 @@
       (carg \$0  ptr))))
 
 (template: create!
-  (letv: (($obj (call (^getf (^repr $1) MVMREPROps allocate)
+  (let: (($obj (call (^getf (^repr $1) MVMREPROps allocate)
                  (arglist
                    (carg (tc) ptr)
                    (carg (^stable $1) ptr)) ptr_sz))
@@ -2018,7 +2018,7 @@
       (carg $2 ptr)) int_sz))
 
 (template: paramnamesused
-  (letv: (($ctx   (^addrf (^frame) MVMFrame params))
+  (let: (($ctx   (^addrf (^frame) MVMFrame params))
          ($csite (^getf  $ctx MVMArgProcContext callsite)))
     (when (ne (^getf $csite MVMCallsite num_pos) (^getf $csite MVMCallsite arg_count))
       (callv (^func &MVM_args_assert_nameds_used)
@@ -2545,7 +2545,7 @@
       (carg (tc) ptr)) ptr_sz))
 
 (template: slice!
-  (letv: (
+  (let: (
     ($dest (call (^getf (^repr $1) MVMREPROps allocate)
       (arglist
         (carg (tc) ptr)
@@ -2648,7 +2648,7 @@
         (carg \$0 ptr)))))
 
 (template: sp_fastcreate!
-  (letv: (($block (call (^func &MVM_gc_allocate_nursery)
+  (let: (($block (call (^func &MVM_gc_allocate_nursery)
                    (arglist
                      (carg (tc) ptr)
                      (carg $1 int)) ptr_sz)))
@@ -2720,13 +2720,13 @@
      (copy $check)))
 
 (template: sp_guardsf
-  (letv: (($check (copy $0)))
+  (let: (($check (copy $0)))
     (when (any (^not_repr_id $check MVM_REPR_ID_MVMCode)
                (ne (^getf $check MVMCode body.sf) (^spesh_slot_value $1)))
          (^deopt_one $2))))
 
 (template: sp_guardsfouter
-  (letv: (($check (copy $0)))
+  (let: (($check (copy $0)))
     (when (any (^not_repr_id $check MVM_REPR_ID_MVMCode)
                (ne (^getf $check MVMCode body.sf) (^spesh_slot_value $1))
                (ne (^getf $check MVMCode body.outer) (^frame)))
