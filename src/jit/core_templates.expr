@@ -2672,14 +2672,14 @@
         (^store_write_barrier! $1 $addr $type)
         (copy $type)))))
 
-(template: sp_p6oget_bi (let: (($bibody (add (^p6obody $1) $2) ptr_sz))
-        (if (nz (^bigint_is_smallint $bibody))
-            (^getf $bibody MVMP6bigintBody u.smallint.value)
-            (call (^func MVM_p6bigint_get_int64)
-              (arglist
-                (carg (tc) ptr)
-                (carg $bibody ptr)) int_sz))))
-
+(template: sp_p6oget_bi
+  (let: (($bibody (add (^p6obody $1) $2) ptr_sz))
+    (if (^bigint_is_smallint $bibody)
+      (scast (^getf $bibody MVMP6bigintBody u.smallint.value) int_sz 4)
+      (call (^func MVM_p6bigint_get_int64)
+        (arglist
+          (carg (tc) ptr)
+          (carg $bibody ptr)) int_sz))))
 
 (template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
 (template: sp_p6oget_n (load_num (add (^p6obody $1) $2) num_sz))
@@ -2693,15 +2693,16 @@
 (template: sp_p6obind_s
   (^store_write_barrier! $0 (add (^p6obody $0) $1) $2))
 
-(template: sp_get_o (let: (($obj (load (add $1 $2) ptr_sz)))
-        (if (nz $obj)
-            $obj
-            (^vmnull))))
+(template: sp_get_o
+  (let: (($obj (load (add $1 $2) ptr_sz)))
+    (if (nz $obj)
+      $obj
+      (^vmnull))))
 
-(template: sp_get_i64 (load (add $1 $2) int_sz))
-(template: sp_get_i32 (load (add $1 $2) 4))
-(template: sp_get_i16 (load (add $1 $2) 2))
-(template: sp_get_i8  (load (add $1 $2) 1))
+#(template: sp_get_i64 (load (add $1 $2) int_sz))
+#(template: sp_get_i32 (load (add $1 $2) 4))
+#(template: sp_get_i16 (load (add $1 $2) 2))
+#(template: sp_get_i8  (load (add $1 $2) 1))
 
 (template: sp_bind_o
   (^store_write_barrier! $0 (add $0 $1) $2))
