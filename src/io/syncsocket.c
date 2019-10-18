@@ -367,7 +367,7 @@ struct addrinfo * MVM_io_resolve_host_name(
             hints.ai_socktype = SOCK_SEQPACKET;
             break;
         default:
-            MVM_exception_throw_adhoc(tc, "Unsupported socket type: %lld", type);
+            MVM_exception_throw_adhoc(tc, "Unsupported socket type: %ld", type);
     }
 
     switch (protocol) {
@@ -384,7 +384,7 @@ struct addrinfo * MVM_io_resolve_host_name(
             hints.ai_protocol = IPPROTO_RAW;
             break;
         default:
-            MVM_exception_throw_adhoc(tc, "Unsupported socket protocol: %lld", protocol);
+            MVM_exception_throw_adhoc(tc, "Unsupported socket protocol: %ld", protocol);
     }
 
     snprintf(port_cstr, 8, "%d", (int)port);
