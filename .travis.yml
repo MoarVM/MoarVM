@@ -39,6 +39,7 @@ addons:
       - gdb
       - llvm
       - clang
+      - libzstd-dev
 
 before_script:
   - echo "Begin ‘before_script’ section of .travis.yml"
