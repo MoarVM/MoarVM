@@ -407,7 +407,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
 
     MVMuint8 is_coordinator;
 
-    MVMuint64 start_time, end_time;
+    MVMuint64 start_time;
 
     unsigned int interval_id;
 
@@ -447,15 +447,13 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     /* Wait for everybody to agree we're done. */
     finish_gc(tc, gen, is_coordinator);
 
-    if (is_coordinator)
-        end_time = uv_hrtime();
-
     /* Finally, as the very last thing ever, the coordinator pushes a bit of
      * info into the subscription queue (if it is set) */
 
     subscription_queue = tc->instance->subscriptions.subscription_queue;
 
     if (is_coordinator && subscription_queue && tc->instance->subscriptions.GCEvent) {
+        MVMuint64 end_time = uv_hrtime();
         MVMObject *instance = MVM_repr_alloc(tc, tc->instance->subscriptions.GCEvent);
         MVMThread *cur_thread;
 
