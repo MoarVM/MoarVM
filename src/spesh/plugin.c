@@ -316,12 +316,16 @@ static void apply_prev_spesh_plugin_state(MVMThreadContext *tc) {
 static void add_resolution_to_guard_set(MVMThreadContext *tc, void *sr_data) {
     MVMSpeshPluginSpecialReturnData *srd = (MVMSpeshPluginSpecialReturnData *)sr_data;
     MVMSpeshPluginState *base_state = get_plugin_state(tc, srd->sf);
+    MVMSpeshPluginGuardSet *base_guards;
     stash_prev_spesh_plugin_state(tc, srd);
-    MVMROOT(tc, base_state, {
-        MVMSpeshPluginGuardSet *base_guards = guard_set_for_position(tc, srd->position, base_state);
-        if (!base_guards || base_guards->num_guards < MVM_SPESH_GUARD_LIMIT) {
-            if (!base_guards || !already_have_guard(tc, base_guards)) {
-                MVMSpeshPluginState *new_state = (MVMSpeshPluginState *)MVM_repr_alloc_init(tc, tc->instance->SpeshPluginState);
+    base_guards = guard_set_for_position(tc, srd->position, base_state);
+    if (!base_guards || base_guards->num_guards < MVM_SPESH_GUARD_LIMIT) {
+        if (!base_guards || !already_have_guard(tc, base_guards)) {
+            MVMSpeshPluginState *new_state;
+            MVMROOT(tc, base_state, {
+                new_state = (MVMSpeshPluginState *)MVM_repr_alloc_init(tc, tc->instance->SpeshPluginState);
+            });
+            {
                 MVMSpeshPluginGuardSet *new_guards = append_guard(tc, base_guards, srd->result->o, new_state);
                 MVMuint32 committed;
                 update_state(tc, new_state, base_state, srd->position, base_guards, new_guards);
@@ -336,14 +340,14 @@ static void add_resolution_to_guard_set(MVMThreadContext *tc, void *sr_data) {
                 }
             }
         }
-        else {
+    }
+    else {
 #if MVM_SPESH_GUARD_DEBUG
-            fprintf(stderr, "Too many plugin guards added (%"PRIu32"); probable spesh plugin bug\n",
-                base_guards->num_guards);
-            MVM_dump_backtrace(tc);
+        fprintf(stderr, "Too many plugin guards added (%"PRIu32"); probable spesh plugin bug\n",
+            base_guards->num_guards);
+        MVM_dump_backtrace(tc);
 #endif
-        }
-    });
+    }
 
     /* Clear up recording state. */
     MVM_fixed_size_free(tc, tc->instance->fsa,
