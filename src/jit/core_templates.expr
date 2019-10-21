@@ -1533,7 +1533,7 @@
             (zr $disp_for)
             (eq $disp_for $cur_code)))
       (do
-        (store (^getf (tc) MVMThreadContext cur_dispatcher) (^nullptr) ptr_sz)
+        (^setf (tc) MVMThreadContext cur_dispatcher (^nullptr))
         $disp)
       (^vmnull))))
 

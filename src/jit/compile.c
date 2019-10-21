@@ -13,6 +13,35 @@ void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, M
 
 static const MVMuint16 MAGIC_BYTECODE[] = { MVM_OP_sp_jit_enter, 0 };
 
+/* TODO this should be a debug utility somewhere */
+const char * MVM_register_type(MVMint8 reg_type) {
+    switch (reg_type) {
+    case MVM_reg_int8: return "int8";
+    case MVM_reg_int16: return "int16";
+    case MVM_reg_int32: return "int32";
+    case MVM_reg_int64: return "int64";
+    case MVM_reg_num32: return "num32";
+    case MVM_reg_num64: return "num64";
+    case MVM_reg_str: return "str";
+    case MVM_reg_obj: return "obj";
+    case MVM_reg_uint8: return "uint8";
+    case MVM_reg_uint16: return "uint16";
+    case MVM_reg_uint32: return "uint32";
+    case MVM_reg_uint64: return "uint64";
+    default: return "unknown";
+    }
+}
+
+static void debug_spill_map(MVMThreadContext *tc, MVMJitCompiler *cl) {
+    if (!MVM_jit_debug_enabled(tc))
+        return;
+    MVM_spesh_debug_printf(tc, "JIT Spilled: %d offset %x\n", MVM_VECTOR_ELEMS(cl->spills), cl->spills_base);
+    for (int i = 0; i < MVM_VECTOR_ELEMS(cl->spills); i++) {
+        MVM_spesh_debug_printf(tc, "    r%d [%x] = %s\n", i, cl->spills_base + i * sizeof(MVMRegister),
+                               MVM_register_type(cl->spills[i].reg_type));
+    }
+}
+
 void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitGraph *jg) {
     /* Create dasm state */
     dasm_init(cl, 2);
@@ -84,6 +113,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     }
     MVM_jit_emit_epilogue(tc, &cl, jg);
 
+    debug_spill_map(tc, &cl);
     /* Generate code */
     code = MVM_jit_compiler_assemble(tc, &cl, jg);
 

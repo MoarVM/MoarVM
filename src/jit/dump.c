@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "jit/internal.h"
 #include "platform/io.h"
 
 void MVM_jit_dump_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
@@ -76,7 +77,9 @@ static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *trave
         ptr += sprintf(ptr, "%" PRId32 "%s", args[i],
                        (i + 1 < info->num_args) ? ", "  : ")");
     }
-
+    if (info->type != 0) {
+        ptr += sprintf(ptr, ":%s", MVM_register_type(info->type));
+    }
     fprintf(graph_file, "  n_%04d [label=\"%s\"];\n", node, node_label);
     for (i = 0; i < info->num_links; i++) {
         fprintf(graph_file, "    n_%04d -> n_%04d;\n", node, links[i]);

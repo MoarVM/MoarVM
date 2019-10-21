@@ -104,3 +104,5 @@ extern const MVMBitmap MVM_JIT_REGISTER_CLASS[];
 #endif
 
 #define MVM_ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
+
+const char * MVM_register_type(MVMint8 reg_type);
