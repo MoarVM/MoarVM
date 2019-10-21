@@ -524,6 +524,12 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_ADD:
     case MVM_JIT_SUB:
     case MVM_JIT_MUL:
+        /* arithmetic operators do *not* propagate type information (e.g. the
+         * add of a constant on a collectable is not a colllectable */
+        node_size = MAX(MVM_JIT_EXPR_INFO(tree, links[0])->size,
+                        MVM_JIT_EXPR_INFO(tree, links[1])->size);
+        cast_mode = MVM_JIT_SCAST;
+        break;
     case MVM_JIT_LT:
     case MVM_JIT_LE:
     case MVM_JIT_GE:
@@ -590,7 +596,8 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
         break;
     }
     MVM_JIT_EXPR_INFO(tree, node)->size = node_size;
-    MVM_JIT_EXPR_INFO(tree, node)->type = node_type;
+    if (MVM_JIT_EXPR_INFO(tree, node)->type == 0) /* don't overwrite top-down assigned type */
+        MVM_JIT_EXPR_INFO(tree, node)->type = node_type;
 
     /* Insert casts as necessary */
     if (cast_mode != MVM_JIT_NOOP) {
