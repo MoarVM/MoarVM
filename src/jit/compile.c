@@ -33,10 +33,11 @@ const char * MVM_register_type(MVMint8 reg_type) {
 }
 
 static void debug_spill_map(MVMThreadContext *tc, MVMJitCompiler *cl) {
+    MVMint32 i;
     if (!MVM_jit_debug_enabled(tc))
         return;
     MVM_spesh_debug_printf(tc, "JIT Spilled: %d offset %x\n", MVM_VECTOR_ELEMS(cl->spills), cl->spills_base);
-    for (int i = 0; i < MVM_VECTOR_ELEMS(cl->spills); i++) {
+    for (i = 0; i < MVM_VECTOR_ELEMS(cl->spills); i++) {
         MVM_spesh_debug_printf(tc, "    r%d [%x] = %s\n", i, cl->spills_base + i * sizeof(MVMRegister),
                                MVM_register_type(cl->spills[i].reg_type));
     }
