@@ -235,9 +235,26 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
                     else /* non-line ending codepoint */
                         col++;
                     break;
-                case UTF8_REJECT:
+                case UTF8_REJECT: {
+                    size_t error_pos = orig_bytes - bytes;
                     MVM_free(buffer);
-                    MVM_exception_throw_adhoc(tc, "Malformed UTF-8 at line %u col %u", line, col);
+                    if (error_pos >= 3) {
+                        unsigned char a = utf8[error_pos - 2], b = utf8[error_pos - 1], c = utf8[error_pos];
+                        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx %02hhx at line %u col %u", a, b, c, line, col);
+                    }
+                    else if (error_pos == 2) {
+                        unsigned char a = utf8[error_pos - 1], b = utf8[error_pos];
+                        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx at line %u col %u", a, b, line, col);
+                    }
+                    else if (error_pos == 1) {
+                        unsigned char a = utf8[error_pos];
+                        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near byte %02hhx at line %u col %u", a, line, col);
+                    }
+                    else {
+                        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 at line %u col %u", line, col);
+                    }
+                    break;
+                }
                 }
             }
             MVM_free(buffer);
@@ -301,6 +318,24 @@ MVMString * MVM_string_utf8_decode_strip_bom(MVMThreadContext *tc, const MVMObje
         bytes -= 3;
     }
     return MVM_string_utf8_decode(tc, result_type, utf8, bytes);
+}
+
+static void encoding_error(MVMThreadContext *tc, char *bytes, int error_pos) {
+    if (error_pos >= 3) {
+        unsigned char a = bytes[error_pos - 2], b = bytes[error_pos - 1], c = bytes[error_pos];
+        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx %02hhx", a, b, c);
+    }
+    else if (error_pos == 2) {
+        unsigned char a = bytes[error_pos - 1], b = bytes[error_pos];
+        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx", a, b);
+    }
+    else if (error_pos == 1) {
+        unsigned char a = bytes[error_pos];
+        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near byte %02hhx", a);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
+    }
 }
 
 /* Decodes using a decodestream. Decodes as far as it can with the input
@@ -384,22 +419,8 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     break;
                 }
                 case UTF8_REJECT: {
-                    char *waste[] = { (char *)buffer, NULL };
-                    if (bufsize >= 3) {
-                        MVMGrapheme32 a = buffer[pos - 2], b = buffer[pos - 1], c = buffer[pos];
-                        MVM_exception_throw_adhoc_free(tc, waste, "Malformed UTF-8 near bytes %02x %02x %02x", a, b, c);
-                    }
-                    else if (bufsize == 2) {
-                        MVMGrapheme32 a = buffer[pos - 1], b = buffer[pos];
-                        MVM_exception_throw_adhoc_free(tc, waste, "Malformed UTF-8 near bytes %02x %02x", a, b);
-                    }
-                    else if (bufsize == 1) {
-                        MVMGrapheme32 a = buffer[pos];
-                        MVM_exception_throw_adhoc_free(tc, waste, "Malformed UTF-8 near byte %02x", a);
-                    }
-                    else {
-                        MVM_exception_throw_adhoc_free(tc, waste, "Malformed UTF-8");
-                    }
+                    MVM_free(buffer);
+                    encoding_error(tc, bytes, pos - 1);
                     break;
                 }
                 }
@@ -448,22 +469,8 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     break;
                 }
                 case UTF8_REJECT: {
-                    char *waste[] = { (char *)buffer, NULL };
-                    if (bufsize >= 3) {
-                        MVMGrapheme32 a = buffer[pos - 2], b = buffer[pos - 1], c = buffer[pos];
-                        MVM_exception_throw_adhoc_free(tc, waste, "Malformed UTF-8 near bytes %02x %02x %02x", a, b, c);
-                    }
-                    else if (bufsize == 2) {
-                        MVMGrapheme32 a = buffer[pos - 1], b = buffer[pos];
-                        MVM_exception_throw_adhoc_free(tc, waste, "Malformed UTF-8 near bytes %02x %02x", a, b);
-                    }
-                    else if (bufsize == 1) {
-                        MVMGrapheme32 a = buffer[pos];
-                        MVM_exception_throw_adhoc_free(tc, waste, "Malformed UTF-8 near byte %02x", a);
-                    }
-                    else {
-                        MVM_exception_throw_adhoc_free(tc, waste, "Malformed UTF-8");
-                    }
+                    MVM_free(buffer);
+                    encoding_error(tc, bytes, pos - 1);
                     break;
                 }
                 }
@@ -517,22 +524,8 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     break;
                 }
                 case UTF8_REJECT: {
-                    char *waste[] = { (char *)buffer, NULL };
-                    if (bufsize >= 3) {
-                        MVMGrapheme32 a = buffer[pos - 2], b = buffer[pos - 1], c = buffer[pos];
-                        MVM_exception_throw_adhoc_free(tc, waste, "Malformed UTF-8 near bytes %02x %02x %02x", a, b, c);
-                    }
-                    else if (bufsize == 2) {
-                        MVMGrapheme32 a = buffer[pos - 1], b = buffer[pos];
-                        MVM_exception_throw_adhoc_free(tc, waste, "Malformed UTF-8 near bytes %02x %02x", a, b);
-                    }
-                    else if (bufsize == 1) {
-                        MVMGrapheme32 a = buffer[pos];
-                        MVM_exception_throw_adhoc_free(tc, waste, "Malformed UTF-8 near byte %02x", a);
-                    }
-                    else {
-                        MVM_exception_throw_adhoc_free(tc, waste, "Malformed UTF-8");
-                    }
+                    MVM_free(buffer);
+                    encoding_error(tc, bytes, pos - 1);
                     break;
                 }
                 }
