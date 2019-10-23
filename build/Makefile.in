@@ -113,6 +113,7 @@ OBJECTS1 = src/core/callsite@obj@ \
           src/core/fixedsizealloc@obj@ \
           src/core/regionalloc@obj@ \
           src/debug/debugserver@obj@ \
+          src/debug/stringify@obj@ \
           src/gen/config@obj@ \
           src/gc/orchestrate@obj@ \
           src/gc/allocation@obj@ \
@@ -283,6 +284,7 @@ HEADERS = src/moar.h \
           src/core/fixedsizealloc.h \
           src/core/regionalloc.h \
           src/debug/debugserver.h \
+          src/debug/stringify.h \
           src/io/io.h \
           src/io/eventloop.h \
           src/io/syncfile.h \
@@ -431,6 +433,7 @@ HEADERS = src/moar.h \
           src/instrument/line_coverage.h \
           src/gen/config.h \
           src/debug/debugserver.h \
+          src/debug/stringify.h \
           src/strings/siphash/csiphash.h \
           src/strings/uthash_types.h \
           src/strings/uthash.h \

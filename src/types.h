@@ -219,6 +219,7 @@ typedef struct MVMStaticFrameSpesh MVMStaticFrameSpesh;
 typedef struct MVMStaticFrameSpeshBody MVMStaticFrameSpeshBody;
 typedef struct MVMStorageSpec MVMStorageSpec;
 typedef struct MVMString MVMString;
+typedef struct MVMStringTable MVMStringTable;
 typedef struct MVMStringBody MVMStringBody;
 typedef struct MVMStringConsts MVMStringConsts;
 typedef struct MVMStringStrand MVMStringStrand;

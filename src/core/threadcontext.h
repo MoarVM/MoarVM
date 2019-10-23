@@ -333,6 +333,10 @@ struct MVMThreadContext {
 
     MVMuint32 cur_file_idx;
     MVMuint32 cur_line_no;
+
+#if MVM_DEBUG
+    MVMuint8 debug;
+#endif
 };
 
 MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance);

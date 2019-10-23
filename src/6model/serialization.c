@@ -10,7 +10,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 22
+#define CURRENT_VERSION 21
 #define MIN_VERSION     16
 
 /* Various sizes (in bytes). */
@@ -576,12 +576,25 @@ static MVMObject * closure_to_static_code_ref(MVMThreadContext *tc, MVMObject *c
     return scr;
 }
 
+static void dump_ctx_info(MVMThreadContext *tc, MVMFrame *ctx, const char *msg) {
+    if (getenv("MOAR_DEBUG")) {
+        MVMStaticFrame *sf = ctx->static_info;
+        char *fname = "<anon frame>";
+        if (sf->body.name) {
+            fname = MVM_string_utf8_encode_C_string(tc, sf->body.name);
+        }
+        fprintf(stderr, "*| %s %s\n", msg, fname);
+    }
+}
+
 /* Takes an outer context that is potentially to be serialized. Checks if it
  * is of interest, and if so sets it up to be serialized. */
 static MVMint32 get_serialized_context_idx(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMFrame *ctx, MVMCode *closure) {
+    dump_ctx_info(tc, ctx, "getting sc idx");
      if (OBJ_IS_NULL(MVM_sc_get_frame_sc(tc, ctx))) {
         /* Make sure we should chase a level down. */
         if (OBJ_IS_NULL(closure_to_static_code_ref(tc, ctx->code_ref, 0))) {
+            dump_ctx_info(tc, ctx, " - ignoring sc idx");
             return 0;
         }
         else {

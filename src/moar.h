@@ -4,6 +4,8 @@
 #include <setjmp.h>
 #include <stddef.h>
 
+#define MVM_DEBUG 1
+
 /* Configuration. */
 #include "gen/config.h"
 
@@ -125,6 +127,7 @@ MVM_PUBLIC const MVMint32 MVM_jit_support(void);
 #include "core/dll.h"
 #include "core/continuation.h"
 #include "debug/debugserver.h"
+#include "debug/stringify.h"
 #include "6model/reprs.h"
 #include "6model/reprconv.h"
 #include "6model/bootstrap.h"

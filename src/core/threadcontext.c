@@ -61,6 +61,10 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
      * MVM_6model_bootstrap because VMNull doesn't exist yet when the very
      * first tc is created. */
 
+#if MVM_DEBUG
+    tc->debug = 0;
+#endif
+
     return tc;
 }
 
