@@ -677,7 +677,7 @@ available make targets.
 TERM2
 
 if (!$failed && $args{'make-install'}) {
-    system($config{make}, 'install');
+    $failed = system($config{make}, 'install') >> 8;
 }
 print $folder_to_delete if $folder_to_delete;
 exit $failed;
