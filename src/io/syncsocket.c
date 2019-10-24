@@ -407,136 +407,129 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
     MVMIOSyncSocketData *data        = (MVMIOSyncSocketData *)h->body.data;
     unsigned int         interval_id = MVM_telemetry_interval_start(tc, "syncsocket connect");
 
-    if (!data->handle) {
-        struct addrinfo *result = MVM_io_resolve_host_name(tc, host, port, family, SOCKET_TYPE_STREAM, SOCKET_PROTOCOL_TCP, 0);
-        struct addrinfo *record;
-        Socket           s;
-        const char      *errmsg = NULL;
+    struct addrinfo *address_info;
+    Socket           s;
+    int              r;
+    const char      *errmsg;
 
-        for (record = result; record != NULL; record = record->ai_next) {
-            int r;
-
-            MVM_gc_mark_thread_blocked(tc);
-            s = socket(record->ai_family, record->ai_socktype, record->ai_protocol);
-            MVM_gc_mark_thread_unblocked(tc);
-            if (MVM_IS_SOCKET_ERROR(s)) {
-                errmsg = "create socket";
-                continue;
-            }
-
-            do {
-                MVM_gc_mark_thread_blocked(tc);
-                r = connect(s, record->ai_addr, record->ai_addrlen);
-                MVM_gc_mark_thread_unblocked(tc);
-            } while (r == -1 && errno == EINTR);
-
-            if (MVM_IS_SOCKET_ERROR(r)) {
-                int saved_errno;
-
-                MVM_gc_mark_thread_blocked(tc);
-                saved_errno = errno;
-                close(s);
-                errno = saved_errno;
-                MVM_gc_mark_thread_unblocked(tc);
-
-                errmsg = "connect socket";
-                continue;
-            }
-
-            data->handle = s;
-            errmsg       = NULL;
-            break;
-        }
-
-        if (errmsg != NULL) {
-            MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
-            throw_error(tc, s, errmsg);
-        }
-    }
-    else {
+    if (data->handle) {
         MVM_telemetry_interval_stop(tc, interval_id, "syncsocket didn't connect");
         MVM_exception_throw_adhoc(tc, "Socket is already bound or connected");
     }
+
+    address_info = MVM_io_resolve_host_name(tc, host, port, family, SOCKET_TYPE_STREAM, SOCKET_PROTOCOL_TCP, 0);
+
+    MVM_gc_mark_thread_blocked(tc);
+    s = socket(address_info->ai_family, address_info->ai_socktype, address_info->ai_protocol);
+    MVM_gc_mark_thread_unblocked(tc);
+    if (MVM_IS_SOCKET_ERROR(s)) {
+        errmsg = "create socket";
+        goto error;
+    }
+
+    do {
+        MVM_gc_mark_thread_blocked(tc);
+        r = connect(s, address_info->ai_addr, address_info->ai_addrlen);
+        MVM_gc_mark_thread_unblocked(tc);
+    } while (r == -1 && errno == EINTR);
+
+    if (MVM_IS_SOCKET_ERROR(r)) {
+        int saved_errno;
+
+        MVM_gc_mark_thread_blocked(tc);
+        saved_errno = errno;
+        close(s);
+        errno = saved_errno;
+        MVM_gc_mark_thread_unblocked(tc);
+
+        errmsg = "connect socket";
+        goto error;
+    }
+
+    data->handle = s;
+    return;
+
+error:
+    MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
+    throw_error(tc, s, errmsg);
 }
 
 static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMuint16 family, MVMint32 backlog) {
-    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
-    if (!data->handle) {
-        struct addrinfo *result  = MVM_io_resolve_host_name(tc, host, port, family, SOCKET_TYPE_STREAM, SOCKET_PROTOCOL_TCP, 1);
-        struct addrinfo *record;
-        Socket           s;
-        const char      *errmsg  = NULL;
+    MVMIOSyncSocketData *data        = (MVMIOSyncSocketData *)h->body.data;
+    unsigned int         interval_id = MVM_telemetry_interval_start(tc, "syncsocket listen");
 
-        for (record = result; record != NULL; record = record->ai_next) {
-            int r;
+    struct addrinfo *address_info = MVM_io_resolve_host_name(tc, host, port, family, SOCKET_TYPE_STREAM, SOCKET_PROTOCOL_TCP, 1);
+    Socket           s;
+    int              r;
+    const char      *errmsg       = NULL;
 
-            MVM_gc_mark_thread_blocked(tc);
-            s = socket(record->ai_family, record->ai_socktype, record->ai_protocol);
-            MVM_gc_mark_thread_unblocked(tc);
-            if (MVM_IS_SOCKET_ERROR(s)) {
-                errmsg = "create socket";
-                continue;
-            }
-
-            /* On POSIX, we set the SO_REUSEADDR option, which allows re-use of
-             * a port in TIME_WAIT state (modulo many hair details). Oringinally,
-             * MoarVM used libuv, which does this automatically on non-Windows.
-             * We have tests with bring up a server, then take it down, and then
-             * bring another up on the same port, and we get test failures due
-             * to racing to re-use the port without this. */
-#ifndef _WIN32
-            {
-                int one = 1;
-
-                MVM_gc_mark_thread_blocked(tc);
-                setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
-                MVM_gc_mark_thread_unblocked(tc);
-            }
-#endif
-
-            MVM_gc_mark_thread_blocked(tc);
-            r = bind(s, record->ai_addr, record->ai_addrlen);
-            MVM_gc_mark_thread_unblocked(tc);
-            if (MVM_IS_SOCKET_ERROR(r)) {
-                int saved_errno;
-
-                MVM_gc_mark_thread_blocked(tc);
-                saved_errno = errno;
-                close(s);
-                errno = saved_errno;
-                MVM_gc_mark_thread_unblocked(tc);
-
-                errmsg = "bind socket";
-                continue;
-            }
-
-            MVM_gc_mark_thread_blocked(tc);
-            r = listen(s, (int)backlog);
-            MVM_gc_mark_thread_unblocked(tc);
-            if (MVM_IS_SOCKET_ERROR(r)) {
-                int saved_errno;
-
-                MVM_gc_mark_thread_blocked(tc);
-                saved_errno = errno;
-                close(s);
-                errno = saved_errno;
-                MVM_gc_mark_thread_unblocked(tc);
-
-                errmsg = "start listening on socket";
-                continue;
-            }
-
-            data->handle = s;
-            errmsg       = NULL;
-            break;
-        }
-
-        if (errmsg != NULL)
-            throw_error(tc, s, errmsg);
-    }
-    else {
+    if (data->handle) {
+        MVM_telemetry_interval_stop(tc, interval_id, "syncsocket didn't listen");
         MVM_exception_throw_adhoc(tc, "Socket is already bound or connected");
     }
+
+    MVM_gc_mark_thread_blocked(tc);
+    s = socket(address_info->ai_family, address_info->ai_socktype, address_info->ai_protocol);
+    MVM_gc_mark_thread_unblocked(tc);
+    if (MVM_IS_SOCKET_ERROR(s)) {
+        errmsg = "create socket";
+        goto error;
+    }
+
+    /* On POSIX, we set the SO_REUSEADDR option, which allows re-use of
+     * a port in TIME_WAIT state (modulo many hair details). Oringinally,
+     * MoarVM used libuv, which does this automatically on non-Windows.
+     * We have tests with bring up a server, then take it down, and then
+     * bring another up on the same port, and we get test failures due
+     * to racing to re-use the port without this. */
+#ifndef _WIN32
+    {
+        int one = 1;
+
+        MVM_gc_mark_thread_blocked(tc);
+        setsockopt(s, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+        MVM_gc_mark_thread_unblocked(tc);
+    }
+#endif
+
+    MVM_gc_mark_thread_blocked(tc);
+    r = bind(s, address_info->ai_addr, address_info->ai_addrlen);
+    MVM_gc_mark_thread_unblocked(tc);
+    if (MVM_IS_SOCKET_ERROR(r)) {
+        int saved_errno;
+
+        MVM_gc_mark_thread_blocked(tc);
+        saved_errno = errno;
+        close(s);
+        errno = saved_errno;
+        MVM_gc_mark_thread_unblocked(tc);
+
+        errmsg = "bind socket";
+        goto error;
+    }
+
+    MVM_gc_mark_thread_blocked(tc);
+    r = listen(s, (int)backlog);
+    MVM_gc_mark_thread_unblocked(tc);
+    if (MVM_IS_SOCKET_ERROR(r)) {
+        int saved_errno;
+
+        MVM_gc_mark_thread_blocked(tc);
+        saved_errno = errno;
+        close(s);
+        errno = saved_errno;
+        MVM_gc_mark_thread_unblocked(tc);
+
+        errmsg = "start listening on socket";
+        goto error;
+    }
+
+    data->handle = s;
+    return;
+
+error:
+    MVM_telemetry_interval_stop(tc, interval_id, "syncsocket listen");
+    throw_error(tc, s, errmsg);
 }
 
 MVMint64 socket_getport(MVMThreadContext *tc, MVMOSHandle *h) {
@@ -608,26 +601,26 @@ static const MVMIOOps op_table = {
 };
 
 static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
-    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
-    Socket s;
+    MVMIOSyncSocketData *data        = (MVMIOSyncSocketData *)h->body.data;
+    unsigned int         interval_id = MVM_telemetry_interval_start(tc, "syncsocket accept");
+    Socket               s;
 
-    unsigned int interval_id = MVM_telemetry_interval_start(tc, "syncsocket accept");
     do {
         MVM_gc_mark_thread_blocked(tc);
         s = accept(data->handle, NULL, NULL);
         MVM_gc_mark_thread_unblocked(tc);
-    } while(s == -1 && errno == EINTR);
+    } while (s == -1 && errno == EINTR);
+
     if (MVM_IS_SOCKET_ERROR(s)) {
         MVM_telemetry_interval_stop(tc, interval_id, "syncsocket accept failed");
         throw_error(tc, s, "accept socket connection");
     }
     else {
-        MVMOSHandle * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc,
-                tc->instance->boot_types.BOOTIO);
-        MVMIOSyncSocketData * const data = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
-        data->handle = s;
-        result->body.ops  = &op_table;
-        result->body.data = data;
+        MVMOSHandle         * const result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
+        MVMIOSyncSocketData * const data   = MVM_calloc(1, sizeof(MVMIOSyncSocketData));
+        data->handle                       = s;
+        result->body.ops                   = &op_table;
+        result->body.data                  = data;
         MVM_telemetry_interval_stop(tc, interval_id, "syncsocket accept succeeded");
         return (MVMObject *)result;
     }
