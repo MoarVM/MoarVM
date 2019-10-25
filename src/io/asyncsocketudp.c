@@ -551,18 +551,12 @@ static void setup_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     }
 }
 
-/* Marks async connect task. */
-static void setup_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
-    SocketSetupInfo *ssi = (SocketSetupInfo *)data;
-    MVM_gc_worklist_add(tc, worklist, &ssi->async_task);
-}
-
 /* Operations table for async connect task. */
 static const MVMAsyncTaskOps setup_op_table = {
     setup_setup,
     NULL,
     NULL,
-    setup_gc_mark,
+    NULL,
     setup_gc_free
 };
 
