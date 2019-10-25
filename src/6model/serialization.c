@@ -2355,6 +2355,10 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
         /* Attach it. */
         MVM_ASSIGN_REF(tc, &(f->header), f->outer, reader->contexts[outer_idx - 1]);
     }
+    else if (((MVMCode *)static_code)->body.outer == NULL) {
+        MVM_ASSIGN_REF(tc, &(f->header), f->outer, ((MVMCode *)static_code)->body.outer);
+    }
+
 }
 
 /* Deserializes a closure, though without attaching outer (that comes in a
