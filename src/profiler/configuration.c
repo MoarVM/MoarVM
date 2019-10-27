@@ -27,6 +27,26 @@
 #define junkprint(fh, str, ...) do { } while (0)
 #endif
 
+#define CONFPROG_DEBUG_LEVEL_BARE  1
+#define CONFPROG_DEBUG_LEVEL_TRACE 2
+
+// see src/profiler/log.c for the define for debug level 4, which is PROFILER_RESULTS
+
+static void debugprint(MVMuint8 active, MVMThreadContext *tc, const char *str, ...) {
+    va_list args;
+    va_start(args, str);
+
+    if (active) {
+        fprintf(stderr, "%p: ", tc);
+        vfprintf(stderr, str, args);
+        fprintf(stderr, "\n");
+    }
+
+    va_end(args);
+}
+
+#define DEBUG_LVL(level) ((debug_level) & CONFPROG_DEBUG_LEVEL_ ## level)
+
 enum {
     StructSel_Nothing,
     StructSel_Root,
@@ -484,6 +504,8 @@ void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *
     MVMConfigurationProgram *confprog;
     MVMint16 entrypoint_array[MVM_PROGRAM_ENTRYPOINT_COUNT];
 
+    MVMuint8 debug_level = getenv("MVM_CONFPROG_DEBUG") != NULL ? atoi(getenv("MVM_CONFPROG_DEBUG")) : 0;
+
     CHECK_CONC(bytecode, VMArray, "the bytecode");
     CHECK_CONC(string_array, VMArray, "the string heap");
     CHECK_CONC(entrypoints, VMArray, "the entrypoints list");
@@ -551,6 +573,8 @@ void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *
 
     confprog = MVM_calloc(sizeof(MVMConfigurationProgram), 1);
 
+    confprog->debugging_level = debug_level;
+
     junkprint(stderr, "copying %d (%x) bytecode entries\n", bytecode_size, bytecode_size);
     confprog->bytecode = MVM_malloc(bytecode_size);
     memcpy(confprog->bytecode, array_contents, bytecode_size);
@@ -591,6 +615,8 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
 
     MVMuint8 *bytecode_start;
 
+    MVMuint8 debug_level = prog->debugging_level;
+
     CPRegister *reg_base = MVM_calloc(prog->reg_count + 1, sizeof(CPRegister));
 
     reg_base[REGISTER_FEATURE_TOGGLE].i64 = initial_feature_value;
@@ -599,10 +625,11 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
     cur_op = bytecode_start + prog->entrypoints[entrypoint];
     last_op = bytecode_start + prog->bytecode_length;
 
-    junkprint(stderr, "running confprog for entrypoint %d (at position %d)\n", entrypoint, prog->entrypoints[entrypoint]);
-    junkprint(stderr, "confprog is 0x%x (%d) bytes big", last_op - bytecode_start, last_op - bytecode_start);
-
     MVM_incr(&prog->invoke_counts[entrypoint]);
+
+    debugprint(DEBUG_LVL(BARE), tc, "  running confprog for entrypoint %d (at position 0x%x) (this entrypoint run for the %dth time)\n", entrypoint, prog->entrypoints[entrypoint], MVM_load(&prog->invoke_counts[entrypoint]));
+    /*junkprint(stderr, "confprog is 0x%x (%d) bytes big", last_op - bytecode_start, last_op - bytecode_start);*/
+
 
     runloop: {
         MVMuint16 ins;
@@ -618,55 +645,55 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
 
         switch (ins) {
             OP(no_op):
-                junkprint(stderr, "noop\n");
+                debugprint(DEBUG_LVL(TRACE), tc, "noop");
                 goto NEXT;
             OP(const_i64):
                 GET_REG(cur_op, 0).i64 = MVM_BC_get_I64(cur_op, 2);
-                junkprint(stderr, "const_i64 %d into %d\n", MVM_BC_get_I64(cur_op, 2), GET_UI16(cur_op, 0));
+                debugprint(DEBUG_LVL(TRACE), tc, "const_i64 %d into %d", MVM_BC_get_I64(cur_op, 2), GET_UI16(cur_op, 0));
                 cur_op += 10;
                 goto NEXT;
             OP(const_n64):
                 GET_REG(cur_op, 0).n64 = MVM_BC_get_N64(cur_op, 2);
-                junkprint(stderr, "const_n64 %f into %d\n", MVM_BC_get_N64(cur_op, 2), GET_UI16(cur_op, 0));
+                debugprint(DEBUG_LVL(TRACE), tc, "const_n64 %f into %d", MVM_BC_get_N64(cur_op, 2), GET_UI16(cur_op, 0));
                 cur_op += 10;
                 goto NEXT;
             OP(const_i64_16):
                 GET_REG(cur_op, 0).i64 = GET_I16(cur_op, 2);
-                junkprint(stderr, "const_i64_16 %d into %d\n", GET_I16(cur_op, 2), GET_UI16(cur_op, 0));
+                debugprint(DEBUG_LVL(TRACE), tc, "const_i64_16 %d into %d", GET_I16(cur_op, 2), GET_UI16(cur_op, 0));
                 cur_op += 4;
                 goto NEXT;
             OP(const_s):
                 GET_REG(cur_op, 0).s = MVM_repr_at_pos_s(tc, prog->string_heap, GET_UI32(cur_op, 2));
-                junkprint(stderr, "const_s into reg %d\n", GET_UI16(cur_op, 0));
+                debugprint(DEBUG_LVL(TRACE), tc, "const_s into reg %d", GET_UI16(cur_op, 0));
                 cur_op += 6;
                 goto NEXT;
             OP(set):
                 GET_REG(cur_op, 0) = GET_REG(cur_op, 2);
-                junkprint(stderr, "set\n");
+                debugprint(DEBUG_LVL(TRACE), tc, "set %d <- %d", GET_UI16(cur_op, 0), GET_UI16(cur_op, 2));
                 cur_op += 4;
                 goto NEXT;
             OP(say): {
                 MVMString *s = GET_REG(cur_op, 0).s;
+                debugprint(DEBUG_LVL(TRACE), tc, "say %d", GET_UI16(cur_op, 0));
                 if (s && IS_CONCRETE(s))
                     MVM_string_say(tc, s);
-                junkprint(stderr, "say\n");
                 cur_op += 2;
                 goto NEXT;
             }
             OP(getattr_o):
-                junkprint(stderr, "struct select: %x\n", reg_base[REGISTER_STRUCT_SELECT].i64);
+                debugprint(DEBUG_LVL(TRACE), tc, "struct select: %x", reg_base[REGISTER_STRUCT_SELECT].i64);
                 if (reg_base[REGISTER_STRUCT_SELECT].i64 == StructSel_Nothing) {
-                    junkprint(stderr, "getattr_o into %d\n", GET_UI16(cur_op, 0));
+                    debugprint(DEBUG_LVL(TRACE), tc, "getattr_o into %d", GET_UI16(cur_op, 0));
                 }
                 else if (reg_base[REGISTER_STRUCT_SELECT].i64 == StructSel_Root) {
                     MVMuint16 field_select = GET_UI16(cur_op, 10);
                     if (field_select == FieldSel_staticframe) {
                         reg_base[REGISTER_STRUCT_ACCUMULATOR].any = tc->cur_frame->static_info;
-                        junkprint(stderr, "get a static frame into the struct accumulator: %x\n", tc->cur_frame->static_info);
+                        debugprint(DEBUG_LVL(TRACE), tc, "get a static frame into the struct accumulator: %x", tc->cur_frame->static_info);
                     }
                     else if (field_select == FieldSel_frame) {
                         reg_base[REGISTER_STRUCT_ACCUMULATOR].any = tc->cur_frame;
-                        junkprint(stderr, "get a frame into the struct accumulator: %x\n", tc->cur_frame);
+                        debugprint(DEBUG_LVL(TRACE), tc, "get a frame into the struct accumulator: %x", tc->cur_frame);
                     }
                     else {
                         fprintf(stderr, "NYI case of getattr_o on root struct hit\n");
@@ -674,19 +701,19 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                     }
                 }
                 else {
-                    junkprint(stderr, "getting the struct accumulator's field at offset 0x%x into register %d\n",
+                    debugprint(DEBUG_LVL(TRACE), tc, "getting the struct accumulator's field at offset 0x%x into register %d",
                             GET_UI16(cur_op, 10), GET_UI16(cur_op, 0));
-                    junkprint(stderr, "register %d contents before: 0x%x\n", GET_UI16(cur_op, 0), reg_base[GET_UI16(cur_op, 0)].any);
-                    junkprint(stderr, "register %d contents before: 0x%x\n", REGISTER_STRUCT_ACCUMULATOR, reg_base[REGISTER_STRUCT_ACCUMULATOR].any);
+                    debugprint(DEBUG_LVL(TRACE), tc, "register %d contents before: 0x%x", GET_UI16(cur_op, 0), reg_base[GET_UI16(cur_op, 0)].any);
+                    debugprint(DEBUG_LVL(TRACE), tc, "register %d contents before: 0x%x", REGISTER_STRUCT_ACCUMULATOR, reg_base[REGISTER_STRUCT_ACCUMULATOR].any);
                     reg_base[GET_UI16(cur_op, 0)].any =
                         *((void **)(((char *)reg_base[REGISTER_STRUCT_ACCUMULATOR].any) + GET_UI16(cur_op, 10)));
-                    junkprint(stderr, "register %d contents now: 0x%x\n", GET_UI16(cur_op, 0), reg_base[GET_UI16(cur_op, 0)].any);
+                    debugprint(DEBUG_LVL(TRACE), tc, "register %d contents now: 0x%x", GET_UI16(cur_op, 0), reg_base[GET_UI16(cur_op, 0)].any);
                     /*(char *)(&reg_base[REGISTER_STRUCT_ACCUMULATOR]) = (char *)*/
                 }
                 cur_op += 12;
                 goto NEXT;
             OP(eq_s):
-                junkprint(stderr, "eq_s with %d and %d\n", GET_UI16(cur_op, 2), GET_UI16(cur_op, 4));
+                debugprint(DEBUG_LVL(TRACE), tc, "eq_s with %d and %d", GET_UI16(cur_op, 2), GET_UI16(cur_op, 4));
                 GET_REG(cur_op, 0).i64 = MVM_string_equal(tc,
                     GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s);
                 cur_op += 6;
@@ -798,12 +825,18 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 goto NEXT;
             }
             OP(gt_n):
+                debugprint(DEBUG_LVL(TRACE), tc, "%f > %f into %d", GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).n64, GET_UI16(cur_op, 0));
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).n64 >  GET_REG(cur_op, 4).n64;
+                cur_op += 6;
+                goto NEXT;
+            OP(ge_n):
+                debugprint(DEBUG_LVL(TRACE), tc, "%f >= %f into %d", GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).n64, GET_UI16(cur_op, 0));
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).n64 >=  GET_REG(cur_op, 4).n64;
                 cur_op += 6;
                 goto NEXT;
             OP(rand_n):
                 GET_REG(cur_op, 0).n64 = MVM_proc_rand_n(tc);
-                junkprint(stderr, "rand_n result %f into %d\n", GET_REG(cur_op, 0).n64, GET_UI16(cur_op, 0));
+                debugprint(DEBUG_LVL(TRACE), tc, "rand_n result %f into %d", GET_REG(cur_op, 0).n64, GET_UI16(cur_op, 0));
                 cur_op += 2;
                 goto NEXT;
             OP(goto):
@@ -823,13 +856,13 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 MVMint64 exit_code = GET_REG(cur_op, 0).i64;
                 goto finish_main_loop;
             OP(index_s):
-                junkprint(stderr, "index_s into %d with %d and %d starting at %d\n",
+                debugprint(DEBUG_LVL(TRACE), tc, "index_s into %d with %d and %d starting at %d",
                         GET_UI16(cur_op, 0), GET_UI16(cur_op, 2), GET_UI16(cur_op, 4), GET_UI16(cur_op, 6));
-                junkprint(stderr, "values %p and %p starting at %d\n",
+                debugprint(DEBUG_LVL(TRACE), tc, "values %p and %p starting at %d",
                         GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
                 GET_REG(cur_op, 0).i64 = MVM_string_index(tc,
                     STRING_OR_EMPTY(GET_REG(cur_op, 2).s), STRING_OR_EMPTY(GET_REG(cur_op, 4).s), GET_REG(cur_op, 6).i64);
-                junkprint(stderr, "index_s result: %d\n", GET_REG(cur_op, 0).i64);
+                debugprint(DEBUG_LVL(TRACE), tc, "index_s result: %d", GET_REG(cur_op, 0).i64);
                 cur_op += 8;
                 goto NEXT;
             OP(eqat_s):
@@ -959,7 +992,48 @@ finish_main_loop:
         MVM_incr(&prog->return_counts[stats_slot]);
     }
 
-    junkprint(stderr, "confprog result value: %lld\n\n", result);
+    {
+        const char *resultname = "unknown result meaning";
+        switch (entrypoint) {
+            case MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC:
+            case MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC:
+                switch (result) {
+                    case MVM_CONFPROG_SF_RESULT_TO_BE_DETERMINED:
+                        resultname = "RESULT_TO_BE_DETERMINED";
+                        break;
+                    case MVM_CONFPROG_SF_RESULT_NEVER:
+                        resultname = "RESULT_NEVER";
+                        break;
+                    case MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_NO:
+                        resultname = "RESULT_DYNAMIC_SUGGEST_NO";
+                        break;
+                    case MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES:
+                        resultname = "RESULT_DYNAMIC_SUGGEST_YES";
+                        break;
+                    case MVM_CONFPROG_SF_RESULT_ALWAYS:
+                        resultname = "RESULT_ALWAYS";
+                        break;
+                }
+                break;
+            case MVM_PROGRAM_ENTRYPOINT_HEAPSNAPSHOT:
+                switch (result) {
+                    case MVM_CONFPROG_HEAPSNAPSHOT_RESULT_NOTHING:
+                        resultname = "RESULT_NOTHING";
+                        break;
+                    case MVM_CONFPROG_HEAPSNAPSHOT_RESULT_SNAPSHOT:
+                        resultname = "RESULT_SNAPSHOT";
+                        break;
+                    case MVM_CONFPROG_HEAPSNAPSHOT_RESULT_STATS:
+                        resultname = "RESULT_STATS";
+                        break;
+                    case MVM_CONFPROG_HEAPSNAPSHOT_RESULT_SNAPSHOT_WITH_STATS:
+                        resultname = "RESULT_SNAPSHOT_WITH_STATS";
+                        break;
+                }
+                break;
+        }
+        debugprint(DEBUG_LVL(BARE), tc, "confprog result value: %lld (%s)\n", result, resultname);
+    }
 
     return result;
 }

@@ -15,6 +15,7 @@
 #define MVM_CONFPROG_HEAPSNAPSHOT_RESULT_NOTHING 0
 #define MVM_CONFPROG_HEAPSNAPSHOT_RESULT_SNAPSHOT 1
 #define MVM_CONFPROG_HEAPSNAPSHOT_RESULT_STATS 2
+#define MVM_CONFPROG_HEAPSNAPSHOT_RESULT_SNAPSHOT_WITH_STATS 3
 
 struct MVMConfigurationProgramEntryPoint {
     MVMuint32 offset;
@@ -35,6 +36,8 @@ struct MVMConfigurationProgram {
     AO_t return_counts[16];
     AO_t last_return_time[16];
     AO_t invoke_counts[MVM_PROGRAM_ENTRYPOINT_COUNT];
+
+    MVMuint8 debugging_level;
 };
 
 MVMuint8 MVM_confprog_has_entrypoint(MVMThreadContext *tc, MVMuint8 entrypoint);
