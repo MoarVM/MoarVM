@@ -237,6 +237,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
                     break;
                 case UTF8_REJECT: {
                     size_t error_pos = orig_bytes - bytes;
+                    utf8 = orig_utf8;
                     MVM_free(buffer);
                     if (error_pos >= 3) {
                         unsigned char a = utf8[error_pos - 2], b = utf8[error_pos - 1], c = utf8[error_pos];
