@@ -259,26 +259,14 @@ static size_t get_struct_size_for_family(sa_family_t family) {
 }
 
 /*
- * This function may return any type of sockaddr e.g. sockaddr_un, sockaddr_in or sockaddr_in6
- * It shouldn't be a problem with general code as long as the port number is kept below the int16 limit: 65536
- * After this it defines the family which may spawn non internet sockaddr's
- * The family can be extracted by (port >> 16) & USHORT_MAX
+ * This function resolves a hostname given a port and family (i.e. domain),
+ * returning a valid address to use with a socket under the given domain.
  *
- * Currently supported families:
- *
- * SOCKET_FAMILY_UNSPEC = 0
- *   Unspecified, in most cases should be equal to AF_INET or AF_INET6
- *
- * SOCKET_FAMILY_INET = 1
- *   IPv4 socket
- *
- * SOCKET_FAMILY_INET6 = 2
- *   IPv6 socket
- *
- * SOCKET_FAMILY_UNIX = 3
- *   Unix domain socket, will spawn a sockaddr_un which will use the given host as path
- *   e.g: MVM_io_resolve_host_name(tc, "/run/moarvm.sock", 0, SOCKET_FAMILY_UNIX)
- *   will spawn an unix domain socket on /run/moarvm.sock
+ * The families supported are as follows:
+ * - SOCKET_FAMILY_INET   (IPv4)
+ * - SOCKET_FAMILY_INET6  (IPv6)
+ * - SOCKET_FAMILY_UNIX   (UNIX domain)
+ * - SOCKET_FAMILY_UNSPEC (unspecified)
  */
 
 struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host, MVMint64 port, MVMuint16 family) {
