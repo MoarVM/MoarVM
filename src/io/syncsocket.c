@@ -270,31 +270,18 @@ static size_t get_struct_size_for_family(sa_family_t family) {
  */
 
 struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host, MVMint64 port, MVMuint16 family) {
-    char *host_cstr = MVM_string_utf8_encode_C_string(tc, host);
-    struct sockaddr *dest;
-    int error;
+    char *host_cstr     = MVM_string_utf8_encode_C_string(tc, host);
+    char  port_cstr[8];
+
+    struct addrinfo  hints;
     struct addrinfo *result;
-    char port_cstr[8];
-    struct addrinfo hints;
+    struct sockaddr *address;
+    size_t           address_len;
 
-#ifndef _WIN32
-    if (family == SOCKET_FAMILY_UNIX) {
-        struct sockaddr_un *result_un = MVM_malloc(sizeof(struct sockaddr_un));
+    int error;
 
-        MVMuint64 host_len = strlen(host_cstr);
-        if (host_len > 107) {
-            char *waste[] = { host_cstr, NULL };
-            MVM_free(result_un);
-            MVM_exception_throw_adhoc_free(tc, waste, "Socket path '%s' is %"PRIu64" characters, max allowed is 107", host_cstr, host_len);
-        }
-
-        result_un->sun_family = AF_UNIX;
-        strcpy(result_un->sun_path, host_cstr);
-        MVM_free(host_cstr);
-
-        return (struct sockaddr *)result_un;
-    }
-#endif
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV | AI_PASSIVE;
 
     switch (family) {
         case SOCKET_FAMILY_UNSPEC:
@@ -306,41 +293,57 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
         case SOCKET_FAMILY_INET6:
             hints.ai_family = AF_INET6;
             break;
-        case SOCKET_FAMILY_UNIX:
-            hints.ai_family = AF_UNIX;
-            break;
+        case SOCKET_FAMILY_UNIX: {
+#if defined(_WIN32) || !defined(AF_UNIX)
+            /* TODO: UNIX socket support exists in newer versions of Windows.
+             *       See if it's good enough for us to use. */
+            MVM_free(host_cstr);
+            MVM_exception_throw_adhoc(tc, "UNIX sockets are not supported by MoarVM on this platform");
+#else
+            static const size_t MAX_SUN_LEN = sizeof(((struct sockaddr_un *)NULL)->sun_path);
+            size_t              sun_len     = strnlen(host_cstr, MAX_SUN_LEN);
+
+            if (sun_len >= MAX_SUN_LEN) {
+                char *waste[] = { host_cstr, NULL };
+                MVM_exception_throw_adhoc_free(
+                    tc, waste, "Socket path '%s' is too long (max length supported by this platform is %zu characters)",
+                    host_cstr, MAX_SUN_LEN - 1
+                );
+            } else {
+                struct sockaddr_un *result_un = MVM_malloc(sizeof(struct sockaddr_un));
+                result_un->sun_family         = AF_UNIX;
+                strcpy(result_un->sun_path, host_cstr);
+                MVM_free(host_cstr);
+                return (struct sockaddr *)result_un;
+            }
+#endif
+        }
         default:
-            MVM_exception_throw_adhoc(tc, "Unsupported socket family: %hu", family);
+            MVM_exception_throw_adhoc(tc, "Unsupported socket family: %"PRIu16"", family);
             break;
     }
-
-    hints.ai_socktype = 0;
-    hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV | AI_PASSIVE;
-    hints.ai_protocol = 0;
-    hints.ai_addrlen = 0;
-    hints.ai_addr = NULL;
-    hints.ai_canonname = NULL;
-    hints.ai_next = NULL;
 
     snprintf(port_cstr, 8, "%d", (int)port);
 
     MVM_gc_mark_thread_blocked(tc);
     error = getaddrinfo(host_cstr, port_cstr, &hints, &result);
     MVM_gc_mark_thread_unblocked(tc);
-    if (error == 0) {
-        size_t size = get_struct_size_for_family(result->ai_addr->sa_family);
-        MVM_free(host_cstr);
-        dest = MVM_malloc(size);
-        memcpy(dest, result->ai_addr, size);
-    }
-    else {
-        char *waste[] = { host_cstr, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste, "Failed to resolve host name '%s' with family %hu. Error: '%s'",
-                                       host_cstr, family, gai_strerror(error));
-    }
-    freeaddrinfo(result);
 
-    return dest;
+    if (error != 0) {
+        char *waste[] = { host_cstr, NULL };
+        MVM_exception_throw_adhoc_free(
+            tc, waste, "Failed to resolve host name '%s' with family %"PRIu16".\nError: %s",
+            host_cstr, family, gai_strerror(error)
+        );
+    }
+
+    MVM_free(host_cstr);
+
+    address_len = get_struct_size_for_family(result->ai_family);
+    address     = MVM_malloc(address_len);
+    memcpy(address, result->ai_addr, address_len);
+    freeaddrinfo(result);
+    return address;
 }
 
 /* Establishes a connection. */
