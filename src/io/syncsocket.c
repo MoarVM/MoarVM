@@ -327,7 +327,7 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     }
 
     hints.ai_socktype = 0;
-    hints.ai_flags = AI_PASSIVE;
+    hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV | AI_PASSIVE;
     hints.ai_protocol = 0;
     hints.ai_addrlen = 0;
     hints.ai_addr = NULL;
