@@ -237,18 +237,19 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
                     break;
                 case UTF8_REJECT: {
                     size_t error_pos = orig_bytes - bytes;
-                    utf8 = orig_utf8;
                     MVM_free(buffer);
+                    /* Different error messages for the first few bytes, so that
+                     * we print as much context as possible */
                     if (error_pos >= 3) {
-                        unsigned char a = utf8[error_pos - 2], b = utf8[error_pos - 1], c = utf8[error_pos];
+                        unsigned char a = orig_utf8[error_pos - 2], b = orig_utf8[error_pos - 1], c = orig_utf8[error_pos];
                         MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx %02hhx at line %u col %u", a, b, c, line, col);
                     }
                     else if (error_pos == 2) {
-                        unsigned char a = utf8[error_pos - 1], b = utf8[error_pos];
+                        unsigned char a = orig_utf8[error_pos - 1], b = orig_utf8[error_pos];
                         MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx at line %u col %u", a, b, line, col);
                     }
                     else if (error_pos == 1) {
-                        unsigned char a = utf8[error_pos];
+                        unsigned char a = orig_utf8[error_pos];
                         MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near byte %02hhx at line %u col %u", a, line, col);
                     }
                     else {
