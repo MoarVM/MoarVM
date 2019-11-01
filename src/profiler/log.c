@@ -79,7 +79,7 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
             }
             /* In that case, we've got to check if the SF in question is
              * desired as an entry point */
-            if (sf->body.instrumentation && tc->instance->confprog) {
+            if (sf->body.instrumentation && has_confprogs) {
                 MVMStaticFrameInstrumentation *instrumentation = sf->body.instrumentation;
                 if (instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_NEVER) {
                     goto confprog_refused_enter;
