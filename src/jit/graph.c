@@ -1854,6 +1854,7 @@ start:
     case MVM_OP_getstdout:
     case MVM_OP_getstdin:
     case MVM_OP_ordat:
+    case MVM_OP_ordbaseat:
     case MVM_OP_ordfirst:
     case MVM_OP_getcodename:
     case MVM_OP_setcodeobj:
