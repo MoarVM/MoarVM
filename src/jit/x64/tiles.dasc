@@ -384,6 +384,7 @@ MVM_JIT_TILE_DECL(cast_unsigned_load_addr) {
     case 10: /* 2 -> 1 */
     case 12: /* 4 -> 1 */
         | movzx Rd(to_reg), byte [Rq(base)+ofs];
+        break;
     case 17: /* 1 -> 2 */
         | movzx Rw(to_reg), byte [Rq(base)+ofs];
         break;
