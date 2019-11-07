@@ -374,6 +374,7 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             }
             DO_ASSIGN_CHILD(0, left_sym);
         }
+        break;
     default:
         {
             _ASSERT(nchild <= 2, "Can't tile %d children of %s", nchild,
@@ -670,6 +671,7 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
             start_basic_block(tc, tiler, first_child + 2);
             MVM_VECTOR_PUSH(list->items, label);
         }
+        break;
     }
     default:
         break;
