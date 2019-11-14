@@ -58,7 +58,6 @@ static void cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task,
 
 /* Frees data associated with a timer async task. */
 static void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
-    SignalInfo *si = (SignalInfo *)data;
     if (data)
         MVM_free(data);
 }
