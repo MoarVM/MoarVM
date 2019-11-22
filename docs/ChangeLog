@@ -1,7 +1,6 @@
 New in 2019.11
 
 6model:
-
 + [8a5cc88a,af76729d] Fix incorrect conditional in deserialize_context
 + [59fa3b82] Fix for run-away CORE context on closures
 + [1b0950e3] Give higher layers a way to check if a nativecall site is set up
@@ -22,7 +21,6 @@ New in 2019.11
 + [0a12e3c4] Fix ConcBlockingQueue possibly unshifting an outdated item pointer
 
 Core:
-
 + [a5d553cd] Add missing concreteness checks to most array ops
 + [95f69be8] Implement serialization of NativeCall reprs with dyncall
 + [efeec455] Dynamic library loading works with unicody paths on Windows
@@ -45,18 +43,15 @@ Core:
 + [4ab1d425] Fix autobox possibly writing to an outdated target
 
 Debug Server:
-
 + [85ce8ecc] Better error if getaddrinfo in debugserver fails
 + [b1bb9349] Prepend "Debugserver:" to errors/output originating from the debugserver
 
 Docs:
-
 + [56fa7a0c] Improve naming in documentation
 + [1eeae85f] Document heapsnapshot format version 3.1
 + [ee18678e] Update "Features" part of readme
 
 GC:
-
 + [b0b3fc8c] Fix obscure deadlock in run_gc
 + [329f669c,ea9b29e8] Fix race condition with exited threads still in the thread list
 + [bcc785d2] Fix overflow objects still belonging to exiting thread
@@ -73,7 +68,6 @@ GC:
 + [35101eb8] New GC debug level (3) triggers the GC on each mem allocation
 
 IO:
-
 + [acd1156b] Use more appropriate flags with getaddrinfo
 + [16485506] Fix format strings in calls to MVM_exception_throw_adhoc
 + [36c35db1] Make MVM_file_is_rwx honor root and groups
@@ -89,7 +83,6 @@ IO:
 + [93739d56] Improve error when failing to spawn process
 
 JIT:
-
 + [d5f5185b] We should not overwrite assigned type
 + [97e26c01] Fix bug in takedispatcher
 + [e594fbcb] Add missing cast to sp_p6oget_bi
@@ -134,22 +127,18 @@ JIT:
 + [9f679f32] Jit and add a template for smrt_intify
 
 Libraries:
-
 + [0f05efbb] Update to libuv version 1.33.0
 + [d24f6952] Use updated dyncall library with "execstack" fix
 + [eed5fe14] [DynASM] Take in REX encoding fix
 
 Math:
-
 + [c390b30c] Fix possible access to fromspace in MVM_coerce_sI
 + [a001b7e4] Fix many memory corruption issues in bigint operations
 
 Ops:
-
 + [d189b29b] Make socket family handling portable
 
 Other:
-
 + [bb239a91] Fix MVMSpeshPluginState type defined twice
 + [5f177f58] Make MVM_HASH_RANDOMIZE properly control hash rand
 + [ff4f6031] Factor out run_deserialization_frame() to avoid code repetition
@@ -159,13 +148,11 @@ Other:
 + [e4b87265] Add reference to roast Unicode update instructions
 
 Platform:
-
 + [87d7f58d] Deduplicate and shorten open and fopen wrappers
 + [e127b849] Improve Unicode handling with paths
 + [9d6f4493] Fix possible access to fromspace in MVM_platfrom_uname
 
 Profiler:
-
 + [0b531f9c] Implement the MVM_CONFPROG_DEBUG env var which enables control of confprog
 + [70bcaf90] Make unicode path fixes compile on non-Windows
 + [6ecbf6e0] Profiler: Fix uninitialized field in MVM_profiler_log_gc_start
@@ -178,7 +165,6 @@ Profiler:
 + [370b9a29] Heapanalyzer: add debug "DUMP_EVERYTHING_RAW" to v3
 
 Spesh:
-
 + [0f0e6d3a] Work around MSVC not coping well with preprocessor instructions inside an MVMROOT
 + [c61236f9] Fix access to freed memory in resolve_using_guards
 + [acb04a44] Fix possible memory corruption in resolve_using_guards
@@ -210,7 +196,6 @@ Spesh:
 + [5d8095b8] Spesh optimize smrt_intify like smrt_(num|str)ify
 
 Strings:
-
 + [da19661e] Reset utf8 pointer to point at original string before use
 + [ff007f2f] Use right types/format string, pull dup code out
 + [0e412038] Show chars near bad bytes in another encoding path
@@ -235,7 +220,6 @@ Strings:
 + [73f28d38] Add GB2312 encode, decode and decodestream support
 
 Tooling/Build:
-
 + [32003eec] Use `make` exit status as own
 + [8efd3825] Make Configure.pl and  tools/update_ops.p6 executable
 + [277676a1] Add better support of PEA to spesh bisect
