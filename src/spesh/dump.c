@@ -90,6 +90,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     MVMSpeshIns *cur_ins;
     MVMint64     i;
     MVMint32     size = 0;
+    MVMuint32    line_number;
 
     /* Heading. */
     appendf(ds, "  BB %d (%p):\n", bb->idx, bb);
@@ -101,7 +102,6 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     {
         /* Also, we have a line number */
         MVMBytecodeAnnotation *bbba = MVM_bytecode_resolve_annotation(tc, &g->sf->body, bb->initial_pc);
-        MVMuint32 line_number;
         if (bbba) {
             line_number = bbba->line_number;
             MVM_free(bbba);
@@ -116,7 +116,6 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     cur_ins = bb->first_ins;
     while (cur_ins) {
         MVMSpeshAnn *ann = cur_ins->annotations;
-        MVMuint32 line_number;
         MVMuint32 pop_inlines = 0;
         MVMuint32 num_comments = 0;
 

@@ -654,7 +654,7 @@ static MVMint64 get_pipe_fd(MVMThreadContext *tc, uv_pipe_t *pipe) {
         return 0;
 }
 static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
-    MVMint64 spawn_result;
+    MVMint32 spawn_result;
 
     /* Process info setup. */
     uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
