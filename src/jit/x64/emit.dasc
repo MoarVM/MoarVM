@@ -2240,18 +2240,23 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         break;
     }
     case MVM_OP_ordat:
+    case MVM_OP_ordbaseat:
     case MVM_OP_ordfirst: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 str = ins->operands[1].reg.orig;
         | mov ARG1, TC;
         | mov ARG2, aword WORK[str];
-        if (op == MVM_OP_ordat) {
+        if (op == MVM_OP_ordat || op == MVM_OP_ordbaseat) {
             MVMint16 idx = ins->operands[2].reg.orig;
             | mov ARG3, qword WORK[idx];
         } else {
             | mov ARG3, 0;
         }
-        | callp &MVM_string_ord_at;
+        if (op == MVM_OP_ordbaseat) {
+            | callp &MVM_string_ord_basechar_at;
+        } else {
+            | callp &MVM_string_ord_at;
+        }
         | mov qword WORK[dst], RV;
         break;
     }
