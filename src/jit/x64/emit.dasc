@@ -2916,6 +2916,15 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         | mov WORK[call_spec->rv_idx], TMP1;
         break;
     case MVM_JIT_RV_TO_STACK:
+        if (call_spec->rv_type == MVM_NATIVECALL_ARG_CHAR) {
+        | cbw;
+        }
+        if (call_spec->rv_type == MVM_NATIVECALL_ARG_CHAR || call_spec->rv_type == MVM_NATIVECALL_ARG_SHORT) {
+        | cwde;
+        }
+        if (call_spec->rv_type == MVM_NATIVECALL_ARG_CHAR || call_spec->rv_type == MVM_NATIVECALL_ARG_SHORT || call_spec->rv_type == MVM_NATIVECALL_ARG_INT) {
+        | cdqe;
+        }
         | mov [rbp-(0x28+call_spec->rv_idx*8)], RV;
         break;
     }
