@@ -281,7 +281,7 @@ our %COMPILERS = (
         ld => undef,
         as => 'as',
 
-        ccmiscflags  => '-Wextra -Werror=declaration-after-statement -Werror=pointer-arith',
+        ccmiscflags  => '-Wextra -Werror=pointer-arith',
         ccwarnflags  => '',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
