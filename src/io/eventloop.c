@@ -220,8 +220,8 @@ void MVM_io_eventloop_send_cancellation_notification(MVMThreadContext *tc, MVMAs
 
 /* Adds a work item to the active async task set. */
 int MVM_io_eventloop_add_active_work(MVMThreadContext *tc, MVMObject *async_task) {
-    int work_idx = MVM_repr_elems(tc, tc->instance->event_loop_free_indices) > 0
-        ? MVM_repr_pop_i(tc, tc->instance->event_loop_free_indices)
+    MVMuint64 work_idx = MVM_repr_elems(tc, tc->instance->event_loop_free_indices) > 0
+        ? (MVMuint64)MVM_repr_pop_i(tc, tc->instance->event_loop_free_indices)
         : MVM_repr_elems(tc, tc->instance->event_loop_active);
     MVM_ASSERT_NOT_FROMSPACE(tc, async_task);
     MVM_repr_bind_pos_o(tc, tc->instance->event_loop_active, work_idx, async_task);
@@ -230,7 +230,7 @@ int MVM_io_eventloop_add_active_work(MVMThreadContext *tc, MVMObject *async_task
 
 /* Gets an active work item from the active work eventloop. */
 MVMAsyncTask * MVM_io_eventloop_get_active_work(MVMThreadContext *tc, int work_idx) {
-    if (work_idx >= 0 && work_idx < MVM_repr_elems(tc, tc->instance->event_loop_active)) {
+    if (work_idx >= 0 && work_idx < (int)MVM_repr_elems(tc, tc->instance->event_loop_active)) {
         MVMObject *task_obj = MVM_repr_at_pos_o(tc, tc->instance->event_loop_active, work_idx);
         if (REPR(task_obj)->ID != MVM_REPR_ID_MVMAsyncTask)
             MVM_panic(1, "non-AsyncTask fetched from eventloop active work list");
@@ -247,7 +247,7 @@ MVMAsyncTask * MVM_io_eventloop_get_active_work(MVMThreadContext *tc, int work_i
  * so that any future use of the task will be a failed lookup. */
 void MVM_io_eventloop_remove_active_work(MVMThreadContext *tc, int *work_idx_to_clear) {
     int work_idx = *work_idx_to_clear;
-    if (work_idx >= 0 && work_idx < MVM_repr_elems(tc, tc->instance->event_loop_active)) {
+    if (work_idx >= 0 && work_idx < (int)MVM_repr_elems(tc, tc->instance->event_loop_active)) {
         *work_idx_to_clear = -1;
         MVM_repr_bind_pos_o(tc, tc->instance->event_loop_active, work_idx, tc->instance->VMNull);
         MVM_repr_push_i(tc, tc->instance->event_loop_free_indices, work_idx);

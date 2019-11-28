@@ -29,13 +29,13 @@ struct MVMIOClosable {
 
 /* I/O operations on handles that can do synchronous reading. */
 struct MVMIOSyncReadable {
-    MVMint64 (*read_bytes) (MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes);
+    MVMint64 (*read_bytes) (MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMuint64 bytes);
     MVMint64 (*eof) (MVMThreadContext *tc, MVMOSHandle *h);
 };
 
 /* I/O operations on handles that can do synchronous writing. */
 struct MVMIOSyncWritable {
-    MVMint64 (*write_bytes) (MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes);
+    MVMint64 (*write_bytes) (MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMuint64 bytes);
     void (*flush) (MVMThreadContext *tc, MVMOSHandle *h, MVMint32 sync);
     void (*truncate) (MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes);
 };

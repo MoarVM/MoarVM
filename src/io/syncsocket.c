@@ -88,7 +88,7 @@ static void read_one_packet(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
     }
 }
 
-MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMint64 bytes) {
+MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMuint64 bytes) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     char *use_last_packet = NULL;
     MVMuint16 use_last_packet_start = 0, use_last_packet_end = 0;
@@ -199,7 +199,7 @@ void socket_truncate(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
 }
 
 /* Writes the specified bytes to the stream. */
-MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
+MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMuint64 bytes) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     MVMint64 sent = 0;
     unsigned int interval_id;

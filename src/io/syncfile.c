@@ -126,7 +126,7 @@ static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
 
 /* Reads the specified number of bytes into the supplied buffer, returning
  * the number actually read. */
-static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out, MVMint64 bytes) {
+static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out, MVMuint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     char *buf = MVM_malloc(bytes);
     unsigned int interval_id = MVM_telemetry_interval_start(tc, "syncfile.read_to_buffer");
@@ -201,7 +201,7 @@ static void set_buffer_size(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 size)
 }
 
 /* Writes the specified bytes to the file handle. */
-static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
+static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMuint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     if (data->output_buffer_size && data->known_writable) {
         /* If we can't fit it on the end of the buffer, flush the buffer. */
