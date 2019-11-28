@@ -116,7 +116,7 @@ void * MVM_gc_gen2_allocate_zeroed(MVMGen2Allocator *al, MVMuint32 size) {
 
 /* Frees all memory associated with the second generation. */
 void MVM_gc_gen2_destroy(MVMInstance *i, MVMGen2Allocator *al) {
-    MVMint32 j, k;
+    MVMuint32 j, k;
 
     /* Remove all pages. */
     for (j = 0; j < MVM_GEN2_BINS; j++) {

@@ -5,7 +5,7 @@
 /* If we have the job of doing GC for a thread, we add it to our work
  * list. */
 static void add_work(MVMThreadContext *tc, MVMThreadContext *stolen) {
-    MVMint32 i;
+    MVMuint32 i;
     for (i = 0; i < tc->gc_work_count; i++)
         if (tc->gc_work[i].tc == stolen)
             return;
@@ -27,7 +27,7 @@ static void add_work(MVMThreadContext *tc, MVMThreadContext *stolen) {
 static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_signal) {
     /* Loop here since we may not succeed first time (e.g. the status of the
      * thread may change between the two ways we try to twiddle it). */
-    int had_suspend_request = 0;
+    unsigned int had_suspend_request = 0;
     while (1) {
         AO_t current = MVM_load(&to_signal->gc_status);
         switch (current) {
