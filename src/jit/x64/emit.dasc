@@ -132,7 +132,7 @@
 
 
 
-const MVMint32 MVM_jit_support(void) {
+MVMint32 MVM_jit_support(void) {
 #ifdef __i386__
     /* Usually, this file should only be compiled only on a amd64
        platform; but when compiling 'fat' or 'universal' binaries, we

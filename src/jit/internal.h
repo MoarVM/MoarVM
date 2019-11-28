@@ -25,7 +25,7 @@ struct MVMJitCompiler {
 };
 
 /* Declarations for architecture-specific codegen stuff */
-const MVMint32 MVM_jit_support(void);
+MVMint32 MVM_jit_support(void);
 const unsigned char * MVM_jit_actions(void);
 void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg);
 void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg);

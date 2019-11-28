@@ -87,7 +87,7 @@ typedef double   MVMnum64;
 
 #include "strings/uthash_types.h"
 
-MVM_PUBLIC const MVMint32 MVM_jit_support(void);
+MVM_PUBLIC MVMint32 MVM_jit_support(void);
 
 /* Headers for various other data structures and APIs. */
 #include "6model/6model.h"

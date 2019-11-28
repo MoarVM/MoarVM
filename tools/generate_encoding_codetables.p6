@@ -65,12 +65,12 @@ sub process-shift-jis-index (Str:D $filename) {
     @index_to_cp_str_out.push: "#define {"{$offset-values-name}_elems".uc} @data.elems()";
     @index_to_cp_str_out.push: "#define {"{$codepoint-array}_elems".uc} @points.elems()";
     @index_to_cp_str_out.push: "#define $max_index-name $max_index";
-    @index_to_cp_str_out.push: [~] "const static struct shiftjis_offset $offset-values-name\[{@data.elems}] = \{", "\n", @data.join(",\n").indent(4), "\n", '};';
+    @index_to_cp_str_out.push: [~] "static struct shiftjis_offset $offset-values-name\[{@data.elems}] = \{", "\n", @data.join(",\n").indent(4), "\n", '};';
     use lib 'tools/lib';
     use ArrayCompose;
     use IntWidth;
     @index_to_cp_str_out.push: compose-array(
-        'const static MVMuint16',
+        'static MVMuint16',
         $codepoint-array,
         @points);
     @index_to_cp.push: "default: return SHIFTJIS_NULL;";

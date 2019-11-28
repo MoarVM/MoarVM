@@ -925,5 +925,5 @@
 #define MVM_OP_EXT_CU_LIMIT 1024
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op);
-MVM_PUBLIC const MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op);
+MVM_PUBLIC MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op);
 MVM_PUBLIC const char * MVM_op_get_mark(unsigned short op);

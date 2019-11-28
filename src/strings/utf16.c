@@ -1,7 +1,7 @@
 #include "moar.h"
 
-const static MVMuint8 BOM_UTF16LE[2] = { 0xFF, 0xFE };
-const static MVMuint8 BOM_UTF16BE[2] = { 0xFE, 0xFF };
+static MVMuint8 BOM_UTF16LE[2] = { 0xFF, 0xFE };
+static MVMuint8 BOM_UTF16BE[2] = { 0xFE, 0xFF };
 #define UTF16_DECODE_BIG_ENDIAN 1
 #define UTF16_DECODE_LITTLE_ENDIAN 2
 #define UTF16_DECODE_AUTO_ENDIAN 4
