@@ -355,7 +355,7 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
             graphs_so_far += graphs_this_strand; \
         } \
         else { \
-            int j = 0; \
+            MVMuint32 j = 0; \
             for (; j <= orig->body.storage.strands[i].repetitions; j++) { \
                 memcpy(graphs_so_far + result->body.storage.BLOB_TYPE, \
                     orig->body.storage.strands[i].blob_string->body.storage.BLOB_TYPE + orig->body.storage.strands[i].start, \
@@ -842,7 +842,7 @@ static MVMuint16 final_strand_match_with_repetition_count(MVMThreadContext *tc, 
 /* Append one string to another. */
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMString *result = NULL, *renormalized_section = NULL;
-    int renormalized_section_graphs = 0, consumed_a = 0, consumed_b = 0;
+    MVMuint32 renormalized_section_graphs = 0, consumed_a = 0, consumed_b = 0;
     MVMuint32  agraphs, bgraphs;
     MVMuint64  total_graphs;
     int lost_strands          = 0;
@@ -1620,7 +1620,7 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
             }
             else {
                 MVMGrapheme32 *transformed;
-                MVMint32 num_transformed = MVM_nfg_get_case_change(tc, g, type, &transformed);
+                MVMuint32 num_transformed = MVM_nfg_get_case_change(tc, g, type, &transformed);
                 if (num_transformed == 0) {
                     result_buf[i++] = g;
                 }
@@ -1874,7 +1874,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
             /* XXX make this use the dual-traverse iterator, but such that it
                 can reset the index of what it's comparing... <!> */
             index = MVM_string_index(tc, input, separator, start);
-            length = sep_length ? (index == -1 ? end : index) - start : 1;
+            length = sep_length ? (index == (MVMStringIndex)-1 ? end : index) - start : 1;
             if (0 < length || (sep_length && length == 0)) {
                 portion = MVM_string_substring(tc, input, start, length);
                 MVMROOT(tc, portion, {

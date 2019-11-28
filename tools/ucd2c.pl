@@ -911,7 +911,7 @@ sub emit_property_value_lookup {
 
 static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
     MVMint32 result_val = 0; /* we'll never have negatives, but so */
-    MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
+    MVMint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
     MVMuint16 bitfield_row;
     /* If codepoint is not found in bitfield rows */
     if (codepoint_row == -1) {
@@ -935,7 +935,7 @@ static const char *bogus = "<BOGUS>"; /* only for table too short; return null s
 static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
     MVMuint32 switch_val = (MVMuint32)property_code;
     MVMint32 result_val = 0; /* we'll never have negatives, but so */
-    MVMuint32 codepoint_row;
+    MVMint32 codepoint_row;
     MVMuint16 bitfield_row = 0;
 
     if (switch_val == MVM_UNICODE_PROPERTY_BLOCK) {

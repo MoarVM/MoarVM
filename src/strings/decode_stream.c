@@ -113,7 +113,7 @@ void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *d
 #define RUN_DECODE_NOTHING_DECODED          0
 #define RUN_DECODE_STOPPER_NOT_REACHED      1
 #define RUN_DECODE_STOPPER_REACHED          2
-static MVMuint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMint32 *stopper_chars, MVMDecodeStreamSeparators *sep_spec, MVMint32 eof) {
+static MVMuint32 run_decode(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMuint32 *stopper_chars, MVMDecodeStreamSeparators *sep_spec, MVMint32 eof) {
     MVMDecodeStreamChars *prev_chars_tail = ds->chars_tail;
     MVMuint32 reached_stopper;
     switch (ds->encoding) {
@@ -277,7 +277,7 @@ static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
 }
 MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStream *ds,
                                               MVMint32 chars, MVMint64 eof) {
-    MVMint32 missing;
+    MVMuint32 missing;
 
     /* If we request nothing, give empty string. */
     if (chars == 0)

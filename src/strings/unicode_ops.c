@@ -700,7 +700,7 @@ MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) 
         };
         int i;
         for (i = 0; i < prefixes_len; i++) {
-            int str_len = strlen(prefixes[i]);
+            size_t str_len = strlen(prefixes[i]);
             if (cname_len <= str_len)
                 continue;
             /* Make sure to catch conditions which strtoll is ok with but we
@@ -713,7 +713,7 @@ MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) 
             if (!strncmp(cname, prefixes[i], str_len)) {
                 char *reject = NULL;
                 MVMint64 rtrn = strtol(cname + strlen(prefixes[i]), &reject, 16);
-                if (prefixes[i][0] == '<' && *reject == '>' && reject - cname + 1 == cname_len) {
+                if (prefixes[i][0] == '<' && *reject == '>' && (size_t)(reject - cname + 1) == cname_len) {
                     MVM_free(cname);
                     return rtrn;
                 }
@@ -752,7 +752,7 @@ MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
         name_len = strlen(name);
     /* Look up name. */
     else {
-        MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
+        MVMint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
         if (codepoint_row != -1) {
             name = codepoint_names[codepoint_row];
             if (!name) {

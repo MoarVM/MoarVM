@@ -18,7 +18,7 @@ struct MVMNFGState {
     uv_mutex_t update_mutex;
 
     /* Number of synthetics we have. */
-    MVMint32 num_synthetics;
+    MVMuint32 num_synthetics;
 
     /* Cached CRLF grapheme index, since we need it so often. */
     MVMGrapheme32 crlf_grapheme;

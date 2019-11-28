@@ -501,7 +501,7 @@ MVMString * MVM_string_windows125X_decode(MVMThreadContext *tc,
                 /* Since things we are decoding always fit into Unicode, if we are
                  * using a replacement, it won't get used unless we use strict */
                 if (replacement && MVM_ENCODING_CONFIG_STRICT(config)) {
-                    int i = 0;
+                    MVMStringIndex i = 0;
                     /* Only triggered if repl_length > 1. Copies all but the last
                      * grapheme in the replacement string */
                     if (1 < repl_length) {
