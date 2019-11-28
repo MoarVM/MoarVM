@@ -595,7 +595,7 @@ static MVMuint8 is_thread_id_eligible(MVMInstance *vm, MVMuint32 id) {
 
 /* Send replies to requests send by the client */
 
-static MVMThread *find_thread_by_id(MVMInstance *vm, MVMint32 id) {
+static MVMThread *find_thread_by_id(MVMInstance *vm, MVMuint32 id) {
     MVMThread *cur_thread = 0;
 
     if (!is_thread_id_eligible(vm, id)) {
@@ -809,7 +809,7 @@ static void write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMTh
                                           offset > 0 ? offset - 1 : 0);
 
         MVMint32 line_number = annot ? annot->line_number : 1;
-        MVMint16 string_heap_index = annot ? annot->filename_string_heap_index : 1;
+        MVMuint16 string_heap_index = annot ? annot->filename_string_heap_index : 1;
 
         char *tmp1 = annot && string_heap_index < cur_frame->static_info->body.cu->body.num_strings
             ? MVM_string_utf8_encode_C_string(tc, MVM_cu_string(tc,
@@ -1561,7 +1561,7 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
                 MVMP6opaqueNameMap *cur_map_entry = name_to_index_mapping;
 
                 while (cur_map_entry->class_key != NULL) {
-                    MVMint16 i;
+                    MVMuint16 i;
                     MVMint64 slot;
                     char *class_name = MVM_6model_get_stable_debug_name(dtc, cur_map_entry->class_key->st);
 
@@ -2075,7 +2075,7 @@ static MVMint32 request_object_positionals(MVMThreadContext *dtc, cmp_ctx_t *ctx
         MVMArrayBody *body = (MVMArrayBody *)OBJECT_BODY(target);
         MVMArrayREPRData *repr_data = (MVMArrayREPRData *)STABLE(target)->REPR_data;
         MVMuint16 kind;
-        MVMint64 index;
+        MVMuint64 index;
 
         cmp_write_map(ctx, 5);
         cmp_write_str(ctx, "id", 2);
@@ -2208,7 +2208,7 @@ MVMuint8 debugspam_network;
 static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
     size_t idx;
     size_t total_read = 0;
-    size_t read;
+    ssize_t read;
     MVMuint8 *orig_data = (MVMuint8 *)data;
     if (debugspam_network)
         fprintf(stderr, "asked to read %zu bytes\n", limit);
@@ -2225,7 +2225,7 @@ static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
         if (debugspam_network)
             fprintf(stderr, "%zu ", read);
         data = (void *)(((MVMuint8*)data) + read);
-        total_read += read;
+        total_read += (size_t)read;
     }
 
     if (debugspam_network) {
@@ -2242,7 +2242,7 @@ static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
 static size_t socket_writer(cmp_ctx_t *ctx, const void *data, size_t limit) {
     size_t idx;
     size_t total_sent = 0;
-    size_t sent;
+    ssize_t sent;
     MVMuint8 *orig_data = (MVMuint8 *)data;
     if (debugspam_network)
         fprintf(stderr, "asked to send %3zu bytes: ", limit);
@@ -2259,7 +2259,7 @@ static size_t socket_writer(cmp_ctx_t *ctx, const void *data, size_t limit) {
         if (debugspam_network)
             fprintf(stderr, "%2zu ", sent);
         data = (void *)(((MVMuint8*)data) + sent);
-        total_sent += sent;
+        total_sent += (size_t)sent;
     }
     if (debugspam_network)
         fprintf(stderr, "... send sent %3zu bytes\n", total_sent);
