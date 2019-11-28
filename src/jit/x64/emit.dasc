@@ -1,7 +1,9 @@
 /* -*-C-*- */
 #include "moar.h"
 #include "jit/internal.h"
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #include "dasm_x86.h"
+#pragma GCC diagnostic pop
 
 #ifdef _MSC_VER
 #pragma warning( disable : 4129 )

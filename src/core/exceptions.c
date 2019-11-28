@@ -344,6 +344,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         else
             tc->last_payload = tc->instance->VMNull;
         /* Deliberate fallthrough to unwind below. */
+        MVM_FALLTHROUGH
 
     case MVM_EX_ACTION_GOTO:
         if (lh.jit_handler) {

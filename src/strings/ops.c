@@ -2612,6 +2612,7 @@ MVMint64 MVM_string_grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MV
                     return 0;
             }
             /* Deliberate fall-through; word is _ or digit or alphabetic. */
+            MVM_FALLTHROUGH
 
         case MVM_CCLASS_ALPHANUMERIC:
             if (cp <= '9' && cp >= '0')  /* short circuit common case */
@@ -2620,6 +2621,7 @@ MVMint64 MVM_string_grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MV
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Nd))
                 return 1;
             /* Deliberate fall-through; alphanumeric is digit or alphabetic. */
+            MVM_FALLTHROUGH
 
         case MVM_CCLASS_ALPHABETIC:
             if (cp <= 'z') {  /* short circuit common case */
@@ -2665,9 +2667,9 @@ MVMint64 MVM_string_grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MV
                 MVM_UNICODE_PROPERTY_P);
 
         case MVM_CCLASS_NEWLINE: {
-            if (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
+            return (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
                 cp == 0x85 || MVM_CP_is_gencat_name_Zl(cp) || MVM_CP_is_gencat_name_Zp(cp))
-                return 1;
+                ? 1 : 0;
         }
 
         default:

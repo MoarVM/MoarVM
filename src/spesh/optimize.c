@@ -2735,6 +2735,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             optimize_findmeth_s_perhaps_constant(tc, g, ins);
             if (ins->info->opcode == MVM_OP_findmeth_s)
                 break;
+            MVM_FALLTHROUGH
         case MVM_OP_findmeth:
             optimize_method_lookup(tc, g, ins);
             break;
@@ -2742,6 +2743,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             optimize_findmeth_s_perhaps_constant(tc, g, ins);
             if (ins->info->opcode == MVM_OP_tryfindmeth_s)
                 break;
+            MVM_FALLTHROUGH
         case MVM_OP_tryfindmeth:
             optimize_method_lookup(tc, g, ins);
             break;

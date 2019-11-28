@@ -281,7 +281,7 @@ our %COMPILERS = (
         ld => undef,
         as => 'as',
 
-        ccmiscflags  => '-Werror=declaration-after-statement -Werror=pointer-arith',
+        ccmiscflags  => '-Wimplicit-fallthrough=3 -Werror=declaration-after-statement -Werror=pointer-arith',
         ccwarnflags  => '',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
@@ -295,6 +295,7 @@ our %COMPILERS = (
 
         noreturnspecifier => '',
         noreturnattribute => '__attribute__((noreturn))',
+        fallthrough => '__attribute__ ((fallthrough));',
         formatattribute   => '__attribute__((format(X, Y, Z)))',
         expect_likely => '__builtin_expect(!!(condition), 1)',
         expect_unlikely => '__builtin_expect(!!(condition), 0)',
@@ -323,6 +324,7 @@ our %COMPILERS = (
 
         noreturnspecifier => '',
         noreturnattribute => '__attribute__((noreturn))',
+        fallthrough => '',
         formatattribute   => '__attribute__((format(X, Y, Z)))',
         expect_likely => '__builtin_expect(!!(condition), 1)',
         expect_unlikely => '__builtin_expect(!!(condition), 0)',
@@ -352,6 +354,7 @@ our %COMPILERS = (
 
         noreturnspecifier => '',
         noreturnattribute => '__attribute__((noreturn))',
+        fallthrough => '',
         formatattribute   => '__attribute__((format(X, Y, Z)))',
         vectorizerspecifier => '_Pragma ("clang loop vectorize(enable)")',
         expect_likely => '__builtin_expect(!!(condition), 1)',
@@ -380,6 +383,7 @@ our %COMPILERS = (
 
         noreturnspecifier => '__declspec(noreturn)',
         noreturnattribute => '',
+        fallthrough => '',
         formatattribute   => '', # TODO
         expect_likely => '(condition)',
         expect_unlikely => '(condition)',
@@ -408,6 +412,7 @@ our %COMPILERS = (
 
         noreturnspecifier => '',
         noreturnattribute => '',
+        fallthrough => '',
         formatattribute   => '',
         expect_likely => '(condition)',
         expect_unlikely => '(condition)',

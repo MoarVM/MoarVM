@@ -879,6 +879,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
             case MVM_OP_atkey_s:
             case MVM_OP_atkey_o:
                 alternative = 1;
+                MVM_FALLTHROUGH
             case MVM_OP_atpos_i:
             case MVM_OP_atpos_n:
             case MVM_OP_atpos_s:
@@ -921,6 +922,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
             case MVM_OP_bindkey_s:
             case MVM_OP_bindkey_o:
                 alternative = 1;
+                MVM_FALLTHROUGH
             case MVM_OP_bindpos_i:
             case MVM_OP_bindpos_n:
             case MVM_OP_bindpos_s:
@@ -1145,6 +1147,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
             case MVM_OP_push_s:
             case MVM_OP_push_o:
                 alternative = 1;
+                MVM_FALLTHROUGH
             case MVM_OP_unshift_i:
             case MVM_OP_unshift_n:
             case MVM_OP_unshift_s:
@@ -1176,6 +1179,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
             case MVM_OP_pop_s:
             case MVM_OP_pop_o:
                 alternative = 1;
+                MVM_FALLTHROUGH
             case MVM_OP_shift_i:
             case MVM_OP_shift_n:
             case MVM_OP_shift_s:

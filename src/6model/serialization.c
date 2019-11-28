@@ -1660,16 +1660,22 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
     switch (MVM_EXPECT(need, 2)) {
         case 7:
             ((MVMuint8*)&result)[6] = read_at[6];
+            MVM_FALLTHROUGH
         case 6:
             ((MVMuint8*)&result)[5] = read_at[5];
+            MVM_FALLTHROUGH
         case 5:
             ((MVMuint8*)&result)[4] = read_at[4];
+            MVM_FALLTHROUGH
         case 4:
             ((MVMuint8*)&result)[3] = read_at[3];
+            MVM_FALLTHROUGH
         case 3:
             ((MVMuint8*)&result)[2] = read_at[2];
+            MVM_FALLTHROUGH
         case 2:
             ((MVMuint8*)&result)[1] = read_at[1];
+            MVM_FALLTHROUGH
         case 1:
             ((MVMuint8*)&result)[0] = read_at[0];
             break;
