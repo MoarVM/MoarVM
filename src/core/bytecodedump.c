@@ -156,6 +156,7 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
             }
             else {
                 a("Extension op %d out of range", (int)op_num);
+                op_info = NULL;
             }
         }
 
