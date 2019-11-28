@@ -422,8 +422,9 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
                     last_good_i      = i;
                     last_good_result = result;
                 }
-                if (result != -1)
+                if (result != -1) {
                     DEBUG_PRINT_SUB_NODE(main_nodes[result]);
+                }
             }
             /* If there is no last_good_result we should return a value from main_nodes */
             DEBUG_PRINT_SUB_NODE( (last_good_result == -1 ? main_nodes[query] : main_nodes[last_good_result]) );

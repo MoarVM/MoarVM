@@ -1035,8 +1035,9 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             }
         }
     STRAND_CHECK(tc, result);
-    if (is_concat_stable == 1 || (is_concat_stable == 0 && renormalized_section))
+    if (is_concat_stable == 1 || (is_concat_stable == 0 && renormalized_section)) {
         NFG_CHECK_CONCAT(tc, result, a, b, "'result'");
+    }
     });
     if (is_concat_stable == 1 || (is_concat_stable == 0 && renormalized_section))
         return result;
@@ -2141,8 +2142,9 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     STRAND_CHECK(tc, result);
     /* if concat is stable and NFG_CHECK on, run a NFG_CHECK on it since it
      * should be properly constructed now */
-    if (concats_stable)
+    if (concats_stable) {
         NFG_CHECK(tc, result, "MVM_string_join");
+    }
     });
     return concats_stable ? result : re_nfg(tc, result);
 }
