@@ -814,7 +814,9 @@ static const MVMREPROps MultiDimArray_this_repr = {
         set_dimensions,
         get_elem_storage_spec,
         pos_as_atomic,
-        pos_as_atomic_multidim
+        pos_as_atomic_multidim,
+        MVM_REPR_DEFAULT_POS_WRITE_BUF,
+        MVM_REPR_DEFAULT_POS_READ_BUF,
     },
     MVM_REPR_DEFAULT_ASS_FUNCS,
     elems,
