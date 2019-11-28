@@ -138,6 +138,7 @@ static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *
 static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
+    MVMuint64        real_index;
 
     /* Handle negative indexes. */
     if (index < 0) {
@@ -146,106 +147,108 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
             MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
     }
 
+    real_index = (MVMuint64)index;
+
     /* Go by type. */
     switch (repr_data->slot_type) {
         case MVM_ARRAY_OBJ:
             if (kind != MVM_reg_obj)
                 MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected object register");
-            if (index >= body->elems) {
+            if (real_index >= body->elems) {
                 value->o = tc->instance->VMNull;
             }
             else {
-                MVMObject *found = body->slots.o[body->start + index];
+                MVMObject *found = body->slots.o[body->start + real_index];
                 value->o = found ? found : tc->instance->VMNull;
             }
             break;
         case MVM_ARRAY_STR:
             if (kind != MVM_reg_str)
                 MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected string register");
-            if (index >= body->elems)
+            if (real_index >= body->elems)
                 value->s = NULL;
             else
-                value->s = body->slots.s[body->start + index];
+                value->s = body->slots.s[body->start + real_index];
             break;
         case MVM_ARRAY_I64:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
-            if (index >= body->elems)
+            if (real_index >= body->elems)
                 value->i64 = 0;
             else
-                value->i64 = (MVMint64)body->slots.i64[body->start + index];
+                value->i64 = (MVMint64)body->slots.i64[body->start + real_index];
             break;
         case MVM_ARRAY_I32:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
-            if (index >= body->elems)
+            if (real_index >= body->elems)
                 value->i64 = 0;
             else
-                value->i64 = (MVMint64)body->slots.i32[body->start + index];
+                value->i64 = (MVMint64)body->slots.i32[body->start + real_index];
             break;
         case MVM_ARRAY_I16:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
-            if (index >= body->elems)
+            if (real_index >= body->elems)
                 value->i64 = 0;
             else
-                value->i64 = (MVMint64)body->slots.i16[body->start + index];
+                value->i64 = (MVMint64)body->slots.i16[body->start + real_index];
             break;
         case MVM_ARRAY_I8:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
-            if (index >= body->elems)
+            if (real_index >= body->elems)
                 value->i64 = 0;
             else
-                value->i64 = (MVMint64)body->slots.i8[body->start + index];
+                value->i64 = (MVMint64)body->slots.i8[body->start + real_index];
             break;
         case MVM_ARRAY_N64:
             if (kind != MVM_reg_num64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected num register");
-            if (index >= body->elems)
+            if (real_index >= body->elems)
                 value->n64 = 0.0;
             else
-                value->n64 = (MVMnum64)body->slots.n64[body->start + index];
+                value->n64 = (MVMnum64)body->slots.n64[body->start + real_index];
             break;
         case MVM_ARRAY_N32:
             if (kind != MVM_reg_num64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected num register");
-            if (index >= body->elems)
+            if (real_index >= body->elems)
                 value->n64 = 0.0;
             else
-                value->n64 = (MVMnum64)body->slots.n32[body->start + index];
+                value->n64 = (MVMnum64)body->slots.n32[body->start + real_index];
             break;
         case MVM_ARRAY_U64:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
-            if (index >= body->elems)
+            if (real_index >= body->elems)
                 value->i64 = 0;
             else
-                value->i64 = (MVMint64)body->slots.u64[body->start + index];
+                value->i64 = (MVMint64)body->slots.u64[body->start + real_index];
             break;
         case MVM_ARRAY_U32:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
-            if (index >= body->elems)
+            if (real_index >= body->elems)
                 value->i64 = 0;
             else
-                value->i64 = (MVMint64)body->slots.u32[body->start + index];
+                value->i64 = (MVMint64)body->slots.u32[body->start + real_index];
             break;
         case MVM_ARRAY_U16:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
-            if (index >= body->elems)
+            if (real_index >= body->elems)
                 value->i64 = 0;
             else
-                value->i64 = (MVMint64)body->slots.u16[body->start + index];
+                value->i64 = (MVMint64)body->slots.u16[body->start + real_index];
             break;
         case MVM_ARRAY_U8:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
-            if (index >= body->elems)
+            if (real_index >= body->elems)
                 value->i64 = 0;
             else
-                value->i64 = (MVMint64)body->slots.u8[body->start + index];
+                value->i64 = (MVMint64)body->slots.u8[body->start + real_index];
             break;
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type, got '%s'", MVM_reg_get_debug_name(tc, repr_data->slot_type));
@@ -376,6 +379,7 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
 static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
+    MVMuint64        real_index;
 
     /* Handle negative indexes and resizing if needed. */
     enter_single_user(tc, body);
@@ -384,70 +388,72 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
         if (index < 0)
             MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
     }
-    else if (index >= body->elems)
-        set_size_internal(tc, body, index + 1, repr_data);
+    else if ((MVMuint64)index >= body->elems)
+        set_size_internal(tc, body, (MVMuint64)index + 1, repr_data);
+
+    real_index = (MVMuint64)index;
 
     /* Go by type. */
     switch (repr_data->slot_type) {
         case MVM_ARRAY_OBJ:
             if (kind != MVM_reg_obj)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected object register");
-            MVM_ASSIGN_REF(tc, &(root->header), body->slots.o[body->start + index], value.o);
+            MVM_ASSIGN_REF(tc, &(root->header), body->slots.o[body->start + real_index], value.o);
             break;
         case MVM_ARRAY_STR:
             if (kind != MVM_reg_str)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected string register");
-            MVM_ASSIGN_REF(tc, &(root->header), body->slots.s[body->start + index], value.s);
+            MVM_ASSIGN_REF(tc, &(root->header), body->slots.s[body->start + real_index], value.s);
             break;
         case MVM_ARRAY_I64:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
-            body->slots.i64[body->start + index] = value.i64;
+            body->slots.i64[body->start + real_index] = value.i64;
             break;
         case MVM_ARRAY_I32:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
-            body->slots.i32[body->start + index] = (MVMint32)value.i64;
+            body->slots.i32[body->start + real_index] = (MVMint32)value.i64;
             break;
         case MVM_ARRAY_I16:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
-            body->slots.i16[body->start + index] = (MVMint16)value.i64;
+            body->slots.i16[body->start + real_index] = (MVMint16)value.i64;
             break;
         case MVM_ARRAY_I8:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
-            body->slots.i8[body->start + index] = (MVMint8)value.i64;
+            body->slots.i8[body->start + real_index] = (MVMint8)value.i64;
             break;
         case MVM_ARRAY_N64:
             if (kind != MVM_reg_num64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected num register");
-            body->slots.n64[body->start + index] = value.n64;
+            body->slots.n64[body->start + real_index] = value.n64;
             break;
         case MVM_ARRAY_N32:
             if (kind != MVM_reg_num64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected num register");
-            body->slots.n32[body->start + index] = (MVMnum32)value.n64;
+            body->slots.n32[body->start + real_index] = (MVMnum32)value.n64;
             break;
         case MVM_ARRAY_U64:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
-            body->slots.u64[body->start + index] = value.i64;
+            body->slots.u64[body->start + real_index] = value.i64;
             break;
         case MVM_ARRAY_U32:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
-            body->slots.u32[body->start + index] = (MVMuint32)value.i64;
+            body->slots.u32[body->start + real_index] = (MVMuint32)value.i64;
             break;
         case MVM_ARRAY_U16:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
-            body->slots.u16[body->start + index] = (MVMuint16)value.i64;
+            body->slots.u16[body->start + real_index] = (MVMuint16)value.i64;
             break;
         case MVM_ARRAY_U8:
             if (kind != MVM_reg_int64)
                 MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
-            body->slots.u8[body->start + index] = (MVMuint8)value.i64;
+            body->slots.u8[body->start + real_index] = (MVMuint8)value.i64;
             break;
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type");
@@ -880,8 +886,8 @@ static void aslice(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *da
 static void write_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, char *from, MVMint64 offset, MVMuint64 count) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
-    MVMint64 start = body->start;
-    MVMint64 elems = body->elems;
+    MVMuint64 start = body->start;
+    MVMuint64 elems = body->elems;
 
     /* Throw on negative offset. */
     if (offset < 0) {
@@ -919,8 +925,8 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     MVMArrayREPRData *repr_data   = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body        = (MVMArrayBody *)data;
 
-    MVMint64 elems0 = body->elems;
-    MVMint64 elems1 = REPR(from)->elems(tc, STABLE(from), from, OBJECT_BODY(from));
+    MVMuint64 elems0 = body->elems;
+    MVMuint64 elems1 = REPR(from)->elems(tc, STABLE(from), from, OBJECT_BODY(from));
     MVMint64 start;
     MVMint64 tail;
 
@@ -945,7 +951,7 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
         start = body->start;
         if (n > start)
             n = start;
-        if (n <= -elems0) {
+        if (n <= -(MVMint64)elems0) {
             elems0 = 0;
             count = 0;
             body->start = 0;
@@ -1077,7 +1083,7 @@ static AO_t * pos_as_atomic(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
     /* Handle negative indexes and require in bounds. */
     if (index < 0)
         index += body->elems;
-    if (index < 0 || index >= body->elems)
+    if (index < 0 || (MVMuint64)index >= body->elems)
         MVM_exception_throw_adhoc(tc, "Index out of bounds in atomic operation on array");
 
     if (sizeof(AO_t) == 8 && (repr_data->slot_type == MVM_ARRAY_I64 ||
@@ -1241,7 +1247,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *) st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
-    MVMint64 i;
+    MVMuint64 i;
 
     body->elems = MVM_serialization_read_int(tc, reader);
     body->ssize = body->elems;
@@ -1295,7 +1301,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *) st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
-    MVMint64 i;
+    MVMuint64 i;
 
     MVM_serialization_write_int(tc, writer, body->elems);
     for (i = 0; i < body->elems; i++) {
