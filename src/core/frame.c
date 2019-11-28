@@ -1233,7 +1233,7 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
         effective_sf  = f->static_info;
     }
     else if (f->spesh_cand) {
-        MVMint32 i;
+        MVMuint32 i;
         flags = NULL;
         for (i = 0; i < f->spesh_cand->num_inlines; i++) {
             MVMStaticFrame *isf = f->spesh_cand->inlines[i].sf;

@@ -77,7 +77,7 @@ struct MVMSpeshGraph {
      * are within the bounds will show up each call frame that needs to
      * be created in deopt. */
     MVMSpeshInline *inlines;
-    MVMint32 num_inlines;
+    MVMuint32 num_inlines;
 
     /* Number of basic blocks we have. */
     MVMint32 num_bbs;
