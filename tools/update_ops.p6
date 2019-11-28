@@ -438,7 +438,7 @@ sub opcode_details(@ops) {
             if $op.operands {
                 take "        \{ $op.operands.map(&operand_flags).join(', ') }";
             }
-            #else { take "        \{ }"; }
+            else { take "        \{ }"; }
             take "    },"
         }
         take "};\n";
