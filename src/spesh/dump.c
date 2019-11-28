@@ -116,7 +116,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     cur_ins = bb->first_ins;
     while (cur_ins) {
         MVMSpeshAnn *ann = cur_ins->annotations;
-        MVMuint32 line_number;
+        MVMuint32 line_number = -1;
         MVMuint32 pop_inlines = 0;
         MVMuint32 num_comments = 0;
 

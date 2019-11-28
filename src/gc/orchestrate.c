@@ -407,7 +407,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
 
     MVMuint8 is_coordinator;
 
-    MVMuint64 start_time;
+    MVMuint64 start_time = 0;
 
     unsigned int interval_id;
 

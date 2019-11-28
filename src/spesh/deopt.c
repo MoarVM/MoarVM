@@ -24,9 +24,9 @@ MVM_STATIC_INLINE void clear_dynlex_cache(MVMThreadContext *tc, MVMFrame *f) {
 static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                      MVMint32 offset, MVMint32 deopt_offset, MVMFrame *callee) {
     MVMFrame      *last_uninlined = NULL;
-    MVMuint16      last_res_reg;
-    MVMReturnType  last_res_type;
-    MVMuint32      last_return_deopt_idx;
+    MVMuint16      last_res_reg = 0;
+    MVMReturnType  last_res_type = 0;
+    MVMuint32      last_return_deopt_idx = 0;
     MVMint32 i;
     for (i = 0; i < cand->num_inlines; i++) {
         if (offset > cand->inlines[i].start && offset <= cand->inlines[i].end) {

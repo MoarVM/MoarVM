@@ -321,7 +321,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
 
     /* Local state for decode loop. */
     int expected_continuations = 0;
-    int min_expected_codepoint;
+    int min_expected_codepoint = 0;
 
     /* Don't do anything if empty. */
     if (bytes == 0)
@@ -426,7 +426,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
     MVMint32 last_accept_pos = ds->bytes_head_pos;
     DecodeState state;
     int expected_continuations = 0;
-    int min_expected_codepoint;
+    int min_expected_codepoint = 0;
     MVMuint32 reached_stopper = 0;
     MVMint32 result_graphs = 0;
 

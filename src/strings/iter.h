@@ -45,6 +45,7 @@ MVM_STATIC_INLINE void MVM_string_gi_init(MVMThreadContext *tc, MVMGraphemeIter 
         gi->blob_type         = s->body.storage_type;
         gi->end               = s->body.num_graphs;
         gi->strands_remaining = gi->start = gi->pos = gi->repetitions = 0;
+        gi->next_strand       = NULL;
     }
 };
 /* Gets the number of graphemes remaining in the current strand of the grapheme
@@ -237,6 +238,8 @@ MVM_STATIC_INLINE void MVM_string_ci_init(MVMThreadContext *tc, MVMCodepointIter
     /* We've no currently active synthetic codepoint (and other fields are
      * unused until we do, so leave them alone for now). */
     ci->synth_codes           = NULL;
+    ci->visited_synth_codes   = -1;
+    ci->total_synth_codes     = 0;
     ci->translate_newlines    = translate_newlines;
     ci->pass_utfc8_synthetics = pass_utfc8_synthetics;
 };

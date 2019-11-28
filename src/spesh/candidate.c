@@ -38,7 +38,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVMSpeshCandidate *candidate;
     MVMSpeshCandidate **new_candidate_list;
     MVMStaticFrameSpesh *spesh;
-    MVMuint64 start_time, spesh_time, jit_time, end_time;
+    MVMuint64 start_time = 0, spesh_time = 0, jit_time = 0, end_time;
 
     /* If we've reached our specialization limit, don't continue. */
     MVMint32 spesh_produced = ++tc->instance->spesh_produced;

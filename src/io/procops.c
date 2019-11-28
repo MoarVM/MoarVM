@@ -245,7 +245,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     MVMArray              *buffer;
     SpawnInfo             *si;
     char                  *output;
-    int                    output_size, r;
+    int                    output_size, r = 0;
 
     /* Add to work in progress. */
     SpawnWriteInfo *wi = (SpawnWriteInfo *)data;

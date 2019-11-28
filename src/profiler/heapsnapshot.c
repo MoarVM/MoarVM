@@ -1347,7 +1347,7 @@ static void make_leaderboards(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
 
 void snapshot_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i = col->snapshot_idx;
-    MVMHeapDumpIndexSnapshotEntry *entry;
+    MVMHeapDumpIndexSnapshotEntry *entry = NULL;
 
     MVMHeapDumpTableOfContents *outer_toc = col->toplevel_toc;
     MVMHeapDumpTableOfContents *inner_toc = MVM_calloc(sizeof(MVMHeapDumpTableOfContents), 1);
