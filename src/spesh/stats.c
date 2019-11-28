@@ -499,7 +499,7 @@ static void save_or_free_sim_stack(MVMThreadContext *tc, MVMSpeshSimStack *sims,
          * away. */
         j = sims->used - 1;
         while (j >= 0) {
-            incorporate_stats(tc, &(sims->frames[i]), first_survivor + i,
+            incorporate_stats(tc, &(sims->frames[j]), first_survivor + j,
                 j > 0 ? &(sims->frames[j - 1]) : NULL,
                 sf_updated);
             j--;
