@@ -726,7 +726,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
 
 /* Gets the SC reference for a given static lexical var for
  * vivification purposes */
-MVMuint8 MVM_bytecode_find_static_lexical_scref(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticFrame *sf, MVMuint16 index, MVMint32 *sc, MVMint32 *id) {
+MVMuint8 MVM_bytecode_find_static_lexical_scref(MVMThreadContext *tc, MVMCompUnit *cu, MVMStaticFrame *sf, MVMuint16 index, MVMuint32 *sc, MVMuint32 *id) {
     MVMuint16 slvs, i;
 
     MVMuint8 *pos = sf->body.frame_static_lex_pos;
@@ -943,7 +943,7 @@ MVMBytecodeAnnotation * MVM_bytecode_resolve_annotation(MVMThreadContext *tc, MV
     if (sfb->num_annotations && offset < sfb->bytecode_size) {
         MVMuint8 *cur_anno = sfb->annotations_data;
         for (i = 0; i < sfb->num_annotations; i++) {
-            MVMint32 ann_offset = read_int32(cur_anno, 0);
+            MVMuint32 ann_offset = read_int32(cur_anno, 0);
             if (ann_offset > offset)
                 break;
             cur_anno += 12;

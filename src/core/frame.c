@@ -1251,7 +1251,7 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
     }
     flag  = flags ? flags[effective_idx] : -1;
     if (flag != -1 && static_env[effective_idx].o == NULL) {
-        MVMint32 scid, objid;
+        MVMuint32 scid, objid;
         if (MVM_bytecode_find_static_lexical_scref(tc, effective_sf->body.cu,
                 effective_sf, effective_idx, &scid, &objid)) {
             MVMSerializationContext *sc;
