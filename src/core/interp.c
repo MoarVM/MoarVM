@@ -6417,7 +6417,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMP6bigintBody *bc;
                 MVMObject *result_obj = NULL;
                 if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
-                    MVMuint64 result = (MVMint64)ba->u.smallint.value + (MVMint64)bb->u.smallint.value;
+                    MVMint64 result = (MVMint64)ba->u.smallint.value + (MVMint64)bb->u.smallint.value;
                     if (MVM_IS_32BIT_INT(result)) {
                         if (result < -1 || result >= 15) {
                             result_obj = fastcreate(tc, cur_op);
@@ -6448,7 +6448,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMP6bigintBody *bc;
                 MVMObject *result_obj = NULL;
                 if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
-                    MVMuint64 result = (MVMint64)ba->u.smallint.value - (MVMint64)bb->u.smallint.value;
+                    MVMint64 result = (MVMint64)ba->u.smallint.value - (MVMint64)bb->u.smallint.value;
                     if (MVM_IS_32BIT_INT(result)) {
                         if (result < -1 || result >= 15) {
                             result_obj = fastcreate(tc, cur_op);
@@ -6479,7 +6479,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMP6bigintBody *bc;
                 MVMObject *result_obj = NULL;
                 if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
-                    MVMuint64 result = (MVMint64)ba->u.smallint.value * (MVMint64)bb->u.smallint.value;
+                    MVMint64 result = (MVMint64)ba->u.smallint.value * (MVMint64)bb->u.smallint.value;
                     if (MVM_IS_32BIT_INT(result)) {
                         if (result < -1 || result >= 15) {
                             result_obj = fastcreate(tc, cur_op);
@@ -6506,7 +6506,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_bool_I): {
                 MVMuint16 offset = GET_UI16(cur_op, 4);
                 MVMP6bigintBody *b = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 2).o + offset);
-                MVMuint64 result = 0;
+                MVMint64 result = 0;
                 if (b->u.smallint.flag == MVM_BIGINT_32_FLAG) {
                     result = (MVMint64)b->u.smallint.value != 0;
                 }
