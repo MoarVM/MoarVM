@@ -27,7 +27,7 @@ static MVMint64 try_get_slot(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_dat
         MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
             if (cur_map_entry->class_key == class_key) {
-                MVMint16 i;
+                MVMuint16 i;
                 for (i = 0; i < cur_map_entry->num_attrs; i++) {
                     if (MVM_string_equal(tc, cur_map_entry->names[i], name)) {
                         return cur_map_entry->slots[i];
@@ -162,7 +162,7 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
     if (repr_data->name_to_index_mapping) {
         MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
-            MVMint16 i;
+            MVMuint16 i;
             for (i = 0; i < cur_map_entry->num_attrs; i++) {
                 MVM_gc_worklist_add(tc, worklist, &cur_map_entry->names[i]);
             }
