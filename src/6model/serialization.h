@@ -135,9 +135,9 @@ struct MVMSerializationWriter {
     MVMuint32 alloc_contexts;
 
     /* Current position in the stables, objects and contexts lists. */
-    MVMint64 stables_list_pos;
-    MVMint64 objects_list_pos;
-    MVMint64 contexts_list_pos;
+    MVMuint64 stables_list_pos;
+    MVMuint64 objects_list_pos;
+    MVMuint64 contexts_list_pos;
 
     /* Hash of strings we've already seen while serializing to the index they
      * are placed at in the string heap. */
