@@ -22,12 +22,12 @@ MVM_STATIC_INLINE void clear_dynlex_cache(MVMThreadContext *tc, MVMFrame *f) {
  * are running the de-optimized code. We may, of course, be in the original,
  * non-inline, bit of the code - in which case we've nothing to do. */
 static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
-                     MVMint32 offset, MVMint32 deopt_offset, MVMFrame *callee) {
+                     MVMuint32 offset, MVMuint32 deopt_offset, MVMFrame *callee) {
     MVMFrame      *last_uninlined = NULL;
     MVMuint16      last_res_reg = 0;
     MVMReturnType  last_res_type = 0;
     MVMuint32      last_return_deopt_idx = 0;
-    MVMint32 i;
+    MVMuint32 i;
     for (i = 0; i < cand->num_inlines; i++) {
         if (offset > cand->inlines[i].start && offset <= cand->inlines[i].end) {
             /* Create the frame. */
@@ -215,7 +215,7 @@ static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMObject ***m
 
 /* Materialize all replaced objects that need to be at this deopt index. */
 static void materialize_replaced_objects(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_index) {
-    MVMint32 i;
+    MVMuint32 i;
     MVMSpeshCandidate *cand = f->spesh_cand;
     MVMuint32 num_deopt_points = MVM_VECTOR_ELEMS(cand->deopt_pea.deopt_point);
     MVMObject **materialized = NULL;
@@ -312,7 +312,7 @@ MVMint32 MVM_spesh_deopt_find_inactive_frame_deopt_idx(MVMThreadContext *tc, MVM
     /* Is it JITted code? */
     if (f->spesh_cand->jitcode) {
         MVMJitCode *jitcode = f->spesh_cand->jitcode;
-        MVMint32 idx = MVM_jit_code_get_active_deopt_idx(tc, jitcode, f);
+        MVMuint32 idx = MVM_jit_code_get_active_deopt_idx(tc, jitcode, f);
         if (idx < jitcode->num_deopts) {
             MVMint32 deopt_idx = jitcode->deopts[idx].idx;
 #if MVM_LOG_DEOPTS

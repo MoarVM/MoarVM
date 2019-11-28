@@ -57,13 +57,13 @@ struct MVMSpeshLogEntry {
         struct {
             MVMObject *type;
             MVMint32 flags;
-            MVMint32 bytecode_offset;
+            MVMuint32 bytecode_offset;
         } type;
 
         /* Observed value (STATIC). */
         struct {
             MVMObject *value;
-            MVMint32 bytecode_offset;
+            MVMuint32 bytecode_offset;
         } value;
 
         /* Observed invocation (INVOKE). */
@@ -71,12 +71,12 @@ struct MVMSpeshLogEntry {
             MVMStaticFrame *sf;
             MVMint16 caller_is_outer;
             MVMuint16 was_multi;
-            MVMint32 bytecode_offset;
+            MVMuint32 bytecode_offset;
         } invoke;
 
         /* Observed OSR point (OSR). */
         struct {
-            MVMint32 bytecode_offset;
+            MVMuint32 bytecode_offset;
         } osr;
 
         /* Spesh log resolution result (PLUGIN_RESOLUTION). */

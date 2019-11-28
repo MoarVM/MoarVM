@@ -65,4 +65,4 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
     MVMSpeshIns *invoke, MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
     MVMSpeshOperand code_ref_reg, MVMuint32 proxy_deopt_idx, MVMuint16 bytecode_size);
-int MVM_spesh_inline_get_max_size(MVMThreadContext *tc, MVMStaticFrame *sf);
+MVMuint32 MVM_spesh_inline_get_max_size(MVMThreadContext *tc, MVMStaticFrame *sf);

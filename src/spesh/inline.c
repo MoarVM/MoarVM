@@ -223,7 +223,7 @@ static void add_deopt_usages(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 *d
 
 /* Get the maximum inline size applicable to the specified static frame (it can
  * be configured by language). */
-int MVM_spesh_inline_get_max_size(MVMThreadContext *tc, MVMStaticFrame *sf) {
+MVMuint32 MVM_spesh_inline_get_max_size(MVMThreadContext *tc, MVMStaticFrame *sf) {
     return sf->body.cu->body.hll_config->max_inline_size;
 }
 
@@ -320,7 +320,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadConte
 }
 
 /* Finds the deopt index of the return. */
-static MVMint32 return_deopt_idx(MVMThreadContext *tc, MVMSpeshIns *invoke_ins) {
+static MVMuint32 return_deopt_idx(MVMThreadContext *tc, MVMSpeshIns *invoke_ins) {
     MVMSpeshAnn *ann = invoke_ins->annotations;
     while (ann) {
         if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS)
@@ -384,7 +384,7 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMint64     idx      = to_fix->info->opcode == MVM_OP_wval
         ? to_fix->operands[2].lit_i16
         : to_fix->operands[2].lit_i64;
-    if (dep >= 0 && dep < sourcecu->body.num_scs) {
+    if (dep >= 0 && (MVMuint16)dep < sourcecu->body.num_scs) {
         MVMSerializationContext *sc = MVM_sc_get_sc(tc, sourcecu, dep);
         if (sc) {
             MVMuint16 otherdep;
@@ -520,7 +520,7 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMCallsite *cs) {
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
-    MVMint32        i, j, orig_inlines, total_inlines, orig_deopt_addrs,
+    MVMuint32        i, j, orig_inlines, total_inlines, orig_deopt_addrs,
                     orig_deopt_pea_mat_infos, impl_deopt_idx;
     MVMuint32       total_handlers = inliner->num_handlers + inlinee->num_handlers + 1;
     MVMSpeshBB     *inlinee_first_bb = NULL, *inlinee_last_bb = NULL;
@@ -541,11 +541,11 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     impl_deopt_idx = return_deopt_idx(tc, invoke_ins);
     MVM_VECTOR_INIT(regs_for_deopt, 0);
     for (i = 0; i < inliner->sf->body.num_locals; i++) {
-        MVMint32 vers = inliner->fact_counts[i];
+        MVMuint16 vers = inliner->fact_counts[i];
         for (j = 0; j < vers; j++) {
             MVMSpeshDeoptUseEntry *due = inliner->facts[i][j].usage.deopt_users;
             while (due) {
-                if (due->deopt_idx == impl_deopt_idx) {
+                if ((MVMuint32)due->deopt_idx == impl_deopt_idx) {
                     MVMSpeshOperand o;
                     o.reg.orig = i;
                     o.reg.i = j;

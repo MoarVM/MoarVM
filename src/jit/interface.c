@@ -62,8 +62,8 @@ void MVM_jit_code_trampoline(MVMThreadContext *tc) {
 }
 
 
-MVMint32 MVM_jit_code_get_active_deopt_idx(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
-    MVMint32 i;
+MVMuint32 MVM_jit_code_get_active_deopt_idx(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
+    MVMuint32 i;
     void *current_position = MVM_jit_code_get_current_position(tc, code, frame);
     for (i = 0; i < code->num_deopts; i++) {
         if (code->labels[code->deopts[i].label] == current_position) {

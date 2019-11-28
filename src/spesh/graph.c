@@ -180,7 +180,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     MVMBytecodeAnnotation *ann_ptr = MVM_bytecode_resolve_annotation(tc, &sf->body, sf->body.bytecode - pc);
 
     for (i = 0; i < g->num_handlers; i++) {
-        if (g->handlers[i].start_offset != -1 && g->handlers[i].goto_offset != -1) {
+        if (g->handlers[i].start_offset != (MVMuint32)-1 && g->handlers[i].goto_offset != (MVMuint32)-1) {
             byte_to_ins_flags[g->handlers[i].start_offset] |= MVM_CFG_BB_START;
             byte_to_ins_flags[g->handlers[i].end_offset] |= MVM_CFG_BB_START;
             byte_to_ins_flags[g->handlers[i].goto_offset] |= MVM_CFG_BB_START;
@@ -412,7 +412,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* Start or got may be -1 if the code the handler covered became
          * dead. If so, mark the handler as removed. Ditto if end is
          * before start (would never match). */
-        if (g->handlers[i].start_offset == -1 || g->handlers[i].goto_offset == -1 ||
+        if (g->handlers[i].start_offset == (MVMuint32)-1 || g->handlers[i].goto_offset == (MVMuint32)-1 ||
                 g->handlers[i].start_offset > g->handlers[i].end_offset) {
             if (!g->unreachable_handlers)
                 g->unreachable_handlers = MVM_spesh_alloc(tc, g, g->num_handlers);
@@ -556,7 +556,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             for (i = 0; i < g->num_handlers; i++) {
                 if (is_catch_handler(tc, g, i)) {
                     MVMuint32 offset = g->handlers[i].goto_offset;
-                    if (offset != -1)
+                    if (offset != (MVMuint32)-1)
                         cur_bb->succ[insert_pos++] = ins_to_bb[byte_to_ins_flags[offset] >> 3];
                 }
             }
@@ -830,7 +830,7 @@ MVMSpeshBB ** MVM_spesh_graph_reverse_postorder(MVMThreadContext *tc, MVMSpeshGr
 static void iter_check(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo, MVMint32 *doms, MVMint32 iters) {
     if (iters > 100000) {
 #ifdef NDEBUG
-        MVMint32 k;
+        MVMuint32 k;
         char *dump_msg = MVM_spesh_dump(tc, g);
         printf("%s", dump_msg);
         MVM_free(dump_msg);
@@ -864,7 +864,7 @@ static MVMint32 intersect(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **r
 
 /* Computes dominator information about the basic blocks. */
 static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo) {
-    MVMint32 i, j, changed;
+    MVMuint32 i, j, changed;
 
     /* Create result list, with all initialized to undefined (use -1, as it's
      * not a valid basic block index). Start node dominates itself. */
@@ -898,7 +898,7 @@ static MVMint32 * compute_dominators(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
                 MVM_oops(tc, "Spesh: could not find processed initial dominator");
             }
             for (j = 0; j < b->num_pred; j++) {
-                if (j != chosen_pred) {
+                if (j != (MVMuint32)chosen_pred) {
                     MVMint32 p_idx = b->pred[j]->rpo_idx;
                     if (doms[p_idx] != -1)
                         new_idom = intersect(tc, g, rpo, doms, p_idx, new_idom);
@@ -933,11 +933,11 @@ static void add_child(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *target
     target->num_children++;
 }
 static void add_children(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB **rpo, MVMint32 *doms) {
-    MVMint32 i;
+    MVMuint32 i;
     for (i = 0; i < g->num_bbs; i++) {
         MVMSpeshBB *bb   = rpo[i];
-        MVMint32    idom = doms[i];
-        if (idom != i)
+        MVMuint32   idom = doms[i];
+        if ((MVMuint32)idom != i)
             add_child(tc, g, rpo[idom], bb);
     }
 }

@@ -164,7 +164,7 @@ struct MVMSpeshStatsStatic {
     MVMObject *value;
 
     /* The bytecode offset it was recorded at. */
-    MVMint32 bytecode_offset;
+    MVMuint32 bytecode_offset;
 };
 
 /* The maximum number of spesh stats updates before we consider a frame's

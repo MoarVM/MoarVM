@@ -7,7 +7,7 @@ struct MVMSpeshFrameWalker {
      * or deopt offset to look for them based on, together with the current inline
      * we are looking at. */
     void *jit_position;
-    MVMint32 deopt_offset;
+    MVMuint32 deopt_offset;
     MVMint32 inline_idx;
 
     /* If we're doing a walk of outer frames too, the current outer frame that

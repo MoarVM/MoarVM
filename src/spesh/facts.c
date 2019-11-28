@@ -759,7 +759,7 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
  * instructions that install the block eliminated. This tweaks the usage of
  * them. */
 static void tweak_block_handler_usage(MVMThreadContext *tc, MVMSpeshGraph *g) {
-    MVMint32 i;
+    MVMuint32 i;
     for (i = 0; i < g->sf->body.num_handlers; i++) {
         if (g->sf->body.handlers[i].action == MVM_EX_ACTION_INVOKE) {
             MVMSpeshOperand operand;

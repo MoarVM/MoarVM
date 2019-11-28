@@ -46,14 +46,14 @@ static void go_to_next_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
     if (fw->inline_idx == NO_INLINE)
         return;
     if (jitcode) {
-        MVMint32 idx = MVM_jit_code_get_active_inlines(tc, jitcode, fw->jit_position, fw->inline_idx + 1);
+        MVMuint32 idx = MVM_jit_code_get_active_inlines(tc, jitcode, fw->jit_position, fw->inline_idx + 1);
         if (idx < jitcode->num_inlines) {
             fw->inline_idx = idx;
             return;
         }
     }
     else {
-        MVMint32 i;
+        MVMuint32 i;
         for (i = fw->inline_idx + 1; i < cand->num_inlines; i++) {
             if (fw->deopt_offset > cand->inlines[i].start && fw->deopt_offset <= cand->inlines[i].end) {
                 /* Found an applicable inline. */
@@ -77,7 +77,7 @@ static void go_to_first_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MV
             void *current_position = prev && prev->extra && prev->extra->caller_jit_position
                 ? prev->extra->caller_jit_position
                 : MVM_jit_code_get_current_position(tc, jitcode, f);
-            MVMint32 idx = MVM_jit_code_get_active_inlines(tc, jitcode, current_position, 0);
+            MVMuint32 idx = MVM_jit_code_get_active_inlines(tc, jitcode, current_position, 0);
             if (idx < jitcode->num_inlines) {
                 fw->jit_position = current_position;
                 fw->inline_idx = idx;

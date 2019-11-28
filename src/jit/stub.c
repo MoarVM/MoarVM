@@ -37,7 +37,7 @@ MVMint32 MVM_jit_code_get_active_inlines(MVMThreadContext *tc, MVMJitCode *code,
     return 0;
 }
 
-MVMint32 MVM_jit_code_get_active_deopt_idx(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
+MVMuint32 MVM_jit_code_get_active_deopt_idx(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
     return 0;
 }
 

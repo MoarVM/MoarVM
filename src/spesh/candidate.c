@@ -5,7 +5,7 @@
 static void calculate_work_env_sizes(MVMThreadContext *tc, MVMStaticFrame *sf,
                                      MVMSpeshCandidate *c) {
     MVMuint32 max_callsite_size, jit_spill_size;
-    MVMint32 i;
+    MVMuint32 i;
 
     max_callsite_size = sf->body.cu->body.max_callsite_size;
     jit_spill_size = (c->jitcode ? c->jitcode->spill_size: 0);

@@ -457,7 +457,7 @@ MVMSpeshStatsType * param_type(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf
 }
 
 /* Records a static value for a frame, unless it's already in the log. */
-void add_static_value(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf, MVMint32 bytecode_offset,
+void add_static_value(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf, MVMuint32 bytecode_offset,
                       MVMObject *value) {
     MVMSpeshStats *ss = simf->ss;
     MVMuint32 i, id;
@@ -475,7 +475,8 @@ void add_static_value(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf, MVMint3
 static void save_or_free_sim_stack(MVMThreadContext *tc, MVMSpeshSimStack *sims,
                                    MVMThreadContext *save_on_tc, MVMObject *sf_updated) {
     MVMint32 first_survivor = -1;
-    MVMint32 i;
+    MVMuint32 i;
+    MVMint32 j;
     if (save_on_tc) {
         for (i = 0; i < sims->used; i++) {
             MVMSpeshSimStackFrame *simf = &(sims->frames[i]);
@@ -496,12 +497,12 @@ static void save_or_free_sim_stack(MVMThreadContext *tc, MVMSpeshSimStack *sims,
 
         /* Incorporate data from the rest into the stats model, clearing it
          * away. */
-        i = sims->used - 1;
-        while (i >= 0) {
+        j = sims->used - 1;
+        while (j >= 0) {
             incorporate_stats(tc, &(sims->frames[i]), first_survivor + i,
-                i > 0 ? &(sims->frames[i - 1]) : NULL,
+                j > 0 ? &(sims->frames[j - 1]) : NULL,
                 sf_updated);
-            i--;
+            j--;
         }
 
         /* Save frames for next time. */

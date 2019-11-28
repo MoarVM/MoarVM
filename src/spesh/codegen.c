@@ -21,8 +21,8 @@ typedef struct {
     /* Fixups we need to do by basic block. */
     MVMint32    *fixup_locations;
     MVMSpeshBB **fixup_bbs;
-    MVMint32     num_fixups;
-    MVMint32     alloc_fixups;
+    MVMuint32    num_fixups;
+    MVMuint32    alloc_fixups;
 
     /* Copied frame handlers (which we'll update offsets of). */
     MVMFrameHandler *handlers;
@@ -87,7 +87,7 @@ static void collect_deopt_users(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
         MVMSpeshIns *ins = users->user;
         if (ins->info->opcode == MVM_SSA_PHI) {
             MVMint32 seen = 0;
-            MVMint32 i;
+            MVMuint32 i;
             for (i = 0; i < MVM_VECTOR_ELEMS(all_deopt_users->seen_phis); i++) {
                 if (all_deopt_users->seen_phis[i] == ins) {
                     seen = 1;
@@ -234,7 +234,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                         write_int32(ws, ins->operands[i].lit_str_idx);
                         break;
                     case MVM_operand_ins: {
-                        MVMint32 bb_idx = ins->operands[i].ins_bb->idx;
+                        MVMuint32 bb_idx = ins->operands[i].ins_bb->idx;
                         MVMint32 offset;
                         if (bb_idx >= g->num_bbs)
                             MVM_panic(1, "Spesh codegen: out of range BB index %d", bb_idx);
@@ -322,7 +322,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
 MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshCode *res;
     MVMSpeshBB   *bb;
-    MVMint32      i, hanlen;
+    MVMuint32     i, hanlen;
 
     /* Initialize writer state. */
     SpeshWriterState *ws     = MVM_malloc(sizeof(SpeshWriterState));
@@ -386,9 +386,9 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
             ws->handlers[i].end_offset = -1;
             ws->handlers[i].goto_offset = -1;
         }
-        else if (ws->handlers[i].start_offset == -1 ||
-                 ws->handlers[i].end_offset   == -1 ||
-                 ws->handlers[i].goto_offset  == -1) {
+        else if (ws->handlers[i].start_offset == (MVMuint32)-1 ||
+                 ws->handlers[i].end_offset   == (MVMuint32)-1 ||
+                 ws->handlers[i].goto_offset  == (MVMuint32)-1) {
             MVM_oops(tc, "Spesh: failed to fix up handler %d in %s (%d, %d, %d)",
                 i,
                 MVM_string_utf8_maybe_encode_C_string(tc, g->sf->body.name),
@@ -405,7 +405,7 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
             g->inlines[i].end = -1;
         }
         else {
-            if (g->inlines[i].start == -1 || g->inlines[i].end == -1)
+            if (g->inlines[i].start == (MVMuint32)-1 || g->inlines[i].end == (MVMuint32)-1)
                 MVM_oops(tc, "Spesh: failed to fix up inline %d (%s) %d %d",
                     i,
                     MVM_string_utf8_maybe_encode_C_string(tc, g->inlines[i].sf->body.name),

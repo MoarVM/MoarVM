@@ -101,7 +101,7 @@ void MVM_spesh_copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperan
  * If a spesh slot already holds this value, return that instead. */
 MVMint16 MVM_spesh_add_spesh_slot_try_reuse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCollectable *c) {
     MVMint16 prev_slot;
-    for (prev_slot = 0; prev_slot < g->num_spesh_slots; prev_slot++) {
+    for (prev_slot = 0; (MVMuint16)prev_slot < g->num_spesh_slots; prev_slot++) {
         if (g->spesh_slots[prev_slot] == c)
             return prev_slot;
     }
@@ -2156,7 +2156,7 @@ static void optimize_plugin(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
                         MVMuint32 cur_guard_index = ts->by_offset[j].plugin_guards[k].guard_index;
                         MVMuint32 count = ts->by_offset[j].plugin_guards[k].count;
                         if (agg_guard_index >= 0) {
-                            if (agg_guard_index != cur_guard_index) {
+                            if ((MVMuint32)agg_guard_index != cur_guard_index) {
                                 if (count > 100 * agg_guard_index_count) {
                                     /* This one is hugely more popular. */
                                     agg_guard_index = cur_guard_index;
@@ -2277,9 +2277,9 @@ static void optimize_prof_allocated(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
 static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     /* First, see if we have any goto handlers for this category. */
     MVMint32 *handlers_found = MVM_malloc(g->num_handlers * sizeof(MVMint32));
-    MVMint32  num_found      = 0;
+    MVMuint32 num_found      = 0;
     MVMuint32 category       = (MVMuint32)ins->operands[1].lit_i64;
-    MVMint32  i;
+    MVMuint32  i;
     for (i = 0; i < g->num_handlers; i++)
         if (g->handlers[i].action == MVM_EX_ACTION_GOTO)
             if (g->handlers[i].category_mask & category)
@@ -2310,7 +2310,7 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
                     case MVM_SPESH_ANN_FH_GOTO:
                         if (ann->data.frame_handler_index < g->num_handlers) {
                             goto_bbs[ann->data.frame_handler_index] = search_bb;
-                            if (picked >= 0 && ann->data.frame_handler_index == picked)
+                            if (picked >= 0 && ann->data.frame_handler_index == (MVMuint32)picked)
                                 goto search_over;
                         }
                         break;
@@ -3266,7 +3266,7 @@ static void eliminate_pointless_gotos(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
 static void merge_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *bb = g->entry;
-    MVMint32 orig_bbs = g->num_bbs;
+    MVMuint32 orig_bbs = g->num_bbs;
     if (!bb || !bb->linear_next) return; /* looks like there's only a single bb anyway */
     bb = bb->linear_next;
 
