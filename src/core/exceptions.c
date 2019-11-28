@@ -79,7 +79,7 @@ typedef struct {
     MVMint32         handler_out_of_dynamic_scope;
 } LocatedHandler;
 
-static MVMint32 handler_can_handle(MVMFrame *f, MVMFrameHandler *fh, MVMint32 cat, MVMObject *payload) {
+static MVMint32 handler_can_handle(MVMFrame *f, MVMFrameHandler *fh, MVMuint32 cat, MVMObject *payload) {
     MVMuint32         category_mask = fh->category_mask;
     MVMuint64       block_has_label = category_mask & MVM_EX_CAT_LABELED;
     MVMuint64           block_label = block_has_label ? (uintptr_t)(f->work[fh->label_reg].o) : 0;
@@ -116,10 +116,10 @@ static MVMint32 search_frame_handlers_dyn(MVMThreadContext *tc, MVMFrame *f,
             }
         }
     } else {
-        MVMint32 num_handlers = f->spesh_cand
+        MVMuint32 num_handlers = f->spesh_cand
             ? f->spesh_cand->num_handlers
             : f->static_info->body.num_handlers;
-        MVMint32 pc;
+        MVMuint32 pc;
         if (f == tc->cur_frame)
             pc = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
         else
@@ -214,10 +214,10 @@ static MVMint32 search_frame_handlers_lex(MVMThreadContext *tc, MVMFrame *f,
         }
     }
     else {
-        MVMint32 num_handlers = f->spesh_cand
+        MVMuint32 num_handlers = f->spesh_cand
             ? f->spesh_cand->num_handlers
             : f->static_info->body.num_handlers;
-        MVMint32 pc;
+        MVMuint32 pc;
         if (f == tc->cur_frame)
             pc = (MVMuint32)(*tc->interp_cur_op - *tc->interp_bytecode_start);
         else
@@ -548,7 +548,7 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
         MVMuint32             offset = cur_op - MVM_frame_effective_bytecode(cur_frame);
         MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body,
                                             offset > 0 ? offset - 1 : 0);
-        MVMint32              fshi   = annot ? (MVMint32)annot->filename_string_heap_index : -1;
+        MVMuint32             fshi   = annot ? (MVMint32)annot->filename_string_heap_index : -1;
         char            *line_number = MVM_malloc(16);
         MVMString      *filename_str;
         snprintf(line_number, 16, "%d", annot ? annot->line_number : 1);
@@ -557,7 +557,7 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
         annotations = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
 
         /* file */
-        filename_str = fshi >= 0 && fshi < cur_frame->static_info->body.cu->body.num_strings
+        filename_str = annot && fshi < cur_frame->static_info->body.cu->body.num_strings
              ? MVM_cu_string(tc, cur_frame->static_info->body.cu, fshi)
              : cur_frame->static_info->body.cu->body.filename;
         value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
