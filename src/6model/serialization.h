@@ -18,7 +18,7 @@ struct MVMSerializationRoot {
     /* The number of dependencies, as well as a pointer to the
      * dependencies table. */
     char     *dependencies_table;
-    MVMint32  num_dependencies;
+    MVMuint32 num_dependencies;
 
     /* The number of STables, as well as pointers to the STables
      * table and data chunk. */
@@ -41,7 +41,7 @@ struct MVMSerializationRoot {
      * the contexts table and data chunk. */
     char     *contexts_table;
     char     *contexts_data;
-    MVMint32  num_contexts;
+    MVMuint32 num_contexts;
 
     /* The number of repossessions and pointer to repossessions table. */
     MVMint32  num_repos;
