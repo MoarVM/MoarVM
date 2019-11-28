@@ -861,7 +861,7 @@ void MVM_profile_instrumented_mark_data(MVMThreadContext *tc, MVMGCWorklist *wor
 static void dump_callgraph_node(MVMThreadContext *tc, MVMProfileCallNode *n, MVMuint16 depth) {
     MVMuint16 dc = depth;
     MVMuint32 idx;
-    char *name;
+    char *name = NULL;
 
     for (dc = depth; dc > 0; dc--) {
         fputc(' ', stderr);
@@ -870,7 +870,7 @@ static void dump_callgraph_node(MVMThreadContext *tc, MVMProfileCallNode *n, MVM
     if (n->sf)
         name = MVM_string_utf8_encode_C_string(tc, n->sf->body.name);
 
-    fprintf(stderr, "+ [%3d] %s\n", n->num_succ, name);
+    fprintf(stderr, "+ [%3d] %s\n", n->num_succ, name ? name : "(unknown)");
     MVM_free(name);
 
     for (idx = 0; idx < n->num_succ; idx++) {
