@@ -589,7 +589,7 @@ for my $opcode (@OPLIST) {
         printf '    { MVM_jit_expr_templates + %d, "%s", %d, %d, %d },%s',
           $td->{idx}, $td->{info}, $td->{len}, $td->{root}, $td->{flags}, "\n";
     } else {
-        print "    { NULL, NULL, -1, 0 },\n";
+        print "    { NULL, NULL, -1, 0, 0 },\n";
     }
 }
 print "};\n";
