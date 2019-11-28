@@ -158,7 +158,7 @@ int wmain(int argc, wchar_t *wargv[])
     int lib_path_i   = 0;
     int flag;
 
-    unsigned int interval_id;
+    unsigned int interval_id = 0;
     char telemeh_inited = 0;
 
     MVMuint32 debugserverport = 0;
