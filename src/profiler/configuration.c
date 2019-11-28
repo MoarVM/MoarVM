@@ -475,7 +475,12 @@ static void error_concreteness(MVMThreadContext *tc, MVMObject *object, MVMuint1
 MVMint16 stats_position_for_value(MVMThreadContext *tc, MVMuint8 entrypoint, MVMuint64 return_value) {
     switch (entrypoint) {
         case MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC:
-            if (return_value >= MVM_CONFPROG_SF_RESULT_TO_BE_DETERMINED && return_value <= MVM_CONFPROG_SF_RESULT_ALWAYS) {
+            if (return_value == MVM_CONFPROG_SF_RESULT_TO_BE_DETERMINED
+                || return_value == MVM_CONFPROG_SF_RESULT_NEVER
+                || return_value == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_NO
+                || return_value == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES
+                || return_value == MVM_CONFPROG_SF_RESULT_ALWAYS
+            ) {
                 return return_value;
             }
             if (tc)
@@ -487,7 +492,7 @@ MVMint16 stats_position_for_value(MVMThreadContext *tc, MVMuint8 entrypoint, MVM
             MVM_exception_throw_adhoc(tc, "Can't get stats for out-of-bounds value %ld for dynamic profiler entrypoint", return_value);
             return -1;
         case MVM_PROGRAM_ENTRYPOINT_HEAPSNAPSHOT:
-            if (return_value >= 0 && return_value <= 2)
+            if (return_value <= 2)
                 return MVM_CONFPROG_SF_RESULT_ALWAYS + 1 + 1 + 1 + return_value;
             MVM_exception_throw_adhoc(tc, "Can't get stats for out-of-bounds value %ld for heapsnapshot entrypoint", return_value);
             return -1;

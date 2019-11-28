@@ -46,7 +46,7 @@ MVMint32 gb18030_valid_check_len4_first2(MVMint32 c_1, MVMint32 c_2) {
     return (((0x81 <= c_1 && c_1 <= 0x83) || (c_1 == 0x84 && c_2 == 0x30)) && (0x30 <= c_2 && c_2 <= 0x39))	|| (c_1 == 0x84 && c_2 == 0x31);
 }
 
-MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *result_type, const char *gb18030, size_t bytes) {
+MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *result_type, const unsigned char *gb18030, size_t bytes) {
     size_t i, result_graphs;
 
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
@@ -57,7 +57,7 @@ MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *res
     result_graphs = 0;
 
     for (i = 0; i < bytes; i++) {
-        if (0 <= gb18030[i] && gb18030[i] <= 127) {
+        if (gb18030[i] <= 127) {
             if (gb18030[i] == '\r' && i + 1 < bytes && gb18030[i + 1] == '\n') {
                 result->body.storage.blob_32[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
                 i++;
@@ -258,7 +258,7 @@ done:
     return reached_stopper;
 }
 
-char * MVM_string_gb18030_encode_substr(MVMThreadContext *tc, MVMString *str,
+unsigned char * MVM_string_gb18030_encode_substr(MVMThreadContext *tc, MVMString *str,
                                        MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement,
                                        MVMint32 translate_newlines) {
 
@@ -342,5 +342,5 @@ char * MVM_string_gb18030_encode_substr(MVMThreadContext *tc, MVMString *str,
             *output_size = out_pos;
     }
     if (repl_bytes) MVM_free(repl_bytes);
-    return (char *)result;
+    return (unsigned char *)result;
 }
