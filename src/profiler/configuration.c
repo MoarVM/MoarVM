@@ -306,13 +306,10 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
     }
     else if (opcode == MVM_OP_getattr_o) {
         MVMuint8 selected_struct_source = state->selected_struct_source; 
-        MVMuint16 target_reg_num;
         MVMuint16 source_reg_num;
         MVMuint32 string_idx;
-        MVMuint16 hint;
         MVMuint16 *hintptr;
 
-        target_reg_num = *((MVMuint16 *)state->bc_pointer);
         validate_operand(tc, state, 0, state->cur_op->operands[0]);
 
         source_reg_num = *((MVMuint16 *)state->bc_pointer);
@@ -324,7 +321,6 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
         validate_operand(tc, state, 3, state->cur_op->operands[3]);
 
         hintptr = (MVMuint16 *)state->bc_pointer;
-        hint = *hintptr;
         validate_operand(tc, state, 4, state->cur_op->operands[4]);
 
         junkprint(stderr, "currently on %d struct source, string index is %d\n", selected_struct_source, string_idx);

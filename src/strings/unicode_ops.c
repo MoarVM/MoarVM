@@ -236,7 +236,7 @@ static MVMint32 NFD_and_push_collation_values (MVMThreadContext *tc, MVMCodepoin
     return rtrn;
 }
 /* Returns the number of collation elements pushed onto the stack */
-static MVMint32 collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp, collation_stack *stack, MVMCodepointIter *ci, char *name) {
+static void collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp, collation_stack *stack, MVMCodepointIter *ci, char *name) {
     collation_key MVM_coll_key = {
         MVM_unicode_collation_primary(tc, cp), MVM_unicode_collation_secondary(tc, cp), MVM_unicode_collation_tertiary(tc, cp), 0
     };
@@ -278,7 +278,7 @@ static MVMint32 collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp
         else {
             MVMint32 NFD_rtrn = NFD_and_push_collation_values(tc, cp, stack, ci, name);
             if (NFD_rtrn) {
-                return NFD_rtrn;
+                return;
             }
             else {
                 AAAA = compute_AAAA(cp, 0xFBC0);
@@ -290,14 +290,12 @@ static MVMint32 collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp
         calculated_key[1].s.primary = BBBB;
         DEBUG_PRINT_SPECIAL_PUSHED(block_pushed, name, cp);
         push_onto_stack(tc, stack, calculated_key, 2, name);
-        return 2;
     }
     else {
         push_key_to_stack(stack,
             MVM_coll_key.s.primary,
             MVM_coll_key.s.secondary,
             MVM_coll_key.s.tertiary);
-        return 1;
     }
 }
 /* This is passed the terminal node and it adds the collation elements linked from
@@ -375,7 +373,6 @@ MVMint64 get_main_node (MVMThreadContext *tc, int cp, int range_min, int range_m
 }
 /* Returns the number of added collation keys */
 static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepointIter *ci, int *cp_maybe, int cp_num, char *name) {
-    MVMint64 rtrn = 0;
     MVMCodepoint cps[10];
     MVMint64 num_cps_processed = 0;
     int query = -1;
@@ -440,7 +437,7 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
     }
     else {
         /* Push the first codepoint onto the stack */
-        rtrn = collation_push_MVM_values(tc, cps[0], stack, ci, name);
+        collation_push_MVM_values(tc, cps[0], stack, ci, name);
         num_cps_processed = 1;
     }
     /* If there are any more codepoints remaining call collation_push_cp on the remaining */

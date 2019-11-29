@@ -630,7 +630,7 @@ MVM_STATIC_INLINE void HASH_ADD_TO_BKT(MVMThreadContext *tc, UT_hash_bucket *buc
     table->bucket_rand = bucket->hh_head ? ROTL(table->bucket_rand, 1) : table->bucket_rand + 1;/* Rotate so our bucket_rand changes somewhat. */
     if (bucket->hh_head && table->bucket_rand & 1) {
         UT_hash_handle *head = bucket->hh_head;
-        UT_hash_handle *next = addhh->hh_next = head->hh_next;
+        addhh->hh_next = head->hh_next;
         head->hh_next = addhh;
     }
     else {

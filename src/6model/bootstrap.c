@@ -226,7 +226,6 @@ static void member(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
     MVM_args_proc_init(tc, &arg_ctx, callsite, args); \
     MVM_args_checkarity(tc, &arg_ctx, 2, 2); \
     self     = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0); \
-    type_obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 1); \
     MVM_args_proc_cleanup(tc, &arg_ctx); \
     if (!self || !IS_CONCRETE(self) || REPR(self)->ID != MVM_REPR_ID_KnowHOWREPR) \
         MVM_exception_throw_adhoc(tc, "KnowHOW methods must be called on object instance with REPR KnowHOWREPR"); \

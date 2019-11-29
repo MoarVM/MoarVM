@@ -56,7 +56,7 @@ MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStre
     MVMGrapheme32 *buffer;
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
-    MVMint32 last_accept_pos, last_was_cr;
+    MVMint32 last_accept_pos;
     MVMuint32 reached_stopper;
     int low, high;
     /* Set to 1 to remove the BOM even when big endian or little endian are
@@ -77,7 +77,6 @@ MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStre
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
-    last_was_cr = 0;
     reached_stopper = 0;
     if (utf16_decoder_state(ds) == UTF16_DECODE_LITTLE_ENDIAN) {
         low = 0;

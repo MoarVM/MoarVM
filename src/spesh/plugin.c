@@ -688,7 +688,7 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
 
         /* Collect registers that go with each argument, and delete the arg
          * and prepargs instructions. */
-        MVMuint32 initial_arg_regs_length, arg_regs_length, i;
+        MVMuint32 arg_regs_length, i;
         MVMSpeshOperand *arg_regs = arg_ins_to_reg_list(tc, g, bb, ins, &arg_regs_length);
 
         /* Find result and add it to a spesh slot. */
@@ -707,7 +707,6 @@ void MVM_spesh_plugin_rewrite_resolve(MVMThreadContext *tc, MVMSpeshGraph *g, MV
         MVM_spesh_facts_object_facts(tc, g, ins->operands[0], resolvee);
 
         /* Prepend guards. */
-        initial_arg_regs_length = arg_regs_length;
         MVM_VECTOR_INIT(temps, 0);
         while (++guards_start <= guards_end) {
             MVMSpeshPluginGuard *guard = &(gs->guards[guards_start]);
