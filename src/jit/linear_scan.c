@@ -732,7 +732,7 @@ static MVMuint32 select_live_range_for_spill(MVMThreadContext *tc, RegisterAlloc
         if (MVM_bitmap_get_low(reg_perm, r->reg_num))
             return alc->active[i];
     }
-    assert(0);
+    MVM_panic(1, "JIT compiler did not find a live range for spill");
 }
 
 
