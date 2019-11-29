@@ -63,6 +63,8 @@ struct MVMGCWorklist {
     MVM_gc_worklist_add(tc, worklist, item)
 #define MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, item) \
     MVM_gc_worklist_add(tc, worklist, item)
+#define MVM_gc_worklist_add_object_no_include_gen2_nocheck(tc, worklist, item) \
+    MVM_gc_worklist_add(tc, worklist, item)
 #else
 #define MVM_gc_worklist_add(tc, worklist, item) \
     do { \
@@ -90,6 +92,12 @@ do { \
 do { \
     if (*item && !( (*(MVMCollectable**)item)->flags & MVM_CF_SECOND_GEN)) { \
         worklist->list[worklist->items++] = (MVMCollectable**)item; \
+    } \
+} while (0)
+#define MVM_gc_worklist_add_object_no_include_gen2_nocheck(tc, worklist, object) \
+do { \
+    if (*object && !( (*object)->header.flags & MVM_CF_SECOND_GEN)) { \
+        worklist->list[worklist->items++] = (MVMCollectable**)object; \
     } \
 } while (0)
 #endif

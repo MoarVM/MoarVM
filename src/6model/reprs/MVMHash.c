@@ -54,7 +54,7 @@ static void MVMHash_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVM
     else {
         HASH_ITER_FAST(tc, hash_handle, body->hash_head, current, {
             MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, &current->hash_handle.key);
-            MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, &current->value);
+            MVM_gc_worklist_add_object_no_include_gen2_nocheck(tc, worklist, &current->value);
         });
     }
 }
