@@ -350,7 +350,7 @@ typedef struct {
 } ProfTcPdsStruct;
 
 static MVMObject * insert_if_not_exists(MVMThreadContext *tc, ProfDumpStrs *pds, MVMObject *storage, MVMint64 key) {
-    MVMint64 index;
+    MVMuint64 index;
     MVMObject *result;
     MVMObject *type_info_hash;
 
@@ -451,14 +451,14 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
         /* Try to resolve the code filename and line number. */
         MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc,
             &(pcn->sf->body), 0);
-        MVMint32 fshi = annot ? (MVMint32)annot->filename_string_heap_index : -1;
+        MVMuint32 fshi = annot ? (MVMint32)annot->filename_string_heap_index : 0;
 
         /* Add name of code object. */
         MVM_repr_bind_key_o(tc, node_hash, pds->name,
             box_s(tc, pcn->sf->body.name));
 
         /* Add line number and file name. */
-        if (fshi >= 0 && fshi < pcn->sf->body.cu->body.num_strings)
+        if (annot && fshi < pcn->sf->body.cu->body.num_strings)
             MVM_repr_bind_key_o(tc, node_hash, pds->file,
                 box_s(tc, MVM_cu_string(tc, pcn->sf->body.cu, fshi)));
         else if (pcn->sf->body.cu->body.filename)

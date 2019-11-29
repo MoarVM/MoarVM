@@ -28,7 +28,8 @@ MVM_STATIC_INLINE void adjust_nursery(MVMThreadContext *tc, MVMP6bigintBody *bod
 
 /* Taken from mp_set_long, but portably accepts a 64-bit number. */
 int MVM_bigint_mp_set_uint64(mp_int * a, MVMuint64 b) {
-  int     x, res;
+  size_t x;
+  int    res;
 
   mp_zero (a);
 
