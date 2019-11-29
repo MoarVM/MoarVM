@@ -1322,7 +1322,7 @@ static MVMint32 create_caller_or_outer_context_debug_handle(MVMThreadContext *dt
         : dtc->instance->VMNull;
 
     MVMFrame *frame;
-    if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
+    if (!this_ctx || !IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
         if (dtc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "outer/caller context handle must refer to a definite MVMContext object\n");
         return 1;
