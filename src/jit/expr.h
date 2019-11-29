@@ -24,12 +24,12 @@ MVM_JIT_EXPR_OPS(MVM_JIT_OP_ENUM)
 /* Tree node information for easy access and use during compilation (a
    symbol table entry of sorts) */
 struct MVMJitExprInfo {
-    MVMint8 num_links;
-    MVMint8 num_args;
+    MVMuint8 num_links;
+    MVMuint8 num_args;
     /* VM 'register' type represented by this node */
     MVMint8 type;
     /* Size of computed value */
-    MVMint8 size;
+    MVMuint8 size;
 };
 
 MVM_STATIC_ASSERT(sizeof(MVMJitExprInfo) <= sizeof(MVMint32));

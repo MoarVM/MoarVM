@@ -3392,7 +3392,7 @@ void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
 
 void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler,
                           MVMJitControl *ctrl, MVMJitTile *tile) {
-    MVMJitControlType type = (tile != NULL ? tile->args[0] : ctrl->type);
+    MVMJitControlType type = (tile != NULL ? (MVMJitControlType)tile->args[0] : ctrl->type);
     if (type == MVM_JIT_CONTROL_BREAKPOINT) {
         /* Debug breakpoint */
         | int 3;
@@ -3508,7 +3508,7 @@ void MVM_jit_emit_marker(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint3
 
 void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitData *data) {
     MVMuint8 *bytes = data->data;
-    MVMint32 i;
+    size_t i;
     |.data;
     |=>(data->label):
     for (i = 0; i < data->size; i++) {

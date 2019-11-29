@@ -33,7 +33,7 @@ const char * MVM_register_type(MVMint8 reg_type) {
 }
 
 static void debug_spill_map(MVMThreadContext *tc, MVMJitCompiler *cl) {
-    MVMint32 i;
+    MVMuint32 i;
     if (!MVM_jit_debug_enabled(tc))
         return;
     MVM_spesh_debug_printf(tc, "JIT Spilled: %d offset %x\n", MVM_VECTOR_ELEMS(cl->spills), cl->spills_base);
@@ -148,7 +148,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
 
 MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitGraph *jg) {
     MVMJitCode * code;
-    MVMint32 i;
+    MVMuint32 i;
     char * memory;
     size_t codesize;
 
@@ -307,7 +307,7 @@ void MVM_jit_compile_guard(MVMThreadContext *tc, MVMJitCompiler *compiler,
 void MVM_jit_compile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitExprTree *tree) {
     MVMJitTileList *list;
     MVMJitTile *tile;
-    MVMint32 i;
+    MVMuint32 i;
 
     /* Log what we are planning to compile */
     if (MVM_jit_debug_enabled(tc))
@@ -356,8 +356,8 @@ MVM_STATIC_INLINE MVMint32 reg_type_bucket(MVMint8 reg_type) {
 }
 
 
-MVMint32 MVM_jit_spill_memory_select(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint8 reg_type) {
-    MVMint32 idx;
+MVMuint32 MVM_jit_spill_memory_select(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint8 reg_type) {
+    MVMuint32 idx;
     MVMint8 bucket = reg_type_bucket(reg_type);
 
     if (compiler->spills_free[bucket] >= 0) {
@@ -370,8 +370,8 @@ MVMint32 MVM_jit_spill_memory_select(MVMThreadContext *tc, MVMJitCompiler *compi
     return compiler->spills_base + idx * sizeof(MVMRegister);
 }
 
-void MVM_jit_spill_memory_release(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 pos, MVMint8 reg_type) {
-    MVMint32 idx   = (pos - compiler->spills_base) / sizeof(MVMRegister);
+void MVM_jit_spill_memory_release(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMuint32 pos, MVMint8 reg_type) {
+    MVMuint32 idx   = (pos - compiler->spills_base) / sizeof(MVMRegister);
     MVMint8 bucket = reg_type_bucket(reg_type);
     compiler->spills[idx].next    = compiler->spills_free[bucket];
     compiler->spills_free[bucket] = idx;

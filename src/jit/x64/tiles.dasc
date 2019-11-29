@@ -43,7 +43,7 @@ MVM_JIT_TILE_DECL(const_num) {
     MVMuint8 out = tile->values[0] - MVM_JIT_REG(XMM0);
     MVMnum64 val = tree->constants[tile->args[0]].n;
     unsigned char bytes[sizeof(val)];
-    int i;
+    size_t i;
     memcpy(bytes, &val, sizeof(val));
     |.data;
     |5:

@@ -476,7 +476,7 @@ static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMint32         *args = MVM_JIT_EXPR_ARGS(tree, node);
     MVMint32     cast_mode = MVM_JIT_NOOP;
     MVMint8      node_type = MVM_JIT_EXPR_INFO(tree, node)->type;
-    MVMint32 node_size = 0;
+    MVMuint32 node_size = 0;
     MVMint32 i;
 
 
@@ -939,7 +939,7 @@ static void walk_tree(MVMThreadContext *tc, MVMJitExprTree *tree,
 /* TODO specify revisiting policy */
 void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree,
                                 MVMJitTreeTraverser *traverser) {
-    MVMint32 i;
+    MVMuint32 i;
     MVM_VECTOR_INIT(traverser->visits, tree->nodes_num);
     for (i = 0; i < tree->roots_num; i++) {
         /* TODO deal with nodes with multiple entries */

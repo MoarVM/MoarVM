@@ -3894,7 +3894,7 @@ start:
 static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
                            MVMSpeshIterator *iter, MVMSpeshBB *bb) {
     MVMJitExprTree *tree = NULL;
-    MVMint32 i;
+    MVMuint32 i;
     MVMint32 label = MVM_jit_label_before_bb(tc, jg, bb);
     jg_append_label(tc, jg, label);
 

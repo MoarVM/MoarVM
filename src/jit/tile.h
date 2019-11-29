@@ -5,7 +5,7 @@ struct MVMJitTileTemplate {
     MVMint32  left_sym;
     MVMint32  right_sym;
 
-    MVMint32  num_refs;
+    MVMuint32  num_refs;
     MVMuint32 value_bitmap;
     MVMuint8 register_spec[4];
 };
@@ -15,7 +15,7 @@ struct MVMJitTile {
     MVMint32 node;
     enum MVMJitExprOperator op;
 
-    MVMint32  num_refs;
+    MVMuint32  num_refs;
     MVMint32   refs[4];
     MVMint32   args[6];
     MVMuint8 values[4];
@@ -28,14 +28,14 @@ struct MVMJitTile {
 
 struct MVMJitTileBB {
     /* first and last tile index of code  */
-    MVMint32 start, end;
+    MVMuint32 start, end;
     /* up to two successors */
-    MVMint32 num_succ, succ[2];
+    MVMuint32 num_succ, succ[2];
 };
 
 /* A tile I'm planning to insert into the list */
 struct MVMJitTileInsert {
-    MVMint32 position;
+    MVMuint32 position;
     MVMint32 order;
     MVMJitTile *tile;
 };
@@ -62,7 +62,7 @@ MVMJitTile     * MVM_jit_tile_make_from_template(MVMThreadContext *tc, MVMJitCom
 MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree);
 
 
-void MVM_jit_tile_list_insert(MVMThreadContext *tc, MVMJitTileList *list, MVMJitTile *tile, MVMint32 position, MVMint32 order);
+void MVM_jit_tile_list_insert(MVMThreadContext *tc, MVMJitTileList *list, MVMJitTile *tile, MVMuint32 position, MVMint32 order);
 void MVM_jit_tile_list_edit(MVMThreadContext *tc, MVMJitTileList *list);
 void MVM_jit_tile_list_destroy(MVMThreadContext *tc, MVMJitTileList *list);
 

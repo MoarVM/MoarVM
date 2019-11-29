@@ -771,7 +771,7 @@ MVMJitTile * MVM_jit_tile_make_from_template(MVMThreadContext *tc, MVMJitCompile
 
 MVMJitTileList * MVM_jit_tile_expr_tree(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitExprTree *tree) {
     MVMJitTreeTraverser traverser;
-    MVMint32 i;
+    MVMuint32 i;
     struct TreeTiler tiler;
 
     MVM_VECTOR_INIT(tiler.states, tree->nodes_num);
@@ -828,7 +828,7 @@ static int cmp_tile_insert(const void *p1, const void *p2) {
     const struct MVMJitTileInsert *a = p1, *b = p2;
     return a->position == b->position ?
         a->order - b->order :
-        a->position - b->position;
+        (int)a->position - (int)b->position;
 }
 
 
@@ -845,14 +845,14 @@ static int cmp_tile_insert(const void *p1, const void *p2) {
  * - relative to other inserts at the same position, indicated by the order
  */
 
-void MVM_jit_tile_list_insert(MVMThreadContext *tc, MVMJitTileList *list, MVMJitTile *tile, MVMint32 position, MVMint32 order) {
+void MVM_jit_tile_list_insert(MVMThreadContext *tc, MVMJitTileList *list, MVMJitTile *tile, MVMuint32 position, MVMint32 order) {
     struct MVMJitTileInsert i = { position, order, tile };
     MVM_VECTOR_PUSH(list->inserts, i);
 }
 
 void MVM_jit_tile_list_edit(MVMThreadContext *tc, MVMJitTileList *list) {
     MVMJitTile **worklist;
-    MVMint32 i, j, k, n;
+    MVMuint32 i, j, k, n;
     if (list->inserts_num == 0)
         return;
 
