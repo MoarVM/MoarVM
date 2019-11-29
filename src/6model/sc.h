@@ -78,7 +78,7 @@ MVM_STATIC_INLINE MVMSerializationContext * MVM_sc_get_collectable_sc(MVMThreadC
     MVMuint32 sc_idx;
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
     sc_idx = MVM_sc_get_idx_of_sc(col);
-    assert(sc_idx != ~0);
+    assert(sc_idx != ~(MVMuint32)0);
     return sc_idx > 0 ? tc->instance->all_scs[sc_idx]->sc : NULL;
 }
 
@@ -173,7 +173,7 @@ void MVM_SC_WB_OBJ(MVMThreadContext *tc, MVMObject *obj);
 
 MVM_STATIC_INLINE void MVM_SC_WB_ST(MVMThreadContext *tc, MVMSTable *st) {
     assert(!(st->header.flags & MVM_CF_FORWARDER_VALID));
-    assert(MVM_sc_get_idx_of_sc(&st->header) != ~0);
+    assert(MVM_sc_get_idx_of_sc(&st->header) != ~(MVMuint32)0);
     if (MVM_sc_get_idx_of_sc(&st->header) > 0)
         MVM_sc_wb_hit_st(tc, st);
 }
