@@ -327,9 +327,9 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                         (int)type, ins_node->info->name);
                 }
                 break;
+            }
             default:
                 break;
-            }
             }
         }
 
