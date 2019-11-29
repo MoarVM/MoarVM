@@ -56,7 +56,6 @@ MVM_STATIC_INLINE MVMuint32 MVM_sc_get_idx_in_sc(MVMCollectable *col) {
 
 MVM_STATIC_INLINE void MVM_sc_set_idx_in_sc(MVMCollectable *col, MVMuint32 i) {
     assert(!(col->flags & MVM_CF_FORWARDER_VALID));
-    assert(i >= 0);
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
     if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
         col->sc_forward_u.sci->idx = i;
