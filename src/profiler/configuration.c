@@ -425,7 +425,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
     state->prev_op_bc = prev_op_bc_ptr;
 }
 
-MVMuint8 MVM_confprog_validate(MVMThreadContext *tc, MVMConfigurationProgram *prog) {
+void MVM_confprog_validate(MVMThreadContext *tc, MVMConfigurationProgram *prog) {
     validatorstate state;
 
     state.confprog = prog;
