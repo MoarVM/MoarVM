@@ -55,6 +55,18 @@ MVM_STATIC_INLINE MVMuint16 check_lex(MVMThreadContext *tc, MVMFrame *f, MVMuint
 
 #define CHECK_CONC(obj) do { if (MVM_UNLIKELY(IS_CONCRETE((MVMObject *)(obj)) == 0)) { error_concreteness(tc, (MVMObject *)(obj), op); } } while (0)
 
+typedef union double_memory
+{
+    uint64_t u;
+    double d;
+} double_memory;
+typedef union float_memory
+{
+    uint32_t u;
+    float f;
+} float_memory;
+#define CAST_N32(u) (((float_memory)(u)).d)
+
 static void error_concreteness(MVMThreadContext *tc, MVMObject *object, MVMuint16 op) {
     MVM_exception_throw_adhoc(tc, "%s requires a concrete object (got a %s type object instead)",
             MVM_op_get_op(op)->name, MVM_6model_get_debug_name(tc, object));
@@ -5538,8 +5550,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "Cannot write to a %s type object", MVM_6model_get_debug_name(tc, buf));
                 switch (size) {
                     case 4: {
-                        MVMnum32 num32 = (MVMnum32)GET_REG(cur_op, 4).n64;
-                        MVMuint64 value = *(MVMuint32*)&num32;
+                        float_memory num32;
+                        num32.f = (MVMnum32)GET_REG(cur_op, 4).n64;
+                        MVMuint64 value = num32.u;
                         if ((flags & 3) == MVM_SWITCHENDIAN) {
                             value = switch_endian(value, size);
                         }
@@ -5552,12 +5565,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         break;
                     }
                     default: {
-                        MVMuint64 value = *(MVMuint64*)&GET_REG(cur_op, 4).n64;
+                        double_memory value;
+                        value.d = GET_REG(cur_op, 4).n64;
                         if ((flags & 3) == MVM_SWITCHENDIAN) {
-                            value = switch_endian(value, size);
+                            value.u = switch_endian(value.u, size);
                         }
                         REPR(buf)->pos_funcs.write_buf(tc, STABLE(buf), buf, OBJECT_BODY(buf),
-                            (char*)&value
+                            (char*)&value.u
 #if MVM_BIGENDIAN
                             + (8 - size)
 #endif
@@ -5626,21 +5640,23 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "Cannot read from a %s type object", MVM_6model_get_debug_name(tc, buf));
                 switch (size) {
                     case 8: {
-                        MVMuint64 read = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf),
+                        double_memory read;
+                        read.u = REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf),
                                 buf, OBJECT_BODY(buf), off, 8);
                         if ((flags & 3) == MVM_SWITCHENDIAN) {
-                            read = switch_endian(read, size);
+                            read.u = switch_endian(read.u, size);
                         }
-                        GET_REG(cur_op, 0).n64 = *(MVMnum64 *)&read;
+                        GET_REG(cur_op, 0).n64 = read.d;
                         break;
                     }
                     case 4: {
-                        MVMuint32 read = (MVMuint32)REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf),
+                        float_memory read;
+                        read.u = (MVMuint32)REPR(buf)->pos_funcs.read_buf(tc, STABLE(buf),
                                 buf, OBJECT_BODY(buf), off, 4);
                         if ((flags & 3) == MVM_SWITCHENDIAN) {
-                            read = switch_endian(read, size);
+                            read.u = switch_endian(read.u, size);
                         }
-                        GET_REG(cur_op, 0).n64 = *(MVMnum32 *)&read;
+                        GET_REG(cur_op, 0).n64 = read.f;
                         break;
                     }
                     default:
