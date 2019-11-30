@@ -112,9 +112,13 @@ static const MVMAsyncTaskOps op_table = {
 #define GEN_ENUMS(v)   v,
 #define GEN_STRING(v) #v,
 
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunused-variable"
 static enum {
     PROCESS_SIGS(GEN_ENUMS)
 } MVM_sig_names;
+#pragma GCC diagnostic pop
+
 
 static char const * const SIG_WANTED[NUM_SIG_WANTED] = {
     PROCESS_SIGS(GEN_STRING)
