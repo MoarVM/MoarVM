@@ -1382,11 +1382,11 @@ void static_frames_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotColle
     MVMuint64 i;
     MVMHeapDumpIndex *index = col->index;
     FILE *fh = col->fh;
-    gzFile names_fh, cuid_fh, line_fh, file_fh;
 
     fputs("fram", fh);
 
 #if DUMP_EVERYTHING_RAW
+    gzFile names_fh, cuid_fh, line_fh, file_fh;
     names_fh = open_coll_file(col, "names");
     cuid_fh = open_coll_file(col, "cuid");
     line_fh = open_coll_file(col, "line");
@@ -1448,7 +1448,6 @@ void string_heap_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollect
     for (i = col->strings_written; i < col->num_strings; i++) {
         char *str = col->strings[i];
         MVMuint64 output_size = strlen(str);
-        MVMuint32 smaller_size = strlen(str);
 
         /* Every string is stored as a 64 bit integer length followed by utf8-
          * encoded string data. */
@@ -1462,6 +1461,7 @@ void string_heap_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollect
 
 
 #if DUMP_EVERYTHING_RAW
+        MVMuint32 smaller_size = strlen(str);
         gzfwrite(&smaller_size, sizeof(MVMuint32), 1, str_fh);
         gzfwrite(str, sizeof(MVMuint8), smaller_size, str_fh);
 #endif
@@ -1491,7 +1491,6 @@ void references_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollecti
     MVMuint64 halfway;
     FILE *fh = col->fh;
     MVMHeapSnapshot *s = col->snapshot;
-    gzFile descr_fh, kind_fh, cindex_fh;
 
     fputs("refs", fh);
     fwrite(&s->num_references, sizeof(MVMuint64), 1, fh);
@@ -1503,6 +1502,7 @@ void references_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollecti
     halfway = s->num_references / 2 - 1;
 
 #if DUMP_EVERYTHING_RAW
+    gzFile descr_fh, kind_fh, cindex_fh;
     descr_fh = open_coll_file(col, "descrs");
     kind_fh = open_coll_file(col, "kinds");
     cindex_fh = open_coll_file(col, "cindex");
@@ -1585,11 +1585,11 @@ void types_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
     MVMuint64 i;
     MVMHeapDumpIndex *index = col->index;
     FILE *fh = col->fh;
-    gzFile repr_fh, type_fh;
 
     fputs("type", fh);
 
 #if DUMP_EVERYTHING_RAW
+    gzFile repr_fh, type_fh;
     repr_fh = open_coll_file(col, "repr");
     type_fh = open_coll_file(col, "type");
 #endif
@@ -1631,7 +1631,6 @@ void collectables_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollec
     MVMuint64 i;
     FILE *fh = col->fh;
     MVMHeapSnapshot *s = col->snapshot;
-    gzFile kind_fh, tofi_fh, collsize_fh, unmansize_fh, refstart_fh, refcount_fh;
 
     fputs("coll", fh);
 
@@ -1643,6 +1642,7 @@ void collectables_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollec
 
     
 #if DUMP_EVERYTHING_RAW
+    gzFile kind_fh, tofi_fh, collsize_fh, unmansize_fh, refstart_fh, refcount_fh;
     kind_fh = open_coll_file(col, "kind");
     tofi_fh = open_coll_file(col, "tofi");
     collsize_fh = open_coll_file(col, "size");

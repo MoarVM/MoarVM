@@ -244,7 +244,9 @@ static void collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp, co
      * Eventually we might want to restructure this code here */
     if (is_Block_Tangut(cp) || MVM_coll_key.s.primary <= 0 || MVM_coll_key.s.secondary <= 0 || MVM_coll_key.s.tertiary <= 0) {
         MVMuint32 AAAA, BBBB;
+#ifdef COLLATION_DEBUG
         char *block_pushed = NULL;
+#endif
         collation_key calculated_key[2] = {
             {0, 0x20, 0x2, 0},
             {0, 0x00, 0x0, 0}

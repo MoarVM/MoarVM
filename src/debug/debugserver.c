@@ -2560,10 +2560,10 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
 #ifdef _WIN32
         WORD wVersionRequested;
         WSADATA wsaData;
+        int error;
 #endif
         char portstr[16];
         struct addrinfo *res;
-        int error;
 
         snprintf(portstr, 16, "%"PRIu64, port);
 

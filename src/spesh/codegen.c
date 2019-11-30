@@ -277,6 +277,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
 
         /* If there were deopt point annotations, update table. */
         if (has_deopts) {
+#ifndef NDEBUG
             MVMint32 seen_deopt_idx = 0;
             MVMint32 deopt_idx;
             switch (ins->info->opcode) {
@@ -298,6 +299,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                 deopt_idx = -1;
                 break;
             }
+#endif
             ann = ins->annotations;
             while (ann) {
                 switch (ann->type) {
@@ -305,8 +307,10 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                 case MVM_SPESH_ANN_DEOPT_ALL_INS:
                 case MVM_SPESH_ANN_DEOPT_INLINE:
                     g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos;
+#ifndef NDEBUG
                     if (deopt_idx == ann->data.deopt_idx)
                         seen_deopt_idx = 1;
+#endif
                     break;
                 }
                 ann = ann->next;

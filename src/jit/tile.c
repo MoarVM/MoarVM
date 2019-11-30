@@ -95,11 +95,14 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_IF:
     case MVM_JIT_IFV:
         {
-            MVMint32 cond = links[0], left = links[1], right = links[2];
+            MVMint32 cond = links[0], left = links[1];
             MVMint32 *left_state  = MVM_jit_tile_state_lookup(tc, op, tiler->states[cond].state,
                                                               tiler->states[left].state);
+#ifdef MVM_JIT_DEBUG
+            MVMint32 right = links[2];
             MVMint32 *right_state = MVM_jit_tile_state_lookup(tc, op, tiler->states[cond].state,
                                                               tiler->states[right].state);
+#endif
             _ASSERT(left_state != NULL && right_state != NULL,
                     "Inconsistent %s tile state", info->name);
             tiler->states[node].state = left_state[3];
