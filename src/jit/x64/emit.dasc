@@ -4,6 +4,7 @@
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #include "dasm_x86.h"
 #pragma GCC diagnostic pop
+#pragma GCC diagnostic ignored "-Wunused-variable"
 
 #ifdef _MSC_VER
 #pragma warning( disable : 4129 )
