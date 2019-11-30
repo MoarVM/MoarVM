@@ -700,7 +700,7 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
             MVM_exception_throw_adhoc(tc, "vmeventsubscribe requires a concrete configuration hash (got a %s type object)", MVM_6model_get_debug_name(tc, config));
         }
 
-        if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue && !MVM_is_null(tc, queue) || !IS_CONCRETE(queue)) {
+        if ((REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue && !MVM_is_null(tc, queue)) || !IS_CONCRETE(queue)) {
             MVM_exception_throw_adhoc(tc, "vmeventsubscribe requires a concrete ConcBlockingQueue (got a %s)", MVM_6model_get_debug_name(tc, queue));
         }
 
