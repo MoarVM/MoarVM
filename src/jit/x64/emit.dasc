@@ -1,6 +1,7 @@
 /* -*-C-*- */
 #include "moar.h"
 #include "jit/internal.h"
+#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
 #include "dasm_x86.h"
 #pragma GCC diagnostic pop
