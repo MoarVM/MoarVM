@@ -229,7 +229,6 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/strings/utf16@obj@ \
           src/strings/windows1252@obj@ \
           src/strings/shiftjis@obj@ \
-          src/strings/shiftjis_codeindex@obj@ \
           src/strings/gb2312@obj@ \
           src/strings/gb18030@obj@ \
           src/math/bigintops@obj@ \

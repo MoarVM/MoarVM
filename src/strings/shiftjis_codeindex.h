@@ -1,6 +1,4 @@
 #define SHIFTJIS_NULL -1
-MVMint16 shift_jis_index_to_cp_array_offset (MVMThreadContext *tc, MVMint16 index);
-MVMGrapheme32 shift_jis_index_to_cp (MVMThreadContext *tc, MVMint16 index);
 struct shiftjis_offset {
     MVMuint16 location;
     MVMuint16 offset;
