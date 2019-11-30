@@ -339,11 +339,11 @@ static MVMuint8 windows1251_cp_to_char(MVMint32 codepoint) {
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_windows125X_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                         const MVMint32 *stopper_chars,
+                                         const MVMuint32 *stopper_chars,
                                          MVMDecodeStreamSeparators *seps,
                                          const MVMuint16 *codetable) {
-    MVMint32 count = 0, total = 0;
-    MVMint32 bufsize;
+    MVMuint32 count = 0, total = 0;
+    MVMuint32 bufsize;
     MVMGrapheme32 *buffer = NULL;
     MVMDecodeStreamBytes *cur_bytes = NULL;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
@@ -462,14 +462,14 @@ MVMuint32 MVM_string_windows125X_decodestream(MVMThreadContext *tc, MVMDecodeStr
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_windows1252_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                         const MVMint32 *stopper_chars,
+                                         const MVMuint32 *stopper_chars,
                                          MVMDecodeStreamSeparators *seps) {
     return MVM_string_windows125X_decodestream(tc, ds, stopper_chars, seps, windows1252_codepoints);
 }
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_windows1251_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                         const MVMint32 *stopper_chars,
+                                         const MVMuint32 *stopper_chars,
                                          MVMDecodeStreamSeparators *seps) {
     return MVM_string_windows125X_decodestream(tc, ds, stopper_chars, seps, windows1251_codepoints);
 }

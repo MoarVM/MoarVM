@@ -19,10 +19,10 @@ MVM_STATIC_INLINE void init_utf16_decoder_state(MVMDecodeStream *ds, int setting
 }
 #define utf16_decoder_state(ds) (*((MVMint32*)(ds)->decoder_state))
 MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                    const MVMint32 *stopper_chars,
+                                    const MVMuint32 *stopper_chars,
                                     MVMDecodeStreamSeparators *seps, int endianess);
 MVMuint32 MVM_string_utf16_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                    const MVMint32 *stopper_chars,
+                                    const MVMuint32 *stopper_chars,
                                     MVMDecodeStreamSeparators *seps) {
     if (!ds->decoder_state) {
 #       ifdef MVM_BIGENDIAN
@@ -34,13 +34,13 @@ MVMuint32 MVM_string_utf16_decodestream(MVMThreadContext *tc, MVMDecodeStream *d
     return MVM_string_utf16_decodestream_main(tc, ds, stopper_chars, seps, UTF16_DECODE_AUTO_ENDIAN);
 }
 MVMuint32 MVM_string_utf16le_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                    const MVMint32 *stopper_chars,
+                                    const MVMuint32 *stopper_chars,
                                     MVMDecodeStreamSeparators *seps) {
     init_utf16_decoder_state(ds, UTF16_DECODE_LITTLE_ENDIAN);
     return MVM_string_utf16_decodestream_main(tc, ds, stopper_chars, seps, UTF16_DECODE_LITTLE_ENDIAN);
 }
 MVMuint32 MVM_string_utf16be_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                    const MVMint32 *stopper_chars,
+                                    const MVMuint32 *stopper_chars,
                                     MVMDecodeStreamSeparators *seps) {
     init_utf16_decoder_state(ds, UTF16_DECODE_BIG_ENDIAN);
     return MVM_string_utf16_decodestream_main(tc, ds, stopper_chars, seps, UTF16_DECODE_BIG_ENDIAN);
@@ -49,10 +49,10 @@ MVMuint32 MVM_string_utf16be_decodestream(MVMThreadContext *tc, MVMDecodeStream 
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                    const MVMint32 *stopper_chars,
+                                    const MVMuint32 *stopper_chars,
                                     MVMDecodeStreamSeparators *seps, int endianess) {
-    MVMint32 count = 0, total = 0;
-    MVMint32 bufsize;
+    MVMuint32 count = 0, total = 0;
+    MVMuint32 bufsize;
     MVMGrapheme32 *buffer;
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;

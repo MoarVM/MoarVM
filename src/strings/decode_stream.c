@@ -192,7 +192,7 @@ static void reached_eof(MVMThreadContext *tc, MVMDecodeStream *ds) {
  * exclude parameter specifies a number of chars that should be taken from the
  * input buffer, but not included in the result string (for chomping a line
  * separator). */
-static MVMint32 missing_chars(MVMThreadContext *tc, const MVMDecodeStream *ds, MVMint32 wanted) {
+static MVMuint32 missing_chars(MVMThreadContext *tc, const MVMDecodeStream *ds, MVMint32 wanted) {
     MVMint32 got = 0;
     MVMDecodeStreamChars *cur_chars = ds->chars_head;
     while (cur_chars && got < wanted) {

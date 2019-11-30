@@ -108,9 +108,9 @@ MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *res
 }
 
 MVMuint32 MVM_string_gb18030_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                         const MVMint32 *stopper_chars, MVMDecodeStreamSeparators *seps) {
-    MVMint32 count = 0, total = 0;
-    MVMint32 bufsize;
+                                         const MVMuint32 *stopper_chars, MVMDecodeStreamSeparators *seps) {
+    MVMuint32 count = 0, total = 0;
+    MVMuint32 bufsize;
     MVMGrapheme32 *buffer = NULL;
     MVMDecodeStreamBytes *cur_bytes = NULL;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
