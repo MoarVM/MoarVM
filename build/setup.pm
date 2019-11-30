@@ -117,6 +117,7 @@ our %TC_POSIX = (
     ccswitch => '-c',
     ccout    => '-o ',
     ccinc    => '-I',
+    ccincsystem => '-isystem',
     ccdef    => '-D',
 
     cppswitch => '-E',
@@ -201,6 +202,7 @@ our %TC_MSVC = (
     ccswitch => '/c',
     ccout    => '/Fo',
     ccinc    => '/I',
+    ccincsystem => '/I',
     ccdef    => '/D',
 
     cppswitch => '/P',
