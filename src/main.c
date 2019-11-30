@@ -158,8 +158,10 @@ int wmain(int argc, wchar_t *wargv[])
     int lib_path_i   = 0;
     int flag;
 
+#ifdef HAVE_TELEMEH
     unsigned int interval_id = 0;
     char telemeh_inited = 0;
+#endif
 
     MVMuint32 debugserverport = 0;
     int start_suspended = 0;
