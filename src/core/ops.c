@@ -13,7 +13,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { }
+        { 0 }
     },
     {
         MVM_OP_const_i8,
@@ -783,7 +783,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { }
+        { 0 }
     },
     {
         MVM_OP_eq_i,
@@ -5165,7 +5165,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         1,
         0,
-        { }
+        { 0 }
     },
     {
         MVM_OP_usecompilerhllconfig,
@@ -5179,7 +5179,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         1,
         0,
-        { }
+        { 0 }
     },
     {
         MVM_OP_iter,
@@ -7825,7 +7825,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { }
+        { 0 }
     },
     {
         MVM_OP_getuniname,
@@ -7979,7 +7979,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { }
+        { 0 }
     },
     {
         MVM_OP_currentthread,
@@ -8525,7 +8525,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { }
+        { 0 }
     },
     {
         MVM_OP_nativecallcast,
@@ -8637,7 +8637,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { }
+        { 0 }
     },
     {
         MVM_OP_nativecallglobal,
@@ -10877,7 +10877,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { }
+        { 0 }
     },
     {
         MVM_OP_coveragecontrol,
@@ -12739,7 +12739,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { }
+        { 0 }
     },
     {
         MVM_OP_prof_enterspesh,
@@ -12753,7 +12753,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { }
+        { 0 }
     },
     {
         MVM_OP_prof_enterinline,
@@ -12795,7 +12795,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { }
+        { 0 }
     },
     {
         MVM_OP_prof_allocated,
