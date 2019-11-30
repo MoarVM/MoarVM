@@ -75,8 +75,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 /* Calculates the non-GC-managed memory we hold on to. */
 static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMSpeshPluginStateBody *body = (MVMSpeshPluginStateBody *)data;
-    MVMuint64 size = 0;
-    return size;
+    return body->num_positions * sizeof(MVMSpeshPluginPosition);
 }
 
 /* Initializes the representation. */
