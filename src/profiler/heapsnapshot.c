@@ -878,7 +878,7 @@ void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection 
     MVMuint16 elem_size_to_write = elem_size;
 
     size_t written_total = 0;
-    size_t original_total = count * elem_size;
+    /*size_t original_total = count * elem_size;*/
 
     char *out_buffer = MVM_malloc(outSize);
     outbuf.dst = out_buffer;
@@ -1287,12 +1287,12 @@ static void make_leaderboards(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
 
     leaderboard boards[4][LEADERBOARDS_TOP_SPOTS];
 
-    char *descriptions[4] = {
+    /*char *descriptions[4] = {
         "types_by_count",
         "frames_by_count",
         "types_by_size",
         "frames_by_size",
-    };
+    };*/
 
     if (!stats)
         return;
@@ -1317,7 +1317,7 @@ static void make_leaderboards(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
 
         /*fprintf(stderr, "  %s: [\n", descriptions[which]);*/
         for (i = 0; i < LEADERBOARDS_TOP_SPOTS; i++) {
-            char *name = NULL;
+            /*char *name = NULL;*/
             boards[which][i].tofi = data_body[i].identity;
             boards[which][i].value = data_body[i].value;
 
