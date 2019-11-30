@@ -371,7 +371,7 @@ our %COMPILERS = (
         ld => 'link',
         as => 'ml64',
 
-        ccmiscflags  => '/nologo /MT',
+        ccmiscflags  => '/nologo /MT /std:c++latest',
         ccwarnflags  => '',
         ccoptiflags  => '/Ox /GL /DNDEBUG',
         ccdebugflags => '/Zi',
