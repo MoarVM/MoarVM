@@ -210,7 +210,7 @@ static void validate_operands(MVMThreadContext *tc, validatorstate *state) {
     int i = 0;
 
     for (i = 0; i < state->cur_op->num_operands; i++) {
-        validate_operand(tc, state, i, state->cur_op->operands[i]);
+        validate_operand(tc, state, i, operands[i]);
     }
 }
 static void validate_op(MVMThreadContext *tc, validatorstate *state) {
