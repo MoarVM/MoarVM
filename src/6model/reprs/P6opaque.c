@@ -1941,7 +1941,7 @@ MVMuint32 MVM_p6opaque_offset_to_attr_idx(MVMThreadContext *tc, MVMObject *type,
 
 #ifdef DEBUG_HELPERS
 /* This is meant to be called in a debugging session and not used anywhere else.
- * Plese don't delete. */
+ * Please don't delete. */
 static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)STABLE(obj)->REPR_data;
     MVMP6opaqueBody *data = MVM_p6opaque_real_data(tc, OBJECT_BODY(obj));
@@ -1956,7 +1956,6 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
         }
         fprintf(stderr, "%s.new(", MVM_6model_get_debug_name(tc, obj));
         if (name_to_index_mapping != NULL) {
-            MVMint16 i;
             MVMP6opaqueNameMap *cur_map_entry = name_to_index_mapping;
 
             while (cur_map_entry->class_key != NULL) {
