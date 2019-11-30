@@ -242,7 +242,6 @@ static int string_can_be_8bit(MVMThreadContext *tc, MVMGraphemeIter *gi_orig, MV
  * the supplied grapheme iterator for the length of body.num_graphs. Very fast
  * since compilers will convert them to SIMD vector operations. */
 static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMString *result, MVMString *orig, MVMStringIndex num) {
-    int result_pos = 0;
     MVMGrapheme8   *result8   = NULL;
     MVMGrapheme32 *result32   = NULL;
     MVMStringIndex result_graphs = MVM_string_graphs_nocheck(tc, result);
@@ -1118,7 +1117,6 @@ void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
 }
 
 void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
-    MVMOSHandle *handle = (MVMOSHandle *)tc->instance->stdout_handle;
     MVMuint64 encoded_size;
     char *encoded;
     MVM_string_check_arg(tc, a, "print");
@@ -1235,7 +1233,6 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
     /* Foldcase version of needle */
     MVMString *needle_fc = NULL;
     MVMStringIndex H_graphs = MVM_string_graphs(tc, Haystack);
-    MVMStringIndex n_graphs = MVM_string_graphs(tc, needle);
     MVMStringIndex n_fc_graphs;
     /* H_expansion must be able to hold integers 3x larger than MVMStringIndex */
     MVMint64 H_expansion;
@@ -1355,7 +1352,6 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
     MVMStringIndex H_graphs, n_graphs;
     /* H_expansion must be able to hold integers 3x larger than MVMStringIndex */
     MVMint64 H_expansion;
-    MVMint64 return_val = -1;
     int is_gic = Haystack->body.storage_type == MVM_STRING_STRAND ? 1 : 0;
     void *Hs_or_gic;
     MVM_string_check_arg(tc, Haystack, ignoremark ? "index ignore case ignore mark search target" : "index ignore case search target");
@@ -1435,7 +1431,6 @@ MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 off
 /* Gets the base character at a grapheme position, ignoring things like diacritics */
 MVMGrapheme32 MVM_string_ord_basechar_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {
     MVMStringIndex agraphs;
-    MVMint32 ready;
 
     MVM_string_check_arg(tc, s, "ord_basechar_at");
 

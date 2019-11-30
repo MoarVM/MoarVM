@@ -499,7 +499,6 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
 
     /* Try to start the GC run. */
     if (MVM_trycas(&tc->instance->gc_start, 0, 1)) {
-        MVMThread *last_starter = NULL;
         MVMuint32 num_threads = 0;
 
         /* Stash us as the thread to blame for this GC run (used to give it a
@@ -626,8 +625,6 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
  * MVMSUSPENDSTATUS_MASK.
  *   */
 void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
-    AO_t curr;
-
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from interrupt\n");
 
 

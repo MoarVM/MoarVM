@@ -221,7 +221,7 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
 
 #define introspect_member(member, set_result, result) \
 static void member(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) { \
-    MVMObject *self, *type_obj, *member; \
+    MVMObject *self, *member; \
     MVMArgProcContext arg_ctx; \
     MVM_args_proc_init(tc, &arg_ctx, callsite, args); \
     MVM_args_checkarity(tc, &arg_ctx, 2, 2); \

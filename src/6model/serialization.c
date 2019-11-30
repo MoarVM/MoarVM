@@ -901,7 +901,6 @@ static MVMObject * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
             "Serialization sanity check failed: offset != output_size");
 
     if (type) { /* nqp::serializetobuffer */
-        int i = 0;
         result = REPR(type)->allocate(tc, STABLE(type));
         if (REPR(result)->initialize)
             REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));

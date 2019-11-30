@@ -69,7 +69,7 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
     MVMuint32 s = *os;
     MVMuint32 l = *ol;
 
-    MVMuint32 i, j, k;
+    MVMuint32 i, j;
 
     /* mostly stolen from validation.c */
     MVMStaticFrame *static_frame = frame;
@@ -259,7 +259,6 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
                 /* register operand */
                 MVMuint8 frame_has_inlines = maybe_candidate && maybe_candidate->num_inlines ? 1 : 0;
                 MVMuint16 *local_types = frame_has_inlines ? maybe_candidate->local_types : frame->body.local_types;
-                MVMuint16 num_locals   = frame_has_inlines ? maybe_candidate->num_locals : frame->body.num_locals;
                 operand_size = 2;
                 a("loc_%u_%s", GET_REG(cur_op, 0),
                     get_typename(local_types[GET_REG(cur_op, 0)]));

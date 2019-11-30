@@ -5544,8 +5544,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMint64  off   = (MVMuint64)GET_REG(cur_op, 2).i64;
                 MVMuint64 flags = (MVMuint64)GET_REG(cur_op, 6).u64;
                 unsigned char size = 1 << (flags >> 2);
-                MVMRegister byte;
-                char i;
                 if (!IS_CONCRETE(buf))
                     MVM_exception_throw_adhoc(tc, "Cannot write to a %s type object", MVM_6model_get_debug_name(tc, buf));
                 switch (size) {
@@ -5826,7 +5824,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_getlex_ins): {
                 MVMFrame *f = tc->cur_frame;
-                MVMuint16 idx = GET_UI16(cur_op, 2);
                 MVMuint16 outers = GET_UI16(cur_op, 4);
                 while (outers) {
                     if (!f->outer)
@@ -6326,7 +6323,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_bindlexvia_os): {
                 MVMFrame *f = ((MVMCode *)GET_REG(cur_op, 4).o)->body.outer;
                 MVMuint16 outers = GET_UI16(cur_op, 2) - 1; /* - 1 as already in outer */
-                MVMRegister found;
                 while (outers) {
                     if (!f->outer)
                         MVM_exception_throw_adhoc(tc, "getlex: outer index out of range");
@@ -6344,7 +6340,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_bindlexvia_in): {
                 MVMFrame *f = ((MVMCode *)GET_REG(cur_op, 4).o)->body.outer;
                 MVMuint16 outers = GET_UI16(cur_op, 2) - 1; /* - 1 as already in outer */
-                MVMRegister found;
                 while (outers) {
                     if (!f->outer)
                         MVM_exception_throw_adhoc(tc, "getlex: outer index out of range");

@@ -468,8 +468,6 @@ MVMint32 MVM_jit_expr_apply_template_adhoc(MVMThreadContext *tc, MVMJitExprTree 
 static void analyze_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                          MVMJitExprTree *tree, MVMint32 node) {
 
-    const struct OpInfo *op_info = get_op_info(tree->nodes[node]);
-
     MVMint32   first_child = MVM_JIT_EXPR_FIRST_CHILD(tree, node);
     MVMint32        nchild = MVM_JIT_EXPR_NCHILD(tree, node);
     MVMint32        *links = MVM_JIT_EXPR_LINKS(tree, node);
@@ -662,7 +660,6 @@ static MVMint32 tree_is_empty(MVMThreadContext *tc, MVMJitExprTree *tree) {
 
 MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIterator *iter) {
     MVMSpeshGraph *sg = jg->sg;
-    MVMSpeshIns *entry = iter->ins;
     MVMSpeshIns *ins;
     MVMJitExprTree *tree;
     MVMint32 operands[MVM_MAX_OPERANDS];

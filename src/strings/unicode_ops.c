@@ -353,7 +353,6 @@ MVMint64 find_next_node (MVMThreadContext *tc, sub_node node, MVMCodepoint next_
 MVMint64 get_main_node (MVMThreadContext *tc, int cp, int range_min, int range_max) {
     MVMint64 i;
     MVMint64 rtrn = -1;
-    int counter   = 0;
     /* Decrement range_min because binary search defaults to 1..* not 0..* */
     range_min--;
     /* starter_main_nodes_elems are all the nodes which are the origin nodes
@@ -376,7 +375,6 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
     MVMCodepoint cps[10];
     MVMint64 num_cps_processed = 0;
     int query = -1;
-    int cp_num_orig = cp_num;
     /* If supplied -1 that means we need to grab it from the codepoint iterator. Otherwise
      * the value we were passed is the codepoint we should process */
     if (cp_num == 0) {
@@ -453,7 +451,6 @@ MVMint64 grab_from_stack(MVMThreadContext *tc, MVMCodepointIter *ci, collation_s
     return 1;
 }
 static void init_ringbuffer (MVMThreadContext *tc,  ring_buffer *buffer) {
-    MVMint64 i;
     buffer->count           =  0;
     buffer->location        = -1;
     buffer->codes_out_count =  0;
@@ -505,7 +502,6 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
     MVMStringIndex alen, blen;
     /* Iteration variables */
     MVMCodepointIter a_ci, b_ci;
-    MVMGrapheme32 ai, bi;
     /* Set it all to 0 to start with. We alter this based on the collation_mode later on */
     level_eval level_eval_settings = {
         { {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0} }
@@ -522,7 +518,7 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
     /* This value stores what the return value would be if the strings were compared
      * by codepoint. This is used to break collation value ties */
     MVMint64 compare_by_cp_rtrn = 0;
-    MVMint64 pos_a = 0, pos_b = 0, i = 0, rtrn = 0;
+    MVMint64 pos_a = 0, pos_b = 0, rtrn = 0;
     MVMint16 grab_a_done = 0, grab_b_done = 0;
     /* From 0 to 2 for primary, secondary, tertiary levels */
     MVMint16   level_a = 0,   level_b = 0;
@@ -676,7 +672,6 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
 
 /* Looks up a codepoint by name. Lazily constructs a hash. */
 MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
-    MVMuint64 size;
     char *cname = MVM_string_utf8_encode_C_string(tc, name);
     size_t cname_len = strlen((const char *) cname );
     MVMUnicodeNameRegistry *result;
@@ -1044,7 +1039,6 @@ void MVM_unicode_release(MVMThreadContext *tc)
         int i;
 
         for (i = 0; i < MVM_NUM_PROPERTY_CODES; i++) {
-            MVMUnicodeNameRegistry *entry = NULL;
             int j;
 
             if (!unicode_property_values_hashes[i]) {

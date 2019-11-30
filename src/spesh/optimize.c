@@ -672,7 +672,6 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
                     MVMSpeshOperand val_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, register_type);
                     MVMSpeshOperand ss_temp  = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
                     MVMSpeshOperand orig_dst = ins->operands[0];
-                    MVMSpeshOperand orig_src = ins->operands[1];
                     MVMSpeshOperand sslot;
 
                     MVMSpeshFacts *sslot_facts;
@@ -1634,7 +1633,6 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
                                          MVMuint32 add_comment) {
     MVMSpeshIns *decont, *guard;
     MVMuint32 deopt_target, deopt_index, new_deopt_index;
-    MVMSpeshOperand throwaway;
 
     /* We need a temporary register to decont into. */
     MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
@@ -2265,7 +2263,6 @@ static void optimize_uniprop_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 /* If something is only kept alive because we log its allocation, kick out
  * the allocation logging and let the op that creates it die. */
 static void optimize_prof_allocated(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
-    MVMSpeshFacts *logee_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
     if (MVM_spesh_usages_used_once(tc, g, ins->operands[0])) {
         MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
     }

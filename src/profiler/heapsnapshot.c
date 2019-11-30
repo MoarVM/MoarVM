@@ -868,7 +868,6 @@ void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection 
 
     size_t outSize = ZSTD_CStreamOutSize();
 
-    ZSTD_inBuffer inbuf;
     ZSTD_outBuffer outbuf;
 
     size_t size_position = ftell(fh);
@@ -974,8 +973,6 @@ void string_heap_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollect
     char *result_buffer_insert_pos = result_buffer;
 
     ZSTD_CStream *cstream;
-
-    size_t outSize = ZSTD_CStreamOutSize();
 
     ZSTD_inBuffer inbuf;
     ZSTD_outBuffer outbuf;
@@ -1346,7 +1343,6 @@ static void make_leaderboards(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
 }
 
 void snapshot_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
-    MVMuint64 i = col->snapshot_idx;
     MVMHeapDumpIndexSnapshotEntry *entry = NULL;
 
     MVMHeapDumpTableOfContents *outer_toc = col->toplevel_toc;
@@ -1554,7 +1550,7 @@ void references_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollecti
             entry->full_refs_size += sizeof(MVMuint16) * 2 + 2;
         }
         else {
-            MVMuint8 descr8, kind8, index8;
+            MVMuint8 kind8, index8;
             kind8  = kind;
             index8 = cindex;
             fputc('0', fh);

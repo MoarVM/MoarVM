@@ -6,9 +6,7 @@
 
 static void instrument_graph_with_breakpoints(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *bb = g->entry->linear_next;
-    MVMuint16 array_slot = 0;
 
-    MVMint32 last_line_number = -2;
     MVMint32 last_filename = -1;
 
     char *filename_buf = NULL;

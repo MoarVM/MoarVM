@@ -140,7 +140,6 @@ static MVMint32 already_have_guard(MVMThreadContext *tc, MVMSpeshPluginGuardSet 
 }
 
 static MVMSpeshPluginGuardSet * copy_guard_set(MVMThreadContext *tc, MVMSpeshPluginGuardSet *base_guards) {
-    MVMuint32 insert_pos, i;
     MVMSpeshPluginGuardSet *result = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMSpeshPluginGuardSet));
     result->num_guards = (base_guards ? base_guards->num_guards : 0);
     result->guards = MVM_fixed_size_alloc(tc, tc->instance->fsa,

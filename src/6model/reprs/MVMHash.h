@@ -46,7 +46,6 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
 #define MVM_HASH_DESTROY(tc, hash_handle, hashentry_type, head_node) do { \
     hashentry_type *current, *tmp; \
-    unsigned bucket_tmp; \
     HASH_ITER_FAST(tc, hash_handle, head_node, current, { \
         if (current != head_node) \
             MVM_free(current); \

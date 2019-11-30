@@ -186,7 +186,6 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     MVMConcBlockingQueueNode *add;
     MVMObject *to_add = value.o;
     unsigned int interval_id;
-    AO_t orig_elems;
 
     if (kind != MVM_reg_obj)
         MVM_exception_throw_adhoc(tc,

@@ -128,7 +128,7 @@ static void wvalfrom_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 tgt
                            MVMuint16 tgt_i, MVMuint16 sslot, MVMint64 idx) {
     MVMSerializationContext *sc = (MVMSerializationContext *)g->spesh_slots[sslot];
     if (MVM_sc_is_object_immediately_available(tc, sc, idx)) {
-        MVMObject *target = MVM_sc_get_object(tc, sc, idx);
+        MVM_sc_get_object(tc, sc, idx);
         object_facts(tc, g, tgt_orig, tgt_i, MVM_sc_try_get_object(tc, sc, idx));
     }
 }
@@ -244,7 +244,6 @@ static void sp_guard_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
      * justconc and justtype, which don't have a spesh slot. */
     MVMuint16 sslot = ins->operands[ins->info->num_operands - 2].lit_i16;
 
-    MVMSpeshFacts *srcfacts = &g->facts[ins->operands[1].reg.orig][ins->operands[1].reg.i];
     MVMSpeshFacts *facts    = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
 
     /* We do not copy facts here, because it caused some trouble.
@@ -433,7 +432,7 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
 /* Visits the blocks in dominator tree order, recursively. */
 static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                          MVMSpeshPlanned *p) {
-    MVMint32 i, is_phi;
+    MVMint32 i;
 
     /* Look for instructions that provide or propagate facts. */
     MVMSpeshIns *ins = bb->first_ins;
@@ -496,7 +495,6 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 break;
             }
         case MVM_OP_coerce_sI: {
-                MVMSpeshFacts *target_facts = &(g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i]);
                 create_facts(tc, g,
                     ins->operands[0].reg.orig, ins->operands[0].reg.i,
                     ins->operands[2].reg.orig, ins->operands[2].reg.i);

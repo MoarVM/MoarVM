@@ -414,7 +414,6 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
 
 static void jg_append_guard(MVMThreadContext *tc, MVMJitGraph *jg,
                              MVMSpeshIns *ins, MVMuint32 target_operand) {
-    MVMSpeshAnn   *ann = ins->annotations;
     MVMJitNode   *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
     MVMint32 deopt_idx;
     node->type = MVM_JIT_NODE_GUARD;
@@ -507,11 +506,9 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
             goto checkargs;
         case MVM_OP_nativeinvoke_o: {
             MVMint16 dst     = ins->operands[0].reg.orig;
-            MVMint16 site    = ins->operands[1].reg.orig;
             MVMint16 restype = ins->operands[2].reg.orig;
             MVMNativeCallBody *body;
             MVMJitGraph *nc_jg;
-            MVMObject *nc_site;
 
             MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, iter->graph, ins->operands[1]);
 
@@ -1913,8 +1910,6 @@ start:
          * Though this is a modification you would usually find in spesh, in this
          * case it depends on successful JIT compilation of previous ops. As we know
          * this only when we actually JIT compile, we have to do it here instead */
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 arg = ins->operands[1].reg.orig;
         MVMSpeshFacts *src_facts = MVM_spesh_get_facts(tc, iter->graph, ins->operands[1]);
         if (src_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
             MVMSpeshBB *cur_bb = iter->bb;
@@ -2302,8 +2297,6 @@ start:
         break;
     }
     case MVM_OP_hllboolfor: {
-        MVMint16 dst  = ins->operands[0].reg.orig;
-        MVMint16 src  = ins->operands[1].reg.orig;
         MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[2]);
         if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
             MVMHLLConfig *hll_config = MVM_hll_get_config_for(tc, facts->value.s);
@@ -2416,7 +2409,6 @@ start:
         MVMint16 buf   = ins->operands[0].reg.orig;
         MVMint16 off   = ins->operands[1].reg.orig;
         MVMint16 value = ins->operands[2].reg.orig;
-        MVMint16 flags = ins->operands[3].reg.orig;
         MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[3]);
         if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
             if ((facts->value.i & 3) != MVM_SWITCHENDIAN) {
@@ -2464,7 +2456,6 @@ start:
         MVMint16 dst   = ins->operands[0].reg.orig;
         MVMint16 buf   = ins->operands[1].reg.orig;
         MVMint16 off   = ins->operands[2].reg.orig;
-        MVMint16 flags = ins->operands[3].reg.orig;
         MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[3]);
         if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
             if ((facts->value.i & 3) != MVM_SWITCHENDIAN) {

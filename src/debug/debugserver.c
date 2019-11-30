@@ -881,7 +881,6 @@ static void send_thread_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data
     MVMInstance *vm = dtc->instance;
     MVMint32 threadcount = 0;
     MVMThread *cur_thread;
-    char infobuf[32] = "THL";
 
     uv_mutex_lock(&vm->mutex_threads);
     cur_thread = vm->threads;
@@ -1557,7 +1556,6 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
                 fprintf(stderr, "going to write out %d attributes\n", num_attributes);
 
             if (name_to_index_mapping != NULL) {
-                MVMint16 i;
                 MVMP6opaqueNameMap *cur_map_entry = name_to_index_mapping;
 
                 while (cur_map_entry->class_key != NULL) {
@@ -1739,7 +1737,6 @@ static MVMuint16 write_vmarray_slot_kind(MVMThreadContext *tc, cmp_ctx_t *ctx, M
     return kind;
 }
 static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
-    MVMInstance *vm = dtc->instance;
     MVMObject *target = argument->handle_id
         ? find_handle_target(dtc, argument->handle_id)
         : dtc->instance->VMNull;
@@ -2065,8 +2062,6 @@ static MVMint32 request_object_positionals(MVMThreadContext *dtc, cmp_ctx_t *ctx
         ? find_handle_target(dtc, argument->handle_id)
         : dtc->instance->VMNull;
 
-    MVMint64 slots;
-
     if (MVM_is_null(dtc, target)) {
         return 1;
     }
@@ -2240,10 +2235,8 @@ static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
 }
 
 static size_t socket_writer(cmp_ctx_t *ctx, const void *data, size_t limit) {
-    size_t idx;
     size_t total_sent = 0;
     ssize_t sent;
-    MVMuint8 *orig_data = (MVMuint8 *)data;
     if (debugspam_network)
         fprintf(stderr, "asked to send %3zu bytes: ", limit);
     while (total_sent < limit) {
@@ -2557,7 +2550,6 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
 
 static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     int continue_running = 1;
-    MVMint32 command_serial;
     Socket listensocket;
     MVMInstance *vm = tc->instance;
     MVMuint64 port = vm->debugserver->port;
@@ -2612,8 +2604,6 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
 
     while(continue_running) {
         Socket clientsocket;
-        int len;
-        char *buffer[32];
         cmp_ctx_t ctx;
 
         MVM_gc_mark_thread_blocked(tc);
@@ -2787,7 +2777,6 @@ MVM_PUBLIC void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
     MVMInstance *vm = tc->instance;
     MVMDebugServerData *debugserver = MVM_calloc(1, sizeof(MVMDebugServerData));
     MVMObject *worker_entry_point;
-    int threadCreateError;
     int init_stat;
 
     tc->instance->instrumentation_level++; /* So we insert breakpoint instructions. */

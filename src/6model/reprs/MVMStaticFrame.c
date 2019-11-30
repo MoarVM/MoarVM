@@ -60,7 +60,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         dest_body->lexical_types = lexical_types;
     }
     {
-        MVMLexicalRegistry *current, *tmp;
+        MVMLexicalRegistry *current;
 
         /* NOTE: if we really wanted to, we could avoid rehashing... */
         HASH_ITER_FAST(tc, hash_handle, src_body->lexical_names, current, {
@@ -275,7 +275,6 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
         MVMuint16 *type_map = body->lexical_types;
         MVMuint16  count    = body->num_lexicals;
         MVMuint16  i;
-        MVMuint64 cache_1;
         for (i = 0; i < count; i++)
             if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
                 MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,

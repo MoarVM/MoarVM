@@ -854,7 +854,6 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 cur_op += 2;
                 goto NEXT;
             OP(exit): {
-                MVMint64 exit_code = GET_REG(cur_op, 0).i64;
                 goto finish_main_loop;
             OP(index_s):
                 debugprint(DEBUG_LVL(TRACE), tc, "index_s into %d with %d and %d starting at %d",

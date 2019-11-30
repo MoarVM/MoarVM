@@ -128,7 +128,6 @@ MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStre
         while (pos + 1 < cur_bytes->length) {
             MVMuint32 value = (bytes[pos+high] << 8) + bytes[pos+low];
             MVMuint32 value2;
-            MVMGrapheme32 g;
 
             if ((value & 0xFC00) == 0xDC00) {
                 MVM_free(buffer);

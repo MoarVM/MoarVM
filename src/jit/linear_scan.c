@@ -117,7 +117,6 @@ MVM_STATIC_INLINE MVMint32 live_range_is_empty(LiveRange *range) {
 
 /* allocate a new live range value by pointer-bumping */
 MVMint32 live_range_init(RegisterAllocator *alc) {
-    LiveRange *range;
     MVMint32 idx = alc->values_num++;
     MVM_VECTOR_ENSURE_SIZE(alc->values, idx);
     alc->values[idx].spill_idx = UINT32_MAX;
@@ -499,7 +498,7 @@ static void find_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileL
 
 
 static void determine_live_ranges(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list) {
-    MVMuint32 i, j, n;
+    MVMuint32 i, j;
     MVMint32 num_phi = 0; /* pessimistic but correct upper bound of number of holes */
     MVMJitExprTree *tree = list->tree;
 

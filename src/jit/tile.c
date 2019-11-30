@@ -60,7 +60,6 @@ static void tile_node(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                       MVMJitExprTree *tree, MVMint32 node) {
     struct TreeTiler *tiler      = traverser->data;
     MVMint32 op            = tree->nodes[node];
-    MVMint32 first_child = MVM_JIT_EXPR_FIRST_CHILD(tree, node);
     MVMint32 nchild      = MVM_JIT_EXPR_NCHILD(tree, node);
     MVMint32 *links      = MVM_JIT_EXPR_LINKS(tree, node);
     MVMint32 *state_info = NULL;
@@ -347,7 +346,7 @@ static void select_tiles(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     case MVM_JIT_DO:
     case MVM_JIT_DOV:
         {
-            MVMint32 i, last_child, last_rule;
+            MVMint32 i;
             for (i = 0; i < nchild - 1; i++) {
                 DO_ASSIGN_CHILD(i, left_sym);
             }
@@ -515,7 +514,6 @@ static void build_blocks(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                 /* If ANY hasn't short-circuited into the conditional block,
                  * it has failed, so insert an unconditional jump past it */
                 MVMint32 any_label = tiler->states[test].label;
-                MVMint32 last_child = MVM_JIT_EXPR_FIRST_CHILD(tree, test) + MVM_JIT_EXPR_NCHILD(tree, test) - 1;
                 MVMJitTile *branch = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_branch,
                                                        1, 0, when_label);
                 MVMJitTile *label  = MVM_jit_tile_make(tc, tiler->compiler, MVM_jit_compile_label,

@@ -174,7 +174,6 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     MVMuint8    *end      = g->bytecode + g->bytecode_size;
     MVMuint32    ins_idx  = 0;
     MVMuint8     next_bbs = 1; /* Next iteration (here, first) starts a BB. */
-    MVMuint32    lineno_ann_offs = 0;
     MVMuint32    num_osr_points = 0;
 
     MVMBytecodeAnnotation *ann_ptr = MVM_bytecode_resolve_annotation(tc, &sf->body, sf->body.bytecode - pc);

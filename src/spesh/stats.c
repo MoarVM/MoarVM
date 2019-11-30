@@ -718,7 +718,6 @@ void MVM_spesh_stats_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *sna
     MVMuint64 cache_4 = 0;
     MVMuint64 cache_5 = 0;
     MVMuint64 cache_6 = 0;
-    MVMuint64 cache_7 = 0;
     if (ss) {
         MVMuint32 i, j, k, l, m;
         for (i = 0; i < ss->num_by_callsite; i++) {
@@ -747,7 +746,7 @@ void MVM_spesh_stats_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *sna
                             MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, snapshot,
                                 (MVMCollectable*)(off_types[m].type), "type tuple type", &cache_4);
                             MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, snapshot,
-                                (MVMCollectable*)(off_types[m].decont_type), "type tuple deconted type", &cache_6);
+                                (MVMCollectable*)(off_types[m].decont_type), "type tuple deconted type", &cache_5);
                         }
                     }
                 }
@@ -755,7 +754,7 @@ void MVM_spesh_stats_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *sna
         }
         for (i = 0; i < ss->num_static_values; i++)
             MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, snapshot,
-                (MVMCollectable*)(ss->static_values[i].value), "static value", &cache_7);
+                (MVMCollectable*)(ss->static_values[i].value), "static value", &cache_6);
     }
 }
 

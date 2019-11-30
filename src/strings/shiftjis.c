@@ -189,7 +189,7 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
         MVMString *replacement, MVMint64 config) {
     MVMuint8 *bytes = (MVMuint8 *)windows125X_c;
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
-    size_t pos = 0, result_graphs, additional_bytes = 0;
+    size_t pos = 0, result_graphs;
     MVMStringIndex repl_length = replacement ? MVM_string_graphs(tc, replacement) : 0;
     MVMuint8 Shift_JIS_lead = 0x00;
     /* Stores a byte that we must run through the decoder a second time. Instead
