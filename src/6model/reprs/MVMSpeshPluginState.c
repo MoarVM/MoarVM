@@ -83,10 +83,6 @@ const MVMREPROps * MVMSpeshPluginState_initialize(MVMThreadContext *tc) {
     return &SpeshPluginState_this_repr;
 }
 
-static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
-    MVMSpeshPluginStateBody *body = (MVMSpeshPluginStateBody *)data;
-}
-
 static const MVMREPROps SpeshPluginState_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
@@ -114,5 +110,5 @@ static const MVMREPROps SpeshPluginState_this_repr = {
     "MVMSpeshPluginState", /* name */
     MVM_REPR_ID_MVMSpeshPluginState,
     unmanaged_size,
-    describe_refs
+    NULL /* describe_refs */
 };
