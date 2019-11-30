@@ -371,9 +371,6 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
 /* Copies to the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMCUnionREPRData * repr_data = (MVMCUnionREPRData *) st->REPR_data;
-    MVMCUnionBody *src_body = (MVMCUnionBody *)src;
-    MVMCUnionBody *dest_body = (MVMCUnionBody *)dest;
     MVM_exception_throw_adhoc(tc, "cloning a CUnion is NYI");
 }
 
