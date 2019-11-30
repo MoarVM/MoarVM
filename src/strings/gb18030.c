@@ -154,7 +154,7 @@ MVMuint32 MVM_string_gb18030_decodestream(MVMThreadContext *tc, MVMDecodeStream 
         MVMuint8 *bytes = (MVMuint8 *)cur_bytes->bytes;
 
         while (pos < cur_bytes->length) {
-            MVMGrapheme32 graph;
+            MVMGrapheme32 graph = 0;
             MVMint32 codepoint = (MVMint32) bytes[pos++];
             
             if (is_len4) {
