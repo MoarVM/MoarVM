@@ -181,8 +181,8 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
                 MVMuint16 num_lexicals = static_frame->body.num_lexicals;
                 for (i = 0; i < num_lexicals; i++) {
                     if (!static_frame->body.static_env[i].o && static_frame->body.static_env_flags[i] == 1) {
-                        MVMint32 scid;
-                        MVMint32 objid;
+                        MVMuint32 scid;
+                        MVMuint32 objid;
                         if (MVM_bytecode_find_static_lexical_scref(tc, static_frame->body.cu,
                                 static_frame, i, &scid, &objid)) {
                             MVMObject *resolved;
