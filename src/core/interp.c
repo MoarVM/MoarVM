@@ -158,10 +158,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
     setjmp(tc->interp_jump);
 
     /* Enter runloop. */
-#ifndef MVM_CGOTO
-    runloop:
-#endif
-    {
+    runloop: {
         MVMuint16 op;
 
 #if MVM_TRACING
