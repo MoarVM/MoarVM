@@ -965,7 +965,6 @@ void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection 
 void string_heap_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     FILE *fh = col->fh;
     MVMuint64 i = col->strings_written;
-    MVMHeapDumpIndex *index = col->index;
 
     size_t return_value = 0;
     size_t result_buffer_size = 2048;
