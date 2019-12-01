@@ -116,8 +116,8 @@ MVM_STATIC_INLINE MVMint64 MVM_BC_get_I64(const MVMuint8 *cur_op, int offset) {
 }
 
 MVM_STATIC_INLINE MVMnum64 MVM_BC_get_N64(const MVMuint8 *cur_op, int offset) {
-    const MVMuint8 *const where = cur_op + offset;
 #ifdef MVM_CAN_UNALIGNED_NUM64
+    const MVMuint8 *const where = cur_op + offset;
     return *(MVMnum64 *)where;
 #else
     MVMnum64 temp;
