@@ -69,7 +69,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
 #ifndef HAVE_LIBFFI
     MVMNativeCallBody *body = (MVMNativeCallBody *)data;
     MVMint16 i = 0;
-    MVM_serialization_write_cstr(tc, writer, body->lib_name);
+    MVM_serialization_write_cstr(tc, writer, body->serialize_lib_name ? body->lib_name : NULL);
     MVM_serialization_write_cstr(tc, writer, body->sym_name);
     MVM_serialization_write_int(tc, writer, body->convention);
     MVM_serialization_write_int(tc, writer, body->num_args);
@@ -156,12 +156,42 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     return (body->lib_handle ? 1 + (body->jitcode ? 1 : 0) : 0);
 }
 
+void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, MVMRegister value, MVMuint16 kind) {
+    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+    if (strcmp(c_name, "serialize_lib_name") != 0) {
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(
+            tc,
+            waste,
+            "P6opaque: no such attribute '%s' on type %s when trying to bind a value",
+            c_name,
+            MVM_6model_get_debug_name(tc, class_handle)
+        );
+    }
+    MVM_free(c_name);
+
+    MVMNativeCallBody *body = (MVMNativeCallBody *)data;
+    body->serialize_lib_name = value.u8;
+
+}
+
+void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMNativeCallBody *body = (MVMNativeCallBody *)data;
+    body->serialize_lib_name = 1;
+}
+
 static const MVMREPROps NativeCall_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
-    NULL, /* initialize */
+    initialize,
     copy_to,
-    MVM_REPR_DEFAULT_ATTR_FUNCS,
+    {
+        MVM_REPR_DEFAULT_GET_ATTRIBUTE,
+        bind_attribute,
+        MVM_REPR_DEFAULT_HINT_FOR,
+        MVM_REPR_DEFAULT_IS_ATTRIBUTE_INITIALIZED,
+        MVM_REPR_DEFAULT_ATTRIBUTE_AS_ATOMIC
+    },
     {
         MVM_REPR_DEFAULT_SET_INT,
         get_int,
