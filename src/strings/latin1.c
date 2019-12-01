@@ -78,7 +78,7 @@ MVMuint32 MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *
     while (cur_bytes) {
         /* Process this buffer. */
         MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
-        unsigned char *bytes = (unsigned char *)cur_bytes->bytes;
+        MVMuint8 *bytes = cur_bytes->bytes;
         while (pos < cur_bytes->length) {
             MVMCodepoint codepoint = bytes[pos++];
             MVMGrapheme32 graph;

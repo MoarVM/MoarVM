@@ -93,7 +93,7 @@ MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStre
     while (cur_bytes) {
         /* Process this buffer. */
         MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
-        MVMuint8 *bytes = (unsigned char *)cur_bytes->bytes;
+        MVMuint8 *bytes = cur_bytes->bytes;
         if (ds->abs_byte_pos == 0 && pos + 1 < cur_bytes->length) {
             if (has_little_endian_bom(bytes + pos)) {
                 /* Only change the setting if we are using standard 'utf16' decode

@@ -308,31 +308,30 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
     return result;
 }
 
-static MVMint32 its_the_bom(const char *utf8) {
-    const MVMuint8 *uns_utf8 = (const MVMuint8 *)utf8;
-    return uns_utf8[0] == 0xEF && uns_utf8[1] == 0xBB && uns_utf8[2] == 0xBF;
+static MVMint32 its_the_bom(const MVMuint8 *utf8) {
+    return utf8[0] == 0xEF && utf8[1] == 0xBB && utf8[2] == 0xBF;
 }
 
 /* Same as MVM_string_utf8_decode, but strips a BOM if it finds one. */
 MVMString * MVM_string_utf8_decode_strip_bom(MVMThreadContext *tc, const MVMObject *result_type, const char *utf8, size_t bytes) {
-    if (bytes >= 3 && its_the_bom(utf8)) {
+    if (bytes >= 3 && its_the_bom((MVMuint8*)utf8)) {
         utf8 += 3;
         bytes -= 3;
     }
     return MVM_string_utf8_decode(tc, result_type, utf8, bytes);
 }
 
-static void encoding_error(MVMThreadContext *tc, char *bytes, int error_pos) {
+static void encoding_error(MVMThreadContext *tc, MVMuint8 *bytes, int error_pos) {
     if (error_pos >= 3) {
-        unsigned char a = bytes[error_pos - 2], b = bytes[error_pos - 1], c = bytes[error_pos];
+        MVMuint8 a = bytes[error_pos - 2], b = bytes[error_pos - 1], c = bytes[error_pos];
         MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx %02hhx", a, b, c);
     }
     else if (error_pos == 2) {
-        unsigned char a = bytes[error_pos - 1], b = bytes[error_pos];
+        MVMuint8 a = bytes[error_pos - 1], b = bytes[error_pos];
         MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx", a, b);
     }
     else if (error_pos == 1) {
-        unsigned char a = bytes[error_pos];
+        MVMuint8 a = bytes[error_pos];
         MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near byte %02hhx", a);
     }
     else {
@@ -381,7 +380,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
     while (cur_bytes) {
         /* Process this buffer. */
         MVMint32  pos   = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
-        char     *bytes = cur_bytes->bytes;
+        MVMuint8 *bytes = cur_bytes->bytes;
         if (at_start) {
             /* We're right at the start of the stream of things to decode. See
              * if we have a BOM, and skip over it if so. */
