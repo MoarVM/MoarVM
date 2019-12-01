@@ -215,7 +215,6 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             /* If the item was already seen and copied, then it will have a
              * forwarding address already. Just update this pointer to the
              * new address and we're done. */
-            assert(*item_ptr != item->sc_forward_u.forwarder);
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT)) {
                 if (*item_ptr != item->sc_forward_u.forwarder) {
                     GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from %p to forwarder %p\n", item_ptr, item, item->sc_forward_u.forwarder);
