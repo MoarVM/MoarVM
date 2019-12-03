@@ -223,7 +223,7 @@ static void store_int64_result(MVMP6bigintBody *body, MVMint64 result) {
 static void store_bigint_result(MVMP6bigintBody *body, mp_int *i) {
     if (can_be_smallint(i)) {
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
-        body->u.smallint.value = SIGN(i) == MP_NEG ? -DIGIT(i, 0) : DIGIT(i, 0);
+        body->u.smallint.value = i->sign == MP_NEG ? -DIGIT(i, 0) : DIGIT(i, 0);
         mp_clear(i);
         MVM_free(i);
     }
@@ -247,7 +247,7 @@ static void grow_and_negate(const mp_int *a, int size, mp_int *b) {
      */
     int actual_size = MAX(size, USED(a)) + 1;
 
-    SIGN(b) = MP_ZPOS;
+    b->sign = MP_ZPOS;
     mp_grow(b, actual_size);
     USED(b) = actual_size;
     for (i = 0; i < USED(a); i++) {
@@ -273,12 +273,12 @@ static void two_complement_bitop(mp_int *a, mp_int *b, mp_int *c,
 
     f = a;
     g = b;
-    if (MP_NEG == SIGN(a)) {
+    if (MP_NEG == a->sign) {
         mp_init(&d);
         grow_and_negate(a, USED(b), &d);
         f = &d;
     }
-    if (MP_NEG == SIGN(b)) {
+    if (MP_NEG == b->sign) {
         mp_init(&e);
         grow_and_negate(b, USED(a), &e);
         g = &e;
@@ -312,7 +312,7 @@ static void two_complement_shl(mp_int *result, mp_int *value, MVMint64 count) {
     if (count >= 0) {
         mp_mul_2d(value, count, result);
     }
-    else if (MP_NEG == SIGN(value)) {
+    else if (MP_NEG == value->sign) {
         /* fake two's complement semantics on top of sign-magnitude
          * algorithm appears to work [citation needed]
          */
@@ -592,12 +592,12 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
 
     /* we only care about MP_LT or !MP_LT, so we give MP_GT even for 0. */
     if (MVM_BIGINT_IS_BIG(ba)) {
-        cmp_a = !mp_iszero(ba->u.bigint) && SIGN(ba->u.bigint) == MP_NEG ? MP_LT : MP_GT;
+        cmp_a = !mp_iszero(ba->u.bigint) && ba->u.bigint->sign == MP_NEG ? MP_LT : MP_GT;
     } else {
         cmp_a = ba->u.smallint.value < 0 ? MP_LT : MP_GT;
     }
     if (MVM_BIGINT_IS_BIG(bb)) {
-        cmp_b = !mp_iszero(bb->u.bigint) && SIGN(bb->u.bigint) == MP_NEG ? MP_LT : MP_GT;
+        cmp_b = !mp_iszero(bb->u.bigint) && bb->u.bigint->sign == MP_NEG ? MP_LT : MP_GT;
     } else {
         cmp_b = bb->u.smallint.value < 0 ? MP_LT : MP_GT;
     }
@@ -671,18 +671,18 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
     if (mp_iszero(exponent) || (MP_EQ == mp_cmp_d(base, 1))) {
         r = MVM_repr_box_int(tc, int_type, 1);
     }
-    else if (SIGN(exponent) == MP_ZPOS) {
+    else if (exponent->sign == MP_ZPOS) {
         exponent_d = mp_get_u32(exponent);
         if ((MP_GT == mp_cmp_d(exponent, exponent_d))) {
             if (mp_iszero(base)) {
                 r = MVM_repr_box_int(tc, int_type, 0);
             }
             else if (mp_get_i32(base) == 1) {
-                r = MVM_repr_box_int(tc, int_type, MP_ZPOS == SIGN(base) || mp_iseven(exponent) ? 1 : -1);
+                r = MVM_repr_box_int(tc, int_type, MP_ZPOS == base->sign || mp_iseven(exponent) ? 1 : -1);
             }
             else {
                 MVMnum64 inf;
-                if (MP_ZPOS == SIGN(base) || mp_iseven(exponent)) {
+                if (MP_ZPOS == base->sign || mp_iseven(exponent)) {
                     inf = MVM_num_posinf(tc);
                 }
                 else {
@@ -747,7 +747,7 @@ MVMObject *MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
 int BIGINT_IS_NEGATIVE (MVMP6bigintBody *ba) {
     mp_int *mp_a = ba->u.bigint;
     if (MVM_BIGINT_IS_BIG(ba)) {
-        return SIGN(mp_a) == MP_NEG;
+        return mp_a->sign == MP_NEG;
     }
     else {
         return ba->u.smallint.value < 0;
@@ -847,7 +847,7 @@ void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, const char *buf) {
     adjust_nursery(tc, body);
     if (can_be_smallint(i)) {
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
-        body->u.smallint.value = SIGN(i) == MP_NEG ? -DIGIT(i, 0) : DIGIT(i, 0);
+        body->u.smallint.value = i->sign == MP_NEG ? -DIGIT(i, 0) : DIGIT(i, 0);
         mp_clear(i);
     }
     else {
@@ -1152,7 +1152,7 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
         if (can_be_smallint(bb->u.bigint)) {
             use_small_arithmetic = 1;
             smallint_max = DIGIT(bb->u.bigint, 0);
-            have_to_negate = SIGN(bb->u.bigint) == MP_NEG;
+            have_to_negate = bb->u.bigint->sign == MP_NEG;
         }
     } else {
         use_small_arithmetic = 1;

@@ -12,7 +12,7 @@ static MVMint64 mp_get_int64(MVMThreadContext *tc, mp_int * a) {
 
     /* For 64-bit 2's complement numbers the positive max is 2**63-1, which is 63 bits,
      * but the negative max is -(2**63), which is 64 bits. */
-    if (MP_NEG == SIGN(a)) {
+    if (MP_NEG == a->sign) {
         if (bits > 64) {
             MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", bits);
         }
@@ -31,7 +31,7 @@ static MVMint64 mp_get_int64(MVMThreadContext *tc, mp_int * a) {
         MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", bits);
     }
 
-    return MP_NEG == SIGN(a) ? -res : res;
+    return MP_NEG == a->sign ? -res : res;
 }
 
 MVMint64 MVM_p6bigint_get_int64(MVMThreadContext *tc, MVMP6bigintBody *body) {
@@ -137,7 +137,7 @@ static MVMuint64 get_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
     if (MVM_BIGINT_IS_BIG(body)) {
         mp_int *i = body->u.bigint;
-        if (MP_NEG == SIGN(i))
+        if (MP_NEG == i->sign)
             MVM_exception_throw_adhoc(tc, "Cannot unbox negative bigint into native unsigned integer");
         else
             return mp_get_uint64(tc, i);
