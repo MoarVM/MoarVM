@@ -681,11 +681,17 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
 
     MVMObject *entry_point_o = (MVMObject *)MVM_repr_at_key_o(tc, ret_info,
         tc->instance->str_consts.entry_point);
+    MVMObject *resolve_lib_name = (MVMObject *)MVM_repr_at_key_o(tc, ret_info,
+        tc->instance->str_consts.resolve_lib_name);
+    MVMObject *resolve_lib_name_arg = (MVMObject *)MVM_repr_at_key_o(tc, ret_info,
+        tc->instance->str_consts.resolve_lib_name_arg);
 
     /* Initialize the object; grab native call part of its body. */
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
 
     body->lib_name = lib_name;
+    body->resolve_lib_name = resolve_lib_name;
+    body->resolve_lib_name_arg = resolve_lib_name_arg;
 
     /* Try to locate the symbol. */
     if (entry_point_o && !MVM_is_null(tc, entry_point_o)) {

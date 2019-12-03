@@ -575,6 +575,8 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(ready, "ready");
     string_creator(multidim, "multidim");
     string_creator(entry_point, "entry_point");
+    string_creator(resolve_lib_name, "resolve_lib_name");
+    string_creator(resolve_lib_name_arg, "resolve_lib_name_arg");
     string_creator(kind, "kind");
     string_creator(instrumented, "instrumented");
     string_creator(heap, "heap");
