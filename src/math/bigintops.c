@@ -121,7 +121,7 @@ static void from_num(MVMnum64 d, mp_int *a) {
     if (upper >= 1) {
         MVM_bigint_mp_set_uint64(a, (MVMuint64) upper);
         mp_mul_2d(a, MP_DIGIT_BIT , a);
-        DIGIT(a, 0) = (mp_digit) lower;
+        a->dp[0] = (mp_digit) lower;
         mp_mul_2d(a, MP_DIGIT_BIT , a);
     } else {
         if (lower >= 1) {
@@ -132,7 +132,7 @@ static void from_num(MVMnum64 d, mp_int *a) {
             a->used = 1;
         }
     }
-    DIGIT(a, 0) = (mp_digit) lowest;
+    a->dp[0] = (mp_digit) lowest;
 
     /* shift the rest */
     mp_mul_2d(a, MP_DIGIT_BIT * digits, a);
@@ -157,7 +157,7 @@ static MVMP6bigintBody * get_bigint_body(MVMThreadContext *tc, MVMObject *obj) {
 static int can_be_smallint(const mp_int *i) {
     if (i->used != 1)
         return 0;
-    return MVM_IS_32BIT_INT(DIGIT(i, 0));
+    return MVM_IS_32BIT_INT(i->dp[0]);
 }
 
 /* Forces a bigint, even if we only have a smallint. Takes a parameter that
@@ -223,7 +223,7 @@ static void store_int64_result(MVMP6bigintBody *body, MVMint64 result) {
 static void store_bigint_result(MVMP6bigintBody *body, mp_int *i) {
     if (can_be_smallint(i)) {
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
-        body->u.smallint.value = i->sign == MP_NEG ? -DIGIT(i, 0) : DIGIT(i, 0);
+        body->u.smallint.value = i->sign == MP_NEG ? -i->dp[0] : i->dp[0];
         mp_clear(i);
         MVM_free(i);
     }
@@ -251,10 +251,10 @@ static void grow_and_negate(const mp_int *a, int size, mp_int *b) {
     mp_grow(b, actual_size);
     b->used = actual_size;
     for (i = 0; i < a->used; i++) {
-        DIGIT(b, i) = (~DIGIT(a, i)) & MP_MASK;
+        b->dp[i] = (~a->dp[i]) & MP_MASK;
     }
     for (; i < actual_size; i++) {
-        DIGIT(b, i) = MP_MASK;
+        b->dp[i] = MP_MASK;
     }
     /* Note: This add cannot cause another grow assuming nobody ever
      * tries to use tommath -0 for anything, and nobody tries to use
@@ -301,7 +301,7 @@ static void two_complement_bitop(mp_int *a, mp_int *b, mp_int *c,
     if (c->used > MAX(a->used, b->used)) {
         int i;
         for (i = 0; i < c->used; i++) {
-            DIGIT(c, i) = (~DIGIT(c, i)) & MP_MASK;
+            c->dp[i] = (~c->dp[i]) & MP_MASK;
         }
         mp_add_d(c, 1, c);
         mp_neg(c, c);
@@ -847,7 +847,7 @@ void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, const char *buf) {
     adjust_nursery(tc, body);
     if (can_be_smallint(i)) {
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
-        body->u.smallint.value = i->sign == MP_NEG ? -DIGIT(i, 0) : DIGIT(i, 0);
+        body->u.smallint.value = i->sign == MP_NEG ? -i->dp[0] : i->dp[0];
         mp_clear(i);
     }
     else {
@@ -1151,7 +1151,7 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
     if (MVM_BIGINT_IS_BIG(bb)) {
         if (can_be_smallint(bb->u.bigint)) {
             use_small_arithmetic = 1;
-            smallint_max = DIGIT(bb->u.bigint, 0);
+            smallint_max = bb->u.bigint->dp[0];
             have_to_negate = bb->u.bigint->sign == MP_NEG;
         }
     } else {
@@ -1356,7 +1356,7 @@ MVMint64 MVM_bigint_is_big(MVMThreadContext *tc, MVMObject *a) {
         mp_int *b = ba->u.bigint;
         MVMint64 is_big = b->used > 1;
         /* XXX somebody please check that on a 32 bit platform */
-        if ( sizeof(MVMint64) * 8 > MP_DIGIT_BIT && is_big == 0 && DIGIT(b, 0) & ~0x7FFFFFFFUL)
+        if ( sizeof(MVMint64) * 8 > MP_DIGIT_BIT && is_big == 0 && b->dp[0] & ~0x7FFFFFFFUL)
             is_big = 1;
         return is_big;
     } else {
