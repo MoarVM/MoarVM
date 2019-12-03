@@ -59,7 +59,7 @@ int MVM_bigint_mp_set_uint64(mp_int * a, MVMuint64 b) {
  *  and slightly modified to fit MoarVM's setup.
  */
 static const int MVM_mp_get_double_digits_needed
-= ((MANTISSA_BITS_IN_DOUBLE + DIGIT_BIT) / DIGIT_BIT) + 1;
+= ((MANTISSA_BITS_IN_DOUBLE + MP_DIGIT_BIT) / MP_DIGIT_BIT) + 1;
 static const double MVM_mp_get_double_multiplier = (double)(MP_MASK + 1);
 
 static MVMnum64 MVM_mp_get_double_shift(mp_int *a, int shift) {
@@ -79,7 +79,7 @@ static MVMnum64 MVM_mp_get_double_shift(mp_int *a, int shift) {
 
     if (a->sign == MP_NEG)
         d *= -1.0;
-    final_shift = i * DIGIT_BIT - shift;
+    final_shift = i * MP_DIGIT_BIT - shift;
     if (final_shift < 0) {
         while (final_shift < -1023) {
             d *= pow(2.0, -1023);
@@ -97,7 +97,7 @@ static MVMnum64 MVM_mp_get_double_shift(mp_int *a, int shift) {
 }
 
 static void from_num(MVMnum64 d, mp_int *a) {
-    MVMnum64 d_digit = pow(2, DIGIT_BIT);
+    MVMnum64 d_digit = pow(2, MP_DIGIT_BIT);
     MVMnum64 da      = fabs(d);
     MVMnum64 upper;
     MVMnum64 lower;
@@ -120,13 +120,13 @@ static void from_num(MVMnum64 d, mp_int *a) {
     lowest = fmod(rest,d_digit );
     if (upper >= 1) {
         MVM_bigint_mp_set_uint64(a, (MVMuint64) upper);
-        mp_mul_2d(a, DIGIT_BIT , a);
+        mp_mul_2d(a, MP_DIGIT_BIT , a);
         DIGIT(a, 0) = (mp_digit) lower;
-        mp_mul_2d(a, DIGIT_BIT , a);
+        mp_mul_2d(a, MP_DIGIT_BIT , a);
     } else {
         if (lower >= 1) {
             MVM_bigint_mp_set_uint64(a, (MVMuint64) lower);
-            mp_mul_2d(a, DIGIT_BIT , a);
+            mp_mul_2d(a, MP_DIGIT_BIT , a);
             a->used = 2;
         } else {
             a->used = 1;
@@ -135,7 +135,7 @@ static void from_num(MVMnum64 d, mp_int *a) {
     DIGIT(a, 0) = (mp_digit) lowest;
 
     /* shift the rest */
-    mp_mul_2d(a, DIGIT_BIT * digits, a);
+    mp_mul_2d(a, MP_DIGIT_BIT * digits, a);
     if (d < 0)
         mp_neg(a, a);
     mp_clamp(a);
@@ -972,7 +972,7 @@ static int mp_faster_radix_size (mp_int *a, int radix, int *size)
 
     /* fetch out all of the digits */
 
-#if DIGIT_BIT == 60
+#if MP_DIGIT_BIT == 60
     /* Optimization for base-10 numbers.
      * Logic is designed for 60-bit mp_digit, with 100000000000000000
      * being the largest 10**n that can fit into it, which gives us 17 digits.
@@ -1356,7 +1356,7 @@ MVMint64 MVM_bigint_is_big(MVMThreadContext *tc, MVMObject *a) {
         mp_int *b = ba->u.bigint;
         MVMint64 is_big = b->used > 1;
         /* XXX somebody please check that on a 32 bit platform */
-        if ( sizeof(MVMint64) * 8 > DIGIT_BIT && is_big == 0 && DIGIT(b, 0) & ~0x7FFFFFFFUL)
+        if ( sizeof(MVMint64) * 8 > MP_DIGIT_BIT && is_big == 0 && DIGIT(b, 0) & ~0x7FFFFFFFUL)
             is_big = 1;
         return is_big;
     } else {
