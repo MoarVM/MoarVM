@@ -43,6 +43,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     }
     else
         dest_body->jitcode = NULL;
+    dest_body->resolve_lib_name = src_body->resolve_lib_name;
+    dest_body->resolve_lib_name_arg = src_body->resolve_lib_name_arg;
 }
 
 
@@ -69,7 +71,13 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
 #ifndef HAVE_LIBFFI
     MVMNativeCallBody *body = (MVMNativeCallBody *)data;
     MVMint16 i = 0;
-    MVM_serialization_write_cstr(tc, writer, body->serialize_lib_name ? body->lib_name : NULL);
+    MVM_serialization_write_cstr(
+        tc,
+        writer,
+        !MVM_is_null(tc, body->resolve_lib_name) && !MVM_is_null(tc, body->resolve_lib_name_arg)
+            ? NULL
+            : body->lib_name
+    );
     MVM_serialization_write_cstr(tc, writer, body->sym_name);
     MVM_serialization_write_int(tc, writer, body->convention);
     MVM_serialization_write_int(tc, writer, body->num_args);
@@ -81,10 +89,29 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     for (i = 0; i < body->num_args; i++) {
         MVM_serialization_write_ref(tc, writer, body->arg_info[i]);
     }
+    MVM_serialization_write_ref(tc, writer, (MVMObject*)body->resolve_lib_name);
+    MVM_serialization_write_ref(tc, writer, (MVMObject*)body->resolve_lib_name_arg);
 #endif
 }
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     st->size = sizeof(MVMNativeCall);
+}
+
+typedef struct ResolverData {
+    MVMObject *site;
+    MVMRegister args[1];
+} ResolverData;
+static void callback_invoke(MVMThreadContext *tc, void *data) {
+    /* Invoke the coderef, to set up the nested interpreter. */
+    ResolverData *r = (ResolverData*)data;
+    MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, r->site);
+    MVMObject *code = body->resolve_lib_name;
+    MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+    r->args[0].o = body->resolve_lib_name_arg;
+    STABLE(code)->invoke(tc, code, callsite, r->args);
+
+    /* Ensure we exit interp after callback. */
+    tc->thread_entry_frame = tc->cur_frame;
 }
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
 #ifndef HAVE_LIBFFI
@@ -105,7 +132,64 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         for (i = 0; i < body->num_args; i++) {
             body->arg_info[i] = MVM_serialization_read_ref(tc, reader);
         }
-        if (body->lib_name && body->sym_name) {
+        body->resolve_lib_name = MVM_serialization_read_ref(tc, reader);
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&body->resolve_lib_name);
+        body->resolve_lib_name_arg = MVM_serialization_read_ref(tc, reader);
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&body->resolve_lib_name_arg);
+
+        if (!MVM_is_null(tc, body->resolve_lib_name) && !MVM_is_null(tc, body->resolve_lib_name_arg)) {
+            MVMRegister res = {NULL};
+            ResolverData data = {root, {NULL}};
+            MVM_gc_allocate_gen2_default_clear(tc);
+            /* Call into a nested interpreter (since we already are in one). Need to
+             * save a bunch of state around each side of this. */
+            {
+                MVMuint8 **backup_interp_cur_op         = tc->interp_cur_op;
+                MVMuint8 **backup_interp_bytecode_start = tc->interp_bytecode_start;
+                MVMRegister **backup_interp_reg_base    = tc->interp_reg_base;
+                MVMCompUnit **backup_interp_cu          = tc->interp_cu;
+
+                MVMFrame *backup_cur_frame              = MVM_frame_force_to_heap(tc, tc->cur_frame);
+                MVMFrame *backup_thread_entry_frame     = tc->thread_entry_frame;
+                void **backup_jit_return_address        = tc->jit_return_address;
+                tc->jit_return_address                  = NULL;
+                MVMROOT5(tc, backup_cur_frame, backup_thread_entry_frame, res.o, root, data.site, {
+                    MVMuint32 backup_mark                   = MVM_gc_root_temp_mark(tc);
+                    jmp_buf backup_interp_jump;
+                    memcpy(backup_interp_jump, tc->interp_jump, sizeof(jmp_buf));
+
+
+                    tc->cur_frame->return_value = &res;
+                    tc->cur_frame->return_type  = MVM_RETURN_OBJ;
+
+                    MVM_interp_run(tc, callback_invoke, &data);
+
+                    tc->interp_cur_op         = backup_interp_cur_op;
+                    tc->interp_bytecode_start = backup_interp_bytecode_start;
+                    tc->interp_reg_base       = backup_interp_reg_base;
+                    tc->interp_cu             = backup_interp_cu;
+                    tc->cur_frame             = backup_cur_frame;
+                    tc->current_frame_nr      = backup_cur_frame->sequence_nr;
+                    tc->thread_entry_frame    = backup_thread_entry_frame;
+                    tc->jit_return_address    = backup_jit_return_address;
+
+                    memcpy(tc->interp_jump, backup_interp_jump, sizeof(jmp_buf));
+                    MVM_gc_root_temp_mark_reset(tc, backup_mark);
+                });
+                body = MVM_nativecall_get_nc_body(tc, root); /* refresh body after potential GC move */
+            }
+            MVM_gc_allocate_gen2_default_set(tc);
+
+            /* Handle return value. */
+            if (res.o) {
+                MVMContainerSpec const *contspec = STABLE(res.o)->container_spec;
+                if (contspec && contspec->fetch_never_invokes)
+                    contspec->fetch(tc, res.o, &res);
+            }
+            MVM_gc_root_temp_pop_n(tc, 2);
+            body->lib_name = MVM_string_utf8_encode_C_string(tc, MVM_repr_get_str(tc, res.o));
+        }
+        if (body->lib_name && body->sym_name && !body->lib_handle) {
             MVM_nativecall_setup(tc, body, 0);
         }
     }
@@ -120,6 +204,10 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
             if (body->arg_info[i])
                 MVM_gc_worklist_add(tc, worklist, &body->arg_info[i]);
     }
+    if (body->resolve_lib_name)
+        MVM_gc_worklist_add(tc, worklist, &body->resolve_lib_name);
+    if (body->resolve_lib_name_arg)
+        MVM_gc_worklist_add(tc, worklist, &body->resolve_lib_name_arg);
 }
 
 static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
@@ -156,42 +244,12 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     return (body->lib_handle ? 1 + (body->jitcode ? 1 : 0) : 0);
 }
 
-void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, MVMRegister value, MVMuint16 kind) {
-    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-    if (strcmp(c_name, "serialize_lib_name") != 0) {
-        char *waste[] = { c_name, NULL };
-        MVM_exception_throw_adhoc_free(
-            tc,
-            waste,
-            "P6opaque: no such attribute '%s' on type %s when trying to bind a value",
-            c_name,
-            MVM_6model_get_debug_name(tc, class_handle)
-        );
-    }
-    MVM_free(c_name);
-
-    MVMNativeCallBody *body = (MVMNativeCallBody *)data;
-    body->serialize_lib_name = value.u8;
-
-}
-
-void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMNativeCallBody *body = (MVMNativeCallBody *)data;
-    body->serialize_lib_name = 1;
-}
-
 static const MVMREPROps NativeCall_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
-    initialize,
+    NULL, /* initialize */
     copy_to,
-    {
-        MVM_REPR_DEFAULT_GET_ATTRIBUTE,
-        bind_attribute,
-        MVM_REPR_DEFAULT_HINT_FOR,
-        MVM_REPR_DEFAULT_IS_ATTRIBUTE_INITIALIZED,
-        MVM_REPR_DEFAULT_ATTRIBUTE_AS_ATOMIC
-    },
+    MVM_REPR_DEFAULT_ATTR_FUNCS,
     {
         MVM_REPR_DEFAULT_SET_INT,
         get_int,

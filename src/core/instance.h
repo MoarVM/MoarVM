@@ -79,6 +79,8 @@ struct MVMStringConsts {
     MVMString *ready;
     MVMString *multidim;
     MVMString *entry_point;
+    MVMString *resolve_lib_name;
+    MVMString *resolve_lib_name_arg;
     MVMString *kind;
     MVMString *instrumented;
     MVMString *heap;
