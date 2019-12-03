@@ -185,10 +185,10 @@ static mp_int * force_bigint(MVMThreadContext *tc, const MVMP6bigintBody *body, 
             MVMint32 value = body->u.smallint.value;
             mp_int *i = tc->temp_bigints[idx];
             if (value >= 0) {
-                mp_set_int(i, value);
+                mp_set_i32(i, value);
             }
             else {
-                mp_set_int(i, -value);
+                mp_set_i32(i, -value);
                 mp_neg(i, i);
             }
             return i;
@@ -672,12 +672,12 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
         r = MVM_repr_box_int(tc, int_type, 1);
     }
     else if (SIGN(exponent) == MP_ZPOS) {
-        exponent_d = mp_get_int(exponent);
+        exponent_d = mp_get_u32(exponent);
         if ((MP_GT == mp_cmp_d(exponent, exponent_d))) {
             if (mp_iszero(base)) {
                 r = MVM_repr_box_int(tc, int_type, 0);
             }
-            else if (mp_get_int(base) == 1) {
+            else if (mp_get_i32(base) == 1) {
                 r = MVM_repr_box_int(tc, int_type, MP_ZPOS == SIGN(base) || mp_iseven(exponent) ? 1 : -1);
             }
             else {
@@ -1041,10 +1041,10 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
             MVMint64 value = body->u.smallint.value;
             mp_init(&i);
             if (value >= 0) {
-                mp_set_long(&i, value);
+                mp_set_ul(&i, value);
             }
             else {
-                mp_set_long(&i, -value);
+                mp_set_ul(&i, -value);
                 mp_neg(&i, &i);
             }
 
@@ -1266,7 +1266,7 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
 
     mp_init(&zvalue);
     mp_init(&zbase);
-    mp_set_int(&zbase, 1);
+    mp_set_ul(&zbase, 1);
 
     value_obj = MVM_repr_alloc_init(tc, type);
     MVM_repr_push_o(tc, result, value_obj);
@@ -1284,7 +1284,7 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     mp_init(value);
     mp_init(base);
 
-    mp_set_int(base, 1);
+    mp_set_ul(base, 1);
 
     ch = (offset < chars) ? MVM_string_get_grapheme_at_nocheck(tc, str, offset) : 0;
     if ((flag & 0x02) && (ch == '+' || ch == '-' || ch == 0x2212)) {  /* MINUS SIGN */
