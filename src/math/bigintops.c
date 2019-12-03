@@ -18,7 +18,7 @@
 
 MVM_STATIC_INLINE void adjust_nursery(MVMThreadContext *tc, MVMP6bigintBody *body) {
     if (MVM_BIGINT_IS_BIG(body)) {
-        int used = USED(body->u.bigint);
+        int used = body->u.bigint->used;
         int adjustment = MIN(used, 32768) & ~0x7;
         if (adjustment && (char *)tc->nursery_alloc_limit - adjustment > (char *)tc->nursery_alloc) {
             tc->nursery_alloc_limit = (char *)(tc->nursery_alloc_limit) - adjustment;
@@ -155,7 +155,7 @@ static MVMP6bigintBody * get_bigint_body(MVMThreadContext *tc, MVMObject *obj) {
 
 /* Checks if a bigint can be stored small. */
 static int can_be_smallint(const mp_int *i) {
-    if (USED(i) != 1)
+    if (i->used != 1)
         return 0;
     return MVM_IS_32BIT_INT(DIGIT(i, 0));
 }
@@ -245,12 +245,12 @@ static void grow_and_negate(const mp_int *a, int size, mp_int *b) {
     /* Always add an extra DIGIT so we can tell positive values
      * with a one in the highest bit apart from negative values.
      */
-    int actual_size = MAX(size, USED(a)) + 1;
+    int actual_size = MAX(size, a->used) + 1;
 
     b->sign = MP_ZPOS;
     mp_grow(b, actual_size);
-    USED(b) = actual_size;
-    for (i = 0; i < USED(a); i++) {
+    b->used = actual_size;
+    for (i = 0; i < a->used; i++) {
         DIGIT(b, i) = (~DIGIT(a, i)) & MP_MASK;
     }
     for (; i < actual_size; i++) {
@@ -275,12 +275,12 @@ static void two_complement_bitop(mp_int *a, mp_int *b, mp_int *c,
     g = b;
     if (MP_NEG == a->sign) {
         mp_init(&d);
-        grow_and_negate(a, USED(b), &d);
+        grow_and_negate(a, b->used, &d);
         f = &d;
     }
     if (MP_NEG == b->sign) {
         mp_init(&e);
-        grow_and_negate(b, USED(a), &e);
+        grow_and_negate(b, a->used, &e);
         g = &e;
     }
     /* f and g now guaranteed to each point to positive bigints containing
@@ -298,9 +298,9 @@ static void two_complement_bitop(mp_int *a, mp_int *b, mp_int *c,
      * original operands.  Note this only works because we do not
      * support NOR/NAND/NXOR, and so two zero sign bits can never create 1s.
      */
-    if (USED(c) > MAX(USED(a),USED(b))) {
+    if (c->used > MAX(a->used, b->used)) {
         int i;
-        for (i = 0; i < USED(c); i++) {
+        for (i = 0; i < c->used; i++) {
             DIGIT(c, i) = (~DIGIT(c, i)) & MP_MASK;
         }
         mp_add_d(c, 1, c);
@@ -1195,7 +1195,7 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
         ba = get_bigint_body(tc, result);
 
         mp_init(rnd);
-        mp_rand(rnd, USED(max) + 1);
+        mp_rand(rnd, max->used + 1);
 
         mp_mod(rnd, max, rnd);
         store_bigint_result(ba, rnd);
