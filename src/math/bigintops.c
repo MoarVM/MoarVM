@@ -1287,8 +1287,8 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     mp_set_int(base, 1);
 
     ch = (offset < chars) ? MVM_string_get_grapheme_at_nocheck(tc, str, offset) : 0;
-    if ((flag & 0x02) && (ch == '+' || ch == '-')) {
-        neg = (ch == '-');
+    if ((flag & 0x02) && (ch == '+' || ch == '-' || ch == 0x2212)) {  /* MINUS SIGN */
+        neg = (ch == '-' || ch == 0x2212);
         offset++;
         ch = (offset < chars) ? MVM_string_get_grapheme_at_nocheck(tc, str, offset) : 0;
     }
