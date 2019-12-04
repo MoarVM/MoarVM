@@ -696,7 +696,7 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
             MVMP6bigintBody *resbody;
             mp_init(ic);
             MVM_gc_mark_thread_blocked(tc);
-            mp_expt_d(base, exponent_d, ic);
+            mp_expt_u32(base, exponent_d, ic);
             MVM_gc_mark_thread_unblocked(tc);
             r = MVM_repr_alloc_init(tc, int_type);
             resbody = get_bigint_body(tc, r);
