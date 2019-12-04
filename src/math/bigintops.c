@@ -1021,7 +1021,7 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
             buf = MVM_malloc(len);
             is_malloced = 1;
         }
-        mp_toradix_n(i, buf, base, len);
+        mp_to_radix(i, buf, len, NULL, base);
         result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
         if (is_malloced) MVM_free(buf);
         return result;
@@ -1056,7 +1056,7 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
                 buf = MVM_malloc(len);
                 is_malloced = 1;
             }
-            mp_toradix_n(&i, buf, base, len);
+            mp_to_radix(&i, buf, len, NULL, base);
             result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
             if (is_malloced) MVM_free(buf);
             mp_clear(&i);
@@ -1201,7 +1201,7 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
     return result;
 }
 
-MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b) {
+MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 rounds) {
     /* mp_prime_is_prime returns True for 1, and I think
      * it's worth special-casing this particular number :-)
      */
@@ -1213,10 +1213,10 @@ MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 b) {
             return 0;
         }
         else {
-            int result, err;
-            err = mp_prime_is_prime(ia, b, &result);
-            if (err != MP_OKAY)
-                MVM_exception_throw_adhoc(tc, "Invalid number of rounds (%ld), valid range is 0..%d\n", b, PRIME_SIZE);
+            mp_err err;
+            mp_bool result;
+            if ((err = mp_prime_is_prime(ia, rounds, &result)) != MP_OKAY)
+                MVM_exception_throw_adhoc(tc, "Error checking primality of a big integer: %s", mp_error_to_string(err));
             return result;
         }
     } else {
