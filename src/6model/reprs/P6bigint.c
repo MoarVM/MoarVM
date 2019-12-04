@@ -202,7 +202,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
         MVMString *str;
         mp_radix_size(i, 10, &len);
         buf = (char *)MVM_malloc(len);
-        mp_toradix(i, buf, 10);
+        mp_to_decimal(i, buf, sizeof(buf));
 
         /* len - 1 because buf is \0-terminated */
         str = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
