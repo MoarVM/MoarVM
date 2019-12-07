@@ -77,8 +77,11 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMP6bigintBody *src_body = (MVMP6bigintBody *)src;
     MVMP6bigintBody *dest_body = (MVMP6bigintBody *)dest;
     if (MVM_BIGINT_IS_BIG(src_body)) {
+        mp_err err;
         dest_body->u.bigint = MVM_malloc(sizeof(mp_int));
-        mp_init_copy(dest_body->u.bigint, src_body->u.bigint);
+        if ((err = mp_init_copy(dest_body->u.bigint, src_body->u.bigint)) != MP_OKAY) {
+            MVM_exception_throw_adhoc(tc, "Error copying one big integer to another: %s", mp_error_to_string(err));
+        }
     }
     else {
         dest_body->u.smallint.flag = src_body->u.smallint.flag;
@@ -86,15 +89,20 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     }
 }
 
-void MVM_p6bigint_store_as_mp_int(MVMP6bigintBody *body, MVMint64 value) {
+void MVM_p6bigint_store_as_mp_int(MVMThreadContext *tc, MVMP6bigintBody *body, MVMint64 value) {
+    mp_err err;
     mp_int *i = MVM_malloc(sizeof(mp_int));
-    mp_init(i);
+    if ((err = mp_init(i)) != MP_OKAY) {
+        MVM_exception_throw_adhoc(tc, "Error creating a big integer from a native integer: %s", mp_error_to_string(err));
+    }
     if (value >= 0) {
         MVM_bigint_mp_set_uint64(i, (MVMuint64)value);
     }
     else {
         MVM_bigint_mp_set_uint64(i, (MVMuint64)-value);
-        mp_neg(i, i);
+        if ((err = mp_neg(i, i)) != MP_OKAY) {
+            MVM_exception_throw_adhoc(tc, "Error negating a big integer: %s", mp_error_to_string(err));
+        }
     }
     body->u.bigint = i;
 }
@@ -106,7 +114,7 @@ static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
         body->u.smallint.value = (MVMint32)value;
     }
     else {
-        MVM_p6bigint_store_as_mp_int(body, value);
+        MVM_p6bigint_store_as_mp_int(tc, body, value);
     }
 }
 static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
@@ -127,8 +135,11 @@ static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
         body->u.smallint.value = (MVMint32)value;
     }
     else {
+        mp_err err;
         mp_int *i = MVM_malloc(sizeof(mp_int));
-        mp_init(i);
+        if ((err = mp_init(i)) != MP_OKAY) {
+            MVM_exception_throw_adhoc(tc, "Error setting a big integer from a native integer: %s", mp_error_to_string(err));
+        }
         MVM_bigint_mp_set_uint64(i, value);
         body->u.bigint = i;
     }
@@ -196,13 +207,18 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
     if (MVM_BIGINT_IS_BIG(body)) {
+        mp_err err;
         mp_int *i = body->u.bigint;
         int len;
         char *buf;
         MVMString *str;
-        mp_radix_size(i, 10, &len);
+        if ((err = mp_radix_size(i, 10, &len)) != MP_OKAY) {
+            MVM_exception_throw_adhoc(tc, "Error calculating the size of a big integer: %s", mp_error_to_string(err));
+        }
         buf = (char *)MVM_malloc(len);
-        mp_to_decimal(i, buf, sizeof(buf));
+        if ((err = mp_to_decimal(i, buf, sizeof(buf))) != MP_OKAY) {
+            MVM_exception_throw_adhoc(tc, "Error converting a big integer to a string: %s", mp_error_to_string(err));
+        }
 
         /* len - 1 because buf is \0-terminated */
         str = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
@@ -232,10 +248,15 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
         body->u.smallint.value = MVM_serialization_read_int(tc, reader);
     } else {  /* big int */
+        mp_err err;
         char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), NULL, 0);
         body->u.bigint = MVM_malloc(sizeof(mp_int));
-        mp_init(body->u.bigint);
-        mp_read_radix(body->u.bigint, buf, 10);
+        if ((err = mp_init(body->u.bigint)) != MP_OKAY) {
+            MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err));
+        }
+        if ((err = mp_read_radix(body->u.bigint, buf, 10)) != MP_OKAY) {
+            MVM_exception_throw_adhoc(tc, "Error converting a string to a big integer: %s", mp_error_to_string(err));
+        }
         MVM_free(buf);
     }
 }

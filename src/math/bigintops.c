@@ -264,7 +264,7 @@ static void grow_and_negate(const mp_int *a, int size, mp_int *b) {
 }
 
 static void two_complement_bitop(mp_int *a, mp_int *b, mp_int *c,
-                                 int (*mp_bitop)(mp_int *, mp_int *, mp_int *)) {
+                                 mp_err (*mp_bitop)(const mp_int *, const mp_int *, mp_int *)) {
 
     mp_int d;
     mp_int e;
@@ -339,10 +339,15 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
     else { \
         MVMP6bigintBody *ba = get_bigint_body(tc, source); \
         if (MVM_BIGINT_IS_BIG(ba)) { \
+            mp_err err; \
             mp_int *ia = ba->u.bigint; \
             mp_int *ib = MVM_malloc(sizeof(mp_int)); \
-            mp_init(ib); \
-            mp_##opname(ia, ib); \
+            if ((err = mp_init(ib)) != MP_OKAY) { \
+                MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err)); \
+            } \
+            if ((err = mp_##opname(ia, ib)) != MP_OKAY) { \
+                MVM_exception_throw_adhoc(tc, "Error performing ##opname with a big integer: %s", mp_error_to_string(err)); \
+            } \
             store_bigint_result(bb, ib); \
             adjust_nursery(tc, bb); \
         } \
@@ -360,6 +365,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
 MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b) { \
     MVMP6bigintBody *ba, *bb, *bc; \
     MVMObject *result; \
+    mp_err err; \
     mp_int *ia, *ib, *ic; \
     MVMROOT2(tc, a, b, { \
         result = MVM_repr_alloc_init(tc, result_type);\
@@ -370,8 +376,12 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
     ia = force_bigint(tc, ba, 0); \
     ib = force_bigint(tc, bb, 1); \
     ic = MVM_malloc(sizeof(mp_int)); \
-    mp_init(ic); \
-    mp_##opname(ia, ib, ic); \
+    if ((err = mp_init(ic)) != MP_OKAY) { \
+        MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err)); \
+    } \
+    if ((err = mp_##opname(ia, ib, ic)) != MP_OKAY) { \
+        MVM_exception_throw_adhoc(tc, "Error performing ##opname with big integers: %s", mp_error_to_string(err)); \
+    } \
     store_bigint_result(bc, ic); \
     adjust_nursery(tc, bc); \
     return result; \
@@ -380,12 +390,17 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
 #define MVM_BIGINT_BINARY_OP_SIMPLE(opname, SMALLINT_OP) \
 void MVM_bigint_fallback_##opname(MVMThreadContext *tc, MVMP6bigintBody *ba, MVMP6bigintBody *bb, \
                                   MVMP6bigintBody *bc) { \
+    mp_err err; \
     mp_int *ia, *ib, *ic; \
     ia = force_bigint(tc, ba, 0); \
     ib = force_bigint(tc, bb, 1); \
     ic = MVM_malloc(sizeof(mp_int)); \
-    mp_init(ic); \
-    mp_##opname(ia, ib, ic); \
+    if ((err = mp_init(ic)) != MP_OKAY) { \
+        MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err)); \
+    } \
+    if ((err = mp_##opname(ia, ib, ic)) != MP_OKAY) { \
+        MVM_exception_throw_adhoc(tc, "Error performing ##opname with big integers: %s", mp_error_to_string(err)); \
+    } \
     store_bigint_result(bc, ic); \
     adjust_nursery(tc, bc); \
 } \
@@ -395,6 +410,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
     ba = get_bigint_body(tc, a); \
     bb = get_bigint_body(tc, b); \
     if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) { \
+        mp_err err; \
         mp_int *ia, *ib, *ic; \
         MVMROOT2(tc, a, b, { \
             result = MVM_repr_alloc_init(tc, result_type);\
@@ -405,8 +421,12 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
         ia = force_bigint(tc, ba, 0); \
         ib = force_bigint(tc, bb, 1); \
         ic = MVM_malloc(sizeof(mp_int)); \
-        mp_init(ic); \
-        mp_##opname(ia, ib, ic); \
+        if ((err = mp_init(ic)) != MP_OKAY) { \
+            MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err)); \
+        } \
+        if ((err = mp_##opname(ia, ib, ic)) != MP_OKAY) { \
+            MVM_exception_throw_adhoc(tc, "Error performing ##opname with big integers: %s", mp_error_to_string(err)); \
+        } \
         store_bigint_result(bc, ic); \
         adjust_nursery(tc, bc); \
     } \
@@ -436,10 +456,13 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
         MVMP6bigintBody *bb = get_bigint_body(tc, b); \
         MVMP6bigintBody *bc = get_bigint_body(tc, result); \
         if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) { \
+            mp_err err; \
             mp_int *ia = force_bigint(tc, ba, 0); \
             mp_int *ib = force_bigint(tc, bb, 1); \
             mp_int *ic = MVM_malloc(sizeof(mp_int)); \
-            mp_init(ic); \
+            if ((err = mp_init(ic)) != MP_OKAY) { \
+                MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err)); \
+            } \
             two_complement_bitop(ia, ib, ic, mp_##opname); \
             store_bigint_result(bc, ic); \
             adjust_nursery(tc, bc); \
