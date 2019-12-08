@@ -138,6 +138,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
     /* Stash addresses of current op, register base and SC deref base
      * in the TC; this will be used by anything that needs to switch
      * the current place we're interpreting. */
+
+    MVMuint8 **backup_interp_cur_op;
+    MVMuint8 **backup_interp_bytecode_start;
+    MVMRegister **backup_interp_reg_base;
+    MVMCompUnit **backup_interp_cu;
+
+    if (tc->nested_interpreter) {
+        backup_interp_cur_op = tc->interp_cur_op;
+        if (!backup_interp_cur_op)
+            abort();
+        backup_interp_bytecode_start = tc->interp_bytecode_start;
+        backup_interp_reg_base = tc->interp_reg_base;
+        backup_interp_cu = tc->interp_cu;
+    }
+
     tc->interp_cur_op         = &cur_op;
     tc->interp_bytecode_start = &bytecode_start;
     tc->interp_reg_base       = &reg_base;
@@ -5690,6 +5705,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_guardconc): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
+                //fprintf(stderr, "frame %p effective_spesh_slots %p\n", tc->cur_frame, tc->cur_frame->effective_spesh_slots);
                 MVMSTable *want  = (MVMSTable *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 4)];
                 cur_op += 10;
@@ -6663,10 +6679,23 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
     return_label:
     /* Need to clear these pointer pointers since they may be rooted
      * by some GC procedure. */
-    tc->interp_cur_op         = NULL;
-    tc->interp_bytecode_start = NULL;
-    tc->interp_reg_base       = NULL;
-    tc->interp_cu             = NULL;
+    if (tc->nested_interpreter) {
+        //fprintf(stderr, "Setting backup_interp_cur_op from %p to %p\n", *(backup_interp_cur_op), *tc->interp_cur_op);
+        *backup_interp_cur_op = *tc->interp_cur_op;
+        *backup_interp_bytecode_start = *tc->interp_bytecode_start;
+        *backup_interp_reg_base = *tc->interp_reg_base;
+        *backup_interp_cu = *tc->interp_cu;
+        tc->interp_cur_op = backup_interp_cur_op;
+        tc->interp_bytecode_start = backup_interp_bytecode_start;
+        tc->interp_reg_base = backup_interp_reg_base;
+        tc->interp_cu = backup_interp_cu;
+    }
+    else {
+        tc->interp_cur_op         = NULL;
+        tc->interp_bytecode_start = NULL;
+        tc->interp_reg_base       = NULL;
+        tc->interp_cu             = NULL;
+    }
     MVM_barrier();
 }
 

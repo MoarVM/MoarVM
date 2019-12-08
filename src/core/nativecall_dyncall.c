@@ -212,7 +212,7 @@ static void callback_invoke(MVMThreadContext *tc, void *data) {
 static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result, MVMNativeCallback *data) {
     CallbackInvokeData cid;
     MVMint32 num_roots, i;
-    MVMRegister res;
+    MVMRegister res = {0};
     MVMRegister *args;
     unsigned int interval_id;
 
@@ -337,8 +337,10 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
         MVMFrame *backup_cur_frame              = MVM_frame_force_to_heap(tc, tc->cur_frame);
         MVMFrame *backup_thread_entry_frame     = tc->thread_entry_frame;
         void **backup_jit_return_address        = tc->jit_return_address;
-        tc->jit_return_address                  = NULL;
-        MVMROOT2(tc, backup_cur_frame, backup_thread_entry_frame, {
+        //tc->jit_return_address                  = NULL;
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&backup_cur_frame);
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&backup_thread_entry_frame);
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&res.o);
             MVMuint32 backup_mark                   = MVM_gc_root_temp_mark(tc);
             jmp_buf backup_interp_jump;
             memcpy(backup_interp_jump, tc->interp_jump, sizeof(jmp_buf));
@@ -347,20 +349,26 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
             tc->cur_frame->return_value = &res;
             tc->cur_frame->return_type  = MVM_RETURN_OBJ;
 
+            //fprintf(stderr, "Starting nested runloop %d for %p (JIT return address %p)\n", tc->nested_interpreter, tc, tc->jit_return_address);
+            tc->nested_interpreter++;
             MVM_interp_run(tc, callback_invoke, &cid);
+            tc->nested_interpreter--;
+            //fprintf(stderr, "Ended nested runloop for %p\n", tc);
 
+            /*
             tc->interp_cur_op         = backup_interp_cur_op;
             tc->interp_bytecode_start = backup_interp_bytecode_start;
             tc->interp_reg_base       = backup_interp_reg_base;
             tc->interp_cu             = backup_interp_cu;
-            tc->cur_frame             = backup_cur_frame;
             tc->current_frame_nr      = backup_cur_frame->sequence_nr;
+            */
+            tc->cur_frame             = backup_cur_frame;
+            //tc->jit_return_address    = backup_jit_return_address;
             tc->thread_entry_frame    = backup_thread_entry_frame;
-            tc->jit_return_address    = backup_jit_return_address;
 
             memcpy(tc->interp_jump, backup_interp_jump, sizeof(jmp_buf));
             MVM_gc_root_temp_mark_reset(tc, backup_mark);
-        });
+        MVM_gc_root_temp_pop_n(tc, 3);
     }
 
     /* Handle return value. */
@@ -503,6 +511,8 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
 
     unsigned int interval_id;
     DCCallVM *vm;
+
+    tc->cur_frame->return_address = *tc->interp_cur_op;
 
     /* Create and set up call VM. */
     vm = dcNewCallVM(8192);

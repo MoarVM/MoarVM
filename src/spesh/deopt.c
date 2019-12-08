@@ -89,6 +89,9 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                 /* First uninlined frame. Are we in the middle of the call
                  * stack (and thus in deopt_all)? */
                 if (callee) {
+#if MVM_LOG_DEOPTS
+            fprintf(stderr, "    deopt_all\n");
+#endif
                     /* Tweak the callee's caller to the uninlined frame, not
                      * the frame holding the inlinings. */
                     MVM_ASSERT_NOT_FROMSPACE(tc, uf);
@@ -109,6 +112,9 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                     }
                 }
                 else {
+#if MVM_LOG_DEOPTS
+            fprintf(stderr, "    deopt_one\n");
+#endif
                     /* No, it's the deopt_one case, so this is where we'll point
                      * the interpreter. */
                     tc->cur_frame                = uf;
@@ -148,9 +154,15 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
         if (callee) {
             /* Deopt all. Move return address. */
             f->return_address = f->static_info->body.bytecode + deopt_offset;
+#if MVM_LOG_DEOPTS
+            fprintf(stderr, "    no-inline deopt_all frame %p with return address %p\n", f, f->return_address);
+#endif
         }
         else {
             /* Deopt one. Move interpreter. */
+#if MVM_LOG_DEOPTS
+            fprintf(stderr, "    no-inline deopt_one frame %p with return address %p\n", f, f->return_address);
+#endif
             *(tc->interp_cur_op)         = f->static_info->body.bytecode + deopt_offset;
             *(tc->interp_bytecode_start) = f->static_info->body.bytecode;
         }
@@ -337,7 +349,7 @@ MVMint32 MVM_spesh_deopt_find_inactive_frame_deopt_idx(MVMThreadContext *tc, MVM
         }
     }
 #if MVM_LOG_DEOPTS
-    fprintf(stderr, "    Can't find deopt all idx\n");
+    fprintf(stderr, "    Can't find deopt all idx for pc %ld\n", f->return_address - f->spesh_cand->bytecode);
 #endif
     return -1;
 }
@@ -360,6 +372,12 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
     while (f) {
         clear_dynlex_cache(tc, f);
         if (f->spesh_cand) {
+#if MVM_LOG_DEOPTS
+                    fprintf(stderr, "    Checking frame %p '%s' (cuid '%s')\n",
+                        f,
+                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
+                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid));
+#endif
             MVMint32 deopt_idx = MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, f);
             if (deopt_idx >= 0) {
                 /* Re-create any frames needed if we're in an inline; if not,
@@ -374,7 +392,8 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                         uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, l);
                     });
 #if MVM_LOG_DEOPTS
-                    fprintf(stderr, "    Deopted frame '%s' (cuid '%s') with potential uninlining\n",
+                    fprintf(stderr, "    Deopted frame %p '%s' (cuid '%s') with potential uninlining\n",
+                        f,
                         MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
                         MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid));
 #endif
@@ -382,9 +401,11 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                 else {
                     f->return_address = f->static_info->body.bytecode + deopt_target;
 #if MVM_LOG_DEOPTS
-                    fprintf(stderr, "    Deopted frame '%s' (cuid '%s')\n",
+                    fprintf(stderr, "    Deopted frame %p '%s' (cuid '%s') and set return_address to %p\n",
+                        f,
                         MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
-                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid));
+                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid),
+                        f->return_address);
 #endif
                 }
 

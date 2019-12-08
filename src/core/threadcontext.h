@@ -333,6 +333,8 @@ struct MVMThreadContext {
 
     MVMuint32 cur_file_idx;
     MVMuint32 cur_line_no;
+
+    int nested_interpreter;
 };
 
 MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance);

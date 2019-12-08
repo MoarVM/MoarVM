@@ -73,8 +73,8 @@ static void push_inline(MVMThreadContext *tc, InlineIndexStack *stack, MVMint32 
 
 static void pop_inline(MVMThreadContext *tc, InlineIndexStack *stack) {
     stack->cur_depth--;
-    if (stack->cur_depth < -1)
-        MVM_oops(tc, "Too many levels of inlining popped");
+    /*if (stack->cur_depth < -1)
+        MVM_oops(tc, "Too many levels of inlining popped");*/
 }
 
 static MVMCompUnit * get_current_cu(MVMThreadContext *tc, MVMSpeshGraph *g, InlineIndexStack *stack) {
