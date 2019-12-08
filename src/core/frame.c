@@ -913,7 +913,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     }
 
     /* Switch back to the caller frame if there is one. */
-    if (caller && returner != tc->thread_entry_frame) {
+    if (caller && (returner != tc->thread_entry_frame || tc->nested_interpreter)) {
 
        if (tc->jit_return_address != NULL) {
             /* on a JIT frame, exit to interpreter afterwards */
@@ -924,7 +924,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
             tc->jit_return_address = NULL;
         }
 
-        tc->cur_frame = caller;
+        tc->cur_frame = (caller && returner != tc->thread_entry_frame) ? caller : NULL;
         tc->current_frame_nr = caller->sequence_nr;
 
         *(tc->interp_cur_op) = caller->return_address;
@@ -950,7 +950,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
             }
         }
 
-        return 1;
+        return (returner != tc->thread_entry_frame) ? 1 : 0;
     }
     else {
         tc->cur_frame = NULL;

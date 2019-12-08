@@ -221,6 +221,7 @@ typedef enum {
     MVM_JIT_NODE_CONTROL,
     MVM_JIT_NODE_DATA,
     MVM_JIT_NODE_EXPR_TREE,
+    MVM_JIT_NODE_DEOPT_CHECK,
 } MVMJitNodeType;
 
 struct MVMJitNode {

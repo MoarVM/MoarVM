@@ -3519,5 +3519,14 @@ void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitDat
     |.code
 }
 
+void MVM_jit_emit_deopt_check(MVMThreadContext *tc, MVMJitCompiler *compiler) {
+    | mov TMP6, TC->cur_frame;
+    | mov TMP6, FRAME:TMP6->spesh_cand
+    | test TMP6, TMP6
+    | jnz >1
+    | jmp ->exit
+    |1:
+}
+
 /* import tiles */
 |.include src/jit/x64/tiles.dasc

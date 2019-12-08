@@ -39,6 +39,7 @@ void * MVM_jit_code_get_current_position(MVMThreadContext *tc, MVMJitCode *code,
 void MVM_jit_code_set_current_position(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame, void *position) {
     assert_within_region(tc, code, position);
     if (tc->cur_frame == frame && tc->jit_return_address != NULL) {
+        /* this overwrites the address on the stack that MVM_frame_invoke_code will ret to! */
         *tc->jit_return_address = position;
     } else {
         frame->jit_entry_label = position;

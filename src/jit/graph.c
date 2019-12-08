@@ -16,6 +16,12 @@ static void jg_append_node(MVMJitGraph *jg, MVMJitNode *node) {
     node->next = NULL;
 }
 
+static void jg_append_deopt_check(MVMThreadContext *tc, MVMJitGraph *jg) {
+    MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
+    node->type = MVM_JIT_NODE_DEOPT_CHECK;
+    jg_append_node(jg, node);
+}
+
 static void jg_append_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
                                 MVMSpeshIns * ins) {
     MVMJitNode * node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
@@ -3514,12 +3520,15 @@ start:
         MVMint16 restype = ins->operands[1].reg.orig;
         MVMint16 site    = ins->operands[2].reg.orig;
         MVMint16 cargs   = ins->operands[3].reg.orig;
+        MVMJitCallArg targs[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } } };
+        jg_append_call_c(tc, jg, MVM_jit_code_trampoline, 1, targs, MVM_JIT_RV_VOID, -1);
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { restype } },
                                  { MVM_JIT_REG_VAL, { site } },
                                  { MVM_JIT_REG_VAL, { cargs } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args,
                           MVM_JIT_RV_PTR, dst);
+        jg_append_deopt_check(tc, jg);
         break;
     }
     case MVM_OP_typeparameters:
