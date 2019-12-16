@@ -260,16 +260,33 @@ static size_t get_struct_size_for_family(sa_family_t family) {
 
 /*
  * This function resolves a hostname given a port and family (i.e. domain),
- * returning a valid address to use with a socket under the given domain.
+ * returning a valid address to use with a socket under the given domain,
+ * type, and protocol, in addition to whether or not the socket is passive.
  *
- * The families supported are as follows:
- * - SOCKET_FAMILY_INET   (IPv4)
- * - SOCKET_FAMILY_INET6  (IPv6)
- * - SOCKET_FAMILY_UNIX   (UNIX domain)
- * - SOCKET_FAMILY_UNSPEC (unspecified)
+ * Valid families:
+ * - SOCKET_FAMILY_INET   (PF_INET)
+ * - SOCKET_FAMILY_INET6  (PF_INET6)
+ * - SOCKET_FAMILY_UNIX   (PF_UNIX)
+ * - SOCKET_FAMILY_UNSPEC (PF_UNSPEC)
+ *
+ * Valid types:
+ * - SOCKET_TYPE_STREAM    (SOCK_STREAM)
+ * - SOCKET_TYPE_DGRAM     (SOCK_DGRAM)
+ * - SOCKET_TYPE_RAW       (SOCK_RAW)
+ * - SOCKET_TYPE_RDM       (SOCK_RDM)
+ * - SOCKET_TYPE_SEQPACKET (SOCK_SEQPACKET)
+ * - SOCKET_TYPE_ANY       (any acceptable type)
+ *
+ * Valid protocols:
+ * - SOCKET_PROTOCOL_TCP (IPPROTO_TCP)
+ * - SOCKET_PROTOCOL_UDP (IPPROTO_UDP)
+ * - SOCKET_PROTOCOL_ANY (any acceptable protocol)
  */
 
-struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host, MVMint64 port, MVMuint16 family) {
+struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc,
+        MVMString *host, MVMint64 port,
+        MVMuint16 family, MVMint64 type, MVMint64 protocol,
+        MVMint32 passive) {
     char *host_cstr     = MVM_string_utf8_encode_C_string(tc, host);
     char  port_cstr[8];
 
@@ -281,19 +298,20 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
     int error;
 
     memset(&hints, 0, sizeof(hints));
-    hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV | AI_PASSIVE;
+    hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV;
+    if (passive) hints.ai_flags |= AI_PASSIVE;
 
     switch (family) {
-        case SOCKET_FAMILY_UNSPEC:
+        case MVM_SOCKET_FAMILY_UNSPEC:
             hints.ai_family = AF_UNSPEC;
             break;
-        case SOCKET_FAMILY_INET:
+        case MVM_SOCKET_FAMILY_INET:
             hints.ai_family = AF_INET;
             break;
-        case SOCKET_FAMILY_INET6:
+        case MVM_SOCKET_FAMILY_INET6:
             hints.ai_family = AF_INET6;
             break;
-        case SOCKET_FAMILY_UNIX: {
+        case MVM_SOCKET_FAMILY_UNIX: {
 #if defined(_WIN32) || !defined(AF_UNIX)
             /* TODO: UNIX socket support exists in newer versions of Windows.
              *       See if it's good enough for us to use. */
@@ -321,6 +339,40 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc, MVMString *host
         default:
             MVM_exception_throw_adhoc(tc, "Unsupported socket family: %"PRIu16"", family);
             break;
+    }
+
+    switch (type) {
+        case MVM_SOCKET_TYPE_ANY:
+            hints.ai_socktype = 0;
+            break;
+        case MVM_SOCKET_TYPE_STREAM:
+            hints.ai_socktype = SOCK_STREAM;
+            break;
+        case MVM_SOCKET_TYPE_DGRAM:
+            hints.ai_socktype = SOCK_DGRAM;
+            break;
+        case MVM_SOCKET_TYPE_RAW:
+            MVM_exception_throw_adhoc(tc, "Support for raw sockets NYI");
+        case MVM_SOCKET_TYPE_RDM:
+            MVM_exception_throw_adhoc(tc, "Support for RDM sockets NYI");
+        case MVM_SOCKET_TYPE_SEQPACKET:
+            MVM_exception_throw_adhoc(tc, "Support for seqpacket sockets NYI");
+        default:
+            MVM_exception_throw_adhoc(tc, "Unsupported socket type: %"PRIi64"", type);
+    }
+
+    switch (protocol) {
+        case MVM_SOCKET_PROTOCOL_ANY:
+            hints.ai_protocol = 0;
+            break;
+        case MVM_SOCKET_PROTOCOL_TCP:
+            hints.ai_protocol = IPPROTO_TCP;
+            break;
+        case MVM_SOCKET_PROTOCOL_UDP:
+            hints.ai_protocol = IPPROTO_UDP;
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Unsupported socket protocol: %"PRIi64"", protocol);
     }
 
     snprintf(port_cstr, 8, "%d", (int)port);
@@ -353,7 +405,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
 
     interval_id = MVM_telemetry_interval_start(tc, "syncsocket connect");
     if (!data->handle) {
-        struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family);
+        struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family, MVM_SOCKET_TYPE_STREAM, MVM_SOCKET_PROTOCOL_ANY, 0);
         int r;
 
         Socket s = socket(dest->sa_family , SOCK_STREAM , 0);
@@ -385,7 +437,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
 static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMuint16 family, MVMint32 backlog) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     if (!data->handle) {
-        struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family);
+        struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family, MVM_SOCKET_TYPE_STREAM, MVM_SOCKET_PROTOCOL_ANY, 1);
         int r;
 
         Socket s = socket(dest->sa_family , SOCK_STREAM , 0);
