@@ -924,7 +924,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
             tc->jit_return_address = NULL;
         }
 
-        tc->cur_frame = (caller && returner != tc->thread_entry_frame) ? caller : NULL;
+        tc->cur_frame = caller;
         tc->current_frame_nr = caller->sequence_nr;
 
         *(tc->interp_cur_op) = caller->return_address;
@@ -949,6 +949,8 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
                     sr(tc, srd);
             }
         }
+        if (returner == tc->thread_entry_frame)
+            tc->cur_frame = NULL;
 
         return (returner != tc->thread_entry_frame) ? 1 : 0;
     }
