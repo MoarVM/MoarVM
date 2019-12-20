@@ -86,10 +86,12 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up instance data structure. */
     instance = MVM_calloc(1, sizeof(MVMInstance));
 
-    instance->subscriptions.vm_startup_time = uv_hrtime();
-
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(NULL, instance);
+
+    instance->subscriptions.vm_startup_hrtime = uv_hrtime();
+    instance->subscriptions.vm_startup_now = MVM_proc_time_n(instance->main_thread);
+
 #if MVM_HASH_RANDOMIZE
     /* Get the 128-bit hashSecret */
     MVM_getrandom(instance->main_thread, instance->hashSecrets, sizeof(MVMuint64) * 2);
@@ -694,6 +696,7 @@ void MVM_vm_set_prog_name(MVMInstance *instance, const char *prog_name) {
 void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue, MVMObject *config) {
     MVMString *gcevent;
     MVMString *speshoverviewevent;
+    MVMString *startup_time;
 
     MVMROOT2(tc, queue, config, {
         if (!IS_CONCRETE(config)) {
@@ -713,6 +716,9 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
         gcevent = MVM_string_utf8_decode(tc, tc->instance->VMString, "gcevent", 7);
         MVMROOT(tc, gcevent, {
             speshoverviewevent = MVM_string_utf8_decode(tc, tc->instance->VMString, "speshoverviewevent", 18);
+            MVMROOT(tc, speshoverviewevent, {
+                startup_time = MVM_string_utf8_decode(tc, tc->instance->VMString, "startup_time", 12);
+            });
         });
 
         if (MVM_repr_exists_key(tc, config, gcevent)) {
@@ -743,6 +749,20 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
                 uv_mutex_unlock(&tc->instance->subscriptions.mutex_event_subscription);
                 MVM_exception_throw_adhoc(tc, "vmeventsubscribe expects value at 'speshoverviewevent' key to be null (to unsubscribe) or a VMArray of int64 type object, got a %s%s%s (%s)", IS_CONCRETE(value) ? "concrete " : "", MVM_6model_get_debug_name(tc, value), IS_CONCRETE(value) ? "" : " type object", REPR(value)->name);
             }
+        }
+
+        if (MVM_repr_exists_key(tc, config, startup_time)) {
+            /* Value is ignored, it will just be overwritten. */
+            MVMObject *value = NULL; 
+            MVMROOT2(tc, gcevent, speshoverviewevent, {
+                    value = MVM_repr_box_num(tc, tc->instance->boot_types.BOOTNum, tc->instance->subscriptions.vm_startup_now);
+            });
+
+            if (MVM_is_null(tc, value)) {
+                uv_mutex_unlock(&tc->instance->subscriptions.mutex_event_subscription);
+                MVM_exception_throw_adhoc(tc, "vmeventsubscribe was unable to create a Num object to hold the vm startup time.");
+            }
+            MVM_repr_bind_key_o(tc, config, startup_time, value);
         }
     });
 

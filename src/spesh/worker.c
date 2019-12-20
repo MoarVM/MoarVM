@@ -54,7 +54,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
 
                     overview_data[0] = work_sequence_number;
                     overview_data[1] = now_time / 1000;
-                    overview_data[2] = (now_time - tc->instance->subscriptions.vm_startup_time) / 1000;
+                    overview_data[2] = (now_time - tc->instance->subscriptions.vm_startup_hrtime) / 1000;
                     overview_data[3] = (now_time - start_time) / 1000;
                 }
             }

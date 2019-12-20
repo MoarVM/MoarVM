@@ -125,7 +125,8 @@ struct MVMEventSubscriptions {
     MVMObject *GCEvent;
     MVMObject *SpeshOverviewEvent;
 
-    MVMuint64 vm_startup_time;
+    MVMuint64 vm_startup_hrtime;
+    MVMnum64  vm_startup_now;
 };
 
 /* Represents a MoarVM instance. */

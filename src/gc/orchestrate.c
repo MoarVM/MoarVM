@@ -466,7 +466,7 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
 
         data[0] = MVM_load(&tc->instance->gc_seq_number);
         data[1] = start_time / 1000;
-        data[2] = (start_time - tc->instance->subscriptions.vm_startup_time) / 1000;
+        data[2] = (start_time - tc->instance->subscriptions.vm_startup_hrtime) / 1000;
         data[3] = (end_time - start_time) / 1000;
         data[4] = gen == MVMGCGenerations_Both;
         data[5] = tc->gc_promoted_bytes;
