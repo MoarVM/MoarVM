@@ -949,10 +949,17 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
                     sr(tc, srd);
             }
         }
-        if (returner == tc->thread_entry_frame)
-            tc->cur_frame = NULL;
 
-        return (returner != tc->thread_entry_frame) ? 1 : 0;
+        if (returner == tc->thread_entry_frame && tc->cur_frame == caller) {
+                tc->cur_frame = NULL;
+                return 0;
+        }
+        else {
+            /* We're either somewhere in a nested call or already up in the top
+               most frame but still need to run some finalizer, so keep the
+               runloop running */
+            return 1;
+        }
     }
     else {
         tc->cur_frame = NULL;
