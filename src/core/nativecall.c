@@ -690,8 +690,8 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
 
     body->lib_name = lib_name;
-    body->resolve_lib_name = resolve_lib_name;
-    body->resolve_lib_name_arg = resolve_lib_name_arg;
+    MVM_ASSIGN_REF(tc, &(site->header), body->resolve_lib_name, resolve_lib_name);
+    MVM_ASSIGN_REF(tc, &(site->header), body->resolve_lib_name_arg, resolve_lib_name_arg);
 
     /* Try to locate the symbol. */
     if (entry_point_o && !MVM_is_null(tc, entry_point_o)) {
