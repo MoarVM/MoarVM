@@ -1182,11 +1182,91 @@ MVMThreadContext * MVM_nativecall_find_thread_context(MVMInstance *instance) {
     return tc;
 }
 
+typedef struct ResolverData {
+    MVMObject *site;
+    MVMRegister args[1];
+} ResolverData;
+static void callback_invoke(MVMThreadContext *tc, void *data) {
+    /* Invoke the coderef, to set up the nested interpreter. */
+    ResolverData *r = (ResolverData*)data;
+    MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, r->site);
+    MVMObject *code = body->resolve_lib_name;
+    MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+    r->args[0].o = body->resolve_lib_name_arg;
+    STABLE(code)->invoke(tc, code, callsite, r->args);
+
+    /* Ensure we exit interp after callback. */
+    tc->thread_entry_frame = tc->cur_frame;
+}
+void MVM_nativecall_restore_library(MVMThreadContext *tc, MVMNativeCallBody *body, MVMObject *root) {
+    if (!MVM_is_null(tc, body->resolve_lib_name) && !MVM_is_null(tc, body->resolve_lib_name_arg)) {
+        MVMRegister res = {NULL};
+        ResolverData data = {root, {NULL}};
+
+        /* Call into a nested interpreter (since we already are in one). Need to
+         * save a bunch of state around each side of this. */
+        {
+            MVMuint8 **backup_interp_cur_op         = tc->interp_cur_op;
+            MVMuint8 **backup_interp_bytecode_start = tc->interp_bytecode_start;
+            MVMRegister **backup_interp_reg_base    = tc->interp_reg_base;
+            MVMCompUnit **backup_interp_cu          = tc->interp_cu;
+
+            MVMFrame *backup_cur_frame              = MVM_frame_force_to_heap(tc, tc->cur_frame);
+            MVMFrame *backup_thread_entry_frame     = tc->thread_entry_frame;
+            void **backup_jit_return_address        = tc->jit_return_address;
+            tc->jit_return_address                  = NULL;
+            MVMROOT5(tc, backup_cur_frame, backup_thread_entry_frame, res.o, root, data.site, {
+                MVMuint32 backup_mark                   = MVM_gc_root_temp_mark(tc);
+                jmp_buf backup_interp_jump;
+                memcpy(backup_interp_jump, tc->interp_jump, sizeof(jmp_buf));
+
+
+                tc->cur_frame->return_value = &res;
+                tc->cur_frame->return_type  = MVM_RETURN_OBJ;
+
+                MVM_interp_run(tc, callback_invoke, &data);
+
+                tc->interp_cur_op         = backup_interp_cur_op;
+                tc->interp_bytecode_start = backup_interp_bytecode_start;
+                tc->interp_reg_base       = backup_interp_reg_base;
+                tc->interp_cu             = backup_interp_cu;
+                tc->cur_frame             = backup_cur_frame;
+                tc->current_frame_nr      = backup_cur_frame->sequence_nr;
+                tc->thread_entry_frame    = backup_thread_entry_frame;
+                tc->jit_return_address    = backup_jit_return_address;
+
+                memcpy(tc->interp_jump, backup_interp_jump, sizeof(jmp_buf));
+                MVM_gc_root_temp_mark_reset(tc, backup_mark);
+            });
+            body = MVM_nativecall_get_nc_body(tc, root); /* refresh body after potential GC move */
+        }
+
+        /* Handle return value. */
+        if (res.o) {
+            MVMContainerSpec const *contspec = STABLE(res.o)->container_spec;
+            if (contspec && contspec->fetch_never_invokes)
+                contspec->fetch(tc, res.o, &res);
+        }
+
+        body->lib_name = MVM_string_utf8_encode_C_string(tc, MVM_repr_get_str(tc, res.o));
+    }
+    if (body->lib_name && body->sym_name && !body->lib_handle) {
+        MVM_nativecall_setup(tc, body, 0);
+    }
+}
+
 void MVM_nativecall_invoke_jit(MVMThreadContext *tc, MVMObject *site) {
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
-    MVMJitCode * const jitcode = body->jitcode;
+
+    if (MVM_UNLIKELY(!body->lib_handle)) {
+        MVMROOT(tc, site, {
+            MVM_nativecall_restore_library(tc, body, site);
+        });
+        body = MVM_nativecall_get_nc_body(tc, site);
+    }
 
     tc->cur_frame->return_address = *tc->interp_cur_op;
 
+    MVMJitCode * const jitcode = body->jitcode;
     jitcode->func_ptr(tc, *tc->interp_cu, jitcode->labels[0]);
 }
