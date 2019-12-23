@@ -947,6 +947,14 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
                     su(tc, srd);
                 else if (!unwind && sr)
                     sr(tc, srd);
+                /* The special_return or special_unwind handler may schedule a
+                   finalizer call for the current runloop. If we are already in
+                   the top most call frame of the runloop, we need to replace
+                   the thread_entry_frame with the finalizer call. Otherwise we
+                   won't run the special code for ending the runloop when the
+                   finalizer returns. */
+                if (returner == tc->thread_entry_frame && tc->cur_frame != caller)
+                    tc->thread_entry_frame = tc->cur_frame;
             }
         }
 
