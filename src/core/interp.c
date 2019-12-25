@@ -6677,7 +6677,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
     /* Need to clear these pointer pointers since they may be rooted
      * by some GC procedure. */
     if (tc->nested_interpreter) {
-        *backup_interp_cur_op = *tc->interp_cur_op;
+        /* Workaround for mysterious segfaults possibly related to exceptions
+           thrown in NativeCall callbacks somehow involving the JIT */
+        if (tc->interp_cur_op)
+            *backup_interp_cur_op = *tc->interp_cur_op;
+
         *backup_interp_bytecode_start = *tc->interp_bytecode_start;
         *backup_interp_reg_base = *tc->interp_reg_base;
         *backup_interp_cu = *tc->interp_cu;
