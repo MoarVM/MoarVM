@@ -342,6 +342,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
 
             tc->cur_frame->return_value = &res;
             tc->cur_frame->return_type  = MVM_RETURN_OBJ;
+            tc->cur_frame->return_address = *tc->interp_cur_op;
 
             tc->nested_interpreter++;
             MVM_interp_run(tc, callback_invoke, &cid);
@@ -503,8 +504,6 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
 
     unsigned int interval_id;
     DCCallVM *vm;
-
-    tc->cur_frame->return_address = *tc->interp_cur_op;
 
     /* Create and set up call VM. */
     vm = dcNewCallVM(8192);

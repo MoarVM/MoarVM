@@ -1265,8 +1265,6 @@ void MVM_nativecall_invoke_jit(MVMThreadContext *tc, MVMObject *site) {
         body = MVM_nativecall_get_nc_body(tc, site);
     }
 
-    tc->cur_frame->return_address = *tc->interp_cur_op;
-
     MVMJitCode * const jitcode = body->jitcode;
     jitcode->func_ptr(tc, *tc->interp_cu, jitcode->labels[0]);
 }
