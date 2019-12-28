@@ -637,9 +637,9 @@ MVMJitCode *create_caller_code(MVMThreadContext *tc, MVMNativeCallBody *body) {
 
 void MVM_nativecall_setup(MVMThreadContext *tc, MVMNativeCallBody *body, unsigned int interval_id) {
     /* Try to load the library. */
-    body->lib_handle = MVM_nativecall_load_lib(body->lib_name[0] ? body->lib_name : NULL);
+    DLLib *lib_handle = MVM_nativecall_load_lib(body->lib_name[0] ? body->lib_name : NULL);
 
-    if (!body->lib_handle) {
+    if (!lib_handle) {
         char *waste[] = { body->lib_name, NULL };
         MVM_free(body->sym_name);
         body->lib_name = NULL;
@@ -650,7 +650,7 @@ void MVM_nativecall_setup(MVMThreadContext *tc, MVMNativeCallBody *body, unsigne
     }
 
     if (!body->entry_point) {
-        body->entry_point = MVM_nativecall_find_sym(body->lib_handle, body->sym_name);
+        body->entry_point = MVM_nativecall_find_sym(lib_handle, body->sym_name);
         if (!body->entry_point) {
             char *waste[] = { body->sym_name, body->lib_name, NULL };
             body->lib_name = NULL;
@@ -667,6 +667,10 @@ void MVM_nativecall_setup(MVMThreadContext *tc, MVMNativeCallBody *body, unsigne
     }
     else
         body->jitcode = NULL;
+
+    /* Initialize body->lib_handle as late as possible, so get_int won't report
+       that the NativeCall site is set up too early */
+    body->lib_handle = lib_handle;
 }
 
 /* Builds up a native call site out of the supplied arguments. */
