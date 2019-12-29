@@ -293,6 +293,7 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
                 args[i - 1].o = type;
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
                 num_roots++;
+                break;
             case MVM_NATIVECALL_ARG_UCHAR:
                 args[i - 1].i64 = *(unsigned char *)cb_args[i - 1];
                 break;
