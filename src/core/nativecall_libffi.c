@@ -462,6 +462,12 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     /* Get native call body, so we can locate the call info. Read out all we
      * shall need, since later we may allocate a result and and move it. */
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
+    if (MVM_UNLIKELY(!body->lib_handle)) {
+        MVMROOT3(tc, site, args, res_type, {
+            MVM_nativecall_restore_library(tc, body, site);
+        });
+        body = MVM_nativecall_get_nc_body(tc, site);
+    }
     MVMint16  num_args    = body->num_args;
     MVMint16 *arg_types   = body->arg_types;
     MVMint16  ret_type    = body->ret_type;

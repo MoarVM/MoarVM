@@ -68,7 +68,6 @@ static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *
  * we just do nothing here since it may well have never been opened. Various
  * more involved approaches are possible. */
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-#ifndef HAVE_LIBFFI
     MVMNativeCallBody *body = (MVMNativeCallBody *)data;
     MVMint16 i = 0;
     MVM_serialization_write_cstr(
@@ -91,14 +90,12 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     }
     MVM_serialization_write_ref(tc, writer, (MVMObject*)body->resolve_lib_name);
     MVM_serialization_write_ref(tc, writer, (MVMObject*)body->resolve_lib_name_arg);
-#endif
 }
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     st->size = sizeof(MVMNativeCall);
 }
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-#ifndef HAVE_LIBFFI
     MVMNativeCallBody *body = (MVMNativeCallBody *)data;
     MVMint16 i = 0;
     if (reader->root.version >= 22) {
@@ -118,8 +115,14 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         }
         body->resolve_lib_name = MVM_serialization_read_ref(tc, reader);
         body->resolve_lib_name_arg = MVM_serialization_read_ref(tc, reader);
-    }
+#ifdef HAVE_LIBFFI
+        body->ffi_arg_types = MVM_malloc(sizeof(ffi_type *) * (body->num_args ? body->num_args : 1));
+        for (i = 0; i < body->num_args; i++) {
+            body->ffi_arg_types[i] = MVM_nativecall_get_ffi_type(tc, body->arg_types[i]);
+        }
+        body->ffi_ret_type = MVM_nativecall_get_ffi_type(tc, body->ret_type);
 #endif
+    }
 }
 
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
