@@ -328,35 +328,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     cid.invokee = data->target;
     cid.args    = args;
     cid.cs      = data->cs;
-    {
-        MVMFrame *backup_cur_frame              = MVM_frame_force_to_heap(tc, tc->cur_frame);
-        MVMFrame *backup_thread_entry_frame     = tc->thread_entry_frame;
-        void **backup_jit_return_address        = tc->jit_return_address;
-        tc->jit_return_address                  = NULL;
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&backup_cur_frame);
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&backup_thread_entry_frame);
-            MVMuint32 backup_mark                   = MVM_gc_root_temp_mark(tc);
-            jmp_buf backup_interp_jump;
-            memcpy(backup_interp_jump, tc->interp_jump, sizeof(jmp_buf));
-
-
-            tc->cur_frame->return_value = &res;
-            tc->cur_frame->return_type  = MVM_RETURN_OBJ;
-            tc->cur_frame->return_address = *tc->interp_cur_op;
-
-            tc->nested_interpreter++;
-            MVM_interp_run(tc, callback_invoke, &cid);
-            tc->nested_interpreter--;
-
-            tc->cur_frame             = backup_cur_frame;
-            tc->current_frame_nr      = backup_cur_frame->sequence_nr;
-            tc->jit_return_address    = backup_jit_return_address;
-            tc->thread_entry_frame    = backup_thread_entry_frame;
-
-            memcpy(tc->interp_jump, backup_interp_jump, sizeof(jmp_buf));
-            MVM_gc_root_temp_mark_reset(tc, backup_mark);
-        MVM_gc_root_temp_pop_n(tc, 2);
-    }
+    MVM_interp_run_nested(tc, callback_invoke, &cid, &res);
 
     /* Handle return value. */
     if (res.o) {

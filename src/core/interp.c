@@ -6695,6 +6695,35 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
     MVM_barrier();
 }
 
+void MVM_interp_run_nested(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data, MVMRegister *res) {
+    MVMFrame *backup_cur_frame              = MVM_frame_force_to_heap(tc, tc->cur_frame);
+    MVMFrame *backup_thread_entry_frame     = tc->thread_entry_frame;
+    void **backup_jit_return_address        = tc->jit_return_address;
+    tc->jit_return_address                  = NULL;
+    MVMROOT2(tc, backup_cur_frame, backup_thread_entry_frame, {
+        MVMuint32 backup_mark                   = MVM_gc_root_temp_mark(tc);
+        jmp_buf backup_interp_jump;
+        memcpy(backup_interp_jump, tc->interp_jump, sizeof(jmp_buf));
+
+
+        tc->cur_frame->return_value = res;
+        tc->cur_frame->return_type  = MVM_RETURN_OBJ;
+        tc->cur_frame->return_address = *tc->interp_cur_op;
+
+        tc->nested_interpreter++;
+        MVM_interp_run(tc, initial_invoke, invoke_data);
+        tc->nested_interpreter--;
+
+        tc->cur_frame             = backup_cur_frame;
+        tc->current_frame_nr      = backup_cur_frame->sequence_nr;
+        tc->jit_return_address    = backup_jit_return_address;
+        tc->thread_entry_frame    = backup_thread_entry_frame;
+
+        memcpy(tc->interp_jump, backup_interp_jump, sizeof(jmp_buf));
+        MVM_gc_root_temp_mark_reset(tc, backup_mark);
+    });
+}
+
 void MVM_interp_enable_tracing() {
     tracing_enabled = 1;
 }
