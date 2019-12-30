@@ -399,7 +399,7 @@ void MVM_sc_disclaim(MVMThreadContext *tc, MVMSerializationContext *sc) {
 /* SC repossession barrier. */
 void MVM_SC_WB_OBJ(MVMThreadContext *tc, MVMObject *obj) {
     assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
-    assert(MVM_sc_get_idx_of_sc(&obj->header) != ~0);
+    assert(MVM_sc_get_idx_of_sc(&obj->header) != (MVMuint32)~0);
     if (MVM_sc_get_idx_of_sc(&obj->header) > 0 && !(obj->st->mode_flags & MVM_NEVER_REPOSSESS_TYPE))
         MVM_sc_wb_hit_obj(tc, obj);
 }
