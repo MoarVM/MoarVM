@@ -959,11 +959,6 @@ static void prepare_arglist_and_call(MVMThreadContext *tc, RegisterAllocator *al
         }
     }
 
-    /* with call_bitmap and arg_bitmap given, we can determine the spare
-     * register used for allocation; NB this may only be necessary in some
-     * cases */
-    assert(spare_register >= 0);
-
     for (i = 0; i < stack_transfer_top; i++) {
         MVMint8 reg_num = stack_transfer[i].reg_num;
         MVMint8 stk_pos = stack_transfer[i].stack_pos;
