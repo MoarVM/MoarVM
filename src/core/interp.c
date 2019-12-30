@@ -170,8 +170,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
      * exception thrown from C code. */
     setjmp(tc->interp_jump);
 
+#if !MVM_CGOTO
     /* Enter runloop. */
-    runloop: {
+    runloop:
+#endif
+    {
         MVMuint16 op;
 
 #if MVM_TRACING
