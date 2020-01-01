@@ -226,8 +226,8 @@ static void flush(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 sync){
     flush_output_buffer(tc, data);
     if (sync) {
         if (MVM_platform_fsync(data->fd) == -1) {
-            /* If this is something that can't be flushed, we let that pass. */
-            if (errno != EROFS && errno != EINVAL
+            /* If this is something that can't be synched, we let that pass. */
+            if (errno != EROFS && errno != EINVAL && errno != ENOTSUP
 #ifdef WSL_BASH_ON_WIN
                && ! (errno == EIO && ! data->seekable)
                /* Bash on Win10 doesn't seem to handle TTYs right when flushing:
