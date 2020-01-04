@@ -758,7 +758,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
             MVMObject *error_cb;
             MVMString *msg_str;
 
-            snprintf(error_str, 127, "Failed to spawn process %s: %s (error code %ld)",
+            snprintf(error_str, 127, "Failed to spawn process %s: %s (error code %"PRId64")",
                     si->prog, uv_strerror(spawn_result), spawn_result);
 
             msg_str = MVM_string_ascii_decode_nt(tc,
