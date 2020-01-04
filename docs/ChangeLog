@@ -1,4 +1,4 @@
-New in 2019.12
+New in 2020.01
 
 + [d7b6855d3,7a93b2897,fc41473c0,3806735a4,ae66545c7,34537cfd0,4bf923dbd,596a0b287] Fix
   segfault caused by deopt all in NativeCall callback
