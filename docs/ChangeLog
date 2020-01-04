@@ -1,11 +1,15 @@
 New in 2019.12
 
-+ [d7b6855d3,7a93b2897,fc41473c0,3806735a4,ae66545c7] Fix segfault caused by deopt all in
-  NativeCall callback
-+ [610e05fa0,c799de421,357adb45b,eb13ccad1] Fix relocatability of modules using NativeCall
++ [d7b6855d3,7a93b2897,fc41473c0,3806735a4,ae66545c7,34537cfd0,4bf923dbd,596a0b287] Fix
+  segfault caused by deopt all in NativeCall callback
++ [610e05fa0,c799de421,357adb45b,eb13ccad1,2ac1fa27f,ff1e55617] Fix relocatability of
+  modules using NativeCall
 + [0e0f5bf6d] Allow getting absolute epoch startup time of VM in vmeventsubscribe
 + [9442b1a7c] Add support for '−' (U+2212) minus for nqp::radix(_I)
 + [cd64bf94c,0074094c2] Clean up MVM_io_resolve_host_name and make it more portable
++ [e35bd5f0e] Fix segfaults caused by JITed takehandlerresult returning NULL
++ [e94893f89] Fix frame walker segfaults caused by deopt of a caller on a different thread
++ [8f2d0d781] Detect files that cannot be synched also on MacOS
 + [be5f206c8] Remove bogus debug assertion in the GC's process_worklist
 + [4924390c7,eb3d981d7,47892d379,3c2a933b5,1de3c40c0,5464dd47c,e556879ad,1f31143e7,31a1b22c6,
    631d361c6,795b320b0,bed44f1d5,3d2f8d739,21f9c3284,133b34c03,26c9750c4,7f486360b,70a768c14,
@@ -16,6 +20,7 @@ New in 2019.12
    119a3f847,163da25a8,412c5db96,6953ca60e,c68ed2b03,a566f53f8,a173cc0a2,6ddcc0bb3,21215b756,
    740ac6e02,0a80653b5,0f9013a91,9ee85e7c5,caaf83db6,ca6012a68,af34daa42,8d0b50d3f,97615be0a,
    1b2f72e5e] Move to C99, compile with -Wall -Wextra and fix preexisting compiler warnings
++ [ccfc14fcb] Fix function pointer return values treated like uchar when using libffi
 + [23daabadc] Fix memory corruption after cancelling signal
 + [836396c74] Jit ordbaseat
 + [f10a31b43,a26d7fff8] [JIT] Add missing breaks
