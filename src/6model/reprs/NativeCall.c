@@ -143,8 +143,11 @@ static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMNativeCallBody *body = (MVMNativeCallBody *)data;
     if (body->lib_name)
         MVM_free(body->lib_name);
+/* FIXME don't free the library unconditionally, as the handle will be shared among NativeCall sites
+ * Also if we're called by repossession, we would use any initialized state of the library
     if (body->lib_handle)
         MVM_nativecall_free_lib(body->lib_handle);
+*/
     if (body->arg_types)
         MVM_free(body->arg_types);
     if (body->arg_info)
