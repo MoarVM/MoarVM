@@ -155,7 +155,7 @@ MVMuint32 MVM_string_gb18030_decodestream(MVMThreadContext *tc, MVMDecodeStream 
         MVMuint8 *bytes = (MVMuint8 *)cur_bytes->bytes;
 
         while (pos < cur_bytes->length) {
-            MVMGrapheme32 graph;
+            MVMGrapheme32 graph = 0;
             MVMint32 codepoint = (MVMint32) bytes[pos++];
             
             if (is_len4) {
@@ -163,8 +163,8 @@ MVMuint32 MVM_string_gb18030_decodestream(MVMThreadContext *tc, MVMDecodeStream 
                     len4_cnt++;
                     len4_byte3 = codepoint;
                     continue;
-                }
-                if (len4_cnt == 3) {
+                } else {
+                    /* len4_cnt == 3 */
                     len4_byte4 = codepoint;
                     if (gb18030_valid_check_len4(len4_byte1, len4_byte2, len4_byte3, len4_byte4)) {
                         graph = gb18030_index_to_cp_len4(len4_byte1, len4_byte2, len4_byte3, len4_byte4);
