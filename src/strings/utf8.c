@@ -353,7 +353,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
     MVMDecodeStreamBytes *cur_bytes = NULL;
     MVMDecodeStreamBytes *last_accept_bytes     = ds->bytes_head;
     MVMDecodeStreamBytes *lag_last_accept_bytes = NULL;
-    MVMint32 last_accept_pos, lag_last_accept_pos, ready, at_start;
+    MVMint32 last_accept_pos, lag_last_accept_pos = 0, ready, at_start;
     MVMuint32 reached_stopper;
     MVMuint32 can_fast_path;
 

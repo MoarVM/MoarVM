@@ -1959,7 +1959,7 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
             MVMP6opaqueNameMap *cur_map_entry = name_to_index_mapping;
 
             while (cur_map_entry->class_key != NULL) {
-                MVMint16 i;
+                MVMuint32 i;
                 MVMint64 slot;
                 if (cur_map_entry->num_attrs > 0) {
                     fprintf(stderr, "#`(from %s) ", MVM_6model_get_stable_debug_name(tc, cur_map_entry->class_key->st));

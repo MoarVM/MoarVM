@@ -149,7 +149,7 @@ static char *twoway_memmem_uint32(const uint32_t *h, const uint32_t *z, const ui
 	/* Search loop */
 	for (;;) {
 		/* If remainder of haystack is shorter than needle, done */
-		if (z-h < l) {
+		if ((size_t)(z-h) < l) {
 			return 0;
 		}
 

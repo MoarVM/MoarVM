@@ -282,7 +282,7 @@ void serializeTelemetryBuffer(FILE *outfile)
     lastSerializedIndex = serializationEnd;
 }
 
-void *backgroundSerialization(void *outfile)
+void backgroundSerialization(void *outfile)
 {
     while(continueBackgroundSerialization) {
         MVM_sleep(500);
@@ -290,8 +290,6 @@ void *backgroundSerialization(void *outfile)
     }
 
     fclose((FILE *)outfile);
-
-    return NULL;
 }
 
 MVM_PUBLIC void MVM_telemetry_init(FILE *outfile)
@@ -314,7 +312,7 @@ MVM_PUBLIC void MVM_telemetry_init(FILE *outfile)
 
     beginningEpoch = epochRecord->u.epoch.time;
 
-    threadCreateError = uv_thread_create(&backgroundSerializationThread, (uv_thread_cb)backgroundSerialization, (void *)outfile);
+    threadCreateError = uv_thread_create((uv_thread_t *)&backgroundSerializationThread, backgroundSerialization, (void *)outfile);
     if (threadCreateError != 0)  {
         telemetry_active = 0;
 

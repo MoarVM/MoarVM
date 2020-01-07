@@ -391,7 +391,7 @@ void MVM_serialization_write_int(MVMThreadContext *tc, MVMSerializationWriter *w
         /* All the other high bits should be the same as the top bit of the
            nybble we keep. Or we have a bug.  */
         assert((nybble >> 3) == 0
-               || (nybble >> 3) == ~(MVMuint64)0);
+               || (nybble >> 3) == ~(MVMint64)0);
         buffer[offset++] = (rest << 4) | (nybble & 0xF);
 #ifdef MVM_BIGENDIAN
         memcpy(buffer + offset, (char *)&value + 8 - rest, rest);
