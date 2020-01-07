@@ -39,6 +39,7 @@ void * MVM_jit_code_get_current_position(MVMThreadContext *tc, MVMJitCode *code,
 void MVM_jit_code_set_current_position(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame, void *position) {
     assert_within_region(tc, code, position);
     if (tc->cur_frame == frame && tc->jit_return_address != NULL) {
+        /* this overwrites the address on the stack that MVM_frame_invoke_code will ret to! */
         *tc->jit_return_address = position;
     } else {
         frame->jit_entry_label = position;
@@ -62,8 +63,8 @@ void MVM_jit_code_trampoline(MVMThreadContext *tc) {
 }
 
 
-MVMint32 MVM_jit_code_get_active_deopt_idx(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
-    MVMint32 i;
+MVMuint32 MVM_jit_code_get_active_deopt_idx(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame) {
+    MVMuint32 i;
     void *current_position = MVM_jit_code_get_current_position(tc, code, frame);
     for (i = 0; i < code->num_deopts; i++) {
         if (code->labels[code->deopts[i].label] == current_position) {
@@ -73,7 +74,7 @@ MVMint32 MVM_jit_code_get_active_deopt_idx(MVMThreadContext *tc, MVMJitCode *cod
     return i;
 }
 
-MVMint32 MVM_jit_code_get_active_handlers(MVMThreadContext *tc, MVMJitCode *code, void *current_position, MVMint32 i) {
+MVMint32 MVM_jit_code_get_active_handlers(MVMThreadContext *tc, MVMJitCode *code, void *current_position, MVMuint32 i) {
     for (; i < code->num_handlers; i++) {
         void *start_label = code->labels[code->handlers[i].start_label];
         void *end_label   = code->labels[code->handlers[i].end_label];
@@ -84,7 +85,7 @@ MVMint32 MVM_jit_code_get_active_handlers(MVMThreadContext *tc, MVMJitCode *code
     return i;
 }
 
-MVMint32 MVM_jit_code_get_active_inlines(MVMThreadContext *tc, MVMJitCode *code, void *current_position, MVMint32 i) {
+MVMint32 MVM_jit_code_get_active_inlines(MVMThreadContext *tc, MVMJitCode *code, void *current_position, MVMuint32 i) {
     for (;i < code->num_inlines; i++) {
         void *inline_start = code->labels[code->inlines[i].start_label];
         void *inline_end   = code->labels[code->inlines[i].end_label];

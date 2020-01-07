@@ -60,7 +60,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         dest_body->lexical_types = lexical_types;
     }
     {
-        MVMLexicalRegistry *current, *tmp;
+        MVMLexicalRegistry *current;
 
         /* NOTE: if we really wanted to, we could avoid rehashing... */
         HASH_ITER_FAST(tc, hash_handle, src_body->lexical_names, current, {
@@ -240,16 +240,25 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
     MVMStaticFrameBody *body = (MVMStaticFrameBody *)data;
     MVMLexicalRegistry *current;
 
-    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-        (MVMCollectable *)body->cu, "Compilation Unit");
-    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-        (MVMCollectable *)body->cuuid, "Compilation Unit Unique ID");
-    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-        (MVMCollectable *)body->name, "Name");
-    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-        (MVMCollectable *)body->outer, "Outer static frame");
-    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-        (MVMCollectable *)body->static_code, "Static code object");
+    static MVMuint64 cache_1 = 0;
+    static MVMuint64 cache_2 = 0;
+    static MVMuint64 cache_3 = 0;
+    static MVMuint64 cache_4 = 0;
+    static MVMuint64 cache_5 = 0;
+    static MVMuint64 cache_6 = 0;
+
+    MVMuint64 nonstatic_cache_1 = 0;
+
+    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+        (MVMCollectable *)body->cu, "Compilation Unit", &cache_1);
+    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+        (MVMCollectable *)body->cuuid, "Compilation Unit Unique ID", &cache_2);
+    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+        (MVMCollectable *)body->name, "Name", &cache_3);
+    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+        (MVMCollectable *)body->outer, "Outer static frame", &cache_4);
+    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+        (MVMCollectable *)body->static_code, "Static code object", &cache_5);
 
     /* If it's not fully deserialized, none of the following can apply. */
     if (!body->fully_deserialized)
@@ -257,8 +266,8 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
 
     /* lexical names hash keys */
     HASH_ITER_FAST(tc, hash_handle, body->lexical_names, current, {
-        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-            (MVMCollectable *)current->key, "Lexical name");
+        MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+            (MVMCollectable *)current->key, "Lexical name", &nonstatic_cache_1);
     });
 
     /* static env */
@@ -268,13 +277,13 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
         MVMuint16  i;
         for (i = 0; i < count; i++)
             if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->static_env[i].o, "Static Environment Entry");
+                MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                    (MVMCollectable *)body->static_env[i].o, "Static Environment Entry", &cache_6);
     }
 
     /* Spesh data */
-    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-        (MVMCollectable *)body->spesh, "Specializer Data");
+    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+        (MVMCollectable *)body->spesh, "Specializer Data", &cache_6);
 }
 
 /* Initializes the representation. */
@@ -316,7 +325,7 @@ static const MVMREPROps MVMStaticFrame_this_repr = {
 char * MVM_staticframe_file_location(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &sf->body, 0);
     MVMCompUnit *cu = sf->body.cu;
-    MVMint32           str_idx = ann ? ann->filename_string_heap_index : 0;
+    MVMuint32          str_idx = ann ? ann->filename_string_heap_index : 0;
     MVMint32           line_nr = ann ? ann->line_number : 1;
     MVMString        *filename = cu->body.filename;
     char        *filename_utf8 = "<unknown>";

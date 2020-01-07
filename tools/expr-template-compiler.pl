@@ -1,15 +1,17 @@
 #!/usr/bin/env perl
 package template_compiler;
+use v5.10;
 use strict;
 use warnings FATAL => 'all';
 
 use Getopt::Long;
 use File::Spec;
 use Scalar::Util qw(looks_like_number refaddr reftype);
+use Carp qw(confess);
 
 # use my libs
 use FindBin;
-use lib $FindBin::Bin;
+use lib File::Spec->catdir($FindBin::Bin, 'lib');
 
 use sexpr;
 use expr_ops;
@@ -27,7 +29,6 @@ use oplist;
 # options to compile
 my %OPTIONS = (
     prefix => 'MVM_JIT_',
-    oplist => File::Spec->catfile($FindBin::Bin, File::Spec->updir, qw(src core oplist)),
     include => 1,
 );
 GetOptions(\%OPTIONS, qw(prefix=s list=s input=s output=s include! test));
@@ -54,8 +55,10 @@ END {
 
 # Expected result type
 my %OPERATOR_TYPES = (
-    (map { $_ => 'void' } qw(store discard dov when ifv branch mark callv guard)),
+    (map { $_ => 'void' } qw(store store_num discard dov when ifv branch mark callv guard)),
     (map { $_ => 'flag' } qw(lt le eq ne ge gt nz zr all any)),
+    (map { $_ => 'num' }  qw(const_num load_num calln)),
+    (map { $_ => '?' }    qw(if copy do add sub mul)),
     qw(arglist) x 2,
     qw(carg) x 2,
 );
@@ -66,55 +69,95 @@ my %OPERAND_TYPES = (
     flagval => 'flag',
     all => 'flag',
     any => 'flag',
-    do => 'void,reg',
+    copy => '?',
+    do => 'void,?',
     dov => 'void',
     when => 'flag,void',
-    if => 'flag,reg,reg',
+    if => 'flag,?,?',
     ifv => 'flag,void,void',
     call => 'reg,arglist',
+    calln => 'reg,arglist',
     callv => 'reg,arglist',
     arglist => 'carg',
+    carg => '?',
+    store => 'reg,?',
     guard => 'void',
+    # anything on numbers is polymorphic,
+    # because the output type is the input type
+    map(($_ => '?'), qw(lt le eq ne ge gt nz zr add sub mul)),
 );
 
 # which list item is the size
 my %OP_SIZE_PARAM = (
     load => 2,
+    load_num => 2,
     store => 3,
+    store_num => 3,
     call => 3,
     const => 2,
     cast => 2,
 );
 
+# Map MoarVM types to expr types
+my %MOAR_TYPES = (
+    num32 => 'num',
+    num64 => 'num',
+    '`1'  => '?',
+);
+
 my %VARIADIC = map { $_ => 1 } grep $EXPR_OPS{$_}{num_operands} < 0, keys %EXPR_OPS;
 
-# first read the correct order of opcodes
-my %OPNAMES = map { $OPLIST[$_][0] => $_ } 0..$#OPLIST;
-
-# cache operand direction
-sub opcode_operand_direction {
-    $_[0] =~ m/^([rw])l?\(/ ? $1 : '';
+# Opcode helpers
+sub operand_direction {
+    my ($opcode) = @_;
+    my @operands = @{$OPLIST{$opcode}{operands}};
+    my @direction;
+    while (@operands) {
+        my ($direction, $type) = splice @operands, 0, 2;
+        push @direction, $direction;
+    }
+    return @direction;
 }
 
-# Pre compute exptected operand type and direction
-my %MOAR_OPERAND_DIRECTION;
-for my $opcode (@OPLIST) {
-    my ($opname, undef, $operands) = @$opcode;
-    $MOAR_OPERAND_DIRECTION{$opname} = [
-        map opcode_operand_direction($_), @$operands
-    ];
+sub operand_types {
+    my ($opcode) = @_;
+    my @operands = @{$OPLIST{$opcode}{operands}};
+    my @type;
+    while (@operands) {
+        my ($direction, $type) = splice @operands, 0, 2;
+        push @type, $type;
+    }
+    return @type;
+}
+
+sub output_operand {
+    my ($opcode) = @_;
+    my @operands = @{$OPLIST{$opcode}{operands}};
+    while (@operands) {
+        my ($mode,$type) = splice @operands, 0, 2;
+        return $type if $mode eq 'w';
+    }
+    return;
+}
+
+sub moar_operands {
+    my ($opcode) = @_;
+    my @types = operand_types($opcode);
+    push @types, @types if ($opcode =~ m/^(inc|dec)_[iu]$/); # hack
+    return map {; "\$$_" => $MOAR_TYPES{$types[$_]} || 'reg' } (0..$#types);
 }
 
 # Need a global constant table
 my %CONSTANTS;
 
 sub compile_template {
-    my ($expr, $opcode) = @_;
+    my ($expr, $opcode, $operands) = @_;
     my $compiler = +{
         expr  => {},
         tmpl  => [],
         desc  => [],
         opcode => $opcode,
+        operands => $operands,
         constants => \%CONSTANTS,
     };
     my ($mode, $root) = compile_expression($compiler, $expr);
@@ -135,24 +178,21 @@ sub is_arrayref {
 sub link_declarations {
     my ($expr, %env) = @_;
     my ($operator, @operands) = @$expr;
-    if ($operator eq 'let:') {
+    if ($operator =~ m/letv?:/) {
         my ($declarations, @expressions) = @operands;
         my @definitions;
         for my $declaration (@$declarations) {
             my ($name, $definition) = @$declaration;
-            my $type = check_type($definition);
-            die "declaration $name must be reg but got $type"
-                unless $type eq 'reg';
             link_declarations($definition, %env);
+            check_type(expr_type($definition, \%env), '?', $operator);
             $env{$name} = $definition;
             push @definitions, ['discard', $definition];
         }
         for my $expr (@expressions) {
             link_declarations($expr, %env);
         }
-        my $type = check_type($expressions[$#expressions]);
         # replace statement with DO/DOV
-        @$expr = ($type eq 'reg' ? 'do' : 'dov', @definitions, @expressions);
+        @$expr = ($operator eq 'letv:' ? 'dov' : 'do', @definitions, @expressions);
     } else {
         for my $i (1..$#$expr) {
             my $operand = $expr->[$i];
@@ -220,25 +260,45 @@ sub expand_macro {
     return \@result;
 }
 
-sub check_type {
-    my ($expr) = @_;
-    if (is_arrayref($expr)) {
-        my ($operator, @operands) = @$expr;
-        return check_type($operands[$#operands]) if $operator eq 'let:';
-        die "Expected operator but got macro" if $operator =~ m/^&/;
-        return $OPERATOR_TYPES{$operator} || 'reg';
-    } elsif ($expr =~ m/^\\?\$(\w+)$/) {
-        # TODO - we can do much better, but it is not easy,
-        # because there are a number of opcodes like 'bindlex'
-        # which introduce wildcards, and a number of operators
-        # (like COPY and STORE) which are generic.
-        return 'reg';
+sub expr_type {
+    my ($expr, $env) = @_;
+    # operand value; a reference (\$0) is always a reg
+    return $1 ? 'reg' : $env->{$2} || confess "$2 is not declared"
+        if ($expr =~ m/^(\\?)(\$\w+)$/);
+    my ($operator, @operands) = @$expr;
+    die "Expected operator but got $operator" if $operator =~ m/(^&)|(:$)/;
+    # try to resolve polymorphic operators
+    if ($operator =~ /ifv?/) {
+        my ($flag, $left, $right) = map expr_type($_, $env), @operands;
+        check_type($flag, 'flag', $operator); # must be a flag
+        return check_type($left eq '?' ? ($right, $left) : ($left, $right),
+                          $operator); # should be equivalent
+    } elsif ($operator eq 'do') {
+        return expr_type($operands[$#operands], $env);
+    } elsif ($operator eq 'copy') {
+        return expr_type($operands[0], $env);
+    } elsif ($operator =~ m/^\^\w+/) {
+        # macro, means we're not yet expanded
+        return '?';
     } else {
-        die "Expected operator or type, got " . sexpr_encode($expr);
+        my $type = $OPERATOR_TYPES{$operator} || 'reg';
+        if ($type eq '?') {
+            my $subtype = expr_type($operands[0], $env);
+            for my $i (1..$#operands) {
+                check_type(expr_type($operands[$i], $env), $subtype, $operator);
+            }
+            return $subtype;
+        }
+        return $type;
     }
 }
 
-
+sub check_type {
+    my ($got, $want, $why) = @_;
+    return $got if $want eq $got;
+    return $got if $want eq '?' and $got =~ m/reg|num/;
+    confess "$why: Got $got wanted $want";
+}
 
 sub compile_expression {
     my ($compiler, $expr) = @_;
@@ -282,11 +342,8 @@ sub compile_expression {
 
     my $i = 0;
     for (; $i < $num_operands; $i++) {
-        my $type = check_type($operands[$i]);
-        die "Mismatched type, got $type expected $types[$i] " .
-	  "for $operator @{[sexpr_encode($operands[$i])]}) " .
-	  " [$compiler->{opcode}]"
-            unless $type eq $types[$i];
+        check_type(expr_type($operands[$i], $compiler->{operands}), $types[$i],
+                   $operator);
         push @code, compile_operand($compiler, $operands[$i]);
     }
 
@@ -308,7 +365,7 @@ sub compile_expression {
 
 sub compile_constant {
     my ($compiler, $value, $size) = @_;
-    (undef, $value) = compile_macro($compiler, $value) if is_arrayref($value);
+    (undef, $value) = compile_cmacro($compiler, $value) if is_arrayref($value);
     my $constants = $compiler->{constants};
     my $const_nr = ($constants->{$value} = exists $constants->{$value} ?
                         $constants->{$value} : scalar keys %$constants);
@@ -332,10 +389,10 @@ sub compile_reference {
         my $opcode = $compiler->{opcode};
         # special case for dec_i/inc_i
         return 'i' => $name if $opcode =~ m/^(dec|inc)_i$/ and $name <= 1;
-        my $direction = $MOAR_OPERAND_DIRECTION{$opcode};
+        my @direction = operand_direction($opcode);
         die "Invalid operand reference $expr for $opcode"
-            unless $name >= 0 && $name < @$direction;
-        if ($direction->[$name] eq 'w') {
+            unless $name >= 0 && $name < @direction;
+        if ($direction[$name] eq 'w') {
             die "Require reference for write operand \$$name ($opcode)"
                 unless $ref;
         } else {
@@ -352,7 +409,7 @@ sub compile_reference {
 sub compile_parameter {
     my ($compiler, $expr) = @_;
     if (is_arrayref($expr)) {
-        return compile_macro($compiler, $expr);
+        return compile_cmacro($compiler, $expr);
     } elsif (looks_like_number($expr)) {
         return '.' => $expr;
     } else {
@@ -360,7 +417,7 @@ sub compile_parameter {
     }
 }
 
-sub compile_macro {
+sub compile_cmacro {
     my ($compiler, $expr) = @_;
     my ($name, @parameters) = @$expr;
     die "Expected a macro expression, got $name"
@@ -425,6 +482,8 @@ sub test {
 }
 
 test if $OPTIONS{test};
+
+
 my %SEEN;
 
 sub parse_file {
@@ -439,31 +498,41 @@ sub parse_file {
 
             $macro = link_declarations($macro);
             $macro = apply_macros($macro, $macros);
+            my $type = expr_type($macro, {});
 
-            $macros->{$name} = [ $binding, $macro ];
+            $macros->{$name} = [ $binding, $macro, $type ];
         } elsif ($keyword eq 'template:') {
             my $opcode   = shift @$tree;
             my $template = shift @$tree;
-            my $flags    = 0;
-            if ($opcode =~ s/!$//) {
-                die "No write operand for destructive template $opcode"
-                    unless grep $_ eq 'w', @{$MOAR_OPERAND_DIRECTION{$opcode}};
-                $flags |= 1;
-            }
-            die "Opcode '$opcode' unknown" unless exists $OPNAMES{$opcode};
+
+            my $destructive = 0+!!($opcode =~ s/!$//);
+            die "Opcode '$opcode' unknown" unless exists $OPLIST{$opcode};
             die "Opcode '$opcode' redefined" if exists $info{$opcode};
 
-            $template = link_declarations($template);
+            my $output  = output_operand($opcode);
+
+            die "No write operand for destructive template $opcode"
+                if $destructive && !$output;
+            my $operands = +{ moar_operands($opcode) };
+
+            $template = link_declarations($template, %$operands);
             $template = apply_macros($template, $macros);
 
-            my $compiled = compile_template($template, $opcode);
+
+            my $expr_type = expr_type($template, $operands);
+
+            my $output_type = ($destructive || !$output) ?
+                'void' : ($MOAR_TYPES{$output} || 'reg');
+            check_type($expr_type, $output_type, $opcode);
+
+            my $compiled = compile_template($template, $opcode, $operands);
 
             $info{$opcode} = {
                 idx => scalar @templates,
                 info => $compiled->{desc},
                 root => $compiled->{root},
                 len => length($compiled->{desc}),
-                flags => $flags
+                flags => $destructive,
             };
             push @templates, @{$compiled->{template}};
         } elsif ($keyword eq 'include:') {
@@ -520,7 +589,7 @@ for my $opcode (@OPLIST) {
         printf '    { MVM_jit_expr_templates + %d, "%s", %d, %d, %d },%s',
           $td->{idx}, $td->{info}, $td->{len}, $td->{root}, $td->{flags}, "\n";
     } else {
-        print "    { NULL, NULL, -1, 0 },\n";
+        print "    { NULL, NULL, -1, 0, 0 },\n";
     }
 }
 print "};\n";

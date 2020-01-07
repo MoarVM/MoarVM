@@ -457,7 +457,7 @@ MVMSpeshStatsType * param_type(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf
 }
 
 /* Records a static value for a frame, unless it's already in the log. */
-void add_static_value(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf, MVMint32 bytecode_offset,
+void add_static_value(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf, MVMuint32 bytecode_offset,
                       MVMObject *value) {
     MVMSpeshStats *ss = simf->ss;
     MVMuint32 i, id;
@@ -475,7 +475,8 @@ void add_static_value(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf, MVMint3
 static void save_or_free_sim_stack(MVMThreadContext *tc, MVMSpeshSimStack *sims,
                                    MVMThreadContext *save_on_tc, MVMObject *sf_updated) {
     MVMint32 first_survivor = -1;
-    MVMint32 i;
+    MVMuint32 i;
+    MVMint32 j;
     if (save_on_tc) {
         for (i = 0; i < sims->used; i++) {
             MVMSpeshSimStackFrame *simf = &(sims->frames[i]);
@@ -496,12 +497,12 @@ static void save_or_free_sim_stack(MVMThreadContext *tc, MVMSpeshSimStack *sims,
 
         /* Incorporate data from the rest into the stats model, clearing it
          * away. */
-        i = sims->used - 1;
-        while (i >= 0) {
-            incorporate_stats(tc, &(sims->frames[i]), first_survivor + i,
-                i > 0 ? &(sims->frames[i - 1]) : NULL,
+        j = sims->used - 1;
+        while (j >= 0) {
+            incorporate_stats(tc, &(sims->frames[j]), first_survivor + j,
+                j > 0 ? &(sims->frames[j - 1]) : NULL,
                 sf_updated);
-            i--;
+            j--;
         }
 
         /* Save frames for next time. */
@@ -516,11 +517,13 @@ static void save_or_free_sim_stack(MVMThreadContext *tc, MVMSpeshSimStack *sims,
 
 /* Receives a spesh log and updates static frame statistics. Each static frame
  * that is updated is pushed once into sf_updated. */
-void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated) {
+void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated, MVMuint64 *in_newly_seen, MVMuint64 *in_updated) {
     MVMuint32 i;
     MVMuint32 n = sl->body.used;
     MVMSpeshSimStack *sims;
     MVMThreadContext *log_from_tc = sl->body.thread->body.tc;
+    MVMuint64 newly_seen = 0;
+    MVMuint64 updated = 0;
 #if MVM_GC_DEBUG
     tc->in_spesh = 1;
 #endif
@@ -553,6 +556,10 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
             case MVM_SPESH_LOG_ENTRY: {
                 MVMSpeshStats *ss = stats_for(tc, e->entry.sf);
                 MVMuint32 callsite_idx;
+                if (ss->last_update == 0)
+                    newly_seen++;
+                else
+                    updated++;
                 if (ss->last_update != tc->instance->spesh_stats_version) {
                     ss->last_update = tc->instance->spesh_stats_version;
                     MVM_repr_push_o(tc, sf_updated, (MVMObject *)e->entry.sf);
@@ -625,9 +632,20 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                     add_static_value(tc, simf, e->value.bytecode_offset, e->value.value);
                 break;
             }
+            case MVM_SPESH_LOG_RETURN_TO_UNLOGGED: {
+                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id, sf_updated);
+                if (simf)
+                    sim_stack_pop(tc, sims, sf_updated);
+                break;
+            }
         }
     }
     save_or_free_sim_stack(tc, sims, log_from_tc, sf_updated);
+
+    if (in_newly_seen)
+        *in_newly_seen = newly_seen;
+    if (in_updated)
+        *in_updated = updated;
 #if MVM_GC_DEBUG
     tc->in_spesh = 0;
 #endif
@@ -694,6 +712,12 @@ void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorkl
 }
 
 void MVM_spesh_stats_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *snapshot, MVMSpeshStats *ss) {
+    MVMuint64 cache_1 = 0;
+    MVMuint64 cache_2 = 0;
+    MVMuint64 cache_3 = 0;
+    MVMuint64 cache_4 = 0;
+    MVMuint64 cache_5 = 0;
+    MVMuint64 cache_6 = 0;
     if (ss) {
         MVMuint32 i, j, k, l, m;
         for (i = 0; i < ss->num_by_callsite; i++) {
@@ -702,35 +726,35 @@ void MVM_spesh_stats_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *sna
                 MVMSpeshStatsByType *by_type = &(by_cs->by_type[j]);
                 MVMuint32 num_types = by_cs->cs->flag_count;
                 for (k = 0; k < num_types; k++) {
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
-                        (MVMCollectable*)(by_type->arg_types[k].type), "type");
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
-                        (MVMCollectable*)(by_type->arg_types[k].decont_type), "decont type");
+                    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, snapshot,
+                        (MVMCollectable*)(by_type->arg_types[k].type), "type", &cache_1);
+                    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, snapshot,
+                        (MVMCollectable*)(by_type->arg_types[k].decont_type), "decont type", &cache_2);
                 }
                 for (k = 0; k < by_type->num_by_offset; k++) {
                     MVMSpeshStatsByOffset *by_offset = &(by_type->by_offset[k]);
                     for (l = 0; l < by_offset->num_types; l++)
-                        MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
-                            (MVMCollectable*)(by_offset->types[l].type), "type at offset");
+                        MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, snapshot,
+                            (MVMCollectable*)(by_offset->types[l].type), "type at offset", &cache_3);
                     for (l = 0; l < by_offset->num_invokes; l++)
-                        MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
-                            (MVMCollectable*)(by_offset->invokes[l].sf), "invoke");
+                        MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, snapshot,
+                            (MVMCollectable*)(by_offset->invokes[l].sf), "invoke", &cache_4);
                     for (l = 0; l < by_offset->num_type_tuples; l++) {
                         MVMSpeshStatsType *off_types = by_offset->type_tuples[l].arg_types;
                         MVMuint32 num_off_types = by_offset->type_tuples[l].cs->flag_count;
                         for (m = 0; m < num_off_types; m++) {
-                            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
-                                (MVMCollectable*)(off_types[m].type), "type tuple type");
-                            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
-                                (MVMCollectable*)(off_types[m].decont_type), "type tuple deconted type");
+                            MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, snapshot,
+                                (MVMCollectable*)(off_types[m].type), "type tuple type", &cache_4);
+                            MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, snapshot,
+                                (MVMCollectable*)(off_types[m].decont_type), "type tuple deconted type", &cache_5);
                         }
                     }
                 }
             }
         }
         for (i = 0; i < ss->num_static_values; i++)
-            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
-                (MVMCollectable*)(ss->static_values[i].value), "static value");
+            MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, snapshot,
+                (MVMCollectable*)(ss->static_values[i].value), "static value", &cache_6);
     }
 }
 
@@ -774,12 +798,14 @@ void MVM_spesh_sim_stack_gc_mark(MVMThreadContext *tc, MVMSpeshSimStack *sims,
 void MVM_spesh_sim_stack_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSpeshSimStack *sims) {
     MVMuint32 n = sims ? sims->used : 0;
     MVMuint32 i;
+    MVMuint64 cache_1 = 0;
+    MVMuint64 cache_2 = 0;
     for (i = 0; i < n; i++) {
         MVMSpeshSimStackFrame *simf = &(sims->frames[i]);
-        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-            (MVMCollectable*)(simf->sf), "staticframe");
-        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-            (MVMCollectable*)(simf->last_invoke_sf), "last invoked staticframe");
+        MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+            (MVMCollectable*)(simf->sf), "staticframe", &cache_1);
+        MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+            (MVMCollectable*)(simf->last_invoke_sf), "last invoked staticframe", &cache_2);
     }
 }
 

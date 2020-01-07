@@ -49,10 +49,10 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, const MVMObject *resu
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                    const MVMint32 *stopper_chars,
+                                    const MVMuint32 *stopper_chars,
                                     MVMDecodeStreamSeparators *seps) {
-    MVMint32 count = 0, total = 0;
-    MVMint32 bufsize;
+    MVMuint32 count = 0, total = 0;
+    MVMuint32 bufsize;
     MVMGrapheme32 *buffer;
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
@@ -78,7 +78,7 @@ MVMuint32 MVM_string_latin1_decodestream(MVMThreadContext *tc, MVMDecodeStream *
     while (cur_bytes) {
         /* Process this buffer. */
         MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
-        unsigned char *bytes = (unsigned char *)cur_bytes->bytes;
+        MVMuint8 *bytes = cur_bytes->bytes;
         while (pos < cur_bytes->length) {
             MVMCodepoint codepoint = bytes[pos++];
             MVMGrapheme32 graph;
@@ -149,9 +149,9 @@ char * MVM_string_latin1_encode_substr(MVMThreadContext *tc, MVMString *str, MVM
 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
-        MVM_exception_throw_adhoc(tc, "start out of range");
+        MVM_exception_throw_adhoc(tc, "start (%"PRId64") out of range (0..%"PRIu32")", start, strgraphs);
     if (length < -1 || start + lengthu > strgraphs)
-        MVM_exception_throw_adhoc(tc, "length out of range");
+        MVM_exception_throw_adhoc(tc, "length (%"PRId64") out of range (-1..%"PRIu32")", length, strgraphs);
 
     if (replacement)
         repl_bytes = (MVMuint8 *) MVM_string_latin1_encode_substr(tc,

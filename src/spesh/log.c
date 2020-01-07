@@ -63,7 +63,7 @@ void commit_entry(MVMThreadContext *tc, MVMSpeshLog *sl) {
  * enough data recorded for a tight outer loop in a benchmark. Either grant a
  * bonus log or send the log early so we can have a fresh one. */
 void MVM_spesh_log_new_compunit(MVMThreadContext *tc) {
-    if (tc->num_compunit_extra_logs++ < 5) {
+    if (tc->num_compunit_extra_logs < 5) {
         if (tc->spesh_log)
             if (tc->spesh_log->body.used > tc->spesh_log->body.limit / 4)
                 send_log(tc, tc->spesh_log);
@@ -71,6 +71,7 @@ void MVM_spesh_log_new_compunit(MVMThreadContext *tc) {
             if (MVM_incr(&(tc->spesh_log_quota)) == 0) {
                 tc->spesh_log = MVM_spesh_log_create(tc, tc->thread_obj);
                 tc->spesh_log->body.was_compunit_bumped = 1;
+                MVM_incr(&(tc->num_compunit_extra_logs));
             }
         }
     }
@@ -226,11 +227,15 @@ void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMObject *value) {
     commit_entry(tc, sl);
 }
 
-/* Inserted by the JIT on return_o so that it can do the appropriate thing.
- * There may be ways to optimize this. */
-void MVM_spesh_log_return_type_from_jit(MVMThreadContext *tc, MVMObject *value) {
-    if (MVM_spesh_log_is_caller_logging(tc))
-        MVM_spesh_log_return_type(tc, value);
+/* Logs the return from logged to unlogged code, for the purpose of stack
+ * tracking. */
+void MVM_spesh_log_return_to_unlogged(MVMThreadContext *tc) {
+    MVMSpeshLog *sl = tc->spesh_log;
+    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
+    MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+    entry->kind = MVM_SPESH_LOG_RETURN_TO_UNLOGGED;
+    entry->id = cid;
+    commit_entry(tc, sl);
 }
 
 /* Log the result of a spesh plugin resolution. */

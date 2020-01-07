@@ -1,3 +1,259 @@
+New in 2020.01
+
++ [d7b6855d3,7a93b2897,fc41473c0,3806735a4,ae66545c7,34537cfd0,4bf923dbd,596a0b287] Fix
+  segfault caused by deopt all in NativeCall callback
++ [610e05fa0,c799de421,357adb45b,eb13ccad1,2ac1fa27f,ff1e55617] Fix relocatability of
+  modules using NativeCall
++ [0e0f5bf6d] Allow getting absolute epoch startup time of VM in vmeventsubscribe
++ [9442b1a7c] Add support for '−' (U+2212) minus for nqp::radix(_I)
++ [cd64bf94c,0074094c2] Clean up MVM_io_resolve_host_name and make it more portable
++ [e35bd5f0e] Fix segfaults caused by JITed takehandlerresult returning NULL
++ [e94893f89] Fix frame walker segfaults caused by deopt of a caller on a different thread
++ [8f2d0d781] Detect files that cannot be synched also on MacOS
++ [be5f206c8] Remove bogus debug assertion in the GC's process_worklist
++ [4924390c7,eb3d981d7,47892d379,3c2a933b5,1de3c40c0,5464dd47c,e556879ad,1f31143e7,31a1b22c6,
+   631d361c6,795b320b0,bed44f1d5,3d2f8d739,21f9c3284,133b34c03,26c9750c4,7f486360b,70a768c14,
+   487f39577,d0d99f85c,153771bc1,03833e369,f26a1783c,758ef58b0,d81e9218f,1e731b6f9,f35e1d8c5,
+   91e3530ac,cac9b9a9d,4ce5570e2,d91f86ba8,de1bebc72,8ac4ac2cf,13b618c25,f59f8f5de,20804df5b,
+   14f581683,a335add83,ef7d0ecf4,8a9444b11,d4f20a191,61205646b,4f4c304ba,a06a0edf3,29acd43f0,
+   0150c1d82,9a59fdc9a,b6327c603,a0d545b13,85f5604e7,5d5b86e30,9bce55092,9ba1c25a5,4bdc7638c,
+   119a3f847,163da25a8,412c5db96,6953ca60e,c68ed2b03,a566f53f8,a173cc0a2,6ddcc0bb3,21215b756,
+   740ac6e02,0a80653b5,0f9013a91,9ee85e7c5,caaf83db6,ca6012a68,af34daa42,8d0b50d3f,97615be0a,
+   1b2f72e5e] Move to C99, compile with -Wall -Wextra and fix preexisting compiler warnings
++ [ccfc14fcb] Fix function pointer return values treated like uchar when using libffi
++ [23daabadc] Fix memory corruption after cancelling signal
++ [836396c74] Jit ordbaseat
++ [f10a31b43,a26d7fff8] [JIT] Add missing breaks
+
+New in 2019.11
+
+6model:
++ [8a5cc88a,af76729d] Fix incorrect conditional in deserialize_context
++ [59fa3b82] Fix for run-away CORE context on closures
++ [1b0950e3] Give higher layers a way to check if a nativecall site is set up
++ [47cd6c66] Fix the CStr REPR's copy_to function
++ [d52282b2] Fix possible deadlock in finish_parameterizing
++ [fd2659ed] Fix possible access to fromspace in code_pair_configure_container_spec
++ [366a7b7a] Add missing write barrier to MVM_6model_get_how
++ [a4a599e3] Fix possible access to fromspace in MVM_code_location
++ [0864cb76] Don't crash with read-int/write-int on unsupported reprs
++ [177706fe] Better error message for P6opaque in multidim functions
++ [b7151da7,d76ebbe4] Fix possible memory corruption in CStruct's, CPPStruct's and CUnion's get_attribute
++ [289ccd8c] Don't segfault when trying to get the debug name of a NULL object
++ [1a973a37] Add elem count in ConcBlockingQueue to telemetry log
++ [4a90335f] Fix possible access to fromspace in CStruct's get_attribute
++ [39a4f05f] Fix possible segfaults related to corrupted CPPStruct STables
++ [23fd0449] Fix CStruct's compute_allocation_strategy leaving the allocate_in_gen2 flag on by accident
++ [ca9d44f2] Fix possible access to fromspace in MVM_repr_dimensions
++ [0a12e3c4] Fix ConcBlockingQueue possibly unshifting an outdated item pointer
+
+Core:
++ [a5d553cd] Add missing concreteness checks to most array ops
++ [95f69be8] Implement serialization of NativeCall reprs with dyncall
++ [efeec455] Dynamic library loading works with unicody paths on Windows
++ [e0e3ea9f,fa2e4f21,fa2e4f21,01f85c8b,ddf5b56b] Add more context to error messages
++ [55b6f734] Make sure autobox on return and slurpy nameds uses int cache
++ [e9e0731a] Make sure intcache type is rooted
++ [9138c699] Fix possible access to fromspace in MVM_frame_move_to_heap
++ [3f97d73d] Fix a subtle bug in instrument_graph
++ [8622835b] Fix possible memory corruption in MVM_frame_capture_*
++ [90252a8f] Fix possible access to fromspace in MVM_args_set_result_(obj|str)
++ [1fd0fdcd] Fix stack simulation losing track in some cases
++ [cfc5d000] Give error message improvement to libffi as well
++ [703fd647] Fix a nativecall error message in dyncall
++ [3e715b42] NativeCall: output index of argument with repr mismatch (#1141)
++ [e2f57637] Fix bogus "Decoder may not be used concurrently" after exceptions
++ [00a1ddb9] Fix GC processing uninitialized data in autoclosing of frames
++ [2dbf6225] Fix comp units using obsolete pointers to their filename
++ [e0bc6e2f] Fix slurpy arg handling possibly accessing an outdated arg context
++ [64a6f69c] Fix possible invalid memory access when throwing exceptions
++ [4ab1d425] Fix autobox possibly writing to an outdated target
+
+Debug Server:
++ [85ce8ecc] Better error if getaddrinfo in debugserver fails
++ [b1bb9349] Prepend "Debugserver:" to errors/output originating from the debugserver
+
+Docs:
++ [56fa7a0c] Improve naming in documentation
++ [1eeae85f] Document heapsnapshot format version 3.1
++ [ee18678e] Update "Features" part of readme
+
+GC:
++ [b0b3fc8c] Fix obscure deadlock in run_gc
++ [329f669c,ea9b29e8] Fix race condition with exited threads still in the thread list
++ [bcc785d2] Fix overflow objects still belonging to exiting thread
++ [aa2270c7] Fix overflow objects getting freed prematurely on thread exit
++ [68666832] Fix segfaults in GCDEBUG_LOGs
++ [539f1d03] Fix possible access to fromspace in finalize_handler_caller
++ [fdc5eacf] VMEvent: put gc_promoted_bytes_since_last_full in GCEvent
++ [aa934648] Fix swapped parameters in call to profiler_log_gen2_roots
++ [1850b6c5] GCEvent shall report gen2root count from all TCs
++ [6f72c92f] VMEvent: divide timing numbers by 1000
++ [3faf1985] Introduce vmevent, "VM Event Subscription"
++ [24e2986a] Do heapsnapshot/instrumented data gathering earlier in GC
++ [7e190207] Log GC start a little later to fix profiling
++ [35101eb8] New GC debug level (3) triggers the GC on each mem allocation
+
+IO:
++ [acd1156b] Use more appropriate flags with getaddrinfo
++ [16485506] Fix format strings in calls to MVM_exception_throw_adhoc
++ [36c35db1] Make MVM_file_is_rwx honor root and groups
++ [379ec77a,d9a067d4,2f4798b8,3fa99b4d,2f4798b8,...] IP6NS Grant: Improve hostname resolution
++ [5dfed008] Fix possible SEGV in async_spawn_on_exit
++ [6926a492] Fixed file permission interpretation problems around groups
++ [241be06b] Fix possible access to fromspace in MVM_dir_open
++ [2c9a92e9] Add a missing gc root for asyncsocket listen setup
++ [9c896d6c] Add gc pressure for process output read ops
++ [606c4437] Fix possible access to fromspace in UDP socket setup
++ [57a6d475] Add a missing gc root for asyncsocket listen setup
++ [bf3c6a97] Fix warning about directive in format string
++ [93739d56] Improve error when failing to spawn process
+
+JIT:
++ [d5f5185b] We should not overwrite assigned type
++ [97e26c01] Fix bug in takedispatcher
++ [e594fbcb] Add missing cast to sp_p6oget_bi
++ [f8eca66b] Fix exprjit sp_p6oget_bi
++ [17475350] Syntactically distinguish let keyword variants
+- [27dcb378] Implement exprjit of sp_bind_o
++ [2ac137c3] Use the new deopt index for synthetic guards
++ [e4a756c6] Deoptimization in the expression JIT
++ [f8b05151] Use correct deopt index for guard opcodes
+- [d79e7d5a] Revert template compiler back to v5.10
++ [10404ee5] Jit the log, exp and ceil ops
++ [7f828342] Handle NaN in FP branching comparisons
++ [6c622553] Fix floating point comparisons
++ [7f8061a5] Support floating point comparisons
++ [27e9f979] Functions that return floating point values
++ [fb75f9a6] Compile with numeric function argument
++ [09c0df4f] A few more numeric tiles
++ [4002c19b] Make jit-dump.pl useful again
++ [d79c8306] Use the correct registers for numeric tiles
++ [cebb89ce] Basic floating point templates and tiles
++ [c9aebedb] Handle floating point registers better
++ [a62a2ff2] Spill live range compatible with requested set
++ [6b00c2b3] Live ranges are given register set
++ [4d65e467] Support floating point registers in load, spill and copy
++ [87710a12] Floating point support in the register allocator
++ [821e8535] Make STORE polymorphic on input
++ [3069ed4b] More rigorous type checking
++ [05297fa6] Split type check from expr type resolution
++ [0f33b570] Basic expression support for floating point operators
++ [c3af0d66] Try to select the first input register as output register
++ [b58bbf0f] Enfore input/output registers better
++ [9d34cb64] Enforce output-operand form in register allocator
++ [43138989] Minor debugging / structure improvements
++ [ed1ed12b] Reorganize JIT register definitions
++ [cfd81276] Parse oplist operands
++ [4407f68a] Move JIT-compile support libs to tools/lib
++ [e5076fc5] Autogenerate tile predeclarations
++ [b49fa493] Use bitmap for free register set
++ [9c969b1b] Add missing write barrier to lego JIT implementation of setcodeobj
++ [f0978d6a] Jit getuniprop_(int|bool|str)
++ [e5321a36] Jit captureposarg_n
++ [9f679f32] Jit and add a template for smrt_intify
+
+Libraries:
++ [0f05efbb] Update to libuv version 1.33.0
++ [d24f6952] Use updated dyncall library with "execstack" fix
++ [eed5fe14] [DynASM] Take in REX encoding fix
+
+Math:
++ [c390b30c] Fix possible access to fromspace in MVM_coerce_sI
++ [a001b7e4] Fix many memory corruption issues in bigint operations
+
+Ops:
++ [d189b29b] Make socket family handling portable
+
+Other:
++ [bb239a91] Fix MVMSpeshPluginState type defined twice
++ [5f177f58] Make MVM_HASH_RANDOMIZE properly control hash rand
++ [ff4f6031] Factor out run_deserialization_frame() to avoid code repetition
++ [b26638eb] Add MVM_vm_run_bytecode() as alternative to MVM_vm_run_file()
++ [1a8988c0] Add "use 5.020" to expr-template-compiler.pl
++ [7d23bd26] update_ops.p6: properly deeply clone spans data
++ [e4b87265] Add reference to roast Unicode update instructions
+
+Platform:
++ [87d7f58d] Deduplicate and shorten open and fopen wrappers
++ [e127b849] Improve Unicode handling with paths
++ [9d6f4493] Fix possible access to fromspace in MVM_platfrom_uname
+
+Profiler:
++ [0b531f9c] Implement the MVM_CONFPROG_DEBUG env var which enables control of confprog
++ [70bcaf90] Make unicode path fixes compile on non-Windows
++ [6ecbf6e0] Profiler: Fix uninitialized field in MVM_profiler_log_gc_start
++ [9f24debe] Profiler: Prevent overflow in the 'total exclusive time' calculation
++ [81f9ccdf] Profiler: Fix call graph node getting missed by the GC
++ [8e7e1210,289e9dfc] Silence some clang warnings and fix "mixed code/declaration" error
++ [5534e95f,1e448ece,...] Add new heapsnapshot format with zstd support
++ [4ca494f5] Profiler: Expose number of stolen gen2 roots
++ [87912784] Profiler: Put "stolen" gen2roots in profiler data
++ [370b9a29] Heapanalyzer: add debug "DUMP_EVERYTHING_RAW" to v3
+
+Spesh:
++ [0f0e6d3a] Work around MSVC not coping well with preprocessor instructions inside an MVMROOT
++ [c61236f9] Fix access to freed memory in resolve_using_guards
++ [acb04a44] Fix possible memory corruption in resolve_using_guards
++ [3d83cb46] Add a few missing static keywords before a few functions
++ [40fcdb7e] Fix incorrect return type in get_effective_size
++ [3e8652ea] Add missing root for VMEvent SpeshOverviewEvent
++ [189ef298] Update deopt idx if we clone the deopt annotation
++ [dfbc5a45] Make deopt use index rather than target address
++ [c3e38bb9] Turn pushes/pops into MVMROOT again
++ [cf3b545e] Reinstate callsite during uninlining
++ [38915b93] Tweak spesh logging's new compunit handling/quotas
++ [b2287bc4] Fix possible memory corruption of spesh plugin guards by untimely GC
++ [557056bf] Fix formatting code warning in an error path
++ [e7bad16e] Fix pointer type mismatch warnings with a cast
++ [204eb28f] VMEvent: new event type: SpeshOverviewEvent
++ [269b73ee] Add missing break statement
++ [03d3db93] Sanity check if hash ever gets an initialize func
++ [aa2e96c4] Comment when slurpy hash has been created
++ [43e3d114] Output duplicate getarg ops in spesh log
++ [46516af4] Lower slurpy positional args to a set of getarg ops
++ [09bd015c] Give arg spesh more comments for when it bails
++ [d1af2f2f] Handle arg spesh native param passed a Scalar
++ [5c787f37] Only getlexperinvtype → constant if only one type record exists
++ [5b174f52] Allow param_*_ins ops to spesh when Int/Num/Str present
++ [b3469f92] Actually optimize smrt_intify when able
++ [654a136d] Fix panic in spesh when deserialization causes GC during fact finding
++ [4227c713] Fix possible invalid access to fromspace in spesh worker startup
++ [f18bfadb] Add missing MVMROOT in MVM_spesh_plugin_register
++ [5d8095b8] Spesh optimize smrt_intify like smrt_(num|str)ify
+
+Strings:
++ [da19661e] Reset utf8 pointer to point at original string before use
++ [ff007f2f] Use right types/format string, pull dup code out
++ [0e412038] Show chars near bad bytes in another encoding path
++ [fece31c5] Free the correct things in encoding error path
++ [5f14524a] Show correct bad bytes in encoding errors
++ [5cf5c56b] Simplify freeing of buffer in UTF8_REJECT cases
++ [07983e4c] Fix possible access to fromspace in MVM_string_flip
++ [b49b5202] Fix issue #1163, gb2313 clang warnings
++ [8211189c] Add the reference of GB18030
++ [986f3403] Add GB18030 encode, decode and decodestream support
++ [695a24de] Fix memory corruption caused by missing write barriers in string ops
++ [7d7a2b73] Remove large sections of zeros in the conversion table
++ [709bb7ed] Add comments about how the conversion tables are generated
++ [5ffa9264] Generate conversion table from a source file
++ [bca6f392,f46e5d7e,07f6305f,6730e51f,e78080f6] Fix possible access to fromspace in some string functions
++ [78164189] Remove bogus MVMROOT from MVM_unicode_string_compare
++ [b614a7b4] Update collation data to Unicode 12.1
++ [8f425147] Update Unicode to 12.1
++ [9e6abe46,fc56c02c] Use a decode_handler function for decodestream
++ [75f1c965] Fixed an overflow problem
++ [9213f2f0] Fix duplicate includes
++ [73f28d38] Add GB2312 encode, decode and decodestream support
+
+Tooling/Build:
++ [32003eec] Use `make` exit status as own
++ [8efd3825] Make Configure.pl and  tools/update_ops.p6 executable
++ [277676a1] Add better support of PEA to spesh bisect
++ [fcdb8433] Configure.pl: Add missing return in has_native_library
++ [2bcb911d] Separate includes from submodules from system-wide includes
++ [53a6308c] Get moar build working with spaces in path
+
 New in 2019.07.1
 
 Core:

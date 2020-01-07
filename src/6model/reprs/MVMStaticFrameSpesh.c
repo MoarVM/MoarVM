@@ -28,7 +28,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_spesh_stats_gc_mark(tc, body->spesh_stats, worklist);
     MVM_spesh_arg_guard_gc_mark(tc, body->spesh_arg_guard, worklist);
     if (body->num_spesh_candidates) {
-        MVMint32 i, j;
+        MVMuint32 i, j;
         for (i = 0; i < body->num_spesh_candidates; i++) {
             for (j = 0; j < body->spesh_candidates[i]->num_spesh_slots; j++)
                 MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]->spesh_slots[j]);
@@ -36,13 +36,13 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
                 MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]->inlines[j].sf);
         }
     }
-    MVM_spesh_plugin_state_mark(tc, body->plugin_state, worklist);
+    MVM_gc_worklist_add(tc, worklist, &body->plugin_state);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMStaticFrameSpesh *sfs = (MVMStaticFrameSpesh *)obj;
-    MVMint32 i;
+    MVMuint32 i;
     MVM_spesh_stats_destroy(tc, sfs->body.spesh_stats);
     MVM_free(sfs->body.spesh_stats);
     MVM_spesh_arg_guard_destroy(tc, sfs->body.spesh_arg_guard, 0);
@@ -52,7 +52,6 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         MVM_fixed_size_free(tc, tc->instance->fsa,
             sfs->body.num_spesh_candidates * sizeof(MVMSpeshCandidate *),
             sfs->body.spesh_candidates);
-    MVM_spesh_plugin_state_free(tc, sfs->body.plugin_state);
 }
 
 static const MVMStorageSpec storage_spec = {
@@ -129,7 +128,7 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
     MVM_spesh_arg_guard_gc_describe(tc, ss, body->spesh_arg_guard);
 
     if (body->num_spesh_candidates) {
-        MVMint32 i, j;
+        MVMuint32 i, j;
         for (i = 0; i < body->num_spesh_candidates; i++) {
             for (j = 0; j < body->spesh_candidates[i]->num_spesh_slots; j++)
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,

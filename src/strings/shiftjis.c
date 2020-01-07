@@ -1,5 +1,21 @@
 #include "moar.h"
 #include "shiftjis_codeindex.h"
+static MVMint16 shift_jis_index_to_cp_array_offset (MVMThreadContext *tc, MVMint16 index) {
+    MVMuint16 offset = 0;
+    int i = 0;
+    if (index < 0 || SHIFTJIS_MAX_INDEX < index) return SHIFTJIS_NULL;
+    for (; i < SHIFTJIS_OFFSET_VALUES_ELEMS && shiftjis_offset_values[i].location < index; i++) {
+        if (index <= shiftjis_offset_values[i].location + shiftjis_offset_values[i].offset) {
+            return SHIFTJIS_NULL;
+        }
+        offset += shiftjis_offset_values[i].offset;
+    }
+    return index - offset;
+}
+static MVMGrapheme32 shift_jis_index_to_cp (MVMThreadContext *tc, MVMint16 index) {
+    MVMint16 offset = shift_jis_index_to_cp_array_offset(tc, index);
+    return offset == SHIFTJIS_NULL ? SHIFTJIS_NULL : shiftjis_index_to_cp_codepoints[offset];
+}
 /* Encodes the specified substring to ShiftJIS as specified here:
  * https://encoding.spec.whatwg.org/#shift_jis-decoder
  * The result string is NULL terminated, but the specified size is the non-null part. */
@@ -16,9 +32,9 @@ char * MVM_string_shiftjis_encode_substr(MVMThreadContext *tc, MVMString *str,
 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
-        MVM_exception_throw_adhoc(tc, "start out of range");
+        MVM_exception_throw_adhoc(tc, "start (%"PRId64") out of range (0..%"PRIu32")", start, strgraphs);
     if (length < -1 || start + lengthu > strgraphs)
-        MVM_exception_throw_adhoc(tc, "length out of range");
+        MVM_exception_throw_adhoc(tc, "length (%"PRId64") out of range (-1..%"PRIu32")", length, strgraphs);
 
     if (replacement)
         repl_bytes = (MVMuint8 *) MVM_string_shiftjis_encode_substr(tc,
@@ -189,7 +205,7 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
         MVMString *replacement, MVMint64 config) {
     MVMuint8 *bytes = (MVMuint8 *)windows125X_c;
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
-    size_t pos = 0, result_graphs, additional_bytes = 0;
+    size_t pos = 0, result_graphs;
     MVMStringIndex repl_length = replacement ? MVM_string_graphs(tc, replacement) : 0;
     MVMuint8 Shift_JIS_lead = 0x00;
     /* Stores a byte that we must run through the decoder a second time. Instead
@@ -295,10 +311,10 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_shiftjis_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                         const MVMint32 *stopper_chars,
+                                         const MVMuint32 *stopper_chars,
                                          MVMDecodeStreamSeparators *seps) {
-    MVMint32 count = 0, total = 0;
-    MVMint32 bufsize;
+    MVMuint32 count = 0, total = 0;
+    MVMuint32 bufsize;
     MVMGrapheme32 *buffer = NULL;
     MVMDecodeStreamBytes *cur_bytes = NULL;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;

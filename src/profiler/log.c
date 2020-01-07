@@ -1,5 +1,22 @@
 #include "moar.h"
 
+#define CONFPROG_DEBUG_LEVEL_PROFILER_RESULTS 4
+
+static void debugprint(MVMuint8 active, MVMThreadContext *tc, const char *str, ...) {
+    va_list args;
+    va_start(args, str);
+
+    if (active) {
+        fprintf(stderr, "%p: ", tc);
+        vfprintf(stderr, str, args);
+        fprintf(stderr, "\n");
+    }
+
+    va_end(args);
+}
+
+#define DEBUG_LVL(level) ((debug_level) & CONFPROG_DEBUG_LEVEL_ ## level)
+
 /* Gets the current thread's profiling data structure, creating it if needed. */
 static MVMProfileThreadData * get_thread_data(MVMThreadContext *tc) {
     if (!tc->prof_data) {
@@ -50,38 +67,54 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
                     pcn = ptd->current_call->succ[i];
 
         if (MVM_UNLIKELY(!ptd->current_call)) {
+            /* debug_level used by the debugprint macros */
+            MVMuint8 debug_level = tc->instance->confprog ? tc->instance->confprog->debugging_level : 0;
             MVMuint8 has_confprogs = tc->instance->confprog && (MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC)
                         || MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC));
-            /*fprintf(stderr, "\n\n no current call exists \n");*/
             /* At the very beginning of profiling with a confprog set, the
              * root call_graph node needs to be created. */
             if (has_confprogs && !ptd->call_graph) {
-                /*fprintf(stderr, "initialized initial call graph node of thread %p\n", tc);*/
+                debugprint(DEBUG_LVL(PROFILER_RESULTS), tc, "initialized initial call graph node\n");
                 ptd->call_graph = MVM_calloc(sizeof(MVMProfileCallNode), 1);
             }
             /* In that case, we've got to check if the SF in question is
              * desired as an entry point */
-            if (sf->body.instrumentation && tc->instance->confprog) {
+            if (sf->body.instrumentation && has_confprogs) {
                 MVMStaticFrameInstrumentation *instrumentation = sf->body.instrumentation;
                 if (instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_NEVER) {
-                    /*fprintf(stderr, "encountered a 'never profile' SF\n");*/
                     goto confprog_refused_enter;
                 }
                 else if (instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_TO_BE_DETERMINED) {
                     if (MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC)) {
                         MVMuint8 result;
-                        /*fprintf(stderr, "confprog setting was already 'to be determined'\n");*/
+                        debugprint(DEBUG_LVL(PROFILER_RESULTS), tc, "running 'profiler_static' entrypoint in confprog");
                         result = MVM_confprog_run(tc, (void *)sf, MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC, MVM_CONFPROG_SF_RESULT_ALWAYS);
                         instrumentation->profiler_confprog_result = result;
                         if (result == MVM_CONFPROG_SF_RESULT_NEVER) {
-                            /*fprintf(stderr, "configured a 'never profile' SF with confprog\n");*/
+                            debugprint(DEBUG_LVL(PROFILER_RESULTS), tc, "  confprog for SF resulted in 'never profile'");
                             goto confprog_refused_enter;
                         }
-                        /*fprintf(stderr, "configured a %d SF\n", result);*/
+                        if (DEBUG_LVL(PROFILER_RESULTS)) {
+                            switch (result) {
+                                case MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES:
+                                case MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_NO:
+                                    debugprint(DEBUG_LVL(PROFILER_RESULTS), tc, "  confprog result: run dynamic program with default value '%s' (result value: %d)", result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES ? "yes" : "no", result);
+                                    break;
+                                case MVM_CONFPROG_SF_RESULT_ALWAYS:
+                                    debugprint(DEBUG_LVL(PROFILER_RESULTS), tc, "  confprog result: always profile from this SF (result value: %d)", result);
+                                    break;
+                                case MVM_CONFPROG_SF_RESULT_TO_BE_DETERMINED:
+                                    debugprint(DEBUG_LVL(PROFILER_RESULTS), tc, "  confprog result: to be determined (result value %d) - will enter this time, but re-run next time", result);
+                                    break;
+                                default:
+                                    debugprint(DEBUG_LVL(PROFILER_RESULTS), tc, "  unrecognized result value from confprog: %d", result);
+                                    break;
+                            }
+                            debugprint(DEBUG_LVL(PROFILER_RESULTS), tc, "  confprog for SF resulted in 'never profile'");
+                        }
                     }
                     else if (MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC)) {
                         instrumentation->profiler_confprog_result = MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES;
-                        /*fprintf(stderr, "configured a 'consider dynamic confprog' SF (because no static prog installed)\n");*/
                     }
                     else {
                         MVM_oops(tc, "here we are, what now?");
@@ -89,22 +122,21 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
                 }
                 if (instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_NO
                         || instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES) {
-                    /*fprintf(stderr, "confprog result is 'please run dynamic code'\n");*/
+                    debugprint(DEBUG_LVL(PROFILER_RESULTS), tc, "running 'profiler_dynamic' entrypoint in confprog\n");
                     if (MVM_confprog_has_entrypoint(tc, MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC)) {
                         if (!MVM_confprog_run(tc, (void *)tc->cur_frame, MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC, instrumentation->profiler_confprog_result == MVM_CONFPROG_SF_RESULT_DYNAMIC_SUGGEST_YES)) {
-                            /*fprintf(stderr, "ran a dynamic confprog for frame, but it said no\n");*/
+                            debugprint(DEBUG_LVL(PROFILER_RESULTS), tc, "  confprog result: no.\n");
                             goto confprog_refused_enter;
                         }
-                        /*fprintf(stderr, "ran a dynamic confprog for frame, and it said yes\n");*/
+                        debugprint(DEBUG_LVL(PROFILER_RESULTS), tc, "  confprog result: yes.\n");
                     }
                     else {
-                        /*fprintf(stderr, "sf result was to consider a dynamic confprog, but none was installed\n");*/
+                        debugprint(DEBUG_LVL(PROFILER_RESULTS), tc, "  static confprog said to run dynamic confprog, but none is installed - not profiling.\n");
                         goto confprog_refused_enter;
                     }
                 }
                 was_entered_via_confprog = 1;
             }
-            /*fprintf(stderr, "%p entered %p via confprog; nctd is %d\n", tc, sf, ptd->non_calltree_depth);*/
         }
         /*else {*/
             /*fprintf(stderr, "there actually was a current_call. also, pcn is %p\n", pcn);*/
@@ -441,6 +473,7 @@ void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full, MVMuint32 t
     gc->num_dealloc = 0;
     gc->alloc_dealloc = 0;
     gc->deallocs = NULL;
+    gc->num_stolen_gen2roots = 0;
 
     /* Record start time. */
     ptd->cur_gc_start_time = uv_hrtime();
@@ -486,6 +519,14 @@ void MVM_profiler_log_unmanaged_data_promoted(MVMThreadContext *tc, MVMuint64 am
     MVMProfileThreadData *ptd = get_thread_data(tc);
 
     ptd->gc_promoted_unmanaged_bytes += amount;
+}
+
+void MVM_profiler_log_gen2_roots(MVMThreadContext *tc, MVMuint64 amount, MVMThreadContext *other) {
+    if (tc != other) {
+        MVMProfileThreadData *ptd = get_thread_data(tc);
+
+        ptd->gcs[ptd->num_gcs].num_stolen_gen2roots += amount;
+    }
 }
 
 /* Log that we're starting some work on bytecode specialization or JIT. */

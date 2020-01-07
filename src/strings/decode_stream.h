@@ -50,7 +50,7 @@ struct MVMDecodeStream {
 /* A single bunch of bytes added to a decode stream, with a link to the next
  * one, if any. */
 struct MVMDecodeStreamBytes {
-    char                 *bytes;
+    MVMuint8             *bytes;
     MVMint32              length;
     MVMDecodeStreamBytes *next;
 };
@@ -103,7 +103,7 @@ MVM_STATIC_INLINE MVMint32 MVM_string_decode_stream_maybe_sep(MVMThreadContext *
 }
 
 MVMDecodeStream * MVM_string_decodestream_create(MVMThreadContext *tc, MVMint32 encoding, MVMint64 abs_byte_pos, MVMint32 translate_newlines);
-void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds, char *bytes, MVMint32 length);
+void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds, MVMuint8 *bytes, MVMint32 length);
 void MVM_string_decodestream_add_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 *chars, MVMint32 length);
 void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMDecodeStreamBytes *bytes, MVMint32 pos);
 MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint32 chars, MVMint64 eof);
@@ -113,7 +113,7 @@ MVMString * MVM_string_decodestream_get_all(MVMThreadContext *tc, MVMDecodeStrea
 MVMString * MVM_string_decodestream_get_available(MVMThreadContext *tc, MVMDecodeStream *ds);
 MVMint64 MVM_string_decodestream_have_bytes(MVMThreadContext *tc, const MVMDecodeStream *ds, MVMint32 bytes);
 MVMint64 MVM_string_decodestream_bytes_available(MVMThreadContext *tc, const MVMDecodeStream *ds);
-MVMint64 MVM_string_decodestream_bytes_to_buf(MVMThreadContext *tc, MVMDecodeStream *ds, char **buf, MVMint32 bytes);
+MVMint64 MVM_string_decodestream_bytes_to_buf(MVMThreadContext *tc, MVMDecodeStream *ds, MVMuint8 **buf, MVMint32 bytes);
 MVMint64 MVM_string_decodestream_tell_bytes(MVMThreadContext *tc, const MVMDecodeStream *ds);
 MVMint32 MVM_string_decodestream_is_empty(MVMThreadContext *tc, MVMDecodeStream *ds);
 void MVM_string_decodestream_destroy(MVMThreadContext *tc, MVMDecodeStream *ds);

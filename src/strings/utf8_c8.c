@@ -86,7 +86,7 @@ static unsigned classify(MVMCodepoint cp) {
     return 0;
 }
 
-static MVMint32 utf8_encode(MVMuint8 *bp, MVMCodepoint cp) {
+static MVMuint32 utf8_encode(MVMuint8 *bp, MVMCodepoint cp) {
     unsigned cc = classify(cp);
 
     if (!(cc & (CP_CHAR | CP_NONCHAR)))
@@ -194,7 +194,7 @@ typedef struct {
 
     /* Bad bytes from an earlier buffer, for the sake of streaming decode. */
     MVMuint8 prev_bad_bytes[4];
-    MVMint32 num_prev_bad_bytes;
+    MVMuint32 num_prev_bad_bytes;
 } DecodeState;
 
 /* Appends a single grapheme to the buffer if it will not cause a mismatch
@@ -241,7 +241,7 @@ static int append_grapheme(MVMThreadContext *tc, DecodeState *state, MVMGrapheme
         for (i = state->orig_codes_unnormalized; i < state->orig_codes_pos; i++) {
             MVMCodepoint to_encode = state->orig_codes[i];
             MVMuint8 encoded[4];
-            MVMint32 bytes = utf8_encode(encoded, to_encode);
+            MVMuint32 bytes = utf8_encode(encoded, to_encode);
             for (j = 0; j < bytes; j++)
                 state->result[state->result_pos++] = synthetic_for(tc, encoded[j]);
         }
@@ -321,7 +321,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
 
     /* Local state for decode loop. */
     int expected_continuations = 0;
-    int min_expected_codepoint;
+    int min_expected_codepoint = 0;
 
     /* Don't do anything if empty. */
     if (bytes == 0)
@@ -417,7 +417,7 @@ MVMString * MVM_string_utf8_c8_decode(MVMThreadContext *tc, const MVMObject *res
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                     const MVMint32 *stopper_chars,
+                                     const MVMuint32 *stopper_chars,
                                      MVMDecodeStreamSeparators *seps,
                                      MVMint32 eof) {
     /* Local state for decode loop. */
@@ -426,7 +426,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
     MVMint32 last_accept_pos = ds->bytes_head_pos;
     DecodeState state;
     int expected_continuations = 0;
-    int min_expected_codepoint;
+    int min_expected_codepoint = 0;
     MVMuint32 reached_stopper = 0;
     MVMint32 result_graphs = 0;
 
@@ -467,7 +467,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
     reached_stopper = 0;
     while (cur_bytes && !reached_stopper) {
         /* Set up decode state for this buffer. */
-        MVMint32 bytes = cur_bytes->length;
+        MVMuint32 bytes = cur_bytes->length;
         /* Space for graphemes we have + 1 grapheme we receive from last buffer */
         state.result = MVM_malloc((bytes + 1) * sizeof(MVMGrapheme32));
         state.orig_codes = MVM_realloc(state.orig_codes,
@@ -577,7 +577,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
         /* If there were bytes we didn't accept, hold on to them in case we
          * need to emit them as bad bytes. */
         if (state.unaccepted_start != state.cur_byte && cur_bytes->next) {
-            int i;
+            size_t i;
             for (i = state.unaccepted_start; i < state.cur_byte; i++)
                 state.prev_bad_bytes[state.num_prev_bad_bytes++] = state.utf8[i];
         }
@@ -609,7 +609,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
 static void emit_cp(MVMThreadContext *tc, MVMCodepoint cp, MVMuint8 **result,
                     size_t *result_pos, size_t *result_limit,
                     MVMuint8 *repl_bytes, MVMuint64 repl_length) {
-    MVMint32 bytes;
+    MVMuint32 bytes;
     if (*result_pos >= *result_limit) {
         *result_limit *= 2;
         *result = MVM_realloc(*result, *result_limit + 4);
@@ -637,7 +637,7 @@ static int hex2int(MVMThreadContext *tc, MVMCodepoint cp) {
     else if (cp >= 'A' && cp <= 'F')
         return 10 + (cp - 'A');
     else
-        MVM_exception_throw_adhoc(tc, "UTF-8 C-8 encoding encountered corrupt synthetic");
+        MVM_exception_throw_adhoc(tc, "UTF-8 C-8 encoding encountered corrupt synthetic (%"PRId32")", cp);
 }
 char * MVM_string_utf8_c8_encode_substr(MVMThreadContext *tc,
         MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement) {
@@ -649,11 +649,11 @@ char * MVM_string_utf8_c8_encode_substr(MVMThreadContext *tc,
     MVMuint64        repl_length;
 
     if (start < 0 || start > strgraphs)
-        MVM_exception_throw_adhoc(tc, "start out of range");
+        MVM_exception_throw_adhoc(tc, "start (%"PRId64") out of range (0..%"PRIu32")", start, strgraphs);
     if (length == -1)
         length = strgraphs;
     if (length < 0 || start + length > strgraphs)
-        MVM_exception_throw_adhoc(tc, "length out of range");
+        MVM_exception_throw_adhoc(tc, "length (%"PRId64") out of range (0..%"PRIu32")", length, strgraphs);
 
     if (replacement)
         repl_bytes = (MVMuint8 *) MVM_string_utf8_c8_encode_substr(tc, replacement, &repl_length, 0, -1, NULL);

@@ -20,7 +20,7 @@ MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, const MVMObject *resul
         }
         else {
             MVM_exception_throw_adhoc(tc,
-                "Will not decode invalid ASCII (code point > 127 found)");
+                "Will not decode invalid ASCII (code point (%"PRId32") < 0 found)", ascii[i]);
         }
     }
     result->body.num_graphs = result_graphs;
@@ -37,10 +37,10 @@ MVMString * MVM_string_ascii_decode_nt(MVMThreadContext *tc, const MVMObject *re
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                   const MVMint32 *stopper_chars,
+                                   const MVMuint32 *stopper_chars,
                                    MVMDecodeStreamSeparators *seps) {
-    MVMint32              count = 0, total = 0;
-    MVMint32              bufsize;
+    MVMuint32             count = 0, total = 0;
+    MVMuint32             bufsize;
     MVMGrapheme32        *buffer;
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
@@ -72,7 +72,7 @@ MVMuint32 MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *d
             MVMGrapheme32 graph;
             if (codepoint > 127)
                 MVM_exception_throw_adhoc(tc,
-                    "Will not decode invalid ASCII (code point > 127 found)");
+                    "Will not decode invalid ASCII (code point (%"PRId32") > 127 found)", codepoint);
             if (last_was_cr) {
                 if (codepoint == '\n') {
                     graph = MVM_unicode_normalizer_translated_crlf(tc, &(ds->norm));
@@ -143,9 +143,9 @@ char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
 
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
-        MVM_exception_throw_adhoc(tc, "start out of range");
+        MVM_exception_throw_adhoc(tc, "start (%"PRId64") out of range (0..%"PRIu32")", start, strgraphs);
     if (length < -1 || start + lengthu > strgraphs)
-        MVM_exception_throw_adhoc(tc, "length out of range");
+        MVM_exception_throw_adhoc(tc, "length (%"PRId64") out of range (-1..%"PRIu32")", length, strgraphs);
 
     if (replacement)
         repl_bytes = (MVMuint8 *) MVM_string_ascii_encode_substr(tc, replacement,

@@ -190,7 +190,7 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 
 /* Gets the effective size for inlining considerations of a specialization,
  * which is its code size minus the code size of its inlines. */
-MVMint32 get_effective_size(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
+static MVMint32 get_effective_size(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
     MVMint32 result = cand->bytecode_size;
     MVMuint32 i;
     for (i = 0; i < cand->num_inlines; i++)
@@ -201,7 +201,7 @@ MVMint32 get_effective_size(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
 }
 
 /* Add deopt usage info to the inlinee. */
-void add_deopt_usages(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 *deopt_usage_info,
+static void add_deopt_usages(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 *deopt_usage_info,
                       MVMSpeshIns **deopt_usage_ins) {
     MVMuint32 usage_idx = 0;
     MVMuint32 ins_idx = 0;
@@ -223,7 +223,7 @@ void add_deopt_usages(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 *deopt_us
 
 /* Get the maximum inline size applicable to the specified static frame (it can
  * be configured by language). */
-int MVM_spesh_inline_get_max_size(MVMThreadContext *tc, MVMStaticFrame *sf) {
+MVMuint32 MVM_spesh_inline_get_max_size(MVMThreadContext *tc, MVMStaticFrame *sf) {
     return sf->body.cu->body.hll_config->max_inline_size;
 }
 
@@ -320,7 +320,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadConte
 }
 
 /* Finds the deopt index of the return. */
-static MVMint32 return_deopt_idx(MVMThreadContext *tc, MVMSpeshIns *invoke_ins) {
+static MVMuint32 return_deopt_idx(MVMThreadContext *tc, MVMSpeshIns *invoke_ins) {
     MVMSpeshAnn *ann = invoke_ins->annotations;
     while (ann) {
         if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS)
@@ -384,7 +384,7 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMint64     idx      = to_fix->info->opcode == MVM_OP_wval
         ? to_fix->operands[2].lit_i16
         : to_fix->operands[2].lit_i64;
-    if (dep >= 0 && dep < sourcecu->body.num_scs) {
+    if (dep >= 0 && (MVMuint16)dep < sourcecu->body.num_scs) {
         MVMSerializationContext *sc = MVM_sc_get_sc(tc, sourcecu, dep);
         if (sc) {
             MVMuint16 otherdep;
@@ -489,15 +489,38 @@ static void rewrite_hlltype(MVMThreadContext *tc, MVMSpeshGraph *inlinee, MVMSpe
     ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
 }
 
+static void tweak_guard_deopt_idx(MVMSpeshIns *ins, MVMSpeshAnn *ann) {
+    /* Twiddle guard opcode to point to the correct deopt index */
+    switch (ins->info->opcode) {
+    case MVM_OP_sp_guard:
+    case MVM_OP_sp_guardconc:
+    case MVM_OP_sp_guardtype:
+    case MVM_OP_sp_guardobj:
+    case MVM_OP_sp_guardnotobj:
+    case MVM_OP_sp_rebless:
+        ins->operands[3].lit_ui32 = ann->data.deopt_idx;
+        break;
+    case MVM_OP_sp_guardsf:
+    case MVM_OP_sp_guardsfouter:
+    case MVM_OP_sp_guardjustconc:
+    case MVM_OP_sp_guardjusttype:
+        ins->operands[2].lit_ui32 = ann->data.deopt_idx;
+        break;
+    default:
+        break;
+    }
+}
+
 /* Merges the inlinee's spesh graph into the inliner. */
-MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                  MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
                  MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins,
                  MVMSpeshOperand code_ref_reg,
-                 MVMuint32 *inline_boundary_handler, MVMuint16 bytecode_size) {
+                 MVMuint32 *inline_boundary_handler, MVMuint16 bytecode_size,
+                 MVMCallsite *cs) {
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
-    MVMint32        i, j, orig_inlines, total_inlines, orig_deopt_addrs,
+    MVMuint32        i, j, orig_inlines, total_inlines, orig_deopt_addrs,
                     orig_deopt_pea_mat_infos, impl_deopt_idx;
     MVMuint32       total_handlers = inliner->num_handlers + inlinee->num_handlers + 1;
     MVMSpeshBB     *inlinee_first_bb = NULL, *inlinee_last_bb = NULL;
@@ -518,11 +541,11 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     impl_deopt_idx = return_deopt_idx(tc, invoke_ins);
     MVM_VECTOR_INIT(regs_for_deopt, 0);
     for (i = 0; i < inliner->sf->body.num_locals; i++) {
-        MVMint32 vers = inliner->fact_counts[i];
+        MVMuint16 vers = inliner->fact_counts[i];
         for (j = 0; j < vers; j++) {
             MVMSpeshDeoptUseEntry *due = inliner->facts[i][j].usage.deopt_users;
             while (due) {
-                if (due->deopt_idx == impl_deopt_idx) {
+                if ((MVMuint32)due->deopt_idx == impl_deopt_idx) {
                     MVMSpeshOperand o;
                     o.reg.orig = i;
                     o.reg.i = j;
@@ -551,6 +574,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 case MVM_SPESH_ANN_DEOPT_INLINE:
                 case MVM_SPESH_ANN_DEOPT_OSR:
                     ann->data.deopt_idx += inliner->num_deopt_addrs;
+                    tweak_guard_deopt_idx(ins, ann);
                     for (i = 0; i < MVM_VECTOR_ELEMS(regs_for_deopt); i++)
                         MVM_spesh_usages_add_deopt_usage_by_reg(tc, inliner,
                                 regs_for_deopt[i], ann->data.deopt_idx);
@@ -819,6 +843,7 @@ MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     inliner->inlines[total_inlines - 1].unreachable = 0;
     inliner->inlines[total_inlines - 1].deopt_named_used_bit_field =
         inlinee->deopt_named_used_bit_field;
+    inliner->inlines[total_inlines - 1].cs = cs;
     inliner->inlines[total_inlines - 1].may_cause_deopt = may_cause_deopt;
     inliner->inlines[total_inlines - 1].bytecode_size   = bytecode_size;
     inliner->num_inlines = total_inlines;
@@ -1327,7 +1352,8 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     /* Merge inlinee's graph into the inliner. */
     MVMuint32 inline_boundary_handler;
     MVMSpeshBB *inlinee_last_bb = merge_graph(tc, inliner, inlinee, inlinee_sf,
-        invoke_bb, invoke_ins, code_ref_reg, &inline_boundary_handler, bytecode_size);
+        invoke_bb, invoke_ins, code_ref_reg, &inline_boundary_handler, bytecode_size,
+        call_info->cs);
 
     /* If we're profiling, note it's an inline. */
     first_ins = find_first_instruction(tc, inlinee);

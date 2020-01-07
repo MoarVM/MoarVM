@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <moar.h>
+#include "platform/io.h"
 
 #if MVM_TRACING
 #  define TRACING_OPT "[--tracing] "
@@ -157,8 +158,10 @@ int wmain(int argc, wchar_t *wargv[])
     int lib_path_i   = 0;
     int flag;
 
-    unsigned int interval_id;
+#ifdef HAVE_TELEMEH
+    unsigned int interval_id = 0;
     char telemeh_inited = 0;
+#endif
 
     MVMuint32 debugserverport = 0;
     int start_suspended = 0;
@@ -258,7 +261,7 @@ int wmain(int argc, wchar_t *wargv[])
              getpid()
 #endif
              );
-        fp = fopen(path, "w");
+        fp = MVM_platform_fopen(path, "w");
         if (fp) {
             MVM_telemetry_init(fp);
             telemeh_inited = 1;

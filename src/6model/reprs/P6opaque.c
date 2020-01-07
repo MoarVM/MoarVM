@@ -27,7 +27,7 @@ static MVMint64 try_get_slot(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_dat
         MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
             if (cur_map_entry->class_key == class_key) {
-                MVMint16 i;
+                MVMuint16 i;
                 for (i = 0; i < cur_map_entry->num_attrs; i++) {
                     if (MVM_string_equal(tc, cur_map_entry->names[i], name)) {
                         return cur_map_entry->slots[i];
@@ -162,7 +162,7 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
     if (repr_data->name_to_index_mapping) {
         MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
-            MVMint16 i;
+            MVMuint16 i;
             for (i = 0; i < cur_map_entry->num_attrs; i++) {
                 MVM_gc_worklist_add(tc, worklist, &cur_map_entry->names[i]);
             }
@@ -1871,13 +1871,15 @@ static const MVMREPROps P6opaque_this_repr = {
         shift,
         oslice,
         osplice,
-        MVM_REPR_DEFAULT_AT_POS_MULTIDIM,
-        MVM_REPR_DEFAULT_BIND_POS_MULTIDIM,
-        MVM_REPR_DEFAULT_DIMENSIONS,
-        MVM_REPR_DEFAULT_SET_DIMENSIONS,
+        MVM_REPR_DEFAULT_AT_POS_MULTIDIM_NO_MULTIDIM,
+        MVM_REPR_DEFAULT_BIND_POS_MULTIDIM_NO_MULTIDIM,
+        MVM_REPR_DEFAULT_DIMENSIONS_NO_MULTIDIM,
+        MVM_REPR_DEFAULT_SET_DIMENSIONS_NO_MULTIDIM,
         MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC,
         MVM_REPR_DEFAULT_POS_AS_ATOMIC,
-        MVM_REPR_DEFAULT_POS_AS_ATOMIC_MULTIDIM
+        MVM_REPR_DEFAULT_POS_AS_ATOMIC_MULTIDIM,
+        MVM_REPR_DEFAULT_POS_WRITE_BUF,
+        MVM_REPR_DEFAULT_POS_READ_BUF,
     },    /* pos_funcs */
     {
         at_key,
@@ -1939,7 +1941,7 @@ MVMuint32 MVM_p6opaque_offset_to_attr_idx(MVMThreadContext *tc, MVMObject *type,
 
 #ifdef DEBUG_HELPERS
 /* This is meant to be called in a debugging session and not used anywhere else.
- * Plese don't delete. */
+ * Please don't delete. */
 static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)STABLE(obj)->REPR_data;
     MVMP6opaqueBody *data = MVM_p6opaque_real_data(tc, OBJECT_BODY(obj));
@@ -1954,7 +1956,6 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
         }
         fprintf(stderr, "%s.new(", MVM_6model_get_debug_name(tc, obj));
         if (name_to_index_mapping != NULL) {
-            MVMint16 i;
             MVMP6opaqueNameMap *cur_map_entry = name_to_index_mapping;
 
             while (cur_map_entry->class_key != NULL) {

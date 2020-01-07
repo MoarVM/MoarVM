@@ -2,26 +2,20 @@
 
 typedef struct {
     MVMuint32 items;
-    MVMuint32 start;
     MVMuint32 alloc;
 
     MVMProfileCallNode **list;
 } NodeWorklist;
 
 static void add_node(MVMThreadContext *tc, NodeWorklist *list, MVMProfileCallNode *node) {
-    if (list->start + list->items + 1 < list->alloc) {
-        /* Add at the end */
-        list->items++;
-        list->list[list->start + list->items] = node;
-    } else if (list->start > 0) {
-        /* End reached, add to the start now */
-        list->start--;
-        list->list[list->start] = node;
-    } else {
+    if (list->items == list->alloc) {
         /* Filled up the whole list. Make it bigger */
         list->alloc *= 2;
         list->list = MVM_realloc(list->list, list->alloc * sizeof(MVMProfileCallNode *));
     }
+    /* Add at the end */
+    list->list[list->items] = node;
+    list->items++;
 }
 
 static MVMProfileCallNode *take_node(MVMThreadContext *tc, NodeWorklist *list) {
@@ -29,13 +23,8 @@ static MVMProfileCallNode *take_node(MVMThreadContext *tc, NodeWorklist *list) {
     if (list->items == 0) {
         MVM_panic(1, "profiler: tried to take a node from an empty node worklist");
     }
-    if (list->start > 0) {
-        result = list->list[list->start];
-        list->start++;
-    } else {
-        result = list->list[list->start + list->items];
-        list->items--;
-    }
+    list->items--;
+    result = list->list[list->items];
     return result;
 }
 
@@ -336,6 +325,7 @@ typedef struct {
     MVMString *promoted_bytes;
     MVMString *promoted_bytes_unmanaged;
     MVMString *gen2_roots;
+    MVMString *stolen_gen2_roots;
     MVMString *start_time;
     MVMString *first_entry_time;
     MVMString *osr;
@@ -360,7 +350,7 @@ typedef struct {
 } ProfTcPdsStruct;
 
 static MVMObject * insert_if_not_exists(MVMThreadContext *tc, ProfDumpStrs *pds, MVMObject *storage, MVMint64 key) {
-    MVMint64 index;
+    MVMuint64 index;
     MVMObject *result;
     MVMObject *type_info_hash;
 
@@ -419,7 +409,11 @@ static MVMObject * dump_call_graph_node_loop(ProfTcPdsStruct *tcpds, const MVMPr
             else
                 succ_exclusive_time -= succ_overhead;
 
-            exclusive_time -= succ_exclusive_time;
+            /* Subtract profiling overhead, unless that would underflow, in which case just clamp to 0. */
+            if (exclusive_time - succ_exclusive_time > exclusive_time)
+                exclusive_time = 0;
+            else
+                exclusive_time -= succ_exclusive_time;
         }
         MVM_repr_bind_key_o(tcpds->tc, node_hash, tcpds->pds->exclusive_time,
             box_i(tcpds->tc, exclusive_time / 1000));
@@ -457,14 +451,14 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
         /* Try to resolve the code filename and line number. */
         MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc,
             &(pcn->sf->body), 0);
-        MVMint32 fshi = annot ? (MVMint32)annot->filename_string_heap_index : -1;
+        MVMuint32 fshi = annot ? (MVMint32)annot->filename_string_heap_index : 0;
 
         /* Add name of code object. */
         MVM_repr_bind_key_o(tc, node_hash, pds->name,
             box_s(tc, pcn->sf->body.name));
 
         /* Add line number and file name. */
-        if (fshi >= 0 && fshi < pcn->sf->body.cu->body.num_strings)
+        if (annot && fshi < pcn->sf->body.cu->body.num_strings)
             MVM_repr_bind_key_o(tc, node_hash, pds->file,
                 box_s(tc, MVM_cu_string(tc, pcn->sf->body.cu, fshi)));
         else if (pcn->sf->body.cu->body.filename)
@@ -637,6 +631,8 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
             box_i(tc, gc->promoted_unmanaged_bytes));
         MVM_repr_bind_key_o(tc, gc_hash, pds->gen2_roots,
             box_i(tc, gc->num_gen2roots));
+        MVM_repr_bind_key_o(tc, gc_hash, pds->stolen_gen2_roots,
+            box_i(tc, gc->num_stolen_gen2roots));
         MVM_repr_bind_key_o(tc, gc_hash, pds->start_time,
             box_i(tc, (gc->abstime - absolute_start_time) / 1000));
 
@@ -744,6 +740,7 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
         pds.nursery_seen    = str(tc, "nursery_seen");
         pds.gen2            = str(tc, "gen2");
 
+        pds.stolen_gen2_roots  = str(tc, "stolen_gen2_roots");
         pds.has_unmanaged_data = str(tc, "has_unmanaged_data");
         pds.repr               = str(tc, "repr");
 
@@ -842,7 +839,6 @@ void MVM_profile_instrumented_mark_data(MVMThreadContext *tc, MVMGCWorklist *wor
         /* Allocate our worklist on the stack. */
         NodeWorklist nodelist;
         nodelist.items = 0;
-        nodelist.start = 0;
         nodelist.alloc = 256;
         nodelist.list = MVM_malloc(nodelist.alloc * sizeof(MVMProfileCallNode *));
 
@@ -865,7 +861,7 @@ void MVM_profile_instrumented_mark_data(MVMThreadContext *tc, MVMGCWorklist *wor
 static void dump_callgraph_node(MVMThreadContext *tc, MVMProfileCallNode *n, MVMuint16 depth) {
     MVMuint16 dc = depth;
     MVMuint32 idx;
-    char *name;
+    char *name = NULL;
 
     for (dc = depth; dc > 0; dc--) {
         fputc(' ', stderr);
@@ -874,7 +870,7 @@ static void dump_callgraph_node(MVMThreadContext *tc, MVMProfileCallNode *n, MVM
     if (n->sf)
         name = MVM_string_utf8_encode_C_string(tc, n->sf->body.name);
 
-    fprintf(stderr, "+ [%3d] %s\n", n->num_succ, name);
+    fprintf(stderr, "+ [%3d] %s\n", n->num_succ, name ? name : "(unknown)");
     MVM_free(name);
 
     for (idx = 0; idx < n->num_succ; idx++) {

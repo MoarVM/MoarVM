@@ -126,7 +126,7 @@ static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
 
 /* Reads the specified number of bytes into the supplied buffer, returning
  * the number actually read. */
-static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out, MVMint64 bytes) {
+static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out, MVMuint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     char *buf = MVM_malloc(bytes);
     unsigned int interval_id = MVM_telemetry_interval_start(tc, "syncfile.read_to_buffer");
@@ -201,7 +201,7 @@ static void set_buffer_size(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 size)
 }
 
 /* Writes the specified bytes to the file handle. */
-static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMint64 bytes) {
+static MVMint64 write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMuint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
     if (data->output_buffer_size && data->known_writable) {
         /* If we can't fit it on the end of the buffer, flush the buffer. */
@@ -226,8 +226,8 @@ static void flush(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 sync){
     flush_output_buffer(tc, data);
     if (sync) {
         if (MVM_platform_fsync(data->fd) == -1) {
-            /* If this is something that can't be flushed, we let that pass. */
-            if (errno != EROFS && errno != EINVAL
+            /* If this is something that can't be synched, we let that pass. */
+            if (errno != EROFS && errno != EINVAL && errno != ENOTSUP
 #ifdef WSL_BASH_ON_WIN
                && ! (errno == EIO && ! data->seekable)
                /* Bash on Win10 doesn't seem to handle TTYs right when flushing:
@@ -454,7 +454,8 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
 #ifdef _WIN32
     flag |= _O_BINARY;
 #endif
-    if ((fd = open((const char *)fname, flag, DEFAULT_MODE)) == -1) {
+
+    if ((fd = MVM_platform_open((const char *)fname, flag, DEFAULT_MODE)) == -1) {
         char *waste[] = { fname, NULL };
         const char *err = strerror(errno);
         MVM_exception_throw_adhoc_free(tc, waste, "Failed to open file %s: %s", fname, err);

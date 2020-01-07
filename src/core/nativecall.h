@@ -36,6 +36,10 @@
 #define MVM_NATIVECALL_ARG_RW              256
 #define MVM_NATIVECALL_ARG_RW_MASK         256
 
+#define MVM_NATIVECALL_UNMARSHAL_KIND_GENERIC     -1
+#define MVM_NATIVECALL_UNMARSHAL_KIND_RETURN      -2
+#define MVM_NATIVECALL_UNMARSHAL_KIND_NATIVECAST  -3
+
 /* Native callback entry. Hung off MVMNativeCallbackCacheHead, which is
  * a hash owned by the ThreadContext. All MVMNativeCallbacks in a linked
  * list have the same cuid, which is the key to the CacheHead hash.
@@ -90,6 +94,8 @@ MVMNativeCallBody * MVM_nativecall_get_nc_body(MVMThreadContext *tc, MVMObject *
 MVMint16 MVM_nativecall_get_arg_type(MVMThreadContext *tc, MVMObject *info, MVMint16 is_return);
 MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
     MVMString *sym, MVMString *conv, MVMObject *arg_spec, MVMObject *ret_spec);
+void MVM_nativecall_setup(MVMThreadContext *tc, MVMNativeCallBody *body, unsigned int interval_id);
+void MVM_nativecall_restore_library(MVMThreadContext *tc, MVMNativeCallBody *body, MVMObject *root);
 MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     MVMObject *site, MVMObject *args);
 void MVM_nativecall_invoke_jit(MVMThreadContext *tc, MVMObject *site);
@@ -124,13 +130,13 @@ unsigned long long  MVM_nativecall_unmarshal_ulonglong(MVMThreadContext *tc, MVM
 float               MVM_nativecall_unmarshal_float(MVMThreadContext *tc, MVMObject *value);
 double              MVM_nativecall_unmarshal_double(MVMThreadContext *tc, MVMObject *value);
 
-char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free);
-void * MVM_nativecall_unmarshal_cstruct(MVMThreadContext *tc, MVMObject *value);
-void * MVM_nativecall_unmarshal_cppstruct(MVMThreadContext *tc, MVMObject *value);
-void * MVM_nativecall_unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value);
-void * MVM_nativecall_unmarshal_carray(MVMThreadContext *tc, MVMObject *value);
-void * MVM_nativecall_unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value);
-void * MVM_nativecall_unmarshal_cunion(MVMThreadContext *tc, MVMObject *value);
+char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free, MVMint16 unmarshal_kind);
+void * MVM_nativecall_unmarshal_cstruct(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind);
+void * MVM_nativecall_unmarshal_cppstruct(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind);
+void * MVM_nativecall_unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind);
+void * MVM_nativecall_unmarshal_carray(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind);
+void * MVM_nativecall_unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind);
+void * MVM_nativecall_unmarshal_cunion(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind);
 MVMThreadContext * MVM_nativecall_find_thread_context(MVMInstance *instance);
 MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
     MVMThreadContext   *tc,

@@ -32,6 +32,10 @@ MVM_STATIC_INLINE void MVM_bitmap_set(MVMBitmap *bits, MVMint32 idx) {
     bits[idx >> 6] |= (UINT64_C(1) << (idx & 0x3f));
 }
 
+MVM_STATIC_INLINE void MVM_bitmap_set_low(MVMBitmap *bits, MVMint32 idx) {
+    *bits |= (UINT64_C(1) << (idx & 0x3f));
+}
+
 MVM_STATIC_INLINE MVMuint64 MVM_bitmap_get(MVMBitmap *bits, MVMint32 idx) {
     return bits[idx >> 6] & (UINT64_C(1) << (idx & 0x3f));
 }
@@ -63,4 +67,12 @@ MVM_STATIC_INLINE void MVM_bitmap_intersection(MVMBitmap *out, MVMBitmap *a, MVM
     for (i = 0; i < n; i++) {
         out[i] = a[i] & b[i];
     }
+}
+
+MVM_STATIC_INLINE MVMBitmap MVM_bitmap_with_set(MVMBitmap bitmap, MVMuint8 bit) {
+    return bitmap | (1 << bit);
+}
+
+MVM_STATIC_INLINE MVMBitmap MVM_bitmap_with_clear(MVMBitmap bitmap, MVMuint8 bit) {
+    return bitmap & ~(1 << bit);
 }

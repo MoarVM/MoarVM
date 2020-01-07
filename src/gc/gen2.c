@@ -116,7 +116,7 @@ void * MVM_gc_gen2_allocate_zeroed(MVMGen2Allocator *al, MVMuint32 size) {
 
 /* Frees all memory associated with the second generation. */
 void MVM_gc_gen2_destroy(MVMInstance *i, MVMGen2Allocator *al) {
-    MVMint32 j, k;
+    MVMuint32 j, k;
 
     /* Remove all pages. */
     for (j = 0; j < MVM_GEN2_BINS; j++) {
@@ -228,6 +228,31 @@ void MVM_gc_gen2_transfer(MVMThreadContext *src, MVMThreadContext *dest) {
         MVM_free(gen2->size_classes[bin].pages);
         gen2->size_classes[bin].pages = NULL;
         gen2->size_classes[bin].num_pages = 0;
+    }
+    { /* transfer the overflows */
+        MVMuint32 i;
+        if (gen2->num_overflows + dest_gen2->num_overflows > dest_gen2->alloc_overflows) {
+            dest_gen2->alloc_overflows = (
+                gen2->alloc_overflows > dest_gen2->alloc_overflows
+                ? gen2->alloc_overflows
+                : dest_gen2->alloc_overflows
+            ) * 2; /* double the larger of the 2 sizes */
+            dest_gen2->overflows = MVM_realloc(dest_gen2->overflows,
+                dest_gen2->alloc_overflows * sizeof(MVMCollectable *));
+        }
+        for (i = 0; i < gen2->num_overflows; i++)
+            gen2->overflows[i]->owner = dest->thread_id;
+        memcpy(
+            &dest_gen2->overflows[dest_gen2->num_overflows],
+            gen2->overflows,
+            gen2->num_overflows * sizeof(MVMCollectable *)
+        );
+        dest_gen2->num_overflows += gen2->num_overflows;
+
+        gen2->num_overflows = 0;
+        gen2->alloc_overflows = 0;
+        MVM_free(gen2->overflows);
+        gen2->overflows = NULL;
     }
     { /* copy the roots... */
         MVMuint32 i, n = src->num_gen2roots;

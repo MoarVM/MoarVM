@@ -551,7 +551,7 @@
 #define MVM_OP_link 547
 #define MVM_OP_gethostname 548
 #define MVM_OP_exreturnafterunwind 549
-#define MVM_OP_DEPRECATED_13 550
+#define MVM_OP_vmeventsubscribe 550
 #define MVM_OP_continuationreset 551
 #define MVM_OP_continuationcontrol 552
 #define MVM_OP_continuationinvoke 553
@@ -925,5 +925,5 @@
 #define MVM_OP_EXT_CU_LIMIT 1024
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op);
-MVM_PUBLIC const MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op);
+MVM_PUBLIC MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op);
 MVM_PUBLIC const char * MVM_op_get_mark(unsigned short op);

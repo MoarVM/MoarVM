@@ -4,7 +4,7 @@
 MVMObject * MVM_6model_get_how(MVMThreadContext *tc, MVMSTable *st) {
     MVMObject *HOW = st->HOW;
     if (!HOW && st->HOW_sc)
-        st->HOW = HOW = MVM_sc_get_object(tc, st->HOW_sc, st->HOW_idx);
+        MVM_ASSIGN_REF(tc, &(st->header), st->HOW, HOW = MVM_sc_get_object(tc, st->HOW_sc, st->HOW_idx));
     return HOW ? HOW : tc->instance->VMNull;
 }
 

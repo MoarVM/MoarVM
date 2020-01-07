@@ -181,8 +181,8 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
                 MVMuint16 num_lexicals = static_frame->body.num_lexicals;
                 for (i = 0; i < num_lexicals; i++) {
                     if (!static_frame->body.static_env[i].o && static_frame->body.static_env_flags[i] == 1) {
-                        MVMint32 scid;
-                        MVMint32 objid;
+                        MVMuint32 scid;
+                        MVMuint32 objid;
                         if (MVM_bytecode_find_static_lexical_scref(tc, static_frame->body.cu,
                                 static_frame, i, &scid, &objid)) {
                             MVMObject *resolved;
@@ -642,7 +642,7 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     MVMFrame *update_caller = NULL;
     MVMFrame *result = NULL;
     MVM_CHECK_CALLER_CHAIN(tc, cur_to_promote);
-    MVMROOT3(tc, new_cur_frame, update_caller, result, {
+    MVMROOT4(tc, new_cur_frame, update_caller, cur_to_promote, result, {
         while (cur_to_promote) {
             /* Allocate a heap frame. */
             MVMFrame *promoted = MVM_gc_allocate_frame(tc);
@@ -913,7 +913,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     }
 
     /* Switch back to the caller frame if there is one. */
-    if (caller && returner != tc->thread_entry_frame) {
+    if (caller && (returner != tc->thread_entry_frame || tc->nested_interpreter)) {
 
        if (tc->jit_return_address != NULL) {
             /* on a JIT frame, exit to interpreter afterwards */
@@ -947,10 +947,27 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
                     su(tc, srd);
                 else if (!unwind && sr)
                     sr(tc, srd);
+                /* The special_return or special_unwind handler may schedule a
+                   finalizer call for the current runloop. If we are already in
+                   the top most call frame of the runloop, we need to replace
+                   the thread_entry_frame with the finalizer call. Otherwise we
+                   won't run the special code for ending the runloop when the
+                   finalizer returns. */
+                if (returner == tc->thread_entry_frame && tc->cur_frame != caller)
+                    tc->thread_entry_frame = tc->cur_frame;
             }
         }
 
-        return 1;
+        if (returner == tc->thread_entry_frame && tc->cur_frame == caller) {
+                tc->cur_frame = NULL;
+                return 0;
+        }
+        else {
+            /* We're either somewhere in a nested call or already up in the top
+               most frame but still need to run some finalizer, so keep the
+               runloop running */
+            return 1;
+        }
     }
     else {
         tc->cur_frame = NULL;
@@ -1153,7 +1170,6 @@ MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code) {
 
 /* Given the specified code object, sets its outer to the current scope. */
 void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
-    MVMCode *code_obj = (MVMCode *)code;
     MVMFrame *captured;
     if (MVM_UNLIKELY(REPR(code)->ID != MVM_REPR_ID_MVMCode))
         MVM_exception_throw_adhoc(tc,
@@ -1161,7 +1177,7 @@ void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
     MVMROOT(tc, code, {
         captured = MVM_frame_force_to_heap(tc, tc->cur_frame);
     });
-    MVM_ASSIGN_REF(tc, &(code->header), code_obj->body.outer, captured);
+    MVM_ASSIGN_REF(tc, &(code->header), ((MVMCode*)code)->body.outer, captured);
 }
 
 /* This is used for situations in Perl 6 like:
@@ -1179,10 +1195,9 @@ void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
  * $x.
  */
 void MVM_frame_capture_inner(MVMThreadContext *tc, MVMObject *code) {
-    MVMCode *code_obj = (MVMCode *)code;
     MVMFrame *outer;
     MVMROOT(tc, code, {
-        MVMStaticFrame *sf_outer = code_obj->body.sf->body.outer;
+        MVMStaticFrame *sf_outer = ((MVMCode*)code)->body.sf->body.outer;
         MVMROOT(tc, sf_outer, {
             outer = create_context_only(tc, sf_outer, (MVMObject *)sf_outer->body.static_code, 1);
         });
@@ -1191,7 +1206,7 @@ void MVM_frame_capture_inner(MVMThreadContext *tc, MVMObject *code) {
             MVM_ASSIGN_REF(tc, &(outer->header), outer->outer, outer_outer);
         });
     });
-    MVM_ASSIGN_REF(tc, &(code->header), code_obj->body.outer, outer);
+    MVM_ASSIGN_REF(tc, &(code->header), ((MVMCode*)code)->body.outer, outer);
 }
 
 /* Given the specified code object, copies it and returns a copy which
@@ -1235,7 +1250,7 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
         effective_sf  = f->static_info;
     }
     else if (f->spesh_cand) {
-        MVMint32 i;
+        MVMuint32 i;
         flags = NULL;
         for (i = 0; i < f->spesh_cand->num_inlines; i++) {
             MVMStaticFrame *isf = f->spesh_cand->inlines[i].sf;
@@ -1253,7 +1268,7 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
     }
     flag  = flags ? flags[effective_idx] : -1;
     if (flag != -1 && static_env[effective_idx].o == NULL) {
-        MVMint32 scid, objid;
+        MVMuint32 scid, objid;
         if (MVM_bytecode_find_static_lexical_scref(tc, effective_sf->body.cu,
                 effective_sf, effective_idx, &scid, &objid)) {
             MVMSerializationContext *sc;

@@ -14,6 +14,7 @@
 
 (template: const_i16 (copy $1))
 (template: const_i64 (copy $1))
+# Disabled for the time being
 (template: const_n64 (copy $1))
 (template: const_s (^cu_string $1))
 
@@ -42,6 +43,15 @@
   (when (zr $0)
     (branch $1)))
 
+(template: if_n
+  (when (nz $0)
+    (branch $1)))
+
+(template: unless_n
+  (when (zr $0)
+    (branch $1)))
+
+
 (template: getlex (copy $1))
 (template: bindlex! (store \$0 $1 reg_sz))
 
@@ -55,7 +65,7 @@
     int_sz))
 
 (template: getlex_nn
-  (load
+  (load_num
     (call (^func &MVM_frame_find_lexical_by_name)
       (arglist
         (carg (tc) ptr)
@@ -129,10 +139,6 @@
 
 (template: return_o
   (dov
-    (callv (^func &MVM_spesh_log_return_type_from_jit)
-      (arglist
-        (carg (tc) ptr)
-        (carg $0 ptr)))
     (callv (^func &MVM_args_set_result_obj)
       (arglist
         (carg (tc) ptr)
@@ -151,9 +157,21 @@
 (template: ge_i (flagval (ge $1 $2)))
 (template: cmp_i (sub (flagval (gt $1 $2)) (flagval (lt $1 $2))))
 
+(template: eq_n (flagval (eq $1 $2)))
+(template: ne_n (flagval (ne $1 $2)))
+(template: lt_n (flagval (lt $1 $2)))
+(template: le_n (flagval (le $1 $2)))
+(template: gt_n (flagval (gt $1 $2)))
+(template: ge_n (flagval (ge $1 $2)))
+(template: cmp_n (sub (flagval (gt $1 $2)) (flagval (lt $1 $2))))
+
 (template: add_i (add $1 $2))
 (template: sub_i (sub $1 $2))
 (template: mul_i (mul $1 $2))
+
+(template: add_n (add $1 $2))
+(template: sub_n (sub $1 $2))
+(template: mul_n (mul $1 $2))
 
 (template: inc_i (add $1 (^one)))
 (template: dec_i (sub $1 (^one)))
@@ -171,11 +189,23 @@
       (carg (tc) ptr)
       (carg $1   int)) ptr_sz))
 
+(template: coerce_ns
+  (call (^func &MVM_coerce_n_s)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 num)) ptr_sz))
+
 (template: coerce_si
   (call (^func &MVM_coerce_s_i)
     (arglist
       (carg (tc) ptr)
       (carg $1   ptr)) int_sz))
+
+(template: coerce_sn
+  (calln (^func &MVM_coerce_s_n)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr))))
 
 (template: smrt_intify!
   (callv (^func &MVM_coerce_smart_intify)
@@ -751,7 +781,7 @@
       (carg \$0  ptr))))
 
 (template: create!
-  (let: (($obj (call (^getf (^repr $1) MVMREPROps allocate)
+  (letv: (($obj (call (^getf (^repr $1) MVMREPROps allocate)
                  (arglist
                    (carg (tc) ptr)
                    (carg (^stable $1) ptr)) ptr_sz))
@@ -1503,7 +1533,7 @@
             (zr $disp_for)
             (eq $disp_for $cur_code)))
       (do
-        (store (^getf (tc) MVMThreadContext cur_dispatcher) (^nullptr) ptr_sz)
+        (^setf (tc) MVMThreadContext cur_dispatcher (^nullptr))
         $disp)
       (^vmnull))))
 
@@ -1988,7 +2018,7 @@
       (carg $2 ptr)) int_sz))
 
 (template: paramnamesused
-  (let: (($ctx   (^addrf (^frame) MVMFrame params))
+  (letv: (($ctx   (^addrf (^frame) MVMFrame params))
          ($csite (^getf  $ctx MVMArgProcContext callsite)))
     (when (ne (^getf $csite MVMCallsite num_pos) (^getf $csite MVMCallsite arg_count))
       (callv (^func &MVM_args_assert_nameds_used)
@@ -2462,7 +2492,7 @@
       (carg $3 int)) int_sz))
 
 (template: getarg_i (load (^arg $1) int_sz))
-(template: getarg_n (load (^arg $1) num_sz))
+(template: getarg_n (load_num (^arg $1) num_sz))
 (template: getarg_s (load (^arg $1) ptr_sz))
 (template: getarg_o (load (^arg $1) ptr_sz))
 
@@ -2515,7 +2545,7 @@
       (carg (tc) ptr)) ptr_sz))
 
 (template: slice!
-  (let: (
+  (letv: (
     ($dest (call (^getf (^repr $1) MVMREPROps allocate)
       (arglist
         (carg (tc) ptr)
@@ -2601,7 +2631,7 @@
 
 (template: sp_getarg_o (load (^parg $1) ptr_sz))
 (template: sp_getarg_i (load (^parg $1) int_sz))
-(template: sp_getarg_n (load (^parg $1) num_sz))
+(template: sp_getarg_n (load_num (^parg $1) num_sz))
 (template: sp_getarg_s (load (^parg $1) ptr_sz))
 
 (template: sp_getspeshslot (^spesh_slot_value $1))
@@ -2618,7 +2648,7 @@
         (carg \$0 ptr)))))
 
 (template: sp_fastcreate!
-  (let: (($block (call (^func &MVM_gc_allocate_nursery)
+  (letv: (($block (call (^func &MVM_gc_allocate_nursery)
                    (arglist
                      (carg (tc) ptr)
                      (carg $1 int)) ptr_sz)))
@@ -2642,17 +2672,100 @@
         (^store_write_barrier! $1 $addr $type)
         (copy $type)))))
 
+(template: sp_p6oget_bi
+  (let: (($bibody (add (^p6obody $1) $2) ptr_sz))
+    (if (^bigint_is_smallint $bibody)
+      (scast (^getf $bibody MVMP6bigintBody u.smallint.value) int_sz 4)
+      (call (^func MVM_p6bigint_get_int64)
+        (arglist
+          (carg (tc) ptr)
+          (carg $bibody ptr)) int_sz))))
+
 (template: sp_p6oget_i (load (add (^p6obody $1) $2) int_sz))
-(template: sp_p6oget_n (load (add (^p6obody $1) $2) num_sz))
+(template: sp_p6oget_n (load_num (add (^p6obody $1) $2) num_sz))
 (template: sp_p6oget_s (load (add (^p6obody $1) $2) ptr_sz))
 
 (template: sp_p6obind_o
   (^store_write_barrier! $0 (add (^p6obody $0) $1) $2))
 
 (template: sp_p6obind_i (store (add (^p6obody $0) $1) $2 int_sz))
-(template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 int_sz))
+(template: sp_p6obind_n (store (add (^p6obody $0) $1) $2 num_sz))
 (template: sp_p6obind_s
   (^store_write_barrier! $0 (add (^p6obody $0) $1) $2))
+
+(template: sp_get_o
+  (let: (($obj (load (add $1 $2) ptr_sz)))
+    (if (nz $obj)
+      $obj
+      (^vmnull))))
+
+#(template: sp_get_i64 (load (add $1 $2) int_sz))
+#(template: sp_get_i32 (load (add $1 $2) 4))
+#(template: sp_get_i16 (load (add $1 $2) 2))
+#(template: sp_get_i8  (load (add $1 $2) 1))
+
+(template: sp_bind_o
+  (^store_write_barrier! $0 (add $0 $1) $2))
+
+(macro: ^deopt_one (,deopt_idx)
+  (dov (callv (^func MVM_spesh_deopt_one) (arglist (carg (tc) ptr) (carg ,deopt_idx int))) (^exit)))
+
+# Optimization guards
+(template: sp_guard
+  (let: (($check (copy $1)))
+    (when (any (zr $check) (ne (^stable $check) (^spesh_slot_value $2)))
+       (^deopt_one $3))
+    (copy $check)))
+
+(template: sp_guardconc
+  (let: (($check (copy $1)))
+    (when (any (zr $check) (^is_type_obj $check) (ne (^stable $check) (^spesh_slot_value $2)))
+       (^deopt_one $3))
+    (copy $check)))
+
+(template: sp_guardtype
+  (let: (($check (copy $1)))
+     (when (any (zr $check) (^is_conc_obj $check) (ne (^stable $check) (^spesh_slot_value $2)))
+       (^deopt_one $3))
+     (copy $check)))
+
+(template: sp_guardsf
+  (letv: (($check (copy $0)))
+    (when (any (^not_repr_id $check MVM_REPR_ID_MVMCode)
+               (ne (^getf $check MVMCode body.sf) (^spesh_slot_value $1)))
+         (^deopt_one $2))))
+
+(template: sp_guardsfouter
+  (letv: (($check (copy $0)))
+    (when (any (^not_repr_id $check MVM_REPR_ID_MVMCode)
+               (ne (^getf $check MVMCode body.sf) (^spesh_slot_value $1))
+               (ne (^getf $check MVMCode body.outer) (^frame)))
+         (^deopt_one $2))))
+
+(template: sp_guardobj
+  (let: (($check (copy $1)))
+     (when (ne $check (^spesh_slot_value $2))
+       (^deopt_one $3))
+     (copy $check)))
+
+(template: sp_guardnotobj
+  (let: (($check (copy $1)))
+     (when (eq $check (^spesh_slot_value $2))
+       (^deopt_one $3))
+     (copy $check)))
+
+(template: sp_guardjustconc
+  (let: (($check (copy $1)))
+    (when (^is_type_obj $check)
+      (^deopt_one $2))
+    (copy $check)))
+
+(template: sp_guardjusttype
+  (let: (($check (copy $1)))
+    (when (^is_conc_obj $check)
+      (^deopt_one $2))
+    (copy $check)))
+
 
 # MVMCompUnit *dep = (MVMCompUnit *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 2)];
 # MVMuint16 idx = GET_UI32(cur_op, 4);

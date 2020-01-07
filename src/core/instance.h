@@ -79,6 +79,8 @@ struct MVMStringConsts {
     MVMString *ready;
     MVMString *multidim;
     MVMString *entry_point;
+    MVMString *resolve_lib_name;
+    MVMString *resolve_lib_name_arg;
     MVMString *kind;
     MVMString *instrumented;
     MVMString *heap;
@@ -113,6 +115,18 @@ struct MVMObjectId {
 
     /* Hash handle. */
     UT_hash_handle hash_handle;
+};
+
+struct MVMEventSubscriptions {
+    uv_mutex_t mutex_event_subscription;
+
+    MVMObject *subscription_queue;
+
+    MVMObject *GCEvent;
+    MVMObject *SpeshOverviewEvent;
+
+    MVMuint64 vm_startup_hrtime;
+    MVMnum64  vm_startup_now;
 };
 
 /* Represents a MoarVM instance. */
@@ -175,6 +189,11 @@ struct MVMInstance {
      * that wake up while GC is still running. It's not possible for them to
      * join in, but this lets them wait efficieintly. */
     uv_cond_t cond_blocked_can_continue;
+
+    /* Whether the coordinator considers the run to be fully completed,
+     * including cleanup of exited threads. */
+    AO_t gc_completed;
+    uv_cond_t cond_gc_completed;
 
     /* The number of threads that have yet to acknowledge the finish. */
     AO_t gc_ack;
@@ -433,6 +452,8 @@ struct MVMInstance {
     MVMObject *SpeshLog;
     MVMObject *StaticFrameSpesh;
 
+    MVMObject *SpeshPluginState;
+
     /* Set of bootstrapping types. */
     MVMBootTypes boot_types;
 
@@ -530,4 +551,10 @@ struct MVMInstance {
     /* Hash Secrets which is used as the hash seed. This is to avoid denial of
      * service type attacks. */
     MVMuint64 hashSecrets[2];
+
+    /************************************************************************
+     * VM Event subscription
+     ************************************************************************/
+
+    MVMEventSubscriptions subscriptions;
 };

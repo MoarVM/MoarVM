@@ -101,7 +101,7 @@ void MVM_spesh_copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperan
  * If a spesh slot already holds this value, return that instead. */
 MVMint16 MVM_spesh_add_spesh_slot_try_reuse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCollectable *c) {
     MVMint16 prev_slot;
-    for (prev_slot = 0; prev_slot < g->num_spesh_slots; prev_slot++) {
+    for (prev_slot = 0; (MVMuint16)prev_slot < g->num_spesh_slots; prev_slot++) {
         if (g->spesh_slots[prev_slot] == c)
             return prev_slot;
     }
@@ -672,7 +672,6 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
                     MVMSpeshOperand val_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, register_type);
                     MVMSpeshOperand ss_temp  = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
                     MVMSpeshOperand orig_dst = ins->operands[0];
-                    MVMSpeshOperand orig_src = ins->operands[1];
                     MVMSpeshOperand sslot;
 
                     MVMSpeshFacts *sslot_facts;
@@ -1467,7 +1466,7 @@ static void optimize_getlex_per_invocant(MVMThreadContext *tc, MVMSpeshGraph *g,
             MVMuint32 j;
             for (j = 0; j < ts->num_by_offset; j++) {
                 if (ts->by_offset[j].bytecode_offset == ann->data.bytecode_offset) {
-                    if (ts->by_offset[j].num_types) {
+                    if (ts->by_offset[j].num_types == 1) {
                         MVMObject *log_obj = ts->by_offset[j].types[0].type;
                         if (log_obj && !ts->by_offset[j].types[0].type_concrete)
                             lex_to_constant(tc, g, ins, log_obj);
@@ -1591,7 +1590,7 @@ static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
                                   MVMSpeshStatsType *type_info,
                                   MVMSpeshCallInfo *arg_info, MVMuint32 arg_idx,
                                   MVMuint32 add_comment) {
-    MVMuint32 deopt_target, deopt_index;
+    MVMuint32 deopt_target, deopt_index, new_deopt_index;
 
     /* Split the SSA version of the arg. */
     MVMSpeshOperand preguard_reg = arg_info->arg_ins[arg_idx]->operands[1];
@@ -1609,7 +1608,7 @@ static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
         (MVMCollectable *)type_info->type->st);
     find_deopt_target_and_index(tc, g, arg_info->prepargs_ins, &deopt_target, &deopt_index);
-    guard->operands[3].lit_ui32 = deopt_target;
+
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, guard);
     MVM_spesh_usages_add_by_reg(tc, g, preguard_reg, guard);
@@ -1621,8 +1620,9 @@ static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
 
     /* Also give the instruction a deopt annotation, and related it to the
      * one on the prepargs. */
-    MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
+    new_deopt_index = MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
         MVM_SPESH_ANN_DEOPT_ONE_INS);
+    guard->operands[3].lit_ui32 = new_deopt_index;
     add_synthetic_deopt_annotation(tc, g, guard, deopt_index);
 }
 
@@ -1632,8 +1632,7 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
                                          MVMSpeshCallInfo *arg_info, MVMuint32 arg_idx,
                                          MVMuint32 add_comment) {
     MVMSpeshIns *decont, *guard;
-    MVMuint32 deopt_target, deopt_index;
-    MVMSpeshOperand throwaway;
+    MVMuint32 deopt_target, deopt_index, new_deopt_index;
 
     /* We need a temporary register to decont into. */
     MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
@@ -1662,7 +1661,6 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     guard->operands[1] = temp;
     guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
         (MVMCollectable *)type_info->decont_type->st);
-    guard->operands[3].lit_ui32 = deopt_target;
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, guard);
     MVM_spesh_usages_add_by_reg(tc, g, temp, guard);
@@ -1674,8 +1672,9 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
 
     /* Also give the instruction a deopt annotation and reference prepargs
      * deopt index. */
-    MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
+    new_deopt_index = MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
         MVM_SPESH_ANN_DEOPT_ONE_INS);
+    guard->operands[3].lit_ui32 = new_deopt_index;
     add_synthetic_deopt_annotation(tc, g, guard, deopt_index);
 }
 
@@ -1782,7 +1781,7 @@ static void tweak_for_target_sf(MVMThreadContext *tc, MVMSpeshGraph *g,
                                 MVMStaticFrame *target_sf, MVMSpeshIns *ins,
                                 MVMSpeshCallInfo *arg_info, MVMSpeshOperand temp) {
     MVMSpeshIns *guard, *resolve;
-    MVMuint32 deopt_target, deopt_index;
+    MVMuint32 deopt_target, deopt_index, new_deopt_index;
 
     /* Work out which operand of the invoke instruction has the invokee. */
     MVMuint32 inv_code_index = ins->info->opcode == MVM_OP_invoke_v ? 0 : 1;
@@ -1807,15 +1806,15 @@ static void tweak_for_target_sf(MVMThreadContext *tc, MVMSpeshGraph *g,
     guard->operands[0] = temp;
     guard->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
         (MVMCollectable *)target_sf);
-    guard->operands[2].lit_ui32 = deopt_target;
     MVM_spesh_usages_add_by_reg(tc, g, temp, guard);
     MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
         arg_info->prepargs_ins->prev, guard);
 
     /* Also give the guard instruction a deopt annotation and reference the
      * prepargs annotation. */
-    MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
+    new_deopt_index = MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
         MVM_SPESH_ANN_DEOPT_ONE_INS);
+    guard->operands[2].lit_ui32 = new_deopt_index;
     add_synthetic_deopt_annotation(tc, g, guard, deopt_index);
 
     /* Make the invoke instruction call the resolved result. */
@@ -2155,7 +2154,7 @@ static void optimize_plugin(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
                         MVMuint32 cur_guard_index = ts->by_offset[j].plugin_guards[k].guard_index;
                         MVMuint32 count = ts->by_offset[j].plugin_guards[k].count;
                         if (agg_guard_index >= 0) {
-                            if (agg_guard_index != cur_guard_index) {
+                            if ((MVMuint32)agg_guard_index != cur_guard_index) {
                                 if (count > 100 * agg_guard_index_count) {
                                     /* This one is hugely more popular. */
                                     agg_guard_index = cur_guard_index;
@@ -2264,7 +2263,6 @@ static void optimize_uniprop_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 /* If something is only kept alive because we log its allocation, kick out
  * the allocation logging and let the op that creates it die. */
 static void optimize_prof_allocated(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
-    MVMSpeshFacts *logee_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
     if (MVM_spesh_usages_used_once(tc, g, ins->operands[0])) {
         MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
     }
@@ -2276,9 +2274,9 @@ static void optimize_prof_allocated(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
 static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     /* First, see if we have any goto handlers for this category. */
     MVMint32 *handlers_found = MVM_malloc(g->num_handlers * sizeof(MVMint32));
-    MVMint32  num_found      = 0;
+    MVMuint32 num_found      = 0;
     MVMuint32 category       = (MVMuint32)ins->operands[1].lit_i64;
-    MVMint32  i;
+    MVMuint32  i;
     for (i = 0; i < g->num_handlers; i++)
         if (g->handlers[i].action == MVM_EX_ACTION_GOTO)
             if (g->handlers[i].category_mask & category)
@@ -2309,7 +2307,7 @@ static void optimize_throwcat(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
                     case MVM_SPESH_ANN_FH_GOTO:
                         if (ann->data.frame_handler_index < g->num_handlers) {
                             goto_bbs[ann->data.frame_handler_index] = search_bb;
-                            if (picked >= 0 && ann->data.frame_handler_index == picked)
+                            if (picked >= 0 && ann->data.frame_handler_index == (MVMuint32)picked)
                                 goto search_over;
                         }
                         break;
@@ -2373,7 +2371,7 @@ static void tweak_rebless(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
     new_operands[1] = ins->operands[1];
     new_operands[2] = ins->operands[2];
     find_deopt_target_and_index(tc, g, ins, &deopt_target, &deopt_index);
-    new_operands[3].lit_ui32 = deopt_target;
+    new_operands[3].lit_ui32 = deopt_index;
     ins->info = MVM_op_get_op(MVM_OP_sp_rebless);
     ins->operands = new_operands;
 }
@@ -2734,6 +2732,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             optimize_findmeth_s_perhaps_constant(tc, g, ins);
             if (ins->info->opcode == MVM_OP_findmeth_s)
                 break;
+            MVM_FALLTHROUGH
         case MVM_OP_findmeth:
             optimize_method_lookup(tc, g, ins);
             break;
@@ -2741,6 +2740,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             optimize_findmeth_s_perhaps_constant(tc, g, ins);
             if (ins->info->opcode == MVM_OP_tryfindmeth_s)
                 break;
+            MVM_FALLTHROUGH
         case MVM_OP_tryfindmeth:
             optimize_method_lookup(tc, g, ins);
             break;
@@ -3263,7 +3263,7 @@ static void eliminate_pointless_gotos(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
 static void merge_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMSpeshBB *bb = g->entry;
-    MVMint32 orig_bbs = g->num_bbs;
+    MVMuint32 orig_bbs = g->num_bbs;
     if (!bb || !bb->linear_next) return; /* looks like there's only a single bb anyway */
     bb = bb->linear_next;
 

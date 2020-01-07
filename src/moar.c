@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "platform/io.h"
 #include <platform/threads.h>
 #include "platform/random.h"
 #include "platform/time.h"
@@ -50,18 +51,18 @@ static FILE *fopen_perhaps_with_pid(char *env_var, char *path, const char *mode)
         /* We expect to pass only a single argument to snprintf here;
          * just bail out if there's more than one directive. */
         if (found_percents > 1) {
-            result = fopen(path, mode);
+            result = MVM_platform_fopen(path, mode);
         } else {
             char *fixed_path = malloc(path_length + 16);
             MVMint64 pid = MVM_proc_getpid(NULL);
             /* We make the brave assumption that
              * pids only go up to 16 characters. */
             snprintf(fixed_path, path_length + 16, path, pid);
-            result = fopen(fixed_path, mode);
+            result = MVM_platform_fopen(fixed_path, mode);
             free(fixed_path);
         }
     } else {
-        result = fopen(path, mode);
+        result = MVM_platform_fopen(path, mode);
     }
 
     if (result)
@@ -87,11 +88,20 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(NULL, instance);
+
+    instance->subscriptions.vm_startup_hrtime = uv_hrtime();
+    instance->subscriptions.vm_startup_now = MVM_proc_time_n(instance->main_thread);
+
+#if MVM_HASH_RANDOMIZE
     /* Get the 128-bit hashSecret */
     MVM_getrandom(instance->main_thread, instance->hashSecrets, sizeof(MVMuint64) * 2);
     /* Just in case MVM_getrandom didn't work, XOR it with some (poorly) randomized data */
     instance->hashSecrets[0] ^= ptr_hash_64_to_64((uintptr_t)instance);
     instance->hashSecrets[1] ^= MVM_proc_getpid(instance->main_thread) * MVM_platform_now();
+#else
+    instance->hashSecrets[0] = 0;
+    instance->hashSecrets[1] = 0;
+#endif
     instance->main_thread->thread_id = 1;
 
     /* Next thread to be created gets ID 2 (the main thread got ID 1). */
@@ -108,6 +118,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     init_mutex(instance->mutex_gc_orchestrate, "GC orchestration");
     init_cond(instance->cond_gc_start, "GC start");
     init_cond(instance->cond_gc_finish, "GC finish");
+    init_cond(instance->cond_gc_completed, "GC completed");
     init_cond(instance->cond_gc_intrays_clearing, "GC intrays clearing");
     init_cond(instance->cond_blocked_can_continue, "GC thread unblock");
 
@@ -275,7 +286,7 @@ MVMInstance * MVM_vm_create_instance(void) {
             char perf_map_filename[32];
             snprintf(perf_map_filename, sizeof(perf_map_filename),
                      "/tmp/perf-%"PRIi64".map", MVM_proc_getpid(NULL));
-            instance->jit_perf_map = fopen(perf_map_filename, "w");
+            instance->jit_perf_map = MVM_platform_fopen(perf_map_filename, "w");
         }
     }
 #endif
@@ -392,6 +403,8 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Back to nursery allocation, now we're set up. */
     MVM_gc_allocate_gen2_default_clear(instance->main_thread);
 
+    init_mutex(instance->subscriptions.mutex_event_subscription, "vm event subscription mutex");
+
     return instance;
 }
 
@@ -417,6 +430,18 @@ static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
     MVM_frame_invoke(tc, (MVMStaticFrame *)data, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS), NULL, NULL, NULL, -1);
 }
 
+/* Run deserialization frame, if there is one. Disable specialization
+ * during this time, so we don't waste time logging one-shot setup
+ * code. */
+static void run_deserialization_frame(MVMThreadContext *tc, MVMCompUnit *cu) {
+    if (cu->body.deserialize_frame) {
+        MVMint8 spesh_enabled_orig = tc->instance->spesh_enabled;
+        tc->instance->spesh_enabled = 0;
+        MVM_interp_run(tc, toplevel_initial_invoke, cu->body.deserialize_frame);
+        tc->instance->spesh_enabled = spesh_enabled_orig;
+    }
+}
+
 /* Loads bytecode from the specified file name and runs it. */
 void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
     /* Map the compilation unit into memory and dissect it. */
@@ -430,16 +455,22 @@ void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
         cu->body.filename = str;
         MVM_gc_write_barrier_hit(tc, (MVMCollectable *)cu);
 
-        /* Run deserialization frame, if there is one. Disable specialization
-         * during this time, so we don't waste time logging one-shot setup
-         * code. */
-        if (cu->body.deserialize_frame) {
-            MVMint8 spesh_enabled_orig = tc->instance->spesh_enabled;
-            tc->instance->spesh_enabled = 0;
-            MVM_interp_run(tc, toplevel_initial_invoke, cu->body.deserialize_frame);
-            tc->instance->spesh_enabled = spesh_enabled_orig;
-        }
+        /* Run the deserialization frame, if any. */
+        run_deserialization_frame(tc, cu);
     });
+
+    /* Run the entry-point frame. */
+    MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame);
+}
+
+/* Loads bytecode from memory and runs it. */
+void MVM_vm_run_bytecode(MVMInstance *instance, MVMuint8 *bytes, MVMuint32 size) {
+    /* Map the compilation unit into memory and dissect it. */
+    MVMThreadContext *tc = instance->main_thread;
+    MVMCompUnit      *cu = MVM_cu_from_bytes(tc, bytes, size);
+
+    /* Run the deserialization frame, if any. */
+    MVMROOT(tc, cu, { run_deserialization_frame(tc, cu); });
 
     /* Run the entry-point frame. */
     MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame);
@@ -452,7 +483,7 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
     char *dump = MVM_bytecode_dump(tc, cu);
     size_t dumplen = strlen(dump);
-    int position = 0;
+    size_t position = 0;
 
     /* libuv already set up stdout to be nonblocking, but it can very well be
      * we encounter EAGAIN (Resource temporarily unavailable), so we need to
@@ -643,6 +674,8 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up fixed size allocator */
     MVM_fixed_size_destroy(instance->fsa);
 
+    uv_mutex_destroy(&instance->subscriptions.mutex_event_subscription);
+
     /* Clear up VM instance memory. */
     MVM_free(instance);
 }
@@ -658,6 +691,82 @@ void MVM_vm_set_exec_name(MVMInstance *instance, const char *exec_name) {
 
 void MVM_vm_set_prog_name(MVMInstance *instance, const char *prog_name) {
     instance->prog_name = prog_name;
+}
+
+void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue, MVMObject *config) {
+    MVMString *gcevent;
+    MVMString *speshoverviewevent;
+    MVMString *startup_time;
+
+    MVMROOT2(tc, queue, config, {
+        if (!IS_CONCRETE(config)) {
+            MVM_exception_throw_adhoc(tc, "vmeventsubscribe requires a concrete configuration hash (got a %s type object)", MVM_6model_get_debug_name(tc, config));
+        }
+
+        if ((REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue && !MVM_is_null(tc, queue)) || !IS_CONCRETE(queue)) {
+            MVM_exception_throw_adhoc(tc, "vmeventsubscribe requires a concrete ConcBlockingQueue (got a %s)", MVM_6model_get_debug_name(tc, queue));
+        }
+
+        uv_mutex_lock(&tc->instance->subscriptions.mutex_event_subscription);
+
+        if (REPR(queue)->ID == MVM_REPR_ID_ConcBlockingQueue && IS_CONCRETE(queue)) {
+            tc->instance->subscriptions.subscription_queue = queue;
+        }
+
+        gcevent = MVM_string_utf8_decode(tc, tc->instance->VMString, "gcevent", 7);
+        MVMROOT(tc, gcevent, {
+            speshoverviewevent = MVM_string_utf8_decode(tc, tc->instance->VMString, "speshoverviewevent", 18);
+            MVMROOT(tc, speshoverviewevent, {
+                startup_time = MVM_string_utf8_decode(tc, tc->instance->VMString, "startup_time", 12);
+            });
+        });
+
+        if (MVM_repr_exists_key(tc, config, gcevent)) {
+            MVMObject *value = MVM_repr_at_key_o(tc, config, gcevent);
+
+            if (MVM_is_null(tc, value)) {
+                tc->instance->subscriptions.GCEvent = NULL;
+            }
+            else if (REPR(value)->ID == MVM_REPR_ID_VMArray && !IS_CONCRETE(value) && (((MVMArrayREPRData *)STABLE(value)->REPR_data)->slot_type == MVM_ARRAY_I64 || ((MVMArrayREPRData *)STABLE(value)->REPR_data)->slot_type == MVM_ARRAY_U64)) {
+                tc->instance->subscriptions.GCEvent = value;
+            }
+            else {
+                uv_mutex_unlock(&tc->instance->subscriptions.mutex_event_subscription);
+                MVM_exception_throw_adhoc(tc, "vmeventsubscribe expects value at 'gcevent' key to be null (to unsubscribe) or a VMArray of int64 type object, got a %s%s%s (%s)", IS_CONCRETE(value) ? "concrete " : "", MVM_6model_get_debug_name(tc, value), IS_CONCRETE(value) ? "" : " type object", REPR(value)->name);
+            }
+        }
+
+        if (MVM_repr_exists_key(tc, config, speshoverviewevent)) {
+            MVMObject *value = MVM_repr_at_key_o(tc, config, speshoverviewevent);
+
+            if (MVM_is_null(tc, value)) {
+                tc->instance->subscriptions.SpeshOverviewEvent = NULL;
+            }
+            else if (REPR(value)->ID == MVM_REPR_ID_VMArray && !IS_CONCRETE(value) && (((MVMArrayREPRData *)STABLE(value)->REPR_data)->slot_type == MVM_ARRAY_I64 || ((MVMArrayREPRData *)STABLE(value)->REPR_data)->slot_type == MVM_ARRAY_U64)) {
+                tc->instance->subscriptions.SpeshOverviewEvent = value;
+            }
+            else {
+                uv_mutex_unlock(&tc->instance->subscriptions.mutex_event_subscription);
+                MVM_exception_throw_adhoc(tc, "vmeventsubscribe expects value at 'speshoverviewevent' key to be null (to unsubscribe) or a VMArray of int64 type object, got a %s%s%s (%s)", IS_CONCRETE(value) ? "concrete " : "", MVM_6model_get_debug_name(tc, value), IS_CONCRETE(value) ? "" : " type object", REPR(value)->name);
+            }
+        }
+
+        if (MVM_repr_exists_key(tc, config, startup_time)) {
+            /* Value is ignored, it will just be overwritten. */
+            MVMObject *value = NULL; 
+            MVMROOT2(tc, gcevent, speshoverviewevent, {
+                    value = MVM_repr_box_num(tc, tc->instance->boot_types.BOOTNum, tc->instance->subscriptions.vm_startup_now);
+            });
+
+            if (MVM_is_null(tc, value)) {
+                uv_mutex_unlock(&tc->instance->subscriptions.mutex_event_subscription);
+                MVM_exception_throw_adhoc(tc, "vmeventsubscribe was unable to create a Num object to hold the vm startup time.");
+            }
+            MVM_repr_bind_key_o(tc, config, startup_time, value);
+        }
+    });
+
+    uv_mutex_unlock(&tc->instance->subscriptions.mutex_event_subscription);
 }
 
 void MVM_vm_set_lib_path(MVMInstance *instance, int count, const char **lib_path) {

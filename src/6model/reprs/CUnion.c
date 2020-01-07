@@ -371,9 +371,6 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
 /* Copies to the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMCUnionREPRData * repr_data = (MVMCUnionREPRData *) st->REPR_data;
-    MVMCUnionBody *src_body = (MVMCUnionBody *)src;
-    MVMCUnionBody *dest_body = (MVMCUnionBody *)dest;
     MVM_exception_throw_adhoc(tc, "cloning a CUnion is NYI");
 }
 
@@ -420,51 +417,52 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                 MVMObject *obj     = body->child_objs[real_slot];
                 if (!obj) {
                     /* No cached object. */
-                    if (repr_data->attribute_locations[slot] & MVM_CUNION_ATTR_INLINED) {
-                        if (type == MVM_CUNION_ATTR_CSTRUCT) {
-                            obj = MVM_nativecall_make_cstruct(tc, typeobj,
-                                (char *)body->cunion + repr_data->struct_offsets[slot]);
-                        }
-                        else if (type == MVM_CUNION_ATTR_CPPSTRUCT) {
-                            obj = MVM_nativecall_make_cppstruct(tc, typeobj,
-                                (char *)body->cunion + repr_data->struct_offsets[slot]);
-                        }
-                        else if (type == MVM_CUNION_ATTR_CUNION) {
-                            obj = MVM_nativecall_make_cunion(tc, typeobj,
-                                (char *)body->cunion + repr_data->struct_offsets[slot]);
-                        }
-                    }
-                    else {
-                        void *cobj = get_ptr_at_offset(body->cunion, repr_data->struct_offsets[slot]);
-                        if (cobj) {
-                            MVMObject **child_objs = body->child_objs;
-                            if (type == MVM_CUNION_ATTR_CARRAY) {
-                                obj = MVM_nativecall_make_carray(tc, typeobj, cobj);
+                    MVMROOT(tc, root, {
+                        if (repr_data->attribute_locations[slot] & MVM_CUNION_ATTR_INLINED) {
+                            if (type == MVM_CUNION_ATTR_CSTRUCT) {
+                                obj = MVM_nativecall_make_cstruct(tc, typeobj,
+                                    (char *)body->cunion + repr_data->struct_offsets[slot]);
                             }
-                            else if(type == MVM_CUNION_ATTR_CSTRUCT) {
-                                obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
+                            else if (type == MVM_CUNION_ATTR_CPPSTRUCT) {
+                                obj = MVM_nativecall_make_cppstruct(tc, typeobj,
+                                    (char *)body->cunion + repr_data->struct_offsets[slot]);
                             }
-                            else if(type == MVM_CUNION_ATTR_CPPSTRUCT) {
-                                obj = MVM_nativecall_make_cppstruct(tc, typeobj, cobj);
-                            }
-                            else if(type == MVM_CUNION_ATTR_CUNION) {
-                                obj = MVM_nativecall_make_cunion(tc, typeobj, cobj);
-                            }
-                            else if(type == MVM_CUNION_ATTR_CPTR) {
-                                obj = MVM_nativecall_make_cpointer(tc, typeobj, cobj);
-                            }
-                            else if(type == MVM_CUNION_ATTR_STRING) {
-                                MVMROOT(tc, typeobj, {
-                                    MVMString *str = MVM_string_utf8_decode(tc, tc->instance->VMString,
-                                        cobj, strlen(cobj));
-                                    obj = MVM_repr_box_str(tc, typeobj, str);
-                                });
+                            else if (type == MVM_CUNION_ATTR_CUNION) {
+                                obj = MVM_nativecall_make_cunion(tc, typeobj,
+                                    (char *)body->cunion + repr_data->struct_offsets[slot]);
                             }
                         }
                         else {
-                            obj = typeobj;
+                            void *cobj = get_ptr_at_offset(body->cunion, repr_data->struct_offsets[slot]);
+                            if (cobj) {
+                                if (type == MVM_CUNION_ATTR_CARRAY) {
+                                    obj = MVM_nativecall_make_carray(tc, typeobj, cobj);
+                                }
+                                else if(type == MVM_CUNION_ATTR_CSTRUCT) {
+                                    obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
+                                }
+                                else if(type == MVM_CUNION_ATTR_CPPSTRUCT) {
+                                    obj = MVM_nativecall_make_cppstruct(tc, typeobj, cobj);
+                                }
+                                else if(type == MVM_CUNION_ATTR_CUNION) {
+                                    obj = MVM_nativecall_make_cunion(tc, typeobj, cobj);
+                                }
+                                else if(type == MVM_CUNION_ATTR_CPTR) {
+                                    obj = MVM_nativecall_make_cpointer(tc, typeobj, cobj);
+                                }
+                                else if(type == MVM_CUNION_ATTR_STRING) {
+                                    MVMROOT(tc, typeobj, {
+                                        MVMString *str = MVM_string_utf8_decode(tc, tc->instance->VMString,
+                                            cobj, strlen(cobj));
+                                        obj = MVM_repr_box_str(tc, typeobj, str);
+                                    });
+                                }
+                            }
+                            else {
+                                obj = typeobj;
+                            }
                         }
-                    }
+                    });
                     MVM_ASSIGN_REF(tc, &(root->header), body->child_objs[real_slot], obj);
                 }
                 result_reg->o = obj;

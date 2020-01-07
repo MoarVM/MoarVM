@@ -215,7 +215,6 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             /* If the item was already seen and copied, then it will have a
              * forwarding address already. Just update this pointer to the
              * new address and we're done. */
-            assert(*item_ptr != item->sc_forward_u.forwarder);
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT)) {
                 if (*item_ptr != item->sc_forward_u.forwarder) {
                     GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from %p to forwarder %p\n", item_ptr, item, item->sc_forward_u.forwarder);
@@ -319,7 +318,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 new_addr = (MVMCollectable *)tc->nursery_alloc;
                 tc->nursery_alloc = (char *)tc->nursery_alloc + MVM_ALIGN_SIZE(item->size);
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : copying an object %p (reprid %d) of size %d to tospace %p\n",
-                    item, REPR(item)->ID, item->size, new_addr);
+                    item, (item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_FRAME)) ? -1 : (int)REPR(item)->ID, item->size, new_addr);
 
                 /* Copy the object to tospace and mark it as seen in the
                  * nursery (so the next time around it will move to the
@@ -331,7 +330,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             /* Store the forwarding pointer and update the original
              * reference. */
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT) && new_addr != item) {
-                GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from referent %p (reprid %d) to %p\n", item_ptr, item, REPR(item)->ID, new_addr);
+                GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from referent %p (reprid %d) to %p\n", item_ptr, item, (item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_FRAME)) ? -1 : (int)REPR(item)->ID, new_addr);
             }
             *item_ptr = new_addr;
             item->sc_forward_u.forwarder = new_addr;
@@ -721,7 +720,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *executing_thread, MVMTh
                             !(col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) &&
 #endif
                             col->sc_forward_u.sc.sc_idx == 0
-                            && col->sc_forward_u.sc.idx == MVM_DIRECT_SC_IDX_SENTINEL) {
+                            && col->sc_forward_u.sc.idx == (unsigned)MVM_DIRECT_SC_IDX_SENTINEL) {
                             /* We marked it dead last time, kill it. */
                             MVM_6model_stable_gc_free(tc, (MVMSTable *)col);
                         }

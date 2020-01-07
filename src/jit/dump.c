@@ -1,11 +1,13 @@
 #include "moar.h"
+#include "jit/internal.h"
+#include "platform/io.h"
 
 void MVM_jit_dump_bytecode(MVMThreadContext *tc, MVMJitCode *code) {
     char filename[1024];
     FILE * dump;
     snprintf(filename, sizeof(filename), "%s/moar-jit-%04d.bin",
              tc->instance->jit_bytecode_dir, code->seq_nr);
-    dump = fopen(filename, "w");
+    dump = MVM_platform_fopen(filename, "w");
     if (dump) {
         fwrite(code->func_ptr, sizeof(char), code->size, dump);
         fclose(dump);
@@ -25,8 +27,8 @@ static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
     MVMJitExprInfo *info   = MVM_JIT_EXPR_INFO(tree, node);
     const char *op_name = MVM_jit_expr_operator_name(tc, tree->nodes[node]);
     MVMint32 *links = MVM_JIT_EXPR_LINKS(tree, node);
-    MVMint32 *depth            = traverser->data;
-    MVMint32 i, j;
+    MVMuint32 *depth = traverser->data;
+    MVMuint32 i, j;
     char indent[64];
     char nargs[80];
 
@@ -50,7 +52,7 @@ static void dump_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
 
 static void ascend_tree(MVMThreadContext *tc, MVMJitTreeTraverser *traverser,
                         MVMJitExprTree *tree, MVMint32 node) {
-    MVMint32 *depth = traverser->data;
+    MVMuint32 *depth = traverser->data;
     (*depth)--;
 }
 
@@ -75,7 +77,9 @@ static void write_graphviz_node(MVMThreadContext *tc, MVMJitTreeTraverser *trave
         ptr += sprintf(ptr, "%" PRId32 "%s", args[i],
                        (i + 1 < info->num_args) ? ", "  : ")");
     }
-
+    if (info->type != 0) {
+        ptr += sprintf(ptr, ":%s", MVM_register_type(info->type));
+    }
     fprintf(graph_file, "  n_%04d [label=\"%s\"];\n", node, node_label);
     for (i = 0; i < info->num_links; i++) {
         fprintf(graph_file, "    n_%04d -> n_%04d;\n", node, links[i]);
@@ -104,14 +108,14 @@ void MVM_jit_dump_expr_tree(MVMThreadContext *tc, MVMJitExprTree *tree) {
 }
 
 void MVM_jit_dump_tile_list(MVMThreadContext *tc, MVMJitTileList *list) {
-    MVMint32 i, j;
+    MVMuint32 i, j;
     FILE *f = tc->instance->spesh_log_fh;
     if (!f)
         return;
     fprintf(f, "JIT: Starting tile list log\n"
                "===========================\n\n");
     for (i = 0; i < list->blocks_num; i++) {
-        MVMint32 start = list->blocks[i].start, end = list->blocks[i].end;
+        MVMuint32 start = list->blocks[i].start, end = list->blocks[i].end;
         fprintf(f, "Block{%d} [%d-%d)\n", i, start, end);
         for (j = start; j < end; j++) {
             MVMJitTile *tile = list->items[j];

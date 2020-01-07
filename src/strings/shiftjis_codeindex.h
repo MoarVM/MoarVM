@@ -1,6 +1,4 @@
 #define SHIFTJIS_NULL -1
-MVMint16 shift_jis_index_to_cp_array_offset (MVMThreadContext *tc, MVMint16 index);
-MVMGrapheme32 shift_jis_index_to_cp (MVMThreadContext *tc, MVMint16 index);
 struct shiftjis_offset {
     MVMuint16 location;
     MVMuint16 offset;
@@ -9,7 +7,7 @@ struct shiftjis_offset {
 #define SHIFTJIS_OFFSET_VALUES_ELEMS 21
 #define SHIFTJIS_INDEX_TO_CP_CODEPOINTS_ELEMS 7350
 #define SHIFTJIS_MAX_INDEX 11103
-const static struct shiftjis_offset shiftjis_offset_values[21] = {
+static struct shiftjis_offset shiftjis_offset_values[21] = {
     { 107,   11},
     { 126,    8},
     { 141,   11},
@@ -32,7 +30,7 @@ const static struct shiftjis_offset shiftjis_offset_values[21] = {
     {4374,   43},
     {7807, 2908}
 };
-const static MVMuint16 shiftjis_index_to_cp_codepoints[7350] = {
+static MVMuint16 shiftjis_index_to_cp_codepoints[7350] = {
 12288,12289,12290,65292,65294,12539,65306,65307,65311,65281,12443,12444,180,
 65344,168,65342,65507,65343,12541,12542,12445,12446,12291,20189,12293,12294,
 12295,12540,8213,8208,65295,65340,65374,8741,65372,8230,8229,8216,8217,8220,

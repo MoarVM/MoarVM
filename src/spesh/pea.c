@@ -307,7 +307,7 @@ static void add_transform_for_bb(MVMThreadContext *tc, GraphState *gs, MVMSpeshB
  * any. The _h form takes a hypothetical register ID, the _c form a
  * concrete register.*/
 static MVMSpeshFacts * get_shadow_facts_h(MVMThreadContext *tc, GraphState *gs, MVMuint16 idx) {
-    MVMint32 i;
+    MVMuint32 i;
     for (i = 0; i < gs->shadow_facts_num; i++) {
         ShadowFact *sf = &(gs->shadow_facts[i]);
         if (sf->is_hypothetical && sf->hypothetical_reg_idx == idx)
@@ -316,7 +316,7 @@ static MVMSpeshFacts * get_shadow_facts_h(MVMThreadContext *tc, GraphState *gs, 
     return NULL;
 }
 static MVMSpeshFacts * get_shadow_facts_c(MVMThreadContext *tc, GraphState *gs, MVMSpeshOperand o) {
-    MVMint32 i;
+    MVMuint32 i;
     for (i = 0; i < gs->shadow_facts_num; i++) {
         ShadowFact *sf = &(gs->shadow_facts[i]);
         if (!sf->is_hypothetical && sf->concrete_orig == o.reg.orig &&
@@ -406,7 +406,7 @@ static void add_scalar_replacement_deopt_usages(MVMThreadContext *tc, MVMSpeshGr
 static void add_deopt_materializations_idx(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                            GraphState *gs, MVMint32 deopt_idx,
                                            MVMint32 deopt_user_idx) {
-    MVMint32 i;
+    MVMuint32 i;
     for (i = 0; i < MVM_VECTOR_ELEMS(gs->tracked_registers); i++) {
         MVMSpeshFacts *tracked_facts = MVM_spesh_get_facts(tc, g, gs->tracked_registers[i].reg);
         MVMSpeshPEAAllocation *alloc = tracked_facts->pea.allocation;
@@ -573,7 +573,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         MVMuint16 hypothetical_reg = attribute_offset_to_reg(tc, alloc,
                                 is_p6o_op
                                     ? ins->operands[1].lit_i16
-                                    : ins->operands[1].lit_i16 - sizeof(MVMObject));
+                                    : ins->operands[1].lit_i16 - (MVMint16)sizeof(MVMObject));
                         Transformation *tran = MVM_spesh_alloc(tc, g, sizeof(Transformation));
                         tran->allocation = alloc;
                         tran->transform = TRANSFORM_BINDATTR_TO_SET;
@@ -637,6 +637,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                         tran->prof.ins = ins;
                         add_transform_for_bb(tc, gs, bb, tran);
                     }
+                    break;
                 }
                 case MVM_SSA_PHI: {
                     /* If a PHI doesn't really merge anything, and its input is
@@ -715,7 +716,7 @@ void MVM_spesh_pea(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
 /* Clean up any deopt info. */
 void MVM_spesh_pea_destroy_deopt_info(MVMThreadContext *tc, MVMSpeshPEADeopt *deopt_pea) {
-    MVMint32 i;
+    MVMuint32 i;
     for (i = 0; i < MVM_VECTOR_ELEMS(deopt_pea->materialize_info); i++)
         MVM_free(deopt_pea->materialize_info[i].attr_regs);
     MVM_VECTOR_DESTROY(deopt_pea->materialize_info);

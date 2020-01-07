@@ -5,7 +5,7 @@
 /* If we have the job of doing GC for a thread, we add it to our work
  * list. */
 static void add_work(MVMThreadContext *tc, MVMThreadContext *stolen) {
-    MVMint32 i;
+    MVMuint32 i;
     for (i = 0; i < tc->gc_work_count; i++)
         if (tc->gc_work[i].tc == stolen)
             return;
@@ -27,7 +27,7 @@ static void add_work(MVMThreadContext *tc, MVMThreadContext *stolen) {
 static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_signal) {
     /* Loop here since we may not succeed first time (e.g. the status of the
      * thread may change between the two ways we try to twiddle it). */
-    int had_suspend_request = 0;
+    unsigned int had_suspend_request = 0;
     while (1) {
         AO_t current = MVM_load(&to_signal->gc_status);
         switch (current) {
@@ -183,6 +183,11 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
         }
 
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
+            "Thread %d run %d : Co-ordinator heapsnapshot or instrumented profiler data output\n");
+        MVM_profile_dump_instrumented_data(tc);
+        MVM_profile_heap_take_snapshot(tc);
+
+        GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
             "Thread %d run %d : Co-ordinator handling fixed-size allocator safepoint frees\n");
         MVM_fixed_size_safepoint(tc, tc->instance->fsa);
         MVM_alloc_safepoint(tc);
@@ -215,8 +220,8 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
             MVM_gc_gen2_transfer(other, tc);
             GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
                 "Thread %d run %d : destroying thread %d\n", other->thread_id);
-            MVM_tc_destroy(other);
             tc->gc_work[i].tc = thread_obj->body.tc = NULL;
+            MVM_tc_destroy(other);
             MVM_store(&thread_obj->body.stage, MVM_thread_stage_destroyed);
         }
         else {
@@ -260,8 +265,16 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
     }
 
     if (is_coordinator) {
-        MVM_profile_dump_instrumented_data(tc);
-        MVM_profile_heap_take_snapshot(tc);
+        uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
+        MVM_store(&tc->instance->gc_completed, 1);
+        uv_cond_broadcast(&tc->instance->cond_gc_completed);
+        uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
+    }
+    else {
+        uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
+        while (!MVM_load(&tc->instance->gc_completed))
+            uv_cond_wait(&tc->instance->cond_gc_completed, &tc->instance->mutex_gc_orchestrate);
+        uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
     }
 
     /* Signal acknowledgement of completing the cleanup,
@@ -392,7 +405,15 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     MVMuint8   gen;
     MVMuint32  i, n;
 
+    MVMuint8 is_coordinator;
+
+    MVMuint64 start_time = 0;
+
     unsigned int interval_id;
+
+    MVMObject *subscription_queue = NULL;
+
+    is_coordinator = what_to_do == MVMGCWhatToDo_All;
 
 #if MVM_GC_DEBUG
     if (tc->in_spesh)
@@ -408,6 +429,9 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         interval_id = MVM_telemetry_interval_start(tc, "start minor collection");
     }
 
+    if (is_coordinator)
+        start_time = uv_hrtime();
+
     /* Do GC work for ourselves and any work threads. */
     for (i = 0, n = tc->gc_work_count ; i < n; i++) {
         MVMThreadContext *other = tc->gc_work[i].tc;
@@ -415,11 +439,51 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : starting collection for thread %d\n",
             other->thread_id);
         other->gc_promoted_bytes = 0;
+        if (tc->instance->profiling)
+            MVM_profiler_log_gen2_roots(tc, other->num_gen2roots, other);
         MVM_gc_collect(other, (other == tc ? what_to_do : MVMGCWhatToDo_NoInstance), gen);
     }
 
     /* Wait for everybody to agree we're done. */
-    finish_gc(tc, gen, what_to_do == MVMGCWhatToDo_All);
+    finish_gc(tc, gen, is_coordinator);
+
+    /* Finally, as the very last thing ever, the coordinator pushes a bit of
+     * info into the subscription queue (if it is set) */
+
+    subscription_queue = tc->instance->subscriptions.subscription_queue;
+
+    if (is_coordinator && subscription_queue && tc->instance->subscriptions.GCEvent) {
+        MVMuint64 end_time = uv_hrtime();
+        MVMObject *instance = MVM_repr_alloc(tc, tc->instance->subscriptions.GCEvent);
+        MVMThread *cur_thread;
+
+        MVMArray *arrobj = (MVMArray *)instance;
+        MVMuint64 *data;
+
+        MVM_repr_pos_set_elems(tc, instance, 9);
+
+        data = arrobj->body.slots.u64;
+
+        data[0] = MVM_load(&tc->instance->gc_seq_number);
+        data[1] = start_time / 1000;
+        data[2] = (start_time - tc->instance->subscriptions.vm_startup_hrtime) / 1000;
+        data[3] = (end_time - start_time) / 1000;
+        data[4] = gen == MVMGCGenerations_Both;
+        data[5] = tc->gc_promoted_bytes;
+        data[6] = MVM_load(&tc->instance->gc_promoted_bytes_since_last_full);
+        data[7] = tc->thread_id;
+        data[8] = 0;
+
+        uv_mutex_lock(&tc->instance->mutex_threads);
+        cur_thread = tc->instance->threads;
+        while (cur_thread) {
+            data[8] += cur_thread->body.tc->num_gen2roots;
+            cur_thread = cur_thread->body.next;
+        }
+        uv_mutex_unlock(&tc->instance->mutex_threads);
+
+        MVM_repr_push_o(tc, tc->instance->subscriptions.subscription_queue, instance);
+    }
 
     MVM_telemetry_interval_stop(tc, interval_id, "finished run_gc");
 }
@@ -435,7 +499,6 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
 
     /* Try to start the GC run. */
     if (MVM_trycas(&tc->instance->gc_start, 0, 1)) {
-        MVMThread *last_starter = NULL;
         MVMuint32 num_threads = 0;
 
         /* Stash us as the thread to blame for this GC run (used to give it a
@@ -472,6 +535,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         /* Flag that we didn't agree on this run that all the in-trays are
          * cleared (a responsibility of the co-ordinator. */
         MVM_store(&tc->instance->gc_intrays_clearing, 1);
+        MVM_store(&tc->instance->gc_completed, 0);
 
         /* We'll take care of our own work. */
         add_work(tc, tc);
@@ -561,8 +625,6 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
  * MVMSUSPENDSTATUS_MASK.
  *   */
 void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
-    AO_t curr;
-
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from interrupt\n");
 
 

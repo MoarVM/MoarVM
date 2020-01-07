@@ -35,7 +35,6 @@
 #define MIN_TARGET_EXP   -60
 #define MASK32           ULL(0xFFFFFFFF)
 
-#define CAST_U64(d) (*(uint64_t*)&d)
 #define MIN(x,y) ((x) <= (y) ? (x) : (y))
 #define MAX(x,y) ((x) >= (y) ? (x) : (y))
 
@@ -53,6 +52,12 @@ typedef struct power
         uint64_t fract;
         int16_t b_exp, d_exp;
 } power;
+
+typedef union double_memory
+{
+        uint64_t u;
+        double d;
+} double_memory;
 
 static const power pow_cache[] =
 {
@@ -185,9 +190,10 @@ static diy_fp normalize_diy_fp(diy_fp n)
 static diy_fp double2diy_fp(double d)
 {
         diy_fp fp;
-        uint64_t u64 = CAST_U64(d);
-        if (!(u64 & D64_EXP_MASK)) { fp.f = u64 & D64_FRACT_MASK; fp.e = 1 - D64_EXP_BIAS; }
-        else { fp.f = (u64 & D64_FRACT_MASK) + D64_IMPLICIT_ONE; fp.e = (int)((u64 & D64_EXP_MASK) >> D64_EXP_POS) - D64_EXP_BIAS; }
+        double_memory u64;
+        u64.d = d;
+        if (!(u64.u & D64_EXP_MASK)) { fp.f = u64.u & D64_FRACT_MASK; fp.e = 1 - D64_EXP_BIAS; }
+        else { fp.f = (u64.u & D64_FRACT_MASK) + D64_IMPLICIT_ONE; fp.e = (int)((u64.u & D64_EXP_MASK) >> D64_EXP_POS) - D64_EXP_BIAS; }
         return fp;
 }
 
@@ -272,8 +278,9 @@ static int grisu3(double v, char *buffer, int *length, int *d_exp)
         diy_fp b_plus = normalize_diy_fp(t);
         diy_fp b_minus;
         diy_fp c_mk; // Cached power of ten: 10^-k
-        uint64_t u64 = CAST_U64(v);
-        if (!(u64 & D64_FRACT_MASK) && (u64 & D64_EXP_MASK) != 0) { b_minus.f = (dfp.f << 2) - 1; b_minus.e =  dfp.e - 2;} // lower boundary is closer?
+        double_memory u64;
+        u64.d = v;
+        if (!(u64.u & D64_FRACT_MASK) && (u64.u & D64_EXP_MASK) != 0) { b_minus.f = (dfp.f << 2) - 1; b_minus.e =  dfp.e - 2;} // lower boundary is closer?
         else { b_minus.f = (dfp.f << 1) - 1; b_minus.e = dfp.e - 1; }
         b_minus.f = b_minus.f << (b_minus.e - b_plus.e);
         b_minus.e = b_plus.e;
@@ -327,25 +334,26 @@ static int i_to_str(int val, char *str)
 
 int dtoa_grisu3(double v, char *dst, int size) {
         int d_exp, len, success, i, decimal_pos;
-        uint64_t u64 = CAST_U64(v);
+        double_memory u64;
         char *s2 = dst;
+        u64.d = v;
 
         // Prehandle NaNs
-        if ((u64 << 1) > ULL(0xFFE0000000000000)) {
+        if ((u64.u << 1) > ULL(0xFFE0000000000000)) {
             *s2++ = 'N'; *s2++ = 'a'; *s2++ = 'N'; *s2 = '\0';
             return (int)(s2 - dst);
         }
         // Prehandle negative values.
-        if ((u64 & D64_SIGN) != 0) {
-            *s2++ = '-'; v = -v; u64 ^= D64_SIGN;
+        if ((u64.u & D64_SIGN) != 0) {
+            *s2++ = '-'; v = -v; u64.u ^= D64_SIGN;
         }
         // Prehandle zero.
-        if (!u64) {
+        if (!u64.u) {
             *s2++ = '0'; *s2 = '\0';
             return (int)(s2 - dst);
         }
         // Prehandle infinity.
-        if (u64 == D64_EXP_MASK) {
+        if (u64.u == D64_EXP_MASK) {
             *s2++ = 'I'; *s2++ = 'n'; *s2++ = 'f'; *s2 = '\0';
             return (int)(s2 - dst);
         }

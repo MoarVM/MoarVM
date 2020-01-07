@@ -175,6 +175,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
         uv_cond_signal(&body->head_cond);
         uv_mutex_unlock(&body->head_lock);
     }
+    MVM_telemetry_interval_annotate(orig_elems, interval_id, "this many items in it");
     MVM_telemetry_interval_stop(tc, interval_id, "ConcBlockingQueue.push");
 }
 
@@ -185,7 +186,6 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     MVMConcBlockingQueueNode *add;
     MVMObject *to_add = value.o;
     unsigned int interval_id;
-    AO_t orig_elems;
 
     if (kind != MVM_reg_obj)
         MVM_exception_throw_adhoc(tc,
@@ -295,7 +295,9 @@ static const MVMREPROps ConcBlockingQueue_this_repr = {
         MVM_REPR_DEFAULT_SET_DIMENSIONS,
         MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC,
         MVM_REPR_DEFAULT_POS_AS_ATOMIC,
-        MVM_REPR_DEFAULT_POS_AS_ATOMIC_MULTIDIM
+        MVM_REPR_DEFAULT_POS_AS_ATOMIC_MULTIDIM,
+        MVM_REPR_DEFAULT_POS_WRITE_BUF,
+        MVM_REPR_DEFAULT_POS_READ_BUF
     },    /* pos_funcs */
     MVM_REPR_DEFAULT_ASS_FUNCS,
     elems,

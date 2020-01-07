@@ -143,7 +143,6 @@ const MVMREPROps * MVMNativeRef_initialize(MVMThreadContext *tc) {
 
 static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMNativeRefREPRData * repr_data = (MVMNativeRefREPRData *)st->REPR_data;
-    MVMuint16              opcode    = ins->info->opcode;
 
     if (!repr_data)
         return;

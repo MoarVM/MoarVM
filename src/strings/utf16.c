@@ -1,7 +1,7 @@
 #include "moar.h"
 
-const static MVMuint8 BOM_UTF16LE[2] = { 0xFF, 0xFE };
-const static MVMuint8 BOM_UTF16BE[2] = { 0xFE, 0xFF };
+static MVMuint8 BOM_UTF16LE[2] = { 0xFF, 0xFE };
+static MVMuint8 BOM_UTF16BE[2] = { 0xFE, 0xFF };
 #define UTF16_DECODE_BIG_ENDIAN 1
 #define UTF16_DECODE_LITTLE_ENDIAN 2
 #define UTF16_DECODE_AUTO_ENDIAN 4
@@ -19,10 +19,10 @@ MVM_STATIC_INLINE void init_utf16_decoder_state(MVMDecodeStream *ds, int setting
 }
 #define utf16_decoder_state(ds) (*((MVMint32*)(ds)->decoder_state))
 MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                    const MVMint32 *stopper_chars,
+                                    const MVMuint32 *stopper_chars,
                                     MVMDecodeStreamSeparators *seps, int endianess);
 MVMuint32 MVM_string_utf16_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                    const MVMint32 *stopper_chars,
+                                    const MVMuint32 *stopper_chars,
                                     MVMDecodeStreamSeparators *seps) {
     if (!ds->decoder_state) {
 #       ifdef MVM_BIGENDIAN
@@ -34,13 +34,13 @@ MVMuint32 MVM_string_utf16_decodestream(MVMThreadContext *tc, MVMDecodeStream *d
     return MVM_string_utf16_decodestream_main(tc, ds, stopper_chars, seps, UTF16_DECODE_AUTO_ENDIAN);
 }
 MVMuint32 MVM_string_utf16le_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                    const MVMint32 *stopper_chars,
+                                    const MVMuint32 *stopper_chars,
                                     MVMDecodeStreamSeparators *seps) {
     init_utf16_decoder_state(ds, UTF16_DECODE_LITTLE_ENDIAN);
     return MVM_string_utf16_decodestream_main(tc, ds, stopper_chars, seps, UTF16_DECODE_LITTLE_ENDIAN);
 }
 MVMuint32 MVM_string_utf16be_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                    const MVMint32 *stopper_chars,
+                                    const MVMuint32 *stopper_chars,
                                     MVMDecodeStreamSeparators *seps) {
     init_utf16_decoder_state(ds, UTF16_DECODE_BIG_ENDIAN);
     return MVM_string_utf16_decodestream_main(tc, ds, stopper_chars, seps, UTF16_DECODE_BIG_ENDIAN);
@@ -49,14 +49,14 @@ MVMuint32 MVM_string_utf16be_decodestream(MVMThreadContext *tc, MVMDecodeStream 
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                    const MVMint32 *stopper_chars,
+                                    const MVMuint32 *stopper_chars,
                                     MVMDecodeStreamSeparators *seps, int endianess) {
-    MVMint32 count = 0, total = 0;
-    MVMint32 bufsize;
+    MVMuint32 count = 0, total = 0;
+    MVMuint32 bufsize;
     MVMGrapheme32 *buffer;
     MVMDecodeStreamBytes *cur_bytes;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
-    MVMint32 last_accept_pos, last_was_cr;
+    MVMint32 last_accept_pos;
     MVMuint32 reached_stopper;
     int low, high;
     /* Set to 1 to remove the BOM even when big endian or little endian are
@@ -77,7 +77,6 @@ MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStre
 
     /* Decode each of the buffers. */
     cur_bytes = ds->bytes_head;
-    last_was_cr = 0;
     reached_stopper = 0;
     if (utf16_decoder_state(ds) == UTF16_DECODE_LITTLE_ENDIAN) {
         low = 0;
@@ -94,7 +93,7 @@ MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStre
     while (cur_bytes) {
         /* Process this buffer. */
         MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
-        MVMuint8 *bytes = (unsigned char *)cur_bytes->bytes;
+        MVMuint8 *bytes = cur_bytes->bytes;
         if (ds->abs_byte_pos == 0 && pos + 1 < cur_bytes->length) {
             if (has_little_endian_bom(bytes + pos)) {
                 /* Only change the setting if we are using standard 'utf16' decode
@@ -129,7 +128,6 @@ MVMuint32 MVM_string_utf16_decodestream_main(MVMThreadContext *tc, MVMDecodeStre
         while (pos + 1 < cur_bytes->length) {
             MVMuint32 value = (bytes[pos+high] << 8) + bytes[pos+low];
             MVMuint32 value2;
-            MVMGrapheme32 g;
 
             if ((value & 0xFC00) == 0xDC00) {
                 MVM_free(buffer);
@@ -240,7 +238,7 @@ static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
     }
 
     if (bytes % 2) {
-        MVM_exception_throw_adhoc(tc, "Malformed UTF-16; odd number of bytes");
+        MVM_exception_throw_adhoc(tc, "Malformed UTF-16; odd number of bytes (%"PRIu64")", (MVMuint64)bytes);
     }
 
     utf16_end = utf16 + bytes;
@@ -336,9 +334,9 @@ char * MVM_string_utf16_encode_substr_main(MVMThreadContext *tc, MVMString *str,
 #endif
     /* must check start first since it's used in the length check */
     if (start < 0 || start > strgraphs)
-        MVM_exception_throw_adhoc(tc, "start out of range");
+        MVM_exception_throw_adhoc(tc, "start (%"PRId64") out of range (0..%"PRIu32")", start, strgraphs);
     if (start + lengthu > strgraphs)
-        MVM_exception_throw_adhoc(tc, "length out of range");
+        MVM_exception_throw_adhoc(tc, "length (%"PRId64") out of range (0..%"PRIu32")", length, strgraphs);
 
     if (replacement)
         repl_bytes = (MVMuint8 *) MVM_string_utf16_encode_substr(tc,

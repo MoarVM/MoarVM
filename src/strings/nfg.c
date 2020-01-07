@@ -270,7 +270,7 @@ MVMGrapheme32 MVM_nfg_crlf_grapheme(MVMThreadContext *tc) {
  * safe point. */
 MVMNFGSynthetic * MVM_nfg_get_synthetic_info(MVMThreadContext *tc, MVMGrapheme32 synth) {
     MVMNFGState *nfg       = tc->instance->nfg;
-    MVMint32     synth_idx = -synth - 1;
+    MVMuint32     synth_idx = -synth - 1;
     if (synth >= 0)
         MVM_oops(tc, "MVM_nfg_get_synthetic_info illegally called on a non-synthetic codepoint.\nRequested codepoint %i.", synth);
     if (synth_idx >= nfg->num_synthetics)
@@ -475,7 +475,7 @@ void MVM_nfg_init(MVMThreadContext *tc) {
  * to a VM instance. */
 void MVM_nfg_destroy(MVMThreadContext *tc) {
     MVMNFGState *nfg = tc->instance->nfg;
-    MVMint32 i;
+    MVMuint32 i;
 
     /* Free all synthetics. */
     if (nfg->synthetics) {

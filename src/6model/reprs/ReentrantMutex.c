@@ -124,7 +124,7 @@ void MVM_reentrantmutex_lock_checked(MVMThreadContext *tc, MVMObject *lock) {
             "lock requires a concrete object with REPR ReentrantMutex");
 }
 void MVM_reentrantmutex_lock(MVMThreadContext *tc, MVMReentrantMutex *rm) {
-    unsigned int interval_id;
+    /*unsigned int interval_id;*/
     if (MVM_load(&rm->body.holder_id) == tc->thread_id) {
         /* We already hold the lock; bump the count. */
         MVM_incr(&rm->body.lock_count);

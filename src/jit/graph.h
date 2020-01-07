@@ -51,8 +51,7 @@ struct MVMJitPrimitive {
 
 struct MVMJitGuard {
     MVMSpeshIns * ins;
-    MVMint32      deopt_target;
-    MVMint32      deopt_offset;
+    MVMuint32 deopt_idx;
 };
 
 
@@ -173,6 +172,7 @@ struct MVMJitCallC {
     MVMJitCallArg  *args;
     MVMuint16   num_args;
     MVMJitRVMode rv_mode;
+    MVMint16      rv_type;
     MVMint16      rv_idx;
 };
 
@@ -221,6 +221,7 @@ typedef enum {
     MVM_JIT_NODE_CONTROL,
     MVM_JIT_NODE_DATA,
     MVM_JIT_NODE_EXPR_TREE,
+    MVM_JIT_NODE_DEOPT_CHECK,
 } MVMJitNodeType;
 
 struct MVMJitNode {

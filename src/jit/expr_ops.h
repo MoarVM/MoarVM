@@ -16,6 +16,7 @@
     _(COPY, 1, 0),   \
     /* memory access */ \
     _(LOAD, 1, 1),   \
+    _(LOAD_NUM, 1, 1), \
     _(STORE, 2, 1), \
     _(ADDR, 1, 1),  \
     _(IDX, 2, 1),   \
@@ -25,6 +26,8 @@
     _(CONST_PTR, 0, 1), \
     /* large constant (8 bytes) */ \
     _(CONST_LARGE, 0, 2), \
+    /* floating point constant */ \
+    _(CONST_NUM, 0, 2), \
     /* integer comparison */ \
     _(LT, 2, 0),     \
     _(LE, 2, 0),     \
@@ -63,7 +66,8 @@
     _(LABEL, 0, 1),  \
     _(MARK, 0, 1), \
     /* call c functions */ \
-    _(CALL, 2, 1),      \
+    _(CALL, 2, 1), \
+    _(CALLN, 2, 0), \
     _(CALLV, 2, 0), \
     _(ARGLIST, -1, 0), \
     _(CARG, 1, 1),     \

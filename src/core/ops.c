@@ -13,6 +13,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        { 0 }
     },
     {
         MVM_OP_const_i8,
@@ -782,6 +783,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        { 0 }
     },
     {
         MVM_OP_eq_i,
@@ -5163,6 +5165,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         1,
         0,
+        { 0 }
     },
     {
         MVM_OP_usecompilerhllconfig,
@@ -5176,6 +5179,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         1,
         0,
+        { 0 }
     },
     {
         MVM_OP_iter,
@@ -7698,8 +7702,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_DEPRECATED_13,
-        "DEPRECATED_13",
+        MVM_OP_vmeventsubscribe,
+        "vmeventsubscribe",
         2,
         0,
         0,
@@ -7709,7 +7713,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_continuationreset,
@@ -7821,6 +7825,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        { 0 }
     },
     {
         MVM_OP_getuniname,
@@ -7911,8 +7916,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         "nativecallinvoke",
         4,
         0,
-        0,
-        0,
+        2,
+        1,
         0,
         0,
         0,
@@ -7974,6 +7979,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        { 0 }
     },
     {
         MVM_OP_currentthread,
@@ -8519,6 +8525,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        { 0 }
     },
     {
         MVM_OP_nativecallcast,
@@ -8630,6 +8637,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        { 0 }
     },
     {
         MVM_OP_nativecallglobal,
@@ -10869,6 +10877,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        { 0 }
     },
     {
         MVM_OP_coveragecontrol,
@@ -10889,8 +10898,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         "nativeinvoke_v",
         2,
         0,
-        0,
-        0,
+        2,
+        1,
         0,
         0,
         0,
@@ -10903,8 +10912,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         "nativeinvoke_i",
         3,
         0,
-        0,
-        0,
+        2,
+        1,
         0,
         0,
         0,
@@ -10917,8 +10926,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         "nativeinvoke_n",
         3,
         0,
-        0,
-        0,
+        2,
+        1,
         0,
         0,
         0,
@@ -10931,8 +10940,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         "nativeinvoke_s",
         3,
         0,
-        0,
-        0,
+        2,
+        1,
         0,
         0,
         0,
@@ -10945,8 +10954,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         "nativeinvoke_o",
         3,
         0,
-        0,
-        0,
+        2,
+        1,
         0,
         0,
         0,
@@ -11778,7 +11787,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_int16 }
     },
     {
         MVM_OP_sp_getarg_n,
@@ -11792,7 +11801,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_int16 }
     },
     {
         MVM_OP_sp_getarg_s,
@@ -11806,7 +11815,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16 }
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_int16 }
     },
     {
         MVM_OP_sp_fastinvoke_v,
@@ -12730,6 +12739,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        { 0 }
     },
     {
         MVM_OP_prof_enterspesh,
@@ -12743,6 +12753,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        { 0 }
     },
     {
         MVM_OP_prof_enterinline,
@@ -12784,6 +12795,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
+        { 0 }
     },
     {
         MVM_OP_prof_allocated,
@@ -12895,7 +12907,7 @@ MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     return &MVM_op_infos[op];
 }
 
-MVM_PUBLIC const MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op) {
+MVM_PUBLIC MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op) {
     if (op > last_op_allowed)
         return 0;
     return !!(MVM_op_allowed_in_confprog[op / 8] & (1 << (op % 8)));

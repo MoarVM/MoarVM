@@ -242,7 +242,6 @@ static int string_can_be_8bit(MVMThreadContext *tc, MVMGraphemeIter *gi_orig, MV
  * the supplied grapheme iterator for the length of body.num_graphs. Very fast
  * since compilers will convert them to SIMD vector operations. */
 static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MVMString *result, MVMString *orig, MVMStringIndex num) {
-    int result_pos = 0;
     MVMGrapheme8   *result8   = NULL;
     MVMGrapheme32 *result32   = NULL;
     MVMStringIndex result_graphs = MVM_string_graphs_nocheck(tc, result);
@@ -355,7 +354,7 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
             graphs_so_far += graphs_this_strand; \
         } \
         else { \
-            int j = 0; \
+            MVMuint32 j = 0; \
             for (; j <= orig->body.storage.strands[i].repetitions; j++) { \
                 memcpy(graphs_so_far + result->body.storage.BLOB_TYPE, \
                     orig->body.storage.strands[i].blob_string->body.storage.BLOB_TYPE + orig->body.storage.strands[i].start, \
@@ -684,7 +683,7 @@ MVMint64 MVM_string_index_from_end(MVMThreadContext *tc, MVMString *Haystack, MV
 
     if (start < 0 || H_graphs <= start)
         /* maybe return -1 instead? */
-        MVM_exception_throw_adhoc(tc, "index start offset out of range");
+        MVM_exception_throw_adhoc(tc, "index start offset (%"PRId64") out of range (0..%"PRIu32")", start, H_graphs);
 
     index = start;
 
@@ -842,7 +841,7 @@ static MVMuint16 final_strand_match_with_repetition_count(MVMThreadContext *tc, 
 /* Append one string to another. */
 MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMString *result = NULL, *renormalized_section = NULL;
-    int renormalized_section_graphs = 0, consumed_a = 0, consumed_b = 0;
+    MVMuint32 renormalized_section_graphs = 0, consumed_a = 0, consumed_b = 0;
     MVMuint32  agraphs, bgraphs;
     MVMuint64  total_graphs;
     int lost_strands          = 0;
@@ -1035,8 +1034,9 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             }
         }
     STRAND_CHECK(tc, result);
-    if (is_concat_stable == 1 || (is_concat_stable == 0 && renormalized_section))
+    if (is_concat_stable == 1 || (is_concat_stable == 0 && renormalized_section)) {
         NFG_CHECK_CONCAT(tc, result, a, b, "'result'");
+    }
     });
     if (is_concat_stable == 1 || (is_concat_stable == 0 && renormalized_section))
         return result;
@@ -1117,7 +1117,6 @@ void MVM_string_say(MVMThreadContext *tc, MVMString *a) {
 }
 
 void MVM_string_print(MVMThreadContext *tc, MVMString *a) {
-    MVMOSHandle *handle = (MVMOSHandle *)tc->instance->stdout_handle;
     MVMuint64 encoded_size;
     char *encoded;
     MVM_string_check_arg(tc, a, "print");
@@ -1234,7 +1233,6 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
     /* Foldcase version of needle */
     MVMString *needle_fc = NULL;
     MVMStringIndex H_graphs = MVM_string_graphs(tc, Haystack);
-    MVMStringIndex n_graphs = MVM_string_graphs(tc, needle);
     MVMStringIndex n_fc_graphs;
     /* H_expansion must be able to hold integers 3x larger than MVMStringIndex */
     MVMint64 H_expansion;
@@ -1354,7 +1352,6 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
     MVMStringIndex H_graphs, n_graphs;
     /* H_expansion must be able to hold integers 3x larger than MVMStringIndex */
     MVMint64 H_expansion;
-    MVMint64 return_val = -1;
     int is_gic = Haystack->body.storage_type == MVM_STRING_STRAND ? 1 : 0;
     void *Hs_or_gic;
     MVM_string_check_arg(tc, Haystack, ignoremark ? "index ignore case ignore mark search target" : "index ignore case search target");
@@ -1434,7 +1431,6 @@ MVMGrapheme32 MVM_string_ord_at(MVMThreadContext *tc, MVMString *s, MVMint64 off
 /* Gets the base character at a grapheme position, ignoring things like diacritics */
 MVMGrapheme32 MVM_string_ord_basechar_at(MVMThreadContext *tc, MVMString *s, MVMint64 offset) {
     MVMStringIndex agraphs;
-    MVMint32 ready;
 
     MVM_string_check_arg(tc, s, "ord_basechar_at");
 
@@ -1619,7 +1615,7 @@ static MVMString * do_case_change(MVMThreadContext *tc, MVMString *s, MVMint32 t
             }
             else {
                 MVMGrapheme32 *transformed;
-                MVMint32 num_transformed = MVM_nfg_get_case_change(tc, g, type, &transformed);
+                MVMuint32 num_transformed = MVM_nfg_get_case_change(tc, g, type, &transformed);
                 if (num_transformed == 0) {
                     result_buf[i++] = g;
                 }
@@ -1873,7 +1869,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
             /* XXX make this use the dual-traverse iterator, but such that it
                 can reset the index of what it's comparing... <!> */
             index = MVM_string_index(tc, input, separator, start);
-            length = sep_length ? (index == -1 ? end : index) - start : 1;
+            length = sep_length ? (index == (MVMStringIndex)-1 ? end : index) - start : 1;
             if (0 < length || (sep_length && length == 0)) {
                 portion = MVM_string_substring(tc, input, start, length);
                 MVMROOT(tc, portion, {
@@ -2141,8 +2137,9 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     STRAND_CHECK(tc, result);
     /* if concat is stable and NFG_CHECK on, run a NFG_CHECK on it since it
      * should be properly constructed now */
-    if (concats_stable)
+    if (concats_stable) {
         NFG_CHECK(tc, result, "MVM_string_join");
+    }
     });
     return concats_stable ? result : re_nfg(tc, result);
 }
@@ -2324,7 +2321,9 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
         spos += sgraphs - spos;
         rpos -= sgraphs - spos;
 
-        res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+        MVMROOT(tc, s, {
+            res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+        });
         res->body.storage_type    = s->body.storage_type;
         res->body.storage.blob_8  = rbuffer;
         break;
@@ -2610,6 +2609,7 @@ MVMint64 MVM_string_grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MV
                     return 0;
             }
             /* Deliberate fall-through; word is _ or digit or alphabetic. */
+            MVM_FALLTHROUGH
 
         case MVM_CCLASS_ALPHANUMERIC:
             if (cp <= '9' && cp >= '0')  /* short circuit common case */
@@ -2618,6 +2618,7 @@ MVMint64 MVM_string_grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MV
                     MVM_UNICODE_PROPERTY_GENERAL_CATEGORY, UPV_Nd))
                 return 1;
             /* Deliberate fall-through; alphanumeric is digit or alphabetic. */
+            MVM_FALLTHROUGH
 
         case MVM_CCLASS_ALPHABETIC:
             if (cp <= 'z') {  /* short circuit common case */
@@ -2663,9 +2664,9 @@ MVMint64 MVM_string_grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MV
                 MVM_UNICODE_PROPERTY_P);
 
         case MVM_CCLASS_NEWLINE: {
-            if (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
+            return (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
                 cp == 0x85 || MVM_CP_is_gencat_name_Zl(cp) || MVM_CP_is_gencat_name_Zp(cp))
-                return 1;
+                ? 1 : 0;
         }
 
         default:
@@ -2834,7 +2835,7 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp) {
     MVMGrapheme32 g;
 
     if (cp < 0)
-        MVM_exception_throw_adhoc(tc, "chr codepoint cannot be negative");
+        MVM_exception_throw_adhoc(tc, "chr codepoint (%"PRId64") cannot be negative", cp);
     /* If the codepoint decomposes we may need to normalize it.
      * The first cp that decomposes is U+0340, but to be on the safe side
      * for now we go with the first significant character which at the time

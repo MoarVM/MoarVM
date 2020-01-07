@@ -607,7 +607,7 @@ symlink             r(str) r(str)
 link                r(str) r(str)
 gethostname         w(str)
 exreturnafterunwind r(obj)
-DEPRECATED_13       w(obj) r(obj)
+vmeventsubscribe    r(obj) r(obj)
 continuationreset   w(obj) r(obj) r(obj) :invokish :maycausedeopt
 # this op isn't actually invokish, but it requires the cur_op to be set before doing its work
 continuationcontrol w(obj) r(int64) r(obj) r(obj) :invokish :maycausedeopt
@@ -623,7 +623,7 @@ getuniprop_bool     w(int64) r(int64) r(int64) :pure
 getuniprop_str      w(str) r(int64) r(int64) :pure
 matchuniprop        w(int64) r(int64) r(int64) r(int64) :pure
 nativecallbuild     w(int64) r(obj) r(str) r(str) r(str) r(obj) r(obj)
-nativecallinvoke    w(obj) r(obj) r(obj) r(obj)
+nativecallinvoke    w(obj) r(obj) r(obj) r(obj) :deoptallpoint :maycausedeopt
 nativecallrefresh   r(obj)
 threadrun           r(obj)
 threadid            w(int64) r(obj) :pure
@@ -838,11 +838,11 @@ atomicstore_o       r(obj) r(obj) :invokish :maycausedeopt :specializable
 atomicstore_i       r(obj) r(int64) :specializable
 barrierfull
 coveragecontrol     r(int64)
-nativeinvoke_v       -a r(obj) r(obj) :specializable
-nativeinvoke_i       -a w(int64) r(obj) r(obj) :specializable
-nativeinvoke_n       -a w(num64) r(obj) r(obj) :specializable
-nativeinvoke_s       -a w(str) r(obj) r(obj) :specializable
-nativeinvoke_o       -a w(obj) r(obj) r(obj) :specializable
+nativeinvoke_v       -a r(obj) r(obj) :specializable :deoptallpoint :maycausedeopt
+nativeinvoke_i       -a w(int64) r(obj) r(obj) :specializable :deoptallpoint :maycausedeopt
+nativeinvoke_n       -a w(num64) r(obj) r(obj) :specializable :deoptallpoint :maycausedeopt
+nativeinvoke_s       -a w(str) r(obj) r(obj) :specializable :deoptallpoint :maycausedeopt
+nativeinvoke_o       -a w(obj) r(obj) r(obj) :specializable :deoptallpoint :maycausedeopt
 getarg_i            w(int64) r(int16)
 getarg_n            w(num64) r(int16)
 getarg_s            w(str) r(int16)
@@ -935,9 +935,9 @@ sp_bindlex_os    .s wl(`1) r(`1)
 
 # Following are for fast, unchecked grabbing of args from the arg buffer.
 sp_getarg_o      .s w(obj) int16 :pure
-sp_getarg_i      .s w(obj) int16 :pure
-sp_getarg_n      .s w(obj) int16 :pure
-sp_getarg_s      .s w(obj) int16 :pure
+sp_getarg_i      .s w(int64) int16 :pure
+sp_getarg_n      .s w(num64) int16 :pure
+sp_getarg_s      .s w(str) int16 :pure
 
 # Fast invocation (link directly to an existing spesh candidate).
 sp_fastinvoke_v  .s r(obj) int16 :maycausedeopt

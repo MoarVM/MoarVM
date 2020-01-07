@@ -262,6 +262,7 @@ if (-e "$config{pkgconfig}") {
 
 # conditionally set include dirs and install rules
 $config{cincludes} = '' unless defined $config{cincludes};
+$config{moar_cincludes} = '' unless defined $config{moar_cincludes};
 $config{lincludes} = '' unless defined $config{lincludes};
 $config{install}   = '' unless defined $config{install};
 if ($args{'has-libuv'}) {
@@ -270,8 +271,8 @@ if ($args{'has-libuv'}) {
     setup_native_library('libuv') if $config{pkgconfig_works};
 }
 else {
-    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libuv/include'
-                        . ' ' . $defaults{ccinc} . '3rdparty/libuv/src';
+    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libuv/include'
+                             . ' ' . $defaults{ccinc} . '3rdparty/libuv/src';
     $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/libuv\"\n"
                         . "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/libuv/uv\"\n"
                         . "\t\$(CP) 3rdparty/libuv/include/*.h \"\$(DESTDIR)\$(PREFIX)/include/libuv\"\n"
@@ -284,7 +285,7 @@ if ($args{'has-libatomic_ops'}) {
     setup_native_library('atomic_ops') if $config{pkgconfig_works};
 }
 else {
-    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libatomicops/src';
+    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libatomicops/src';
     my $lao             = '$(DESTDIR)$(PREFIX)/include/libatomic_ops';
     $config{install}   .= "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/armcc\"\n"
                         . "\t\$(MKPATH) \"$lao/atomic_ops/sysdeps/gcc\"\n"
@@ -320,7 +321,7 @@ if ($args{'has-libtommath'}) {
     }
 }
 else {
-    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
+    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
     $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/libtommath\"\n"
                         . "\t\$(CP) 3rdparty/libtommath/*.h \"\$(DESTDIR)\$(PREFIX)/include/libtommath\"\n";
 }
@@ -363,13 +364,22 @@ elsif ($args{'has-dyncall'}) {
 }
 else {
     $config{nativecall_backend} = 'dyncall';
-    $config{cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dyncall/dynload'
-                        . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncall'
-                        . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncallback';
+    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dyncall/dynload'
+                             . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncall'
+                             . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncallback';
     $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n"
                         . "\t\$(CP) 3rdparty/dyncall/dynload/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n"
                         . "\t\$(CP) 3rdparty/dyncall/dyncall/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n"
                         . "\t\$(CP) 3rdparty/dyncall/dyncallback/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n";
+}
+
+if ($config{pkgconfig_works} && has_native_library('libzstd')) {
+    setup_native_library('libzstd');
+    $config{heapsnapformat} = 3;
+}
+else {
+    print "did not find libzstd; will not use heap snapshot format version 3\n";
+    $config{heapsnapformat} = 2;
 }
 
 # mangle library names
@@ -379,6 +389,7 @@ $config{ldlibs} = join ' ',
     (map { sprintf $config{ldsys}, $_; } @{$config{syslibs}});
 $config{ldlibs} = ' -lasan ' . $config{ldlibs} if $args{asan} && $^O ne 'darwin' && $config{cc} ne 'clang';
 $config{ldlibs} = ' -lubsan ' . $config{ldlibs} if $args{ubsan} and $^O ne 'darwin';
+$config{ldlibs} = $config{ldlibs} . ' -lzstd ' if $config{heapsnapformat} == 3;
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
 
@@ -423,6 +434,7 @@ push @cflags, '-DDEBUG_HELPERS' if $args{debug};
 push @cflags, '-DMVM_VALGRIND_SUPPORT' if $args{valgrind};
 push @cflags, '-DHAVE_TELEMEH' if $args{telemeh};
 push @cflags, '-DWORDS_BIGENDIAN' if $config{be}; # 3rdparty/sha1 needs it and it isnt set on mips;
+push @cflags, '-DMVM_HEAPSNAPSHOT_FORMAT=' . $config{heapsnapformat};
 push @cflags, $ENV{CFLAGS} if $ENV{CFLAGS};
 push @cflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
 $config{cflags} = join ' ', uniq(@cflags);
@@ -541,7 +553,7 @@ my $order = $config{be} ? 'big endian' : 'little endian';
 print "\n", <<TERM, "\n";
         make: $config{make}
      compile: $config{cc} $config{cflags}
-    includes: $config{cincludes}
+    includes: $config{cincludes} $config{moar_cincludes}
         link: $config{ld} $config{ldflags}
         libs: $config{ldlibs}
 
@@ -665,7 +677,7 @@ available make targets.
 TERM2
 
 if (!$failed && $args{'make-install'}) {
-    system($config{make}, 'install');
+    $failed = system($config{make}, 'install') >> 8;
 }
 print $folder_to_delete if $folder_to_delete;
 exit $failed;
@@ -924,6 +936,17 @@ sub setup_native_library {
     }
     else {
         print("Error occured when running $config{pkgconfig} --libs-only-L $library.\n");
+    }
+}
+
+sub has_native_library {
+    my $library = shift;
+    my $result_exists = `$config{pkgconfig} --exists $library`;
+    if ($? == 0) {
+        return 1;
+    }
+    else {
+        return 0;
     }
 }
 

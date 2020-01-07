@@ -27,7 +27,7 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
             HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, hash, key, value); \
         } \
         else { \
-            MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings"); \
+            MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings (got %s)", MVM_6model_get_debug_name(tc, (MVMObject *)key)); \
         } \
     } while (0);
 
@@ -38,7 +38,7 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
             HASH_FIND_VM_STR(tc, hash_handle, hash, key, value); \
         } \
         else { \
-            MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings"); \
+            MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings (got %s)", MVM_6model_get_debug_name(tc, (MVMObject *)key)); \
         } \
     } while (0);
 
@@ -46,7 +46,6 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
 #define MVM_HASH_DESTROY(tc, hash_handle, hashentry_type, head_node) do { \
     hashentry_type *current, *tmp; \
-    unsigned bucket_tmp; \
     HASH_ITER_FAST(tc, hash_handle, head_node, current, { \
         if (current != head_node) \
             MVM_free(current); \

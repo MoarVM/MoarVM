@@ -10,7 +10,7 @@
  * To reduce code length and save memory, these intervals are omitted 
  * in the conversion table and indexes are shifted in the function. */
 
-const static MVMGrapheme32 gb2312_index_to_cp_record[87][94]=
+static MVMGrapheme32 gb2312_index_to_cp_record[87][94]=
 {{0x3000,0x3001,0x3002,0x30fb,0x2c9,0x2c7,0xa8,0x3003,0x3005,0x2015,0xff5e
 ,0x2016,0x2026,0x2018,0x2019,0x201c,0x201d,0x3014,0x3015,0x3008,0x3009,0x300a
 ,0x300b,0x300c,0x300d,0x300e,0x300f,0x3016,0x3017,0x3010,0x3011,0xb1,0xd7
@@ -758,7 +758,7 @@ const static MVMGrapheme32 gb2312_index_to_cp_record[87][94]=
 ,0x9edd,0x9ee0,0x9edf,0x9ee2,0x9ee9,0x9ee7,0x9ee5,0x9eea,0x9eef,0x9f22,0x9f2c
 ,0x9f2f,0x9f39,0x9f37,0x9f3d,0x9f3e,0x9f44}};
 
-const static MVMint32 gb2312_cp_to_index_record[24380]=
+static MVMint32 gb2312_cp_to_index_record[24380]=
 {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,

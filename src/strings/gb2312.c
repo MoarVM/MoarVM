@@ -1,7 +1,8 @@
 #include "moar.h"
 #include "gb2312_codeindex.h"
 
-MVMString * MVM_string_gb2312_decode(MVMThreadContext *tc, const MVMObject *result_type, const char *gb2312, size_t bytes) {
+MVMString * MVM_string_gb2312_decode(MVMThreadContext *tc, const MVMObject *result_type, const char *gb2312_char, size_t bytes) {
+    MVMuint8 *gb2312 = (MVMuint8*)gb2312_char;
     size_t i, result_graphs;
 
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
@@ -12,7 +13,7 @@ MVMString * MVM_string_gb2312_decode(MVMThreadContext *tc, const MVMObject *resu
     result_graphs = 0;
 
     for (i = 0; i < bytes; i++) {
-        if (0 <= gb2312[i] && gb2312[i] <= 127) {
+        if (gb2312[i] <= 127) {
             /* Ascii character */
             if (gb2312[i] == '\r' && i + 1 < bytes && gb2312[i + 1] == '\n') {
                 result->body.storage.blob_32[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
@@ -23,7 +24,7 @@ MVMString * MVM_string_gb2312_decode(MVMThreadContext *tc, const MVMObject *resu
             }
         }
         else {
-            if (i + 1 < bytes && (gb2312[i + 1] > 127 || gb2312[i + 1] < 0)) {
+            if (i + 1 < bytes && 127 < gb2312[i + 1]) {
                 MVMuint8 byte1 = gb2312[i];
                 MVMuint8 byte2 = gb2312[i + 1];
                 MVMuint16 codepoint = (MVMuint16)byte1 * 256 + byte2;
@@ -83,9 +84,9 @@ int gb2312_decode_handler(MVMThreadContext *tc, MVMint32 last_was_first_byte,
 }
 
 MVMuint32 MVM_string_gb2312_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                         const MVMint32 *stopper_chars, MVMDecodeStreamSeparators *seps) {
-    MVMint32 count = 0, total = 0;
-    MVMint32 bufsize;
+                                         const MVMuint32 *stopper_chars, MVMDecodeStreamSeparators *seps) {
+    MVMuint32 count = 0, total = 0;
+    MVMuint32 bufsize;
     MVMGrapheme32 *buffer = NULL;
     MVMDecodeStreamBytes *cur_bytes = NULL;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
@@ -128,7 +129,7 @@ MVMuint32 MVM_string_gb2312_decodestream(MVMThreadContext *tc, MVMDecodeStream *
 
             if (handler_rtrn == GB2312_DECODE_FORMAT_EXCEPTION) {
                 MVM_exception_throw_adhoc(tc, 
-                "Error decoding gb2312 string: invalid gb2312 format (two bytes for a gb2312 character). Last byte seen was 0x%hhX\n", 
+                "Error decoding gb2312 string: invalid gb2312 format (two bytes for a gb2312 character). Last byte seen was 0x%x\n", 
                 last_codepoint);
             }
             else if (handler_rtrn == GB2312_DECODE_CODEPOINT_EXCEPTION) {

@@ -46,7 +46,8 @@ MVMint32 gb18030_valid_check_len4_first2(MVMint32 c_1, MVMint32 c_2) {
     return (((0x81 <= c_1 && c_1 <= 0x83) || (c_1 == 0x84 && c_2 == 0x30)) && (0x30 <= c_2 && c_2 <= 0x39))	|| (c_1 == 0x84 && c_2 == 0x31);
 }
 
-MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *result_type, const char *gb18030, size_t bytes) {
+MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *result_type, const char *gb18030_char, size_t bytes) {
+    MVMuint8 *gb18030 = (MVMuint8*)gb18030_char;
     size_t i, result_graphs;
 
     MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
@@ -57,7 +58,7 @@ MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *res
     result_graphs = 0;
 
     for (i = 0; i < bytes; i++) {
-        if (0 <= gb18030[i] && gb18030[i] <= 127) {
+        if (gb18030[i] <= 127) {
             if (gb18030[i] == '\r' && i + 1 < bytes && gb18030[i + 1] == '\n') {
                 result->body.storage.blob_32[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
                 i++;
@@ -108,9 +109,9 @@ MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *res
 }
 
 MVMuint32 MVM_string_gb18030_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                         const MVMint32 *stopper_chars, MVMDecodeStreamSeparators *seps) {
-    MVMint32 count = 0, total = 0;
-    MVMint32 bufsize;
+                                         const MVMuint32 *stopper_chars, MVMDecodeStreamSeparators *seps) {
+    MVMuint32 count = 0, total = 0;
+    MVMuint32 bufsize;
     MVMGrapheme32 *buffer = NULL;
     MVMDecodeStreamBytes *cur_bytes = NULL;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;

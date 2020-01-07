@@ -116,7 +116,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
     cur_ins = bb->first_ins;
     while (cur_ins) {
         MVMSpeshAnn *ann = cur_ins->annotations;
-        MVMuint32 line_number;
+        MVMuint32 line_number = -1;
         MVMuint32 pop_inlines = 0;
         MVMuint32 num_comments = 0;
 
@@ -567,7 +567,7 @@ static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs) {
 static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMStaticFrame *sf) {
     MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &sf->body, 0);
     MVMCompUnit            *cu = sf->body.cu;
-    MVMint32           str_idx = ann ? ann->filename_string_heap_index : 0;
+    MVMuint32          str_idx = ann ? ann->filename_string_heap_index : 0;
     MVMint32           line_nr = ann ? ann->line_number : 1;
     MVMString        *filename = cu->body.filename;
     char        *filename_utf8 = "<unknown>";
@@ -583,7 +583,7 @@ static void dump_fileinfo(MVMThreadContext *tc, DumpStr *ds, MVMStaticFrame *sf)
 }
 
 static void dump_deopt_pea(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
-    MVMint32 i, j;
+    MVMuint32 i, j;
     if (MVM_VECTOR_ELEMS(g->deopt_pea.materialize_info)) {
         append(ds, "\nMaterializations:\n");
         for (i = 0; i < MVM_VECTOR_ELEMS(g->deopt_pea.materialize_info); i++) {

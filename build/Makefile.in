@@ -40,11 +40,12 @@ PKGCONFIGDIR = @prefix@/share/pkgconfig
 
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO) @ccdef@MVM_RDTSCP=$(RDTSCP)
 CINCLUDES = @cincludes@ \
+            @moar_cincludes@ \
             @ccinc@@shaincludedir@ \
-            @ccinc@3rdparty/tinymt \
-            @ccinc@3rdparty/dynasm \
-            @ccinc@3rdparty/cmp \
-            @ccinc@3rdparty \
+            @ccincsystem@3rdparty/tinymt \
+            @ccincsystem@3rdparty/dynasm \
+            @ccincsystem@3rdparty/cmp \
+            @ccincsystem@3rdparty \
             @ccinc@src
 LDFLAGS   = @ldflags@
 LDLIBS    = @ldlibs@
@@ -79,6 +80,8 @@ JIT_OBJECTS  = src/jit/graph@obj@ \
 JIT_INTERMEDIATES = src/jit/x64/emit.c \
                     src/jit/x64/tile_pattern.h \
                     src/jit/core_templates.h
+
+JIT_PERL_LIBS = tools/lib/sexpr.pm tools/lib/expr_ops.pm tools/lib/oplist.pm
 
 MAIN_OBJECTS = src/main@obj@
 
@@ -182,6 +185,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/6model/reprs/Decoder@obj@ \
           src/6model/reprs/MVMSpeshLog@obj@ \
           src/6model/reprs/MVMStaticFrameSpesh@obj@ \
+          src/6model/reprs/MVMSpeshPluginState@obj@ \
           src/6model/6model@obj@ \
           src/6model/bootstrap@obj@ \
           src/6model/sc@obj@ \
@@ -225,7 +229,6 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/strings/utf16@obj@ \
           src/strings/windows1252@obj@ \
           src/strings/shiftjis@obj@ \
-          src/strings/shiftjis_codeindex@obj@ \
           src/strings/gb2312@obj@ \
           src/strings/gb18030@obj@ \
           src/math/bigintops@obj@ \
@@ -351,6 +354,7 @@ HEADERS = src/moar.h \
           src/6model/reprs/Decoder.h \
           src/6model/reprs/MVMSpeshLog.h \
           src/6model/reprs/MVMStaticFrameSpesh.h \
+          src/6model/reprs/MVMSpeshPluginState.h \
           src/6model/sc.h \
           src/spesh/dump.h \
           src/spesh/debug.h \
@@ -651,14 +655,15 @@ src/jit/x64/emit.c: src/jit/x64/emit.dasc src/jit/x64/tiles.dasc $(MINILUA) $(DY
 
 # Expression list tables
 src/jit/core_templates.h: src/jit/core_templates.expr src/jit/macro.expr \
-    tools/expr-template-compiler.pl tools/sexpr.pm tools/expr_ops.pm tools/oplist.pm \
-    src/core/oplist src/jit/expr_ops.h
+    src/core/oplist src/jit/expr_ops.h \
+	tools/expr-template-compiler.pl $(JIT_PERL_LIBS)
 
 # Architecture-specific tiles
-src/jit/x64/tile_pattern.h: src/jit/x64/tile_pattern.tile tools/tiler-table-generator.pl src/jit/expr_ops.h
+src/jit/x64/tile_pattern.h: src/jit/x64/tile_pattern.tile src/jit/expr_ops.h \
+   tools/tiler-table-generator.pl $(JIT_PERL_LIBS)
 
 src/jit/expr@obj@: src/jit/core_templates.h
-src/jit/tile@obj@: src/jit/x64/tile_pattern.h src/jit/x64/tile_decl.h
+src/jit/tile@obj@: src/jit/x64/tile_pattern.h
 
 src/jit/compile@obj@ src/jit/linear_scan@obj@ src/jit/x64/arch@obj@ @jit_obj@: src/jit/internal.h src/jit/x64/arch.h
 

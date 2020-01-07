@@ -22,6 +22,9 @@ typedef enum {
     MVM_SPESH_LOG_RETURN,
     /* Spesh plugin resolution result. */
     MVM_SPESH_LOG_PLUGIN_RESOLUTION,
+    /* Return from a logged callframe to an unlogged one, needed to keep
+     * the spesh simulation stack in sync. */
+    MVM_SPESH_LOG_RETURN_TO_UNLOGGED,
 } MVMSpeshLogEntryKind;
 
 /* Flags on types. */
@@ -54,13 +57,13 @@ struct MVMSpeshLogEntry {
         struct {
             MVMObject *type;
             MVMint32 flags;
-            MVMint32 bytecode_offset;
+            MVMuint32 bytecode_offset;
         } type;
 
         /* Observed value (STATIC). */
         struct {
             MVMObject *value;
-            MVMint32 bytecode_offset;
+            MVMuint32 bytecode_offset;
         } value;
 
         /* Observed invocation (INVOKE). */
@@ -68,12 +71,12 @@ struct MVMSpeshLogEntry {
             MVMStaticFrame *sf;
             MVMint16 caller_is_outer;
             MVMuint16 was_multi;
-            MVMint32 bytecode_offset;
+            MVMuint32 bytecode_offset;
         } invoke;
 
         /* Observed OSR point (OSR). */
         struct {
-            MVMint32 bytecode_offset;
+            MVMuint32 bytecode_offset;
         } osr;
 
         /* Spesh log resolution result (PLUGIN_RESOLUTION). */

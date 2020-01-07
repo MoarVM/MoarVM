@@ -33,7 +33,7 @@ struct MVMSpeshCandidate {
 
     /* Number of inlines and inlines table; see graph.h for description of
      * the table format. */
-    MVMint32 num_inlines;
+    MVMuint32 num_inlines;
     MVMSpeshInline *inlines;
 
     /* The list of local types (only set up if we do inlines). */

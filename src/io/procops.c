@@ -245,7 +245,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     MVMArray              *buffer;
     SpawnInfo             *si;
     char                  *output;
-    int                    output_size, r;
+    int                    output_size, r = 0;
 
     /* Add to work in progress. */
     SpawnWriteInfo *wi = (SpawnWriteInfo *)data;
@@ -472,6 +472,7 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
     MVMObject *done_cb = MVM_repr_at_key_o(tc, si->callbacks,
         tc->instance->str_consts.done);
     MVMOSHandle *os_handle;
+    uv_mutex_t *mutex;
     if (!MVM_is_null(tc, done_cb)) {
         MVMROOT(tc, done_cb, {
             /* Get status. */
@@ -494,10 +495,11 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
 
     /* when invoked via MVMIOOps, close_stdin is already wrapped in a mutex */
     os_handle = (MVMOSHandle *) si->handle;
-    uv_mutex_lock(os_handle->body.mutex);
+    mutex = os_handle->body.mutex;
+    uv_mutex_lock(mutex);
     si->state = STATE_DONE;
     close_stdin(tc, os_handle);
-    uv_mutex_unlock(os_handle->body.mutex);
+    uv_mutex_unlock(mutex);
 
     /* Close handle. */
     uv_close((uv_handle_t *)req, spawn_async_close);
@@ -506,10 +508,27 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
         MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
 }
 
+#ifndef MIN
+    #define MIN(x,y) ((x)<(y)?(x):(y))
+#endif
+
+MVM_STATIC_INLINE void adjust_nursery(MVMThreadContext *tc, size_t read_buffer_size) {
+    int adjustment = MIN(read_buffer_size, 32768) & ~0x7;
+    if (adjustment && (char *)tc->nursery_alloc_limit - adjustment > (char *)tc->nursery_alloc) {
+        tc->nursery_alloc_limit = (char *)(tc->nursery_alloc_limit) - adjustment;
+        /*fprintf(stderr, "made an adjustment of %x: %p - %p == %x; read buffer size %x\n", adjustment, tc->nursery_alloc_limit, tc->nursery_alloc, (char *)tc->nursery_alloc_limit - (char *)tc->nursery_alloc, read_buffer_size);*/
+    }
+    else {
+        /*fprintf(stderr, "did not make an adjustment of %x: %p - %p == %x; read buffer size %x\n", adjustment, tc->nursery_alloc_limit, tc->nursery_alloc, (char *)tc->nursery_alloc_limit - (char *)tc->nursery_alloc, read_buffer_size);*/
+    }
+}
+
+
 /* Allocates a buffer of the suggested size. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
     SpawnInfo *si = (SpawnInfo *)handle->data;
     size_t size   = si->last_read ? si->last_read : 64;
+    MVMThreadContext *tc = si->tc;
 
     if (size < 128) {
         size = 128;
@@ -517,6 +536,8 @@ static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) 
     else {
         size = MVM_bithacks_next_greater_pow2(size + 1);
     }
+
+    adjust_nursery(tc, size);
 
     buf->base = MVM_malloc(size);
     buf->len  = size;

@@ -1,9 +1,9 @@
 # MoarVM
 
 MoarVM (short for Metamodel On A Runtime Virtual Machine) is a runtime built
-for the 6model object system. It is primarily aimed at running NQP and Rakudo
-Perl 6, but should be able to serve as a backend for any compilers built using
-the NQP compiler toolchain.
+for the 6model object system. It is primarily aimed at running NQP and
+Rakudo, but should be able to serve as a backend for any compilers
+built using the NQP compiler toolchain.
 
 ## Get It
 Either download it from [the MoarVM site](https://www.moarvm.org/) or clone it from GitHub:
@@ -51,8 +51,8 @@ will do all the work for you, including creating an `nqp-m`.
 ## Status
 
 MoarVM is currently in development. It can run all of the NQP test suite, all
-of the Rakudo sanity tests, and passes more spectests than any other Rakudo
-Perl 6 backend (though some backends pass tests that it does not).
+of the Rakudo sanity tests, and passes more spectests than any other
+Rakudo backend (though some backends pass tests that it does not).
 
 Unlike the JVM backend of NQP, the MoarVM repo is not currently planned to be
 integrated into the main NQP source repo http://github.com/perl6/nqp but
@@ -65,12 +65,11 @@ Some key features provided by MoarVM include:
 
 * Meta-object programming, using the 6model design
 * Precise, generational, and parallel GC
-* Unicode 10.0 support (Unicode Character Database, encodings, normalization)
+* Unicode 12.1 support (Unicode Character Database, encodings, normalization)
 * First-class code objects, lexical variables and closures
 * Exceptions
 * Continuations
 * Bounded serialization
-* Code generation from MAST (MoarVM AST)
 * Runtime loading of code
 * Big integers
 * A range of IO and process support, including asynchronous sockets, signals,
@@ -79,9 +78,12 @@ Some key features provided by MoarVM include:
 * Threads, mutexes, condition variables, semaphores, and blocking queues
 * Bytecode specialization by type, and numerous optimizations (including
   resolution of method calls and multiple dispatch, dead code elimination,
-  inlining, and on stack replacement)
+  inlining, on stack replacement, scalar replacement, and partial escape
+  analysis)
 * JIT compilation
 * Instrumentation-based profiling of call frames and allocations
+* Heap snapshotting
+* Remote Debugging with single stepping and variable/object introspection
 
 ## Contributing
 

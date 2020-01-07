@@ -49,7 +49,7 @@ typedef enum {
 struct MVMGCPassedWork {
     MVMCollectable **items[MVM_GC_PASS_WORK_SIZE];
     MVMGCPassedWork *next;
-    MVMint32         num_items;
+    MVMuint32        num_items;
 };
 
 /* Functions. */

@@ -103,7 +103,7 @@ MVMint64 MVM_io_tell(MVMThreadContext *tc, MVMObject *oshandle) {
 
 void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "read bytes");
-    MVMint64 bytes_read;
+    MVMuint64 bytes_read;
     char *buf;
 
     /* Ensure the target is in the correct form. */
@@ -136,7 +136,7 @@ void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
 void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *buffer) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "write bytes");
     char *output;
-    MVMint64 output_size;
+    MVMuint64 output_size;
 
     /* Ensure the target is in the correct form. */
     if (!IS_CONCRETE(buffer) || REPR(buffer)->ID != MVM_REPR_ID_VMArray)

@@ -221,12 +221,11 @@ static void compose(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *ar
 
 #define introspect_member(member, set_result, result) \
 static void member(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) { \
-    MVMObject *self, *type_obj, *member; \
+    MVMObject *self, *member; \
     MVMArgProcContext arg_ctx; \
     MVM_args_proc_init(tc, &arg_ctx, callsite, args); \
     MVM_args_checkarity(tc, &arg_ctx, 2, 2); \
     self     = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0); \
-    type_obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 1); \
     MVM_args_proc_cleanup(tc, &arg_ctx); \
     if (!self || !IS_CONCRETE(self) || REPR(self)->ID != MVM_REPR_ID_KnowHOWREPR) \
         MVM_exception_throw_adhoc(tc, "KnowHOW methods must be called on object instance with REPR KnowHOWREPR"); \
@@ -576,6 +575,8 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(ready, "ready");
     string_creator(multidim, "multidim");
     string_creator(entry_point, "entry_point");
+    string_creator(resolve_lib_name, "resolve_lib_name");
+    string_creator(resolve_lib_name_arg, "resolve_lib_name_arg");
     string_creator(kind, "kind");
     string_creator(instrumented, "instrumented");
     string_creator(heap, "heap");
@@ -639,6 +640,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_boot_type(tc, MVM_REPR_ID_ReentrantMutex, boot_types.BOOTReentrantMutex, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMSpeshLog, SpeshLog, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMStaticFrameSpesh, StaticFrameSpesh, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
+    create_stub_boot_type(tc, MVM_REPR_ID_MVMSpeshPluginState, SpeshPluginState, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
 
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
@@ -672,6 +674,9 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     meta_objectifier(tc, boot_types.BOOTQueue, "BOOTQueue");
     meta_objectifier(tc, boot_types.BOOTAsync, "BOOTAsync");
     meta_objectifier(tc, boot_types.BOOTReentrantMutex, "BOOTReentrantMutex");
+    meta_objectifier(tc, SpeshLog, "SpeshLog");
+    meta_objectifier(tc, StaticFrameSpesh, "StaticFrameSpesh");
+    meta_objectifier(tc, SpeshPluginState, "SpeshPluginState");
 
     /* Create the KnowHOWAttribute type. */
     create_KnowHOWAttribute(tc);

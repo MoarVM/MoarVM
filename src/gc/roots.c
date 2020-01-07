@@ -134,6 +134,14 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     if (tc->instance->confprog)
         MVM_confprog_mark(tc, worklist, snapshot);
 
+    add_collectable(tc, worklist, snapshot, tc->instance->subscriptions.subscription_queue,
+        "VM Event Subscription Queue");
+
+    add_collectable(tc, worklist, snapshot, tc->instance->subscriptions.GCEvent,
+        "VM Event GCEvent type");
+    add_collectable(tc, worklist, snapshot, tc->instance->subscriptions.GCEvent,
+        "VM Event SpeshOverviewEvent type");
+
     MVM_debugserver_mark_handles(tc, worklist, snapshot);
 }
 
@@ -210,8 +218,13 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
             MVM_spesh_graph_describe(tc, tc->spesh_active_graph, snapshot);
     }
     MVM_spesh_plugin_guard_list_mark(tc, tc->plugin_guards, tc->num_plugin_guards, worklist);
+    if (tc->temp_plugin_guards)
+        MVM_spesh_plugin_guard_list_mark(tc, tc->temp_plugin_guards, tc->temp_num_plugin_guards, worklist);
     add_collectable(tc, worklist, snapshot, tc->plugin_guard_args,
         "Plugin guard args");
+    if (tc->temp_plugin_guard_args)
+        add_collectable(tc, worklist, snapshot, tc->temp_plugin_guard_args,
+            "Temporary plugin guard args");
 
     if (tc->step_mode_frame)
         add_collectable(tc, worklist, snapshot, tc->step_mode_frame,

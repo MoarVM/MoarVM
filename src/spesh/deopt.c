@@ -22,12 +22,12 @@ MVM_STATIC_INLINE void clear_dynlex_cache(MVMThreadContext *tc, MVMFrame *f) {
  * are running the de-optimized code. We may, of course, be in the original,
  * non-inline, bit of the code - in which case we've nothing to do. */
 static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
-                     MVMint32 offset, MVMint32 deopt_offset, MVMFrame *callee) {
+                     MVMuint32 offset, MVMuint32 deopt_offset, MVMFrame *callee) {
     MVMFrame      *last_uninlined = NULL;
-    MVMuint16      last_res_reg;
-    MVMReturnType  last_res_type;
-    MVMuint32      last_return_deopt_idx;
-    MVMint32 i;
+    MVMuint16      last_res_reg = 0;
+    MVMReturnType  last_res_type = 0;
+    MVMuint32      last_return_deopt_idx = 0;
+    MVMuint32 i;
     for (i = 0; i < cand->num_inlines; i++) {
         if (offset > cand->inlines[i].start && offset <= cand->inlines[i].end) {
             /* Create the frame. */
@@ -52,6 +52,11 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             if (usf->body.num_lexicals)
                 memcpy(uf->env, f->env + cand->inlines[i].lexicals_start,
                     usf->body.num_lexicals * sizeof(MVMRegister));
+
+            /* Store the callsite, in case we need it for further processing
+             * of arguments. (TODO may need to consider the rest of the arg
+             * processing context too.) */
+            uf->params.callsite = cand->inlines[i].cs;
 
             /* Store the named argument used bit field, since if we deopt in
              * argument handling code we may have missed some. */
@@ -210,7 +215,7 @@ static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMObject ***m
 
 /* Materialize all replaced objects that need to be at this deopt index. */
 static void materialize_replaced_objects(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_index) {
-    MVMint32 i;
+    MVMuint32 i;
     MVMSpeshCandidate *cand = f->spesh_cand;
     MVMuint32 num_deopt_points = MVM_VECTOR_ELEMS(cand->deopt_pea.deopt_point);
     MVMObject **materialized = NULL;
@@ -224,34 +229,14 @@ static void materialize_replaced_objects(MVMThreadContext *tc, MVMFrame *f, MVMi
     MVM_free(materialized);
 }
 
-/* If there are any materializations, resolve the deopt_offset into and index
- * and then perform them. */
-static void materialize_replaced_objects_by_offset(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset) {
-    MVMSpeshCandidate *cand = f->spesh_cand;
-    if (MVM_VECTOR_ELEMS(cand->deopt_pea.deopt_point)) {
-        MVMint32 i;
-        for (i = 0; i < cand->num_deopts; i++) {
-            if (cand->deopts[2 * i + 1] == deopt_offset) {
-#if MVM_LOG_DEOPTS
-                fprintf(stderr, "    Resolved offset %d to deopt index %d\n", deopt_offset, i);
-#endif
-                materialize_replaced_objects(tc, f, i);
-                return;
-            }
-        }
-    }
-#if MVM_LOG_DEOPTS
-    fprintf(stderr, "    Failed to find deopt index for offset %d\n", deopt_offset);
-#endif
-}
 
-static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset, MVMint32 deopt_target) {
+static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMuint32 deopt_idx, MVMuint32 deopt_offset, MVMuint32 deopt_target) {
     /* Found it. We materialize any replaced objects first, then if
      * we have stuff replaced in inlines then uninlining will take
      * care of moving it out into the frames where it belongs. */
     deopt_named_args_used(tc, f);
     MVMROOT(tc, f, {
-        materialize_replaced_objects_by_offset(tc, f, deopt_offset);
+        materialize_replaced_objects(tc, f, deopt_idx);
     });
 
     /* Check if we have inlines. */
@@ -290,7 +275,7 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_offset
 
 /* De-optimizes the currently executing frame, provided it is specialized and
  * at a valid de-optimization point. Typically used when a guard fails. */
-void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_target) {
+void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_idx) {
     MVMFrame *f = tc->cur_frame;
     if (tc->instance->profiling)
         MVM_profiler_log_deopt_one(tc);
@@ -300,12 +285,15 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_target) {
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
 #endif
     clear_dynlex_cache(tc, f);
+    assert(f->spesh_cand != NULL);
+    assert(deopt_idx < f->spesh_cand->num_deopts);
     if (f->spesh_cand) {
-        MVMuint32 deopt_offset = *(tc->interp_cur_op) - f->spesh_cand->bytecode;
+        MVMuint32 deopt_target = f->spesh_cand->deopts[deopt_idx * 2];
+        MVMuint32 deopt_offset = f->spesh_cand->deopts[deopt_idx * 2 + 1];
 #if MVM_LOG_DEOPTS
-    fprintf(stderr, "    Will deopt %u -> %u\n", deopt_offset, deopt_target);
+        fprintf(stderr, "    Will deopt %u -> %u\n", deopt_offset, deopt_target);
 #endif
-        deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
+        deopt_frame(tc, tc->cur_frame, deopt_idx, deopt_offset, deopt_target);
     }
     else {
         MVM_oops(tc, "deopt_one failed for %s (%s)",
@@ -316,23 +304,6 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_target) {
     MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
 }
 
-/* De-optimizes the current frame by directly specifying the addresses */
-void MVM_spesh_deopt_one_direct(MVMThreadContext *tc, MVMuint32 deopt_offset,
-                                MVMuint32 deopt_target) {
-    MVMFrame *f = tc->cur_frame;
-#if MVM_LOG_DEOPTS
-    fprintf(stderr, "Deopt one requested by JIT in frame '%s' (cuid '%s') (%u -> %u)\n",
-        MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
-        MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid),
-        deopt_offset, deopt_target);
-#endif
-    if (tc->instance->profiling)
-        MVM_profiler_log_deopt_one(tc);
-    clear_dynlex_cache(tc, f);
-    deopt_frame(tc, tc->cur_frame, deopt_offset, deopt_target);
-
-    MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
-}
 
 /* Takes a frame that is *not* the one currently running on the call stack
  * but is in specialized code. Finds the currently active deopt index at
@@ -341,7 +312,7 @@ MVMint32 MVM_spesh_deopt_find_inactive_frame_deopt_idx(MVMThreadContext *tc, MVM
     /* Is it JITted code? */
     if (f->spesh_cand->jitcode) {
         MVMJitCode *jitcode = f->spesh_cand->jitcode;
-        MVMint32 idx = MVM_jit_code_get_active_deopt_idx(tc, jitcode, f);
+        MVMuint32 idx = MVM_jit_code_get_active_deopt_idx(tc, jitcode, f);
         if (idx < jitcode->num_deopts) {
             MVMint32 deopt_idx = jitcode->deopts[idx].idx;
 #if MVM_LOG_DEOPTS

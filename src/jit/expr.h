@@ -19,17 +19,17 @@ MVM_JIT_EXPR_OPS(MVM_JIT_OP_ENUM)
 };
 
 /* samcv++ for this trick */
-#define MVM_STATIC_ASSERT(x) typedef char __ASSERT[(x)?1:-1];
+#define MVM_STATIC_ASSERT(x) typedef char __ASSERT[(x)?1:-1]
 
 /* Tree node information for easy access and use during compilation (a
    symbol table entry of sorts) */
 struct MVMJitExprInfo {
-    MVMint8 num_links;
-    MVMint8 num_args;
+    MVMuint8 num_links;
+    MVMuint8 num_args;
     /* VM 'register' type represented by this node */
     MVMint8 type;
     /* Size of computed value */
-    MVMint8 size;
+    MVMuint8 size;
 };
 
 MVM_STATIC_ASSERT(sizeof(MVMJitExprInfo) <= sizeof(MVMint32));
@@ -80,8 +80,12 @@ struct MVMJitTreeTraverser {
 
 
 /* properties of expression ops */
-MVMint32 MVM_jit_expr_op_negate_flag(MVMThreadContext *tc, MVMint32 op);
-MVMint32 MVM_jit_expr_op_is_binary_noncommutative(MVMThreadContext *tc, MVMint32 op);
+enum MVMJitExprOperator MVM_jit_expr_op_invert_comparison(enum MVMJitExprOperator op);
+MVMint32 MVM_jit_expr_op_is_binary(enum MVMJitExprOperator op);
+MVMint32 MVM_jit_expr_op_is_unary(enum MVMJitExprOperator op);
+MVMint32 MVM_jit_expr_op_is_commutative(enum MVMJitExprOperator op);
+MVMint32 MVM_jit_expr_op_is_call(enum MVMJitExprOperator op);
+const char * MVM_jit_expr_operator_name(MVMThreadContext *tc, enum MVMJitExprOperator operator);
 
 MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIterator *iter);
 MVMint32 MVM_jit_expr_apply_template(MVMThreadContext *tc, MVMJitExprTree *tree, const MVMJitExprTemplate*, MVMint32 *operands);
@@ -90,16 +94,18 @@ void MVM_jit_expr_tree_traverse(MVMThreadContext *tc, MVMJitExprTree *tree, MVMJ
 void MVM_jit_expr_tree_destroy(MVMThreadContext *tc, MVMJitExprTree *tree);
 MVMint32 MVM_jit_expr_tree_get_nodes(MVMThreadContext *tc, MVMJitExprTree *tree,
                                      MVMint32 node, const char *path, MVMint32 *buffer);
-const char * MVM_jit_expr_operator_name(MVMThreadContext *tc, enum MVMJitExprOperator operator);
 
 
 MVM_STATIC_INLINE MVMJitExprInfo * MVM_JIT_EXPR_INFO(MVMJitExprTree *tree, MVMint32 node) {
     return (MVMJitExprInfo*)(tree->nodes + node + 1);
 }
 
-
 MVM_STATIC_INLINE MVMuint8 MVM_JIT_EXPR_NCHILD(MVMJitExprTree *tree, MVMint32 node) {
     return MVM_JIT_EXPR_INFO(tree, node)->num_links;
+}
+
+MVM_STATIC_INLINE MVMuint8 MVM_JIT_EXPR_TYPE(MVMJitExprTree *tree, MVMint32 node) {
+    return MVM_JIT_EXPR_INFO(tree, node)->type;
 }
 
 MVM_STATIC_INLINE MVMint32 MVM_JIT_EXPR_FIRST_CHILD(MVMJitExprTree *tree, MVMint32 node) {
@@ -115,3 +121,7 @@ MVM_STATIC_INLINE MVMint32 * MVM_JIT_EXPR_ARGS(MVMJitExprTree *tree, MVMint32 no
     return MVM_JIT_EXPR_LINKS(tree, node) + MVM_JIT_EXPR_NCHILD(tree, node);
 }
 
+MVM_STATIC_INLINE MVMint32 MVM_JIT_EXPR_IS_NUM(MVMJitExprTree *tree, MVMint32 node) {
+    MVMuint8 expr_type = MVM_JIT_EXPR_TYPE(tree,node);
+    return expr_type == MVM_reg_num32 || expr_type == MVM_reg_num64;
+}

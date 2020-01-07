@@ -239,8 +239,9 @@ struct MVMThreadContext {
 
     /* We try to do better at OSR by creating a fresh log when we enter a new
      * compilation unit. However, for things that EVAL or do a ton of BEGIN,
-     * this does more harm than good. Use this to throttle it back. */
-    MVMuint32 num_compunit_extra_logs;
+     * we risk high memory use. Use this to throttle it by limiting the number
+     * of such extra logs that might exist at a time. */
+    AO_t num_compunit_extra_logs;
 
     /* The current specialization correlation ID, used in logging. */
     MVMuint32 spesh_cid;
@@ -263,6 +264,10 @@ struct MVMThreadContext {
     MVMSpeshPluginGuard *plugin_guards;
     MVMObject *plugin_guard_args;
     MVMuint32 num_plugin_guards;
+
+    MVMSpeshPluginGuard *temp_plugin_guards;
+    MVMObject *temp_plugin_guard_args;
+    MVMuint32 temp_num_plugin_guards;
 
     /************************************************************************
      * Per-thread state held by assorted VM subsystems
@@ -328,10 +333,13 @@ struct MVMThreadContext {
 
     MVMuint32 cur_file_idx;
     MVMuint32 cur_line_no;
+
+    int nested_interpreter;
 };
 
 MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance);
 void MVM_tc_destroy(MVMThreadContext *tc);
 void MVM_tc_set_ex_release_mutex(MVMThreadContext *tc, uv_mutex_t *mutex);
+void MVM_tc_set_ex_release_atomic(MVMThreadContext *tc, AO_t *flag);
 void MVM_tc_release_ex_release_mutex(MVMThreadContext *tc);
 void MVM_tc_clear_ex_release_mutex(MVMThreadContext *tc);

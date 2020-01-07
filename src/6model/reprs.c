@@ -72,6 +72,11 @@ static void die_no_pos(MVMThreadContext *tc, const char *repr_name, const char *
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) does not support positional access (for type %s)", repr_name, debug_name);
 }
+MVM_NO_RETURN static void die_no_multidim(MVMThreadContext *tc, const char *repr_name, const char *debug_name) MVM_NO_RETURN_ATTRIBUTE;
+static void die_no_multidim(MVMThreadContext *tc, const char *repr_name, const char *debug_name) {
+    MVM_exception_throw_adhoc(tc,
+        "This representation (%s) does not support multidimensional positional access (for type %s)", repr_name, debug_name);
+}
 void MVM_REPR_DEFAULT_AT_POS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
@@ -96,6 +101,7 @@ void MVM_REPR_DEFAULT_SHIFT(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
 void MVM_REPR_DEFAULT_SLICE(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *data, MVMObject *dest, MVMint64 start, MVMint64 end) {
     die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
+
 void MVM_REPR_DEFAULT_AT_POS_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister *value, MVMuint16 kind) {
     die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
@@ -108,6 +114,19 @@ void MVM_REPR_DEFAULT_DIMENSIONS(MVMThreadContext *tc, MVMSTable *st, MVMObject 
 void MVM_REPR_DEFAULT_SET_DIMENSIONS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_dimensions, MVMint64 *dimensions) {
     die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
+
+void MVM_REPR_DEFAULT_AT_POS_MULTIDIM_NO_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister *value, MVMuint16 kind) {
+    die_no_multidim(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
+}
+void MVM_REPR_DEFAULT_BIND_POS_MULTIDIM_NO_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister value, MVMuint16 kind) {
+    die_no_multidim(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
+}
+void MVM_REPR_DEFAULT_DIMENSIONS_NO_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 *num_dimensions, MVMint64 **dimensions) {
+    die_no_multidim(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
+}
+void MVM_REPR_DEFAULT_SET_DIMENSIONS_NO_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_dimensions, MVMint64 *dimensions) {
+    die_no_multidim(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
+}
 GCC_DIAG_OFF(return-type)
 MVMStorageSpec MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC(MVMThreadContext *tc, MVMSTable *st) {
     die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
@@ -119,6 +138,14 @@ AO_t * MVM_REPR_DEFAULT_POS_AS_ATOMIC(MVMThreadContext *tc, MVMSTable *st, MVMOb
 AO_t * MVM_REPR_DEFAULT_POS_AS_ATOMIC_MULTIDIM(MVMThreadContext *tc, MVMSTable *st,
                                                MVMObject *root, void *data,
                                                MVMint64 num_indices, MVMint64 *indices) {
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
+}
+void MVM_REPR_DEFAULT_POS_WRITE_BUF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+                                      void *data, char *from, MVMint64 offset, MVMuint64 elems) {
+    die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
+}
+MVMint64 MVM_REPR_DEFAULT_POS_READ_BUF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+                                      void *data, MVMint64 offset, MVMuint64 elems) {
     die_no_pos(tc, st->REPR->name, MVM_6model_get_stable_debug_name(tc, st));
 }
 GCC_DIAG_ON(return-type)
@@ -255,6 +282,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(Decoder);
     register_core_repr(SpeshLog);
     register_core_repr(StaticFrameSpesh);
+    register_core_repr(SpeshPluginState);
 
     tc->instance->num_reprs = MVM_REPR_CORE_COUNT;
 }

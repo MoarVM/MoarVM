@@ -16,6 +16,12 @@ static void jg_append_node(MVMJitGraph *jg, MVMJitNode *node) {
     node->next = NULL;
 }
 
+static void jg_append_deopt_check(MVMThreadContext *tc, MVMJitGraph *jg) {
+    MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
+    node->type = MVM_JIT_NODE_DEOPT_CHECK;
+    jg_append_node(jg, node);
+}
+
 static void jg_append_primitive(MVMThreadContext *tc, MVMJitGraph *jg,
                                 MVMSpeshIns * ins) {
     MVMJitNode * node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
@@ -315,6 +321,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_radix: return MVM_radix;
     case MVM_OP_radix_I: return MVM_bigint_radix;
     case MVM_OP_sqrt_n: return sqrt;
+    case MVM_OP_log_n: return log;
+    case MVM_OP_exp_n: return exp;
     case MVM_OP_sin_n: return sin;
     case MVM_OP_cos_n: return cos;
     case MVM_OP_tan_n: return tan;
@@ -322,6 +330,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_acos_n: return acos;
     case MVM_OP_atan_n: return atan;
     case MVM_OP_atan2_n: return atan2;
+    case MVM_OP_ceil_n: return ceil;
     case MVM_OP_floor_n: return floor;
     case MVM_OP_pow_I: return MVM_bigint_pow;
     case MVM_OP_rand_I: return MVM_bigint_rand;
@@ -411,25 +420,30 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
 
 static void jg_append_guard(MVMThreadContext *tc, MVMJitGraph *jg,
                              MVMSpeshIns *ins, MVMuint32 target_operand) {
-    MVMSpeshAnn   *ann = ins->annotations;
     MVMJitNode   *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
     MVMint32 deopt_idx;
     node->type = MVM_JIT_NODE_GUARD;
     node->u.guard.ins = ins;
-    while (ann) {
-        if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS ||
-            ann->type == MVM_SPESH_ANN_DEOPT_INLINE) {
-            deopt_idx = ann->data.deopt_idx;
-            break;
-        }
-        ann = ann->next;
+    switch (ins->info->opcode) {
+    case MVM_OP_sp_guard:
+    case MVM_OP_sp_guardconc:
+    case MVM_OP_sp_guardtype:
+    case MVM_OP_sp_guardobj:
+    case MVM_OP_sp_guardnotobj:
+    case MVM_OP_sp_rebless:
+        deopt_idx = ins->operands[3].lit_ui32;
+        break;
+    case MVM_OP_sp_guardsf:
+    case MVM_OP_sp_guardsfouter:
+    case MVM_OP_sp_guardjustconc:
+    case MVM_OP_sp_guardjusttype:
+        deopt_idx = ins->operands[2].lit_ui32;
+        break;
+    default:
+        abort();
+        break;
     }
-    if (!ann) {
-        MVM_oops(tc, "Can't find deopt idx annotation on spesh ins <%s>",
-            ins->info->name);
-    }
-    node->u.guard.deopt_target = ins->operands[target_operand].lit_ui32;
-    node->u.guard.deopt_offset = jg->sg->deopt_addrs[2 * deopt_idx + 1];
+    node->u.guard.deopt_idx = deopt_idx;
     jg_append_node(jg, node);
 }
 
@@ -498,11 +512,9 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
             goto checkargs;
         case MVM_OP_nativeinvoke_o: {
             MVMint16 dst     = ins->operands[0].reg.orig;
-            MVMint16 site    = ins->operands[1].reg.orig;
             MVMint16 restype = ins->operands[2].reg.orig;
             MVMNativeCallBody *body;
             MVMJitGraph *nc_jg;
-            MVMObject *nc_site;
 
             MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, iter->graph, ins->operands[1]);
 
@@ -870,6 +882,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
             case MVM_OP_atkey_s:
             case MVM_OP_atkey_o:
                 alternative = 1;
+                MVM_FALLTHROUGH
             case MVM_OP_atpos_i:
             case MVM_OP_atpos_n:
             case MVM_OP_atpos_s:
@@ -912,6 +925,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
             case MVM_OP_bindkey_s:
             case MVM_OP_bindkey_o:
                 alternative = 1;
+                MVM_FALLTHROUGH
             case MVM_OP_bindpos_i:
             case MVM_OP_bindpos_n:
             case MVM_OP_bindpos_s:
@@ -1136,6 +1150,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
             case MVM_OP_push_s:
             case MVM_OP_push_o:
                 alternative = 1;
+                MVM_FALLTHROUGH
             case MVM_OP_unshift_i:
             case MVM_OP_unshift_n:
             case MVM_OP_unshift_s:
@@ -1167,6 +1182,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
             case MVM_OP_pop_s:
             case MVM_OP_pop_o:
                 alternative = 1;
+                MVM_FALLTHROUGH
             case MVM_OP_shift_i:
             case MVM_OP_shift_n:
             case MVM_OP_shift_s:
@@ -1845,6 +1861,7 @@ start:
     case MVM_OP_getstdout:
     case MVM_OP_getstdin:
     case MVM_OP_ordat:
+    case MVM_OP_ordbaseat:
     case MVM_OP_ordfirst:
     case MVM_OP_getcodename:
     case MVM_OP_setcodeobj:
@@ -1899,8 +1916,6 @@ start:
          * Though this is a modification you would usually find in spesh, in this
          * case it depends on successful JIT compilation of previous ops. As we know
          * this only when we actually JIT compile, we have to do it here instead */
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 arg = ins->operands[1].reg.orig;
         MVMSpeshFacts *src_facts = MVM_spesh_get_facts(tc, iter->graph, ins->operands[1]);
         if (src_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
             MVMSpeshBB *cur_bb = iter->bb;
@@ -2288,8 +2303,6 @@ start:
         break;
     }
     case MVM_OP_hllboolfor: {
-        MVMint16 dst  = ins->operands[0].reg.orig;
-        MVMint16 src  = ins->operands[1].reg.orig;
         MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[2]);
         if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
             MVMHLLConfig *hll_config = MVM_hll_get_config_for(tc, facts->value.s);
@@ -2402,7 +2415,6 @@ start:
         MVMint16 buf   = ins->operands[0].reg.orig;
         MVMint16 off   = ins->operands[1].reg.orig;
         MVMint16 value = ins->operands[2].reg.orig;
-        MVMint16 flags = ins->operands[3].reg.orig;
         MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[3]);
         if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
             if ((facts->value.i & 3) != MVM_SWITCHENDIAN) {
@@ -2450,7 +2462,6 @@ start:
         MVMint16 dst   = ins->operands[0].reg.orig;
         MVMint16 buf   = ins->operands[1].reg.orig;
         MVMint16 off   = ins->operands[2].reg.orig;
-        MVMint16 flags = ins->operands[3].reg.orig;
         MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, jg->sg, ins->operands[3]);
         if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
             if ((facts->value.i & 3) != MVM_SWITCHENDIAN) {
@@ -3439,8 +3450,11 @@ start:
         break;
     }
     case MVM_OP_abs_n:
+    case MVM_OP_ceil_n:
     case MVM_OP_floor_n:
     case MVM_OP_sqrt_n:
+    case MVM_OP_log_n:
+    case MVM_OP_exp_n:
     case MVM_OP_sin_n:
     case MVM_OP_cos_n:
     case MVM_OP_tan_n:
@@ -3506,12 +3520,15 @@ start:
         MVMint16 restype = ins->operands[1].reg.orig;
         MVMint16 site    = ins->operands[2].reg.orig;
         MVMint16 cargs   = ins->operands[3].reg.orig;
+        MVMJitCallArg targs[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } } };
+        jg_append_call_c(tc, jg, MVM_jit_code_trampoline, 1, targs, MVM_JIT_RV_VOID, -1);
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { restype } },
                                  { MVM_JIT_REG_VAL, { site } },
                                  { MVM_JIT_REG_VAL, { cargs } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args,
                           MVM_JIT_RV_PTR, dst);
+        jg_append_deopt_check(tc, jg);
         break;
     }
     case MVM_OP_typeparameters:
@@ -3692,8 +3709,6 @@ start:
         if (op == MVM_OP_return_n) {
             args[1].type = MVM_JIT_REG_VAL_F;
         }
-        if (op == MVM_OP_return_o)
-            jg_append_call_c(tc, jg, &MVM_spesh_log_return_type_from_jit, 2, args, MVM_JIT_RV_VOID, -1);
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         /* reuse args for tc arg */
         jg_append_call_c(tc, jg, &MVM_frame_try_return, 1, args, MVM_JIT_RV_VOID, -1);
@@ -3879,13 +3894,13 @@ start:
 static MVMint32 consume_bb(MVMThreadContext *tc, MVMJitGraph *jg,
                            MVMSpeshIterator *iter, MVMSpeshBB *bb) {
     MVMJitExprTree *tree = NULL;
-    MVMint32 i;
+    MVMuint32 i;
     MVMint32 label = MVM_jit_label_before_bb(tc, jg, bb);
     jg_append_label(tc, jg, label);
 
     /* add a jit breakpoint if required */
     for (i = 0; i < tc->instance->jit_breakpoints_num; i++) {
-        if (tc->instance->jit_breakpoints[i].frame_nr == tc->instance->jit_seq_nr &&
+        if (tc->instance->jit_breakpoints[i].frame_nr == tc->instance->spesh_produced &&
             tc->instance->jit_breakpoints[i].block_nr == iter->bb->idx) {
             jg_append_control(tc, jg, bb->first_ins, MVM_JIT_CONTROL_BREAKPOINT);
             break; /* one is enough though */

@@ -48,8 +48,8 @@ struct MVMSpeshGraph {
     MVMCollectable **spesh_slots;
 
     /* Number of spesh slots we have used and allocated. */
-    MVMint32 num_spesh_slots;
-    MVMint32 alloc_spesh_slots;
+    MVMuint16 num_spesh_slots;
+    MVMuint16 alloc_spesh_slots;
 
     /* De-opt indexes, as pairs of integers. The first integer, set when we
      * build the graph, is the return address in the original bytecode. The
@@ -57,8 +57,8 @@ struct MVMSpeshGraph {
      * integers afterwards, which are the return address in the specialized
      * bytecode. */
     MVMint32 *deopt_addrs;
-    MVMint32  num_deopt_addrs;
-    MVMint32  alloc_deopt_addrs;
+    MVMuint32 num_deopt_addrs;
+    MVMuint32 alloc_deopt_addrs;
 
     /* Bit field of named args used to put in place during deopt, since we
      * don't typically don't update the array in specialized code. */
@@ -77,10 +77,10 @@ struct MVMSpeshGraph {
      * are within the bounds will show up each call frame that needs to
      * be created in deopt. */
     MVMSpeshInline *inlines;
-    MVMint32 num_inlines;
+    MVMuint32 num_inlines;
 
     /* Number of basic blocks we have. */
-    MVMint32 num_bbs;
+    MVMuint32 num_bbs;
 
     /* The list of local types (only set up if we do inlines). */
     MVMuint16 *local_types;
@@ -243,7 +243,7 @@ struct MVMSpeshAnn {
 
     /* Data (meaning depends on type). */
     union {
-        MVMint32 frame_handler_index;
+        MVMuint32 frame_handler_index;
         MVMint32 deopt_idx;
         MVMint32 inline_idx;
         MVMuint32 bytecode_offset;
@@ -277,7 +277,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     MVMSpeshCandidate *cand, MVMuint32 cfg_only, MVMSpeshIns ***deopt_usage_ins_out);
 MVMSpeshBB * MVM_spesh_graph_linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *search);
 void MVM_spesh_graph_grow_deopt_table(MVMThreadContext *tc, MVMSpeshGraph *g);
-void MVM_spesh_graph_add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g,
+MVMint32 MVM_spesh_graph_add_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVMSpeshIns *ins_node, MVMuint32 deopt_target, MVMint32 type);
 MVMSpeshBB ** MVM_spesh_graph_reverse_postorder(MVMThreadContext *tc, MVMSpeshGraph *g);
 void MVM_spesh_graph_recompute_dominance(MVMThreadContext *tc, MVMSpeshGraph *g);

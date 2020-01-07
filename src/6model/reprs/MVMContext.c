@@ -123,7 +123,6 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
 static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key, MVMRegister value, MVMuint16 kind) {
     MVMString      *name  = (MVMString *)key;
     MVMContextBody *body  = (MVMContextBody *)data;
-    MVMFrame       *frame = body->context;
 
     MVMSpeshFrameWalker fw;
     MVMRegister *found;
@@ -175,7 +174,6 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
 static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key) {
     MVMContextBody *body = (MVMContextBody *)data;
-    MVMFrame *frame = body->context;
 
     MVMSpeshFrameWalker fw;
     MVMRegister *found;

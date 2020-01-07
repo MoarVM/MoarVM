@@ -235,9 +235,28 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
                     else /* non-line ending codepoint */
                         col++;
                     break;
-                case UTF8_REJECT:
+                case UTF8_REJECT: {
+                    size_t error_pos = orig_bytes - bytes;
                     MVM_free(buffer);
-                    MVM_exception_throw_adhoc(tc, "Malformed UTF-8 at line %u col %u", line, col);
+                    /* Different error messages for the first few bytes, so that
+                     * we print as much context as possible */
+                    if (error_pos >= 3) {
+                        unsigned char a = orig_utf8[error_pos - 2], b = orig_utf8[error_pos - 1], c = orig_utf8[error_pos];
+                        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx %02hhx at line %u col %u", a, b, c, line, col);
+                    }
+                    else if (error_pos == 2) {
+                        unsigned char a = orig_utf8[error_pos - 1], b = orig_utf8[error_pos];
+                        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx at line %u col %u", a, b, line, col);
+                    }
+                    else if (error_pos == 1) {
+                        unsigned char a = orig_utf8[error_pos];
+                        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near byte %02hhx at line %u col %u", a, line, col);
+                    }
+                    else {
+                        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 at line %u col %u", line, col);
+                    }
+                    break;
+                }
                 }
             }
             MVM_free(buffer);
@@ -289,30 +308,47 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
     return result;
 }
 
-static MVMint32 its_the_bom(const char *utf8) {
-    const MVMuint8 *uns_utf8 = (const MVMuint8 *)utf8;
-    return uns_utf8[0] == 0xEF && uns_utf8[1] == 0xBB && uns_utf8[2] == 0xBF;
+static MVMint32 its_the_bom(const MVMuint8 *utf8) {
+    return utf8[0] == 0xEF && utf8[1] == 0xBB && utf8[2] == 0xBF;
 }
 
 /* Same as MVM_string_utf8_decode, but strips a BOM if it finds one. */
 MVMString * MVM_string_utf8_decode_strip_bom(MVMThreadContext *tc, const MVMObject *result_type, const char *utf8, size_t bytes) {
-    if (bytes >= 3 && its_the_bom(utf8)) {
+    if (bytes >= 3 && its_the_bom((MVMuint8*)utf8)) {
         utf8 += 3;
         bytes -= 3;
     }
     return MVM_string_utf8_decode(tc, result_type, utf8, bytes);
 }
 
+static void encoding_error(MVMThreadContext *tc, MVMuint8 *bytes, int error_pos) {
+    if (error_pos >= 3) {
+        MVMuint8 a = bytes[error_pos - 2], b = bytes[error_pos - 1], c = bytes[error_pos];
+        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx %02hhx", a, b, c);
+    }
+    else if (error_pos == 2) {
+        MVMuint8 a = bytes[error_pos - 1], b = bytes[error_pos];
+        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx", a, b);
+    }
+    else if (error_pos == 1) {
+        MVMuint8 a = bytes[error_pos];
+        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near byte %02hhx", a);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
+    }
+}
+
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                  const MVMint32 *stopper_chars,
+                                  const MVMuint32 *stopper_chars,
                                   MVMDecodeStreamSeparators *seps) {
-    MVMint32 count = 0, total = 0;
+    MVMuint32 count = 0, total = 0;
     MVMint32 state = 0;
     MVMCodepoint codepoint = 0;
     MVMCodepoint lag_codepoint = -1;
-    MVMint32 bufsize;
+    MVMuint32 bufsize;
     MVMGrapheme32 *buffer           = NULL;
     MVMDecodeStreamBytes *cur_bytes = NULL;
     MVMDecodeStreamBytes *last_accept_bytes     = ds->bytes_head;
@@ -344,7 +380,7 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
     while (cur_bytes) {
         /* Process this buffer. */
         MVMint32  pos   = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
-        char     *bytes = cur_bytes->bytes;
+        MVMuint8 *bytes = cur_bytes->bytes;
         if (at_start) {
             /* We're right at the start of the stream of things to decode. See
              * if we have a BOM, and skip over it if so. */
@@ -383,10 +419,11 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     lag_last_accept_pos = pos;
                     break;
                 }
-                case UTF8_REJECT:
+                case UTF8_REJECT: {
                     MVM_free(buffer);
-                    MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
+                    encoding_error(tc, bytes, pos - 1);
                     break;
+                }
                 }
             }
 
@@ -432,10 +469,11 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     lag_last_accept_pos = pos;
                     break;
                 }
-                case UTF8_REJECT:
+                case UTF8_REJECT: {
                     MVM_free(buffer);
-                    MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
+                    encoding_error(tc, bytes, pos - 1);
                     break;
+                }
                 }
             }
 
@@ -486,10 +524,11 @@ MVMuint32 MVM_string_utf8_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds
                     }
                     break;
                 }
-                case UTF8_REJECT:
+                case UTF8_REJECT: {
                     MVM_free(buffer);
-                    MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
+                    encoding_error(tc, bytes, pos - 1);
                     break;
+                }
                 }
             }
         }
@@ -522,11 +561,11 @@ char * MVM_string_utf8_encode_substr(MVMThreadContext *tc,
     MVMuint64        repl_length;
 
     if (start < 0 || start > strgraphs)
-        MVM_exception_throw_adhoc(tc, "start out of range");
+        MVM_exception_throw_adhoc(tc, "start (%"PRId64") out of range (0..%"PRIu32")", start, strgraphs);
     if (length == -1)
         length = strgraphs;
     if (length < 0 || start + length > strgraphs)
-        MVM_exception_throw_adhoc(tc, "length out of range");
+        MVM_exception_throw_adhoc(tc, "length (%"PRId64") out of range (0..%"PRIu32")", length, strgraphs);
 
     if (replacement)
         repl_bytes = (MVMuint8 *) MVM_string_utf8_encode_substr(tc,

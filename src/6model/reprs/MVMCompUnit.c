@@ -70,7 +70,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCompUnitBody *body = &((MVMCompUnit *)obj)->body;
 
-    int i;
+    MVMuint32 i;
     for (i = 0; i < body->num_callsites; i++) {
         MVMCallsite *cs = body->callsites[i];
         if (!cs->is_interned)
@@ -177,25 +177,30 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
     MVMCompUnitBody     *body      = (MVMCompUnitBody *)data;
     MVMuint32 i;
 
+    MVMuint64 cache_1 = 0;
+    MVMuint64 cache_2 = 0;
+    MVMuint64 cache_3 = 0;
+    MVMuint64 cache_4 = 0;
+
     /* Add code refs to the worklists. */
     for (i = 0; i < body->num_frames; i++)
-        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-            (MVMCollectable *)body->coderefs[i], "Code refs array entry");
+        MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+            (MVMCollectable *)body->coderefs[i], "Code refs array entry", &cache_1);
 
     /* Add extop names to the worklist. */
     for (i = 0; i < body->num_extops; i++)
-        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-            (MVMCollectable *)body->extops[i].name, "Ext-op names list entry");
+        MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+            (MVMCollectable *)body->extops[i].name, "Ext-op names list entry", &cache_2);
 
     /* Add strings to the worklists. */
     for (i = 0; i < body->num_strings; i++)
-        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-            (MVMCollectable *)body->strings[i], "Strings heap entry");
+        MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+            (MVMCollectable *)body->strings[i], "Strings heap entry", &cache_3);
 
     /* Add serialization contexts to the worklist. */
     for (i = 0; i < body->num_scs; i++)
-        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-            (MVMCollectable *)body->scs[i], "Serialization context dependency");
+        MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+            (MVMCollectable *)body->scs[i], "Serialization context dependency", &cache_4);
 
     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
         (MVMCollectable *)body->deserialize_frame_mutex, "Update_mutex");

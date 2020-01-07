@@ -236,7 +236,7 @@ static MVMint32 NFD_and_push_collation_values (MVMThreadContext *tc, MVMCodepoin
     return rtrn;
 }
 /* Returns the number of collation elements pushed onto the stack */
-static MVMint32 collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp, collation_stack *stack, MVMCodepointIter *ci, char *name) {
+static void collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp, collation_stack *stack, MVMCodepointIter *ci, char *name) {
     collation_key MVM_coll_key = {
         MVM_unicode_collation_primary(tc, cp), MVM_unicode_collation_secondary(tc, cp), MVM_unicode_collation_tertiary(tc, cp), 0
     };
@@ -244,7 +244,9 @@ static MVMint32 collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp
      * Eventually we might want to restructure this code here */
     if (is_Block_Tangut(cp) || MVM_coll_key.s.primary <= 0 || MVM_coll_key.s.secondary <= 0 || MVM_coll_key.s.tertiary <= 0) {
         MVMuint32 AAAA, BBBB;
+#ifdef COLLATION_DEBUG
         char *block_pushed = NULL;
+#endif
         collation_key calculated_key[2] = {
             {0, 0x20, 0x2, 0},
             {0, 0x00, 0x0, 0}
@@ -278,7 +280,7 @@ static MVMint32 collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp
         else {
             MVMint32 NFD_rtrn = NFD_and_push_collation_values(tc, cp, stack, ci, name);
             if (NFD_rtrn) {
-                return NFD_rtrn;
+                return;
             }
             else {
                 AAAA = compute_AAAA(cp, 0xFBC0);
@@ -290,14 +292,12 @@ static MVMint32 collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp
         calculated_key[1].s.primary = BBBB;
         DEBUG_PRINT_SPECIAL_PUSHED(block_pushed, name, cp);
         push_onto_stack(tc, stack, calculated_key, 2, name);
-        return 2;
     }
     else {
         push_key_to_stack(stack,
             MVM_coll_key.s.primary,
             MVM_coll_key.s.secondary,
             MVM_coll_key.s.tertiary);
-        return 1;
     }
 }
 /* This is passed the terminal node and it adds the collation elements linked from
@@ -355,7 +355,6 @@ MVMint64 find_next_node (MVMThreadContext *tc, sub_node node, MVMCodepoint next_
 MVMint64 get_main_node (MVMThreadContext *tc, int cp, int range_min, int range_max) {
     MVMint64 i;
     MVMint64 rtrn = -1;
-    int counter   = 0;
     /* Decrement range_min because binary search defaults to 1..* not 0..* */
     range_min--;
     /* starter_main_nodes_elems are all the nodes which are the origin nodes
@@ -375,11 +374,9 @@ MVMint64 get_main_node (MVMThreadContext *tc, int cp, int range_min, int range_m
 }
 /* Returns the number of added collation keys */
 static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack, MVMCodepointIter *ci, int *cp_maybe, int cp_num, char *name) {
-    MVMint64 rtrn = 0;
     MVMCodepoint cps[10];
     MVMint64 num_cps_processed = 0;
     int query = -1;
-    int cp_num_orig = cp_num;
     /* If supplied -1 that means we need to grab it from the codepoint iterator. Otherwise
      * the value we were passed is the codepoint we should process */
     if (cp_num == 0) {
@@ -422,8 +419,9 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
                     last_good_i      = i;
                     last_good_result = result;
                 }
-                if (result != -1)
+                if (result != -1) {
                     DEBUG_PRINT_SUB_NODE(main_nodes[result]);
+                }
             }
             /* If there is no last_good_result we should return a value from main_nodes */
             DEBUG_PRINT_SUB_NODE( (last_good_result == -1 ? main_nodes[query] : main_nodes[last_good_result]) );
@@ -439,7 +437,7 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
     }
     else {
         /* Push the first codepoint onto the stack */
-        rtrn = collation_push_MVM_values(tc, cps[0], stack, ci, name);
+        collation_push_MVM_values(tc, cps[0], stack, ci, name);
         num_cps_processed = 1;
     }
     /* If there are any more codepoints remaining call collation_push_cp on the remaining */
@@ -455,7 +453,6 @@ MVMint64 grab_from_stack(MVMThreadContext *tc, MVMCodepointIter *ci, collation_s
     return 1;
 }
 static void init_ringbuffer (MVMThreadContext *tc,  ring_buffer *buffer) {
-    MVMint64 i;
     buffer->count           =  0;
     buffer->location        = -1;
     buffer->codes_out_count =  0;
@@ -507,7 +504,6 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
     MVMStringIndex alen, blen;
     /* Iteration variables */
     MVMCodepointIter a_ci, b_ci;
-    MVMGrapheme32 ai, bi;
     /* Set it all to 0 to start with. We alter this based on the collation_mode later on */
     level_eval level_eval_settings = {
         { {0,0,0}, {0,0,0}, {0,0,0}, {0,0,0} }
@@ -524,7 +520,7 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
     /* This value stores what the return value would be if the strings were compared
      * by codepoint. This is used to break collation value ties */
     MVMint64 compare_by_cp_rtrn = 0;
-    MVMint64 pos_a = 0, pos_b = 0, i = 0, rtrn = 0;
+    MVMint64 pos_a = 0, pos_b = 0, rtrn = 0;
     MVMint16 grab_a_done = 0, grab_b_done = 0;
     /* From 0 to 2 for primary, secondary, tertiary levels */
     MVMint16   level_a = 0,   level_b = 0;
@@ -678,7 +674,6 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
 
 /* Looks up a codepoint by name. Lazily constructs a hash. */
 MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
-    MVMuint64 size;
     char *cname = MVM_string_utf8_encode_C_string(tc, name);
     size_t cname_len = strlen((const char *) cname );
     MVMUnicodeNameRegistry *result;
@@ -699,7 +694,7 @@ MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) 
         };
         int i;
         for (i = 0; i < prefixes_len; i++) {
-            int str_len = strlen(prefixes[i]);
+            size_t str_len = strlen(prefixes[i]);
             if (cname_len <= str_len)
                 continue;
             /* Make sure to catch conditions which strtoll is ok with but we
@@ -712,7 +707,7 @@ MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) 
             if (!strncmp(cname, prefixes[i], str_len)) {
                 char *reject = NULL;
                 MVMint64 rtrn = strtol(cname + strlen(prefixes[i]), &reject, 16);
-                if (prefixes[i][0] == '<' && *reject == '>' && reject - cname + 1 == cname_len) {
+                if (prefixes[i][0] == '<' && *reject == '>' && (size_t)(reject - cname + 1) == cname_len) {
                     MVM_free(cname);
                     return rtrn;
                 }
@@ -751,7 +746,7 @@ MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
         name_len = strlen(name);
     /* Look up name. */
     else {
-        MVMuint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
+        MVMint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
         if (codepoint_row != -1) {
             name = codepoint_names[codepoint_row];
             if (!name) {
@@ -974,7 +969,7 @@ MVMint32 unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 pro
                                    /* number + dash + property_value + NULL */
     MVMuint64 out_str_length = length_of_num(property_code) + 1 + cname_length + 1;
     if (1024 < out_str_length)
-        MVM_exception_throw_adhoc(tc, "Property value or name queried is larger than allowed.");
+        MVM_exception_throw_adhoc(tc, "Property value or name queried (%"PRIu64") is larger than allowed (1024).", out_str_length);
 
     out_str = alloca(sizeof(char) * out_str_length);
     snprintf(out_str, out_str_length, "%"PRIi64"-%s", property_code, cname);
@@ -1046,7 +1041,6 @@ void MVM_unicode_release(MVMThreadContext *tc)
         int i;
 
         for (i = 0; i < MVM_NUM_PROPERTY_CODES; i++) {
-            MVMUnicodeNameRegistry *entry = NULL;
             int j;
 
             if (!unicode_property_values_hashes[i]) {

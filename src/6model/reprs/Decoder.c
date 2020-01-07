@@ -112,11 +112,13 @@ void MVM_decoder_ensure_decoder(MVMThreadContext *tc, MVMObject *decoder, const 
 static void enter_single_user(MVMThreadContext *tc, MVMDecoder *decoder) {
     if (!MVM_trycas(&(decoder->body.in_use), 0, 1))
        MVM_exception_throw_adhoc(tc, "Decoder may not be used concurrently");
+    MVM_tc_set_ex_release_atomic(tc, &(decoder->body.in_use));
 }
 
 /* Releases the decoder single-user sanity check flag. */
 static void exit_single_user(MVMThreadContext *tc, MVMDecoder *decoder) {
     decoder->body.in_use = 0;
+    MVM_tc_clear_ex_release_mutex(tc);
 }
 
 /* Configures the decoder with the specified encoding and other configuration. */
@@ -210,22 +212,22 @@ void MVM_decoder_add_bytes(MVMThreadContext *tc, MVMDecoder *decoder, MVMObject 
     if (REPR(buffer)->ID == MVM_REPR_ID_VMArray) {
         /* To be safe, we need to make a copy of data in a resizable array; it
          * may change/move under us. */
-        char *output = NULL, *copy = NULL;
+        MVMuint8 *output = NULL, *copy = NULL;
         MVMint64 output_size;
         switch (((MVMArrayREPRData *)STABLE(buffer)->REPR_data)->slot_type) {
             case MVM_ARRAY_U8:
             case MVM_ARRAY_I8:
-                output = (char *)(((MVMArray *)buffer)->body.slots.i8 + ((MVMArray *)buffer)->body.start);
+                output = (MVMuint8 *)(((MVMArray *)buffer)->body.slots.u8 + ((MVMArray *)buffer)->body.start);
                 output_size = ((MVMArray *)buffer)->body.elems;
                 break;
             case MVM_ARRAY_U16:
             case MVM_ARRAY_I16:
-                output = (char *)(((MVMArray *)buffer)->body.slots.i16 + ((MVMArray *)buffer)->body.start);
+                output = (MVMuint8 *)(((MVMArray *)buffer)->body.slots.u16 + ((MVMArray *)buffer)->body.start);
                 output_size = ((MVMArray *)buffer)->body.elems * 2;
                 break;
             case MVM_ARRAY_U32:
             case MVM_ARRAY_I32:
-                output = (char *)(((MVMArray *)buffer)->body.slots.i32 + ((MVMArray *)buffer)->body.start);
+                output = (MVMuint8 *)(((MVMArray *)buffer)->body.slots.u32 + ((MVMArray *)buffer)->body.start);
                 output_size = ((MVMArray *)buffer)->body.elems * 4;
                 break;
             default:
@@ -309,7 +311,7 @@ MVMint64 MVM_decoder_bytes_available(MVMThreadContext *tc, MVMDecoder *decoder) 
 MVMObject * MVM_decoder_take_bytes(MVMThreadContext *tc, MVMDecoder *decoder,
                                    MVMObject *buf_type, MVMint64 bytes) {
     MVMDecodeStream *ds = get_ds(tc, decoder);
-    char *buf = NULL;
+    MVMuint8 *buf = NULL;
     MVMint64 read;
     MVMObject *result = NULL;
 

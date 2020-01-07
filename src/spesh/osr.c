@@ -9,7 +9,7 @@ static MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *can
     MVMint32 offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start));
 
     /* Locate it in the deopt table. */
-    MVMint32 i;
+    MVMuint32 i;
     for (i = 0; i < cand->num_deopts; i++)
         if (cand->deopts[2 * i] == offset)
             return i;
@@ -94,7 +94,7 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
     /* Move into the optimized (and maybe JIT-compiled) code. */
 
     if (jit_code && jit_code->num_deopts) {
-        MVMint32 i;
+        MVMuint32 i;
         *(tc->interp_bytecode_start)   = jit_code->bytecode;
         *(tc->interp_cur_op)           = jit_code->bytecode;
         for (i = 0; i < jit_code->num_deopts; i++) {

@@ -478,45 +478,46 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                     /* No cached object. */
                     void *cobj = get_ptr_at_offset(body->cstruct, repr_data->struct_offsets[slot]);
                     if (cobj) {
-                        MVMObject **child_objs = body->child_objs;
-                        if (type == MVM_CSTRUCT_ATTR_CARRAY) {
-                            if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
-                                obj = MVM_nativecall_make_carray(tc, typeobj,
-                                    (char *)body->cstruct + repr_data->struct_offsets[slot]);
-                            else
-                                obj = MVM_nativecall_make_carray(tc, typeobj, cobj);
-                        }
-                        else if(type == MVM_CSTRUCT_ATTR_CSTRUCT) {
-                            if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
-                                obj = MVM_nativecall_make_cstruct(tc, typeobj,
-                                    (char *)body->cstruct + repr_data->struct_offsets[slot]);
-                            else
-                                obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
-                        }
-                        else if(type == MVM_CSTRUCT_ATTR_CPPSTRUCT) {
-                            if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
-                                obj = MVM_nativecall_make_cppstruct(tc, typeobj,
-                                    (char *)body->cstruct + repr_data->struct_offsets[slot]);
-                            else
-                                obj = MVM_nativecall_make_cppstruct(tc, typeobj, cobj);
-                        }
-                        else if(type == MVM_CSTRUCT_ATTR_CUNION) {
-                            if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
-                                obj = MVM_nativecall_make_cunion(tc, typeobj,
-                                    (char *)body->cstruct + repr_data->struct_offsets[slot]);
-                            else
-                                obj = MVM_nativecall_make_cunion(tc, typeobj, cobj);
-                        }
-                        else if(type == MVM_CSTRUCT_ATTR_CPTR) {
-                            obj = MVM_nativecall_make_cpointer(tc, typeobj, cobj);
-                        }
-                        else if(type == MVM_CSTRUCT_ATTR_STRING) {
-                            MVMROOT2(tc, typeobj, root, {
-                                MVMString *str = MVM_string_utf8_decode(tc, tc->instance->VMString,
-                                    cobj, strlen(cobj));
-                                obj = MVM_repr_box_str(tc, typeobj, str);
-                            });
-                        }
+                        MVMROOT(tc, root, {
+                            if (type == MVM_CSTRUCT_ATTR_CARRAY) {
+                                if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
+                                    obj = MVM_nativecall_make_carray(tc, typeobj,
+                                        (char *)body->cstruct + repr_data->struct_offsets[slot]);
+                                else
+                                    obj = MVM_nativecall_make_carray(tc, typeobj, cobj);
+                            }
+                            else if(type == MVM_CSTRUCT_ATTR_CSTRUCT) {
+                                if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
+                                    obj = MVM_nativecall_make_cstruct(tc, typeobj,
+                                        (char *)body->cstruct + repr_data->struct_offsets[slot]);
+                                else
+                                    obj = MVM_nativecall_make_cstruct(tc, typeobj, cobj);
+                            }
+                            else if(type == MVM_CSTRUCT_ATTR_CPPSTRUCT) {
+                                if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
+                                    obj = MVM_nativecall_make_cppstruct(tc, typeobj,
+                                        (char *)body->cstruct + repr_data->struct_offsets[slot]);
+                                else
+                                    obj = MVM_nativecall_make_cppstruct(tc, typeobj, cobj);
+                            }
+                            else if(type == MVM_CSTRUCT_ATTR_CUNION) {
+                                if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED)
+                                    obj = MVM_nativecall_make_cunion(tc, typeobj,
+                                        (char *)body->cstruct + repr_data->struct_offsets[slot]);
+                                else
+                                    obj = MVM_nativecall_make_cunion(tc, typeobj, cobj);
+                            }
+                            else if(type == MVM_CSTRUCT_ATTR_CPTR) {
+                                obj = MVM_nativecall_make_cpointer(tc, typeobj, cobj);
+                            }
+                            else if(type == MVM_CSTRUCT_ATTR_STRING) {
+                                MVMROOT2(tc, typeobj, root, {
+                                    MVMString *str = MVM_string_utf8_decode(tc, tc->instance->VMString,
+                                        cobj, strlen(cobj));
+                                    obj = MVM_repr_box_str(tc, typeobj, str);
+                                });
+                            }
+                        });
                         MVM_ASSIGN_REF(tc, &(root->header), ((MVMCStruct*)root)->body.child_objs[real_slot], obj);
                     }
                     else {

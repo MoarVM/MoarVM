@@ -44,6 +44,7 @@
 #include "6model/reprs/Decoder.h"
 #include "6model/reprs/MVMSpeshLog.h"
 #include "6model/reprs/MVMStaticFrameSpesh.h"
+#include "6model/reprs/MVMSpeshPluginState.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -98,8 +99,9 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMCPPStruct            42
 #define MVM_REPR_ID_Decoder                 43
 #define MVM_REPR_ID_MVMStaticFrameSpesh     44
+#define MVM_REPR_ID_MVMSpeshPluginState     45
 
-#define MVM_REPR_CORE_COUNT                 45
+#define MVM_REPR_CORE_COUNT                 46
 #define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */
@@ -144,7 +146,9 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
     MVM_REPR_DEFAULT_SET_DIMENSIONS, \
     MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC, \
     MVM_REPR_DEFAULT_POS_AS_ATOMIC, \
-    MVM_REPR_DEFAULT_POS_AS_ATOMIC_MULTIDIM \
+    MVM_REPR_DEFAULT_POS_AS_ATOMIC_MULTIDIM, \
+    MVM_REPR_DEFAULT_POS_WRITE_BUF, \
+    MVM_REPR_DEFAULT_POS_READ_BUF \
 }
 
 /* Default associative functions for a REPR that lacks them. */
@@ -200,6 +204,12 @@ void MVM_REPR_DEFAULT_AT_POS_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMOb
 void MVM_REPR_DEFAULT_BIND_POS_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister value, MVMuint16 kind);
 void MVM_REPR_DEFAULT_DIMENSIONS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 *num_dimensions, MVMint64 **dimensions);
 void MVM_REPR_DEFAULT_SET_DIMENSIONS(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_dimensions, MVMint64 *dimensions);
+void MVM_REPR_DEFAULT_POS_WRITE_BUF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, char *from, MVMint64 offset, MVMuint64 elems);
+MVMint64 MVM_REPR_DEFAULT_POS_READ_BUF(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 offset, MVMuint64 elems);
+void MVM_REPR_DEFAULT_AT_POS_MULTIDIM_NO_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister *value, MVMuint16 kind);
+void MVM_REPR_DEFAULT_BIND_POS_MULTIDIM_NO_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister value, MVMuint16 kind);
+void MVM_REPR_DEFAULT_DIMENSIONS_NO_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 *num_dimensions, MVMint64 **dimensions);
+void MVM_REPR_DEFAULT_SET_DIMENSIONS_NO_MULTIDIM(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_dimensions, MVMint64 *dimensions);
 MVMStorageSpec MVM_REPR_DEFAULT_GET_ELEM_STORAGE_SPEC(MVMThreadContext *tc, MVMSTable *st);
 AO_t * MVM_REPR_DEFAULT_POS_AS_ATOMIC(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
     void *data, MVMint64 index);

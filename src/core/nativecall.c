@@ -283,7 +283,7 @@ double MVM_nativecall_unmarshal_double(MVMThreadContext *tc, MVMObject *value) {
     return (double)MVM_repr_get_num(tc, value);
 }
 
-char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free) {
+char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free, MVMint16 unmarshal_kind) {
     if (IS_CONCRETE(value)) {
         MVMString *value_str = MVM_repr_get_str(tc, value);
 
@@ -317,47 +317,63 @@ char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, M
     }
 }
 
-void * MVM_nativecall_unmarshal_cstruct(MVMThreadContext *tc, MVMObject *value) {
+MVM_NO_RETURN static void unmarshal_error(MVMThreadContext *tc, char *desired_repr, MVMObject *value, MVMint16 unmarshal_kind) MVM_NO_RETURN_ATTRIBUTE;
+MVM_NO_RETURN static void unmarshal_error(MVMThreadContext *tc, char *desired_repr, MVMObject *value, MVMint16 unmarshal_kind) {
+    if (unmarshal_kind == MVM_NATIVECALL_UNMARSHAL_KIND_GENERIC) {
+        MVM_exception_throw_adhoc(tc,
+            "NativeCall conversion expected type with %s representation, but got a %s (%s)", desired_repr, REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+    }
+    else if (unmarshal_kind == MVM_NATIVECALL_UNMARSHAL_KIND_RETURN) {
+        MVM_exception_throw_adhoc(tc,
+            "Expected return value with %s representation, but got a %s (%s)", desired_repr, REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+    }
+    else if (unmarshal_kind == MVM_NATIVECALL_UNMARSHAL_KIND_NATIVECAST) {
+        MVM_exception_throw_adhoc(tc,
+            "NativeCast expected value with %s representation, but got a %s (%s)", desired_repr, REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+            "Native call expected argument %d with %s representation, but got a %s (%s)", unmarshal_kind + 1, desired_repr, REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+    }
+}
+
+void * MVM_nativecall_unmarshal_cstruct(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind) {
     if (!IS_CONCRETE(value))
         return NULL;
     else if (REPR(value)->ID == MVM_REPR_ID_MVMCStruct)
         return ((MVMCStruct *)value)->body.cstruct;
     else
-        MVM_exception_throw_adhoc(tc,
-            "Native call expected return type with CStruct representation, but got a %s (%s)", REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+        unmarshal_error(tc, "CStruct", value, unmarshal_kind);
 }
 
-void * MVM_nativecall_unmarshal_cppstruct(MVMThreadContext *tc, MVMObject *value) {
+void * MVM_nativecall_unmarshal_cppstruct(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind) {
     if (!IS_CONCRETE(value))
         return NULL;
     else if (REPR(value)->ID == MVM_REPR_ID_MVMCPPStruct)
         return ((MVMCPPStruct *)value)->body.cppstruct;
     else
-        MVM_exception_throw_adhoc(tc,
-            "Native call expected return type with CPPStruct representation, but got a %s (%s)", REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+        unmarshal_error(tc, "CPPStruct", value, unmarshal_kind);
 }
 
-void * MVM_nativecall_unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value) {
+void * MVM_nativecall_unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind) {
     if (!IS_CONCRETE(value))
         return NULL;
     else if (REPR(value)->ID == MVM_REPR_ID_MVMCPointer)
         return ((MVMCPointer *)value)->body.ptr;
     else
-        MVM_exception_throw_adhoc(tc,
-            "Native call expected return type with CPointer representation, but got a %s (%s)", REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+        unmarshal_error(tc, "CPointer", value, unmarshal_kind);
 }
 
-void * MVM_nativecall_unmarshal_carray(MVMThreadContext *tc, MVMObject *value) {
+void * MVM_nativecall_unmarshal_carray(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind) {
     if (!IS_CONCRETE(value))
         return NULL;
     else if (REPR(value)->ID == MVM_REPR_ID_MVMCArray)
         return ((MVMCArray *)value)->body.storage;
     else
-        MVM_exception_throw_adhoc(tc,
-            "Native call expected return type with CArray representation, but got a %s (%s)", REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+        unmarshal_error(tc, "CArray", value, unmarshal_kind);
 }
 
-void * MVM_nativecall_unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value) {
+void * MVM_nativecall_unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind) {
     if (!IS_CONCRETE(value))
         return NULL;
     else if (REPR(value)->ID == MVM_REPR_ID_VMArray) {
@@ -367,18 +383,16 @@ void * MVM_nativecall_unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value) 
         return ((char *)body->slots.any) + start_pos;
     }
     else
-        MVM_exception_throw_adhoc(tc,
-            "Native call expected object with Array representation, but got a %s (%s)", REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+        unmarshal_error(tc, "VMArray", value, unmarshal_kind);
 }
 
-void * MVM_nativecall_unmarshal_cunion(MVMThreadContext *tc, MVMObject *value) {
+void * MVM_nativecall_unmarshal_cunion(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind) {
     if (!IS_CONCRETE(value))
         return NULL;
     else if (REPR(value)->ID == MVM_REPR_ID_MVMCUnion)
         return ((MVMCUnion *)value)->body.cunion;
     else
-        MVM_exception_throw_adhoc(tc,
-            "Native call expected return type with CUnion representation, but got a %s (%s)", REPR(value)->name, MVM_6model_get_debug_name(tc, value));
+        unmarshal_error(tc, "CUnion", value, unmarshal_kind);
 }
 
 #ifdef _WIN32
@@ -560,6 +574,7 @@ MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
         || body->ret_type == MVM_NATIVECALL_ARG_LONGLONG
         || body->ret_type == MVM_NATIVECALL_ARG_ULONGLONG
     ) {
+        call_node->u.call.rv_type = body->ret_type;
         init_box_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_int, restype, dst);
     }
     else if (body->ret_type == MVM_NATIVECALL_ARG_CPOINTER) {
@@ -620,6 +635,44 @@ MVMJitCode *create_caller_code(MVMThreadContext *tc, MVMNativeCallBody *body) {
     return jitcode;
 }
 
+void MVM_nativecall_setup(MVMThreadContext *tc, MVMNativeCallBody *body, unsigned int interval_id) {
+    /* Try to load the library. */
+    DLLib *lib_handle = MVM_nativecall_load_lib(body->lib_name[0] ? body->lib_name : NULL);
+
+    if (!lib_handle) {
+        char *waste[] = { body->lib_name, NULL };
+        MVM_free(body->sym_name);
+        body->lib_name = NULL;
+        body->sym_name = NULL;
+        if (interval_id)
+            MVM_telemetry_interval_stop(tc, interval_id, "error building native call");
+        MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate native library '%s': %s", body->lib_name, dlerror());
+    }
+
+    if (!body->entry_point) {
+        body->entry_point = MVM_nativecall_find_sym(lib_handle, body->sym_name);
+        if (!body->entry_point) {
+            char *waste[] = { body->sym_name, body->lib_name, NULL };
+            body->lib_name = NULL;
+            body->sym_name = NULL;
+            if (interval_id)
+                MVM_telemetry_interval_stop(tc, interval_id, "error building native call");
+            MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate symbol '%s' in native library '%s'",
+                body->sym_name, body->lib_name);
+        }
+    }
+
+    if (tc->instance->jit_enabled) {
+        body->jitcode = create_caller_code(tc, body);
+    }
+    else
+        body->jitcode = NULL;
+
+    /* Initialize body->lib_handle as late as possible, so get_int won't report
+       that the NativeCall site is set up too early */
+    body->lib_handle = lib_handle;
+}
+
 /* Builds up a native call site out of the supplied arguments. */
 MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
         MVMString *sym, MVMString *conv, MVMObject *arg_info, MVMObject *ret_info) {
@@ -632,37 +685,27 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
 
     MVMObject *entry_point_o = (MVMObject *)MVM_repr_at_key_o(tc, ret_info,
         tc->instance->str_consts.entry_point);
+    MVMObject *resolve_lib_name = (MVMObject *)MVM_repr_at_key_o(tc, ret_info,
+        tc->instance->str_consts.resolve_lib_name);
+    MVMObject *resolve_lib_name_arg = (MVMObject *)MVM_repr_at_key_o(tc, ret_info,
+        tc->instance->str_consts.resolve_lib_name_arg);
 
     /* Initialize the object; grab native call part of its body. */
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
 
-    /* Try to load the library. */
     body->lib_name = lib_name;
-    body->lib_handle = MVM_nativecall_load_lib(lib_name[0] ? lib_name : NULL);
-
-    if (!body->lib_handle) {
-        char *waste[] = { lib_name, NULL };
-        MVM_free(sym_name);
-        MVM_telemetry_interval_stop(tc, interval_id, "error building native call");
-        MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate native library '%s': %s", lib_name, dlerror());
-    }
+    MVM_ASSIGN_REF(tc, &(site->header), body->resolve_lib_name, resolve_lib_name);
+    MVM_ASSIGN_REF(tc, &(site->header), body->resolve_lib_name_arg, resolve_lib_name_arg);
 
     /* Try to locate the symbol. */
-    if (entry_point_o) {
-        body->entry_point = MVM_nativecall_unmarshal_cpointer(tc, entry_point_o);
+    if (entry_point_o && !MVM_is_null(tc, entry_point_o)) {
+        body->entry_point = MVM_nativecall_unmarshal_cpointer(tc, entry_point_o, MVM_NATIVECALL_UNMARSHAL_KIND_GENERIC);
         body->sym_name    = sym_name;
         keep_sym_name     = 1;
     }
 
     if (!body->entry_point) {
-        body->entry_point = MVM_nativecall_find_sym(body->lib_handle, sym_name);
-        if (!body->entry_point) {
-            char *waste[] = { sym_name, lib_name, NULL };
-            MVM_telemetry_interval_stop(tc, interval_id, "error building native call");
-            MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate symbol '%s' in native library '%s'",
-                sym_name, lib_name);
-        }
-        body->sym_name = sym_name;
+        body->sym_name    = sym_name;
         keep_sym_name     = 1;
     }
 
@@ -702,11 +745,8 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
 #ifdef HAVE_LIBFFI
     body->ffi_ret_type = MVM_nativecall_get_ffi_type(tc, body->ret_type);
 #endif
-    if (tc->instance->jit_enabled) {
-        body->jitcode = create_caller_code(tc, body);
-    }
-    else
-        body->jitcode = NULL;
+
+    MVM_nativecall_setup(tc, body, interval_id);
 
     MVM_telemetry_interval_stop(tc, interval_id, "nativecall built");
 
@@ -903,20 +943,20 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MV
         return target_type;
 
     if (REPR(source)->ID == MVM_REPR_ID_MVMCStruct)
-        data_body = MVM_nativecall_unmarshal_cstruct(tc, source);
+        data_body = MVM_nativecall_unmarshal_cstruct(tc, source, MVM_NATIVECALL_UNMARSHAL_KIND_NATIVECAST);
     else if (REPR(source)->ID == MVM_REPR_ID_MVMCPPStruct)
-        data_body = MVM_nativecall_unmarshal_cppstruct(tc, source);
+        data_body = MVM_nativecall_unmarshal_cppstruct(tc, source, MVM_NATIVECALL_UNMARSHAL_KIND_NATIVECAST);
     else if (REPR(source)->ID == MVM_REPR_ID_MVMCUnion)
-        data_body = MVM_nativecall_unmarshal_cunion(tc, source);
+        data_body = MVM_nativecall_unmarshal_cunion(tc, source, MVM_NATIVECALL_UNMARSHAL_KIND_NATIVECAST);
     else if (REPR(source)->ID == MVM_REPR_ID_MVMCPointer)
-        data_body = MVM_nativecall_unmarshal_cpointer(tc, source);
+        data_body = MVM_nativecall_unmarshal_cpointer(tc, source, MVM_NATIVECALL_UNMARSHAL_KIND_NATIVECAST);
     else if (REPR(source)->ID == MVM_REPR_ID_MVMCArray)
-        data_body = MVM_nativecall_unmarshal_carray(tc, source);
+        data_body = MVM_nativecall_unmarshal_carray(tc, source, MVM_NATIVECALL_UNMARSHAL_KIND_NATIVECAST);
     else if (REPR(source)->ID == MVM_REPR_ID_VMArray)
-        data_body = MVM_nativecall_unmarshal_vmarray(tc, source);
+        data_body = MVM_nativecall_unmarshal_vmarray(tc, source, MVM_NATIVECALL_UNMARSHAL_KIND_NATIVECAST);
     else
         MVM_exception_throw_adhoc(tc,
-            "Native call expected return type with CPointer, CStruct, CArray, or VMArray representation, but got a %s (%s)", REPR(source)->name, MVM_6model_get_debug_name(tc, source));
+            "Native call cast expected return type with CPointer, CStruct, CArray, or VMArray representation, but got a %s (%s)", REPR(source)->name, MVM_6model_get_debug_name(tc, source));
     return nativecall_cast(tc, target_spec, target_type, data_body);
 }
 
@@ -1146,9 +1186,53 @@ MVMThreadContext * MVM_nativecall_find_thread_context(MVMInstance *instance) {
     return tc;
 }
 
+typedef struct ResolverData {
+    MVMObject *site;
+    MVMRegister args[1];
+} ResolverData;
+static void callback_invoke(MVMThreadContext *tc, void *data) {
+    /* Invoke the coderef, to set up the nested interpreter. */
+    ResolverData *r = (ResolverData*)data;
+    MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, r->site);
+    MVMObject *code = body->resolve_lib_name;
+    MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+    r->args[0].o = body->resolve_lib_name_arg;
+    STABLE(code)->invoke(tc, code, callsite, r->args);
+
+    /* Ensure we exit interp after callback. */
+    tc->thread_entry_frame = tc->cur_frame;
+}
+void MVM_nativecall_restore_library(MVMThreadContext *tc, MVMNativeCallBody *body, MVMObject *root) {
+    if (!MVM_is_null(tc, body->resolve_lib_name) && !MVM_is_null(tc, body->resolve_lib_name_arg)) {
+        MVMRegister res = {NULL};
+        ResolverData data = {root, {NULL}};
+
+        MVM_interp_run_nested(tc, callback_invoke, &data, &res);
+
+        /* Handle return value. */
+        if (res.o) {
+            MVMContainerSpec const *contspec = STABLE(res.o)->container_spec;
+            if (contspec && contspec->fetch_never_invokes)
+                contspec->fetch(tc, res.o, &res);
+        }
+
+        body->lib_name = MVM_string_utf8_encode_C_string(tc, MVM_repr_get_str(tc, res.o));
+    }
+    if (body->lib_name && body->sym_name && !body->lib_handle) {
+        MVM_nativecall_setup(tc, body, 0);
+    }
+}
+
 void MVM_nativecall_invoke_jit(MVMThreadContext *tc, MVMObject *site) {
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
-    MVMJitCode * const jitcode = body->jitcode;
 
+    if (MVM_UNLIKELY(!body->lib_handle)) {
+        MVMROOT(tc, site, {
+            MVM_nativecall_restore_library(tc, body, site);
+        });
+        body = MVM_nativecall_get_nc_body(tc, site);
+    }
+
+    MVMJitCode * const jitcode = body->jitcode;
     jitcode->func_ptr(tc, *tc->interp_cu, jitcode->labels[0]);
 }

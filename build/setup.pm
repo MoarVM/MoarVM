@@ -117,6 +117,7 @@ our %TC_POSIX = (
     ccswitch => '-c',
     ccout    => '-o ',
     ccinc    => '-I',
+    ccincsystem => '-isystem',
     ccdef    => '-D',
 
     cppswitch => '-E',
@@ -201,6 +202,7 @@ our %TC_MSVC = (
     ccswitch => '/c',
     ccout    => '/Fo',
     ccinc    => '/I',
+    ccincsystem => '/I',
     ccdef    => '/D',
 
     cppswitch => '/P',
@@ -281,7 +283,7 @@ our %COMPILERS = (
         ld => undef,
         as => 'as',
 
-        ccmiscflags  => '-Werror=declaration-after-statement -Werror=pointer-arith',
+        ccmiscflags  => '-Wextra -Wall -Wno-unused-parameter -Wno-unused-function -Wno-missing-braces -Werror=pointer-arith',
         ccwarnflags  => '',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
@@ -295,6 +297,7 @@ our %COMPILERS = (
 
         noreturnspecifier => '',
         noreturnattribute => '__attribute__((noreturn))',
+        fallthrough => '__attribute__ ((fallthrough));',
         formatattribute   => '__attribute__((format(X, Y, Z)))',
         expect_likely => '__builtin_expect(!!(condition), 1)',
         expect_unlikely => '__builtin_expect(!!(condition), 0)',
@@ -323,6 +326,7 @@ our %COMPILERS = (
 
         noreturnspecifier => '',
         noreturnattribute => '__attribute__((noreturn))',
+        fallthrough => '',
         formatattribute   => '__attribute__((format(X, Y, Z)))',
         expect_likely => '__builtin_expect(!!(condition), 1)',
         expect_unlikely => '__builtin_expect(!!(condition), 0)',
@@ -352,6 +356,7 @@ our %COMPILERS = (
 
         noreturnspecifier => '',
         noreturnattribute => '__attribute__((noreturn))',
+        fallthrough => '',
         formatattribute   => '__attribute__((format(X, Y, Z)))',
         vectorizerspecifier => '_Pragma ("clang loop vectorize(enable)")',
         expect_likely => '__builtin_expect(!!(condition), 1)',
@@ -366,7 +371,7 @@ our %COMPILERS = (
         ld => 'link',
         as => 'ml64',
 
-        ccmiscflags  => '/nologo /MT',
+        ccmiscflags  => '/nologo /MT /std:c++latest',
         ccwarnflags  => '',
         ccoptiflags  => '/Ox /GL /DNDEBUG',
         ccdebugflags => '/Zi',
@@ -380,6 +385,7 @@ our %COMPILERS = (
 
         noreturnspecifier => '__declspec(noreturn)',
         noreturnattribute => '',
+        fallthrough => '',
         formatattribute   => '', # TODO
         expect_likely => '(condition)',
         expect_unlikely => '(condition)',
@@ -408,6 +414,7 @@ our %COMPILERS = (
 
         noreturnspecifier => '',
         noreturnattribute => '',
+        fallthrough => '',
         formatattribute   => '',
         expect_likely => '(condition)',
         expect_unlikely => '(condition)',

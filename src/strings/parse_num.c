@@ -36,7 +36,7 @@ static int cp_value(MVMThreadContext *tc, MVMCodepoint cp) {
     return -1;
 }
 
-int static get_cp(MVMThreadContext *tc, MVMCodepointIter *ci, MVMCodepoint *cp) {
+static int get_cp(MVMThreadContext *tc, MVMCodepointIter *ci, MVMCodepoint *cp) {
     if (!MVM_string_ci_has_more(tc, ci)) {
         *cp = END_OF_NUM; // FIXME pick a safe value
         return 1;

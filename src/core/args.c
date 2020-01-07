@@ -250,9 +250,10 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
 #define autobox_int(tc, target, result, dest) do { \
     MVMObject *box, *box_type; \
     MVMint64 result_int = result; \
+    MVMObject *autobox_temp; \
     box_type = target->static_info->body.cu->body.hll_config->int_box_type; \
-    dest = MVM_intcache_get(tc, box_type, result_int); \
-    if (!dest) { \
+    autobox_temp = MVM_intcache_get(tc, box_type, result_int); \
+    if (autobox_temp == NULL) { \
         box = REPR(box_type)->allocate(tc, STABLE(box_type)); \
         MVM_gc_root_temp_push(tc, (MVMCollectable **)&box); \
         if (REPR(box)->initialize) \
@@ -260,6 +261,9 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
         REPR(box)->box_funcs.set_int(tc, STABLE(box), box, OBJECT_BODY(box), result_int); \
         MVM_gc_root_temp_pop(tc); \
         dest = box; \
+    } \
+    else { \
+        dest = autobox_temp; \
     } \
 } while (0)
 
@@ -409,25 +413,13 @@ void MVM_args_assert_nameds_used(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     MVMuint16 i;
     if (size > 64) {
         for (i = 0; i < size; i++)
-            if (!ctx->named_used.byte_array[i]) {
-                char *c_param = MVM_string_utf8_encode_C_string(tc,
-                    ctx->args[ctx->num_pos + 2 * i].s);
-                char *waste[] = { c_param, NULL };
-                MVM_exception_throw_adhoc_free(tc, waste,
-                    "Unexpected named argument '%s' passed",
-                    c_param);
-            }
+            if (!ctx->named_used.byte_array[i])
+                MVM_args_throw_named_unused_error(tc, ctx->args[ctx->num_pos + 2 * i].s);
     }
     else {
         for (i = 0; i < size; i++)
-            if (!(ctx->named_used.bit_field & ((MVMuint64)1 << i))) {
-                char *c_param = MVM_string_utf8_encode_C_string(tc,
-                    ctx->args[ctx->num_pos + 2 * i].s);
-                char *waste[] = { c_param, NULL };
-                MVM_exception_throw_adhoc_free(tc, waste,
-                    "Unexpected named argument '%s' passed",
-                    c_param);
-            }
+            if (!(ctx->named_used.bit_field & ((MVMuint64)1 << i)))
+                MVM_args_throw_named_unused_error(tc, ctx->args[ctx->num_pos + 2 * i].s);
     }
 }
 
@@ -462,7 +454,23 @@ void save_for_exit_handler(MVMThreadContext *tc, MVMObject *result) {
     e->exit_handler_result = result;
 }
 void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 frameless) {
-    MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
+    MVMFrame *target;
+    if (frameless) {
+        target = tc->cur_frame;
+    }
+    else {
+        MVMROOT(tc, result, {
+            if (MVM_spesh_log_is_caller_logging(tc))
+                MVMROOT(tc, result, {
+                    MVM_spesh_log_return_type(tc, result);
+                });
+            else if (MVM_spesh_log_is_logging(tc))
+                MVMROOT(tc, result, {
+                    MVM_spesh_log_return_to_unlogged(tc);
+                });
+        });
+        target = tc->cur_frame->caller;
+    }
     if (target) {
         switch (target->return_type) {
             case MVM_RETURN_VOID:
@@ -488,7 +496,17 @@ void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 f
 }
 
 void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 frameless) {
-    MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
+    MVMFrame *target;
+    if (frameless) {
+        target = tc->cur_frame;
+    }
+    else {
+        if (MVM_spesh_log_is_caller_logging(tc))
+            MVM_spesh_log_return_type(tc, NULL);
+        else if (MVM_spesh_log_is_logging(tc))
+            MVM_spesh_log_return_to_unlogged(tc);
+        target = tc->cur_frame->caller;
+    }
     if (target) {
         switch (target->return_type) {
             case MVM_RETURN_VOID:
@@ -503,7 +521,7 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
                 target->return_value->n64 = (MVMnum64)result;
                 break;
             case MVM_RETURN_OBJ:
-                autobox(tc, target, result, int_box_type, 0, set_int, (frameless ? tc->cur_frame : tc->cur_frame->caller)->return_value->o);
+                autobox_int(tc, target, result, (frameless ? tc->cur_frame : tc->cur_frame->caller)->return_value->o);
                 break;
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion from int NYI; expects type %u", target->return_type);
@@ -511,7 +529,17 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
     }
 }
 void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 frameless) {
-    MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
+    MVMFrame *target;
+    if (frameless) {
+        target = tc->cur_frame;
+    }
+    else {
+        if (MVM_spesh_log_is_caller_logging(tc))
+            MVM_spesh_log_return_type(tc, NULL);
+        else if (MVM_spesh_log_is_logging(tc))
+            MVM_spesh_log_return_to_unlogged(tc);
+        target = tc->cur_frame->caller;
+    }
     if (target) {
         switch (target->return_type) {
             case MVM_RETURN_VOID:
@@ -534,7 +562,21 @@ void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 fra
     }
 }
 void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 frameless) {
-    MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
+    MVMFrame *target;
+    if (frameless) {
+        target = tc->cur_frame;
+    }
+    else {
+        if (MVM_spesh_log_is_caller_logging(tc))
+            MVMROOT(tc, result, {
+                MVM_spesh_log_return_type(tc, NULL);
+            });
+        else if (MVM_spesh_log_is_logging(tc))
+            MVMROOT(tc, result, {
+                MVM_spesh_log_return_to_unlogged(tc);
+            });
+        target = tc->cur_frame->caller;
+    }
     if (target) {
         switch (target->return_type) {
             case MVM_RETURN_VOID:
@@ -554,7 +596,17 @@ void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 f
     }
 }
 void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
-    MVMFrame *target = frameless ? tc->cur_frame : tc->cur_frame->caller;
+    MVMFrame *target;
+    if (frameless) {
+        target = tc->cur_frame;
+    }
+    else {
+        if (MVM_spesh_log_is_caller_logging(tc))
+            MVM_spesh_log_return_type(tc, NULL);
+        else if (MVM_spesh_log_is_logging(tc))
+            MVM_spesh_log_return_to_unlogged(tc);
+        target = tc->cur_frame->caller;
+    }
     if (target && target->return_type != MVM_RETURN_VOID && tc->cur_frame != tc->thread_entry_frame)
         MVM_exception_throw_adhoc(tc, "Void return not allowed to context requiring a return value");
 }
@@ -637,7 +689,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
                 break;
             }
             default:
-                MVM_exception_throw_adhoc(tc, "arg flag is empty in slurpy positional");
+                MVM_exception_throw_adhoc(tc, "Arg flag is empty in slurpy_positional");
         }
 
         find_pos_arg(&(tc->cur_frame->params), pos, arg_info);
@@ -660,6 +712,23 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
         REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
     REPR(box)->box_funcs.set_func(tc, STABLE(box), box, \
         OBJECT_BODY(box), value); \
+    reg.o = box; \
+    REPR(result)->ass_funcs.bind_key(tc, STABLE(result), result, \
+        OBJECT_BODY(result), (MVMObject *)key, reg, MVM_reg_obj); \
+} while (0)
+#define box_slurpy_named_int(tc, type, result, box, value, reg, key) do { \
+    type = (*(tc->interp_cu))->body.hll_config->int_box_type; \
+    if (!type || IS_CONCRETE(type)) { \
+        MVM_exception_throw_adhoc(tc, "Missing hll int box type"); \
+    } \
+    box = MVM_intcache_get(tc, type, value); \
+    if (box == NULL) { \
+        box = REPR(type)->allocate(tc, STABLE(type)); \
+        if (REPR(box)->initialize) \
+            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
+        REPR(box)->box_funcs.set_int(tc, STABLE(box), box, \
+            OBJECT_BODY(box), value); \
+    } \
     reg.o = box; \
     REPR(result)->ass_funcs.bind_key(tc, STABLE(result), result, \
         OBJECT_BODY(result), (MVMObject *)key, reg, MVM_reg_obj); \
@@ -714,7 +783,7 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
             }
             case MVM_CALLSITE_ARG_INT: {
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
-                box_slurpy_named(tc, type, result, box, arg_info.arg.i64, reg, int_box_type, "int", set_int, key);
+                box_slurpy_named_int(tc, type, result, box, arg_info.arg.i64, reg, key);
                 MVM_gc_root_temp_pop(tc);
                 if (reset_ctx)
                     ctx = &(tc->cur_frame->params);
@@ -738,7 +807,7 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
                 break;
             }
             default:
-                MVM_exception_throw_adhoc(tc, "arg flag is empty in slurpy named");
+                MVM_exception_throw_adhoc(tc, "Arg flag is empty in slurpy_named");
         }
     }
 
@@ -783,7 +852,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
             MVMStorageSpec  lss   = REPR(list)->pos_funcs.get_elem_storage_spec(tc, STABLE(list));
 
             if ((MVMint64)new_arg_pos + count > 0xFFFF) {
-                MVM_exception_throw_adhoc(tc, "Too many arguments in flattening array.");
+                MVM_exception_throw_adhoc(tc, "Too many arguments (%"PRId64") in flattening array, only %"PRId32" allowed.", (MVMint64)new_arg_pos + count, 0xFFFF);
             }
 
             for (i = 0; i < count; i++) {

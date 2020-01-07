@@ -18,7 +18,7 @@ struct MVMSerializationRoot {
     /* The number of dependencies, as well as a pointer to the
      * dependencies table. */
     char     *dependencies_table;
-    MVMint32  num_dependencies;
+    MVMuint32 num_dependencies;
 
     /* The number of STables, as well as pointers to the STables
      * table and data chunk. */
@@ -41,7 +41,7 @@ struct MVMSerializationRoot {
      * the contexts table and data chunk. */
     char     *contexts_table;
     char     *contexts_data;
-    MVMint32  num_contexts;
+    MVMuint32 num_contexts;
 
     /* The number of repossessions and pointer to repossessions table. */
     MVMint32  num_repos;
@@ -135,9 +135,9 @@ struct MVMSerializationWriter {
     MVMuint32 alloc_contexts;
 
     /* Current position in the stables, objects and contexts lists. */
-    MVMint64 stables_list_pos;
-    MVMint64 objects_list_pos;
-    MVMint64 contexts_list_pos;
+    MVMuint64 stables_list_pos;
+    MVMuint64 objects_list_pos;
+    MVMuint64 contexts_list_pos;
 
     /* Hash of strings we've already seen while serializing to the index they
      * are placed at in the string heap. */
@@ -190,11 +190,13 @@ MVMint64 MVM_serialization_read_int64(MVMThreadContext *tc, MVMSerializationRead
 MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader *reader);
 MVMnum64 MVM_serialization_read_num(MVMThreadContext *tc, MVMSerializationReader *reader);
 MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationReader *reader);
+char *MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader *reader);
 MVM_PUBLIC MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationReader *reader);
 MVMSTable * MVM_serialization_read_stable_ref(MVMThreadContext *tc, MVMSerializationReader *reader);
 void MVM_serialization_force_stable(MVMThreadContext *tc, MVMSerializationReader *reader, MVMSTable *st);
 void MVM_serialization_write_int(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value);
 void MVM_serialization_write_num(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMnum64 value);
 void MVM_serialization_write_str(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMString *value);
+void MVM_serialization_write_cstr(MVMThreadContext *tc, MVMSerializationWriter *writer, char *string);
 MVM_PUBLIC void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref);
 void MVM_serialization_write_stable_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMSTable *st);

@@ -339,11 +339,11 @@ static MVMuint8 windows1251_cp_to_char(MVMint32 codepoint) {
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_windows125X_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                         const MVMint32 *stopper_chars,
+                                         const MVMuint32 *stopper_chars,
                                          MVMDecodeStreamSeparators *seps,
                                          const MVMuint16 *codetable) {
-    MVMint32 count = 0, total = 0;
-    MVMint32 bufsize;
+    MVMuint32 count = 0, total = 0;
+    MVMuint32 bufsize;
     MVMGrapheme32 *buffer = NULL;
     MVMDecodeStreamBytes *cur_bytes = NULL;
     MVMDecodeStreamBytes *last_accept_bytes = ds->bytes_head;
@@ -371,7 +371,7 @@ MVMuint32 MVM_string_windows125X_decodestream(MVMThreadContext *tc, MVMDecodeStr
     while (cur_bytes) {
         /* Process this buffer. */
         MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
-        unsigned char *bytes = (unsigned char *)cur_bytes->bytes;
+        MVMuint8 *bytes = cur_bytes->bytes;
         while (pos < cur_bytes->length || repl_pos) {
             MVMGrapheme32 graph;
             MVMCodepoint codepoint = codetable[bytes[pos++]];
@@ -462,14 +462,14 @@ MVMuint32 MVM_string_windows125X_decodestream(MVMThreadContext *tc, MVMDecodeStr
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_windows1252_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                         const MVMint32 *stopper_chars,
+                                         const MVMuint32 *stopper_chars,
                                          MVMDecodeStreamSeparators *seps) {
     return MVM_string_windows125X_decodestream(tc, ds, stopper_chars, seps, windows1252_codepoints);
 }
 /* Decodes using a decodestream. Decodes as far as it can with the input
  * buffers, or until a stopper is reached. */
 MVMuint32 MVM_string_windows1251_decodestream(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                         const MVMint32 *stopper_chars,
+                                         const MVMuint32 *stopper_chars,
                                          MVMDecodeStreamSeparators *seps) {
     return MVM_string_windows125X_decodestream(tc, ds, stopper_chars, seps, windows1251_codepoints);
 }
@@ -501,7 +501,7 @@ MVMString * MVM_string_windows125X_decode(MVMThreadContext *tc,
                 /* Since things we are decoding always fit into Unicode, if we are
                  * using a replacement, it won't get used unless we use strict */
                 if (replacement && MVM_ENCODING_CONFIG_STRICT(config)) {
-                    int i = 0;
+                    MVMStringIndex i = 0;
                     /* Only triggered if repl_length > 1. Copies all but the last
                      * grapheme in the replacement string */
                     if (1 < repl_length) {
@@ -576,9 +576,9 @@ char * MVM_string_windows125X_encode_substr(MVMThreadContext *tc, MVMString *str
 
     /* must check start first since it's used in the length check */
     if (start < 0 || strgraphs < start)
-        MVM_exception_throw_adhoc(tc, "start out of range");
+        MVM_exception_throw_adhoc(tc, "start (%"PRId64") out of range (0..%"PRIu32")", start, strgraphs);
     if (length < -1 || strgraphs < start + lengthu)
-        MVM_exception_throw_adhoc(tc, "length out of range");
+        MVM_exception_throw_adhoc(tc, "length (%"PRId64") out of range (-1..%"PRIu32")", length, strgraphs);
 
     if (replacement)
         repl_bytes = (MVMuint8 *) MVM_string_windows125X_encode_substr(tc,

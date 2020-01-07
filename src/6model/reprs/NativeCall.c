@@ -43,6 +43,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     }
     else
         dest_body->jitcode = NULL;
+    dest_body->resolve_lib_name = src_body->resolve_lib_name;
+    dest_body->resolve_lib_name_arg = src_body->resolve_lib_name_arg;
 }
 
 
@@ -66,11 +68,61 @@ static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *
  * we just do nothing here since it may well have never been opened. Various
  * more involved approaches are possible. */
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+    MVMNativeCallBody *body = (MVMNativeCallBody *)data;
+    MVMint16 i = 0;
+    MVM_serialization_write_cstr(
+        tc,
+        writer,
+        !MVM_is_null(tc, body->resolve_lib_name) && !MVM_is_null(tc, body->resolve_lib_name_arg)
+            ? NULL
+            : body->lib_name
+    );
+    MVM_serialization_write_cstr(tc, writer, body->sym_name);
+    MVM_serialization_write_int(tc, writer, body->convention);
+    MVM_serialization_write_int(tc, writer, body->num_args);
+    MVM_serialization_write_int(tc, writer, body->ret_type);
+    /* TODO ffi support */
+    for (i = 0; i < body->num_args; i++) {
+        MVM_serialization_write_int(tc, writer, body->arg_types[i]);
+    }
+    for (i = 0; i < body->num_args; i++) {
+        MVM_serialization_write_ref(tc, writer, body->arg_info[i]);
+    }
+    MVM_serialization_write_ref(tc, writer, (MVMObject*)body->resolve_lib_name);
+    MVM_serialization_write_ref(tc, writer, (MVMObject*)body->resolve_lib_name_arg);
 }
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     st->size = sizeof(MVMNativeCall);
 }
+
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
+    MVMNativeCallBody *body = (MVMNativeCallBody *)data;
+    MVMint16 i = 0;
+    if (reader->root.version >= 22) {
+        body->lib_name = MVM_serialization_read_cstr(tc, reader);
+        body->sym_name = MVM_serialization_read_cstr(tc, reader);
+        body->convention = MVM_serialization_read_int(tc, reader);
+        body->num_args = MVM_serialization_read_int(tc, reader);
+        body->ret_type = MVM_serialization_read_int(tc, reader);
+        body->arg_types = MVM_malloc(body->num_args * sizeof(MVMint16));
+        body->arg_info  = MVM_malloc(body->num_args * sizeof(MVMObject*));
+        /* TODO ffi support */
+        for (i = 0; i < body->num_args; i++) {
+            body->arg_types[i] = MVM_serialization_read_int(tc, reader);
+        }
+        for (i = 0; i < body->num_args; i++) {
+            body->arg_info[i] = MVM_serialization_read_ref(tc, reader);
+        }
+        body->resolve_lib_name = MVM_serialization_read_ref(tc, reader);
+        body->resolve_lib_name_arg = MVM_serialization_read_ref(tc, reader);
+#ifdef HAVE_LIBFFI
+        body->ffi_arg_types = MVM_malloc(sizeof(ffi_type *) * (body->num_args ? body->num_args : 1));
+        for (i = 0; i < body->num_args; i++) {
+            body->ffi_arg_types[i] = MVM_nativecall_get_ffi_type(tc, body->arg_types[i]);
+        }
+        body->ffi_ret_type = MVM_nativecall_get_ffi_type(tc, body->ret_type);
+#endif
+    }
 }
 
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
@@ -81,14 +133,21 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
             if (body->arg_info[i])
                 MVM_gc_worklist_add(tc, worklist, &body->arg_info[i]);
     }
+    if (body->resolve_lib_name)
+        MVM_gc_worklist_add(tc, worklist, &body->resolve_lib_name);
+    if (body->resolve_lib_name_arg)
+        MVM_gc_worklist_add(tc, worklist, &body->resolve_lib_name_arg);
 }
 
 static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMNativeCallBody *body = (MVMNativeCallBody *)data;
     if (body->lib_name)
         MVM_free(body->lib_name);
+/* FIXME don't free the library unconditionally, as the handle will be shared among NativeCall sites
+ * Also if we're called by repossession, we would use any initialized state of the library
     if (body->lib_handle)
         MVM_nativecall_free_lib(body->lib_handle);
+*/
     if (body->arg_types)
         MVM_free(body->arg_types);
     if (body->arg_info)
@@ -111,13 +170,29 @@ const MVMREPROps * MVMNativeCall_initialize(MVMThreadContext *tc) {
     return &NativeCall_this_repr;
 }
 
+/* gets the setup state */
+static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+    MVMNativeCallBody *body = (MVMNativeCallBody *)data;
+    return (body->lib_handle ? 1 + (body->jitcode ? 1 : 0) : 0);
+}
+
 static const MVMREPROps NativeCall_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
     NULL, /* initialize */
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
-    MVM_REPR_DEFAULT_BOX_FUNCS,
+    {
+        MVM_REPR_DEFAULT_SET_INT,
+        get_int,
+        MVM_REPR_DEFAULT_SET_NUM,
+        MVM_REPR_DEFAULT_GET_NUM,
+        MVM_REPR_DEFAULT_SET_STR,
+        MVM_REPR_DEFAULT_GET_STR,
+        MVM_REPR_DEFAULT_SET_UINT,
+        MVM_REPR_DEFAULT_GET_UINT,
+        MVM_REPR_DEFAULT_GET_BOXED_REF
+    },
     MVM_REPR_DEFAULT_POS_FUNCS,
     MVM_REPR_DEFAULT_ASS_FUNCS,
     MVM_REPR_DEFAULT_ELEMS,

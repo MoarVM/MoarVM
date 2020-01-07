@@ -37,6 +37,8 @@ typedef struct {
 static void finish_parameterizing(MVMThreadContext *tc, void *sr_data) {
     ParameterizeReturnData *prd = (ParameterizeReturnData *)sr_data;
     MVMObject *found;
+    MVMObject *parameters = prd->parameters;
+    MVMObject *parametric_type = prd->parametric_type;
 
     /* Mark parametric and stash required data. */
     MVMSTable *new_stable = STABLE(prd->result->o);
@@ -49,25 +51,30 @@ static void finish_parameterizing(MVMThreadContext *tc, void *sr_data) {
     /* Add to lookup table. Multiple threads may race to do this, so after
      * taking the lock to serialize additions we re-check for a match. If we
      * don't find one, do a defensive copy here so that existing readers of
-     * the table won't be bitten. */
-    uv_mutex_lock(&tc->instance->mutex_parameterization_add);
-    found = MVM_6model_parametric_try_find_parameterization(tc,
-        prd->parametric_type->st, prd->parameters);
-    if (found) {
-        prd->result->o = found;
-    }
-    else {
-        MVMObject *parameters = prd->parameters;
-        MVMObject *parametric_type = prd->parametric_type;
-        MVMROOT2(tc, parameters, parametric_type, {
+     * the table won't be bitten.
+     * We may trigger garbage collection while holding the lock, so we need
+     * to mark the thread as blocked for GC while waiting for the lock. */
+    MVMROOT2(tc, parameters, parametric_type, {
+        MVM_gc_mark_thread_blocked(tc);
+        uv_mutex_lock(&tc->instance->mutex_parameterization_add);
+        MVM_gc_mark_thread_unblocked(tc);
+
+        found = MVM_6model_parametric_try_find_parameterization(tc,
+            parametric_type->st, parameters);
+        if (found) {
+            prd->result->o = found;
+        }
+        else {
             MVMObject *copy = MVM_repr_clone(tc, parametric_type->st->paramet.ric.lookup);
-            MVM_repr_push_o(tc, copy, parameters);
-            MVM_repr_push_o(tc, copy, prd->result->o);
+            MVMROOT(tc, copy, {
+                MVM_repr_push_o(tc, copy, parameters);
+                MVM_repr_push_o(tc, copy, prd->result->o);
+            });
             MVM_ASSIGN_REF(tc, &(parametric_type->st->header),
                 parametric_type->st->paramet.ric.lookup, copy);
-        });
-    }
-    uv_mutex_unlock(&tc->instance->mutex_parameterization_add);
+        }
+        uv_mutex_unlock(&tc->instance->mutex_parameterization_add);
+    });
 
     /* Clean up parametric return data, now we're finished with it. */
     MVM_free(prd);

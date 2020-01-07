@@ -1,6 +1,5 @@
 /* -*-C-*- */
-#include "tile_decl.h"
-
+#pragma GCC diagnostic ignored "-Wunused-variable"
 #define DIE(...) do { MVM_oops(tc, __VA_ARGS__); } while (0)
 
 /* NB: The rax/eax/ax/al/ah register is *reserved* for internal use in tiles by
@@ -39,6 +38,21 @@ MVM_JIT_TILE_DECL(const_large) {
     MVMint8 out = tile->values[0];
     MVMint64 val = tree->constants[tile->args[0]].i;
     | mov64 Rq(out), val;
+}
+
+MVM_JIT_TILE_DECL(const_num) {
+    MVMuint8 out = tile->values[0] - MVM_JIT_REG(XMM0);
+    MVMnum64 val = tree->constants[tile->args[0]].n;
+    unsigned char bytes[sizeof(val)];
+    size_t i;
+    memcpy(bytes, &val, sizeof(val));
+    |.data;
+    |5:
+    for (i = 0; i < sizeof(bytes); i++) {
+        |.byte bytes[i];
+    }
+    |.code;
+    | movsd xmm(out), qword [<5];
 }
 
 MVM_JIT_TILE_DECL(load_reg) {
@@ -113,6 +127,19 @@ MVM_JIT_TILE_DECL(load_idx) {
     }
 }
 
+MVM_JIT_TILE_DECL(load_num) {
+    MVMint8 out = REG_NUM(tile->values[0]);
+    MVMint8 addr = tile->values[1];
+    | movsd xmm(out), qword [Rq(addr)];
+}
+
+MVM_JIT_TILE_DECL(load_num_addr) {
+    MVMint8 out = REG_NUM(tile->values[0]);
+    MVMint8 addr = tile->values[1];
+    MVMint32 ofs  = tile->args[0];
+    | movsd xmm(out), qword [Rq(addr)+ofs];
+}
+
 
 MVM_JIT_TILE_DECL(store) {
     MVMint8 base  = tile->values[1];
@@ -183,6 +210,19 @@ MVM_JIT_TILE_DECL(store_idx) {
     default:
         DIE("Unsupported store size: %d\n", size);
     }
+}
+
+MVM_JIT_TILE_DECL(store_num) {
+    MVMint8 addr = tile->values[1];
+    MVMint8 val =  tile->values[2] - MVM_JIT_REG(XMM0);
+    | movsd qword [Rq(addr)], xmm(val);
+}
+
+MVM_JIT_TILE_DECL(store_num_addr) {
+    MVMint8 addr  = tile->values[1];
+    MVMint8 value = REG_NUM(tile->values[2]);
+    MVMint32 ofs  = tile->args[0];
+    | movsd qword [Rq(addr)+ofs], xmm(value);
 }
 
 
@@ -345,6 +385,7 @@ MVM_JIT_TILE_DECL(cast_unsigned_load_addr) {
     case 10: /* 2 -> 1 */
     case 12: /* 4 -> 1 */
         | movzx Rd(to_reg), byte [Rq(base)+ofs];
+        break;
     case 17: /* 1 -> 2 */
         | movzx Rw(to_reg), byte [Rq(base)+ofs];
         break;
@@ -383,34 +424,12 @@ MVM_JIT_TILE_DECL(cast_unsigned_load_addr) {
 
 static void ensure_two_operand_pre(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMint8 reg[2]) {
     MVMint8 out = tile->values[0], in1 = tile->values[1], in2 = tile->values[2];
-    if (out == in1) {
-        reg[0] = in1;
-        reg[1] = in2;
-    } else if (out == in2) {
-        if (MVM_jit_expr_op_is_binary_noncommutative(tc, tile->op)) {
-            | mov rax, Rq(in1);
-            reg[0] = MVM_JIT_ARCH_X64_RAX;
-            reg[1] = in2;
-        } else {
-            /* in this case, r2 <op> r1 == r0 <op> r1 */
-            reg[0] = out;
-            reg[1] = in1;
-        }
-    } else {
-        /* insert a copy */
-        | mov Rq(out), Rq(in1);
-        /* use r0, r2 */
-        reg[0] = out;
-        reg[1] = in2;
-    }
+    assert(out == in1);
+    reg[0] = REG_NUM(out);
+    reg[1] = REG_NUM(in2);
 }
 
 static void ensure_two_operand_post(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile, MVMint8 reg[2]) {
-    MVMint8 out = tile->values[0];
-    if (out != reg[0]) {
-        /* insert a copy afterwards */
-        | mov Rq(out), Rq(reg[0]);
-    }
 }
 
 
@@ -438,9 +457,7 @@ MVM_JIT_TILE_DECL(add_load_addr) {
     MVMint8 base  = tile->values[2];
     MVMint32 ofs  = tile->args[0];
     MVMint32 size = tile->args[1];
-    if (in1 != out) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out == in1);
     switch (size) {
     case 1:
         | add Rb(out), byte [Rq(base)+ofs];
@@ -466,9 +483,7 @@ MVM_JIT_TILE_DECL(add_load_idx) {
     MVMint8 idx  = tile->values[3];
     MVMint32 scl  = tile->args[0];
     MVMint32 size = tile->args[1];
-    if (in1 != out) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out == in1);
     if (scl != 8)
         DIE("IDX Scale %d NYI\n", scl);
     switch (size) {
@@ -489,6 +504,28 @@ MVM_JIT_TILE_DECL(add_load_idx) {
     }
 }
 
+MVM_JIT_TILE_DECL(add_num) {
+    MVMint8 reg[2];
+    ensure_two_operand_pre(tc, compiler, tile, reg);
+    | addsd xmm(reg[0]), xmm(reg[1]);
+    ensure_two_operand_post(tc, compiler, tile, reg);
+}
+
+MVM_JIT_TILE_DECL(sub_num) {
+    MVMint8 reg[2];
+    ensure_two_operand_pre(tc, compiler, tile, reg);
+    | subsd xmm(reg[0]), xmm(reg[1]);
+    ensure_two_operand_post(tc, compiler, tile, reg);
+}
+
+MVM_JIT_TILE_DECL(mul_num) {
+    MVMint8 reg[2];
+    ensure_two_operand_pre(tc, compiler, tile, reg);
+    | mulsd xmm(reg[0]), xmm(reg[1]);
+    ensure_two_operand_post(tc, compiler, tile, reg);
+}
+
+
 
 MVM_JIT_TILE_DECL(and_reg) {
     MVMint8 reg[2];
@@ -502,10 +539,7 @@ MVM_JIT_TILE_DECL(and_const) {
     MVMint8 in1  = tile->values[1];
     MVMint32 val = tile->args[0];
     MVMint32 sz  = tile->args[1];
-
-    if (out != in1) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out == in1);
     | and Rq(out), val;
 }
 
@@ -515,9 +549,7 @@ MVM_JIT_TILE_DECL(and_load_addr) {
     MVMint8 base  = tile->values[2];
     MVMint32 ofs  = tile->args[0];
     MVMint32 size = tile->args[1];
-    if (in1 != out) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out == in1);
     switch (size) {
     case 1:
         | and Rb(out), byte [Rq(base)+ofs];
@@ -543,10 +575,7 @@ MVM_JIT_TILE_DECL(and_load_idx) {
     MVMint8 idx  = tile->values[3];
     MVMint32 scl  = tile->args[0];
     MVMint32 size = tile->args[1];
-
-    if (out != in1) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out == in1);
     if (scl != 8)
         DIE("IDX Scale %d NYI\n", scl);
     switch (size) {
@@ -591,9 +620,7 @@ MVM_JIT_TILE_DECL(xor_reg) {
 MVM_JIT_TILE_DECL(not_reg) {
     MVMint8 out = tile->values[0];
     MVMint8 in  = tile->values[1];
-    if (out != in) {
-        | mov Rq(out), Rq(in);
-    }
+    assert(out == in);
     | not Rq(out);
 }
 
@@ -609,10 +636,7 @@ MVM_JIT_TILE_DECL(sub_const) {
     MVMint8 in1  = tile->values[1];
     MVMint32 val = tile->args[0];
     MVMint32 sz  = tile->args[1];
-
-    if (out != in1) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out == in1);
     | sub Rq(out), val;
 }
 
@@ -622,9 +646,7 @@ MVM_JIT_TILE_DECL(sub_load_addr) {
     MVMint8 base  = tile->values[2];
     MVMint32 ofs  = tile->args[0];
     MVMint32 size = tile->args[1];
-    if (in1 != out) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out == in1);
     switch (size) {
     case 1:
         | sub Rb(out), byte [Rq(base)+ofs];
@@ -650,9 +672,7 @@ MVM_JIT_TILE_DECL(sub_load_idx) {
     MVMint8 idx  = tile->values[3];
     MVMint32 scl  = tile->args[0];
     MVMint32 size = tile->args[1];
-    if (out != in1) {
-        | mov Rq(out), Rq(in1);
-    }
+    assert(out != in1);
     if (scl != 8)
         DIE("IDX Scale %d NYI\n", scl);
     switch (size) {
@@ -704,6 +724,7 @@ MVM_JIT_TILE_DECL(test_addr) {
     MVMint8 base  = tile->values[1];
     MVMint32 ofs  = tile->args[0];
     MVMint32 size = tile->args[1];
+    /* TODO - I now suspect that this can be OR [addr], 0, without loss of generality */
     switch (size) {
     case 1:
         | cmp byte [Rq(base)+ofs], 0;
@@ -807,6 +828,12 @@ MVM_JIT_TILE_DECL(test_addr_const) {
     }
 }
 
+MVM_JIT_TILE_DECL(test_num) {
+    MVMint8 reg = REG_NUM(tile->values[1]);
+    | xorpd xmm0, xmm0;
+    | ucomisd xmm(reg), xmm0;
+}
+
 
 MVM_JIT_TILE_DECL(cmp) {
     MVMint8 regl = tile->values[1];
@@ -827,34 +854,78 @@ MVM_JIT_TILE_DECL(cmp) {
     }
 }
 
+MVM_JIT_TILE_DECL(cmp_num) {
+    MVMint8 left = REG_NUM(tile->values[1]);
+    MVMint8 right = REG_NUM(tile->values[2]);
+    | ucomisd xmm(left), xmm(right);
+}
+
+
 MVM_JIT_TILE_DECL(flagval) {
+    /* Intel SDM Volume 1, ch5.1.6 - Bit and Byte Instructions */
     MVMint8 out = tile->values[0];
     MVMint32 child = MVM_JIT_EXPR_LINKS(tree, tile->node)[0];
-    MVMint32 flag  = tree->nodes[child];
-    switch (flag) {
-    case MVM_JIT_LT:
-        | setl Rb(out);
-        break;
-    case MVM_JIT_LE:
-        | setle Rb(out);
-        break;
-    case MVM_JIT_ZR:
-    case MVM_JIT_EQ:
-        | setz Rb(out);
-        break;
-    case MVM_JIT_NZ:
-    case MVM_JIT_NE:
-        | setnz Rb(out);
-        break;
-    case MVM_JIT_GE:
-        | setge Rb(out);
-        break;
-    case MVM_JIT_GT:
-        | setg Rb(out);
-        break;
-    default:
-        MVM_panic(1, "No flagval possible");
-        break;
+    enum MVMJitExprOperator flag  = tree->nodes[child];
+    /* This isn't exactly elegant, better mechanism wanted */
+    MVMuint8 test_type = MVM_JIT_EXPR_INFO(tree, child)->type;
+    if (test_type == MVM_reg_num32 || test_type == MVM_reg_num64) {
+        switch (flag) {
+        case MVM_JIT_LT:
+            | setnp al;
+            | setb Rb(out);
+            | and Rb(out), al;
+            break;
+        case MVM_JIT_LE:
+            | setnp al;
+            | setbe Rb(out);
+            | and Rb(out), al;
+            break;
+        case MVM_JIT_ZR:
+        case MVM_JIT_EQ:
+            | setnp al;
+            | setz Rb(out);
+            | and Rb(out), al;
+            break;
+        case MVM_JIT_NZ:
+        case MVM_JIT_NE:
+            | setp al;
+            | setnz Rb(out);
+            | or Rb(out), al;
+            break;
+        case MVM_JIT_GE:
+            | setae Rb(out);
+            break;
+        case MVM_JIT_GT:
+            | seta Rb(out);
+            break;
+        default:
+            abort();
+        }
+    } else {
+        switch (flag) {
+        case MVM_JIT_LT:
+            | setl Rb(out);
+            break;
+        case MVM_JIT_LE:
+            | setle Rb(out);
+            break;
+        case MVM_JIT_ZR:
+        case MVM_JIT_EQ:
+            | setz Rb(out);
+            break;
+        case MVM_JIT_NZ:
+        case MVM_JIT_NE:
+            | setnz Rb(out);
+            break;
+        case MVM_JIT_GE:
+            | setge Rb(out);
+            break;
+        case MVM_JIT_GT:
+            | setg Rb(out);
+            break;
+        default:
+            abort();
+        }
     }
     /* XXX THIS IS A HACK
 
@@ -864,6 +935,7 @@ MVM_JIT_TILE_DECL(flagval) {
      * arguments. (const_i64_16 returns a 64 bit signed integer as a 16 bit
      * signed integer argument, and currently CONST doesn't have a sign, and the
      * tile yielding the value (fortunately) doesn't respect the size. */
+
     | movzx Rq(out), Rb(out);
 }
 
@@ -893,7 +965,11 @@ MVM_JIT_TILE_DECL(branch_label) {
 static void move_call_value(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitTile *tile) {
     if (MVM_JIT_TILE_YIELDS_VALUE(tile)) {
         MVMint8 out = tile->values[0];
-        | mov Rq(out), rax;
+        if (IS_GPR(out)) {
+            | mov Rq(out), rax;
+        } else {
+            | movsd xmm(REG_NUM(out)), xmm0;
+        }
     }
 }
 

@@ -84,6 +84,10 @@ struct MVMProfileGC {
     /* Inter-generation links count */
     MVMuint32 num_gen2roots;
 
+    /* sum of num_gen2roots of all TCs that had work stolen by
+     * this thread */
+    MVMuint32 num_stolen_gen2roots;
+
     MVMProfileDeallocationCount *deallocs;
     MVMuint32 num_dealloc;
     MVMuint32 alloc_dealloc; /* haha */
@@ -218,6 +222,7 @@ void MVM_profile_log_allocated(MVMThreadContext *tc, MVMObject *obj);
 void MVM_profile_log_scalar_replaced(MVMThreadContext *tc, MVMSTable *st);
 void MVM_profiler_log_gc_start(MVMThreadContext *tc, MVMuint32 full, MVMuint32 this_thread_responsible);
 void MVM_profiler_log_gc_end(MVMThreadContext *tc);
+void MVM_profiler_log_gen2_roots(MVMThreadContext *tc, MVMuint64 amount, MVMThreadContext *other);
 void MVM_profiler_log_gc_deallocate(MVMThreadContext *tc, MVMObject *object);
 void MVM_profiler_log_unmanaged_data_promoted(MVMThreadContext *tc, MVMuint64 amount);
 void MVM_profiler_log_spesh_start(MVMThreadContext *tc);

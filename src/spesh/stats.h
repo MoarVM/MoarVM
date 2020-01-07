@@ -164,7 +164,7 @@ struct MVMSpeshStatsStatic {
     MVMObject *value;
 
     /* The bytecode offset it was recorded at. */
-    MVMint32 bytecode_offset;
+    MVMuint32 bytecode_offset;
 };
 
 /* The maximum number of spesh stats updates before we consider a frame's
@@ -237,7 +237,7 @@ struct MVMSpeshSimCallType {
     MVMSpeshStatsType *arg_types;
 };
 
-void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated);
+void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated, MVMuint64 *newly_seen, MVMuint64 *updated);
 void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames);
 void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorklist *worklist);
 void MVM_spesh_stats_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *snapshot, MVMSpeshStats *ss);

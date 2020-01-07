@@ -293,6 +293,7 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
                 args[i - 1].o = type;
                 MVM_gc_root_temp_push(tc, (MVMCollectable **)&(args[i - 1].o));
                 num_roots++;
+                break;
             case MVM_NATIVECALL_ARG_UCHAR:
                 args[i - 1].i64 = *(unsigned char *)cb_args[i - 1];
                 break;
@@ -320,37 +321,7 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
     cid.invokee = data->target;
     cid.args    = args;
     cid.cs      = data->cs;
-    {
-        MVMuint8 **backup_interp_cur_op         = tc->interp_cur_op;
-        MVMuint8 **backup_interp_bytecode_start = tc->interp_bytecode_start;
-        MVMRegister **backup_interp_reg_base    = tc->interp_reg_base;
-        MVMCompUnit **backup_interp_cu          = tc->interp_cu;
-        MVMFrame *backup_cur_frame              = MVM_frame_force_to_heap(tc, tc->cur_frame);
-        MVMFrame *backup_thread_entry_frame     = tc->thread_entry_frame;
-        void **backup_jit_return_address        = tc->jit_return_address;
-        tc->jit_return_address                  = NULL;
-
-        MVMROOT2(tc, backup_cur_frame, backup_thread_entry_frame, {
-            MVMuint32 backup_mark                   = MVM_gc_root_temp_mark(tc);
-            jmp_buf backup_interp_jump;
-            memcpy(backup_interp_jump, tc->interp_jump, sizeof(jmp_buf));
-
-            tc->cur_frame->return_value = &res;
-            tc->cur_frame->return_type  = MVM_RETURN_OBJ;
-            MVM_interp_run(tc, callback_invoke, &cid);
-
-            tc->interp_cur_op         = backup_interp_cur_op;
-            tc->interp_bytecode_start = backup_interp_bytecode_start;
-            tc->interp_reg_base       = backup_interp_reg_base;
-            tc->interp_cu             = backup_interp_cu;
-            tc->cur_frame             = backup_cur_frame;
-            tc->current_frame_nr      = backup_cur_frame->sequence_nr;
-            tc->thread_entry_frame    = backup_thread_entry_frame;
-            tc->jit_return_address    = backup_jit_return_address;
-            memcpy(tc->interp_jump, backup_interp_jump, sizeof(jmp_buf));
-            MVM_gc_root_temp_mark_reset(tc, backup_mark);
-        });
-    }
+    MVM_interp_run_nested(tc, callback_invoke, &cid, &res);
 
     /* Handle return value. */
     if (res.o) {
@@ -385,25 +356,25 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
         case MVM_NATIVECALL_ARG_ASCIISTR:
         case MVM_NATIVECALL_ARG_UTF8STR:
         case MVM_NATIVECALL_ARG_UTF16STR:
-            *(void **)cb_result = MVM_nativecall_unmarshal_string(tc, res.o, data->typeinfos[0], NULL);
+            *(void **)cb_result = MVM_nativecall_unmarshal_string(tc, res.o, data->typeinfos[0], NULL, MVM_NATIVECALL_UNMARSHAL_KIND_RETURN);
             break;
         case MVM_NATIVECALL_ARG_CSTRUCT:
-            *(void **)cb_result = MVM_nativecall_unmarshal_cstruct(tc, res.o);
+            *(void **)cb_result = MVM_nativecall_unmarshal_cstruct(tc, res.o, MVM_NATIVECALL_UNMARSHAL_KIND_RETURN);
             break;
         case MVM_NATIVECALL_ARG_CPPSTRUCT:
-            *(void **)cb_result = MVM_nativecall_unmarshal_cppstruct(tc, res.o);
+            *(void **)cb_result = MVM_nativecall_unmarshal_cppstruct(tc, res.o, MVM_NATIVECALL_UNMARSHAL_KIND_RETURN);
             break;
         case MVM_NATIVECALL_ARG_CPOINTER:
-            *(void **)cb_result = MVM_nativecall_unmarshal_cpointer(tc, res.o);
+            *(void **)cb_result = MVM_nativecall_unmarshal_cpointer(tc, res.o, MVM_NATIVECALL_UNMARSHAL_KIND_RETURN);
             break;
         case MVM_NATIVECALL_ARG_CARRAY:
-            *(void **)cb_result = MVM_nativecall_unmarshal_carray(tc, res.o);
+            *(void **)cb_result = MVM_nativecall_unmarshal_carray(tc, res.o, MVM_NATIVECALL_UNMARSHAL_KIND_RETURN);
             break;
         case MVM_NATIVECALL_ARG_CUNION:
-            *(void **)cb_result = MVM_nativecall_unmarshal_cunion(tc, res.o);
+            *(void **)cb_result = MVM_nativecall_unmarshal_cunion(tc, res.o, MVM_NATIVECALL_UNMARSHAL_KIND_RETURN);
             break;
         case MVM_NATIVECALL_ARG_VMARRAY:
-            *(void **)cb_result = MVM_nativecall_unmarshal_vmarray(tc, res.o);
+            *(void **)cb_result = MVM_nativecall_unmarshal_vmarray(tc, res.o, MVM_NATIVECALL_UNMARSHAL_KIND_RETURN);
             break;
         case MVM_NATIVECALL_ARG_CALLBACK:
             *(void **)cb_result = unmarshal_callback(tc, res.o, data->types[0]);
@@ -451,8 +422,8 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
         } \
         else \
             MVM_exception_throw_adhoc(tc, \
-                "Native call expected argument that references a native %s, but got %s", \
-                what, REPR(value)->name); \
+                "Native call expected argument %d to reference a native %s, but got %s", \
+                i, what, REPR(value)->name); \
     } \
     else { \
         values[i] = MVM_malloc(sizeof(dc_type)); \
@@ -491,6 +462,12 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     /* Get native call body, so we can locate the call info. Read out all we
      * shall need, since later we may allocate a result and and move it. */
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
+    if (MVM_UNLIKELY(!body->lib_handle)) {
+        MVMROOT3(tc, site, args, res_type, {
+            MVM_nativecall_restore_library(tc, body, site);
+        });
+        body = MVM_nativecall_get_nc_body(tc, site);
+    }
     MVMint16  num_args    = body->num_args;
     MVMint16 *arg_types   = body->arg_types;
     MVMint16  ret_type    = body->ret_type;
@@ -534,7 +511,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
             case MVM_NATIVECALL_ARG_UTF8STR:
             case MVM_NATIVECALL_ARG_UTF16STR: {
                 MVMint16 free = 0;
-                char *str = MVM_nativecall_unmarshal_string(tc, value, arg_types[i], &free);
+                char *str = MVM_nativecall_unmarshal_string(tc, value, arg_types[i], &free, i);
                 if (free) {
                     if (!free_strs)
                         free_strs = (char**)MVM_malloc(num_args * sizeof(char *));
@@ -547,7 +524,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
             }
             case MVM_NATIVECALL_ARG_CSTRUCT:
                 values[i]           = MVM_malloc(sizeof(void *));
-                *(void **)values[i] = MVM_nativecall_unmarshal_cstruct(tc, value);
+                *(void **)values[i] = MVM_nativecall_unmarshal_cstruct(tc, value, i);
                 break;
             case MVM_NATIVECALL_ARG_CPPSTRUCT: {
                 /* We need to allocate the struct (THIS) for C++ constructor before passing it along. */
@@ -561,7 +538,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 }
                 else {
                     values[i]           = MVM_malloc(sizeof(void *));
-                    *(void **)values[i] = MVM_nativecall_unmarshal_cppstruct(tc, value);
+                    *(void **)values[i] = MVM_nativecall_unmarshal_cppstruct(tc, value, i);
                 }
                 break;
             }
@@ -569,24 +546,24 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
                     values[i]                     = MVM_malloc(sizeof(void *));
                     *(void **)values[i]           = MVM_malloc(sizeof(void *));
-                    *(void **)*(void **)values[i] = (void *)MVM_nativecall_unmarshal_cpointer(tc, value);
+                    *(void **)*(void **)values[i] = (void *)MVM_nativecall_unmarshal_cpointer(tc, value, i);
                 }
                 else {
                     values[i]           = MVM_malloc(sizeof(void *));
-                    *(void **)values[i] = MVM_nativecall_unmarshal_cpointer(tc, value);
+                    *(void **)values[i] = MVM_nativecall_unmarshal_cpointer(tc, value, i);
                 }
                 break;
             case MVM_NATIVECALL_ARG_CARRAY:
                 values[i]           = MVM_malloc(sizeof(void *));
-                *(void **)values[i] = MVM_nativecall_unmarshal_carray(tc, value);
+                *(void **)values[i] = MVM_nativecall_unmarshal_carray(tc, value, i);
                 break;
             case MVM_NATIVECALL_ARG_CUNION:
                 values[i]           = MVM_malloc(sizeof(void *));
-                *(void **)values[i] = MVM_nativecall_unmarshal_cunion(tc, value);
+                *(void **)values[i] = MVM_nativecall_unmarshal_cunion(tc, value, i);
                 break;
             case MVM_NATIVECALL_ARG_VMARRAY:
                 values[i]           = MVM_malloc(sizeof(void *));
-                *(void **)values[i] = MVM_nativecall_unmarshal_vmarray(tc, value);
+                *(void **)values[i] = MVM_nativecall_unmarshal_vmarray(tc, value, i);
                 break;
             case MVM_NATIVECALL_ARG_CALLBACK:
                 values[i]           = MVM_malloc(sizeof(void *));

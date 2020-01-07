@@ -71,7 +71,7 @@ struct MVMSpeshPlanned {
     MVMuint32 num_type_stats;
 };
 
-MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_frames);
+MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_frames, MVMuint64 *certain_specialization, MVMuint64 *observed_specialization, MVMuint64 *osr_specialization);
 void MVM_spesh_plan_gc_mark(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMGCWorklist *worklist);
 void MVM_spesh_plan_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSpeshPlan *plan);
 void MVM_spesh_plan_destroy(MVMThreadContext *tc, MVMSpeshPlan *plan);

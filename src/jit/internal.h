@@ -25,7 +25,7 @@ struct MVMJitCompiler {
 };
 
 /* Declarations for architecture-specific codegen stuff */
-const MVMint32 MVM_jit_support(void);
+MVMint32 MVM_jit_support(void);
 const unsigned char * MVM_jit_actions(void);
 void MVM_jit_emit_prologue(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg);
 void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg);
@@ -35,7 +35,7 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
                          MVMJitCallC *call_spec);
 void MVM_jit_emit_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 label);
 void MVM_jit_emit_conditional_branch(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                                     MVMint32 cond, MVMint32 label);
+                                     MVMint32 cond, MVMint32 label, MVMuint8 test_type);
 void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                                MVMJitBranch *branch_spec);
 void MVM_jit_emit_label(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
@@ -51,17 +51,16 @@ void MVM_jit_emit_control(MVMThreadContext *tc, MVMJitCompiler *compiler,
 void MVM_jit_emit_data(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitData *data);
 
 void MVM_jit_emit_load(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                       MVMint32 reg_cls, MVMint8 reg_dst,
-                       MVMint32 mem_cls, MVMint32 mem_src, MVMint32 size);
+                       MVMint8 reg_dst, MVMJitStorageClass mem_cls, MVMint32 mem_src, MVMint32 size);
 void MVM_jit_emit_store(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                        MVMint32 mem_cls, MVMint32 mem_pos,
-                        MVMint32 reg_cls, MVMint8 reg_pos, MVMint32 size);
+                        MVMJitStorageClass mem_cls, MVMint32 mem_pos, MVMint8 reg_src, MVMint32 size);
 void MVM_jit_emit_copy(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                       MVMint32 dst_cls, MVMint8 dst_reg, MVMint32 src_cls, MVMint8 src_num);
+                       MVMint8 dst_reg, MVMint8 src_num);
 void MVM_jit_emit_marker(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 num);
+void MVM_jit_emit_deopt_check(MVMThreadContext *tc, MVMJitCompiler *compiler);
 
-MVMint32 MVM_jit_spill_memory_select(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint8 reg_type);
-void MVM_jit_spill_memory_release(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint32 pos, MVMint8 reg_type);
+MVMuint32 MVM_jit_spill_memory_select(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint8 reg_type);
+void MVM_jit_spill_memory_release(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMuint32 pos, MVMint8 reg_type);
 
 
 
@@ -82,26 +81,19 @@ void MVM_jit_spill_memory_release(MVMThreadContext *tc, MVMJitCompiler *compiler
 #include MVM_JIT_ARCH_H
 #endif
 
-
 #undef MVM_JIT_ARCH_X64
 #undef MVM_JIT_PLATFORM_POSIX
 #undef MVM_JIT_PLATFORM_WIN32
 
-/* declare comma (register name separater) to be literal ',', which makes the
- * enum declaration work */
-#ifdef __COMMA__
-#error "Defining __COMMA__ cannot end well"
-#endif
+enum {
+    MVM_JIT_ARCH_GPR(MVM_JIT_REG),
+    MVM_JIT_ARCH_FPR(MVM_JIT_REG)
+};
 
-#define __COMMA__ ,
-enum {
-    MVM_JIT_ARCH_GPR(MVM_JIT_REG)
-};
-enum {
-    MVM_JIT_ARCH_NUM(MVM_JIT_REG)
-};
-/* it's a ridiculous, dangerous macro and it shouldn't escape */
-#undef __COMMA__
+extern const MVMBitmap MVM_JIT_AVAILABLE_REGISTERS;
+extern const MVMBitmap MVM_JIT_RESERVED_REGISTERS;
+extern const MVMBitmap MVM_JIT_SPARE_REGISTERS;
+extern const MVMBitmap MVM_JIT_REGISTER_CLASS[];
 
 /* We need max and min macros, they used to be in libtommath, but aren't anymore */
 #ifndef MAX
@@ -113,3 +105,5 @@ enum {
 #endif
 
 #define MVM_ARRAY_SIZE(x) (sizeof(x)/sizeof(x[0]))
+
+const char * MVM_register_type(MVMint8 reg_type);

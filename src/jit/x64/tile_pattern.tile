@@ -1,5 +1,5 @@
 # -*-whitespace-*-
-# Terminals: reg, mem, flag, void, expr, lab
+# Types: reg, num, flag, void
 #
 
 #
@@ -16,10 +16,13 @@
 (define: (all flag) flag)
 (define: (any flag) flag)
 (define: (if flag reg) reg)
+(define: (if flag num) num)
 (define: (ifv flag void) void)
 (define: (when flag void) void)
 (define: (discard reg) void)
+(define: (discard num) void)
 (define: (do void reg) reg)
+(define: (do void num) num)
 (define: (dov void void) void)
 
 
@@ -31,7 +34,7 @@
 # ALIASING
 #
 (define: (copy reg) reg)
-
+(define: (copy num) num)
 
 #
 # MEMORY TRAFFIC
@@ -43,16 +46,21 @@
 
 (tile: const_large (const_large $value $size) reg 3)
 (tile: const_large (const_ptr $ptr) reg 3)
-
+(tile: const_num   (const_num $num $size) num 3)
 
 (tile: load_reg  (load reg $size) reg 5)
 (tile: load_addr (load (addr reg $ofs) $size) reg 5)
 (tile: load_idx  (load (idx reg reg $scale) $size) reg 5)
 
+(tile: load_num       (load_num reg $size) num 5)
+(tile: load_num_addr  (load_num (addr reg $ofs) $size) num 5)
+
 (tile: store (store reg reg $size) void 5)
 (tile: store_addr (store (addr reg $ofs) reg $size) void 5)
 (tile: store_idx  (store (idx reg reg $scl) reg $size) void 5)
 
+(tile: store_num      (store reg num $size) void 5)
+(tile: store_num_addr (store (addr reg $ofs) num $size) void 5)
 
 (tile: cast_signed             (scast reg $to_size $from_size) reg 2)
 (tile: cast_unsigned           (ucast reg $to_size $from_size) reg 2)
@@ -84,6 +92,9 @@
 (tile: sub_load_addr (sub reg (load (subr reg $ofs) $sz)) reg 6)
 (tile: sub_load_idx  (sub reg (load (idx reg reg $scale) $size)) reg 6)
 
+(tile: add_num       (add num num) num 2)
+(tile: sub_num       (sub num num) num 2)
+(tile: mul_num       (mul num num) num 2)
 
 #
 # Tests and Comparinsons
@@ -113,7 +124,20 @@
 (tile: cmp (le reg reg) flag 2)
 (tile: cmp (ge reg reg) flag 2)
 
+(tile: test_num (zr num) flag 2)
+(tile: test_num (nz num) flag 2)
+
+(tile: cmp_num (eq num num) flag 2)
+(tile: cmp_num (lt num num) flag 2)
+(tile: cmp_num (gt num num) flag 2)
+(tile: cmp_num (ne num num) flag 2)
+(tile: cmp_num (le num num) flag 2)
+(tile: cmp_num (ge num num) flag 2)
+
 (tile: flagval (flagval flag) reg 2)
+
+
+
 
 # Labels and branches
 (tile: mark (mark $label) void 1)
@@ -123,15 +147,18 @@
 
 
 # placeholder for arglist pseudotile
-(define: (arglist (carg reg)) c_args 1)
-
+(define: (arglist c_arg) c_args 1)
+(define: (carg reg) c_arg 1)
+(define: (carg num) c_arg 1)
 
 
 (tile: call      (call  reg c_args $size) reg 4)
 (tile: call      (callv reg c_args) void 4)
+(tile: call      (calln reg c_args) num 4)
 
 (tile: call_func (call  (const_ptr $ptr) c_args $size) reg 4)
 (tile: call_func (callv (const_ptr $ptr) c_args) void 4)
+(tile: call_func (calln (const_prt $ptr) c_args) num 4)
 
 (tile: call_addr (call  (load (addr reg $ofs) $sz) c_args $size) reg 4)
 (tile: call_addr (callv (load (addr reg $ofs) $sz) c_args) void 4)

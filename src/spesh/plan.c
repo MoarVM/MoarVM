@@ -54,11 +54,17 @@ MVMSpeshStatsType * copy_type_tuple(MVMThreadContext *tc, MVMCallsite *cs,
 /* Considers the statistics of a given callsite + static frame pairing and
  * plans specializations to produce for it. */
 void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
-                 MVMSpeshStatsByCallsite *by_cs) {
+                 MVMSpeshStatsByCallsite *by_cs,
+                 MVMuint64 *in_certain_specialization, MVMuint64 *in_observed_specialization, MVMuint64 *in_osr_specialization) {
     /* See if any types tuples are hot enough, provided this is a frame that
      * we can type-specialize. */
     MVMuint32 unaccounted_hits = by_cs->hits;
     MVMuint32 unaccounted_osr_hits = by_cs->osr_hits;
+
+    MVMuint64 certain_specialization = 0;
+    MVMuint64 observed_specialization = 0;
+    MVMuint64 osr_specialization = 0;
+
     if (sf->body.specializable) {
         MVMuint32 i;
         for (i = 0; i < by_cs->num_by_type; i++) {
@@ -75,6 +81,10 @@ void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
                 evidence[0] = by_type;
                 add_planned(tc, plan, MVM_SPESH_PLANNED_OBSERVED_TYPES, sf, by_cs,
                     copy_type_tuple(tc, by_cs->cs, by_type->arg_types), evidence, 1);
+                observed_specialization++;
+                if (hit_percent < MVM_SPESH_PLAN_TT_OBS_PERCENT) {
+                    osr_specialization++;
+                }
                 unaccounted_hits -= by_type->hits;
                 unaccounted_osr_hits -= by_type->osr_hits;
             }
@@ -87,13 +97,26 @@ void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
     /* If there are enough unaccounted for hits by type specializations, then
      * plan a certain specialization. */
     if ((unaccounted_hits && unaccounted_hits >= MVM_spesh_threshold(tc, sf)) ||
-            unaccounted_osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR)
+            unaccounted_osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR) {
         add_planned(tc, plan, MVM_SPESH_PLANNED_CERTAIN, sf, by_cs, NULL, NULL, 0);
+        certain_specialization++;
+        if (!unaccounted_hits || unaccounted_hits < MVM_spesh_threshold(tc, sf)) {
+            osr_specialization++;
+        }
+    }
+
+    if (in_certain_specialization)
+        *in_certain_specialization = certain_specialization;
+    if (in_observed_specialization)
+        *in_observed_specialization = observed_specialization;
+    if (in_osr_specialization)
+        *in_osr_specialization = osr_specialization;
 }
 
 /* Considers the statistics of a given static frame and plans specializtions
  * to produce for it. */
-void plan_for_sf(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf) {
+void plan_for_sf(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
+        MVMuint64 *in_certain_specialization, MVMuint64 *in_observed_specialization, MVMuint64 *in_osr_specialization) {
     MVMSpeshStats *ss = sf->body.spesh->body.spesh_stats;
     MVMuint32 threshold = MVM_spesh_threshold(tc, sf);
     if (ss->hits >= threshold || ss->osr_hits >= MVM_SPESH_PLAN_SF_MIN_OSR) {
@@ -103,7 +126,7 @@ void plan_for_sf(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf) {
         for (i = 0; i < ss->num_by_callsite; i++) {
             MVMSpeshStatsByCallsite *by_cs = &(ss->by_callsite[i]);
             if (by_cs->hits >= threshold || by_cs->osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR)
-                plan_for_cs(tc, plan, sf, by_cs);
+                plan_for_cs(tc, plan, sf, by_cs, in_certain_specialization, in_observed_specialization, in_osr_specialization);
         }
     }
 }
@@ -164,7 +187,7 @@ void sort_plan(MVMThreadContext *tc, MVMSpeshPlanned *planned, MVMuint32 n) {
 
 /* Forms a specialization plan from considering all frames whose statics have
  * changed. */
-MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_frames) {
+MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_frames, MVMuint64 *in_certain_specialization, MVMuint64 *in_observed_specialization, MVMuint64 *in_osr_specialization) {
     MVMSpeshPlan *plan = MVM_calloc(1, sizeof(MVMSpeshPlan));
     MVMint64 updated = MVM_repr_elems(tc, updated_static_frames);
     MVMint64 i;
@@ -173,7 +196,7 @@ MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_fr
 #endif
     for (i = 0; i < updated; i++) {
         MVMObject *sf = MVM_repr_at_pos_o(tc, updated_static_frames, i);
-        plan_for_sf(tc, plan, (MVMStaticFrame *)sf);
+        plan_for_sf(tc, plan, (MVMStaticFrame *)sf, in_certain_specialization, in_observed_specialization, in_osr_specialization);
     }
     twiddle_stack_depths(tc, plan->planned, plan->num_planned);
     sort_plan(tc, plan->planned, plan->num_planned);
@@ -206,21 +229,24 @@ void MVM_spesh_plan_gc_mark(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMGCWorkl
 
 void MVM_spesh_plan_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSpeshPlan *plan) {
     MVMuint32 i;
+    MVMuint64 cache_1 = 0;
+    MVMuint64 cache_2 = 0;
+    MVMuint64 cache_3 = 0;
     if (!plan)
         return;
     for (i = 0; i < plan->num_planned; i++) {
         MVMSpeshPlanned *p = &(plan->planned[i]);
-        MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-            (MVMCollectable*)(p->sf), "staticframe");
+        MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+            (MVMCollectable*)(p->sf), "staticframe", &cache_1);
         if (p->type_tuple) {
             MVMCallsite *cs = p->cs_stats->cs;
             MVMuint32 j;
             for (j = 0; j < cs->flag_count; j++) {
                 if (cs->arg_flags[j] & MVM_CALLSITE_ARG_OBJ) {
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable*)(p->type_tuple[j].type), "argument type");
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable*)(p->type_tuple[j].decont_type), "argument decont type");
+                    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                        (MVMCollectable*)(p->type_tuple[j].type), "argument type", &cache_2);
+                    MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                        (MVMCollectable*)(p->type_tuple[j].decont_type), "argument decont type", &cache_3);
                 }
             }
         }

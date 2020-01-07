@@ -141,7 +141,7 @@ static void code_pair_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
 static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *st, MVMObject *config) {
     CodePairContData *data = (CodePairContData *)st->container_data;
 
-    MVMROOT(tc, config, {
+    MVMROOT2(tc, config, st, {
         MVMString *fetch = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "fetch");
         MVMString *store;
 
@@ -396,24 +396,28 @@ void *MVM_container_devirtualize_fetch_for_jit(MVMThreadContext *tc, MVMSTable *
                     case MVM_reg_num64: return MVM_nativeref_read_lex_n;
                     case MVM_reg_str:   return MVM_nativeref_read_lex_s;
                 }
+                break;
             case MVM_NATIVEREF_ATTRIBUTE:
                 switch (type) {
                     case MVM_reg_int64: return MVM_nativeref_read_attribute_i;
                     case MVM_reg_num64: return MVM_nativeref_read_attribute_n;
                     case MVM_reg_str:   return MVM_nativeref_read_attribute_s;
                 }
+                break;
             case MVM_NATIVEREF_POSITIONAL:
                 switch (type) {
                     case MVM_reg_int64: return MVM_nativeref_read_positional_i;
                     case MVM_reg_num64: return MVM_nativeref_read_positional_n;
                     case MVM_reg_str:   return MVM_nativeref_read_positional_s;
                 }
+                break;
             case MVM_NATIVEREF_MULTIDIM:
                 switch (type) {
                     case MVM_reg_int64: return MVM_nativeref_read_multidim_i;
                     case MVM_reg_num64: return MVM_nativeref_read_multidim_n;
                     case MVM_reg_str:   return MVM_nativeref_read_multidim_s;
                 }
+                break;
             default:
                 return NULL;
         }
@@ -433,24 +437,28 @@ void *MVM_container_devirtualize_store_for_jit(MVMThreadContext *tc, MVMSTable *
                     case MVM_reg_num64: return MVM_nativeref_write_lex_n;
                     case MVM_reg_str:   return MVM_nativeref_write_lex_s;
                 }
+                break;
             case MVM_NATIVEREF_ATTRIBUTE:
                 switch (type) {
                     case MVM_reg_int64: return MVM_nativeref_write_attribute_i;
                     case MVM_reg_num64: return MVM_nativeref_write_attribute_n;
                     case MVM_reg_str:   return MVM_nativeref_write_attribute_s;
                 }
+                break;
             case MVM_NATIVEREF_POSITIONAL:
                 switch (type) {
                     case MVM_reg_int64: return MVM_nativeref_write_positional_i;
                     case MVM_reg_num64: return MVM_nativeref_write_positional_n;
                     case MVM_reg_str:   return MVM_nativeref_write_positional_s;
                 }
+                break;
             case MVM_NATIVEREF_MULTIDIM:
                 switch (type) {
                     case MVM_reg_int64: return MVM_nativeref_write_multidim_i;
                     case MVM_reg_num64: return MVM_nativeref_write_multidim_n;
                     case MVM_reg_str:   return MVM_nativeref_write_multidim_s;
                 }
+                break;
             default:
                 return NULL;
         }

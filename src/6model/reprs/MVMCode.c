@@ -128,7 +128,7 @@ static const MVMREPROps MVMCode_this_repr = {
 
 MVM_PUBLIC MVMObject * MVM_code_location(MVMThreadContext *tc, MVMObject *code) {
     MVMObject *BOOTHash = tc->instance->boot_types.BOOTHash;
-    MVMObject *result = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
+    MVMObject *result;
     MVMString *file;
     MVMint32   line;
     MVMObject *filename_boxed;
@@ -136,6 +136,8 @@ MVM_PUBLIC MVMObject * MVM_code_location(MVMThreadContext *tc, MVMObject *code) 
     MVMString *filename_key, *linenumber_key;
 
     MVM_code_location_out(tc, code, &file, &line);
+
+    result = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
 
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&file);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
@@ -165,7 +167,7 @@ void MVM_code_location_out(MVMThreadContext *tc, MVMObject *code,
         MVMCodeBody          *body = &((MVMCode*)code)->body;
         MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &body->sf->body, 0);
         MVMCompUnit            *cu = body->sf->body.cu;
-        MVMint32           str_idx = ann ? ann->filename_string_heap_index : 0;
+        MVMuint32          str_idx = ann ? ann->filename_string_heap_index : 0;
 
         *line_out = ann ? ann->line_number : 1;
         if (ann && str_idx < cu->body.num_strings) {
