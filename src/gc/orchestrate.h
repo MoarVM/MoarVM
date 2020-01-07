@@ -54,7 +54,7 @@ typedef enum {
 # define GCDEBUG_LOG(tc, flags, msg, ...) \
     if (MVM_GC_DEBUG_ENABLED(flags)) \
         printf((msg), (tc)->thread_id, \
-            MVM_load(&(tc)->instance->gc_seq_number), __VA_ARGS__)
+            (int)MVM_load(&(tc)->instance->gc_seq_number), __VA_ARGS__)
 #else
 # define GCDEBUG_LOG(tc, flags, msg, ...) \
     if (MVM_GC_DEBUG_ENABLED(flags)) \
