@@ -216,7 +216,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
             MVM_exception_throw_adhoc(tc, "Error calculating the size of a big integer: %s", mp_error_to_string(err));
         }
         buf = (char *)MVM_malloc(len);
-        if ((err = mp_to_decimal(i, buf, sizeof(buf))) != MP_OKAY) {
+        if ((err = mp_to_decimal(i, buf, len)) != MP_OKAY) {
             MVM_exception_throw_adhoc(tc, "Error converting a big integer to a string: %s", mp_error_to_string(err));
         }
 
