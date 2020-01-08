@@ -177,7 +177,10 @@ static mp_int * force_bigint(MVMThreadContext *tc, const MVMP6bigintBody *body, 
             else {
                 mp_digit d = -value;
                 mp_set(i, d);
-                mp_neg(i, i);
+                mp_err err;
+                if ((err = mp_neg(i, i)) != MP_OKAY) {
+                    MVM_exception_throw_adhoc(tc, "Error negating a big integer: %s", mp_error_to_string(err));
+                }
             }
             return i;
         }
@@ -189,7 +192,10 @@ static mp_int * force_bigint(MVMThreadContext *tc, const MVMP6bigintBody *body, 
             }
             else {
                 mp_set_i32(i, -value);
-                mp_neg(i, i);
+                mp_err err;
+                if ((err = mp_neg(i, i)) != MP_OKAY) {
+                    MVM_exception_throw_adhoc(tc, "Error negating a big integer: %s", mp_error_to_string(err));
+                }
             }
             return i;
         }
@@ -198,20 +204,25 @@ static mp_int * force_bigint(MVMThreadContext *tc, const MVMP6bigintBody *body, 
 
 /* Stores an int64 in a bigint result body, either as a 32-bit smallint if it
  * is in range, or a big integer if not. */
-static void store_int64_result(MVMP6bigintBody *body, MVMint64 result) {
+static void store_int64_result(MVMThreadContext *tc, MVMP6bigintBody *body, MVMint64 result) {
     if (MVM_IS_32BIT_INT(result)) {
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
         body->u.smallint.value = (MVMint32)result;
     }
     else {
+        mp_err err;
         mp_int *i = MVM_malloc(sizeof(mp_int));
-        mp_init(i);
+        if ((err = mp_init(i)) != MP_OKAY) {
+            MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
+        }
         if (result >= 0) {
             MVM_bigint_mp_set_uint64(i, (MVMuint64)result);
         }
         else {
             MVM_bigint_mp_set_uint64(i, (MVMuint64)-result);
-            mp_neg(i, i);
+            if ((err = mp_neg(i, i)) != MP_OKAY) {
+                MVM_exception_throw_adhoc(tc, "Error negating a big integer: %s", mp_error_to_string(err));
+            }
         }
         body->u.bigint = i;
     }
@@ -263,9 +274,10 @@ static void grow_and_negate(const mp_int *a, int size, mp_int *b) {
     mp_add_d(b, 1, b);
 }
 
-static void two_complement_bitop(mp_int *a, mp_int *b, mp_int *c,
+static void two_complement_bitop(MVMThreadContext *tc, mp_int *a, mp_int *b, mp_int *c,
                                  mp_err (*mp_bitop)(const mp_int *, const mp_int *, mp_int *)) {
 
+    mp_err err;
     mp_int d;
     mp_int e;
     mp_int *f;
@@ -274,12 +286,16 @@ static void two_complement_bitop(mp_int *a, mp_int *b, mp_int *c,
     f = a;
     g = b;
     if (MP_NEG == a->sign) {
-        mp_init(&d);
+        if ((err = mp_init(&d)) != MP_OKAY) {
+            MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err));
+        }
         grow_and_negate(a, b->used, &d);
         f = &d;
     }
     if (MP_NEG == b->sign) {
-        mp_init(&e);
+        if ((err = mp_init(&e)) != MP_OKAY) {
+            MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err));
+        }
         grow_and_negate(b, a->used, &e);
         g = &e;
     }
@@ -303,8 +319,12 @@ static void two_complement_bitop(mp_int *a, mp_int *b, mp_int *c,
         for (i = 0; i < c->used; i++) {
             c->dp[i] = (~c->dp[i]) & MP_MASK;
         }
-        mp_add_d(c, 1, c);
-        mp_neg(c, c);
+        if ((err = mp_add_d(c, 1, c)) != MP_OKAY) {
+            MVM_exception_throw_adhoc(tc, "Error adding a digit to a big integer: %s", mp_error_to_string(err));
+        }
+        if ((err = mp_neg(c, c)) != MP_OKAY) {
+            MVM_exception_throw_adhoc(tc, "Error negating a big integer: %s", mp_error_to_string(err));
+        }
     }
 }
 
@@ -334,7 +354,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
     }); \
     bb = get_bigint_body(tc, result); \
     if (!IS_CONCRETE(source)) { \
-        store_int64_result(bb, 0); \
+        store_int64_result(tc, bb, 0); \
     } \
     else { \
         MVMP6bigintBody *ba = get_bigint_body(tc, source); \
@@ -355,7 +375,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
             MVMint64 sb; \
             MVMint64 sa = ba->u.smallint.value; \
             SMALLINT_OP; \
-            store_int64_result(bb, sb); \
+            store_int64_result(tc, bb, sb); \
         } \
     } \
     return result; \
@@ -440,7 +460,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
             return result; \
         result = MVM_repr_alloc_init(tc, result_type);\
         bc = get_bigint_body(tc, result); \
-        store_int64_result(bc, sc); \
+        store_int64_result(tc, bc, sc); \
     } \
     return result; \
 }
@@ -463,7 +483,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
             if ((err = mp_init(ic)) != MP_OKAY) { \
                 MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err)); \
             } \
-            two_complement_bitop(ia, ib, ic, mp_##opname); \
+            two_complement_bitop(tc, ia, ib, ic, mp_##opname); \
             store_bigint_result(bc, ic); \
             adjust_nursery(tc, bc); \
         } \
@@ -472,7 +492,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
             MVMint64 sa = ba->u.smallint.value; \
             MVMint64 sb = bb->u.smallint.value; \
             SMALLINT_OP; \
-            store_int64_result(bc, sc); \
+            store_int64_result(tc, bc, sc); \
         } \
         return result; \
     }\
@@ -520,7 +540,7 @@ MVMObject *MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
                 sb = sa % sb;
                 sa = t;
             }
-            store_int64_result(bc, sa);
+            store_int64_result(tc, bc, sa);
         }
     }
 
@@ -580,7 +600,7 @@ MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObje
             store_bigint_result(bc, ic);
             adjust_nursery(tc, bc);
         } else {
-            store_int64_result(bc, ba->u.smallint.value % bb->u.smallint.value);
+            store_int64_result(tc, bc, ba->u.smallint.value % bb->u.smallint.value);
         }
     }
 
@@ -675,7 +695,7 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         } else {
             value = (MVMint64)num / denom;
         }
-        store_int64_result(bc, value);
+        store_int64_result(tc, bc, value);
     }
 
     return result;
@@ -760,7 +780,7 @@ MVMObject *MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
             value = ((MVMint64)ba->u.smallint.value) >> -n;
         else
             value = ((MVMint64)ba->u.smallint.value) << n;
-        store_int64_result(bb, value);
+        store_int64_result(tc, bb, value);
     }
 
     return result;
@@ -796,11 +816,11 @@ MVMObject *MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         store_bigint_result(bb, ib);
         adjust_nursery(tc, bb);
     } else if (n >= 32) {
-        store_int64_result(bb, BIGINT_IS_NEGATIVE(ba) ? -1 : 0);
+        store_int64_result(tc, bb, BIGINT_IS_NEGATIVE(ba) ? -1 : 0);
     } else {
         MVMint32 value = ba->u.smallint.value;
         value = value >> n;
-        store_int64_result(bb, value);
+        store_int64_result(tc, bb, value);
     }
 
     return result;
@@ -830,7 +850,7 @@ MVMObject *MVM_bigint_not(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
     } else {
         MVMint32 value = ba->u.smallint.value;
         value = ~value;
-        store_int64_result(bb, value);
+        store_int64_result(tc, bb, value);
     }
 
     return result;
@@ -1197,7 +1217,7 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
             });
 
             ba = get_bigint_body(tc, result);
-            store_int64_result(ba, result_int);
+            store_int64_result(tc, ba, result_int);
         } else {
             use_small_arithmetic = 0;
         }
