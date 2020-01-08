@@ -43,7 +43,10 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
     /* Allocate temporary big integers. */
     for (i = 0; i < MVM_NUM_TEMP_BIGINTS; i++) {
         tc->temp_bigints[i] = MVM_malloc(sizeof(mp_int));
-        mp_init(tc->temp_bigints[i]);
+        mp_err err;
+        if ((err = mp_init(tc->temp_bigints[i])) != MP_OKAY) {
+            MVM_exception_throw_adhoc(tc, "Error creating a temporary big integer: %s", mp_error_to_string(err));
+        }
     }
 
     /* Initialize frame sequence numbers */
