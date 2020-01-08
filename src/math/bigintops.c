@@ -346,7 +346,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
                 MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err)); \
             } \
             if ((err = mp_##opname(ia, ib)) != MP_OKAY) { \
-                MVM_exception_throw_adhoc(tc, "Error performing ##opname with a big integer: %s", mp_error_to_string(err)); \
+                MVM_exception_throw_adhoc(tc, "Error performing %s with a big integer: %s", #opname, mp_error_to_string(err)); \
             } \
             store_bigint_result(bb, ib); \
             adjust_nursery(tc, bb); \
@@ -380,7 +380,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
         MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err)); \
     } \
     if ((err = mp_##opname(ia, ib, ic)) != MP_OKAY) { \
-        MVM_exception_throw_adhoc(tc, "Error performing ##opname with big integers: %s", mp_error_to_string(err)); \
+        MVM_exception_throw_adhoc(tc, "Error performing %s with big integers: %s", #opname, mp_error_to_string(err)); \
     } \
     store_bigint_result(bc, ic); \
     adjust_nursery(tc, bc); \
@@ -399,7 +399,7 @@ void MVM_bigint_fallback_##opname(MVMThreadContext *tc, MVMP6bigintBody *ba, MVM
         MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err)); \
     } \
     if ((err = mp_##opname(ia, ib, ic)) != MP_OKAY) { \
-        MVM_exception_throw_adhoc(tc, "Error performing ##opname with big integers: %s", mp_error_to_string(err)); \
+        MVM_exception_throw_adhoc(tc, "Error performing %s with big integers: %s", #opname, mp_error_to_string(err)); \
     } \
     store_bigint_result(bc, ic); \
     adjust_nursery(tc, bc); \
@@ -425,7 +425,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
             MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err)); \
         } \
         if ((err = mp_##opname(ia, ib, ic)) != MP_OKAY) { \
-            MVM_exception_throw_adhoc(tc, "Error performing ##opname with big integers: %s", mp_error_to_string(err)); \
+            MVM_exception_throw_adhoc(tc, "Error performing %s with big integers: %s", #opname, mp_error_to_string(err)); \
         } \
         store_bigint_result(bc, ic); \
         adjust_nursery(tc, bc); \
