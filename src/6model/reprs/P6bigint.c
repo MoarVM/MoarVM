@@ -18,13 +18,13 @@ static MVMint64 mp_get_int64(MVMThreadContext *tc, mp_int * a) {
         }
         ++signed_max;
     }
-	else {
+    else {
         if (bits > 63) {
             MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", bits);
         }
     }
 
-    res = mp_get_ull(a);
+    res = mp_get_mag_ull(a);
 
     if (res > signed_max) {
         /* The mp_int was bigger than a signed result could be. */
@@ -46,7 +46,7 @@ static MVMuint64 mp_get_uint64(MVMThreadContext *tc, mp_int * a) {
         MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", bits);
     }
 
-    return mp_get_ull(a);
+    return mp_get_mag_ull(a);
 }
 
 /* This representation's function pointer table. */

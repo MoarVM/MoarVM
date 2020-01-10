@@ -769,7 +769,7 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
             if (mp_iszero(base)) {
                 r = MVM_repr_box_int(tc, int_type, 0);
             }
-            else if (mp_get_i32(base) == 1) {
+            else if (mp_get_i32(base) == 1 || mp_get_i32(base) == -1) {
                 r = MVM_repr_box_int(tc, int_type, MP_ZPOS == base->sign || mp_iseven(exponent) ? 1 : -1);
             }
             else {
