@@ -707,7 +707,7 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
             if ((err = mp_init_multi(&remainder, &intermediate, NULL)) != MP_OKAY) {
                 MVM_exception_throw_adhoc(tc, "Error creating big integers: %s", mp_error_to_string(err));
             }
-            if ((err = mp_div(ia, ib, &remainder, &intermediate)) != MP_OKAY) {
+            if ((err = mp_div(ia, ib, &intermediate, &remainder)) != MP_OKAY) {
                 mp_clear_multi(&remainder, &intermediate, NULL);
                 MVM_exception_throw_adhoc(tc, "Error dividing big integers: %s", mp_error_to_string(err));
             }
