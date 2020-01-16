@@ -1301,7 +1301,7 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
     }
 
     if (use_small_arithmetic) {
-        if (MP_GEN_RANDOM_MAX >= abs(smallint_max)) {
+        if (MP_GEN_RANDOM_MAX >= (unsigned long)abs(smallint_max)) {
             mp_digit result_int;
             if (MVM_getrandom(tc, &result_int, sizeof(mp_digit)) == 0) {
                 MVM_exception_throw_adhoc(tc, "Error getting a random int to put into a big integer");
