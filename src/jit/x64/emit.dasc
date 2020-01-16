@@ -2448,9 +2448,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | mov dword [RV+val_offset], TMP3d
             | jmp >4
             |3:
-            | mov ARG1, RV
-            | add ARG1, offset
-            | mov ARG2, TMP3
+            | mov ARG1, TC
+            | mov ARG2, RV
+            | add ARG2, offset
+            | mov ARG3, TMP3
             | callp &MVM_p6bigint_store_as_mp_int;
             |4:
         }
