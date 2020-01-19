@@ -1,0 +1,68 @@
+export TEST_JOBS=10
+
+git diff --no-ext-diff --quiet && git diff --no-ext-diff --cached --quiet || {
+	echo "status is not clean" && exit 1
+}
+OLD_VERSION=$(grep '^New in' docs/ChangeLog | head -n2 | tail -n1 | sed -s 's/New in //')
+echo "Old version: $OLD_VERSION"
+NEW_VERSION=$(grep '^New in' docs/ChangeLog | head -n1 | sed -s 's/New in //')
+echo "New version: $NEW_VERSION"
+
+for C in $(git log --no-merges --pretty='format:%h' $OLD_VERSION..HEAD) ; do
+	git diff --name-only $C $C^ | grep -v VERSION | grep -q -v docs/ChangeLog && { # No need to log changes to ChangeLog or VERSION
+		grep -q $C docs/ChangeLog || echo "Commit $(git show -s --oneline $C) not logged"
+		# Warning about unlogged changes is only advisory! Some changes are really not relevant
+	}
+done
+
+BUILDDIR=$(mktemp -d)
+echo "Building in $BUILDDIR"
+mkdir $BUILDDIR/install
+
+perl Configure.pl --prefix=$BUILDDIR/install || exit 1
+make && make -j16 install || exit 1
+
+pushd $BUILDDIR
+
+git clone git@github.com:perl6/nqp.git || exit 1
+pushd nqp
+perl Configure.pl --backends=moar --with-moar=$BUILDDIR/install/bin/moar --prefix=$BUILDDIR/install || exit 1
+make test || exit 1
+make install || exit 1
+popd
+git clone git@github.com:rakudo/rakudo.git || exit 1
+pushd rakudo
+perl Configure.pl --with-nqp=$BUILDDIR/install/bin/nqp --prefix=$BUILDDIR/install || exit 1
+make test || exit 1
+make spectest || exit 1
+make stresstest || exit 1
+popd
+
+popd
+
+DEBUG_NFG_PATCH='diff --git a/src/strings/ops.h b/src/strings/ops.h
+index 5cdb3d355..fd20f1d50 100644
+--- a/src/strings/ops.h
++++ b/src/strings/ops.h
+@@ -142 +142 @@ char * MVM_string_encoding_cname(MVMThreadContext *tc, MVMint64 encoding);
+-#define MVM_DEBUG_NFG 0
++#define MVM_DEBUG_NFG 1
+@@ -145 +145 @@ char * MVM_string_encoding_cname(MVMThreadContext *tc, MVMint64 encoding);
+-#define MVM_DEBUG_NFG_STRICT 0
++#define MVM_DEBUG_NFG_STRICT 1'
+echo "$DEBUG_NFG_PATCH" | patch -p1 || exit 1
+
+make -j16 install || exit 1
+
+pushd $BUILDDIR
+pushd rakudo
+make test || exit 1
+make spectest || exit 1
+popd
+popd
+
+echo "$DEBUG_NFG_PATCH" | patch -R -p1 || exit 1
+
+rm -rf $BUILDDIR
+
+exit 0
