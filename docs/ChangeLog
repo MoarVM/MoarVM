@@ -1,3 +1,9 @@
+New in 2020.01.1
+
++ [105d09d62] Fix NativeCall libraries losing state during repossession
++ [7b8ed6308,a3ec7f315,921c8de84,9d053b8e9,8ac8afcc2,611532317,0995f19b9,fce208cb1,72941ee22,
+   9166ea591,61ac671ea] Fix several more compiler warnings
+
 New in 2020.01
 
 + [d7b6855d3,7a93b2897,fc41473c0,3806735a4,ae66545c7,34537cfd0,4bf923dbd,596a0b287] Fix
