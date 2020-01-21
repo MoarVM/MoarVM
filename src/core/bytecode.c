@@ -536,16 +536,21 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 
         /* Skip over the rest, making sure it's readable. */
         {
-            MVMuint32 skip;
+            MVMuint32 skip = 0;
             MVMuint16 slvs;
             MVMuint32 num_local_debug_names;
             if (rs->version >= 7) {
                 MVMuint16 actualcount;
-                ensure_can_read(tc, cu, rs, pos, FRAME_HEADER_SIZE + 4);
-                actualcount = read_int16(pos, FRAME_HEADER_SIZE + 2);
-                skip = 2 * (actualcount) +
-                       6 * static_frame_body->num_lexicals
-                       + 4;
+                if (static_frame_body->num_locals > 0) {
+                    ensure_can_read(tc, cu, rs, pos, FRAME_HEADER_SIZE + 4);
+                    actualcount = read_int16(pos, FRAME_HEADER_SIZE + 2);
+                    skip = 2 * actualcount + 4;
+                }
+                if (static_frame_body->num_lexicals > 0) {
+                    ensure_can_read(tc, cu, rs, pos, FRAME_HEADER_SIZE + skip + 4);
+                    actualcount = read_int16(pos, FRAME_HEADER_SIZE + skip + 2);
+                    skip += 4 * static_frame_body->num_lexicals + 2 * actualcount + 4;
+                }
             }
             else {
                 skip = 2 * static_frame_body->num_locals +
@@ -650,23 +655,54 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
 
     /* Read the lexical types. */
     if (sf->body.num_lexicals) {
+        MVMuint32 offset = 0;
+        MVMuint32 actualcount = sf->body.num_lexicals;
+
         /* Allocate names hash and types list. */
         sf->body.lexical_types = MVM_malloc(sizeof(MVMuint16) * sf->body.num_lexicals);
         sf->body.lexical_names_list = MVM_malloc(sizeof(MVMLexicalRegistry *) * sf->body.num_lexicals);
 
         /* Read in data. */
-        for (j = 0; j < sf->body.num_lexicals; j++) {
-            MVMString *name = get_heap_string(tc, cu, NULL, pos, 6 * j + 2);
-            MVMLexicalRegistry *entry = MVM_calloc(1, sizeof(MVMLexicalRegistry));
+        if (bytecode_version < 7) {
+            for (j = 0; j < sf->body.num_lexicals; j++) {
+                MVMString *name = get_heap_string(tc, cu, NULL, pos, 6 * j + 2);
+                MVMLexicalRegistry *entry = MVM_calloc(1, sizeof(MVMLexicalRegistry));
 
-            MVM_ASSIGN_REF(tc, &(sf->common.header), entry->key, name);
-            sf->body.lexical_names_list[j] = entry;
-            entry->value = j;
+                MVM_ASSIGN_REF(tc, &(sf->common.header), entry->key, name);
+                sf->body.lexical_names_list[j] = entry;
+                entry->value = j;
 
-            sf->body.lexical_types[j] = read_int16(pos, 6 * j);
-            MVM_HASH_BIND(tc, sf->body.lexical_names, name, entry)
+                sf->body.lexical_types[j] = read_int16(pos, 6 * j);
+                MVM_HASH_BIND(tc, sf->body.lexical_names, name, entry)
+            }
+            pos += 6 * sf->body.num_lexicals;
         }
-        pos += 6 * sf->body.num_lexicals;
+        else {
+            offset = read_int16(pos, 0);
+            actualcount = read_int16(pos, 2);
+            pos += 4;
+
+            for (j = 0; j < sf->body.num_lexicals; j++) {
+                MVMString *name;
+                MVMLexicalRegistry *entry = MVM_calloc(1, sizeof(MVMLexicalRegistry));
+                name = get_heap_string(tc, cu, NULL, pos, j * 4);
+
+                MVM_ASSIGN_REF(tc, &(sf->common.header), entry->key, name);
+                sf->body.lexical_names_list[j] = entry;
+                entry->value = j;
+                MVM_HASH_BIND(tc, sf->body.lexical_names, name, entry);
+            }
+            pos += 4 * sf->body.num_lexicals;
+            for (j = 0; j < sf->body.num_lexicals; j++) {
+                if (j >= offset && j < offset + actualcount) {
+                    sf->body.lexical_types[j] = read_int16(pos, 2 * (j - offset));
+                }
+                else {
+                    sf->body.lexical_types[j] = 8;
+                }
+            }
+            pos += 2 * actualcount;
+        }
     }
 
     /* Read in handlers. */

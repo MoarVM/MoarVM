@@ -1088,7 +1088,6 @@ class MAST::Frame is MAST::Node {
     method handlers() { @!handlers }
     method size() {
         my uint32 $size := 54
-            + 6  * nqp::elems(self.lexical_types)
             + 12 * nqp::elems(self.static_lex_values) / 4
             + 6  * nqp::elems(self.debug_map);
 
@@ -1105,7 +1104,21 @@ class MAST::Frame is MAST::Node {
             nqp::pop(@other);
         }
 
-        $size := $size + 4 + 2 * nqp::elems(@other);
+        if nqp::elems(self.local_types) > 0 {
+            $size := $size + 4 + 2 * nqp::elems(@other);
+        }
+
+        @other := nqp::clone(self.lexical_types);
+
+        while nqp::elems(@other) > 0 && type_to_local_type(@other[0]) == 8 {
+            nqp::shift(@other);
+        }
+        while nqp::elems(@other) > 0 && type_to_local_type(@other[nqp::elems(@other) - 1]) == 8 {
+            nqp::pop(@other);
+        }
+        if nqp::elems(self.lexical_types) > 0 {
+            $size := $size + 4 + 2 * nqp::elems(@other) + 4 * nqp::elems(self.lexical_types);
+        }
 
         for @!handlers {
             $size := $size + 20;
