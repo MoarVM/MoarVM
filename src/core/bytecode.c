@@ -652,11 +652,9 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
     if (sf->body.num_lexicals) {
         /* Allocate names hash and types list. */
         sf->body.lexical_types = MVM_malloc(sizeof(MVMuint16) * sf->body.num_lexicals);
+        sf->body.lexical_names_list = MVM_malloc(sizeof(MVMLexicalRegistry *) * sf->body.num_lexicals);
 
         /* Read in data. */
-        if (sf->body.num_lexicals) {
-            sf->body.lexical_names_list = MVM_malloc(sizeof(MVMLexicalRegistry *) * sf->body.num_lexicals);
-        }
         for (j = 0; j < sf->body.num_lexicals; j++) {
             MVMString *name = get_heap_string(tc, cu, NULL, pos, 6 * j + 2);
             MVMLexicalRegistry *entry = MVM_calloc(1, sizeof(MVMLexicalRegistry));
