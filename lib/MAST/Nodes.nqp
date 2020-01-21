@@ -1088,16 +1088,32 @@ class MAST::Frame is MAST::Node {
     method handlers() { @!handlers }
     method size() {
         my uint32 $size := 54
-            + 2  * nqp::elems(self.local_types)
             + 6  * nqp::elems(self.lexical_types)
             + 12 * nqp::elems(self.static_lex_values) / 4
             + 6  * nqp::elems(self.debug_map);
+
+        # "compression" for local types: since object registers (8) are so
+        # common, drop as many as possible from start and end, then record
+        # how many entries are left. They may contain more 8s in the middle,
+        # but this is an effective compromise compared to a full RLE
+        my @other := nqp::clone(self.local_types);
+
+        while nqp::elems(@other) > 0 && type_to_local_type(@other[0]) == 8 {
+            nqp::shift(@other);
+        }
+        while nqp::elems(@other) > 0 && type_to_local_type(@other[nqp::elems(@other) - 1]) == 8 {
+            nqp::pop(@other);
+        }
+
+        $size := $size + 4 + 2 * nqp::elems(@other);
+
         for @!handlers {
             $size := $size + 20;
             if $_.category_mask +& 4096 {
                 $size := $size + 2;
             }
         }
+
         $size
     }
 

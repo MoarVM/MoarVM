@@ -3,7 +3,7 @@
 /* Some constants. */
 #define HEADER_SIZE                 92
 #define MIN_BYTECODE_VERSION        5
-#define MAX_BYTECODE_VERSION        6
+#define MAX_BYTECODE_VERSION        7
 #define FRAME_HEADER_SIZE           (11 * 4 + 3 * 2 + (bytecode_version >= 6 ? 4 : 0))
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define FRAME_SLV_SIZE              (2 * 2 + 2 * 4)
@@ -536,10 +536,23 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 
         /* Skip over the rest, making sure it's readable. */
         {
-            MVMuint32 skip = 2 * static_frame_body->num_locals +
-                             6 * static_frame_body->num_lexicals;
-            MVMuint16 slvs = read_int16(pos, 40);
-            MVMuint32 num_local_debug_names = rs->version >= 6 ? read_int32(pos, 50) : 0;
+            MVMuint32 skip;
+            MVMuint16 slvs;
+            MVMuint32 num_local_debug_names;
+            if (rs->version >= 7) {
+                MVMuint16 actualcount;
+                ensure_can_read(tc, cu, rs, pos, FRAME_HEADER_SIZE + 4);
+                actualcount = read_int16(pos, FRAME_HEADER_SIZE + 2);
+                skip = 2 * (actualcount) +
+                       6 * static_frame_body->num_lexicals
+                       + 4;
+            }
+            else {
+                skip = 2 * static_frame_body->num_locals +
+                       6 * static_frame_body->num_lexicals;
+            }
+            slvs = read_int16(pos, 40);
+            num_local_debug_names = rs->version >= 6 ? read_int32(pos, 50) : 0;
             pos += FRAME_HEADER_SIZE;
             ensure_can_read(tc, cu, rs, pos, skip);
             pos += skip;
@@ -615,10 +628,24 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
 
     /* Read the local types. */
     if (sf->body.num_locals) {
+        MVMuint32 offset = 0;
+        MVMuint32 actualcount = sf->body.num_locals;
+        if (bytecode_version >= 7) {
+            offset = read_int16(pos, 0);
+            actualcount = read_int16(pos, 2);
+            pos += 4;
+        }
         sf->body.local_types = MVM_malloc(sizeof(MVMuint16) * sf->body.num_locals);
-        for (j = 0; j < sf->body.num_locals; j++)
-            sf->body.local_types[j] = read_int16(pos, 2 * j);
-        pos += 2 * sf->body.num_locals;
+        for (j = 0; j < sf->body.num_locals; j++) {
+            if (j >= offset && j < offset + actualcount) {
+                sf->body.local_types[j] = read_int16(pos, 2 * (j - offset));
+            }
+            else {
+                sf->body.local_types[j] = 8;
+            }
+        }
+
+        pos += 2 * actualcount;
     }
 
     /* Read the lexical types. */
