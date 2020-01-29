@@ -406,9 +406,12 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
     interval_id = MVM_telemetry_interval_start(tc, "syncsocket connect");
     if (!data->handle) {
         struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family, MVM_SOCKET_TYPE_STREAM, MVM_SOCKET_PROTOCOL_ANY, 0);
-        int r;
+        Socket           s;
+        int              r;
 
-        Socket s = socket(dest->sa_family , SOCK_STREAM , 0);
+        MVM_gc_mark_thread_blocked(tc);
+        s = socket(dest->sa_family , SOCK_STREAM , 0);
+        MVM_gc_mark_thread_unblocked(tc);
         if (MVM_IS_SOCKET_ERROR(s)) {
             MVM_free(dest);
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
@@ -438,9 +441,12 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     if (!data->handle) {
         struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family, MVM_SOCKET_TYPE_STREAM, MVM_SOCKET_PROTOCOL_ANY, 1);
-        int r;
+        Socket           s;
+        int              r;
 
-        Socket s = socket(dest->sa_family , SOCK_STREAM , 0);
+        MVM_gc_mark_thread_blocked(tc);
+        s = socket(dest->sa_family , SOCK_STREAM , 0);
+        MVM_gc_mark_thread_unblocked(tc);
         if (MVM_IS_SOCKET_ERROR(s)) {
             MVM_free(dest);
             throw_error(tc, s, "create socket");
@@ -459,7 +465,9 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         }
 #endif
 
+        MVM_gc_mark_thread_blocked(tc);
         r = bind(s, dest, (socklen_t)get_struct_size_for_family(dest->sa_family));
+        MVM_gc_mark_thread_unblocked(tc);
         MVM_free(dest);
         if (MVM_IS_SOCKET_ERROR(r))
             throw_error(tc, s, "bind socket");
@@ -473,7 +481,10 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
 static void socket_listen(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 backlog) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     if (data->handle) {
-        int r = listen(data->handle, (int)backlog);
+        int r;
+        MVM_gc_mark_thread_blocked(tc);
+        r = listen(data->handle, (int)backlog);
+        MVM_gc_mark_thread_unblocked(tc);
         if (MVM_IS_SOCKET_ERROR(r))
             throw_error(tc, data->handle, "start listening on socket");
     }
