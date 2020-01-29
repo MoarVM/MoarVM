@@ -35,4 +35,4 @@ struct MVMP6bigint {
 const MVMREPROps * MVMP6bigint_initialize(MVMThreadContext *tc);
 
 MVMint64 MVM_p6bigint_get_int64(MVMThreadContext *tc, MVMP6bigintBody *body);
-void MVM_p6bigint_store_as_mp_int(MVMP6bigintBody *body, MVMint64 value);
+void MVM_p6bigint_store_as_mp_int(MVMThreadContext *tc, MVMP6bigintBody *body, MVMint64 value);

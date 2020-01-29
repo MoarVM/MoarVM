@@ -6236,7 +6236,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     body->u.smallint.flag = MVM_BIGINT_32_FLAG;
                 }
                 else {
-                    MVM_p6bigint_store_as_mp_int(body, value);
+                    MVM_p6bigint_store_as_mp_int(tc, body, value);
                 }
                 GET_REG(cur_op, 0).o = obj;
                 cur_op += 10;
@@ -6270,7 +6270,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
                     }
                     else {
-                        MVM_p6bigint_store_as_mp_int(body, value);
+                        MVM_p6bigint_store_as_mp_int(tc, body, value);
                     }
                     GET_REG(cur_op, 0).o = obj;
                 }
