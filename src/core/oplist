@@ -545,7 +545,7 @@ getstdout           w(obj) :pure
 getstderr           w(obj) :pure
 connect_sk          r(obj) r(str) r(int64) r(uint16)
 socket              w(obj) r(int64)
-bind_sk             r(obj) r(str) r(int64) r(uint16) r(int64)
+bind_sk             r(obj) r(str) r(int64) r(uint16)
 DEPRECATED_24       r(obj) r(str)
 accept_sk           w(obj) r(obj)
 decodetocodes       r(obj) r(str) r(int64) r(obj)
@@ -885,6 +885,7 @@ freemem             w(int64) :pure
 totalmem            w(int64) :pure
 nextdispatcherfor   r(obj) r(obj)
 takenextdispatcher  w(obj)
+listen_sk           r(obj) r(int64)
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

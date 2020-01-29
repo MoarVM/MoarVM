@@ -65,10 +65,11 @@ struct MVMIOSeekable {
     MVMint64 (*tell) (MVMThreadContext *tc, MVMOSHandle *h);
 };
 
-/* I/O operations on handles that do socket-y things (connect, bind, accept). */
+/* I/O operations on handles that do socket-y things (connect, bind, listen, accept). */
 struct MVMIOSockety {
     void (*connect) (MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMuint16 family);
-    void (*bind) (MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMuint16 family, MVMint32 backlog);
+    void (*bind) (MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMuint16 family);
+    void (*listen) (MVMThreadContext *tc, MVMOSHandle *h, MVMint32 backlog);
     MVMObject * (*accept) (MVMThreadContext *tc, MVMOSHandle *h);
     MVMint64 (*getport) (MVMThreadContext *tc, MVMOSHandle *h);
 };
@@ -106,7 +107,8 @@ void MVM_io_unlock(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_flush(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 sync);
 void MVM_io_truncate(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 offset);
 void MVM_io_connect(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port, MVMuint16 family);
-void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port, MVMuint16 family, MVMint32 backlog);
+void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port, MVMuint16 family);
+void MVM_io_listen(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 backlog);
 MVMObject * MVM_io_accept(MVMThreadContext *tc, MVMObject *oshandle);
 MVMint64 MVM_io_getport(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_set_buffer_size(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 size);

@@ -317,17 +317,30 @@ void MVM_io_connect(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, 
         MVM_exception_throw_adhoc(tc, "Cannot connect this kind of handle");
 }
 
-void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port, MVMuint16 family, MVMint32 backlog) {
+void MVM_io_bind(MVMThreadContext *tc, MVMObject *oshandle, MVMString *host, MVMint64 port, MVMuint16 family) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "bind");
     if (handle->body.ops->sockety) {
         MVMROOT2(tc, host, handle, {
             uv_mutex_t *mutex = acquire_mutex(tc, handle);
-            handle->body.ops->sockety->bind(tc, handle, host, port, family, backlog);
+            handle->body.ops->sockety->bind(tc, handle, host, port, family);
             release_mutex(tc, mutex);
         });
     }
     else
         MVM_exception_throw_adhoc(tc, "Cannot bind this kind of handle");
+}
+
+void MVM_io_listen(MVMThreadContext *tc, MVMObject *oshandle, MVMint32 backlog) {
+    MVMOSHandle *handle = verify_is_handle(tc, oshandle, "listen");
+    if (handle->body.ops->sockety) {
+        MVMROOT(tc, handle, {
+            uv_mutex_t *mutex = acquire_mutex(tc, handle);
+            handle->body.ops->sockety->listen(tc, handle, backlog);
+            release_mutex(tc, mutex);
+        });
+    }
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot listen on this kind of handle");
 }
 
 MVMint64 MVM_io_getport(MVMThreadContext *tc, MVMObject *oshandle) {

@@ -434,7 +434,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
     }
 }
 
-static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMuint16 family, MVMint32 backlog) {
+static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMuint16 family) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     if (!data->handle) {
         struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family, MVM_SOCKET_TYPE_STREAM, MVM_SOCKET_PROTOCOL_ANY, 1);
@@ -464,15 +464,21 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         if (MVM_IS_SOCKET_ERROR(r))
             throw_error(tc, s, "bind socket");
 
-        r = listen(s, (int)backlog);
-        if (MVM_IS_SOCKET_ERROR(r))
-            throw_error(tc, s, "start listening on socket");
-
         data->handle = s;
     }
-    else {
+    else
         MVM_exception_throw_adhoc(tc, "Socket is already bound or connected");
+}
+
+static void socket_listen(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 backlog) {
+    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
+    if (data->handle) {
+        int r = listen(data->handle, (int)backlog);
+        if (MVM_IS_SOCKET_ERROR(r))
+            throw_error(tc, data->handle, "start listening on socket");
     }
+    else
+        MVM_exception_throw_adhoc(tc, "Socket must be bound before it can be listened on");
 }
 
 MVMint64 socket_getport(MVMThreadContext *tc, MVMOSHandle *h) {
@@ -521,6 +527,7 @@ static const MVMIOSyncWritable  sync_writable = { socket_write_bytes,
                                                   socket_truncate };
 static const MVMIOSockety             sockety = { socket_connect,
                                                   socket_bind,
+                                                  socket_listen,
                                                   socket_accept,
                                                   socket_getport };
 static const MVMIOIntrospection introspection = { socket_is_tty,

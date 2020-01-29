@@ -3693,8 +3693,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(bind_sk):
                 MVM_io_bind(tc, GET_REG(cur_op, 0).o,
-                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).u16, (MVMint32)GET_REG(cur_op, 8).i64);
-                cur_op += 10;
+                    GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).u16);
+                cur_op += 8;
                 goto NEXT;
             OP(accept_sk):
                 GET_REG(cur_op, 0).o = MVM_io_accept(tc, GET_REG(cur_op, 2).o);
@@ -5715,6 +5715,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(listen_sk):
+                MVM_io_listen(tc, GET_REG(cur_op, 0).o, (MVMint32)GET_REG(cur_op, 2).i64);
+                cur_op += 4;
+                goto NEXT;
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
