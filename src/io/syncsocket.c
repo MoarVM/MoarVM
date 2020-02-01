@@ -298,8 +298,10 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc,
     int error;
 
     memset(&hints, 0, sizeof(hints));
-    hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV;
-    if (passive) hints.ai_flags |= AI_PASSIVE;
+    /* XXX: This shouldn't be treating addresses meant for active sockets like
+     *      those for passive ones. */
+    hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV | AI_PASSIVE;
+    /* if (passive) hints.ai_flags |= AI_PASSIVE; */
 
     switch (family) {
         case MVM_SOCKET_FAMILY_UNSPEC:
