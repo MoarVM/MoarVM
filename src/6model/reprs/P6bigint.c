@@ -92,17 +92,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 void MVM_p6bigint_store_as_mp_int(MVMThreadContext *tc, MVMP6bigintBody *body, MVMint64 value) {
     mp_err err;
     mp_int *i = MVM_malloc(sizeof(mp_int));
-    if ((err = mp_init(i)) != MP_OKAY) {
-        MVM_exception_throw_adhoc(tc, "Error creating a big integer from a native integer: %s", mp_error_to_string(err));
-    }
-    if (value >= 0) {
-        MVM_bigint_mp_set_uint64(i, (MVMuint64)value);
-    }
-    else {
-        MVM_bigint_mp_set_uint64(i, (MVMuint64)-value);
-        if ((err = mp_neg(i, i)) != MP_OKAY) {
-            MVM_exception_throw_adhoc(tc, "Error negating a big integer: %s", mp_error_to_string(err));
-        }
+    if ((err = mp_init_i64(i, value)) != MP_OKAY) {
+        MVM_exception_throw_adhoc(tc, "Error creating a big integer from a native integer (%"PRIi64"): %s", value, mp_error_to_string(err));
     }
     body->u.bigint = i;
 }
@@ -137,10 +128,9 @@ static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     else {
         mp_err err;
         mp_int *i = MVM_malloc(sizeof(mp_int));
-        if ((err = mp_init(i)) != MP_OKAY) {
-            MVM_exception_throw_adhoc(tc, "Error setting a big integer from a native integer: %s", mp_error_to_string(err));
+        if ((err = mp_init_u64(i, value)) != MP_OKAY) {
+            MVM_exception_throw_adhoc(tc, "Error creating a big integer from a native integer (%"PRIu64"): %s", value, mp_error_to_string(err));
         }
-        MVM_bigint_mp_set_uint64(i, value);
         body->u.bigint = i;
     }
 }
