@@ -10,7 +10,7 @@
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
-#define CURRENT_VERSION 22
+#define CURRENT_VERSION 23
 #define MIN_VERSION     16
 
 /* Various sizes (in bytes). */
@@ -18,7 +18,8 @@
 #define DEP_TABLE_ENTRY_SIZE        8
 #define STABLES_TABLE_ENTRY_SIZE    12
 #define OBJECTS_TABLE_ENTRY_SIZE    8
-#define CLOSURES_TABLE_ENTRY_SIZE   24
+#define CLOSURES_TABLE_ENTRY_SIZE_v22 24
+#define CLOSURES_TABLE_ENTRY_SIZE   28
 #define CONTEXTS_TABLE_ENTRY_SIZE   16
 #define REPOS_TABLE_ENTRY_SIZE      16
 
@@ -651,7 +652,7 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
     write_int32(writer->root.closures_table, offset + 4, static_idx);
     write_int32(writer->root.closures_table, offset + 8, context_idx);
 
-    /* Check if it has a static code object. */
+    /* Check if it has a code object. */
     if (((MVMCode *)closure)->body.code_object) {
         MVMObject *code_obj = (MVMObject *)((MVMCode *)closure)->body.code_object;
         write_int32(writer->root.closures_table, offset + 12, 1);
@@ -667,6 +668,10 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
     else {
         write_int32(writer->root.closures_table, offset + 12, 0);
     }
+
+    /* Serialize its name. */
+    write_int32(writer->root.closures_table, offset + 24,
+        add_string_to_heap(tc, writer, ((MVMCode *)closure)->body.name));
 
     /* Increment count of closures in the table. */
     writer->root.num_closures++;
@@ -2085,7 +2090,8 @@ static void check_and_dissect_input(MVMThreadContext *tc,
     if (reader->root.closures_table < prov_pos)
         fail_deserialize(tc, NULL, reader,
             "Corruption detected (Closures table starts before objects data ends)");
-    prov_pos = reader->root.closures_table + reader->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE;
+    prov_pos = reader->root.closures_table + reader->root.num_closures *
+        (reader->root.version <= 22 ? CLOSURES_TABLE_ENTRY_SIZE_v22 : CLOSURES_TABLE_ENTRY_SIZE);
     if (prov_pos > data_end)
         fail_deserialize(tc, NULL, reader,
             "Corruption detected (Closures table overruns end of data)");
@@ -2370,7 +2376,8 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
  * later step). */
 static void deserialize_closure(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i) {
     /* Calculate location of closure's table row. */
-    char *table_row = reader->root.closures_table + i * CLOSURES_TABLE_ENTRY_SIZE;
+    char *table_row = reader->root.closures_table +
+        i * (reader->root.version <= 22 ? CLOSURES_TABLE_ENTRY_SIZE_v22 : CLOSURES_TABLE_ENTRY_SIZE);
 
     /* Resolve the reference to the static code object. */
     MVMuint32  static_sc_id = read_int32(table_row, 0);
@@ -2393,6 +2400,12 @@ static void deserialize_closure(MVMThreadContext *tc, MVMSerializationReader *re
             locate_sc(tc, reader, read_int32(table_row, 16)),
             read_int32(table_row, 20));
         MVM_ASSIGN_REF(tc, &(closure->header), ((MVMCode *)closure)->body.code_object, obj);
+    }
+
+    /* Set the name. */
+    if (reader->root.version >= 23) {
+        MVMString *name = read_string_from_heap(tc, reader, read_int32(table_row, 24));
+        MVM_ASSIGN_REF(tc, &(closure->header), ((MVMCode *)closure)->body.name, name);
     }
 
     /* If we have an outer context... */
