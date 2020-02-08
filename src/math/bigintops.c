@@ -1357,7 +1357,7 @@ MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 rounds
 
     if (MVM_BIGINT_IS_BIG(ba) || ba->u.smallint.value != 1) {
         mp_int *ia = force_bigint(tc, ba, 0);
-        if (mp_cmp_d(ia, 1) == MP_EQ) {
+        if (mp_cmp_d(ia, 1) == MP_EQ || ia->sign == MP_NEG) {
             return 0;
         }
         else {
