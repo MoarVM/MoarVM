@@ -27,33 +27,6 @@ MVM_STATIC_INLINE void adjust_nursery(MVMThreadContext *tc, MVMP6bigintBody *bod
     }
 }
 
-/* Taken from mp_set_long, but portably accepts a 64-bit number. */
-int MVM_bigint_mp_set_uint64(mp_int * a, MVMuint64 b) {
-  size_t x;
-  int    res;
-
-  mp_zero (a);
-
-  /* set four bits at a time */
-  for (x = 0; x < sizeof(MVMuint64) * 2; x++) {
-    /* shift the number up four bits */
-    if ((res = mp_mul_2d (a, 4, a)) != MP_OKAY) {
-      return res;
-    }
-
-    /* OR in the top four bits of the source */
-    a->dp[0] |= (b >> ((sizeof(MVMuint64)) * 8 - 4)) & 15;
-
-    /* shift the source up to the next four bits */
-    b <<= 4;
-
-    /* ensure that digits are not clamped off */
-    a->used += 1;
-  }
-  mp_clamp(a);
-  return MP_OKAY;
-}
-
 /*
  *  Convert to double, assumes IEEE-754 conforming double. Taken from
  *  https://github.com/czurnieden/libtommath/blob/master/bn_mp_get_double.c
@@ -97,71 +70,6 @@ static MVMnum64 MVM_mp_get_double_shift(mp_int *a, int shift) {
     return d;
 }
 
-static void from_num(MVMThreadContext *tc, MVMnum64 d, mp_int *a) {
-    mp_err err;
-    MVMnum64 d_digit = pow(2, MP_DIGIT_BIT);
-    MVMnum64 da      = fabs(d);
-    MVMnum64 upper;
-    MVMnum64 lower;
-    MVMnum64 lowest;
-    MVMnum64 rest;
-    int      digits  = 0;
-
-    mp_zero(a);
-
-    while (da > d_digit * d_digit * d_digit) {;
-        da /= d_digit;
-        digits++;
-    }
-    if ((err = mp_grow(a, digits + 3)) != MP_OKAY) {
-        MVM_exception_throw_adhoc(tc, "Error growing a big integer: %s", mp_error_to_string(err));
-    }
-
-    /* populate the top 3 digits */
-    upper = da / (d_digit*d_digit);
-    rest = fmod(da, d_digit*d_digit);
-    lower = rest / d_digit;
-    lowest = fmod(rest,d_digit );
-    if (upper >= 1) {
-        if ((err = MVM_bigint_mp_set_uint64(a, (MVMuint64) upper)) != MP_OKAY) {
-            MVM_exception_throw_adhoc(tc, "Error setting a big integer to a uint64: %s", mp_error_to_string(err));
-        }
-        if ((err = mp_mul_2d(a, MP_DIGIT_BIT, a)) != MP_OKAY) {
-            MVM_exception_throw_adhoc(tc, "Error in mp_mul_2d: %s", mp_error_to_string(err));
-        }
-        a->dp[0] = (mp_digit) lower;
-        if ((err = mp_mul_2d(a, MP_DIGIT_BIT, a)) != MP_OKAY) {
-            MVM_exception_throw_adhoc(tc, "Error in mp_mul_2d: %s", mp_error_to_string(err));
-        }
-    } else {
-        if (lower >= 1) {
-            if ((err = MVM_bigint_mp_set_uint64(a, (MVMuint64) lower)) != MP_OKAY) {
-               MVM_exception_throw_adhoc(tc, "Error setting a big integer to a uint64: %s", mp_error_to_string(err));
-            }
-            if ((err = mp_mul_2d(a, MP_DIGIT_BIT, a)) != MP_OKAY) {
-                MVM_exception_throw_adhoc(tc, "Error in mp_mul_2d: %s", mp_error_to_string(err));
-            }
-            a->used = 2;
-        } else {
-            a->used = 1;
-        }
-    }
-    a->dp[0] = (mp_digit) lowest;
-
-    /* shift the rest */
-    if ((err = mp_mul_2d(a, MP_DIGIT_BIT * digits, a)) != MP_OKAY) {
-        MVM_exception_throw_adhoc(tc, "Error in mp_mul_2d: %s", mp_error_to_string(err));
-    }
-    if (d < 0)
-        if ((err = mp_neg(a, a)) != MP_OKAY) {
-            MVM_exception_throw_adhoc(tc, "Error negating a big integer: %s", mp_error_to_string(err));
-        }
-    mp_clamp(a);
-    if ((err = mp_shrink(a)) != MP_OKAY) {
-        MVM_exception_throw_adhoc(tc, "Error shrinking a big integer: %s", mp_error_to_string(err));
-    }
-}
-
 /* Returns the body of a P6bigint, containing the bigint/smallint union, for
  * operations that want to explicitly handle the two. */
 static MVMP6bigintBody * get_bigint_body(MVMThreadContext *tc, MVMObject *obj) {
@@ -188,35 +96,13 @@ static mp_int * force_bigint(MVMThreadContext *tc, const MVMP6bigintBody *body, 
     }
     else {
         if (sizeof(mp_digit) > 4) {
-            MVMint64 value = body->u.smallint.value;
             mp_int *i = tc->temp_bigints[idx];
-            if (value >= 0) {
-                mp_digit d = value;
-                mp_set(i, d);
-            }
-            else {
-                mp_digit d = -value;
-                mp_set(i, d);
-                mp_err err;
-                if ((err = mp_neg(i, i)) != MP_OKAY) {
-                    MVM_exception_throw_adhoc(tc, "Error negating a big integer: %s", mp_error_to_string(err));
-                }
-            }
+            mp_set_i64(i, body->u.smallint.value);
             return i;
         }
         else {
-            MVMint32 value = body->u.smallint.value;
             mp_int *i = tc->temp_bigints[idx];
-            if (value >= 0) {
-                mp_set_i32(i, value);
-            }
-            else {
-                mp_set_i32(i, -value);
-                mp_err err;
-                if ((err = mp_neg(i, i)) != MP_OKAY) {
-                    MVM_exception_throw_adhoc(tc, "Error negating a big integer: %s", mp_error_to_string(err));
-                }
-            }
+            mp_set_i32(i, body->u.smallint.value);
             return i;
         }
     }
@@ -232,21 +118,10 @@ static void store_int64_result(MVMThreadContext *tc, MVMP6bigintBody *body, MVMi
     else {
         mp_err err;
         mp_int *i = MVM_malloc(sizeof(mp_int));
-        if ((err = mp_init(i)) != MP_OKAY) {
-            MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
-        }
-        if (result >= 0) {
-            if ((err = MVM_bigint_mp_set_uint64(i, (MVMuint64)result)) != MP_OKAY) {
-                MVM_exception_throw_adhoc(tc, "Error setting a big integer to a uint64: %s", mp_error_to_string(err));
-            }
-        }
-        else {
-            if ((err = MVM_bigint_mp_set_uint64(i, (MVMuint64)-result)) != MP_OKAY) {
-                MVM_exception_throw_adhoc(tc, "Error setting a big integer to a uint64: %s", mp_error_to_string(err));
-            }
-            if ((err = mp_neg(i, i)) != MP_OKAY) {
-                MVM_exception_throw_adhoc(tc, "Error negating a big integer: %s", mp_error_to_string(err));
-            }
+        if ((err = mp_init_i64(i, result)) != MP_OKAY) {
+            mp_clear(i);
+            MVM_free(i);
+            MVM_exception_throw_adhoc(tc, "Error creating a big integer from a native integer (%"PRIi64"): %s", result, mp_error_to_string(err));
         }
         body->u.bigint = i;
     }
@@ -403,9 +278,13 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
             mp_int *ia = ba->u.bigint; \
             mp_int *ib = MVM_malloc(sizeof(mp_int)); \
             if ((err = mp_init(ib)) != MP_OKAY) { \
+                mp_clear(ib); \
+                MVM_free(ib); \
                 MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err)); \
             } \
             if ((err = mp_##opname(ia, ib)) != MP_OKAY) { \
+                mp_clear(ib); \
+                MVM_free(ib); \
                 MVM_exception_throw_adhoc(tc, "Error performing %s with a big integer: %s", #opname, mp_error_to_string(err)); \
             } \
             store_bigint_result(bb, ib); \
@@ -437,9 +316,13 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
     ib = force_bigint(tc, bb, 1); \
     ic = MVM_malloc(sizeof(mp_int)); \
     if ((err = mp_init(ic)) != MP_OKAY) { \
+        mp_clear(ic); \
+        MVM_free(ic); \
         MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err)); \
     } \
     if ((err = mp_##opname(ia, ib, ic)) != MP_OKAY) { \
+        mp_clear(ic); \
+        MVM_free(ic); \
         MVM_exception_throw_adhoc(tc, "Error performing %s with big integers: %s", #opname, mp_error_to_string(err)); \
     } \
     store_bigint_result(bc, ic); \
@@ -456,9 +339,13 @@ void MVM_bigint_fallback_##opname(MVMThreadContext *tc, MVMP6bigintBody *ba, MVM
     ib = force_bigint(tc, bb, 1); \
     ic = MVM_malloc(sizeof(mp_int)); \
     if ((err = mp_init(ic)) != MP_OKAY) { \
+        mp_clear(ic); \
+        MVM_free(ic); \
         MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err)); \
     } \
     if ((err = mp_##opname(ia, ib, ic)) != MP_OKAY) { \
+        mp_clear(ic); \
+        MVM_free(ic); \
         MVM_exception_throw_adhoc(tc, "Error performing %s with big integers: %s", #opname, mp_error_to_string(err)); \
     } \
     store_bigint_result(bc, ic); \
@@ -482,9 +369,13 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
         ib = force_bigint(tc, bb, 1); \
         ic = MVM_malloc(sizeof(mp_int)); \
         if ((err = mp_init(ic)) != MP_OKAY) { \
+            mp_clear(ic); \
+            MVM_free(ic); \
             MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err)); \
         } \
         if ((err = mp_##opname(ia, ib, ic)) != MP_OKAY) { \
+            mp_clear(ic); \
+            MVM_free(ic); \
             MVM_exception_throw_adhoc(tc, "Error performing %s with big integers: %s", #opname, mp_error_to_string(err)); \
         } \
         store_bigint_result(bc, ic); \
@@ -521,6 +412,8 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
             mp_int *ib = force_bigint(tc, bb, 1); \
             mp_int *ic = MVM_malloc(sizeof(mp_int)); \
             if ((err = mp_init(ic)) != MP_OKAY) { \
+                mp_clear(ic); \
+                MVM_free(ic); \
                 MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err)); \
             } \
             two_complement_bitop(tc, ia, ib, ic, mp_##opname); \
@@ -567,9 +460,13 @@ MVMObject *MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
             mp_int *ib = force_bigint(tc, bb, 1);
             mp_int *ic = MVM_malloc(sizeof(mp_int));
             if ((err = mp_init(ic)) != MP_OKAY) {
+                mp_clear(ic);
+                MVM_free(ic);
                 MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
             }
             if ((err = mp_gcd(ia, ib, ic)) != MP_OKAY) {
+                mp_clear(ic);
+                MVM_free(ic);
                 MVM_exception_throw_adhoc(tc, "Error getting the GCD of two big integer: %s", mp_error_to_string(err));
             }
             store_bigint_result(bc, ic);
@@ -636,10 +533,14 @@ MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObje
             mp_err err;
 
             if ((err = mp_init(ic)) != MP_OKAY) {
+                mp_clear(ic);
+                MVM_free(ic);
                 MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
             }
 
             if ((err = mp_mod(ia, ib, ic)) != MP_OKAY) {
+                mp_clear(ic);
+                MVM_free(ic);
                 MVM_exception_throw_adhoc(tc, "Error getting the mod of two big integer: %s", mp_error_to_string(err));
             }
 
@@ -697,6 +598,8 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
 
         ic = MVM_malloc(sizeof(mp_int));
         if ((err = mp_init(ic)) != MP_OKAY) {
+            mp_clear(ic);
+            MVM_free(ic);
             MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
         }
 
@@ -705,24 +608,33 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
          * zero, like C and libtommath would do. */
         if ((cmp_a == MP_LT) ^ (cmp_b == MP_LT)) {
             if ((err = mp_init_multi(&remainder, &intermediate, NULL)) != MP_OKAY) {
+                mp_clear_multi(ic, &remainder, &intermediate, NULL);
+                MVM_free(ic);
                 MVM_exception_throw_adhoc(tc, "Error creating big integers: %s", mp_error_to_string(err));
             }
             if ((err = mp_div(ia, ib, &intermediate, &remainder)) != MP_OKAY) {
-                mp_clear_multi(&remainder, &intermediate, NULL);
+                mp_clear_multi(ic, &remainder, &intermediate, NULL);
+                MVM_free(ic);
                 MVM_exception_throw_adhoc(tc, "Error dividing big integers: %s", mp_error_to_string(err));
             }
             if (mp_iszero(&remainder) == 0) {
                 if ((err = mp_sub_d(&intermediate, 1, ic)) != MP_OKAY) {
+                    mp_clear_multi(ic, &remainder, &intermediate, NULL);
+                    MVM_free(ic);
                     MVM_exception_throw_adhoc(tc, "Error subtracting a digit from a big integer: %s", mp_error_to_string(err));
                 }
             } else {
                 if ((err = mp_copy(&intermediate, ic)) != MP_OKAY) {
+                    mp_clear_multi(ic, &remainder, &intermediate, NULL);
+                    MVM_free(ic);
                     MVM_exception_throw_adhoc(tc, "Error copying a big integer: %s", mp_error_to_string(err));
                 }
             }
             mp_clear_multi(&remainder, &intermediate, NULL);
         } else {
             if ((err = mp_div(ia, ib, ic, NULL)) != MP_OKAY) {
+                mp_clear(ic);
+                MVM_free(ic);
                 MVM_exception_throw_adhoc(tc, "Error dividing big integers: %s", mp_error_to_string(err));
             }
         }
@@ -788,10 +700,14 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
             mp_int *ic = MVM_malloc(sizeof(mp_int));
             MVMP6bigintBody *resbody;
             if ((err = mp_init(ic)) != MP_OKAY) {
+                mp_clear(ic);
+                MVM_free(ic);
                 MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
             }
             MVM_gc_mark_thread_blocked(tc);
             if ((err = mp_expt_u32(base, exponent_d, ic)) != MP_OKAY) {
+                mp_clear(ic);
+                MVM_free(ic);
                 MVM_exception_throw_adhoc(tc, "Error in mp_expt_u32: %s", mp_error_to_string(err));
             }
             MVM_gc_mark_thread_unblocked(tc);
@@ -802,8 +718,8 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
         }
     }
     else {
-        MVMnum64 f_base = MVM_mp_get_double_shift(base, 0);
-        MVMnum64 f_exp = MVM_mp_get_double_shift(exponent, 0);
+        MVMnum64 f_base = mp_get_double(base);
+        MVMnum64 f_exp = mp_get_double(exponent);
         r = MVM_repr_box_num(tc, num_type, pow(f_base, f_exp));
     }
     return r;
@@ -826,6 +742,8 @@ MVMObject *MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         mp_int *ia = force_bigint(tc, ba, 0);
         mp_int *ib = MVM_malloc(sizeof(mp_int));
         if ((err = mp_init(ib)) != MP_OKAY) {
+            mp_clear(ib);
+            MVM_free(ib);
             MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
         }
         two_complement_shl(tc, ib, ia, n);
@@ -870,6 +788,8 @@ MVMObject *MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         mp_int *ia = force_bigint(tc, ba, 0);
         mp_int *ib = MVM_malloc(sizeof(mp_int));
         if ((err = mp_init(ib)) != MP_OKAY) {
+            mp_clear(ib);
+            MVM_free(ib);
             MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
         }
         two_complement_shl(tc, ib, ia, -n);
@@ -903,13 +823,19 @@ MVMObject *MVM_bigint_not(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         mp_int *ia = ba->u.bigint;
         mp_int *ib = MVM_malloc(sizeof(mp_int));
         if ((err = mp_init(ib)) != MP_OKAY) {
+            mp_clear(ib);
+            MVM_free(ib);
             MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
         }
         /* two's complement not: add 1 and negate */
         if ((err = mp_add_d(ia, 1, ib)) != MP_OKAY) {
+            mp_clear(ib);
+            MVM_free(ib);
             MVM_exception_throw_adhoc(tc, "Error adding a digit to a big integer: %s", mp_error_to_string(err));
         }
         if ((err = mp_neg(ib, ib)) != MP_OKAY) {
+            mp_clear(ib);
+            MVM_free(ib);
             MVM_exception_throw_adhoc(tc, "Error negating a big integer: %s", mp_error_to_string(err));
         }
         store_bigint_result(bb, ib);
@@ -936,6 +862,8 @@ MVMObject *MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result_type, MVMOb
     mp_int *ic = force_bigint(tc, bc, 2);
     mp_int *id = MVM_malloc(sizeof(mp_int));
     if ((err = mp_init(id)) != MP_OKAY) {
+        mp_clear(id);
+        MVM_free(id);
         MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
     }
 
@@ -946,6 +874,8 @@ MVMObject *MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result_type, MVMOb
     bd = get_bigint_body(tc, result);
 
     if ((err = mp_exptmod(ia, ib, ic, id)) != MP_OKAY) {
+        mp_clear(id);
+        MVM_free(id);
         MVM_exception_throw_adhoc(tc, "Error in mp_exptmod: %s", mp_error_to_string(err));
     }
     store_bigint_result(bd, id);
@@ -1042,6 +972,8 @@ MVMObject * MVM_bigint_from_bigint(MVMThreadContext *tc, MVMObject *result_type,
         mp_err err;
         mp_int *i = MVM_malloc(sizeof(mp_int));
         if ((err = mp_init_copy(i, a_body->u.bigint)) != MP_OKAY) {
+            mp_clear(i);
+            MVM_free(i);
             MVM_exception_throw_adhoc(tc, "Error creating a big integer from a copy of another: %s", mp_error_to_string(err));
         }
         store_bigint_result(r_body, i);
@@ -1165,20 +1097,11 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
             char *buf;
             MVMString *result;
 
-            MVMint64 value = body->u.smallint.value;
             if ((err = mp_init(&i)) != MP_OKAY) {
+                mp_clear(&i);
                 MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
             }
-            if (value >= 0) {
-                mp_set_ul(&i, value);
-            }
-            else {
-                mp_set_ul(&i, -value);
-                if ((err = mp_neg(&i, &i)) != MP_OKAY) {
-                    mp_clear(&i);
-                    MVM_exception_throw_adhoc(tc, "Error negating a big integer: %s", mp_error_to_string(err));
-                }
-            }
+            mp_set_i64(&i, body->u.smallint.value);
 
             if ((err = mp_radix_size(&i, base, &len)) != MP_OKAY) {
                 mp_clear(&i);
@@ -1208,8 +1131,7 @@ MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
 
     if (MVM_BIGINT_IS_BIG(ba)) {
-        mp_int *ia = ba->u.bigint;
-        return MVM_mp_get_double_shift(ia, 0);
+        return mp_get_double(ba->u.bigint);
     } else {
         return (double)ba->u.smallint.value;
     }
@@ -1221,9 +1143,15 @@ MVMObject *MVM_bigint_from_num(MVMThreadContext *tc, MVMObject *result_type, MVM
     MVMP6bigintBody *ba = get_bigint_body(tc, result);
     mp_int *ia = MVM_malloc(sizeof(mp_int));
     if ((err = mp_init(ia)) != MP_OKAY) {
+        mp_clear(ia);
+        MVM_free(ia);
         MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
     }
-    from_num(tc, n, ia);
+    if ((err = mp_set_double(ia, n)) != MP_OKAY) {
+        mp_clear(ia);
+        MVM_free(ia);
+        MVM_exception_throw_adhoc(tc, "Error storing an MVMnum64 (%f) in a big integer: %s", n, mp_error_to_string(err));
+    }
     store_bigint_result(ba, ia);
     return result;
 }
@@ -1333,13 +1261,19 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
         ba = get_bigint_body(tc, result);
 
         if ((err = mp_init(rnd)) != MP_OKAY) {
+            mp_clear(rnd);
+            MVM_free(rnd);
             MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
         }
         if ((err = mp_rand(rnd, max->used + 1)) != MP_OKAY) {
+            mp_clear(rnd);
+            MVM_free(rnd);
             MVM_exception_throw_adhoc(tc, "Error randomizing a big integer: %s", mp_error_to_string(err));
         }
 
         if ((err = mp_mod(rnd, max, rnd)) != MP_OKAY) {
+            mp_clear(rnd);
+            MVM_free(rnd);
             MVM_exception_throw_adhoc(tc, "Error in mp_mod: %s", mp_error_to_string(err));
         }
         store_bigint_result(ba, rnd);
@@ -1428,6 +1362,9 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
     base  = MVM_malloc(sizeof(mp_int));
 
     if ((err = mp_init_multi(value, base, NULL)) != MP_OKAY) {
+        mp_clear_multi(&zvalue, &zbase, value, base, NULL);
+        MVM_free(value);
+        MVM_free(base);
         MVM_exception_throw_adhoc(tc, "Error creating big integers: %s", mp_error_to_string(err));
     }
 
@@ -1461,20 +1398,35 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
         else break;
         if (ch >= radix) break;
         if ((err = mp_mul_d(&zvalue, radix, &zvalue)) != MP_OKAY) {
+            mp_clear_multi(&zvalue, &zbase, value, base, NULL);
+            MVM_free(value);
+            MVM_free(base);
             MVM_exception_throw_adhoc(tc, "Error multiplying a big integer by a digit: %s", mp_error_to_string(err));
         }
         if ((err = mp_add_d(&zvalue, ch, &zvalue)) != MP_OKAY) {
+            mp_clear_multi(&zvalue, &zbase, value, base, NULL);
+            MVM_free(value);
+            MVM_free(base);
             MVM_exception_throw_adhoc(tc, "Error adding a big integer by a digit: %s", mp_error_to_string(err));
         }
         if ((err = mp_mul_d(&zbase, radix, &zbase)) != MP_OKAY) {
+            mp_clear_multi(&zvalue, &zbase, value, base, NULL);
+            MVM_free(value);
+            MVM_free(base);
             MVM_exception_throw_adhoc(tc, "Error multiplying a big integer by a digit: %s", mp_error_to_string(err));
         }
         offset++; pos = offset;
         if (ch != 0 || !(flag & 0x04)) {
             if ((err = mp_copy(&zvalue, value)) != MP_OKAY) {
+                mp_clear_multi(&zvalue, &zbase, value, base, NULL);
+                MVM_free(value);
+                MVM_free(base);
                 MVM_exception_throw_adhoc(tc, "Error copying a big integer: %s", mp_error_to_string(err));
             }
             if ((err = mp_copy(&zbase, base)) != MP_OKAY) {
+                mp_clear_multi(&zvalue, &zbase, value, base, NULL);
+                MVM_free(value);
+                MVM_free(base);
                 MVM_exception_throw_adhoc(tc, "Error copying a big integer: %s", mp_error_to_string(err));
             }
         }
@@ -1490,6 +1442,9 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
 
     if (neg || flag & 0x01) {
         if ((err = mp_neg(value, value)) != MP_OKAY) {
+            mp_clear_multi(value, base, NULL);
+            MVM_free(value);
+            MVM_free(base);
             MVM_exception_throw_adhoc(tc, "Error negating a big integer: %s", mp_error_to_string(err));
         }
     }
