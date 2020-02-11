@@ -400,15 +400,13 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc,
 
 /* Establishes a connection. */
 static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, MVMint64 port, MVMuint16 family) {
-    MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
-    unsigned int interval_id;
+    MVMIOSyncSocketData *data        = (MVMIOSyncSocketData *)h->body.data;
+    unsigned int         interval_id = MVM_telemetry_interval_start(tc, "syncsocket connect");
+    struct sockaddr     *dest        = MVM_io_resolve_host_name(tc, host, port, family, MVM_SOCKET_TYPE_STREAM, MVM_SOCKET_PROTOCOL_ANY, 0);
+    int                  r;
 
-    interval_id = MVM_telemetry_interval_start(tc, "syncsocket connect");
     if (!data->handle) {
-        struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family, MVM_SOCKET_TYPE_STREAM, MVM_SOCKET_PROTOCOL_ANY, 0);
-        Socket           s;
-        int              r;
-
+        Socket s;
         MVM_gc_mark_thread_blocked(tc);
         s = socket(dest->sa_family , SOCK_STREAM , 0);
         MVM_gc_mark_thread_unblocked(tc);
@@ -417,23 +415,18 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
             throw_error(tc, s, "create socket");
         }
-
-        do {
-            MVM_gc_mark_thread_blocked(tc);
-            r = connect(s, dest, (socklen_t)get_struct_size_for_family(dest->sa_family));
-            MVM_gc_mark_thread_unblocked(tc);
-        } while(r == -1 && errno == EINTR);
-        MVM_free(dest);
-        if (MVM_IS_SOCKET_ERROR(r)) {
-            MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
-            throw_error(tc, s, "connect socket");
-        }
-
         data->handle = s;
     }
-    else {
-        MVM_telemetry_interval_stop(tc, interval_id, "syncsocket didn't connect");
-        MVM_exception_throw_adhoc(tc, "Socket is already bound or connected");
+
+    do {
+        MVM_gc_mark_thread_blocked(tc);
+        r = connect(data->handle, dest, (socklen_t)get_struct_size_for_family(dest->sa_family));
+        MVM_gc_mark_thread_unblocked(tc);
+    } while (r == -1 && errno == EINTR);
+    MVM_free(dest);
+    if (MVM_IS_SOCKET_ERROR(r)) {
+        MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
+        throw_error(tc, data->handle, "connect socket");
     }
 }
 
