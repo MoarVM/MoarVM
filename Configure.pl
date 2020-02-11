@@ -4,6 +4,7 @@ use strict;
 use warnings;
 
 use Config;
+use Cwd;
 use Getopt::Long;
 use Pod::Usage;
 use File::Spec;
@@ -48,7 +49,7 @@ GetOptions(\%args, qw(
     build=s host=s big-endian jit! enable-jit
     prefix=s bindir=s libdir=s mastdir=s
     relocatable make-install asan ubsan
-    valgrind telemeh show-autovect
+    valgrind telemeh show-autovect git-cache-dir=s
     show-autovect-failed:s),
 
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
@@ -77,18 +78,9 @@ for my $target (@target_dirs) {
     $config{$target} = $args{$target} if $args{$target};
 }
 
-if (-d '.git') {
-    print dots("Updating submodules");
-    my $msg = qx{git submodule sync --quiet && git submodule --quiet update --init 2>&1};
-    if ($? >> 8 == 0) { print "OK\n" }
-    else {
-        if ($msg =~ /[']([^']+)[']\s+already exists and is not an empty/) {
-            $folder_to_delete = "\n\nERROR: Cannot update submodule because directory exists and is not empty.\n" .
-            ">>> Please delete the following folder and try again:\n$1\n\n";
-        }
-        softfail("git error: $msg")
-    }
-}
+# Download / Update submodules
+my $code = system($^X, 'tools/update-submodules.pl', Cwd::cwd(), @args);
+exit 1 if $code >> 8 != 0;
 
 # fiddle with flags
 $args{optimize}     = 3 if not defined $args{optimize} or $args{optimize} eq "";
@@ -964,7 +956,7 @@ __END__
                    [--has-libtommath] [--has-sha] [--has-libuv]
                    [--has-libatomic_ops]
                    [--asan] [--ubsan] [--no-jit]
-                   [--telemeh]
+                   [--telemeh] [--git-cache-dir <path>]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
@@ -1151,5 +1143,14 @@ Disable JIT compiler, which is enabled by default to JIT-compile hot frames.
 =item --telemeh
 
 Build support for the fine-grained internal event logger.
+
+=item --git-cache-dir <path>
+
+Use the given path as a git repository cache.
+For example: --git-cache-dir=/home/user/repo/git_cache
+Each repository ('MoarVM' and its submodules) will use a separate subfolder.
+If the subfolder does not exist, it will be cloned. If it exists the
+contained repository will be updated.
+
 
 =back
