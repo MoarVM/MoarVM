@@ -1,5 +1,6 @@
 #include "moar.h"
 #include "platform/random.h"
+#include "tinymt64.h"
 #include <math.h>
 
 #ifndef MANTISSA_BITS_IN_DOUBLE
@@ -1198,6 +1199,43 @@ MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     return c;
 }
 
+/* The below function is copied from libtommath and modified to use
+ * tinymt64 as the source of randomness. As of LTM v1.1.0, mp_rand()
+ * uses sources of randomness that can't be seeded. Since we want to
+ * be able to do that, for now just copy and modify.
+ */
+
+/* LibTomMath, multiple-precision integer library -- Tom St Denis */
+/* SPDX-License-Identifier: Unlicense */
+mp_err MVM_mp_rand(MVMThreadContext *tc, mp_int *a, int digits)
+{
+   int i;
+   mp_err err;
+
+   mp_zero(a);
+
+   if (digits <= 0) {
+      return MP_OKAY;
+   }
+
+   if ((err = mp_grow(a, digits)) != MP_OKAY) {
+      return err;
+   }
+
+   /* TODO: We ensure that the highest digit is nonzero. Should this be removed? */
+   while ((a->dp[digits - 1] & MP_MASK) == 0u) {
+      a->dp[digits - 1] = tinymt64_generate_uint64(tc->rand_state);
+   }
+
+   a->used = digits;
+   for (i = 0; i < digits; ++i) {
+      a->dp[i] = tinymt64_generate_uint64(tc->rand_state);
+      a->dp[i] &= MP_MASK;
+   }
+
+   return MP_OKAY;
+}
+
 
 /* 
     The old version of LibTomMath has it publically defined the new one not,
@@ -1230,10 +1268,7 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
 
     if (use_small_arithmetic) {
         if (MP_GEN_RANDOM_MAX >= (unsigned long)abs(smallint_max)) {
-            mp_digit result_int;
-            if (MVM_getrandom(tc, &result_int, sizeof(mp_digit)) == 0) {
-                MVM_exception_throw_adhoc(tc, "Error getting a random int to put into a big integer");
-            }
+            mp_digit result_int = tinymt64_generate_uint64(tc->rand_state);
             result_int = result_int % smallint_max;
             if (have_to_negate)
                 result_int *= -1;
@@ -1265,7 +1300,7 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
             MVM_free(rnd);
             MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
         }
-        if ((err = mp_rand(rnd, max->used + 1)) != MP_OKAY) {
+        if ((err = MVM_mp_rand(tc, rnd, max->used + 1)) != MP_OKAY) {
             mp_clear(rnd);
             MVM_free(rnd);
             MVM_exception_throw_adhoc(tc, "Error randomizing a big integer: %s", mp_error_to_string(err));
