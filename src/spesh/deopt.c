@@ -142,6 +142,10 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
         /* Set up inliner as the caller, given we now have a direct inline. */
         MVM_ASSERT_NOT_FROMSPACE(tc, f);
         MVM_ASSIGN_REF(tc, &(last_uninlined->header), last_uninlined->caller, f);
+
+        /* Clear our current callsite. Inlining does not set this up, so it may
+         * well be completely bogus with regards to the current call. */
+        f->cur_args_callsite = NULL;
     }
     else {
         /* Weren't in an inline after all. What kind of deopt? */
