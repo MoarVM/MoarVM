@@ -319,11 +319,16 @@ static MVMint32 try_add_guard(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCal
  * candidate index. Any previous guard set will be scheduled for freeing at
  * the next safepoint. */
 void MVM_spesh_arg_guard_add(MVMThreadContext *tc, MVMSpeshArgGuard **orig,
-                             MVMCallsite *cs, MVMSpeshStatsType *types,
-                             MVMuint32 candidate) {
+                             MVMSpeshPlanned *p, MVMuint32 candidate) {
+    MVMCallsite *cs = p->cs_stats->cs;
+    MVMSpeshStatsType *types = p->type_tuple;
     MVMSpeshArgGuard *new_guard = copy_and_extend(tc, *orig, max_new_nodes(cs, types));
-    if (!try_add_guard(tc, new_guard, cs, types, candidate))
-        MVM_panic(1, "Spesh arg guard: trying to add duplicate result for same guard");
+    if (!try_add_guard(tc, new_guard, cs, types, candidate)) {
+        MVM_panic(1, "Spesh arg guard: trying to add duplicate result for same guard\n"
+                "Current tree:\n%sPlanned specialization:\n%s",
+                MVM_spesh_dump_arg_guard(tc, NULL, *orig),
+                MVM_spesh_dump_planned(tc, p));
+    }
     if (*orig) {
         MVMSpeshArgGuard *prev = *orig;
         *orig = new_guard;

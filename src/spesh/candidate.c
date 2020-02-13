@@ -186,8 +186,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
      * watch the number of candidates to see if there's one for it to try and
      * jump in to, and if the guards aren't in place first will see there is
      * not, and not bother checking again. */
-    MVM_spesh_arg_guard_add(tc, &(spesh->body.spesh_arg_guard),
-        p->cs_stats->cs, p->type_tuple, spesh->body.num_spesh_candidates);
+    MVM_spesh_arg_guard_add(tc, &(spesh->body.spesh_arg_guard), p,
+            spesh->body.num_spesh_candidates);
     MVM_barrier();
     spesh->body.num_spesh_candidates++;
 
