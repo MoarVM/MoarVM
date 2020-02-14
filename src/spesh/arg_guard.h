@@ -83,8 +83,8 @@ struct MVMSpeshArgGuardNode {
     };
 };
 
-void MVM_spesh_arg_guard_add(MVMThreadContext *tc, MVMSpeshArgGuard **orig,
-    MVMCallsite *cs, MVMSpeshStatsType *types, MVMuint32 candidate);
+void MVM_spesh_arg_guard_regenerate(MVMThreadContext *tc, MVMSpeshArgGuard **guard_ptr,
+        MVMSpeshCandidate **candidates, MVMuint32 num_spesh_candidates); 
 MVMint32 MVM_spesh_arg_guard_exists(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
     MVMCallsite *cs, MVMSpeshStatsType *types);
 MVMint32 MVM_spesh_arg_guard_run_types(MVMThreadContext *tc, MVMSpeshArgGuard *ag,

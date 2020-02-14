@@ -182,16 +182,17 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     if (spesh->common.header.flags & MVM_CF_SECOND_GEN)
         MVM_gc_write_barrier_hit(tc, (MVMCollectable *)spesh);
 
-    /* Update the guards, and bump the candidate count. This means there is a
-     * period when we can read, in another thread, a candidate ahead of the
-     * count being updated. Since we set it up above, that's fine enough. The
-     * updating of the count *after* this, plus the barrier, is to make sure
-     * the guards are in place before the count is bumped, since OSR will
-     * watch the number of candidates to see if there's one for it to try and
-     * jump in to, and if the guards aren't in place first will see there is
-     * not, and not bother checking again. */
-    MVM_spesh_arg_guard_add(tc, &(spesh->body.spesh_arg_guard),
-        p->cs_stats->cs, p->type_tuple, spesh->body.num_spesh_candidates);
+    /* Regenerate the guards, and bump the candidate count only after they
+     * are installed. This means there is a period when we can read, in
+     * another thread, a candidate ahead of the count being updated. Since
+     * we set it up above, that's fine enough. The updating of the count
+     * *after* this, plus the barrier, is to make sure the guards are in
+     * place before the count is bumped, since OSR will watch the number
+     * of candidates to see if there's one for it to try and jump in to,
+     * and if the guards aren't in place first will see there is not, and
+     * not bother checking again. */
+    MVM_spesh_arg_guard_regenerate(tc, &(spesh->body.spesh_arg_guard),
+        spesh->body.spesh_candidates, spesh->body.num_spesh_candidates + 1);
     MVM_barrier();
     spesh->body.num_spesh_candidates++;
 

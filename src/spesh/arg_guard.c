@@ -318,9 +318,9 @@ static MVMint32 try_add_guard(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMCal
  * know how many types are involved), and resolving to the specified spesh
  * candidate index. Any previous guard set will be scheduled for freeing at
  * the next safepoint. */
-void MVM_spesh_arg_guard_add(MVMThreadContext *tc, MVMSpeshArgGuard **orig,
-                             MVMCallsite *cs, MVMSpeshStatsType *types,
-                             MVMuint32 candidate) {
+static void arg_guard_add(MVMThreadContext *tc, MVMSpeshArgGuard **orig,
+                          MVMCallsite *cs, MVMSpeshStatsType *types,
+                          MVMuint32 candidate) {
     MVMSpeshArgGuard *new_guard = copy_and_extend(tc, *orig, max_new_nodes(cs, types));
     if (!try_add_guard(tc, new_guard, cs, types, candidate))
         MVM_panic(1, "Spesh arg guard: trying to add duplicate result for same guard");
@@ -332,6 +332,15 @@ void MVM_spesh_arg_guard_add(MVMThreadContext *tc, MVMSpeshArgGuard **orig,
     else {
         *orig = new_guard;
     }
+}
+
+/* Produce and install an updated set of guards, incorporating the new
+ * candidate. */
+void MVM_spesh_arg_guard_regenerate(MVMThreadContext *tc, MVMSpeshArgGuard **guard_ptr,
+        MVMSpeshCandidate **candidates, MVMuint32 num_spesh_candidates) {
+    MVMSpeshCandidate *latest_candidate = candidates[num_spesh_candidates - 1];
+    arg_guard_add(tc, guard_ptr, latest_candidate->cs,
+        latest_candidate->type_tuple, num_spesh_candidates - 1);
 }
 
 /* Checks if we already have a guard that precisely matches the specified
