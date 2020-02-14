@@ -43,8 +43,8 @@ void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind k
 }
 
 /* Makes a copy of an argument type tuple. */
-MVMSpeshStatsType * copy_type_tuple(MVMThreadContext *tc, MVMCallsite *cs,
-        MVMSpeshStatsType *to_copy) {
+MVMSpeshStatsType * MVM_spesh_plan_copy_type_tuple(MVMThreadContext *tc,
+        MVMCallsite *cs, MVMSpeshStatsType *to_copy) {
     size_t stats_size = cs->flag_count * sizeof(MVMSpeshStatsType);
     MVMSpeshStatsType *result = MVM_malloc(stats_size);
     memcpy(result, to_copy, stats_size);
@@ -80,7 +80,7 @@ void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
                 MVMSpeshStatsByType **evidence = MVM_malloc(sizeof(MVMSpeshStatsByType *));
                 evidence[0] = by_type;
                 add_planned(tc, plan, MVM_SPESH_PLANNED_OBSERVED_TYPES, sf, by_cs,
-                    copy_type_tuple(tc, by_cs->cs, by_type->arg_types), evidence, 1);
+                    MVM_spesh_plan_copy_type_tuple(tc, by_cs->cs, by_type->arg_types), evidence, 1);
                 observed_specialization++;
                 if (hit_percent < MVM_SPESH_PLAN_TT_OBS_PERCENT) {
                     osr_specialization++;

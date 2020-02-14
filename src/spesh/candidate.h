@@ -1,7 +1,11 @@
 /* A specialization candidate. */
 struct MVMSpeshCandidate {
-    /* The callsite we should have for a match. */
+    /* The callsite that this specialization is for. */
     MVMCallsite *cs;
+
+    /* The type type that this specialization is for, or NULL if it's a
+     * certian specialization. */
+    MVMSpeshStatsType *type_tuple;
 
     /* Length of the specialized bytecode in bytes. */
     MVMuint32 bytecode_size;

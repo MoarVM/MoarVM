@@ -94,6 +94,10 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     /* Generate code and install it into the candidate. */
     sc = MVM_spesh_codegen(tc, sg);
     candidate = MVM_calloc(1, sizeof(MVMSpeshCandidate));
+    candidate->cs            = p->cs_stats->cs;
+    candidate->type_tuple    = p->type_tuple
+        ? MVM_spesh_plan_copy_type_tuple(tc, candidate->cs, p->type_tuple)
+        : NULL;
     candidate->bytecode      = sc->bytecode;
     candidate->bytecode_size = sc->bytecode_size;
     candidate->handlers      = sc->handlers;
@@ -207,6 +211,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 
 /* Frees the memory associated with a spesh candidate. */
 void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candidate) {
+    MVM_free(candidate->type_tuple);
     MVM_free(candidate->bytecode);
     MVM_free(candidate->handlers);
     MVM_free(candidate->spesh_slots);

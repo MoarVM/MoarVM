@@ -75,3 +75,4 @@ MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_fr
 void MVM_spesh_plan_gc_mark(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMGCWorklist *worklist);
 void MVM_spesh_plan_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSpeshPlan *plan);
 void MVM_spesh_plan_destroy(MVMThreadContext *tc, MVMSpeshPlan *plan);
+MVMSpeshStatsType * MVM_spesh_plan_copy_type_tuple(MVMThreadContext *tc, MVMCallsite *cs, MVMSpeshStatsType *to_copy);
