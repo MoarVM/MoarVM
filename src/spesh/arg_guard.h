@@ -84,7 +84,7 @@ struct MVMSpeshArgGuardNode {
 };
 
 void MVM_spesh_arg_guard_add(MVMThreadContext *tc, MVMSpeshArgGuard **orig,
-    MVMSpeshPlanned *p, MVMuint32 candidate);
+    MVMCallsite *cs, MVMSpeshStatsType *types, MVMuint32 candidate);
 MVMint32 MVM_spesh_arg_guard_exists(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
     MVMCallsite *cs, MVMSpeshStatsType *types);
 MVMint32 MVM_spesh_arg_guard_run_types(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
