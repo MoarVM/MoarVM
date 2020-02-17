@@ -1,5 +1,29 @@
 #include "moar.h"
 
+/* Checks if we have any existing specialization of this. */
+MVMint32 have_existing_specialization(MVMThreadContext *tc, MVMStaticFrame *sf,
+        MVMCallsite *cs, MVMSpeshStatsType *type_tuple) {
+    MVMStaticFrameSpesh *sfs = sf->body.spesh;
+    MVMuint32 i;
+    for (i = 0; i < sfs->body.num_spesh_candidates; i++) {
+        if (sfs->body.spesh_candidates[i]->cs == cs) {
+            /* Callsite matches. Is it a matching certain specialization? */
+            MVMSpeshStatsType *cand_type_tuple = sfs->body.spesh_candidates[i]->type_tuple;
+            if (type_tuple == NULL && cand_type_tuple == NULL) {
+                /* Yes, so we're done. */
+                return 1;
+            }
+            else if (type_tuple != NULL && cand_type_tuple != NULL) {
+                /* Typed specialization, so compare the tuples. */
+                size_t tt_size = cs->flag_count * sizeof(MVMSpeshStatsType);
+                if (memcmp(type_tuple, cand_type_tuple, tt_size) == 0)
+                    return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 /* Adds a planned specialization, provided it doesn't already exist (this may
  * happen due to further data suggesting it being logged while it was being
  * produced). */
@@ -9,7 +33,7 @@ void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind k
                  MVMuint32 num_type_stats) {
     MVMSpeshPlanned *p;
     if (sf->body.bytecode_size > MVM_SPESH_MAX_BYTECODE_SIZE ||
-        MVM_spesh_arg_guard_exists(tc, sf->body.spesh->body.spesh_arg_guard, cs_stats->cs, type_tuple)) {
+        have_existing_specialization(tc, sf, cs_stats->cs, type_tuple)) {
         /* Clean up allocated memory.
          * NB - the only caller is plan_for_cs, which means that we could do the
          * allocations in here, except that we need the type tuple for the
