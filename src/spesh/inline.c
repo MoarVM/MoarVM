@@ -178,6 +178,12 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     return 0;
                 }
             }
+            else if (opcode == MVM_OP_sp_paramnamesused) {
+                if (seen_possible_deopt) {
+                    *no_inline_reason = "a deopt may happen before arguments are processed";
+                    return 0;
+                }
+            }
 
             /* Ext-ops need special care in inter-comp-unit inlines. */
             if (opcode == (MVMuint16)-1) {
