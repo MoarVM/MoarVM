@@ -372,6 +372,7 @@ void MVM_spesh_arg_guard_regenerate(MVMThreadContext *tc, MVMSpeshArgGuard **gua
     }
     for (i = 0; i < MVM_VECTOR_ELEMS(by_callsite); i++)
         add_nodes_for_callsite(tc, tree, i, candidates, by_callsite[i]);
+    assert(tree->used_nodes <= tree->num_nodes);
 
     /* Install the produced argument guard. */
     if (*guard_ptr) {
