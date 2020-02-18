@@ -249,9 +249,8 @@ void MVM_profile_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
         sf->body.handlers      = sf->body.instrumentation->instrumented_handlers;
         sf->body.bytecode_size = sf->body.instrumentation->instrumented_bytecode_size;
 
-        /* Throw away any argument guard so we'll never resolve prior
-         * specializations again. */
-        MVM_spesh_arg_guard_discard(tc, sf);
+        /* Throw away any existing specializations. */
+        MVM_spesh_candidate_discard_existing(tc, sf);
     }
 }
 

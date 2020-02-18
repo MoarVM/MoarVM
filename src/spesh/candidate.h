@@ -7,6 +7,9 @@ struct MVMSpeshCandidate {
      * certian specialization. */
     MVMSpeshStatsType *type_tuple;
 
+    /* Has the candidated been discarded? */
+    MVMuint8 discarded;
+
     /* Length of the specialized bytecode in bytes. */
     MVMuint32 bytecode_size;
 
@@ -77,3 +80,4 @@ struct MVMSpeshCandidate {
 /* Functions for creating and clearing up specializations. */
 void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p);
 void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candidate);
+void MVM_spesh_candidate_discard_existing(MVMThreadContext *tc, MVMStaticFrame *sf);

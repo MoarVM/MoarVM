@@ -325,9 +325,13 @@ void MVM_spesh_arg_guard_regenerate(MVMThreadContext *tc, MVMSpeshArgGuard **gua
     MVM_VECTOR_INIT(by_callsite, num_spesh_candidates);
     MVMuint32 tree_size = 0;
     for (i = 0; i < num_spesh_candidates; i++) {
-        /* See if we already have a candidate for this. */
+        /* Skip discarded candidates. */
         MVMSpeshCandidate *cand = candidates[i];
         MVMint32 found = -1;
+        if (cand->discarded)
+            continue;
+
+        /* See if we already have a candidate for this. */
         for (j = 0; j < MVM_VECTOR_ELEMS(by_callsite); j++) {
             if (by_callsite[j].cs == cand->cs) {
                 found = j;

@@ -226,3 +226,16 @@ void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candid
     MVM_free(candidate->deopt_usage_info);
     MVM_free(candidate);
 }
+
+/* Discards existing candidates. Used when we instrument bytecode, and so
+ * need to ignore these ones from here on. */
+void MVM_spesh_candidate_discard_existing(MVMThreadContext *tc, MVMStaticFrame *sf) {
+    MVMStaticFrameSpesh *spesh = sf->body.spesh;
+    if (spesh) {
+        MVMuint32 num_candidates = spesh->body.num_spesh_candidates;
+        MVMuint32 i;
+        for (i = 0; i < num_candidates; i++)
+            spesh->body.spesh_candidates[i]->discarded = 1;
+        MVM_spesh_arg_guard_discard(tc, sf);
+    }
+}
