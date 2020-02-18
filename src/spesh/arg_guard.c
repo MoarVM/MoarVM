@@ -150,7 +150,7 @@ static MVMuint32 add_nodes_for_typed_argument(MVMThreadContext *tc,
     else {
         /* Do the partitioning. */
         MVM_VECTOR_DECL(TypeCandidates, by_type);
-        MVMuint32 i, j, update_node;
+        MVMuint32 i, j, update_node, derived_only;
         MVMint32 derived_idx, additional_update_node;
         MVM_VECTOR_INIT(by_type, num_valid_candidates);
         for (i = 0; i < num_valid_candidates; i++) {
@@ -195,11 +195,15 @@ static MVMuint32 add_nodes_for_typed_argument(MVMThreadContext *tc,
             MVM_VECTOR_PUSH(by_type[found].cand_idxs, valid_candidates[i]);
         }
 
-        /* We start with either a load arg or a decont node. */
-        if (consider_decont_type)
-            first_added = update_node = add_decont_node(tc, tree);
-        else
-            first_added = update_node = add_load_node(tc, tree, cs, type_index);
+        /* We start with either a load arg or a decont node, unless this is
+         * only a derived specialization and we don't check this node. */
+        derived_only = MVM_VECTOR_ELEMS(by_type) == 1 && by_type[0].type == NULL;
+        if (!derived_only) {
+            if (consider_decont_type)
+                first_added = update_node = add_decont_node(tc, tree);
+            else
+                first_added = update_node = add_load_node(tc, tree, cs, type_index);
+        }
 
         /* Go through the types and add the tree nodes for each, except for
          * any wildcard (NULL type), which must come last. */
@@ -254,13 +258,17 @@ static MVMuint32 add_nodes_for_typed_argument(MVMThreadContext *tc,
         }
 
         /* If we've a wildcard entry then continue on to the next argument;
-         * if not, attach the certain specialization. */
+         * if not, attach the certain specialization. This path also handles
+         * the case where we only have a derived specialization and it does
+         * not check the argument. */
         if (derived_idx != -1) {
             MVMuint32 added_node = add_nodes_for_typed_argument(tc,
                 tree, candidates, cs, by_type[derived_idx].cand_idxs,
                 MVM_VECTOR_ELEMS(by_type[derived_idx].cand_idxs),
                 next_type_index(cs, type_index), 0, certain_fallback);
-            if (update_node == first_added) {
+            if (derived_only)
+                first_added = added_node;
+            else if (update_node == first_added) {
                 tree->nodes[update_node].yes = added_node;
             }
             else {
