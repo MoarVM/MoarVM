@@ -410,7 +410,6 @@ MVMint32 MVM_spesh_arg_guard_run_types(MVMThreadContext *tc, MVMSpeshArgGuard *a
     MVMuint32 current_node = 0;
     MVMSpeshStatsType *test = NULL;
     MVMuint32 use_decont_type = 0;
-    MVMint32 current_result = -1;
     if (!ag)
         return -1;
     do {
@@ -465,15 +464,11 @@ MVMint32 MVM_spesh_arg_guard_run_types(MVMThreadContext *tc, MVMSpeshArgGuard *a
                     ? agn->yes
                     : agn->no;
                 break;
-            case MVM_SPESH_GUARD_OP_CERTAIN_RESULT:
-                current_result = agn->result;
-                current_node = agn->yes;
-                break;
             case MVM_SPESH_GUARD_OP_RESULT:
                 return agn->result;
         }
     } while (current_node != 0);
-    return current_result;
+    return -1;
 }
 
 /* Evaluates the argument guards. Returns >= 0 if there is a matching spesh
@@ -483,7 +478,6 @@ MVMint32 MVM_spesh_arg_guard_run(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
                                  MVMint32 *certain) {
     MVMuint32 current_node = 0;
     MVMObject *test = NULL;
-    MVMint32 current_result = -1;
     if (!ag)
         return -1;
     do {
@@ -520,17 +514,11 @@ MVMint32 MVM_spesh_arg_guard_run(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
                     ? agn->yes
                     : agn->no;
                 break;
-            case MVM_SPESH_GUARD_OP_CERTAIN_RESULT:
-                current_result = agn->result;
-                if (certain)
-                    *certain = agn->result;
-                current_node = agn->yes;
-                break;
             case MVM_SPESH_GUARD_OP_RESULT:
                 return agn->result;
         }
     } while (current_node != 0);
-    return current_result;
+    return -1;
 }
 
 /* Runs the guards using call information gathered by the optimizer. This is
@@ -540,7 +528,6 @@ MVMint32 MVM_spesh_arg_guard_run_callinfo(MVMThreadContext *tc, MVMSpeshArgGuard
     MVMuint32 current_node = 0;
     MVMSpeshFacts *facts = NULL;
     MVMuint8 use_decont_facts = 0;
-    MVMint32 current_result = -1;
     if (!ag)
         return -1;
     do {
@@ -603,15 +590,11 @@ MVMint32 MVM_spesh_arg_guard_run_callinfo(MVMThreadContext *tc, MVMSpeshArgGuard
                     ? agn->yes
                     : agn->no;
                 break;
-            case MVM_SPESH_GUARD_OP_CERTAIN_RESULT:
-                current_result = agn->result;
-                current_node = agn->yes;
-                break;
             case MVM_SPESH_GUARD_OP_RESULT:
                 return agn->result;
         }
     } while (current_node != 0);
-    return current_result;
+    return -1;
 }
 
 /* Marks any objects held by an argument guard. */
