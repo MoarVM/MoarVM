@@ -105,6 +105,7 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMSpeshBB *bb = ig->entry;
     MVMint32 same_hll = target_sf->body.cu->body.hll_config ==
             inliner->sf->body.cu->body.hll_config;
+    MVMuint32 seen_possible_deopt = 0;
     if (no_inline_info)
         *no_inline_info = NULL;
     while (bb) {
@@ -161,13 +162,19 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 }
             }
 
-            /* Check we don't have too many args for inlining to work out. */
+            /* Check we don't have too many args for inlining to work out,
+             * and that we're not reading args after a possible deopt
+             * instruction, because we can't uninline in such a case. */
             else if (opcode == MVM_OP_sp_getarg_o ||
                     opcode == MVM_OP_sp_getarg_i ||
                     opcode == MVM_OP_sp_getarg_n ||
                     opcode == MVM_OP_sp_getarg_s) {
                 if (ins->operands[1].lit_i16 >= MAX_ARGS_FOR_OPT) {
                     *no_inline_reason = "too many arguments to inline";
+                    return 0;
+                }
+                if (seen_possible_deopt) {
+                    *no_inline_reason = "a deopt may happen before arguments are processed";
                     return 0;
                 }
             }
@@ -179,6 +186,10 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 if (source_cu != target_cu)
                     demand_extop(tc, target_cu, source_cu, ins->info);
             }
+
+            /* Record if this instruction would cause us to deopt. */
+            if (ins->info->may_cause_deopt)
+                seen_possible_deopt = 1;
 
             ins = ins->next;
         }
