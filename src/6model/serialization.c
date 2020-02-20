@@ -508,7 +508,7 @@ static void write_array_str(MVMThreadContext *tc, MVMSerializationWriter *writer
 }
 
 /* Writes a hash where each key is a MVMString and each value a variant reference. */
-MVMThreadContext *cmp_tc;
+static MVMThreadContext *cmp_tc;
 static int cmp_strings(const void *s1, const void *s2) {
     return MVM_string_compare(cmp_tc, *(MVMString **)s1, *(MVMString **)s2);
 }

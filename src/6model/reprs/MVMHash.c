@@ -183,7 +183,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 }
 
 /* Serialize the representation. */
-MVMThreadContext *cmp_tc;
+static MVMThreadContext *cmp_tc;
 static int cmp_strings(const void *s1, const void *s2) {
     return MVM_string_compare(cmp_tc, *(MVMString **)s1, *(MVMString **)s2);
 }
