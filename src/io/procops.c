@@ -181,6 +181,7 @@ typedef struct {
     char             **args;
     uv_stream_t       *stdin_handle;
     MVMuint32          had_stdin_handle;
+    int                stdin_to_close;
     MVMuint32          seq_stdout;
     MVMuint32          seq_stderr;
     MVMuint32          seq_merge;
@@ -501,6 +502,12 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
     close_stdin(tc, os_handle);
     uv_mutex_unlock(mutex);
 
+    /* Close any stdin we were bound to. */
+    if (si->stdin_to_close) {
+        close(si->stdin_to_close);
+        si->stdin_to_close = 0;
+    }
+
     /* Close handle. */
     uv_close((uv_handle_t *)req, spawn_async_close);
     ((MVMIOAsyncProcessData *)((MVMOSHandle *)si->handle)->body.data)->handle = NULL;
@@ -681,6 +688,8 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[0].flags   = UV_INHERIT_FD;
         process_stdio[0].data.fd = (int)MVM_repr_get_int(tc,
             MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stdin_fd));
+        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdin_fd_close))
+            si->stdin_to_close = process_stdio[0].data.fd;
     }
     else {
         process_stdio[0].flags   = UV_INHERIT_FD;
@@ -800,6 +809,11 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
                 MVM_repr_push_o(tc, arr, msg_box);
                 MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
+            }
+
+            if (si->stdin_to_close) {
+                close(si->stdin_to_close);
+                si->stdin_to_close = 0;
             }
         });
 

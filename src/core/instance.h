@@ -69,6 +69,7 @@ struct MVMStringConsts {
     MVMString *buf_type;
     MVMString *write;
     MVMString *stdin_fd;
+    MVMString *stdin_fd_close;
     MVMString *stdout_fd;
     MVMString *stderr_fd;
     MVMString *nativeref;
