@@ -1,3 +1,22 @@
+New in 2020.02
+
++ [ca2a4c4c5] Resolve hostnames given a socket type, protocol, and passivity
++ [d606d9112,b1ff3d826,cf44a3686,cf44a3686,7920f2cc4,cfecd54bd,82f2719ce,e9a63e03f,296bedfa6,
+  3bbab8c4b,f56248139,5a2f4ed47,056c523db,192f0433c] Switch our libtommath to upstream's 1.2.0
++ [17935040a,1fbbb9335,a51428429,7877b0376,e67022405,10f98288c,f32b383cc,76d34faf1,d9c087f36]
+  Handle return values from libtommath functions
++ [1d80b6038] Fixes for MVM_bigint_pow
++ [dfdaf19a8] Use right size+sign in comparison in MVM_bigint_rand
++ [9709537d9] Serialize the names of closures
++ [f47f53110] Update libuv to version 1.34.2
++ [0814ab4d8] Negative numbers should not be prime
++ [2296bcaed] New libtommath that builds bn_mp_set_double.c...
++ [f7a3a5ccd] Implement `--git-cache-dir` Configure.pl option
++ [4d7c7e142] Clear callsite of bottom frame when uninlining
++ [657b536cf,2cc4d3027] Update dyncall submodule
++ [978480b28] Mark cmp_tc static to avoid linker errors
++ [a71eee4c2] Allow closing handle bound to async proc stdin
+
 New in 2020.01.1
 
 + [105d09d62] Fix NativeCall libraries losing state during repossession
