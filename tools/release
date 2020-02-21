@@ -1,68 +1,102 @@
-export TEST_JOBS=10
+#!/usr/bin/env raku
 
-git diff --no-ext-diff --quiet && git diff --no-ext-diff --cached --quiet || {
-	echo "status is not clean" && exit 1
+sub MAIN($release, Bool :$update-changelog = True, Bool :$update-version = True, Bool :$check-git-status = True) {
+    if $check-git-status {
+        unless run(<git diff --no-ext-diff --quiet>) and run(<git diff --no-ext-diff --cached --quiet>) {
+            say "git status is not clean";
+            exit 1;
+        }
+    }
+
+    my $changelog-file = "docs/ChangeLog".IO;
+    my $changelog = $changelog-file.open(:r);
+    my @changelog-lines = $changelog.lines;
+    my $old-version = 'VERSION'.IO.slurp.chomp;
+
+    if $update-changelog {
+        my @lines = get-commits($old-version);
+
+        $changelog = $changelog-file.open(:w);
+        $changelog.put: "New in $release\n";
+        $changelog.put: "+ $_" for @lines;
+        $changelog.put: '';
+        $changelog.print: @changelog-lines.join: "\n";
+    }
+    else {
+        for get-commits($old-version) -> $commit {
+            my @files = run(<<git diff --name-only "$commit" "$commit^">>, :out).out.lines;
+            for @files -> $file {
+                next if $file eq 'VERSION'|'docs/ChangeLog';
+                say "Commit {run(<<git show -s --oneline $commit>>, :out).out.slurp.chomp} not logged"
+                    unless any(@changelog-lines) ~~ /$commit/;
+            }
+        }
+    }
+
+    if $update-version {
+        "VERSION".IO.spurt: $release;
+        run <git add VERSION>;
+        run <git commit -v>;
+        run 'make', 'release', "VERSION=$release";
+    }
+
+    my $builddir = $*TMPDIR.child("moarvm-release-test-{(^2**128).pick.base(36)}");
+    say "Building in $builddir";
+    $builddir.IO.mkdir;
+    "$builddir/install".IO.mkdir;
+    run <<perl Configure.pl "--prefix=$builddir/install">>;
+    run <<make "-j$*KERNEL.cpu-cores()" install>>;
+
+    %*ENV<TEST_JOBS> = $*KERNEL.cpu-cores;
+    indir $builddir, {
+        run <git clone https://github.com/perl6/nqp.git>;
+        indir "nqp".IO, {
+            run <<perl Configure.pl --backends=moar "--with-moar=$builddir/install/bin/moar" "--prefix=$builddir/install">>;
+            run <make test>;
+            run <make install>;
+        };
+        run <git clone https://github.com/rakudo/rakudo.git>;
+        indir "rakudo".IO, {
+            run <<perl Configure.pl "--with-nqp=$builddir/install/bin/nqp" "--prefix=$builddir/install">>;
+            run <make test>;
+            run <make spectest>;
+            run <make stresstest>;
+        }
+    };
+
+    my $debug-nfg-patch = q:to/PATCH/;
+        diff --git a/src/strings/ops.h b/src/strings/ops.h
+        index 5cdb3d355..fd20f1d50 100644
+        --- a/src/strings/ops.h
+        +++ b/src/strings/ops.h
+        @@ -142 +142 @@ char * MVM_string_encoding_cname(MVMThreadContext *tc, MVMint64 encoding);
+        -#define MVM_DEBUG_NFG 0
+        +#define MVM_DEBUG_NFG 1
+        @@ -145 +145 @@ char * MVM_string_encoding_cname(MVMThreadContext *tc, MVMint64 encoding);
+        -#define MVM_DEBUG_NFG_STRICT 0
+        +#define MVM_DEBUG_NFG_STRICT 1
+        PATCH
+    run(<patch -p1>, :in).in.spurt: $debug-nfg-patch, :close;
+    run <<make "-j$*KERNEL.cpu-cores()" install>>;
+
+    indir "$builddir/rakudo".IO, {
+        run <make test>;
+        run <make spectest>;
+    }
+
+    run(<patch -R -p1>, :in).in.spurt: $debug-nfg-patch, :close;
+
+    run <<rm -rf "$builddir">>;
 }
-OLD_VERSION=$(grep '^New in' docs/ChangeLog | head -n2 | tail -n1 | sed -s 's/New in //')
-echo "Old version: $OLD_VERSION"
-NEW_VERSION=$(grep '^New in' docs/ChangeLog | head -n1 | sed -s 's/New in //')
-echo "New version: $NEW_VERSION"
 
-for C in $(git log --no-merges --pretty='format:%h' $OLD_VERSION..HEAD) ; do
-	git diff --name-only $C $C^ | grep -v VERSION | grep -q -v docs/ChangeLog && { # No need to log changes to ChangeLog or VERSION
-		grep -q $C docs/ChangeLog || echo "Commit $(git show -s --oneline $C) not logged"
-		# Warning about unlogged changes is only advisory! Some changes are really not relevant
-	}
-done
-
-BUILDDIR=$(mktemp -d)
-echo "Building in $BUILDDIR"
-mkdir $BUILDDIR/install
-
-perl Configure.pl --prefix=$BUILDDIR/install || exit 1
-make && make -j16 install || exit 1
-
-pushd $BUILDDIR
-
-git clone git@github.com:perl6/nqp.git || exit 1
-pushd nqp
-perl Configure.pl --backends=moar --with-moar=$BUILDDIR/install/bin/moar --prefix=$BUILDDIR/install || exit 1
-make test || exit 1
-make install || exit 1
-popd
-git clone git@github.com:rakudo/rakudo.git || exit 1
-pushd rakudo
-perl Configure.pl --with-nqp=$BUILDDIR/install/bin/nqp --prefix=$BUILDDIR/install || exit 1
-make test || exit 1
-make spectest || exit 1
-make stresstest || exit 1
-popd
-
-popd
-
-DEBUG_NFG_PATCH='diff --git a/src/strings/ops.h b/src/strings/ops.h
-index 5cdb3d355..fd20f1d50 100644
---- a/src/strings/ops.h
-+++ b/src/strings/ops.h
-@@ -142 +142 @@ char * MVM_string_encoding_cname(MVMThreadContext *tc, MVMint64 encoding);
--#define MVM_DEBUG_NFG 0
-+#define MVM_DEBUG_NFG 1
-@@ -145 +145 @@ char * MVM_string_encoding_cname(MVMThreadContext *tc, MVMint64 encoding);
--#define MVM_DEBUG_NFG_STRICT 0
-+#define MVM_DEBUG_NFG_STRICT 1'
-echo "$DEBUG_NFG_PATCH" | patch -p1 || exit 1
-
-make -j16 install || exit 1
-
-pushd $BUILDDIR
-pushd rakudo
-make test || exit 1
-make spectest || exit 1
-popd
-popd
-
-echo "$DEBUG_NFG_PATCH" | patch -R -p1 || exit 1
-
-rm -rf $BUILDDIR
-
-exit 0
+sub get-commits($old-version, :$subject) {
+    run(
+        'git',
+        'log',
+        '--reverse',
+        '--no-merges',
+        $subject ?? '--pretty=format:[%h] %s' !! '--pretty=format:%h',
+        "$old-version..HEAD",
+        :out,
+    ).out.lines
+}
