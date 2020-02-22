@@ -14,13 +14,13 @@ sub MAIN($release, Bool :$update-changelog = True, Bool :$update-version = True,
     my $old-version = 'VERSION'.IO.slurp.chomp;
 
     if $update-changelog {
-        my @lines = get-commits($old-version);
+        my @lines = get-commits($old-version, :subject);
 
         $changelog = $changelog-file.open(:w);
         $changelog.put: "New in $release\n";
         $changelog.put: "+ $_" for @lines;
         $changelog.put: '';
-        $changelog.print: @changelog-lines.join: "\n";
+        $changelog.put: @changelog-lines.join: "\n";
     }
     else {
         for get-commits($old-version) -> $commit {
