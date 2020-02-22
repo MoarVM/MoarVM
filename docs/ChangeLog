@@ -16,6 +16,7 @@ New in 2020.02
 + [657b536cf,2cc4d3027] Update dyncall submodule
 + [978480b28] Mark cmp_tc static to avoid linker errors
 + [a71eee4c2] Allow closing handle bound to async proc stdin
++ [dd20883c3] Align MVM_args_get_required_pos_num with what the JIT actually expects
 
 New in 2020.01.1
 
