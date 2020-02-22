@@ -1077,7 +1077,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(param_rp_n):
                 GET_REG(cur_op, 0).n64 = MVM_args_get_required_pos_num(tc, &tc->cur_frame->params,
-                    GET_UI16(cur_op, 2)).arg.n64;
+                    GET_UI16(cur_op, 2));
                 cur_op += 4;
                 goto NEXT;
             OP(param_rp_s):
@@ -1423,7 +1423,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
                     MVMCallCapture *cc = (MVMCallCapture *)obj;
                     GET_REG(cur_op, 0).n64 = MVM_args_get_required_pos_num(tc, cc->body.apc,
-                        (MVMuint32)GET_REG(cur_op, 4).i64).arg.n64;
+                        (MVMuint32)GET_REG(cur_op, 4).i64);
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "captureposarg_n needs a MVMCallCapture");
