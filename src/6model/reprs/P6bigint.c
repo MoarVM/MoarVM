@@ -80,6 +80,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         mp_err err;
         dest_body->u.bigint = MVM_malloc(sizeof(mp_int));
         if ((err = mp_init_copy(dest_body->u.bigint, src_body->u.bigint)) != MP_OKAY) {
+            MVM_free(dest_body->u.bigint);
             MVM_exception_throw_adhoc(tc, "Error copying one big integer to another: %s", mp_error_to_string(err));
         }
     }
@@ -93,6 +94,7 @@ void MVM_p6bigint_store_as_mp_int(MVMThreadContext *tc, MVMP6bigintBody *body, M
     mp_err err;
     mp_int *i = MVM_malloc(sizeof(mp_int));
     if ((err = mp_init_i64(i, value)) != MP_OKAY) {
+        MVM_free(i);
         MVM_exception_throw_adhoc(tc, "Error creating a big integer from a native integer (%"PRIi64"): %s", value, mp_error_to_string(err));
     }
     body->u.bigint = i;
@@ -129,6 +131,7 @@ static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
         mp_err err;
         mp_int *i = MVM_malloc(sizeof(mp_int));
         if ((err = mp_init_u64(i, value)) != MP_OKAY) {
+            MVM_free(i);
             MVM_exception_throw_adhoc(tc, "Error creating a big integer from a native integer (%"PRIu64"): %s", value, mp_error_to_string(err));
         }
         body->u.bigint = i;
@@ -242,9 +245,12 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), NULL, 0);
         body->u.bigint = MVM_malloc(sizeof(mp_int));
         if ((err = mp_init(body->u.bigint)) != MP_OKAY) {
+            MVM_free(body->u.bigint);
             MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err));
         }
         if ((err = mp_read_radix(body->u.bigint, buf, 10)) != MP_OKAY) {
+            mp_clear(body->u.bigint);
+            MVM_free(body->u.bigint);
             MVM_exception_throw_adhoc(tc, "Error converting a string to a big integer: %s", mp_error_to_string(err));
         }
         MVM_free(buf);
