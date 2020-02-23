@@ -45,6 +45,7 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
         tc->temp_bigints[i] = MVM_malloc(sizeof(mp_int));
         mp_err err;
         if ((err = mp_init(tc->temp_bigints[i])) != MP_OKAY) {
+            MVM_free(tc->temp_bigints[i]);
             MVM_exception_throw_adhoc(tc, "Error creating a temporary big integer: %s", mp_error_to_string(err));
         }
     }
