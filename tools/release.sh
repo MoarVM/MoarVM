@@ -8,7 +8,8 @@ VERSION=$1
         git ls-files | perl -pe "s{^}{$submod}"
         cd ../..;
     done
-} > MANIFEST
+} | sort > MANIFEST
 [ -d MoarVM-$VERSION ] || ln -s . MoarVM-$VERSION
-perl -pe "s{^}{MoarVM-$VERSION/}" MANIFEST | tar zc -H gnu --owner=0 --group=0 --numeric-owner -T - -f MoarVM-$VERSION.tar.gz
+tag_timestamp=$(git log -1 --format='%at' $VERSION)
+perl -pe "s{^}{MoarVM-$VERSION/}" MANIFEST | LC_ALL=C.UTF-8 tar zc -H gnu --mode=go=rX,u+rw,a-s --mtime=@$tag_timestamp --owner=0 --group=0 --numeric-owner -T - -f MoarVM-$VERSION.tar.gz
 rm MoarVM-$VERSION
