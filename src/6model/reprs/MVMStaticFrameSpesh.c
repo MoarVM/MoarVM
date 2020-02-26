@@ -30,6 +30,14 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     if (body->num_spesh_candidates) {
         MVMuint32 i, j;
         for (i = 0; i < body->num_spesh_candidates; i++) {
+            if (body->spesh_candidates[i]->type_tuple) {
+                for (j = 0; j < body->spesh_candidates[i]->cs->flag_count; j++) {
+                    MVM_gc_worklist_add(tc, worklist,
+                        &body->spesh_candidates[i]->type_tuple[j].type);
+                    MVM_gc_worklist_add(tc, worklist,
+                        &body->spesh_candidates[i]->type_tuple[j].decont_type);
+                }
+            }
             for (j = 0; j < body->spesh_candidates[i]->num_spesh_slots; j++)
                 MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]->spesh_slots[j]);
             for (j = 0; j < body->spesh_candidates[i]->num_inlines; j++)

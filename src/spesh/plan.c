@@ -1,5 +1,29 @@
 #include "moar.h"
 
+/* Checks if we have any existing specialization of this. */
+MVMint32 have_existing_specialization(MVMThreadContext *tc, MVMStaticFrame *sf,
+        MVMCallsite *cs, MVMSpeshStatsType *type_tuple) {
+    MVMStaticFrameSpesh *sfs = sf->body.spesh;
+    MVMuint32 i;
+    for (i = 0; i < sfs->body.num_spesh_candidates; i++) {
+        if (sfs->body.spesh_candidates[i]->cs == cs) {
+            /* Callsite matches. Is it a matching certain specialization? */
+            MVMSpeshStatsType *cand_type_tuple = sfs->body.spesh_candidates[i]->type_tuple;
+            if (type_tuple == NULL && cand_type_tuple == NULL) {
+                /* Yes, so we're done. */
+                return 1;
+            }
+            else if (type_tuple != NULL && cand_type_tuple != NULL) {
+                /* Typed specialization, so compare the tuples. */
+                size_t tt_size = cs->flag_count * sizeof(MVMSpeshStatsType);
+                if (memcmp(type_tuple, cand_type_tuple, tt_size) == 0)
+                    return 1;
+            }
+        }
+    }
+    return 0;
+}
+
 /* Adds a planned specialization, provided it doesn't already exist (this may
  * happen due to further data suggesting it being logged while it was being
  * produced). */
@@ -9,7 +33,7 @@ void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind k
                  MVMuint32 num_type_stats) {
     MVMSpeshPlanned *p;
     if (sf->body.bytecode_size > MVM_SPESH_MAX_BYTECODE_SIZE ||
-        MVM_spesh_arg_guard_exists(tc, sf->body.spesh->body.spesh_arg_guard, cs_stats->cs, type_tuple)) {
+        have_existing_specialization(tc, sf, cs_stats->cs, type_tuple)) {
         /* Clean up allocated memory.
          * NB - the only caller is plan_for_cs, which means that we could do the
          * allocations in here, except that we need the type tuple for the
@@ -43,74 +67,165 @@ void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind k
 }
 
 /* Makes a copy of an argument type tuple. */
-MVMSpeshStatsType * copy_type_tuple(MVMThreadContext *tc, MVMCallsite *cs,
-        MVMSpeshStatsType *to_copy) {
+MVMSpeshStatsType * MVM_spesh_plan_copy_type_tuple(MVMThreadContext *tc,
+        MVMCallsite *cs, MVMSpeshStatsType *to_copy) {
     size_t stats_size = cs->flag_count * sizeof(MVMSpeshStatsType);
     MVMSpeshStatsType *result = MVM_malloc(stats_size);
     memcpy(result, to_copy, stats_size);
     return result;
 }
 
+/* Used to track counts of types in a given parameter position, for the purpose
+ * of deciding what to specialize on. */
+typedef struct {
+    MVMSpeshStatsType type;
+    MVMuint32 count;
+} ParamTypeCount;
+
+// TODO: rename, move
+#define PERCENT_RELEVANT 40
+
 /* Considers the statistics of a given callsite + static frame pairing and
  * plans specializations to produce for it. */
-void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
-                 MVMSpeshStatsByCallsite *by_cs,
-                 MVMuint64 *in_certain_specialization, MVMuint64 *in_observed_specialization, MVMuint64 *in_osr_specialization) {
-    /* See if any types tuples are hot enough, provided this is a frame that
-     * we can type-specialize. */
-    MVMuint32 unaccounted_hits = by_cs->hits;
-    MVMuint32 unaccounted_osr_hits = by_cs->osr_hits;
+static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
+                        MVMSpeshStatsByCallsite *by_cs,
+                        MVMuint64 *in_certain_specialization, MVMuint64 *in_observed_specialization,
+                        MVMuint64 *in_osr_specialization) {
+    /* First, make sure it even is possible to specialize something by type
+     * in this code. */
+    MVMuint32 specializations = 0;
+    if (sf->body.specializable && by_cs->cs) {
+        /* It is. We'll try and produce some specializations, looping until
+         * no tuples that remain give us anything significant. */
+        MVMuint32 required_hits = (PERCENT_RELEVANT * (by_cs->hits + by_cs->osr_hits)) / 100;
+        MVMuint8 *tuples_used = MVM_calloc(by_cs->num_by_type, 1);
+        MVMuint32 num_obj_args = 0, i;
+        for (i = 0; i < by_cs->cs->flag_count; i++)
+            if (by_cs->cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ)
+                num_obj_args++;
+        while (specializations < by_cs->num_by_type) {
+            /* Here, we'll look through the incoming argument tuples to try
+             * to produce a tuple to specialize on. In some cases, we'll find a
+             * high degree of stability in all arguments, e.g. the Int candidate
+             * of infix:<+> will probably just always have (Int,Int). In others,
+             * we'll find only some arguments are stable, e.g. `push` is likely in
+             * any non-trivial program to have little variance in the first
+             * argument, but a lot in the second. */
+            MVMSpeshStatsType *chosen_tuple = MVM_calloc(by_cs->cs->flag_count,
+                    sizeof(MVMSpeshStatsType));
+            MVMuint8 *chosen_position = MVM_calloc(by_cs->cs->flag_count, 1);
+            MVMuint32 param_idx, j, k, have_chosen;
+            MVM_VECTOR_DECL(ParamTypeCount, type_counts);
+            MVM_VECTOR_INIT(type_counts, by_cs->num_by_type);
+            for (param_idx = 0; param_idx < by_cs->cs->flag_count; param_idx++) {
+                /* Skip over non-object types. */
+                if (!(by_cs->cs->arg_flags[param_idx] & MVM_CALLSITE_ARG_OBJ))
+                    continue;
 
-    MVMuint64 certain_specialization = 0;
-    MVMuint64 observed_specialization = 0;
-    MVMuint64 osr_specialization = 0;
+                /* Sum up the counts of this parameter's types. */
+                MVM_VECTOR_CLEAR(type_counts);
+                for (j = 0; j < by_cs->num_by_type; j++) {
+                    /* Make sure that the prefix matches what we've already decided
+                     * to focus on, and that the tuple wasn't already covered. */
+                    MVMSpeshStatsByType *by_type = &(by_cs->by_type[j]);
+                    MVMint32 found, valid;
+                    if (tuples_used[j])
+                        continue;
+                    valid = 1;
+                    for (k = 0; k < param_idx; k++) {
+                        if (chosen_position[k] && memcmp(&(by_type->arg_types[k]),
+                                    &(chosen_tuple[k]), sizeof(MVMSpeshStatsType)) != 0) {
+                            valid = 0;
+                            break;
+                        }
+                    }
+                    if (!valid)
+                        continue;
 
-    if (sf->body.specializable) {
-        MVMuint32 i;
-        for (i = 0; i < by_cs->num_by_type; i++) {
-            MVMSpeshStatsByType *by_type = &(by_cs->by_type[i]);
-            MVMuint32 hit_percent = by_cs->hits
-               ? (100 * by_type->hits) / by_cs->hits
-               : 0;
-            MVMuint32 osr_hit_percent = by_cs->osr_hits
-                ? (100 * by_type->osr_hits) / by_cs->osr_hits
-                : 0;
-            if (by_cs->cs && (hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT ||
-                    osr_hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT_OSR)) {
-                MVMSpeshStatsByType **evidence = MVM_malloc(sizeof(MVMSpeshStatsByType *));
-                evidence[0] = by_type;
-                add_planned(tc, plan, MVM_SPESH_PLANNED_OBSERVED_TYPES, sf, by_cs,
-                    copy_type_tuple(tc, by_cs->cs, by_type->arg_types), evidence, 1);
-                observed_specialization++;
-                if (hit_percent < MVM_SPESH_PLAN_TT_OBS_PERCENT) {
-                    osr_specialization++;
+                    /* Otherwise, assemble its counts. */
+                    found = 0;
+                    for (k = 0; k < MVM_VECTOR_ELEMS(type_counts); k++) {
+                        if (memcmp(&(type_counts[k].type), &(by_type->arg_types[param_idx]),
+                                    sizeof(MVMSpeshStatsType)) == 0) {
+                            type_counts[k].count += by_type->hits + by_type->osr_hits;
+                            found = 1;
+                            break;
+                        }
+                    }
+                    if (!found) {
+                        ParamTypeCount ptc;
+                        ptc.type = by_type->arg_types[param_idx];
+                        ptc.count = by_type->hits + by_type->osr_hits;
+                        MVM_VECTOR_PUSH(type_counts, ptc);
+                    }
                 }
-                unaccounted_hits -= by_type->hits;
-                unaccounted_osr_hits -= by_type->osr_hits;
+
+                /* Go through those hits and find an entry that meets the
+                 * threshold if we are to specialize on it. */
+                for (j = 0; j < MVM_VECTOR_ELEMS(type_counts); j++) {
+                    if (type_counts[j].count >= required_hits) {
+                        /* Yes, found; copy into the type tuple and mark chosen. */
+                        chosen_tuple[param_idx] = type_counts[j].type;
+                        chosen_position[param_idx] = 1;
+                        break;
+                    }
+                }
+            }
+            MVM_VECTOR_DESTROY(type_counts);
+
+            /* By this point, we may well have a tuple to specialize on. Check
+             * if that is the case. */
+            have_chosen = 0;
+            for (j = 0; j < by_cs->cs->flag_count; j++) {
+                if (chosen_position[j]) {
+                    have_chosen = 1;
+                    break;
+                }
+            }
+            if (have_chosen || num_obj_args == 0) {
+                /* Yes, we have a decision. Gather all tuples that provide
+                 * evidence for the choice. */
+                MVM_VECTOR_DECL(MVMSpeshStatsByType *, evidence);
+                MVM_VECTOR_INIT(evidence, 4);
+                for (j = 0; j < by_cs->num_by_type; j++) {
+                    MVMint32 matching = 1;
+                    for (k = 0; k < by_cs->cs->flag_count; k++) {
+                        if (chosen_position[k] && memcmp(&(by_cs->by_type[j].arg_types[k]),
+                                    &(chosen_tuple[k]), sizeof(MVMSpeshStatsType)) != 0) {
+                            matching = 0;
+                            break;
+                        }
+                    }
+                    if (matching) {
+                        MVM_VECTOR_PUSH(evidence, &(by_cs->by_type[j]));
+                        tuples_used[j] = 1;
+                    }
+                }
+
+                /* Add the specialization. */
+                add_planned(tc, plan,
+                    MVM_VECTOR_ELEMS(evidence) == 1
+                        ? MVM_SPESH_PLANNED_OBSERVED_TYPES
+                        : MVM_SPESH_PLANNED_DERIVED_TYPES,
+                    sf, by_cs, chosen_tuple, evidence, MVM_VECTOR_ELEMS(evidence));
+                specializations++;
+
+                /* Clean up and we're done. */
+                MVM_free(chosen_position);
             }
             else {
-                /* TODO derived specialization planning */
+                /* No fitting tuple; clean up and leave the loop. */
+                MVM_free(chosen_position);
+                MVM_free(chosen_tuple);
+                break;
             }
         }
     }
 
-    /* If there are enough unaccounted for hits by type specializations, then
-     * plan a certain specialization. */
-    if ((unaccounted_hits && unaccounted_hits >= MVM_spesh_threshold(tc, sf)) ||
-            unaccounted_osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR) {
+    /* If we get here, and found no specializations to produce, we can add
+     * a certain specializaiton instead. */
+    if (!specializations)
         add_planned(tc, plan, MVM_SPESH_PLANNED_CERTAIN, sf, by_cs, NULL, NULL, 0);
-        certain_specialization++;
-        if (!unaccounted_hits || unaccounted_hits < MVM_spesh_threshold(tc, sf)) {
-            osr_specialization++;
-        }
-    }
-
-    if (in_certain_specialization)
-        *in_certain_specialization = certain_specialization;
-    if (in_observed_specialization)
-        *in_observed_specialization = observed_specialization;
-    if (in_osr_specialization)
-        *in_osr_specialization = osr_specialization;
 }
 
 /* Considers the statistics of a given static frame and plans specializtions

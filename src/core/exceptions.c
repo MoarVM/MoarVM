@@ -396,6 +396,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
          * handler. */
         cur_frame->return_value = (MVMRegister *)&tc->last_handler_result;
         cur_frame->return_type = MVM_RETURN_OBJ;
+        cur_frame->return_address = *(tc->interp_cur_op);
         MVM_frame_special_return(tc, cur_frame, unwind_after_handler, cleanup_active_handler,
             ah, NULL);
 

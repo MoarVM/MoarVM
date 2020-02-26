@@ -904,8 +904,12 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
                 append(&ds, "For unknown reasons.\n");
             break;
         }
-        case MVM_SPESH_PLANNED_DERIVED_TYPES:
+        case MVM_SPESH_PLANNED_DERIVED_TYPES: {
+            MVMCallsite *cs = p->cs_stats->cs;
+            append(&ds, "It was planned for the type tuple:\n");
+            dump_stats_type_tuple(tc, &ds, cs, p->type_tuple, "    ");
             break;
+        }
     }
 
     appendf(&ds, "\nThe maximum stack depth is %d.\n\n", p->max_depth);
@@ -914,22 +918,22 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 }
 
 /* Dumps a static frame's guard set into a string. */
-char * MVM_spesh_dump_arg_guard(MVMThreadContext *tc, MVMStaticFrame *sf) {
-    MVMSpeshArgGuard *ag = sf->body.spesh->body.spesh_arg_guard;
-
+char * MVM_spesh_dump_arg_guard(MVMThreadContext *tc, MVMStaticFrame *sf, MVMSpeshArgGuard *ag) {
     DumpStr ds;
     ds.alloc  = 8192;
     ds.buffer = MVM_malloc(ds.alloc);
     ds.pos    = 0;
 
     /* Dump name and CUID. */
-    append(&ds, "Latest guard tree for '");
-    append_str(tc, &ds, sf->body.name);
-    append(&ds, "' (cuid: ");
-    append_str(tc, &ds, sf->body.cuuid);
-    append(&ds, ", file: ");
-    dump_fileinfo(tc, &ds, sf);
-    append(&ds, ")\n\n");
+    if (sf) {
+        append(&ds, "Latest guard tree for '");
+        append_str(tc, &ds, sf->body.name);
+        append(&ds, "' (cuid: ");
+        append_str(tc, &ds, sf->body.cuuid);
+        append(&ds, ", file: ");
+        dump_fileinfo(tc, &ds, sf);
+        append(&ds, ")\n\n");
+    }
 
     /* Dump nodes. */
     if (ag) {
@@ -960,9 +964,6 @@ char * MVM_spesh_dump_arg_guard(MVMThreadContext *tc, MVMStaticFrame *sf) {
                 case MVM_SPESH_GUARD_OP_DEREF_RW:
                     appendf(&ds, "%u: DEREF_RW %u | Y: %u, N: %u\n",
                         i, agn->offset, agn->yes, agn->no);
-                    break;
-                case MVM_SPESH_GUARD_OP_CERTAIN_RESULT:
-                    appendf(&ds, "%u: CERTAIN RESULT %u\n", i, agn->result);
                     break;
                 case MVM_SPESH_GUARD_OP_RESULT:
                     appendf(&ds, "%u: RESULT %u\n", i, agn->result);

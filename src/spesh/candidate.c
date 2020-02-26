@@ -94,6 +94,10 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     /* Generate code and install it into the candidate. */
     sc = MVM_spesh_codegen(tc, sg);
     candidate = MVM_calloc(1, sizeof(MVMSpeshCandidate));
+    candidate->cs            = p->cs_stats->cs;
+    candidate->type_tuple    = p->type_tuple
+        ? MVM_spesh_plan_copy_type_tuple(tc, candidate->cs, p->type_tuple)
+        : NULL;
     candidate->bytecode      = sc->bytecode;
     candidate->bytecode_size = sc->bytecode_size;
     candidate->handlers      = sc->handlers;
@@ -178,22 +182,24 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     if (spesh->common.header.flags & MVM_CF_SECOND_GEN)
         MVM_gc_write_barrier_hit(tc, (MVMCollectable *)spesh);
 
-    /* Update the guards, and bump the candidate count. This means there is a
-     * period when we can read, in another thread, a candidate ahead of the
-     * count being updated. Since we set it up above, that's fine enough. The
-     * updating of the count *after* this, plus the barrier, is to make sure
-     * the guards are in place before the count is bumped, since OSR will
-     * watch the number of candidates to see if there's one for it to try and
-     * jump in to, and if the guards aren't in place first will see there is
-     * not, and not bother checking again. */
-    MVM_spesh_arg_guard_add(tc, &(spesh->body.spesh_arg_guard),
-        p->cs_stats->cs, p->type_tuple, spesh->body.num_spesh_candidates);
+    /* Regenerate the guards, and bump the candidate count only after they
+     * are installed. This means there is a period when we can read, in
+     * another thread, a candidate ahead of the count being updated. Since
+     * we set it up above, that's fine enough. The updating of the count
+     * *after* this, plus the barrier, is to make sure the guards are in
+     * place before the count is bumped, since OSR will watch the number
+     * of candidates to see if there's one for it to try and jump in to,
+     * and if the guards aren't in place first will see there is not, and
+     * not bother checking again. */
+    MVM_spesh_arg_guard_regenerate(tc, &(spesh->body.spesh_arg_guard),
+        spesh->body.spesh_candidates, spesh->body.num_spesh_candidates + 1);
     MVM_barrier();
     spesh->body.num_spesh_candidates++;
 
     /* If we're logging, dump the upadated arg guards also. */
     if (MVM_spesh_debug_enabled(tc)) {
-        char *guard_dump = MVM_spesh_dump_arg_guard(tc, p->sf);
+        char *guard_dump = MVM_spesh_dump_arg_guard(tc, p->sf,
+                p->sf->body.spesh->body.spesh_arg_guard);
         MVM_spesh_debug_printf(tc, "%s========\n\n", guard_dump);
         fflush(tc->instance->spesh_log_fh);
         MVM_free(guard_dump);
@@ -206,6 +212,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 
 /* Frees the memory associated with a spesh candidate. */
 void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candidate) {
+    MVM_free(candidate->type_tuple);
     MVM_free(candidate->bytecode);
     MVM_free(candidate->handlers);
     MVM_free(candidate->spesh_slots);
@@ -218,4 +225,17 @@ void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candid
         MVM_jit_code_destroy(tc, candidate->jitcode);
     MVM_free(candidate->deopt_usage_info);
     MVM_free(candidate);
+}
+
+/* Discards existing candidates. Used when we instrument bytecode, and so
+ * need to ignore these ones from here on. */
+void MVM_spesh_candidate_discard_existing(MVMThreadContext *tc, MVMStaticFrame *sf) {
+    MVMStaticFrameSpesh *spesh = sf->body.spesh;
+    if (spesh) {
+        MVMuint32 num_candidates = spesh->body.num_spesh_candidates;
+        MVMuint32 i;
+        for (i = 0; i < num_candidates; i++)
+            spesh->body.spesh_candidates[i]->discarded = 1;
+        MVM_spesh_arg_guard_discard(tc, sf);
+    }
 }

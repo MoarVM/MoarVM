@@ -26,7 +26,8 @@ static MVMSpeshBB * linear_prev_with_ins(MVMThreadContext *tc, MVMSpeshGraph *g,
 }
 
 static void cleanup_dead_bb_instructions(MVMThreadContext *tc, MVMSpeshGraph *g,
-                                         MVMSpeshBB *dead_bb, MVMint32 cleanup_facts) {
+                                         MVMSpeshBB *dead_bb, MVMint32 cleanup_facts,
+                                         MVMuint8 *deleted_inline) {
     MVMSpeshIns *ins = dead_bb->first_ins;
     MVMint8 *frame_handlers_started = MVM_calloc(g->num_handlers, 1);
     while (ins) {
@@ -40,6 +41,7 @@ static void cleanup_dead_bb_instructions(MVMThreadContext *tc, MVMSpeshGraph *g,
                      * the whole inline will too. Just mark it as being
                      * unreachable. */
                     g->inlines[ann->data.inline_idx].unreachable = 1;
+                    *deleted_inline = 1;
                     break;
                 case MVM_SPESH_ANN_INLINE_END: {
                     /* Move it to the previous basic block, unless we already
@@ -118,6 +120,7 @@ static void mark_bb_seen(MVMThreadContext *tc, MVMSpeshBB *bb, MVMint8 *seen) {
  * exist). */
 void MVM_spesh_eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 update_facts) {
     MVMSpeshBB *cur_bb;
+    MVMuint8 deleted_inline = 0;
 
     /* First pass: mark every basic block that is reachable from the
      * entrypoint. */
@@ -130,7 +133,8 @@ void MVM_spesh_eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint
     while (cur_bb && cur_bb->linear_next) {
         MVMSpeshBB *death_cand = cur_bb->linear_next;
         if (!seen[death_cand->idx]) {
-            cleanup_dead_bb_instructions(tc, g, death_cand, update_facts);
+            cleanup_dead_bb_instructions(tc, g, death_cand, update_facts,
+                    &deleted_inline);
             death_cand->dead = 1;
             g->num_bbs--;
             cur_bb->linear_next = cur_bb->linear_next->linear_next;
@@ -140,6 +144,36 @@ void MVM_spesh_eliminate_dead_bbs(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint
         }
     }
     MVM_free(seen);
+
+    /* If we deleted an inline, make sure we don't leave behind any
+     * stray end annotations. */
+    if (deleted_inline) {
+        MVMSpeshBB *cur_bb   = g->entry;
+        while (cur_bb) {
+            /* Only need look at annotations on first non-PHI instruction, since
+             * inline end annotations always go there. */
+            MVMSpeshIns *cur_ins = cur_bb->first_ins;
+            while (cur_ins && cur_ins->info->opcode == MVM_SSA_PHI)
+                cur_ins = cur_ins->next;
+            if (cur_ins) {
+                MVMSpeshAnn *ann = cur_ins->annotations;
+                MVMSpeshAnn *prev = NULL;
+                while (ann) {
+                    if (ann->type == MVM_SPESH_ANN_INLINE_END) {
+                        if (g->inlines[ann->data.inline_idx].unreachable) {
+                            if (prev)
+                                prev->next = ann->next;
+                            else
+                                cur_ins->annotations = ann->next;
+                        }
+                    }
+                    prev = ann;
+                    ann = ann->next;
+                }
+            }
+            cur_bb = cur_bb->linear_next;
+        }
+    }
 
     /* Re-number BBs so we get sequential ordering again. */
     if (g->num_bbs != orig_bbs) {
