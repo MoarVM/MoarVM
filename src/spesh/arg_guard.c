@@ -133,7 +133,7 @@ static MVMuint32 add_nodes_for_typed_argument(MVMThreadContext *tc,
         MVMCallsite *cs, MVMuint32 *valid_candidates,
         MVMuint32 num_valid_candidates, MVMint32 type_index,
         MVMint8 consider_decont_type, MVMuint32 certain_fallback) {
-    MVMuint32 first_added;
+    MVMuint32 first_added = 0;
 
     /* If we've no next type index, then we reached the end of the
      * argument list. We should have only one result at this point. */
