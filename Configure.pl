@@ -48,7 +48,7 @@ GetOptions(\%args, qw(
     has-dyncall has-libffi pkgconfig=s
     build=s host=s big-endian jit! enable-jit
     prefix=s bindir=s libdir=s mastdir=s
-    relocatable make-install asan ubsan
+    relocatable make-install asan ubsan tsan
     valgrind telemeh show-autovect git-cache-dir=s
     show-autovect-failed:s),
 
@@ -93,7 +93,7 @@ if ( $args{relocatable} && ($^O eq 'aix' || $^O eq 'openbsd') ) {
 }
 
 for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
-        has-libatomic_ops asan ubsan valgrind show-vec)) {
+        has-libatomic_ops asan ubsan tsan valgrind show-vec)) {
     $args{$_} = 0 unless defined $args{$_};
 }
 
@@ -381,6 +381,7 @@ $config{ldlibs} = join ' ',
     (map { sprintf $config{ldsys}, $_; } @{$config{syslibs}});
 $config{ldlibs} = ' -lasan ' . $config{ldlibs} if $args{asan} && $^O ne 'darwin' && $config{cc} ne 'clang';
 $config{ldlibs} = ' -lubsan ' . $config{ldlibs} if $args{ubsan} and $^O ne 'darwin';
+$config{ldlibs} = ' -ltsan ' . $config{ldlibs} if $args{tsan} and $^O ne 'darwin';
 $config{ldlibs} = $config{ldlibs} . ' -lzstd ' if $config{heapsnapformat} == 3;
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
@@ -418,9 +419,10 @@ if ($args{'show-autovect-failed'}) {
     push @cflags, '-Rpass-analysis=loop-vectorize' if 2 <= $args{'show-autovect-failed'} && $config{cc} eq 'clang';
     push @cflags, '-fsave-optimization-record '    if 3 <= $args{'show-autovect-failed'} && $config{cc} eq 'clang';
 }
-push @cflags, '-fno-omit-frame-pointer' if $args{asan} or $args{ubsan};
+push @cflags, '-fno-omit-frame-pointer' if $args{asan} or $args{ubsan} or $args{tsan};
 push @cflags, '-fsanitize=address' if $args{asan};
 push @cflags, '-fsanitize=undefined' if $args{ubsan};
+push @cflags, '-fsanitize=thread' if $args{tsan};
 push @cflags, '-DWSL_BASH_ON_WIN' if wsl_bash_on_win();
 push @cflags, '-DDEBUG_HELPERS' if $args{debug};
 push @cflags, '-DMVM_VALGRIND_SUPPORT' if $args{valgrind};
@@ -442,6 +444,7 @@ if (not $args{static} and $config{prefix} ne '/usr') {
     push @ldflags, $config{ldrpath}             if !$args{relocatable};
 }
 push @ldflags, '-fsanitize=address'  if $args{asan};
+push @ldflags, '-fsanitize=thread'  if $args{tsan};
 push @ldflags, $ENV{LDFLAGS}         if $ENV{LDFLAGS};
 $config{ldflags} = join ' ', @ldflags;
 
@@ -955,7 +958,7 @@ __END__
                    [--static] [--prefix <path>] [--relocatable]
                    [--has-libtommath] [--has-sha] [--has-libuv]
                    [--has-libatomic_ops]
-                   [--asan] [--ubsan] [--no-jit]
+                   [--asan] [--ubsan] [--tsan] [--no-jit]
                    [--telemeh] [--git-cache-dir <path>]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
@@ -1061,6 +1064,16 @@ A full list of options is displayed if you set C<ASAN_OPTIONS> to C<help=1>.
 =item --ubsan
 
 Build with Undefined Behaviour sanitizer support.
+
+=item --tsan
+
+Build with ThreadSanitizer (TSAN) support. Requires clang and LLVM 3.2 or newer
+alternatively gcc 4.8 or newer. You can use C<TSAN_OPTIONS> to configure TSAN
+at runtime, e.g.
+
+    export TSAN_OPTIONS=report_thread_leaks=0
+
+A full list of options is displayed if you set C<TSAN_OPTIONS> to C<help=1>.
 
 =item --valgrind
 
