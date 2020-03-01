@@ -1,3 +1,7 @@
+New in 2020.02.1
+
++ [0596b8bad] Fix compiling with musl
+
 New in 2020.02
 
 + [ca2a4c4c5] Resolve hostnames given a socket type, protocol, and passivity
