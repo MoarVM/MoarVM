@@ -297,6 +297,10 @@ struct MVMThreadContext {
     MVMObject     *cur_dispatcher;
     MVMObject     *cur_dispatcher_for;
 
+    /* Dispatcher to return control to when current dispatcher exhausts. */
+    MVMObject     *next_dispatcher;
+    MVMObject     *next_dispatcher_for;
+
     /* Cache of native code callback data. */
     MVMNativeCallbackCacheHead *native_callback_cache;
 

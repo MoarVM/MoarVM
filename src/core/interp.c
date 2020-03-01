@@ -5691,6 +5691,29 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_platform_total_memory();
                 cur_op += 2;
                 goto NEXT;
+            OP(nextdispatcherfor): {
+                MVMObject *next_for = GET_REG(cur_op, 2).o;
+                tc->next_dispatcher = GET_REG(cur_op, 0).o;
+                tc->next_dispatcher_for = REPR(next_for)->ID == MVM_REPR_ID_MVMCode
+                    ? next_for
+                    : MVM_frame_find_invokee(tc, next_for, NULL);
+                cur_op += 4;
+                goto NEXT;
+            }
+            OP(takenextdispatcher): {
+                MVMObject *next_disp = tc->next_dispatcher;
+                MVMObject *next_for = tc->next_dispatcher_for;
+                MVMObject *cur_code = tc->cur_frame->code_ref;
+                if (next_disp && (!next_for || next_for == cur_code)) {
+                    GET_REG(cur_op, 0).o = next_disp;
+                    tc->next_dispatcher  = NULL;
+                }
+                else {
+                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
+                }
+                cur_op += 2;
+                goto NEXT;
+            }
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;

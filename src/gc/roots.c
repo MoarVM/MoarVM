@@ -180,6 +180,8 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     /* Current dispatcher. */
     add_collectable(tc, worklist, snapshot, tc->cur_dispatcher, "Current dispatcher");
     add_collectable(tc, worklist, snapshot, tc->cur_dispatcher_for, "Current dispatcher for");
+    add_collectable(tc, worklist, snapshot, tc->next_dispatcher, "Next dispatcher");
+    add_collectable(tc, worklist, snapshot, tc->next_dispatcher_for, "Next dispatcher for");
 
     /* Callback cache. */
     HASH_ITER_FAST(tc, hash_handle, tc->native_callback_cache, current_cbceh, {
