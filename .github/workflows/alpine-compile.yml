@@ -10,5 +10,5 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v1
       - name: Compile
-        runs-on: jjmerelo/alpine-moarvm-testbed@master
-        run: perl Configure.pl && make
+        uses: JJ/alpine-moarvm-testbed@master
+
