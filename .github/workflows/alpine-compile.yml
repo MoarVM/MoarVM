@@ -5,11 +5,9 @@ jobs:
   compile:
     runs-on: ubuntu-latest
     name: Compiles source
-    container:
-      image: jjmerelo/raku-alpine-provisional
-      
+
     steps:
       - name: Checkout
         uses: actions/checkout@v1
       - name: Compile
-        run: perl Configure.pl && make
+        run: jjmerelo/alpine-moarvm-testbed
