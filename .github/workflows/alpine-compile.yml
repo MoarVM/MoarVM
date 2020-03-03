@@ -3,8 +3,9 @@ on: [push, pull_request]
 
 jobs:
   compile:
-    container:
-      image: jjmerelo/alpine-moarvm-testbed
+    runs-on:
+      container:
+        image: jjmerelo/alpine-moarvm-testbed
     name: Compiles source
 
     steps:
