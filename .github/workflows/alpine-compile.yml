@@ -1,0 +1,13 @@
+name: Test compile in Alpine
+on: [push, pull_request]
+
+jobs:
+  compile:
+    runs-on: ubuntu-latest
+    name: Compiles source
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v1
+      - name: Compile
+        uses: JJ/raku-alpine-test@master
+        run: perl Configure.pl && make
