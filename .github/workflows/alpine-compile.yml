@@ -5,10 +5,11 @@ jobs:
   compile:
     runs-on: ubuntu-latest
     name: Compiles source
+    container:
+      image: JJ/raku-alpine-test@master
+      
     steps:
       - name: Checkout
         uses: actions/checkout@v1
-      - name: Set container
-        uses: JJ/raku-alpine-test@master
       - name: Compile
         run: perl Configure.pl && make
