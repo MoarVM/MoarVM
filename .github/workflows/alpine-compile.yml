@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     name: Compiles source
     container:
-      image: JJ/raku-alpine-test@master
+      image: jjmerelo/raku-alpine-provisional
       
     steps:
       - name: Checkout
