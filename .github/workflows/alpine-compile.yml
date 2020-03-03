@@ -3,6 +3,7 @@ on: [push, pull_request]
 
 jobs:
   compile:
+    runs-on: ubuntu-latest
     name: Compiles source
 
     steps:
