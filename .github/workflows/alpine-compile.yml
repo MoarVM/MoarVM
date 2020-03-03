@@ -10,4 +10,4 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v1
       - name: Compile
-        run: jjmerelo/alpine-moarvm-testbed@master
+        uses: jjmerelo/alpine-moarvm-testbed@master
