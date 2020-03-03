@@ -11,3 +11,4 @@ jobs:
         uses: actions/checkout@v1
       - name: Compile
         runs-on: jjmerelo/alpine-moarvm-testbed@master
+        run: perl Configure.pl && make
