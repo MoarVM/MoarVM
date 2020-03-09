@@ -67,14 +67,21 @@ print "OK\n";
 # Helper subs.
 
 sub exec_with_output {
-    my @command = @_;
-    open(my $handle, '-|', @command);
-    my $out;
-    while(<$handle>) {
-        $out .= $_;
+    if (1 || $^O =~ /win32/i) {
+        my @params = map { "\"$_\"" } @_;
+        my $param_str = join ' ', @params;
+        return qx{$param_str};
     }
-    close $handle;
-    return $out;
+    else {
+        my @command = @_;
+        open(my $handle, '-|', @command);
+        my $out;
+        while(<$handle>) {
+            $out .= $_;
+        }
+        close $handle;
+        return $out;
+    }
 }
 
 sub exec_and_check {
