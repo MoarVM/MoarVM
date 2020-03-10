@@ -116,6 +116,7 @@ struct MVMSpeshGraph {
 
     /* Do we set a dispatcher? */
     MVMuint8 sets_dispatcher;
+    MVMuint8 sets_nextdispatcher;
 };
 
 /* A temporary register, added to support transformations. */
