@@ -139,6 +139,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
      * in the TC; this will be used by anything that needs to switch
      * the current place we're interpreting. */
 
+    MVMuint8 **backup_interp_cur_op = NULL;
+    MVMuint8 **backup_interp_bytecode_start = NULL;
+    MVMRegister **backup_interp_reg_base = NULL;
+    MVMCompUnit **backup_interp_cu = NULL;
+
+    if (tc->nested_interpreter) {
+        backup_interp_cur_op = tc->interp_cur_op;
+        backup_interp_bytecode_start = tc->interp_bytecode_start;
+        backup_interp_reg_base = tc->interp_reg_base;
+        backup_interp_cu = tc->interp_cu;
+    }
+
     tc->interp_cur_op         = &cur_op;
     tc->interp_bytecode_start = &bytecode_start;
     tc->interp_reg_base       = &reg_base;
@@ -6690,7 +6702,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
     return_label:
     /* Need to clear these pointer pointers since they may be rooted
      * by some GC procedure. */
-    if (!tc->nested_interpreter) {
+    if (tc->nested_interpreter) {
+        *backup_interp_cur_op = *tc->interp_cur_op;
+        *backup_interp_bytecode_start = *tc->interp_bytecode_start;
+        *backup_interp_reg_base = *tc->interp_reg_base;
+        *backup_interp_cu = *tc->interp_cu;
+        tc->interp_cur_op = backup_interp_cur_op;
+        tc->interp_bytecode_start = backup_interp_bytecode_start;
+        tc->interp_reg_base = backup_interp_reg_base;
+        tc->interp_cu = backup_interp_cu;
+    }
+    else {
         tc->interp_cur_op         = NULL;
         tc->interp_bytecode_start = NULL;
         tc->interp_reg_base       = NULL;
@@ -6715,23 +6737,7 @@ void MVM_interp_run_nested(MVMThreadContext *tc, void (*initial_invoke)(MVMThrea
         tc->cur_frame->return_address = *tc->interp_cur_op;
 
         tc->nested_interpreter++;
-
-        MVMuint8 **backup_interp_cur_op = tc->interp_cur_op;
-        MVMuint8 **backup_interp_bytecode_start = tc->interp_bytecode_start;
-        MVMRegister **backup_interp_reg_base = tc->interp_reg_base;
-        MVMCompUnit **backup_interp_cu = tc->interp_cu;
-
         MVM_interp_run(tc, initial_invoke, invoke_data);
-
-        *backup_interp_cur_op = *tc->interp_cur_op;
-        *backup_interp_bytecode_start = *tc->interp_bytecode_start;
-        *backup_interp_reg_base = *tc->interp_reg_base;
-        *backup_interp_cu = *tc->interp_cu;
-        tc->interp_cur_op = backup_interp_cur_op;
-        tc->interp_bytecode_start = backup_interp_bytecode_start;
-        tc->interp_reg_base = backup_interp_reg_base;
-        tc->interp_cu = backup_interp_cu;
-
         tc->nested_interpreter--;
 
         tc->cur_frame             = backup_cur_frame;
