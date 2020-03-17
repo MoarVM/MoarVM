@@ -121,7 +121,8 @@ sub main {
     #BidiMirroring();
     goto skip_most if $SKIP_MOST_MODE;
     binary_props('extracted/DerivedBinaryProperties');
-    binary_props("emoji-$highest_emoji_version/emoji-data");
+    binary_props("emoji/emoji-data");
+    #binary_props("emoji-$highest_emoji_version/emoji-data");
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 3);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1);
     # sub Jamo sets names properly. Though at the moment Jamo_Short_Name likely
