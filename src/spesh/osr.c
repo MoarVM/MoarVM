@@ -118,6 +118,40 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
     *(tc->interp_reg_base) = tc->cur_frame->work;
 }
 
+/* Finds the appropriate callsite and args to use when running an arg guard for
+ * OSR. */
+MVMCallsite * find_callsite_and_args(MVMThreadContext *tc, MVMRegister **args) {
+    MVMFrame *caller = tc->cur_frame->caller;
+    if (caller) {
+        if (caller->cur_args_callsite) {
+            /* Normal call; take the current args buffer too. */
+            *args = caller->args;
+            return caller->cur_args_callsite;
+        }
+        else {
+            /* Probably an invoke with capture. */
+            if (caller->extra && caller->extra->invoked_call_capture) {
+                /* Ensure what we have is compatible with what was invoked. */
+                MVMCallCapture *cc = (MVMCallCapture *)caller->extra->invoked_call_capture;
+                if (cc->body.apc->callsite == tc->cur_frame->params.callsite &&
+                        cc->body.apc->args == tc->cur_frame->params.args) {
+                    *args = cc->body.apc->args;
+                    return cc->body.apc->callsite;
+                }
+            }
+
+            /* Otherwise, no idea what. */
+            *args = NULL;
+            return NULL;
+        }
+    }
+    else {
+        /* No call, so it's the entry point frame. */
+        *args = NULL;
+        return MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS);
+    }
+}
+
 /* Polls for an optimization and, when one is produced, jumps into it. */
 void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
     MVMStaticFrameSpesh *spesh = tc->cur_frame->static_info->body.spesh;
@@ -127,15 +161,12 @@ void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
         /* Provided OSR is enabled... */
         if (tc->instance->spesh_osr_enabled) {
             /* Check if there's a candidate available and install it if so. */
-            MVMFrame *caller = tc->cur_frame->caller;
-            MVMCallsite *cs = caller
-                ? caller->cur_args_callsite
-                : MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS);
+            MVMRegister *args;
+            MVMCallsite *cs = find_callsite_and_args(tc, &args);
             MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
                 spesh->body.spesh_arg_guard,
                 (cs && cs->is_interned ? cs : NULL),
-                (caller ? caller->args : NULL),
-                NULL);
+                args, NULL);
             if (ag_result >= 0)
                 perform_osr(tc, spesh->body.spesh_candidates[ag_result]);
         }

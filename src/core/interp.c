@@ -1517,6 +1517,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     tc->cur_frame->return_type = MVM_RETURN_OBJ;
                     cur_op += 6;
                     tc->cur_frame->return_address = cur_op;
+                    tc->cur_frame->cur_args_callsite = NULL;
                     MVMROOT(tc, cobj, {
                         STABLE(code)->invoke(tc, code, cc->body.apc->callsite,
                             cc->body.apc->args);
