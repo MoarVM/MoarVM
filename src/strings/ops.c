@@ -2835,7 +2835,9 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp) {
     MVMGrapheme32 g;
 
     if (cp < 0)
-        MVM_exception_throw_adhoc(tc, "chr codepoint (%"PRId64") cannot be negative", cp);
+        MVM_exception_throw_adhoc(tc, "chr codepoint %"PRId64" cannot be negative", cp);
+    if (cp > 0x10FFFF)
+        MVM_exception_throw_adhoc(tc, "chr codepoint %"PRId64" (0x%"PRIX64") is out of bounds", cp, cp);
     /* If the codepoint decomposes we may need to normalize it.
      * The first cp that decomposes is U+0340, but to be on the safe side
      * for now we go with the first significant character which at the time
