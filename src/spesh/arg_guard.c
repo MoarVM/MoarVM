@@ -285,6 +285,8 @@ static MVMuint32 add_nodes_for_typed_argument(MVMThreadContext *tc,
         }
         
         /* Clean up. */
+        for (i = 0; i < MVM_VECTOR_ELEMS(by_type); i++)
+            MVM_VECTOR_DESTROY(by_type[i].cand_idxs);
         MVM_VECTOR_DESTROY(by_type);
     }
 
