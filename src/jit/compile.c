@@ -249,8 +249,8 @@ MVMJitCode* MVM_jit_code_copy(MVMThreadContext *tc, MVMJitCode * const code) {
 }
 
 void MVM_jit_code_destroy(MVMThreadContext *tc, MVMJitCode *code) {
-    /* fetch_and_sub1 returns previous value, therefore subtract 1 for the test */
-    if (AO_fetch_and_sub1(&code->ref_cnt) - 1 > 0)
+    /* fetch_and_sub1 returns previous value, so check if there's only 1 reference */
+    if (AO_fetch_and_sub1(&code->ref_cnt) > 1)
         return;
     MVM_platform_free_pages(code->func_ptr, code->size);
     MVM_free(code->labels);

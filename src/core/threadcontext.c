@@ -119,6 +119,8 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
         MVM_free(tc->temp_bigints[i]);
     }
 
+    MVM_HASH_DESTROY(tc, hash_handle, MVMNativeCallbackCacheHead, tc->native_callback_cache);
+
     /* Free the thread context itself. */
     memset(tc, 0xfe, sizeof(MVMThreadContext));
     MVM_free(tc);
