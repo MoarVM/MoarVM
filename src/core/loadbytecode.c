@@ -71,6 +71,7 @@ void MVM_load_bytecode_buffer_to_cu(MVMThreadContext *tc, MVMObject *buf, MVMReg
     memcpy(data_start, (MVMuint8 *)(((MVMArray *)buf)->body.slots.i8 + ((MVMArray *)buf)->body.start), data_size);
 
     cu = MVM_cu_from_bytes(tc, data_start, data_size);
+    cu->body.deallocate = MVM_DEALLOCATE_FREE;
     res->o = (MVMObject *)cu;
 
     if (cu->body.deserialize_frame) {
