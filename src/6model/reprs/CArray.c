@@ -436,6 +436,21 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
         "Don't know how many elements a C array returned from a library");
 }
 
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
+    MVMCArrayBody     *body      = (MVMCArrayBody *)data;
+    MVMuint64 result = 0;
+
+    /* The allocated (or just-pointed-at) memory block */
+    result += body->allocated * repr_data->elem_size;
+
+    /* The array we hold wrapper objects in */
+    if (body->child_objs)
+        result += body->allocated * sizeof(MVMObject *);
+
+    return result;
+}
+
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     st->size = sizeof(MVMCArray);
 }
@@ -519,6 +534,6 @@ static const MVMREPROps CArray_this_repr = {
     NULL, /* spesh */
     "CArray", /* name */
     MVM_REPR_ID_MVMCArray,
-    NULL, /* unmanaged_size */
+    unmanaged_size, /* unmanaged_size */
     NULL, /* describe_refs */
 };
