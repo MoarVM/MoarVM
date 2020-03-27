@@ -76,6 +76,9 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
 void MVM_tc_destroy(MVMThreadContext *tc) {
     MVMint32 i;
 
+    /* Free the native callback cache. Needs the fixed size allocator. */
+    MVM_HASH_DESTROY(tc, hash_handle, MVMNativeCallbackCacheHead, tc->native_callback_cache);
+
     /* Free specialization state. */
     MVM_spesh_sim_stack_destroy(tc, tc->spesh_sim_stack);
 
@@ -118,8 +121,6 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
         mp_clear(tc->temp_bigints[i]);
         MVM_free(tc->temp_bigints[i]);
     }
-
-    MVM_HASH_DESTROY(tc, hash_handle, MVMNativeCallbackCacheHead, tc->native_callback_cache);
 
     /* Free the thread context itself. */
     memset(tc, 0xfe, sizeof(MVMThreadContext));
