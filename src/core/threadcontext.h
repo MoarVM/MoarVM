@@ -277,13 +277,6 @@ struct MVMThreadContext {
      * like I/O, which grab a mutex but may throw an exception. */
     uv_mutex_t *ex_release_mutex;
 
-    /* Memory buffer pointing to the last thing we serialized, intended to go
-     * into the next compilation unit we write. Also the serialized string
-     * heap, which will be used to seed the compilation unit string heap. */
-    MVMint32      serialized_size;
-    char         *serialized;
-    MVMObject    *serialized_string_heap;
-
     /* Serialization context write barrier disabled depth (anything non-zero
      * means disabled). */
     MVMint32           sc_wb_disable_depth;

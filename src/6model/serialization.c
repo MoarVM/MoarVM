@@ -916,15 +916,9 @@ static MVMObject * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
 
     /* nqp::serialize */
 
-    /* If we are compiling at present, then just stash the output for later
-     * incorporation into the bytecode file. */
+    /* If we are compiling at present, then just return for now */
     if (tc->compiling_scs && MVM_repr_elems(tc, tc->compiling_scs) &&
             MVM_repr_at_pos_o(tc, tc->compiling_scs, 0) == (MVMObject *)writer->root.sc) {
-        if (tc->serialized)
-            MVM_free(tc->serialized);
-        tc->serialized = output;
-        tc->serialized_size = output_size;
-        tc->serialized_string_heap = writer->root.string_heap;
         return NULL;
     }
 

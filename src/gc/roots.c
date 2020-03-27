@@ -203,10 +203,6 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     if (worklist)
         MVM_profile_instrumented_mark_data(tc, worklist);
 
-    /* Serialized string heap, if any. */
-    add_collectable(tc, worklist, snapshot, tc->serialized_string_heap,
-        "Serialized string heap");
-
     /* Specialization log, stack simulation, and plugin state. */
     add_collectable(tc, worklist, snapshot, tc->spesh_log, "Specialization log");
     if (worklist)
