@@ -181,7 +181,7 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     }
 
     /* Create code segment */
-    code = MVM_malloc(sizeof(MVMJitCode));
+    code = MVM_calloc(1, sizeof(MVMJitCode));
 
     code->func_ptr   = (void (*)(MVMThreadContext*,MVMCompUnit*,void*)) memory;
     code->size       = codesize;
