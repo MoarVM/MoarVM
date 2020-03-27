@@ -249,7 +249,8 @@ MVMJitCode* MVM_jit_code_copy(MVMThreadContext *tc, MVMJitCode * const code) {
 }
 
 void MVM_jit_code_destroy(MVMThreadContext *tc, MVMJitCode *code) {
-    if (AO_fetch_and_sub1(&code->ref_cnt) > 0)
+    /* fetch_and_sub1 returns previous value, therefore subtract 1 for the test */
+    if (AO_fetch_and_sub1(&code->ref_cnt) - 1 > 0)
         return;
     MVM_platform_free_pages(code->func_ptr, code->size);
     MVM_free(code->labels);
