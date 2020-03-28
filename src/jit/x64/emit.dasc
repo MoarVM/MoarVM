@@ -972,7 +972,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | jne >2;
         |1:
         | mov aword WORK[dst], TMP1;
-        | mov aword TC->cur_dispatcher, NULL;
+        | mov aword TC->next_dispatcher, NULL;
         | jmp >3;
         |2:
         | get_vmnull TMP1;
