@@ -901,15 +901,18 @@ static MVMObject * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     offset += MVM_ALIGN_SECTION(writer->param_interns_data_offset);
 
     /* Sanity check. */
-    if (offset != output_size)
+    if (offset != output_size) {
+        MVM_free(output);
         MVM_exception_throw_adhoc(tc,
             "Serialization sanity check failed: offset != output_size");
+    }
 
     if (type) { /* nqp::serializetobuffer */
         result = REPR(type)->allocate(tc, STABLE(type));
         if (REPR(result)->initialize)
             REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
         REPR(result)->pos_funcs.write_buf(tc, STABLE(result), result, OBJECT_BODY(result), output, 0, output_size);
+        MVM_free(output);
 
         return result;
     }
@@ -919,6 +922,7 @@ static MVMObject * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     /* If we are compiling at present, then just return for now */
     if (tc->compiling_scs && MVM_repr_elems(tc, tc->compiling_scs) &&
             MVM_repr_at_pos_o(tc, tc->compiling_scs, 0) == (MVMObject *)writer->root.sc) {
+        MVM_free(output);
         return NULL;
     }
 
