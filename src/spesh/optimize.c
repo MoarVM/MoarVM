@@ -482,6 +482,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                 break;
             case MVM_OP_ifnonnull:
                 truthvalue = REPR(flag_facts->value.o)->ID != MVM_REPR_ID_MVMNull;
+                break;
             default:
                 return;
         }
