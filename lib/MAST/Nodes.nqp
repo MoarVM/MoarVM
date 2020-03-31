@@ -56,8 +56,7 @@ class MAST::Bytecode is repr('VMArray') is array_type(uint8) {
         nqp::create(self)
     }
     method write_s(str $s) {
-        my @subbuf := nqp::encode($s, 'utf8', nqp::create(self));
-        self.write_buf(@subbuf);
+        nqp::encode($s, 'utf8', self);
     }
     method write_double(num $n) {
         nqp::writenum(self, nqp::elems(self), $n, 13);
