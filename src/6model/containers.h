@@ -44,6 +44,10 @@ struct MVMContainerSpec {
     /* Deserializes the container data, if any. */
     void (*deserialize) (MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader);
 
+    /* Called when the whole of the REPR data has been deserialized (so the
+     * offsets of attributes could be queried, for example). */
+    void (*post_deserialize) (MVMThreadContext *tc, MVMSTable *st);
+
     /* Returns a non-zero value if we can store to the container. */
     MVMint32 (*can_store) (MVMThreadContext *tc, MVMObject *cont);
 

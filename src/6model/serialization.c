@@ -2747,6 +2747,10 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     if (st->REPR->deserialize_repr_data)
         st->REPR->deserialize_repr_data(tc, st, reader);
 
+    /* Call post deserialize handlerse. */
+    if (flags & STABLE_HAS_CONTAINER_SPEC && st->container_spec->post_deserialize)
+        st->container_spec->post_deserialize(tc, st);
+
     /* Restore original read positions. */
     reader->stables_data_offset = orig_stables_data_offset;
     reader->cur_read_buffer     = orig_read_buffer;
