@@ -203,7 +203,7 @@ static MVMObject * read_container_value(MVMObject *cont) {
 
 static MVMObject * read_container_descriptor(MVMObject *cont) {
     MVMValueDescContainer *data = (MVMValueDescContainer *)STABLE(cont)->container_data;
-    return *((MVMObject **)((char*)cont + data->value_offset));
+    return *((MVMObject **)((char*)cont + data->descriptor_offset));
 }
 
 static void value_desc_cont_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
