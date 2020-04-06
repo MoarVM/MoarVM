@@ -573,7 +573,8 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
 
         /* row will contain "sub" and "annotations" */
         row = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-        MVM_repr_bind_key_o(tc, row, k_sub, cur_frame->code_ref);
+        MVM_repr_bind_key_o(tc, row, k_sub,
+            cur_frame->code_ref ? cur_frame->code_ref : tc->instance->VMNull);
         MVM_repr_bind_key_o(tc, row, k_anno, annotations);
 
         MVM_repr_push_o(tc, arr, row);
