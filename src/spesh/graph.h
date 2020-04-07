@@ -117,6 +117,9 @@ struct MVMSpeshGraph {
     /* Do we set a dispatcher? */
     MVMuint8 sets_dispatcher;
     MVMuint8 sets_nextdispatcher;
+
+    /* Stored in comment annotations to give an ordering of comments */
+    MVMuint32 next_annotation_idx;
 };
 
 /* A temporary register, added to support transformations. */
@@ -241,6 +244,11 @@ struct MVMSpeshAnn {
 
     /* The type of annotation we have. */
     MVMint32 type;
+
+    /* Order in which the annotation was created; only used
+     * for comments right now, but put in front of the union
+     * as there is a 4 byte hole here otherwise. */
+    MVMuint32 order;
 
     /* Data (meaning depends on type). */
     union {

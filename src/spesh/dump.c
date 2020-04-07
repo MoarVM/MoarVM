@@ -214,7 +214,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
             ann = cur_ins->annotations;
             while (ann) {
                 if (ann->type == MVM_SPESH_ANN_COMMENT) {
-                    appendf(ds, "      # %s\n", ann->data.comment);
+                    appendf(ds, "      # [%03d] %s\n", ann->order, ann->data.comment);
                 }
                 ann = ann->next;
             }
@@ -401,7 +401,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
             ann = cur_ins->annotations;
             while (ann) {
                 if (ann->type == MVM_SPESH_ANN_COMMENT) {
-                    appendf(ds, "  # %s", ann->data.comment);
+                    appendf(ds, "  # [%03d] %s", ann->order, ann->data.comment);
                     break;
                 }
                 ann = ann->next;

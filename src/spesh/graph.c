@@ -84,9 +84,11 @@ MVM_PUBLIC void MVM_spesh_graph_add_comment(MVMThreadContext *tc, MVMSpeshGraph 
 
     ann               = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
     ann->type         = MVM_SPESH_ANN_COMMENT;
-    ann->data.comment = comment;
     ann->next         = ins->annotations;
     ins->annotations  = ann;
+
+    ann->data.comment  = comment;
+    ann->order = g->next_annotation_idx++;
 
     va_start(ap, fmt);
     vsnprintf(comment, size, fmt, ap);
