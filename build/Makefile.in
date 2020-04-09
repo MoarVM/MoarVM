@@ -39,13 +39,13 @@ MASTDIR   = @mastdir@
 PKGCONFIGDIR = @prefix@/share/pkgconfig
 
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO) @ccdef@MVM_RDTSCP=$(RDTSCP)
-CINCLUDES = @cincludes@ \
-            @moar_cincludes@ \
+CINCLUDES = @moar_cincludes@ \
             @ccinc@@shaincludedir@ \
             @ccincsystem@3rdparty/tinymt \
             @ccincsystem@3rdparty/dynasm \
             @ccincsystem@3rdparty/cmp \
             @ccincsystem@3rdparty \
+            @cincludes@ \
             @ccinc@src
 LDFLAGS   = @ldflags@
 LDLIBS    = @ldlibs@
