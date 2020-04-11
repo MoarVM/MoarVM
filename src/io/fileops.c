@@ -60,7 +60,7 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
         case MVM_STAT_ISDEV: {
             const int mode = file_info(tc, filename, use_lstat).st_mode;
 #ifdef _WIN32
-            r = mode & S_IFMT == S_IFCHR;
+            r = (mode & S_IFMT) == S_IFCHR;
 #else
             r = (mode & S_IFMT) == S_IFCHR || (mode & S_IFMT) == S_IFBLK;
 #endif
