@@ -580,3 +580,66 @@ void MVM_profiler_log_deopt_all(MVMThreadContext *tc) {
     if (pcn)
         pcn->deopt_all_count++;
 }
+
+#ifdef DEBUG_HELPERS
+void measure_recurse(MVMProfileCallNode *pcn, MVMuint32 *depth_alloc, MVMuint64 **size_per_depth, MVMuint32 depth) {
+    MVMuint32 succ;
+    if (*depth_alloc <= depth) {
+        MVMuint32 old_alloc = *depth_alloc;
+        *depth_alloc = *depth_alloc + 32;
+        *size_per_depth = MVM_recalloc(*size_per_depth, old_alloc * sizeof(MVMuint64), *depth_alloc * sizeof(MVMuint64));
+    }
+    size_per_depth[0][depth] +=
+        sizeof(MVMProfileCallNode) +
+        pcn->alloc_succ  * sizeof(MVMProfileAllocationCount*) +
+        pcn->alloc_alloc * sizeof(MVMProfileAllocationCount);
+
+    for (succ = 0; succ < pcn->num_succ; succ++) {
+        measure_recurse(pcn->succ[succ], depth_alloc, size_per_depth, depth + 1);
+    }
+}
+
+void MVM_profiler_measure_gc_entry_size(MVMThreadContext *tc) {
+    MVMuint64 total_num_deallocs = 0;
+    MVMuint64 total_num_deallocs_alloc = 0;
+    MVMuint32 idx;
+    MVMuint64 callgraph_total = 0;
+
+    MVMuint32 depth_alloc = 1024;
+    MVMuint64 *size_per_depth = MVM_calloc(1024, sizeof(MVMuint64));
+
+    MVMProfileThreadData *td = tc->prof_data;
+    if (!td) {
+        fprintf(stderr, "this threadcontext %p does not have a prof data entry\n", tc);
+        return;
+    }
+
+    fprintf(stderr, "gc entry size for threadcontext %p\n", tc);
+    fprintf(stderr, "  %4u / %4u MVMProfileGC objects:                   %7lu kiB\n", td->num_gcs, td->alloc_gcs, (td->alloc_gcs * sizeof(MVMProfileGC)) / 1024);
+
+    for (idx = 0; idx < td->num_gcs; idx++) {
+        MVMProfileGC *gc = &td->gcs[idx];
+        total_num_deallocs += gc->num_dealloc;
+        total_num_deallocs_alloc += gc->alloc_dealloc;
+    }
+    fprintf(stderr, "  %4lu / %4lu MVMProfileDeallocationCount objects:  %7lu kiB\n", total_num_deallocs, total_num_deallocs_alloc, (total_num_deallocs_alloc * sizeof(MVMProfileDeallocationCount)) / 1024);
+    fprintf(stderr, "  -------------\n");
+    fprintf(stderr, "  total %8lu kiB\n\n", (td->alloc_gcs * sizeof(MVMProfileGC) + total_num_deallocs_alloc * sizeof(MVMProfileDeallocationCount)) / 1024);
+
+    measure_recurse(td->call_graph, &depth_alloc, &size_per_depth, 0);
+
+    fprintf(stderr, " callgraph size for threadcontext %p (each entry is the sum at each call graph depth layer)\n", tc);
+    for (idx = 0; idx < depth_alloc; idx++) {
+        if (size_per_depth[idx] == 0) {
+            break;
+        }
+        fprintf(stderr, "%6ld ", size_per_depth[idx] / 1024);
+        if ((idx + 1) % 10 == 0)
+            fprintf(stderr, "\n");
+        callgraph_total += size_per_depth[idx];
+    }
+    fprintf(stderr, "\n --------\n");
+    fprintf(stderr, "  %7ld kiB\n", callgraph_total / 1024);
+    fprintf(stderr, "  %7ld miB\n", callgraph_total / (1024 * 1024));
+}
+#endif
