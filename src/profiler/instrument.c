@@ -256,7 +256,6 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 break;
             }
             case MVM_OP_param_op_o:
-            case MVM_OP_param_on2_o:
             case MVM_OP_param_on_o: {
                 /* These ops jump to a label if they "succeed", so the
                  * allocation logging goes in another bb. */
