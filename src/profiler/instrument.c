@@ -104,7 +104,6 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_param_rp_o:
             case MVM_OP_param_rn_o:
             case MVM_OP_param_rn2_o:
-            case MVM_OP_param_rn_s:
             case MVM_OP_param_rn2_s:
             case MVM_OP_param_sp:
             case MVM_OP_param_sn:
