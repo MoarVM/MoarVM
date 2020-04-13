@@ -101,7 +101,6 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 break;
             }
             case MVM_OP_invoke_o:
-            case MVM_OP_param_rp_s:
             case MVM_OP_param_rp_o:
             case MVM_OP_param_rn_o:
             case MVM_OP_param_rn2_o:
