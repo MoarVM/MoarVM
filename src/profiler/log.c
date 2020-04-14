@@ -582,7 +582,7 @@ void MVM_profiler_log_deopt_all(MVMThreadContext *tc) {
 }
 
 #ifdef DEBUG_HELPERS
-void measure_recurse(MVMProfileCallNode *pcn, MVMuint32 *depth_alloc, MVMuint64 **size_per_depth, MVMuint32 depth) {
+void measure_recurse(MVMProfileCallNode *pcn, MVMuint32 *depth_alloc, MVMuint64 **size_per_depth, MVMuint32 depth, MVMuint32 **counter_constellation_counts, MVMuint64 *used_alloc, MVMuint64 *alloced_alloc) {
     MVMuint32 succ;
     if (*depth_alloc <= depth) {
         MVMuint32 old_alloc = *depth_alloc;
@@ -591,11 +591,24 @@ void measure_recurse(MVMProfileCallNode *pcn, MVMuint32 *depth_alloc, MVMuint64 
     }
     size_per_depth[0][depth] +=
         sizeof(MVMProfileCallNode) +
-        pcn->alloc_succ  * sizeof(MVMProfileAllocationCount*) +
+        pcn->alloc_succ  * sizeof(MVMProfileCallNode*) +
         pcn->alloc_alloc * sizeof(MVMProfileAllocationCount);
 
+    *used_alloc += pcn->num_alloc;
+    *alloced_alloc += pcn->alloc_alloc;
+
+    (*counter_constellation_counts)[
+        (pcn->cur_skip_time != 0) * 1 +
+        (pcn->specialized_entries != 0 ) * 2 +
+        (pcn->inlined_entries != 0) * 4 +
+        (pcn->jit_entries != 0 ) * 8 +
+        (pcn->osr_count != 0) * 16 +
+        (pcn->deopt_one_count != 0) * 32 +
+        (pcn->deopt_all_count != 0) * 64
+    ]++;
+
     for (succ = 0; succ < pcn->num_succ; succ++) {
-        measure_recurse(pcn->succ[succ], depth_alloc, size_per_depth, depth + 1);
+        measure_recurse(pcn->succ[succ], depth_alloc, size_per_depth, depth + 1, counter_constellation_counts, used_alloc, alloced_alloc);
     }
 }
 
@@ -607,6 +620,11 @@ void MVM_profiler_measure_gc_entry_size(MVMThreadContext *tc) {
 
     MVMuint32 depth_alloc = 1024;
     MVMuint64 *size_per_depth = MVM_calloc(1024, sizeof(MVMuint64));
+
+    MVMuint32 *constellations = MVM_calloc(128, sizeof(MVMuint32));
+
+    MVMuint64 num_used_alloc = 0;
+    MVMuint64 num_alloced_alloc = 0;
 
     MVMProfileThreadData *td = tc->prof_data;
     if (!td) {
@@ -626,7 +644,7 @@ void MVM_profiler_measure_gc_entry_size(MVMThreadContext *tc) {
     fprintf(stderr, "  -------------\n");
     fprintf(stderr, "  total %8lu kiB\n\n", (td->alloc_gcs * sizeof(MVMProfileGC) + total_num_deallocs_alloc * sizeof(MVMProfileDeallocationCount)) / 1024);
 
-    measure_recurse(td->call_graph, &depth_alloc, &size_per_depth, 0);
+    measure_recurse(td->call_graph, &depth_alloc, &size_per_depth, 0, &constellations, &num_used_alloc, &num_alloced_alloc);
 
     fprintf(stderr, " callgraph size for threadcontext %p (each entry is the sum at each call graph depth layer)\n", tc);
     for (idx = 0; idx < depth_alloc; idx++) {
@@ -640,6 +658,18 @@ void MVM_profiler_measure_gc_entry_size(MVMThreadContext *tc) {
     }
     fprintf(stderr, "\n --------\n");
     fprintf(stderr, "  %7ld kiB\n", callgraph_total / 1024);
-    fprintf(stderr, "  %7ld miB\n", callgraph_total / (1024 * 1024));
+    fprintf(stderr, "  %7ld miB\n\n", callgraph_total / (1024 * 1024));
+
+    fprintf(stderr, "  usage statistics of counter fields in call graph nodes\n");
+    fprintf(stderr, "  from least significant bit to 7th:\n   cur_skip_time, specialized_entries, inlined_entries, jit_entries,\n   osr_count, deopt_one_count, deopt_all_count\n");
+    for (idx = 0; idx < 128; idx++) {
+        if (constellations[idx] != 0) {
+            fprintf(stderr, "  %2x: %6d\n", idx, constellations[idx]);
+        }
+    }
+
+    fprintf(stderr, "Used allocation counts:      %ld (%ld kiB)\n", num_used_alloc, num_used_alloc * sizeof(MVMProfileAllocationCount) / 1024);
+    if (num_used_alloc != num_alloced_alloc)
+        fprintf(stderr, "Allocated allocation counts: %ld (%ld kiB)\n", num_alloced_alloc, num_alloced_alloc * sizeof(MVMProfileAllocationCount) / 1024);
 }
 #endif
