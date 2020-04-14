@@ -359,7 +359,9 @@ void log_one_allocation(MVMThreadContext *tc, MVMObject *obj, MVMProfileCallNode
 
     /* No entry; create one. */
     if (pcn->num_alloc == pcn->alloc_alloc) {
-        pcn->alloc_alloc += 8;
+        if (pcn->alloc_alloc == 0)
+            pcn->alloc_alloc++;
+        pcn->alloc_alloc *= 2;
         pcn->alloc = MVM_realloc(pcn->alloc,
             pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
     }
