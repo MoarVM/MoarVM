@@ -555,8 +555,12 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
 
         /* Attach what we successfully parsed as a result buffer, and trim away
          * what we chewed through. */
-        if (state.result_pos)
+        if (state.result_pos) {
+            /* Release memory we didn't use */
+            if ((bytes + 1) > state.result_pos)
+                state.result = MVM_realloc(state.result,sizeof(MVMGrapheme32) * state.result_pos);
             MVM_string_decodestream_add_chars(tc, ds, state.result, state.result_pos);
+        }
         else
             MVM_free(state.result);
         result_graphs += state.result_pos;
