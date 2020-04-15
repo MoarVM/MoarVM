@@ -125,13 +125,6 @@ static MVMuint32 utf8_encode(MVMuint8 *bp, MVMCodepoint cp) {
 
 #define UTF8_MAXINC (32 * 1024 * 1024)
 
-static void ensure_buffer(MVMGrapheme32 **buffer, MVMint32 *bufsize, MVMint32 needed) {
-    while (needed >= *bufsize)
-        *buffer = MVM_realloc(*buffer, sizeof(MVMGrapheme32) * (
-            *bufsize >= UTF8_MAXINC ? (*bufsize += UTF8_MAXINC) : (*bufsize *= 2)
-        ));
-}
-
 static const MVMuint8 hex_chars[] = { '0', '1', '2', '3', '4', '5', '6', '7',
                                       '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 static MVMGrapheme32 synthetic_for(MVMThreadContext *tc, MVMuint8 invalid) {
