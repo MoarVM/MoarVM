@@ -460,7 +460,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
     reached_stopper = 0;
     while (cur_bytes && !reached_stopper) {
         /* Set up decode state for this buffer. */
-        MVMuint32 bytes = cur_bytes->length;
+        const MVMuint32 bytes = cur_bytes->length;
         /* Space for graphemes we have + 1 grapheme we receive from last buffer */
         state.result = MVM_malloc((bytes + 1) * sizeof(MVMGrapheme32));
         state.orig_codes = MVM_realloc(state.orig_codes,
