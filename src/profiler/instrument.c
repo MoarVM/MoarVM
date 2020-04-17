@@ -103,6 +103,8 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_invoke_o:
             case MVM_OP_param_rp_o:
             case MVM_OP_param_rn_o:
+            case MVM_OP_param_rn2_o:
+            case MVM_OP_param_rn2_s:
             case MVM_OP_param_sp:
             case MVM_OP_param_sn:
             case MVM_OP_newexception:
@@ -116,6 +118,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_sp_fastcreate:
             case MVM_OP_clone:
             case MVM_OP_box_i:
+            case MVM_OP_box_u:
             case MVM_OP_box_n:
             case MVM_OP_box_s:
             case MVM_OP_iter:
@@ -137,11 +140,116 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_lcm_I:
             case MVM_OP_expmod_I:
             case MVM_OP_rand_I:
+            case MVM_OP_base_I:
             case MVM_OP_coerce_nI:
             case MVM_OP_coerce_sI:
+            case MVM_OP_coerce_II:
             case MVM_OP_coerce_is:
+            case MVM_OP_coerce_us:
             case MVM_OP_coerce_ns:
             case MVM_OP_smrt_strify:
+            case MVM_OP_buffertocu:
+            case MVM_OP_serializetobuf:
+            case MVM_OP_getsignals:
+            case MVM_OP_decodersetlineseps:
+            case MVM_OP_decoderconfigure:
+            case MVM_OP_decoderaddbytes:
+            case MVM_OP_decodertakeallchars:
+            case MVM_OP_decodertakeavailablechars:
+            case MVM_OP_decodertakeline:
+            case MVM_OP_decodertakebytes:
+            case MVM_OP_decodertakechars:
+            case MVM_OP_decodertakecharseof:
+            case MVM_OP_decodeconf:
+            case MVM_OP_decoderepconf:
+            case MVM_OP_strfromname:
+            case MVM_OP_slice:
+            case MVM_OP_loadbytecode:
+            case MVM_OP_loadbytecodefh:
+            case MVM_OP_multidimref_i:
+            case MVM_OP_multidimref_n:
+            case MVM_OP_multidimref_s:
+            case MVM_OP_asyncudp:
+            case MVM_OP_asyncwritebytesto:
+            case MVM_OP_asyncwritebytes:
+            case MVM_OP_asyncreadbytes:
+            case MVM_OP_encoderep:
+            case MVM_OP_lc:
+            case MVM_OP_uc:
+            case MVM_OP_fc:
+            case MVM_OP_getcodelocation:
+            case MVM_OP_normalizecodes:
+            case MVM_OP_strtocodes:
+            case MVM_OP_strfromcodes:
+            case MVM_OP_readlink:
+            case MVM_OP_parameterizetype:
+            case MVM_OP_spawnprocasync:
+            case MVM_OP_execname:
+            case MVM_OP_getuniprop_str:
+            case MVM_OP_getuniname:
+            case MVM_OP_sp_add_I:
+            case MVM_OP_sp_sub_I:
+            case MVM_OP_sp_mul_I:
+            case MVM_OP_uname:
+            case MVM_OP_decodelocaltime:
+            case MVM_OP_indexingoptimized:
+            case MVM_OP_setdimensions:
+            case MVM_OP_dimensions:
+            case MVM_OP_watchfile:
+            case MVM_OP_timer:
+            case MVM_OP_ctx:
+            case MVM_OP_ctxouter:
+            case MVM_OP_ctxcaller:
+            case MVM_OP_ctxouterskipthunks:
+            case MVM_OP_ctxcallerskipthunks:
+            case MVM_OP_getlockcondvar:
+            case MVM_OP_gethostname:
+            case MVM_OP_backtrace:
+            case MVM_OP_backtracestrings:
+            case MVM_OP_replace:
+            case MVM_OP_capturenamedshash:
+            case MVM_OP_bitand_s:
+            case MVM_OP_bitor_s:
+            case MVM_OP_bitxor_s:
+            case MVM_OP_backendconfig:
+            case MVM_OP_findsym:
+            case MVM_OP_getenvhash:
+            case MVM_OP_clargs:
+            case MVM_OP_cwd:
+            case MVM_OP_newthread:
+            case MVM_OP_tryfindmeth:
+            case MVM_OP_tryfindmeth_s:
+            case MVM_OP_accept_sk:
+            case MVM_OP_bind_sk:
+            case MVM_OP_connect_sk:
+            case MVM_OP_socket:
+            case MVM_OP_open_fh:
+            case MVM_OP_read_dir:
+            case MVM_OP_open_dir:
+            case MVM_OP_compunitcodes:
+            case MVM_OP_newmixintype:
+            case MVM_OP_scgetdesc:
+            case MVM_OP_popcompsc:
+            case MVM_OP_createsc:
+            case MVM_OP_sha1:
+            case MVM_OP_freshcoderef:
+            case MVM_OP_gethllsym:
+            case MVM_OP_getcurhllsym:
+            case MVM_OP_settypecache:
+            case MVM_OP_setmethcache:
+            case MVM_OP_newtype:
+            case MVM_OP_nfafromstatelist:
+            case MVM_OP_nfarunproto:
+            case MVM_OP_flip:
+            case MVM_OP_escape:
+            case MVM_OP_chr:
+            case MVM_OP_join:
+            case MVM_OP_split:
+            case MVM_OP_concat_s:
+            case MVM_OP_repeat_s:
+            case MVM_OP_substr_s:
+            case MVM_OP_multicacheadd:
+            case MVM_OP_radix:
             case MVM_OP_radix_I: {
                 add_allocation_logging(tc, g, bb, ins);
                 break;
@@ -177,7 +285,15 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
                 break;
             }
             case MVM_OP_getlexref_i:
+            case MVM_OP_getlexref_i8:
+            case MVM_OP_getlexref_i16:
+            case MVM_OP_getlexref_i32:
+            case MVM_OP_getlexref_u:
+            case MVM_OP_getlexref_u8:
+            case MVM_OP_getlexref_u16:
+            case MVM_OP_getlexref_u32:
             case MVM_OP_getlexref_n:
+            case MVM_OP_getlexref_n32:
             case MVM_OP_getlexref_s:
             case MVM_OP_getlexref_ni:
             case MVM_OP_getlexref_nn:
@@ -192,6 +308,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_getattrsref_n:
             case MVM_OP_getattrsref_s:
             case MVM_OP_nativecallcast:
+            case MVM_OP_nativecallglobal:
                 add_allocation_logging(tc, g, bb, ins);
                 break;
             case MVM_OP_nativecallinvoke:
