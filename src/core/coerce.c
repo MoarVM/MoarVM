@@ -201,7 +201,7 @@ static size_t u64toa_naive(uint64_t value, char* buffer) {
     return u64toa_naive_worker(value, buffer) - buffer;
 }
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
-    char buffer[64];
+    char buffer[20];
     int len;
     /* See if we can hit the cache. */
     int cache = 0 <= i && i < MVM_INT_TO_STR_CACHE_SIZE;
@@ -227,7 +227,7 @@ MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
 }
 
 MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
-    char buffer[64];
+    char buffer[20];
     int len;
     /* See if we can hit the cache. */
     int cache = i < MVM_INT_TO_STR_CACHE_SIZE;
