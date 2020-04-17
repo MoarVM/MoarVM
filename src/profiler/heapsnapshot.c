@@ -371,9 +371,20 @@ static void set_static_frame_index(MVMThreadContext *tc, MVMHeapSnapshotState *s
     MVMCompUnit *cu = sf->body.cu;
     MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &(sf->body), 0);
     MVMuint64 line = ann ? ann->line_number : 1;
-    MVMuint64 file_idx = ann && ann->filename_string_heap_index < cu->body.num_strings
-        ? get_vm_string_index(tc, ss, MVM_cu_string(tc, cu, ann->filename_string_heap_index))
-        : get_vm_string_index(tc, ss, cu->body.filename);
+    MVMString *file_name = ann && ann->filename_string_heap_index < cu->body.num_strings
+        ? MVM_cu_string(tc, cu, ann->filename_string_heap_index)
+        : cu->body.filename;
+
+    /* We're running as part of gc_finalize. By now, live objects have been marked
+       but not yet collected. If the file name was just deserialized from the string
+       heap by MVM_cu_string, it will have been allocated in gen2 directly, but not
+       marked as live for this gc run. Do it here to prevent it from getting freed
+       after taking this heap snapshot, while it's actually still referenced from the
+       comp unit's strings list */
+    if (file_name && file_name->common.header.flags & MVM_CF_SECOND_GEN)
+        file_name->common.header.flags |= MVM_CF_GEN2_LIVE;
+
+    MVMuint64 file_idx = get_vm_string_index(tc, ss, file_name);
 
     MVMuint64 i;
     MVMHeapSnapshotStaticFrame *s;
