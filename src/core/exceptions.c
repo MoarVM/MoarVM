@@ -310,7 +310,7 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
                     lh.frame = f;
                     return lh;
                 }
-                f = f->caller;
+                f = MVM_LIKELY(f != tc->thread_entry_frame) ? f->caller : NULL;
             }
             return lh;
         case MVM_EX_THROW_LEXOTIC:
@@ -318,7 +318,7 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
                 lh = search_for_handler_from(tc, f, MVM_EX_THROW_LEX, cat, payload);
                 if (lh.frame != NULL)
                     return lh;
-                f = f->caller;
+                f = MVM_LIKELY(f != tc->thread_entry_frame) ? f->caller : NULL;
             }
             return lh;
         default:
@@ -646,7 +646,13 @@ static void panic_unhandled_cat(MVMThreadContext *tc, MVMuint32 cat) {
             cat_name(tc, cat));
     }
     else {
-        fprintf(stderr, "No exception handler located for %s\n", cat_name(tc, cat));
+        if (tc->nested_interpreter)
+            fprintf(stderr, "An unhandled exception occurred in a native callback.\n"
+                    "This situation is not recoverable, and the program will terminate.\n"
+                    "The stack trace below helps indicate which library needs fixing.\n"
+                    "The exception was thrown at:\n");
+        else
+            fprintf(stderr, "No exception handler located for %s\n", cat_name(tc, cat));
         MVM_dump_backtrace(tc);
         if (crash_on_error)
             abort();
