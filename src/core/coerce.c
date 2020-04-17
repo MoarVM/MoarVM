@@ -184,7 +184,6 @@ static char * u64toa_naive_worker(uint64_t value, char* buffer) {
         *buffer++ = *--p;
     } while (p != temp);
 
-    *buffer = '\0';
     return buffer;
 }
 static size_t i64toa_naive(int64_t value, char* buffer) {
