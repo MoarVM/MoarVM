@@ -725,6 +725,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 }
                 default:
+                    MVM_gc_mark_thread_unblocked(tc);
                     MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall return type");
             }
