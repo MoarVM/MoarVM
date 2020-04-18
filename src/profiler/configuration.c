@@ -290,7 +290,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                     break;
 
                 default:
-                    MVM_exception_throw_adhoc(tc, "STRUCT_SELECT string length %ld (index %d) NYI or something", string_length, string_idx);
+                    MVM_exception_throw_adhoc(tc, "STRUCT_SELECT string length %llu (index %d) NYI or something", string_length, string_idx);
             }
 
             /* Now do a rewrite of const_s into const_i64_16 and noop */
@@ -358,7 +358,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                     }
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc, "STRUCT_SELECT is MVMStaticFrame, no field with length %ld (string heap index %d) implemented", string_length, string_idx);
+                    MVM_exception_throw_adhoc(tc, "STRUCT_SELECT is MVMStaticFrame, no field with length %llu (string heap index %d) implemented", string_length, string_idx);
                 }
             }
             else if (selected_struct_source == StructSel_MVMCompUnit) {
@@ -370,7 +370,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                         *hintptr = offsetof(MVMCompUnit, body.hll_name);
                     }
                     else {
-                        MVM_exception_throw_adhoc(tc, "STRUCT_SELECT is MVMCompUnit, no field with length %ld (string heap index %d) implemented", string_length, string_idx);
+                        MVM_exception_throw_adhoc(tc, "STRUCT_SELECT is MVMCompUnit, no field with length %llu (string heap index %d) implemented", string_length, string_idx);
                     }
                 }
             }
@@ -485,12 +485,12 @@ MVMint16 stats_position_for_value(MVMThreadContext *tc, MVMuint8 entrypoint, MVM
         case MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC:
             if (return_value == 0 || return_value == 1)
                 return MVM_CONFPROG_SF_RESULT_ALWAYS + 1 + return_value;
-            MVM_exception_throw_adhoc(tc, "Can't get stats for out-of-bounds value %ld for dynamic profiler entrypoint", return_value);
+            MVM_exception_throw_adhoc(tc, "Can't get stats for out-of-bounds value %llu for dynamic profiler entrypoint", return_value);
             return -1;
         case MVM_PROGRAM_ENTRYPOINT_HEAPSNAPSHOT:
             if (return_value <= 2)
                 return MVM_CONFPROG_SF_RESULT_ALWAYS + 1 + 1 + 1 + return_value;
-            MVM_exception_throw_adhoc(tc, "Can't get stats for out-of-bounds value %ld for heapsnapshot entrypoint", return_value);
+            MVM_exception_throw_adhoc(tc, "Can't get stats for out-of-bounds value %llu for heapsnapshot entrypoint", return_value);
             return -1;
         default:
             if (tc)
@@ -525,12 +525,12 @@ void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *
         junkprint(stderr, "got a bytecode array with %d (%x) entries\n", bytecode_size, bytecode_size);
 
         if (bytecode_size % 2 == 1) {
-            MVM_exception_throw_adhoc(tc, "installconfprog expected bytecode array to be a multiple of 2 bytes big (got a %ld)",
+            MVM_exception_throw_adhoc(tc, "installconfprog expected bytecode array to be a multiple of 2 bytes big (got a %llu)",
                     bytecode_size);
         }
 
         if (bytecode_size > 4096) {
-            MVM_exception_throw_adhoc(tc, "confprog too big. maximum 4096, this one has %ld", bytecode_size);
+            MVM_exception_throw_adhoc(tc, "confprog too big. maximum 4096, this one has %llu", bytecode_size);
         }
 
         array_contents = ((MVMArray *)bytecode)->body.slots.u8;
