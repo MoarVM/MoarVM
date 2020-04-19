@@ -19,6 +19,18 @@ struct MVMProfileThreadData {
     /* The time we finished profiling, if we got there already. */
     MVMuint64 end_time;
 
+    /* The next two arrays are there to remove the need for the GC
+     * to walk the entire call graph every time.
+     */
+
+    /* Replaces static frame pointers in call nodes with an index into
+     * this array */
+    MVM_VECTOR_DECL(MVMStaticFrame *, staticframe_array);
+
+    /* Replaces type pointers in call nodes allocation entries with an
+     * index into this array */
+    MVM_VECTOR_DECL(MVMObject *, type_array);
+
     /* When a confprog is deciding what frames to enter, exiting a frame
      * when there's no node on the call stack can either be a run-time error,
      * or it can be completely normal. To differentiate, we have to count the
@@ -97,7 +109,7 @@ struct MVMProfileGC {
 struct MVMProfileCallNode {
     /* The frame this data is for.
      * If this CallNode is for a native call, this is NULL. */
-    MVMStaticFrame *sf;
+    MVMuint32 sf_idx;
     /* The timestamp when we entered the node. */
     MVMuint64 cur_entry_time;
 
@@ -159,7 +171,7 @@ struct MVMProfileCallNode {
 /* Allocation counts for a call node. */
 struct MVMProfileAllocationCount {
     /* The type we're counting allocations of. */
-    MVMObject *type;
+    MVMuint32 type_idx;
 
     /* The number of allocations we've counted. */
     /* a) in regularly interpreted code */
