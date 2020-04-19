@@ -446,23 +446,24 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
     MVMuint64 absolute_start_time;
 
     /* Let's see if we're dealing with a native call or a regular moar call */
-    if (pcn->sf) {
+    if (tc->prof_data->staticframe_array[pcn->sf_idx]) {
+        MVMStaticFrame *sf = tc->prof_data->staticframe_array[pcn->sf_idx];
         /* Try to resolve the code filename and line number. */
         MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc,
-            &(pcn->sf->body), 0);
+            &(sf->body), 0);
         MVMuint32 fshi = annot ? (MVMint32)annot->filename_string_heap_index : 0;
 
         /* Add name of code object. */
         MVM_repr_bind_key_o(tc, node_hash, pds->name,
-            box_s(tc, pcn->sf->body.name));
+            box_s(tc, sf->body.name));
 
         /* Add line number and file name. */
-        if (annot && fshi < pcn->sf->body.cu->body.num_strings)
+        if (annot && fshi < sf->body.cu->body.num_strings)
             MVM_repr_bind_key_o(tc, node_hash, pds->file,
-                box_s(tc, MVM_cu_string(tc, pcn->sf->body.cu, fshi)));
-        else if (pcn->sf->body.cu->body.filename)
+                box_s(tc, MVM_cu_string(tc, sf->body.cu, fshi)));
+        else if (sf->body.cu->body.filename)
             MVM_repr_bind_key_o(tc, node_hash, pds->file,
-                box_s(tc, pcn->sf->body.cu->body.filename));
+                box_s(tc, sf->body.cu->body.filename));
         else
             MVM_repr_bind_key_o(tc, node_hash, pds->file,
                 box_s(tc, tc->instance->str_consts.empty));
@@ -472,7 +473,7 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
 
         /* Use static frame memory address to get a unique ID. */
         MVM_repr_bind_key_o(tc, node_hash, pds->id,
-            box_i(tc, (MVMint64)(uintptr_t)pcn->sf));
+            box_i(tc, (MVMint64)(uintptr_t)sf));
     } else if (pcn->native_target_name) {
         MVMString *function_name_string =
             MVM_string_utf8_c8_decode(tc, tc->instance->VMString,
@@ -547,7 +548,7 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
             MVMObject *alloc_info = new_hash(tc);
             MVMProfileAllocationCount *alloc = &pcn->alloc[i];
 
-            MVMObject *type       = pcn->alloc[i].type;
+            MVMObject *type = tc->prof_data->type_array[pcn->alloc[i].type_idx];
 
             add_type_to_types_array(tc, pds, type, types_array);
 
@@ -817,11 +818,11 @@ MVMObject * MVM_profile_instrumented_end(MVMThreadContext *tc) {
 /* Marks objects held in the profiling graph. */
 static void mark_call_graph_node(MVMThreadContext *tc, MVMProfileCallNode *node, NodeWorklist *nodelist, MVMGCWorklist *worklist) {
     MVMuint32 i;
-    MVM_gc_worklist_add(tc, worklist, &(node->sf));
-    for (i = 0; i < node->num_alloc; i++)
-        MVM_gc_worklist_add(tc, worklist, &(node->alloc[i].type));
-    for (i = 0; i < node->num_succ; i++)
-        add_node(tc, nodelist, node->succ[i]);
+    /*MVM_gc_worklist_add(tc, worklist, &(node->sf));*/
+    /*for (i = 0; i < node->num_alloc; i++)*/
+        /*MVM_gc_worklist_add(tc, worklist, &(node->alloc[i].type));*/
+    /*for (i = 0; i < node->num_succ; i++)*/
+        /*add_node(tc, nodelist, node->succ[i]);*/
 }
 static void mark_gc_entries(MVMThreadContext *tc, MVMProfileThreadData *ptd, MVMGCWorklist *worklist) {
     MVMuint32 gci;
@@ -835,25 +836,32 @@ static void mark_gc_entries(MVMThreadContext *tc, MVMProfileThreadData *ptd, MVM
 }
 void MVM_profile_instrumented_mark_data(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     if (tc->prof_data) {
+        MVMProfileThreadData *ptd = tc->prof_data;
+        MVMuint32 index;
         /* Allocate our worklist on the stack. */
-        NodeWorklist nodelist;
-        nodelist.items = 0;
-        nodelist.alloc = 256;
-        nodelist.list = MVM_malloc(nodelist.alloc * sizeof(MVMProfileCallNode *));
+        /*NodeWorklist nodelist;*/
+        /*nodelist.items = 0;*/
+        /*nodelist.alloc = 256;*/
+        /*nodelist.list = MVM_malloc(nodelist.alloc * sizeof(MVMProfileCallNode *));*/
 
-        add_node(tc, &nodelist, tc->prof_data->call_graph);
+        /*add_node(tc, &nodelist, tc->prof_data->call_graph);*/
 
-        while (nodelist.items) {
-            MVMProfileCallNode *node = take_node(tc, &nodelist);
-            if (node)
-                mark_call_graph_node(tc, node, &nodelist, worklist);
-        }
+        /*while (nodelist.items) {*/
+            /*MVMProfileCallNode *node = take_node(tc, &nodelist);*/
+            /*if (node)*/
+                /*mark_call_graph_node(tc, node, &nodelist, worklist);*/
+        /*}*/
+
+        for (index = 0; index < MVM_VECTOR_ELEMS(ptd->staticframe_array); index++)
+            MVM_gc_worklist_add(tc, worklist, &(ptd->staticframe_array[index]));
+        for (index = 0; index < MVM_VECTOR_ELEMS(ptd->type_array); index++)
+            MVM_gc_worklist_add(tc, worklist, &(ptd->type_array[index]));
 
         MVM_gc_worklist_add(tc, worklist, &(tc->prof_data->collected_data));
 
         mark_gc_entries(tc, tc->prof_data, worklist);
 
-        MVM_free(nodelist.list);
+        /*MVM_free(nodelist.list);*/
     }
 }
 
@@ -866,8 +874,8 @@ static void dump_callgraph_node(MVMThreadContext *tc, MVMProfileCallNode *n, MVM
         fputc(' ', stderr);
     }
 
-    if (n->sf)
-        name = MVM_string_utf8_encode_C_string(tc, n->sf->body.name);
+    if (tc->prof_data->staticframe_array[n->sf_idx])
+        name = MVM_string_utf8_encode_C_string(tc, tc->prof_data->staticframe_array[n->sf_idx]->body.name);
 
     fprintf(stderr, "+ [%3d] %s\n", n->num_succ, name ? name : "(unknown)");
     MVM_free(name);
