@@ -368,11 +368,19 @@ void log_one_allocation(MVMThreadContext *tc, MVMObject *obj, MVMProfileCallNode
 
     /* No entry; create one. */
     if (pcn->num_alloc == pcn->alloc_alloc) {
-        if (pcn->alloc_alloc == 0)
+        size_t old_alloc = pcn->alloc_alloc;
+        if (pcn->alloc_alloc == 0) {
             pcn->alloc_alloc++;
-        pcn->alloc_alloc *= 2;
-        pcn->alloc = MVM_realloc(pcn->alloc,
-            pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
+            pcn->alloc = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                    pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
+        }
+        else {
+            pcn->alloc_alloc *= 2;
+            pcn->alloc = MVM_fixed_size_realloc(tc, tc->instance->fsa,
+                    pcn->alloc,
+                    old_alloc * sizeof(MVMProfileAllocationCount),
+                    pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
+        }
     }
     {
         MVMuint32 search;
@@ -451,9 +459,19 @@ void MVM_profiler_log_gc_deallocate(MVMThreadContext *tc, MVMObject *object) {
 
         /* No entry; create one. */
         if (pgc->num_dealloc == pgc->alloc_dealloc) {
-            pgc->alloc_dealloc += 8;
-            pgc->deallocs = MVM_realloc(pgc->deallocs,
-                pgc->alloc_dealloc * sizeof(MVMProfileDeallocationCount));
+            size_t old_alloc = pgc->alloc_dealloc;
+            if (pgc->alloc_dealloc == 0) {
+                pgc->alloc_dealloc++;
+                pgc->deallocs = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                        pgc->alloc_dealloc * sizeof(MVMProfileDeallocationCount));
+            }
+            else {
+                pgc->alloc_dealloc *= 2;
+                pgc->deallocs = MVM_fixed_size_realloc(tc, tc->instance->fsa,
+                        pgc->deallocs,
+                        old_alloc * sizeof(MVMProfileDeallocationCount),
+                        pgc->alloc_dealloc * sizeof(MVMProfileDeallocationCount));
+            }
         }
         pgc->deallocs[pgc->num_dealloc].type                   = what;
         pgc->deallocs[pgc->num_dealloc].deallocs_nursery_fresh = dealloc_target == 0;

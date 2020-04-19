@@ -7,26 +7,26 @@ typedef struct {
     MVMProfileCallNode **list;
 } NodeWorklist;
 
-static void add_node(MVMThreadContext *tc, NodeWorklist *list, MVMProfileCallNode *node) {
-    if (list->items == list->alloc) {
-        /* Filled up the whole list. Make it bigger */
-        list->alloc *= 2;
-        list->list = MVM_realloc(list->list, list->alloc * sizeof(MVMProfileCallNode *));
-    }
-    /* Add at the end */
-    list->list[list->items] = node;
-    list->items++;
-}
+/*static void add_node(MVMThreadContext *tc, NodeWorklist *list, MVMProfileCallNode *node) {*/
+    /*if (list->items == list->alloc) {*/
+        /*[> Filled up the whole list. Make it bigger <]*/
+        /*list->alloc *= 2;*/
+        /*list->list = MVM_realloc(list->list, list->alloc * sizeof(MVMProfileCallNode *));*/
+    /*}*/
+    /*[> Add at the end <]*/
+    /*list->list[list->items] = node;*/
+    /*list->items++;*/
+/*}*/
 
-static MVMProfileCallNode *take_node(MVMThreadContext *tc, NodeWorklist *list) {
-    MVMProfileCallNode *result = NULL;
-    if (list->items == 0) {
-        MVM_panic(1, "profiler: tried to take a node from an empty node worklist");
-    }
-    list->items--;
-    result = list->list[list->items];
-    return result;
-}
+/*static MVMProfileCallNode *take_node(MVMThreadContext *tc, NodeWorklist *list) {*/
+    /*MVMProfileCallNode *result = NULL;*/
+    /*if (list->items == 0) {*/
+        /*MVM_panic(1, "profiler: tried to take a node from an empty node worklist");*/
+    /*}*/
+    /*list->items--;*/
+    /*result = list->list[list->items];*/
+    /*return result;*/
+/*}*/
 
 /* Adds an instruction to log an allocation. */
 static void add_allocation_logging_at_location(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMSpeshIns *location) {
