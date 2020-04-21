@@ -901,23 +901,44 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                 MVMint32 invocant = ins->operands[1].reg.orig;
                 MVMint32 value    = ins->operands[2].reg.orig;
 
-                void *function = alternative
-                    ? (void *)((MVMObject*)type_facts->type)->st->REPR->ass_funcs.at_key
-                    : (void *)((MVMObject*)type_facts->type)->st->REPR->pos_funcs.at_pos;
+                MVMint32 kind = op == MVM_OP_atpos_i || op == MVM_OP_atkey_i ? MVM_reg_int64 :
+                                op == MVM_OP_atpos_n || op == MVM_OP_atkey_n ? MVM_reg_num64 :
+                                op == MVM_OP_atpos_s || op == MVM_OP_atkey_s ? MVM_reg_str :
+                                   MVM_reg_obj;
 
-                MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
-                                         { MVM_JIT_REG_STABLE,  invocant },
-                                         { MVM_JIT_REG_VAL,     invocant },
-                                         { MVM_JIT_REG_OBJBODY, invocant },
-                                         { MVM_JIT_REG_VAL,  value },
-                                         { MVM_JIT_REG_ADDR, dst },
-                                         { MVM_JIT_LITERAL,
-                                             op == MVM_OP_atpos_i || op == MVM_OP_atkey_i ? MVM_reg_int64 :
-                                             op == MVM_OP_atpos_n || op == MVM_OP_atkey_n ? MVM_reg_num64 :
-                                             op == MVM_OP_atpos_s || op == MVM_OP_atkey_s ? MVM_reg_str :
-                                                                    MVM_reg_obj } };
-                jg_append_call_c(tc, jg, function, 7, args, MVM_JIT_RV_VOID, -1);
-                MVM_spesh_graph_add_comment(tc, iter->graph, ins, "JIT: devirtualized");;
+                void *function = NULL;
+                MVMuint8 is_double_devirt = 0;
+
+                if (!alternative && ((MVMObject *)type_facts->type)->st->REPR->ID == MVM_REPR_ID_VMArray) {
+                    function = MVM_VMArray_find_fast_impl_for_jit(tc, ((MVMObject *)type_facts->type)->st, op, kind);
+                    if (function != NULL)
+                        is_double_devirt++;
+                }
+                if (function == NULL) {
+                    function = alternative
+                        ? (void *)((MVMObject*)type_facts->type)->st->REPR->ass_funcs.at_key
+                        : (void *)((MVMObject*)type_facts->type)->st->REPR->pos_funcs.at_pos;
+                }
+
+                if (is_double_devirt) {
+                    MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                             { MVM_JIT_REG_STABLE,  invocant },
+                                             { MVM_JIT_REG_OBJBODY, invocant },
+                                             { MVM_JIT_REG_VAL,  value },
+                                             { MVM_JIT_REG_ADDR, dst } };
+                    jg_append_call_c(tc, jg, function, 5, args, MVM_JIT_RV_VOID, -1);
+                }
+                else {
+                    MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                             { MVM_JIT_REG_STABLE,  invocant },
+                                             { MVM_JIT_REG_VAL,     invocant },
+                                             { MVM_JIT_REG_OBJBODY, invocant },
+                                             { MVM_JIT_REG_VAL,  value },
+                                             { MVM_JIT_REG_ADDR, dst },
+                                             { MVM_JIT_LITERAL, kind } };
+                    jg_append_call_c(tc, jg, function, 7, args, MVM_JIT_RV_VOID, -1);
+                }
+                MVM_spesh_graph_add_comment(tc, iter->graph, ins, is_double_devirt ? "JIT: double-devirtualized" : "JIT: devirtualized");
                 return 1;
             }
             case MVM_OP_bindkey_i:
@@ -944,23 +965,44 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                 MVMint32 key      = ins->operands[1].reg.orig;
                 MVMint32 value    = ins->operands[2].reg.orig;
 
-                void *function = alternative
-                    ? (void *)((MVMObject*)type_facts->type)->st->REPR->ass_funcs.bind_key
-                    : (void *)((MVMObject*)type_facts->type)->st->REPR->pos_funcs.bind_pos;
+                MVMint32 kind = op == MVM_OP_bindpos_i || op == MVM_OP_bindkey_i ? MVM_reg_int64 :
+                                op == MVM_OP_bindpos_n || op == MVM_OP_bindkey_n ? MVM_reg_num64 :
+                                op == MVM_OP_bindpos_s || op == MVM_OP_bindkey_s ? MVM_reg_str :
+                                                       MVM_reg_obj;
 
-                MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
-                                         { MVM_JIT_REG_STABLE,  invocant },
-                                         { MVM_JIT_REG_VAL,     invocant },
-                                         { MVM_JIT_REG_OBJBODY, invocant },
-                                         { MVM_JIT_REG_VAL, key },
-                                         { MVM_JIT_REG_VAL, value },
-                                         { MVM_JIT_LITERAL,
-                                             op == MVM_OP_bindpos_i || op == MVM_OP_bindkey_i ? MVM_reg_int64 :
-                                             op == MVM_OP_bindpos_n || op == MVM_OP_bindkey_n ? MVM_reg_num64 :
-                                             op == MVM_OP_bindpos_s || op == MVM_OP_bindkey_s ? MVM_reg_str :
-                                                                    MVM_reg_obj } };
-                jg_append_call_c(tc, jg, function, 7, args, MVM_JIT_RV_VOID, -1);
-                MVM_spesh_graph_add_comment(tc, iter->graph, ins, "JIT: devirtualized");;
+                void *function = NULL;
+                MVMuint8 is_double_devirt = 0;
+
+                if (!alternative && ((MVMObject *)type_facts->type)->st->REPR->ID == MVM_REPR_ID_VMArray) {
+                    function = MVM_VMArray_find_fast_impl_for_jit(tc, ((MVMObject *)type_facts->type)->st, op, kind);
+                    if (function != NULL)
+                        is_double_devirt++;
+                }
+                if (function == NULL) {
+                    function = alternative
+                        ? (void *)((MVMObject*)type_facts->type)->st->REPR->ass_funcs.bind_key
+                        : (void *)((MVMObject*)type_facts->type)->st->REPR->pos_funcs.bind_pos;
+                }
+
+                if (is_double_devirt) {
+                    MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                             { MVM_JIT_REG_STABLE,  invocant },
+                                             { MVM_JIT_REG_OBJBODY, invocant },
+                                             { MVM_JIT_REG_VAL, key },
+                                             { MVM_JIT_REG_VAL, value } };
+                    jg_append_call_c(tc, jg, function, 5, args, MVM_JIT_RV_VOID, -1);
+                }
+                else {
+                    MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR,  MVM_JIT_INTERP_TC },
+                                             { MVM_JIT_REG_STABLE,  invocant },
+                                             { MVM_JIT_REG_VAL,     invocant },
+                                             { MVM_JIT_REG_OBJBODY, invocant },
+                                             { MVM_JIT_REG_VAL, key },
+                                             { MVM_JIT_REG_VAL, value },
+                                             { MVM_JIT_LITERAL, kind } };
+                    jg_append_call_c(tc, jg, function, 7, args, MVM_JIT_RV_VOID, -1);
+                }
+                MVM_spesh_graph_add_comment(tc, iter->graph, ins, is_double_devirt ? "JIT: double-devirtualized" : "JIT: devirtualized");
                 jg_sc_wb(tc, jg, ins->operands[0]);
                 return 1;
             }

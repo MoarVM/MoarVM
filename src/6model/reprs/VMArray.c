@@ -1427,6 +1427,80 @@ const MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     return &VMArray_this_repr;
 }
 
+/* devirtualized versions of bind_pos */
+
+static void vmarray_bind_pos_int64(MVMThreadContext *tc, MVMSTable *st, void *data, MVMint64 index, MVMRegister value) {
+    MVMArrayBody     *body      = (MVMArrayBody *)data;
+    MVMuint64        real_index;
+
+    /* Handle negative indexes and resizing if needed. */
+    enter_single_user(tc, body);
+    if (index < 0) {
+        index += body->elems;
+        if (index < 0)
+            MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
+    }
+    else if ((MVMuint64)index >= body->elems) {
+        MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
+        set_size_internal(tc, body, (MVMuint64)index + 1, repr_data);
+    }
+
+    real_index = (MVMuint64)index;
+
+    body->slots.i64[body->start + real_index] = value.i64;
+
+    exit_single_user(tc, body);
+}
+
+/* devirtualized versions of at_pos */
+
+static void vmarray_at_pos_int64(MVMThreadContext *tc, MVMSTable *st, void *data, MVMint64 index, MVMRegister *value) {
+    MVMArrayBody     *body      = (MVMArrayBody *)data;
+    MVMuint64        real_index;
+
+    /* Handle negative indexes. */
+    if (index < 0) {
+        index += body->elems;
+        if (index < 0)
+            MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
+    }
+
+    real_index = (MVMuint64)index;
+
+    if (real_index >= body->elems)
+        value->i64 = 0;
+    else
+        value->i64 = (MVMint64)body->slots.i64[body->start + real_index];
+}
+
+/* devirtualization dispatch function for the JIT to use */
+
+void *MVM_VMArray_find_fast_impl_for_jit(MVMThreadContext *tc, MVMSTable *st, MVMint16 op, MVMuint16 kind) {
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
+
+    switch (op) {
+        case MVM_OP_atpos_i:
+            if (kind != MVM_reg_int64) {
+                return NULL;
+            }
+            if (repr_data->slot_type == MVM_ARRAY_I64) {
+                return vmarray_at_pos_int64;
+            }
+            break;
+        case MVM_OP_bindpos_i:
+            if (kind != MVM_reg_int64) {
+                return NULL;
+            }
+            if (repr_data->slot_type == MVM_ARRAY_I64) {
+                return vmarray_bind_pos_int64;
+            }
+            break;
+        default:
+            return NULL;
+    }
+    return NULL;
+}
+
 static const MVMREPROps VMArray_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
