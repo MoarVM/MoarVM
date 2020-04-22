@@ -654,6 +654,7 @@ def check_code_for_var(fun, var, initialized):
                             #print('        allocation re-initialized var in ' + str(ins.loc))
                 if ins.lhs == var:
                     initialized = True
+                    allocated_while_not_rooted = []
             hits = []
             ins.walk_tree(check_var, var, hits)
             if hits:
