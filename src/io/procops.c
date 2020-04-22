@@ -4,6 +4,8 @@
 #include "tinymt64.h"
 #include "bithacks.h"
 
+#define MVM_ARRAY_USES_FSA MVM_CF_REPR_DEFINED
+
 /* concatenating with "" ensures that only literal strings are accepted as argument. */
 #define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
 
@@ -544,7 +546,7 @@ static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) 
 
     adjust_nursery(tc, size);
 
-    buf->base = MVM_malloc(size);
+    buf->base = MVM_fixed_size_alloc(tc, tc->instance->fsa, size);
     buf->len  = size;
 }
 
@@ -571,6 +573,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
                 MVMObject *buf_type    = MVM_repr_at_key_o(tc, si->callbacks,
                                             tc->instance->str_consts.buf_type);
                 MVMArray  *res_buf     = (MVMArray *)MVM_repr_alloc_init(tc, buf_type);
+                res_buf->common.header.flags |= MVM_ARRAY_USES_FSA;
                 res_buf->body.slots.i8 = (MVMint8 *)buf->base;
                 res_buf->body.start    = 0;
                 res_buf->body.ssize    = buf->len;
@@ -608,7 +611,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
         });
         if (buf->base)
-            MVM_free(buf->base);
+            MVM_fixed_size_free(tc, tc->instance->fsa, buf->len, buf->base);
         uv_close((uv_handle_t *)handle, NULL);
         if (--si->using == 0)
             MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
@@ -624,7 +627,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
             MVM_repr_push_o(tc, arr, msg_box);
         });
         if (buf->base)
-            MVM_free(buf->base);
+            MVM_fixed_size_free(tc, tc->instance->fsa, buf->len, buf->base);
         uv_close((uv_handle_t *)handle, NULL);
         if (--si->using == 0)
             MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
