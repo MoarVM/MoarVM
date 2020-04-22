@@ -1,5 +1,7 @@
 #include "moar.h"
 
+#define MVM_ARRAY_USES_FSA MVM_CF_REPR_DEFINED
+
 /* Number of bytes we accept per read. */
 #define CHUNK_SIZE 65536
 
@@ -20,8 +22,9 @@ typedef struct {
 
 /* Allocates a buffer of the suggested size. */
 static void on_alloc(uv_handle_t *handle, size_t suggested_size, uv_buf_t *buf) {
+    MVMThreadContext *tc  = (MVMThreadContext *)((ReadInfo *)handle->data)->tc;
     size_t size = suggested_size > 0 ? suggested_size : 4;
-    buf->base   = MVM_malloc(size);
+    buf->base   = MVM_fixed_size_alloc(tc, tc->instance->fsa, size);
     buf->len    = size;
 }
 
@@ -102,6 +105,7 @@ static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const 
 
             /* Produce a buffer and push it. */
             res_buf      = (MVMArray *)MVM_repr_alloc_init(tc, ri->buf_type);
+            res_buf->common.header.flags |= MVM_ARRAY_USES_FSA;
             res_buf->body.slots.i8 = (MVMint8 *)buf->base;
             res_buf->body.start    = 0;
             res_buf->body.ssize    = buf->len;
@@ -126,7 +130,7 @@ static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const 
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
         });
         if (buf->base)
-            MVM_free(buf->base);
+            MVM_fixed_size_free(tc, tc->instance->fsa, buf->len, buf->base);
         uv_udp_recv_stop(handle);
         MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
     }
@@ -143,7 +147,7 @@ static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const 
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
         });
         if (buf->base)
-            MVM_free(buf->base);
+            MVM_fixed_size_free(tc, tc->instance->fsa, buf->len, buf->base);
         uv_udp_recv_stop(handle);
         MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
     }
