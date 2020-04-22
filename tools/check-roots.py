@@ -573,98 +573,88 @@ def check_var(node, var, hits):
     if node == var:
         hits.append(node)
 
-def check_bb_for_var(bb, var):
-    for ins in bb.gimple:
-        ins.walk_tree(check_var, var)
-    for succ in bb.succs:
-        check_bb_for_var(succ.dest, var)
-
 def arg_is_var(arg, var):
     if isinstance(arg, gcc.AddrExpr):
         return arg.operand == var
     else:
         return arg == var
 
-def cf_comes_through(bb, other, seen=[]):
-    #print(str(bb) + " looking for " + str(other))
-    if bb == other:
-        return True
-    if bb in seen:
-        #print("bb already seen")
-        return False
-    seen.append(bb)
-    #print(bb.preds)
-    for pred in bb.preds:
-        #print("checking pred")
-        #print(pred.src)
-        if pred.src == other:
-            #print("found!")
-            return True
-        if cf_comes_through(pred.src, other, seen):
-            #print("recursively found!")
-            return True
-    return False
+def collect_control_flows(bb, path, seen):
+    if bb.index in seen:
+        seen[bb.index] = 2
+    else:
+        seen[bb.index] = 1
+    paths = []
+    new_path = [bb]
+    new_path.extend(path)
+    if not bb.preds:
+        paths.append(new_path)
+    for edge in bb.preds:
+        pred = edge.src
+        if pred.index in seen and seen[pred.index] > 1:
+            continue
+        paths.extend(collect_control_flows(pred, new_path, seen))
+    return paths
 
-def check_code_for_var(fun, var, initialized):
+
+def check_code_for_var(fun, var, initialized, warned={}):
     #print('    ' + str(var.type) + ' ' + var.name)
-    #check_bb_for_var(fun.cfg.entry, var)
-    rooted = False
-    allocated_while_not_rooted = []
-    root_stack = []
+
     for bb in fun.cfg.basic_blocks:
         for ins in bb.gimple:
-            if isinstance(ins, gcc.GimpleAssign):
-                if ins.lhs == var:
-                    #print('        assigned to in ' + str(ins))
-                    initialized = True
-                    allocated_while_not_rooted = []
-            if isinstance(ins, gcc.GimpleCall):
-                if isinstance(ins.fn, gcc.AddrExpr): # plain function call is AddrExpr, other things could be function pointers
-                    if ins.fn.operand.name == 'MVM_gc_root_temp_push':
-                        arg = ins.args[1]
-                        root_stack.append(arg)
-                        if arg_is_var(arg, var):
-                                #print('        rooted in ' + str(ins))
-                                rooted = True
-                    if ins.fn.operand.name == 'MVM_gc_root_temp_pop':
-                        if not root_stack:
-                            print("Skipping function %s because of complicated rooting" % fun.decl.name)
-                            return
-                        if arg_is_var(root_stack.pop(), var):
-                            #print('        no longer rooted in ' + str(ins))
-                            rooted = False
-                    if ins.fn.operand.name == 'MVM_gc_root_temp_pop_n':
-                        if not root_stack or not isinstance(ins.args[1], gcc.Constant):
-                            print("Skipping function %s because of complicated rooting" % fun.decl.name)
-                            return
-                        for i in range(1, ins.args[1].constant):
-                            if arg_is_var(root_stack.pop(), var):
-                                #print('        no longer rooted in ' + str(ins))
-                                rooted = False
-                    if initialized and ins.fn.operand.name in allocators:
-                        #hits = []
-                        #ins.lhs.walk_tree(var, hits)
-                        #if not hits:
-                        if ins.lhs != var and not (isinstance(ins.lhs, gcc.SsaName) and ins.lhs.var == var):
-                            #print('        found allocation in ' + str(ins.loc))
-                            if not rooted:
-                                allocated_while_not_rooted.append([ins, bb])
-                                continue
-                        #else:
-                            #print('        allocation re-initialized var in ' + str(ins.loc))
-                if ins.lhs == var:
-                    initialized = True
-                    allocated_while_not_rooted = []
             hits = []
             ins.walk_tree(check_var, var, hits)
             if hits:
-                for missing in allocated_while_not_rooted:
-                    if cf_comes_through(bb, missing[1]):
-                        print('Missing root for `' + var.name + '` in ' + str(missing[0]) + ' at ' + str(missing[0].loc) + ' used in ' + str(ins) + ' at ' + str(ins.loc))
-                        #dot = cfg_to_dot(fun.cfg)
-                        #invoke_dot(dot)
-                    #else:
-                        #print('Control flow doesnt come through allocating block for ' + str(ins))
+                cfs = collect_control_flows(bb, [], {})
+
+                for cf in cfs:
+                    rooted = False
+                    allocated_while_not_rooted = []
+                    root_stack = []
+                    for bb in cf:
+                        for ins in bb.gimple:
+                            if isinstance(ins, gcc.GimpleAssign):
+                                if ins.lhs == var:
+                                    initialized = True
+                                    allocated_while_not_rooted = []
+                            if isinstance(ins, gcc.GimpleCall):
+                                if isinstance(ins.fn, gcc.AddrExpr): # plain function call is AddrExpr, other things could be function pointers
+                                    if ins.fn.operand.name == 'MVM_gc_root_temp_push':
+                                        arg = ins.args[1]
+                                        root_stack.append(arg)
+                                        if arg_is_var(arg, var):
+                                                rooted = True
+                                    if ins.fn.operand.name == 'MVM_gc_root_temp_pop':
+                                        if not root_stack:
+                                            print("Skipping function %s because of complicated rooting" % fun.decl.name)
+                                            return
+                                        if arg_is_var(root_stack.pop(), var):
+                                            rooted = False
+                                    if ins.fn.operand.name == 'MVM_gc_root_temp_pop_n':
+                                        if not root_stack or not isinstance(ins.args[1], gcc.Constant):
+                                            print("Skipping function %s because of complicated rooting" % fun.decl.name)
+                                            return
+                                        for i in range(1, ins.args[1].constant):
+                                            if arg_is_var(root_stack.pop(), var):
+                                                rooted = False
+                                    if initialized and ins.fn.operand.name in allocators:
+                                        if ins.lhs != var and not (isinstance(ins.lhs, gcc.SsaName) and ins.lhs.var == var):
+                                            if not rooted:
+                                                allocated_while_not_rooted.append([ins, bb])
+                                                continue
+                                if ins.lhs == var:
+                                    initialized = True
+                                    allocated_while_not_rooted = []
+                            hits = []
+                            ins.walk_tree(check_var, var, hits)
+                            if hits:
+                                for missing in allocated_while_not_rooted:
+                                    warning = 'Missing root for `' + var.name + '` in ' + str(missing[0]) + ' at ' + str(missing[0].loc) + ' used in ' + str(ins) + ' at ' + str(ins.loc)
+                                    if not warning in warned:
+                                        warned[warning] = 1
+                                        print(warning)
+                                    #dot = cfg_to_dot(fun.cfg)
+                                    #invoke_dot(dot)
 
 class CheckRoots(gcc.GimplePass):
     def execute(self, fun):
