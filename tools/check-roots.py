@@ -4,8 +4,60 @@ from gccutils import get_src_for_loc, pformat, cfg_to_dot, invoke_dot
 # We'll implement this as a custom pass, to be called directly after the
 # builtin "cfg" pass, which generates the CFG:
 
-sixmodel_types = ['struct MVMObject *', 'struct MVMStaticFrame *', 'struct MVMString *', 'struct MVMStaticFrameSpesh *']
-#allocators = ['resolve_using_guards', 'MVM_repr_alloc_init']
+sixmodel_types = [
+'struct MVMCollectable *',
+'struct MVMObject *',
+'struct MVMObjectStooge *',
+'struct MVMSTable *',
+'struct MVMFrame *',
+
+# Generated with: MoarVM> ack -h -B1 MVMObject\ common src/6model/reprs/*.h | grep struct | cut -d' ' -f1,2 | sort -u | sed "s/^/'/" | sed "s/\$/ *',/"
+'struct MVMArray *',
+'struct MVMAsyncTask *',
+'struct MVMCArray *',
+'struct MVMCFunction *',
+'struct MVMCPPStruct *',
+'struct MVMCPointer *',
+'struct MVMCStr *',
+'struct MVMCStruct *',
+'struct MVMCUnion *',
+'struct MVMCallCapture *',
+'struct MVMCode *',
+'struct MVMCompUnit *',
+'struct MVMConcBlockingQueue *',
+'struct MVMConditionVariable *',
+'struct MVMContext *',
+'struct MVMContinuation *',
+'struct MVMDLLSym *',
+'struct MVMDecoder *',
+'struct MVMException *',
+'struct MVMHash *',
+'struct MVMHashAttrStore *',
+'struct MVMIter *',
+'struct MVMKnowHOWAttributeREPR *',
+'struct MVMKnowHOWREPR *',
+'struct MVMMultiCache *',
+'struct MVMMultiDimArray *',
+'struct MVMNFA *',
+'struct MVMNativeCall *',
+'struct MVMNativeRef *',
+'struct MVMNull *',
+'struct MVMOSHandle *',
+'struct MVMP6bigint *',
+'struct MVMP6int *',
+'struct MVMP6num *',
+'struct MVMP6opaque *',
+'struct MVMP6str *',
+'struct MVMReentrantMutex *',
+'struct MVMSemaphore *',
+'struct MVMSpeshLog *',
+'struct MVMSpeshPluginState *',
+'struct MVMStaticFrame *',
+'struct MVMStaticFrameSpesh *',
+'struct MVMString *',
+'struct MVMThread *',
+'struct MVMUninstantiable *',
+]
 
 allocators = [
 'MVMDLLSym_initialize',
