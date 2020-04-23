@@ -25,8 +25,11 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
     MVMCompUnit        *cu                = static_frame_body->cu;
 
     /* Ensure the frame is fully deserialized. */
-    if (!static_frame_body->fully_deserialized)
-        MVM_bytecode_finish_frame(tc, cu, static_frame, 0);
+    if (!static_frame_body->fully_deserialized) {
+        MVMROOT(tc, static_frame, {
+            MVM_bytecode_finish_frame(tc, cu, static_frame, 0);
+        });
+    }
 
     /* If we never invoked this compilation unit before, and we have spesh
      * enabled, we might either have no spesh log or a nearly full one. This
