@@ -3810,8 +3810,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *sym = GET_REG(cur_op, 4).s;
                 MVMObject *obj = MVM_dll_find_symbol(tc, lib, sym);
                 if (MVM_is_null(tc, obj)) {
-                    char *lib_cstr = MVM_string_utf8_encode_C_string(tc, lib);
-                    char *sym_cstr = MVM_string_utf8_encode_C_string(tc, sym);
+                    /* lib and sym may have become outdated, access registers directly instead */
+                    char *lib_cstr = MVM_string_utf8_encode_C_string(tc, GET_REG(cur_op, 2).s);
+                    char *sym_cstr = MVM_string_utf8_encode_C_string(tc, GET_REG(cur_op, 4).s);
                     char *waste[] = { lib_cstr, sym_cstr, NULL };
                     MVM_exception_throw_adhoc_free(tc, waste,
                         "symbol (%s) not found in DLL (%s)", sym_cstr, lib_cstr);
