@@ -604,20 +604,21 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
 
     MVMROOT(tc, ex, {
         arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    });
-    cur_frame = ex->body.origin;
 
-    MVMROOT2(tc, arr, cur_frame, {
-        MVMuint32 count = 0;
-        while (cur_frame != NULL) {
-            char *line = MVM_exception_backtrace_line(tc, cur_frame, count++,
-                ex->body.throw_address);
-            MVMString *line_str = MVM_string_utf8_decode(tc, tc->instance->VMString, line, strlen(line));
-            MVMObject *line_obj = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, line_str);
-            MVM_repr_push_o(tc, arr, line_obj);
-            cur_frame = cur_frame->caller;
-            MVM_free(line);
-        }
+        cur_frame = ex->body.origin;
+
+        MVMROOT2(tc, arr, cur_frame, {
+            MVMuint32 count = 0;
+            while (cur_frame != NULL) {
+                char *line = MVM_exception_backtrace_line(tc, cur_frame, count++,
+                    ex->body.throw_address);
+                MVMString *line_str = MVM_string_utf8_decode(tc, tc->instance->VMString, line, strlen(line));
+                MVMObject *line_obj = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, line_str);
+                MVM_repr_push_o(tc, arr, line_obj);
+                cur_frame = cur_frame->caller;
+                MVM_free(line);
+            }
+        });
     });
 
     return arr;
