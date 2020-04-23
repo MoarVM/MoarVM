@@ -128,7 +128,6 @@ static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
  * the number actually read. */
 static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out, MVMuint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    char *buf = MVM_malloc(bytes);
     unsigned int interval_id = MVM_telemetry_interval_start(tc, "syncfile.read_to_buffer");
     MVMint32 bytes_read;
 #ifdef _WIN32
@@ -138,6 +137,7 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
     if (bytes > 16387 && _isatty(data->fd))
         bytes = 16387;
 #endif
+    char *buf = MVM_fixed_size_alloc(tc, tc->instance->fsa, bytes);
     flush_output_buffer(tc, data);
     do {
         MVM_gc_mark_thread_blocked(tc);
@@ -146,10 +146,12 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
     } while(bytes_read == -1 && errno == EINTR);
     if (bytes_read  == -1) {
         int save_errno = errno;
-        MVM_free(buf);
+        MVM_fixed_size_free(tc, tc->instance->fsa, bytes, buf);
         MVM_exception_throw_adhoc(tc, "Reading from filehandle failed: %s",
             strerror(save_errno));
     }
+    if (bytes_read != bytes)
+        buf = MVM_fixed_size_realloc(tc, tc->instance->fsa, buf, bytes, bytes_read);
     *buf_out = buf;
     MVM_telemetry_interval_annotate(bytes_read, interval_id, "read this many bytes");
     MVM_telemetry_interval_stop(tc, interval_id, "syncfile.read_to_buffer");

@@ -1,5 +1,7 @@
 #include "moar.h"
 
+#define MVM_ARRAY_USES_FSA MVM_CF_REPR_DEFINED
+
 /* Delegatory functions that assert we have a capable handle, then delegate
  * through the IO table to the correct operation. */
 
@@ -127,6 +129,7 @@ void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
         MVM_exception_throw_adhoc(tc, "Cannot read characters from this kind of handle");
 
     /* Stash the data in the VMArray. */
+    result->header.flags |= MVM_ARRAY_USES_FSA;
     ((MVMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
     ((MVMArray *)result)->body.start    = 0;
     ((MVMArray *)result)->body.ssize    = bytes_read;
