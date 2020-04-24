@@ -757,7 +757,7 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
         if (MVM_repr_exists_key(tc, config, startup_time)) {
             /* Value is ignored, it will just be overwritten. */
             MVMObject *value = NULL; 
-            MVMROOT2(tc, gcevent, speshoverviewevent, {
+            MVMROOT3(tc, gcevent, speshoverviewevent, startup_time, {
                     value = MVM_repr_box_num(tc, tc->instance->boot_types.BOOTNum, tc->instance->subscriptions.vm_startup_now);
             });
 
