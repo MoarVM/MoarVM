@@ -152,9 +152,9 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             check_config_key_reftype(tc, config_hash, "str_multidim_ref", str_multidim_ref,
                 config, MVM_STORAGE_SPEC_BP_STR, MVM_NATIVEREF_MULTIDIM);
             set_max_inline_size(tc, config_hash, config);
-        });
 
-    MVM_intcache_for(tc, config->int_box_type);
+            MVM_intcache_for(tc, config->int_box_type);
+        });
 
     return config_hash;
 }
