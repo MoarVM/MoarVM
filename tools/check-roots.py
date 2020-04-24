@@ -23,7 +23,7 @@ sixmodel_types = [
 'struct MVMCUnion *',
 'struct MVMCallCapture *',
 'struct MVMCode *',
-'struct MVMCompUnit *',
+#'struct MVMCompUnit *', # CompUnits are always allocated in gen2 directly
 'struct MVMConcBlockingQueue *',
 'struct MVMConditionVariable *',
 'struct MVMContext *',
@@ -53,7 +53,7 @@ sixmodel_types = [
 'struct MVMSpeshLog *',
 'struct MVMSpeshPluginState *',
 'struct MVMStaticFrame *',
-'struct MVMStaticFrameSpesh *',
+#'struct MVMStaticFrameSpesh *', # StaticFrameSpesh are always allocated in gen2 directly
 'struct MVMString *',
 'struct MVMThread *',
 'struct MVMUninstantiable *',
