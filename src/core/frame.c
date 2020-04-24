@@ -1442,12 +1442,14 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
  * that is done depends on the frame walker setup. */
 MVMRegister * MVM_frame_lexical_lookup_using_frame_walker(MVMThreadContext *tc,
         MVMSpeshFrameWalker *fw, MVMString *name) {
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(name));
     while (MVM_spesh_frame_walker_next(tc, fw)) {
         MVMRegister *found;
         MVMuint16 found_kind;
         if (MVM_spesh_frame_walker_get_lex(tc, fw, name, &found, &found_kind, 1, NULL)) {
             MVM_spesh_frame_walker_cleanup(tc, fw);
             if (found_kind == MVM_reg_obj) {
+                MVM_gc_root_temp_pop(tc);
                 return found;
             }
             else {
@@ -1460,6 +1462,7 @@ MVMRegister * MVM_frame_lexical_lookup_using_frame_walker(MVMThreadContext *tc,
         }
     }
     MVM_spesh_frame_walker_cleanup(tc, fw);
+    MVM_gc_root_temp_pop(tc);
     return NULL;
 }
 
