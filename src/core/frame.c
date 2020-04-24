@@ -474,7 +474,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         }
         else if (static_frame->body.outer) {
             /* Auto-close, and cache it in the static frame. */
-            MVMROOT2(tc, static_frame, code_ref, {
+            MVMROOT3(tc, static_frame, code_ref, static_code, {
                 MVM_frame_force_to_heap(tc, tc->cur_frame);
                 outer = autoclose(tc, static_frame->body.outer);
                 MVM_ASSIGN_REF(tc, &(static_code->common.header),
