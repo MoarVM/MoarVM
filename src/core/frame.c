@@ -1286,7 +1286,7 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
             if (sc == NULL)
                 MVM_exception_throw_adhoc(tc,
                     "SC not yet resolved; lookup failed");
-            MVMROOT(tc, f, {
+            MVMROOT2(tc, f, effective_sf, {
                 resolved = MVM_sc_get_object(tc, sc, objid);
             });
             MVM_ASSIGN_REF(tc, &(effective_sf->common.header),
