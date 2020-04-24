@@ -597,7 +597,7 @@ def collect_control_flows(bb, path, seen):
     return paths
 
 
-def check_code_for_var(fun, var, initialized, warned={}):
+def check_code_for_var(fun, var, orig_initialized, warned={}):
     #print('    ' + str(var.type) + ' ' + var.name)
 
     for bb in fun.cfg.basic_blocks:
@@ -612,11 +612,13 @@ def check_code_for_var(fun, var, initialized, warned={}):
                     allocating_in_gen2 = False
                     allocated_while_not_rooted = []
                     root_stack = []
+                    initialized = orig_initialized
                     for bb in cf:
                         for ins in bb.gimple:
                             if isinstance(ins, gcc.GimpleAssign):
                                 if ins.lhs == var:
-                                    initialized = True
+                                    if not (len(ins.rhs) == 1 and isinstance(ins.rhs[0], gcc.IntegerCst) and ins.rhs[0].constant == 0):
+                                        initialized = True
                                     allocated_while_not_rooted = []
                             if isinstance(ins, gcc.GimpleCall):
                                 if isinstance(ins.fn, gcc.AddrExpr): # plain function call is AddrExpr, other things could be function pointers
