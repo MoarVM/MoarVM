@@ -329,10 +329,12 @@ MVMObject * MVM_decoder_take_bytes(MVMThreadContext *tc, MVMDecoder *decoder,
     if (MVM_string_decodestream_bytes_available(tc, ds) < bytes)
         return tc->instance->VMNull;
 
-    result = MVM_repr_alloc_init(tc, buf_type);
     enter_single_user(tc, decoder);
     read = MVM_string_decodestream_bytes_to_buf(tc, ds, &buf, bytes);
     exit_single_user(tc, decoder);
+
+    /* Allocate after we're done with decoder to avoid having to MVMROOT */
+    result = MVM_repr_alloc_init(tc, buf_type);
     ((MVMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
     ((MVMArray *)result)->body.start    = 0;
     ((MVMArray *)result)->body.ssize    = read;
