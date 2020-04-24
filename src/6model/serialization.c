@@ -546,7 +546,9 @@ MVM_NO_RETURN void throw_closure_serialization_error(MVMThreadContext *tc, MVMCo
 MVM_NO_RETURN void throw_closure_serialization_error(MVMThreadContext *tc, MVMCode *closure, const char *message) {
     MVMString *file;
     MVMint32 line;
-    MVM_gc_enter_from_allocator(tc); /* opportunity for creating a heap snapshot for debugging */
+    MVMROOT(tc, closure, {
+        MVM_gc_enter_from_allocator(tc); /* opportunity for creating a heap snapshot for debugging */
+    });
     MVM_code_location_out(tc, (MVMObject *)closure, &file, &line);
     {
         char *c_name = MVM_string_utf8_encode_C_string(tc,
