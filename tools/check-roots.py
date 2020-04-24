@@ -609,6 +609,7 @@ def check_code_for_var(fun, var, initialized, warned={}):
 
                 for cf in cfs:
                     rooted = False
+                    allocating_in_gen2 = False
                     allocated_while_not_rooted = []
                     root_stack = []
                     for bb in cf:
@@ -619,6 +620,10 @@ def check_code_for_var(fun, var, initialized, warned={}):
                                     allocated_while_not_rooted = []
                             if isinstance(ins, gcc.GimpleCall):
                                 if isinstance(ins.fn, gcc.AddrExpr): # plain function call is AddrExpr, other things could be function pointers
+                                    if ins.fn.operand.name == 'MVM_gc_allocate_gen2_default_set':
+                                        allocating_in_gen2 = True
+                                    if ins.fn.operand.name == 'MVM_gc_allocate_gen2_default_clear':
+                                        allocating_in_gen2 = False
                                     if ins.fn.operand.name == 'MVM_gc_root_temp_push':
                                         arg = ins.args[1]
                                         root_stack.append(arg)
@@ -637,7 +642,7 @@ def check_code_for_var(fun, var, initialized, warned={}):
                                         for i in range(1, ins.args[1].constant):
                                             if arg_is_var(root_stack.pop(), var):
                                                 rooted = False
-                                    if initialized and ins.fn.operand.name in allocators:
+                                    if initialized and not allocating_in_gen2 and ins.fn.operand.name in allocators:
                                         if ins.lhs != var and not (isinstance(ins.lhs, gcc.SsaName) and ins.lhs.var == var):
                                             if not rooted:
                                                 allocated_while_not_rooted.append([ins, bb])
