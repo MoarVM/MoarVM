@@ -755,22 +755,24 @@ static MVMint32 request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx
 
     uv_mutex_lock(&vm->mutex_threads);
     cur_thread = vm->threads;
-    while (cur_thread) {
-        if (cur_thread != dtc->thread_obj) {
-            AO_t current = MVM_load(&cur_thread->body.tc->gc_status);
-            if (current == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED) ||
-                    current == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST) ||
-                    current == (MVMGCStatus_STOLEN | MVMSuspendState_SUSPEND_REQUEST)) {
-                if (request_thread_resumes(dtc, ctx, argument, cur_thread)) {
-                    if (vm->debugserver->debugspam_protocol)
-                        fprintf(stderr, "failure to resume thread %u\n", cur_thread->body.thread_id);
-                    success = 0;
-                    break;
+    MVMROOT(dtc, cur_thread, {
+        while (cur_thread) {
+            if (cur_thread != dtc->thread_obj) {
+                AO_t current = MVM_load(&cur_thread->body.tc->gc_status);
+                if (current == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED) ||
+                        current == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST) ||
+                        current == (MVMGCStatus_STOLEN | MVMSuspendState_SUSPEND_REQUEST)) {
+                    if (request_thread_resumes(dtc, ctx, argument, cur_thread)) {
+                        if (vm->debugserver->debugspam_protocol)
+                            fprintf(stderr, "failure to resume thread %u\n", cur_thread->body.thread_id);
+                        success = 0;
+                        break;
+                    }
                 }
             }
+            cur_thread = cur_thread->body.next;
         }
-        cur_thread = cur_thread->body.next;
-    }
+    });
 
     if (success)
         communicate_success(dtc, ctx, argument);
