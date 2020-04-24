@@ -560,7 +560,9 @@ MVM_PUBLIC void MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc,
 
         uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
 
-        request_all_threads_suspend(tc, ctx, NULL);
+        MVMROOT(tc, ex, {
+            request_all_threads_suspend(tc, ctx, NULL);
+        });
 
         event_id = tc->instance->debugserver->event_id;
         tc->instance->debugserver->event_id += 2;
