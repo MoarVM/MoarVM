@@ -126,8 +126,7 @@ static void read_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_t
         /* Error; need to notify. */
         MVMROOT(tc, async_task, {
             MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-            MVMAsyncTask *t   = (MVMAsyncTask *)async_task;
-            MVM_repr_push_o(tc, arr, t->body.schedulee);
+            MVM_repr_push_o(tc, arr, ((MVMAsyncTask *)async_task)->body.schedulee);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
             MVMROOT(tc, arr, {
@@ -137,7 +136,7 @@ static void read_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_t
                     tc->instance->boot_types.BOOTStr, msg_str);
                 MVM_repr_push_o(tc, arr, msg_box);
             });
-            MVM_repr_push_o(tc, t->body.queue, arr);
+            MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
         });
         MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
     }
@@ -273,8 +272,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     if (!handle_data->handle || uv_is_closing((uv_handle_t *)handle_data->handle)) {
         MVMROOT(tc, async_task, {
             MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-            MVMAsyncTask *t   = (MVMAsyncTask *)async_task;
-            MVM_repr_push_o(tc, arr, t->body.schedulee);
+            MVM_repr_push_o(tc, arr, ((MVMAsyncTask *)async_task)->body.schedulee);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             MVMROOT(tc, arr, {
                 MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
@@ -283,7 +281,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                     tc->instance->boot_types.BOOTStr, msg_str);
                 MVM_repr_push_o(tc, arr, msg_box);
             });
-            MVM_repr_push_o(tc, t->body.queue, arr);
+            MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
         });
         return;
     }
@@ -306,8 +304,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         /* Error; need to notify. */
         MVMROOT(tc, async_task, {
             MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-            MVMAsyncTask *t   = (MVMAsyncTask *)async_task;
-            MVM_repr_push_o(tc, arr, t->body.schedulee);
+            MVM_repr_push_o(tc, arr, ((MVMAsyncTask *)async_task)->body.schedulee);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             MVMROOT(tc, arr, {
                 MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
@@ -316,7 +313,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                     tc->instance->boot_types.BOOTStr, msg_str);
                 MVM_repr_push_o(tc, arr, msg_box);
             });
-            MVM_repr_push_o(tc, t->body.queue, arr);
+            MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
         });
 
         /* Cleanup handle. */
@@ -591,8 +588,7 @@ static void connect_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *asyn
         /* Error; need to notify. */
         MVMROOT(tc, async_task, {
             MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-            MVMAsyncTask *t   = (MVMAsyncTask *)async_task;
-            MVM_repr_push_o(tc, arr, t->body.schedulee);
+            MVM_repr_push_o(tc, arr, ((MVMAsyncTask *)async_task)->body.schedulee);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTIO);
             MVMROOT(tc, arr, {
                 MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
@@ -605,7 +601,7 @@ static void connect_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *asyn
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
                 MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             });
-            MVM_repr_push_o(tc, t->body.queue, arr);
+            MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
         });
 
         /* Cleanup handles. */

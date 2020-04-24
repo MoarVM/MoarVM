@@ -269,8 +269,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         /* Error; need to notify. */
         MVMROOT(tc, async_task, {
             MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-            MVMAsyncTask *t   = (MVMAsyncTask *)async_task;
-            MVM_repr_push_o(tc, arr, t->body.schedulee);
+            MVM_repr_push_o(tc, arr, ((MVMAsyncTask *)async_task)->body.schedulee);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             MVMROOT(tc, arr, {
                 MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
@@ -285,7 +284,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                     tc->instance->boot_types.BOOTStr, msg_str);
                 MVM_repr_push_o(tc, arr, msg_box);
             });
-            MVM_repr_push_o(tc, t->body.queue, arr);
+            MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
         });
 
         /* Cleanup handle. */
