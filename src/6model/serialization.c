@@ -685,6 +685,7 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
 
 /* Writing function for references to things. */
 void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref) {
+    assert(tc->allocate_in_gen2);
     /* Work out what kind of thing we have and determine the discriminator. */
     /* Note, we could use 0xFF as the sentinel value, and 0 as a "valid" value.
      */
@@ -1909,6 +1910,7 @@ MVM_STATIC_INLINE MVMuint8 read_discrim(MVMThreadContext *tc, MVMSerializationRe
  */
 
 MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    assert(tc->allocate_in_gen2);
     MVMObject *result;
 
     /* Read the discriminator. */

@@ -668,6 +668,9 @@ def check_code_for_var(fun, var, orig_initialized, warned={}):
                                     allocated_while_not_rooted = []
                             if isinstance(ins, gcc.GimpleCall):
                                 if isinstance(ins.fn, gcc.AddrExpr): # plain function call is AddrExpr, other things could be function pointers
+                                    if ins.fn.operand.name in ('MVM_serialization_write_ref', 'MVM_serialization_read_ref'):
+                                        # serialization code always allocates in gen2 directly
+                                        return
                                     if ins.fn.operand.name == 'MVM_gc_allocate_gen2_default_set':
                                         allocating_in_gen2 = True
                                     if ins.fn.operand.name == 'MVM_gc_allocate_gen2_default_clear':
