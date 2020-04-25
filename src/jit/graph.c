@@ -1815,6 +1815,7 @@ start:
     case MVM_OP_takedispatcher:
     case MVM_OP_takenextdispatcher:
     case MVM_OP_setdispatcher:
+    case MVM_OP_nextdispatcherfor:
     case MVM_OP_ctx:
     case MVM_OP_ctxlexpad:
     case MVM_OP_ctxcallerskipthunks:
