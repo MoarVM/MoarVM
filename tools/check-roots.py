@@ -657,7 +657,7 @@ def check_code_for_var(fun, var, orig_initialized, warned={}):
                                         if not root_stack or not isinstance(ins.args[1], gcc.Constant):
                                             print("Skipping function %s because of complicated rooting" % fun.decl.name)
                                             return
-                                        for i in range(1, ins.args[1].constant):
+                                        for i in range(0, ins.args[1].constant):
                                             if arg_is_var(root_stack.pop(), var):
                                                 rooted = False
                                     if initialized and not allocating_in_gen2 and ins.fn.operand.name in allocators:
