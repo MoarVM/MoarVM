@@ -320,8 +320,10 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadConte
      * the args specialization). */
     ig = MVM_spesh_graph_create(tc, target_sf, 0, 1);
     MVM_spesh_args_from_callinfo(tc, ig, call_info, type_tuple);
-    MVM_spesh_facts_discover(tc, ig, NULL, 0);
-    MVM_spesh_optimize(tc, ig, NULL);
+    MVMROOT(tc, target_sf, {
+        MVM_spesh_facts_discover(tc, ig, NULL, 0);
+        MVM_spesh_optimize(tc, ig, NULL);
+    });
 
     /* See if it's inlineable; clean up if not. */
     if (is_graph_inlineable(tc, inliner, target_sf, invoke_ins, ig, no_inline_reason, no_inline_info)) {
