@@ -338,7 +338,7 @@ MVMObject * MVM_concblockingqueue_poll(MVMThreadContext *tc, MVMConcBlockingQueu
     unsigned int interval_id;
 
     interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.poll");
-    MVMROOT(tc, cbq, {
+    MVMROOT(tc, cbq, { /* No need to root result as VMNull is always in gen2 */
         MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&body->head_lock);
         MVM_gc_mark_thread_unblocked(tc);

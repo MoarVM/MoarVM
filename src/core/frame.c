@@ -79,7 +79,7 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
          * also because then it can be ssigned into the gen2 static frame
          * without causing it to become an inter-gen root. */
         MVM_gc_allocate_gen2_default_set(tc);
-        MVM_ASSIGN_REF(tc, &(static_frame->common.header), static_frame_body->spesh,
+        MVM_ASSIGN_REF(tc, &(static_frame->common.header), static_frame_body->spesh, /* no GC error */
             MVM_repr_alloc_init(tc, tc->instance->StaticFrameSpesh));
         MVM_gc_allocate_gen2_default_clear(tc);
 
@@ -646,6 +646,7 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     MVMROOT4(tc, new_cur_frame, update_caller, cur_to_promote, result, {
         while (cur_to_promote) {
             /* Allocate a heap frame. */
+            /* frame is safe from the GC as we wouldn't be here if it wasn't on the stack */
             MVMFrame *promoted = MVM_gc_allocate_frame(tc);
 
             /* Bump heap promotion counter, to encourage allocating this kind
@@ -753,6 +754,7 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *tc, MVMThreadCon
     MVMROOT4(tc, new_cur_frame, update_caller, cur_to_promote, result, {
         while (cur_to_promote) {
             /* Allocate a heap frame. */
+            /* frame is safe from the GC as we wouldn't be here if it wasn't on the stack */
             MVMFrame *promoted = MVM_gc_allocate_frame(tc);
 
             /* Bump heap promotion counter, to encourage allocating this kind

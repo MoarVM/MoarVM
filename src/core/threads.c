@@ -122,7 +122,9 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
             MVM_profile_log_thread_created(tc, child_tc);
         }
 
-        /* Mark thread as GC blocked until the thread actually starts. */
+        /* Mark thread as GC blocked until the thread actually starts.
+         * Contrary to other callsites, MVM_gc_mark_thread_blocked cannot enter
+         * the GC here, as child_tc is not yet in the instance's threads list. */
         MVM_gc_mark_thread_blocked(child_tc);
 
         /* Create thread state, to pass to the thread start callback. */
