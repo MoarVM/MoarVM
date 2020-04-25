@@ -4,8 +4,6 @@
 #include "tinymt64.h"
 #include "bithacks.h"
 
-#define MVM_ARRAY_USES_FSA MVM_CF_REPR_DEFINED
-
 /* concatenating with "" ensures that only literal strings are accepted as argument. */
 #define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
 
@@ -573,7 +571,6 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
                 MVMObject *buf_type    = MVM_repr_at_key_o(tc, si->callbacks,
                                             tc->instance->str_consts.buf_type);
                 MVMArray  *res_buf     = (MVMArray *)MVM_repr_alloc_init(tc, buf_type);
-                res_buf->common.header.flags |= MVM_ARRAY_USES_FSA;
                 res_buf->body.slots.i8 = (MVMint8 *)buf->base;
                 res_buf->body.start    = 0;
                 res_buf->body.ssize    = buf->len;

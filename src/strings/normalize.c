@@ -6,8 +6,6 @@
 #define UNI_CP_REGIONAL_INDICATOR_A 0x1F1E6
 #define UNI_CP_REGIONAL_INDICATOR_Z 0x1F1FF
 
-#define MVM_ARRAY_USES_FSA MVM_CF_REPR_DEFINED
-
 /* Maps outside-world normalization form codes to our internal set, validating
  * that we got something valid. */
 MVMNormalization MVM_unicode_normalizer_form(MVMThreadContext *tc, MVMint64 form_in) {
@@ -85,7 +83,6 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, const MVMObject *in,
 
     result = MVM_fixed_size_realloc(tc, tc->instance->fsa, result, result_alloc * sizeof(MVMCodepoint), result_pos * sizeof(MVMCodepoint));
     /* Put result into array body. */
-    out->header.flags |= MVM_ARRAY_USES_FSA;
     ((MVMArray *)out)->body.slots.u32 = (MVMuint32 *) result;
     ((MVMArray *)out)->body.start     = 0;
     ((MVMArray *)out)->body.elems     = result_pos;
@@ -199,7 +196,6 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
 
     result = MVM_fixed_size_realloc(tc, tc->instance->fsa, result, result_alloc * sizeof(MVMCodepoint), result_pos * sizeof(MVMCodepoint));
     /* Put result into array body. */
-    out->header.flags |= MVM_ARRAY_USES_FSA;
     ((MVMArray *)out)->body.slots.u32 = (MVMuint32 *)result;
     ((MVMArray *)out)->body.start     = 0;
     ((MVMArray *)out)->body.elems     = result_pos;

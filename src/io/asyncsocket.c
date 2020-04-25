@@ -1,7 +1,5 @@
 #include "moar.h"
 
-#define MVM_ARRAY_USES_FSA MVM_CF_REPR_DEFINED
-
 /* Data that we keep for an asynchronous socket handle. */
 typedef struct {
     /* The libuv handle to the socket. */
@@ -48,7 +46,6 @@ static void on_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
 
             /* Produce a buffer and push it. */
             res_buf      = (MVMArray *)MVM_repr_alloc_init(tc, ri->buf_type);
-            res_buf->common.header.flags |= MVM_ARRAY_USES_FSA;
             res_buf->body.slots.i8 = (MVMint8 *)buf->base;
             res_buf->body.start    = 0;
             res_buf->body.ssize    = buf->len;

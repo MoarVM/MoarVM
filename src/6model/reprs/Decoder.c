@@ -1,7 +1,5 @@
 #include "moar.h"
 
-#define MVM_ARRAY_USES_FSA MVM_CF_REPR_DEFINED
-
 /* This representation's function pointer table. */
 static const MVMREPROps Decoder_this_repr;
 
@@ -337,7 +335,6 @@ MVMObject * MVM_decoder_take_bytes(MVMThreadContext *tc, MVMDecoder *decoder,
 
     /* Allocate after we're done with decoder to avoid having to MVMROOT */
     result = MVM_repr_alloc_init(tc, buf_type);
-    result->header.flags |= MVM_ARRAY_USES_FSA;
     ((MVMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
     ((MVMArray *)result)->body.start    = 0;
     ((MVMArray *)result)->body.ssize    = read;

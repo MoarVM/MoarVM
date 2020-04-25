@@ -2,8 +2,6 @@
 #include "platform/memmem32.h"
 #include "moar.h"
 
-#define MVM_ARRAY_USES_FSA MVM_CF_REPR_DEFINED
-
 #define MVM_DEBUG_STRANDS 0
 #define MVM_string_KMP_max_pattern_length 8192
 /* Max value possible for MVMuint32 MVMStringBody.num_graphs */
@@ -1810,7 +1808,6 @@ MVMObject * MVM_string_encode_to_buf_config(MVMThreadContext *tc, MVMString *s, 
     else {
         temp = MVM_fixed_size_alloc(tc, tc->instance->fsa, output_size);
         memcpy(temp, encoded, output_size);
-        buf->header.flags |= MVM_ARRAY_USES_FSA;
         ((MVMArray *)buf)->body.slots.i8 = (MVMint8 *)temp;
         ((MVMArray *)buf)->body.start    = 0;
         ((MVMArray *)buf)->body.ssize    = output_size / elem_size;
