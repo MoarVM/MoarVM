@@ -42,10 +42,8 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
 
     /* Take compilation unit lock, to make sure we don't race to do the
      * frame preparation/verification work. */
-    MVMROOT(tc, cu, {
     MVMROOT(tc, static_frame, {
         MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
-    });
     });
 
     if (static_frame->body.instrumentation_level == 0) {
@@ -99,7 +97,7 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
  * profiling. */
 static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
     MVMCompUnit *cu = static_frame->body.cu;
-    MVMROOT2(tc, static_frame, cu, {
+    MVMROOT(tc, static_frame, {
         /* Obtain mutex, so we don't end up with instrumentation races. */
         MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
 

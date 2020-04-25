@@ -18,9 +18,7 @@ MVMCompUnit * MVM_cu_from_bytes(MVMThreadContext *tc, MVMuint8 *bytes, MVMuint32
     MVM_gc_allocate_gen2_default_clear(tc);
 
     /* Process the input. */
-    MVMROOT(tc, cu, {
-        MVM_bytecode_unpack(tc, cu);
-    });
+    MVM_bytecode_unpack(tc, cu);
 
     /* Resolve HLL config. It may contain nursery pointers, so fire write
      * barrier on it. */

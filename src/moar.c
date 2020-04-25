@@ -448,16 +448,14 @@ void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
     MVMThreadContext *tc = instance->main_thread;
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
 
-    MVMROOT(tc, cu, {
-        /* The call to MVM_string_utf8_decode() may allocate, invalidating the
-           location cu->body.filename */
-        MVMString *const str = MVM_string_utf8_c8_decode(tc, instance->VMString, filename, strlen(filename));
-        cu->body.filename = str;
-        MVM_gc_write_barrier_hit(tc, (MVMCollectable *)cu);
+    /* The call to MVM_string_utf8_decode() may allocate, invalidating the
+       location cu->body.filename */
+    MVMString *const str = MVM_string_utf8_c8_decode(tc, instance->VMString, filename, strlen(filename));
+    cu->body.filename = str;
+    MVM_gc_write_barrier_hit(tc, (MVMCollectable *)cu);
 
-        /* Run the deserialization frame, if any. */
-        run_deserialization_frame(tc, cu);
-    });
+    /* Run the deserialization frame, if any. */
+    run_deserialization_frame(tc, cu);
 
     /* Run the entry-point frame. */
     MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame);
@@ -470,7 +468,7 @@ void MVM_vm_run_bytecode(MVMInstance *instance, MVMuint8 *bytes, MVMuint32 size)
     MVMCompUnit      *cu = MVM_cu_from_bytes(tc, bytes, size);
 
     /* Run the deserialization frame, if any. */
-    MVMROOT(tc, cu, { run_deserialization_frame(tc, cu); });
+    run_deserialization_frame(tc, cu);
 
     /* Run the entry-point frame. */
     MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame);
