@@ -613,6 +613,36 @@ def check_code_for_unneeded_mvmroot(fun):
                 if str(arg.type) in gen2_allocated_types:
                     print('Unnecessary root for `' + arg.name + '` in ' + str(ins.loc))
 
+def check_code_for_imbalanced_mvmroot(fun):
+    for bb in fun.cfg.basic_blocks:
+        for ins in bb.gimple:
+            hits = []
+            if isinstance(ins, gcc.GimpleReturn):
+                cfs = collect_control_flows(bb, [], {})
+
+                for cf in cfs:
+                    root_stack = []
+                    for bb in cf:
+                        for ins in bb.gimple:
+                            if isinstance(ins, gcc.GimpleCall):
+                                if isinstance(ins.fn, gcc.AddrExpr): # plain function call is AddrExpr, other things could be function pointers
+                                    if ins.fn.operand.name == 'MVM_gc_root_temp_push':
+                                        arg = ins.args[1]
+                                        root_stack.append(arg)
+                                    if ins.fn.operand.name == 'MVM_gc_root_temp_pop':
+                                        if not root_stack:
+                                            print("Skipping function %s because of complicated rooting" % fun.decl.name)
+                                            return
+                                        root_stack.pop()
+                                    if ins.fn.operand.name == 'MVM_gc_root_temp_pop_n':
+                                        if not root_stack or not isinstance(ins.args[1], gcc.Constant):
+                                            print("Skipping function %s because of complicated rooting" % fun.decl.name)
+                                            return
+                                        for i in range(0, ins.args[1].constant):
+                                            root_stack.pop()
+                    if root_stack:
+                        print("Imbalanced temp root stack in " + str(fun.decl.name) + " at " + str(cf[-1].gimple[-1].loc) + " " + str(root_stack))
+
 def check_code_for_var(fun, var, orig_initialized, warned={}):
     #print('    ' + str(var.type) + ' ' + var.name)
 
@@ -692,6 +722,7 @@ class CheckRoots(gcc.GimplePass):
                 if not var.is_artificial and str(var.type) in sixmodel_types:
                     check_code_for_var(fun, var, False)
             check_code_for_unneeded_mvmroot(fun)
+            check_code_for_imbalanced_mvmroot(fun)
 
 ps = CheckRoots(name='check-roots')
 ps.register_after('cfg')
