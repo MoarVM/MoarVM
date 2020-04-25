@@ -1813,6 +1813,7 @@ start:
     case MVM_OP_getwhere:
     case MVM_OP_sp_getspeshslot:
     case MVM_OP_takedispatcher:
+    case MVM_OP_takenextdispatcher:
     case MVM_OP_setdispatcher:
     case MVM_OP_ctx:
     case MVM_OP_ctxlexpad:
