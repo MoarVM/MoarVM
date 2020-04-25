@@ -884,7 +884,7 @@ uname               w(obj) :pure
 freemem             w(int64) :pure
 totalmem            w(int64) :pure
 nextdispatcherfor   r(obj) r(obj)
-takenextdispatcher  w(obj)
+takenextdispatcher  w(obj) :noinline
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
