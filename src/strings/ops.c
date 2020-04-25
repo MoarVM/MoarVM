@@ -2067,7 +2067,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     }
     result->body.num_graphs = total_graphs;
 
-    MVMROOT(tc, result, {
+    MVMROOT2(tc, result, separator, {
     /* If the separator and pieces are all strands, and there are
      * on average at least 16 graphemes in each of the strands. */
     if (all_strands && total_strands <  MVM_STRING_MAX_STRANDS
