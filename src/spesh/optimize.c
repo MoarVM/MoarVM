@@ -190,6 +190,8 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
             meth_facts->value.o = meth;
 
             if (MVM_spesh_debug_enabled(tc)) {
+                /* Fetch name again as it may have been moved by GC in MVM_spesh_try_find_method */
+                name = MVM_spesh_get_string(tc, g, ins->operands[2]);
                 char *name_cstr = MVM_string_utf8_encode_C_string(tc, name);
                 MVM_spesh_graph_add_comment(tc, g, ins, "method lookup of '%s' on a %s",
                         name_cstr, MVM_6model_get_debug_name(tc, obj_facts->type));
