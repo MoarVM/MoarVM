@@ -1,6 +1,9 @@
 #include "platform/memmem.h"
 #include "platform/memmem32.h"
 #include "moar.h"
+
+#define MVM_ARRAY_USES_FSA MVM_CF_REPR_DEFINED
+
 #define MVM_DEBUG_STRANDS 0
 #define MVM_string_KMP_max_pattern_length 8192
 /* Max value possible for MVMuint32 MVMStringBody.num_graphs */
@@ -1766,7 +1769,7 @@ char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start,
 MVMObject * MVM_string_encode_to_buf_config(MVMThreadContext *tc, MVMString *s, MVMString *enc_name,
         MVMObject *buf, MVMString *replacement, MVMint64 config) {
     MVMuint64 output_size;
-    MVMuint8 *encoded;
+    MVMuint8 *encoded, *temp;
     MVMArrayREPRData *buf_rd;
     MVMuint8 elem_size = 0;
 
@@ -1803,14 +1806,18 @@ MVMObject * MVM_string_encode_to_buf_config(MVMThreadContext *tc, MVMString *s, 
         MVMuint32 prev_elems = ((MVMArray *)buf)->body.elems;
         MVM_repr_pos_set_elems(tc, buf, ((MVMArray *)buf)->body.elems + output_size / elem_size);
         memmove(((MVMArray *)buf)->body.slots.i8 + prev_elems, (MVMint8 *)encoded, output_size);
-        MVM_free(encoded);
     }
     else {
-        ((MVMArray *)buf)->body.slots.i8 = (MVMint8 *)encoded;
+        temp = MVM_fixed_size_alloc(tc, tc->instance->fsa, output_size);
+        memcpy(temp, encoded, output_size);
+        buf->header.flags |= MVM_ARRAY_USES_FSA;
+        ((MVMArray *)buf)->body.slots.i8 = (MVMint8 *)temp;
         ((MVMArray *)buf)->body.start    = 0;
         ((MVMArray *)buf)->body.ssize    = output_size / elem_size;
         ((MVMArray *)buf)->body.elems    = output_size / elem_size;
     }
+
+    MVM_free(encoded);
 
     return buf;
 }
