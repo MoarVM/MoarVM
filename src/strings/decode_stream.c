@@ -566,7 +566,7 @@ MVMint64 MVM_string_decodestream_bytes_to_buf(MVMThreadContext *tc, MVMDecodeStr
         if (available <= required) {
             /* Take everything in this buffer and remove it. */
             if (!*buf)
-                *buf = MVM_malloc(cur_bytes->next ? bytes : available);
+                *buf = MVM_fixed_size_alloc(tc, tc->instance->fsa, cur_bytes->next ? bytes : available);
             memcpy(*buf + taken, cur_bytes->bytes + ds->bytes_head_pos, available);
             taken += available;
             ds->bytes_head = cur_bytes->next;
@@ -577,7 +577,7 @@ MVMint64 MVM_string_decodestream_bytes_to_buf(MVMThreadContext *tc, MVMDecodeStr
         else {
             /* Just take what we need. */
             if (!*buf)
-                *buf = MVM_malloc(required);
+                *buf = MVM_fixed_size_alloc(tc, tc->instance->fsa, required);
             memcpy(*buf + taken, cur_bytes->bytes + ds->bytes_head_pos, required);
             taken += required;
             ds->bytes_head_pos += required;
