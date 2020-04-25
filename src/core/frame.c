@@ -53,7 +53,9 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
             (static_frame_body->num_locals + static_frame_body->cu->body.max_callsite_size);
 
         /* Validate the bytecode. */
-        MVM_validate_static_frame(tc, static_frame);
+        MVMROOT(tc, static_frame, {
+            MVM_validate_static_frame(tc, static_frame);
+        });
 
         /* Compute work area initial state that we can memcpy into place each
          * time. */
