@@ -87,6 +87,34 @@ static void setup_bin(MVMFixedSizeAlloc *al, MVMuint32 bin) {
     /* Work out page size we want. */
     MVMuint32 page_size = MVM_FSA_PAGE_ITEMS * ((bin + 1) << MVM_FSA_BIN_BITS) + MVM_FSA_REDZONE_BYTES * 2 * MVM_FSA_PAGE_ITEMS;
 
+    /* The below numbers were determined by logging add_page() calls for `raku -e ''`.
+     * This makes the first page added the minumum size needed for any raku program,
+     * to reduce the number of mallocs and page adds when starting up. */
+    switch(bin) {
+        case  5:
+            page_size *= 315;
+            break;
+        case  6:
+        case 15:
+            page_size *= 38;
+            break;
+        case  1:
+        case  2:
+        case  3:
+        case  4:
+        case  7:
+            page_size *= 8;
+            break;
+        case  0:
+        case  8:
+        case 12:
+        case 17:
+            page_size *= 2;
+            break;
+        default:
+            break;
+    }
+
     /* We'll just allocate a single page to start off with. */
     al->size_classes[bin].num_pages = 1;
     al->size_classes[bin].pages     = MVM_malloc(sizeof(void *) * al->size_classes[bin].num_pages);
