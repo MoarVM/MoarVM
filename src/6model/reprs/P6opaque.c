@@ -647,9 +647,10 @@ static MVMuint16 * allocate_unbox_slots() {
 }
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMint64   mro_pos, mro_count, num_parents, total_attrs, num_attrs,
-               cur_slot, cur_type, cur_alloc_addr, cur_obj_attr,
+               cur_slot, cur_type, cur_obj_attr,
                cur_init_slot, cur_mark_slot, cur_cleanup_slot,
                unboxed_type, i;
+    MVMuint64  cur_alloc_addr;
     MVMObject *info;
     MVMP6opaqueREPRData *repr_data;
 
