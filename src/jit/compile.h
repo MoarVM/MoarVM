@@ -31,7 +31,7 @@ struct MVMJitCode {
 
 MVMJitCode* MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *graph);
 
-MVMJitCode* MVM_jit_code_copy(MVMThreadContext *tc, MVMJitCode *code);
+MVMJitCode* MVM_jit_code_copy(MVMThreadContext *tc, MVMJitCode * const code);
 void MVM_jit_code_destroy(MVMThreadContext *tc, MVMJitCode *code);
 
 /* Peseudotile compile functions */
