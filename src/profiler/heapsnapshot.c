@@ -902,8 +902,8 @@ void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection 
     }
 
     {
-        char namebuf[8];
-        strncpy(namebuf, name, 8);
+        char namebuf[8] = {0};
+        memcpy(namebuf, name, 8);
         fwrite(namebuf, 8, 1, fh);
     }
 
