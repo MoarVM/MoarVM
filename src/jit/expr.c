@@ -368,7 +368,7 @@ void MVM_jit_expr_load_operands(MVMThreadContext *tc, MVMJitExprTree *tree,
         default:
             continue;
         }
-        assert(operands[i] <= MVM_VECTOR_ELEMS(tree->nodes) && operands[i] > 0);
+        assert(operands[i] <= (MVMint32)MVM_VECTOR_ELEMS(tree->nodes) && operands[i] > 0);
     }
 
     /* A HACK.
@@ -912,7 +912,7 @@ static void walk_tree(MVMThreadContext *tc, MVMJitExprTree *tree,
     MVMint32 first_child = MVM_JIT_EXPR_FIRST_CHILD(tree, node);
     MVMint32 nchild      = MVM_JIT_EXPR_NCHILD(tree, node);
     MVMint32 i;
-    assert(node < tree->nodes_num);
+    assert(node < (MVMint32)tree->nodes_num);
     if (traverser->policy == MVM_JIT_TRAVERSER_ONCE &&
         traverser->visits[node] >= 1)
         return;
