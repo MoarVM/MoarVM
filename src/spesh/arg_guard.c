@@ -150,7 +150,7 @@ static MVMuint32 add_nodes_for_typed_argument(MVMThreadContext *tc,
     else {
         /* Do the partitioning. */
         MVM_VECTOR_DECL(TypeCandidates, by_type);
-        MVMuint32 i, j, update_node, derived_only;
+        MVMuint32 i, j, update_node = 0, derived_only;
         MVMint32 derived_idx, additional_update_node;
         MVM_VECTOR_INIT(by_type, num_valid_candidates);
         for (i = 0; i < num_valid_candidates; i++) {
