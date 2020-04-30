@@ -144,7 +144,7 @@ static MVMint32 assign_tile(MVMThreadContext *tc, MVMJitExprTree *tree,
                             MVMint32 node, MVMint32 rule_nr) {
     const MVMJitTileTemplate *template = &MVM_jit_tile_templates[rule_nr];
     struct TreeTiler *tiler = traverser->data;
-    assert(rule_nr >= 0 && rule_nr < MVM_ARRAY_SIZE(MVM_jit_tile_templates));
+    assert(rule_nr >= 0 && rule_nr < (MVMint32)MVM_ARRAY_SIZE(MVM_jit_tile_templates));
 
     if (tiler->states[node].template == NULL || tiler->states[node].template == template ||
         memcmp(template, tiler->states[node].template, sizeof(MVMJitTileTemplate)) == 0) {

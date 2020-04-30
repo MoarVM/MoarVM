@@ -300,7 +300,7 @@ static void add_nodes_for_callsite(MVMThreadContext *tc, MVMSpeshArgGuard *tree,
     /* If we have a certain specialization, then add a node for it. If we fail
      * at any point in finding a typed guard, we'll fall back to looking at
      * this instead. And if there's no typed guards, we'll just use this. */
-    MVMint32 end_node = cc.certain_idx >= 0
+    MVMuint32 end_node = cc.certain_idx >= 0
         ? add_result_node(tc, tree, cc.certain_idx)
         : 0;
 
