@@ -84,7 +84,7 @@ static void start_thread(void *data) {
     MVM_debugserver_notify_thread_creation(tc);
 
     /* Enter the interpreter, to run code. */
-    MVM_interp_run(tc, thread_initial_invoke, ts);
+    MVM_interp_run(tc, thread_initial_invoke, ts, NULL);
 
     MVM_debugserver_notify_thread_destruction(tc);
 

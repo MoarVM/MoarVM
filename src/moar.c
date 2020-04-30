@@ -437,7 +437,7 @@ static void run_deserialization_frame(MVMThreadContext *tc, MVMCompUnit *cu) {
     if (cu->body.deserialize_frame) {
         MVMint8 spesh_enabled_orig = tc->instance->spesh_enabled;
         tc->instance->spesh_enabled = 0;
-        MVM_interp_run(tc, toplevel_initial_invoke, cu->body.deserialize_frame);
+        MVM_interp_run(tc, toplevel_initial_invoke, cu->body.deserialize_frame, NULL);
         tc->instance->spesh_enabled = spesh_enabled_orig;
     }
 }
@@ -458,7 +458,7 @@ void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
     run_deserialization_frame(tc, cu);
 
     /* Run the entry-point frame. */
-    MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame);
+    MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame, NULL);
 }
 
 /* Loads bytecode from memory and runs it. */
@@ -471,7 +471,7 @@ void MVM_vm_run_bytecode(MVMInstance *instance, MVMuint8 *bytes, MVMuint32 size)
     run_deserialization_frame(tc, cu);
 
     /* Run the entry-point frame. */
-    MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame);
+    MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame, NULL);
 }
 
 /* Loads bytecode from the specified file name and dumps it. */

@@ -100,8 +100,15 @@ struct MVMOpInfo {
 #define MVM_SWITCHENDIAN 2
 #endif
 
+struct MVMRunloopState {
+    MVMuint8 **interp_cur_op;
+    MVMuint8 **interp_bytecode_start;
+    MVMRegister **interp_reg_base;
+    MVMCompUnit **interp_cu;
+};
+
 /* Functions. */
-void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data);
+void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data, MVMRunloopState *outer_runloop);
 void MVM_interp_run_nested(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data, MVMRegister *res);
 MVM_PUBLIC void MVM_interp_enable_tracing();
 

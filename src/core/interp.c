@@ -113,7 +113,7 @@ static MVMuint64 switch_endian(MVMuint64 val, unsigned char size) {
 }
 
 /* This is the interpreter run loop. We have one of these per thread. */
-void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data) {
+void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data, MVMRunloopState *outer_runloop) {
 #if MVM_CGOTO
 #include "oplabels.h"
 #endif
@@ -138,18 +138,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
     /* Stash addresses of current op, register base and SC deref base
      * in the TC; this will be used by anything that needs to switch
      * the current place we're interpreting. */
-
-    MVMuint8 **backup_interp_cur_op = NULL;
-    MVMuint8 **backup_interp_bytecode_start = NULL;
-    MVMRegister **backup_interp_reg_base = NULL;
-    MVMCompUnit **backup_interp_cu = NULL;
-
-    if (tc->nested_interpreter) {
-        backup_interp_cur_op = tc->interp_cur_op;
-        backup_interp_bytecode_start = tc->interp_bytecode_start;
-        backup_interp_reg_base = tc->interp_reg_base;
-        backup_interp_cu = tc->interp_cu;
-    }
 
     tc->interp_cur_op         = &cur_op;
     tc->interp_bytecode_start = &bytecode_start;
@@ -6705,14 +6693,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
     /* Need to clear these pointer pointers since they may be rooted
      * by some GC procedure. */
     if (tc->nested_interpreter) {
-        *backup_interp_cur_op = *tc->interp_cur_op;
-        *backup_interp_bytecode_start = *tc->interp_bytecode_start;
-        *backup_interp_reg_base = *tc->interp_reg_base;
-        *backup_interp_cu = *tc->interp_cu;
-        tc->interp_cur_op = backup_interp_cur_op;
-        tc->interp_bytecode_start = backup_interp_bytecode_start;
-        tc->interp_reg_base = backup_interp_reg_base;
-        tc->interp_cu = backup_interp_cu;
+        *outer_runloop->interp_cur_op = cur_op;
+        *outer_runloop->interp_bytecode_start = bytecode_start;
+        *outer_runloop->interp_reg_base = reg_base;
+        *outer_runloop->interp_cu = cu;
     }
     else {
         tc->interp_cur_op         = NULL;
@@ -6728,6 +6712,7 @@ void MVM_interp_run_nested(MVMThreadContext *tc, void (*initial_invoke)(MVMThrea
     MVMFrame *backup_thread_entry_frame     = tc->thread_entry_frame;
     void **backup_jit_return_address        = tc->jit_return_address;
     tc->jit_return_address                  = NULL;
+    MVMRunloopState outer_runloop = {tc->interp_cur_op, tc->interp_bytecode_start, tc->interp_reg_base, tc->interp_cu};
     MVMROOT2(tc, backup_cur_frame, backup_thread_entry_frame, {
         MVMuint32 backup_mark                   = MVM_gc_root_temp_mark(tc);
         jmp_buf backup_interp_jump;
@@ -6739,7 +6724,11 @@ void MVM_interp_run_nested(MVMThreadContext *tc, void (*initial_invoke)(MVMThrea
         tc->cur_frame->return_address = *tc->interp_cur_op;
 
         tc->nested_interpreter++;
-        MVM_interp_run(tc, initial_invoke, invoke_data);
+        MVM_interp_run(tc, initial_invoke, invoke_data, &outer_runloop);
+        tc->interp_cur_op = outer_runloop.interp_cur_op;
+        tc->interp_bytecode_start = outer_runloop.interp_bytecode_start;
+        tc->interp_reg_base = outer_runloop.interp_reg_base;
+        tc->interp_cu = outer_runloop.interp_cu;
         tc->nested_interpreter--;
 
         tc->cur_frame             = backup_cur_frame;
