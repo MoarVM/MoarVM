@@ -810,7 +810,7 @@ static MVMString * string_from_strand_at_index(MVMThreadContext *tc, MVMString *
     return MVM_string_substring(tc, ss->blob_string, ss->start, ss->end - ss->start);
 }
 
-static MVMuint16 final_strand_match_with_repetition_count(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+static MVMuint32 final_strand_match_with_repetition_count(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     if (a->body.storage_type == MVM_STRING_STRAND) {
         MVMStringStrand *sa = &(a->body.storage.strands[a->body.num_strands - 1]);
         /* If the final strand of a eq b, we'll just increment the final strand of a's repetitions. */
@@ -847,7 +847,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     int lost_strands          = 0;
     int is_concat_stable      = 0;
     int index_ss_b;
-    MVMuint16 matching_repetition_count;
+    MVMuint32 matching_repetition_count;
     MVM_string_check_arg(tc, a, "concatenate");
     MVM_string_check_arg(tc, b, "concatenate");
 
