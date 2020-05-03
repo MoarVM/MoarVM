@@ -912,16 +912,17 @@
 #define MVM_OP_sp_sub_I 908
 #define MVM_OP_sp_mul_I 909
 #define MVM_OP_sp_bool_I 910
-#define MVM_OP_prof_enter 911
-#define MVM_OP_prof_enterspesh 912
-#define MVM_OP_prof_enterinline 913
-#define MVM_OP_prof_enternative 914
-#define MVM_OP_prof_exit 915
-#define MVM_OP_prof_allocated 916
-#define MVM_OP_prof_replaced 917
-#define MVM_OP_ctw_check 918
-#define MVM_OP_coverage_log 919
-#define MVM_OP_breakpoint 920
+#define MVM_OP_sp_gethashentryvalue 911
+#define MVM_OP_prof_enter 912
+#define MVM_OP_prof_enterspesh 913
+#define MVM_OP_prof_enterinline 914
+#define MVM_OP_prof_enternative 915
+#define MVM_OP_prof_exit 916
+#define MVM_OP_prof_allocated 917
+#define MVM_OP_prof_replaced 918
+#define MVM_OP_ctw_check 919
+#define MVM_OP_coverage_log 920
+#define MVM_OP_breakpoint 921
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024

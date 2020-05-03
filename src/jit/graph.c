@@ -1910,6 +1910,7 @@ start:
     case MVM_OP_getcodename:
     case MVM_OP_setcodeobj:
     case MVM_OP_hllbool:
+    case MVM_OP_sp_gethashentryvalue:
         /* Profiling */
     case MVM_OP_prof_enterspesh:
     case MVM_OP_prof_enterinline:
