@@ -56,12 +56,21 @@ class Op {
                 }
             CODE
         } else {
-            my $signature = @!operands.map({self.generate_arg($_, $++)}).join(', ');
+            my $is-dispatch = $!mark eq '.d';
+            my @params = @!operands.map({self.generate_arg($_, $++)});
+            @params.push('@arg-indices') if $is-dispatch;
+            my $signature = @params.join(', ');
             my $frame-getter = self.needs_frame
                 ?? 'my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;'
                 !! 'my $bytecode := $*MAST_FRAME.bytecode;';
-            my $operands-code = join("\n", @!operands.map({"                " ~ self.generate_operand($_, $++, $offset)}));
-
+            my constant $prefix = "                ";
+            my @operand-emitters = @!operands.map({ $prefix ~ self.generate_operand($_, $++, $offset)});
+            if $is-dispatch {
+                @operand-emitters.push: $prefix ~ 'my int $arg-offset := $elems + ' ~ $offset ~ ';';
+                @operand-emitters.push: $prefix ~ 'for @arg-indices -> $offset { ' ~
+                    'nqp::writeuint($bytecode, $arg-offset, nqp::unbox_u($offset), 5); $arg-offset := $arg-offset + 2; }'
+            }
+            my $operands-code = @operand-emitters.join("\n");
             'sub (' ~ $signature ~ ') {' ~ "\n" ~
                 $frame-getter.indent(8) ~ ('
                 my uint $elems := nqp::elems($bytecode);
@@ -158,6 +167,8 @@ class Op {
                     ~ makewriteuint($offset, 2, '$index' ~ $i)
                 }
                 elsif ($special // '') eq 'callsite' {
+                    'my uint $index' ~ $i ~ ' := nqp::unbox_u($op' ~ $i ~ '); '
+                    ~ makewriteuint($offset, 2, '$index' ~ $i)
                 }
                 elsif ($special // '') eq 'sslot' {
                 }

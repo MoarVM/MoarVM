@@ -885,6 +885,11 @@ freemem             w(int64) :pure
 totalmem            w(int64) :pure
 nextdispatcherfor   r(obj) r(obj)
 takenextdispatcher  w(obj) :noinline
+dispatch_v       .d str callsite
+dispatch_i       .d w(int64) str callsite
+dispatch_n       .d w(num64) str callsite
+dispatch_s       .d w(str) str callsite
+dispatch_o       .d w(obj) str callsite
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

@@ -5721,6 +5721,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(dispatch_v):
+            OP(dispatch_i):
+            OP(dispatch_n):
+            OP(dispatch_s):
+            OP(dispatch_o):
+                MVM_panic(1, "dispatch ops NYI");
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
