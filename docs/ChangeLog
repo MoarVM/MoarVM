@@ -1,3 +1,56 @@
+New in 2020.05
+
++ [c59514234] Use the FSA for ConcBlockingQueue
++ [9294cbfcf] Use memcpy instead of strncpy
++ [bbb0cdbed,f03b23c63,12d572bb5,5863b0235] Fix some compiler warnings
++ [60a1a287e] Document cases where we know that no GC issues can appear
++ [070d0e66a] No longer MVMROOT MVMCompUnits as they are always allocated in gen2
++ [49ac793da,ad70770e1,e9baae8dc,a95e5ac32,845e8a3f1,a5e1fdd99,
+   651dc59de,8a7e56d9c,51ab0cb2f,c48e40b5b,62dc6c7f7,a39b63c99,
+   9b011b033,603831672,fd2742286,833339332,f9ca5cb05,f3cdc7575,
+   863e4104f,c2cf2f25b,7c7867c67,dae0220b0,142257b16,c93aa0098]
+   Fix numerous very rare but possible GC bugs
++ [4fbd2d0e2,57e798527,d4637c1a0,755309975,1fd9efae4,00def9fd9,
+   3ecce8be8,20c4a4a24,24e9082dc,899fff969,8edc0b506]
+   Add a proof of concept of a GCC plugin for detecting GC invariant violations
++ [ab089e947] Align offsets in P6opaque.c
++ 233609b52f] Fix some Clang compiler warnings in the profiler
++ [dcbdb571a] Fix SEGV in MVM_spesh_plugin_guard_list_mark
++ [bb27aeb11] Don't null-terminate string when stringifying int
++ [6546027a1] Improve handling of errors in native callbacks
++ [bceb3398a] Use smaller buffer for native int to str coercion
++ [ca6534d20] Fix deadlock when trying to report an unsupported NativeCall return type
++ [1aa555fe1] Fix segfault caused by freed comp unit strings when profiling
++ [dbed72d76,b6bba6945,54ca9090f] Improve memory usage of utf8-c8 encoding
++ [1c392b4e4,3758e9a82,5c9510c32] Make profiling more stable, resolving potential panics
++ [4dc99b55d] Add more ops to be profiled for allocations
++ [6975a6595] Fix bogus test
++ [e7fee00d1] Include system headers after headers local to MoarVM in the Makefile
++ [ec53e4dfc] Give MVMSpeshAnn an "order" field to improve diagnostic output
++ [05c290522,0ce4cbe94] Let encode take a preallocated buffer
++ [1bd5f19e0] Fix a tiny mistake in containers implementation
++ [6baf0de4a] Add a value_desc_cont container descriptor, which brings the needs of Rakudo's Scalar into the VM
++ [4fb85a017] Add missing break statement
++ [3438ad2a4,19a7154cf] Fix lego JIT implementation of takenextdispatcher
++ [24f663cf5] Free malloced data before leaving the function
++ [21fa394a8] Remove remnants of the old mast compiler to fix memory leak
++ [035eae193] Fix interned callsites getting leaked when fixing up inlines
++ [768e6c2f3] Fix invalid reads when freeing native callback cache
++ 282989882d] Fix a leak in JIT compiler
++ [92f1935d7] Fix potential segfault when failing to compile JIT code
++ [ada1cadaa] Fix a leak in the spesh thread
++ [ae71ac80d] Fix NativeCall leaking sym_name on cleanup
++ [c82ff9d73] Destroy vectors that were previously init'ed
++ [09b88efb0] Free some memory calloc'ed when making spesh plans
++ [48da6b291] Implement calculation of unmanaged size for CArray
++ [edb6f8726] Free compunits loaded from bytecode upon dealloc
++ [15e94eecb] Bounds check codepoint passed to chr
++ [a6bc2a2a6] Add missing args spesh coercion validation
++ [f2a52cf5d] Make OSR work in frames from invokewithcapture
++ [162b68b6b,b77aa1622] JIT nextdispatcherfor
++ [f47f53110] Update libuv to version 1.35.0
++ [9a706ba08,12a447318] Improve update-submodules.pl
+
 New in 2020.02.1
 
 + [0596b8bad] Fix compiling with musl
