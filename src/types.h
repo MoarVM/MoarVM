@@ -300,3 +300,6 @@ typedef struct MVMFixKeyHashTable MVMFixKeyHashTable;
 typedef struct MVMIndexHashTable MVMIndexHashTable;
 typedef struct MVMPtrHashTable MVMPtrHashTable;
 typedef struct MVMUniHashTable MVMUniHashTable;
+typedef struct MVMDispDefinition MVMDispDefinition;
+typedef struct MVMDispRegistry MVMDispRegistry;
+typedef struct MVMDispRegistryTable MVMDispRegistryTable;
