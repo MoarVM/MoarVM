@@ -12,7 +12,7 @@ New in 2020.05
    Fix numerous very rare but possible GC bugs
 + [4fbd2d0e2,57e798527,d4637c1a0,755309975,1fd9efae4,00def9fd9,
    3ecce8be8,20c4a4a24,24e9082dc,899fff969,8edc0b506]
-   Add a proof of concept of a GCC plugin for detecing GC violations
+   Add a proof of concept of a GCC plugin for detecting GC invariant violations
 + [ab089e947] Align offsets in P6opaque.c
 + 233609b52f] Fix some Clang compiler warnings in the profiler
 + [dcbdb571a] Fix SEGV in MVM_spesh_plugin_guard_list_mark
@@ -22,15 +22,14 @@ New in 2020.05
 + [ca6534d20] Fix deadlock when trying to report an unsupported NativeCall return type
 + [1aa555fe1] Fix segfault caused by freed comp unit strings when profiling
 + [dbed72d76,b6bba6945,54ca9090f] Improve memory usage of utf8-c8 encoding
-+ [1c392b4e4,3758e9a82,5c9510c32] Make profiling more stable resolving potential panics
++ [1c392b4e4,3758e9a82,5c9510c32] Make profiling more stable, resolving potential panics
 + [4dc99b55d] Add more ops to be profiled for allocations
 + [6975a6595] Fix bogus test
 + [e7fee00d1] Include system headers after headers local to MoarVM in the Makefile
-+ [ec53e4dfc] Give MVMSpeshAnn an "order" field
++ [ec53e4dfc] Give MVMSpeshAnn an "order" field to improve diagnostic output
 + [05c290522,0ce4cbe94] Let encode take a preallocated buffer
-+ [a4689f90a] Avoid null pointer in backtrace and avoid segfault on JVM backend
 + [1bd5f19e0] Fix a tiny mistake in containers implementation
-+ [6baf0de4a] Add a value_desc_cont container descriptor
++ [6baf0de4a] Add a value_desc_cont container descriptor, which brings the needs of Rakudo's Scalar into the VM
 + [4fb85a017] Add missing break statement
 + [3438ad2a4,19a7154cf] Fix lego JIT implementation of takenextdispatcher
 + [24f663cf5] Free malloced data before leaving the function
@@ -39,7 +38,7 @@ New in 2020.05
 + [768e6c2f3] Fix invalid reads when freeing native callback cache
 + 282989882d] Fix a leak in JIT compiler
 + [92f1935d7] Fix potential segfault when failing to compile JIT code
-+ [ada1cadaa] Fix a leak in spesh thread
++ [ada1cadaa] Fix a leak in the spesh thread
 + [ae71ac80d] Fix NativeCall leaking sym_name on cleanup
 + [c82ff9d73] Destroy vectors that were previously init'ed
 + [09b88efb0] Free some memory calloc'ed when making spesh plans
