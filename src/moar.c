@@ -171,6 +171,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);
 
+    /* Set up the dispatcher registry and the boot dispatchers. */
+    MVM_disp_registry_init(instance->main_thread);
+
     /* Set up main thread's last_payload. */
     instance->main_thread->last_payload = instance->VMNull;
 
@@ -550,7 +553,6 @@ static void cleanup_callsite_interns(MVMInstance *instance) {
  * should clear up all resources and free all memory; in practice, it falls
  * short of this goal at the moment. */
 void MVM_vm_destroy_instance(MVMInstance *instance) {
-
     /* Join any foreground threads and flush standard handles. */
     MVM_thread_join_foreground(instance->main_thread);
     MVM_io_flush_standard_handles(instance->main_thread);
@@ -566,6 +568,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Run the GC global destruction phase. After this,
      * no 6model object pointers should be accessed. */
     MVM_gc_global_destruction(instance->main_thread);
+
+    /* Clean up dispatcher registry. */
+    MVM_disp_registry_destroy(instance->main_thread);
 
     /* Cleanup REPR registry */
     uv_mutex_destroy(&instance->mutex_repr_registry);
@@ -651,14 +656,12 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
         MVM_VECTOR_DESTROY(instance->jit_breakpoints);
     }
 
-
     /* Clean up cross-thread-write-logging mutex */
     uv_mutex_destroy(&instance->mutex_cross_thread_write_logging);
 
     /* Clean up NFG. */
     uv_mutex_destroy(&instance->nfg->update_mutex);
     MVM_nfg_destroy(instance->main_thread);
-
 
     /* Clean up integer constant and string cache. */
     uv_mutex_destroy(&instance->mutex_int_const_cache);
