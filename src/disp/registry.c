@@ -1,0 +1,115 @@
+#include "moar.h"
+
+/* Allocates a dispatcher table. */
+MVMDispRegistryTable * allocate_table(MVMThreadContext *tc, MVMuint32 num_entries) {
+    MVMDispRegistryTable *table = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
+            sizeof(MVMDispRegistryTable));
+    table->num_dispatchers = 0;
+    table->alloc_dispatchers = num_entries;
+    table->dispatchers = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
+            table->alloc_dispatchers * sizeof(MVMDispDefinition *));
+    return table;
+}
+
+/* Hashes and adds an entry to the registry. */
+static void add_to_table(MVMThreadContext *tc, MVMDispRegistryTable *table,
+        MVMDispDefinition *def) {
+    size_t slot = (size_t)(MVM_string_hash_code(tc, def->id) % table->alloc_dispatchers);
+    while (table->dispatchers[slot] != NULL)
+        slot = (slot + 1) % table->alloc_dispatchers;
+    table->dispatchers[slot] = def;
+    table->num_dispatchers++;
+}
+
+/* We keep the registry at maximum 75% load to avoid collisions. */
+static void grow_registry_if_needed(MVMThreadContext *tc) {
+    MVMDispRegistry *reg = &(tc->instance->disp_registry);
+    MVMDispRegistryTable *current_table = reg->table;
+    if ((double)current_table->num_dispatchers / (double)current_table->alloc_dispatchers >= 0.75) {
+        /* Copy entries to new table. */
+        MVMDispRegistryTable *new_table = allocate_table(tc, current_table->alloc_dispatchers * 2);
+        MVMuint32 i;
+        for (i = 0; i < current_table->alloc_dispatchers; i++)
+            if (current_table->dispatchers[i])
+                add_to_table(tc, new_table, current_table->dispatchers[i]);
+
+        /* Install the new table. */
+        reg->table = new_table;
+
+        /* Free the previous table at the next safepoint. */
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+                current_table->alloc_dispatchers * sizeof(MVMDispDefinition *),
+                current_table->dispatchers);
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+                sizeof(MVMDispRegistryTable), current_table);
+    }
+}
+
+/* The core part of registering a new dispatcher. Assumes we are either in
+ * the setup phase *or* we hold the mutex for registering dispatchers if it's
+ * a user-defined one. Also that the REPR of the dispatch (and, if non-null,
+ * resume) dispatcher is MVMCFunction or MVMCode. */
+static void register_internal(MVMThreadContext *tc, MVMString *id, MVMObject *dispatch,
+        MVMObject *resume) {
+    MVMDispRegistry *reg = &(tc->instance->disp_registry);
+
+    /* Allocate and populate the dispatch definition. */
+    MVMDispDefinition *def = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMDispDefinition));
+    def->id = id;
+    def->dispatch = dispatch;
+    def->resume = resume != NULL && IS_CONCRETE(resume) ? resume : NULL;
+
+    /* Insert into the registry. */
+    grow_registry_if_needed(tc);
+    add_to_table(tc, reg->table, def);
+}
+
+/* Registers a boot dispatcher (that is, one provided by the VM). */
+static void register_boot_dispatcher(MVMThreadContext *tc, const char *id, MVMObject *dispatch) {
+    MVMString *id_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, id);
+    register_internal(tc, id_str, dispatch, NULL);
+}
+
+/* Initialize the dispatcher registry and add all of the boot dispatchers. */
+void MVM_disp_registry_init(MVMThreadContext *tc) {
+    MVMDispRegistry *reg = &(tc->instance->disp_registry);
+
+    /* Set up dispatchers table with hopefully enough slots we don't tend to
+     * need to expand it. */
+    reg->table = allocate_table(tc, 32);
+
+    /* Set up mutex. */
+    int init_stat;
+    if ((init_stat = uv_mutex_init(&(reg->mutex_update))) < 0) {
+        fprintf(stderr, "MoarVM: Initialization of dispatch registry mutex failed\n    %s\n",
+            uv_strerror(init_stat));
+        exit(1);
+    }
+
+    /* Add each of the boot dispatchers. */
+    MVM_gc_allocate_gen2_default_set(tc);
+    register_boot_dispatcher(tc, "boot-value", MVM_disp_boot_value_dispatch(tc));
+    MVM_gc_allocate_gen2_default_clear(tc);
+}
+
+/* Register a new dispatcher. */
+void MVM_disp_registry_register(MVMThreadContext *tc, MVMString *name, MVMObject *dispatch,
+        MVMObject *resume) {
+    MVM_panic(1, "Dispatcher registration NYI");
+}
+
+/* Tear down the dispatcher registry, freeing all memory associated with it. */
+void MVM_disp_registry_destroy(MVMThreadContext *tc) {
+    MVMDispRegistry *reg = &(tc->instance->disp_registry);
+    MVMDispRegistryTable *table = reg->table;
+    MVMuint32 i;
+    for (i = 0; i < table->alloc_dispatchers; i++)
+        if (table->dispatchers[i])
+            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMDispDefinition),
+                    table->dispatchers[i]);
+    MVM_fixed_size_free(tc, tc->instance->fsa,
+            table->alloc_dispatchers * sizeof(MVMDispDefinition *),
+            table->dispatchers);
+    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMDispRegistryTable), table);
+    uv_mutex_destroy(&reg->mutex_update);
+}
