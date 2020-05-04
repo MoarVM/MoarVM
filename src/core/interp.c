@@ -5767,10 +5767,19 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+<<<<<<< HEAD
             OP(time):
                 GET_REG(cur_op, 0).u64 = MVM_proc_time(tc);
                 cur_op += 2;
                 goto NEXT;
+=======
+            OP(dispatch_v):
+            OP(dispatch_i):
+            OP(dispatch_n):
+            OP(dispatch_s):
+            OP(dispatch_o):
+                MVM_panic(1, "dispatch ops NYI");
+>>>>>>> Stub in new dispatch ops and update bytecode gen
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
