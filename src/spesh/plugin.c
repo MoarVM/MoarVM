@@ -377,7 +377,7 @@ static void setup_for_guard_recording(MVMThreadContext *tc, MVMCallsite *callsit
     if (callsite->has_flattening)
         MVM_exception_throw_adhoc(tc, "A spesh plugin must not have flattening args");
     for (i = 0; i < callsite->flag_count; i++)
-        if (callsite->arg_flags[i] != MVM_CALLSITE_ARG_OBJ)
+        if ((callsite->arg_flags[i] & MVM_CALLSITE_ARG_TYPE_MASK) != MVM_CALLSITE_ARG_OBJ)
             MVM_exception_throw_adhoc(tc, "A spesh plugin must only be passed object args");
 
     /* Set up guard recording space and arguments array. */

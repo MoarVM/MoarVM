@@ -131,7 +131,7 @@ MVMint64 MVM_capture_pos_primspec(MVMThreadContext *tc, MVMObject *obj, MVMint64
             MVMCallsiteEntry *arg_flags = cc->body.apc->arg_flags
                 ? cc->body.apc->arg_flags
                 : cc->body.apc->callsite->arg_flags;
-            switch (arg_flags[i] & MVM_CALLSITE_ARG_MASK) {
+            switch (arg_flags[i] & MVM_CALLSITE_ARG_TYPE_MASK) {
                 case MVM_CALLSITE_ARG_INT:
                     return MVM_STORAGE_SPEC_BP_INT;
                 case MVM_CALLSITE_ARG_NUM:
