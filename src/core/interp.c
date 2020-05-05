@@ -120,6 +120,14 @@ static MVMuint64 switch_endian(MVMuint64 val, unsigned char size) {
     MVM_panic(1, "Invalid size (%u) when attempting to switch endianness of %"PRIu64"\n", size, val);
 }
 
+/* Look up the inline cache entry for the current instruction. */
+MVMDispInlineCacheEntry ** MVM_disp_inline_cache_get(MVMuint8 *cur_op,
+        MVMuint8 *bytecode_start, MVMFrame *f) {
+    MVMDispInlineCache *cache = &(f->static_info->body.inline_cache);
+    MVMuint32 slot = ((cur_op - bytecode_start) - 2) >> cache->bit_shift;
+    return &(cache->entries[slot]);
+}
+
 /* This is the interpreter run loop. We have one of these per thread. */
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data, MVMRunloopState *outer_runloop) {
 #if MVM_CGOTO
@@ -4337,16 +4345,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 12;
                 goto NEXT;
             OP(getlexstatic_o): {
-                MVMRegister *found = MVM_frame_find_lexical_by_name(tc,
-                    GET_REG(cur_op, 2).s, MVM_reg_obj);
-                if (found) {
-                    GET_REG(cur_op, 0).o = found->o;
-                    if (MVM_spesh_log_is_logging(tc))
-                        MVM_spesh_log_static(tc, found->o);
-                }
-                else {
-                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
-                }
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
+                        cur_op, bytecode_start, tc->cur_frame);
+                MVMObject *found = (*ice_ptr)->run_getlexstatic(tc, ice_ptr,
+                        GET_REG(cur_op, 2).s);
+                GET_REG(cur_op, 0).o = found;
+                if (MVM_spesh_log_is_logging(tc))
+                    MVM_spesh_log_static(tc, found);
                 cur_op += 4;
                 goto NEXT;
             }
