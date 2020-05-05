@@ -123,6 +123,7 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "core/threadcontext.h"
 #include "disp/registry.h"
 #include "disp/boot.h"
+#include "disp/inline_cache.h"
 #include "core/instance.h"
 #include "core/interp.h"
 #include "core/callsite.h"

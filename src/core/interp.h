@@ -49,6 +49,7 @@ struct MVMOpInfo {
     MVMuint8    jittivity : 2;
     MVMuint8    uses_hll : 1;
     MVMuint8    specializable : 1;
+    MVMuint8    uses_cache : 1;
     MVMuint8    operands[MVM_MAX_OPERANDS];
 };
 
