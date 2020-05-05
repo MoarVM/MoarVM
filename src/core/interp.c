@@ -5772,19 +5772,70 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
-<<<<<<< HEAD
             OP(time):
                 GET_REG(cur_op, 0).u64 = MVM_proc_time(tc);
                 cur_op += 2;
                 goto NEXT;
-=======
-            OP(dispatch_v):
-            OP(dispatch_i):
-            OP(dispatch_n):
-            OP(dispatch_s):
-            OP(dispatch_o):
-                MVM_panic(1, "dispatch ops NYI");
->>>>>>> Stub in new dispatch ops and update bytecode gen
+            OP(dispatch_v): {
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
+                        cur_op, bytecode_start, tc->cur_frame);
+                MVMString *id = GET_REG(cur_op, 0).s;
+                MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 4)];
+                MVMuint16 *args = (MVMuint16 *)(cur_op + 6);
+                tc->cur_frame->return_value = NULL;
+                tc->cur_frame->return_type = MVM_RETURN_VOID;
+                cur_op += 6 + 2 * callsite->flag_count;
+                (*ice_ptr)->run_dispatch(tc, ice_ptr, id, callsite, args);
+                goto NEXT;
+            }
+            OP(dispatch_i): {
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
+                        cur_op, bytecode_start, tc->cur_frame);
+                MVMString *id = GET_REG(cur_op, 2).s;
+                MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
+                MVMuint16 *args = (MVMuint16 *)(cur_op + 8);
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type  = MVM_RETURN_INT;
+                cur_op += 8 + 2 * callsite->flag_count;
+                (*ice_ptr)->run_dispatch(tc, ice_ptr, id, callsite, args);
+                goto NEXT;
+            }
+            OP(dispatch_n): {
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
+                        cur_op, bytecode_start, tc->cur_frame);
+                MVMString *id = GET_REG(cur_op, 2).s;
+                MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
+                MVMuint16 *args = (MVMuint16 *)(cur_op + 8);
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type  = MVM_RETURN_NUM;
+                cur_op += 8 + 2 * callsite->flag_count;
+                (*ice_ptr)->run_dispatch(tc, ice_ptr, id, callsite, args);
+                goto NEXT;
+            }
+            OP(dispatch_s): {
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
+                        cur_op, bytecode_start, tc->cur_frame);
+                MVMString *id = GET_REG(cur_op, 2).s;
+                MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
+                MVMuint16 *args = (MVMuint16 *)(cur_op + 8);
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type  = MVM_RETURN_STR;
+                cur_op += 8 + 2 * callsite->flag_count;
+                (*ice_ptr)->run_dispatch(tc, ice_ptr, id, callsite, args);
+                goto NEXT;
+            }
+            OP(dispatch_o): {
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
+                        cur_op, bytecode_start, tc->cur_frame);
+                MVMString *id = GET_REG(cur_op, 2).s;
+                MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
+                MVMuint16 *args = (MVMuint16 *)(cur_op + 8);
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type  = MVM_RETURN_OBJ;
+                cur_op += 8 + 2 * callsite->flag_count;
+                (*ice_ptr)->run_dispatch(tc, ice_ptr, id, callsite, args);
+                goto NEXT;
+            }
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;

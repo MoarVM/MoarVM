@@ -33,8 +33,8 @@ struct MVMDispInlineCache {
 typedef MVMObject * MVMDispInlineCacheRunGetLexStatic(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMString *name);
 typedef void MVMDispInlineCacheRunDispatch(MVMThreadContext *tc,
-        MVMDispInlineCacheEntry **entry_ptr, MVMCallsite *cs,
-        MVMuint16 *arg_indices);
+        MVMDispInlineCacheEntry **entry_ptr, MVMString *id,
+        MVMCallsite *cs, MVMuint16 *arg_indices);
 
 /* The baseline inline cache entry. These always start with a pointer to
  * invoke to reach the handler. */
