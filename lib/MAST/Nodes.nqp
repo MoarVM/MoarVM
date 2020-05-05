@@ -401,6 +401,7 @@ module Arg {
     our $int   := 2;
     our $num   := 4;
     our $str   := 8;
+    our $literal := 16;
     our $named := 32;
     our $flat  := 64;
     our $flatnamed := 128;
