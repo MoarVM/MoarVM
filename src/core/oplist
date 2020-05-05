@@ -55,6 +55,7 @@
 # * :specializable means that the op is possible to optimize through type
 #   specialization (a frame that has no such ops will only ever get a certain
 #   specialization)
+# * :cache means that it uses the inline caching mechanism
 
 no_op               :confprog
 const_i8            w(int8) int8 :pure
@@ -652,7 +653,7 @@ DEPRECATED_14       w(obj) r(obj) r(obj) r(obj) r(str) r(obj)
 asyncwritebytes     w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 DEPRECATED_16       w(obj) r(obj) r(obj) r(obj) r(obj)
 asyncreadbytes      w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
-getlexstatic_o      w(obj) r(str) :pure :noinline :logged :specializable
+getlexstatic_o      w(obj) r(str) :pure :noinline :logged :specializable :cache
 getlexperinvtype_o  w(obj) r(str) :pure :noinline :logged :specializable
 execname            w(str)
 const_i64_16        w(int64) int16 :pure :confprog
@@ -885,11 +886,11 @@ freemem             w(int64) :pure
 totalmem            w(int64) :pure
 nextdispatcherfor   r(obj) r(obj)
 takenextdispatcher  w(obj) :noinline
-dispatch_v       .d str callsite
-dispatch_i       .d w(int64) str callsite
-dispatch_n       .d w(num64) str callsite
-dispatch_s       .d w(str) str callsite
-dispatch_o       .d w(obj) str callsite
+dispatch_v       .d str callsite :cache
+dispatch_i       .d w(int64) str callsite :cache
+dispatch_n       .d w(num64) str callsite :cache
+dispatch_s       .d w(str) str callsite :cache
+dispatch_o       .d w(obj) str callsite :cache
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

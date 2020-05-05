@@ -7,6 +7,9 @@ struct MVMStaticFrameBody {
     /* The compilation unit this frame belongs to. */
     MVMCompUnit *cu;
 
+    /* Inline cache, used for speeding up dispatch-y things. */
+    MVMDispInlineCache inline_cache;
+
     /* The list of local types. */
     MVMuint16 *local_types;
 

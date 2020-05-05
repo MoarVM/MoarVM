@@ -128,6 +128,9 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
             static_frame->body.instrumentation_level = tc->instance->instrumentation_level;
         }
 
+        /* Set up inline cache for the frame. */
+        MVM_disp_inline_cache_setup(tc, static_frame);
+
         /* Release the lock. */
         MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
     });

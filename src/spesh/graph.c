@@ -20,19 +20,6 @@ void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes) {
     return MVM_region_alloc(tc, &g->region_alloc, bytes);
 }
 
-/* Looks up op info; doesn't sanity check, since we should be working on code
- * that already pass validation. */
-static const MVMOpInfo * get_op_info(MVMThreadContext *tc, MVMCompUnit *cu, MVMuint16 opcode) {
-    if (opcode < MVM_OP_EXT_BASE) {
-        return MVM_op_get_op(opcode);
-    }
-    else {
-        MVMuint16       index  = opcode - MVM_OP_EXT_BASE;
-        MVMExtOpRecord *record = &cu->body.extops[index];
-        return MVM_ext_resolve_extop_record(tc, record);
-    }
-}
-
 /* Grows the spesh graph's deopt table if it is already full, so that we have
  * space for 1 more entry. */
 void MVM_spesh_graph_grow_deopt_table(MVMThreadContext *tc, MVMSpeshGraph *g) {
@@ -192,7 +179,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         MVMuint16  opcode     = *(MVMuint16 *)pc;
         MVMuint8  *args       = pc + 2;
         MVMuint8   arg_size   = 0;
-        const MVMOpInfo *info = get_op_info(tc, cu, opcode);
+        const MVMOpInfo *info = MVM_bytecode_get_validated_op_info(tc, cu, opcode);
 
         /* Create an instruction node, add it, and record its position. */
         MVMSpeshIns *ins_node = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
@@ -472,7 +459,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
      * control exceptions, we will insert  */
     g->entry                  = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB));
     g->entry->first_ins       = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-    g->entry->first_ins->info = get_op_info(tc, cu, 0);
+    g->entry->first_ins->info = MVM_bytecode_get_validated_op_info(tc, cu, 0);
     g->entry->last_ins        = g->entry->first_ins;
     g->entry->idx             = 0;
     cur_bb                    = NULL;
