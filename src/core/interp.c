@@ -1492,7 +1492,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVMCallsiteEntry *arg_flags = cc->body.apc->arg_flags
                             ? cc->body.apc->arg_flags
                             : cc->body.apc->callsite->arg_flags;
-                        switch (arg_flags[i] & MVM_CALLSITE_ARG_MASK) {
+                        switch (arg_flags[i] & MVM_CALLSITE_ARG_TYPE_MASK) {
                             case MVM_CALLSITE_ARG_INT:
                                 GET_REG(cur_op, 0).i64 = MVM_STORAGE_SPEC_BP_INT;
                                 break;

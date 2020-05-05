@@ -380,8 +380,7 @@ static void validate_operand(Validator *val, MVMuint32 flags) {
 static void validate_dispatch_args(Validator *val, MVMCallsite *cs) {
     MVMuint16 i;
     for (i = 0; i < cs->flag_count; i++) {
-        /* TODO skip constant args once those are folded into the callsite */
-        MVMuint8 arg_type = cs->arg_flags[i] & MVM_CALLSITE_ARG_MASK;
+        MVMuint8 arg_type = cs->arg_flags[i] & MVM_CALLSITE_ARG_TYPE_MASK;
         switch (arg_type) {
             case MVM_CALLSITE_ARG_OBJ:
                 validate_reg_operand(val, MVM_operand_obj);
@@ -560,7 +559,7 @@ static void validate_arg(Validator *val) {
 
         flags = val->cur_call->arg_flags[index];
 
-        switch (flags & ~MVM_CALLSITE_ARG_MASK) {
+        switch (flags & ~MVM_CALLSITE_ARG_NAMED_FLAT_MASK) {
             case 0: /* positionals */
             case MVM_CALLSITE_ARG_FLAT:
                 val->remaining_positionals--;
@@ -571,12 +570,12 @@ static void validate_arg(Validator *val) {
                 break;
 
             case MVM_CALLSITE_ARG_NAMED:
-                val->expected_named_arg = flags & MVM_CALLSITE_ARG_MASK;
+                val->expected_named_arg = flags & MVM_CALLSITE_ARG_TYPE_MASK;
                 goto named_arg;
 
             default:
                 fail(val, MSG(val, "invalid argument flags (%i) at index %"
-                        PRIu16), (int)(flags & ~MVM_CALLSITE_ARG_MASK), index);
+                        PRIu16), (int)(flags & ~MVM_CALLSITE_ARG_NAMED_FLAT_MASK), index);
         }
     }
 
