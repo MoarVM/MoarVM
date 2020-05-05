@@ -190,7 +190,7 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
         if (!(result.flags & type_flag)) { \
             switch (type_flag) { \
                 case MVM_CALLSITE_ARG_INT: \
-                    switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
+                    switch (result.flags & MVM_CALLSITE_ARG_TYPE_MASK) { \
                         case MVM_CALLSITE_ARG_NUM: \
                             MVM_exception_throw_adhoc(tc, "Expected native int argument, but got num"); \
                         case MVM_CALLSITE_ARG_STR: \
@@ -200,7 +200,7 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
                     } \
                     break; \
                 case MVM_CALLSITE_ARG_NUM: \
-                    switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
+                    switch (result.flags & MVM_CALLSITE_ARG_TYPE_MASK) { \
                         case MVM_CALLSITE_ARG_INT: \
                             MVM_exception_throw_adhoc(tc, "Expected native num argument, but got int"); \
                         case MVM_CALLSITE_ARG_STR: \
@@ -210,7 +210,7 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
                     } \
                     break; \
                 case MVM_CALLSITE_ARG_STR: \
-                    switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
+                    switch (result.flags & MVM_CALLSITE_ARG_TYPE_MASK) { \
                         case MVM_CALLSITE_ARG_INT: \
                             MVM_exception_throw_adhoc(tc, "Expected native str argument, but got int"); \
                         case MVM_CALLSITE_ARG_NUM: \
@@ -269,7 +269,7 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
 
 #define autobox_switch(tc, result) do { \
     if (result.exists) { \
-        switch (result.flags & MVM_CALLSITE_ARG_MASK) { \
+        switch (result.flags & MVM_CALLSITE_ARG_TYPE_MASK) { \
             case MVM_CALLSITE_ARG_OBJ: \
                 break; \
             case MVM_CALLSITE_ARG_INT: \
@@ -669,7 +669,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
         }
 
         /* XXX theoretically needs to handle native arrays I guess */
-        switch (arg_info.flags & MVM_CALLSITE_ARG_MASK) {
+        switch (arg_info.flags & MVM_CALLSITE_ARG_TYPE_MASK) {
             case MVM_CALLSITE_ARG_OBJ: {
                 MVM_repr_push_o(tc, result, arg_info.arg.o);
                 break;
@@ -773,7 +773,7 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
             MVM_exception_throw_adhoc(tc, "Arg has not been flattened in slurpy_named");
         }
 
-        switch (arg_info.flags & MVM_CALLSITE_ARG_MASK) {
+        switch (arg_info.flags & MVM_CALLSITE_ARG_TYPE_MASK) {
             case MVM_CALLSITE_ARG_OBJ: {
                 REPR(result)->ass_funcs.bind_key(tc, STABLE(result),
                     result, OBJECT_BODY(result), (MVMObject *)key, arg_info.arg, MVM_reg_obj);

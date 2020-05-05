@@ -134,7 +134,7 @@ static void insert_getarg_and_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
                                   MVMSpeshIns *insert_point, MVMCallsiteFlags arg_flags,
                                   MVMint32 argument_idx, MVMSpeshOperand value_temp) {
     /* Instruction to get value depends on argument type. */
-    if ((arg_flags & MVM_CALLSITE_ARG_MASK) == MVM_CALLSITE_ARG_OBJ) {
+    if ((arg_flags & MVM_CALLSITE_ARG_TYPE_MASK) == MVM_CALLSITE_ARG_OBJ) {
         /* It's already a boxed object, so just fetch it into the value
          * register. */
         MVMSpeshIns *fetch_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
@@ -153,7 +153,7 @@ static void insert_getarg_and_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
         MVMuint16 box_op;
         MVMuint16 hlltype_op;
         MVMuint16 fetch_op;
-        switch (arg_flags & MVM_CALLSITE_ARG_MASK) {
+        switch (arg_flags & MVM_CALLSITE_ARG_TYPE_MASK) {
             case MVM_CALLSITE_ARG_INT:
                 unboxed_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
                 box_op = MVM_OP_box_i;
@@ -536,7 +536,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     if (MVM_string_equal(tc, arg_name, cs->arg_names[cur_named])) {
                         /* Found it. */
                         found_flag_idx = j;
-                        found_flag = cs->arg_flags[j] & MVM_CALLSITE_ARG_MASK;
+                        found_flag = cs->arg_flags[j] & MVM_CALLSITE_ARG_TYPE_MASK;
                         found_idx  = cur_idx;
                         break;
                     }
