@@ -303,3 +303,6 @@ typedef struct MVMUniHashTable MVMUniHashTable;
 typedef struct MVMDispDefinition MVMDispDefinition;
 typedef struct MVMDispRegistry MVMDispRegistry;
 typedef struct MVMDispRegistryTable MVMDispRegistryTable;
+typedef struct MVMDispInlineCache MVMDispInlineCache;
+typedef struct MVMDispInlineCacheEntry MVMDispInlineCacheEntry;
+typedef struct MVMDispInlineCacheEntryResolvedGetLexStatic MVMDispInlineCacheEntryResolvedGetLexStatic;
