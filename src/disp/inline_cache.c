@@ -46,7 +46,17 @@ static MVMObject * getlexstatic_resolved(MVMThreadContext *tc,
  * Inline caching of dispatch_*
  **/
 
-static MVMDispInlineCacheEntry unlinked_dispatch = { NULL };
+static void dispatch_initial(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry **entry_ptr, MVMString *id,
+        MVMCallsite *cs, MVMuint16 *arg_indices);
+
+static MVMDispInlineCacheEntry unlinked_dispatch = { .run_dispatch = dispatch_initial };
+
+static void dispatch_initial(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry **entry_ptr, MVMString *id,
+        MVMCallsite *cs, MVMuint16 *arg_indices) {
+    MVM_panic(1, "dispatch inline cache linking NYI");
+}
 
 /**
  * Inline caching general stuff
