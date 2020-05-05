@@ -1101,3 +1101,17 @@ void MVM_bytecode_advance_annotation(MVMThreadContext *tc, MVMStaticFrameBody *s
         ba->ann_index  = i;
     }
 }
+
+/* Looks up op info including for ext ops; doesn't sanity check, since we
+ * should be working on code that already pass validation. */
+const MVMOpInfo * MVM_bytecode_get_validated_op_info(MVMThreadContext *tc,
+        MVMCompUnit *cu, MVMuint16 opcode) {
+    if (opcode < MVM_OP_EXT_BASE) {
+        return MVM_op_get_op(opcode);
+    }
+    else {
+        MVMuint16       index  = opcode - MVM_OP_EXT_BASE;
+        MVMExtOpRecord *record = &cu->body.extops[index];
+        return MVM_ext_resolve_extop_record(tc, record);
+    }
+}

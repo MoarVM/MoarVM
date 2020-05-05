@@ -154,7 +154,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
                 MVM_gc_worklist_add(tc, worklist, &body->static_env[i].o);
     }
 
-    /* Spesh. */
+    /* Inline cache and spesh. */
+    MVM_disp_inline_cache_mark(tc, &(body->inline_cache), worklist);
     MVM_gc_worklist_add(tc, worklist, &body->spesh);
 
     /* Debug symbols. */
@@ -191,6 +192,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(body->lexical_names_list);
     MVM_free(body->instrumentation);
     MVM_index_hash_demolish(tc, &body->lexical_names);
+    MVM_disp_inline_cache_destroy(tc, &(body->inline_cache));
 }
 
 static const MVMStorageSpec storage_spec = {
