@@ -1,5 +1,6 @@
 /* Callsite argument flags. */
-#define MVM_CALLSITE_ARG_MASK 31
+#define MVM_CALLSITE_ARG_TYPE_MASK       15
+#define MVM_CALLSITE_ARG_NAMED_FLAT_MASK 31
 typedef enum {
     /* Argument is an object. */
     MVM_CALLSITE_ARG_OBJ = 1,
@@ -12,6 +13,9 @@ typedef enum {
 
     /* Argument is a native NFG string (MVMString REPR). */
     MVM_CALLSITE_ARG_STR = 8,
+
+    /* Argument is a literal. */
+    MVM_CALLSITE_ARG_LITERAL = 16,
 
     /* Argument is named. The name is placed in the MVMCallsite. */
     MVM_CALLSITE_ARG_NAMED = 32,

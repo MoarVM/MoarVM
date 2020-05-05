@@ -180,7 +180,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
     for (i = 0, flag = 0; flag < cs->flag_count; i++, flag++) {
         if (cs->arg_flags[flag] & MVM_CALLSITE_ARG_NAMED)
             i++;
-        if ((cs->arg_flags[flag] & MVM_CALLSITE_ARG_MASK) == MVM_CALLSITE_ARG_OBJ) {
+        if ((cs->arg_flags[flag] & MVM_CALLSITE_ARG_TYPE_MASK) == MVM_CALLSITE_ARG_OBJ) {
             MVMRegister  arg   = apc->args[i];
             MVMSTable   *st    = STABLE(arg.o);
             MVMuint32    is_rw = 0;
