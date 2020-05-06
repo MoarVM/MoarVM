@@ -1356,7 +1356,7 @@ void snapshot_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection
     MVMHeapDumpIndexSnapshotEntry *entry = NULL;
 
     MVMHeapDumpTableOfContents *outer_toc = col->toplevel_toc;
-    MVMHeapDumpTableOfContents *inner_toc = MVM_calloc(sizeof(MVMHeapDumpTableOfContents), 1);
+    MVMHeapDumpTableOfContents *inner_toc = MVM_calloc(1, sizeof(MVMHeapDumpTableOfContents));
 
     /*fprintf(stderr, "creating a new TOC at %p\n", inner_toc);*/
 
@@ -1840,7 +1840,7 @@ void finish_collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollec
 
 #if MVM_HEAPSNAPSHOT_FORMAT == 3
     {
-    MVMHeapDumpTableOfContents *inner_toc = MVM_calloc(sizeof(MVMHeapDumpTableOfContents), 1);
+    MVMHeapDumpTableOfContents *inner_toc = MVM_calloc(1, sizeof(MVMHeapDumpTableOfContents));
 
     /*fprintf(stderr, "finishing collection; creating a new TOC at %p\n", inner_toc);*/
 

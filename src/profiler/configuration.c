@@ -572,7 +572,7 @@ void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *
         }
     }
 
-    confprog = MVM_calloc(sizeof(MVMConfigurationProgram), 1);
+    confprog = MVM_calloc(1, sizeof(MVMConfigurationProgram));
 
     confprog->debugging_level = debug_level;
 
