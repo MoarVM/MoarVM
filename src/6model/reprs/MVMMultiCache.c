@@ -167,7 +167,9 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
     /* Ensure we got a capture in to cache on; bail if not interned. */
     if (REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) {
         apc        = ((MVMCallCapture *)capture)->body.apc;
-        cs         = apc->callsite;
+        if (apc->version != MVM_ARGS_LEGACY)
+            MVM_panic(1, "Should only be using legacy call capture with multi cache");
+        cs         = apc->legacy.callsite;
         if (!cs->is_interned)
             return cache_obj;
     }
@@ -181,7 +183,7 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
         if (cs->arg_flags[flag] & MVM_CALLSITE_ARG_NAMED)
             i++;
         if ((cs->arg_flags[flag] & MVM_CALLSITE_ARG_TYPE_MASK) == MVM_CALLSITE_ARG_OBJ) {
-            MVMRegister  arg   = apc->args[i];
+            MVMRegister  arg   = apc->legacy.args[i];
             MVMSTable   *st    = STABLE(arg.o);
             MVMuint32    is_rw = 0;
             if (st->container_spec && IS_CONCRETE(arg.o)) {
@@ -369,8 +371,10 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
 MVMObject * MVM_multi_cache_find(MVMThreadContext *tc, MVMObject *cache_obj, MVMObject *capture) {
     if (REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) {
         MVMArgProcContext *apc = ((MVMCallCapture *)capture)->body.apc;
-        MVMCallsite       *cs  = apc->callsite;
-        return MVM_multi_cache_find_callsite_args(tc, cache_obj, cs, apc->args);
+        if (apc->version != MVM_ARGS_LEGACY)
+            MVM_panic(1, "Should only be using legacy call capture with multi cache");
+        MVMCallsite       *cs  = apc->legacy.callsite;
+        return MVM_multi_cache_find_callsite_args(tc, cache_obj, cs, apc->legacy.args);
     }
     else {
         MVM_exception_throw_adhoc(tc, "Multi cache lookup requires an MVMCallCapture");

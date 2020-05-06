@@ -2014,7 +2014,7 @@
 
 (template: paramnamesused
   (letv: (($ctx   (^addrf (^frame) MVMFrame params))
-         ($csite (^getf  $ctx MVMArgProcContext callsite)))
+         ($csite (^getf  $ctx MVMArgProcContext legacy.callsite)))
     (when (ne (^getf $csite MVMCallsite num_pos) (^getf $csite MVMCallsite arg_count))
       (callv (^func &MVM_args_assert_nameds_used)
         (arglist

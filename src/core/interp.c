@@ -1379,7 +1379,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
                     MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).i64 = cc->body.apc->num_pos;
+                    if (cc->body.apc->version != MVM_ARGS_LEGACY)
+                        MVM_panic(1, "Should not be using capture ops with new callsite format");
+                    GET_REG(cur_op, 0).i64 = cc->body.apc->legacy.num_pos;
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "captureposelems needs a MVMCallCapture");
@@ -1444,10 +1446,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMint64   i   = GET_REG(cur_op, 4).i64;
                 if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
                     MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    if (i >= 0 && i < cc->body.apc->num_pos) {
-                        MVMCallsiteEntry *arg_flags = cc->body.apc->arg_flags
-                            ? cc->body.apc->arg_flags
-                            : cc->body.apc->callsite->arg_flags;
+                    if (cc->body.apc->version != MVM_ARGS_LEGACY)
+                        MVM_panic(1, "Should not be using capture ops with new callsite format");
+                    if (i >= 0 && i < cc->body.apc->legacy.num_pos) {
+                        MVMCallsiteEntry *arg_flags = cc->body.apc->legacy.arg_flags
+                            ? cc->body.apc->legacy.arg_flags
+                            : cc->body.apc->legacy.callsite->arg_flags;
                         switch (arg_flags[i] & MVM_CALLSITE_ARG_TYPE_MASK) {
                             case MVM_CALLSITE_ARG_INT:
                                 GET_REG(cur_op, 0).i64 = MVM_STORAGE_SPEC_BP_INT;
@@ -1493,7 +1497,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     /* If positionals count doesn't match arg count, we must
                      * have some named args. */
                     MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).i64 = cc->body.apc->arg_count != cc->body.apc->num_pos;
+                    if (cc->body.apc->version != MVM_ARGS_LEGACY)
+                        MVM_panic(1, "Should not be using capture ops with new callsite format");
+                    GET_REG(cur_op, 0).i64 = cc->body.apc->legacy.arg_count != cc->body.apc->legacy.num_pos;
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "capturehasnameds needs a MVMCallCapture");
@@ -1513,9 +1519,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     cur_op += 6;
                     tc->cur_frame->return_address = cur_op;
                     tc->cur_frame->cur_args_callsite = NULL;
+                    if (cc->body.apc->version != MVM_ARGS_LEGACY)
+                        MVM_panic(1, "Should not be using capture ops with new callsite format");
                     MVMROOT(tc, cobj, {
-                        STABLE(code)->invoke(tc, code, cc->body.apc->callsite,
-                            cc->body.apc->args);
+                        STABLE(code)->invoke(tc, code, cc->body.apc->legacy.callsite,
+                            cc->body.apc->legacy.args);
                     });
                     if (MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame)) {
                         e->invoked_call_capture = cobj;
@@ -4062,8 +4070,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(paramnamesused): {
                 MVMArgProcContext *ctx = &tc->cur_frame->params;
-                if (ctx->callsite->num_pos != ctx->callsite->arg_count)
-                    MVM_args_assert_nameds_used(tc, ctx);
+                if (ctx->version == MVM_ARGS_LEGACY) {
+                    if (ctx->legacy.callsite->num_pos != ctx->legacy.callsite->arg_count)
+                        MVM_args_assert_nameds_used(tc, ctx);
+                }
+                else {
+                    if (ctx->arg_info.callsite->num_pos != ctx->arg_info.callsite->arg_count)
+                        MVM_args_assert_nameds_used(tc, ctx);
+                }
                 goto NEXT;
             }
             OP(getuniname): {
@@ -5984,19 +5998,31 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_getarg_o):
-                GET_REG(cur_op, 0).o = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].o;
+                GET_REG(cur_op, 0).o = tc->cur_frame->params.version == MVM_ARGS_LEGACY
+                    ? tc->cur_frame->params.legacy.args[GET_UI16(cur_op, 2)].o
+                    : tc->cur_frame->params.arg_info.source[
+                        tc->cur_frame->params.arg_info.map[GET_UI16(cur_op, 2)]].o;
                 cur_op += 4;
                 goto NEXT;
             OP(sp_getarg_i):
-                GET_REG(cur_op, 0).i64 = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].i64;
+                GET_REG(cur_op, 0).i64 = tc->cur_frame->params.version == MVM_ARGS_LEGACY
+                    ? tc->cur_frame->params.legacy.args[GET_UI16(cur_op, 2)].i64
+                    : tc->cur_frame->params.arg_info.source[
+                        tc->cur_frame->params.arg_info.map[GET_UI16(cur_op, 2)]].i64;
                 cur_op += 4;
                 goto NEXT;
             OP(sp_getarg_n):
-                GET_REG(cur_op, 0).n64 = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].n64;
+                GET_REG(cur_op, 0).n64 = tc->cur_frame->params.version == MVM_ARGS_LEGACY
+                    ? tc->cur_frame->params.legacy.args[GET_UI16(cur_op, 2)].n64
+                    : tc->cur_frame->params.arg_info.source[
+                        tc->cur_frame->params.arg_info.map[GET_UI16(cur_op, 2)]].n64;
                 cur_op += 4;
                 goto NEXT;
             OP(sp_getarg_s):
-                GET_REG(cur_op, 0).s = tc->cur_frame->params.args[GET_UI16(cur_op, 2)].s;
+                GET_REG(cur_op, 0).s = tc->cur_frame->params.version == MVM_ARGS_LEGACY
+                    ? tc->cur_frame->params.legacy.args[GET_UI16(cur_op, 2)].s
+                    : tc->cur_frame->params.arg_info.source[
+                        tc->cur_frame->params.arg_info.map[GET_UI16(cur_op, 2)]].s;
                 cur_op += 4;
                 goto NEXT;
             OP(sp_fastinvoke_v): {

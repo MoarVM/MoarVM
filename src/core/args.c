@@ -28,21 +28,22 @@ static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuin
 
 /* Initialize arguments processing context. */
 void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args) {
+    ctx->version = MVM_ARGS_LEGACY;
     /* Stash callsite and argument counts/pointers. */
-    ctx->callsite = callsite;
+    ctx->legacy.callsite = callsite;
     /* initial counts and values; can be altered by flatteners */
     init_named_used(tc, ctx, MVM_callsite_num_nameds(tc, callsite));
-    ctx->args     = args;
-    ctx->num_pos  = callsite->num_pos;
-    ctx->arg_count = callsite->arg_count;
-    ctx->arg_flags = NULL; /* will be populated by flattener if needed */
+    ctx->legacy.args     = args;
+    ctx->legacy.num_pos  = callsite->num_pos;
+    ctx->legacy.arg_count = callsite->arg_count;
+    ctx->legacy.arg_flags = NULL; /* will be populated by flattener if needed */
 }
 
 /* Clean up an arguments processing context. */
 void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    if (ctx->arg_flags) {
-        MVM_free(ctx->arg_flags);
-        MVM_free(ctx->args);
+    if (ctx->version == MVM_ARGS_LEGACY && ctx->legacy.arg_flags) {
+        MVM_free(ctx->legacy.arg_flags);
+        MVM_free(ctx->legacy.args);
     }
     if (ctx->named_used_size > 64) {
         MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size,
@@ -58,13 +59,16 @@ MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ct
     MVMCallsiteEntry *src_flags;
     MVMint32 fsize;
 
-    if (ctx->arg_flags) {
-        fsize = ctx->flag_count;
-        src_flags = ctx->arg_flags;
+    if (ctx->version != MVM_ARGS_LEGACY)
+        MVM_panic(1, "Cannot handle new callsite format in MVM_args_copy_callsite");
+
+    if (ctx->legacy.arg_flags) {
+        fsize = ctx->legacy.flag_count;
+        src_flags = ctx->legacy.arg_flags;
     }
     else {
-        fsize = ctx->callsite->flag_count;
-        src_flags = ctx->callsite->arg_flags;
+        fsize = ctx->legacy.callsite->flag_count;
+        src_flags = ctx->legacy.callsite->arg_flags;
     }
 
     if (fsize) {
@@ -73,15 +77,17 @@ MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ct
     }
     res->flag_count = fsize;
     res->arg_flags = flags;
-    res->arg_count = ctx->arg_count;
-    res->num_pos   = ctx->num_pos;
+    res->arg_count = ctx->legacy.arg_count;
+    res->num_pos   = ctx->legacy.num_pos;
     return res;
 }
 
 /* Copy a callsite unless it is interned. */
 MVMCallsite * MVM_args_copy_uninterned_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    return ctx->callsite->is_interned && !ctx->arg_flags
-        ? ctx->callsite
+    if (ctx->version != MVM_ARGS_LEGACY)
+        MVM_panic(1, "Cannot handle new callsite format in MVM_args_copy_uninterned_callsite");
+    return ctx->legacy.callsite->is_interned && !ctx->legacy.arg_flags
+        ? ctx->legacy.callsite
         : MVM_args_copy_callsite(tc, ctx);
 }
 
@@ -96,14 +102,16 @@ MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
 
 MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
     MVMObject *cc_obj;
+    if (frame->params.version != MVM_ARGS_LEGACY)
+        MVM_panic(1, "Cannot handle new callsite format in MVM_args_save_capture");
     MVMROOT(tc, frame, {
         MVMCallCapture *cc = (MVMCallCapture *)
             (cc_obj = MVM_repr_alloc_init(tc, tc->instance->CallCapture));
 
         /* Copy the arguments. */
-        MVMuint32 arg_size = frame->params.arg_count * sizeof(MVMRegister);
+        MVMuint32 arg_size = frame->params.legacy.arg_count * sizeof(MVMRegister);
         MVMRegister *args = MVM_malloc(arg_size);
-        memcpy(args, frame->params.args, arg_size);
+        memcpy(args, frame->params.legacy.args, arg_size);
 
         /* Set up the call capture, copying the callsite. */
         cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
@@ -131,22 +139,42 @@ static void arity_fail(MVMThreadContext *tc, MVMuint16 got, MVMuint16 min, MVMui
 }
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max) {
     MVMuint16 num_pos;
-    flatten_args(tc, ctx);
-    num_pos = ctx->num_pos;
+    if (ctx->version == MVM_ARGS_LEGACY) {
+        flatten_args(tc, ctx);
+        num_pos = ctx->legacy.num_pos;
+    }
+    else {
+        num_pos = ctx->arg_info.callsite->num_pos;
+    }
     if (num_pos < min || num_pos > max)
         arity_fail(tc, num_pos, min, max);
 }
 
 /* Get positional arguments. */
 #define find_pos_arg(ctx, pos, result) do { \
-    if (pos < (ctx)->num_pos) { \
-        result.arg   = (ctx)->args[pos]; \
-        result.flags = ((ctx)->arg_flags ? (ctx)->arg_flags : (ctx)->callsite->arg_flags)[pos]; \
-        result.exists = 1; \
+    if ((ctx)->version == MVM_ARGS_LEGACY) { \
+        if (pos < (ctx)->legacy.num_pos) { \
+            result.arg   = (ctx)->legacy.args[pos]; \
+            result.flags = ((ctx)->legacy.arg_flags \
+                    ? (ctx)->legacy.arg_flags \
+                    : (ctx)->legacy.callsite->arg_flags)[pos]; \
+            result.exists = 1; \
+        } \
+        else { \
+            result.arg.s = NULL; \
+            result.exists = 0; \
+        } \
     } \
     else { \
-        result.arg.s = NULL; \
-        result.exists = 0; \
+        if (pos < (ctx)->arg_info.callsite->num_pos) { \
+            result.arg   = (ctx)->arg_info.source[(ctx)->arg_info.map[pos]]; \
+            result.flags = (ctx)->arg_info.callsite->arg_flags[pos]; \
+            result.exists = 1; \
+        } \
+        else { \
+            result.arg.s = NULL; \
+            result.exists = 0; \
+        } \
     } \
 } while (0)
 
@@ -350,20 +378,26 @@ MVMArgInfo MVM_args_get_optional_pos_uint(MVMThreadContext *tc, MVMArgProcContex
 
 #define args_get_named(tc, ctx, name, required) do { \
      \
-    MVMuint32 flag_pos, arg_pos; \
     result.arg.s = NULL; \
     result.exists = 0; \
      \
-    for (flag_pos = arg_pos = ctx->num_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) { \
-        if (MVM_string_equal(tc, ctx->args[arg_pos].s, name)) { \
-            result.arg    = ctx->args[arg_pos + 1]; \
-            result.flags  = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[flag_pos]; \
-            result.exists = 1; \
-            result.arg_idx = arg_pos + 1; \
-            mark_named_used(ctx, (arg_pos - ctx->num_pos)/2); \
-            break; \
+    if (ctx->version == MVM_ARGS_LEGACY) { \
+        MVMuint32 flag_pos, arg_pos; \
+        for (flag_pos = arg_pos = ctx->legacy.num_pos; arg_pos < ctx->legacy.arg_count; flag_pos++, arg_pos += 2) { \
+            if (MVM_string_equal(tc, ctx->legacy.args[arg_pos].s, name)) { \
+                result.arg    = ctx->legacy.args[arg_pos + 1]; \
+                result.flags  = (ctx->legacy.arg_flags ? ctx->legacy.arg_flags : ctx->legacy.callsite->arg_flags)[flag_pos]; \
+                result.exists = 1; \
+                result.arg_idx = arg_pos + 1; \
+                mark_named_used(ctx, (arg_pos - ctx->legacy.num_pos)/2); \
+                break; \
+            } \
         } \
     } \
+    else { \
+        MVM_panic(1, "Cannot handle new callsite format in args_get_named"); \
+    } \
+     \
     if (!result.exists && required) { \
         char *c_name = MVM_string_utf8_encode_C_string(tc, name); \
         char *waste[] = { c_name, NULL }; \
@@ -402,24 +436,28 @@ MVMArgInfo MVM_args_get_named_uint(MVMThreadContext *tc, MVMArgProcContext *ctx,
     return result;
 }
 MVMint64 MVM_args_has_named(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name) {
+    if (ctx->version != MVM_ARGS_LEGACY)
+        MVM_panic(1, "Cannot handle new callsite format in MVM_args_has_named");
     MVMuint32 flag_pos, arg_pos;
-    for (flag_pos = arg_pos = ctx->num_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2)
-        if (MVM_string_equal(tc, ctx->args[arg_pos].s, name))
+    for (flag_pos = arg_pos = ctx->legacy.num_pos; arg_pos < ctx->legacy.arg_count; flag_pos++, arg_pos += 2)
+        if (MVM_string_equal(tc, ctx->legacy.args[arg_pos].s, name))
             return 1;
     return 0;
 }
 void MVM_args_assert_nameds_used(MVMThreadContext *tc, MVMArgProcContext *ctx) {
+    if (ctx->version != MVM_ARGS_LEGACY)
+        MVM_panic(1, "Cannot handle new callsite format in MVM_args_assert_nameds_used");
     MVMuint16 size = ctx->named_used_size;
     MVMuint16 i;
     if (size > 64) {
         for (i = 0; i < size; i++)
             if (!ctx->named_used.byte_array[i])
-                MVM_args_throw_named_unused_error(tc, ctx->args[ctx->num_pos + 2 * i].s);
+                MVM_args_throw_named_unused_error(tc, ctx->legacy.args[ctx->legacy.num_pos + 2 * i].s);
     }
     else {
         for (i = 0; i < size; i++)
             if (!(ctx->named_used.bit_field & ((MVMuint64)1 << i)))
-                MVM_args_throw_named_unused_error(tc, ctx->args[ctx->num_pos + 2 * i].s);
+                MVM_args_throw_named_unused_error(tc, ctx->legacy.args[ctx->legacy.num_pos + 2 * i].s);
     }
 }
 
@@ -754,19 +792,22 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
     if (reset_ctx)
         ctx = &tc->cur_frame->params;
 
-    for (flag_pos = arg_pos = ctx->num_pos; arg_pos < ctx->arg_count; flag_pos++, arg_pos += 2) {
+    if (ctx->version != MVM_ARGS_LEGACY)
+        MVM_panic(1, "Cannot handle new callsite format in MVM_args_slurpy_named");
+
+    for (flag_pos = arg_pos = ctx->legacy.num_pos; arg_pos < ctx->legacy.arg_count; flag_pos++, arg_pos += 2) {
         MVMString *key;
 
-        if (is_named_used(ctx, flag_pos - ctx->num_pos))
+        if (is_named_used(ctx, flag_pos - ctx->legacy.num_pos))
             continue;
 
-        key = ctx->args[arg_pos].s;
+        key = ctx->legacy.args[arg_pos].s;
 
         if (!key || !IS_CONCRETE(key)) {
             MVM_exception_throw_adhoc(tc, "slurpy hash needs concrete key");
         }
-        arg_info.arg    = ctx->args[arg_pos + 1];
-        arg_info.flags  = (ctx->arg_flags ? ctx->arg_flags : ctx->callsite->arg_flags)[flag_pos];
+        arg_info.arg    = ctx->legacy.args[arg_pos + 1];
+        arg_info.flags  = (ctx->legacy.arg_flags ? ctx->legacy.arg_flags : ctx->legacy.callsite->arg_flags)[flag_pos];
         arg_info.exists = 1;
 
         if (arg_info.flags & MVM_CALLSITE_ARG_FLAT) {
@@ -824,24 +865,27 @@ static MVMint32 seen_name(MVMThreadContext *tc, MVMString *name, MVMRegister *ne
     return 0;
 }
 static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
+    if (ctx->version != MVM_ARGS_LEGACY)
+        MVM_panic(1, "Should not be calling flatten_args with new callsite format");
+
     MVMArgInfo arg_info;
     MVMint32 flag_pos = 0, arg_pos = 0, new_arg_pos = 0,
-        new_arg_flags_size = ctx->arg_count > 0x7FFF ? ctx->arg_count : ctx->arg_count * 2,
+        new_arg_flags_size = ctx->legacy.arg_count > 0x7FFF ? ctx->legacy.arg_count : ctx->legacy.arg_count * 2,
         new_args_size = new_arg_flags_size, i, new_flag_pos = 0, new_num_pos = 0;
     MVMCallsiteEntry *new_arg_flags;
     MVMRegister *new_args;
 
-    if (!ctx->callsite->has_flattening) return;
+    if (!ctx->legacy.callsite->has_flattening) return;
 
     new_arg_flags = MVM_malloc(new_arg_flags_size * sizeof(MVMCallsiteEntry));
     new_args = MVM_malloc(new_args_size * sizeof(MVMRegister));
 
     /* First flatten any positionals in amongst any non-flattening
      * positionals. */
-    for ( ; arg_pos < ctx->num_pos; arg_pos++) {
+    for ( ; arg_pos < ctx->legacy.num_pos; arg_pos++) {
 
-        arg_info.arg    = ctx->args[arg_pos];
-        arg_info.flags  = ctx->callsite->arg_flags[arg_pos];
+        arg_info.arg    = ctx->legacy.args[arg_pos];
+        arg_info.flags  = ctx->legacy.callsite->arg_flags[arg_pos];
         arg_info.exists = 1;
 
         /* Skip it if it's not flattening or is null. The bytecode loader
@@ -901,14 +945,14 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 
     /* Then flatten in any nameds, amongst non-flattening nameds, starting
      * from the right and skipping duplicates. */
-    flag_pos = ctx->callsite->flag_count;
-    arg_pos = ctx->arg_count;
-    while (flag_pos > ctx->num_pos) {
+    flag_pos = ctx->legacy.callsite->flag_count;
+    arg_pos = ctx->legacy.arg_count;
+    while (flag_pos > ctx->legacy.num_pos) {
         flag_pos--;
-        if (ctx->callsite->arg_flags[flag_pos] & MVM_CALLSITE_ARG_FLAT_NAMED) {
-            arg_info.flags = ctx->callsite->arg_flags[flag_pos];
+        if (ctx->legacy.callsite->arg_flags[flag_pos] & MVM_CALLSITE_ARG_FLAT_NAMED) {
+            arg_info.flags = ctx->legacy.callsite->arg_flags[flag_pos];
             arg_pos--;
-            arg_info.arg = ctx->args[arg_pos];
+            arg_info.arg = ctx->legacy.args[arg_pos];
 
             if (arg_info.arg.o && REPR(arg_info.arg.o)->ID == MVM_REPR_ID_MVMHash) {
                 MVMHashBody *body = &((MVMHash *)arg_info.arg.o)->body;
@@ -938,7 +982,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
         }
         else {
             arg_pos -= 2;
-            if (!seen_name(tc, (ctx->args + arg_pos)->s, new_args, new_num_pos, new_arg_pos)) {
+            if (!seen_name(tc, (ctx->legacy.args + arg_pos)->s, new_args, new_num_pos, new_arg_pos)) {
                 if (new_arg_pos + 1 >= new_args_size) {
                     new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
                 }
@@ -946,9 +990,9 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                     new_arg_flags = MVM_realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
                 }
 
-                (new_args + new_arg_pos++)->s = (ctx->args + arg_pos)->s;
-                *(new_args + new_arg_pos++) = *(ctx->args + arg_pos + 1);
-                new_arg_flags[new_flag_pos++] = ctx->callsite->arg_flags[flag_pos];
+                (new_args + new_arg_pos++)->s = (ctx->legacy.args + arg_pos)->s;
+                *(new_args + new_arg_pos++) = *(ctx->legacy.args + arg_pos + 1);
+                new_arg_flags[new_flag_pos++] = ctx->legacy.callsite->arg_flags[flag_pos];
             }
         }
     }
@@ -956,11 +1000,11 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     if (ctx->named_used_size > 64)
         MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size, ctx->named_used.byte_array);
     init_named_used(tc, ctx, (new_arg_pos - new_num_pos) / 2);
-    ctx->args = new_args;
-    ctx->arg_count = new_arg_pos;
-    ctx->num_pos = new_num_pos;
-    ctx->arg_flags = new_arg_flags;
-    ctx->flag_count = new_flag_pos;
+    ctx->legacy.args = new_args;
+    ctx->legacy.arg_count = new_arg_pos;
+    ctx->legacy.num_pos = new_num_pos;
+    ctx->legacy.arg_flags = new_arg_flags;
+    ctx->legacy.flag_count = new_flag_pos;
 }
 
 /* Does the common setup work when we jump the interpreter into a chosen

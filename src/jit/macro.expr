@@ -21,7 +21,7 @@
 
 (macro: ^frame () (^getf (tc) MVMThreadContext cur_frame))
 (macro: ^arg  (,a) (idx (^getf (^frame) MVMFrame args)        ,a reg_sz))
-(macro: ^parg (,a) (idx (^getf (^frame) MVMFrame params.args) ,a reg_sz))
+(macro: ^parg (,a) (idx (^getf (^frame) MVMFrame params.legacy.args) ,a reg_sz))
 
 (macro: ^params () (addr (^frame) (&offsetof MVMFrame params)))
 (macro: ^caller () (^getf (^frame) MVMFrame caller))

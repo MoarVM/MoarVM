@@ -1,14 +1,54 @@
-/* Argument processing context. */
-struct MVMArgProcContext {
-    /* The callsite we're processing. */
+/* Container for arguments being passed to something to invoke it. */
+struct MVMArgs {
+    /* The callsite that describes the arguments. */
     MVMCallsite *callsite;
 
-    /* The set of flags (only set if we flattened, otherwise we use the ones
-     * from callsite). */
-    MVMCallsiteEntry *arg_flags;
+    /* A buffer we can obtain the arguments from. This is not a contiguous
+     * list of arguments (at least, not in the common case!) In most cases,
+     * it is the work area of the caller. */
+    MVMRegister *source;
 
-    /* The arguments. */
-    MVMRegister *args;
+    /* A mapping array from argument number (according to flag index in the
+     * callsite) to index in the source. Typically, this is a pointer into
+     * the register list in the `dispatch` instruction. Thus to access arg 0
+     * we'd do source[map[0]]. */
+    MVMuint16 *map;
+};
+
+#define MVM_ARGS_LEGACY     1
+#define MVM_ARGS_DISPATCH   2
+
+/* Argument processing context. */
+struct MVMArgProcContext {
+    /* Temporary version flag while we're migrating to new dispatch/calling
+     * conventions. */
+    MVMuint8 version;
+
+    /* Stuff for arg processing under previous model. */
+    struct {
+        /* The callsite we're processing. */
+        MVMCallsite *callsite;
+
+        /* The set of flags (only set if we flattened, otherwise we use the ones
+         * from callsite). */
+        MVMCallsiteEntry *arg_flags;
+
+        /* The arguments. */
+        MVMRegister *args;
+
+        /* The total argument count (including 2 for each
+         * named arg). */
+        MVMuint16 arg_count;
+
+        /* Number of positionals. */
+        MVMuint16 num_pos;
+
+        /* The number of arg flags; only valid if arg_flags isn't NULL. */
+        MVMuint16 flag_count;
+    } legacy;
+
+    /* The incoming arguments to bind. */
+    MVMArgs arg_info;
 
     /* Indexes of used nameds. If named_used_size is less than or equal to
      * 64, it will be a bit field. Otherwise, it will be a pointer to a
@@ -18,16 +58,6 @@ struct MVMArgProcContext {
         MVMuint64 bit_field;
     } named_used;
     MVMuint16 named_used_size;
-
-    /* The total argument count (including 2 for each
-     * named arg). */
-    MVMuint16 arg_count;
-
-    /* Number of positionals. */
-    MVMuint16 num_pos;
-
-    /* The number of arg flags; only valid if arg_flags isn't NULL. */
-    MVMuint16 flag_count;
 };
 
 /* Expected return type flags. */
