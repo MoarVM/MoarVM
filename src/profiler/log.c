@@ -75,7 +75,7 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
              * root call_graph node needs to be created. */
             if (has_confprogs && !ptd->call_graph) {
                 debugprint(DEBUG_LVL(PROFILER_RESULTS), tc, "initialized initial call graph node\n");
-                ptd->call_graph = MVM_calloc(sizeof(MVMProfileCallNode), 1);
+                ptd->call_graph = MVM_calloc(1, sizeof(MVMProfileCallNode));
             }
             /* In that case, we've got to check if the SF in question is
              * desired as an entry point */
