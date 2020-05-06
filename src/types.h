@@ -16,6 +16,8 @@ typedef struct MVMEventSubscriptions MVMEventSubscriptions;
 typedef struct MVMBytecodeAnnotation MVMBytecodeAnnotation;
 typedef struct MVMCallCapture MVMCallCapture;
 typedef struct MVMCallCaptureBody MVMCallCaptureBody;
+typedef struct MVMCapture MVMCapture;
+typedef struct MVMCaptureBody MVMCaptureBody;
 typedef struct MVMCallsite MVMCallsite;
 typedef struct MVMCallsiteInterns MVMCallsiteInterns;
 typedef struct MVMCallStackRegion MVMCallStackRegion;

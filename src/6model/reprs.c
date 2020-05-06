@@ -289,6 +289,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(StaticFrameSpesh);
     register_core_repr(SpeshPluginState);
     register_core_repr(SpeshCandidate);
+    register_core_repr(Capture);
 
     assert(tc->instance->num_reprs == MVM_REPR_CORE_COUNT);
 }
