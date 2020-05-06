@@ -3,6 +3,7 @@
 typedef struct MVMActiveHandler MVMActiveHandler;
 typedef struct MVMArgInfo MVMArgInfo;
 typedef struct MVMArgProcContext MVMArgProcContext;
+typedef struct MVMArgs MVMArgs;
 typedef struct MVMArray MVMArray;
 typedef struct MVMArrayBody MVMArrayBody;
 typedef struct MVMArrayREPRData MVMArrayREPRData;

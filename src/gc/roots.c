@@ -482,18 +482,21 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
 
         /* Scan arguments in case there was a flattening. Don't need to if
          * there wasn't a flattening because orig args is a subset of locals. */
-        if (frame->params.arg_flags && frame->params.callsite->has_flattening) {
+        /* Will not be needed after we have moved flattening up front and legacy
+         * args handling is removed. */
+        if (frame->params.version == MVM_ARGS_LEGACY &&
+                frame->params.legacy.arg_flags && frame->params.legacy.callsite->has_flattening) {
             MVMArgProcContext *ctx = &frame->params;
-            flag_map = ctx->arg_flags;
-            count = ctx->arg_count;
+            flag_map = ctx->legacy.arg_flags;
+            count = ctx->legacy.arg_count;
             for (i = 0, flag = 0; i < count; i++, flag++) {
                 if (flag_map[flag] & MVM_CALLSITE_ARG_NAMED) {
                     /* Current position is name, then next is value. */
-                    MVM_gc_worklist_add(tc, worklist, &ctx->args[i].s);
+                    MVM_gc_worklist_add(tc, worklist, &ctx->legacy.args[i].s);
                     i++;
                 }
                 if (flag_map[flag] & MVM_CALLSITE_ARG_STR || flag_map[flag] & MVM_CALLSITE_ARG_OBJ)
-                    MVM_gc_worklist_add(tc, worklist, &ctx->args[i].o);
+                    MVM_gc_worklist_add(tc, worklist, &ctx->legacy.args[i].o);
             }
         }
     }
