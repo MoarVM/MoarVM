@@ -186,6 +186,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/6model/reprs/MVMSpeshLog@obj@ \
           src/6model/reprs/MVMStaticFrameSpesh@obj@ \
           src/6model/reprs/MVMSpeshPluginState@obj@ \
+          src/6model/reprs/MVMCapture@obj@ \
           src/6model/6model@obj@ \
           src/6model/bootstrap@obj@ \
           src/6model/sc@obj@ \
@@ -358,6 +359,7 @@ HEADERS = src/moar.h \
           src/6model/reprs/MVMSpeshLog.h \
           src/6model/reprs/MVMStaticFrameSpesh.h \
           src/6model/reprs/MVMSpeshPluginState.h \
+          src/6model/reprs/MVMCapture.h \
           src/6model/sc.h \
           src/disp/boot.h \
           src/disp/registry.h \
