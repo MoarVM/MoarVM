@@ -22,9 +22,12 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMCallCaptureBody *src_body  = (MVMCallCaptureBody *)src;
     MVMCallCaptureBody *dest_body = (MVMCallCaptureBody *)dest;
 
-    MVMuint32 arg_size = src_body->apc->arg_count * sizeof(MVMRegister);
+    if (src_body->apc->version != MVM_ARGS_LEGACY)
+        MVM_panic(1, "Should not be using legacy call capture with dispatch args");
+
+    MVMuint32 arg_size = src_body->apc->legacy.arg_count * sizeof(MVMRegister);
     MVMRegister *args = MVM_malloc(arg_size);
-    memcpy(args, src_body->apc->args, arg_size);
+    memcpy(args, src_body->apc->legacy.args, arg_size);
 
     dest_body->apc = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
     MVM_args_proc_init(tc, dest_body->apc,
@@ -35,17 +38,19 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMCallCaptureBody *body = (MVMCallCaptureBody *)data;
     MVMArgProcContext *ctx = body->apc;
-    MVMuint8  *flag_map = body->apc->callsite->arg_flags;
-    MVMuint16  count = ctx->arg_count;
+    if (ctx->version != MVM_ARGS_LEGACY)
+        MVM_panic(1, "Should not be using legacy call capture with dispatch args");
+    MVMuint8  *flag_map = body->apc->legacy.callsite->arg_flags;
+    MVMuint16  count = ctx->legacy.arg_count;
     MVMuint16  i, flag;
     for (i = 0, flag = 0; i < count; i++, flag++) {
         if (flag_map[flag] & MVM_CALLSITE_ARG_NAMED) {
             /* Current position is name, then next is value. */
-            MVM_gc_worklist_add(tc, worklist, &ctx->args[i].s);
+            MVM_gc_worklist_add(tc, worklist, &ctx->legacy.args[i].s);
             i++;
         }
         if (flag_map[flag] & MVM_CALLSITE_ARG_STR || flag_map[flag] & MVM_CALLSITE_ARG_OBJ)
-            MVM_gc_worklist_add(tc, worklist, &ctx->args[i].o);
+            MVM_gc_worklist_add(tc, worklist, &ctx->legacy.args[i].o);
     }
 }
 
@@ -55,7 +60,9 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     /* We made our own copy of the callsite, args buffer and processing
      * context, so free them all. */
     if (ctx->body.apc) {
-        MVMCallsite *cs = ctx->body.apc->callsite;
+        if (ctx->body.apc->version != MVM_ARGS_LEGACY)
+            MVM_panic(1, "Should not be using legacy call capture with dispatch args");
+        MVMCallsite *cs = ctx->body.apc->legacy.callsite;
         if (cs && !cs->is_interned) {
             MVM_free(cs->arg_flags);
             MVM_free(cs);
@@ -64,7 +71,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
             MVM_fixed_size_free(tc, tc->instance->fsa,
                 ctx->body.apc->named_used_size,
                 ctx->body.apc->named_used.byte_array);
-        MVM_free(ctx->body.apc->args);
+        MVM_free(ctx->body.apc->legacy.args);
         MVM_free(ctx->body.apc);
     }
 }
@@ -127,10 +134,12 @@ static const MVMREPROps MVMCallCapture_this_repr = {
 MVMint64 MVM_capture_pos_primspec(MVMThreadContext *tc, MVMObject *obj, MVMint64 i) {
     if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
         MVMCallCapture *cc = (MVMCallCapture *)obj;
-        if (i >= 0 && i < cc->body.apc->num_pos) {
-            MVMCallsiteEntry *arg_flags = cc->body.apc->arg_flags
-                ? cc->body.apc->arg_flags
-                : cc->body.apc->callsite->arg_flags;
+        if (cc->body.apc->version != MVM_ARGS_LEGACY)
+            MVM_panic(1, "Should not be using legacy call capture with dispatch args");
+        if (i >= 0 && i < cc->body.apc->legacy.num_pos) {
+            MVMCallsiteEntry *arg_flags = cc->body.apc->legacy.arg_flags
+                ? cc->body.apc->legacy.arg_flags
+                : cc->body.apc->legacy.callsite->arg_flags;
             switch (arg_flags[i] & MVM_CALLSITE_ARG_TYPE_MASK) {
                 case MVM_CALLSITE_ARG_INT:
                     return MVM_STORAGE_SPEC_BP_INT;

@@ -687,7 +687,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMuint16 idx = ins->operands[1].callsite_idx;
         | mov TMP1, TC->cur_frame;
-        | mov TMP1, FRAME:TMP1->params.args;
+        | mov TMP1, FRAME:TMP1->params.legacy.args;
         | mov TMP1, REGISTER:TMP1[idx];
         | mov WORK[reg], TMP1;
         break;
@@ -2108,8 +2108,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_paramnamesused:
         | mov ARG2, TC->cur_frame;
         | lea ARG2, FRAME:ARG2->params;
-        | mov TMP5w, word ARGCTX:ARG2->num_pos;
-        | cmp TMP5w, word ARGCTX:ARG2->arg_count;
+        | mov TMP5w, word ARGCTX:ARG2->legacy.num_pos;
+        | cmp TMP5w, word ARGCTX:ARG2->legacy.arg_count;
         | je >1;
         | mov ARG1, TC;
         | callp &MVM_args_assert_nameds_used;
@@ -2198,8 +2198,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov ARG1, TC;
         | mov ARG3, WORK[capture];
         | mov ARG4, aword CAPTURE:ARG3->body.apc;
-        | mov ARG3, aword ARGCTX:ARG4->callsite;
-        | mov ARG4, aword ARGCTX:ARG4->args;
+        | mov ARG3, aword ARGCTX:ARG4->legacy.callsite;
+        | mov ARG4, aword ARGCTX:ARG4->legacy.args;
         | mov FUNCTION, OBJECT:ARG2->st;
         | mov FUNCTION, STABLE:FUNCTION->invoke;
         | call FUNCTION;
@@ -2220,7 +2220,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | throw_adhoc "captureposelems needs a concrete MVMCallCapture";
         |2:
         | mov TMP2, aword CAPTURE:TMP1->body.apc;
-        | movzx TMP2, word ARGPROCCONTEXT:TMP2->num_pos;
+        | movzx TMP2, word ARGPROCCONTEXT:TMP2->legacy.num_pos;
         | mov WORK[dest], TMP2;
         break;
     }
@@ -2257,8 +2257,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | throw_adhoc "capturehasnameds needs a concrete MVMCallCapture";
         |2:
         | mov TMP2, CAPTURE:TMP1->body.apc;
-        | mov TMP3w, word ARGPROCCONTEXT:TMP2->num_pos;
-        | mov TMP2w, word ARGPROCCONTEXT:TMP2->arg_count;
+        | mov TMP3w, word ARGPROCCONTEXT:TMP2->legacy.num_pos;
+        | mov TMP2w, word ARGPROCCONTEXT:TMP2->legacy.arg_count;
         | cmp TMP2w, TMP3w;
         | setne RVb;
         | movzx RV, RVb;
