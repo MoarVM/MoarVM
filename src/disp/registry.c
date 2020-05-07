@@ -93,9 +93,46 @@ void MVM_disp_registry_init(MVMThreadContext *tc) {
 }
 
 /* Register a new dispatcher. */
-void MVM_disp_registry_register(MVMThreadContext *tc, MVMString *name, MVMObject *dispatch,
+void MVM_disp_registry_register(MVMThreadContext *tc, MVMString *id, MVMObject *dispatch,
         MVMObject *resume) {
     MVM_panic(1, "Dispatcher registration NYI");
+}
+
+/* Find a dispatcher. Throws if there isn't one. */
+MVMDispDefinition * MVM_disp_registry_find(MVMThreadContext *tc, MVMString *id) {
+    MVMDispRegistry *reg = &(tc->instance->disp_registry);
+    MVMDispRegistryTable *table = reg->table;
+    size_t start_slot = (size_t)(MVM_string_hash_code(tc, id) % table->alloc_dispatchers);
+    size_t cur_slot = start_slot;
+    while (1) {
+        MVMDispDefinition *disp = table->dispatchers[cur_slot];
+        if (disp && MVM_string_equal(tc, disp->id, id))
+            return disp;
+        cur_slot = (cur_slot + 1) % table->alloc_dispatchers;
+        if (cur_slot == start_slot) // Wrapped all the way around.
+            break;
+    }
+    {
+        char *c_id = MVM_string_utf8_encode_C_string(tc, id);
+        char *waste[] = { c_id, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
+                "No dispatcher registered with ID '%s'", c_id);
+    }
+}
+
+/* Mark the dispatch registry. */
+void MVM_disp_registry_mark(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+    MVMDispRegistry *reg = &(tc->instance->disp_registry);
+    MVMDispRegistryTable *table = reg->table;
+    size_t i;
+    for (i = 0; i < table->alloc_dispatchers; i++) {
+        MVMDispDefinition *disp = table->dispatchers[i];
+        if (disp) {
+            MVM_gc_worklist_add(tc, worklist, &(disp->id));
+            MVM_gc_worklist_add(tc, worklist, &(disp->dispatch));
+            MVM_gc_worklist_add(tc, worklist, &(disp->resume));
+        }
+    }
 }
 
 /* Tear down the dispatcher registry, freeing all memory associated with it. */
