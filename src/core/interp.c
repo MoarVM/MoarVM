@@ -5788,7 +5788,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(dispatch_v): {
                 MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
                         cur_op, bytecode_start, tc->cur_frame);
-                MVMString *id = GET_REG(cur_op, 0).s;
+                MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 0));
                 MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 4)];
                 MVMuint16 *args = (MVMuint16 *)(cur_op + 6);
                 tc->cur_frame->return_value = NULL;
@@ -5800,7 +5800,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(dispatch_i): {
                 MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
                         cur_op, bytecode_start, tc->cur_frame);
-                MVMString *id = GET_REG(cur_op, 2).s;
+                MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
                 MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
                 MVMuint16 *args = (MVMuint16 *)(cur_op + 8);
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
@@ -5812,7 +5812,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(dispatch_n): {
                 MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
                         cur_op, bytecode_start, tc->cur_frame);
-                MVMString *id = GET_REG(cur_op, 2).s;
+                MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
                 MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
                 MVMuint16 *args = (MVMuint16 *)(cur_op + 8);
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
@@ -5824,7 +5824,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(dispatch_s): {
                 MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
                         cur_op, bytecode_start, tc->cur_frame);
-                MVMString *id = GET_REG(cur_op, 2).s;
+                MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
                 MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
                 MVMuint16 *args = (MVMuint16 *)(cur_op + 8);
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
@@ -5836,7 +5836,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(dispatch_o): {
                 MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
                         cur_op, bytecode_start, tc->cur_frame);
-                MVMString *id = GET_REG(cur_op, 2).s;
+                MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
                 MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
                 MVMuint16 *args = (MVMuint16 *)(cur_op + 8);
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
