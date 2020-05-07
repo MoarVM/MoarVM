@@ -80,15 +80,29 @@ struct MVMArgInfo {
     MVMuint16          arg_idx; /* Set only for nameds, obvious for pos */
 };
 
-/* Argument processing context handling. */
+/* Legacy argument processing context handling. */
 void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args);
-void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx);
-void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max);
-void MVM_args_checkarity_for_jit(MVMThreadContext *tc, MVMuint16 min, MVMuint16 max);
 MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx);
 MVMCallsite * MVM_args_copy_uninterned_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx);
 MVM_PUBLIC MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f);
 MVM_PUBLIC MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *f);
+
+/* Argument processing context handling. */
+void MVM_args_proc_setup(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMArgs arg_info);
+void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx);
+void MVM_args_setup_identity_map(MVMThreadContext *tc);
+void MVM_args_grow_identity_map(MVMThreadContext *tc, MVMCallsite *callsite);
+MVM_STATIC_INLINE MVMuint16 * MVM_args_identity_map(MVMThreadContext *tc,
+        MVMCallsite *callsite) {
+    if (callsite->flag_count > tc->instance->identity_arg_map_alloc)
+        MVM_args_grow_identity_map(tc, callsite);
+    return tc->instance->identity_arg_map;
+}
+void MVM_args_destroy_identity_map(MVMThreadContext *tc);
+
+/* Arity checking and named handling. */
+void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max);
+void MVM_args_checkarity_for_jit(MVMThreadContext *tc, MVMuint16 min, MVMuint16 max);
 void MVM_args_marked_named_used(MVMThreadContext *tc, MVMuint32 idx);
 void MVM_args_throw_named_unused_error(MVMThreadContext *tc, MVMString *name);
 

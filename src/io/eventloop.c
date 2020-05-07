@@ -79,7 +79,7 @@ static void async_handler(uv_async_t *handle) {
 }
 
 /* Enters the event loop. */
-static void enter_loop(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
+static void enter_loop(MVMThreadContext *tc, MVMArgs arg_info) {
     uv_loop_t    *loop = tc->instance->event_loop;
     uv_async_t   *async = tc->instance->event_loop_wakeup;
 
