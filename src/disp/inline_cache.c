@@ -54,9 +54,35 @@ static MVMDispInlineCacheEntry unlinked_dispatch = { .run_dispatch = dispatch_in
 
 static void dispatch_initial(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMString *id,
-        MVMCallsite *cs, MVMuint16 *arg_indices) {
+        MVMCallsite *callsite, MVMuint16 *arg_indices) {
+    /* Resolve the dispatcher. */
     MVMDispDefinition *disp = MVM_disp_registry_find(tc, id);
-    MVM_panic(1, "dispatch inline cache linking NYI");
+
+    /* Form argument capture object for dispatcher to process. */
+    MVMArgs capture_arg_info = {
+        .callsite = callsite,
+        .source = tc->cur_frame->work,
+        .map = arg_indices
+    };
+    MVMObject *capture = MVM_capture_from_args(tc, capture_arg_info);
+
+    /* Run the dispatcher. TODO this will actually set up a callstack entry
+     * about the ongoing dispatcher, and to mark the args. Otherwise, it will
+     * not work for user-defiend ones. */
+    MVMCallsite *disp_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+    MVMRegister r = { .o = capture };
+    MVMArgs dispatch_args = {
+        .callsite = disp_callsite,
+        .source = &r,
+        .map = MVM_args_identity_map(tc, disp_callsite)
+    };
+    MVMObject *dispatch = disp->dispatch;
+    if (REPR(dispatch)->ID == MVM_REPR_ID_MVMCFunction) {
+        ((MVMCFunction *)dispatch)->body.func(tc, dispatch_args);
+    }
+    else {
+        MVM_panic(1, "dispatch callback only supported as a MVMCFunction");
+    }
 }
 
 /**
