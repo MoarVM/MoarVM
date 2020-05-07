@@ -13,6 +13,45 @@ MVM_STATIC_INLINE void mark_named_used(MVMArgProcContext *ctx, MVMuint32 idx) {
         ctx->named_used.bit_field |= (MVMuint64)1 << idx;
 }
 
+/* An identity map is just an array { 0, 1, 2, ... }. */
+static MVMuint16 * create_identity_map(MVMThreadContext *tc, MVMuint16 size) {
+    MVMuint16 *map = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+            size * sizeof(MVMuint16));
+    MVMuint16 i;
+    for (i = 0; i < size; i++)
+        map[i] = i;
+    return map;
+}
+
+/* Set up an initial identity map, big enough assuming nobody passes a
+ * really large number of arguments. */
+void MVM_args_setup_identity_map(MVMThreadContext *tc) {
+    tc->instance->identity_arg_map_alloc = 256;
+    tc->instance->identity_arg_map = create_identity_map(tc,
+            tc->instance->identity_arg_map_alloc);
+}
+
+/* Free memory associated with the identity map. */
+void MVM_args_destroy_identity_map(MVMThreadContext *tc) {
+    MVM_fixed_size_free(tc, tc->instance->fsa,
+            tc->instance->identity_arg_map_alloc * sizeof(MVMuint16),
+            tc->instance->identity_arg_map);
+}
+
+/* Grows the identity map to a new size. */
+void MVM_args_grow_identity_map(MVMThreadContext *tc, MVMCallsite *callsite) {
+    uv_mutex_lock(&tc->instance->mutex_callsite_interns);
+    if (callsite->flag_count > tc->instance->identity_arg_map_alloc) {
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+            tc->instance->identity_arg_map_alloc * sizeof(MVMuint16),
+            tc->instance->identity_arg_map);
+        tc->instance->identity_arg_map = create_identity_map(tc, callsite->flag_count);
+        MVM_barrier();
+        tc->instance->identity_arg_map_alloc = callsite->flag_count;
+    }
+    uv_mutex_unlock(&tc->instance->mutex_callsite_interns);
+}
+
 /* Marks a named used in the current callframe. */
 void MVM_args_marked_named_used(MVMThreadContext *tc, MVMuint32 idx) {
     mark_named_used(&(tc->cur_frame->params), idx);
@@ -26,7 +65,7 @@ static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuin
         ctx->named_used.bit_field = 0;
 }
 
-/* Initialize arguments processing context. */
+/* Initialize arguments processing context (legacy). */
 void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args) {
     ctx->version = MVM_ARGS_LEGACY;
     /* Stash callsite and argument counts/pointers. */
@@ -37,6 +76,13 @@ void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsit
     ctx->legacy.num_pos  = callsite->num_pos;
     ctx->legacy.arg_count = callsite->arg_count;
     ctx->legacy.arg_flags = NULL; /* will be populated by flattener if needed */
+}
+
+/* Initialize arguments processing context. */
+void MVM_args_proc_setup(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMArgs arg_info) {
+    ctx->version = MVM_ARGS_DISPATCH;
+    ctx->arg_info = arg_info;
+    init_named_used(tc, ctx, MVM_callsite_num_nameds(tc, arg_info.callsite));
 }
 
 /* Clean up an arguments processing context. */
@@ -395,7 +441,21 @@ MVMArgInfo MVM_args_get_optional_pos_uint(MVMThreadContext *tc, MVMArgProcContex
         } \
     } \
     else { \
-        MVM_panic(1, "Cannot handle new callsite format in args_get_named"); \
+        MVMCallsite *callsite = (ctx)->arg_info.callsite; \
+        MVMString **arg_names = callsite->arg_names; \
+        MVMuint16 num_arg_names = callsite->flag_count - callsite->num_pos; \
+        MVMuint16 i; \
+        for (i = 0; i < num_arg_names; i++) { \
+            if (MVM_string_equal(tc, arg_names[i], name)) { \
+                MVMuint16 arg_idx = callsite->num_pos + i; \
+                result.exists = 1; \
+                result.arg = (ctx)->arg_info.source[(ctx)->arg_info.map[arg_idx]]; \
+                result.flags = callsite->arg_flags[arg_idx]; \
+                result.arg_idx = arg_idx; \
+                mark_named_used(ctx, i); \
+                break; \
+            } \
+        } \
     } \
      \
     if (!result.exists && required) { \

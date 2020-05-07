@@ -5,7 +5,7 @@
  * specialized versions of code. */
 
 /* Enters the work loop. */
-static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
+static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMuint64 work_sequence_number = 0;
     MVMObject *updated_static_frames = MVM_repr_alloc_init(tc,
         tc->instance->boot_types.BOOTArray);
