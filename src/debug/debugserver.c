@@ -3194,7 +3194,7 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
 #define COMMUNICATE_RESULT(operation) do { if ((operation)) { communicate_error(tc, &ctx, &argument); } else { communicate_success(tc, &ctx, &argument); } } while (0)
 #define COMMUNICATE_ERROR(operation) do { if ((operation)) { communicate_error(tc, &ctx, &argument); } } while (0)
 
-static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
+static void debugserver_worker(MVMThreadContext *tc, MVMArgs arg_info) {
     int continue_running = 1;
     MVMSocket listensocket;
     MVMInstance *vm = tc->instance;

@@ -210,6 +210,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVM_unicode_init(instance->main_thread);
     MVM_nfg_init(instance->main_thread);
 
+    /* Setup arg handling. */
+    MVM_args_setup_identity_map(instance->main_thread);
+
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);
 
@@ -664,8 +667,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_ptr_hash_demolish(instance->main_thread, &instance->object_ids);
     MVM_sc_all_scs_destroy(instance->main_thread);
 
-    /* Clean up dispatcher registry. */
+    /* Clean up dispatcher registry and args identity map. */
     MVM_disp_registry_destroy(instance->main_thread);
+    MVM_args_destroy_identity_map(instance->main_thread);
 
     /* Cleanup REPR registry */
     uv_mutex_destroy(&instance->mutex_repr_registry);

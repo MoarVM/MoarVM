@@ -261,7 +261,13 @@ struct MVMInstance {
      * Dispatcher mechanism
      ************************************************************************/
 
+    /* Registry of dispatchers. */
     MVMDispRegistry disp_registry;
+
+    /* Identity mapping for arguments (argument 0 is at position 0, argument
+     * 1 is at position 1, etc.) */
+    MVMuint16 *identity_arg_map;
+    MVMuint32 identity_arg_map_alloc;
 
     /************************************************************************
      * Specializer (dynamic optimization)

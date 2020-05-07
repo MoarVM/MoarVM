@@ -3,12 +3,46 @@
 /* This representation's function pointer table. */
 static const MVMREPROps MVMCFunction_this_repr;
 
-/* Invocation protocol handler. */
+/* Temporary workaround. Very temporary, given it's totally leaky. */
+static void adapt_legacy_args(MVMThreadContext *tc, MVMCallsite **callsite, MVMRegister **args) {
+    MVMuint8 tweaked = 0;
+    if ((*callsite)->has_flattening) {
+        MVMArgProcContext ctx;
+        MVM_args_proc_init(tc, &ctx, *callsite, *args);
+        MVM_args_checkarity(tc, &ctx, 0, 1024); /* Forces flattening */
+        *callsite = MVM_args_copy_callsite(tc, &ctx);
+        *args = ctx.legacy.args;
+        (*callsite)->arg_names = MVM_calloc(
+                (*callsite)->flag_count - (*callsite)->num_pos,
+                sizeof(MVMString *));
+        tweaked = 1;
+    }
+    MVMuint16 insert_pos = (*callsite)->num_pos;
+    MVMuint16 from_pos = insert_pos + 1;
+    while (insert_pos < (*callsite)->flag_count) {
+        if (tweaked)
+            (*callsite)->arg_names[insert_pos - (*callsite)->num_pos] = (*args)[from_pos - 1].s;
+        (*args)[insert_pos] = (*args)[from_pos];
+        insert_pos++;
+        from_pos += 2;
+    }
+}
+
+/* Legacy invocation protocol handler. */
 static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
-    if (IS_CONCRETE(invokee))
-        ((MVMCFunction *)invokee)->body.func(tc, callsite, args);
-    else
+    if (IS_CONCRETE(invokee)) {
+        MVMArgs arg_info;
+        MVM_gc_allocate_gen2_default_set(tc);
+        adapt_legacy_args(tc, &callsite, &args);
+        arg_info.callsite = callsite;
+        arg_info.source = args;
+        arg_info.map = MVM_args_identity_map(tc, callsite);
+        ((MVMCFunction *)invokee)->body.func(tc, arg_info);
+        MVM_gc_allocate_gen2_default_clear(tc);
+    }
+    else {
         MVM_exception_throw_adhoc(tc, "Cannot invoke C function type object");
+    }
 }
 
 /* Creates a new type object of this representation, and associates it with
