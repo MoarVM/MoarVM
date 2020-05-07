@@ -97,3 +97,20 @@ static const MVMREPROps MVMCapture_this_repr = {
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
 };
+
+/* Form a capture object from an argument description. */
+MVMObject * MVM_capture_from_args(MVMThreadContext *tc, MVMArgs arg_info) {
+    /* Put callsite arguments into a flat buffer. */
+    MVMCallsite *callsite = arg_info.callsite;
+    MVMRegister *args = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+            callsite->flag_count * sizeof(MVMRegister));
+    MVMuint16 i;
+    for (i = 0; i < callsite->flag_count; i++)
+        args[i] = arg_info.source[arg_info.map[i]];
+
+    /* Form capture object. */
+    MVMObject *capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
+    ((MVMCapture *)capture)->body.callsite = callsite;
+    ((MVMCapture *)capture)->body.args = args;
+    return capture;
+}
