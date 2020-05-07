@@ -55,6 +55,7 @@ static MVMDispInlineCacheEntry unlinked_dispatch = { .run_dispatch = dispatch_in
 static void dispatch_initial(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMString *id,
         MVMCallsite *cs, MVMuint16 *arg_indices) {
+    MVMDispDefinition *disp = MVM_disp_registry_find(tc, id);
     MVM_panic(1, "dispatch inline cache linking NYI");
 }
 
