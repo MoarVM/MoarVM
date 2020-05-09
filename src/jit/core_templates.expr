@@ -2810,13 +2810,6 @@
       (carg (^spesh_slot_value $1) ptr)
       (carg $2 int)) ptr_sz))
 
-(template: prof_enter
-  (callv (^func MVM_profile_log_enter)
-    (arglist
-      (carg (tc) ptr)
-      (carg (^getf (^frame) MVMFrame static_info) ptr)
-      (carg (const (&QUOTE MVM_PROFILE_ENTER_NORMAL) int_sz) int))))
-
 (template: prof_enterspesh
   (callv (^func MVM_profile_log_enter)
     (arglist
