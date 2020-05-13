@@ -1463,30 +1463,39 @@ static void lex_to_constant(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
 
 /* Optimizes away a lexical lookup when we know the value won't change from
  * the logged one. */
-static void optimize_getlex_known(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+static void optimize_getlexstatic(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                                   MVMSpeshIns *ins) {
-    /* Try to find logged offset. */
+    /* Look up the bytecode offset (should never be missing). */
     MVMSpeshAnn *ann = ins->annotations;
     while (ann) {
-        if (ann->type == MVM_SPESH_ANN_LOGGED)
+        if (ann->type == MVM_SPESH_ANN_CACHED)
             break;
         ann = ann->next;
     }
     if (ann) {
-        /* See if we can find a logged static value. */
-        MVMSpeshStats *ss = g->sf->body.spesh->body.spesh_stats;
-        if (ss) {
-            MVMuint32 n = ss->num_static_values;
-            MVMuint32 i;
-            for (i = 0; i < n; i++) {
-                if (ss->static_values[i].bytecode_offset == ann->data.bytecode_offset) {
-                    MVMObject *log_obj = ss->static_values[i].value;
-                    if (log_obj)
-                        lex_to_constant(tc, g, ins, log_obj);
-                    return;
-                }
-            }
+        /* If we resolved the lexical already, replace it with a constnat. */
+        MVMObject *resolution =  MVM_disp_inline_cache_get_lex_resolution(tc, g->sf,
+                ann->data.bytecode_offset);
+        if (resolution) {
+            lex_to_constant(tc, g, ins, resolution);
+            return;
         }
+
+        /* Failing that, we rewrite the instruction into a specialized getlexstatic
+         * instruction, with the slot pre-calculated and the static frame stored in
+         * a spesh slot (making it inlineable). */
+        ins->info = MVM_op_get_op(MVM_OP_sp_getlexstatic_o);
+        MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
+        new_operands[0] = ins->operands[0];
+        new_operands[1] = ins->operands[1];
+        new_operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                (MVMCollectable *)g->sf);
+        new_operands[3].lit_ui32 = MVM_disp_inline_cache_get_slot(tc, g->sf,
+                ann->data.bytecode_offset);
+        ins->operands = new_operands;
+    }
+    else {
+        MVM_oops(tc, "Spesh optimize: missing bytecode offset for getlexstatic_o");
     }
 }
 
@@ -2942,7 +2951,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             ins->info = MVM_op_get_op(MVM_OP_sp_getlex_no);
             break;
         case MVM_OP_getlexstatic_o:
-            optimize_getlex_known(tc, g, bb, ins);
+            optimize_getlexstatic(tc, g, bb, ins);
             break;
         case MVM_OP_getlexperinvtype_o:
             optimize_getlex_per_invocant(tc, g, bb, ins, p);

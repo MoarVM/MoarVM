@@ -93,6 +93,17 @@ static void add_logged_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
     ins_node->annotations = ann;
 }
 
+/* Records the current bytecode position as an inline cache annotation. Used for
+ * resolving to the correct inline cache entry. */
+static void add_cached_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins_node,
+                                  MVMuint8 *pc) {
+    MVMSpeshAnn *ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+    ann->type = MVM_SPESH_ANN_CACHED;
+    ann->data.bytecode_offset = pc - g->bytecode;
+    ann->next = ins_node->annotations;
+    ins_node->annotations = ann;
+}
+
 /* Finds the linearly previous basic block (not cheap, but uncommon). */
 MVMSpeshBB * MVM_spesh_graph_linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *search) {
     MVMSpeshBB *bb = g->entry;
@@ -372,10 +383,12 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         if (pc + 2 + arg_size == end)
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
 
-        /* If the instruction is logged, store its program counter so we can
-         * associate it with a static value later. */
+        /* If the instruction is logged or uses the inline cache, store its
+         * program counter so we can look up the cache state or log info. */
         if (info->logged)
             add_logged_annotation(tc, g, ins_node, pc);
+        if (info->uses_cache)
+            add_cached_annotation(tc, g, ins_node, pc);
 
         /* Caculate next instruction's PC. */
         pc += 2 + arg_size;

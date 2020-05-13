@@ -813,15 +813,6 @@ char * MVM_spesh_dump_stats(MVMThreadContext *tc, MVMStaticFrame *sf) {
 
         for (i = 0; i < ss->num_by_callsite; i++)
             dump_stats_by_callsite(tc, &ds, &(ss->by_callsite[i]));
-
-        if (ss->num_static_values) {
-            append(&ds, "Static values:\n");
-            for (i = 0; i < ss->num_static_values; i++)
-                appendf(&ds, "    - %s (%p) @ %d\n",
-                    MVM_6model_get_stable_debug_name(tc, ss->static_values[i].value->st),
-                    ss->static_values[i].value,
-                    ss->static_values[i].bytecode_offset);
-        }
     }
     else {
         append(&ds, "No spesh stats for this static frame\n");

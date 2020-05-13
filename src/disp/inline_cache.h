@@ -55,4 +55,8 @@ struct MVMDispInlineCacheEntryResolvedGetLexStatic {
 void MVM_disp_inline_cache_setup(MVMThreadContext *tc, MVMStaticFrame *sf);
 void MVM_disp_inline_cache_mark(MVMThreadContext *tc, MVMDispInlineCache *cache,
         MVMGCWorklist *worklist);
+MVMObject * MVM_disp_inline_cache_get_lex_resolution(MVMThreadContext *tc, MVMStaticFrame *sf,
+        MVMuint32 bytecode_offset);
+MVMuint32 MVM_disp_inline_cache_get_slot(MVMThreadContext *tc, MVMStaticFrame *sf,
+        MVMuint32 bytecode_offset);
 void MVM_disp_inline_cache_destroy(MVMThreadContext *tc, MVMDispInlineCache *cache);
