@@ -160,18 +160,6 @@ void MVM_spesh_log_type(MVMThreadContext *tc, MVMObject *value) {
     commit_entry(tc, sl);
 }
 
-/* Log a static value. */
-void MVM_spesh_log_static(MVMThreadContext *tc, MVMObject *value) {
-    MVMSpeshLog *sl = tc->spesh_log;
-    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
-    MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
-    entry->kind = MVM_SPESH_LOG_STATIC;
-    entry->id = cid;
-    MVM_ASSIGN_REF(tc, &(sl->common.header), entry->value.value, value);
-    entry->value.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
-    commit_entry(tc, sl);
-}
-
 /* Log a decont, only those that did not invoke. */
 void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *value) {
     MVMSpeshLog *sl = tc->spesh_log;

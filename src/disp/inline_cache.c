@@ -255,6 +255,24 @@ void try_update_cache_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry **targ
         cleanup_entry(tc, to);
 }
 
+/* Given the inline cache entry for a getlexstatic_o instruction, return the
+ * object it is resolved to, if it is in a resolved state. */
+MVMObject * MVM_disp_inline_cache_get_lex_resolution(MVMThreadContext *tc, MVMStaticFrame *sf,
+        MVMuint32 bytecode_offset) {
+    MVMDispInlineCache *cache = &(sf->body.inline_cache);
+    MVMDispInlineCacheEntry *entry = cache->entries[bytecode_offset >> cache->bit_shift];
+    return entry->run_getlexstatic == getlexstatic_resolved
+        ? ((MVMDispInlineCacheEntryResolvedGetLexStatic *)entry)->result
+        : NULL;
+}
+
+/* Given a static frame and a bytecode offset, resolve the inline cache slot. */
+MVMuint32 MVM_disp_inline_cache_get_slot(MVMThreadContext *tc, MVMStaticFrame *sf,
+        MVMuint32 bytecode_offset) {
+    MVMDispInlineCache *cache = &(sf->body.inline_cache);
+    return bytecode_offset >> cache->bit_shift;
+}
+
 /* GC-mark an inline cache entry. */
 void MVM_disp_inline_cache_mark(MVMThreadContext *tc, MVMDispInlineCache *cache,
         MVMGCWorklist *worklist) {

@@ -4,11 +4,6 @@ struct MVMSpeshStats {
     /* Statistics on a per-callsite basis. */
     MVMSpeshStatsByCallsite *by_callsite;
 
-    /* Map of MVM_SPESH_LOG_STATIC entries for this routine. Held at the top
-     * level as they represent static resolutions, so no need to duplicate
-     * this information across callsites. */
-    MVMSpeshStatsStatic *static_values;
-
     /* The number of entries in by_callsite. */
     MVMuint32 num_by_callsite;
 

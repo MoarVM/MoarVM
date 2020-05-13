@@ -128,6 +128,12 @@ MVMDispInlineCacheEntry ** MVM_disp_inline_cache_get(MVMuint8 *cur_op,
     return &(cache->entries[slot]);
 }
 
+/* Look up the inline cache entry at a precalculated slot (for specialized code). */
+MVMDispInlineCacheEntry ** MVM_disp_inline_cache_get_spesh(MVMStaticFrame *sf, MVMuint32 slot) {
+    MVMDispInlineCache *cache = &(sf->body.inline_cache);
+    return &(cache->entries[slot]);
+}
+
 /* This is the interpreter run loop. We have one of these per thread. */
 void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data, MVMRunloopState *outer_runloop) {
 #if MVM_CGOTO
@@ -4364,8 +4370,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *found = (*ice_ptr)->run_getlexstatic(tc, ice_ptr,
                         GET_REG(cur_op, 2).s);
                 GET_REG(cur_op, 0).o = found;
-                if (MVM_spesh_log_is_logging(tc))
-                    MVM_spesh_log_static(tc, found);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -6045,6 +6049,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_ASSIGN_REF(tc, &(f->header), GET_LEX(cur_op, 0, f).o,
                     GET_REG(cur_op, 4).o);
                 cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_getlexstatic_o): {
+                MVMStaticFrame *sf = (MVMStaticFrame *)tc->cur_frame
+                        ->effective_spesh_slots[GET_UI16(cur_op, 4)];
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get_spesh(sf,
+                        GET_UI32(cur_op, 6));
+                MVMObject *found = (*ice_ptr)->run_getlexstatic(tc, ice_ptr,
+                        GET_REG(cur_op, 2).s);
+                GET_REG(cur_op, 0).o = found;
+                cur_op += 10;
                 goto NEXT;
             }
             OP(sp_getarg_o):

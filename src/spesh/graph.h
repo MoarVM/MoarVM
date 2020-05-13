@@ -277,6 +277,7 @@ struct MVMSpeshAnn {
 #define MVM_SPESH_ANN_LINENO        10
 #define MVM_SPESH_ANN_LOGGED        11
 #define MVM_SPESH_ANN_DEOPT_SYNTH   12
+#define MVM_SPESH_ANN_CACHED        13
 #define MVM_SPESH_ANN_COMMENT       4096
 
 /* Functions to create/destroy the spesh graph. */
