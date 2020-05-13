@@ -56,6 +56,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             /* Store the callsite, in case we need it for further processing
              * of arguments. (TODO may need to consider the rest of the arg
              * processing context too.) */
+            uf->params.version = MVM_ARGS_LEGACY;
             uf->params.legacy.callsite = cand->body.inlines[i].cs;
 
             /* Store the named argument used bit field, since if we deopt in
