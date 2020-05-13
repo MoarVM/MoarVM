@@ -8918,7 +8918,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         1,
         0,
         0,
-        1,
+        0,
         1,
         0,
         0,
@@ -12722,6 +12722,21 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_lex | MVM_operand_type_var, MVM_operand_read_reg | MVM_operand_type_var }
     },
     {
+        MVM_OP_sp_getlexstatic_o,
+        "sp_getlexstatic_o",
+        4,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_spesh_slot, MVM_operand_uint32 }
+    },
+    {
         MVM_OP_sp_getarg_o,
         "sp_getarg_o",
         2,
@@ -13923,7 +13938,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 928;
+static const unsigned short MVM_op_counts = 929;
 
 static const MVMuint16 last_op_allowed = 830;
 
