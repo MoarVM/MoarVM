@@ -42,7 +42,6 @@ void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf,
         MVMCallsite *cs, MVMRegister *args);
 void MVM_spesh_log_osr(MVMThreadContext *tc);
 void MVM_spesh_log_type(MVMThreadContext *tc, MVMObject *value);
-void MVM_spesh_log_static(MVMThreadContext *tc, MVMObject *value);
 void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *value);
 void MVM_spesh_log_invoke_target(MVMThreadContext *tc, MVMObject *invoke_target,
     MVMuint16 was_multi);
