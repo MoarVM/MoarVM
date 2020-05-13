@@ -1896,7 +1896,6 @@ start:
     case MVM_OP_scwbenable:
     case MVM_OP_assign:
     case MVM_OP_assignunchecked:
-    case MVM_OP_getlexstatic_o:
     case MVM_OP_getlexperinvtype_o:
     case MVM_OP_paramnamesused:
     case MVM_OP_assertparamcheck:
