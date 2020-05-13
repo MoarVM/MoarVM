@@ -12,8 +12,6 @@ typedef enum {
     MVM_SPESH_LOG_PARAMETER_DECONT,
     /* Decont, attribute lookup, or lexical lookup type information. */
     MVM_SPESH_LOG_TYPE,
-    /* Static lexical lookup (bytecode says we can cache the result). */
-    MVM_SPESH_LOG_STATIC,
     /* Invoked static frame, and whether we are its outer. */
     MVM_SPESH_LOG_INVOKE,
     /* OSR point. */
@@ -59,12 +57,6 @@ struct MVMSpeshLogEntry {
             MVMint32 flags;
             MVMuint32 bytecode_offset;
         } type;
-
-        /* Observed value (STATIC). */
-        struct {
-            MVMObject *value;
-            MVMuint32 bytecode_offset;
-        } value;
 
         /* Observed invocation (INVOKE). */
         struct {

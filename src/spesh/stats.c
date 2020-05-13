@@ -454,21 +454,6 @@ MVMSpeshStatsType * param_type(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf
     return NULL;
 }
 
-/* Records a static value for a frame, unless it's already in the log. */
-void add_static_value(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf, MVMuint32 bytecode_offset,
-                      MVMObject *value) {
-    MVMSpeshStats *ss = simf->ss;
-    MVMuint32 i, id;
-    for (i = 0; i < ss->num_static_values; i++)
-        if (ss->static_values[i].bytecode_offset == bytecode_offset)
-            return;
-    id = ss->num_static_values++;
-    ss->static_values = MVM_realloc(ss->static_values,
-        ss->num_static_values * sizeof(MVMSpeshStatsStatic));
-    ss->static_values[id].bytecode_offset = bytecode_offset;
-    MVM_ASSIGN_REF(tc, &(simf->sf->body.spesh->common.header), ss->static_values[id].value, value);
-}
-
 /* Decides whether to save or free the simulation stack. */
 static void save_or_free_sim_stack(MVMThreadContext *tc, MVMSpeshSimStack *sims,
                                    MVMThreadContext *save_on_tc, MVMObject *sf_updated) {
@@ -628,12 +613,6 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                     simf->osr_hits++;
                 break;
             }
-            case MVM_SPESH_LOG_STATIC: {
-                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id, sf_updated);
-                if (simf)
-                    add_static_value(tc, simf, e->value.bytecode_offset, e->value.value);
-                break;
-            }
             case MVM_SPESH_LOG_RETURN_TO_UNLOGGED: {
                 MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id, sf_updated);
                 if (simf)
@@ -708,8 +687,6 @@ void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorkl
                 }
             }
         }
-        for (i = 0; i < ss->num_static_values; i++)
-            MVM_gc_worklist_add(tc, worklist, &(ss->static_values[i].value));
     }
 }
 
@@ -754,9 +731,6 @@ void MVM_spesh_stats_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *sna
                 }
             }
         }
-        for (i = 0; i < ss->num_static_values; i++)
-            MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, snapshot,
-                (MVMCollectable*)(ss->static_values[i].value), "static value", &cache_6);
     }
 }
 
@@ -782,7 +756,6 @@ void MVM_spesh_stats_destroy(MVMThreadContext *tc, MVMSpeshStats *ss) {
             MVM_free(by_cs->by_type);
         }
         MVM_free(ss->by_callsite);
-        MVM_free(ss->static_values);
     }
 }
 
