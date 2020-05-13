@@ -2233,14 +2233,6 @@
       (carg $4   ptr)
       (carg $5   ptr)) ptr_sz))
 
-(template: getlexstatic_o
-  (let: (($found (call (^func &MVM_frame_find_lexical_by_name)
-                   (arglist
-                     (carg (tc) ptr)
-                     (carg $1   ptr)
-                     (carg (^reg_obj) int)) ptr_sz)))
-    (if (nz $found) (load $found ptr_sz) (^vmnull))))
-
 (template: getlexperinvtype_o
   (let: (($found (call (^func &MVM_frame_find_lexical_by_name)
                    (arglist
