@@ -122,25 +122,6 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from TC objects\n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
 
-        /* Walk current call stack, following caller chain until we reach a
-         * heap-allocated frame. Note that tc->cur_frame may itself be a heap
-         * frame, in which case we put it directly on the worklist as it can
-         * move. */
-        if (tc->cur_frame && MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame)) {
-            MVMFrame *cur_frame = tc->cur_frame;
-            while (cur_frame && MVM_FRAME_IS_ON_CALLSTACK(tc, cur_frame)) {
-                MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, cur_frame);
-                GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from a stack frame\n", worklist->items);
-                process_worklist(tc, worklist, &wtp, gen);
-                cur_frame = cur_frame->caller;
-            }
-        }
-        else {
-            MVM_gc_worklist_add(tc, worklist, &tc->cur_frame);
-            GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from current frame\n", worklist->items);
-            process_worklist(tc, worklist, &wtp, gen);
-        }
-
         /* Add temporary roots and process them (these are per-thread). */
         MVM_gc_root_add_temps_to_worklist(tc, worklist, NULL);
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from thread temps\n", worklist->items);
