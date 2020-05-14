@@ -141,7 +141,21 @@ void MVM_callstack_init(MVMThreadContext *tc);
 MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc);
 MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc);
 void MVM_callstack_unwind_frame(MVMThreadContext *tc);
+void MVM_callstack_mark(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot);
 void MVM_callstack_destroy(MVMThreadContext *tc);
+MVM_STATIC_INLINE MVMFrame * MVM_callstack_current_frame(MVMThreadContext *tc) {
+    MVMCallStackRecord *record = tc->stack_top;
+    switch (record->kind) {
+        case MVM_CALLSTACK_RECORD_FRAME:
+            return &(((MVMCallStackFrame *)record)->frame);
+        case MVM_CALLSTACK_RECORD_HEAP_FRAME:
+            return ((MVMCallStackHeapFrame *)record)->frame;
+        case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
+            return ((MVMCallStackPromotedFrame *)record)->frame;
+        default:
+            MVM_panic(1, "No frame at top of callstack");
+    }
+}
 
 /* Call stack iterator. */
 struct MVMCallStackIterator {
