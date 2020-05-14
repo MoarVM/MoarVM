@@ -1,16 +1,16 @@
 /* Representation for a continuation in the VM. */
 struct MVMContinuationBody {
-    /* Top frame of the continuation. */
-    MVMFrame *top;
+    /* The top record on the callstack. */
+    MVMCallStackRecord *stack_top;
+
+    /* The first call stack region of continuation. */
+    MVMCallStackRegion *first_region;
 
     /* Address to resume execution at when the continuation is invoked. */
     MVMuint8 *addr;
 
     /* Register to put invoke argument into after resume. */
     MVMRegister *res_reg;
-
-    /* Root of the continuation. */
-    MVMFrame *root;
 
     /* Active exception handler(s) to restore. */
     MVMActiveHandler *active_handlers;

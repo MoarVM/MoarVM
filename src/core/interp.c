@@ -4085,7 +4085,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject   *cont = GET_REG(cur_op, 2).o;
                 MVMObject   *code = GET_REG(cur_op, 4).o;
                 cur_op += 6;
-                MVM_continuation_invoke(tc, (MVMContinuation *)cont, code, res);
+                MVM_continuation_invoke(tc, (MVMContinuation *)cont, code, res, NULL);
                 goto NEXT;
             }
             OP(randscale_n):
