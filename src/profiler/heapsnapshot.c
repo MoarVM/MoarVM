@@ -646,15 +646,6 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                         e->mark_special_return_data(tc, frame, ss->gcwl);
                         process_gc_worklist(tc, ss, "Special return data");
                     }
-                    if (e->continuation_tags) {
-                        MVMContinuationTag *tag = e->continuation_tags;
-                        while (tag) {
-                            MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                                (MVMCollectable *)tag->tag, "Continuation tag");
-                            col.unmanaged_size += sizeof(MVMContinuationTag);
-                            tag = tag->next;
-                        }
-                    }
                     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                         (MVMCollectable *)e->dynlex_cache_name,
                         "Dynamic lexical cache name");
