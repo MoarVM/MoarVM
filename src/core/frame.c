@@ -925,9 +925,6 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
             returner->work);
     }
 
-    /* Unwind call stack entries. */
-    MVM_callstack_unwind_frame(tc);
-
     /* If it's a call stack frame, its environment wasn't closed over, so it
      * can go away immediately. */
     if (MVM_FRAME_IS_ON_CALLSTACK(tc, returner)) {
@@ -946,8 +943,12 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
             returner->caller = NULL;
     }
 
+    /* Unwind call stack entries. */
+    MVM_callstack_unwind_frame(tc);
+
     /* Switch back to the caller frame if there is one. */
     if (caller && (returner != tc->thread_entry_frame || tc->nested_interpreter)) {
+        assert(MVM_callstack_current_frame(tc) == caller);
 
        if (tc->jit_return_address != NULL) {
             /* on a JIT frame, exit to interpreter afterwards */
