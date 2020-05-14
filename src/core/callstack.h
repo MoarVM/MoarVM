@@ -164,7 +164,7 @@ struct MVMCallStackIterator {
 };
 
 /* Create an iterator over bytecode frames on the call stack. */
-MVM_STATIC_INLINE void MVM_call_stack_iter_frame_init(MVMThreadContext *tc,
+MVM_STATIC_INLINE void MVM_callstack_iter_frame_init(MVMThreadContext *tc,
         MVMCallStackIterator *iter) {
     iter->current = NULL;
     iter->filter = (1 << MVM_CALLSTACK_RECORD_FRAME |
@@ -174,7 +174,7 @@ MVM_STATIC_INLINE void MVM_call_stack_iter_frame_init(MVMThreadContext *tc,
 
 /* Move to the next applicable record. Should be called before reading a current
  * record. Calling it again after it has returned a flase value is undefined. */
-MVM_STATIC_INLINE MVMint32 MVM_call_stack_iter_move_next(MVMThreadContext *tc,
+MVM_STATIC_INLINE MVMint32 MVM_callstack_iter_move_next(MVMThreadContext *tc,
         MVMCallStackIterator *iter) {
     iter->current = iter->current ? iter->current->prev : tc->stack_top;
     while (iter->current && !(iter->filter & (1 << iter->current->kind)))
@@ -183,7 +183,7 @@ MVM_STATIC_INLINE MVMint32 MVM_call_stack_iter_move_next(MVMThreadContext *tc,
 }
 
 /* Get the current item in the iteration. */
-MVM_STATIC_INLINE MVMCallStackRecord * MVM_call_stack_iter_current(MVMThreadContext *tc,
+MVM_STATIC_INLINE MVMCallStackRecord * MVM_callstack_iter_current(MVMThreadContext *tc,
         MVMCallStackIterator *iter) {
     return iter->current;
 }

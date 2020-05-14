@@ -655,13 +655,13 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     MVMFrame *update_caller = NULL;
     MVMFrame *result = NULL;
     MVMCallStackIterator iter;
-    MVM_call_stack_iter_frame_init(tc, &iter);
+    MVM_callstack_iter_frame_init(tc, &iter);
     MVM_CHECK_CALLER_CHAIN(tc, cur_to_promote);
     MVMROOT4(tc, new_cur_frame, update_caller, cur_to_promote, result, {
-        while (MVM_call_stack_iter_move_next(tc, &iter)) {
+        while (MVM_callstack_iter_move_next(tc, &iter)) {
             /* Check this isn't already a heap or promoted frame; if it is, we're
              * done. */
-            MVMCallStackRecord *record = MVM_call_stack_iter_current(tc, &iter);
+            MVMCallStackRecord *record = MVM_callstack_iter_current(tc, &iter);
             if (record->kind != MVM_CALLSTACK_RECORD_FRAME)
                 break;
             MVMCallStackFrame *unpromoted_record = (MVMCallStackFrame *)record;
@@ -773,13 +773,13 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *debug_tc,
     MVMFrame *update_caller = NULL;
     MVMFrame *result = NULL;
     MVMCallStackIterator iter;
-    MVM_call_stack_iter_frame_init(owner, &iter);
+    MVM_callstack_iter_frame_init(owner, &iter);
     MVM_CHECK_CALLER_CHAIN(owner, cur_to_promote);
     MVMROOT4(debug_tc, new_cur_frame, update_caller, cur_to_promote, result, {
-        while (MVM_call_stack_iter_move_next(owner, &iter)) {
+        while (MVM_callstack_iter_move_next(owner, &iter)) {
             /* Check this isn't already a heap or promoted frame; if it is, we're
              * done. */
-            MVMCallStackRecord *record = MVM_call_stack_iter_current(owner, &iter);
+            MVMCallStackRecord *record = MVM_callstack_iter_current(owner, &iter);
             if (record->kind != MVM_CALLSTACK_RECORD_FRAME)
                 break;
             MVMCallStackFrame *unpromoted_record = (MVMCallStackFrame *)record;
