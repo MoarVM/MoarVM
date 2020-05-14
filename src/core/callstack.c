@@ -110,6 +110,10 @@ void MVM_callstack_mark(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSn
     MVMCallStackRecord *record = tc->stack_top;
     while (record) {
         switch (record->kind) {
+            case MVM_CALLSTACK_RECORD_FRAME:
+                MVM_gc_root_add_frame_roots_to_worklist(tc, worklist,
+                        &(((MVMCallStackFrame *)record)->frame));
+                break;
             case MVM_CALLSTACK_RECORD_HEAP_FRAME:
                 add_collectable(tc, worklist, snapshot,
                         ((MVMCallStackHeapFrame *)record)->frame,
@@ -122,7 +126,6 @@ void MVM_callstack_mark(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSn
                 break;
             case MVM_CALLSTACK_RECORD_START:
             case MVM_CALLSTACK_RECORD_START_REGION:
-            case MVM_CALLSTACK_RECORD_FRAME:
                 /* Nothing to mark. */
                 break;
             default:

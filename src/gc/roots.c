@@ -157,6 +157,10 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     /* The call stack. */
     MVM_callstack_mark(tc, worklist, snapshot);
 
+    /* The current frame, if it's on the heap. */
+    if (tc->cur_frame && !MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame))
+        add_collectable(tc, worklist, snapshot, tc->cur_frame, "Current bytecode frame");
+
     /* Any active exception handlers and payload. */
     MVMActiveHandler *cur_ah = tc->active_handlers;
     while (cur_ah != NULL) {
