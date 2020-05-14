@@ -185,17 +185,21 @@ struct MVMThreadContext {
      * Frames, call stack, and exception state
      ************************************************************************/
 
-    /* The frame we're currently executing. */
+    /* The bytecode frame we're currently executing. */
     MVMFrame *cur_frame;
 
     /* The frame lying at the base of the current thread. */
     MVMFrame *thread_entry_frame;
 
     /* First call stack memory region, so we can traverse them for cleanup. */
-    MVMCallStackRegion *stack_first;
+    MVMCallStackRegion *stack_first_region;
 
-    /* Current call stack region, which the next frame will be allocated in. */
-    MVMCallStackRegion *stack_current;
+    /* Current call stack region, which the next record will be allocated
+     * so long as there is space. */
+    MVMCallStackRegion *stack_current_region;
+
+    /* The current call stack record on the top of the stack. */
+    MVMCallStackRecord *stack_top;
 
     /* Linked list of exception handlers that we're currently executing, topmost
      * one first in the list. */

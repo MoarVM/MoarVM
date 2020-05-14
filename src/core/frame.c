@@ -156,7 +156,9 @@ void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame) {
 }
 
 /* Creates a frame for usage as a context only, possibly forcing all of the
- * static lexicals to be deserialized if it's used for auto-close purposes. */
+ * static lexicals to be deserialized if it's used for auto-close purposes.
+ * Since we're not creating it to run bytecode, just for the purpose of a
+ * serialized closure, we don't create any call stack record for it. */
 static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMObject *code_ref, MVMint32 autoclose) {
     MVMFrame *frame;
@@ -258,7 +260,10 @@ static MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
     return result;
 }
 
-/* Obtains memory for a frame on the thread-local call stack. */
+/* Obtains memory for a frame that we are about to enter and run bytecode in. Prefers
+ * the callstack by default, but can put the frame onto the heap if it tends to be
+ * promoted there anyway. Returns a pointer to the frame wherever in memory it ends
+ * up living. */
 static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                                  MVMSpeshCandidate *spesh_cand, MVMint32 heap) {
     MVMFrame *frame;
@@ -267,20 +272,20 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
     MVMJitCode *jitcode;
 
     if (heap) {
-        /* Allocate frame on the heap. We know it's already zeroed. */
+        /* Allocate frame on the heap, and stick it into a heap frame call stack
+         * record. We know it's already zeroed. */
         MVMROOT2(tc, static_frame, spesh_cand, {
             if (tc->cur_frame)
                 MVM_frame_force_to_heap(tc, tc->cur_frame);
             frame = MVM_gc_allocate_frame(tc);
         });
+        MVMCallStackHeapFrame *record = MVM_callstack_allocate_heap_frame(tc);
+        record->frame = frame;
     }
     else {
         /* Allocate the frame on the call stack. */
-        MVMCallStackRegion *stack = tc->stack_current;
-        if (stack->alloc + sizeof(MVMFrame) >= stack->alloc_limit)
-            stack = MVM_callstack_region_next(tc);
-        frame = (MVMFrame *)stack->alloc;
-        stack->alloc += sizeof(MVMFrame);
+        MVMCallStackFrame *record = MVM_callstack_allocate_frame(tc);
+        frame = &(record->frame);
 
         /* Ensure collectable header flags and owner are zeroed, which means we'll
          * never try to mark or root the frame. */
@@ -643,14 +648,25 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
  * be called if the frame is not already there. Use MVM_frame_force_to_heap
  * when not sure. */
 MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
-    /* To keep things simple, we'll promote the entire stack. */
-    MVMFrame *cur_to_promote = tc->cur_frame;
+    /* To keep things simple, we'll promote all non-promoted frames on the call
+     * stack. We walk the call stack to find them. */
+    MVMFrame *cur_to_promote = NULL;
     MVMFrame *new_cur_frame = NULL;
     MVMFrame *update_caller = NULL;
     MVMFrame *result = NULL;
+    MVMCallStackIterator iter;
+    MVM_call_stack_iter_frame_init(tc, &iter);
     MVM_CHECK_CALLER_CHAIN(tc, cur_to_promote);
     MVMROOT4(tc, new_cur_frame, update_caller, cur_to_promote, result, {
-        while (cur_to_promote) {
+        while (MVM_call_stack_iter_move_next(tc, &iter)) {
+            /* Check this isn't already a heap or promoted frame; if it is, we're
+             * done. */
+            MVMCallStackRecord *record = MVM_call_stack_iter_current(tc, &iter);
+            if (record->kind != MVM_CALLSTACK_RECORD_FRAME)
+                break;
+            MVMCallStackFrame *unpromoted_record = (MVMCallStackFrame *)record;
+            cur_to_promote = &(unpromoted_record->frame);
+
             /* Allocate a heap frame. */
             /* frame is safe from the GC as we wouldn't be here if it wasn't on the stack */
             MVMFrame *promoted = MVM_gc_allocate_frame(tc);
@@ -675,6 +691,11 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
                 (char *)promoted + sizeof(MVMCollectable),
                 (char *)cur_to_promote + sizeof(MVMCollectable),
                 sizeof(MVMFrame) - sizeof(MVMCollectable));
+
+            /* Update stack record to indicate the promotion, and make it
+             * reference the heap frame. */
+            record->kind = MVM_CALLSTACK_RECORD_PROMOTED_FRAME;
+            ((MVMCallStackPromotedFrame *)record)->frame = promoted;
 
             /* Update caller of previously promoted frame, if any. This is the
              * only reference that might point to a non-heap frame. */
@@ -710,19 +731,15 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
             /* Check if there's a caller, or if we reached the end of the
              * chain. */
             if (cur_to_promote->caller) {
-                /* If the caller is on the stack then it needs promotion too.
-                 * If not, we're done. */
                 if (MVM_FRAME_IS_ON_CALLSTACK(tc, cur_to_promote->caller)) {
                     /* Clear caller in promoted frame, to avoid a heap -> stack
                      * reference if we GC during this loop. */
                     promoted->caller = NULL;
                     update_caller = promoted;
-                    cur_to_promote = cur_to_promote->caller;
                 }
                 else {
                     if (cur_to_promote == tc->thread_entry_frame)
                         tc->thread_entry_frame = promoted;
-                    cur_to_promote = NULL;
                     MVM_gc_write_barrier(tc, (MVMCollectable*)promoted, (MVMCollectable*)promoted->caller);
                 }
             }
@@ -731,16 +748,13 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
                  * frame */
                 if (cur_to_promote == tc->thread_entry_frame)
                     tc->thread_entry_frame = promoted;
-                cur_to_promote = NULL;
             }
         }
     });
     MVM_CHECK_CALLER_CHAIN(tc, new_cur_frame);
 
-    /* All is promoted. Update thread's current frame and reset the thread
-     * local callstack. */
+    /* All is promoted. Update thread's current frame pointer. */
     tc->cur_frame = new_cur_frame;
-    MVM_callstack_reset(tc);
 
     /* Hand back new location of promoted frame. */
     if (!result)
@@ -750,18 +764,30 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
 
 /* This function is to be used by the debugserver if a thread is currently
  * blocked. */
-MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *tc, MVMThreadContext *owner, MVMFrame *frame) {
-    /* To keep things simple, we'll promote the entire stack. */
-    MVMFrame *cur_to_promote = owner->cur_frame;
+MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *debug_tc,
+        MVMThreadContext *owner, MVMFrame *frame) {
+    /* To keep things simple, we'll promote all non-promoted frames on the call
+     * stack. We walk the call stack to find them. */
+    MVMFrame *cur_to_promote = NULL;
     MVMFrame *new_cur_frame = NULL;
     MVMFrame *update_caller = NULL;
     MVMFrame *result = NULL;
-    MVM_CHECK_CALLER_CHAIN(tc, cur_to_promote);
-    MVMROOT4(tc, new_cur_frame, update_caller, cur_to_promote, result, {
-        while (cur_to_promote) {
+    MVMCallStackIterator iter;
+    MVM_call_stack_iter_frame_init(owner, &iter);
+    MVM_CHECK_CALLER_CHAIN(owner, cur_to_promote);
+    MVMROOT4(debug_tc, new_cur_frame, update_caller, cur_to_promote, result, {
+        while (MVM_call_stack_iter_move_next(owner, &iter)) {
+            /* Check this isn't already a heap or promoted frame; if it is, we're
+             * done. */
+            MVMCallStackRecord *record = MVM_call_stack_iter_current(owner, &iter);
+            if (record->kind != MVM_CALLSTACK_RECORD_FRAME)
+                break;
+            MVMCallStackFrame *unpromoted_record = (MVMCallStackFrame *)record;
+            cur_to_promote = &(unpromoted_record->frame);
+
             /* Allocate a heap frame. */
             /* frame is safe from the GC as we wouldn't be here if it wasn't on the stack */
-            MVMFrame *promoted = MVM_gc_allocate_frame(tc);
+            MVMFrame *promoted = MVM_gc_allocate_frame(debug_tc);
 
             /* Bump heap promotion counter, to encourage allocating this kind
              * of frame directly on the heap in the future. If the frame was
@@ -784,10 +810,15 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *tc, MVMThreadCon
                 (char *)cur_to_promote + sizeof(MVMCollectable),
                 sizeof(MVMFrame) - sizeof(MVMCollectable));
 
+            /* Update stack record to indicate the promotion, and make it
+             * reference the heap frame. */
+            record->kind = MVM_CALLSTACK_RECORD_PROMOTED_FRAME;
+            ((MVMCallStackPromotedFrame *)record)->frame = promoted;
+
             /* Update caller of previously promoted frame, if any. This is the
              * only reference that might point to a non-heap frame. */
             if (update_caller) {
-                MVM_ASSIGN_REF(tc, &(update_caller->header),
+                MVM_ASSIGN_REF(debug_tc, &(update_caller->header),
                     update_caller->caller, promoted);
             }
 
@@ -818,19 +849,16 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *tc, MVMThreadCon
             /* Check if there's a caller, or if we reached the end of the
              * chain. */
             if (cur_to_promote->caller) {
-                /* If the caller is on the stack then it needs promotion too.
-                 * If not, we're done. */
-                if (MVM_FRAME_IS_ON_CALLSTACK(tc, cur_to_promote->caller)) {
+                if (MVM_FRAME_IS_ON_CALLSTACK(owner, cur_to_promote->caller)) {
                     /* Clear caller in promoted frame, to avoid a heap -> stack
                      * reference if we GC during this loop. */
                     promoted->caller = NULL;
                     update_caller = promoted;
-                    cur_to_promote = cur_to_promote->caller;
                 }
                 else {
                     if (cur_to_promote == owner->thread_entry_frame)
                         owner->thread_entry_frame = promoted;
-                    cur_to_promote = NULL;
+                    MVM_gc_write_barrier(debug_tc, (MVMCollectable*)promoted, (MVMCollectable*)promoted->caller);
                 }
             }
             else {
@@ -838,16 +866,13 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *tc, MVMThreadCon
                  * frame */
                 if (cur_to_promote == owner->thread_entry_frame)
                     owner->thread_entry_frame = promoted;
-                cur_to_promote = NULL;
             }
         }
     });
-    MVM_CHECK_CALLER_CHAIN(tc, new_cur_frame);
+    MVM_CHECK_CALLER_CHAIN(owner, new_cur_frame);
 
-    /* All is promoted. Update thread's current frame and reset the thread
-     * local callstack. */
+    /* All is promoted. Update thread's current frame pointer. */
     owner->cur_frame = new_cur_frame;
-    MVM_callstack_reset(owner);
 
     /* Hand back new location of promoted frame. */
     if (!result)
@@ -900,12 +925,12 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
             returner->work);
     }
 
-    /* If it's a call stack frame, remove it from the stack. */
+    /* Unwind call stack entries. */
+    MVM_callstack_unwind_frame(tc);
+
+    /* If it's a call stack frame, its environment wasn't closed over, so it
+     * can go away immediately. */
     if (MVM_FRAME_IS_ON_CALLSTACK(tc, returner)) {
-        MVMCallStackRegion *stack = tc->stack_current;
-        stack->alloc = (char *)returner;
-        if ((char *)stack->alloc - sizeof(MVMCallStackRegion) == (char *)stack)
-            MVM_callstack_region_prev(tc);
         if (returner->env)
             MVM_fixed_size_free(tc, tc->instance->fsa, returner->allocd_env, returner->env);
     }
