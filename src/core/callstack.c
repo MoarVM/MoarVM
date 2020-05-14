@@ -95,6 +95,43 @@ void MVM_callstack_unwind_frame(MVMThreadContext *tc) {
     } while (tc->stack_top && !is_bytecode_frame(tc->stack_top->kind));
 }
 
+/* Walk the callstack and GC-mark its content. */
+#define add_collectable(tc, worklist, snapshot, col, desc) \
+    do { \
+        if (worklist) { \
+            MVM_gc_worklist_add(tc, worklist, &(col)); \
+        } \
+        else { \
+            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot, \
+                (MVMCollectable *)col, desc); \
+        } \
+    } while (0)
+void MVM_callstack_mark(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
+    MVMCallStackRecord *record = tc->stack_top;
+    while (record) {
+        switch (record->kind) {
+            case MVM_CALLSTACK_RECORD_HEAP_FRAME:
+                add_collectable(tc, worklist, snapshot,
+                        ((MVMCallStackHeapFrame *)record)->frame,
+                        "Callstack reference to heap-allocated frame");
+                break;
+            case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
+                add_collectable(tc, worklist, snapshot,
+                        ((MVMCallStackPromotedFrame *)record)->frame,
+                        "Callstack reference to heap-promoted frame");
+                break;
+            case MVM_CALLSTACK_RECORD_START:
+            case MVM_CALLSTACK_RECORD_START_REGION:
+            case MVM_CALLSTACK_RECORD_FRAME:
+                /* Nothing to mark. */
+                break;
+            default:
+                MVM_panic(1, "Unknown call stack record type in GC marking");
+        }
+        record = record->prev;
+    }
+}
+
 /* Called at thread exit to destroy all callstack regions the thread has. */
 void MVM_callstack_destroy(MVMThreadContext *tc) {
     MVMCallStackRegion *cur = tc->stack_first_region;
