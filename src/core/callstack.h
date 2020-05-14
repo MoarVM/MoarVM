@@ -2,7 +2,8 @@
  * These records represent the things that are in dynamic scope. This includes
  * bytecode-level call frames, dispatcher record state, dispatcher program
  * evaluation state, continuation tags, and state associated with argument
- * flattening. */
+ * flattening. There is always a "start of segment" record, which we use to
+ * know when we are moving back to a prior segment. */
 
 /* A region of the call stack. */
 struct MVMCallStackRegion {
@@ -38,8 +39,24 @@ struct MVMCallStackRecord {
     MVMuint8 kind;
 };
 
+/* The start of a callstack as a whole, for seeing when we've reached the
+ * last frame of it. */
+#define MVM_CALLSTACK_RECORD_START              0
+struct MVMCallStackStart {
+    /* Commonalities of all records. */
+    MVMCallStackRecord common;
+};
+
+/* The start of a callstack region, used so we can keep the current region
+ * state in sync when we unwind. */
+#define MVM_CALLSTACK_RECORD_START_REGION       1
+struct MVMCallStackRegionStart {
+    /* Commonalities of all records. */
+    MVMCallStackRecord common;
+};
+
 /* A bytecode frame, the MVMFrame being allocated inline on the callstack. */
-#define MVM_CALLSTACK_RECORD_FRAME              1
+#define MVM_CALLSTACK_RECORD_FRAME              2
 struct MVMCallStackFrame {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
@@ -49,7 +66,7 @@ struct MVMCallStackFrame {
 };
 
 /* A bytecode frame where the MVMFrame was allocated directly on the heap.  */
-#define MVM_CALLSTACK_RECORD_HEAP_FRAME         2
+#define MVM_CALLSTACK_RECORD_HEAP_FRAME         3
 struct MVMCallStackHeapFrame {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
@@ -60,7 +77,7 @@ struct MVMCallStackHeapFrame {
 
 /* A bytecode frame where the MVMFrame was allocated inline on the callstack,
  * but later promoted to the heap. */
-#define MVM_CALLSTACK_RECORD_PROMOTED_FRAME     3
+#define MVM_CALLSTACK_RECORD_PROMOTED_FRAME     4
 struct MVMCallStackPromotedFrame {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
@@ -75,7 +92,7 @@ struct MVMCallStackPromotedFrame {
 };
 
 /* A continuation tag record, used to find the base of a continuation. */
-#define MVM_CALLSTACK_RECORD_CONTINUATION_TAG   4
+#define MVM_CALLSTACK_RECORD_CONTINUATION_TAG   5
 struct MVMCallStackContinuationTag {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
@@ -90,7 +107,7 @@ struct MVMCallStackContinuationTag {
 /* An argument flattening record, used to hold the results of flattening a
  * dispatch's arguments. A pointer into this is then used as the args source
  * in the following dispatch. */
-#define MVM_CALLSTACK_RECORD_FLATTENING         5
+#define MVM_CALLSTACK_RECORD_FLATTENING         6
 struct MVMCallStackFlattening {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
@@ -101,7 +118,7 @@ struct MVMCallStackFlattening {
 /* A dispatch recording phase record, when we're running the dispatch
  * callback and constructing a dispatch program. May hold dispatch
  * state for a resumption. */
-#define MVM_CALLSTACK_RECORD_DISPATCH_RECORD    6
+#define MVM_CALLSTACK_RECORD_DISPATCH_RECORD    7
 struct MVMCallStackDispatchRecord {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
@@ -111,7 +128,7 @@ struct MVMCallStackDispatchRecord {
 
 /* A dispatch program run record, when we're evaluating a dispatch
  * program. May hold dispatch state for a resumption. */
-#define MVM_CALLSTACK_RECORD_DISPATCH_RUN       7
+#define MVM_CALLSTACK_RECORD_DISPATCH_RUN       8
 struct MVMCallStackDispatchRun {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
@@ -119,9 +136,40 @@ struct MVMCallStackDispatchRun {
     /* TODO */
 };
 
-/* Functions for working with call stack regions. */
-void MVM_callstack_region_init(MVMThreadContext *tc);
-MVMCallStackRegion * MVM_callstack_region_next(MVMThreadContext *tc);
-MVMCallStackRegion * MVM_callstack_region_prev(MVMThreadContext *tc);
-void MVM_callstack_reset(MVMThreadContext *tc);
-void MVM_callstack_region_destroy_all(MVMThreadContext *tc);
+/* Functions for working with the call stack. */
+void MVM_callstack_init(MVMThreadContext *tc);
+MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc);
+MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc);
+void MVM_callstack_unwind_frame(MVMThreadContext *tc);
+void MVM_callstack_destroy(MVMThreadContext *tc);
+
+/* Call stack iterator. */
+struct MVMCallStackIterator {
+    MVMCallStackRecord *current;
+    MVMuint64 filter;
+};
+
+/* Create an iterator over bytecode frames on the call stack. */
+MVM_STATIC_INLINE void MVM_call_stack_iter_frame_init(MVMThreadContext *tc,
+        MVMCallStackIterator *iter) {
+    iter->current = NULL;
+    iter->filter = (1 << MVM_CALLSTACK_RECORD_FRAME |
+                    1 << MVM_CALLSTACK_RECORD_HEAP_FRAME |
+                    1 << MVM_CALLSTACK_RECORD_PROMOTED_FRAME);
+}
+
+/* Move to the next applicable record. Should be called before reading a current
+ * record. Calling it again after it has returned a flase value is undefined. */
+MVM_STATIC_INLINE MVMint32 MVM_call_stack_iter_move_next(MVMThreadContext *tc,
+        MVMCallStackIterator *iter) {
+    iter->current = iter->current ? iter->current->prev : tc->stack_top;
+    while (iter->current && !(iter->filter & (1 << iter->current->kind)))
+        iter->current = iter->current->prev;
+    return iter->current != NULL;
+}
+
+/* Get the current item in the iteration. */
+MVM_STATIC_INLINE MVMCallStackRecord * MVM_call_stack_iter_current(MVMThreadContext *tc,
+        MVMCallStackIterator *iter) {
+    return iter->current;
+}
