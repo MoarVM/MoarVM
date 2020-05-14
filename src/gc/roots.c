@@ -151,6 +151,9 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     MVMNativeCallbackCacheHead *current_cbceh;
 
+    /* The call stack. */
+    MVM_callstack_mark(tc, worklist, snapshot);
+
     /* Any active exception handlers and payload. */
     MVMActiveHandler *cur_ah = tc->active_handlers;
     while (cur_ah != NULL) {
