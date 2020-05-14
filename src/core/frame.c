@@ -149,8 +149,6 @@ void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame) {
         MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_env, frame->env);
     if (frame->extra) {
         MVMFrameExtra *e = frame->extra;
-        if (e->continuation_tags)
-            MVM_continuation_free_tags(tc, frame);
         MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
     }
 }
@@ -655,7 +653,7 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     MVMFrame *update_caller = NULL;
     MVMFrame *result = NULL;
     MVMCallStackIterator iter;
-    MVM_callstack_iter_frame_init(tc, &iter);
+    MVM_callstack_iter_frame_init(tc, &iter, tc->stack_top);
     MVM_CHECK_CALLER_CHAIN(tc, cur_to_promote);
     MVMROOT4(tc, new_cur_frame, update_caller, cur_to_promote, result, {
         while (MVM_callstack_iter_move_next(tc, &iter)) {
@@ -773,7 +771,7 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *debug_tc,
     MVMFrame *update_caller = NULL;
     MVMFrame *result = NULL;
     MVMCallStackIterator iter;
-    MVM_callstack_iter_frame_init(owner, &iter);
+    MVM_callstack_iter_frame_init(owner, &iter, owner->stack_top);
     MVM_CHECK_CALLER_CHAIN(owner, cur_to_promote);
     MVMROOT4(debug_tc, new_cur_frame, update_caller, cur_to_promote, result, {
         while (MVM_callstack_iter_move_next(owner, &iter)) {
@@ -904,8 +902,6 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     /* Clear up any extra frame data. */
     if (returner->extra) {
         MVMFrameExtra *e = returner->extra;
-        if (e->continuation_tags)
-            MVM_continuation_free_tags(tc, returner);
         need_caller = e->caller_info_needed;
         /* Preserve the extras if the frame has been used in a ctx operation
          * and marked with caller info. */

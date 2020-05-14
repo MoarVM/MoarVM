@@ -6,18 +6,6 @@
 #define MVM_FRAME_FLAG_HLL_3            1 << 5
 #define MVM_FRAME_FLAG_HLL_4            1 << 6
 
-/* Entry in the linked list of continuation tags for the frame. */
-struct MVMContinuationTag {
-    /* The tag itself. */
-    MVMObject *tag;
-
-    /* The active exception handler at the point the tag was taken. */
-    MVMActiveHandler *active_handlers;
-
-    /* The next continuation tag entry. */
-    MVMContinuationTag *next;
-};
-
 /* Function pointer type of special return handler. These are used to allow
  * return to be intercepted in some way, for things that need to do multiple
  * calls into the runloop in some C-managed process. Essentially, instead of
@@ -122,9 +110,6 @@ struct MVMFrameExtra {
 
     /* Flag for if special_return_data need to be GC marked. */
     MVMSpecialReturnDataMark mark_special_return_data;
-
-    /* Linked list of any continuation tags we have. */
-    MVMContinuationTag *continuation_tags;
 
     /* If we were invoked with a call capture, that call capture, so we can
      * keep its callsite alive. */
