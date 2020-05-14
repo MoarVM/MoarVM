@@ -19,14 +19,13 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVM_panic(MVM_exitcode_NYI, "MVMContinuation copy_to NYI");
+    MVM_panic(MVM_exitcode_NYI, "MVMContinuation cannot be cloned");
 }
 
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMContinuationBody *body = (MVMContinuationBody *)data;
-    MVM_gc_worklist_add(tc, worklist, &body->top);
-    MVM_gc_worklist_add(tc, worklist, &body->root);
+    MVM_panic(1, "need to update continuation GC mark");
     if (body->active_handlers) {
         MVMActiveHandler *cur_ah = body->active_handlers;
         while (cur_ah != NULL) {
@@ -46,6 +45,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMContinuation *ctx = (MVMContinuation *)obj;
+    MVM_panic(1, "need to update continuation gc_free");
     if (ctx->body.active_handlers) {
         MVMActiveHandler *cur_ah = ctx->body.active_handlers;
         while (cur_ah != NULL) {
