@@ -2,7 +2,7 @@
 
 /* Allocates a new call stack region, not incorporated into the regions double
  * linked list yet. */
-static MVMCallStackRegion * create_region(void) {
+static MVMCallStackRegion * allocate_region(void) {
     MVMCallStackRegion *region = MVM_malloc(MVM_CALLSTACK_REGION_SIZE);
     region->prev = region->next = NULL;
     region->alloc = (char *)region + sizeof(MVMCallStackRegion);
@@ -10,54 +10,98 @@ static MVMCallStackRegion * create_region(void) {
     return region;
 }
 
+/* Allocates a record in the current call stack region and returns it. Doesn't
+ * check if growth is needed. Sets its previous record to the current stack
+ * top, but does not itself update the stack top. */
+static MVMCallStackRecord * allocate_record_unchecked(MVMThreadContext *tc, MVMuint8 kind, size_t size) {
+    MVMCallStackRegion *region = tc->stack_current_region;
+    MVMCallStackRecord *record = (MVMCallStackRecord *)region->alloc;
+    record->prev = tc->stack_top;
+    record->kind = kind;
+    region->alloc += size;
+    return record;
+}
+
+/* Allocates a record, placing it in the current call stack region if possible
+ * but moving to the next one if not. Sets its previous record to the current
+ * stack top, but does not itself update the stack top. */
+static MVMCallStackRecord * allocate_record(MVMThreadContext *tc, MVMuint8 kind, size_t size) {
+    MVMCallStackRegion *region = tc->stack_current_region;
+    if ((region->alloc_limit - region->alloc) < (ptrdiff_t)size) {
+        if (!region->next) {
+            MVMCallStackRegion *next = allocate_region();
+            region->next = next;
+            next->prev = region;
+        }
+        tc->stack_current_region = region->next;
+        tc->stack_top = allocate_record_unchecked(tc, MVM_CALLSTACK_RECORD_START_REGION,
+                sizeof(MVMCallStackRegionStart));
+    }
+    return allocate_record_unchecked(tc, kind, size);
+}
+
 /* Called upon thread creation to set up an initial callstack region for the
  * thread. */
-void MVM_callstack_region_init(MVMThreadContext *tc) {
-    tc->stack_first = tc->stack_current = create_region();
+void MVM_callstack_init(MVMThreadContext *tc) {
+    /* Allocate an initial region, and put a start of stack record in it. */
+    tc->stack_first_region = tc->stack_current_region = allocate_region();
+    tc->stack_top = allocate_record_unchecked(tc, MVM_CALLSTACK_RECORD_START,
+            sizeof(MVMCallStackStart));
 }
 
-/* Moves the current call stack region we're allocating/freeing in along to
- * the next one in the region chain, allocating that next one if needed. */
-MVMCallStackRegion * MVM_callstack_region_next(MVMThreadContext *tc) {
-    MVMCallStackRegion *next_region = tc->stack_current->next;
-    if (!next_region) {
-        next_region = create_region();
-        tc->stack_current->next = next_region;
-        next_region->prev = tc->stack_current;
+/* Allocates a bytecode frame record on the callstack. */
+MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc) {
+    tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_FRAME,
+            sizeof(MVMCallStackFrame));
+    return (MVMCallStackFrame *)tc->stack_top;
+}
+
+/* Allocates a bytecode frame record on the callstack. */
+MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc) {
+    tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_HEAP_FRAME,
+            sizeof(MVMCallStackHeapFrame));
+    return (MVMCallStackHeapFrame *)tc->stack_top;
+}
+
+/* Unwind the calls stack until we reach a prior bytecode frame. */
+static int is_bytecode_frame(MVMuint8 kind) {
+    switch (kind) {
+        case MVM_CALLSTACK_RECORD_FRAME:
+        case MVM_CALLSTACK_RECORD_HEAP_FRAME:
+        case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
+            return 1;
+        default:
+            return 0;
     }
-    tc->stack_current = next_region;
-    return next_region;
 }
-
-/* Switches to the previous call stack region, if any. Otherwise, stays in
- * the current region. */
-MVMCallStackRegion * MVM_callstack_region_prev(MVMThreadContext *tc) {
-    MVMCallStackRegion *prev_region = tc->stack_current->prev;
-    if (prev_region)
-        tc->stack_current = prev_region;
-    else
-        prev_region = tc->stack_current;
-    return prev_region;
-}
-
-/* Resets a threads's callstack to be empty. Used when its contents has been
- * promoted to the heap. */
-void MVM_callstack_reset(MVMThreadContext *tc) {
-    MVMCallStackRegion *cur_region = tc->stack_current;
-    while (cur_region) {
-        cur_region->alloc = (char *)cur_region + sizeof(MVMCallStackRegion);
-        cur_region = cur_region->prev;
-    }
-    tc->stack_current = tc->stack_first;
+void MVM_callstack_unwind_frame(MVMThreadContext *tc) {
+    do {
+        /* Do any cleanup actions needed. */
+        switch (tc->stack_top->kind) {
+            case MVM_CALLSTACK_RECORD_START_REGION:
+                tc->stack_current_region = tc->stack_current_region->prev;
+                break;
+            case MVM_CALLSTACK_RECORD_START:
+            case MVM_CALLSTACK_RECORD_FRAME:
+            case MVM_CALLSTACK_RECORD_HEAP_FRAME:
+            case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
+                /* No cleanup to do. */
+                break;
+            default:
+                MVM_panic(1, "Unknown call stack record type in unwind");
+        }
+        tc->stack_current_region->alloc = (char *)tc->stack_top;
+        tc->stack_top = tc->stack_top->prev;
+    } while (tc->stack_top && !is_bytecode_frame(tc->stack_top->kind));
 }
 
 /* Called at thread exit to destroy all callstack regions the thread has. */
-void MVM_callstack_region_destroy_all(MVMThreadContext *tc) {
-    MVMCallStackRegion *cur = tc->stack_first;
+void MVM_callstack_destroy(MVMThreadContext *tc) {
+    MVMCallStackRegion *cur = tc->stack_first_region;
     while (cur) {
         MVMCallStackRegion *next = cur->next;
         MVM_free(cur);
         cur = next;
     }
-    tc->stack_first = NULL;
+    tc->stack_first_region = NULL;
 }
