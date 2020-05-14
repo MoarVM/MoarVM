@@ -34,8 +34,8 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
     /* The fixed size allocator also keeps pre-thread state. */
     MVM_fixed_size_create_thread(tc);
 
-    /* Allocate an initial call stack region for the thread. */
-    MVM_callstack_region_init(tc);
+    /* Allocate a call stack for the thread. */
+    MVM_callstack_init(tc);
 
     /* Initialize random number generator state. */
     MVM_proc_seed(tc, (MVM_platform_now() / 10000) * MVM_proc_getpid(tc));
@@ -114,8 +114,8 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     /* Destory the per-thread fixed size allocator state. */
     MVM_fixed_size_destroy_thread(tc);
 
-    /* Destroy all callstack regions. */
-    MVM_callstack_region_destroy_all(tc);
+    /* Destroy the callstack, releasing all allocated memory. */
+    MVM_callstack_destroy(tc);
 
     /* Free the thread-specific storage */
     MVM_free(tc->gc_work);
