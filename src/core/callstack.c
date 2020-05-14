@@ -5,7 +5,8 @@
 static MVMCallStackRegion * allocate_region(void) {
     MVMCallStackRegion *region = MVM_malloc(MVM_CALLSTACK_REGION_SIZE);
     region->prev = region->next = NULL;
-    region->alloc = (char *)region + sizeof(MVMCallStackRegion);
+    region->start = (char *)region + sizeof(MVMCallStackRegion);
+    region->alloc = region->start;
     region->alloc_limit = (char *)region + MVM_CALLSTACK_REGION_SIZE;
     return region;
 }
@@ -22,22 +23,54 @@ static MVMCallStackRecord * allocate_record_unchecked(MVMThreadContext *tc, MVMu
     return record;
 }
 
+/* Moves to a new callstack region, creating the region if required. */
+static void next_region(MVMThreadContext *tc) {
+    MVMCallStackRegion *region = tc->stack_current_region;
+    if (!region->next) {
+        MVMCallStackRegion *next = allocate_region();
+        region->next = next;
+        next->prev = region;
+    }
+    tc->stack_current_region = region->next;
+}
+
 /* Allocates a record, placing it in the current call stack region if possible
  * but moving to the next one if not. Sets its previous record to the current
  * stack top, but does not itself update the stack top. */
 static MVMCallStackRecord * allocate_record(MVMThreadContext *tc, MVMuint8 kind, size_t size) {
     MVMCallStackRegion *region = tc->stack_current_region;
     if ((region->alloc_limit - region->alloc) < (ptrdiff_t)size) {
-        if (!region->next) {
-            MVMCallStackRegion *next = allocate_region();
-            region->next = next;
-            next->prev = region;
-        }
-        tc->stack_current_region = region->next;
+        next_region(tc);
         tc->stack_top = allocate_record_unchecked(tc, MVM_CALLSTACK_RECORD_START_REGION,
                 sizeof(MVMCallStackRegionStart));
     }
     return allocate_record_unchecked(tc, kind, size);
+}
+
+/* Gets the actual size of a record (including any dynamically sized parts). */
+size_t record_size(MVMCallStackRecord *record) {
+    switch (record->kind) {
+        case MVM_CALLSTACK_RECORD_START:
+            return sizeof(MVMCallStackStart);
+        case MVM_CALLSTACK_RECORD_START_REGION:
+            return sizeof(MVMCallStackRegionStart);
+        case MVM_CALLSTACK_RECORD_FRAME:
+            return sizeof(MVMCallStackFrame);
+        case MVM_CALLSTACK_RECORD_HEAP_FRAME:
+            return sizeof(MVMCallStackHeapFrame);
+        case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
+            return sizeof(MVMCallStackPromotedFrame);
+        case MVM_CALLSTACK_RECORD_CONTINUATION_TAG:
+            return sizeof(MVMCallStackContinuationTag);
+        case MVM_CALLSTACK_RECORD_FLATTENING:
+            return sizeof(MVMCallStackFlattening);
+        case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
+            return sizeof(MVMCallStackDispatchRecord);
+        case MVM_CALLSTACK_RECORD_DISPATCH_RUN:
+            return sizeof(MVMCallStackDispatchRun);
+        default:
+            MVM_panic(1, "Unknown callstack record type in record_size");
+    }
 }
 
 /* Called upon thread creation to set up an initial callstack region for the
@@ -63,6 +96,112 @@ MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc) 
     return (MVMCallStackHeapFrame *)tc->stack_top;
 }
 
+/* Creates a new region for a continuation. By a continuation boundary starting
+ * a new region, we are able to take the continuation by slicing off the entire
+ * region from the regions linked list. The continuation tags always go at the
+ * start of such a region (and are a region start mark). */
+void MVM_callstack_new_continuation_region(MVMThreadContext *tc, MVMObject *tag) {
+    next_region(tc);
+    tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_CONTINUATION_TAG,
+            sizeof(MVMCallStackContinuationTag));
+    MVMCallStackContinuationTag *tag_record = (MVMCallStackContinuationTag *)tc->stack_top;
+    tag_record->tag = tag;
+    tag_record->active_handlers = tc->active_handlers;
+}
+
+/* Locates the callstack region for the specified continuation tag, and slices
+ * it off the callstack, updating the stack top to point at the top frame in
+ * the previous region. The first region in the slice is retunred. The prev
+ * pointer of both the region and of the region start record are NULL'd out. */
+MVMCallStackRegion * MVM_callstack_continuation_slice(MVMThreadContext *tc, MVMObject *tag,
+        MVMActiveHandler **active_handlers) {
+    MVMCallStackRegion *cur_region = tc->stack_current_region;
+    while (cur_region != NULL) {
+        MVMCallStackRecord *record = (MVMCallStackRecord *)cur_region->start;
+        if (record->kind == MVM_CALLSTACK_RECORD_CONTINUATION_TAG) {
+            MVMCallStackContinuationTag *tag_record = (MVMCallStackContinuationTag *)record;
+            if (tag_record->tag == tag || tag == tc->instance->VMNull) {
+                /* Found the tag we were looking for. Detach this region from
+                 * the linked list. */
+                tc->stack_current_region = cur_region->prev;
+                tc->stack_current_region->next = NULL;
+
+                /* Set the stack top to the prev of the tag record, and then
+                 * clear that too. */
+                tc->stack_top = tag_record->common.prev;
+                tag_record->common.prev = NULL;
+
+                /* Hand back the active handlers at the reset point through the
+                 * out argument, and the region pointer as the return value. */
+                *active_handlers = tag_record->active_handlers;
+                return cur_region;
+            }
+        }
+        cur_region = cur_region->prev;
+    }
+    return NULL;
+}
+
+/* Take the continuation regions and append them to the callstack, updating
+ * the current region and the stack top appropriately. */
+static void free_regions_from(MVMCallStackRegion *cur) {
+    while (cur) {
+        MVMCallStackRegion *next = cur->next;
+        MVM_free(cur);
+        cur = next;
+    }
+}
+void MVM_callstack_continuation_append(MVMThreadContext *tc, MVMCallStackRegion *first_region,
+        MVMCallStackRecord *stack_top, MVMObject *update_tag) {
+    /* Ensure the first record in the region to append is a continuation tag. */
+    MVMCallStackRecord *record = (MVMCallStackRecord *)first_region->start;
+    if (record->kind != MVM_CALLSTACK_RECORD_CONTINUATION_TAG)
+        MVM_panic(1, "Malformed continuation record");
+
+    /* Update the continuation tag. */
+    MVMCallStackContinuationTag *tag_record = (MVMCallStackContinuationTag *)record;
+    tag_record->tag = update_tag;
+    tag_record->active_handlers = tc->active_handlers;
+
+    /* If we have next regions, free them (this prevents us ending up with
+     * runaway memory use then continuations move between threads in producer
+     * consumer style patterns). */
+    free_regions_from(tc->stack_current_region->next);
+
+    /* Insert continuation regions into the region list. */
+    tc->stack_current_region->next = first_region;
+    first_region->prev = tc->stack_current_region;
+
+    /* Make sure the current stack region is the final one, if we appended many. */
+    while (tc->stack_current_region->next)
+        tc->stack_current_region = tc->stack_current_region->next;
+
+    /* Make the first record we splice in point back to the current stack top. */
+    record->prev = tc->stack_top;
+
+    /* Update the stack top to the new top record. */
+    tc->stack_top = stack_top;
+}
+
+/* Walk the frames in the region, looking for the first bytecode one. */
+MVMFrame * MVM_callstack_first_frame_in_region(MVMThreadContext *tc, MVMCallStackRegion *region) {
+    char *cur_pos = region->start;
+    while (cur_pos < region->alloc) {
+        MVMCallStackRecord *record = (MVMCallStackRecord *)cur_pos;
+        switch (record->kind) {
+            case MVM_CALLSTACK_RECORD_FRAME:
+                return &(((MVMCallStackFrame *)record)->frame);
+            case MVM_CALLSTACK_RECORD_HEAP_FRAME:
+                return ((MVMCallStackHeapFrame *)record)->frame;
+            case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
+                return ((MVMCallStackPromotedFrame *)record)->frame;
+            default:
+                cur_pos += record_size(record);
+        }
+    }
+    MVM_panic(1, "No frame found in callstack region");
+}
+
 /* Unwind the calls stack until we reach a prior bytecode frame. */
 static int is_bytecode_frame(MVMuint8 kind) {
     switch (kind) {
@@ -76,9 +215,13 @@ static int is_bytecode_frame(MVMuint8 kind) {
 }
 void MVM_callstack_unwind_frame(MVMThreadContext *tc) {
     do {
+        /* Move back allocation pointer. */
+        tc->stack_current_region->alloc = (char *)tc->stack_top;
+
         /* Do any cleanup actions needed. */
         switch (tc->stack_top->kind) {
             case MVM_CALLSTACK_RECORD_START_REGION:
+            case MVM_CALLSTACK_RECORD_CONTINUATION_TAG:
                 tc->stack_current_region = tc->stack_current_region->prev;
                 break;
             case MVM_CALLSTACK_RECORD_START:
@@ -90,7 +233,6 @@ void MVM_callstack_unwind_frame(MVMThreadContext *tc) {
             default:
                 MVM_panic(1, "Unknown call stack record type in unwind");
         }
-        tc->stack_current_region->alloc = (char *)tc->stack_top;
         tc->stack_top = tc->stack_top->prev;
     } while (tc->stack_top && !is_bytecode_frame(tc->stack_top->kind));
 }
@@ -137,11 +279,6 @@ void MVM_callstack_mark(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSn
 
 /* Called at thread exit to destroy all callstack regions the thread has. */
 void MVM_callstack_destroy(MVMThreadContext *tc) {
-    MVMCallStackRegion *cur = tc->stack_first_region;
-    while (cur) {
-        MVMCallStackRegion *next = cur->next;
-        MVM_free(cur);
-        cur = next;
-    }
+    free_regions_from(tc->stack_first_region);
     tc->stack_first_region = NULL;
 }
