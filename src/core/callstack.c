@@ -216,29 +216,32 @@ static int is_bytecode_frame(MVMuint8 kind) {
 }
 void MVM_callstack_unwind_frame(MVMThreadContext *tc) {
     do {
-        /* Move back allocation pointer. */
+        /* Ensure region and stack top are in a consistent state. */
         assert(tc->stack_current_region->start <= (char *)tc->stack_top);
         assert((char *)tc->stack_top < tc->stack_current_region->alloc);
-        tc->stack_current_region->alloc = (char *)tc->stack_top;
 
         /* Do any cleanup actions needed. */
         switch (tc->stack_top->kind) {
             case MVM_CALLSTACK_RECORD_START_REGION:
             case MVM_CALLSTACK_RECORD_CONTINUATION_TAG:
                 /* Sync region and move to previous record. */
+                tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_current_region = tc->stack_current_region->prev;
                 tc->stack_top = tc->stack_top->prev;
                 break;
             case MVM_CALLSTACK_RECORD_DEOPT_FRAME:
-                /* Deopt it, but don't move stack top back, since it will now
-                 * already point at a deoptimized frame. */
-                MVM_panic(1, "lazy deopt NYI");
+                /* Deopt it, but don't move stack top back, since we're either
+                 * turning the current frame into a deoptimized one or will put
+                 * new uninlined frames on the top of the stack, which we shall
+                 * then want to return in to. */
+                MVM_spesh_deopt_during_unwind(tc);
                 break;
             case MVM_CALLSTACK_RECORD_START:
             case MVM_CALLSTACK_RECORD_FRAME:
             case MVM_CALLSTACK_RECORD_HEAP_FRAME:
             case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
                 /* No cleanup to do, just move to next record. */
+                tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
                 break;
             default:
