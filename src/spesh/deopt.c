@@ -234,48 +234,26 @@ static void materialize_replaced_objects(MVMThreadContext *tc, MVMFrame *f, MVMi
     MVM_free(materialized);
 }
 
-
-static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMuint32 deopt_idx, MVMuint32 deopt_offset, MVMuint32 deopt_target) {
-    /* Found it. We materialize any replaced objects first, then if
-     * we have stuff replaced in inlines then uninlining will take
-     * care of moving it out into the frames where it belongs. */
+/* Perform actions common to the deopt of a frame before we do any kind of
+ * address rewriting, whether eager or lazy. */
+static void begin_frame_deopt(MVMThreadContext *tc, MVMFrame *f, MVMuint32 deopt_idx) {
     deopt_named_args_used(tc, f);
+    clear_dynlex_cache(tc, f);
+
+    /* Materialize any replaced objects first, then if we have stuff replaced
+     * in inlines then uninlining will take care of moving it out into the
+     * frames where it belongs. */
     MVMROOT(tc, f, {
         materialize_replaced_objects(tc, f, deopt_idx);
     });
+}
 
-    /* Check if we have inlines. */
-    if (f->spesh_cand->body.inlines) {
-        /* Yes, going to have to re-create the frames; uninline
-         * moves the interpreter, so we can just tweak the last
-         * frame. For the moment, uninlining creates its frames
-         * on the heap, so we'll force the current call stack to
-         * the heap to preserve the "no heap -> stack pointers"
-         * invariant. */
-        f = MVM_frame_force_to_heap(tc, f);
-        MVMROOT(tc, f, {
-            uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, NULL);
-        });
-        f->effective_spesh_slots = NULL;
-        f->spesh_cand            = NULL;
-#if MVM_LOG_DEOPTS
-        fprintf(stderr, "Completed deopt_one in '%s' (cuid '%s') with potential uninlining\n",
-          MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
-          MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
-#endif
-    }
-    else {
-        /* No inlining; simple case. Switch back to the original code. */
-        *(tc->interp_cur_op)         = f->static_info->body.bytecode + deopt_target;
-        *(tc->interp_bytecode_start) = f->static_info->body.bytecode;
-        f->effective_spesh_slots     = NULL;
-        f->spesh_cand                = NULL;
-#if MVM_LOG_DEOPTS
-        fprintf(stderr, "Completed deopt_one in '%s' (cuid '%s')\n",
-          MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
-          MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
-#endif
-    }
+/* Perform actions common to the deopt of a frame after we do any kind of
+ * address rewriting, whether eager or lazy. */
+static void finish_frame_deopt(MVMThreadContext *tc, MVMFrame *f) {
+    f->effective_spesh_slots = NULL;
+    f->spesh_cand = NULL;
+    f->jit_entry_label = NULL;
 }
 
 /* De-optimizes the currently executing frame, provided it is specialized and
@@ -289,7 +267,6 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_idx) {
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
         MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
 #endif
-    clear_dynlex_cache(tc, f);
     assert(f->spesh_cand != NULL);
     assert(deopt_idx < f->spesh_cand->body.num_deopts);
     if (f->spesh_cand) {
@@ -298,7 +275,37 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_idx) {
 #if MVM_LOG_DEOPTS
         fprintf(stderr, "    Will deopt %u -> %u\n", deopt_offset, deopt_target);
 #endif
-        deopt_frame(tc, tc->cur_frame, deopt_idx, deopt_offset, deopt_target);
+        begin_frame_deopt(tc, f, deopt_idx);
+
+        /* Check if we have inlines. */
+        if (f->spesh_cand->body.inlines) {
+            /* Yes, going to have to re-create the frames; uninline
+             * moves the interpreter, so we can just tweak the last
+             * frame. For the moment, uninlining creates its frames
+             * on the heap, so we'll force the current call stack to
+             * the heap to preserve the "no heap -> stack pointers"
+             * invariant. */
+            f = MVM_frame_force_to_heap(tc, f);
+            MVMROOT(tc, f, {
+                uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, NULL);
+            });
+#if MVM_LOG_DEOPTS
+            fprintf(stderr, "    Completed deopt_one in '%s' (cuid '%s') with potential uninlining\n",
+                MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
+                MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid));
+#endif
+        }
+        else {
+            /* No inlining; simple case. Switch back to the original code. */
+            *(tc->interp_cur_op)         = f->static_info->body.bytecode + deopt_target;
+            *(tc->interp_bytecode_start) = f->static_info->body.bytecode;
+#if MVM_LOG_DEOPTS
+            fprintf(stderr, "    Completed deopt_one in '%s' (cuid '%s')\n",
+                MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+                MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
+        }
+        finish_frame_deopt(tc, f);
     }
     else {
         MVM_oops(tc, "deopt_one failed for %s (%s)",
@@ -309,10 +316,48 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_idx) {
     MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
 }
 
+/* Walk the call stack, excluding the current frame, looking for specialized
+ * call frames. If we find them, mark them as needing to be lazily deopt'd
+ * when unwind reaches them. (This allows us to only ever deopt the stack
+ * top.) */
+void MVM_spesh_deopt_all(MVMThreadContext *tc) {
+    /* Logging/profiling for global deopt. */
+#if MVM_LOG_DEOPTS
+    fprintf(stderr, "Deopt all requested in frame '%s' (cuid '%s')\n",
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
+    if (tc->instance->profiling)
+        MVM_profiler_log_deopt_all(tc);
 
-/* Takes a frame that is *not* the one currently running on the call stack
- * but is in specialized code. Finds the currently active deopt index at
- * the point of its latest call. Returns -1 if none can be resolved. */
+    /* Create iterator and skip a frame. */
+    MVMCallStackIterator iter;
+    MVM_callstack_iter_frame_init(tc, &iter, tc->stack_top);
+    if (!MVM_callstack_iter_move_next(tc, &iter))
+        return;
+
+    /* Go throught the frames looking for specialized, non-deopt, ones. */
+    while (MVM_callstack_iter_move_next(tc, &iter)) {
+        MVMCallStackRecord *record = MVM_callstack_iter_current(tc, &iter);
+        if (record->kind != MVM_CALLSTACK_RECORD_DEOPT_FRAME) {
+            MVMFrame *frame = MVM_callstack_record_to_frame(record);
+            if (frame->spesh_cand) {
+                /* Needs deoptimizing; mark it as such. */
+                record->orig_kind = record->kind;
+                record->kind = MVM_CALLSTACK_RECORD_DEOPT_FRAME;
+#if MVM_LOG_DEOPTS
+                fprintf(stderr, "  Marked frame '%s' (cuid '%s') for lazy deopt\n",
+                    MVM_string_utf8_encode_C_string(tc, frame->static_info->body.name),
+                    MVM_string_utf8_encode_C_string(tc, frame->static_info->body.cuuid));
+#endif
+            }
+        }
+    }
+}
+
+/* Takes a frame that we're lazily deoptimizing and finds the currently
+ * active deopt index at the point of the call it was making. Returns -1 if
+ * none can be resolved. */
 MVMint32 MVM_spesh_deopt_find_inactive_frame_deopt_idx(MVMThreadContext *tc, MVMFrame *f) {
     /* Is it JITted code? */
     if (f->spesh_cand->body.jitcode) {
@@ -347,72 +392,33 @@ MVMint32 MVM_spesh_deopt_find_inactive_frame_deopt_idx(MVMThreadContext *tc, MVM
     return -1;
 }
 
-/* De-optimizes all specialized frames on the call stack. Used when a change
- * is made the could invalidate all kinds of assumptions all over the place
- * (such as a mix-in). */
-void MVM_spesh_deopt_all(MVMThreadContext *tc) {
-    /* Walk frames looking for any callers in specialized bytecode. */
-    MVMFrame *l = MVM_frame_force_to_heap(tc, tc->cur_frame);
-    MVMFrame *f = tc->cur_frame->caller;
+/* Called during stack unwinding when we reach a frame that was marked as
+ * needing to be deoptimized lazily. Performs that deoptimization. Note
+ * that this may actually modify the call stack by adding new records on
+ * top of it, if we have to uninline. */
+void MVM_spesh_deopt_during_unwind(MVMThreadContext *tc) {
+    /* Get the frame from the record. If we're calling this, we know it's the
+     * stack top one. */
+    MVMCallStackRecord *record = tc->stack_top;
+    MVMFrame *frame = MVM_callstack_record_to_frame(record);
 #if MVM_LOG_DEOPTS
-    fprintf(stderr, "Deopt all requested in frame '%s' (cuid '%s')\n",
-        MVM_string_utf8_encode_C_string(tc, l->static_info->body.name),
-        MVM_string_utf8_encode_C_string(tc, l->static_info->body.cuuid));
+    fprintf(stderr, "Lazy deopt on unwind of frame '%s' (cuid '%s')\n",
+        MVM_string_utf8_encode_C_string(tc, frame->static_info->body.name),
+        MVM_string_utf8_encode_C_string(tc, frame->static_info->body.cuuid));
 #endif
-    if (tc->instance->profiling)
-        MVM_profiler_log_deopt_all(tc);
 
-    while (f) {
-        clear_dynlex_cache(tc, f);
-        if (f->spesh_cand) {
-            MVMint32 deopt_idx = MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, f);
-            if (deopt_idx >= 0) {
-                /* Re-create any frames needed if we're in an inline; if not,
-                 * just update return address. */
-                MVMint32 deopt_offset = f->spesh_cand->body.deopts[2 * deopt_idx + 1];
-                MVMint32 deopt_target = f->spesh_cand->body.deopts[2 * deopt_idx];
-                MVMROOT2(tc, f, l, {
-                    materialize_replaced_objects(tc, f, deopt_idx);
-                });
-                if (f->spesh_cand->body.inlines) {
-                    MVMROOT2(tc, f, l, {
-                        uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, l);
-                    });
-#if MVM_LOG_DEOPTS
-                    fprintf(stderr, "    Deopted frame '%s' (cuid '%s') with potential uninlining\n",
-                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
-                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid));
-#endif
-                }
-                else {
-                    f->return_address = f->static_info->body.bytecode + deopt_target;
-#if MVM_LOG_DEOPTS
-                    fprintf(stderr, "    Deopted frame '%s' (cuid '%s')\n",
-                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
-                        MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid));
-#endif
-                }
+    /* Find the deopt index, and assuming it's found, deopt. */
+    MVMint32 deopt_idx = MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, frame);
+    if (deopt_idx >= 0) {
+        begin_frame_deopt(tc, frame, deopt_idx);
 
-                /* No spesh cand/slots needed now. */
-                deopt_named_args_used(tc, f);
-                f->effective_spesh_slots = NULL;
-                if (f->spesh_cand->body.jitcode) {
-                    f->spesh_cand = NULL;
-                    f->jit_entry_label = NULL;
-                    /* XXX This break is wrong and hides a bug. */
-                    break;
-                }
-                else {
-                    f->spesh_cand = NULL;
-                }
-            }
-        }
-        l = f;
-        f = f->caller;
+        /* Rewrite return address. */
+        MVMuint32 deopt_target = frame->spesh_cand->body.deopts[deopt_idx * 2];
+        frame->return_address = frame->static_info->body.bytecode + deopt_target;
+
+        finish_frame_deopt(tc, frame);
     }
 
-    MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
-#if MVM_LOG_DEOPTS
-    fprintf(stderr, "Deopt all completed\n");
-#endif
+    /* Update the record to indicate we're no long in need of deopt. */
+    record->kind = record->orig_kind;
 }
