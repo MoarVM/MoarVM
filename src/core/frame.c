@@ -258,6 +258,21 @@ static MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
     return result;
 }
 
+/* Makes sure memory is cleared for the stack frame entry. */
+MVM_STATIC_INLINE void MVM_frame_init_on_stack(MVMFrame *frame) {
+    /* Ensure collectable header flags and owner are zeroed, which means we'll
+     * never try to mark or root the frame. */
+    frame->header.flags1 = 0;
+    frame->header.flags2 = 0;
+    frame->header.owner = 0;
+
+    /* Current arguments callsite must be NULL as it's used in GC. Extra must
+     * be NULL so we know we don't have it. Flags should be zeroed. */
+    frame->cur_args_callsite = NULL;
+    frame->extra = NULL;
+    frame->flags = 0;
+}
+
 /* Obtains memory for a frame that we are about to enter and run bytecode in. Prefers
  * the callstack by default, but can put the frame onto the heap if it tends to be
  * promoted there anyway. Returns a pointer to the frame wherever in memory it ends
@@ -284,18 +299,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
         /* Allocate the frame on the call stack. */
         MVMCallStackFrame *record = MVM_callstack_allocate_frame(tc);
         frame = &(record->frame);
-
-        /* Ensure collectable header flags and owner are zeroed, which means we'll
-         * never try to mark or root the frame. */
-        frame->header.flags1 = 0;
-        frame->header.flags2 = 0;
-        frame->header.owner = 0;
-
-        /* Current arguments callsite must be NULL as it's used in GC. Extra must
-         * be NULL so we know we don't have it. Flags should be zeroed. */
-        frame->cur_args_callsite = NULL;
-        frame->extra = NULL;
-        frame->flags = 0;
+        MVM_frame_init_on_stack(frame);
     }
 
     /* Allocate space for lexicals and work area. */
@@ -347,48 +351,34 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
     return frame;
 }
 
-/* Obtains memory for a frame on the heap. */
-static MVMFrame * allocate_heap_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame,
-                                      MVMSpeshCandidate *spesh_cand) {
-    MVMFrame *frame;
-    MVMint32  env_size, work_size;
-    MVMStaticFrameBody *static_frame_body;
-
-    /* Allocate the frame. */
-    MVMROOT2(tc, static_frame, spesh_cand, {
-        frame = MVM_gc_allocate_frame(tc);
-    });
+/* Set up a deopt frame. */
+void MVM_frame_setup_deopt(MVMThreadContext *tc, MVMFrame *frame, MVMStaticFrame *static_frame,
+        MVMCode *code_ref) {
+    /* Initialize various frame properties. */
+    MVM_frame_init_on_stack(frame);
+    frame->static_info = static_frame;
+    frame->code_ref = (MVMObject *)code_ref;
+    frame->outer = code_ref->body.outer;
 
     /* Allocate space for lexicals and work area. */
-    static_frame_body = &(static_frame->body);
-    env_size = spesh_cand ? spesh_cand->body.env_size : static_frame_body->env_size;
+    MVMStaticFrameBody *static_frame_body = &(static_frame->body);
+    MVMint32 env_size = static_frame_body->env_size;
     if (env_size) {
         frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
         frame->allocd_env = env_size;
     }
-    work_size = spesh_cand ? spesh_cand->body.work_size : static_frame_body->work_size;
-    if (work_size) {
-        if (spesh_cand) {
-            /* We make sure to initialize anything that can be read before
-             * being initialized with VMNull at frame entyr, so we can
-             * just provide zeroed memory here. */
-            frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, work_size);
-        }
-        else {
-            /* Copy in a stub frame work area. */
-            frame->work = MVM_fixed_size_alloc(tc, tc->instance->fsa, work_size);
-            memcpy(frame->work, static_frame_body->work_initial,
-                sizeof(MVMRegister) * static_frame_body->num_locals);
-        }
-        frame->allocd_work = work_size;
-
-        /* Calculate args buffer position. */
-        frame->args = frame->work + (spesh_cand
-            ? spesh_cand->body.num_locals
-            : static_frame_body->num_locals);
+    else {
+        frame->env = NULL;
     }
-
-    return frame;
+    MVMint32 work_size = static_frame_body->work_size;
+    if (work_size) {
+        frame->work = MVM_fixed_size_alloc(tc, tc->instance->fsa, work_size);
+        frame->allocd_work = work_size;
+        frame->args = frame->work + static_frame_body->num_locals;
+    }
+    else {
+        frame->work = NULL;
+    }
 }
 
 /* This exists to reduce the amount of pointer-fiddling that has to be
@@ -882,19 +872,6 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *debug_tc,
     if (!result)
         MVM_panic(1, "Failed to find frame to promote on foreign thread's call stack");
     return result;
-}
-
-/* Creates a frame for de-optimization purposes. */
-MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *static_frame,
-                                      MVMCode *code_ref) {
-    MVMFrame *frame;
-    MVMROOT2(tc, static_frame, code_ref, {
-        frame = allocate_heap_frame(tc, static_frame, NULL);
-    });
-    MVM_ASSIGN_REF(tc, &(frame->header), frame->static_info, static_frame);
-    MVM_ASSIGN_REF(tc, &(frame->header), frame->code_ref, code_ref);
-    MVM_ASSIGN_REF(tc, &(frame->header), frame->outer, code_ref->body.outer);
-    return frame;
 }
 
 /* Removes a single frame, as part of a return or unwind. Done after any exit

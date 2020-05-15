@@ -28,11 +28,12 @@ struct MVMSpeshInline {
     /* The number of locals in the inline. */
     MVMuint16 num_locals;
 
-    /* Result register and result type. */
+    /* Result register and result type at the point of the call that has been
+     * inlined. */
     MVMuint16     res_reg;
     MVMReturnType res_type;
 
-    /* Deopt index used to find return address. */
+    /* Deopt index used to find return address of the caller if we uninline. */
     MVMuint32 return_deopt_idx;
 
     /* If the inline became unreachable after being made, we'll mark it as
