@@ -277,6 +277,18 @@ void MVM_callstack_mark(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSn
     }
 }
 
+/* Frees detached regions of the callstack, for example if a continuation is
+ * taken, but never invoked, and then gets collected. */
+void MVM_callstack_free_detached_regions(MVMThreadContext *tc, MVMCallStackRegion *first_region,
+        MVMCallStackRecord *stack_top) {
+    if (first_region && stack_top) {
+        /* For now, we don't have any unwind cleanup work that causes leaks if
+         * we don't do it; in the future, we may, in which case it needs to
+         * be done here. For now, it's sufficient just to free the regions. */
+        free_regions_from(first_region);
+    }
+}
+
 /* Called at thread exit to destroy all callstack regions the thread has. */
 void MVM_callstack_destroy(MVMThreadContext *tc) {
     free_regions_from(tc->stack_first_region);
