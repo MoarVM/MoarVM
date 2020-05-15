@@ -172,8 +172,9 @@ void MVM_callstack_continuation_append(MVMThreadContext *tc, MVMCallStackRegion 
     tc->stack_current_region->next = first_region;
     first_region->prev = tc->stack_current_region;
 
-    /* Make sure the current stack region is the final one, if we appended many. */
-    while (tc->stack_current_region->next)
+    /* Make sure the current stack region is the one containing the stack top. */
+    while ((char *)stack_top < tc->stack_current_region->start ||
+            (char *)stack_top > tc->stack_current_region->alloc)
         tc->stack_current_region = tc->stack_current_region->next;
 
     /* Make the first record we splice in point back to the current stack top. */
