@@ -214,7 +214,7 @@ static int is_bytecode_frame(MVMuint8 kind) {
             return 0;
     }
 }
-void MVM_callstack_unwind_frame(MVMThreadContext *tc) {
+MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc) {
     do {
         /* Ensure region and stack top are in a consistent state. */
         assert(tc->stack_current_region->start <= (char *)tc->stack_top);
@@ -248,6 +248,7 @@ void MVM_callstack_unwind_frame(MVMThreadContext *tc) {
                 MVM_panic(1, "Unknown call stack record type in unwind");
         }
     } while (tc->stack_top && !is_bytecode_frame(tc->stack_top->kind));
+    return tc->stack_top ? MVM_callstack_record_to_frame(tc->stack_top) : NULL;
 }
 
 /* Walk the linked list of records and mark each of them. */
