@@ -45,7 +45,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMContinuation *ctx = (MVMContinuation *)obj;
-    MVM_panic(1, "need to update continuation gc_free");
+    MVM_callstack_free_detached_regions(tc, ctx->body.first_region, ctx->body.stack_top);
     if (ctx->body.active_handlers) {
         MVMActiveHandler *cur_ah = ctx->body.active_handlers;
         while (cur_ah != NULL) {
