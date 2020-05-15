@@ -49,7 +49,7 @@ static MVMCallStackRecord * allocate_record(MVMThreadContext *tc, MVMuint8 kind,
 
 /* Gets the actual size of a record (including any dynamically sized parts). */
 size_t record_size(MVMCallStackRecord *record) {
-    switch (record->kind) {
+    switch (MVM_callstack_kind_ignoring_deopt(record)) {
         case MVM_CALLSTACK_RECORD_START:
             return sizeof(MVMCallStackStart);
         case MVM_CALLSTACK_RECORD_START_REGION:
@@ -189,7 +189,7 @@ MVMFrame * MVM_callstack_first_frame_in_region(MVMThreadContext *tc, MVMCallStac
     char *cur_pos = region->start;
     while (cur_pos < region->alloc) {
         MVMCallStackRecord *record = (MVMCallStackRecord *)cur_pos;
-        switch (record->kind) {
+        switch (MVM_callstack_kind_ignoring_deopt(record)) {
             case MVM_CALLSTACK_RECORD_FRAME:
                 return &(((MVMCallStackFrame *)record)->frame);
             case MVM_CALLSTACK_RECORD_HEAP_FRAME:
@@ -225,18 +225,25 @@ void MVM_callstack_unwind_frame(MVMThreadContext *tc) {
         switch (tc->stack_top->kind) {
             case MVM_CALLSTACK_RECORD_START_REGION:
             case MVM_CALLSTACK_RECORD_CONTINUATION_TAG:
+                /* Sync region and move to previous record. */
                 tc->stack_current_region = tc->stack_current_region->prev;
+                tc->stack_top = tc->stack_top->prev;
+                break;
+            case MVM_CALLSTACK_RECORD_DEOPT_FRAME:
+                /* Deopt it, but don't move stack top back, since it will now
+                 * already point at a deoptimized frame. */
+                MVM_panic(1, "lazy deopt NYI");
                 break;
             case MVM_CALLSTACK_RECORD_START:
             case MVM_CALLSTACK_RECORD_FRAME:
             case MVM_CALLSTACK_RECORD_HEAP_FRAME:
             case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
-                /* No cleanup to do. */
+                /* No cleanup to do, just move to next record. */
+                tc->stack_top = tc->stack_top->prev;
                 break;
             default:
                 MVM_panic(1, "Unknown call stack record type in unwind");
         }
-        tc->stack_top = tc->stack_top->prev;
     } while (tc->stack_top && !is_bytecode_frame(tc->stack_top->kind));
 }
 
@@ -255,7 +262,7 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
         MVMHeapSnapshotState *snapshot) {
     MVMCallStackRecord *record = from_record;
     while (record) {
-        switch (record->kind) {
+        switch (MVM_callstack_kind_ignoring_deopt(record)) {
             case MVM_CALLSTACK_RECORD_FRAME:
                 MVM_gc_root_add_frame_roots_to_worklist(tc, worklist,
                         &(((MVMCallStackFrame *)record)->frame));
