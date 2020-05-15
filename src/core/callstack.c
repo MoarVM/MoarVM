@@ -237,7 +237,7 @@ void MVM_callstack_unwind_frame(MVMThreadContext *tc) {
     } while (tc->stack_top && !is_bytecode_frame(tc->stack_top->kind));
 }
 
-/* Walk the callstack and GC-mark its content. */
+/* Walk the linked list of records and mark each of them. */
 #define add_collectable(tc, worklist, snapshot, col, desc) \
     do { \
         if (worklist) { \
@@ -248,8 +248,9 @@ void MVM_callstack_unwind_frame(MVMThreadContext *tc) {
                 (MVMCollectable *)col, desc); \
         } \
     } while (0)
-void MVM_callstack_mark(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
-    MVMCallStackRecord *record = tc->stack_top;
+static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWorklist *worklist,
+        MVMHeapSnapshotState *snapshot) {
+    MVMCallStackRecord *record = from_record;
     while (record) {
         switch (record->kind) {
             case MVM_CALLSTACK_RECORD_FRAME:
@@ -266,6 +267,11 @@ void MVM_callstack_mark(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSn
                         ((MVMCallStackPromotedFrame *)record)->frame,
                         "Callstack reference to heap-promoted frame");
                 break;
+            case MVM_CALLSTACK_RECORD_CONTINUATION_TAG:
+                add_collectable(tc, worklist, snapshot,
+                        ((MVMCallStackContinuationTag *)record)->tag,
+                        "Continuation tag");
+                break;
             case MVM_CALLSTACK_RECORD_START:
             case MVM_CALLSTACK_RECORD_START_REGION:
                 /* Nothing to mark. */
@@ -275,6 +281,19 @@ void MVM_callstack_mark(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSn
         }
         record = record->prev;
     }
+}
+
+/* Walk the current thread's callstack and GC-mark its content. */
+void MVM_callstack_mark_current_thread(MVMThreadContext *tc, MVMGCWorklist *worklist,
+        MVMHeapSnapshotState *snapshot) {
+    mark(tc, tc->stack_top, worklist, snapshot);
+}
+
+/* Walk the records chain from the specified stack top. This is used when we
+ * have a chunk of records detached from the callstack. */
+void MVM_callstack_mark_detached(MVMThreadContext *tc, MVMCallStackRecord *stack_top,
+        MVMGCWorklist *worklist) {
+    mark(tc, stack_top, worklist, NULL);
 }
 
 /* Frees detached regions of the callstack, for example if a continuation is

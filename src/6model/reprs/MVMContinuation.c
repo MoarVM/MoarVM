@@ -25,7 +25,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMContinuationBody *body = (MVMContinuationBody *)data;
-    MVM_panic(1, "need to update continuation GC mark");
+    MVM_callstack_mark_detached(tc, body->stack_top, worklist);
     if (body->active_handlers) {
         MVMActiveHandler *cur_ah = body->active_handlers;
         while (cur_ah != NULL) {
