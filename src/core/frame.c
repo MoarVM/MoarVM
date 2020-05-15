@@ -901,9 +901,7 @@ MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *stat
  * handler has already been run. */
 static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     MVMFrame *returner = tc->cur_frame;
-    MVMFrame *caller   = returner->caller;
     MVMuint32 need_caller;
-    MVM_ASSERT_NOT_FROMSPACE(tc, caller);
 
     /* Clear up any extra frame data. */
     if (returner->extra) {
@@ -945,13 +943,12 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
             returner->caller = NULL;
     }
 
-    /* Unwind call stack entries. */
-    MVM_callstack_unwind_frame(tc);
+    /* Unwind call stack entries. From this, we find out the caller. This may
+     * actually *not* be the caller in the frame, because of lazy deopt. */
+    MVMFrame *caller = MVM_callstack_unwind_frame(tc);
 
     /* Switch back to the caller frame if there is one. */
     if (caller && (returner != tc->thread_entry_frame || tc->nested_interpreter)) {
-        assert(MVM_callstack_current_frame(tc) == caller);
-
        if (tc->jit_return_address != NULL) {
             /* on a JIT frame, exit to interpreter afterwards */
             MVMJitCode *jitcode = returner->spesh_cand->body.jitcode;
@@ -996,8 +993,8 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         }
 
         if (returner == tc->thread_entry_frame && tc->cur_frame == caller) {
-                tc->cur_frame = NULL;
-                return 0;
+            tc->cur_frame = NULL;
+            return 0;
         }
         else {
             /* We're either somewhere in a nested call or already up in the top
