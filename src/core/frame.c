@@ -660,7 +660,7 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
             /* Check this isn't already a heap or promoted frame; if it is, we're
              * done. */
             MVMCallStackRecord *record = MVM_callstack_iter_current(tc, &iter);
-            if (record->kind != MVM_CALLSTACK_RECORD_FRAME)
+            if (MVM_callstack_kind_ignoring_deopt(record) != MVM_CALLSTACK_RECORD_FRAME)
                 break;
             MVMCallStackFrame *unpromoted_record = (MVMCallStackFrame *)record;
             cur_to_promote = &(unpromoted_record->frame);
@@ -692,7 +692,10 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
 
             /* Update stack record to indicate the promotion, and make it
              * reference the heap frame. */
-            record->kind = MVM_CALLSTACK_RECORD_PROMOTED_FRAME;
+            if (record->kind == MVM_CALLSTACK_RECORD_DEOPT_FRAME)
+                record->orig_kind = MVM_CALLSTACK_RECORD_PROMOTED_FRAME;
+            else
+                record->kind = MVM_CALLSTACK_RECORD_PROMOTED_FRAME;
             ((MVMCallStackPromotedFrame *)record)->frame = promoted;
 
             /* Update caller of previously promoted frame, if any. This is the
@@ -778,7 +781,7 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *debug_tc,
             /* Check this isn't already a heap or promoted frame; if it is, we're
              * done. */
             MVMCallStackRecord *record = MVM_callstack_iter_current(owner, &iter);
-            if (record->kind != MVM_CALLSTACK_RECORD_FRAME)
+            if (MVM_callstack_kind_ignoring_deopt(record) != MVM_CALLSTACK_RECORD_FRAME)
                 break;
             MVMCallStackFrame *unpromoted_record = (MVMCallStackFrame *)record;
             cur_to_promote = &(unpromoted_record->frame);
@@ -810,7 +813,10 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *debug_tc,
 
             /* Update stack record to indicate the promotion, and make it
              * reference the heap frame. */
-            record->kind = MVM_CALLSTACK_RECORD_PROMOTED_FRAME;
+            if (record->kind == MVM_CALLSTACK_RECORD_DEOPT_FRAME)
+                record->orig_kind = MVM_CALLSTACK_RECORD_PROMOTED_FRAME;
+            else
+                record->kind = MVM_CALLSTACK_RECORD_PROMOTED_FRAME;
             ((MVMCallStackPromotedFrame *)record)->frame = promoted;
 
             /* Update caller of previously promoted frame, if any. This is the

@@ -44,6 +44,12 @@ struct MVMCallStackRecord {
     /* The kind of record this is (constants defined below with each record
      * type). */
     MVMuint8 kind;
+
+    /* Deoptimization of the whole call stack proceeds lazily, by marking a
+     * frame that needs deopt when it's unwound to with the deopt kind (in
+     * the kind field). In that case, this field holds the frame kind that
+     * we started out with. */
+    MVMuint8 orig_kind;
 };
 
 /* The start of a callstack as a whole, for seeing when we've reached the
@@ -98,9 +104,13 @@ struct MVMCallStackPromotedFrame {
     };
 };
 
+/* A frame that needs lazily deoptimizing when we return into it. The orig_kind
+ * then indicates what kind of thing it is. */
+#define MVM_CALLSTACK_RECORD_DEOPT_FRAME        5
+
 /* A continuation tag record, used to find the base of a continuation. This
  * is also a kind of callstack region start. */
-#define MVM_CALLSTACK_RECORD_CONTINUATION_TAG   5
+#define MVM_CALLSTACK_RECORD_CONTINUATION_TAG   6
 struct MVMCallStackContinuationTag {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
@@ -115,7 +125,7 @@ struct MVMCallStackContinuationTag {
 /* An argument flattening record, used to hold the results of flattening a
  * dispatch's arguments. A pointer into this is then used as the args source
  * in the following dispatch. */
-#define MVM_CALLSTACK_RECORD_FLATTENING         6
+#define MVM_CALLSTACK_RECORD_FLATTENING         7
 struct MVMCallStackFlattening {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
@@ -126,7 +136,7 @@ struct MVMCallStackFlattening {
 /* A dispatch recording phase record, when we're running the dispatch
  * callback and constructing a dispatch program. May hold dispatch
  * state for a resumption. */
-#define MVM_CALLSTACK_RECORD_DISPATCH_RECORD    7
+#define MVM_CALLSTACK_RECORD_DISPATCH_RECORD    8
 struct MVMCallStackDispatchRecord {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
@@ -136,7 +146,7 @@ struct MVMCallStackDispatchRecord {
 
 /* A dispatch program run record, when we're evaluating a dispatch
  * program. May hold dispatch state for a resumption. */
-#define MVM_CALLSTACK_RECORD_DISPATCH_RUN       8
+#define MVM_CALLSTACK_RECORD_DISPATCH_RUN       9
 struct MVMCallStackDispatchRun {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
@@ -162,8 +172,11 @@ void MVM_callstack_mark_detached(MVMThreadContext *tc, MVMCallStackRecord *stack
 void MVM_callstack_free_detached_regions(MVMThreadContext *tc, MVMCallStackRegion *first_region,
         MVMCallStackRecord *stack_top);
 void MVM_callstack_destroy(MVMThreadContext *tc);
+MVM_STATIC_INLINE MVMuint8 MVM_callstack_kind_ignoring_deopt(MVMCallStackRecord *record) {
+    return record->kind == MVM_CALLSTACK_RECORD_DEOPT_FRAME ? record->orig_kind : record->kind;
+}
 MVM_STATIC_INLINE MVMFrame * MVM_callstack_record_to_frame(MVMCallStackRecord *record) {
-    switch (record->kind) {
+    switch (MVM_callstack_kind_ignoring_deopt(record)) {
         case MVM_CALLSTACK_RECORD_FRAME:
             return &(((MVMCallStackFrame *)record)->frame);
         case MVM_CALLSTACK_RECORD_HEAP_FRAME:
@@ -192,7 +205,8 @@ MVM_STATIC_INLINE void MVM_callstack_iter_frame_init(MVMThreadContext *tc,
     iter->current = NULL;
     iter->filter = (1 << MVM_CALLSTACK_RECORD_FRAME |
                     1 << MVM_CALLSTACK_RECORD_HEAP_FRAME |
-                    1 << MVM_CALLSTACK_RECORD_PROMOTED_FRAME);
+                    1 << MVM_CALLSTACK_RECORD_PROMOTED_FRAME |
+                    1 << MVM_CALLSTACK_RECORD_DEOPT_FRAME);
 }
 
 /* Move to the next applicable record. Should be called before reading a current
