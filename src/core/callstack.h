@@ -156,6 +156,8 @@ void MVM_callstack_continuation_append(MVMThreadContext *tc, MVMCallStackRegion 
 MVMFrame * MVM_callstack_first_frame_in_region(MVMThreadContext *tc, MVMCallStackRegion *region);
 void MVM_callstack_unwind_frame(MVMThreadContext *tc);
 void MVM_callstack_mark(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot);
+void MVM_callstack_free_detached_regions(MVMThreadContext *tc, MVMCallStackRegion *first_region,
+        MVMCallStackRecord *stack_top);
 void MVM_callstack_destroy(MVMThreadContext *tc);
 MVM_STATIC_INLINE MVMFrame * MVM_callstack_record_to_frame(MVMCallStackRecord *record) {
     switch (record->kind) {
