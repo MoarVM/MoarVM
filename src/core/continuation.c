@@ -159,10 +159,13 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
     }
 
     /* Splice the call stack region(s) from the continuation onto the top
-     * of our callstack, optionally replacing the continuation tag record. */
+     * of our callstack, optionally replacing the continuation tag record.
+     * Then detach it from the wrapper object. */
     MVM_callstack_continuation_append(tc, cont->body.first_region,
             cont->body.stack_top,
             cont->body.protected_tag ? cont->body.protected_tag : insert_tag);
+    cont->body.first_region = NULL;
+    cont->body.stack_top = NULL;
 
     /* Set up current frame to receive result. */
     tc->cur_frame->return_value = res_reg;
