@@ -152,7 +152,7 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     MVMNativeCallbackCacheHead *current_cbceh;
 
     /* The call stack. */
-    MVM_callstack_mark(tc, worklist, snapshot);
+    MVM_callstack_mark_current_thread(tc, worklist, snapshot);
 
     /* The current frame, if it's on the heap. */
     if (tc->cur_frame && !MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame))
