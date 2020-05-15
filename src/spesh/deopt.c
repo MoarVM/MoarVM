@@ -20,25 +20,40 @@ MVM_STATIC_INLINE void clear_dynlex_cache(MVMThreadContext *tc, MVMFrame *f) {
  * an inlined frame at the point we hit deopt, we need to undo the inlining
  * by switching all levels of inlined frame out for a bunch of frames that
  * are running the de-optimized code. We may, of course, be in the original,
- * non-inline, bit of the code - in which case we've nothing to do. */
+ * non-inline, bit of the code - in which case we've nothing to do once we
+ * have determined that.
+ *
+ * We can rely on the frame we are doing uninling on always being the top
+ * record on the callstack.
+ */
 static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
-                     MVMuint32 offset, MVMuint32 deopt_offset, MVMFrame *callee) {
-    MVMFrame      *last_uninlined = NULL;
-    MVMuint16      last_res_reg = 0;
-    MVMReturnType  last_res_type = 0;
-    MVMuint32      last_return_deopt_idx = 0;
-    MVMuint32 i;
-    for (i = 0; i < cand->body.num_inlines; i++) {
+                     MVMuint32 offset, MVMuint32 deopt_offset) {
+    /* Make absolutely sure this is the top thing on the callstack. */
+    assert(MVM_callstack_current_frame(tc) == f);
+
+    /* We know that nothing can reference an inlined frame (trivially - it did
+     * not exist to reference!) Thus it can be created on the stack. We need to
+     * recreate the frames deepest first. The inlines list is sorted most nested
+     * first, thus we traverse it in the opposite order. */
+    MVMint32 i;
+    for (i = cand->body.num_inlines - 1; i >= 0; i--) {
         if (offset > cand->body.inlines[i].start && offset <= cand->body.inlines[i].end) {
-            /* Create the frame. */
-            MVMCode        *ucode = (MVMCode *)f->work[cand->body.inlines[i].code_ref_reg].o;
-            MVMStaticFrame *usf   = cand->body.inlines[i].sf;
-            MVMFrame       *uf;
+            /* Grab the current frame, which is the caller of this inline. */
+            MVMFrame *caller = MVM_callstack_current_frame(tc);
+
+            /* Resolve the inline's code object and static frame. */
+            MVMStaticFrame *usf = cand->body.inlines[i].sf;
+            MVMCode *ucode = (MVMCode *)f->work[cand->body.inlines[i].code_ref_reg].o;
             if (REPR(ucode)->ID != MVM_REPR_ID_MVMCode)
                 MVM_panic(1, "Deopt: did not find code object when uninlining");
-            MVMROOT5(tc, f, callee, last_uninlined, usf, cand, {
-                uf = MVM_frame_create_for_deopt(tc, usf, ucode);
-            });
+
+            /* Make a record for it on the stack; the MVMFrame is contained in
+             * it. Set up the frame. Note that this moves tc->stack_top, so we
+             * are now considered to be in this frame. */
+            MVMCallStackFrame *urecord = MVM_callstack_allocate_frame(tc);
+            MVMFrame *uf = &(urecord->frame);
+            MVM_frame_setup_deopt(tc, uf, usf, ucode);
+            uf->caller = caller;
 #if MVM_LOG_DEOPTS
             fprintf(stderr, "    Recreated frame '%s' (cuid '%s')\n",
                 MVM_string_utf8_encode_C_string(tc, usf->body.name),
@@ -54,114 +69,38 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                     usf->body.num_lexicals * sizeof(MVMRegister));
 
             /* Store the callsite, in case we need it for further processing
-             * of arguments. (TODO may need to consider the rest of the arg
-             * processing context too.) */
+             * of arguments. Do enough to make sure we've got clean enough
+             * state in the param processing context */
             uf->params.version = MVM_ARGS_LEGACY;
             uf->params.legacy.callsite = cand->body.inlines[i].cs;
+            uf->params.legacy.arg_flags = NULL;
+            uf->params.named_used_size = MVM_callsite_num_nameds(tc, cand->body.inlines[i].cs);
 
             /* Store the named argument used bit field, since if we deopt in
              * argument handling code we may have missed some. */
             if (cand->body.inlines[i].deopt_named_used_bit_field)
                 uf->params.named_used.bit_field = cand->body.inlines[i].deopt_named_used_bit_field;
 
-            /* Did we already uninline a frame? */
-            if (last_uninlined) {
-                /* Yes; multi-level un-inline. Switch it back to deopt'd
-                 * code. */
-                uf->effective_spesh_slots = NULL;
-                uf->spesh_cand            = NULL;
-
-                /* Set up the return location. */
-                uf->return_address = usf->body.bytecode +
-                    cand->body.deopts[2 * last_return_deopt_idx];
-
-                /* Set result type and register. */
-                uf->return_type = last_res_type;
-                if (last_res_type == MVM_RETURN_VOID)
-                    uf->return_value = NULL;
-                else
-                    uf->return_value = uf->work + last_res_reg;
-
-                /* Set up last uninlined's caller to us. */
-                MVM_ASSERT_NOT_FROMSPACE(tc, uf);
-                MVM_ASSIGN_REF(tc, &(last_uninlined->header), last_uninlined->caller, uf);
-            }
-            else {
-                /* First uninlined frame. Are we in the middle of the call
-                 * stack (and thus in deopt_all)? */
-                if (callee) {
-                    /* Tweak the callee's caller to the uninlined frame, not
-                     * the frame holding the inlinings. */
-                    MVM_ASSERT_NOT_FROMSPACE(tc, uf);
-                    MVM_ASSIGN_REF(tc, &(callee->header), callee->caller, uf);
-
-                    /* Copy over the return location. */
-                    uf->return_address = usf->body.bytecode + deopt_offset;
-
-                    /* Set result type and register. */
-                    uf->return_type = f->return_type;
-                    if (uf->return_type == MVM_RETURN_VOID) {
-                        uf->return_value = NULL;
-                    }
-                    else {
-                        MVMuint16 orig_reg = (MVMuint16)(f->return_value - f->work);
-                        MVMuint16 ret_reg  = orig_reg - cand->body.inlines[i].locals_start;
-                        uf->return_value = uf->work + ret_reg;
-                    }
-                }
-                else {
-                    /* No, it's the deopt_one case, so this is where we'll point
-                     * the interpreter. */
-                    tc->cur_frame                = uf;
-                    tc->current_frame_nr         = uf->sequence_nr;
-                    *(tc->interp_cur_op)         = usf->body.bytecode + deopt_offset;
-                    *(tc->interp_bytecode_start) = usf->body.bytecode;
-                    *(tc->interp_reg_base)       = uf->work;
-                    *(tc->interp_cu)             = usf->body.cu;
-                }
-            }
-
-            /* Update tracking variables for last uninline. */
-            last_uninlined        = uf;
-            last_res_reg          = cand->body.inlines[i].res_reg;
-            last_res_type         = cand->body.inlines[i].res_type;
-            last_return_deopt_idx = cand->body.inlines[i].return_deopt_idx;
+            /* Update our caller's return info. */
+            caller->return_type = cand->body.inlines[i].res_type;
+            caller->return_value = caller->return_type == MVM_RETURN_VOID
+                ? NULL
+                : caller->work + cand->body.inlines[i].res_reg;
+            caller->return_address = caller->static_info->body.bytecode +
+                cand->body.deopts[2 * cand->body.inlines[i].return_deopt_idx];
         }
     }
-    if (last_uninlined) {
-        /* Set return address, which we need to resolve to the deopt'd one. */
-        f->return_address = f->static_info->body.bytecode +
-            cand->body.deopts[2 * last_return_deopt_idx];
 
-        /* Set result type and register. */
-        f->return_type = last_res_type;
-        if (last_res_type == MVM_RETURN_VOID)
-            f->return_value = NULL;
-        else
-            f->return_value = f->work + last_res_reg;
-
-        /* Set up inliner as the caller, given we now have a direct inline. */
-        MVM_ASSERT_NOT_FROMSPACE(tc, f);
-        MVM_ASSIGN_REF(tc, &(last_uninlined->header), last_uninlined->caller, f);
-
-        /* Clear our current callsite. Inlining does not set this up, so it may
-         * well be completely bogus with regards to the current call. */
-        f->cur_args_callsite = NULL;
-    }
-    else {
-        /* Weren't in an inline after all. What kind of deopt? */
-        if (callee) {
-            /* Deopt all. Move return address. */
-            f->return_address = f->static_info->body.bytecode + deopt_offset;
-        }
-        else {
-            /* Deopt one. Move interpreter. */
-            *(tc->interp_cur_op)         = f->static_info->body.bytecode + deopt_offset;
-            *(tc->interp_bytecode_start) = f->static_info->body.bytecode;
-        }
-    }
+    /* By this point, either we did some inlining and the deepest uninlined
+     * frame is on the top of the callstack, or there was nothing to uninline
+     * and so we're just in the same frame. Since the deopt target when we
+     * are in an inline relates to the deepest frame, we can just leave our
+     * caller to take the appropriate action to move either the interpreter
+     * or return address to the deopt'd one. */
 }
 
+/* We optimize away some bits of args checking; here we re-instate the used named
+ * arguments bit field, which is required in unoptimized code. */
 static void deopt_named_args_used(MVMThreadContext *tc, MVMFrame *f) {
     if (f->spesh_cand->body.deopt_named_used_bit_field)
         f->params.named_used.bit_field = f->spesh_cand->body.deopt_named_used_bit_field;
@@ -277,34 +216,31 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_idx) {
 #endif
         begin_frame_deopt(tc, f, deopt_idx);
 
-        /* Check if we have inlines. */
+        /* Perform any uninlining. */
+        MVMFrame *top_frame; 
         if (f->spesh_cand->body.inlines) {
-            /* Yes, going to have to re-create the frames; uninline
-             * moves the interpreter, so we can just tweak the last
-             * frame. For the moment, uninlining creates its frames
-             * on the heap, so we'll force the current call stack to
-             * the heap to preserve the "no heap -> stack pointers"
-             * invariant. */
-            f = MVM_frame_force_to_heap(tc, f);
-            MVMROOT(tc, f, {
-                uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, NULL);
-            });
-#if MVM_LOG_DEOPTS
-            fprintf(stderr, "    Completed deopt_one in '%s' (cuid '%s') with potential uninlining\n",
-                MVM_string_utf8_encode_C_string(tc, f->static_info->body.name),
-                MVM_string_utf8_encode_C_string(tc, f->static_info->body.cuuid));
-#endif
+            /* Perform uninlining. The top frame may have changes, so sync things
+             * up. */
+            uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target);
+            top_frame = MVM_callstack_current_frame(tc);
+            tc->cur_frame = top_frame;
+            tc->current_frame_nr = top_frame->sequence_nr;
+            *(tc->interp_reg_base) = top_frame->work;
+            *(tc->interp_cu) = top_frame->static_info->body.cu;
         }
         else {
-            /* No inlining; simple case. Switch back to the original code. */
-            *(tc->interp_cur_op)         = f->static_info->body.bytecode + deopt_target;
-            *(tc->interp_bytecode_start) = f->static_info->body.bytecode;
-#if MVM_LOG_DEOPTS
-            fprintf(stderr, "    Completed deopt_one in '%s' (cuid '%s')\n",
-                MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
-                MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
-#endif
+            /* No uninlining, so we know the top frame didn't change. */
+            top_frame = f;
         }
+
+        /* Move the program counter of the interpreter. */
+        *(tc->interp_cur_op)         = top_frame->static_info->body.bytecode + deopt_target;
+        *(tc->interp_bytecode_start) = top_frame->static_info->body.bytecode;
+#if MVM_LOG_DEOPTS
+        fprintf(stderr, "    Completed deopt_one in '%s' (cuid '%s')\n",
+            MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+            MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
         finish_frame_deopt(tc, f);
     }
     else {
@@ -410,11 +346,27 @@ void MVM_spesh_deopt_during_unwind(MVMThreadContext *tc) {
     /* Find the deopt index, and assuming it's found, deopt. */
     MVMint32 deopt_idx = MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, frame);
     if (deopt_idx >= 0) {
+        MVMuint32 deopt_target = frame->spesh_cand->body.deopts[deopt_idx * 2];
+        MVMuint32 deopt_offset = frame->spesh_cand->body.deopts[deopt_idx * 2 + 1];
         begin_frame_deopt(tc, frame, deopt_idx);
 
-        /* Rewrite return address. */
-        MVMuint32 deopt_target = frame->spesh_cand->body.deopts[deopt_idx * 2];
-        frame->return_address = frame->static_info->body.bytecode + deopt_target;
+        /* Potentially need to uninline. This leaves the top frame being the
+         * one we're returning into. Otherwise, the top frame is the current
+         * one. */
+        MVMFrame *top_frame;
+        if (frame->spesh_cand->body.inlines) {
+            uninline(tc, frame, frame->spesh_cand, deopt_offset, deopt_target);
+            top_frame = MVM_callstack_current_frame(tc);
+        }
+        else {
+            top_frame = frame;
+        }
+
+        /* Rewrite return address in the current top frame. */
+        top_frame->return_address = top_frame->static_info->body.bytecode + deopt_target;
+#if MVM_LOG_DEOPTS
+        fprintf(stderr, "    Deopt %u -> %u without uninlining\n", deopt_offset, deopt_target);
+#endif
 
         finish_frame_deopt(tc, frame);
     }
