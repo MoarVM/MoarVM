@@ -216,6 +216,8 @@ static int is_bytecode_frame(MVMuint8 kind) {
 void MVM_callstack_unwind_frame(MVMThreadContext *tc) {
     do {
         /* Move back allocation pointer. */
+        assert(tc->stack_current_region->start <= (char *)tc->stack_top);
+        assert((char *)tc->stack_top < tc->stack_current_region->alloc);
         tc->stack_current_region->alloc = (char *)tc->stack_top;
 
         /* Do any cleanup actions needed. */
