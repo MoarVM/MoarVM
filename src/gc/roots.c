@@ -155,7 +155,7 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
  * context, but that isn't permanent. */
 void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     /* The call stack. */
-    MVM_callstack_mark(tc, worklist, snapshot);
+    MVM_callstack_mark_current_thread(tc, worklist, snapshot);
 
     /* The current frame, if it's on the heap. */
     if (tc->cur_frame && !MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame))
