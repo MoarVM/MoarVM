@@ -7,27 +7,6 @@ typedef struct {
     MVMProfileCallNode **list;
 } NodeWorklist;
 
-/*static void add_node(MVMThreadContext *tc, NodeWorklist *list, MVMProfileCallNode *node) {*/
-    /*if (list->items == list->alloc) {*/
-        /*[> Filled up the whole list. Make it bigger <]*/
-        /*list->alloc *= 2;*/
-        /*list->list = MVM_realloc(list->list, list->alloc * sizeof(MVMProfileCallNode *));*/
-    /*}*/
-    /*[> Add at the end <]*/
-    /*list->list[list->items] = node;*/
-    /*list->items++;*/
-/*}*/
-
-/*static MVMProfileCallNode *take_node(MVMThreadContext *tc, NodeWorklist *list) {*/
-    /*MVMProfileCallNode *result = NULL;*/
-    /*if (list->items == 0) {*/
-        /*MVM_panic(1, "profiler: tried to take a node from an empty node worklist");*/
-    /*}*/
-    /*list->items--;*/
-    /*result = list->list[list->items];*/
-    /*return result;*/
-/*}*/
-
 /* Adds an instruction to log an allocation. */
 static void add_allocation_logging_at_location(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMSpeshIns *location) {
     MVMSpeshIns *alloc_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
@@ -932,15 +911,6 @@ MVMObject * MVM_profile_instrumented_end(MVMThreadContext *tc) {
 }
 
 
-/* Marks objects held in the profiling graph. */
-static void mark_call_graph_node(MVMThreadContext *tc, MVMProfileCallNode *node, NodeWorklist *nodelist, MVMGCWorklist *worklist) {
-    MVMuint32 i;
-    /*MVM_gc_worklist_add(tc, worklist, &(node->sf));*/
-    /*for (i = 0; i < node->num_alloc; i++)*/
-        /*MVM_gc_worklist_add(tc, worklist, &(node->alloc[i].type));*/
-    /*for (i = 0; i < node->num_succ; i++)*/
-        /*add_node(tc, nodelist, node->succ[i]);*/
-}
 static void mark_gc_entries(MVMThreadContext *tc, MVMProfileThreadData *ptd, MVMGCWorklist *worklist) {
     MVMuint32 gci;
     for (gci = 0; gci < ptd->num_gcs; gci++) {
@@ -955,19 +925,6 @@ void MVM_profile_instrumented_mark_data(MVMThreadContext *tc, MVMGCWorklist *wor
     if (tc->prof_data) {
         MVMProfileThreadData *ptd = tc->prof_data;
         MVMuint32 index;
-        /* Allocate our worklist on the stack. */
-        /*NodeWorklist nodelist;*/
-        /*nodelist.items = 0;*/
-        /*nodelist.alloc = 256;*/
-        /*nodelist.list = MVM_malloc(nodelist.alloc * sizeof(MVMProfileCallNode *));*/
-
-        /*add_node(tc, &nodelist, tc->prof_data->call_graph);*/
-
-        /*while (nodelist.items) {*/
-            /*MVMProfileCallNode *node = take_node(tc, &nodelist);*/
-            /*if (node)*/
-                /*mark_call_graph_node(tc, node, &nodelist, worklist);*/
-        /*}*/
 
         for (index = 0; index < MVM_VECTOR_ELEMS(ptd->staticframe_array); index++)
             MVM_gc_worklist_add(tc, worklist, &(ptd->staticframe_array[index]));
@@ -977,8 +934,6 @@ void MVM_profile_instrumented_mark_data(MVMThreadContext *tc, MVMGCWorklist *wor
         MVM_gc_worklist_add(tc, worklist, &(tc->prof_data->collected_data));
 
         mark_gc_entries(tc, tc->prof_data, worklist);
-
-        /*MVM_free(nodelist.list);*/
     }
 }
 
