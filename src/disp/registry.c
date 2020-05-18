@@ -88,6 +88,7 @@ void MVM_disp_registry_init(MVMThreadContext *tc) {
 
     /* Add each of the boot dispatchers. */
     MVM_gc_allocate_gen2_default_set(tc);
+    register_boot_dispatcher(tc, "boot-constant", MVM_disp_boot_constant_dispatch(tc));
     register_boot_dispatcher(tc, "boot-value", MVM_disp_boot_value_dispatch(tc));
     MVM_gc_allocate_gen2_default_clear(tc);
 }
