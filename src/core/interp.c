@@ -5753,6 +5753,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 tc->cur_frame->return_value = NULL;
                 tc->cur_frame->return_type = MVM_RETURN_VOID;
                 cur_op += 6 + 2 * callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
                 (*ice_ptr)->run_dispatch(tc, ice_ptr, id, callsite, args);
                 goto NEXT;
             }
@@ -5765,6 +5766,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                 tc->cur_frame->return_type  = MVM_RETURN_INT;
                 cur_op += 8 + 2 * callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
                 (*ice_ptr)->run_dispatch(tc, ice_ptr, id, callsite, args);
                 goto NEXT;
             }
@@ -5777,6 +5779,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                 tc->cur_frame->return_type  = MVM_RETURN_NUM;
                 cur_op += 8 + 2 * callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
                 (*ice_ptr)->run_dispatch(tc, ice_ptr, id, callsite, args);
                 goto NEXT;
             }
@@ -5789,6 +5792,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                 tc->cur_frame->return_type  = MVM_RETURN_STR;
                 cur_op += 8 + 2 * callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
                 (*ice_ptr)->run_dispatch(tc, ice_ptr, id, callsite, args);
                 goto NEXT;
             }
@@ -5801,6 +5805,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                 tc->cur_frame->return_type  = MVM_RETURN_OBJ;
                 cur_op += 8 + 2 * callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
                 (*ice_ptr)->run_dispatch(tc, ice_ptr, id, callsite, args);
                 goto NEXT;
             }
