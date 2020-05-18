@@ -359,6 +359,7 @@ void MVM_frame_setup_deopt(MVMThreadContext *tc, MVMFrame *frame, MVMStaticFrame
     frame->static_info = static_frame;
     frame->code_ref = (MVMObject *)code_ref;
     frame->outer = code_ref->body.outer;
+    frame->spesh_cand = NULL;
 
     /* Allocate space for lexicals and work area. */
     MVMStaticFrameBody *static_frame_body = &(static_frame->body);
