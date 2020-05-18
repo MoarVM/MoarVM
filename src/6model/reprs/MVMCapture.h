@@ -14,4 +14,9 @@ struct MVMCapture {
 
 /* Function for REPR setup. */
 const MVMREPROps * MVMCapture_initialize(MVMThreadContext *tc);
+
+/* Operations on an MVMCapture. */
 MVMObject * MVM_capture_from_args(MVMThreadContext *tc, MVMArgs args);
+void MVM_capture_arg_pos(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx,
+        MVMRegister *arg_out, MVMCallsiteFlags *arg_type_out);
+MVMObject * MVM_capture_arg_pos_o(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx);

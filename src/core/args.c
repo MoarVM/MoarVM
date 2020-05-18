@@ -593,6 +593,27 @@ void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 f
     }
 }
 
+void MVM_args_set_dispatch_result_obj(MVMThreadContext *tc, MVMFrame *target, MVMObject *result) {
+    switch (target->return_type) {
+        case MVM_RETURN_VOID:
+            break;
+        case MVM_RETURN_OBJ:
+            target->return_value->o = result;
+            break;
+        case MVM_RETURN_INT:
+            target->return_value->i64 = MVM_repr_get_int(tc, decont_result(tc, result));
+            break;
+        case MVM_RETURN_NUM:
+            target->return_value->n64 = MVM_repr_get_num(tc, decont_result(tc, result));
+            break;
+        case MVM_RETURN_STR:
+            target->return_value->s = MVM_repr_get_str(tc, decont_result(tc, result));
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Result return coercion from obj NYI; expects type %u", target->return_type);
+    }
+}
+
 void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 frameless) {
     MVMFrame *target;
     if (frameless) {
@@ -626,6 +647,25 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
         }
     }
 }
+
+void MVM_args_set_dispatch_result_int(MVMThreadContext *tc, MVMFrame *target, MVMint64 result) {
+    switch (target->return_type) {
+        case MVM_RETURN_VOID:
+            break;
+        case MVM_RETURN_INT:
+            target->return_value->i64 = result;
+            break;
+        case MVM_RETURN_NUM:
+            target->return_value->n64 = (MVMnum64)result;
+            break;
+        case MVM_RETURN_OBJ:
+            autobox_int(tc, target, result, target->return_value->o);
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Result return coercion from int NYI; expects type %u", target->return_type);
+    }
+}
+
 void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 frameless) {
     MVMFrame *target;
     if (frameless) {
@@ -659,6 +699,25 @@ void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 fra
         }
     }
 }
+
+void MVM_args_set_dispatch_result_num(MVMThreadContext *tc, MVMFrame *target, MVMnum64 result) {
+    switch (target->return_type) {
+        case MVM_RETURN_VOID:
+            break;
+        case MVM_RETURN_NUM:
+            target->return_value->n64 = result;
+            break;
+        case MVM_RETURN_INT:
+            target->return_value->i64 = (MVMint64)result;
+            break;
+        case MVM_RETURN_OBJ:
+            autobox(tc, target, result, num_box_type, 0, set_num, target->return_value->o);
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Result return coercion from num NYI; expects type %u", target->return_type);
+    }
+}
+
 void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 frameless) {
     MVMFrame *target;
     if (frameless) {
@@ -693,6 +752,25 @@ void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 f
         }
     }
 }
+
+void MVM_args_set_dispatch_result_str(MVMThreadContext *tc, MVMFrame *target, MVMString *result) {
+    switch (target->return_type) {
+        case MVM_RETURN_VOID:
+            if (tc->cur_frame->static_info->body.has_exit_handler)
+                save_for_exit_handler(tc,
+                    MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, result));
+            break;
+        case MVM_RETURN_STR:
+            target->return_value->s = result;
+            break;
+        case MVM_RETURN_OBJ:
+            autobox(tc, target, result, str_box_type, 1, set_str, target->return_value->o);
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Result return coercion from str NYI; expects type %u", target->return_type);
+    }
+}
+
 void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
     MVMFrame *target;
     if (frameless) {

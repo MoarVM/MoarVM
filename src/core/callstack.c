@@ -96,6 +96,13 @@ MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc) 
     return (MVMCallStackHeapFrame *)tc->stack_top;
 }
 
+/* Allocates a dispatch recording record on the callstack. */
+MVMCallStackDispatchRecord * MVM_callstack_allocate_dispatch_record(MVMThreadContext *tc) {
+    tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_DISPATCH_RECORD,
+            sizeof(MVMCallStackDispatchRecord));
+    return (MVMCallStackDispatchRecord *)tc->stack_top;
+}
+
 /* Creates a new region for a continuation. By a continuation boundary starting
  * a new region, we are able to take the continuation by slicing off the entire
  * region from the regions linked list. The continuation tags always go at the
@@ -203,6 +210,15 @@ MVMFrame * MVM_callstack_first_frame_in_region(MVMThreadContext *tc, MVMCallStac
     MVM_panic(1, "No frame found in callstack region");
 }
 
+/* Finds the first frame that is a dispatch recording. */
+MVMCallStackDispatchRecord * MVM_callstack_find_topmost_dispatch_recording(MVMThreadContext *tc) {
+    MVMCallStackIterator iter;
+    MVM_callstack_iter_one_kind_init(tc, &iter, tc->stack_top, MVM_CALLSTACK_RECORD_DISPATCH_RECORD);
+    if (!MVM_callstack_iter_move_next(tc, &iter))
+        MVM_exception_throw_adhoc(tc, "Not currently recording a dispatch program");
+    return (MVMCallStackDispatchRecord *)MVM_callstack_iter_current(tc, &iter);
+}
+
 /* Unwind the calls stack until we reach a prior bytecode frame. */
 static int is_bytecode_frame(MVMuint8 kind) {
     switch (kind) {
@@ -212,6 +228,17 @@ static int is_bytecode_frame(MVMuint8 kind) {
             return 1;
         default:
             return 0;
+    }
+}
+static void remove_dispatch_record(MVMThreadContext *tc) {
+    /* End of a dispatch recording; make callback to update the
+     * inline cache, put the result in place, and take any further
+     * actions. */
+    MVMuint32 remove_dispatch_frame = MVM_disp_program_record_end(tc,
+            (MVMCallStackDispatchRecord *)tc->stack_top);
+    if (remove_dispatch_frame) {
+        tc->stack_current_region->alloc = (char *)tc->stack_top;
+        tc->stack_top = tc->stack_top->prev;
     }
 }
 MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc) {
@@ -244,11 +271,21 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc) {
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
                 break;
+            case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
+                remove_dispatch_record(tc);
+                break;
             default:
                 MVM_panic(1, "Unknown call stack record type in unwind");
         }
     } while (tc->stack_top && !is_bytecode_frame(tc->stack_top->kind));
     return tc->stack_top ? MVM_callstack_record_to_frame(tc->stack_top) : NULL;
+}
+
+/* Unwind a dispatch record frame, which should be on the top of the stack.
+ * This is for the purpose of dispatchers that do not invoke. */
+void MVM_callstack_unwind_dispatcher(MVMThreadContext *tc) {
+    assert(tc->stack_top->kind == MVM_CALLSTACK_RECORD_DISPATCH_RECORD);
+    remove_dispatch_record(tc);
 }
 
 /* Walk the linked list of records and mark each of them. */
