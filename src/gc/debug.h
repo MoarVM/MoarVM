@@ -7,8 +7,8 @@
 #define MVM_GC_DEBUG 0
 
 #if MVM_GC_DEBUG
-#define MVM_ASSERT_NOT_FROMSPACE(tc, c) do { \
-    MVMThread *cur_thread = tc->instance->threads; \
+#define MVM_ASSERT_NOT_FROMSPACE(check_tc, c) do { \
+    MVMThread *cur_thread = check_tc->instance->threads; \
     if (c) { \
         while (cur_thread) { \
             MVMThreadContext *thread_tc = cur_thread->body.tc; \
