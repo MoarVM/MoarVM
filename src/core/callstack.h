@@ -141,6 +141,13 @@ struct MVMCallStackDispatchRecord {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
 
+    /* The argument capture going into the dispatch (always an object, but
+     * stored this way to let this address be safely used as an argument
+     * buffer. */
+    MVMRegister initial_capture;
+
+    /* The outcome of the dispatch. */
+    MVMDispProgramOutcome outcome;
     /* TODO */
 };
 
@@ -151,6 +158,8 @@ struct MVMCallStackDispatchRun {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
 
+    /* The outcome of the dispatch. */
+    MVMDispProgramOutcome outcome;
     /* TODO */
 };
 
@@ -158,13 +167,16 @@ struct MVMCallStackDispatchRun {
 void MVM_callstack_init(MVMThreadContext *tc);
 MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc);
 MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc);
+MVMCallStackDispatchRecord * MVM_callstack_allocate_dispatch_record(MVMThreadContext *tc);
 void MVM_callstack_new_continuation_region(MVMThreadContext *tc, MVMObject *tag);
 MVMCallStackRegion * MVM_callstack_continuation_slice(MVMThreadContext *tc, MVMObject *tag,
         MVMActiveHandler **active_handlers);
 void MVM_callstack_continuation_append(MVMThreadContext *tc, MVMCallStackRegion *first_region,
         MVMCallStackRecord *stack_top, MVMObject *update_tag);
 MVMFrame * MVM_callstack_first_frame_in_region(MVMThreadContext *tc, MVMCallStackRegion *region);
+MVMCallStackDispatchRecord * MVM_callstack_find_topmost_dispatch_recording(MVMThreadContext *tc);
 MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc);
+void MVM_callstack_unwind_dispatcher(MVMThreadContext *tc);
 void MVM_callstack_mark_current_thread(MVMThreadContext *tc, MVMGCWorklist *worklist,
         MVMHeapSnapshotState *snapshot);
 void MVM_callstack_mark_detached(MVMThreadContext *tc, MVMCallStackRecord *stack_top,
@@ -197,6 +209,14 @@ struct MVMCallStackIterator {
     MVMCallStackRecord *current;
     MVMuint64 filter;
 };
+
+/* Create an iterator over a certain kind of record. */
+MVM_STATIC_INLINE void MVM_callstack_iter_one_kind_init(MVMThreadContext *tc,
+        MVMCallStackIterator *iter, MVMCallStackRecord *start, MVMuint8 kind) {
+    iter->start = start;
+    iter->current = NULL;
+    iter->filter = 1 << kind;
+}
 
 /* Create an iterator over bytecode frames on the call stack. */
 MVM_STATIC_INLINE void MVM_callstack_iter_frame_init(MVMThreadContext *tc,

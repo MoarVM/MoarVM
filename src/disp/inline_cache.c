@@ -66,19 +66,22 @@ static void dispatch_initial(MVMThreadContext *tc,
     };
     MVMObject *capture = MVM_capture_from_args(tc, capture_arg_info);
 
-    /* Run the dispatcher. TODO this will actually set up a callstack entry
-     * about the ongoing dispatcher, and to mark the args. Otherwise, it will
-     * not work for user-defiend ones. */
+    /* Push a dispatch recording frame onto the callstack; this is how we'll
+     * keep track of the current recording state. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
+    record->initial_capture.o = capture;
+
+    /* Run the dispatcher. */
     MVMCallsite *disp_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
-    MVMRegister r = { .o = capture };
     MVMArgs dispatch_args = {
         .callsite = disp_callsite,
-        .source = &r,
+        .source = &(record->initial_capture),
         .map = MVM_args_identity_map(tc, disp_callsite)
     };
     MVMObject *dispatch = disp->dispatch;
     if (REPR(dispatch)->ID == MVM_REPR_ID_MVMCFunction) {
         ((MVMCFunction *)dispatch)->body.func(tc, dispatch_args);
+        MVM_callstack_unwind_dispatcher(tc);
     }
     else {
         MVM_panic(1, "dispatch callback only supported as a MVMCFunction");
