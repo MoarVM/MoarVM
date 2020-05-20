@@ -146,14 +146,23 @@ struct MVMCallStackDispatchRecord {
      * buffer. */
     MVMRegister initial_capture;
 
+    /* An MVMArray of derived captures, produced during the dispatch
+     * process. */
+    MVMObject *derived_captures;
+
     /* The outcome of the dispatch. */
     MVMDispProgramOutcome outcome;
     /* TODO */
 };
 
+/* A dispatch record frame is turned into this once the dispatch has already
+ * been recorded and its outcome put into effect. In this situation, we simply
+ * need to remove it from the call stack. */
+#define MVM_CALLSTACK_RECORD_DISPATCH_RECORDED  9
+
 /* A dispatch program run record, when we're evaluating a dispatch
  * program. May hold dispatch state for a resumption. */
-#define MVM_CALLSTACK_RECORD_DISPATCH_RUN       9
+#define MVM_CALLSTACK_RECORD_DISPATCH_RUN       10
 struct MVMCallStackDispatchRun {
     /* Commonalities of all records. */
     MVMCallStackRecord common;

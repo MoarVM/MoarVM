@@ -216,3 +216,43 @@ MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_p
     /* Finally, release mutex. */
     uv_mutex_unlock(&tc->instance->mutex_callsite_interns);
 }
+
+/* Copies the named args of one callsite into another. */
+void copy_nameds(MVMCallsite *to, MVMCallsite *from) {
+    if (from->arg_names) {
+        MVMuint32 num_names = from->flag_count - to->num_pos;
+        size_t memory_area = num_names * sizeof(MVMString *);
+        to->arg_names = MVM_malloc(memory_area);
+        memcpy(to->arg_names, from->arg_names, memory_area);
+    }
+}
+
+/* Produce a new callsite consisting of the current one with a positional
+ * argument dropped. It will be interned if possible. */
+MVMCallsite * MVM_callsite_drop_positional(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx) {
+    /* Can only do this with positional arguments and non-flattening callsite. */
+    if (idx >= cs->num_pos)
+        MVM_exception_throw_adhoc(tc, "Cannot drop positional in callsite: index out of range");
+    if (cs->has_flattening)
+        MVM_exception_throw_adhoc(tc, "Cannot transform a callsite with flattening args");
+
+    /* Allocate a new callsite and set it up. */
+    MVMCallsite *new_callsite = MVM_calloc(1, sizeof(MVMCallsite));
+    new_callsite->num_pos = cs->num_pos - 1;
+    new_callsite->flag_count = cs->flag_count - 1;
+    new_callsite->arg_count = cs->arg_count - 1;
+    new_callsite->arg_flags = MVM_malloc(new_callsite->flag_count);
+    MVMuint32 from, to = 0;
+    for (from = 0; from < cs->flag_count; from++) {
+        if (from != idx) {
+            new_callsite->arg_flags[to] = cs->arg_flags[from];
+            to++;
+        }
+    }
+    copy_nameds(new_callsite, cs);
+
+    /* Try to intern it, and return the result (which may be the interned
+     * version that already existed, or may newly intern this). */
+    MVM_callsite_try_intern(tc, &new_callsite);
+    return new_callsite;
+}
