@@ -75,3 +75,32 @@ static void boot_code_constant(MVMThreadContext *tc, MVMArgs arg_info) {
 MVMObject * MVM_disp_boot_code_constant_dispatch(MVMThreadContext *tc) {
     return wrap(tc, boot_code_constant);
 }
+
+/* The boot-syscall dispatcher expects the first argument to be a string,
+ * which will typically be a literal. It uses this to invoke functionality
+ * provided by the VM. The rest of the arguments are the arguments that go
+ * to that call. */
+static void boot_syscall(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVM_args_checkarity(tc, &arg_ctx, 1, 1);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+
+    /* Look up the syscall information. */
+    MVMString *name = MVM_capture_arg_pos_s(tc, capture, 0);
+    MVMDispSysCall *syscall = MVM_disp_syscall_find(tc, name);
+    if (!syscall) {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
+                "No MoarVM syscall with name '%s'", c_name);
+    }
+    MVM_panic(1, "boot-syscall NYI");
+
+    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
+}
+
+/* Gets the MVMCFunction object wrapping the boot syscall dispatcher. */
+MVMObject * MVM_disp_boot_syscall_dispatch(MVMThreadContext *tc) {
+    return wrap(tc, boot_syscall);
+}
