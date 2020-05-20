@@ -195,6 +195,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/disp/registry@obj@ \
           src/disp/inline_cache@obj@ \
           src/disp/program@obj@ \
+          src/disp/syscall@obj@ \
           src/spesh/dump@obj@ \
           src/spesh/graph@obj@ \
           src/spesh/codegen@obj@ \
@@ -366,6 +367,7 @@ HEADERS = src/moar.h \
           src/disp/registry.h \
           src/disp/inline_cache.h \
           src/disp/program.h \
+          src/disp/syscall.h \
           src/spesh/dump.h \
           src/spesh/debug.h \
           src/spesh/graph.h \

@@ -320,3 +320,4 @@ typedef struct MVMDispInlineCache MVMDispInlineCache;
 typedef struct MVMDispInlineCacheEntry MVMDispInlineCacheEntry;
 typedef struct MVMDispInlineCacheEntryResolvedGetLexStatic MVMDispInlineCacheEntryResolvedGetLexStatic;
 typedef struct MVMDispProgramOutcome MVMDispProgramOutcome;
+typedef struct MVMDispSysCall MVMDispSysCall;

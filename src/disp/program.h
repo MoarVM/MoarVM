@@ -24,6 +24,9 @@
 
 /* Kinds of outcome of a dispatch program. */
 typedef enum {
+    /* Indicates we failed to produce an outcome. */
+    MVM_DISP_OUTCOME_FAILED,
+
     /* Return a value (produced by the dispatch program). */
     MVM_DISP_OUTCOME_VALUE,
 
