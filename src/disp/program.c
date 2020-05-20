@@ -106,6 +106,8 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
     /* Set the result in place. */
     MVMFrame *caller = MVM_callstack_record_to_frame(record->common.prev);
     switch (record->outcome.kind) {
+        case MVM_DISP_OUTCOME_FAILED:
+            return 1;
         case MVM_DISP_OUTCOME_VALUE:
             switch (record->outcome.result_kind) {
                 case MVM_reg_obj:
@@ -124,12 +126,10 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
                     MVM_oops(tc, "Unknown result kind in dispatch value outcome");
             }
             return 1;
-            break;
         case MVM_DISP_OUTCOME_BYTECODE:
             tc->cur_frame = MVM_callstack_record_to_frame(tc->stack_top->prev);
             MVM_frame_dispatch(tc, record->outcome.code, record->outcome.args, -1);
             return 0;
-            break;
         default:
             MVM_oops(tc, "Unimplemented dispatch program outcome kind");
     }

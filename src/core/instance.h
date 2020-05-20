@@ -264,6 +264,9 @@ struct MVMInstance {
     /* Registry of dispatchers. */
     MVMDispRegistry disp_registry;
 
+    /* MoarVM system calls hash (VM-provided functionality). */
+    MVMStrHashTable syscalls;
+
     /* Identity mapping for arguments (argument 0 is at position 0, argument
      * 1 is at position 1, etc.) */
     MVMuint16 *identity_arg_map;
