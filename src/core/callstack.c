@@ -230,15 +230,21 @@ static int is_bytecode_frame(MVMuint8 kind) {
             return 0;
     }
 }
-static void remove_dispatch_record(MVMThreadContext *tc) {
+static void handle_end_of_dispatch_record(MVMThreadContext *tc) {
     /* End of a dispatch recording; make callback to update the
      * inline cache, put the result in place, and take any further
-     * actions. */
-    MVMuint32 remove_dispatch_frame = MVM_disp_program_record_end(tc,
-            (MVMCallStackDispatchRecord *)tc->stack_top);
+     * actions. If the dispatch invokes bytecode, then the dispatch
+     * record stays around, but we tweak its kind so we don't enter
+     * the end of recording logic again. */
+    MVMCallStackDispatchRecord *disp_record = (MVMCallStackDispatchRecord *)tc->stack_top;
+    MVMuint32 remove_dispatch_frame = MVM_disp_program_record_end(tc, disp_record);
     if (remove_dispatch_frame) {
+        assert((char *)disp_record == (char *)tc->stack_top);
         tc->stack_current_region->alloc = (char *)tc->stack_top;
         tc->stack_top = tc->stack_top->prev;
+    }
+    else {
+        disp_record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
     }
 }
 MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc) {
@@ -267,12 +273,13 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc) {
             case MVM_CALLSTACK_RECORD_FRAME:
             case MVM_CALLSTACK_RECORD_HEAP_FRAME:
             case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
+            case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED:
                 /* No cleanup to do, just move to next record. */
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
                 break;
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
-                remove_dispatch_record(tc);
+                handle_end_of_dispatch_record(tc);
                 break;
             default:
                 MVM_panic(1, "Unknown call stack record type in unwind");
@@ -285,7 +292,7 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc) {
  * This is for the purpose of dispatchers that do not invoke. */
 void MVM_callstack_unwind_dispatcher(MVMThreadContext *tc) {
     assert(tc->stack_top->kind == MVM_CALLSTACK_RECORD_DISPATCH_RECORD);
-    remove_dispatch_record(tc);
+    handle_end_of_dispatch_record(tc);
 }
 
 /* Walk the linked list of records and mark each of them. */

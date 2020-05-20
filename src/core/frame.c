@@ -641,6 +641,156 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         setup_state_vars(tc, static_frame);
 }
 
+/* Dispatches execution to the specified code object with the specified args. */
+void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMint32 spesh_cand) {
+    MVMFrame *frame;
+    MVMuint8 *chosen_bytecode;
+    MVMStaticFrameSpesh *spesh;
+
+    /* If the frame was never invoked before, or never before at the current
+     * instrumentation level, we need to trigger the instrumentation level
+     * barrier. */
+    MVMStaticFrame *static_frame = code->body.sf;
+    if (static_frame->body.instrumentation_level != tc->instance->instrumentation_level) {
+        MVMROOT2(tc, static_frame, code, {
+            instrumentation_level_barrier(tc, static_frame);
+        });
+    }
+
+    /* Ensure we have an outer if needed. This is done ahead of allocating the
+     * new frame, since an autoclose will force the callstack on to the heap. */
+    MVMFrame *outer = code->body.outer;
+    if (outer) {
+        /* We were provided with an outer frame. Ensure that it is based on the
+         * correct static frame (compare on bytecode address to cope with
+         * nqp::freshcoderef). */
+        if (MVM_UNLIKELY(static_frame->body.outer == 0 || outer->static_info->body.orig_bytecode != static_frame->body.outer->body.orig_bytecode))
+            report_outer_conflict(tc, static_frame, outer);
+    }
+    else if (static_frame->body.static_code) {
+        MVMCode *static_code = static_frame->body.static_code;
+        if (static_code->body.outer) {
+            /* We're lacking an outer, but our static code object may have one.
+            * This comes up in the case of cloned protoregexes, for example. */
+            outer = static_code->body.outer;
+        }
+        else if (static_frame->body.outer) {
+            /* Auto-close, and cache it in the static frame. */
+            MVMROOT3(tc, static_frame, code, static_code, {
+                MVM_frame_force_to_heap(tc, tc->cur_frame);
+                outer = autoclose(tc, static_frame->body.outer);
+                MVM_ASSIGN_REF(tc, &(static_code->common.header),
+                    static_code->body.outer, outer);
+            });
+        }
+        else {
+            outer = NULL;
+        }
+    }
+
+    /* See if any specializations apply. */
+    spesh = static_frame->body.spesh;
+    if (spesh_cand < 0) {
+        // TODO update for new args scheme
+        //spesh_cand = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
+        //    callsite, args, NULL);
+    }
+#if MVM_SPESH_CHECK_PRESELECTION
+    else {
+        MVMint32 certain = -1;
+        MVMint32 correct = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
+            callsite, args, &certain);
+        if (spesh_cand != correct && spesh_cand != certain) {
+            fprintf(stderr, "Inconsistent spesh preselection of '%s' (%s): got %d, not %d\n",
+                MVM_string_utf8_encode_C_string(tc, static_frame->body.name),
+                MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid),
+                spesh_cand, correct);
+            MVM_dump_backtrace(tc);
+        }
+    }
+#endif
+    if (spesh_cand >= 0) {
+        MVMSpeshCandidate *chosen_cand = spesh->body.spesh_candidates[spesh_cand];
+        if (static_frame->body.allocate_on_heap) {
+            MVMROOT3(tc, static_frame, code, outer, {
+                frame = allocate_frame(tc, static_frame, chosen_cand, 1);
+            });
+        }
+        else {
+            frame = allocate_frame(tc, static_frame, chosen_cand, 0);
+            frame->spesh_correlation_id = 0;
+        }
+        if (chosen_cand->jitcode) {
+            chosen_bytecode = chosen_cand->jitcode->bytecode;
+            frame->jit_entry_label = chosen_cand->jitcode->labels[0];
+        }
+        else {
+            chosen_bytecode = chosen_cand->bytecode;
+        }
+        frame->effective_spesh_slots = chosen_cand->spesh_slots;
+        frame->spesh_cand = chosen_cand;
+    }
+    else {
+        MVMint32 on_heap = static_frame->body.allocate_on_heap;
+        if (on_heap) {
+            MVMROOT3(tc, static_frame, code, outer, {
+                frame = allocate_frame(tc, static_frame, NULL, 1);
+            });
+        }
+        else {
+            frame = allocate_frame(tc, static_frame, NULL, 0);
+            frame->spesh_cand = NULL;
+            frame->effective_spesh_slots = NULL;
+            frame->spesh_correlation_id = 0;
+        }
+        chosen_bytecode = static_frame->body.bytecode;
+
+        /* If we should be spesh logging, set the correlation ID. */
+        if (tc->instance->spesh_enabled && tc->spesh_log && static_frame->body.bytecode_size < MVM_SPESH_MAX_BYTECODE_SIZE) {
+            if (spesh->body.spesh_entries_recorded++ < MVM_SPESH_LOG_LOGGED_ENOUGH) {
+                MVMint32 id = ++tc->spesh_cid;
+                frame->spesh_correlation_id = id;
+                // TODO update for new args
+//                MVMROOT3(tc, static_frame, code, outer, {
+//                    if (on_heap) {
+//                        MVMROOT(tc, frame, {
+//                            MVM_spesh_log_entry(tc, id, static_frame, callsite, args);
+//                        });
+//                    }
+//                    else {
+//                        MVMROOT2(tc, frame->caller, frame->static_info, {
+//                            MVM_spesh_log_entry(tc, id, static_frame, callsite, args);
+//                        });
+//                    }
+//                });
+            }
+        }
+    }
+
+    /* Store the code ref (NULL at the top-level). */
+    frame->code_ref = (MVMObject *)code;
+
+    /* Outer. */
+    frame->outer = outer;
+
+    /* Initialize argument processing. */
+    MVM_args_proc_setup(tc, &(frame->params), args);
+
+    MVM_jit_code_trampoline(tc);
+
+    /* Update interpreter and thread context, so next execution will use this
+     * frame. */
+    tc->cur_frame = frame;
+    tc->current_frame_nr = frame->sequence_nr;
+    *(tc->interp_cur_op) = chosen_bytecode;
+    *(tc->interp_bytecode_start) = chosen_bytecode;
+    *(tc->interp_reg_base) = frame->work;
+    *(tc->interp_cu) = static_frame->body.cu;
+
+    if (static_frame->body.has_state_vars)
+        setup_state_vars(tc, static_frame);
+}
+
 /* Moves the specified frame from the stack and on to the heap. Must only
  * be called if the frame is not already there. Use MVM_frame_force_to_heap
  * when not sure. */

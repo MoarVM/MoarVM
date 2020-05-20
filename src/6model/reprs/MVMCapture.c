@@ -33,6 +33,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     for (i = 0; i < count; i++)
         if (flags[i] & MVM_CALLSITE_ARG_STR || flags[i] & MVM_CALLSITE_ARG_OBJ)
             MVM_gc_worklist_add(tc, worklist, &(body->args[i].o));
+    if (!body->callsite->is_interned) {
+        MVM_panic(1, "MVMCapture.gc_mark on non-interned callsite NYI");
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -42,6 +45,9 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         MVM_fixed_size_free(tc, tc->instance->fsa,
                 capture->body.callsite->flag_count * sizeof(MVMRegister),
                 capture->body.args);
+    if (capture->body.callsite && !capture->body.callsite->is_interned) {
+        MVM_panic(1, "MVMCapture.gc_free on non-interned callsite NYI");
+    }
 }
 
 static const MVMStorageSpec storage_spec = {
@@ -110,6 +116,8 @@ MVMObject * MVM_capture_from_args(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* Form capture object. */
     MVMObject *capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
+    if (!callsite->is_interned)
+        MVM_panic(1, "MVM_capture_from_args with non-interned callsite NYI");
     ((MVMCapture *)capture)->body.callsite = callsite;
     ((MVMCapture *)capture)->body.args = args;
     return capture;
@@ -141,4 +149,32 @@ void MVM_capture_arg_pos(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32
         MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
     *arg_out = capture->body.args[idx];
     *arg_type_out = capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK;
+}
+
+/* Produce a new capture by taking the current one and dropping the specified
+ * positional argument from it. */
+MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    if (idx >= capture->body.callsite->num_pos)
+        MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
+
+    /* We need a callsite without the argument that is being dropped. */
+    MVMCallsite *new_callsite = MVM_callsite_drop_positional(tc, capture->body.callsite, idx);
+
+    /* Form a new arguments buffer, dropping the specified argument. */
+    MVMRegister *new_args = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+            new_callsite->flag_count * sizeof(MVMRegister));
+    MVMuint32 from, to = 0;
+    for (from = 0; from < capture->body.callsite->flag_count; from++) {
+        if (from != idx) {
+            new_args[to] = capture->body.args[from];
+            to++;
+        }
+    }
+
+    /* Form new capture object. */
+    MVMObject *new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
+    ((MVMCapture *)new_capture)->body.callsite = new_callsite;
+    ((MVMCapture *)new_capture)->body.args = new_args;
+    return new_capture;
 }
