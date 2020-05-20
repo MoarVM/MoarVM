@@ -71,6 +71,7 @@ static void dispatch_initial(MVMThreadContext *tc,
     MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
     record->initial_capture.o = capture;
     record->derived_captures = NULL;
+    record->outcome.kind = MVM_DISP_OUTCOME_FAILED;
 
     /* Run the dispatcher. */
     MVMCallsite *disp_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);

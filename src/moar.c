@@ -216,8 +216,9 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);
 
-    /* Set up the dispatcher registry and the boot dispatchers. */
+    /* Set up the dispatcher registry, boot dispatchers, and syscalls. */
     MVM_disp_registry_init(instance->main_thread);
+    MVM_disp_syscall_setup(instance->main_thread);
 
     /* Set up main thread's last_payload. */
     instance->main_thread->last_payload = instance->VMNull;

@@ -91,6 +91,7 @@ void MVM_disp_registry_init(MVMThreadContext *tc) {
     register_boot_dispatcher(tc, "boot-constant", MVM_disp_boot_constant_dispatch(tc));
     register_boot_dispatcher(tc, "boot-value", MVM_disp_boot_value_dispatch(tc));
     register_boot_dispatcher(tc, "boot-code-constant", MVM_disp_boot_code_constant_dispatch(tc));
+    register_boot_dispatcher(tc, "boot-syscall", MVM_disp_boot_syscall_dispatch(tc));
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 

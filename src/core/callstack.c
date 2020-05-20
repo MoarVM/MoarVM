@@ -247,7 +247,7 @@ static void handle_end_of_dispatch_record(MVMThreadContext *tc) {
         disp_record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
     }
 }
-MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc) {
+MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional) {
     do {
         /* Ensure region and stack top are in a consistent state. */
         assert(tc->stack_current_region->start <= (char *)tc->stack_top);
@@ -279,7 +279,14 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc) {
                 tc->stack_top = tc->stack_top->prev;
                 break;
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
-                handle_end_of_dispatch_record(tc);
+                if (!exceptional) {
+                    handle_end_of_dispatch_record(tc);
+                }
+                else {
+                    /* There was an exception; just leave the frame behind. */
+                    tc->stack_current_region->alloc = (char *)tc->stack_top;
+                    tc->stack_top = tc->stack_top->prev;
+                }
                 break;
             default:
                 MVM_panic(1, "Unknown call stack record type in unwind");
