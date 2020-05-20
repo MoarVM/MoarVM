@@ -1081,7 +1081,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
 
     /* Unwind call stack entries. From this, we find out the caller. This may
      * actually *not* be the caller in the frame, because of lazy deopt. */
-    MVMFrame *caller = MVM_callstack_unwind_frame(tc);
+    MVMFrame *caller = MVM_callstack_unwind_frame(tc, unwind);
 
     /* Switch back to the caller frame if there is one. */
     if (caller && (returner != tc->thread_entry_frame || tc->nested_interpreter)) {

@@ -22,6 +22,7 @@ MVMObject * MVM_capture_from_args(MVMThreadContext *tc, MVMArgs args);
 void MVM_capture_arg_pos(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx,
         MVMRegister *arg_out, MVMCallsiteFlags *arg_type_out);
 MVMObject * MVM_capture_arg_pos_o(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx);
+MVMString * MVM_capture_arg_pos_s(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx);
 
 /* Operations for deriving a new MVMCapture from an existing one. */
 MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx);
