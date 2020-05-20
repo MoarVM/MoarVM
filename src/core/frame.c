@@ -390,6 +390,110 @@ void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
         code->body.outer, (MVMObject*)code, spesh_cand);
 }
 
+/* Sets up storage for state variables. We do this after tc->cur_frame became
+ * the current frame, to make sure these new objects will certainly get marked
+ * if GC is triggered along the way. */
+static void setup_state_vars(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
+    /* Drag everything out of static_frame_body before we start,
+     * as GC action may invalidate it. */
+    MVMFrame    *frame     = tc->cur_frame;
+    MVMRegister *env       = static_frame->body.static_env;
+    MVMuint8    *flags     = static_frame->body.static_env_flags;
+    MVMint64     numlex    = static_frame->body.num_lexicals;
+    MVMRegister *state     = NULL;
+    MVMint64     state_act = 0; /* 0 = none so far, 1 = first time, 2 = later */
+    MVMint64 i;
+    MVMROOT(tc, frame, {
+        for (i = 0; i < numlex; i++) {
+            if (flags[i] == 2) {
+                redo_state:
+                switch (state_act) {
+                case 0:
+                    if (MVM_UNLIKELY(!frame->code_ref))
+                        MVM_exception_throw_adhoc(tc,
+                            "Frame must have code-ref to have state variables");
+                    state = ((MVMCode *)frame->code_ref)->body.state_vars;
+                    if (state) {
+                        /* Already have state vars; pull them from this. */
+                        state_act = 2;
+                    }
+                    else {
+                        /* Allocate storage for state vars. */
+                        state = (MVMRegister *)MVM_calloc(1, frame->static_info->body.env_size);
+                        ((MVMCode *)frame->code_ref)->body.state_vars = state;
+                        state_act = 1;
+
+                        /* Note that this frame should run state init code. */
+                        frame->flags |= MVM_FRAME_FLAG_STATE_INIT;
+                    }
+                    goto redo_state;
+                case 1: {
+                    MVMObject *cloned = MVM_repr_clone(tc, env[i].o);
+                    frame->env[i].o = cloned;
+                    MVM_ASSIGN_REF(tc, &(frame->code_ref->header), state[i].o, cloned);
+                    break;
+                }
+                case 2:
+                    frame->env[i].o = state[i].o;
+                    break;
+                }
+            }
+        }
+    });
+}
+
+/* Produces an error on outer frame mis-match. */
+static void report_outer_conflict(MVMThreadContext *tc, MVMStaticFrame *static_frame,
+        MVMFrame *outer) {
+    char *frame_cuuid = MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid);
+    char *frame_name;
+    char *outer_cuuid = MVM_string_utf8_encode_C_string(tc, outer->static_info->body.cuuid);
+    char *outer_name;
+    char *frame_outer_cuuid = MVM_string_utf8_encode_C_string(tc,
+            static_frame->body.outer
+                ? static_frame->body.outer->body.cuuid
+                : tc->instance->str_consts.empty);
+    char *frame_outer_name;
+
+    char *waste[7] = { frame_cuuid, outer_cuuid, frame_outer_cuuid, NULL, NULL, NULL, NULL };
+    int waste_counter = 3;
+
+    if (static_frame->body.name) {
+        frame_name = MVM_string_utf8_encode_C_string(tc, static_frame->body.name);
+        waste[waste_counter++] = frame_name;
+    }
+    else {
+        frame_name = "<anonymous static frame>";
+    }
+
+    if (outer->static_info->body.name) {
+        outer_name = MVM_string_utf8_encode_C_string(tc, outer->static_info->body.name);
+        waste[waste_counter++] = outer_name;
+    }
+    else {
+        outer_name = "<anonymous static frame>";
+    }
+
+    if (static_frame->body.outer && static_frame->body.outer->body.name) {
+        frame_outer_name = MVM_string_utf8_encode_C_string(tc, static_frame->body.outer->body.name);
+        waste[waste_counter++] = frame_outer_name;
+    }
+    else {
+        frame_outer_name = "<anonymous static frame>";
+    }
+
+    MVM_exception_throw_adhoc_free(tc, waste,
+        "When invoking %s '%s', provided outer frame %p (%s '%s') does not match expected static frame %p (%s '%s')",
+        frame_cuuid,
+        frame_name,
+        outer->static_info,
+        outer_cuuid,
+        outer_name,
+        static_frame->body.outer,
+        frame_outer_cuuid,
+        frame_outer_name);
+}
+
 /* Takes a static frame and a thread context. Invokes the static frame. */
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
@@ -413,55 +517,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         /* We were provided with an outer frame. Ensure that it is based on the
          * correct static frame (compare on bytecode address to cope with
          * nqp::freshcoderef). */
-        if (MVM_UNLIKELY(static_frame->body.outer == 0 || outer->static_info->body.orig_bytecode != static_frame->body.outer->body.orig_bytecode)) {
-            char *frame_cuuid = MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid);
-            char *frame_name;
-            char *outer_cuuid = MVM_string_utf8_encode_C_string(tc, outer->static_info->body.cuuid);
-            char *outer_name;
-            char *frame_outer_cuuid = MVM_string_utf8_encode_C_string(tc,
-                    static_frame->body.outer
-                        ? static_frame->body.outer->body.cuuid
-                        : tc->instance->str_consts.empty);
-            char *frame_outer_name;
-
-            char *waste[7] = { frame_cuuid, outer_cuuid, frame_outer_cuuid, NULL, NULL, NULL, NULL };
-            int waste_counter = 3;
-
-            if (static_frame->body.name) {
-                frame_name = MVM_string_utf8_encode_C_string(tc, static_frame->body.name);
-                waste[waste_counter++] = frame_name;
-            }
-            else {
-                frame_name = "<anonymous static frame>";
-            }
-
-            if (outer->static_info->body.name) {
-                outer_name = MVM_string_utf8_encode_C_string(tc, outer->static_info->body.name);
-                waste[waste_counter++] = outer_name;
-            }
-            else {
-                outer_name = "<anonymous static frame>";
-            }
-
-            if (static_frame->body.outer && static_frame->body.outer->body.name) {
-                frame_outer_name = MVM_string_utf8_encode_C_string(tc, static_frame->body.outer->body.name);
-                waste[waste_counter++] = frame_outer_name;
-            }
-            else {
-                frame_outer_name = "<anonymous static frame>";
-            }
-
-            MVM_exception_throw_adhoc_free(tc, waste,
-                "When invoking %s '%s', provided outer frame %p (%s '%s') does not match expected static frame %p (%s '%s')",
-                frame_cuuid,
-                frame_name,
-                outer->static_info,
-                outer_cuuid,
-                outer_name,
-                static_frame->body.outer,
-                frame_outer_cuuid,
-                frame_outer_name);
-        }
+        if (MVM_UNLIKELY(static_frame->body.outer == 0 || outer->static_info->body.orig_bytecode != static_frame->body.outer->body.orig_bytecode))
+            report_outer_conflict(tc, static_frame, outer);
     }
     else if (static_frame->body.static_code) {
         MVMCode *static_code = static_frame->body.static_code;
@@ -580,57 +637,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     *(tc->interp_reg_base) = frame->work;
     *(tc->interp_cu) = static_frame->body.cu;
 
-    /* If we need to do so, make clones of things in the lexical environment
-     * that need it. Note that we do this after tc->cur_frame became the
-     * current frame, to make sure these new objects will certainly get
-     * marked if GC is triggered along the way. */
-    if (static_frame->body.has_state_vars) {
-        /* Drag everything out of static_frame_body before we start,
-         * as GC action may invalidate it. */
-        MVMRegister *env       = static_frame->body.static_env;
-        MVMuint8    *flags     = static_frame->body.static_env_flags;
-        MVMint64     numlex    = static_frame->body.num_lexicals;
-        MVMRegister *state     = NULL;
-        MVMint64     state_act = 0; /* 0 = none so far, 1 = first time, 2 = later */
-        MVMint64 i;
-        MVMROOT(tc, frame, {
-            for (i = 0; i < numlex; i++) {
-                if (flags[i] == 2) {
-                    redo_state:
-                    switch (state_act) {
-                    case 0:
-                        if (MVM_UNLIKELY(!frame->code_ref))
-                            MVM_exception_throw_adhoc(tc,
-                                "Frame must have code-ref to have state variables");
-                        state = ((MVMCode *)frame->code_ref)->body.state_vars;
-                        if (state) {
-                            /* Already have state vars; pull them from this. */
-                            state_act = 2;
-                        }
-                        else {
-                            /* Allocate storage for state vars. */
-                            state = (MVMRegister *)MVM_calloc(1, frame->static_info->body.env_size);
-                            ((MVMCode *)frame->code_ref)->body.state_vars = state;
-                            state_act = 1;
-
-                            /* Note that this frame should run state init code. */
-                            frame->flags |= MVM_FRAME_FLAG_STATE_INIT;
-                        }
-                        goto redo_state;
-                    case 1: {
-                        MVMObject *cloned = MVM_repr_clone(tc, env[i].o);
-                        frame->env[i].o = cloned;
-                        MVM_ASSIGN_REF(tc, &(frame->code_ref->header), state[i].o, cloned);
-                        break;
-                    }
-                    case 2:
-                        frame->env[i].o = state[i].o;
-                        break;
-                    }
-                }
-            }
-        });
-    }
+    if (static_frame->body.has_state_vars)
+        setup_state_vars(tc, static_frame);
 }
 
 /* Moves the specified frame from the stack and on to the heap. Must only
