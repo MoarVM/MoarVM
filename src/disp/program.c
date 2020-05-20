@@ -1,5 +1,50 @@
 #include "moar.h"
 
+/* Takes a capture and makes sure it's one we're aware of in the currently
+ * being recorded dispatch program. */
+static void ensure_known_capture(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
+        MVMObject *capture) {
+    if (capture != record->initial_capture.o) {
+        int found = 0;
+        if (record->derived_captures) {
+            MVMint64 elems = MVM_repr_elems(tc, record->derived_captures);
+            MVMint64 i;
+            for (i = 0; i < elems; i++) {
+                if (MVM_repr_at_pos_o(tc, record->derived_captures, i) == capture) {
+                    found = 1;
+                    break;
+                }
+            }
+        }
+        if (!found)
+            MVM_exception_throw_adhoc(tc, "Can only drop from a capture known in this dispatch");
+    }
+}
+
+/* Record that we drop an argument from a capture. Also perform the drop,
+ * resulting in a new capture without that argument. */
+MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture,
+        MVMuint32 idx) {
+    /* Ensure the incoming capture is known. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    ensure_known_capture(tc, record, capture);
+
+    /* Calculate the new capture and add it to the derived capture set to keep
+     * it alive. */
+    MVMObject *new_capture = MVM_capture_drop_arg(tc, capture, idx);
+    if (!record->derived_captures) {
+        MVMROOT(tc, new_capture, {
+            record->derived_captures = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+        });
+    }
+    MVM_repr_push_o(tc, record->derived_captures, new_capture);
+
+    // XXX TODO record info about this
+
+    /* Evaluate to the new capture, for the running dispatch function. */
+    return new_capture;
+}
+
 /* Record a program terminator that is a constant boject value. */
 void MVM_disp_program_record_result_constant(MVMThreadContext *tc, MVMObject *result) {
     /* Record the result action. */
@@ -36,6 +81,24 @@ void MVM_disp_program_record_result_capture_value(MVMThreadContext *tc, MVMObjec
     record->outcome.result_kind = reg_type;
 }
 
+/* Record a program terminator that invokes an MVMCode object, which is to be
+ * considered a constant (e.g. so long as the guards that come before this
+ * point match, the thing to invoke is always this code object). */
+void MVM_disp_program_record_code_constant(MVMThreadContext *tc, MVMCode *result, MVMObject *capture) {
+    /* Record the result action. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    ensure_known_capture(tc, record, capture);
+    // XXX TODO
+
+    /* Put the return value in place. */
+    MVMCallsite *callsite = ((MVMCapture *)capture)->body.callsite;
+    record->outcome.kind = MVM_DISP_OUTCOME_BYTECODE;
+    record->outcome.code = result;
+    record->outcome.args.callsite = callsite;
+    record->outcome.args.map = MVM_args_identity_map(tc, callsite);
+    record->outcome.args.source = ((MVMCapture *)capture)->body.args;
+}
+
 /* Called when we have finished recording a dispatch program. */
 MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatchRecord* record) {
     // TODO compile program, update inline cache
@@ -61,6 +124,11 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
                     MVM_oops(tc, "Unknown result kind in dispatch value outcome");
             }
             return 1;
+            break;
+        case MVM_DISP_OUTCOME_BYTECODE:
+            tc->cur_frame = MVM_callstack_record_to_frame(tc->stack_top->prev);
+            MVM_frame_dispatch(tc, record->outcome.code, record->outcome.args, -1);
+            return 0;
             break;
         default:
             MVM_oops(tc, "Unimplemented dispatch program outcome kind");
