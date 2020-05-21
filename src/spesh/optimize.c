@@ -569,11 +569,68 @@ static void optimize_hllize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
     MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && obj_facts->type) {
         MVMObject *type = obj_facts->type;
-        if (STABLE(type)->hll_owner == g->sf->body.cu->body.hll_config ||
+        MVMuint8 owner_same = STABLE(type)->hll_owner == g->sf->body.cu->body.hll_config;
+        if (owner_same ||
                 (type != tc->instance->VMNull && !STABLE(type)->hll_role)) {
             ins->info = MVM_op_get_op(MVM_OP_set);
             MVM_spesh_use_facts(tc, g, obj_facts);
             copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+        }
+        else if (!owner_same && STABLE(type)->hll_role) {
+            MVMHLLConfig *hlc = g->sf->body.cu->body.hll_config;
+            MVMuint64 role = STABLE(type)->hll_role;
+            if (hlc) {
+                char *role_name = role == MVM_HLL_ROLE_INT ? "role_int" :
+                        role == MVM_HLL_ROLE_NUM ? "role_num" :
+                        role == MVM_HLL_ROLE_STR ? "role_str" :
+                        role == MVM_HLL_ROLE_ARRAY ? "role_array" :
+                        role == MVM_HLL_ROLE_HASH ? "role_hash" :
+                        role == MVM_HLL_ROLE_CODE ? "role_code" : "???";
+                MVMObject *target = role == MVM_HLL_ROLE_INT ? hlc->foreign_type_int :
+                        role == MVM_HLL_ROLE_NUM ? hlc->foreign_type_num :
+                        role == MVM_HLL_ROLE_STR ? hlc->foreign_type_str :
+                        role == MVM_HLL_ROLE_ARRAY ? hlc->foreign_transform_array :
+                        role == MVM_HLL_ROLE_HASH ? hlc->foreign_transform_hash :
+                        role == MVM_HLL_ROLE_CODE ? hlc->foreign_transform_code : tc->instance->VMNull;
+                char *known_concreteness =
+                    obj_facts->flags & MVM_SPESH_FACT_CONCRETE ? "known concrete" :
+                    obj_facts->flags & MVM_SPESH_FACT_TYPEOBJ  ? "known typeobj" :
+                        "unknown definedness";
+
+                char *hll_name = MVM_string_utf8_encode_C_string(tc, hlc->name);
+
+                if (target == NULL) {
+                    ins->info = MVM_op_get_op(MVM_OP_set);
+                    MVM_spesh_use_facts(tc, g, obj_facts);
+                    copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+
+                    MVM_spesh_graph_add_comment(tc, g, ins, "hllize optimized due to transform mode for %s not being set in the hll %s",
+                            role_name, hll_name);
+                }
+                else if ((obj_facts->flags & MVM_SPESH_FACT_TYPEOBJ) && target != NULL) {
+                    MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+
+                    MVM_spesh_use_facts(tc, g, obj_facts);
+                    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+
+                    ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+                    ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)target);
+                    result_facts->flags        |= MVM_SPESH_FACT_KNOWN_VALUE;
+                    result_facts->value.o       = target;
+                    MVM_spesh_graph_add_comment(tc, g, ins, "hllize optimized due to source value being a typeobject (%s -> %s (%s))",
+                            MVM_6model_get_debug_name(tc, type), MVM_6model_get_debug_name(tc, target), hll_name);
+                }
+                else {
+                    MVM_spesh_graph_add_comment(tc, g, ins, "hllize opportunity: role %s target %s -> %s (hll %s) fact %s",
+                            role_name, MVM_6model_get_debug_name(tc, type), MVM_6model_get_debug_name(tc, target), hll_name, known_concreteness);
+
+                    if (role == MVM_HLL_ROLE_INT || role == MVM_HLL_ROLE_NUM || role == MVM_HLL_ROLE_STR) {
+                        make_rebox_code(tc, g, ins, role, target);
+                    }
+                }
+                MVM_free(hll_name);
+
+            }
         }
     }
 }
