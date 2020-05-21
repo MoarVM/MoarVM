@@ -383,11 +383,9 @@ void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
     /* Clear up offset logs and call type info; they're either incorproated or
      * to be tossed. Also zero OSR hits, so we don't over-inflate them if this
      * frame entry survives. */
-    MVM_free(simf->offset_logs);
-    simf->offset_logs = NULL;
+    MVM_free_null(simf->offset_logs);
     simf->offset_logs_used = simf->offset_logs_limit = 0;
-    MVM_free(simf->call_type_info);
-    simf->call_type_info = NULL;
+    MVM_free_null(simf->call_type_info);
     simf->call_type_info_used = simf->call_type_info_limit = 0;
     simf->osr_hits = 0;
 }

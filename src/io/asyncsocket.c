@@ -317,8 +317,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         });
 
         /* Cleanup handle. */
-        MVM_free(wi->req);
-        wi->req = NULL;
+        MVM_free_null(wi->req);
         MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
     }
 }
@@ -605,8 +604,7 @@ static void connect_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *asyn
         });
 
         /* Cleanup handles. */
-        MVM_free(ci->connect);
-        ci->connect = NULL;
+        MVM_free_null(ci->connect);
         uv_close((uv_handle_t *)ci->socket, free_on_close_cb);
         ci->socket = NULL;
         MVM_io_eventloop_remove_active_work(tc, &(ci->work_idx));

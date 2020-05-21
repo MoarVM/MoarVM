@@ -641,9 +641,8 @@ void MVM_nativecall_setup(MVMThreadContext *tc, MVMNativeCallBody *body, unsigne
 
     if (!lib_handle) {
         char *waste[] = { body->lib_name, NULL };
-        MVM_free(body->sym_name);
+        MVM_free_null(body->sym_name);
         body->lib_name = NULL;
-        body->sym_name = NULL;
         if (interval_id)
             MVM_telemetry_interval_stop(tc, interval_id, "error building native call");
         MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate native library '%s': %s", body->lib_name, dlerror());

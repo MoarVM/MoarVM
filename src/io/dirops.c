@@ -344,8 +344,7 @@ void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
 
 #ifdef _WIN32
     if (data->dir_name) {
-        MVM_free(data->dir_name);
-        data->dir_name = NULL;
+        MVM_free_null(data->dir_name);
     }
 
     if (!FindClose(data->dir_handle))

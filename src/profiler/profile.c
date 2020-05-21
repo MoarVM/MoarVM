@@ -27,10 +27,8 @@ void MVM_profile_start(MVMThreadContext *tc, MVMObject *config) {
             while (tc->instance->spesh_working != 0)
                 uv_cond_wait(&(tc->instance->cond_spesh_sync), &(tc->instance->mutex_spesh_sync));
             tc->instance->profiling = 0;
-            MVM_free(tc->prof_data->collected_data);
-            tc->prof_data->collected_data = NULL;
-            MVM_free(tc->prof_data);
-            tc->prof_data = NULL;
+            MVM_free_null(tc->prof_data->collected_data);
+            MVM_free_null(tc->prof_data);
             uv_mutex_unlock(&(tc->instance->mutex_spesh_sync));
 
             /* Now start profiling for real. */

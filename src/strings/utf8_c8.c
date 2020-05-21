@@ -446,8 +446,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
         state.orig_codes_pos = saved[0];
         state.orig_codes_unnormalized = 0;
         memcpy(state.orig_codes, saved + 1, saved[0] * sizeof(MVMCodepoint));
-        MVM_free(ds->decoder_state);
-        ds->decoder_state = NULL;
+        MVM_free_null(ds->decoder_state);
     }
     else {
         state.orig_codes = NULL;

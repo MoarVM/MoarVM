@@ -331,8 +331,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         });
 
         /* Cleanup handle. */
-        MVM_free(wi->req);
-        wi->req = NULL;
+        MVM_free_null(wi->req);
         MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
     }
 }
