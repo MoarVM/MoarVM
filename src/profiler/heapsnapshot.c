@@ -59,6 +59,7 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
     col->fh = MVM_platform_fopen(path, "w");
 
     if (!col->fh) {
+        MVM_free(col);
         char *waste[2] = {path, NULL};
         MVM_exception_throw_adhoc_free(tc, waste, "Couldn't open heap snapshot target file %s: %s", path, strerror(errno));
     }

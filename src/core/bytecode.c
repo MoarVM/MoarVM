@@ -914,8 +914,11 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     cu_body->num_callsites = rs->expected_callsites;
     cu_body->orig_callsites = rs->expected_callsites;
 
-    if (rs->hll_str_idx > rs->expected_strings)
+    if (rs->hll_str_idx > rs->expected_strings) {
+        MVM_free(cu_body->string_heap_fast_table);
+        MVM_fixed_size_free(tc, tc->instance->fsa, rs->expected_strings * sizeof(MVMString *), cu_body->strings);
         MVM_exception_throw_adhoc(tc, "Unpacking bytecode: HLL name string index out of range: %d > %d", rs->hll_str_idx, rs->expected_strings);
+    }
 
     /* Resolve HLL name. */
     MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->hll_name,

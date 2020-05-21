@@ -311,8 +311,10 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     wi->req->data     = data;
     handle_data       = (MVMIOAsyncUDPSocketData *)wi->handle->body.data;
 
-    if (uv_is_closing((uv_handle_t *)handle_data->handle))
+    if (uv_is_closing((uv_handle_t *)handle_data->handle)) {
+        MVM_free(wi->req);
         MVM_exception_throw_adhoc(tc, "cannot write to a closed socket");
+    }
 
     if ((r = uv_udp_send(wi->req, handle_data->handle, &(wi->buf), 1, wi->dest_addr, on_write)) < 0) {
         /* Error; need to notify. */

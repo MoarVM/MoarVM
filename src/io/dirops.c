@@ -230,6 +230,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
              * relative paths are always limited to a total of MAX_PATH characters.
              * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
             if (!GetFullPathNameW(wname, 4096, abs_dirname, &lpp_part)) {
+                MVM_free(data);
                 MVM_free(wname);
                 MVM_exception_throw_adhoc(tc, "Directory path is wrong: %d", GetLastError());
             }
@@ -260,6 +261,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
         MVM_free(dir_name);
 
         if (!dir_handle) {
+            MVM_free(data);
             MVM_exception_throw_adhoc(tc, "Failed to open dir: %s", strerror(opendir_error));
         }
 
