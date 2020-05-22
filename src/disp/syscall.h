@@ -12,7 +12,7 @@ struct MVMDispSysCall {
     void (*implementation) (MVMThreadContext *tc, MVMArgs arg_info);
 
     /* The function wrapper around the implementation. */
-    MVMObject *wrapper;
+    MVMCFunction *wrapper;
 
     /* Minimum and maximum acceptable number of positional arguments. */
     MVMuint8 min_args;

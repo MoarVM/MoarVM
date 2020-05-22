@@ -95,7 +95,13 @@ static void boot_syscall(MVMThreadContext *tc, MVMArgs arg_info) {
         MVM_exception_throw_adhoc_free(tc, waste,
                 "No MoarVM syscall with name '%s'", c_name);
     }
-    MVM_panic(1, "boot-syscall NYI");
+
+    /* Check the incoming arguments and enforce guards. */
+    // TODO
+
+    /* Drop the name, and produce an invoke C function outcome. */
+    MVMObject *args_capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 0);
+    MVM_disp_program_record_c_code_constant(tc, syscall->wrapper, args_capture);
 
     MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
 }
