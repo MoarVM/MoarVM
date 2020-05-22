@@ -62,6 +62,28 @@ static MVMDispSysCall dispatcher_drop_arg = {
     .hash_handle = EMPTY_HASH_HANDLE
 };
 
+/* dispatcher-insert-constant-arg */
+static void dispatcher_insert_constant_arg_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMint64 idx = MVM_args_get_required_pos_int(tc, &arg_ctx, 1);
+    MVMRegister insertee = { .o = MVM_args_get_required_pos_obj(tc, &arg_ctx, 2) };
+    MVMObject *derived = MVM_disp_program_record_capture_insert_constant_arg(tc,
+            capture, (MVMuint32)idx, MVM_CALLSITE_ARG_OBJ, insertee);
+    MVM_args_set_result_obj(tc, derived, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_insert_constant_arg = {
+    .c_name = "dispatcher-insert-constant-arg",
+    .implementation = dispatcher_insert_constant_arg_impl,
+    .min_args = 3,
+    .max_args = 3,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMCapture, 0, 0 },
+    .expected_concrete = { 1, 1, 0 },
+    .hash_handle = EMPTY_HASH_HANDLE
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -82,6 +104,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_register);
     add_to_hash(tc, &dispatcher_delegate);
     add_to_hash(tc, &dispatcher_drop_arg);
+    add_to_hash(tc, &dispatcher_insert_constant_arg);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
