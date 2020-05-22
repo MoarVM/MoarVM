@@ -1,5 +1,42 @@
 #include "moar.h"
 
+/* Run a dispatch callback, which will record a dispatch program. */
+static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
+        MVMDispDefinition *disp, MVMObject *capture, MVMuint32 *thunked) {
+    MVMCallsite *disp_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+    MVMArgs dispatch_args = {
+        .callsite = disp_callsite,
+        .source = &(record->initial_capture),
+        .map = MVM_args_identity_map(tc, disp_callsite)
+    };
+    MVMObject *dispatch = disp->dispatch;
+    if (REPR(dispatch)->ID == MVM_REPR_ID_MVMCFunction) {
+        record->outcome.kind = MVM_DISP_OUTCOME_FAILED;
+        ((MVMCFunction *)dispatch)->body.func(tc, dispatch_args);
+        MVM_callstack_unwind_dispatcher(tc);
+    }
+    else if (REPR(dispatch)->ID == MVM_REPR_ID_MVMCode) {
+        record->outcome.kind = MVM_DISP_OUTCOME_EXPECT_DELEGATE;
+        record->outcome.delegate_disp = NULL;
+        record->outcome.delegate_capture = NULL;
+        tc->cur_frame = MVM_callstack_record_to_frame(tc->stack_top->prev);
+        MVM_frame_dispatch(tc, (MVMCode *)dispatch, dispatch_args, -1);
+        if (thunked)
+            *thunked = 1;
+    }
+    else {
+        MVM_panic(1, "dispatch callback only supported as a MVMCFunction or MVMCode");
+    }
+}
+void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp, MVMObject *capture) {
+    /* Push a dispatch recording frame onto the callstack; this is how we'll
+     * keep track of the current recording state. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
+    record->initial_capture.o = capture;
+    record->derived_captures = NULL;
+    run_dispatch(tc, record, disp, capture, NULL);
+}
+
 /* Takes a capture and makes sure it's one we're aware of in the currently
  * being recorded dispatch program. */
 static void ensure_known_capture(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
@@ -43,6 +80,23 @@ MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMOb
 
     /* Evaluate to the new capture, for the running dispatch function. */
     return new_capture;
+}
+
+/* Record a delegation from one dispatcher to another. */
+void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatcher_id,
+        MVMObject *capture) {
+    /* We can only do a single dispatcher delegation. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    if (record->outcome.delegate_disp != NULL)
+        MVM_exception_throw_adhoc(tc,
+                "Can only call dispatcher-delegate once in a dispatch callback");
+
+    /* Resolve the dispatcher we wish to delegate to, and ensure that this
+     * capture is one we know about. Then stash the info. */
+    MVMDispDefinition *disp = MVM_disp_registry_find(tc, dispatcher_id);
+    ensure_known_capture(tc, record, capture);
+    record->outcome.delegate_disp = disp;
+    record->outcome.delegate_capture = capture;
 }
 
 /* Record a program terminator that is a constant boject value. */
@@ -118,15 +172,23 @@ void MVM_disp_program_record_c_code_constant(MVMThreadContext *tc, MVMCFunction 
 }
 
 /* Called when we have finished recording a dispatch program. */
-MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatchRecord* record) {
+MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatchRecord* record,
+        MVMuint32 *thunked) {
     // TODO compile program, update inline cache
 
     /* Set the result in place. */
-    MVMFrame *caller = MVM_callstack_record_to_frame(record->common.prev);
     switch (record->outcome.kind) {
         case MVM_DISP_OUTCOME_FAILED:
             return 1;
-        case MVM_DISP_OUTCOME_VALUE:
+        case MVM_DISP_OUTCOME_EXPECT_DELEGATE:
+            if (record->outcome.delegate_disp)
+                run_dispatch(tc, record, record->outcome.delegate_disp,
+                        record->outcome.delegate_capture, thunked);
+            else
+                MVM_exception_throw_adhoc(tc, "Dispatch callback failed to delegate to a dispatcher");
+            return 0;
+        case MVM_DISP_OUTCOME_VALUE: {
+            MVMFrame *caller = MVM_callstack_record_to_frame(record->common.prev);
             switch (record->outcome.result_kind) {
                 case MVM_reg_obj:
                     MVM_args_set_dispatch_result_obj(tc, caller, record->outcome.result_value.o);
@@ -144,11 +206,15 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
                     MVM_oops(tc, "Unknown result kind in dispatch value outcome");
             }
             return 1;
+        }
         case MVM_DISP_OUTCOME_BYTECODE:
+            record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
             tc->cur_frame = MVM_callstack_record_to_frame(tc->stack_top->prev);
             MVM_frame_dispatch(tc, record->outcome.code, record->outcome.args, -1);
+            *thunked = 1;
             return 0;
         case MVM_DISP_OUTCOME_CFUNCTION:
+            record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
             tc->cur_frame = MVM_callstack_record_to_frame(tc->stack_top->prev);
             record->outcome.c_func(tc, record->outcome.args);
             return 1;
