@@ -27,6 +27,10 @@ typedef enum {
     /* Indicates we failed to produce an outcome, probably due to an exception. */
     MVM_DISP_OUTCOME_FAILED,
 
+    /* Indicates we expect the userspace dispatch we're running to specify another
+     * dispatcher to delegate to. */
+    MVM_DISP_OUTCOME_EXPECT_DELEGATE,
+
     /* Return a value (produced by the dispatch program). */
     MVM_DISP_OUTCOME_VALUE,
 
