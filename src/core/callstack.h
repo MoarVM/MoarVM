@@ -141,14 +141,17 @@ struct MVMCallStackDispatchRecord {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
 
-    /* The argument capture going into the dispatch (always an object, but
-     * stored this way to let this address be safely used as an argument
-     * buffer. */
-    MVMRegister initial_capture;
+    /* The argument capture that started out this dispatch. */
+    MVMObject *initial_capture;
 
     /* An MVMArray of derived captures, produced during the dispatch
      * process. */
     MVMObject *derived_captures;
+
+    /* Register holding the current capture. Starts out as the initial capture
+     * and then, in the case we delegate, becomes the one sent to the delegate
+     * dispatcher. */
+    MVMRegister current_capture;
 
     /* The outcome of the dispatch. */
     MVMDispProgramOutcome outcome;
