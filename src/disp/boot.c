@@ -57,7 +57,7 @@ static void boot_code_constant(MVMThreadContext *tc, MVMArgs arg_info) {
         /* Work out what the callee is, and set us up to invoke it. */
         MVMObject *code = MVM_capture_arg_pos_o(tc, capture, 0);
         if (REPR(code)->ID == MVM_REPR_ID_MVMCode && IS_CONCRETE(code)) {
-            MVM_disp_program_record_code_constant(tc, code, args_capture);
+            MVM_disp_program_record_code_constant(tc, (MVMCode *)code, args_capture);
         }
         else if (REPR(code)->ID == MVM_REPR_ID_MVMCFunction && IS_CONCRETE(code)) {
             MVM_panic(1, "invoke c function result nyi");

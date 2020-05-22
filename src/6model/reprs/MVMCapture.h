@@ -26,3 +26,5 @@ MVMString * MVM_capture_arg_pos_s(MVMThreadContext *tc, MVMObject *capture, MVMu
 
 /* Operations for deriving a new MVMCapture from an existing one. */
 MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx);
+MVMObject * MVM_capture_insert_arg(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx,
+        MVMCallsiteFlags kind, MVMRegister value);
