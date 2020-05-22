@@ -24,7 +24,7 @@
 
 /* Kinds of outcome of a dispatch program. */
 typedef enum {
-    /* Indicates we failed to produce an outcome. */
+    /* Indicates we failed to produce an outcome, probably due to an exception. */
     MVM_DISP_OUTCOME_FAILED,
 
     /* Return a value (produced by the dispatch program). */
@@ -50,10 +50,11 @@ struct MVMDispProgramOutcome {
             MVMuint8 result_kind;
         };
         struct {
-            /* The code object to invoke. Marked. */
-            struct {
+            union {
+                /* The code object to invoke. Marked. */
                 MVMCode *code;
-                MVMCFunction *c_code;
+                /* The C function to be invoked. */
+                void (*c_func) (MVMThreadContext *tc, MVMArgs arg_info);
             };
             /* Arguments for an invocation (must point into otherwise marked
              * areas). */
@@ -69,4 +70,6 @@ void MVM_disp_program_record_result_constant(MVMThreadContext *tc, MVMObject *re
 void MVM_disp_program_record_result_capture_value(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 index);
 void MVM_disp_program_record_code_constant(MVMThreadContext *tc, MVMCode *result, MVMObject *capture);
+void MVM_disp_program_record_c_code_constant(MVMThreadContext *tc, MVMCFunction *result,
+        MVMObject *capture);
 MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatchRecord* record);
