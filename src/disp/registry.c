@@ -98,7 +98,14 @@ void MVM_disp_registry_init(MVMThreadContext *tc) {
 /* Register a new dispatcher. */
 void MVM_disp_registry_register(MVMThreadContext *tc, MVMString *id, MVMObject *dispatch,
         MVMObject *resume) {
-    MVM_panic(1, "Dispatcher registration NYI");
+    MVMDispRegistry *reg = &(tc->instance->disp_registry);
+    if (REPR(dispatch)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(dispatch))
+        MVM_exception_throw_adhoc(tc, "dispatch callback be an instance with repr MVMCode");
+    if (resume && (REPR(resume)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(resume)))
+        MVM_exception_throw_adhoc(tc, "resume callback be an instance with repr MVMCode");
+    uv_mutex_lock(&(reg->mutex_update));
+    register_internal(tc, id, dispatch, resume);
+    uv_mutex_unlock(&(reg->mutex_update));
 }
 
 /* Find a dispatcher. Throws if there isn't one. */
