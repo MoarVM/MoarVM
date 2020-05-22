@@ -25,6 +25,27 @@ static MVMDispSysCall dispatcher_register = {
     .hash_handle = EMPTY_HASH_HANDLE
 };
 
+/* dispatcher-delegate */
+static void dispatcher_delegate_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMString *id = MVM_args_get_required_pos_str(tc, &arg_ctx, 0);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 1);
+    MVM_disp_program_record_delegate(tc, id, capture);
+    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_delegate = {
+    .c_name = "dispatcher-delegate",
+    .implementation = dispatcher_delegate_impl,
+    .min_args = 2,
+    .max_args = 2,
+    .expected_kinds = { MVM_CALLSITE_ARG_STR, MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0, MVM_REPR_ID_MVMCapture },
+    .expected_concrete = { 1, 1 },
+    .hash_handle = EMPTY_HASH_HANDLE
+};
+
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     syscall->name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -41,6 +62,7 @@ MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall
 void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     MVM_gc_allocate_gen2_default_set(tc);
     add_to_hash(tc, &dispatcher_register);
+    add_to_hash(tc, &dispatcher_delegate);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 

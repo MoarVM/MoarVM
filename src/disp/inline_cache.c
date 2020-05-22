@@ -66,34 +66,8 @@ static void dispatch_initial(MVMThreadContext *tc,
     };
     MVMObject *capture = MVM_capture_from_args(tc, capture_arg_info);
 
-    /* Push a dispatch recording frame onto the callstack; this is how we'll
-     * keep track of the current recording state. */
-    MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
-    record->initial_capture.o = capture;
-    record->derived_captures = NULL;
-    record->outcome.kind = MVM_DISP_OUTCOME_FAILED;
-
     /* Run the dispatcher. */
-    MVMCallsite *disp_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
-    MVMArgs dispatch_args = {
-        .callsite = disp_callsite,
-        .source = &(record->initial_capture),
-        .map = MVM_args_identity_map(tc, disp_callsite)
-    };
-    MVMObject *dispatch = disp->dispatch;
-    if (REPR(dispatch)->ID == MVM_REPR_ID_MVMCFunction) {
-        record->outcome.kind = MVM_DISP_OUTCOME_FAILED;
-        ((MVMCFunction *)dispatch)->body.func(tc, dispatch_args);
-        MVM_callstack_unwind_dispatcher(tc);
-    }
-    else if (REPR(dispatch)->ID == MVM_REPR_ID_MVMCode) {
-        record->outcome.kind = MVM_DISP_OUTCOME_EXPECT_DELEGATE;
-        tc->cur_frame = MVM_callstack_record_to_frame(tc->stack_top->prev);
-        MVM_frame_dispatch(tc, dispatch, dispatch_args, -1);
-    }
-    else {
-        MVM_panic(1, "dispatch callback only supported as a MVMCFunction or MVMCode");
-    }
+    MVM_disp_program_run_dispatch(tc, disp, capture);
 }
 
 /**

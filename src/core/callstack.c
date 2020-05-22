@@ -230,24 +230,21 @@ static int is_bytecode_frame(MVMuint8 kind) {
             return 0;
     }
 }
-static void handle_end_of_dispatch_record(MVMThreadContext *tc) {
+static void handle_end_of_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunked) {
     /* End of a dispatch recording; make callback to update the
      * inline cache, put the result in place, and take any further
      * actions. If the dispatch invokes bytecode, then the dispatch
      * record stays around, but we tweak its kind so we don't enter
      * the end of recording logic again. */
     MVMCallStackDispatchRecord *disp_record = (MVMCallStackDispatchRecord *)tc->stack_top;
-    MVMuint32 remove_dispatch_frame = MVM_disp_program_record_end(tc, disp_record);
+    MVMuint32 remove_dispatch_frame = MVM_disp_program_record_end(tc, disp_record, thunked);
     if (remove_dispatch_frame) {
         assert((char *)disp_record == (char *)tc->stack_top);
         tc->stack_current_region->alloc = (char *)tc->stack_top;
         tc->stack_top = tc->stack_top->prev;
     }
-    else {
-        disp_record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
-    }
 }
-MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional) {
+MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional, MVMuint32 *thunked) {
     do {
         /* Ensure region and stack top are in a consistent state. */
         assert(tc->stack_current_region->start <= (char *)tc->stack_top);
@@ -280,7 +277,7 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                 break;
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
                 if (!exceptional) {
-                    handle_end_of_dispatch_record(tc);
+                    handle_end_of_dispatch_record(tc, thunked);
                 }
                 else {
                     /* There was an exception; just leave the frame behind. */
@@ -299,7 +296,8 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
  * This is for the purpose of dispatchers that do not invoke. */
 void MVM_callstack_unwind_dispatcher(MVMThreadContext *tc) {
     assert(tc->stack_top->kind == MVM_CALLSTACK_RECORD_DISPATCH_RECORD);
-    handle_end_of_dispatch_record(tc);
+    MVMuint32 throwaway;
+    handle_end_of_dispatch_record(tc, &throwaway);
 }
 
 /* Walk the linked list of records and mark each of them. */
