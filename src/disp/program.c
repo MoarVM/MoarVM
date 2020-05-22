@@ -90,10 +90,28 @@ void MVM_disp_program_record_code_constant(MVMThreadContext *tc, MVMCode *result
     ensure_known_capture(tc, record, capture);
     // XXX TODO
 
-    /* Put the return value in place. */
+    /* Set up the invoke outcome. */
     MVMCallsite *callsite = ((MVMCapture *)capture)->body.callsite;
     record->outcome.kind = MVM_DISP_OUTCOME_BYTECODE;
     record->outcome.code = result;
+    record->outcome.args.callsite = callsite;
+    record->outcome.args.map = MVM_args_identity_map(tc, callsite);
+    record->outcome.args.source = ((MVMCapture *)capture)->body.args;
+}
+
+/* Record a program terminator that invokes an MVMCFunction object, which is to be
+ * considered a constant. */
+void MVM_disp_program_record_c_code_constant(MVMThreadContext *tc, MVMCFunction *result,
+        MVMObject *capture) {
+    /* Record the result action. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    ensure_known_capture(tc, record, capture);
+    // XXX TODO
+
+    /* Set up the invoke outcome. */
+    MVMCallsite *callsite = ((MVMCapture *)capture)->body.callsite;
+    record->outcome.kind = MVM_DISP_OUTCOME_CFUNCTION;
+    record->outcome.c_func = result->body.func;
     record->outcome.args.callsite = callsite;
     record->outcome.args.map = MVM_args_identity_map(tc, callsite);
     record->outcome.args.source = ((MVMCapture *)capture)->body.args;
@@ -130,6 +148,10 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             tc->cur_frame = MVM_callstack_record_to_frame(tc->stack_top->prev);
             MVM_frame_dispatch(tc, record->outcome.code, record->outcome.args, -1);
             return 0;
+        case MVM_DISP_OUTCOME_CFUNCTION:
+            tc->cur_frame = MVM_callstack_record_to_frame(tc->stack_top->prev);
+            record->outcome.c_func(tc, record->outcome.args);
+            return 1;
         default:
             MVM_oops(tc, "Unimplemented dispatch program outcome kind");
     }

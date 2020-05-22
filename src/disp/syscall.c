@@ -25,7 +25,7 @@ MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall
     MVMObject *BOOTCCode = tc->instance->boot_types.BOOTCCode;
     MVMObject *code_obj = REPR(BOOTCCode)->allocate(tc, STABLE(BOOTCCode));
     ((MVMCFunction *)code_obj)->body.func = syscall->implementation;
-    syscall->wrapper = code_obj;
+    syscall->wrapper = (MVMCFunction *)code_obj;
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&(syscall->wrapper), "MoarVM syscall wrapper");
 }
 void MVM_disp_syscall_setup(MVMThreadContext *tc) {
