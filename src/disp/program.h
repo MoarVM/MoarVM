@@ -53,6 +53,7 @@ struct MVMDispProgramOutcome {
             MVMRegister result_value;
             MVMuint8 result_kind;
         };
+        /* A invocation of either bytecode or a C function. */
         struct {
             union {
                 /* The code object to invoke. Marked. */
@@ -64,16 +65,25 @@ struct MVMDispProgramOutcome {
              * areas). */
             MVMArgs args;
         };
+        /* A dispatcher delegation. */
+        struct {
+            MVMDispDefinition *delegate_disp;
+            MVMObject *delegate_capture;
+        };
     };
 };
 
 /* Functions called during the recording. */
+void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp, MVMObject *capture);
 MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 index);
+void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatcher_id,
+        MVMObject *capture);
 void MVM_disp_program_record_result_constant(MVMThreadContext *tc, MVMObject *result);
 void MVM_disp_program_record_result_capture_value(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 index);
 void MVM_disp_program_record_code_constant(MVMThreadContext *tc, MVMCode *result, MVMObject *capture);
 void MVM_disp_program_record_c_code_constant(MVMThreadContext *tc, MVMCFunction *result,
         MVMObject *capture);
-MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatchRecord* record);
+MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatchRecord* record,
+        MVMuint32 *thunked);
