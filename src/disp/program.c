@@ -83,6 +83,31 @@ MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMOb
     return new_capture;
 }
 
+/* Record that we insert a new constant argument from a capture. Also perform the
+ * insert, resulting in a new capture without a new argument inserted at the
+ * given index. */
+MVMObject * MVM_disp_program_record_capture_insert_constant_arg(MVMThreadContext *tc,
+        MVMObject *capture, MVMuint32 index, MVMCallsiteFlags kind, MVMRegister value) {
+    /* Ensure the incoming capture is known. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    ensure_known_capture(tc, record, capture);
+
+    /* Calculate the new capture and add it to the derived capture set to keep
+     * it alive. */
+    MVMObject *new_capture = MVM_capture_insert_arg(tc, capture, index, kind, value);
+    if (!record->derived_captures) {
+        MVMROOT(tc, new_capture, {
+            record->derived_captures = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+        });
+    }
+    MVM_repr_push_o(tc, record->derived_captures, new_capture);
+
+    // XXX TODO record info about this
+
+    /* Evaluate to the new capture, for the running dispatch function. */
+    return new_capture;
+}
+
 /* Record a delegation from one dispatcher to another. */
 void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatcher_id,
         MVMObject *capture) {
