@@ -256,3 +256,38 @@ MVMCallsite * MVM_callsite_drop_positional(MVMThreadContext *tc, MVMCallsite *cs
     MVM_callsite_try_intern(tc, &new_callsite);
     return new_callsite;
 }
+
+/* Produce a new callsite consisting of the current one with a positional
+ * argument inserted. It will be interned if possible. */
+MVMCallsite * MVM_callsite_insert_positional(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx,
+        MVMCallsiteFlags flag) {
+    /* Can only do this with positional arguments and non-flattening callsite. */
+    if (idx > cs->num_pos)
+        MVM_exception_throw_adhoc(tc, "Cannot drop positional in callsite: index out of range");
+    if (cs->has_flattening)
+        MVM_exception_throw_adhoc(tc, "Cannot transform a callsite with flattening args");
+
+    /* Allocate a new callsite and set it up. */
+    MVMCallsite *new_callsite = MVM_calloc(1, sizeof(MVMCallsite));
+    new_callsite->num_pos = cs->num_pos + 1;
+    new_callsite->flag_count = cs->flag_count + 1;
+    new_callsite->arg_count = cs->arg_count + 1;
+    new_callsite->arg_flags = MVM_malloc(new_callsite->flag_count);
+    MVMuint32 from, to = 0;
+    for (from = 0; from < cs->flag_count; from++) {
+        if (from == idx) {
+            new_callsite->arg_flags[to] = flag;
+            to++;
+        }
+        new_callsite->arg_flags[to] = cs->arg_flags[from];
+        to++;
+    }
+    if (from == idx)
+        new_callsite->arg_flags[to] = flag;
+    copy_nameds(new_callsite, cs);
+
+    /* Try to intern it, and return the result (which may be the interned
+     * version that already existed, or may newly intern this). */
+    MVM_callsite_try_intern(tc, &new_callsite);
+    return new_callsite;
+}

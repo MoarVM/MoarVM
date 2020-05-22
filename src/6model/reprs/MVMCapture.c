@@ -188,3 +188,37 @@ MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture_obj, M
     ((MVMCapture *)new_capture)->body.args = new_args;
     return new_capture;
 }
+
+/* Produce a new capture by taking the current one and inserting the specified
+ * arg into it. */
+MVMObject * MVM_capture_insert_arg(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx,
+        MVMCallsiteFlags kind, MVMRegister value) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    if (idx > capture->body.callsite->num_pos)
+        MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
+
+    /* We need a callsite with the argument that is being inserted. */
+    MVMCallsite *new_callsite = MVM_callsite_insert_positional(tc, capture->body.callsite,
+            idx, kind);
+
+    /* Form a new arguments buffer, dropping the specified argument. */
+    MVMRegister *new_args = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+            new_callsite->flag_count * sizeof(MVMRegister));
+    MVMuint32 from, to = 0;
+    for (from = 0; from < capture->body.callsite->flag_count; from++) {
+        if (from == idx) {
+            new_args[to] = value;
+            to++;
+        }
+        new_args[to] = capture->body.args[from];
+        to++;
+    }
+    if (from == idx)
+        new_args[to] = value;
+
+    /* Form new capture object. */
+    MVMObject *new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
+    ((MVMCapture *)new_capture)->body.callsite = new_callsite;
+    ((MVMCapture *)new_capture)->body.args = new_args;
+    return new_capture;
+}
