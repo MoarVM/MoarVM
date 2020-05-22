@@ -82,11 +82,17 @@ static void dispatch_initial(MVMThreadContext *tc,
     };
     MVMObject *dispatch = disp->dispatch;
     if (REPR(dispatch)->ID == MVM_REPR_ID_MVMCFunction) {
+        record->outcome.kind = MVM_DISP_OUTCOME_FAILED;
         ((MVMCFunction *)dispatch)->body.func(tc, dispatch_args);
         MVM_callstack_unwind_dispatcher(tc);
     }
+    else if (REPR(dispatch)->ID == MVM_REPR_ID_MVMCode) {
+        record->outcome.kind = MVM_DISP_OUTCOME_EXPECT_DELEGATE;
+        tc->cur_frame = MVM_callstack_record_to_frame(tc->stack_top->prev);
+        MVM_frame_dispatch(tc, dispatch, dispatch_args, -1);
+    }
     else {
-        MVM_panic(1, "dispatch callback only supported as a MVMCFunction");
+        MVM_panic(1, "dispatch callback only supported as a MVMCFunction or MVMCode");
     }
 }
 
