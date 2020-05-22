@@ -4,9 +4,10 @@
 static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         MVMDispDefinition *disp, MVMObject *capture, MVMuint32 *thunked) {
     MVMCallsite *disp_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+    record->current_capture.o = capture;
     MVMArgs dispatch_args = {
         .callsite = disp_callsite,
-        .source = &(record->initial_capture),
+        .source = &(record->current_capture),
         .map = MVM_args_identity_map(tc, disp_callsite)
     };
     MVMObject *dispatch = disp->dispatch;
@@ -32,7 +33,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     /* Push a dispatch recording frame onto the callstack; this is how we'll
      * keep track of the current recording state. */
     MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
-    record->initial_capture.o = capture;
+    record->initial_capture = capture;
     record->derived_captures = NULL;
     run_dispatch(tc, record, disp, capture, NULL);
 }
@@ -41,7 +42,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
  * being recorded dispatch program. */
 static void ensure_known_capture(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         MVMObject *capture) {
-    if (capture != record->initial_capture.o) {
+    if (capture != record->initial_capture) {
         int found = 0;
         if (record->derived_captures) {
             MVMint64 elems = MVM_repr_elems(tc, record->derived_captures);
