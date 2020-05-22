@@ -2,7 +2,15 @@
 
 /* dispatcher-register */
 static void dispatcher_register_impl(MVMThreadContext *tc, MVMArgs arg_info) {
-    MVM_panic(1, "in syscall but NYI");
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMString *id = MVM_args_get_required_pos_str(tc, &arg_ctx, 0);
+    MVMObject *dispatch = MVM_args_get_required_pos_obj(tc, &arg_ctx, 1);
+    MVMObject *resume = arg_info.callsite->num_pos > 2
+        ? MVM_args_get_required_pos_obj(tc, &arg_ctx, 2)
+        : NULL;
+    MVM_disp_registry_register(tc, id, dispatch, resume);
+    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
 }
 static MVMDispSysCall dispatcher_register = {
     .c_name = "dispatcher-register",
