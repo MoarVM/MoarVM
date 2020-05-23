@@ -1065,6 +1065,7 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
             is_malloced = 1;
         }
         if ((err = mp_to_radix(i, buf, len, NULL, base)) != MP_OKAY) {
+            if (is_malloced) MVM_free(buf);
             MVM_exception_throw_adhoc(tc, "Error getting the string representation of a big integer: %s", mp_error_to_string(err));
         }
         result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
@@ -1101,6 +1102,7 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
                 is_malloced = 1;
             }
             if ((err = mp_to_radix(&i, buf, len, NULL, base)) != MP_OKAY) {
+                if (is_malloced) MVM_free(buf);
                 mp_clear(&i);
                 MVM_exception_throw_adhoc(tc, "Error getting the string representation of a big integer: %s", mp_error_to_string(err));
             }

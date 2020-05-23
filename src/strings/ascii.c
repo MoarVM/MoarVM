@@ -19,6 +19,7 @@ MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, const MVMObject *resul
             result->body.storage.blob_32[result_graphs++] = ascii[i];
         }
         else {
+            MVM_free(result->body.storage.blob_32);
             MVM_exception_throw_adhoc(tc,
                 "Will not decode invalid ASCII (code point (%"PRId32") < 0 found)", ascii[i]);
         }
@@ -70,9 +71,11 @@ MVMuint32 MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *d
         while (pos < cur_bytes->length) {
             MVMCodepoint codepoint = bytes[pos++];
             MVMGrapheme32 graph;
-            if (codepoint > 127)
+            if (codepoint > 127) {
+                MVM_free(buffer);
                 MVM_exception_throw_adhoc(tc,
                     "Will not decode invalid ASCII (code point (%"PRId32") > 127 found)", codepoint);
+            }
             if (last_was_cr) {
                 if (codepoint == '\n') {
                     graph = MVM_unicode_normalizer_translated_crlf(tc, &(ds->norm));

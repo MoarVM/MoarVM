@@ -518,6 +518,7 @@ MVMString * MVM_string_windows125X_decode(MVMThreadContext *tc,
                     codepoint = MVM_string_get_grapheme_at(tc, replacement, i);
                 }
                 else if (MVM_ENCODING_CONFIG_STRICT(config)) {
+                    MVM_free(result->body.storage.blob_32);
                     /* Throw an exception if that codepoint has no mapping */
                     char *enc_name = codetable == windows1252_codepoints
                         ? "Windows-1252" : "Windows-1251";

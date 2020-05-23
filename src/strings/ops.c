@@ -280,9 +280,11 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
                 );
                 break;
             }
-            default:
+            default: {
+                MVM_free(result->body.storage.blob_8);
                 MVM_exception_throw_adhoc(tc,
                     "Internal error, string corruption in iterate_gi_into_string\n");
+            }
             }
             result_pos += to_copy;
             if (result_graphs <= result_pos || !MVM_string_gi_has_more_strands_rep(tc, gi)) {
@@ -322,9 +324,11 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
                     );
                     break;
                 }
-                default:
+                default: {
+                    MVM_free(result->body.storage.blob_32);
                     MVM_exception_throw_adhoc(tc,
                         "Internal error, string corruption in iterate_gi_into_string\n");
+                }
             }
             result_pos += to_copy;
             if (result_graphs <= result_pos || !MVM_string_gi_has_more_strands_rep(tc, gi)) {

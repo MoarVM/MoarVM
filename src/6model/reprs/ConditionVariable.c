@@ -111,9 +111,11 @@ MVMObject * MVM_conditionvariable_from_lock(MVMThreadContext *tc, MVMReentrantMu
         cv = (MVMConditionVariable *)MVM_gc_allocate_object(tc, STABLE(type));
     });
     cv->body.condvar = MVM_malloc(sizeof(uv_cond_t));
-    if ((init_stat = uv_cond_init(cv->body.condvar)) < 0)
+    if ((init_stat = uv_cond_init(cv->body.condvar)) < 0) {
+        MVM_free(cv->body.condvar);
         MVM_exception_throw_adhoc(tc, "Failed to initialize condition variable: %s",
             uv_strerror(init_stat));
+    }
     MVM_ASSIGN_REF(tc, &(cv->common.header), cv->body.mutex, (MVMObject *)lock);
 
     return (MVMObject *)cv;

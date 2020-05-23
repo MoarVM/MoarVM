@@ -317,6 +317,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
                 args[i - 1].i64 = dcbArgULongLong(cb_args);
                 break;
             default:
+                MVM_free(args);
                 MVM_telemetry_interval_stop(tc, interval_id, "nativecall callback handler failed");
                 MVM_exception_throw_adhoc(tc,
                     "Internal error: unhandled dyncall callback argument type");
@@ -402,6 +403,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
             cb_result->l = MVM_nativecall_unmarshal_ulonglong(tc, res.o);
             break;
         default:
+            MVM_free(args);
             MVM_telemetry_interval_stop(tc, interval_id, "nativecall callback handler failed");
             MVM_exception_throw_adhoc(tc,
                 "Internal error: unhandled dyncall callback return type");
