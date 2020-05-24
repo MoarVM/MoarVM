@@ -52,19 +52,23 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         }
         else if (type_id == MVM_REPR_ID_MVMCArray) {
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CARRAY;
+            //Doesn't handle arrays of arrays
             repr_data->elem_size = sizeof(void *);
         }
         else if (type_id == MVM_REPR_ID_MVMCStruct) {
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CSTRUCT;
-            repr_data->elem_size = sizeof(void *);
+            MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(type)->REPR_data;
+            repr_data->elem_size = cstruct_repr_data->struct_size;
         }
         else if (type_id == MVM_REPR_ID_MVMCPPStruct) {
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CPPSTRUCT;
-            repr_data->elem_size = sizeof(void *);
+            MVMCPPStructREPRData *cppstruct_repr_data = (MVMCPPStructREPRData *)STABLE(type)->REPR_data;
+            repr_data->elem_size = cppstruct_repr_data->struct_size;
         }
         else if (type_id == MVM_REPR_ID_MVMCUnion) {
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CUNION;
-            repr_data->elem_size = sizeof(void *);
+            MVMCUnionREPRData *cunion_repr_data = (MVMCUnionREPRData *)STABLE(type)->REPR_data;
+            repr_data->elem_size = cunion_repr_data->struct_size;
         }
         else if (type_id == MVM_REPR_ID_MVMCPointer) {
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_CPOINTER;
@@ -88,9 +92,18 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
      * managing the memory in this array ourself. */
     MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
     MVMCArrayBody     *body      = (MVMCArrayBody *)data;
-
     if (!repr_data)
         MVM_exception_throw_adhoc(tc, "CArray type must be composed before use");
+
+    /* This block handles inlined arrays. Everything else is already done */
+    if (body->fixed_cnt > 0) {
+        /* Don't need child_objs for numerics. */
+        if (repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_NUMERIC)
+            body->child_objs = NULL;
+        else
+            body->child_objs = (MVMObject **) MVM_calloc(body->fixed_cnt, sizeof(MVMObject *));
+        return;
+    }
 
     body->storage = MVM_calloc(4, repr_data->elem_size);
     body->managed = 1;
@@ -196,6 +209,10 @@ static void die_pos_nyi(MVMThreadContext *tc) {
 
 
 static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArrayBody *body, MVMint32 min_size) {
+    if (body->fixed_cnt > 0) {
+        MVM_exception_throw_adhoc(tc,
+        "Cannot expand CArray declared with fixed size.");
+    }
     MVMint8 is_complex;
     MVMint32 next_size = body->allocated? 2 * body->allocated: 4;
 
@@ -429,7 +446,7 @@ static void aslice(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *da
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMCArrayBody *body = (MVMCArrayBody *)data;
 
-    if (body->managed)
+    if (body->managed || body->fixed_cnt > 0)
         return body->elems;
 
     MVM_exception_throw_adhoc(tc,

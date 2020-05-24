@@ -18,6 +18,9 @@ struct MVMCArrayBody {
     /* The number of elements we have, if known. Invalid if we
      * are not managing the array. */
     MVMint32 elems;
+
+    /* The number of elements for inlined/fixed-size arrays. == -1 if not inlined*/
+    MVMint32 fixed_cnt;
 };
 
 struct MVMCArray {
