@@ -433,7 +433,6 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
         for (i = 0; repr_data->initialize_slots[i] >= 0; i++) {
             MVMint32 slot = repr_data->initialize_slots[i];
             MVMint32  offset = repr_data->struct_offsets[slot];
-            /*MVMSTable *st     = repr_data->flattened_stables[slot];*/
             MVMSTable *st     = repr_data->member_types[i]->st;
 
             //make the array
@@ -505,8 +504,6 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                 if (!obj) {
                     /* No cached object. */
                     MVMROOT(tc, root, {
-                    /*do {*/
-                    /*MVM_gc_root_temp_push(tc, (MVMCollectable **)&(root));*/
                         //make it if it's inlined
                         if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED) {
                             if (type == MVM_CSTRUCT_ATTR_CARRAY) {
@@ -559,7 +556,6 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                             }
                         }
                     });
-                    /*} while (0);*/
                     MVM_ASSIGN_REF(tc, &(root->header), ((MVMCStruct*)root)->body.child_objs[real_slot], obj);
                     }
                 result_reg->o = obj;
