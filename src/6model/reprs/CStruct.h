@@ -81,6 +81,9 @@ struct MVMCStructREPRData {
     /* Slots holding flattened objects that need another REPR to initialize
      * them; terminated with -1. */
     MVMint32 *initialize_slots;
+
+    /* Stores the number of elements in inlined arrays */
+    MVMint64 *dimensions;
 };
 
 /* Initializes the CStruct REPR. */
