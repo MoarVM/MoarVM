@@ -143,6 +143,83 @@ static MVMDispSysCall dispatcher_insert_arg_literal_str = {
     .hash_handle = EMPTY_HASH_HANDLE
 };
 
+/* dispatcher-guard-type */
+static void dispatcher_guard_type_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *tracked = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVM_disp_program_record_guard_type(tc, tracked);
+    MVM_args_set_result_obj(tc, tracked, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_guard_type = {
+    .c_name = "dispatcher-guard-type",
+    .implementation = dispatcher_guard_type_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMTracked },
+    .expected_concrete = { 1 },
+    .hash_handle = EMPTY_HASH_HANDLE
+};
+
+/* dispatcher-guard-concreteness */
+static void dispatcher_guard_concreteness_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *tracked = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVM_disp_program_record_guard_concreteness(tc, tracked);
+    MVM_args_set_result_obj(tc, tracked, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_guard_concreteness = {
+    .c_name = "dispatcher-guard-concreteness",
+    .implementation = dispatcher_guard_concreteness_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMTracked },
+    .expected_concrete = { 1 },
+    .hash_handle = EMPTY_HASH_HANDLE
+};
+
+/* dispatcher-guard-literal */
+static void dispatcher_guard_literal_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *tracked = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVM_disp_program_record_guard_literal(tc, tracked);
+    MVM_args_set_result_obj(tc, tracked, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_guard_literal = {
+    .c_name = "dispatcher-guard-literal",
+    .implementation = dispatcher_guard_literal_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMTracked },
+    .expected_concrete = { 1 },
+    .hash_handle = EMPTY_HASH_HANDLE
+};
+
+/* dispatcher-guard-not-literal-obj */
+static void dispatcher_guard_not_literal_obj_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *tracked = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMObject *object = MVM_args_get_required_pos_obj(tc, &arg_ctx, 1);
+    MVM_disp_program_record_guard_not_literal_obj(tc, tracked, object);
+    MVM_args_set_result_obj(tc, tracked, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_guard_not_literal_obj = {
+    .c_name = "dispatcher-guard-not-literal-obj",
+    .implementation = dispatcher_guard_not_literal_obj_impl,
+    .min_args = 2,
+    .max_args = 2,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMTracked, 0 },
+    .expected_concrete = { 1, 0 },
+    .hash_handle = EMPTY_HASH_HANDLE
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -167,6 +244,10 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_insert_arg);
     add_to_hash(tc, &dispatcher_insert_arg_literal_obj);
     add_to_hash(tc, &dispatcher_insert_arg_literal_str);
+    add_to_hash(tc, &dispatcher_guard_type);
+    add_to_hash(tc, &dispatcher_guard_concreteness);
+    add_to_hash(tc, &dispatcher_guard_literal);
+    add_to_hash(tc, &dispatcher_guard_not_literal_obj);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
