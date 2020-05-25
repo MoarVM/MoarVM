@@ -150,6 +150,9 @@ struct MVMDispProgramRecordingCapture {
 
     /* For inserts, the index of the value that was involved. */
     MVMuint32 value_index;
+
+    /* Tree of captures further derived from the this one. */
+    MVM_VECTOR_DECL(MVMDispProgramRecordingCapture, captures);
 };
 
 /* Functions called during the recording. */
