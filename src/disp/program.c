@@ -59,6 +59,23 @@ static void ensure_known_capture(MVMThreadContext *tc, MVMCallStackDispatchRecor
     }
 }
 
+/* Start tracking an argument from the specified capture. This allows us to
+ * apply guards against it. */
+MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *capture,
+        MVMuint32 index) {
+    /* Ensure the incoming capture is known. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    ensure_known_capture(tc, record, capture);
+
+    // XXX TODO record info about this
+
+    /* Obtain the argument and wrap it in a tracked object. */
+    MVMRegister value;
+    MVMCallsiteFlags kind;
+    MVM_capture_arg_pos(tc, capture, index, &value, &kind);
+    return MVM_tracked_create(tc, value, kind);
+}
+
 /* Record that we drop an argument from a capture. Also perform the drop,
  * resulting in a new capture without that argument. */
 MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture,
@@ -70,6 +87,32 @@ MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMOb
     /* Calculate the new capture and add it to the derived capture set to keep
      * it alive. */
     MVMObject *new_capture = MVM_capture_drop_arg(tc, capture, idx);
+    if (!record->derived_captures) {
+        MVMROOT(tc, new_capture, {
+            record->derived_captures = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+        });
+    }
+    MVM_repr_push_o(tc, record->derived_captures, new_capture);
+
+    // XXX TODO record info about this
+
+    /* Evaluate to the new capture, for the running dispatch function. */
+    return new_capture;
+}
+
+/* Record that we insert a tracked value into a capture. Also perform the insert
+ * on the value that was read. */
+MVMObject * MVM_disp_program_record_capture_insert_arg(MVMThreadContext *tc,
+        MVMObject *capture, MVMuint32 index, MVMObject *tracked) {
+    /* Ensure the incoming capture and tracked values are known. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    ensure_known_capture(tc, record, capture);
+    // XXX TODO tracked value
+
+    /* Calculate the new capture and add it to the derived capture set to keep
+     * it alive. */
+    MVMObject *new_capture = MVM_capture_insert_arg(tc, capture, index,
+            ((MVMTracked *)tracked)->body.kind, ((MVMTracked *)tracked)->body.value);
     if (!record->derived_captures) {
         MVMROOT(tc, new_capture, {
             record->derived_captures = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
