@@ -76,6 +76,28 @@ MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *c
     return MVM_tracked_create(tc, value, kind);
 }
 
+/* Record a guard of the current type of the specified tracked value. */
+void MVM_disp_program_record_guard_type(MVMThreadContext *tc, MVMObject *tracked) {
+    // TODO
+}
+
+/* Record a guard of the current concreteness of the specified tracked value. */
+void MVM_disp_program_record_guard_concreteness(MVMThreadContext *tc, MVMObject *tracked) {
+    // TODO
+}
+
+/* Record a guard of the current value of the specified tracked value. */
+void MVM_disp_program_record_guard_literal(MVMThreadContext *tc, MVMObject *tracked) {
+    // TODO
+}
+
+/* Record a guard that the specified tracked value must not be a certain object
+ * literal. */
+void MVM_disp_program_record_guard_not_literal_obj(MVMThreadContext *tc,
+       MVMObject *tracked, MVMObject *object) {
+    // TODO
+}
+
 /* Record that we drop an argument from a capture. Also perform the drop,
  * resulting in a new capture without that argument. */
 MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture,
