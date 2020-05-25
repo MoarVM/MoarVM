@@ -322,3 +322,5 @@ typedef struct MVMDispInlineCacheEntryResolvedGetLexStatic MVMDispInlineCacheEnt
 typedef struct MVMDispProgramOutcome MVMDispProgramOutcome;
 typedef struct MVMDispSysCall MVMDispSysCall;
 typedef struct MVMDispSysCallHashEntry MVMDispSysCallHashEntry;
+typedef struct MVMTracked MVMTracked;
+typedef struct MVMTrackedBody MVMTrackedBody;

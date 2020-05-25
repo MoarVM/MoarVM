@@ -47,6 +47,7 @@
 #include "6model/reprs/MVMStaticFrameSpesh.h"
 #include "6model/reprs/MVMSpeshPluginState.h"
 #include "6model/reprs/MVMSpeshCandidate.h"
+#include "6model/reprs/MVMTracked.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -104,8 +105,9 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMSpeshPluginState     45
 #define MVM_REPR_ID_MVMSpeshCandidate       46
 #define MVM_REPR_ID_MVMCapture              47
+#define MVM_REPR_ID_MVMTracked              48
 
-#define MVM_REPR_CORE_COUNT                 48
+#define MVM_REPR_CORE_COUNT                 49
 #define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */
