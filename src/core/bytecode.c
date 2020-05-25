@@ -277,6 +277,9 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
         /* Resolve to string. */
         if (sh_idx >= cu_body->num_strings) {
             cleanup_all(tc, rs);
+            MVM_free_null(cu_body->scs);
+            MVM_free_null(cu_body->scs_to_resolve);
+            MVM_free_null(cu_body->sc_handle_idxs);
             MVM_exception_throw_adhoc(tc, "String heap index beyond end of string heap");
         }
         cu_body->sc_handle_idxs[i] = sh_idx;
@@ -338,6 +341,7 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
         /* Lookup name string. */
         if (name_idx >= cu->body.num_strings) {
             cleanup_all(tc, rs);
+            MVM_fixed_size_free(tc, tc->instance->fsa, num * sizeof(MVMExtOpRecord), extops);
             MVM_exception_throw_adhoc(tc,
                     "String heap index beyond end of string heap");
         }
@@ -440,6 +444,7 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
 
             fail:
                 cleanup_all(tc, rs);
+                MVM_fixed_size_free(tc, tc->instance->fsa, num * sizeof(MVMExtOpRecord), extops);
                 MVM_exception_throw_adhoc(tc, "Invalid operand descriptor");
             }
         }
@@ -485,10 +490,12 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         bytecode_size = read_int32(pos, 4);
         if (bytecode_pos >= rs->bytecode_size) {
             cleanup_all(tc, rs);
+            MVM_free(frames);
             MVM_exception_throw_adhoc(tc, "Frame has invalid bytecode start point %d (size %d)", bytecode_pos, rs->bytecode_size);
         }
         if (bytecode_pos + bytecode_size > rs->bytecode_size) {
             cleanup_all(tc, rs);
+            MVM_free(frames);
             MVM_exception_throw_adhoc(tc, "Frame bytecode overflows bytecode stream");
         }
         static_frame_body->bytecode      = rs->bytecode_seg + bytecode_pos;
@@ -512,6 +519,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             MVMuint32 num_annotations = read_int32(pos, 30);
             if (annot_offset + num_annotations * 12 > rs->annotation_size) {
                 cleanup_all(tc, rs);
+                MVM_free(frames);
                 MVM_exception_throw_adhoc(tc, "Frame annotation segment overflows bytecode stream");
             }
             static_frame_body->annotations_data = rs->annotation_seg + annot_offset;
@@ -576,6 +584,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             }
             else {
                 cleanup_all(tc, rs);
+                MVM_free(frames);
                 MVM_exception_throw_adhoc(tc, "Invalid frame outer index; cannot fixup");
             }
         }
@@ -694,6 +703,18 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
 
         if (lex_idx >= sf->body.num_lexicals) {
             MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
+            if (sf->body.num_locals) {
+                MVM_free_null(sf->body.local_types);
+            }
+            if (sf->body.num_lexicals) {
+                MVM_free_null(sf->body.lexical_types);
+                MVM_free_null(sf->body.lexical_names_list);
+            }
+            if (sf->body.num_handlers) {
+                MVM_free_null(sf->body.handlers);
+            }
+            MVM_free_null(sf->body.static_env);
+            MVM_free_null(sf->body.static_env_flags);
             MVM_exception_throw_adhoc(tc, "Lexical index out of bounds: %d >= %d", lex_idx, sf->body.num_lexicals);
         }
 
@@ -704,6 +725,18 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
             MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, read_int32(pos, 4));
             if (sc == NULL) {
                 MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
+                if (sf->body.num_locals) {
+                    MVM_free_null(sf->body.local_types);
+                }
+                if (sf->body.num_lexicals) {
+                    MVM_free_null(sf->body.lexical_types);
+                    MVM_free_null(sf->body.lexical_names_list);
+                }
+                if (sf->body.num_handlers) {
+                    MVM_free_null(sf->body.handlers);
+                }
+                MVM_free_null(sf->body.static_env);
+                MVM_free_null(sf->body.static_env_flags);
                 MVM_exception_throw_adhoc(tc, "SC not yet resolved; lookup failed");
             }
             MVMObject *wval;
@@ -810,16 +843,49 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
          * before all nameds (flattening named counts as named). */
         for (j = 0; j < elems; j++) {
             if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT) {
-                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ))
+                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ)) {
+                    MVMuint32 k;
+                    for (k = 0; k <= i; k++) {
+                        if (!callsites[i]->is_interned) {
+                            MVM_free(callsites[i]->arg_flags);
+                            MVM_free_null(callsites[i]);
+                        }
+                    }
+                    MVM_fixed_size_free(tc, tc->instance->fsa,
+                        sizeof(MVMCallsite *) * rs->expected_callsites,
+                        callsites);
                     MVM_exception_throw_adhoc(tc, "Flattened positional args must be objects");
-                if (nameds_slots)
+                }
+                if (nameds_slots) {
+                    MVMuint32 k;
+                    for (k = 0; k <= i; k++) {
+                        if (!callsites[i]->is_interned) {
+                            MVM_free(callsites[i]->arg_flags);
+                            MVM_free_null(callsites[i]);
+                        }
+                    }
+                    MVM_fixed_size_free(tc, tc->instance->fsa,
+                        sizeof(MVMCallsite *) * rs->expected_callsites,
+                        callsites);
                     MVM_exception_throw_adhoc(tc, "Flattened positional args must appear before named args");
+                }
                 has_flattening = 1;
                 positionals++;
             }
             else if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT_NAMED) {
-                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ))
+                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ)) {
+                    MVMuint32 k;
+                    for (k = 0; k <= i; k++) {
+                        if (!callsites[i]->is_interned) {
+                            MVM_free(callsites[i]->arg_flags);
+                            MVM_free_null(callsites[i]);
+                        }
+                    }
+                    MVM_fixed_size_free(tc, tc->instance->fsa,
+                        sizeof(MVMCallsite *) * rs->expected_callsites,
+                        callsites);
                     MVM_exception_throw_adhoc(tc, "Flattened named args must be objects");
+                }
                 has_flattening = 1;
                 nameds_slots++;
             }
@@ -828,6 +894,16 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
                 nameds_non_flattening++;
             }
             else if (nameds_slots) {
+                MVMuint32 k;
+                for (k = 0; k <= i; k++) {
+                    if (!callsites[i]->is_interned) {
+                        MVM_free(callsites[i]->arg_flags);
+                        MVM_free_null(callsites[i]);
+                    }
+                }
+                MVM_fixed_size_free(tc, tc->instance->fsa,
+                    sizeof(MVMCallsite *) * rs->expected_callsites,
+                        callsites);
                 MVM_exception_throw_adhoc(tc, "All positional args must appear before named args, violated by arg %d in callsite %d", j, i);
             }
             else {
