@@ -77,6 +77,11 @@ struct MVMDispProgramOutcome {
 void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp, MVMObject *capture);
 MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 index);
+void MVM_disp_program_record_guard_type(MVMThreadContext *tc, MVMObject *tracked);
+void MVM_disp_program_record_guard_concreteness(MVMThreadContext *tc, MVMObject *tracked);
+void MVM_disp_program_record_guard_literal(MVMThreadContext *tc, MVMObject *tracked);
+void MVM_disp_program_record_guard_not_literal_obj(MVMThreadContext *tc,
+       MVMObject *tracked, MVMObject *object);
 MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 index);
 MVMObject * MVM_disp_program_record_capture_insert_constant_arg(MVMThreadContext *tc,
