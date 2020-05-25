@@ -100,8 +100,8 @@ static MVMDispSysCall dispatcher_insert_arg = {
     .expected_concrete = { 1, 1, 1 }
 };
 
-/* dispatcher-insert-constant-arg */
-static void dispatcher_insert_constant_arg_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+/* dispatcher-insert-arg-literal-obj */
+static void dispatcher_insert_arg_literal_obj_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMArgProcContext arg_ctx;
     MVM_args_proc_setup(tc, &arg_ctx, arg_info);
     MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
@@ -111,14 +111,36 @@ static void dispatcher_insert_constant_arg_impl(MVMThreadContext *tc, MVMArgs ar
             capture, (MVMuint32)idx, MVM_CALLSITE_ARG_OBJ, insertee);
     MVM_args_set_result_obj(tc, derived, MVM_RETURN_CURRENT_FRAME);
 }
-static MVMDispSysCall dispatcher_insert_constant_arg = {
-    .c_name = "dispatcher-insert-constant-arg",
-    .implementation = dispatcher_insert_constant_arg_impl,
+static MVMDispSysCall dispatcher_insert_arg_literal_obj = {
+    .c_name = "dispatcher-insert-arg-literal-obj",
+    .implementation = dispatcher_insert_arg_literal_obj_impl,
     .min_args = 3,
     .max_args = 3,
     .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_OBJ },
     .expected_reprs = { MVM_REPR_ID_MVMCapture, 0, 0 },
     .expected_concrete = { 1, 1, 0 }
+};
+
+/* dispatcher-insert-arg-literal-str */
+static void dispatcher_insert_arg_literal_str_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMint64 idx = MVM_args_get_required_pos_int(tc, &arg_ctx, 1);
+    MVMRegister insertee = { .s = MVM_args_get_required_pos_str(tc, &arg_ctx, 2) };
+    MVMObject *derived = MVM_disp_program_record_capture_insert_constant_arg(tc,
+            capture, (MVMuint32)idx, MVM_CALLSITE_ARG_STR, insertee);
+    MVM_args_set_result_obj(tc, derived, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_insert_arg_literal_str = {
+    .c_name = "dispatcher-insert-arg-literal-str",
+    .implementation = dispatcher_insert_arg_literal_str_impl,
+    .min_args = 3,
+    .max_args = 3,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_STR },
+    .expected_reprs = { MVM_REPR_ID_MVMCapture, 0, 0 },
+    .expected_concrete = { 1, 1, 1 },
+    .hash_handle = EMPTY_HASH_HANDLE
 };
 
 /* Add all of the syscalls into the hash. */
@@ -143,7 +165,8 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_track_arg);
     add_to_hash(tc, &dispatcher_drop_arg);
     add_to_hash(tc, &dispatcher_insert_arg);
-    add_to_hash(tc, &dispatcher_insert_constant_arg);
+    add_to_hash(tc, &dispatcher_insert_arg_literal_obj);
+    add_to_hash(tc, &dispatcher_insert_arg_literal_str);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
