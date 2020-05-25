@@ -75,10 +75,14 @@ struct MVMDispProgramOutcome {
 
 /* Functions called during the recording. */
 void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp, MVMObject *capture);
+MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *capture,
+        MVMuint32 index);
 MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 index);
 MVMObject * MVM_disp_program_record_capture_insert_constant_arg(MVMThreadContext *tc,
         MVMObject *capture, MVMuint32 index, MVMCallsiteFlags kind, MVMRegister value);
+MVMObject * MVM_disp_program_record_capture_insert_arg(MVMThreadContext *tc,
+        MVMObject *capture, MVMuint32 index, MVMObject *tracked);
 void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatcher_id,
         MVMObject *capture);
 void MVM_disp_program_record_result_constant(MVMThreadContext *tc, MVMObject *result);
