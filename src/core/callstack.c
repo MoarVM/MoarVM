@@ -294,10 +294,9 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
 
 /* Unwind a dispatch record frame, which should be on the top of the stack.
  * This is for the purpose of dispatchers that do not invoke. */
-void MVM_callstack_unwind_dispatcher(MVMThreadContext *tc) {
+void MVM_callstack_unwind_dispatcher(MVMThreadContext *tc, MVMuint32 *thunked) {
     assert(tc->stack_top->kind == MVM_CALLSTACK_RECORD_DISPATCH_RECORD);
-    MVMuint32 throwaway;
-    handle_end_of_dispatch_record(tc, &throwaway);
+    handle_end_of_dispatch_record(tc, thunked);
 }
 
 /* Walk the linked list of records and mark each of them. */
