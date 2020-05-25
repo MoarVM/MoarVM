@@ -188,7 +188,7 @@ void MVM_callstack_continuation_append(MVMThreadContext *tc, MVMCallStackRegion 
 MVMFrame * MVM_callstack_first_frame_in_region(MVMThreadContext *tc, MVMCallStackRegion *region);
 MVMCallStackDispatchRecord * MVM_callstack_find_topmost_dispatch_recording(MVMThreadContext *tc);
 MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional, MVMuint32 *thunked);
-void MVM_callstack_unwind_dispatcher(MVMThreadContext *tc);
+void MVM_callstack_unwind_dispatcher(MVMThreadContext *tc, MVMuint32 *thunked);
 void MVM_callstack_mark_current_thread(MVMThreadContext *tc, MVMGCWorklist *worklist,
         MVMHeapSnapshotState *snapshot);
 void MVM_callstack_mark_detached(MVMThreadContext *tc, MVMCallStackRecord *stack_top,
