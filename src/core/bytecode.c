@@ -106,7 +106,7 @@ static MVMuint8 read_int8(MVMuint8 *buffer, size_t offset) {
 }
 
 /* Cleans up reader state. */
-static void cleanup_all(MVMThreadContext *tc, ReaderState *rs) {
+static void cleanup_all(ReaderState *rs) {
     MVM_free(rs->frames);
     MVM_free(rs->frame_outer_fixups);
     MVM_free(rs);
@@ -116,7 +116,7 @@ static void cleanup_all(MVMThreadContext *tc, ReaderState *rs) {
  * of the stream. */
 MVM_STATIC_INLINE void ensure_can_read(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs, MVMuint8 *pos, MVMuint32 size) {
     if (pos + size > rs->read_limit) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Read past end of bytecode stream");
     }
 }
@@ -127,7 +127,7 @@ static MVMString * get_heap_string(MVMThreadContext *tc, MVMCompUnit *cu, Reader
     MVMuint32 heap_index = read_int32(buffer, offset);
     if (heap_index >= cu->body.num_strings) {
         if (rs)
-            cleanup_all(tc, rs);
+            cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "String heap index beyond end of string heap");
     }
     return MVM_cu_string(tc, cu, heap_index);
@@ -160,7 +160,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Locate SC dependencies segment. */
     offset = read_int32(cu_body->data_start, SCDEP_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Serialization contexts segment starts after end of stream");
     }
     rs->sc_seg       = cu_body->data_start + offset;
@@ -169,7 +169,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Locate extension ops segment. */
     offset = read_int32(cu_body->data_start, EXTOP_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Extension ops segment starts after end of stream");
     }
     rs->extop_seg       = cu_body->data_start + offset;
@@ -178,7 +178,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Locate frames segment. */
     offset = read_int32(cu_body->data_start, FRAME_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Frames segment starts after end of stream");
     }
     rs->frame_seg       = cu_body->data_start + offset;
@@ -187,7 +187,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Locate callsites segment. */
     offset = read_int32(cu_body->data_start, CALLSITE_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Callsites segment starts after end of stream");
     }
     rs->callsite_seg       = cu_body->data_start + offset;
@@ -196,7 +196,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Locate strings segment. */
     offset = read_int32(cu_body->data_start, STRING_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Strings segment starts after end of stream");
     }
     rs->string_seg       = cu_body->data_start + offset;
@@ -206,7 +206,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     offset = read_int32(cu_body->data_start, SCDATA_HEADER_OFFSET);
     size = read_int32(cu_body->data_start, SCDATA_HEADER_OFFSET + 4);
     if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Serialized data segment overflows end of stream");
     }
     if (offset) {
@@ -218,7 +218,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     offset = read_int32(cu_body->data_start, BYTECODE_HEADER_OFFSET);
     size = read_int32(cu_body->data_start, BYTECODE_HEADER_OFFSET + 4);
     if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Bytecode segment overflows end of stream");
     }
     rs->bytecode_seg  = cu_body->data_start + offset;
@@ -228,7 +228,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     offset = read_int32(cu_body->data_start, ANNOTATION_HEADER_OFFSET);
     size = read_int32(cu_body->data_start, ANNOTATION_HEADER_OFFSET + 4);
     if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Annotation segment overflows end of stream");
     }
     rs->annotation_seg  = cu_body->data_start + offset;
@@ -245,6 +245,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     if (rs->main_frame > rs->expected_frames
             || rs->load_frame > rs->expected_frames
             || rs->deserialize_frame > rs->expected_frames) {
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Special frame index out of bounds");
     }
 
@@ -276,7 +277,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
 
         /* Resolve to string. */
         if (sh_idx >= cu_body->num_strings) {
-            cleanup_all(tc, rs);
+            cleanup_all(rs);
             MVM_free_null(cu_body->scs);
             MVM_free_null(cu_body->scs_to_resolve);
             MVM_free_null(cu_body->sc_handle_idxs);
@@ -298,7 +299,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
                 scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
                 scb->handle = handle;
                 MVM_HASH_BIND_FREE(tc, tc->instance->sc_weakhash, handle, scb, {
-                    cleanup_all(tc, rs);
+                    cleanup_all(rs);
                     MVM_free_null(cu_body->scs);
                     MVM_free_null(cu_body->scs_to_resolve);
                     MVM_free_null(cu_body->sc_handle_idxs);
@@ -340,7 +341,7 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
 
         /* Lookup name string. */
         if (name_idx >= cu->body.num_strings) {
-            cleanup_all(tc, rs);
+            cleanup_all(rs);
             MVM_fixed_size_free(tc, tc->instance->fsa, num * sizeof(MVMExtOpRecord), extops);
             MVM_exception_throw_adhoc(tc,
                     "String heap index beyond end of string heap");
@@ -443,7 +444,7 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
                 }
 
             fail:
-                cleanup_all(tc, rs);
+                cleanup_all(rs);
                 MVM_fixed_size_free(tc, tc->instance->fsa, num * sizeof(MVMExtOpRecord), extops);
                 MVM_exception_throw_adhoc(tc, "Invalid operand descriptor");
             }
@@ -465,7 +466,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 
     /* Allocate frames array. */
     if (rs->expected_frames == 0) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Bytecode file must have at least one frame");
     }
     frames = MVM_malloc(sizeof(MVMStaticFrame *) * rs->expected_frames);
@@ -489,12 +490,13 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         bytecode_pos = read_int32(pos, 0);
         bytecode_size = read_int32(pos, 4);
         if (bytecode_pos >= rs->bytecode_size) {
-            cleanup_all(tc, rs);
+            MVMuint32 bytecode_size = rs->bytecode_size;
+            cleanup_all(rs);
             MVM_free(frames);
-            MVM_exception_throw_adhoc(tc, "Frame has invalid bytecode start point %d (size %d)", bytecode_pos, rs->bytecode_size);
+            MVM_exception_throw_adhoc(tc, "Frame has invalid bytecode start point %d (size %d)", bytecode_pos, bytecode_size);
         }
         if (bytecode_pos + bytecode_size > rs->bytecode_size) {
-            cleanup_all(tc, rs);
+            cleanup_all(rs);
             MVM_free(frames);
             MVM_exception_throw_adhoc(tc, "Frame bytecode overflows bytecode stream");
         }
@@ -518,7 +520,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             MVMuint32 annot_offset    = read_int32(pos, 26);
             MVMuint32 num_annotations = read_int32(pos, 30);
             if (annot_offset + num_annotations * 12 > rs->annotation_size) {
-                cleanup_all(tc, rs);
+                cleanup_all(rs);
                 MVM_free(frames);
                 MVM_exception_throw_adhoc(tc, "Frame annotation segment overflows bytecode stream");
             }
@@ -583,7 +585,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
                 MVM_ASSIGN_REF(tc, &(frames[i]->common.header), frames[i]->body.outer, frames[rs->frame_outer_fixups[i]]);
             }
             else {
-                cleanup_all(tc, rs);
+                cleanup_all(rs);
                 MVM_free(frames);
                 MVM_exception_throw_adhoc(tc, "Invalid frame outer index; cannot fixup");
             }
@@ -1025,7 +1027,7 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
         MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->deserialize_frame, rs->frames[rs->deserialize_frame - 1]);
 
     /* Clean up reader state. */
-    cleanup_all(tc, rs);
+    cleanup_all(rs);
 
     /* Restore normal GC allocation. */
     MVM_gc_allocate_gen2_default_clear(tc);
