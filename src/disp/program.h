@@ -73,6 +73,85 @@ struct MVMDispProgramOutcome {
     };
 };
 
+/* Recording state of a dispatch program, updated as we move through the record
+ * phase. */
+struct MVMDispProgramRecording {
+    /* The initial argument capture. */
+    MVMObject *initial_capture;
+
+    /* The values that we have encountered while recording, and maybe added
+     * guards against. */
+    MVM_VECTOR_DECL(MVMDispProgramRecordingValue, values);
+
+    /* Tree of captures derived from the initial one. */
+    MVM_VECTOR_DECL(MVMDispProgramRecordingCapture, captures);
+};
+
+/* A value that is involved in the dispatch. It may come from the initial
+ * arguments, it may be an inserted constant, or it may be from an attribute
+ * read out of another value. */
+typedef enum {
+    /* A value from the initial capture. */
+    MVMDispProgramRecordingCaptureValue,
+    /* A literal constant value. */
+    MVMDispProgramRecordingLiteralValue,
+    /* A read of an attribute from a dependent value. */
+    MVMDispProgramRecordingAttributeValue
+} MVMDispProgramRecordingValueSource;
+struct MVMDispProgramRecordingValue {
+    /* The source of the value, which determines which part of the union below
+     * that we shall look at. */
+    MVMDispProgramRecordingValueSource source;
+
+    /* Details (depends on source). */
+    union {
+        struct {
+            /* The index within the initial arguments capture. */
+            MVMuint32 index;
+
+            /* The tracking object. */
+            MVMObject *tracked;
+        } capture;
+        struct {
+            /* The literal value and its kind. */
+            MVMRegister value;
+            MVMCallsiteFlags kind;
+        } literal;
+        // TODO struct { } attribute;
+    };
+
+    /* Basic guards that have been applied. When we compile the guard program,
+     * we'll often simplify this; for example, if the incoming argument was a
+     * literal string then we'd drop the literal value guard, or if it has a
+     * literal guard then the type and concreteness guards are implicitly
+     * covered anyway. */
+    MVMuint8 guard_type;
+    MVMuint8 guard_concreteness;
+    MVMuint8 guard_literal;
+
+    /* A list of objects that this value must *not* be. */
+    MVM_VECTOR_DECL(MVMObject *, not_literal_guards);
+};
+
+/* A derived capture. */
+typedef enum {
+    MVMDispProgramRecordingDrop,
+    MVMDispProgramRecordingInsert
+} MVMDispProgramRecordingTransformation;
+struct MVMDispProgramRecordingCapture {
+    /* The capture object we produced and handed back. */
+    MVMObject *capture;
+
+    /* The kind of transformation that it did. */
+    MVMDispProgramRecordingTransformation transformation;
+
+    /* The index involved in the inert or drop. */
+    MVMuint32 index;
+
+    /* For inserts, the index of the value that was involved. */
+    MVMuint32 value_index;
+};
+
 /* Functions called during the recording. */
 void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp, MVMObject *capture);
 MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *capture,
