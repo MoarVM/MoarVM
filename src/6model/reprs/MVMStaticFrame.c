@@ -65,10 +65,12 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         /* NOTE: if we really wanted to, we could avoid rehashing... */
         HASH_ITER_FAST(tc, hash_handle, src_body->lexical_names, current, {
             MVMLexicalRegistry *new_entry = MVM_malloc(sizeof(MVMLexicalRegistry));
+            MVM_HASH_BIND_FREE(tc, dest_body->lexical_names, current->key, new_entry, {
+                MVM_free(new_entry);
+            });
             /* don't need to clone the string */
             MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
             new_entry->value = current->value;
-            MVM_HASH_BIND(tc, dest_body->lexical_names, current->key, new_entry);
         });
     }
 

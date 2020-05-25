@@ -294,7 +294,14 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
             if (!scb) {
                 scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
                 scb->handle = handle;
-                MVM_HASH_BIND(tc, tc->instance->sc_weakhash, handle, scb);
+                MVM_HASH_BIND_FREE(tc, tc->instance->sc_weakhash, handle, scb, {
+                    cleanup_all(tc, rs);
+                    MVM_free_null(cu_body->scs);
+                    MVM_free_null(cu_body->scs_to_resolve);
+                    MVM_free_null(cu_body->sc_handle_idxs);
+                    scb->handle = NULL;
+                    MVM_free(scb);
+                });
                 MVM_sc_add_all_scs_entry(tc, scb);
             }
             cu_body->scs_to_resolve[i] = scb;
@@ -631,13 +638,20 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         for (j = 0; j < sf->body.num_lexicals; j++) {
             MVMString *name = get_heap_string(tc, cu, NULL, pos, 6 * j + 2);
             MVMLexicalRegistry *entry = MVM_calloc(1, sizeof(MVMLexicalRegistry));
+            MVM_HASH_BIND_FREE(tc, sf->body.lexical_names, name, entry, {
+                if (sf->body.num_locals) {
+                    MVM_free_null(sf->body.local_types);
+                }
+                MVM_free_null(sf->body.lexical_types);
+                MVM_free_null(sf->body.lexical_names_list);
+                MVM_free(entry);
+            });
 
             MVM_ASSIGN_REF(tc, &(sf->common.header), entry->key, name);
             sf->body.lexical_names_list[j] = entry;
             entry->value = j;
 
             sf->body.lexical_types[j] = read_int16(pos, 6 * j);
-            MVM_HASH_BIND(tc, sf->body.lexical_names, name, entry)
         }
         pos += 6 * sf->body.num_lexicals;
     }
@@ -712,7 +726,9 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
             MVMStaticFrameDebugLocal *entry = MVM_calloc(1, sizeof(MVMStaticFrameDebugLocal));
             entry->local_idx = idx;
             MVM_ASSIGN_REF(tc, &(sf->common.header), entry->name, name);
-            MVM_HASH_BIND(tc, ins->debug_locals, name, entry);
+            MVM_HASH_BIND_FREE(tc, ins->debug_locals, name, entry, {
+                MVM_free(entry);
+            });
             pos += 6;
         }
         sf->body.instrumentation = ins;

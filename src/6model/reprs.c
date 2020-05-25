@@ -187,12 +187,14 @@ static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr, MVMStrin
 
     /* Fill a registry entry. */
     entry = MVM_malloc(sizeof(MVMReprRegistry));
+    MVM_HASH_BIND_FREE(tc, tc->instance->repr_hash, name, entry, {
+        MVM_free(entry);
+    });
     entry->name = name;
     entry->repr = repr;
 
     /* Enter into registry. */
     tc->instance->repr_list[repr->ID] = entry;
-    MVM_HASH_BIND(tc, tc->instance->repr_hash, name, entry);
 
     /* Name and hash key should become a permanent GC root. */
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name, "REPR name");

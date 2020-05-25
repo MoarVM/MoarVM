@@ -14,6 +14,16 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
 
     if (!entry) {
         entry = MVM_calloc(1, sizeof(MVMHLLConfig));
+        if (tc->instance->hll_compilee_depth) {
+            MVM_HASH_BIND_FREE(tc, tc->instance->compilee_hll_configs, name, entry, {
+                MVM_free(entry);
+            });
+        }
+        else {
+            MVM_HASH_BIND_FREE(tc, tc->instance->compiler_hll_configs, name, entry, {
+                MVM_free(entry);
+            });
+        }
         entry->name = name;
         entry->int_box_type = tc->instance->boot_types.BOOTInt;
         entry->num_box_type = tc->instance->boot_types.BOOTNum;
@@ -25,12 +35,6 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         entry->foreign_type_int = tc->instance->boot_types.BOOTInt;
         entry->foreign_type_num = tc->instance->boot_types.BOOTNum;
         entry->foreign_type_str = tc->instance->boot_types.BOOTStr;
-        if (tc->instance->hll_compilee_depth) {
-            MVM_HASH_BIND(tc, tc->instance->compilee_hll_configs, name, entry);
-        }
-        else {
-            MVM_HASH_BIND(tc, tc->instance->compiler_hll_configs, name, entry);
-        }
         entry->max_inline_size = MVM_SPESH_DEFAULT_MAX_INLINE_SIZE;
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->int_box_type, "HLL int_box_type");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->num_box_type, "HLL num_box_type");

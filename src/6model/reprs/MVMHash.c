@@ -35,7 +35,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
             sizeof(MVMHashEntry));
         MVMString *key = MVM_HASH_KEY(current);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
-        MVM_HASH_BIND(tc, dest_body->hash_head, key, new_entry);
+        MVM_HASH_BIND_FREE(tc, dest_body->hash_head, key, new_entry, {
+            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), new_entry);
+        });
         MVM_gc_write_barrier(tc, &(dest_root->header), &(key->common.header));
     });
 }
@@ -103,7 +105,9 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
         entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
             sizeof(MVMHashEntry));
         MVM_ASSIGN_REF(tc, &(root->header), entry->value, value.o);
-        MVM_HASH_BIND(tc, body->hash_head, key, entry);
+        MVM_HASH_BIND_FREE(tc, body->hash_head, key, entry, {
+            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), entry);
+        });
         MVM_gc_write_barrier(tc, &(root->header), &(key->common.header));
     }
     else {
@@ -178,7 +182,9 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         MVMHashEntry *entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
             sizeof(MVMHashEntry));
         MVM_ASSIGN_REF(tc, &(root->header), entry->value, value);
-        MVM_HASH_BIND(tc, body->hash_head, key, entry);
+        MVM_HASH_BIND_FREE(tc, body->hash_head, key, entry, {
+            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), entry);
+        });
     }
 }
 
@@ -201,7 +207,9 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     qsort(keys, elems, sizeof(MVMString*), cmp_strings);
     for (i = 0; i < elems; i++) {
         MVMHashEntry *entry;
-        MVM_HASH_GET(tc, body->hash_head, keys[i], entry);
+        MVM_HASH_GET_FREE(tc, body->hash_head, keys[i], entry, {
+            MVM_free(keys);
+        });
         MVM_serialization_write_str(tc, writer, keys[i]);
         MVM_serialization_write_ref(tc, writer, entry->value);
     }

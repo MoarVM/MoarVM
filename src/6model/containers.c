@@ -748,11 +748,13 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
 
     if (!entry) {
         entry = MVM_malloc(sizeof(MVMContainerRegistry));
+        MVM_HASH_BIND_FREE(tc, tc->instance->container_registry, name, entry, {
+            MVM_free(entry);
+        });
         entry->name = name;
         entry->configurer  = configurer;
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name,
             "Container configuration name");
-        MVM_HASH_BIND(tc, tc->instance->container_registry, name, entry);
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
             "Container configuration hash key");
     }

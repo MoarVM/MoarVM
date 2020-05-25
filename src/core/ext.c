@@ -34,12 +34,14 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
     }
 
     entry = MVM_malloc(sizeof *entry);
+    MVM_HASH_BIND_FREE(tc, tc->instance->ext_registry, name, entry, {
+        MVM_free(entry);
+    });
     entry->sym = sym;
     entry->name = name;
 
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name,
         "Extension name");
-    MVM_HASH_BIND(tc, tc->instance->ext_registry, name, entry);
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
         "Extension name hash key");
 
@@ -148,6 +150,9 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     }
 
     entry                    = MVM_malloc(sizeof *entry);
+    MVM_HASH_BIND_FREE(tc, tc->instance->extop_registry, name, entry, {
+        MVM_free(entry);
+    });
     entry->name              = name;
     entry->func              = func;
     entry->info.name         = cname;
@@ -171,7 +176,6 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
 
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name,
         "Extension op name");
-    MVM_HASH_BIND(tc, tc->instance->extop_registry, name, entry);
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
         "Extension op name hash key");
 

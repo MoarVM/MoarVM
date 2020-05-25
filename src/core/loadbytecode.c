@@ -114,8 +114,10 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
         run_comp_unit(tc, cu);
 
         loaded_name = MVM_calloc(1, sizeof(MVMLoadedCompUnitName));
+        MVM_HASH_BIND_FREE(tc, tc->instance->loaded_compunits, filename, loaded_name, {
+            MVM_free(loaded_name);
+        });
         loaded_name->filename = filename;
-        MVM_HASH_BIND(tc, tc->instance->loaded_compunits, filename, loaded_name);
     });
 
 LEAVE:

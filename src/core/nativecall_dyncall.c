@@ -93,9 +93,10 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
 
     if (!callback_data_head) {
         callback_data_head = MVM_malloc(sizeof(MVMNativeCallbackCacheHead));
+        MVM_HASH_BIND_FREE(tc, tc->native_callback_cache, cuid, callback_data_head, {
+            MVM_free(callback_data_head);
+        });
         callback_data_head->head = NULL;
-
-        MVM_HASH_BIND(tc, tc->native_callback_cache, cuid, callback_data_head);
     }
 
     callback_data_handle = &(callback_data_head->head);

@@ -32,12 +32,14 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
 
     if (!entry) {
         entry = MVM_malloc(sizeof *entry);
+        MVM_HASH_BIND_FREE(tc, tc->instance->dll_registry, name, entry, {
+            MVM_free(entry);
+        });
         entry->name = name;
         entry->refcount = 0;
 
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name,
             "DLL name");
-        MVM_HASH_BIND(tc, tc->instance->dll_registry, name, entry);
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
             "DLL name hash key");
     }
