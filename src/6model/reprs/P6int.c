@@ -183,8 +183,11 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->is_unsigned = MVM_serialization_read_int(tc, reader);
 
     if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
-     && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
-        MVM_exception_throw_adhoc(tc, "MVMP6int: Unsupported int size (%dbit)", repr_data->bits);
+     && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64) {
+        MVMint16 bits = repr_data->bits;
+        MVM_free(repr_data);
+        MVM_exception_throw_adhoc(tc, "MVMP6int: Unsupported int size (%dbit)", bits);
+    }
 
     mk_storage_spec(tc, repr_data->bits, repr_data->is_unsigned, &repr_data->storage_spec);
 

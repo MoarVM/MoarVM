@@ -33,17 +33,23 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         if (ss->boxed_primitive == MVM_STORAGE_SPEC_BP_INT) {
             if (ss->bits == 8 || ss->bits == 16 || ss->bits == 32 || ss->bits == 64)
                 repr_data->elem_size = ss->bits / 8;
-            else
+            else {
+                MVM_free(repr_data);
+                st->REPR_data = NULL;
                 MVM_exception_throw_adhoc(tc,
                     "CArray representation can only have 8, 16, 32 or 64 bit integer elements");
+            }
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_NUMERIC;
         }
         else if (ss->boxed_primitive == MVM_STORAGE_SPEC_BP_NUM) {
             if (ss->bits == 32 || ss->bits == 64)
                 repr_data->elem_size = ss->bits / 8;
-            else
+            else {
+                MVM_free(repr_data);
+                st->REPR_data = NULL;
                 MVM_exception_throw_adhoc(tc,
                     "CArray representation can only have 32 or 64 bit floating point elements");
+            }
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_NUMERIC;
         }
         else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
@@ -71,6 +77,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             repr_data->elem_size = sizeof(void *);
         }
         else {
+            MVM_free(repr_data);
+            st->REPR_data = NULL;
             MVM_exception_throw_adhoc(tc,
                 "CArray representation only handles attributes of type:\n"
                 "  (u)int8, (u)int16, (u)int32, (u)int64, (u)long, (u)longlong, num32, num64, (s)size_t, bool, Str\n"
