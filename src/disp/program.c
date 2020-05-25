@@ -14,7 +14,7 @@ static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *recor
     if (REPR(dispatch)->ID == MVM_REPR_ID_MVMCFunction) {
         record->outcome.kind = MVM_DISP_OUTCOME_FAILED;
         ((MVMCFunction *)dispatch)->body.func(tc, dispatch_args);
-        MVM_callstack_unwind_dispatcher(tc);
+        MVM_callstack_unwind_dispatcher(tc, thunked);
     }
     else if (REPR(dispatch)->ID == MVM_REPR_ID_MVMCode) {
         record->outcome.kind = MVM_DISP_OUTCOME_EXPECT_DELEGATE;
@@ -237,7 +237,8 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
             tc->cur_frame = MVM_callstack_record_to_frame(tc->stack_top->prev);
             MVM_frame_dispatch(tc, record->outcome.code, record->outcome.args, -1);
-            *thunked = 1;
+            if (thunked)
+                *thunked = 1;
             return 0;
         case MVM_DISP_OUTCOME_CFUNCTION:
             record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
