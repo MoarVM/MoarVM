@@ -720,14 +720,14 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
             frame = allocate_frame(tc, static_frame, chosen_cand, 0);
             frame->spesh_correlation_id = 0;
         }
-        if (chosen_cand->jitcode) {
-            chosen_bytecode = chosen_cand->jitcode->bytecode;
-            frame->jit_entry_label = chosen_cand->jitcode->labels[0];
+        if (chosen_cand->body.jitcode) {
+            chosen_bytecode = chosen_cand->body.jitcode->bytecode;
+            frame->jit_entry_label = chosen_cand->body.jitcode->labels[0];
         }
         else {
-            chosen_bytecode = chosen_cand->bytecode;
+            chosen_bytecode = chosen_cand->body.bytecode;
         }
-        frame->effective_spesh_slots = chosen_cand->spesh_slots;
+        frame->effective_spesh_slots = chosen_cand->body.spesh_slots;
         frame->spesh_cand = chosen_cand;
     }
     else {
