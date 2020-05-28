@@ -32,7 +32,8 @@ static void boot_value(MVMThreadContext *tc, MVMArgs arg_info) {
     MVM_args_proc_setup(tc, &arg_ctx, arg_info);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
     MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
-    MVM_disp_program_record_result_capture_value(tc, capture, 0);
+    MVM_disp_program_record_result_tracked_value(tc,
+            MVM_disp_program_record_track_arg(tc, capture, 0));
     MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
 }
 

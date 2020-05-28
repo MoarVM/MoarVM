@@ -7,7 +7,8 @@
 
 #if DUMP_RECORDINGS
 static void dump_recording_capture(MVMThreadContext *tc,
-        MVMDispProgramRecordingCapture *capture, MVMuint32 indent) {
+        MVMDispProgramRecordingCapture *capture, MVMuint32 indent,
+        MVMObject *outcome) {
     char *indent_str = alloca(indent + 1);
     memset(indent_str, ' ', indent);
     indent_str[indent] = '\0';
@@ -26,9 +27,11 @@ static void dump_recording_capture(MVMThreadContext *tc,
             fprintf(stderr, "%sUnknown transforamtion\n", indent_str);
             break;
     }
+    if (capture->capture == outcome)
+        fprintf(stderr, "%s  Used as args for invoke result\n", indent_str);
     MVMuint32 i;
     for (i = 0; i < MVM_VECTOR_ELEMS(capture->captures); i++)
-        dump_recording_capture(tc, &(capture->captures[i]), indent + 2);
+        dump_recording_capture(tc, &(capture->captures[i]), indent + 2, outcome);
 }
 static void dump_recording_values(MVMThreadContext *tc, MVMDispProgramRecording *rec) {
     MVMuint32 i;
@@ -81,19 +84,19 @@ static void dump_recording_values(MVMThreadContext *tc, MVMDispProgramRecording 
 static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *record) {
     fprintf(stderr, "Dispatch recording\n");
     fprintf(stderr, "  Captures:\n");
-    dump_recording_capture(tc, &(record->rec.initial_capture), 4);
+    dump_recording_capture(tc, &(record->rec.initial_capture), 4, record->rec.outcome_capture);
     fprintf(stderr, "  Values:\n");
     dump_recording_values(tc, &(record->rec));
     fprintf(stderr, "  Outcome:\n");
     switch (record->outcome.kind) {
         case MVM_DISP_OUTCOME_VALUE:
-            printf("    Value\n");
+            printf("    Value %d\n", record->rec.outcome_value);
             break;
         case MVM_DISP_OUTCOME_BYTECODE:
-            printf("    Run bytecode\n");
+            printf("    Run bytecode of value %d\n", record->rec.outcome_value);
             break;
         case MVM_DISP_OUTCOME_CFUNCTION:
-            printf("    Run C function\n");
+            printf("    Run C function of value %d\n", record->rec.outcome_value);
             break;
         default:
             printf("    Unknown\n");
@@ -140,6 +143,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     record->rec.initial_capture.transformation = MVMDispProgramRecordingInitial;
     MVM_VECTOR_INIT(record->rec.initial_capture.captures, 8);
     MVM_VECTOR_INIT(record->rec.values, 16);
+    record->rec.outcome_capture = NULL;
     run_dispatch(tc, record, disp, capture, NULL);
 }
 
@@ -458,36 +462,33 @@ void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatche
 void MVM_disp_program_record_result_constant(MVMThreadContext *tc, MVMObject *result) {
     /* Record the result action. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    // XXX TODO
-
-    /* Put the return value in place. */
-    record->outcome.kind = MVM_DISP_OUTCOME_VALUE;
-    record->outcome.result_value.o = result;
-    record->outcome.result_kind = MVM_reg_obj;
-}
-
-/* Record a program terminator that reads the value from an argument capture. */
-void MVM_disp_program_record_result_capture_value(MVMThreadContext *tc, MVMObject *capture,
-        MVMuint32 index) {
-    /* Record the result action. */
-    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    MVMRegister value;
-    MVMCallsiteFlags value_type;
-    MVMuint8 reg_type;
-    MVM_capture_arg_pos(tc, capture, index, &value, &value_type);
-    switch (value_type) {
-        case MVM_CALLSITE_ARG_OBJ: reg_type = MVM_reg_obj; break;
-        case MVM_CALLSITE_ARG_INT: reg_type = MVM_reg_int64; break;
-        case MVM_CALLSITE_ARG_NUM: reg_type = MVM_reg_num64; break;
-        case MVM_CALLSITE_ARG_STR: reg_type = MVM_reg_str; break;
-        default: MVM_oops(tc, "Unknown capture value type in boot-value dispatch");
-    }
-    // XXX TODO
+    MVMRegister value = { .o = result };
+    record->rec.outcome_value = value_index_constant(tc, &(record->rec),
+            MVM_CALLSITE_ARG_OBJ, value);
 
     /* Put the return value in place. */
     record->outcome.kind = MVM_DISP_OUTCOME_VALUE;
     record->outcome.result_value = value;
-    record->outcome.result_kind = reg_type;
+    record->outcome.result_kind = MVM_reg_obj;
+}
+
+/* Record a program terminator that reads the value from an argument capture. */
+void MVM_disp_program_record_result_tracked_value(MVMThreadContext *tc, MVMObject *tracked) {
+    /* Look up the tracked value and note it as the outcome value. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked);
+    record->rec.outcome_value = value_index;
+
+    /* Put the return value in place. */
+    record->outcome.kind = MVM_DISP_OUTCOME_VALUE;
+    record->outcome.result_value = ((MVMTracked *)tracked)->body.value;
+    switch (((MVMTracked *)tracked)->body.kind) {
+        case MVM_CALLSITE_ARG_OBJ: record->outcome.result_kind = MVM_reg_obj; break;
+        case MVM_CALLSITE_ARG_INT: record->outcome.result_kind = MVM_reg_int64; break;
+        case MVM_CALLSITE_ARG_NUM: record->outcome.result_kind = MVM_reg_num64; break;
+        case MVM_CALLSITE_ARG_STR: record->outcome.result_kind = MVM_reg_str; break;
+        default: MVM_oops(tc, "Unknown capture value type in boot-value dispatch");
+    }
 }
 
 /* Record a program terminator that invokes an MVMCode object, which is to be
@@ -497,7 +498,10 @@ void MVM_disp_program_record_code_constant(MVMThreadContext *tc, MVMCode *result
     /* Record the result action. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
     ensure_known_capture(tc, record, capture);
-    // XXX TODO
+    MVMRegister value = { .o = (MVMObject *)result };
+    record->rec.outcome_value = value_index_constant(tc, &(record->rec),
+            MVM_CALLSITE_ARG_OBJ, value);
+    record->rec.outcome_capture = capture;
 
     /* Set up the invoke outcome. */
     MVMCallsite *callsite = ((MVMCapture *)capture)->body.callsite;
@@ -515,7 +519,10 @@ void MVM_disp_program_record_c_code_constant(MVMThreadContext *tc, MVMCFunction 
     /* Record the result action. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
     ensure_known_capture(tc, record, capture);
-    // XXX TODO
+    MVMRegister value = { .o = (MVMObject *)result };
+    record->rec.outcome_value = value_index_constant(tc, &(record->rec),
+            MVM_CALLSITE_ARG_OBJ, value);
+    record->rec.outcome_capture = capture;
 
     /* Set up the invoke outcome. */
     MVMCallsite *callsite = ((MVMCapture *)capture)->body.callsite;
