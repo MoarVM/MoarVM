@@ -261,15 +261,19 @@ static MVMuint32 value_index_constant(MVMThreadContext *tc, MVMDispProgramRecord
                 case MVM_CALLSITE_ARG_OBJ:
                     if (v->literal.value.o == value.o)
                         return i;
+                    break;
                 case MVM_CALLSITE_ARG_INT:
                     if (v->literal.value.i64 == value.i64)
                         return i;
+                    break;
                 case MVM_CALLSITE_ARG_NUM:
                     if (v->literal.value.n64 == value.n64)
                         return i;
+                    break;
                 case MVM_CALLSITE_ARG_STR:
                     if (v->literal.value.s == value.s)
                         return i;
+                    break;
                 default:
                     MVM_oops(tc, "Unknown kind of literal value in dispatch constant");
             }
