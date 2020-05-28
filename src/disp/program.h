@@ -170,7 +170,7 @@ struct MVMDispProgram {
     MVMCollectable **gc_constants;
 
     /* Non-GC-managed constants used in the dispatch. */
-    MVMDispProgramConstant **constants;
+    MVMDispProgramConstant *constants;
 
     /* The number of temporaries. Temporaries are used while evaluating
      * the dispatch program, and may also be used as an argument buffer
@@ -184,6 +184,7 @@ struct MVMDispProgram {
 
     /* Ops we execute to evaluate the dispatch program. */
     MVMDispProgramOp *ops;
+    MVMuint32 num_ops; // TODO probably don't need since end is result op
 };
 
 /* Various kinds of constant we use during a dispatch program, to let us keep
@@ -204,6 +205,10 @@ typedef enum {
     /* Guard that the type of an incoming argument is as expected and also
      * we have a type object. */
     MVMDispOpcodeGuardArgTypeTypeObject,
+    /* Guard that the incoming argument is concrete. */
+    MVMDispOpcodeGuardArgConc,
+    /* Guard that the incoming argument is a type object. */
+    MVMDispOpcodeGuardArgTypeObject,
     /* Guard that the type of an incoming argument is an expected object
      * literal. */
     MVMDispOpcodeGuardArgLiteralObj,
