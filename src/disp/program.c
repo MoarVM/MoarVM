@@ -127,6 +127,44 @@ static void ensure_known_capture(MVMThreadContext *tc, MVMCallStackDispatchRecor
     MVM_VECTOR_DESTROY(p.path);
 }
 
+/* Ensures we have a constant recorded as a value. If there already is such
+ * an entry, we re-use it and return its index. If not, we add a value entry. */
+static MVMuint32 value_index_constant(MVMThreadContext *tc, MVMDispProgramRecording *rec,
+        MVMCallsiteFlags kind, MVMRegister value) {
+    /* Look for an existing such value. */
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++) {
+        MVMDispProgramRecordingValue *v = &(rec->values[i]);
+        if (v->source == MVMDispProgramRecordingLiteralValue && v->literal.kind == kind) {
+            switch (kind) {
+                case MVM_CALLSITE_ARG_OBJ:
+                    if (v->literal.value.o == value.o)
+                        return i;
+                case MVM_CALLSITE_ARG_INT:
+                    if (v->literal.value.i64 == value.i64)
+                        return i;
+                case MVM_CALLSITE_ARG_NUM:
+                    if (v->literal.value.n64 == value.n64)
+                        return i;
+                case MVM_CALLSITE_ARG_STR:
+                    if (v->literal.value.s == value.s)
+                        return i;
+                default:
+                    MVM_oops(tc, "Unknown kind of literal value in dispatch constant");
+            }
+        }
+    }
+
+    /* Otherwise, we need to create the value entry. */
+    MVMDispProgramRecordingValue new_value;
+    memset(&new_value, 0, sizeof(MVMDispProgramRecordingValue));
+    new_value.source = MVMDispProgramRecordingLiteralValue,
+    new_value.literal.kind = kind;
+    new_value.literal.value = value;
+    MVM_VECTOR_PUSH(rec->values, new_value);
+    return MVM_VECTOR_ELEMS(rec->values) - 1;
+}
+
 /* Start tracking an argument from the specified capture. This allows us to
  * apply guards against it. */
 MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *capture,
@@ -236,15 +274,16 @@ MVMObject * MVM_disp_program_record_capture_insert_constant_arg(MVMThreadContext
     MVM_VECTOR_INIT(p.path, 8);
     calculate_capture_path(tc, record, capture, &p);
 
-    // TODO ensure a value index for the constant
+    /* Obtain a new value index for the constant. */
+    MVMuint32 value_index = value_index_constant(tc, &(record->rec), kind, value);
 
     /* Calculate the new capture and add a record for it. */
     MVMObject *new_capture = MVM_capture_insert_arg(tc, capture, idx, kind, value);
     MVMDispProgramRecordingCapture new_capture_record = {
         .capture = new_capture,
         .transformation = MVMDispProgramRecordingInsert,
-        .index = idx
-        // TODO value_index
+        .index = idx,
+        .value_index = value_index
     };
     MVM_VECTOR_INIT(new_capture_record.captures, 0);
     MVMDispProgramRecordingCapture *update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
