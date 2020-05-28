@@ -30,10 +30,49 @@ static void dump_recording_capture(MVMThreadContext *tc,
     for (i = 0; i < MVM_VECTOR_ELEMS(capture->captures); i++)
         dump_recording_capture(tc, &(capture->captures[i]), indent + 2);
 }
+static void dump_recording_values(MVMThreadContext *tc, MVMDispProgramRecording *rec) {
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++) {
+        MVMDispProgramRecordingValue *v = &(rec->values[i]);
+        switch (v->source) {
+            case MVMDispProgramRecordingCaptureValue:
+                fprintf(stderr, "    %d Initial argument %d\n", i, v->capture.index);
+                break;
+            case MVMDispProgramRecordingLiteralValue:
+                switch (v->literal.kind) {
+                    case MVM_CALLSITE_ARG_OBJ:
+                        fprintf(stderr, "    %d Literal object of type %s\n", i,
+                                v->literal.value.o->st->debug_name);
+                        break;
+                    case MVM_CALLSITE_ARG_INT:
+                        fprintf(stderr, "    %d Literal int value %"PRId64"\n", i,
+                                v->literal.value.i64);
+                        break;
+                    case MVM_CALLSITE_ARG_NUM:
+                        fprintf(stderr, "    %d Literal num value %g\n", i,
+                                v->literal.value.n64);
+                        break;
+                    case MVM_CALLSITE_ARG_STR:
+                        fprintf(stderr, "    %d Literal str value\n", i);
+                        break;
+                    default:
+                        fprintf(stderr, "    %d Literal value of unknown kind\n", i);
+                }
+                break;
+            case MVMDispProgramRecordingAttributeValue:
+                fprintf(stderr, "    %d Attribute value\n", i);
+                break;
+            default:
+                fprintf(stderr, "    %d Unknown\n", i);
+        }
+    }
+};
 static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *record) {
     fprintf(stderr, "Dispatch recording\n");
     fprintf(stderr, "  Captures:\n");
     dump_recording_capture(tc, &(record->rec.initial_capture), 4);
+    fprintf(stderr, "  Values:\n");
+    dump_recording_values(tc, &(record->rec));
     fprintf(stderr, "  Outcome:\n");
     switch (record->outcome.kind) {
         case MVM_DISP_OUTCOME_VALUE:
