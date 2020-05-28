@@ -827,3 +827,84 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             MVM_oops(tc, "Unimplemented dispatch program outcome kind");
     }
 }
+
+#define GET_ARG MVMRegister val = args->source[args->map[op->arg_guard.arg_idx]]
+
+MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp, MVMArgs *args) {
+    MVMuint32 i;
+
+    for (i = 0; i < dp->num_ops; i++) {
+        MVMDispProgramOp *op = &(dp->ops[i]);
+
+        switch (op->code) {
+            case MVMDispOpcodeGuardArgType: {
+                GET_ARG;
+                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op->arg_guard.checkee])
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardArgTypeConc: {
+                GET_ARG;
+                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op->arg_guard.checkee]
+                        || !IS_CONCRETE(val.o))
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardArgTypeTypeObject: {
+                GET_ARG;
+                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op->arg_guard.checkee]
+                        || IS_CONCRETE(val.o))
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardArgConc: {
+                GET_ARG;
+                if (!IS_CONCRETE(val.o))
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardArgTypeObject: {
+                GET_ARG;
+                if (IS_CONCRETE(val.o))
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardArgLiteralObj: {
+                GET_ARG;
+                if (val.o != (MVMObject *)dp->gc_constants[op->arg_guard.checkee])
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardArgLiteralStr: {
+                GET_ARG;
+                if (!MVM_string_equal(tc, val.s, (MVMString *)dp->gc_constants[op->arg_guard.checkee]))
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardArgLiteralInt: {
+                GET_ARG;
+                if (val.i64 != dp->constants[op->arg_guard.checkee].i64)
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardArgLiteralNum: {
+                GET_ARG;
+                if (val.n64 != dp->constants[op->arg_guard.checkee].n64)
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardArgNotLiteralObj: {
+                GET_ARG;
+                if (val.o == (MVMObject *)dp->gc_constants[op->arg_guard.checkee])
+                    goto rejection;
+                break;
+            }
+            default:
+                fprintf(stderr, "  UNKNOWN OP %d\n", op->code);
+        }
+    }
+
+    return 1;
+rejection:
+    return 0;
+}
