@@ -33,7 +33,9 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     /* Push a dispatch recording frame onto the callstack; this is how we'll
      * keep track of the current recording state. */
     MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
-    record->initial_capture = capture;
+    record->rec.initial_capture = capture;
+    MVM_VECTOR_INIT(record->rec.values, 16);
+    MVM_VECTOR_INIT(record->rec.captures, 8);
     record->derived_captures = NULL;
     run_dispatch(tc, record, disp, capture, NULL);
 }
@@ -42,7 +44,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
  * being recorded dispatch program. */
 static void ensure_known_capture(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         MVMObject *capture) {
-    if (capture != record->initial_capture) {
+    if (capture != record->rec.initial_capture) {
         int found = 0;
         if (record->derived_captures) {
             MVMint64 elems = MVM_repr_elems(tc, record->derived_captures);
