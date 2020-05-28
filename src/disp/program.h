@@ -321,3 +321,6 @@ void MVM_disp_program_record_c_code_constant(MVMThreadContext *tc, MVMCFunction 
         MVMObject *capture);
 MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatchRecord* record,
         MVMuint32 *thunked);
+
+/* Functions to use and handle dispatch programs */
+MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *prog, MVMArgs *args);
