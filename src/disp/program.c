@@ -33,32 +33,45 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     /* Push a dispatch recording frame onto the callstack; this is how we'll
      * keep track of the current recording state. */
     MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
-    record->rec.initial_capture = capture;
+    record->rec.initial_capture.capture = capture;
+    record->rec.initial_capture.transformation = MVMDispProgramRecordingInitial;
+    MVM_VECTOR_INIT(record->rec.initial_capture.captures, 8);
     MVM_VECTOR_INIT(record->rec.values, 16);
-    MVM_VECTOR_INIT(record->rec.captures, 8);
-    record->derived_captures = NULL;
     run_dispatch(tc, record, disp, capture, NULL);
 }
 
-/* Takes a capture and makes sure it's one we're aware of in the currently
- * being recorded dispatch program. */
+/* Calculates the path to a capture. If the capture is not found, then an
+ * exception will be thrown. The caller should pass in a pointer to a
+ * CapturePath, which will be populated with the path to that capture. */
+typedef struct {
+    MVM_VECTOR_DECL(MVMDispProgramRecordingCapture *, path);
+} CapturePath;
+static MVMuint32 find_capture(MVMThreadContext *tc, MVMDispProgramRecordingCapture *current,
+        MVMObject *searchee, CapturePath *p) {
+    MVM_VECTOR_PUSH(p->path, current);
+    if (current->capture == searchee)
+        return 1;
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(current->captures); i++)
+        if (find_capture(tc, &(current->captures[i]), searchee, p))
+            return 1;
+    MVM_VECTOR_POP(p->path);
+    return 0;
+}
+static void calculate_capture_path(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
+        MVMObject *capture, CapturePath *p) {
+    if (!find_capture(tc, &(record->rec.initial_capture), capture, p)) {
+        MVM_VECTOR_DESTROY(p->path);
+        MVM_exception_throw_adhoc(tc,
+                "Can only use manipulate a capture known in this dispatch");
+    }
+}
 static void ensure_known_capture(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         MVMObject *capture) {
-    if (capture != record->rec.initial_capture) {
-        int found = 0;
-        if (record->derived_captures) {
-            MVMint64 elems = MVM_repr_elems(tc, record->derived_captures);
-            MVMint64 i;
-            for (i = 0; i < elems; i++) {
-                if (MVM_repr_at_pos_o(tc, record->derived_captures, i) == capture) {
-                    found = 1;
-                    break;
-                }
-            }
-        }
-        if (!found)
-            MVM_exception_throw_adhoc(tc, "Can only drop from a capture known in this dispatch");
-    }
+    CapturePath p;
+    MVM_VECTOR_INIT(p.path, 8);
+    calculate_capture_path(tc, record, capture, &p);
+    MVM_VECTOR_DESTROY(p.path);
 }
 
 /* Start tracking an argument from the specified capture. This allows us to
@@ -67,9 +80,12 @@ MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *c
         MVMuint32 index) {
     /* Ensure the incoming capture is known. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    ensure_known_capture(tc, record, capture);
+    CapturePath p;
+    MVM_VECTOR_INIT(p.path, 8);
+    calculate_capture_path(tc, record, capture, &p);
 
     // XXX TODO record info about this
+    MVM_VECTOR_DESTROY(p.path);
 
     /* Obtain the argument and wrap it in a tracked object. */
     MVMRegister value;
@@ -104,21 +120,23 @@ void MVM_disp_program_record_guard_not_literal_obj(MVMThreadContext *tc,
  * resulting in a new capture without that argument. */
 MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 idx) {
-    /* Ensure the incoming capture is known. */
+    /* Lookup the path to the incoming capture. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    ensure_known_capture(tc, record, capture);
+    CapturePath p;
+    MVM_VECTOR_INIT(p.path, 8);
+    calculate_capture_path(tc, record, capture, &p);
 
-    /* Calculate the new capture and add it to the derived capture set to keep
-     * it alive. */
+    /* Calculate the new capture and add a record for it. */
     MVMObject *new_capture = MVM_capture_drop_arg(tc, capture, idx);
-    if (!record->derived_captures) {
-        MVMROOT(tc, new_capture, {
-            record->derived_captures = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-        });
-    }
-    MVM_repr_push_o(tc, record->derived_captures, new_capture);
-
-    // XXX TODO record info about this
+    MVMDispProgramRecordingCapture new_capture_record = {
+        .capture = new_capture,
+        .transformation = MVMDispProgramRecordingDrop,
+        .index = idx
+    };
+    MVM_VECTOR_INIT(new_capture_record.captures, 0);
+    MVMDispProgramRecordingCapture *update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
+    MVM_VECTOR_PUSH(update->captures, new_capture_record);
+    MVM_VECTOR_DESTROY(p.path);
 
     /* Evaluate to the new capture, for the running dispatch function. */
     return new_capture;
@@ -127,24 +145,28 @@ MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMOb
 /* Record that we insert a tracked value into a capture. Also perform the insert
  * on the value that was read. */
 MVMObject * MVM_disp_program_record_capture_insert_arg(MVMThreadContext *tc,
-        MVMObject *capture, MVMuint32 index, MVMObject *tracked) {
-    /* Ensure the incoming capture and tracked values are known. */
+        MVMObject *capture, MVMuint32 idx, MVMObject *tracked) {
+    /* Lookup the path to the incoming capture. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    ensure_known_capture(tc, record, capture);
-    // XXX TODO tracked value
+    CapturePath p;
+    MVM_VECTOR_INIT(p.path, 8);
+    calculate_capture_path(tc, record, capture, &p);
 
-    /* Calculate the new capture and add it to the derived capture set to keep
-     * it alive. */
-    MVMObject *new_capture = MVM_capture_insert_arg(tc, capture, index,
+    // TODO lookup the value index of the tracked value too
+
+    /* Calculate the new capture and add a record for it. */
+    MVMObject *new_capture = MVM_capture_insert_arg(tc, capture, idx,
             ((MVMTracked *)tracked)->body.kind, ((MVMTracked *)tracked)->body.value);
-    if (!record->derived_captures) {
-        MVMROOT(tc, new_capture, {
-            record->derived_captures = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-        });
-    }
-    MVM_repr_push_o(tc, record->derived_captures, new_capture);
-
-    // XXX TODO record info about this
+    MVMDispProgramRecordingCapture new_capture_record = {
+        .capture = new_capture,
+        .transformation = MVMDispProgramRecordingInsert,
+        .index = idx
+        // TODO value_index
+    };
+    MVM_VECTOR_INIT(new_capture_record.captures, 0);
+    MVMDispProgramRecordingCapture *update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
+    MVM_VECTOR_PUSH(update->captures, new_capture_record);
+    MVM_VECTOR_DESTROY(p.path);
 
     /* Evaluate to the new capture, for the running dispatch function. */
     return new_capture;
@@ -154,22 +176,27 @@ MVMObject * MVM_disp_program_record_capture_insert_arg(MVMThreadContext *tc,
  * insert, resulting in a new capture without a new argument inserted at the
  * given index. */
 MVMObject * MVM_disp_program_record_capture_insert_constant_arg(MVMThreadContext *tc,
-        MVMObject *capture, MVMuint32 index, MVMCallsiteFlags kind, MVMRegister value) {
-    /* Ensure the incoming capture is known. */
+        MVMObject *capture, MVMuint32 idx, MVMCallsiteFlags kind, MVMRegister value) {
+    /* Lookup the path to the incoming capture. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    ensure_known_capture(tc, record, capture);
+    CapturePath p;
+    MVM_VECTOR_INIT(p.path, 8);
+    calculate_capture_path(tc, record, capture, &p);
 
-    /* Calculate the new capture and add it to the derived capture set to keep
-     * it alive. */
-    MVMObject *new_capture = MVM_capture_insert_arg(tc, capture, index, kind, value);
-    if (!record->derived_captures) {
-        MVMROOT(tc, new_capture, {
-            record->derived_captures = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-        });
-    }
-    MVM_repr_push_o(tc, record->derived_captures, new_capture);
+    // TODO ensure a value index for the constant
 
-    // XXX TODO record info about this
+    /* Calculate the new capture and add a record for it. */
+    MVMObject *new_capture = MVM_capture_insert_arg(tc, capture, idx, kind, value);
+    MVMDispProgramRecordingCapture new_capture_record = {
+        .capture = new_capture,
+        .transformation = MVMDispProgramRecordingInsert,
+        .index = idx
+        // TODO value_index
+    };
+    MVM_VECTOR_INIT(new_capture_record.captures, 0);
+    MVMDispProgramRecordingCapture *update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
+    MVM_VECTOR_PUSH(update->captures, new_capture_record);
+    MVM_VECTOR_DESTROY(p.path);
 
     /* Evaluate to the new capture, for the running dispatch function. */
     return new_capture;
