@@ -106,6 +106,73 @@ static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *rec
 #define dump_recording(tc, r) do {} while (0)
 #endif
 
+#if DUMP_PROGRAMS
+static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
+    fprintf(stderr, "Dispatch program\n");
+    MVMuint32 i;
+    for (i = 0; i < dp->num_ops; i++) {
+        MVMDispProgramOp *op = &(dp->ops[i]);
+        switch (op->code) {
+            case MVMDispOpcodeGuardArgType:
+                fprintf(stderr, "  Guard arg %d (type=%s)\n",
+                        op->arg_guard.arg_idx,
+                        ((MVMSTable *)dp->gc_constants[op->arg_guard.checkee])->debug_name);
+                break;
+            case MVMDispOpcodeGuardArgTypeConc:
+                fprintf(stderr, "  Guard arg %d (type=%s, concrete)\n",
+                        op->arg_guard.arg_idx,
+                        ((MVMSTable *)dp->gc_constants[op->arg_guard.checkee])->debug_name);
+                break;
+           case MVMDispOpcodeGuardArgTypeTypeObject:
+                fprintf(stderr, "  Guard arg %d (type=%s, type object)\n",
+                        op->arg_guard.arg_idx,
+                        ((MVMSTable *)dp->gc_constants[op->arg_guard.checkee])->debug_name);
+                break;
+            case MVMDispOpcodeGuardArgConc:
+                fprintf(stderr, "  Guard arg %d (concrete)\n",
+                        op->arg_guard.arg_idx);
+                break;
+            case MVMDispOpcodeGuardArgTypeObject:
+                fprintf(stderr, "  Guard arg %d (type object)\n",
+                        op->arg_guard.arg_idx);
+                break;
+            case MVMDispOpcodeGuardArgLiteralObj:
+                fprintf(stderr, "  Guard arg %d (literal object of type %s)\n",
+                        op->arg_guard.arg_idx,
+                        STABLE(((MVMObject *)dp->gc_constants[op->arg_guard.checkee]))->debug_name);
+                break;
+            case MVMDispOpcodeGuardArgLiteralStr: {
+                char *c_str = MVM_string_utf8_encode_C_string(tc, 
+                        ((MVMString *)dp->gc_constants[op->arg_guard.checkee]));
+                fprintf(stderr, "  Guard arg %d (literal string '%s')\n",
+                        op->arg_guard.arg_idx, c_str);
+                MVM_free(c_str);
+                break;
+            }
+            case MVMDispOpcodeGuardArgLiteralInt:
+                fprintf(stderr, "  Guard arg %d (literal integer %"PRIi64")\n",
+                        op->arg_guard.arg_idx,
+                        dp->constants[op->arg_guard.checkee].i64);
+                break;
+            case MVMDispOpcodeGuardArgLiteralNum:
+                fprintf(stderr, "  Guard arg %d (literal number %g)\n",
+                        op->arg_guard.arg_idx,
+                        dp->constants[op->arg_guard.checkee].n64);
+                break;
+            case MVMDispOpcodeGuardArgNotLiteralObj:
+                fprintf(stderr, "  Guard arg %d (not literal object of type %s)\n",
+                        op->arg_guard.arg_idx,
+                        STABLE(((MVMObject *)dp->gc_constants[op->arg_guard.checkee]))->debug_name);
+                break;
+            default:
+                fprintf(stderr, "  UNKNOWN OP %d\n", op->code);
+        }
+    }
+}
+#else
+#define dump_program(tc, dp) do {} while (0)
+#endif
+
 /* Run a dispatch callback, which will record a dispatch program. */
 static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         MVMDispDefinition *disp, MVMObject *capture, MVMuint32 *thunked) {
@@ -533,9 +600,174 @@ void MVM_disp_program_record_c_code_constant(MVMThreadContext *tc, MVMCFunction 
     record->outcome.args.source = ((MVMCapture *)capture)->body.args;
 }
 
-/* Processing the recorded program. */
+/* Process a recorded program. */
+typedef struct {
+    MVMDispProgramRecording *rec;
+    MVM_VECTOR_DECL(MVMCollectable *, gc_constants);
+    MVM_VECTOR_DECL(MVMDispProgramConstant, constants);
+    MVM_VECTOR_DECL(MVMDispProgramOp, ops);
+} compile_state;
+static MVMuint32 add_program_constant_int(MVMThreadContext *tc, compile_state *cs,
+        MVMint64 value) {
+    MVMDispProgramConstant c = { .i64 = value };
+    MVM_VECTOR_PUSH(cs->constants, c);
+    return MVM_VECTOR_ELEMS(cs->constants) - 1;
+}
+static MVMuint32 add_program_constant_num(MVMThreadContext *tc, compile_state *cs,
+        MVMnum64 value) {
+    MVMDispProgramConstant c = { .n64 = value };
+    MVM_VECTOR_PUSH(cs->constants, c);
+    return MVM_VECTOR_ELEMS(cs->constants) - 1;
+}
+static MVMuint32 add_program_gc_constant(MVMThreadContext *tc, compile_state *cs,
+        MVMCollectable *value) {
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(cs->gc_constants); i++)
+        if (cs->gc_constants[i] == value)
+            return i;
+    MVM_VECTOR_PUSH(cs->gc_constants, value);
+    return MVM_VECTOR_ELEMS(cs->gc_constants) - 1;
+}
+static MVMuint32 add_program_constant_obj(MVMThreadContext *tc, compile_state *cs,
+        MVMObject *value) {
+    return add_program_gc_constant(tc, cs, (MVMCollectable *)value);
+}
+static MVMuint32 add_program_constant_str(MVMThreadContext *tc, compile_state *cs,
+        MVMString *value) {
+    return add_program_gc_constant(tc, cs, (MVMCollectable *)value);
+}
+static MVMuint32 add_program_constant_stable(MVMThreadContext *tc, compile_state *cs,
+        MVMSTable *value) {
+    return add_program_gc_constant(tc, cs, (MVMCollectable *)value);
+}
+static void emit_guards(MVMThreadContext *tc, compile_state *cs,
+        MVMDispProgramRecordingValue *v) {
+    /* Fetch the callsite entry flags. In the easiest possible case, it's a
+     * non-object constant, so no guards. In theory, we can do better at
+     * objects if we can prove they come from a wval, but the bytecode
+     * validation can't yet do that, and we have a safety problem if we
+     * just take the bytecode file at its word. */
+    MVMObject *capture_obj = cs->rec->initial_capture.capture;
+    MVMCapture *initial_capture = (MVMCapture *)capture_obj;
+    MVMuint32 index = v->capture.index;
+    MVMCallsiteFlags cs_flag = initial_capture->body.callsite->arg_flags[index];
+    if ((cs_flag & MVM_CALLSITE_ARG_LITERAL) && !(cs_flag & MVM_CALLSITE_ARG_OBJ))
+        return;
+
+    /* Otherwise, go by argument kind. For objects, all kinds of guards
+     * are possible. For others, only the literal value ones are. */
+    switch (cs_flag & MVM_CALLSITE_ARG_TYPE_MASK) {
+        case MVM_CALLSITE_ARG_OBJ:
+            if (v->guard_literal) {
+                /* If we're guarding that it's a literal, we can disregard
+                 * the other kinds of guard, since this one implies both
+                 * type and concreteness. */
+                MVMDispProgramOp op;
+                op.code = MVMDispOpcodeGuardArgLiteralObj;
+                op.arg_guard.arg_idx = (MVMuint16)index;
+                op.arg_guard.checkee = add_program_constant_obj(tc, cs,
+                        MVM_capture_arg_pos_o(tc, capture_obj, index));
+                MVM_VECTOR_PUSH(cs->ops, op);
+            }
+            else {
+                if (v->guard_type) {
+                    MVMObject *value = MVM_capture_arg_pos_o(tc, capture_obj, index);
+                    MVMDispProgramOp op;
+                    if (v->guard_concreteness)
+                        op.code = IS_CONCRETE(value)
+                                ? MVMDispOpcodeGuardArgTypeConc
+                                : MVMDispOpcodeGuardArgTypeTypeObject;
+                    else
+                        op.code = MVMDispOpcodeGuardArgType;
+                    op.arg_guard.arg_idx = (MVMuint16)index;
+                    op.arg_guard.checkee = add_program_constant_stable(tc, cs,
+                            STABLE(value));
+                    MVM_VECTOR_PUSH(cs->ops, op);
+                }
+                else if (v->guard_concreteness) {
+                    MVMObject *value = MVM_capture_arg_pos_o(tc, capture_obj, index);
+                    MVMDispProgramOp op;
+                    op.code = IS_CONCRETE(value)
+                            ? MVMDispOpcodeGuardArgConc
+                            : MVMDispOpcodeGuardArgTypeObject;
+                    op.arg_guard.arg_idx = (MVMuint16)index;
+                    MVM_VECTOR_PUSH(cs->ops, op);
+                }
+                MVMuint32 i;
+                for (i = 0; i < MVM_VECTOR_ELEMS(v->not_literal_guards); i++) {
+                    MVMDispProgramOp op;
+                    op.code = MVMDispOpcodeGuardArgNotLiteralObj;
+                    op.arg_guard.arg_idx = (MVMuint16)index;
+                    op.arg_guard.checkee = add_program_constant_obj(tc, cs,
+                            v->not_literal_guards[i]);
+                    MVM_VECTOR_PUSH(cs->ops, op);
+                }
+            }
+            break;
+        case MVM_CALLSITE_ARG_STR:
+            if (v->guard_literal) {
+                MVMDispProgramOp op;
+                op.code = MVMDispOpcodeGuardArgLiteralStr;
+                op.arg_guard.arg_idx = (MVMuint16)index;
+                op.arg_guard.checkee = add_program_constant_str(tc, cs,
+                        MVM_capture_arg_pos_s(tc, capture_obj, index));
+                MVM_VECTOR_PUSH(cs->ops, op);
+            }
+            break;
+        case MVM_CALLSITE_ARG_INT:
+            if (v->guard_literal) {
+                MVMDispProgramOp op;
+                op.code = MVMDispOpcodeGuardArgLiteralInt;
+                op.arg_guard.arg_idx = (MVMuint16)index;
+                op.arg_guard.checkee = add_program_constant_int(tc, cs,
+                        MVM_capture_arg_pos_i(tc, capture_obj, index));
+                MVM_VECTOR_PUSH(cs->ops, op);
+            }
+            break;
+        case MVM_CALLSITE_ARG_NUM:
+            if (v->guard_literal) {
+                MVMDispProgramOp op;
+                op.code = MVMDispOpcodeGuardArgLiteralInt;
+                op.arg_guard.arg_idx = (MVMuint16)index;
+                op.arg_guard.checkee = add_program_constant_num(tc, cs,
+                        MVM_capture_arg_pos_n(tc, capture_obj, index));
+                MVM_VECTOR_PUSH(cs->ops, op);
+            }
+            break;
+        default:
+            MVM_oops(tc, "Unexpected callsite arg type in emit_guards");
+    }
+}
 static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord* record) {
+    /* Dump the recording if we're debugging. */
     dump_recording(tc, record);
+
+    /* Go through the values and compile the guards associated with them,
+     * along with any loads. */
+    compile_state cs;
+    cs.rec = &(record->rec);
+    MVM_VECTOR_INIT(cs.ops, 8);
+    MVM_VECTOR_INIT(cs.gc_constants, 4);
+    MVM_VECTOR_INIT(cs.constants, 4);
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(record->rec.values); i++) {
+        MVMDispProgramRecordingValue *v = &(record->rec.values[i]);
+        if (v->source == MVMDispProgramRecordingCaptureValue) {
+            emit_guards(tc, &cs, v);
+        }
+    }
+
+    // TODO outcome, capture, temporaries, etc.
+
+    /* Create dispatch program description. */
+    MVMDispProgram *dp = MVM_malloc(sizeof(MVMDispProgram));
+    dp->constants = cs.constants;
+    dp->gc_constants = cs.gc_constants;
+    dp->ops = cs.ops;
+    dp->num_ops = MVM_VECTOR_ELEMS(cs.ops);
+
+    /* Dump the program if we're debugging. */
+    dump_program(tc, dp);
 }
 
 /* Called when we have finished recording a dispatch program. */
