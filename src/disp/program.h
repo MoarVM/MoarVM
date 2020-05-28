@@ -94,9 +94,6 @@ struct MVMDispProgramRecordingValue {
         struct {
             /* The index within the initial arguments capture. */
             MVMuint32 index;
-
-            /* The tracking object. */
-            MVMObject *tracked;
         } capture;
         struct {
             /* The literal value and its kind. */
@@ -105,6 +102,9 @@ struct MVMDispProgramRecordingValue {
         } literal;
         // TODO struct { } attribute;
     };
+
+    /* The tracking object, if any. */
+    MVMObject *tracked;
 
     /* Basic guards that have been applied. When we compile the guard program,
      * we'll often simplify this; for example, if the incoming argument was a
@@ -132,7 +132,7 @@ struct MVMDispProgramRecordingCapture {
     /* The kind of transformation that it did. */
     MVMDispProgramRecordingTransformation transformation;
 
-    /* The index involved in the inert or drop. */
+    /* The index involved in the insert or drop. */
     MVMuint32 index;
 
     /* For inserts, the index of the value that was involved. */
