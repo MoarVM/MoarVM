@@ -1,5 +1,44 @@
 #include "moar.h"
 
+/* Debug dumping, to figure out what we're recording and what programs we are
+ * inferring from those recordings. */
+#define DUMP_RECORDINGS     0
+#define DUMP_PROGRAMS       0
+
+#if DUMP_RECORDINGS
+static void dump_recording_capture(MVMThreadContext *tc,
+        MVMDispProgramRecordingCapture *capture, MVMuint32 indent) {
+    char *indent_str = alloca(indent + 1);
+    memset(indent_str, ' ', indent);
+    indent_str[indent] = '\0';
+    switch (capture->transformation) {
+        case MVMDispProgramRecordingInitial:
+            fprintf(stderr, "%sInitial\n", indent_str);
+            break;
+        case MVMDispProgramRecordingDrop:
+            fprintf(stderr, "%sDrop argument %d\n", indent_str, capture->index);
+            break;
+        case MVMDispProgramRecordingInsert:
+            fprintf(stderr, "%sInsert value %d at %d\n", indent_str, capture->value_index,
+                    capture->index);
+            break;
+        default:
+            fprintf(stderr, "%sUnknown transforamtion\n", indent_str);
+            break;
+    }
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(capture->captures); i++)
+        dump_recording_capture(tc, &(capture->captures[i]), indent + 2);
+}
+static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *record) {
+    fprintf(stderr, "Dispatch recording\n");
+    fprintf(stderr, "  Captures:\n");
+    dump_recording_capture(tc, &(record->rec.initial_capture), 4);
+}
+#else
+#define dump_recording(tc, r) do {} while (0)
+#endif
+
 /* Run a dispatch callback, which will record a dispatch program. */
 static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         MVMDispDefinition *disp, MVMObject *capture, MVMuint32 *thunked) {
@@ -291,11 +330,14 @@ void MVM_disp_program_record_c_code_constant(MVMThreadContext *tc, MVMCFunction 
     record->outcome.args.source = ((MVMCapture *)capture)->body.args;
 }
 
+/* Processing the recorded program. */
+static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord* record) {
+    dump_recording(tc, record);
+}
+
 /* Called when we have finished recording a dispatch program. */
 MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatchRecord* record,
         MVMuint32 *thunked) {
-    // TODO compile program, update inline cache
-
     /* Set the result in place. */
     switch (record->outcome.kind) {
         case MVM_DISP_OUTCOME_FAILED:
@@ -308,6 +350,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
                 MVM_exception_throw_adhoc(tc, "Dispatch callback failed to delegate to a dispatcher");
             return 0;
         case MVM_DISP_OUTCOME_VALUE: {
+            process_recording(tc, record);
             MVMFrame *caller = MVM_callstack_record_to_frame(record->common.prev);
             switch (record->outcome.result_kind) {
                 case MVM_reg_obj:
@@ -328,6 +371,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             return 1;
         }
         case MVM_DISP_OUTCOME_BYTECODE:
+            process_recording(tc, record);
             record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
             tc->cur_frame = MVM_callstack_record_to_frame(tc->stack_top->prev);
             MVM_frame_dispatch(tc, record->outcome.code, record->outcome.args, -1);
@@ -335,6 +379,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
                 *thunked = 1;
             return 0;
         case MVM_DISP_OUTCOME_CFUNCTION:
+            process_recording(tc, record);
             record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
             tc->cur_frame = MVM_callstack_record_to_frame(tc->stack_top->prev);
             record->outcome.c_func(tc, record->outcome.args);
