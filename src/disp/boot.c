@@ -96,13 +96,83 @@ static void boot_syscall(MVMThreadContext *tc, MVMArgs arg_info) {
                 "No MoarVM syscall with name '%s'", c_name);
     }
 
-    /* Check the incoming arguments and enforce guards. */
-    // TODO
-
-    /* Drop the name, and produce an invoke C function outcome. */
+    /* Drop the name from the args capture, and then check them. */
     MVMObject *args_capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 0);
-    MVM_disp_program_record_c_code_constant(tc, syscall->wrapper, args_capture);
+    MVMCallsite *cs = ((MVMCapture *)args_capture)->body.callsite;
+    if (MVM_callsite_has_nameds(tc, cs)) {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
+                "Cannot pass named arguments to MoarVM syscall '%s'", c_name);
+    }
+    if (cs->num_pos < syscall->min_args) {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
+                "Too few arguments to MoarVM syscall '%s'; got %d, need %d..%d",
+                        c_name, cs->num_pos, syscall->min_args, syscall->max_args);
+    }
+    if (cs->num_pos > syscall->max_args) {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
+                "Too many arguments to MoarVM syscall '%s'; got %d, need %d..%d",
+                        c_name, cs->num_pos, syscall->min_args, syscall->max_args);
+    }
+    MVMuint32 i;
+    for (i = 0; i < cs->num_pos; i++) {
+        /* Check we got the expected kind of argument. */
+        if ((cs->arg_flags[i] & MVM_CALLSITE_ARG_TYPE_MASK) != syscall->expected_kinds[i]) {
+            char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+            char *waste[] = { c_name, NULL };
+            MVM_exception_throw_adhoc_free(tc, waste,
+                    "Argument %d to MoarVM syscall '%s' had kind %s, but should be %s",
+                    i, c_name,
+                    MVM_callsite_arg_type_name(cs->arg_flags[i]),
+                    MVM_callsite_arg_type_name(syscall->expected_kinds[i]));
+        }
 
+        /* Add any guards. */
+        if (syscall->expected_kinds[i] == MVM_CALLSITE_ARG_OBJ) {
+            if (syscall->expected_reprs[i]) {
+                MVMuint32 expected = syscall->expected_reprs[i];
+                MVMuint32 got = REPR(MVM_capture_arg_pos_o(tc, args_capture, i))->ID;
+                if (expected == got) {
+                    MVMROOT2(tc, name, args_capture, {
+                        MVM_disp_program_record_guard_type(tc,
+                                MVM_disp_program_record_track_arg(tc, args_capture, i));
+                    });
+                }
+                else {
+                    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+                    char *waste[] = { c_name, NULL };
+                    MVM_exception_throw_adhoc_free(tc, waste,
+                            "Argument %d to MoarVM syscall '%s' has repr %s, but should be %s",
+                            i, c_name,
+                            MVM_repr_get_by_id(tc, got)->name,
+                            MVM_repr_get_by_id(tc, expected)->name);
+                }
+            }
+            if (syscall->expected_concrete[i]) {
+                if (IS_CONCRETE(MVM_capture_arg_pos_o(tc, args_capture, i))) {
+                    MVMROOT2(tc, name, args_capture, {
+                        MVM_disp_program_record_guard_concreteness(tc,
+                                MVM_disp_program_record_track_arg(tc, args_capture, i));
+                    });
+                }
+                else {
+                    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+                    char *waste[] = { c_name, NULL };
+                    MVM_exception_throw_adhoc_free(tc, waste,
+                            "Argument %d to MoarVM syscall '%s' must be concrete, not a type object",
+                            i, c_name);
+                }
+            }
+        }
+    }
+
+    /* Produce an invoke C function outcome. */
+    MVM_disp_program_record_c_code_constant(tc, syscall->wrapper, args_capture);
     MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
 }
 

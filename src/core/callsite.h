@@ -138,6 +138,11 @@ MVMCallsite * MVM_callsite_drop_positional(MVMThreadContext *tc, MVMCallsite *cs
 MVMCallsite * MVM_callsite_insert_positional(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx,
         MVMCallsiteFlags flag);
 
+/* Check if the callsite has nameds. */
+MVM_STATIC_INLINE MVMuint32 MVM_callsite_has_nameds(MVMThreadContext *tc, const MVMCallsite *cs) {
+    return cs->num_pos != cs->flag_count;
+}
+
 /* Count the number of nameds (excluding flattening). */
 MVM_STATIC_INLINE MVMuint16 MVM_callsite_num_nameds(MVMThreadContext *tc, const MVMCallsite *cs) {
     MVMuint16 i = cs->num_pos;
@@ -148,4 +153,20 @@ MVM_STATIC_INLINE MVMuint16 MVM_callsite_num_nameds(MVMThreadContext *tc, const 
         i++;
     }
     return nameds;
+}
+
+/* Describe the callsite flag type. */
+MVM_STATIC_INLINE const char * MVM_callsite_arg_type_name(MVMCallsiteFlags f) {
+    switch (f & MVM_CALLSITE_ARG_TYPE_MASK) {
+        case MVM_CALLSITE_ARG_OBJ:
+            return "obj";
+        case MVM_CALLSITE_ARG_STR:
+            return "str";
+        case MVM_CALLSITE_ARG_INT:
+            return "int";
+        case MVM_CALLSITE_ARG_NUM:
+            return "num";
+        default:
+            return "unknown";
+    }
 }
