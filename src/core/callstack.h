@@ -145,10 +145,6 @@ struct MVMCallStackDispatchRecord {
      * derived and guards established. */
     MVMDispProgramRecording rec;
 
-    /* An MVMArray of derived captures, produced during the dispatch
-     * process. */
-    MVMObject *derived_captures;
-
     /* Register holding the current capture. Starts out as the initial capture
      * and then, in the case we delegate, becomes the one sent to the delegate
      * dispatcher. */
@@ -156,7 +152,6 @@ struct MVMCallStackDispatchRecord {
 
     /* The outcome of the dispatch. */
     MVMDispProgramOutcome outcome;
-    /* TODO */
 };
 
 /* A dispatch record frame is turned into this once the dispatch has already
