@@ -73,20 +73,6 @@ struct MVMDispProgramOutcome {
     };
 };
 
-/* Recording state of a dispatch program, updated as we move through the record
- * phase. */
-struct MVMDispProgramRecording {
-    /* The initial argument capture. */
-    MVMObject *initial_capture;
-
-    /* The values that we have encountered while recording, and maybe added
-     * guards against. */
-    MVM_VECTOR_DECL(MVMDispProgramRecordingValue, values);
-
-    /* Tree of captures derived from the initial one. */
-    MVM_VECTOR_DECL(MVMDispProgramRecordingCapture, captures);
-};
-
 /* A value that is involved in the dispatch. It may come from the initial
  * arguments, it may be an inserted constant, or it may be from an attribute
  * read out of another value. */
@@ -135,6 +121,7 @@ struct MVMDispProgramRecordingValue {
 
 /* A derived capture. */
 typedef enum {
+    MVMDispProgramRecordingInitial,
     MVMDispProgramRecordingDrop,
     MVMDispProgramRecordingInsert
 } MVMDispProgramRecordingTransformation;
@@ -154,6 +141,18 @@ struct MVMDispProgramRecordingCapture {
     /* Tree of captures further derived from the this one. */
     MVM_VECTOR_DECL(MVMDispProgramRecordingCapture, captures);
 };
+
+/* Recording state of a dispatch program, updated as we move through the record
+ * phase. */
+struct MVMDispProgramRecording {
+    /* The initial argument capture, top of the tree of captures. */
+    MVMDispProgramRecordingCapture initial_capture;
+
+    /* The values that we have encountered while recording, and maybe added
+     * guards against. */
+    MVM_VECTOR_DECL(MVMDispProgramRecordingValue, values);
+};
+
 
 /* Functions called during the recording. */
 void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp, MVMObject *capture);
