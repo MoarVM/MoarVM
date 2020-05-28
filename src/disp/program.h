@@ -162,6 +162,136 @@ struct MVMDispProgramRecording {
     MVMObject *outcome_capture;
 };
 
+/* A "compiled" dispatch program, which is what we interpret at a callsite
+ * (at least, until specialization, where more exciting things happen). */
+struct MVMDispProgram {
+    /* GC-managed constants (objects, strings, and STables) used in the
+     * dispatch. */
+    MVMCollectable **gc_constants;
+
+    /* Non-GC-managed constants used in the dispatch. */
+    MVMDispProgramConstant **constants;
+
+    /* The number of temporaries. Temporaries are used while evaluating
+     * the dispatch program, and may also be used as an argument buffer
+     * when we cannot just point into a tail of the original one. */
+    MVMuint32 num_temporaries;
+
+    /* The first of the temporaries that is used in order to store an
+     * argument buffer. These live long enough that we need to mark
+     * them using the callsite. This is set to -1 if there aren't any. */
+    MVMint32 first_args_temporary;
+
+    /* Ops we execute to evaluate the dispatch program. */
+    MVMDispProgramOp *ops;
+};
+
+/* Various kinds of constant we use during a dispatch program, to let us keep
+ * the ops part more compact. */
+union MVMDispProgramConstant {
+    MVMCallsite *cs;
+    MVMint64 i64;
+    MVMnum64 n64;
+};
+
+/* Opcodes we may execute in a dispatch program. */
+typedef enum {
+    /* Guard that the type of an incoming argument is as expected. */
+    MVMDispOpcodeGuardArgType,
+    /* Guard that the type of an incoming argument is as expected and also
+     * we have a concrete object. */
+    MVMDispOpcodeGuardArgTypeConc,
+    /* Guard that the type of an incoming argument is as expected and also
+     * we have a type object. */
+    MVMDispOpcodeGuardArgTypeTypeObject,
+    /* Guard that the type of an incoming argument is an expected object
+     * literal. */
+    MVMDispOpcodeGuardArgLiteralObj,
+    /* Guard that the type of an incoming argument is an expected string
+     * literal. */
+    MVMDispOpcodeGuardArgLiteralStr,
+    /* Guard that the type of an incoming argument is an expected int
+     * literal. */
+    MVMDispOpcodeGuardArgLiteralInt,
+    /* Guard that the type of an incoming argument is an expected num
+     * literal. */
+    MVMDispOpcodeGuardArgLiteralNum,
+    /* Guard that the type of an incoming argument is not an unexpected
+     * literal. */
+    MVMDispOpcodeGuardArgNotLiteralObj,
+    /* Load a capture value into a temporary. */
+    MVMDispOpcodeLoadCaptureValue,
+    /* Load a constant object or string into a temporary. */
+    MVMDispOpcodeLoadConstantObjOrStr,
+    /* Load a constant int into a temporary. */
+    MVMDispOpcodeLoadConstantInt,
+    /* Load a constant num into a temporary. */
+    MVMDispOpcodeLoadConstantNum,
+    /* Set an object result outcome from a temporary. */
+    MVMDispOpcodeResultValueObj,
+    /* Set a string result outcome from a temporary. */
+    MVMDispOpcodeResultValueStr,
+    /* Set an inte result outcome from a temporary. */
+    MVMDispOpcodeResultValueInt,
+    /* Set a num result outcome from a temporary. */
+    MVMDispOpcodeResultValueNum,
+    /* Set the args buffer to use in the call to be the tail of that of
+     * the initial capture. (Actually it's really the map that we take
+     * the tail of.) The argument is how many of the args to skip from
+     * the start. This is used when the dispatch should use everything
+     * except the first args. */
+    MVMDispOpcodeUseArgsTail,
+    /* When we have to really produce a new set of arguments, we use this
+     * op. Before it, we use load instructions to build the start of the
+     * argument list. We then pass in a number of arguments to copy from
+     * the incoming argument list, which may be 0. The arguments are
+     * sourced by looking at the trailing N arguments of the initial
+     * capture. They are copied into the last N temporaries. The args
+     * are set to come from the argument temporaries, using the identity
+     * map. */
+    MVMDispOpcodeCopyArgsTail,
+    /* Set a bytecode object result, specifying invokee and callsite.
+     * The args should already have been set up. */
+    MVMDispOpcodeResultBytecode,
+    /* Set a C function object result, specifying invokee and callsite.
+     * The args should already have been set up. */
+    MVMDispOpcodeResultCFunction
+} MVMDispProgramOpcode;
+
+/* An operation, with its operands, in a dispatch program. */
+struct MVMDispProgramOp {
+    /* The opcode. */
+    MVMDispProgramOpcode code;
+
+    /* Operands. */
+    union {
+        struct {
+            /* The argument index in the incoming capture. */
+            MVMuint16 arg_idx;
+            /* The thing to check it against (looked up in one of the constant
+             * tables). */
+            MVMuint32 checkee;
+        } arg_guard;
+        struct {
+            /* The temporary to load into. */
+            MVMuint32 temp;
+            /* The index to load from. The thing we're indexing is part of
+             * the instruction. */
+            MVMuint32 idx;
+        } load;
+        struct {
+            /* The temporary holding the result. */
+            MVMuint32 temp;
+        } res_value;
+        struct {
+            /* The temporary holding the thing to invoke. */
+            MVMuint32 temp_invokee;
+            /* The callsite index. */
+            MVMuint32 callsite_idx;
+        } res_code;
+    };
+};
+
 /* Functions called during the recording. */
 void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp, MVMObject *capture);
 MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *capture,
