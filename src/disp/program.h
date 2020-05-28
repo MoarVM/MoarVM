@@ -151,8 +151,16 @@ struct MVMDispProgramRecording {
     /* The values that we have encountered while recording, and maybe added
      * guards against. */
     MVM_VECTOR_DECL(MVMDispProgramRecordingValue, values);
-};
 
+    /* The index of the value that is the outcome of the dispatch. For a value
+     * outcome, it's the value we'll produce. For the invocations, it's the
+     * code or C function value. */
+    MVMuint32 outcome_value;
+
+    /* For an invocation outcome, this is the capture that we shall invoke the
+     * arguments with. Will be located within the capture tree somewhere. */
+    MVMObject *outcome_capture;
+};
 
 /* Functions called during the recording. */
 void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp, MVMObject *capture);
@@ -172,8 +180,7 @@ MVMObject * MVM_disp_program_record_capture_insert_arg(MVMThreadContext *tc,
 void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatcher_id,
         MVMObject *capture);
 void MVM_disp_program_record_result_constant(MVMThreadContext *tc, MVMObject *result);
-void MVM_disp_program_record_result_capture_value(MVMThreadContext *tc, MVMObject *capture,
-        MVMuint32 index);
+void MVM_disp_program_record_result_tracked_value(MVMThreadContext *tc, MVMObject *tracked);
 void MVM_disp_program_record_code_constant(MVMThreadContext *tc, MVMCode *result, MVMObject *capture);
 void MVM_disp_program_record_c_code_constant(MVMThreadContext *tc, MVMCFunction *result,
         MVMObject *capture);
