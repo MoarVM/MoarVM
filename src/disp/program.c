@@ -224,6 +224,16 @@ static MVMuint32 value_index_capture(MVMThreadContext *tc, MVMDispProgramRecordi
     return MVM_VECTOR_ELEMS(rec->values) - 1;
 }
 
+/* Resolves a tracked value to a value index, throwing if it's not found. */
+static MVMuint32 find_tracked_value_index(MVMThreadContext *tc,
+        MVMDispProgramRecording *rec, MVMObject *tracked) {
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++)
+        if (rec->values[i].tracked == tracked)
+            return i;
+    MVM_exception_throw_adhoc(tc, "Dispatcher tracked value not found");
+}
+
 /* Start tracking an argument from the specified capture. This allows us to
  * apply guards against it. */
 MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *capture,
@@ -349,13 +359,14 @@ MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMOb
  * on the value that was read. */
 MVMObject * MVM_disp_program_record_capture_insert_arg(MVMThreadContext *tc,
         MVMObject *capture, MVMuint32 idx, MVMObject *tracked) {
-    /* Lookup the path to the incoming capture. */
+    /* Lookup the index of the tracked value. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked);
+
+    /* Also look up the path to the incoming capture. */
     CapturePath p;
     MVM_VECTOR_INIT(p.path, 8);
     calculate_capture_path(tc, record, capture, &p);
-
-    // TODO lookup the value index of the tracked value too
 
     /* Calculate the new capture and add a record for it. */
     MVMObject *new_capture = MVM_capture_insert_arg(tc, capture, idx,
@@ -363,8 +374,8 @@ MVMObject * MVM_disp_program_record_capture_insert_arg(MVMThreadContext *tc,
     MVMDispProgramRecordingCapture new_capture_record = {
         .capture = new_capture,
         .transformation = MVMDispProgramRecordingInsert,
-        .index = idx
-        // TODO value_index
+        .index = idx,
+        .value_index = value_index
     };
     MVM_VECTOR_INIT(new_capture_record.captures, 0);
     MVMDispProgramRecordingCapture *update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
