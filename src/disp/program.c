@@ -197,9 +197,29 @@ static MVMuint32 value_index_constant(MVMThreadContext *tc, MVMDispProgramRecord
     /* Otherwise, we need to create the value entry. */
     MVMDispProgramRecordingValue new_value;
     memset(&new_value, 0, sizeof(MVMDispProgramRecordingValue));
-    new_value.source = MVMDispProgramRecordingLiteralValue,
+    new_value.source = MVMDispProgramRecordingLiteralValue;
     new_value.literal.kind = kind;
     new_value.literal.value = value;
+    MVM_VECTOR_PUSH(rec->values, new_value);
+    return MVM_VECTOR_ELEMS(rec->values) - 1;
+}
+
+/* Ensures we have a values used entry for the specified argument index. */
+static MVMuint32 value_index_capture(MVMThreadContext *tc, MVMDispProgramRecording *rec,
+        MVMuint32 index) {
+    /* Look for an existing such value. */
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++) {
+        MVMDispProgramRecordingValue *v = &(rec->values[i]);
+        if (v->source == MVMDispProgramRecordingCaptureValue && v->capture.index == index)
+            return i;
+    }
+
+    /* Otherwise, we need to create the value entry. */
+    MVMDispProgramRecordingValue new_value;
+    memset(&new_value, 0, sizeof(MVMDispProgramRecordingValue));
+    new_value.source = MVMDispProgramRecordingCaptureValue;
+    new_value.capture.index = index;
     MVM_VECTOR_PUSH(rec->values, new_value);
     return MVM_VECTOR_ELEMS(rec->values) - 1;
 }
@@ -208,20 +228,73 @@ static MVMuint32 value_index_constant(MVMThreadContext *tc, MVMDispProgramRecord
  * apply guards against it. */
 MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 index) {
+    /* Obtain the value from the capture. This ensures that it is in range. */
+    MVMRegister value;
+    MVMCallsiteFlags kind;
+    MVM_capture_arg_pos(tc, capture, index, &value, &kind);
+
     /* Ensure the incoming capture is known. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
     CapturePath p;
     MVM_VECTOR_INIT(p.path, 8);
     calculate_capture_path(tc, record, capture, &p);
 
-    // XXX TODO record info about this
+    /* Walk the capture path to resolve the index. We start at the deepest
+     * point and work upward in the tree. */
+    MVMint32 i;
+    MVMuint32 real_index = index;
+    MVMint32 found_value_index = -1;
+    for (i = MVM_VECTOR_ELEMS(p.path) - 1; i >= 0; i--) {
+        switch (p.path[i]->transformation) {
+            case MVMDispProgramRecordingInsert:
+                /* It's an insert. Was the insert at the index we are dealing
+                 * with? */
+                if (p.path[i]->index == real_index) {
+                    /* Yes, and so it will have a value_index, which is what
+                     * we ultimately need. */
+                    found_value_index = p.path[i]->value_index;
+                    break;
+                }
+                else {
+                    /* No, so we may need to adjust the offset. Before this
+                     * operation we had:
+                     *   before1, before2, after1, after2
+                     * And now have:
+                     *   before1, before2, inserted, after1, after2
+                     * Thus we need to adjust the current index by subtracting
+                     * 1 if it's after the insertion point. */
+                    if (real_index > p.path[i]->index)
+                        real_index--;
+                }
+                break;
+            case MVMDispProgramRecordingDrop:
+                /* An argument was dropped here. Before the drop, we'd have
+                 * had:
+                 *   before1, before2, dropped, after1, after2
+                 * And now we have:
+                 *   before1, before2, after1, after2
+                 * And so any index greater than or equal to the drop index
+                 * needs to have 1 added to get its previous index. */
+                if (real_index >= p.path[i]->index)
+                    real_index++;
+                break;
+            case MVMDispProgramRecordingInitial:
+                /* We have reached the initial capture, and so the index is
+                 * for it. */
+                break;
+        }
+    }
     MVM_VECTOR_DESTROY(p.path);
 
-    /* Obtain the argument and wrap it in a tracked object. */
-    MVMRegister value;
-    MVMCallsiteFlags kind;
-    MVM_capture_arg_pos(tc, capture, index, &value, &kind);
-    return MVM_tracked_create(tc, value, kind);
+    /* If we didn't find a value index, then we're referencing the original
+     * capture; ensure there's a value index for that. */
+    if (found_value_index < 0)
+        found_value_index = value_index_capture(tc, &(record->rec), real_index);
+
+    /* Ensure there is a tracked value object and return it. */
+    if (!record->rec.values[found_value_index].tracked)
+        record->rec.values[found_value_index].tracked = MVM_tracked_create(tc, value, kind);
+    return record->rec.values[found_value_index].tracked;
 }
 
 /* Record a guard of the current type of the specified tracked value. */
