@@ -34,6 +34,20 @@ static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *rec
     fprintf(stderr, "Dispatch recording\n");
     fprintf(stderr, "  Captures:\n");
     dump_recording_capture(tc, &(record->rec.initial_capture), 4);
+    fprintf(stderr, "  Outcome:\n");
+    switch (record->outcome.kind) {
+        case MVM_DISP_OUTCOME_VALUE:
+            printf("    Value\n");
+            break;
+        case MVM_DISP_OUTCOME_BYTECODE:
+            printf("    Run bytecode\n");
+            break;
+        case MVM_DISP_OUTCOME_CFUNCTION:
+            printf("    Run C function\n");
+            break;
+        default:
+            printf("    Unknown\n");
+    }
 }
 #else
 #define dump_recording(tc, r) do {} while (0)
