@@ -65,6 +65,17 @@ static void dump_recording_values(MVMThreadContext *tc, MVMDispProgramRecording 
             default:
                 fprintf(stderr, "    %d Unknown\n", i);
         }
+        if (v->guard_literal) {
+            fprintf(stderr, "      Guard literal value\n");
+        }
+        else {
+            if (v->guard_type && v->guard_concreteness)
+                fprintf(stderr, "      Guard type and concreteness\n");
+            else if (v->guard_type)
+                fprintf(stderr, "      Guard type\n");
+            else if (v->guard_concreteness)
+                fprintf(stderr, "      Guard concreteness\n");
+        }
     }
 };
 static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *record) {
@@ -309,24 +320,33 @@ MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *c
 
 /* Record a guard of the current type of the specified tracked value. */
 void MVM_disp_program_record_guard_type(MVMThreadContext *tc, MVMObject *tracked) {
-    // TODO
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked);
+    record->rec.values[value_index].guard_type = 1;
 }
 
 /* Record a guard of the current concreteness of the specified tracked value. */
 void MVM_disp_program_record_guard_concreteness(MVMThreadContext *tc, MVMObject *tracked) {
-    // TODO
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked);
+    record->rec.values[value_index].guard_concreteness = 1;
 }
 
 /* Record a guard of the current value of the specified tracked value. */
 void MVM_disp_program_record_guard_literal(MVMThreadContext *tc, MVMObject *tracked) {
-    // TODO
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked);
+    record->rec.values[value_index].guard_literal = 1;
 }
 
 /* Record a guard that the specified tracked value must not be a certain object
  * literal. */
 void MVM_disp_program_record_guard_not_literal_obj(MVMThreadContext *tc,
        MVMObject *tracked, MVMObject *object) {
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked);
     // TODO
+    MVM_oops(tc, "not literal object guards NYI");
 }
 
 /* Record that we drop an argument from a capture. Also perform the drop,
