@@ -151,6 +151,26 @@ MVMString * MVM_capture_arg_pos_s(MVMThreadContext *tc, MVMObject *capture_obj, 
     return capture->body.args[idx].s;
 }
 
+/* Access a positional integer argument of an argument capture object. */
+MVMint64 MVM_capture_arg_pos_i(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    if (idx >= capture->body.callsite->num_pos)
+        MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
+    if ((capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK) != MVM_CALLSITE_ARG_INT)
+        MVM_exception_throw_adhoc(tc, "Capture argument is not an integer argument");
+    return capture->body.args[idx].i64;
+}
+
+/* Access a positional number argument of an argument capture object. */
+MVMnum64 MVM_capture_arg_pos_n(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    if (idx >= capture->body.callsite->num_pos)
+        MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
+    if ((capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK) != MVM_CALLSITE_ARG_STR)
+        MVM_exception_throw_adhoc(tc, "Capture argument is not a number argument");
+    return capture->body.args[idx].n64;
+}
+
 /* Obtain a positional argument's value and type together. */
 void MVM_capture_arg_pos(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx,
         MVMRegister *arg_out, MVMCallsiteFlags *arg_type_out) {
