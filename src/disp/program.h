@@ -232,6 +232,8 @@ typedef enum {
     MVMDispOpcodeLoadConstantInt,
     /* Load a constant num into a temporary. */
     MVMDispOpcodeLoadConstantNum,
+    /* Set one temp to the value of another. */
+    MVMDispOpcodeSet,
     /* Set an object result outcome from a temporary. */
     MVMDispOpcodeResultValueObj,
     /* Set a string result outcome from a temporary. */
@@ -284,6 +286,16 @@ struct MVMDispProgramOp {
              * the instruction. */
             MVMuint32 idx;
         } load;
+        struct {
+            /* The number of args to skip when we use the tail of the incoming
+             * capture. */
+            MVMuint32 skip_args;
+        } use_arg_tail;
+        struct {
+            /* The number of args to copy from the tail of the incoming callsite
+             * to the tail of the args temporaries area. */
+            MVMuint32 tail_args;
+        } copy_arg_tail;
         struct {
             /* The temporary holding the result. */
             MVMuint32 temp;
