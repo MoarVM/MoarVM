@@ -108,7 +108,11 @@ static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *rec
 
 #if DUMP_PROGRAMS
 static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
-    fprintf(stderr, "Dispatch program\n");
+    if (dp->first_args_temporary == dp->num_temporaries)
+        fprintf(stderr, "Dispatch program (%d temporaries)\n", dp->num_temporaries);
+    else
+        fprintf(stderr, "Dispatch program (%d temporaries, args from %d)\n",
+                dp->num_temporaries, dp->first_args_temporary);
     MVMuint32 i;
     for (i = 0; i < dp->num_ops; i++) {
         MVMDispProgramOp *op = &(dp->ops[i]);
@@ -674,6 +678,8 @@ typedef struct {
      * those involved in executing the guard program, not in building up a
      * final result capture. For now, we don't try and re-use temporaries. */
     MVM_VECTOR_DECL(MVMDispProgramRecordingValue *, value_temps);
+    /* If we need to have further temporaries for an args buffer. */
+    MVMuint32 args_buffer_temps;
 } compile_state;
 static MVMuint32 add_program_constant_int(MVMThreadContext *tc, compile_state *cs,
         MVMint64 value) {
@@ -911,12 +917,88 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
         op.code = MVMDispOpcodeUseArgsTail;
         op.use_arg_tail.skip_args = initial_callsite->flag_count - untouched_tail_length;
         MVM_VECTOR_PUSH(cs->ops, op);
+        cs->args_buffer_temps = 0;
     }
 
     /* If the untouhced tail is shorter, then we have changes that mean we
      * need to produce a new args buffer. */
     else if (outcome_callsite->flag_count > untouched_tail_length) {
-        // TODO
+        /* We use an area of the temporaries to model the argument list. We need
+         * to produce those not in the tail. However, we need to know the length
+         * of the non-arg temporaries before we begin, and some kinds of value
+         * might trigger other reads (attribute chains). So we first make a pass
+         * through to trigger loads of such values, and decide what we'll need to
+         * do with each of the values. */
+        MVMuint32 num_to_produce = outcome_callsite->flag_count - untouched_tail_length;
+        MVMuint32 i;
+        typedef enum {
+            SetFromTemporary,
+            SetFromInitialCapture
+        } Action;
+        typedef struct {
+            Action action;
+            MVMuint32 index;
+        } ArgProduction;
+        ArgProduction arg_prod[num_to_produce];
+        for (i = 0; i < num_to_produce; i++) {
+            /* Work out the source of this arg in the capture. For the rationale
+             * for this algorithm, see MVM_disp_program_record_track_arg. */
+            MVMint32 j;
+            MVMuint32 real_index = i;
+            MVMint32 found_value_index = -1;
+            for (j = MVM_VECTOR_ELEMS(p.path) - 1; j >= 0; j--) {
+                switch (p.path[j]->transformation) {
+                    case MVMDispProgramRecordingInsert:
+                        if (p.path[j]->index == real_index) {
+                            found_value_index = p.path[j]->value_index;
+                            break;
+                        }
+                        else {
+                            if (real_index > p.path[j]->index)
+                                real_index--;
+                        }
+                        break;
+                    case MVMDispProgramRecordingDrop:
+                        if (real_index >= p.path[j]->index)
+                            real_index++;
+                        break;
+                    case MVMDispProgramRecordingInitial:
+                        break;
+                }
+            }
+            if (found_value_index >= 0) {
+                /* It's some kind of value load other than an initial arg. We
+                 * can be smarter here in the future if we wish, e.g. for a
+                 * constant we can load it directly into the args temporary. */
+                arg_prod[i].action = SetFromTemporary;
+                arg_prod[i].index = get_temp_holding_value(tc, cs, found_value_index);
+            }
+            else {
+                /* It's a load of an initial argument. */
+                arg_prod[i].action = SetFromInitialCapture;
+                arg_prod[i].index = real_index;
+            }
+        }
+
+        /* We now have all temporaries other than the args buffer used. Emit
+         * instructions to set that up. */
+        MVMuint32 args_base_temp = MVM_VECTOR_ELEMS(cs->value_temps);
+        for (i = 0; i < num_to_produce; i++) {
+            MVMDispProgramOp op;
+            op.code = arg_prod[i].action == SetFromTemporary
+                ? MVMDispOpcodeSet
+                : MVMDispOpcodeLoadCaptureValue;
+            op.load.temp = args_base_temp + i;
+            op.load.idx = arg_prod[i].index;
+            MVM_VECTOR_PUSH(cs->ops, op);
+        }
+
+        /* Finally, the instruction to copy what we can from the args tail. */
+        MVMDispProgramOp op;
+        op.code = MVMDispOpcodeCopyArgsTail;
+        op.copy_arg_tail.tail_args = untouched_tail_length;
+        MVM_VECTOR_PUSH(cs->ops, op);
+        cs->args_buffer_temps = outcome_callsite->flag_count;
     }
 
     /* If somehow the untouched tail length is *longer*, then we're deeply
@@ -1005,7 +1087,8 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord* 
     dp->gc_constants = cs.gc_constants;
     dp->ops = cs.ops;
     dp->num_ops = MVM_VECTOR_ELEMS(cs.ops);
-    dp->num_temporaries = MVM_VECTOR_ELEMS(cs.value_temps);
+    dp->num_temporaries = MVM_VECTOR_ELEMS(cs.value_temps) + cs.args_buffer_temps;
+    dp->first_args_temporary = MVM_VECTOR_ELEMS(cs.value_temps);
 
     /* Clean up (we don't free most of the vectors because we've given them
      * over to the MVMDispProgram). */
