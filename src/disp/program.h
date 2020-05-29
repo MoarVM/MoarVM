@@ -311,7 +311,8 @@ struct MVMDispProgramOp {
 };
 
 /* Functions called during the recording. */
-void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp, MVMObject *capture);
+void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp,
+        MVMObject *capture, MVMDispInlineCacheEntry **ic_entry_ptr);
 MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 index);
 void MVM_disp_program_record_guard_type(MVMThreadContext *tc, MVMObject *tracked);
@@ -335,5 +336,6 @@ void MVM_disp_program_record_c_code_constant(MVMThreadContext *tc, MVMCFunction 
 MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatchRecord* record,
         MVMuint32 *thunked);
 
-/* Functions to use and handle dispatch programs */
-MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *prog, MVMArgs *args);
+/* Functions to run dispatch programs. */
+MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
+        MVMCallStackDispatchRun *disp_run);
