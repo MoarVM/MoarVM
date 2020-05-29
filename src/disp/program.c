@@ -786,7 +786,43 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord* 
         }
     }
 
-    // TODO outcome, capture, temporaries, etc.
+    switch (record->outcome.kind) {
+        case MVM_DISP_OUTCOME_VALUE: {
+            MVMDispProgramOp op;
+            MVMDispProgramRecordingValue *resultValue = NULL;
+
+            switch (record->outcome.result_kind) {
+                case MVM_reg_obj:
+                    op.code = MVMDispOpcodeResultValueObj;
+                    break;
+                case MVM_reg_int64:
+                    op.code = MVMDispOpcodeResultValueInt;
+                    break;
+                case MVM_reg_num64:
+                    op.code = MVMDispOpcodeResultValueNum;
+                    break;
+                case MVM_reg_str:
+                    op.code = MVMDispOpcodeResultValueStr;
+                    break;
+                    break;
+                default:
+                    MVM_oops(tc, "Unknown result kind in dispatch value outcome");
+            }
+
+            /* XXX figure out how to get from recorded outcome's MVMRegister
+             * result_value to the temporary index to the
+             * ProgramRecordingValue so we know if it's a literal value or a
+             * temporary value */
+
+            op.res_value.temp = -1;
+            MVM_VECTOR_PUSH(cs.ops, op);
+        }
+        default:
+            /* XXX implement other disp outcomes */
+            break;
+    }
+
+    // TODO capture, temporaries, etc.
 
     /* Create dispatch program description. */
     MVMDispProgram *dp = MVM_malloc(sizeof(MVMDispProgram));
