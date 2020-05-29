@@ -251,7 +251,7 @@ static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *recor
     if (REPR(dispatch)->ID == MVM_REPR_ID_MVMCFunction) {
         record->outcome.kind = MVM_DISP_OUTCOME_FAILED;
         ((MVMCFunction *)dispatch)->body.func(tc, dispatch_args);
-        MVM_callstack_unwind_dispatcher(tc, thunked);
+        MVM_callstack_unwind_dispatch_record(tc, thunked);
     }
     else if (REPR(dispatch)->ID == MVM_REPR_ID_MVMCode) {
         record->outcome.kind = MVM_DISP_OUTCOME_EXPECT_DELEGATE;
@@ -266,7 +266,8 @@ static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *recor
         MVM_panic(1, "dispatch callback only supported as a MVMCFunction or MVMCode");
     }
 }
-void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp, MVMObject *capture) {
+void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp,
+        MVMObject *capture, MVMDispInlineCacheEntry **ic_entry_ptr) {
     /* Push a dispatch recording frame onto the callstack; this is how we'll
      * keep track of the current recording state. */
     MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
@@ -275,6 +276,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     MVM_VECTOR_INIT(record->rec.initial_capture.captures, 8);
     MVM_VECTOR_INIT(record->rec.values, 16);
     record->rec.outcome_capture = NULL;
+    record->ic_entry_ptr = ic_entry_ptr;
     run_dispatch(tc, record, disp, capture, NULL);
 }
 
@@ -917,7 +919,6 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
         op.code = MVMDispOpcodeUseArgsTail;
         op.use_arg_tail.skip_args = initial_callsite->flag_count - untouched_tail_length;
         MVM_VECTOR_PUSH(cs->ops, op);
-        cs->args_buffer_temps = 0;
     }
 
     /* If the untouhced tail is shorter, then we have changes that mean we
@@ -1010,7 +1011,7 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
     /* Cleanup. */
     MVM_VECTOR_DESTROY(p.path);
 }
-static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord* record) {
+static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *record) {
     /* Dump the recording if we're debugging. */
     dump_recording(tc, record);
 
@@ -1022,6 +1023,7 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord* 
     MVM_VECTOR_INIT(cs.gc_constants, 4);
     MVM_VECTOR_INIT(cs.constants, 4);
     MVM_VECTOR_INIT(cs.value_temps, 4);
+    cs.args_buffer_temps = 0;
     MVMuint32 i;
     for (i = 0; i < MVM_VECTOR_ELEMS(record->rec.values); i++) {
         MVMDispProgramRecordingValue *v = &(record->rec.values[i]);
@@ -1096,6 +1098,9 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord* 
 
     /* Dump the program if we're debugging. */
     dump_program(tc, dp);
+
+    /* Transition the inline cache to incorporate this dispatch program. */
+    MVM_disp_inline_cache_transition_to_monomorphic(tc, record->ic_entry_ptr, dp);
 }
 
 /* Called when we have finished recording a dispatch program. */
@@ -1152,15 +1157,18 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
     }
 }
 
+/* Interpret a dispatch program. */
 #define GET_ARG MVMRegister val = args->source[args->map[op->arg_guard.arg_idx]]
-
-MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp, MVMArgs *args) {
+MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
+        MVMCallStackDispatchRun *record) {
+    MVMArgs *args = &(record->arg_info);
     MVMuint32 i;
+    MVMArgs invoke_args;
 
     for (i = 0; i < dp->num_ops; i++) {
         MVMDispProgramOp *op = &(dp->ops[i]);
-
         switch (op->code) {
+            /* Argument guard ops. */
             case MVMDispOpcodeGuardArgType: {
                 GET_ARG;
                 if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op->arg_guard.checkee])
@@ -1223,8 +1231,72 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp, MVMArgs 
                     goto rejection;
                 break;
             }
+
+            /* Load ops. */
+            case MVMDispOpcodeLoadCaptureValue:
+                record->temps[op->load.temp] = args->source[args->map[op->load.idx]];
+                break;
+            case MVMDispOpcodeLoadConstantObjOrStr:
+                record->temps[op->load.temp].o = (MVMObject *)dp->gc_constants[op->load.idx];
+                break;
+            case MVMDispOpcodeLoadConstantInt:
+                record->temps[op->load.temp].i64 = dp->constants[op->load.idx].i64;
+                break;
+            case MVMDispOpcodeLoadConstantNum:
+                record->temps[op->load.temp].n64 = dp->constants[op->load.idx].n64;
+                break;
+            case MVMDispOpcodeSet:
+                record->temps[op->load.temp] = record->temps[op->load.idx];
+                break;
+
+            /* Value result ops. */
+            case MVMDispOpcodeResultValueObj: {
+                MVM_args_set_dispatch_result_obj(tc, tc->cur_frame,
+                        record->temps[op->res_value.temp].o);
+                MVM_callstack_unwind_dispatch_run(tc);
+                break;
+            }
+            case MVMDispOpcodeResultValueStr: {
+                MVM_args_set_dispatch_result_str(tc, tc->cur_frame,
+                        record->temps[op->res_value.temp].s);
+                MVM_callstack_unwind_dispatch_run(tc);
+                break;
+            }
+            case MVMDispOpcodeResultValueInt: {
+                MVM_args_set_dispatch_result_int(tc, tc->cur_frame,
+                        record->temps[op->res_value.temp].i64);
+                MVM_callstack_unwind_dispatch_run(tc);
+                break;
+            }
+            case MVMDispOpcodeResultValueNum: {
+                MVM_args_set_dispatch_result_num(tc, tc->cur_frame,
+                        record->temps[op->res_value.temp].n64);
+                MVM_callstack_unwind_dispatch_run(tc);
+                break;
+            }
+
+            /* Args preparation for invocation result. */
+            case MVMDispOpcodeUseArgsTail:
+                invoke_args.source = args->source;
+                invoke_args.map = args->map + op->use_arg_tail.skip_args;
+                break;
+
+            /* Invocation results. */
+            case MVMDispOpcodeResultBytecode:
+                invoke_args.callsite = dp->constants[op->res_code.callsite_idx].cs;
+                MVM_frame_dispatch(tc, (MVMCode *)record->temps[op->res_code.temp_invokee].o,
+                        invoke_args, -1);
+                break;
+            case MVMDispOpcodeResultCFunction: {
+                MVMCFunction *wrapper = (MVMCFunction *)record->temps[op->res_code.temp_invokee].o;
+                invoke_args.callsite = dp->constants[op->res_code.callsite_idx].cs;
+                wrapper->body.func(tc, invoke_args);
+                MVM_callstack_unwind_dispatch_run(tc);
+                break;
+            }
+
             default:
-                fprintf(stderr, "  UNKNOWN OP %d\n", op->code);
+                MVM_oops(tc, "Unknown dispatch program op %d", op->code);
         }
     }
 

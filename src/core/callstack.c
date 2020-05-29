@@ -103,6 +103,17 @@ MVMCallStackDispatchRecord * MVM_callstack_allocate_dispatch_record(MVMThreadCon
     return (MVMCallStackDispatchRecord *)tc->stack_top;
 }
 
+/* Allocates a dispatch run record on the callstack. */
+MVMCallStackDispatchRun * MVM_callstack_allocate_dispatch_run(MVMThreadContext *tc,
+        MVMuint32 num_temps) {
+    tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_DISPATCH_RUN,
+            sizeof(MVMCallStackDispatchRecord) + num_temps * sizeof(MVMRegister));
+    MVMCallStackDispatchRun *record = (MVMCallStackDispatchRun *)tc->stack_top;
+    record->temps = (MVMRegister *)((char *)record + sizeof(MVMCallStackDispatchRun));
+    record->num_temps = num_temps;
+    return record;
+}
+
 /* Creates a new region for a continuation. By a continuation boundary starting
  * a new region, we are able to take the continuation by slicing off the entire
  * region from the regions linked list. The continuation tags always go at the
@@ -271,6 +282,7 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
             case MVM_CALLSTACK_RECORD_HEAP_FRAME:
             case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED:
+            case MVM_CALLSTACK_RECORD_DISPATCH_RUN:
                 /* No cleanup to do, just move to next record. */
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
@@ -294,9 +306,17 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
 
 /* Unwind a dispatch record frame, which should be on the top of the stack.
  * This is for the purpose of dispatchers that do not invoke. */
-void MVM_callstack_unwind_dispatcher(MVMThreadContext *tc, MVMuint32 *thunked) {
+void MVM_callstack_unwind_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunked) {
     assert(tc->stack_top->kind == MVM_CALLSTACK_RECORD_DISPATCH_RECORD);
     handle_end_of_dispatch_record(tc, thunked);
+}
+
+/* Unwind a dispatch run frame, which should be on the top of the stack.
+ * This is for the purpose of dispatchers that do not invoke. */
+void MVM_callstack_unwind_dispatch_run(MVMThreadContext *tc) {
+    assert(tc->stack_top->kind == MVM_CALLSTACK_RECORD_DISPATCH_RUN);
+    tc->stack_current_region->alloc = (char *)tc->stack_top;
+    tc->stack_top = tc->stack_top->prev;
 }
 
 /* Walk the linked list of records and mark each of them. */
