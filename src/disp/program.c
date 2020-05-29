@@ -183,6 +183,10 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                 fprintf(stderr, "  Load number constant at index %d into temporary %d\n",
                         op->load.idx, op->load.temp);
                 break;
+            case MVMDispOpcodeSet:
+                fprintf(stderr, "  Copy temporary %d into temporary %d\n",
+                        op->load.idx, op->load.temp);
+                break;
 
             /* Opcodes that set a result value */
             case MVMDispOpcodeResultValueObj:
@@ -201,8 +205,24 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                 fprintf(stderr, "  Set result num value from temporary %d\n",
                         op->res_value.temp);
                 break;
-            /* Opcodes that handle calling something else */
-            /* MVMDispOpcodeUseArgsTail, CopyArgsTail, ResultBytecode, ResultCFunction */
+
+            /* Opcodes that handle invocation results. */
+            case MVMDispOpcodeUseArgsTail:
+                fprintf(stderr, "  Skip first %d args of incoming capture\n",
+                        op->use_arg_tail.skip_args);
+                break;
+            case MVMDispOpcodeCopyArgsTail:
+                fprintf(stderr, "  Copy final %d args of incoming capture\n",
+                        op->copy_arg_tail.tail_args);
+                break;
+            case MVMDispOpcodeResultBytecode:
+                fprintf(stderr, "  Invoke MVMCode in temporary %d using callsite constant %d\n",
+                        op->res_code.temp_invokee, op->res_code.callsite_idx);
+                break;
+            case MVMDispOpcodeResultCFunction:
+                fprintf(stderr, "  Invoke MVMCFunction in temporary %d using callsite constant %d\n",
+                        op->res_code.temp_invokee, op->res_code.callsite_idx);
+                break;
 
             default:
                 fprintf(stderr, "  UNKNOWN OP %d\n", op->code);
