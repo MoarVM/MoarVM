@@ -152,6 +152,9 @@ struct MVMCallStackDispatchRecord {
 
     /* The outcome of the dispatch. */
     MVMDispProgramOutcome outcome;
+
+    /* The inline cache entry to transition. */
+    MVMDispInlineCacheEntry **ic_entry_ptr;
 };
 
 /* A dispatch record frame is turned into this once the dispatch has already
@@ -166,9 +169,18 @@ struct MVMCallStackDispatchRun {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
 
+    /* The initial arguments to the dispatch. */
+    MVMArgs arg_info;
+
     /* The outcome of the dispatch. */
     MVMDispProgramOutcome outcome;
-    /* TODO */
+
+    /* The number of temporaries allocated. */
+    MVMuint32 num_temps;
+
+    /* Temporaries (actually allocated after this record, which is variable
+     * length). */
+    MVMRegister *temps;
 };
 
 /* Functions for working with the call stack. */
@@ -176,6 +188,8 @@ void MVM_callstack_init(MVMThreadContext *tc);
 MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc);
 MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc);
 MVMCallStackDispatchRecord * MVM_callstack_allocate_dispatch_record(MVMThreadContext *tc);
+MVMCallStackDispatchRun * MVM_callstack_allocate_dispatch_run(MVMThreadContext *tc,
+        MVMuint32 num_temps);
 void MVM_callstack_new_continuation_region(MVMThreadContext *tc, MVMObject *tag);
 MVMCallStackRegion * MVM_callstack_continuation_slice(MVMThreadContext *tc, MVMObject *tag,
         MVMActiveHandler **active_handlers);
@@ -184,7 +198,8 @@ void MVM_callstack_continuation_append(MVMThreadContext *tc, MVMCallStackRegion 
 MVMFrame * MVM_callstack_first_frame_in_region(MVMThreadContext *tc, MVMCallStackRegion *region);
 MVMCallStackDispatchRecord * MVM_callstack_find_topmost_dispatch_recording(MVMThreadContext *tc);
 MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional, MVMuint32 *thunked);
-void MVM_callstack_unwind_dispatcher(MVMThreadContext *tc, MVMuint32 *thunked);
+void MVM_callstack_unwind_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunked);
+void MVM_callstack_unwind_dispatch_run(MVMThreadContext *tc);
 void MVM_callstack_mark_current_thread(MVMThreadContext *tc, MVMGCWorklist *worklist,
         MVMHeapSnapshotState *snapshot);
 void MVM_callstack_mark_detached(MVMThreadContext *tc, MVMCallStackRecord *stack_top,
