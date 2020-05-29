@@ -166,8 +166,23 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                         STABLE(((MVMObject *)dp->gc_constants[op->arg_guard.checkee]))->debug_name);
                 break;
 
-            /* Opcodes that act on stuff */
-            /* MVMDispOpcodeLoadCaptureValue, LoadConstant* */
+            /* Opcodes that load values into temporaries. */
+            case MVMDispOpcodeLoadCaptureValue:
+                fprintf(stderr, "  Load argument %d into temporary %d\n",
+                        op->load.idx, op->load.temp);
+                break;
+            case MVMDispOpcodeLoadConstantObjOrStr:
+                fprintf(stderr, "  Load collectable constant at index %d into temporary %d\n",
+                        op->load.idx, op->load.temp);
+                break;
+            case MVMDispOpcodeLoadConstantInt:
+                fprintf(stderr, "  Load integer constant at index %d into temporary %d\n",
+                        op->load.idx, op->load.temp);
+                break;
+            case MVMDispOpcodeLoadConstantNum:
+                fprintf(stderr, "  Load number constant at index %d into temporary %d\n",
+                        op->load.idx, op->load.temp);
+                break;
 
             /* Opcodes that set a result value */
             case MVMDispOpcodeResultValueObj:
@@ -635,6 +650,10 @@ typedef struct {
     MVM_VECTOR_DECL(MVMCollectable *, gc_constants);
     MVM_VECTOR_DECL(MVMDispProgramConstant, constants);
     MVM_VECTOR_DECL(MVMDispProgramOp, ops);
+    /* A map of the temporaries, and which values they hold. This only covers
+     * those involved in executing the guard program, not in building up a
+     * final result capture. For now, we don't try and re-use temporaries. */
+    MVM_VECTOR_DECL(MVMDispProgramRecordingValue *, value_temps);
 } compile_state;
 static MVMuint32 add_program_constant_int(MVMThreadContext *tc, compile_state *cs,
         MVMint64 value) {
@@ -668,6 +687,52 @@ static MVMuint32 add_program_constant_str(MVMThreadContext *tc, compile_state *c
 static MVMuint32 add_program_constant_stable(MVMThreadContext *tc, compile_state *cs,
         MVMSTable *value) {
     return add_program_gc_constant(tc, cs, (MVMCollectable *)value);
+}
+static MVMuint32 get_temp_holding_value(MVMThreadContext *tc, compile_state *cs,
+        MVMuint32 value_index) {
+    /* See if we already loaded it. */
+    MVMuint32 i;
+    MVMDispProgramRecordingValue *v = &(cs->rec->values[value_index]);
+    for (i = 0; i < MVM_VECTOR_ELEMS(cs->value_temps); i++)
+        if (cs->value_temps[i] == v)
+            return i;
+
+    /* Otherwise, we need to allocate a temporary and emit a load. */
+    MVMDispProgramOp op;
+    op.load.temp = MVM_VECTOR_ELEMS(cs->value_temps);
+    MVM_VECTOR_PUSH(cs->value_temps, v);
+    switch (v->source) {
+        case MVMDispProgramRecordingCaptureValue:
+            op.code = MVMDispOpcodeLoadCaptureValue;
+            op.load.idx = value_index;
+            break;
+        case MVMDispProgramRecordingLiteralValue:
+            switch (v->literal.kind) {
+                case MVM_CALLSITE_ARG_OBJ:
+                    op.code = MVMDispOpcodeLoadConstantObjOrStr;
+                    op.load.idx = add_program_constant_obj(tc, cs, v->literal.value.o);
+                    break;
+                case MVM_CALLSITE_ARG_STR:
+                    op.code = MVMDispOpcodeLoadConstantObjOrStr;
+                    op.load.idx = add_program_constant_str(tc, cs, v->literal.value.s);
+                    break;
+                case MVM_CALLSITE_ARG_INT:
+                    op.code = MVMDispOpcodeLoadConstantInt;
+                    op.load.idx = add_program_constant_int(tc, cs, v->literal.value.i64);
+                    break;
+                case MVM_CALLSITE_ARG_NUM:
+                    op.code = MVMDispOpcodeLoadConstantNum;
+                    op.load.idx = add_program_constant_num(tc, cs, v->literal.value.n64);
+                    break;
+                default:
+                    MVM_oops(tc, "Unhandled kind of literal value in recorded dispatch");
+            }
+            break;
+        default:
+            MVM_oops(tc, "Did not yet implement temporary loading for this value source");
+    }
+    MVM_VECTOR_PUSH(cs->ops, op);
+    return op.load.temp;
 }
 static void emit_guards(MVMThreadContext *tc, compile_state *cs,
         MVMDispProgramRecordingValue *v) {
@@ -778,6 +843,7 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord* 
     MVM_VECTOR_INIT(cs.ops, 8);
     MVM_VECTOR_INIT(cs.gc_constants, 4);
     MVM_VECTOR_INIT(cs.constants, 4);
+    MVM_VECTOR_INIT(cs.value_temps, 4);
     MVMuint32 i;
     for (i = 0; i < MVM_VECTOR_ELEMS(record->rec.values); i++) {
         MVMDispProgramRecordingValue *v = &(record->rec.values[i]);
@@ -786,11 +852,13 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord* 
         }
     }
 
+    /* Emit required ops to deliver the dispatch outcome. */
     switch (record->outcome.kind) {
         case MVM_DISP_OUTCOME_VALUE: {
+            /* Ensure the value is in a temporary, then emit the op to set the
+             * result. */
+            MVMuint32 temp = get_temp_holding_value(tc, &cs, record->rec.outcome_value);
             MVMDispProgramOp op;
-            MVMDispProgramRecordingValue *resultValue = NULL;
-
             switch (record->outcome.result_kind) {
                 case MVM_reg_obj:
                     op.code = MVMDispOpcodeResultValueObj;
@@ -804,17 +872,10 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord* 
                 case MVM_reg_str:
                     op.code = MVMDispOpcodeResultValueStr;
                     break;
-                    break;
                 default:
                     MVM_oops(tc, "Unknown result kind in dispatch value outcome");
             }
-
-            /* XXX figure out how to get from recorded outcome's MVMRegister
-             * result_value to the temporary index to the
-             * ProgramRecordingValue so we know if it's a literal value or a
-             * temporary value */
-
-            op.res_value.temp = -1;
+            op.res_value.temp = temp;
             MVM_VECTOR_PUSH(cs.ops, op);
         }
         default:
@@ -822,14 +883,17 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord* 
             break;
     }
 
-    // TODO capture, temporaries, etc.
-
     /* Create dispatch program description. */
     MVMDispProgram *dp = MVM_malloc(sizeof(MVMDispProgram));
     dp->constants = cs.constants;
     dp->gc_constants = cs.gc_constants;
     dp->ops = cs.ops;
     dp->num_ops = MVM_VECTOR_ELEMS(cs.ops);
+    dp->num_temporaries = MVM_VECTOR_ELEMS(cs.value_temps);
+
+    /* Clean up (we don't free most of the vectors because we've given them
+     * over to the MVMDispProgram). */
+    MVM_VECTOR_DESTROY(cs.value_temps);
 
     /* Dump the program if we're debugging. */
     dump_program(tc, dp);
