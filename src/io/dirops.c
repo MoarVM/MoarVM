@@ -348,8 +348,10 @@ void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
         data->dir_name = NULL;
     }
 
-    if (!FindClose(data->dir_handle))
-        MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %d", GetLastError());
+    if (data->dir_handle != INVALID_HANDLE_VALUE) {
+        if (!FindClose(data->dir_handle))
+            MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %d", GetLastError());
+    }
     data->dir_handle = NULL;
 #else
     if (closedir(data->dir_handle) == -1)
