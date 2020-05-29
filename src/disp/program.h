@@ -179,7 +179,8 @@ struct MVMDispProgram {
 
     /* The first of the temporaries that is used in order to store an
      * argument buffer. These live long enough that we need to mark
-     * them using the callsite. This is set to -1 if there aren't any. */
+     * them using the callsite. Equals num_temporaries if there aren't
+     * any. */
     MVMint32 first_args_temporary;
 
     /* Ops we execute to evaluate the dispatch program. */
