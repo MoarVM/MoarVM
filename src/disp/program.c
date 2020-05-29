@@ -687,6 +687,12 @@ static MVMuint32 add_program_constant_num(MVMThreadContext *tc, compile_state *c
     MVM_VECTOR_PUSH(cs->constants, c);
     return MVM_VECTOR_ELEMS(cs->constants) - 1;
 }
+static MVMuint32 add_program_constant_callsite(MVMThreadContext *tc, compile_state *cs,
+        MVMCallsite *value) {
+    MVMDispProgramConstant c = { .cs = value };
+    MVM_VECTOR_PUSH(cs->constants, c);
+    return MVM_VECTOR_ELEMS(cs->constants) - 1;
+}
 static MVMuint32 add_program_gc_constant(MVMThreadContext *tc, compile_state *cs,
         MVMCollectable *value) {
     MVMuint32 i;
@@ -852,6 +858,76 @@ static void emit_guards(MVMThreadContext *tc, compile_state *cs,
             MVM_oops(tc, "Unexpected callsite arg type in emit_guards");
     }
 }
+static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *record, compile_state *cs) {
+    /* Obtain the path to the capture we'll be invoking with. */
+    CapturePath p;
+    MVM_VECTOR_INIT(p.path, 8);
+    calculate_capture_path(tc, record, record->rec.outcome_capture, &p);
+
+    /* Calculate the length of the untouched tail between the incoming capture
+     * and the outcome capture. Thi iss defined as the part of it left untouched
+     * by any inserts and drops. We start by assuming all of it is untouched. */
+    MVMCallsite *initial_callsite = ((MVMCapture *)cs->rec->initial_capture.capture)->body.callsite;
+    MVMuint32 untouched_tail_length = initial_callsite->flag_count;
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(p.path); i++) {
+        MVMCallsite *cur_callsite = ((MVMCapture *)p.path[i]->capture)->body.callsite;
+        switch (p.path[i]->transformation) {
+            case MVMDispProgramRecordingInsert: {
+                /* Given:
+                 *   arg1, arg2, arg3, arg4
+                 * If we insert at index 2, then we get:
+                 *   arg1, arg2, inserted, arg3, arg4
+                 * So the untouched tail is length 2, or more generally,
+                 * (capture length - (index + 1)). */
+                MVMuint32 locally_untouched = cur_callsite->flag_count - (p.path[i]->index + 1);
+                if (locally_untouched < untouched_tail_length)
+                    untouched_tail_length = locally_untouched;
+                break;
+            }
+            case MVMDispProgramRecordingDrop: {
+                /* Given:
+                 *   arg1, arg2, arg3, arg4
+                 * If we drop arg2 (index 1), then we get:
+                 *  arg1, arg3, arg4
+                 * Thus the untouched tail is 2, generally (capture length - index). */
+                MVMuint32 locally_untouched = cur_callsite->flag_count - p.path[i]->index;
+                if (locally_untouched < untouched_tail_length)
+                    untouched_tail_length = locally_untouched;
+                break;
+            }
+            case MVMDispProgramRecordingInitial:
+                /* This is the initial capture, so nothing to do. */
+                break;
+        }
+    }
+
+    /* If the untouched tail length is the length of the outcome capture, then
+     * we just use the incoming one with a certain number of arguments skipped;
+     * this is the nice, no-copying, option that hopefully we regularly get. */
+    MVMCallsite *outcome_callsite = ((MVMCapture *)record->rec.outcome_capture)->body.callsite;
+    if (outcome_callsite->flag_count == untouched_tail_length) {
+        MVMDispProgramOp op;
+        op.code = MVMDispOpcodeUseArgsTail;
+        op.use_arg_tail.skip_args = initial_callsite->flag_count - untouched_tail_length;
+        MVM_VECTOR_PUSH(cs->ops, op);
+    }
+
+    /* If the untouhced tail is shorter, then we have changes that mean we
+     * need to produce a new args buffer. */
+    else if (outcome_callsite->flag_count > untouched_tail_length) {
+        // TODO
+    }
+
+    /* If somehow the untouched tail length is *longer*, then we're deeply
+     * confused. */
+    else {
+        MVM_oops(tc, "Impossible untouhced arg tail length calculated in dispatch program");
+    }
+
+    /* Cleanup. */
+    MVM_VECTOR_DESTROY(p.path);
+}
 static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord* record) {
     /* Dump the recording if we're debugging. */
     dump_recording(tc, record);
@@ -897,10 +973,30 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord* 
             }
             op.res_value.temp = temp;
             MVM_VECTOR_PUSH(cs.ops, op);
+            break;
+        }
+        case MVM_DISP_OUTCOME_BYTECODE:
+        case MVM_DISP_OUTCOME_CFUNCTION: {
+            /* Make sure we load the invokee into a temporary before we go any
+             * further. This is the last temporary we add before dealing with
+             * args. Also put callsite into constant table. */
+            MVMuint32 temp_invokee = get_temp_holding_value(tc, &cs, record->rec.outcome_value);
+            MVMuint32 callsite_idx = add_program_constant_callsite(tc, &cs,
+                    ((MVMCapture *)record->rec.outcome_capture)->body.callsite);
+
+            /* Produce the args op(s), and then add the dispatch op. */
+            emit_args_ops(tc, record, &cs);
+            MVMDispProgramOp op;
+            op.code = record->outcome.kind == MVM_DISP_OUTCOME_BYTECODE
+                ? MVMDispOpcodeResultBytecode
+                : MVMDispOpcodeResultCFunction;
+            op.res_code.temp_invokee = temp_invokee;
+            op.res_code.callsite_idx = callsite_idx;
+            MVM_VECTOR_PUSH(cs.ops, op);
+            break;
         }
         default:
-            /* XXX implement other disp outcomes */
-            break;
+            MVM_oops(tc, "Unimplemented dispatch outcome compilation");
     }
 
     /* Create dispatch program description. */
