@@ -236,7 +236,7 @@ typedef enum {
     MVMDispOpcodeResultValueObj,
     /* Set a string result outcome from a temporary. */
     MVMDispOpcodeResultValueStr,
-    /* Set an inte result outcome from a temporary. */
+    /* Set an integer result outcome from a temporary. */
     MVMDispOpcodeResultValueInt,
     /* Set a num result outcome from a temporary. */
     MVMDispOpcodeResultValueNum,
