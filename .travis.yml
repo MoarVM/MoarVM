@@ -2,8 +2,6 @@ language: "perl"
 os:
   - linux
   - osx
-perl:
-  - "5.10"
 # Do a full clone to be sure we get the tags and can properly retrieve version
 git:
   depth: false
