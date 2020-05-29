@@ -67,7 +67,31 @@ static void dispatch_initial(MVMThreadContext *tc,
     MVMObject *capture = MVM_capture_from_args(tc, capture_arg_info);
 
     /* Run the dispatcher. */
-    MVM_disp_program_run_dispatch(tc, disp, capture);
+    MVM_disp_program_run_dispatch(tc, disp, capture, entry_ptr);
+}
+
+static void dispatch_monomorphic(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry **entry_ptr, MVMString *id,
+        MVMCallsite *callsite, MVMuint16 *arg_indices) {
+    MVMDispProgram *dp = ((MVMDispInlineCacheEntryMonomorphicDispatch *)*entry_ptr)->dp; // TODO racey
+    MVMCallStackDispatchRun *record = MVM_callstack_allocate_dispatch_run(tc,
+            dp->num_temporaries);
+    record->arg_info.callsite = callsite;
+    record->arg_info.source = tc->cur_frame->work;
+    record->arg_info.map = arg_indices;
+    if (!MVM_disp_program_run(tc, dp, record))
+        MVM_panic(1, "polymorphic dispatch NYI");
+}
+
+/* Transition a callsite from unlinked to monomorphic. */
+void MVM_disp_inline_cache_transition_to_monomorphic(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry **entry_ptr, MVMDispProgram *dp) {
+    MVMDispInlineCacheEntryMonomorphicDispatch *new_entry = MVM_fixed_size_alloc(tc,
+            tc->instance->fsa, sizeof(MVMDispInlineCacheEntryMonomorphicDispatch));
+    new_entry->base.run_dispatch = dispatch_monomorphic;
+    new_entry->dp = dp;
+    // TODO write-barrier
+    try_update_cache_entry(tc, entry_ptr, &unlinked_dispatch, &(new_entry->base));
 }
 
 /**
@@ -225,6 +249,9 @@ void cleanup_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry *entry) {
     else if (entry->run_getlexstatic == getlexstatic_resolved) {
         MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
                 sizeof(MVMDispInlineCacheEntryResolvedGetLexStatic), entry);
+    }
+    else if (entry->run_dispatch == dispatch_initial) {
+        /* Never free initial dispatch state. */
     }
     else {
         MVM_oops(tc, "Unimplemented cleanup_entry case");
