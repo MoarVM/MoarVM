@@ -113,6 +113,7 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
     for (i = 0; i < dp->num_ops; i++) {
         MVMDispProgramOp *op = &(dp->ops[i]);
         switch (op->code) {
+            /* Opcodes that guard on values in argument slots */
             case MVMDispOpcodeGuardArgType:
                 fprintf(stderr, "  Guard arg %d (type=%s)\n",
                         op->arg_guard.arg_idx,
@@ -164,6 +165,30 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                         op->arg_guard.arg_idx,
                         STABLE(((MVMObject *)dp->gc_constants[op->arg_guard.checkee]))->debug_name);
                 break;
+
+            /* Opcodes that act on stuff */
+            /* MVMDispOpcodeLoadCaptureValue, LoadConstant* */
+
+            /* Opcodes that set a result value */
+            case MVMDispOpcodeResultValueObj:
+                fprintf(stderr, "  Set result object value from temporary %d\n",
+                        op->res_value.temp);
+                break;
+            case MVMDispOpcodeResultValueStr:
+                fprintf(stderr, "  Set result string value from temporary %d\n",
+                        op->res_value.temp);
+                break;
+            case MVMDispOpcodeResultValueInt:
+                fprintf(stderr, "  Set result integer value from temporary %d\n",
+                        op->res_value.temp);
+                break;
+            case MVMDispOpcodeResultValueNum:
+                fprintf(stderr, "  Set result num value from temporary %d\n",
+                        op->res_value.temp);
+                break;
+            /* Opcodes that handle calling something else */
+            /* MVMDispOpcodeUseArgsTail, CopyArgsTail, ResultBytecode, ResultCFunction */
+
             default:
                 fprintf(stderr, "  UNKNOWN OP %d\n", op->code);
         }
