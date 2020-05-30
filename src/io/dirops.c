@@ -293,7 +293,10 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
     WIN32_FIND_DATAW ffd;
     char *dir_str;
 
-    if (data->dir_handle == INVALID_HANDLE_VALUE) {
+    if (!data->dir_handle) {
+        MVM_exception_throw_adhoc(tc, "Cannot read a closed dir handle.");
+    }
+    else if (data->dir_handle == INVALID_HANDLE_VALUE) {
         HANDLE hFind = FindFirstFileW(data->dir_name, &ffd);
 
         if (hFind == INVALID_HANDLE_VALUE) {
