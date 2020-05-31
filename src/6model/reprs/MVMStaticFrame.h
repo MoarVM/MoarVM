@@ -134,19 +134,17 @@ struct MVMStaticFrameInstrumentation {
     MVMFrameHandler *uninstrumented_handlers;
     MVMuint32        uninstrumented_bytecode_size;
     MVMuint32        instrumented_bytecode_size;
-    MVMStaticFrameDebugLocal *debug_locals;
+    MVMStrHashTable *debug_locals;
 
     MVMuint8         profiler_confprog_result;
     MVMuint8         profiler_confprog_version;
 };
 
 struct MVMStaticFrameDebugLocal {
+    /* The lexical's name is the key: */
+    struct MVMStrHashHandle hash_handle;
     /* The index of the local where the value lives. */
     MVMuint16 local_idx;
-    /* The name of the lexical. */
-    MVMString *name;
-    /* The uthash hash handle inline struct. */
-    UT_hash_handle hash_handle;
 };
 
 /* Function for REPR setup. */
