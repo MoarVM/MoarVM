@@ -103,3 +103,9 @@ struct MVMStrHashHandle {
     MVMString *key;
     struct MVMStrHashHandle *hh_next;   /* next hh in bucket order        */
 };
+
+/* This struct will become MVMuint64: */
+typedef struct {
+    struct MVMStrHashHandle *hi_current;
+    MVMHashBktNum hi_bucket;
+}  MVMStrHashIterator;
