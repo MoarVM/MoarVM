@@ -1,7 +1,7 @@
 #ifndef UTHASH_TYPES
 #define UTHASH_TYPES
 /* If set to 1, will throw if you add a key to the hash during iteration. */
-#define MVM_HASH_THROW_ON_ITER_AFTER_ADD_KEY 0
+#define MVM_HASH_THROW_ON_ITER_AFTER_ADD_KEY 1
 /* If set to 1, will randomize bucket iteration order and bucket insertion order.
  * HASH_ITER_FAST is not affected by iteration order randomization. */
 #define MVM_HASH_RANDOMIZE 1

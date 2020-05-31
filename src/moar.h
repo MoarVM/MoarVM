@@ -1,3 +1,4 @@
+#undef NDEBUG
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>

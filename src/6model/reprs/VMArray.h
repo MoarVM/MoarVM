@@ -1,7 +1,7 @@
 /* Concurrent use of a VMArray is erroneous. This debugging option will
  * catch bad usages. (Eventually, we will refactor VMArray to not have
  * this issue.) */
-#define MVM_ARRAY_CONC_DEBUG 0
+#define MVM_ARRAY_CONC_DEBUG 1
 
 /* Representation used by VM-level arrays. Adopted from QRPA work by
  * Patrick Michaud. */

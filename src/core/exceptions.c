@@ -869,7 +869,7 @@ MVM_NO_RETURN void MVM_oops(MVMThreadContext *tc, const char *messageFormat, ...
     fprintf(stderr, "\n");
     MVM_dump_backtrace(tc);
     fprintf(stderr, "\n");
-    exit(1);
+    abort(); /// XXX Die horribly.
 }
 
 /* Throws an ad-hoc (untyped) exception. */

@@ -10,7 +10,7 @@
  * behavior. */
 
 /* Turn this on to switch to a mode where we debug by size. */
-#define FSA_SIZE_DEBUG 0
+#define FSA_SIZE_DEBUG 1
 #if FSA_SIZE_DEBUG
 typedef struct {
     MVMuint64 alloc_size;
