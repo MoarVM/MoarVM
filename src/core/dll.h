@@ -1,6 +1,5 @@
 struct MVMDLLRegistry {
     DLLib *lib;
-    MVMString *name;
     AO_t refcount;
     UT_hash_handle hash_handle;
 };
