@@ -1,7 +1,6 @@
 #include "moar.h"
 
 int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
-    MVMDLLRegistry *entry;
     char *cpath;
     DLLib *lib;
 
@@ -11,7 +10,7 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
 
     uv_mutex_lock(&tc->instance->mutex_dll_registry);
 
-    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->dll_registry, name, entry);
+    MVMDLLRegistry *entry = MVM_fixkey_hash_fetch_nt(tc, &tc->instance->dll_registry, name);
 
     /* already loaded */
     if (entry && entry->lib) {
@@ -35,11 +34,15 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
     MVM_free(cpath);
 
     if (!entry) {
-        entry = MVM_malloc(sizeof *entry);
-        HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->dll_registry, name, entry);
-        entry->refcount = 0;
+        struct MVMFixKeyHashHandle *indirection
+            = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof (struct MVMFixKeyHashHandle));
+        entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof (MVMDLLRegistry));
 
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
+        indirection->key = (void *)entry;
+        entry->refcount = 0;
+        entry->hash_key = name;
+        MVM_fixkey_hash_bind_nt(tc, &tc->instance->dll_registry, indirection);
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_key,
             "DLL name hash key");
     }
 
@@ -51,15 +54,13 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
 }
 
 int MVM_dll_free(MVMThreadContext *tc, MVMString *name) {
-    MVMDLLRegistry *entry;
-
     if (!MVM_str_hash_key_is_valid(tc, name)) {
         MVM_str_hash_key_throw_invalid(tc, name);
     }
 
     uv_mutex_lock(&tc->instance->mutex_dll_registry);
 
-    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->dll_registry, name, entry);
+    MVMDLLRegistry *entry = MVM_fixkey_hash_fetch_nt(tc, &tc->instance->dll_registry, name);
 
     if (!entry) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -91,7 +92,6 @@ int MVM_dll_free(MVMThreadContext *tc, MVMString *name) {
 
 MVMObject * MVM_dll_find_symbol(MVMThreadContext *tc, MVMString *lib,
         MVMString *sym) {
-    MVMDLLRegistry *entry;
     MVMDLLSym *obj;
     char *csym;
     void *address;
@@ -102,7 +102,7 @@ MVMObject * MVM_dll_find_symbol(MVMThreadContext *tc, MVMString *lib,
 
     uv_mutex_lock(&tc->instance->mutex_dll_registry);
 
-    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->dll_registry, lib, entry);
+    MVMDLLRegistry *entry = MVM_fixkey_hash_fetch_nt(tc, &tc->instance->dll_registry, lib);
 
     if (!entry) {
         char *c_lib = MVM_string_utf8_encode_C_string(tc, lib);
