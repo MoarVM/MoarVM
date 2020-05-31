@@ -92,6 +92,10 @@ struct MVMStrHashTable {
      * Effectively, if you set this to sizeof(MVMStrHashHandle) you have a set.
      */
     MVMHashUInt entry_size;
+
+#if HASH_DEBUG_ITER
+    MVMuint32 serial;
+#endif
 };
 
 /* *Must* be first in your struct.
@@ -103,3 +107,13 @@ struct MVMStrHashHandle {
     MVMString *key;
     struct MVMStrHashHandle *hh_next;   /* next hh in bucket order        */
 };
+
+/* This struct will become MVMuint64: */
+typedef struct {
+    struct MVMStrHashHandle *hi_current;
+#if HASH_DEBUG_ITER
+    struct MVMStrHashTable *owner;
+    MVMuint32 serial;
+#endif
+    MVMHashBktNum hi_bucket;
+}  MVMStrHashIterator;
