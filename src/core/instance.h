@@ -248,7 +248,7 @@ struct MVMInstance {
     uv_mutex_t mutex_repr_registry;
 
     /* Container type registry and mutex to protect it. */
-    MVMContainerRegistry *container_registry;
+    MVMStrHashTable       container_registry;
     uv_mutex_t      mutex_container_registry;
 
     /* Hash of all known serialization contexts. Marked for GC iff

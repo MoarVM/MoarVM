@@ -75,13 +75,11 @@ struct MVMContainerConfigurer {
 };
 
 /* Container registry is a hash mapping names of container configurations
- * to function tables. */
+ * to function tables. As it's global (accessed with a mutex held) its entries
+ * can't inline the struct returned to the caller. Hence the indirection: */
 struct MVMContainerRegistry {
-    MVMString              *name;
+    struct MVMStrHashHandle hash_handle;
     const MVMContainerConfigurer *configurer;
-
-    /* Inline handle to the hash in which this is stored. */
-    UT_hash_handle hash_handle;
 };
 
 MVM_PUBLIC void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name, const MVMContainerConfigurer *configurer);
