@@ -770,13 +770,17 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         MVMStaticFrameInstrumentation *ins = sf->body.instrumentation;
         if (!ins)
             ins = MVM_calloc(1, sizeof(MVMStaticFrameInstrumentation));
+        if (!ins->debug_locals) {
+            ins->debug_locals = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMStrHashTable));
+            MVM_str_hash_build(tc, ins->debug_locals, sizeof(MVMStaticFrameDebugLocal));
+        }
         for (j = 0; j < num_debug_locals; j++) {
             MVMuint16 idx = read_int16(pos, 0);
             MVMString *name = get_heap_string(tc, cu, NULL, pos, 2);
-            MVMStaticFrameDebugLocal *entry = MVM_calloc(1, sizeof(MVMStaticFrameDebugLocal));
+            MVMStaticFrameDebugLocal *entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMStaticFrameDebugLocal));
             entry->local_idx = idx;
-            MVM_ASSIGN_REF(tc, &(sf->common.header), entry->name, name);
-            HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, ins->debug_locals, name, entry);
+            MVM_ASSIGN_REF(tc, &(sf->common.header), entry->hash_handle.key, name);
+            MVM_str_hash_bind_nt(tc, ins->debug_locals, &entry->hash_handle);
             pos += 6;
         }
         sf->body.instrumentation = ins;

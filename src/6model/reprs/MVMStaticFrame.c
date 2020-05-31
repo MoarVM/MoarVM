@@ -133,7 +133,6 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMStaticFrameBody *body = (MVMStaticFrameBody *)data;
-    MVMStaticFrameDebugLocal *current_debug_local;
 
     /* mvmobjects */
     MVM_gc_worklist_add(tc, worklist, &body->cu);
@@ -170,10 +169,14 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_gc_worklist_add(tc, worklist, &body->spesh);
 
     /* Debug symbols. */
-    if (body->instrumentation) {
-        HASH_ITER_FAST(tc, hash_handle, body->instrumentation->debug_locals, current_debug_local, {
-            MVM_gc_worklist_add(tc, worklist, &current_debug_local->name);
-        });
+    if (body->instrumentation && body->instrumentation->debug_locals) {
+        MVMStrHashTable *const debug_locals = body->instrumentation->debug_locals;
+        MVMStrHashIterator iterator = MVM_str_hash_first(tc, debug_locals);
+        MVMStaticFrameDebugLocal *local;
+        while ((local = MVM_str_hash_current(tc, debug_locals, iterator))) {
+            MVM_gc_worklist_add(tc, worklist, &local->hash_handle.key);
+            iterator = MVM_str_hash_next(tc, debug_locals, iterator);
+        }
     }
 }
 
