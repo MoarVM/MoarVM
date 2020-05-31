@@ -740,7 +740,6 @@ static const MVMContainerConfigurer NativeRefContainerConfigurer = {
 /* Adds a container configurer to the registry. */
 void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
         const MVMContainerConfigurer *configurer) {
-    MVMContainerRegistry *entry;
 
     if (!MVM_str_hash_key_is_valid(tc, name)) {
         MVM_str_hash_key_throw_invalid(tc, name);
@@ -748,15 +747,13 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
 
     uv_mutex_lock(&tc->instance->mutex_container_registry);
 
-    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->container_registry, name, entry);
+    MVMContainerRegistry *entry = MVM_str_hash_fetch_nt(tc, &tc->instance->container_registry, name);
 
     if (!entry) {
-        entry = MVM_malloc(sizeof(MVMContainerRegistry));
-        HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->container_registry, name, entry);
-        entry->name = name;
-        entry->configurer  = configurer;
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name,
-            "Container configuration name");
+        entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMContainerRegistry));
+        entry->configurer      = configurer;
+        entry->hash_handle.key = name;
+        MVM_str_hash_bind_nt(tc, &tc->instance->container_registry, &entry->hash_handle);
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
             "Container configuration hash key");
     }
@@ -766,16 +763,15 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
 
 /* Gets a container configurer from the registry. */
 const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name) {
-    MVMContainerRegistry *entry;
 
     if (!MVM_str_hash_key_is_valid(tc, name)) {
         MVM_str_hash_key_throw_invalid(tc, name);
     }
 
     uv_mutex_lock(&tc->instance->mutex_container_registry);
-    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->container_registry, name, entry);
+    MVMContainerRegistry *entry = MVM_str_hash_fetch_nt(tc, &tc->instance->container_registry, name);
     uv_mutex_unlock(&tc->instance->mutex_container_registry);
-    return entry != NULL ? entry->configurer : NULL;
+    return entry ? entry->configurer : NULL;
 }
 
 /* Does initial setup work of the container registry, including registering

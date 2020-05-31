@@ -90,6 +90,7 @@ OBJECTS1 = src/core/callsite@obj@ \
           src/core/args@obj@ \
           src/core/exceptions@obj@ \
           src/core/interp@obj@ \
+          src/core/str_hash_table@obj@ \
           src/core/threadcontext@obj@ \
           src/core/compunit@obj@ \
           src/core/bytecode@obj@ \
@@ -258,6 +259,7 @@ HEADERS = src/moar.h \
           src/core/args.h \
           src/core/exceptions.h \
           src/core/interp.h \
+          src/core/str_hash_table.h \
           src/core/str_hash_table_funcs.h \
           src/core/alloc.h \
           src/core/vector.h \

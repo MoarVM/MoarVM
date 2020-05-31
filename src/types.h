@@ -300,3 +300,4 @@ typedef struct MVMDebugServerHandleTableEntry MVMDebugServerHandleTableEntry;
 typedef struct MVMDebugServerRequestEntry MVMDebugServerRequestEntry;
 typedef struct MVMDebugServerData MVMDebugServerData;
 typedef struct MVMRunloopState MVMRunloopState;
+typedef struct MVMStrHashTable MVMStrHashTable;
