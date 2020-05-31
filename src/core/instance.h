@@ -488,7 +488,7 @@ struct MVMInstance {
     uv_mutex_t    mutex_compiler_registry;
 
     /* Hash of filenames of compunits loaded from disk. */
-    MVMLoadedCompUnitName *loaded_compunits;
+    MVMStrHashTable        loaded_compunits;
     uv_mutex_t       mutex_loaded_compunits;
 
     /* Hash of all loaded DLLs. */
