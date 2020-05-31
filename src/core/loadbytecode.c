@@ -99,7 +99,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     /* See if we already loaded this. */
     uv_mutex_lock(&tc->instance->mutex_loaded_compunits);
     MVM_tc_set_ex_release_mutex(tc, &tc->instance->mutex_loaded_compunits);
-    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->loaded_compunits, filename, loaded_name);
+    loaded_name = MVM_str_hash_fetch_nt(tc, &tc->instance->loaded_compunits, filename);
     if (loaded_name) {
         /* already loaded */
         goto LEAVE;
@@ -117,9 +117,9 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
 
         run_comp_unit(tc, cu);
 
-        loaded_name = MVM_calloc(1, sizeof(MVMLoadedCompUnitName));
-        HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->loaded_compunits, filename, loaded_name);
-        loaded_name->filename = filename;
+        loaded_name = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMLoadedCompUnitName));
+        loaded_name->hash_handle.key = filename;
+        MVM_str_hash_bind_nt(tc, &tc->instance->loaded_compunits, &loaded_name->hash_handle);
     });
 
 LEAVE:
