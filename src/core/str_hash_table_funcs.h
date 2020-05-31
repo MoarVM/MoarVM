@@ -49,6 +49,9 @@ MVM_STATIC_INLINE void MVM_str_hash_build(MVMThreadContext *tc, MVMStrHashTable 
     hashtable->ineff_expands = 0;
     hashtable->noexpand = 0;
     hashtable->entry_size = entry_size;
+#if HASH_DEBUG_ITER
+    hashtable->serial = 0;
+#endif
 }
 
 /* Fibonacci bucket determination.
@@ -91,6 +94,9 @@ MVM_STATIC_INLINE void MVM_str_hash_bind_nt(MVMThreadContext *tc,
     entry->hh_next = bucket->hh_head;
     bucket->hh_head = entry;
     ++hashtable->num_items;
+#if HASH_DEBUG_ITER
+    ++hashtable->serial;
+#endif
     if (MVM_UNLIKELY(++(bucket->count) >= ((bucket->expand_mult+1) * HASH_BKT_CAPACITY_THRESH)
                      && hashtable->noexpand != 1)) {
         MVM_str_hash_expand_buckets(tc, hashtable);
@@ -127,6 +133,18 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nt(MVMThreadContext *tc,
         have = have->hh_next;
     }
     return NULL;
+}
+
+/* This one is private: */
+MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next_bucket(MVMThreadContext *tc,
+                                                              MVMStrHashTable *hashtable,
+                                                              MVMStrHashIterator iterator) {
+    while (++iterator.hi_bucket < hashtable->num_buckets) {
+        if ((iterator.hi_current = hashtable->buckets[iterator.hi_bucket].hh_head)) {
+            return iterator;
+        }
+    }
+    return iterator;
 }
 
 /*******************************************************************************
@@ -170,4 +188,70 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch(MVMThreadContext *tc,
         MVM_str_hash_key_throw_invalid(tc, want);
     }
     return MVM_str_hash_fetch_nt(tc, hashtable, want);
+}
+
+/* Iterators. The plan is that MVMStrHashIterator will become a MVMuint64,
+ * 32 bits for array index in the open addressing hash, 32 bits for PRNG. */
+
+MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next(MVMThreadContext *tc,
+                                                       MVMStrHashTable *hashtable,
+                                                       MVMStrHashIterator iterator) {
+#if HASH_DEBUG_ITER
+    if (iterator.owner != hashtable) {
+        MVM_oops(tc, "MVM_str_hash_next called with an iterator from a different hash table: %p != %p",
+                 iterator.owner, hashtable);
+    }
+    if (iterator.serial != hashtable->serial) {
+        MVM_oops(tc, "MVM_str_hash_next called with an iterator with the wrong serial number: %u != %u",
+                 iterator.serial, hashtable->serial);
+    }
+#endif
+
+    if (MVM_UNLIKELY(iterator.hi_current == NULL)) {
+        return iterator;
+    }
+    if ((iterator.hi_current = iterator.hi_current->hh_next)) {
+        return iterator;
+    }
+    return MVM_str_hash_next_bucket(tc, hashtable, iterator);
+}
+
+MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_first(MVMThreadContext *tc,
+                                                        MVMStrHashTable *hashtable) {
+    MVMStrHashIterator iterator;
+    iterator.hi_bucket = 0;
+
+#if HASH_DEBUG_ITER
+    iterator.owner = hashtable;
+    iterator.serial = hashtable->serial;
+#endif
+
+    if (MVM_UNLIKELY(hashtable->log2_num_buckets == 0)) {
+        iterator.hi_current = NULL;
+        return iterator;
+    }
+
+    if ((iterator.hi_current = hashtable->buckets[0].hh_head)) {
+        return iterator;
+    }
+
+    return MVM_str_hash_next_bucket(tc, hashtable, iterator);
+;
+}
+
+/* FIXME - this needs a better name: */
+MVM_STATIC_INLINE void *MVM_str_hash_current(MVMThreadContext *tc,
+                                             MVMStrHashTable *hashtable,
+                                             MVMStrHashIterator iterator) {
+#if HASH_DEBUG_ITER
+    if (iterator.owner != hashtable) {
+        MVM_oops(tc, "MVM_str_hash_current called with an iterator from a different hash table: %p != %p",
+                 iterator.owner, hashtable);
+    }
+    if (iterator.serial != hashtable->serial) {
+        MVM_oops(tc, "MVM_str_hash_current called with an iterator with the wrong serial number: %u != %u",
+                 iterator.serial, hashtable->serial);
+    }
+#endif
+    return iterator.hi_current;
 }
