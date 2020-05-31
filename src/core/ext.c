@@ -2,7 +2,6 @@
 
 int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
     MVMString *colon, *prefix, *name;
-    MVMExtRegistry *entry;
     MVMDLLSym *sym;
     void (*init)(MVMThreadContext *);
 
@@ -17,7 +16,7 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
 
     /* MVM_string_concatenate returns a concrete MVMString, will always pass the
      * MVM_str_hash_key_is_valid check. */
-    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->ext_registry, name, entry);
+    MVMExtRegistry *entry = MVM_fixkey_hash_fetch_nt(tc, &tc->instance->ext_registry, name);
 
     /* Extension already loaded. */
     if (entry) {
@@ -35,14 +34,16 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
         MVM_exception_throw_adhoc_free(tc, waste, "extension symbol (%s) not found", c_name);
     }
 
-    entry = MVM_malloc(sizeof *entry);
-    HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->ext_registry, name, entry);
-    entry->sym = sym;
-    entry->name = name;
+    struct MVMFixKeyHashHandle *indirection
+        = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof (struct MVMFixKeyHashHandle));
 
-    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name,
-        "Extension name");
-    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
+    entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMExtRegistry));
+    indirection->key = (void *)entry;
+    entry->sym = sym;
+    entry->hash_key = name;
+
+    MVM_fixkey_hash_bind_nt(tc, &tc->instance->ext_registry, indirection);
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_key,
         "Extension name hash key");
 
     uv_mutex_unlock(&tc->instance->mutex_ext_registry);

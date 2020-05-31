@@ -496,8 +496,8 @@ struct MVMInstance {
     uv_mutex_t       mutex_dll_registry;
 
     /* Hash of all loaded extensions. */
-    MVMExtRegistry  *ext_registry;
-    uv_mutex_t mutex_ext_registry;
+    MVMFixKeyHashTable     ext_registry;
+    uv_mutex_t       mutex_ext_registry;
 
     /* Hash of all registered extension ops. */
     MVMExtOpRegistry *extop_registry;
