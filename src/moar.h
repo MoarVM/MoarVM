@@ -91,6 +91,9 @@ typedef double   MVMnum64;
 #  define MVM_USED_BY_JIT
 #endif
 
+/* Hashes */
+#define HASH_DEBUG_ITER 1
+
 /* stuff for uthash */
 #define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
 
