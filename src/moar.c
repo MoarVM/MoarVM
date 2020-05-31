@@ -140,6 +140,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up extension registry mutex. */
     init_mutex(instance->mutex_ext_registry, "extension registry");
+    MVM_fixkey_hash_build(instance->main_thread, &instance->ext_registry, sizeof(struct MVMExtRegistry));
 
     /* Set up extension op registry mutex. */
     init_mutex(instance->mutex_extop_registry, "extension op registry");
@@ -600,7 +601,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Hash of extensions. */
     uv_mutex_destroy(&instance->mutex_ext_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMExtRegistry, instance->ext_registry);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->ext_registry);
 
     /* Clean up Hash of extension ops. */
     uv_mutex_destroy(&instance->mutex_extop_registry);
