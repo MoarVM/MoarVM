@@ -14,6 +14,7 @@ If you use the automatically generated release tarballs or zip files please note
 contain the third party libraries needed to successfully build MoarVM.
 
 ## Build It
+[![Build Status](https://dev.azure.com/MoarVM/MoarVM/_apis/build/status/MoarVM.MoarVM?branchName=master)](https://dev.azure.com/MoarVM/MoarVM/_build/latest?definitionId=1&branchName=master)
 [![Build Status](https://travis-ci.org/MoarVM/MoarVM.svg?branch=master)](https://travis-ci.org/MoarVM/MoarVM)
 [![Build Status](https://ci.appveyor.com/api/projects/status/github/timo/moarvm-5bpx6?svg=true)](https://ci.appveyor.com/project/timo/moarvm-5bpx6/branch/master)
 
