@@ -136,6 +136,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up DLL registry mutex. */
     init_mutex(instance->mutex_dll_registry, "REPR registry");
+    MVM_fixkey_hash_build(instance->main_thread, &instance->dll_registry, sizeof(struct MVMDLLRegistry));
 
     /* Set up extension registry mutex. */
     init_mutex(instance->mutex_ext_registry, "extension registry");
@@ -595,7 +596,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Hash of DLLs. */
     uv_mutex_destroy(&instance->mutex_dll_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMDLLRegistry, instance->dll_registry);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->dll_registry);
 
     /* Clean up Hash of extensions. */
     uv_mutex_destroy(&instance->mutex_ext_registry);
