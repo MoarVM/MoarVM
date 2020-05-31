@@ -154,12 +154,10 @@ struct MVMCompUnit {
 /* Strings per entry in the fast table; see above for details. */
 #define MVM_STRING_FAST_TABLE_SPAN 16
 
+/* This "hash" is really a set - it's only used for an "exists" test. */
 struct MVMLoadedCompUnitName {
-    /* Loaded filename. */
-    MVMString *filename;
-
-    /* Inline handle to the loaded filenames hash (in MVMInstance). */
-    UT_hash_handle hash_handle;
+    /* Loaded filename is the hash key. */
+    struct MVMStrHashHandle hash_handle;
 };
 
 /* Function for REPR setup. */
