@@ -151,6 +151,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up container registry mutex. */
     init_mutex(instance->mutex_container_registry, "container registry");
+    MVM_str_hash_build(instance->main_thread, &instance->container_registry, sizeof(MVMContainerRegistry));
 
     /* Set up persistent object ID hash mutex. */
     init_mutex(instance->mutex_object_ids, "object ID hash");
@@ -614,8 +615,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Container registry. */
     uv_mutex_destroy(&instance->mutex_container_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMContainerRegistry, instance->container_registry);
-
+    MVM_str_hash_demolish(instance->main_thread, &instance->container_registry);
     /* Clean up Hash of compiler objects keyed by name. */
     uv_mutex_destroy(&instance->mutex_compiler_registry);
 
