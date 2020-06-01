@@ -10,20 +10,14 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
     uv_mutex_lock(&tc->instance->mutex_hllconfigs);
 
     if (tc->instance->hll_compilee_depth) {
-        HASH_FIND_VM_STR(tc, hash_handle, tc->instance->compilee_hll_configs, name, entry);
+        entry = MVM_fixkey_hash_lvalue_fetch_nt(tc, &tc->instance->compilee_hll_configs, name);
     }
     else {
-        HASH_FIND_VM_STR(tc, hash_handle, tc->instance->compiler_hll_configs, name, entry);
+        entry = MVM_fixkey_hash_lvalue_fetch_nt(tc, &tc->instance->compiler_hll_configs, name);
     }
 
-    if (!entry) {
-        entry = MVM_calloc(1, sizeof(MVMHLLConfig));
-        if (tc->instance->hll_compilee_depth) {
-            HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->compilee_hll_configs, name, entry);
-        }
-        else {
-            HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->compiler_hll_configs, name, entry);
-        }
+    if (!entry->name) {
+        memset(entry, 0, sizeof(*entry));
         entry->name = name;
         entry->int_box_type = tc->instance->boot_types.BOOTInt;
         entry->num_box_type = tc->instance->boot_types.BOOTNum;
@@ -69,7 +63,6 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->str_multidim_ref, "HLL str_multidim_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->spesh_plugins, "HLL spesh plugins");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name, "HLL name");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key, "HLL hash key");
     }
 
     uv_mutex_unlock(&tc->instance->mutex_hllconfigs);

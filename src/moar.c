@@ -133,6 +133,8 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up HLL config mutex. */
     init_mutex(instance->mutex_hllconfigs, "hll configs");
+    MVM_fixkey_hash_build(instance->main_thread, &instance->compiler_hll_configs, sizeof(MVMHLLConfig));
+    MVM_fixkey_hash_build(instance->main_thread, &instance->compilee_hll_configs, sizeof(MVMHLLConfig));
 
     /* Set up DLL registry mutex. */
     init_mutex(instance->mutex_dll_registry, "REPR registry");
@@ -592,8 +594,8 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Hash of HLLConfig. */
     uv_mutex_destroy(&instance->mutex_hllconfigs);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMHLLConfig, instance->compiler_hll_configs);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMHLLConfig, instance->compilee_hll_configs);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->compiler_hll_configs);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->compilee_hll_configs);
 
     /* Clean up Hash of DLLs. */
     uv_mutex_destroy(&instance->mutex_dll_registry);
