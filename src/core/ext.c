@@ -58,17 +58,17 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
 int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
         MVMExtOpFunc func, MVMuint8 num_operands, MVMuint8 operands[],
         MVMExtOpSpesh *spesh, MVMExtOpFactDiscover *discover, MVMuint32 flags) {
-    MVMExtOpRegistry *entry;
     MVMString *name = MVM_string_ascii_decode_nt(
             tc, tc->instance->VMString, cname);
 
     uv_mutex_lock(&tc->instance->mutex_extop_registry);
 
-    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->extop_registry, name, entry);
+    struct MVMExtOpRegistry *entry = MVM_fixkey_hash_fetch_nt(tc, &tc->instance->extop_registry, name);
 
     /* Op already registered, so just verify its signature. */
     if (entry) {
         uv_mutex_unlock(&tc->instance->mutex_extop_registry);
+
         if (num_operands != entry->info.num_operands
                 || memcmp(operands, entry->info.operands, num_operands) != 0)
             MVM_exception_throw_adhoc(tc,
@@ -150,9 +150,12 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
         }
     }
 
-    entry                    = MVM_malloc(sizeof *entry);
-    HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->extop_registry, name, entry);
-    entry->name              = name;
+    struct MVMFixKeyHashHandle *indirection
+        = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof (struct MVMFixKeyHashHandle));
+
+    entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMExtOpRegistry));
+    indirection->key = (void *)entry;
+    entry->hash_key = name;
     entry->func              = func;
     entry->info.name         = cname;
     entry->info.opcode       = (MVMuint16)-1;
@@ -173,9 +176,8 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     entry->no_jit     = flags & MVM_EXTOP_NO_JIT;
     entry->allocating = flags & MVM_EXTOP_ALLOCATING;
 
-    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name,
-        "Extension op name");
-    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
+    MVM_fixkey_hash_bind_nt(tc, &tc->instance->extop_registry, indirection);
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_key,
         "Extension op name hash key");
 
     uv_mutex_unlock(&tc->instance->mutex_extop_registry);
@@ -185,7 +187,6 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
 
 const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
         MVMExtOpRecord *record) {
-    MVMExtOpRegistry *entry;
 
     /* Already resolved. */
     if (record->info)
@@ -197,7 +198,7 @@ const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
 
     uv_mutex_lock(&tc->instance->mutex_extop_registry);
 
-    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->extop_registry, record->name, entry);
+    MVMExtOpRegistry *entry = MVM_fixkey_hash_fetch_nt(tc, &tc->instance->extop_registry, record->name);
 
     if (!entry) {
         uv_mutex_unlock(&tc->instance->mutex_extop_registry);
