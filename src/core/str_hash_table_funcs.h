@@ -67,20 +67,25 @@ MVM_STATIC_INLINE MVMHashBktNum MVM_str_hash_bucket(MVMuint64 hashv, MVMuint32 o
     return (hashv * max_hashv_div_phi) >> ((sizeof(MVMHashv)*8) - offset);
 }
 
+MVM_STATIC_INLINE void MVM_str_hash_allocate_buckets(MVMThreadContext *tc,
+                                                     MVMStrHashTable *hashtable) {
+    if (MVM_UNLIKELY(hashtable->entry_size == 0))
+        MVM_oops(tc, "Hash table entry_size not set");
+    if (MVM_UNLIKELY(hashtable->entry_size > 1024 || hashtable->entry_size & 3))
+        MVM_oops(tc, "Hash table entry_size %" PRIu32 " is invalid", hashtable->entry_size);
+
+    /* Lazily allocate the hash table. */
+    hashtable->buckets = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
+                                                     HASH_INITIAL_NUM_BUCKETS * sizeof(struct MVMStrHashBucket));
+    hashtable->num_buckets = HASH_INITIAL_NUM_BUCKETS;
+    hashtable->log2_num_buckets = HASH_INITIAL_NUM_BUCKETS_LOG2;
+}
+
 MVM_STATIC_INLINE void MVM_str_hash_bind_nt(MVMThreadContext *tc,
                                             MVMStrHashTable *hashtable,
                                             struct MVMStrHashHandle *entry) {
     if (MVM_UNLIKELY(hashtable->log2_num_buckets == 0)) {
-        if (MVM_UNLIKELY(hashtable->entry_size == 0))
-            MVM_oops(tc, "Hash table entry_size not set");
-        if (MVM_UNLIKELY(hashtable->entry_size > 1024 || hashtable->entry_size & 3))
-            MVM_oops(tc, "Hash table entry_size %" PRIu32 " is invalid", hashtable->entry_size);
-
-        /* Lazily allocate the hash table. */
-        hashtable->buckets = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-                                                         HASH_INITIAL_NUM_BUCKETS * sizeof(struct MVMStrHashBucket));
-        hashtable->num_buckets = HASH_INITIAL_NUM_BUCKETS;
-        hashtable->log2_num_buckets = HASH_INITIAL_NUM_BUCKETS_LOG2;
+        MVM_str_hash_allocate_buckets(tc, hashtable);
     }
 
     MVMString *key = entry->key;
@@ -101,6 +106,72 @@ MVM_STATIC_INLINE void MVM_str_hash_bind_nt(MVMThreadContext *tc,
                      && hashtable->noexpand != 1)) {
         MVM_str_hash_expand_buckets(tc, hashtable);
     }
+}
+
+MVM_STATIC_INLINE void *MVM_str_hash_lvalue_fetch_nt(MVMThreadContext *tc,
+                                                     MVMStrHashTable *hashtable,
+                                                     MVMString *key) {
+    MVMHashv hashv = key->body.cached_hash_code;
+    if (!hashv) {
+        MVM_string_compute_hash_code(tc, key);
+        hashv = key->body.cached_hash_code;
+    }
+    MVMHashBktNum bucket_num;
+    struct MVMStrHashBucket *bucket;
+
+    if (MVM_UNLIKELY(hashtable->log2_num_buckets == 0)) {
+        MVM_str_hash_allocate_buckets(tc, hashtable);
+        bucket_num = MVM_str_hash_bucket(hashv, hashtable->log2_num_buckets);
+        bucket = hashtable->buckets + bucket_num;
+    }
+    else {
+        bucket_num = MVM_str_hash_bucket(hashv, hashtable->log2_num_buckets);
+        bucket = hashtable->buckets + bucket_num;
+
+        /* This is the same code as the body of fetch below */
+        struct MVMStrHashHandle *have = bucket->hh_head;
+        /* iterate over items in a known bucket to find desired item */
+        /* not adding the shortcut of comparing string cached hash values as it's
+         * slightly complex, and this code will die soon */
+        while (have) {
+            /* DON'T FORGET to fill in the NULL key. Or we go boom here. */
+            assert(have->key);
+            if (have->key == key
+                || (MVM_string_graphs_nocheck(tc, key) == MVM_string_graphs_nocheck(tc, have->key)
+                    && MVM_string_substrings_equal_nocheck(tc, key, 0,
+                                                           MVM_string_graphs_nocheck(tc, key),
+                                                           have->key, 0))) {
+                return have;
+            }
+            have = have->hh_next;
+        }
+    }
+
+    /* Not found: */
+
+    struct MVMStrHashHandle *entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, hashtable->entry_size);
+    entry->key = NULL;
+
+    /* So this is (mostly) the code from bind above. */
+    entry->hh_next = bucket->hh_head;
+    bucket->hh_head = entry;
+    ++hashtable->num_items;
+#if HASH_DEBUG_ITER
+    ++hashtable->serial;
+#endif
+    if (MVM_UNLIKELY(++(bucket->count) >= ((bucket->expand_mult+1) * HASH_BKT_CAPACITY_THRESH)
+                     && hashtable->noexpand != 1)) {
+        /* OK, this little dance confirms that entry->key of NULL is somewhat
+         * hacky. I think that it will be far less hacky with open addressing,
+         * because that has to expand *before* it can write in the new entry,
+         * whereas this has to add it first, so that the bucket count
+         * arithmetic works out. */
+        entry->key = key;
+        MVM_str_hash_expand_buckets(tc, hashtable);
+        entry->key = NULL;
+    }
+
+    return entry;
 }
 
 /* IIRC Schwern figured that have/want were very good names. */
@@ -179,6 +250,22 @@ MVM_STATIC_INLINE void MVM_str_hash_bind(MVMThreadContext *tc,
         MVM_str_hash_key_throw_invalid(tc, key);
     }
     return MVM_str_hash_bind_nt(tc, hashtable, entry);
+}
+
+/* Looks up entry for key, creating it if necessary.
+ * Returns an entry.
+ * If it's freshly allocated, then entry->key is NULL (you need to fill this in)
+ * and everything else is uninitialised.
+ * This might seem like a quirky API, but it's intended to fill a common pattern
+ * we have, and the use of NULL key avoids needing two return values.
+ * DON'T FORGET to fill in the NULL key. */
+MVM_STATIC_INLINE void *MVM_str_hash_lvalue_fetch(MVMThreadContext *tc,
+                                                  MVMStrHashTable *hashtable,
+                                                  MVMString *key) {
+    if (!MVM_str_hash_key_is_valid(tc, key)) {
+        MVM_str_hash_key_throw_invalid(tc, key);
+    }
+    return MVM_str_hash_lvalue_fetch_nt(tc, hashtable, key);
 }
 
 MVM_STATIC_INLINE void *MVM_str_hash_fetch(MVMThreadContext *tc,
