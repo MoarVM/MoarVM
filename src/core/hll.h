@@ -1,6 +1,9 @@
 /* The configuration for a particular High Level Language. Of note, this
  * indicates the types to use in various situations. */
 struct MVMHLLConfig {
+    /* HLL name. This is needed for serialize_stable(), and needs to be first
+     * for MVMFixKeyHash. */
+    MVMString *name;
     /* The types the language wishes to get things boxed as. */
     MVMObject *int_box_type;
     MVMObject *num_box_type;
@@ -69,12 +72,6 @@ struct MVMHLLConfig {
 
     /* The maximum code size that we'll inline. */
     MVMuint32 max_inline_size;
-
-    /* HLL name. */
-    MVMString *name;
-
-    /* Inline handle to the hash in which this is stored. */
-    UT_hash_handle hash_handle;
 };
 
 MVMHLLConfig * MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name);
