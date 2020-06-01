@@ -8,12 +8,12 @@ platform:
   - x86
 
 install:
-  - '"C:\Program Files (x86)\Microsoft Visual Studio\2017\Community\VC\Auxiliary\Build\vcvars64.bat"'
-  - appveyor-retry choco install strawberryperl --version 5.22.3.1 --allow-empty-checksums
+  - '"C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\VC\Auxiliary\Build\vcvars64.bat"'
+  - choco install zstandard
   - SET PATH=C:\strawberry\c\bin;C:\strawberry\perl\site\bin;C:\strawberry\perl\bin;%PATH%
   - perl Configure.pl --prefix=%APPVEYOR_BUILD_FOLDER%\buildprefix
   - nmake install
-  - git clone https://github.com/perl6/nqp %APPVEYOR_BUILD_FOLDER%\nqp
+  - git clone https://github.com/Raku/nqp %APPVEYOR_BUILD_FOLDER%\nqp
   - cd %APPVEYOR_BUILD_FOLDER%\nqp
   - perl Configure.pl --prefix=%APPVEYOR_BUILD_FOLDER%\buildprefix
   - nmake
@@ -21,13 +21,8 @@ install:
 
 environment:
   matrix:
-  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2017
+  - APPVEYOR_BUILD_WORKER_IMAGE: Visual Studio 2019
 
 branches:
   only:
     - master
-
-
-#test_script:
-#  - cd %APPVEYOR_BUILD_FOLDER%\nqp
-#  - nmake m-test
