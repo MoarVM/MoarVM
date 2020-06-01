@@ -146,6 +146,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up extension op registry mutex. */
     init_mutex(instance->mutex_extop_registry, "extension op registry");
+    MVM_fixkey_hash_build(instance->main_thread, &instance->extop_registry, sizeof(MVMExtOpRegistry));
 
     /* Set up SC registry mutex. */
     init_mutex(instance->mutex_sc_registry, "sc registry");
@@ -607,7 +608,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Hash of extension ops. */
     uv_mutex_destroy(&instance->mutex_extop_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMExtOpRegistry, instance->extop_registry);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->extop_registry);
 
     /* Clean up Hash of all known serialization contexts; all SCs list is in
      * FSA space and so cleaned up with that. */
