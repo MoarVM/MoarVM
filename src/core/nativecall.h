@@ -83,10 +83,8 @@ struct MVMNativeCallback {
  * closures are taken and need to be differentiated.
  */
 struct MVMNativeCallbackCacheHead {
+    struct MVMStrHashHandle hash_handle;
     MVMNativeCallback *head;
-
-    /* The uthash hash handle inline struct. */
-    UT_hash_handle hash_handle;
 };
 
 /* Functions for working with native callsites. */

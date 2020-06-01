@@ -83,7 +83,12 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     MVMint32 i;
 
     /* Free the native callback cache. Needs the fixed size allocator. */
-    MVM_HASH_DESTROY(tc, hash_handle, MVMNativeCallbackCacheHead, tc->native_callback_cache);
+    if (tc->native_callback_cache) {
+        MVM_str_hash_demolish(tc, tc->native_callback_cache);
+        MVM_fixed_size_free(tc, tc->instance->fsa,
+                            sizeof(MVMStrHashTable),
+                            tc->native_callback_cache);
+    }
 
     /* Free specialization state. */
     MVM_spesh_sim_stack_destroy(tc, tc->spesh_sim_stack);
