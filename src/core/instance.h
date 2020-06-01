@@ -474,8 +474,8 @@ struct MVMInstance {
     /* Hashes of HLLConfig objects. compiler_hll_configs is those for the
      * running compiler, and the default. compilee_hll_configs is used if
      * hll_compilee_depth is > 0. */
-    MVMHLLConfig *compiler_hll_configs;
-    MVMHLLConfig *compilee_hll_configs;
+    MVMFixKeyHashTable compiler_hll_configs;
+    MVMFixKeyHashTable compilee_hll_configs;
     MVMint64      hll_compilee_depth;
     uv_mutex_t    mutex_hllconfigs;
 
