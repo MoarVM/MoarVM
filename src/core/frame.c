@@ -1185,7 +1185,7 @@ void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
     MVM_ASSIGN_REF(tc, &(code->header), ((MVMCode*)code)->body.outer, captured);
 }
 
-/* This is used for situations in Perl 6 like:
+/* This is used for situations in Raku like:
  * supply {
  *     my $x = something();
  *     whenever $supply {

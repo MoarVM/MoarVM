@@ -47,7 +47,7 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
 
     /* Hunt the tag on the stack. Also toss any dynamic variable cache
      * entries, as they may be invalid once the continuation is invoked (the
-     * Perl 6 $*THREAD is a good example of a problematic one). */
+     * Raku $*THREAD is a good example of a problematic one). */
     MVMFrame           *root_frame  = NULL;
     MVMContinuationTag *tag_record  = NULL;
     MVMFrame            *jump_frame;

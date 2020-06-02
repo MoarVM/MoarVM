@@ -287,7 +287,7 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
                 break;
             case MVM_NATIVECALL_ARG_CALLBACK:
                 /* TODO: A callback -return- value means that we have a C method
-                * that needs to be wrapped similarly to a is native(...) Perl 6
+                * that needs to be wrapped similarly to a is native(...) Raku
                 * sub. */
                 /* XXX do something with the function pointer: *(void **)cb_args[i - 1] */
                 args[i - 1].o = type;
@@ -664,7 +664,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 case MVM_NATIVECALL_ARG_CALLBACK: {
                     /* TODO: A callback -return- value means that we have a C method
-                    * that needs to be wrapped similarly to a is native(...) Perl 6
+                    * that needs to be wrapped similarly to a is native(...) Raku
                     * sub. */
                     void *ret;
                     ffi_call(&cif, entry_point, &ret, values);

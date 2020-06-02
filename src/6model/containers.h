@@ -1,6 +1,6 @@
 /* Container specification information, for types that serve as containers.
  * A container is something that can be assigned into. It may be some kind
- * of container object (like Perl 6's Scalar) or it may be a reference to a
+ * of container object (like Raku's Scalar) or it may be a reference to a
  * native lexical or object field. The function table determines the way it
  * behaves. */
 struct MVMContainerSpec {

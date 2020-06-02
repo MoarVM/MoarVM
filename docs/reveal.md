@@ -45,7 +45,7 @@ question-and-answer style.
 
 ## What are the main goals?
 
-To create a VM backend for Rakudo Perl 6 that:
+To create a VM backend for Rakudo Raku that:
 
 * Is **lightweight and focused** on doing exactly what Rakudo needs, without any
   prior technical or domain debt to pay off.

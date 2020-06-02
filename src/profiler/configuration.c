@@ -11,7 +11,7 @@
  * the profiler should start profiling (if it isn't already profiling), and
  * for configuring when the heap snapshot profiler should take a snapshot
  *
- * There is a Perl 6 module that offers a confprog compiler named
+ * There is a Raku module that offers a confprog compiler named
  * App::MoarVM::ConfprogCompiler, and nqp's src/vm/moar/HLL/Backend.nqp
  * has a corresponding loader. The nqp and perl6 commandline programs
  * recognize a --confprog flag.
@@ -305,7 +305,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
         }
     }
     else if (opcode == MVM_OP_getattr_o) {
-        MVMuint8 selected_struct_source = state->selected_struct_source; 
+        MVMuint8 selected_struct_source = state->selected_struct_source;
         MVMuint16 source_reg_num;
         MVMuint32 string_idx;
         MVMuint16 *hintptr;

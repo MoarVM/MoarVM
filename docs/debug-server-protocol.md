@@ -305,14 +305,14 @@ is the debug name of the type of the code object, or `nil` if there is none.
                 "line": 22,
                 "bytecode_file": "path/to/bytecode/file",
                 "name": "some-method",
-                "type": "Method" 
+                "type": "Method"
             },
             {
                 "file": "path/to/source/file",
                 "line": 12,
                 "bytecode_file": "path/to/bytecode/file",
                 "name": "",
-                "type": "Block" 
+                "type": "Block"
             },
             {
                 "file": "path/to/another/source/file",
@@ -636,7 +636,7 @@ under the `class` key.
 
 ### Decontainerize Handle (34)
 
-Used to decontainerize a value in a container (such as a Perl 6 `Scalar`). The
+Used to decontainerize a value in a container (such as a Raku `Scalar`). The
 handle to the object that results is returned in a Handle Result message. If
 this is not a container type, or if an exception occurs when trying to do the
 decontainerization, an Error Processing Message response will be sent by MoarVM
@@ -760,14 +760,14 @@ resolving methods, decontainerizing values, and invoking code.
                 "line": 22,
                 "bytecode_file": "path/to/bytecode/file",
                 "name": "some-method",
-                "type": "Method" 
+                "type": "Method"
             },
             {
                 "file": "path/to/source/file",
                 "line": 12,
                 "bytecode_file": "path/to/bytecode/file",
                 "name": "",
-                "type": "Block" 
+                "type": "Block"
             }
         ]
     }

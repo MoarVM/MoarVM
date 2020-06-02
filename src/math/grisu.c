@@ -5,7 +5,7 @@
  *  http://www.apache.org/licenses/LICENSE-2.0.html
  *  http://clb.demon.fi/MathGeoLib/nightly/docs/grisu3.c_code.html
  *
- *  It contains minor modifications, to match output expected by Perl 6 along
+ *  It contains minor modifications, to match output expected by Raku along
  *  with minor edits to arguments and formatting.
  *
  *  This file is part of an implementation of the "grisu3" double to string

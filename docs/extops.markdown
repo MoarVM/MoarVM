@@ -15,7 +15,7 @@ making such things optimal [please excuse the truism].  However, in the case of
 dynamically loaded extensions to the VM that need to dynamically load native
 libraries with a C ABI (nearly all native libraries have a build that exposes
 such a thing), the function pointers must be resolved at runtime after the
-library is loaded. Perl 6's NativeCall module can load libraries by name and
+library is loaded. Raku's NativeCall module can load libraries by name and
 enumerate/locate entry points and functions by name.
 
 I propose to use the dyncall functionality to load MoarVM extensions and

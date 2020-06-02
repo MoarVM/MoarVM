@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-moar - a runtime for Perl 6
+moar - a runtime for Raku
 
 =head1 SYNOPSIS
 
@@ -63,4 +63,3 @@ License: Artistic License 2.0. See the file F<Artistic2.txt> for more
 information.
 
 =cut
-

@@ -28,8 +28,8 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     /* can't be copied because then we could never know when gc_free should
      * close the handle (unless we did some refcounting on a shared container).
-     * note - 12:25 <jnthn> I mean, Perl 6 will has an attribute which
-     * is the MoarVM handle, so a .clone() on a Perl 6 IO object
+     * note - 12:25 <jnthn> I mean, Raku will have an attribute which
+     * is the MoarVM handle, so a .clone() on a Raku IO object
      * won't trigger cloning of the underlying handle.            */
     MVM_exception_throw_adhoc(tc, "Cannot copy object with repr OSHandle");
 }
