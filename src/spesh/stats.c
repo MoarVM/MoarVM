@@ -348,6 +348,7 @@ void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
                         e->invoke.caller_is_outer, e->invoke.was_multi);
                     break;
                 }
+                case MVM_SPESH_LOG_DISPATCH_RESOLUTION:
                 case MVM_SPESH_LOG_PLUGIN_RESOLUTION: {
                     MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
                         e->plugin.bytecode_offset);
@@ -588,6 +589,7 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
             case MVM_SPESH_LOG_TYPE:
             case MVM_SPESH_LOG_RETURN:
             case MVM_SPESH_LOG_INVOKE:
+            case MVM_SPESH_LOG_DISPATCH_RESOLUTION:
             case MVM_SPESH_LOG_PLUGIN_RESOLUTION: {
                 /* We only incorporate these into the model later, and only
                  * then if we need to. For now, just keep references to
