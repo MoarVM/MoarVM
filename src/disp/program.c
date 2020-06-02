@@ -596,17 +596,22 @@ void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatche
 }
 
 /* Record a program terminator that is a constant boject value. */
-void MVM_disp_program_record_result_constant(MVMThreadContext *tc, MVMObject *result) {
+void MVM_disp_program_record_result_constant(MVMThreadContext *tc, MVMCallsiteFlags kind,
+        MVMRegister value) {
     /* Record the result action. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    MVMRegister value = { .o = result };
-    record->rec.outcome_value = value_index_constant(tc, &(record->rec),
-            MVM_CALLSITE_ARG_OBJ, value);
+    record->rec.outcome_value = value_index_constant(tc, &(record->rec), kind, value);
 
     /* Put the return value in place. */
     record->outcome.kind = MVM_DISP_OUTCOME_VALUE;
     record->outcome.result_value = value;
-    record->outcome.result_kind = MVM_reg_obj;
+    switch (kind) {
+        case MVM_CALLSITE_ARG_OBJ: record->outcome.result_kind = MVM_reg_obj; break;
+        case MVM_CALLSITE_ARG_INT: record->outcome.result_kind = MVM_reg_int64; break;
+        case MVM_CALLSITE_ARG_NUM: record->outcome.result_kind = MVM_reg_num64; break;
+        case MVM_CALLSITE_ARG_STR: record->outcome.result_kind = MVM_reg_str; break;
+        default: MVM_oops(tc, "Unknown capture value type in boot-constant dispatch");
+    }
 }
 
 /* Record a program terminator that reads the value from an argument capture. */
