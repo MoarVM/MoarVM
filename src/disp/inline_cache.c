@@ -67,7 +67,7 @@ static void dispatch_initial(MVMThreadContext *tc,
     MVMObject *capture = MVM_capture_from_args(tc, capture_arg_info);
 
     /* Run the dispatcher. */
-    MVM_disp_program_run_dispatch(tc, disp, capture, entry_ptr);
+    MVM_disp_program_run_dispatch(tc, disp, capture, entry_ptr, seen);
 }
 
 static void dispatch_monomorphic(MVMThreadContext *tc,
@@ -83,15 +83,32 @@ static void dispatch_monomorphic(MVMThreadContext *tc,
         MVM_panic(1, "polymorphic dispatch NYI");
 }
 
-/* Transition a callsite from unlinked to monomorphic. */
-void MVM_disp_inline_cache_transition_to_monomorphic(MVMThreadContext *tc,
-        MVMDispInlineCacheEntry **entry_ptr, MVMDispProgram *dp) {
-    MVMDispInlineCacheEntryMonomorphicDispatch *new_entry = MVM_fixed_size_alloc(tc,
-            tc->instance->fsa, sizeof(MVMDispInlineCacheEntryMonomorphicDispatch));
-    new_entry->base.run_dispatch = dispatch_monomorphic;
-    new_entry->dp = dp;
-    // TODO write-barrier
-    try_update_cache_entry(tc, entry_ptr, &unlinked_dispatch, &(new_entry->base));
+/* Transition a callsite such that it incorporates a newly record dispatch
+ * program. */
+void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *entry,
+        MVMDispProgram *dp) {
+    /* Ensure that the entry is current (this is re-checked when we actaully
+     * update it, but this ensures we won't dereference a dangling pointer
+     * below). */
+    if (*entry_ptr != entry)
+        return;
+
+    /* Now go by the initial state. */
+    if (entry->run_dispatch == dispatch_initial) {
+        MVMDispInlineCacheEntryMonomorphicDispatch *new_entry = MVM_fixed_size_alloc(tc,
+                tc->instance->fsa, sizeof(MVMDispInlineCacheEntryMonomorphicDispatch));
+        new_entry->base.run_dispatch = dispatch_monomorphic;
+        new_entry->dp = dp;
+        // TODO write-barrier
+        try_update_cache_entry(tc, entry_ptr, &unlinked_dispatch, &(new_entry->base));
+    }
+    else if (entry->run_dispatch == dispatch_monomorphic) {
+        MVM_panic(1, "polymorphic transition NYI");
+    }
+    else {
+        MVM_oops(tc, "unknown transition requested for dispatch inline cache");
+    }
 }
 
 /**
