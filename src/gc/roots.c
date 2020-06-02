@@ -65,7 +65,6 @@ void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
 /* Adds anything that is a root thanks to being referenced by instance,
  * but that isn't permanent. */
 void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
-    MVMSerializationContextBody *current;
     MVMString                  **int_to_str_cache;
     MVMuint32                    i;
 
@@ -102,20 +101,24 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 
     /* okay, so this makes the weak hash slightly less weak.. for certain
      * keys of it anyway... */
-    HASH_ITER_FAST(tc, hash_handle, tc->instance->sc_weakhash, current, {
+    MVMStrHashTable *const weakhash = &tc->instance->sc_weakhash;
+    MVMStrHashIterator iterator = MVM_str_hash_first(tc, weakhash);
+    struct MVMSerializationContextWeakHashEntry *current;
+    while ((current = MVM_str_hash_current(tc, weakhash, iterator))) {
         /* mark the string handle pointer iff it hasn't yet been resolved */
         add_collectable(tc, worklist, snapshot, current->hash_handle.key,
             "SC weakhash hash key");
-        if (!current->sc)
-            add_collectable(tc, worklist, snapshot, current->handle,
+        if (!current->scb->sc)
+            add_collectable(tc, worklist, snapshot, current->scb->handle,
                 "SC weakhash unresolved handle");
-        else if (!current->claimed)
-            add_collectable(tc, worklist, snapshot, current->sc,
+        else if (!current->scb->claimed)
+            add_collectable(tc, worklist, snapshot, current->scb->sc,
                 "SC weakhash unclaimed SC");
-    });
+        iterator = MVM_str_hash_next(tc, weakhash, iterator);
+    }
 
     MVMStrHashTable *const current_lcun = &tc->instance->loaded_compunits;
-    MVMStrHashIterator iterator = MVM_str_hash_first(tc, current_lcun);
+    iterator = MVM_str_hash_first(tc, current_lcun);
     MVMLoadedCompUnitName *lcun;
     while ((lcun = MVM_str_hash_current(tc, current_lcun, iterator))) {
         add_collectable(tc, worklist, snapshot, lcun->hash_handle.key,
