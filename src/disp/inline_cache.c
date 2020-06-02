@@ -47,14 +47,14 @@ static MVMObject * getlexstatic_resolved(MVMThreadContext *tc,
  **/
 
 static void dispatch_initial(MVMThreadContext *tc,
-        MVMDispInlineCacheEntry **entry_ptr, MVMString *id,
-        MVMCallsite *cs, MVMuint16 *arg_indices);
+        MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
+        MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices);
 
 static MVMDispInlineCacheEntry unlinked_dispatch = { .run_dispatch = dispatch_initial };
 
 static void dispatch_initial(MVMThreadContext *tc,
-        MVMDispInlineCacheEntry **entry_ptr, MVMString *id,
-        MVMCallsite *callsite, MVMuint16 *arg_indices) {
+        MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
+        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices) {
     /* Resolve the dispatcher. */
     MVMDispDefinition *disp = MVM_disp_registry_find(tc, id);
 
@@ -71,9 +71,9 @@ static void dispatch_initial(MVMThreadContext *tc,
 }
 
 static void dispatch_monomorphic(MVMThreadContext *tc,
-        MVMDispInlineCacheEntry **entry_ptr, MVMString *id,
-        MVMCallsite *callsite, MVMuint16 *arg_indices) {
-    MVMDispProgram *dp = ((MVMDispInlineCacheEntryMonomorphicDispatch *)*entry_ptr)->dp; // TODO racey
+        MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
+        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices) {
+    MVMDispProgram *dp = ((MVMDispInlineCacheEntryMonomorphicDispatch *)seen)->dp;
     MVMCallStackDispatchRun *record = MVM_callstack_allocate_dispatch_run(tc,
             dp->num_temporaries);
     record->arg_info.callsite = callsite;
