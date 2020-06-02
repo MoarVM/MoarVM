@@ -23,6 +23,8 @@ typedef enum {
     /* Return from a logged callframe to an unlogged one, needed to keep
      * the spesh simulation stack in sync. */
     MVM_SPESH_LOG_RETURN_TO_UNLOGGED,
+    /* Dispatch program resolution result. */
+    MVM_SPESH_LOG_DISPATCH_RESOLUTION,
 } MVMSpeshLogEntryKind;
 
 /* Flags on types. */

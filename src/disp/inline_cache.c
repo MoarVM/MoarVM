@@ -48,13 +48,13 @@ static MVMObject * getlexstatic_resolved(MVMThreadContext *tc,
 
 static void dispatch_initial(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
-        MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices);
+        MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices, MVMuint32 bytecode_offset);
 
 static MVMDispInlineCacheEntry unlinked_dispatch = { .run_dispatch = dispatch_initial };
 
 static void dispatch_initial(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
-        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices) {
+        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
     /* Resolve the dispatcher. */
     MVMDispDefinition *disp = MVM_disp_registry_find(tc, id);
 
@@ -72,7 +72,7 @@ static void dispatch_initial(MVMThreadContext *tc,
 
 static void dispatch_monomorphic(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
-        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices) {
+        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
     MVMDispProgram *dp = ((MVMDispInlineCacheEntryMonomorphicDispatch *)seen)->dp;
     MVMCallStackDispatchRun *record = MVM_callstack_allocate_dispatch_run(tc,
             dp->num_temporaries);
@@ -83,13 +83,17 @@ static void dispatch_monomorphic(MVMThreadContext *tc,
         /* Dispatch program failed. Remove this record and then record a new
          * dispatch program. */
         MVM_callstack_unwind_dispatch_run(tc);
-        dispatch_initial(tc, entry_ptr, seen, id, callsite, arg_indices);
+        dispatch_initial(tc, entry_ptr, seen, id, callsite, arg_indices, bytecode_offset);
+    }
+    else {
+        if (MVM_spesh_log_is_logging(tc))
+            MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, 0);
     }
 }
 
 static void dispatch_polymorphic(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
-        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices) {
+        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
     /* Set up dispatch run record. */
     MVMDispInlineCacheEntryPolymorphicDispatch *disp =
             (MVMDispInlineCacheEntryPolymorphicDispatch *)seen;
@@ -102,13 +106,16 @@ static void dispatch_polymorphic(MVMThreadContext *tc,
     /* Go through the dispatch programs, taking the first one that works. */
     MVMuint32 i;
     for (i = 0; i < disp->num_dps; i++)
-        if (MVM_disp_program_run(tc, disp->dps[i], record))
+        if (MVM_disp_program_run(tc, disp->dps[i], record)) {
+            if (MVM_spesh_log_is_logging(tc))
+                MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, i);
             return;
+        }
 
     /* If we reach here, then no program matched; run the dispatch program
      * for another go at it. */
     MVM_callstack_unwind_dispatch_run(tc);
-    dispatch_initial(tc, entry_ptr, seen, id, callsite, arg_indices);
+    dispatch_initial(tc, entry_ptr, seen, id, callsite, arg_indices, bytecode_offset);
 }
 
 /* Transition a callsite such that it incorporates a newly record dispatch
