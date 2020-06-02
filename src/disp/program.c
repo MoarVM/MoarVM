@@ -212,20 +212,20 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
 
             /* Opcodes that handle invocation results. */
             case MVMDispOpcodeUseArgsTail:
-                fprintf(stderr, "  Skip first %d args of incoming capture\n",
-                        op->use_arg_tail.skip_args);
+                fprintf(stderr, "  Skip first %d args of incoming capture; callsite from %d\n",
+                        op->use_arg_tail.skip_args, op->use_arg_tail.callsite_idx);
                 break;
             case MVMDispOpcodeCopyArgsTail:
-                fprintf(stderr, "  Copy final %d args of incoming capture\n",
-                        op->copy_arg_tail.tail_args);
+                fprintf(stderr, "  Copy final %d args of incoming capture; callsite from %d\n",
+                        op->copy_arg_tail.tail_args, op->copy_arg_tail.callsite_idx);
                 break;
             case MVMDispOpcodeResultBytecode:
-                fprintf(stderr, "  Invoke MVMCode in temporary %d using callsite constant %d\n",
-                        op->res_code.temp_invokee, op->res_code.callsite_idx);
+                fprintf(stderr, "  Invoke MVMCode in temporary %d\n",
+                        op->res_code.temp_invokee);
                 break;
             case MVMDispOpcodeResultCFunction:
-                fprintf(stderr, "  Invoke MVMCFunction in temporary %d using callsite constant %d\n",
-                        op->res_code.temp_invokee, op->res_code.callsite_idx);
+                fprintf(stderr, "  Invoke MVMCFunction in temporary %d\n",
+                        op->res_code.temp_invokee);
                 break;
 
             default:
@@ -872,7 +872,8 @@ static void emit_guards(MVMThreadContext *tc, compile_state *cs,
             MVM_oops(tc, "Unexpected callsite arg type in emit_guards");
     }
 }
-static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *record, compile_state *cs) {
+static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
+        compile_state *cs, MVMuint32 callsite_idx) {
     /* Obtain the path to the capture we'll be invoking with. */
     CapturePath p;
     MVM_VECTOR_INIT(p.path, 8);
@@ -924,6 +925,7 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
         MVMDispProgramOp op;
         op.code = MVMDispOpcodeUseArgsTail;
         op.use_arg_tail.skip_args = initial_callsite->flag_count - untouched_tail_length;
+        op.use_arg_tail.callsite_idx = callsite_idx;
         MVM_VECTOR_PUSH(cs->ops, op);
     }
 
@@ -1004,6 +1006,7 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
         MVMDispProgramOp op;
         op.code = MVMDispOpcodeCopyArgsTail;
         op.copy_arg_tail.tail_args = untouched_tail_length;
+        op.copy_arg_tail.callsite_idx = callsite_idx;
         MVM_VECTOR_PUSH(cs->ops, op);
         cs->args_buffer_temps = outcome_callsite->flag_count;
     }
@@ -1075,13 +1078,12 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
                     ((MVMCapture *)record->rec.outcome_capture)->body.callsite);
 
             /* Produce the args op(s), and then add the dispatch op. */
-            emit_args_ops(tc, record, &cs);
+            emit_args_ops(tc, record, &cs, callsite_idx);
             MVMDispProgramOp op;
             op.code = record->outcome.kind == MVM_DISP_OUTCOME_BYTECODE
                 ? MVMDispOpcodeResultBytecode
                 : MVMDispOpcodeResultCFunction;
             op.res_code.temp_invokee = temp_invokee;
-            op.res_code.callsite_idx = callsite_idx;
             MVM_VECTOR_PUSH(cs.ops, op);
             break;
         }
@@ -1283,19 +1285,33 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
 
             /* Args preparation for invocation result. */
             case MVMDispOpcodeUseArgsTail:
+                invoke_args.callsite = dp->constants[op->use_arg_tail.callsite_idx].cs;
                 invoke_args.source = args->source;
                 invoke_args.map = args->map + op->use_arg_tail.skip_args;
                 break;
+            case MVMDispOpcodeCopyArgsTail: {
+                invoke_args.callsite = dp->constants[op->copy_arg_tail.callsite_idx].cs;
+                invoke_args.source = record->temps + dp->first_args_temporary;
+                invoke_args.map = MVM_args_identity_map(tc, invoke_args.callsite);
+                MVMuint32 to_copy = op->copy_arg_tail.tail_args;
+                if (to_copy > 0) {
+                    MVMuint32 source_idx = invoke_args.callsite->flag_count - to_copy;
+                    MVMuint32 target_idx = dp->first_args_temporary +
+                            (invoke_args.callsite->flag_count - to_copy);
+                    MVMuint32 i;
+                    for (i = 0; i < to_copy; i++)
+                        record->temps[target_idx++] = args->source[args->map[source_idx++]];
+                }
+                break;
+            }
 
             /* Invocation results. */
             case MVMDispOpcodeResultBytecode:
-                invoke_args.callsite = dp->constants[op->res_code.callsite_idx].cs;
                 MVM_frame_dispatch(tc, (MVMCode *)record->temps[op->res_code.temp_invokee].o,
                         invoke_args, -1);
                 break;
             case MVMDispOpcodeResultCFunction: {
                 MVMCFunction *wrapper = (MVMCFunction *)record->temps[op->res_code.temp_invokee].o;
-                invoke_args.callsite = dp->constants[op->res_code.callsite_idx].cs;
                 wrapper->body.func(tc, invoke_args);
                 MVM_callstack_unwind_dispatch_run(tc);
                 break;
