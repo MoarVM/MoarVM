@@ -388,9 +388,30 @@ void MVM_disp_inline_cache_mark(MVMThreadContext *tc, MVMDispInlineCache *cache,
     for (i = 0; i < cache->num_entries; i++) {
         MVMDispInlineCacheEntry *entry = cache->entries[i];
         if (entry) {
-            if (entry->run_getlexstatic == getlexstatic_resolved) {
+            if (entry->run_getlexstatic == getlexstatic_initial) {
+                /* Nothing to mark. */
+            }
+            else if (entry->run_getlexstatic == getlexstatic_resolved) {
                 MVM_gc_worklist_add(tc, worklist,
                         &(((MVMDispInlineCacheEntryResolvedGetLexStatic *)entry)->result));
+            }
+            else if (entry->run_dispatch == dispatch_initial) {
+                /* Nothing to mark. */
+            }
+            else if (entry->run_dispatch == dispatch_monomorphic) {
+                MVMDispInlineCacheEntryMonomorphicDispatch *mono =
+                    (MVMDispInlineCacheEntryMonomorphicDispatch *)entry;
+                MVM_disp_program_mark(tc, mono->dp, worklist);
+            }
+            else if (entry->run_dispatch == dispatch_polymorphic) {
+                MVMDispInlineCacheEntryPolymorphicDispatch *poly =
+                    (MVMDispInlineCacheEntryPolymorphicDispatch *)entry;
+                MVMuint32 i;
+                for (i = 0; i < poly->num_dps; i++)
+                    MVM_disp_program_mark(tc, poly->dps[i], worklist);
+            }
+            else {
+                MVM_panic(1, "Unimplemented case of inline cache GC marking");
             }
         }
     }
