@@ -312,7 +312,8 @@ struct MVMDispProgramOp {
 
 /* Functions called during the recording. */
 void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp,
-        MVMObject *capture, MVMDispInlineCacheEntry **ic_entry_ptr);
+        MVMObject *capture, MVMDispInlineCacheEntry **ic_entry_ptr,
+        MVMDispInlineCacheEntry *ic_entry);
 MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 index);
 void MVM_disp_program_record_guard_type(MVMThreadContext *tc, MVMObject *tracked);
