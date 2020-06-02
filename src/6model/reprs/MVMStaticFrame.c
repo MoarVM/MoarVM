@@ -52,12 +52,17 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     {
         MVMuint16 *local_types = MVM_malloc(sizeof(MVMuint16) * src_body->num_locals);
         MVMuint16 *lexical_types = MVM_malloc(sizeof(MVMuint16) * src_body->num_lexicals);
+        MVMLexicalRegistry **lexical_names_list = MVM_malloc(sizeof(MVMLexicalRegistry *) * src_body->num_lexicals);
         memcpy(local_types, src_body->local_types, sizeof(MVMuint16) * src_body->num_locals);
-        if (src_body->num_lexicals)
+        if (src_body->num_lexicals) {
             memcpy(lexical_types, src_body->lexical_types,
                 sizeof(MVMuint16) * src_body->num_lexicals);
+            memcpy(lexical_names_list, src_body->lexical_names_list,
+                sizeof(MVMLexicalRegistry *) * src_body->num_lexicals);
+        }
         dest_body->local_types = local_types;
         dest_body->lexical_types = lexical_types;
+        dest_body->lexical_names_list = lexical_names_list;
     }
     {
         MVMLexicalRegistry *current;
