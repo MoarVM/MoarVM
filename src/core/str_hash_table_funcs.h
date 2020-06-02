@@ -206,6 +206,51 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nt(MVMThreadContext *tc,
     return NULL;
 }
 
+
+MVM_STATIC_INLINE void *MVM_str_hash_unbind_nt(MVMThreadContext *tc,
+                                               MVMStrHashTable *hashtable,
+                                               MVMString *want) {
+
+    if (MVM_UNLIKELY(hashtable->log2_num_buckets == 0)) {
+        return NULL;
+    }
+
+    MVMHashv hashv = want->body.cached_hash_code;
+    if (!hashv) {
+        MVM_string_compute_hash_code(tc, want);
+        hashv = want->body.cached_hash_code;
+    }
+    MVMHashBktNum bucket_num = MVM_str_hash_bucket(hashv, hashtable->log2_num_buckets);
+    struct MVMStrHashBucket *bucket = hashtable->buckets + bucket_num;
+    struct MVMStrHashHandle *have = bucket->hh_head;
+    struct MVMStrHashHandle *prev = NULL;
+    /* iterate over items in a known bucket to find desired item */
+    while (have) {
+        if (have->key == want
+            || (MVM_string_graphs_nocheck(tc, want) == MVM_string_graphs_nocheck(tc, have->key)
+                && MVM_string_substrings_equal_nocheck(tc, want, 0,
+                                                       MVM_string_graphs_nocheck(tc, want),
+                                                       have->key, 0))) {
+            if (prev) {
+                prev->hh_next = have->hh_next;
+            } else {
+                bucket->hh_head = have->hh_next;
+            }
+
+            --bucket->count;
+            --hashtable->num_items;
+#if HASH_DEBUG_ITER
+            ++hashtable->serial;
+#endif
+
+            return have;
+        }
+        have = have->hh_next;
+    }
+    /* Strange. Not in the hash. */
+    return NULL;
+}
+
 /* This one is private: */
 MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next_bucket(MVMThreadContext *tc,
                                                               MVMStrHashTable *hashtable,
@@ -275,6 +320,20 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch(MVMThreadContext *tc,
         MVM_str_hash_key_throw_invalid(tc, want);
     }
     return MVM_str_hash_fetch_nt(tc, hashtable, want);
+}
+
+/* Because for this stage we're simply rearranging uthash from "inside out" we
+ * must retain its behaviour. This isn't *delete* because the thing in the hash
+ * isn't freed up. So name this "unbind" because it is the inverse of bind, and
+ * return the "thing" that was in the has so that the caller can (still) free
+ * it. */
+MVM_STATIC_INLINE void *MVM_str_hash_unbind(MVMThreadContext *tc,
+                                            MVMStrHashTable *hashtable,
+                                            MVMString *want) {
+    if (!MVM_str_hash_key_is_valid(tc, want)) {
+        MVM_str_hash_key_throw_invalid(tc, want);
+    }
+    return MVM_str_hash_unbind_nt(tc, hashtable, want);
 }
 
 /* Iterators. The plan is that MVMStrHashIterator will become a MVMuint64,

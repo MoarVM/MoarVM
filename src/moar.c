@@ -150,6 +150,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up SC registry mutex. */
     init_mutex(instance->mutex_sc_registry, "sc registry");
+    MVM_str_hash_build(instance->main_thread, &instance->sc_weakhash, sizeof(struct MVMSerializationContextWeakHashEntry));
 
     /* Set up loaded compunits hash mutex. */
     init_mutex(instance->mutex_loaded_compunits, "loaded compunits");
@@ -613,7 +614,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up Hash of all known serialization contexts; all SCs list is in
      * FSA space and so cleaned up with that. */
     uv_mutex_destroy(&instance->mutex_sc_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMSerializationContextBody, instance->sc_weakhash);
+    MVM_str_hash_demolish(instance->main_thread, &instance->sc_weakhash);
 
     /* Clean up Hash of filenames of compunits loaded from disk. */
     uv_mutex_destroy(&instance->mutex_loaded_compunits);

@@ -273,7 +273,6 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
     /* Resolve all the things. */
     pos = rs->sc_seg;
     for (i = 0; i < rs->expected_scs; i++) {
-        MVMSerializationContextBody *scb;
         MVMString *handle;
 
         /* Grab string heap index. */
@@ -301,20 +300,25 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
 
         /* See if we can resolve it. */
         uv_mutex_lock(&tc->instance->mutex_sc_registry);
-        HASH_FIND_VM_STR(tc, hash_handle, tc->instance->sc_weakhash, handle, scb);
-        if (scb && scb->sc) {
+        struct MVMSerializationContextWeakHashEntry *entry
+            = MVM_str_hash_fetch_nt(tc, &tc->instance->sc_weakhash, handle);
+        if (entry && entry->scb->sc) {
             cu_body->scs_to_resolve[i] = NULL;
-            MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->scs[i], scb->sc);
-            scb->claimed = 1;
+            entry->scb->claimed = 1;
+            MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->scs[i], entry->scb->sc);
         }
         else {
-            if (!scb) {
-                scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
+            if (!entry) {
+                entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(struct MVMSerializationContextWeakHashEntry));
+                entry->hash_handle.key = handle;
+
+                MVMSerializationContextBody *scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
+                entry->scb = scb;
                 scb->handle = handle;
-                HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->sc_weakhash, handle, scb);
+                MVM_str_hash_bind_nt(tc, &tc->instance->sc_weakhash, &entry->hash_handle);
                 MVM_sc_add_all_scs_entry(tc, scb);
             }
-            cu_body->scs_to_resolve[i] = scb;
+            cu_body->scs_to_resolve[i] = entry->scb;
             cu_body->scs[i] = NULL;
         }
         uv_mutex_unlock(&tc->instance->mutex_sc_registry);

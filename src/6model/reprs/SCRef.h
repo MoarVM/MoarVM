@@ -38,9 +38,6 @@ struct MVMSerializationContextBody {
      * this is null, it is unresolved. */
     MVMSerializationContext *sc;
 
-    /* Inline handle to the SCs hash (in MVMInstance). */
-    UT_hash_handle hash_handle;
-
     /* SC's index in the all_scs list in instance. */
     MVMuint32 sc_idx;
 
