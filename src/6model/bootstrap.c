@@ -680,6 +680,8 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     meta_objectifier(tc, SpeshLog, "SpeshLog");
     meta_objectifier(tc, StaticFrameSpesh, "StaticFrameSpesh");
     meta_objectifier(tc, SpeshPluginState, "SpeshPluginState");
+    meta_objectifier(tc, boot_types.BOOTCapture, "BOOTCapture");
+    meta_objectifier(tc, boot_types.BOOTTracked, "BOOTTracked");
 
     /* Create the KnowHOWAttribute type. */
     create_KnowHOWAttribute(tc);
