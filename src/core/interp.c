@@ -1397,52 +1397,64 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(captureposarg): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMuint32 idx = (MVMuint32)GET_REG(cur_op, 4).i64;
                 if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
                     MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).o = MVM_args_get_required_pos_obj(tc, cc->body.apc,
-                        (MVMuint32)GET_REG(cur_op, 4).i64);
+                    GET_REG(cur_op, 0).o = MVM_args_get_required_pos_obj(tc, cc->body.apc, idx);
+                }
+                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
+                    GET_REG(cur_op, 0).o = MVM_capture_arg_pos_o(tc, obj, idx);
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc, "captureposarg needs a MVMCallCapture");
+                    MVM_exception_throw_adhoc(tc, "captureposarg needs a MVMCapture");
                 }
                 cur_op += 6;
                 goto NEXT;
             }
             OP(captureposarg_i): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMuint32 idx = (MVMuint32)GET_REG(cur_op, 4).i64;
                 if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
                     MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).i64 = MVM_args_get_required_pos_int(tc, cc->body.apc,
-                        (MVMuint32)GET_REG(cur_op, 4).i64);
+                    GET_REG(cur_op, 0).i64 = MVM_args_get_required_pos_int(tc, cc->body.apc, idx);
+                }
+                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
+                    GET_REG(cur_op, 0).i64 = MVM_capture_arg_pos_i(tc, obj, idx);
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc, "captureposarg_i needs a MVMCallCapture");
+                    MVM_exception_throw_adhoc(tc, "captureposarg_i needs a MVMCapture");
                 }
                 cur_op += 6;
                 goto NEXT;
             }
             OP(captureposarg_n): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMuint32 idx = (MVMuint32)GET_REG(cur_op, 4).i64;
                 if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
                     MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).n64 = MVM_args_get_required_pos_num(tc, cc->body.apc,
-                        (MVMuint32)GET_REG(cur_op, 4).i64);
+                    GET_REG(cur_op, 0).n64 = MVM_args_get_required_pos_num(tc, cc->body.apc, idx);
+                }
+                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
+                    GET_REG(cur_op, 0).n64 = MVM_capture_arg_pos_n(tc, obj, idx);
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc, "captureposarg_n needs a MVMCallCapture");
+                    MVM_exception_throw_adhoc(tc, "captureposarg_n needs a MVMCapture");
                 }
                 cur_op += 6;
                 goto NEXT;
             }
             OP(captureposarg_s): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMuint32 idx = (MVMuint32)GET_REG(cur_op, 4).i64;
                 if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
                     MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).s = MVM_args_get_required_pos_str(tc, cc->body.apc,
-                        (MVMuint32)GET_REG(cur_op, 4).i64);
+                    GET_REG(cur_op, 0).s = MVM_args_get_required_pos_str(tc, cc->body.apc, idx);
+                }
+                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
+                    GET_REG(cur_op, 0).s = MVM_capture_arg_pos_s(tc, obj, idx);
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc, "captureposarg_s needs a MVMCallCapture");
+                    MVM_exception_throw_adhoc(tc, "captureposarg_s needs a MVMCapture");
                 }
                 cur_op += 6;
                 goto NEXT;
