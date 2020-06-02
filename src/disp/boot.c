@@ -15,8 +15,11 @@ static void boot_constant(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMArgProcContext arg_ctx;
     MVM_args_proc_setup(tc, &arg_ctx, arg_info);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
+    MVMRegister value;
+    MVMCallsiteFlags kind;
     MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
-    MVM_disp_program_record_result_constant(tc, MVM_capture_arg_pos_o(tc, capture, 0));
+    MVM_capture_arg_pos(tc, capture, 0, &value, &kind);
+    MVM_disp_program_record_result_constant(tc, kind, value);
     MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
 }
 
