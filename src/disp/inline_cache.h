@@ -34,7 +34,7 @@ typedef MVMObject * MVMDispInlineCacheRunGetLexStatic(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMString *name);
 typedef void MVMDispInlineCacheRunDispatch(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
-        MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices);
+        MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices, MVMuint32 bytecode_offset);
 
 /* The baseline inline cache entry. These always start with a pointer to
  * invoke to reach the handler. */
