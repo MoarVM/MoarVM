@@ -1,6 +1,6 @@
 #include "moar.h"
 
-void try_update_cache_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry **target,
+MVMuint32 try_update_cache_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry **target,
         MVMDispInlineCacheEntry *from, MVMDispInlineCacheEntry *to);
 
 /**
@@ -79,12 +79,48 @@ static void dispatch_monomorphic(MVMThreadContext *tc,
     record->arg_info.callsite = callsite;
     record->arg_info.source = tc->cur_frame->work;
     record->arg_info.map = arg_indices;
-    if (!MVM_disp_program_run(tc, dp, record))
-        MVM_panic(1, "polymorphic dispatch NYI");
+    if (!MVM_disp_program_run(tc, dp, record)) {
+        /* Dispatch program failed. Remove this record and then record a new
+         * dispatch program. */
+        MVM_callstack_unwind_dispatch_run(tc);
+        dispatch_initial(tc, entry_ptr, seen, id, callsite, arg_indices);
+    }
+}
+
+static void dispatch_polymorphic(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
+        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices) {
+    /* Set up dispatch run record. */
+    MVMDispInlineCacheEntryPolymorphicDispatch *disp =
+            (MVMDispInlineCacheEntryPolymorphicDispatch *)seen;
+    MVMCallStackDispatchRun *record = MVM_callstack_allocate_dispatch_run(tc,
+            disp->max_temporaries);
+    record->arg_info.callsite = callsite;
+    record->arg_info.source = tc->cur_frame->work;
+    record->arg_info.map = arg_indices;
+
+    /* Go thorugh the dispatch programs, taking the first one that works. */
+    MVMuint32 i;
+    for (i = 0; i < disp->num_dps; i++)
+        if (MVM_disp_program_run(tc, disp->dps[i], record))
+            return;
+
+    /* If we reach here, then no program matched; run the dispatch program
+     * for another go at it. */
+    MVM_callstack_unwind_dispatch_run(tc);
+    dispatch_initial(tc, entry_ptr, seen, id, callsite, arg_indices);
 }
 
 /* Transition a callsite such that it incorporates a newly record dispatch
  * program. */
+static void set_max_temps(MVMDispInlineCacheEntryPolymorphicDispatch *entry) {
+    MVMuint32 i;
+    MVMuint32 max = 0;
+    for (i = 0; i < entry->num_dps; i++)
+        if (entry->dps[i]->num_temporaries > max)
+            max = entry->dps[i]->num_temporaries;
+    entry->max_temporaries = max;
+}
 void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *entry,
         MVMDispProgram *dp) {
@@ -96,15 +132,46 @@ void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
 
     /* Now go by the initial state. */
     if (entry->run_dispatch == dispatch_initial) {
+        /* Unlinked -> monomorphic transition. */
         MVMDispInlineCacheEntryMonomorphicDispatch *new_entry = MVM_fixed_size_alloc(tc,
                 tc->instance->fsa, sizeof(MVMDispInlineCacheEntryMonomorphicDispatch));
         new_entry->base.run_dispatch = dispatch_monomorphic;
         new_entry->dp = dp;
         // TODO write-barrier
-        try_update_cache_entry(tc, entry_ptr, &unlinked_dispatch, &(new_entry->base));
+        if (!try_update_cache_entry(tc, entry_ptr, &unlinked_dispatch, &(new_entry->base)))
+            MVM_disp_program_destroy(tc, dp);
     }
     else if (entry->run_dispatch == dispatch_monomorphic) {
-        MVM_panic(1, "polymorphic transition NYI");
+        /* Monomorphic -> polymorphic transition. */
+        MVMDispInlineCacheEntryPolymorphicDispatch *new_entry = MVM_fixed_size_alloc(tc,
+                tc->instance->fsa, sizeof(MVMDispInlineCacheEntryPolymorphicDispatch));
+        new_entry->base.run_dispatch = dispatch_polymorphic;
+        new_entry->num_dps = 2;
+        new_entry->dps = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                new_entry->num_dps * sizeof(MVMDispProgram *));
+        new_entry->dps[0] = ((MVMDispInlineCacheEntryMonomorphicDispatch *)entry)->dp;
+        new_entry->dps[1] = dp;
+        set_max_temps(new_entry);
+        // TODO write-barrier
+        if (!try_update_cache_entry(tc, entry_ptr, entry, &(new_entry->base)))
+            MVM_disp_program_destroy(tc, dp);
+    }
+    else if (entry->run_dispatch == dispatch_polymorphic) {
+        /* Polymorphic -> polymorphic transition. */
+        MVMDispInlineCacheEntryPolymorphicDispatch *prev_entry =
+                (MVMDispInlineCacheEntryPolymorphicDispatch *)entry;
+        MVMDispInlineCacheEntryPolymorphicDispatch *new_entry = MVM_fixed_size_alloc(tc,
+                tc->instance->fsa, sizeof(MVMDispInlineCacheEntryPolymorphicDispatch));
+        new_entry->base.run_dispatch = dispatch_polymorphic;
+        new_entry->num_dps = prev_entry->num_dps + 1;
+        new_entry->dps = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                new_entry->num_dps * sizeof(MVMDispProgram *));
+        memcpy(new_entry->dps, prev_entry->dps, prev_entry->num_dps * sizeof(MVMDispProgram *));
+        new_entry->dps[prev_entry->num_dps] = dp;
+        set_max_temps(new_entry);
+        // TODO write-barrier
+        if (!try_update_cache_entry(tc, entry_ptr, entry, &(new_entry->base)))
+            MVM_disp_program_destroy(tc, dp);
     }
     else {
         MVM_oops(tc, "unknown transition requested for dispatch inline cache");
@@ -270,18 +337,30 @@ void cleanup_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry *entry) {
     else if (entry->run_dispatch == dispatch_initial) {
         /* Never free initial dispatch state. */
     }
+    else if (entry->run_dispatch == dispatch_monomorphic) {
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+                sizeof(MVMDispInlineCacheEntryMonomorphicDispatch), entry);
+    }
+    else if (entry->run_dispatch == dispatch_polymorphic) {
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+                sizeof(MVMDispInlineCacheEntryPolymorphicDispatch), entry);
+    }
     else {
         MVM_oops(tc, "Unimplemented cleanup_entry case");
     }
 }
 
 /* Tries to migrate an inline cache entry to its next state. */
-void try_update_cache_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry **target,
+MVMuint32 try_update_cache_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry **target,
         MVMDispInlineCacheEntry *from, MVMDispInlineCacheEntry *to) {
-    if (MVM_trycas(target, from, to))
+    if (MVM_trycas(target, from, to)) {
         cleanup_entry(tc, from);
-    else
+        return 1;
+    }
+    else {
         cleanup_entry(tc, to);
+        return 0;
+    }
 }
 
 /* Given the inline cache entry for a getlexstatic_o instruction, return the

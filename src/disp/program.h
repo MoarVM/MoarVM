@@ -341,3 +341,6 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
 /* Functions to run dispatch programs. */
 MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
         MVMCallStackDispatchRun *disp_run);
+
+/* Memory management of dispatch programs. */
+void MVM_disp_program_destroy(MVMThreadContext *tc, MVMDispProgram *dp);
