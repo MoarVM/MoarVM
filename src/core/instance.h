@@ -130,6 +130,11 @@ struct MVMEventSubscriptions {
     MVMnum64  vm_startup_now;
 };
 
+struct MVMSerializationContextWeakHashEntry {
+    struct MVMStrHashHandle hash_handle;
+    MVMSerializationContextBody *scb;
+};
+
 /* Represents a MoarVM instance. */
 struct MVMInstance {
     /************************************************************************
@@ -257,7 +262,7 @@ struct MVMInstance {
      * simply nulled. That makes it a small memory leak if a lot of
      * SCs are created and go away over time. The mutex protects all
      * the weakhash and all SCs list. */
-    MVMSerializationContextBody  *sc_weakhash;
+    MVMStrHashTable               sc_weakhash;
     MVMSerializationContextBody **all_scs;
     MVMuint32                     all_scs_next_idx;
     MVMuint32                     all_scs_alloc;

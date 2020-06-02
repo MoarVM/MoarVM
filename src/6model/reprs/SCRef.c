@@ -118,9 +118,15 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 
     /* Remove from weakref lookup hash (which doesn't count as a root). */
     uv_mutex_lock(&tc->instance->mutex_sc_registry);
-    HASH_DELETE_PTR(tc, hash_handle, tc->instance->sc_weakhash, sc->body, MVMSerializationContextBody);
+    /* sc->body->handle is only written to by code that has already validated
+     * that handle is a concrete string. */
+    struct MVMSerializationContextWeakHashEntry *entry
+        = MVM_str_hash_unbind_nt(tc, &tc->instance->sc_weakhash, sc->body->handle);
     tc->instance->all_scs[sc->body->sc_idx] = NULL;
     uv_mutex_unlock(&tc->instance->mutex_sc_registry);
+
+    /* Free the hash entry. */
+    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(struct MVMSerializationContextWeakHashEntry), entry);
 
     /* Free manually managed object and STable root list memory. */
     MVM_free(sc->body->root_objects);
