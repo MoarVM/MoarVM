@@ -488,8 +488,7 @@ void MVM_disp_program_record_guard_not_literal_obj(MVMThreadContext *tc,
        MVMObject *tracked, MVMObject *object) {
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
     MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked);
-    // TODO
-    MVM_oops(tc, "not literal object guards NYI");
+    MVM_VECTOR_PUSH(record->rec.values[value_index].not_literal_guards, object);
 }
 
 /* Record that we drop an argument from a capture. Also perform the drop,
