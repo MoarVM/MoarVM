@@ -155,6 +155,11 @@ struct MVMCallStackDispatchRecord {
 
     /* The inline cache entry to transition. */
     MVMDispInlineCacheEntry **ic_entry_ptr;
+
+    /* The initial inline cache record we had prior to dispatch (cannot be
+     * safely obtaiend from ic_entry_ptr, since another thread may have done
+     * a competing transition). */
+    MVMDispInlineCacheEntry *ic_entry;
 };
 
 /* A dispatch record frame is turned into this once the dispatch has already

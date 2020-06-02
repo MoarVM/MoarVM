@@ -267,7 +267,8 @@ static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *recor
     }
 }
 void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp,
-        MVMObject *capture, MVMDispInlineCacheEntry **ic_entry_ptr) {
+        MVMObject *capture, MVMDispInlineCacheEntry **ic_entry_ptr,
+        MVMDispInlineCacheEntry *ic_entry) {
     /* Push a dispatch recording frame onto the callstack; this is how we'll
      * keep track of the current recording state. */
     MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
@@ -277,6 +278,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     MVM_VECTOR_INIT(record->rec.values, 16);
     record->rec.outcome_capture = NULL;
     record->ic_entry_ptr = ic_entry_ptr;
+    record->ic_entry = ic_entry;
     run_dispatch(tc, record, disp, capture, NULL);
 }
 
@@ -1105,7 +1107,7 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
     dump_program(tc, dp);
 
     /* Transition the inline cache to incorporate this dispatch program. */
-    MVM_disp_inline_cache_transition_to_monomorphic(tc, record->ic_entry_ptr, dp);
+    MVM_disp_inline_cache_transition(tc, record->ic_entry_ptr, record->ic_entry, dp);
 }
 
 /* Called when we have finished recording a dispatch program. */
