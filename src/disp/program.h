@@ -185,7 +185,7 @@ struct MVMDispProgram {
 
     /* Ops we execute to evaluate the dispatch program. */
     MVMDispProgramOp *ops;
-    MVMuint32 num_ops; // TODO probably don't need since end is result op
+    MVMuint32 num_ops;
 };
 
 /* Various kinds of constant we use during a dispatch program, to let us keep
