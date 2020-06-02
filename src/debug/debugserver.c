@@ -1434,7 +1434,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
 
         /* Count up total number of symbols; that is, the lexicals plus the
          * debug names where the names to not overlap with the lexicals. */
-        MVMuint64 lexcount = HASH_CNT(hash_handle, lexical_names);
+        MVMuint64 lexcount = static_info->body.num_lexicals;
         HASH_ITER(dtc, hash_handle, debug_locals, debug_entry, {
             MVM_HASH_GET(dtc, lexical_names, debug_entry->name, entry);
             if (!entry)

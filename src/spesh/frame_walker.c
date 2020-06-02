@@ -464,10 +464,8 @@ MVMuint64 MVM_spesh_frame_walker_get_lexical_count(MVMThreadContext *tc, MVMSpes
     MVMFrame *cur_frame;
     MVMStaticFrame *sf;
     MVMuint32 base_index;
-    MVMLexicalRegistry *lexical_names;
     find_lex_info(tc, fw, &cur_frame, &sf, &base_index);
-    lexical_names = sf->body.lexical_names;
-    return lexical_names ? (MVMuint64)HASH_CNT(hash_handle, lexical_names) : 0;
+    return sf->body.num_lexicals;
 }
 
 /* Cleans up the spesh frame walker after use. */

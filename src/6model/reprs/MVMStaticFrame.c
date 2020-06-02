@@ -216,7 +216,7 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
 
         size += sizeof(MVMLexicalRegistry *) * body->num_lexicals;
 
-        size += sizeof(MVMLexicalRegistry) * HASH_CNT(hash_handle, body->lexical_names);
+        size += sizeof(MVMLexicalRegistry) * body->num_lexicals;
 
         size += sizeof(MVMFrameHandler) * body->num_handlers;
 
