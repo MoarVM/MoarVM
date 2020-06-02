@@ -1311,3 +1311,11 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
 rejection:
     return 0;
 }
+
+/* Release memory associated with a dispatch program. */
+void MVM_disp_program_destroy(MVMThreadContext *tc, MVMDispProgram *dp) {
+    MVM_free(dp->constants);
+    MVM_free(dp->gc_constants);
+    MVM_free(dp->ops);
+    MVM_free(dp);
+}
