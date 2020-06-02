@@ -1095,6 +1095,7 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
     MVMDispProgram *dp = MVM_malloc(sizeof(MVMDispProgram));
     dp->constants = cs.constants;
     dp->gc_constants = cs.gc_constants;
+    dp->num_gc_constants = MVM_VECTOR_ELEMS(cs.gc_constants);
     dp->ops = cs.ops;
     dp->num_ops = MVM_VECTOR_ELEMS(cs.ops);
     dp->num_temporaries = MVM_VECTOR_ELEMS(cs.value_temps) + cs.args_buffer_temps;
@@ -1325,6 +1326,13 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
     return 1;
 rejection:
     return 0;
+}
+
+/* GC mark a dispatch program's GC constants. */
+void MVM_disp_program_mark(MVMThreadContext *tc, MVMDispProgram *dp, MVMGCWorklist *worklist) {
+    MVMuint32 i;
+    for (i = 0; i < dp->num_gc_constants; i++)
+        MVM_gc_worklist_add(tc, worklist, &(dp->gc_constants[i]));
 }
 
 /* Release memory associated with a dispatch program. */

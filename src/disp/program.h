@@ -165,12 +165,16 @@ struct MVMDispProgramRecording {
 /* A "compiled" dispatch program, which is what we interpret at a callsite
  * (at least, until specialization, where more exciting things happen). */
 struct MVMDispProgram {
+    /* Non-GC-managed constants used in the dispatch. */
+    MVMDispProgramConstant *constants;
+
     /* GC-managed constants (objects, strings, and STables) used in the
      * dispatch. */
     MVMCollectable **gc_constants;
 
-    /* Non-GC-managed constants used in the dispatch. */
-    MVMDispProgramConstant *constants;
+    /* The number of GC-managed constants (for more efficient marking of
+     * them). */
+    MVMuint32 num_gc_constants;
 
     /* The number of temporaries. Temporaries are used while evaluating
      * the dispatch program, and may also be used as an argument buffer
@@ -184,8 +188,8 @@ struct MVMDispProgram {
     MVMint32 first_args_temporary;
 
     /* Ops we execute to evaluate the dispatch program. */
-    MVMDispProgramOp *ops;
     MVMuint32 num_ops;
+    MVMDispProgramOp *ops;
 };
 
 /* Various kinds of constant we use during a dispatch program, to let us keep
@@ -345,4 +349,5 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
         MVMCallStackDispatchRun *disp_run);
 
 /* Memory management of dispatch programs. */
+void MVM_disp_program_mark(MVMThreadContext *tc, MVMDispProgram *dp, MVMGCWorklist *worklist);
 void MVM_disp_program_destroy(MVMThreadContext *tc, MVMDispProgram *dp);
