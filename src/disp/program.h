@@ -291,11 +291,15 @@ struct MVMDispProgramOp {
             /* The number of args to skip when we use the tail of the incoming
              * capture. */
             MVMuint32 skip_args;
+            /* The callsite index. */
+            MVMuint32 callsite_idx;
         } use_arg_tail;
         struct {
             /* The number of args to copy from the tail of the incoming callsite
              * to the tail of the args temporaries area. */
             MVMuint32 tail_args;
+            /* The callsite index. */
+            MVMuint32 callsite_idx;
         } copy_arg_tail;
         struct {
             /* The temporary holding the result. */
@@ -304,8 +308,6 @@ struct MVMDispProgramOp {
         struct {
             /* The temporary holding the thing to invoke. */
             MVMuint32 temp_invokee;
-            /* The callsite index. */
-            MVMuint32 callsite_idx;
         } res_code;
     };
 };
