@@ -99,7 +99,7 @@ static void dispatch_polymorphic(MVMThreadContext *tc,
     record->arg_info.source = tc->cur_frame->work;
     record->arg_info.map = arg_indices;
 
-    /* Go thorugh the dispatch programs, taking the first one that works. */
+    /* Go through the dispatch programs, taking the first one that works. */
     MVMuint32 i;
     for (i = 0; i < disp->num_dps; i++)
         if (MVM_disp_program_run(tc, disp->dps[i], record))
