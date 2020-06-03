@@ -1014,7 +1014,7 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
     /* If somehow the untouched tail length is *longer*, then we're deeply
      * confused. */
     else {
-        MVM_oops(tc, "Impossible untouhced arg tail length calculated in dispatch program");
+        MVM_oops(tc, "Impossible untouched arg tail length calculated in dispatch program");
     }
 
     /* Cleanup. */
