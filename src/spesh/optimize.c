@@ -3021,6 +3021,36 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_atomicstore_o:
             optimize_container_atomic(tc, g, ins, 0);
             break;
+        case MVM_OP_dispatch_v:
+        case MVM_OP_dispatch_o:
+        case MVM_OP_dispatch_n:
+        case MVM_OP_dispatch_s:
+        case MVM_OP_dispatch_i: {
+            MVMSpeshAnn *ann = ins->annotations;
+            while (ann) {
+                if (ann->type == MVM_SPESH_ANN_CACHED)
+                    break;
+                ann = ann->next;
+            }
+            if (ann) {
+                MVMuint32 i;
+                for (i = 0; i < p->num_type_stats; i++) {
+                    MVMSpeshStatsByType *ts = p->type_stats[i];
+                    MVMuint32 j;
+                    for (j = 0; j < ts->num_by_offset; j++) {
+                        if (ts->by_offset[j].bytecode_offset == ann->data.bytecode_offset) {
+                            if (ts->by_offset[j].num_plugin_guards == 1) {
+                                MVMuint32 index = ts->by_offset[j].plugin_guards[0].guard_index;
+                                MVM_spesh_graph_add_comment(tc, g, ins, "Would like to resolve the dispatch to version %d", index);
+                                return;
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        break;
+        }
         case MVM_OP_sp_guard:
         case MVM_OP_sp_guardconc:
         case MVM_OP_sp_guardtype:
