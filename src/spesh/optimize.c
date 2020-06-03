@@ -1387,8 +1387,8 @@ static void optimize_getcurhllsym(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
         /* `result = MVM_repr_at_key_o(tc, hash, sym)` from MVM_hll_sym_get,
          * but getting the hash entry instead of its value. */
         if (hash && REPR(hash)->ID == MVM_REPR_ID_MVMHash) {
-            MVMHashEntry *entry = NULL;
-            MVM_HASH_GET(tc, ((MVMHashBody *)OBJECT_BODY(hash))->hash_head, sym_facts->value.s, entry);
+            MVMStrHashTable *hashtable = &(((MVMHashBody *)OBJECT_BODY(hash))->hashtable);
+            MVMHashEntry *entry = MVM_str_hash_fetch_nt(tc, hashtable, sym_facts->value.s);
             uv_mutex_unlock(&tc->instance->mutex_hll_syms);
             if (entry) {
                 MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);

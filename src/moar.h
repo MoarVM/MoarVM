@@ -8,7 +8,6 @@
 #define _GNU_SOURCE
 #endif
 
-#include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <setjmp.h>
@@ -109,6 +108,7 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "core/vector.h"
 #include "core/threadcontext.h"
 #include "strings/uthash_types.h"
+#include "core/exceptions.h"
 #include "core/str_hash_table.h"
 #include "core/fixkey_hash_table.h"
 #include "core/instance.h"
@@ -116,7 +116,6 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "core/interp.h"
 #include "core/callsite.h"
 #include "core/args.h"
-#include "core/exceptions.h"
 #include "core/alloc.h"
 #include "core/frame.h"
 #include "core/callstack.h"
@@ -192,6 +191,7 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "strings/iter.h"
 #include "strings/ops.h"
 #include "core/fixedsizealloc.h"
+#include "io/procops.h"
 #include "core/str_hash_table_funcs.h"
 #include "core/fixkey_hash_table_funcs.h"
 #include "6model/containers.h"
@@ -209,7 +209,6 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "io/syncsocket.h"
 #include "io/fileops.h"
 #include "io/dirops.h"
-#include "io/procops.h"
 #include "io/timers.h"
 #include "io/filewatchers.h"
 #include "io/signals.h"

@@ -16,8 +16,8 @@ struct MVMIterBody {
     /* next hash item to give or next array index */
     union {
         struct {
-            MVMHashEntry *curr, *next;
-            unsigned      bucket_state;
+            MVMStrHashIterator curr;
+            MVMStrHashIterator next;
         } hash_state;
         struct {
             MVMint64 index;
@@ -43,19 +43,26 @@ MVM_STATIC_INLINE MVMint64 MVM_iter_istrue_array(MVMThreadContext *tc, MVMIter *
 }
 
 MVM_STATIC_INLINE MVMint64 MVM_iter_istrue_hash(MVMThreadContext *tc, MVMIter *iterator) {
-#if HASH_DEBUG_ITER
     MVMIterBody *body = &iterator->body;
-    MVMObject *target = body->target;
-    if (body->hash_state.next && body->hash_state.next->hash_handle.tbl != ((MVMHash *)target)->body.hash_head->hash_handle.tbl) {
-        MVM_oops(tc, "different hash next %p %p",
-                 body->hash_state.next->hash_handle.tbl,
-                 ((MVMHash *)target)->body.hash_head->hash_handle.tbl);
+    MVMStrHashTable *hashtable = &(((MVMHash *)body->target)->body.hashtable);
+
+#if HASH_DEBUG_ITER
+    if (body->hash_state.curr.owner != hashtable->ht_id) {
+        MVM_oops(tc, "MVM_iter_istruehash called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
+                 body->hash_state.curr.owner, hashtable->ht_id);
     }
-    if (body->hash_state.curr && body->hash_state.curr->hash_handle.tbl != ((MVMHash *)target)->body.hash_head->hash_handle.tbl) {
-        MVM_oops(tc, "different hash curr %p %p",
-                 body->hash_state.curr->hash_handle.tbl,
-                 ((MVMHash *)target)->body.hash_head->hash_handle.tbl);
+    /* OK, to implement "delete at current iterator position" we need
+     * to cheat somewhat. */
+    if (body->hash_state.curr.serial == hashtable->serial - 1
+        && body->hash_state.curr.hi_bucket == hashtable->last_delete_at) {
+        /* The only action taken on the hash was to delete at the
+         * current iterator. In which case, the "next" iterator is
+         * valid (but has already been advanced beyond hi_bucket, so we
+         * can't perform this test on it. So "fix up" its state to pass
+         * muster with the HASH_DEBUG_ITER sanity tests. */
+        body->hash_state.next.serial = hashtable->serial;
     }
 #endif
-    return iterator->body.hash_state.next != NULL ? 1 : 0;
+
+    return MVM_str_hash_at_end(tc, hashtable, body->hash_state.next) ? 0 : 1;
 }

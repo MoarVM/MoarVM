@@ -1948,30 +1948,16 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         cmp_write_map(ctx, slots);
 
         if (IS_CONCRETE(target)) {
-            MVMHashBody *body = (MVMHashBody *)OBJECT_BODY(target);
-            MVMHashEntry *handle = body->hash_head;
-            UT_hash_table *tbl = handle ? body->hash_head->hash_handle.tbl : 0;
+            MVMStrHashTable *hashtable = &(((MVMHashBody *)OBJECT_BODY(target))->hashtable);
 
-            if (tbl) {
-                cmp_write_str(ctx, "mvmhash_num_buckets", 19);
-                cmp_write_int(ctx, tbl->num_buckets);
-                cmp_write_str(ctx, "mvmhash_num_items", 17);
-                cmp_write_int(ctx, tbl->num_items);
-                cmp_write_str(ctx, "mvmhash_nonideal_items", 22);
-                cmp_write_int(ctx, tbl->nonideal_items);
-                cmp_write_str(ctx, "mvmhash_ineff_expands", 21);
-                cmp_write_int(ctx, tbl->ineff_expands);
-            }
-            else {
-                cmp_write_str(ctx, "mvmhash_num_buckets", 19);
-                cmp_write_int(ctx, 0);
-                cmp_write_str(ctx, "mvmhash_num_items", 17);
-                cmp_write_int(ctx, 0);
-                cmp_write_str(ctx, "mvmhash_nonideal_items", 22);
-                cmp_write_int(ctx, 0);
-                cmp_write_str(ctx, "mvmhash_ineff_expands", 21);
-                cmp_write_int(ctx, 0);
-            }
+            cmp_write_str(ctx, "mvmhash_num_buckets", 19);
+            cmp_write_int(ctx, hashtable->num_buckets);
+            cmp_write_str(ctx, "mvmhash_num_items", 17);
+            cmp_write_int(ctx, hashtable->num_items);
+            cmp_write_str(ctx, "mvmhash_nonideal_items", 22);
+            cmp_write_int(ctx, hashtable->nonideal_items);
+            cmp_write_str(ctx, "mvmhash_ineff_expands", 21);
+            cmp_write_int(ctx, hashtable->ineff_expands);
         }
 
         write_object_features(dtc, ctx, 0, 0, 1);
@@ -2255,10 +2241,8 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
     }
 
     if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
-        MVMHashBody *body = (MVMHashBody *)OBJECT_BODY(target);
-        MVMuint64 count = HASH_CNT(hash_handle, body->hash_head);
-
-        MVMHashEntry *entry = NULL;
+        MVMStrHashTable *hashtable = &(((MVMHashBody *)OBJECT_BODY(target))->hashtable);
+        MVMuint64 count = MVM_str_hash_count(dtc, hashtable);
 
         cmp_write_map(ctx, 4);
         cmp_write_str(ctx, "id", 2);
@@ -2272,7 +2256,9 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
         cmp_write_str(ctx, "contents", 8);
         cmp_write_map(ctx, count);
 
-        HASH_ITER(dtc, hash_handle, body->hash_head, entry, {
+        MVMStrHashIterator iterator = MVM_str_hash_first(dtc, hashtable);
+        MVMHashEntry *entry;
+        while ((entry = MVM_str_hash_current(dtc, hashtable, iterator))) {
             char *key = MVM_string_utf8_encode_C_string(dtc, entry->hash_handle.key);
             MVMObject *value = entry->value;
             char *value_debug_name = value ? MVM_6model_get_debug_name(dtc, value) : "VMNull";
@@ -2297,7 +2283,9 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
                 cmp_write_bool(ctx, STABLE(value)->container_spec == NULL ? 0 : 1);
 
             MVM_free(key);
-        });
+
+            iterator = MVM_str_hash_next(dtc, hashtable, iterator);
+        }
     }
 
     return 0;
