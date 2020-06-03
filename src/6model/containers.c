@@ -763,7 +763,9 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
 /* Gets a container configurer from the registry. */
 const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name) {
     MVMContainerRegistry *entry;
+    uv_mutex_lock(&tc->instance->mutex_container_registry);
     MVM_HASH_GET(tc, tc->instance->container_registry, name, entry);
+    uv_mutex_unlock(&tc->instance->mutex_container_registry);
     return entry != NULL ? entry->configurer : NULL;
 }
 
