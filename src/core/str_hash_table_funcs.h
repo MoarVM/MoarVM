@@ -249,6 +249,7 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next_bucket(MVMThreadContext *
             return iterator;
         }
     }
+    /* We are at the end. */
     return iterator;
 }
 
@@ -363,4 +364,21 @@ MVM_STATIC_INLINE void *MVM_str_hash_current(MVMThreadContext *tc,
                                              MVMStrHashTable *hashtable,
                                              MVMStrHashIterator iterator) {
     return iterator.hi_current;
+}
+
+MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_end(MVMThreadContext *tc,
+                                                      MVMStrHashTable *hashtable) {
+    MVMStrHashIterator iterator;
+    iterator.hi_bucket = hashtable->num_buckets;
+    iterator.hi_current = NULL;
+    return iterator;
+}
+
+MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_count(MVMStrHashTable *hashtable) {
+    return hashtable->num_items;
+}
+
+/* If this returns 0, then you have not yet called MVM_str_hash_build */
+MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_entry_size(MVMStrHashTable *hashtable) {
+    return hashtable->entry_size;
 }

@@ -16,8 +16,8 @@ struct MVMIterBody {
     /* next hash item to give or next array index */
     union {
         struct {
-            MVMHashEntry *curr, *next;
-            unsigned      bucket_state;
+            MVMStrHashIterator curr;
+            MVMStrHashIterator next;
         } hash_state;
         struct {
             MVMint64 index;
@@ -43,5 +43,7 @@ MVM_STATIC_INLINE MVMint64 MVM_iter_istrue_array(MVMThreadContext *tc, MVMIter *
 }
 
 MVM_STATIC_INLINE MVMint64 MVM_iter_istrue_hash(MVMThreadContext *tc, MVMIter *iter) {
-    return iter->body.hash_state.next != NULL ? 1 : 0;
+    MVMStrHashTable *hashtable = &(((MVMHash *)iter->body.target)->body.hashtable);
+
+    return MVM_str_hash_at_end(tc, hashtable, iter->body.hash_state.next) ? 0 : 1;
 }

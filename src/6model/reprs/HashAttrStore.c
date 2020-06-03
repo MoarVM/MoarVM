@@ -21,69 +21,88 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMHashAttrStoreBody *src_body  = (MVMHashAttrStoreBody *)src;
     MVMHashAttrStoreBody *dest_body = (MVMHashAttrStoreBody *)dest;
-    MVMHashEntry *current;
 
-    /* NOTE: if we really wanted to, we could avoid rehashing... */
-    HASH_ITER_FAST(tc, hash_handle, src_body->hash_head, current, {
-        MVMHashEntry *new_entry = MVM_malloc(sizeof(MVMHashEntry));
-        MVMString *key = MVM_HASH_KEY(current);
-        MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
-        MVM_HASH_BIND_FREE(tc, dest_body->hash_head, MVM_HASH_KEY(current), new_entry, {
-            MVM_free(new_entry);
-        });
+    MVMStrHashTable *src_hashtable = &(src_body->hashtable);
+    MVMStrHashTable *dest_hashtable = &(dest_body->hashtable);
+    if (MVM_str_hash_entry_size(dest_hashtable)) {
+        // XXX Is this a valid assumption?
+        MVM_oops(tc, "copy_to on MVMHash that is already initialized");
+    }
+    MVM_str_hash_build(tc, dest_hashtable, sizeof(MVMHashEntry));
+    MVMStrHashIterator iterator = MVM_str_hash_first(tc, src_hashtable);
+    MVMHashEntry *entry;
+    while ((entry = MVM_str_hash_current(tc, src_hashtable, iterator))) {
+        MVMHashEntry *new_entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+            sizeof(MVMHashEntry));
+        MVMString *key = entry->hash_handle.key;
+        new_entry->hash_handle.key = key;
+        MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, entry->value);
+        MVM_str_hash_bind_nt(tc, dest_hashtable, &new_entry->hash_handle);
         MVM_gc_write_barrier(tc, &(dest_root->header), &(key->common.header));
-    });
+        iterator = MVM_str_hash_next(tc, src_hashtable, iterator);
+    }
 }
 
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
-    MVMHashEntry *current;
-    MVM_gc_worklist_presize_for(tc, worklist, 2 * HASH_CNT(hash_handle, body->hash_head));
+    MVMStrHashTable *hashtable = &(body->hashtable);
+    MVM_gc_worklist_presize_for(tc, worklist, 2 * MVM_str_hash_count(hashtable));
 
-    HASH_ITER_FAST(tc, hash_handle, body->hash_head, current, {
+    MVMStrHashIterator iterator = MVM_str_hash_first(tc, hashtable);
+    MVMHashEntry *current;
+    while ((current = MVM_str_hash_current(tc, hashtable, iterator))) {
         MVM_gc_worklist_add(tc, worklist, &current->hash_handle.key);
         MVM_gc_worklist_add(tc, worklist, &current->value);
-    });
+        iterator = MVM_str_hash_next(tc, hashtable, iterator);
+    }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMHashAttrStore *h = (MVMHashAttrStore *)obj;
-    MVM_HASH_DESTROY(tc, hash_handle, MVMHashEntry, h->body.hash_head);
+    MVMStrHashTable *hashtable = &(h->body.hashtable);
+
+    MVM_str_hash_demolish(tc, hashtable);
 }
 
 static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint,
         MVMRegister *result_reg, MVMuint16 kind) {
     MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
-    if (MVM_LIKELY(kind == MVM_reg_obj)) {
-        MVMHashEntry *entry;
-        MVM_HASH_GET(tc, body->hash_head, name, entry);
-        result_reg->o = entry != NULL ? entry->value : tc->instance->VMNull;
-    }
-    else {
+    MVMStrHashTable *hashtable = &(body->hashtable);
+
+    if (MVM_UNLIKELY(kind != MVM_reg_obj))
         MVM_exception_throw_adhoc(tc,
             "HashAttrStore representation does not support native attribute storage");
-    }
+
+    MVMHashEntry *entry = MVM_str_hash_fetch(tc, hashtable, name);
+    result_reg->o = entry != NULL ? entry->value : tc->instance->VMNull;
 }
 
 static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint,
         MVMRegister value_reg, MVMuint16 kind) {
     MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
+    MVMStrHashTable *hashtable = &(body->hashtable);
+
+    if (!MVM_str_hash_key_is_valid(tc, name)) {
+        MVM_str_hash_key_throw_invalid(tc, name);
+    }
     if (MVM_UNLIKELY(kind != MVM_reg_obj))
         MVM_exception_throw_adhoc(tc,
             "HashAttrStore representation does not support native attribute storage");
 
-    MVMHashEntry *entry;
-    MVM_HASH_GET(tc, body->hash_head, name, entry);
+    /* first check whether we can must update the old entry. */
+    MVMHashEntry *entry = MVM_str_hash_fetch_nt(tc, hashtable, name);
     if (!entry) {
-        entry = MVM_malloc(sizeof(MVMHashEntry));
-        MVM_HASH_BIND_FREE(tc, body->hash_head, name, entry, {
-            MVM_free(entry);
-        });
+        if (!MVM_str_hash_entry_size(hashtable)) {
+            MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry));
+        }
+        entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMHashEntry));
+        entry->hash_handle.key = name;
         MVM_ASSIGN_REF(tc, &(root->header), entry->value, value_reg.o);
+        MVM_str_hash_bind_nt(tc, hashtable, &entry->hash_handle);
         MVM_gc_write_barrier(tc, &(root->header), &(name->common.header));
     }
     else {
@@ -93,8 +112,8 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 
 static MVMint64 is_attribute_initialized(MVMThreadContext *tc, MVMSTable *st, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint) {
     MVMHashAttrStoreBody *body = (MVMHashAttrStoreBody *)data;
-    MVMHashEntry *entry;
-    MVM_HASH_GET(tc, body->hash_head, name, entry);
+    MVMStrHashTable *hashtable = &(body->hashtable);
+    MVMHashEntry *entry = MVM_str_hash_fetch(tc, hashtable, name);
     return entry != NULL;
 }
 

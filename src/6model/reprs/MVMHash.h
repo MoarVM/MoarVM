@@ -1,16 +1,14 @@
 /* Representation used by VM-level hashes. */
 
 struct MVMHashEntry {
+    /* hash handle inline struct, including the key. */
+    struct MVMStrHashHandle hash_handle;
     /* value object */
     MVMObject *value;
-
-    /* the uthash hash handle inline struct, including the key. */
-    UT_hash_handle hash_handle;
 };
 
 struct MVMHashBody {
-    /* uthash updates this pointer directly. */
-    MVMHashEntry *hash_head;
+    MVMStrHashTable hashtable;
 };
 struct MVMHash {
     MVMObject common;
@@ -44,7 +42,7 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
         } \
     } while (0);
 
-#define MVM_HASH_KEY(entry) ((MVMString *)(entry)->hash_handle.key)
+#define MVM_HASH_KEY(entry) ((entry)->hash_handle.key)
 
 #define MVM_HASH_DESTROY(tc, hash_handle, hashentry_type, head_node) do { \
     hashentry_type *current, *tmp; \

@@ -106,11 +106,10 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
             return;
         case MVM_ITER_MODE_HASH:
             body->hash_state.curr = body->hash_state.next;
-            if (!body->hash_state.curr)
+            MVMStrHashTable *hashtable = &(((MVMHash *)target)->body.hashtable);
+            if (MVM_str_hash_at_end(tc, hashtable, body->hash_state.curr))
                 MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
-            body->hash_state.next = HASH_ITER_NEXT_ITEM(tc,
-                &(body->hash_state.next->hash_handle),
-                &(body->hash_state.bucket_state));
+            body->hash_state.next = MVM_str_hash_next(tc, hashtable, body->hash_state.curr);
             value->o = root;
             return;
         default:
@@ -221,13 +220,10 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
             iterator = (MVMIter *)MVM_repr_alloc_init(tc,
                 MVM_hll_current(tc)->hash_iterator_type);
             iterator->body.mode = MVM_ITER_MODE_HASH;
-            iterator->body.hash_state.bucket_state = 0;
-            iterator->body.hash_state.curr         = NULL;
-            iterator->body.hash_state.next         = HASH_ITER_FIRST_ITEM(
-                ((MVMHash *)target)->body.hash_head
-                    ? ((MVMHash *)target)->body.hash_head->hash_handle.tbl
-                    : NULL,
-                &(iterator->body.hash_state.bucket_state));
+            MVMStrHashTable *hashtable = &(((MVMHash *)target)->body.hashtable);
+            iterator->body.hash_state.curr = MVM_str_hash_end(tc, hashtable);
+            assert(MVM_str_hash_at_end(tc, hashtable, iterator->body.hash_state.curr)); // XXX
+            iterator->body.hash_state.next = MVM_str_hash_first(tc, hashtable);
             MVM_ASSIGN_REF(tc, &(iterator->common.header), iterator->body.target, target);
         }
         else if (REPR(target)->ID == MVM_REPR_ID_MVMContext) {
@@ -263,9 +259,13 @@ MVMString * MVM_iterkey_s(MVMThreadContext *tc, MVMIter *iterator) {
     if (REPR(iterator)->ID != MVM_REPR_ID_MVMIter
             || iterator->body.mode != MVM_ITER_MODE_HASH)
         MVM_exception_throw_adhoc(tc, "This is not a hash iterator, it's a %s (%s)", REPR(iterator)->name, MVM_6model_get_debug_name(tc, (MVMObject *)iterator));
-    if (!iterator->body.hash_state.curr)
+
+    MVMStrHashTable *hashtable = &(((MVMHash *)iterator->body.target)->body.hashtable);
+    if (MVM_str_hash_at_end(tc, hashtable, iterator->body.hash_state.curr))
         MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
-    return MVM_HASH_KEY(iterator->body.hash_state.curr);
+
+    struct MVMHashEntry *entry = MVM_str_hash_current(tc, hashtable, iterator->body.hash_state.curr);
+    return MVM_HASH_KEY(entry);
 }
 
 MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator) {
@@ -282,9 +282,11 @@ MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator) {
         REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &result, MVM_reg_obj);
     }
     else if (iterator->body.mode == MVM_ITER_MODE_HASH) {
-        if (!iterator->body.hash_state.curr)
+        MVMStrHashTable *hashtable = &(((MVMHash *)iterator->body.target)->body.hashtable);
+        if (MVM_str_hash_at_end(tc, hashtable, iterator->body.hash_state.curr))
             MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
-        result.o = iterator->body.hash_state.curr->value;
+        struct MVMHashEntry *entry = MVM_str_hash_current(tc, hashtable, iterator->body.hash_state.curr);
+        result.o = entry->value;
         if (!result.o)
             result.o = tc->instance->VMNull;
     }

@@ -109,3 +109,17 @@ typedef struct {
     struct MVMStrHashHandle *hi_current;
     MVMHashBktNum hi_bucket;
 }  MVMStrHashIterator;
+
+/* So why is this here, instead of _funcs?
+ * Because it is needed in MVM_iter_istrue_hash, which is inline in MVMIter.h
+ * So this definition has to be before that definition.
+ * In turn, various other inline functions in the reprs are used in
+ * str_hash_table_funcs.h, so those declarations have to be seen already, and
+ * as the reprs headers are included as one block, *most* of the MVMStrHashTable
+ * functions need to be later. */
+
+MVM_STATIC_INLINE int MVM_str_hash_at_end(MVMThreadContext *tc,
+                                           MVMStrHashTable *hashtable,
+                                           MVMStrHashIterator iterator) {
+    return iterator.hi_bucket >= hashtable->num_buckets ? 1 : 0;
+}
