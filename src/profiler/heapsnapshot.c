@@ -810,9 +810,7 @@ static void destroy_current_heap_snapshot(MVMThreadContext *tc) {
 
     MVM_free(col->snapshot->collectables);
     MVM_free(col->snapshot->references);
-    MVM_free(col->snapshot);
-
-    col->snapshot = NULL;
+    MVM_free_null(col->snapshot);
 }
 
 /* Frees all memory associated with the heap snapshot. */

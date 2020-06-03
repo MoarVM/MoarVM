@@ -296,11 +296,8 @@ void MVM_io_eventloop_destroy(MVMThreadContext *tc) {
         /* Not sure we can always do this */
         uv_loop_close(instance->event_loop);
        
-        MVM_free(instance->event_loop_wakeup);
-        instance->event_loop_wakeup = NULL;
-        
-        MVM_free(instance->event_loop);
-        instance->event_loop = NULL;
+        MVM_free_null(instance->event_loop_wakeup);
+        MVM_free_null(instance->event_loop);
     }
 
     uv_mutex_unlock(&instance->mutex_event_loop);

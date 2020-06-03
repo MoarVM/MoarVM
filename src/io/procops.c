@@ -236,7 +236,7 @@ static void on_write(uv_write_t *req, int status) {
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
     MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
-    MVM_free(wi->req);
+    MVM_free_null(wi->req);
 }
 
 /* Does setup work for an asynchronous write. */
@@ -288,8 +288,7 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         });
 
         /* Cleanup handle. */
-        MVM_free(wi->req);
-        wi->req = NULL;
+        MVM_free_null(wi->req);
     }
 }
 
@@ -946,8 +945,7 @@ static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data) {
         SpawnInfo *si = (SpawnInfo *)data;
         if (si->cwd) {
-            MVM_free(si->cwd);
-            si->cwd = NULL;
+            MVM_free_null(si->cwd);
         }
         if (si->env) {
             MVMuint32 i;
@@ -959,8 +957,7 @@ static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
             MVMuint32 i = 0;
             while (si->args[i])
                 MVM_free(si->args[i++]);
-            MVM_free(si->args);
-            si->args = NULL;
+            MVM_free_null(si->args);
         }
         MVM_free(si);
     }

@@ -2619,14 +2619,10 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     if (st->being_repossessed) {
         if (st->REPR->gc_free_repr_data)
             st->REPR->gc_free_repr_data(tc, st);
-        MVM_free(st->type_check_cache);
-        st->type_check_cache = NULL;
-        MVM_free(st->boolification_spec);
-        st->boolification_spec = NULL;
-        MVM_free(st->invocation_spec);
-        st->invocation_spec = NULL;
-        MVM_free(st->debug_name);
-        st->debug_name = NULL;
+        MVM_free_null(st->type_check_cache);
+        MVM_free_null(st->boolification_spec);
+        MVM_free_null(st->invocation_spec);
+        MVM_free_null(st->debug_name);
         st->being_repossessed = 0;
     }
 

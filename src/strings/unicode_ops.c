@@ -162,8 +162,7 @@ static void init_stack (MVMThreadContext *tc, collation_stack *stack) {
 }
 static void cleanup_stack (MVMThreadContext *tc, collation_stack *stack) {
     if (stack->keys != NULL) {
-        MVM_free(stack->keys);
-        stack->keys = NULL;
+        MVM_free_null(stack->keys);
     }
 }
 static void push_key_to_stack(collation_stack *stack, MVMuint32 primary, MVMuint32 secondary, MVMuint32 tertiary) {\

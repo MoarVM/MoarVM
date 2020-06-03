@@ -77,8 +77,7 @@ static void read_one_packet(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
     } while(r == -1 && errno == EINTR);
     MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.read_one_packet");
     if (MVM_IS_SOCKET_ERROR(r) || r == 0) {
-        MVM_free(data->last_packet);
-        data->last_packet = NULL;
+        MVM_free_null(data->last_packet);
         if (r != 0)
             throw_error(tc, r, "receive data from socket");
     }
@@ -108,8 +107,7 @@ MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
             *buf = MVM_malloc(bytes);
             memcpy(*buf, data->last_packet + data->last_packet_start, bytes);
             if (bytes == last_remaining) {
-                MVM_free(data->last_packet);
-                data->last_packet = NULL;
+                MVM_free_null(data->last_packet);
             }
             else {
                 data->last_packet_start += bytes;
@@ -141,8 +139,7 @@ MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
         memcpy(*buf + last_available, data->last_packet, bytes - last_available);
         if (bytes == available) {
             /* We used all of the just-read packet. */
-            MVM_free(data->last_packet);
-            data->last_packet = NULL;
+            MVM_free_null(data->last_packet);
         }
         else {
             /* Still something left in the just-read packet for next time. */

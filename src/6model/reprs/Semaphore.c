@@ -28,8 +28,7 @@ static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     int r;
     body->sem = MVM_malloc(sizeof(uv_sem_t));
     if ((r = uv_sem_init(body->sem, (MVMuint32) value)) < 0) {
-        MVM_free(body->sem);
-        body->sem = NULL;
+        MVM_free_null(body->sem);
         MVM_exception_throw_adhoc(tc, "Failed to initialize Semaphore: %s",
             uv_strerror(r));
     }
