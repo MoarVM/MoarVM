@@ -65,6 +65,13 @@ struct MVMStrHashBucket {
 
 struct MVMStrHashTable {
     struct MVMStrHashBucket *buckets;
+#if HASH_DEBUG_ITER
+    MVMuint64 ht_id;
+    MVMuint32 serial;
+    /* This isn't perfect (for the current closed addressing hash), but it is
+     * better than not trying to check. */
+    MVMHashBktNum last_delete_at;
+#endif
     MVMHashBktNum num_buckets;
     MVMHashUInt log2_num_buckets;
     MVMHashNumItems num_items;
@@ -92,10 +99,6 @@ struct MVMStrHashTable {
      * Effectively, if you set this to sizeof(MVMStrHashHandle) you have a set.
      */
     MVMHashUInt entry_size;
-
-#if HASH_DEBUG_ITER
-    MVMuint32 serial;
-#endif
 };
 
 /* *Must* be first in your struct.
@@ -112,8 +115,32 @@ struct MVMStrHashHandle {
 typedef struct {
     struct MVMStrHashHandle *hi_current;
 #if HASH_DEBUG_ITER
-    struct MVMStrHashTable *owner;
+    MVMuint64 owner;
     MVMuint32 serial;
 #endif
     MVMHashBktNum hi_bucket;
 }  MVMStrHashIterator;
+
+/* So why is this here, instead of _funcs?
+ * Because it is needed in MVM_iter_istrue_hash, which is inline in MVMIter.h
+ * So this definition has to be before that definition.
+ * In turn, various other inline functions in the reprs are used in
+ * str_hash_table_funcs.h, so those declarations have to be seen already, and
+ * as the reprs headers are included as one block, *most* of the MVMStrHashTable
+ * functions need to be later. */
+
+MVM_STATIC_INLINE int MVM_str_hash_at_end(MVMThreadContext *tc,
+                                           MVMStrHashTable *hashtable,
+                                           MVMStrHashIterator iterator) {
+#if HASH_DEBUG_ITER
+    if (iterator.owner != hashtable->ht_id) {
+        MVM_oops(tc, "MVM_str_hash_at_end called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
+                 iterator.owner, hashtable->ht_id);
+    }
+    if (iterator.serial != hashtable->serial) {
+        MVM_oops(tc, "MVM_str_hash_at_end called with an iterator with the wrong serial number: %u != %u",
+                 iterator.serial, hashtable->serial);
+    }
+#endif
+    return iterator.hi_bucket >= hashtable->num_buckets ? 1 : 0;
+}

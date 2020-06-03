@@ -1,8 +1,6 @@
 /* Representation used by HashAttrStore. */
 struct MVMHashAttrStoreBody {
-    /* The head of the hash, or null if the hash is empty.
-     * The UT_HASH macros update this pointer directly. */
-    MVMHashEntry *hash_head;
+    MVMStrHashTable hashtable;
 };
 struct MVMHashAttrStore {
     MVMObject common;

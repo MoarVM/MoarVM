@@ -50,7 +50,16 @@ MVM_STATIC_INLINE void MVM_str_hash_build(MVMThreadContext *tc, MVMStrHashTable 
     hashtable->noexpand = 0;
     hashtable->entry_size = entry_size;
 #if HASH_DEBUG_ITER
+    /* Given that we can embed the hashtable structure into other structures
+     * (such as MVMHash) and those enclosing structures can be moved (GC!) we
+     * can't use the address of this structure as its ID for debugging. We
+     * could use the address of the first buckets array that we allocate, but if
+     * we grow, then that memory could well be re-used for another hashtable,
+     * and then we have two hashtables with the same ID, which rather defeats
+     * the need to have (likely to be) unique IDs, to spot iterator leakage. */
+    hashtable->ht_id = 0;
     hashtable->serial = 0;
+    hashtable->last_delete_at = ~0;
 #endif
 }
 
@@ -79,6 +88,9 @@ MVM_STATIC_INLINE void MVM_str_hash_allocate_buckets(MVMThreadContext *tc,
                                                      HASH_INITIAL_NUM_BUCKETS * sizeof(struct MVMStrHashBucket));
     hashtable->num_buckets = HASH_INITIAL_NUM_BUCKETS;
     hashtable->log2_num_buckets = HASH_INITIAL_NUM_BUCKETS_LOG2;
+#if HASH_DEBUG_ITER
+    hashtable->ht_id = MVM_proc_rand_i(tc);
+#endif
 }
 
 MVM_STATIC_INLINE void MVM_str_hash_bind_nt(MVMThreadContext *tc,
@@ -101,6 +113,7 @@ MVM_STATIC_INLINE void MVM_str_hash_bind_nt(MVMThreadContext *tc,
     ++hashtable->num_items;
 #if HASH_DEBUG_ITER
     ++hashtable->serial;
+    hashtable->last_delete_at = ~0;
 #endif
     if (MVM_UNLIKELY(++(bucket->count) >= ((bucket->expand_mult+1) * HASH_BKT_CAPACITY_THRESH)
                      && hashtable->noexpand != 1)) {
@@ -158,6 +171,7 @@ MVM_STATIC_INLINE void *MVM_str_hash_lvalue_fetch_nt(MVMThreadContext *tc,
     ++hashtable->num_items;
 #if HASH_DEBUG_ITER
     ++hashtable->serial;
+    hashtable->last_delete_at = ~0;
 #endif
     if (MVM_UNLIKELY(++(bucket->count) >= ((bucket->expand_mult+1) * HASH_BKT_CAPACITY_THRESH)
                      && hashtable->noexpand != 1)) {
@@ -241,6 +255,7 @@ MVM_STATIC_INLINE void *MVM_str_hash_unbind_nt(MVMThreadContext *tc,
             --hashtable->num_items;
 #if HASH_DEBUG_ITER
             ++hashtable->serial;
+            hashtable->last_delete_at = bucket_num;
 #endif
 
             return have;
@@ -261,6 +276,7 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next_bucket(MVMThreadContext *
             return iterator;
         }
     }
+    /* We are at the end. */
     return iterator;
 }
 
@@ -344,11 +360,19 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next(MVMThreadContext *tc,
                                                        MVMStrHashTable *hashtable,
                                                        MVMStrHashIterator iterator) {
 #if HASH_DEBUG_ITER
-    if (iterator.owner != hashtable) {
-        MVM_oops(tc, "MVM_str_hash_next called with an iterator from a different hash table: %p != %p",
-                 iterator.owner, hashtable);
+    if (iterator.owner != hashtable->ht_id) {
+        MVM_oops(tc, "MVM_str_hash_next called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
+                 iterator.owner, hashtable->ht_id);
     }
-    if (iterator.serial != hashtable->serial) {
+    /* "the usual case" is that the iterator serial number  matches the hash
+     * serial number.
+     * As we permit deletes at the current iterator, we also track whether the
+     * last mutation on the hash was a delete, and if so record where. Hence,
+     * if the hash serial has advanced by one, and the last delete was at this
+     * iterator's current bucket position, that's OK too. */
+    if (!(iterator.serial == hashtable->serial
+          || (iterator.serial == hashtable->serial - 1 &&
+              iterator.hi_bucket == hashtable->last_delete_at))) {
         MVM_oops(tc, "MVM_str_hash_next called with an iterator with the wrong serial number: %u != %u",
                  iterator.serial, hashtable->serial);
     }
@@ -369,7 +393,7 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_first(MVMThreadContext *tc,
     iterator.hi_bucket = 0;
 
 #if HASH_DEBUG_ITER
-    iterator.owner = hashtable;
+    iterator.owner = hashtable->ht_id;
     iterator.serial = hashtable->serial;
 #endif
 
@@ -391,9 +415,9 @@ MVM_STATIC_INLINE void *MVM_str_hash_current(MVMThreadContext *tc,
                                              MVMStrHashTable *hashtable,
                                              MVMStrHashIterator iterator) {
 #if HASH_DEBUG_ITER
-    if (iterator.owner != hashtable) {
-        MVM_oops(tc, "MVM_str_hash_current called with an iterator from a different hash table: %p != %p",
-                 iterator.owner, hashtable);
+    if (iterator.owner != hashtable->ht_id) {
+        MVM_oops(tc, "MVM_str_hash_current called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
+                 iterator.owner, hashtable->ht_id);
     }
     if (iterator.serial != hashtable->serial) {
         MVM_oops(tc, "MVM_str_hash_current called with an iterator with the wrong serial number: %u != %u",
@@ -401,4 +425,27 @@ MVM_STATIC_INLINE void *MVM_str_hash_current(MVMThreadContext *tc,
     }
 #endif
     return iterator.hi_current;
+}
+
+MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_end(MVMThreadContext *tc,
+                                                      MVMStrHashTable *hashtable) {
+    MVMStrHashIterator iterator;
+    iterator.hi_bucket = hashtable->num_buckets;
+    iterator.hi_current = NULL;
+#if HASH_DEBUG_ITER
+    iterator.owner = hashtable->ht_id;
+    iterator.serial = hashtable->serial;
+#endif
+    return iterator;
+}
+
+MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_count(MVMThreadContext *tc,
+                                                     MVMStrHashTable *hashtable) {
+    return hashtable->num_items;
+}
+
+/* If this returns 0, then you have not yet called MVM_str_hash_build */
+MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_entry_size(MVMThreadContext *tc,
+                                                          MVMStrHashTable *hashtable) {
+    return hashtable->entry_size;
 }
