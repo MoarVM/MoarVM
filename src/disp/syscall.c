@@ -78,8 +78,7 @@ static MVMDispSysCall dispatcher_track_attr = {
     .max_args = 3,
     .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_STR },
     .expected_reprs = { MVM_REPR_ID_MVMTracked, 0, 0 },
-    .expected_concrete = { 1, 0, 0 },
-    .hash_handle = EMPTY_HASH_HANDLE
+    .expected_concrete = { 1, 0, 0 }
 };
 
 /* dispatcher-drop-arg */
