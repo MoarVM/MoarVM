@@ -100,7 +100,14 @@ struct MVMDispProgramRecordingValue {
             MVMRegister value;
             MVMCallsiteFlags kind;
         } literal;
-        // TODO struct { } attribute;
+        struct {
+            /* The value that we'll read from. */
+            MVMuint32 from_value;
+            /* The offset of that object we'll read from. */
+            MVMuint32 offset;
+            /* The kind of value we'll read. */
+            MVMCallsiteFlags kind;
+        } attribute;
     };
 
     /* The tracking object, if any. */
@@ -322,6 +329,8 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
         MVMDispInlineCacheEntry *ic_entry, MVMStaticFrame *update_sf);
 MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 index);
+MVMObject * MVM_disp_program_record_track_attr(MVMThreadContext *tc, MVMObject *tracked,
+        MVMObject *class_handle, MVMString *name);
 void MVM_disp_program_record_guard_type(MVMThreadContext *tc, MVMObject *tracked);
 void MVM_disp_program_record_guard_concreteness(MVMThreadContext *tc, MVMObject *tracked);
 void MVM_disp_program_record_guard_literal(MVMThreadContext *tc, MVMObject *tracked);

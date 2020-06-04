@@ -2111,6 +2111,31 @@ size_t MVM_p6opaque_attr_offset(MVMThreadContext *tc, MVMObject *type,
     return repr_data->attribute_offsets[slot];
 }
 
+/* Get the pointer offset of an attribute along with the kind of arg type it
+ * is. Only valid on attribute types that can be passed as arguments. */
+void MVM_p6opaque_attr_offset_and_arg_type(MVMThreadContext *tc, MVMObject *type,
+        MVMObject *class_handle, MVMString *name, size_t *offset_out, MVMCallsiteFlags *type_out) {
+    MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)type->st->REPR_data;
+    size_t slot = try_get_slot(tc, repr_data, class_handle, name);
+    *offset_out = repr_data->attribute_offsets[slot];
+    MVMSTable *flattened = repr_data->flattened_stables[slot];
+    if (flattened == NULL) {
+        *type_out = MVM_CALLSITE_ARG_OBJ;
+    }
+    else if (flattened->REPR->ID == MVM_REPR_ID_P6int) {
+        *type_out = MVM_CALLSITE_ARG_INT;
+    }
+    else if (flattened->REPR->ID == MVM_REPR_ID_P6num) {
+        *type_out = MVM_CALLSITE_ARG_NUM;
+    }
+    else if (flattened->REPR->ID == MVM_REPR_ID_P6str) {
+        *type_out = MVM_CALLSITE_ARG_STR;
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "Cannot use this kind of attribute like an argument");
+    }
+}
+
 /* Find the offset into the object of a bigint attribute. */
 MVMuint16 MVM_p6opaque_get_bigint_offset(MVMThreadContext *tc, MVMSTable *st) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;

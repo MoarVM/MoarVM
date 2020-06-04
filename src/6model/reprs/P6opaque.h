@@ -120,9 +120,21 @@ MVM_STATIC_INLINE MVMint64 MVM_p6opaque_read_int64(MVMThreadContext *tc,
     char *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
     return *((MVMint64 *)(data + offset));
 }
+MVM_STATIC_INLINE MVMnum64 MVM_p6opaque_read_num64(MVMThreadContext *tc,
+                                                   MVMObject *o, size_t offset) {
+    char *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+    return *((MVMnum64 *)(data + offset));
+}
+MVM_STATIC_INLINE MVMString * MVM_p6opaque_read_str(MVMThreadContext *tc,
+                                                    MVMObject *o, size_t offset) {
+    char *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+    return *((MVMString **)(data + offset));
+}
 
 size_t MVM_p6opaque_attr_offset(MVMThreadContext *tc, MVMObject *type,
     MVMObject *class_handle, MVMString *name);
+void MVM_p6opaque_attr_offset_and_arg_type(MVMThreadContext *tc, MVMObject *type,
+    MVMObject *class_handle, MVMString *name, size_t *offset_out, MVMCallsiteFlags *type_out);
 MVMuint16 MVM_p6opaque_get_bigint_offset(MVMThreadContext *tc, MVMSTable *st);
 MVMuint32 MVM_p6opaque_offset_to_attr_idx(MVMThreadContext *tc, MVMObject *type, size_t offset);
 void MVM_P6opaque_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind);
