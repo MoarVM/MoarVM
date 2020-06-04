@@ -572,25 +572,29 @@ void MVM_dump_bytecode_staticframe(MVMThreadContext *tc, MVMStaticFrame *frame) 
 }
 
 void MVM_dump_bytecode(MVMThreadContext *tc) {
-    MVMStaticFrame *sf = tc->cur_frame->static_info;
-    MVMuint8 *effective_bytecode = MVM_frame_effective_bytecode(tc->cur_frame);
-    if (effective_bytecode == sf->body.bytecode) {
-        MVM_dump_bytecode_of(tc, tc->cur_frame, NULL);
-    } else {
-        MVM_dump_bytecode_of(tc, tc->cur_frame, tc->cur_frame->spesh_cand);
-        /*MVMint32 spesh_cand_idx;*/
-        /*MVMuint8 found = 0;*/
-        /*for (spesh_cand_idx = 0; spesh_cand_idx < sf->body.num_spesh_candidates; spesh_cand_idx++) {*/
+    if (tc->cur_frame != NULL) {
+        MVMStaticFrame *sf = tc->cur_frame->static_info;
+        MVMuint8 *effective_bytecode = MVM_frame_effective_bytecode(tc->cur_frame);
+        if (effective_bytecode == sf->body.bytecode) {
+            MVM_dump_bytecode_of(tc, tc->cur_frame, NULL);
+        } else {
+            MVM_dump_bytecode_of(tc, tc->cur_frame, tc->cur_frame->spesh_cand);
+            /*MVMint32 spesh_cand_idx;*/
+            /*MVMuint8 found = 0;*/
+            /*for (spesh_cand_idx = 0; spesh_cand_idx < sf->body.num_spesh_candidates; spesh_cand_idx++) {*/
             /*MVMSpeshCandidate *cand = sf->body.spesh_candidates[spesh_cand_idx];*/
             /*if (cand->body.bytecode == effective_bytecode) {*/
                 /*MVM_dump_bytecode_of(tc, tc->cur_frame, cand);*/
                 /*found = 1;*/
             /*}*/
-        /*}*/
-        /*if (!found) {*/
+            /*if (!found) {*/
             /* It's likely the MAGIC_BYTECODE from the jit?
              * in that case we just grab tc->cur_frame->spesh_cand apparently */
-        /*}*/
+            /*}*/
+        }
+    }
+    else {
+        fprintf(stderr, "threadcontext has no frame (spesh worker or debug server thread?)\n");
     }
 }
 
