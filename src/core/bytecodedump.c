@@ -100,6 +100,11 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
     char mark_this_line = 0;
     MVMCompUnit *cu = static_frame->body.cu;
 
+    /* For handling var-arg ops like the dispatch ops */
+    MVMOpInfo temporary_op_info;
+
+    memset(&temporary_op_info, 0, sizeof(MVMOpInfo));
+
     while (cur_op < bytecode_end - 1) {
 
         /* allocate a line buffer */
@@ -158,6 +163,47 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
                 a("Extension op %d out of range", (int)op_num);
                 op_info = NULL;
             }
+        }
+        if (MVM_op_get_mark(op_num)[1] == 'd') {
+            /* These are var-arg ops; grab callsite and synthesize op info */
+            /* TODO this wants factoring out into a common function */
+            MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 4 + (op_num == MVM_OP_dispatch_v ? 0 : 2))];
+            MVMuint16 operand_index;
+            MVMuint16 flag_index;
+
+            fprintf(stderr, "this callsite (%d) has %d args\n", GET_UI16(cur_op, 4 + (op_num == MVM_OP_dispatch_v ? 0 : 2)), callsite->flag_count);
+            fprintf(stderr, "this op has %d args\n", op_info->num_operands);
+
+            operand_index = op_num == MVM_OP_dispatch_v ? 2 : 3;
+
+            memcpy(&temporary_op_info, op_info, sizeof(MVMOpInfo));
+            temporary_op_info.num_operands += callsite->flag_count;
+
+            for (flag_index = 0; operand_index < callsite->flag_count + op_info->num_operands; operand_index++, flag_index++) {
+                MVMCallsiteFlags flag = callsite->arg_flags[flag_index];
+                if (flag & MVM_CALLSITE_ARG_OBJ) {
+                    temporary_op_info.operands[operand_index] = MVM_operand_obj;
+                }
+                else if (flag & MVM_CALLSITE_ARG_INT) {
+                    temporary_op_info.operands[operand_index] = MVM_operand_int64;
+                }
+                else if (flag & MVM_CALLSITE_ARG_NUM) {
+                    temporary_op_info.operands[operand_index] = MVM_operand_num64;
+                }
+                else if (flag & MVM_CALLSITE_ARG_STR) {
+                    temporary_op_info.operands[operand_index] = MVM_operand_str;
+                }
+                temporary_op_info.operands[operand_index] |= MVM_operand_read_reg;
+                fprintf(stderr, "(%d) %2x -> %4x ", operand_index, flag, temporary_op_info.operands[operand_index]);
+            }
+            fprintf(stderr, "\n");
+
+            for (operand_index = 0; operand_index < temporary_op_info.num_operands; operand_index++) {
+                fprintf(stderr, "%4x ", temporary_op_info.operands[operand_index]);
+            }
+            fprintf(stderr, "\n");
+
+            op_info = &temporary_op_info;
         }
 
         if (!op_info)
