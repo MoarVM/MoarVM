@@ -67,7 +67,8 @@ static void dispatch_initial(MVMThreadContext *tc,
     MVMObject *capture = MVM_capture_from_args(tc, capture_arg_info);
 
     /* Run the dispatcher. */
-    MVM_disp_program_run_dispatch(tc, disp, capture, entry_ptr, seen);
+    MVM_disp_program_run_dispatch(tc, disp, capture, entry_ptr, seen,
+            tc->cur_frame->static_info);
 }
 
 static void dispatch_monomorphic(MVMThreadContext *tc,
@@ -128,9 +129,15 @@ static void set_max_temps(MVMDispInlineCacheEntryPolymorphicDispatch *entry) {
             max = entry->dps[i]->num_temporaries;
     entry->max_temporaries = max;
 }
+static void gc_barrier_program(MVMThreadContext *tc, MVMStaticFrame *root,
+        MVMDispProgram *dp) {
+    MVMuint32 i;
+    for (i = 0; i < dp->num_gc_constants; i++)
+        MVM_gc_write_barrier(tc, (MVMCollectable *)root, dp->gc_constants[i]);
+}
 void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *entry,
-        MVMDispProgram *dp) {
+        MVMStaticFrame *root, MVMDispProgram *dp) {
     /* Ensure that the entry is current (this is re-checked when we actaully
      * update it, but this ensures we won't dereference a dangling pointer
      * below). */
@@ -144,7 +151,7 @@ void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
                 tc->instance->fsa, sizeof(MVMDispInlineCacheEntryMonomorphicDispatch));
         new_entry->base.run_dispatch = dispatch_monomorphic;
         new_entry->dp = dp;
-        // TODO write-barrier
+        gc_barrier_program(tc, root, dp);
         if (!try_update_cache_entry(tc, entry_ptr, &unlinked_dispatch, &(new_entry->base)))
             MVM_disp_program_destroy(tc, dp);
     }
@@ -159,7 +166,7 @@ void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         new_entry->dps[0] = ((MVMDispInlineCacheEntryMonomorphicDispatch *)entry)->dp;
         new_entry->dps[1] = dp;
         set_max_temps(new_entry);
-        // TODO write-barrier
+        gc_barrier_program(tc, root, dp);
         if (!try_update_cache_entry(tc, entry_ptr, entry, &(new_entry->base)))
             MVM_disp_program_destroy(tc, dp);
     }
@@ -176,7 +183,7 @@ void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         memcpy(new_entry->dps, prev_entry->dps, prev_entry->num_dps * sizeof(MVMDispProgram *));
         new_entry->dps[prev_entry->num_dps] = dp;
         set_max_temps(new_entry);
-        // TODO write-barrier
+        gc_barrier_program(tc, root, dp);
         if (!try_update_cache_entry(tc, entry_ptr, entry, &(new_entry->base)))
             MVM_disp_program_destroy(tc, dp);
     }
