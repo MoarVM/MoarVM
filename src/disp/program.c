@@ -188,6 +188,22 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                 fprintf(stderr, "  Load number constant at index %d into temporary %d\n",
                         op->load.idx, op->load.temp);
                 break;
+            case MVMDispOpcodeLoadAttributeObj:
+                fprintf(stderr, "  Deference object attribute at offset %d in temporary %d\n",
+                        op->load.idx, op->load.temp);
+                break;
+            case MVMDispOpcodeLoadAttributeInt:
+                fprintf(stderr, "  Deference integer attribute at offset %d in temporary %d\n",
+                        op->load.idx, op->load.temp);
+                break;
+            case MVMDispOpcodeLoadAttributeNum:
+                fprintf(stderr, "  Deference number attribute at offset %d in temporary %d\n",
+                        op->load.idx, op->load.temp);
+                break;
+            case MVMDispOpcodeLoadAttributeStr:
+                fprintf(stderr, "  Deference string attribute at offset %d in temporary %d\n",
+                        op->load.idx, op->load.temp);
+                break;
             case MVMDispOpcodeSet:
                 fprintf(stderr, "  Copy temporary %d into temporary %d\n",
                         op->load.idx, op->load.temp);
@@ -853,13 +869,44 @@ static MVMuint32 get_temp_holding_value(MVMThreadContext *tc, compile_state *cs,
                     MVM_oops(tc, "Unhandled kind of literal value in recorded dispatch");
             }
             break;
+        case MVMDispProgramRecordingAttributeValue: {
+            /* We first need to make sure that we load the dependent value (we
+             * surely will have due to it needing to be guarded). */
+            MVMuint32 from_temp = get_temp_holding_value(tc, cs, v->attribute.from_value);
+
+            /* Reading an attribute happens in two steps. First we copy the from
+             * value into the target temporary. */
+            op.code = MVMDispOpcodeSet;
+            op.load.idx = from_temp;
+            MVM_VECTOR_PUSH(cs->ops, op);
+
+            /* Then we do the attribute access. */
+            switch (v->attribute.kind) {
+                case MVM_CALLSITE_ARG_OBJ:
+                    op.code = MVMDispOpcodeLoadAttributeObj;
+                    break;
+                case MVM_CALLSITE_ARG_STR:
+                    op.code = MVMDispOpcodeLoadAttributeStr;
+                    break;
+                case MVM_CALLSITE_ARG_INT:
+                    op.code = MVMDispOpcodeLoadAttributeInt;
+                    break;
+                case MVM_CALLSITE_ARG_NUM:
+                    op.code = MVMDispOpcodeLoadAttributeNum;
+                    break;
+                default:
+                    MVM_oops(tc, "Unhandled kind of literal value in recorded dispatch");
+            }
+            op.load.idx = v->attribute.offset;
+            break;
+        }
         default:
             MVM_oops(tc, "Did not yet implement temporary loading for this value source");
     }
     MVM_VECTOR_PUSH(cs->ops, op);
     return op.load.temp;
 }
-static void emit_guards(MVMThreadContext *tc, compile_state *cs,
+static void emit_capture_guards(MVMThreadContext *tc, compile_state *cs,
         MVMDispProgramRecordingValue *v) {
     /* Fetch the callsite entry flags. In the easiest possible case, it's a
      * non-object constant, so no guards. In theory, we can do better at
@@ -956,6 +1003,12 @@ static void emit_guards(MVMThreadContext *tc, compile_state *cs,
         default:
             MVM_oops(tc, "Unexpected callsite arg type in emit_guards");
     }
+}
+static void emit_attribute_guards(MVMThreadContext *tc, compile_state *cs,
+        MVMDispProgramRecordingValue *v) {
+    if (v->guard_literal || v->guard_type || v->guard_concreteness ||
+            MVM_VECTOR_ELEMS(v->not_literal_guards))
+        MVM_oops(tc, "Guarding of attributes NYI");
 }
 static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         compile_state *cs, MVMuint32 callsite_idx) {
@@ -1122,7 +1175,10 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
     for (i = 0; i < MVM_VECTOR_ELEMS(record->rec.values); i++) {
         MVMDispProgramRecordingValue *v = &(record->rec.values[i]);
         if (v->source == MVMDispProgramRecordingCaptureValue) {
-            emit_guards(tc, &cs, v);
+            emit_capture_guards(tc, &cs, v);
+        }
+        else if (v->source == MVMDispProgramRecordingAttributeValue) {
+            emit_attribute_guards(tc, &cs, v);
         }
     }
 
