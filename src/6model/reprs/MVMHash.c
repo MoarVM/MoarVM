@@ -77,11 +77,12 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 
 static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister *result, MVMuint16 kind) {
     MVMHashBody   *body = (MVMHashBody *)data;
-    MVMHashEntry *entry = NULL;
     /* key_obj checked in MVM_HASH_GET */
-    MVM_HASH_GET(tc, body->hash_head, (MVMString *)key_obj, entry);
-    if (MVM_LIKELY(kind == MVM_reg_obj))
+    if (MVM_LIKELY(kind == MVM_reg_obj)) {
+        MVMHashEntry *entry;
+        MVM_HASH_GET(tc, body->hash_head, (MVMString *)key_obj, entry);
         result->o = entry != NULL ? entry->value : tc->instance->VMNull;
+    }
     else
         MVM_exception_throw_adhoc(tc,
             "MVMHash representation does not support native type storage");
@@ -92,7 +93,6 @@ void MVMHash_at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 
 static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister value, MVMuint16 kind) {
     MVMHashBody   *body = (MVMHashBody *)data;
-    MVMHashEntry *entry = NULL;
 
     MVMString *key = (MVMString *)key_obj; /* Checked in MVM_HASH_GET. */
     if (MVM_UNLIKELY(kind != MVM_reg_obj))
@@ -100,6 +100,7 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
             "MVMHash representation does not support native type storage");
 
     /* first check whether we can must update the old entry. */
+    MVMHashEntry *entry;
     MVM_HASH_GET(tc, body->hash_head, key, entry);
     if (!entry) {
         entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
