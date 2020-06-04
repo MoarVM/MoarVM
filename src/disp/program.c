@@ -1396,6 +1396,22 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
             case MVMDispOpcodeLoadConstantNum:
                 record->temps[op->load.temp].n64 = dp->constants[op->load.idx].n64;
                 break;
+            case MVMDispOpcodeLoadAttributeObj:
+                record->temps[op->load.temp].o = MVM_p6opaque_read_object(tc,
+                        record->temps[op->load.temp].o, op->load.idx);
+                break;
+            case MVMDispOpcodeLoadAttributeInt:
+                record->temps[op->load.temp].i64 = MVM_p6opaque_read_int64(tc,
+                        record->temps[op->load.temp].o, op->load.idx);
+                break;
+            case MVMDispOpcodeLoadAttributeNum:
+                record->temps[op->load.temp].n64 = MVM_p6opaque_read_num64(tc,
+                        record->temps[op->load.temp].o, op->load.idx);
+                break;
+            case MVMDispOpcodeLoadAttributeStr:
+                record->temps[op->load.temp].s = MVM_p6opaque_read_str(tc,
+                        record->temps[op->load.temp].o, op->load.idx);
+                break;
             case MVMDispOpcodeSet:
                 record->temps[op->load.temp] = record->temps[op->load.idx];
                 break;
