@@ -185,7 +185,7 @@ struct MVMDispProgram {
      * argument buffer. These live long enough that we need to mark
      * them using the callsite. Equals num_temporaries if there aren't
      * any. */
-    MVMint32 first_args_temporary;
+    MVMuint32 first_args_temporary;
 
     /* Ops we execute to evaluate the dispatch program. */
     MVMuint32 num_ops;
@@ -352,6 +352,8 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
 void MVM_disp_program_mark(MVMThreadContext *tc, MVMDispProgram *dp, MVMGCWorklist *worklist);
 void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecording *rec,
         MVMGCWorklist *worklist);
+void MVM_disp_program_mark_run_temps(MVMThreadContext *tc, MVMDispProgram *dp,
+        MVMCallsite *cs, MVMRegister *temps, MVMGCWorklist *worklist);
 void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *outcome,
         MVMGCWorklist *worklist);
 void MVM_disp_program_destroy(MVMThreadContext *tc, MVMDispProgram *dp);

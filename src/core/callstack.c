@@ -369,6 +369,14 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                         "Dispatch recording static frame root");
                 break;
             }
+            case MVM_CALLSTACK_RECORD_DISPATCH_RUN: {
+                MVMCallStackDispatchRun *disp_run = (MVMCallStackDispatchRun *)record;
+                MVM_disp_program_mark_run_temps(tc, disp_run->chosen_dp,
+                        disp_run->outcome.args.callsite, disp_run->temps,
+                        worklist);
+                MVM_disp_program_mark_outcome(tc, &(disp_run->outcome), worklist);
+                break;
+            }
             default:
                 MVM_panic(1, "Unknown call stack record type in GC marking");
         }
