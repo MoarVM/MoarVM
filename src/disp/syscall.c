@@ -60,6 +60,28 @@ static MVMDispSysCall dispatcher_track_arg = {
     .expected_concrete = { 1, 1 }
 };
 
+/* dispatcher-track-attr */
+static void dispatcher_track_attr_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *tracked_in = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMObject *class_handle = MVM_args_get_required_pos_obj(tc, &arg_ctx, 1);
+    MVMString *name = MVM_args_get_required_pos_str(tc, &arg_ctx, 2);
+    MVMObject *tracked_out = MVM_disp_program_record_track_attr(tc, tracked_in,
+            class_handle, name);
+    MVM_args_set_result_obj(tc, tracked_out, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_track_attr = {
+    .c_name = "dispatcher-track-attr",
+    .implementation = dispatcher_track_attr_impl,
+    .min_args = 3,
+    .max_args = 3,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_STR },
+    .expected_reprs = { MVM_REPR_ID_MVMTracked, 0, 0 },
+    .expected_concrete = { 1, 0, 0 },
+    .hash_handle = EMPTY_HASH_HANDLE
+};
+
 /* dispatcher-drop-arg */
 static void dispatcher_drop_arg_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMArgProcContext arg_ctx;
@@ -235,6 +257,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_register);
     add_to_hash(tc, &dispatcher_delegate);
     add_to_hash(tc, &dispatcher_track_arg);
+    add_to_hash(tc, &dispatcher_track_attr);
     add_to_hash(tc, &dispatcher_drop_arg);
     add_to_hash(tc, &dispatcher_insert_arg);
     add_to_hash(tc, &dispatcher_insert_arg_literal_obj);
