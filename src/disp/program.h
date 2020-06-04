@@ -236,6 +236,33 @@ typedef enum {
     /* Guard that the type of an incoming argument is not an unexpected
      * literal. */
     MVMDispOpcodeGuardArgNotLiteralObj,
+    /* Guard that the type of a temporary is as expected. */
+    MVMDispOpcodeGuardTempType,
+    /* Guard that the type of a temporary is as expected and also
+     * we have a concrete object. */
+    MVMDispOpcodeGuardTempTypeConc,
+    /* Guard that the type of a temporary is as expected and also
+     * we have a type object. */
+    MVMDispOpcodeGuardTempTypeTypeObject,
+    /* Guard that the incoming argument is concrete. */
+    MVMDispOpcodeGuardTempConc,
+    /* Guard that the incoming argument is a type object. */
+    MVMDispOpcodeGuardTempTypeObject,
+    /* Guard that the type of a temporary is an expected object
+     * literal. */
+    MVMDispOpcodeGuardTempLiteralObj,
+    /* Guard that the type of a temporary is an expected string
+     * literal. */
+    MVMDispOpcodeGuardTempLiteralStr,
+    /* Guard that the type of a temporary is an expected int
+     * literal. */
+    MVMDispOpcodeGuardTempLiteralInt,
+    /* Guard that the type of a temporary is an expected num
+     * literal. */
+    MVMDispOpcodeGuardTempLiteralNum,
+    /* Guard that the type of a temporary is not an unexpected
+     * literal. */
+    MVMDispOpcodeGuardTempNotLiteralObj,
     /* Load a capture value into a temporary. */
     MVMDispOpcodeLoadCaptureValue,
     /* Load a constant object or string into a temporary. */
@@ -299,6 +326,13 @@ struct MVMDispProgramOp {
              * tables). */
             MVMuint32 checkee;
         } arg_guard;
+        struct {
+            /* The temporary to guard. */
+            MVMuint32 temp;
+            /* The thing to check it against (looked up in one of the constant
+             * tables). */
+            MVMuint32 checkee;
+        } temp_guard;
         struct {
             /* The temporary to load into. */
             MVMuint32 temp;
