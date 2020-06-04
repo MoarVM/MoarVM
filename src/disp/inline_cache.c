@@ -87,6 +87,7 @@ static void dispatch_monomorphic(MVMThreadContext *tc,
         dispatch_initial(tc, entry_ptr, seen, id, callsite, arg_indices, bytecode_offset);
     }
     else {
+        record->chosen_dp = dp;
         if (MVM_spesh_log_is_logging(tc))
             MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, 0);
     }
@@ -108,6 +109,7 @@ static void dispatch_polymorphic(MVMThreadContext *tc,
     MVMuint32 i;
     for (i = 0; i < disp->num_dps; i++)
         if (MVM_disp_program_run(tc, disp->dps[i], record)) {
+            record->chosen_dp = disp->dps[i];
             if (MVM_spesh_log_is_logging(tc))
                 MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, i);
             return;

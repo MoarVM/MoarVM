@@ -1372,6 +1372,20 @@ void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecordi
     MVM_gc_worklist_add(tc, worklist, &(rec->outcome_capture));
 }
 
+/* Mark the temporaries of a dispatch program. */
+void MVM_disp_program_mark_run_temps(MVMThreadContext *tc, MVMDispProgram *dp,
+        MVMCallsite *cs, MVMRegister *temps, MVMGCWorklist *worklist) {
+    if (dp && dp->num_temporaries != dp->first_args_temporary) {
+        MVMuint32 i;
+        for (i = 0; i < cs->flag_count; i++) {
+            if (cs->arg_flags[i] & (MVM_CALLSITE_ARG_OBJ | MVM_CALLSITE_ARG_STR)) {
+                MVMuint32 temp_idx = dp->first_args_temporary + i;
+                MVM_gc_worklist_add(tc, worklist, &(temps[temp_idx]));
+            }
+        }
+    }
+}
+
 /* Mark the outcome of a dispatch program. */
 void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *outcome,
         MVMGCWorklist *worklist) {
