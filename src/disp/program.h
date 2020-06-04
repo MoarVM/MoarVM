@@ -244,6 +244,14 @@ typedef enum {
     MVMDispOpcodeLoadConstantInt,
     /* Load a constant num into a temporary. */
     MVMDispOpcodeLoadConstantNum,
+    /* Load an attribute object value into a temporary. */
+    MVMDispOpcodeLoadAttributeObj,
+    /* Load an attribute int value into a temporary. */
+    MVMDispOpcodeLoadAttributeInt,
+    /* Load an attribute num value into a temporary. */
+    MVMDispOpcodeLoadAttributeNum,
+    /* Load an attribute string value into a temporary. */
+    MVMDispOpcodeLoadAttributeStr,
     /* Set one temp to the value of another. */
     MVMDispOpcodeSet,
     /* Set an object result outcome from a temporary. */
@@ -295,7 +303,10 @@ struct MVMDispProgramOp {
             /* The temporary to load into. */
             MVMuint32 temp;
             /* The index to load from. The thing we're indexing is part of
-             * the instruction. */
+             * the instruction. For attribute loads, this is the offset into
+             * the object to read (and we expect temp to start out containing
+             * the object to read from, unlike any other load; this keeps our
+             * union to 64 bits). */
             MVMuint32 idx;
         } load;
         struct {
