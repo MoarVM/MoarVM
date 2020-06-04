@@ -63,7 +63,8 @@ static void dump_recording_values(MVMThreadContext *tc, MVMDispProgramRecording 
                 }
                 break;
             case MVMDispProgramRecordingAttributeValue:
-                fprintf(stderr, "    %d Attribute value\n", i);
+                fprintf(stderr, "    %d Attribute value from offset %d of value %d \n", i,
+                        v->attribute.offset, v->attribute.from_value);
                 break;
             default:
                 fprintf(stderr, "    %d Unknown\n", i);
@@ -379,6 +380,31 @@ static MVMuint32 value_index_capture(MVMThreadContext *tc, MVMDispProgramRecordi
     return MVM_VECTOR_ELEMS(rec->values) - 1;
 }
 
+/* Ensures we have a values used entry for the specified attribute read. */
+static MVMuint32 value_index_attribute(MVMThreadContext *tc, MVMDispProgramRecording *rec,
+        MVMuint32 from_value, MVMuint32 offset, MVMCallsiteFlags kind) {
+    /* Look for an existing such value. */
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++) {
+        MVMDispProgramRecordingValue *v = &(rec->values[i]);
+        if (v->source == MVMDispProgramRecordingAttributeValue &&
+                v->attribute.from_value == from_value &&
+                v->attribute.offset == offset &&
+                v->attribute.kind == kind)
+            return i;
+    }
+
+    /* Otherwise, we need to create the value entry. */
+    MVMDispProgramRecordingValue new_value;
+    memset(&new_value, 0, sizeof(MVMDispProgramRecordingValue));
+    new_value.source = MVMDispProgramRecordingAttributeValue;
+    new_value.attribute.from_value = from_value;
+    new_value.attribute.offset = offset;
+    new_value.attribute.kind = kind;
+    MVM_VECTOR_PUSH(rec->values, new_value);
+    return MVM_VECTOR_ELEMS(rec->values) - 1;
+}
+
 /* Resolves a tracked value to a value index, throwing if it's not found. */
 static MVMuint32 find_tracked_value_index(MVMThreadContext *tc,
         MVMDispProgramRecording *rec, MVMObject *tracked) {
@@ -460,6 +486,64 @@ MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *c
     if (!record->rec.values[found_value_index].tracked)
         record->rec.values[found_value_index].tracked = MVM_tracked_create(tc, value, kind);
     return record->rec.values[found_value_index].tracked;
+}
+
+/* Start tracking an attribute read against the given tracked object. This
+ * lets us read the attribute in the dispatch program and use it in a result
+ * capture, for example. */
+MVMObject * MVM_disp_program_record_track_attr(MVMThreadContext *tc, MVMObject *tracked_in,
+        MVMObject *class_handle, MVMString *name) {
+    /* Ensure the tracked value is an object type. */
+    if (((MVMTracked *)tracked_in)->body.kind != MVM_CALLSITE_ARG_OBJ)
+        MVM_exception_throw_adhoc(tc, "Can only use dispatcher-track-attr on a tracked object");
+    
+    /* Resolve the tracked value. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked_in);
+
+    /* Obtain the object and ensure it is a concrete P6opaque; also track its
+     * type and concreteness since attr read safety depends on this. */
+    MVMObject *read_from = ((MVMTracked *)tracked_in)->body.value.o;
+    if (REPR(read_from)->ID != MVM_REPR_ID_P6opaque)
+        MVM_exception_throw_adhoc(tc, "Can only use dispatcher-track-attr on a P6opaque");
+    if (!IS_CONCRETE(read_from))
+        MVM_exception_throw_adhoc(tc, "Can only use dispatcher-track-attr on a concrete object");
+    record->rec.values[value_index].guard_type = 1;
+    record->rec.values[value_index].guard_concreteness = 1;
+
+    /* Work out the index that the value lives at, along with its kind, and
+     * then read the value. */
+    size_t offset;
+    MVMCallsiteFlags attr_kind;
+    MVM_p6opaque_attr_offset_and_arg_type(tc, read_from, class_handle, name, &offset, &attr_kind);
+    MVMRegister attr_value;
+    switch (attr_kind) {
+        case MVM_CALLSITE_ARG_OBJ:
+            attr_value.o = MVM_p6opaque_read_object(tc, read_from, offset);
+            if (attr_value.o == NULL)
+                MVM_exception_throw_adhoc(tc, "Can only use dispatcher-track-attr on a vivified attribute");
+            break;
+        case MVM_CALLSITE_ARG_INT:
+            attr_value.i64 = MVM_p6opaque_read_int64(tc, read_from, offset);
+            break;
+        case MVM_CALLSITE_ARG_NUM:
+            attr_value.n64 = MVM_p6opaque_read_num64(tc, read_from, offset);
+            break;
+        case MVM_CALLSITE_ARG_STR:
+            attr_value.s = MVM_p6opaque_read_str(tc, read_from, offset);
+            break;
+        default:
+            MVM_oops(tc, "Unhandled attribute kind when trying to track attribute");
+    }
+
+    /* Ensure that we have this attribute read in the values table, and make
+     * a tracked object if not. */
+    MVMuint32 result_value_index = value_index_attribute(tc, &(record->rec),
+            value_index, (MVMuint32)offset, attr_kind);
+    if (!record->rec.values[result_value_index].tracked)
+        record->rec.values[result_value_index].tracked = MVM_tracked_create(tc,
+                attr_value, attr_kind);
+    return record->rec.values[result_value_index].tracked;
 }
 
 /* Record a guard of the current type of the specified tracked value. */
