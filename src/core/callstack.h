@@ -160,6 +160,10 @@ struct MVMCallStackDispatchRecord {
      * safely obtaiend from ic_entry_ptr, since another thread may have done
      * a competing transition). */
     MVMDispInlineCacheEntry *ic_entry;
+
+    /* The static frame owning the inline cache (needed for upholding the
+     * inter-gen GC invariant). */
+    MVMStaticFrame *update_sf;
 };
 
 /* A dispatch record frame is turned into this once the dispatch has already
