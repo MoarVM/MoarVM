@@ -171,6 +171,59 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                         STABLE(((MVMObject *)dp->gc_constants[op->arg_guard.checkee]))->debug_name);
                 break;
 
+            /* Opcodes that guard on values in temporaries */
+            case MVMDispOpcodeGuardTempType:
+                fprintf(stderr, "  Guard temp %d (type=%s)\n",
+                        op->temp_guard.temp,
+                        ((MVMSTable *)dp->gc_constants[op->temp_guard.checkee])->debug_name);
+                break;
+            case MVMDispOpcodeGuardTempTypeConc:
+                fprintf(stderr, "  Guard temp %d (type=%s, concrete)\n",
+                        op->temp_guard.temp,
+                        ((MVMSTable *)dp->gc_constants[op->temp_guard.checkee])->debug_name);
+                break;
+           case MVMDispOpcodeGuardTempTypeTypeObject:
+                fprintf(stderr, "  Guard temp %d (type=%s, type object)\n",
+                        op->temp_guard.temp,
+                        ((MVMSTable *)dp->gc_constants[op->temp_guard.checkee])->debug_name);
+                break;
+            case MVMDispOpcodeGuardTempConc:
+                fprintf(stderr, "  Guard temp %d (concrete)\n",
+                        op->temp_guard.temp);
+                break;
+            case MVMDispOpcodeGuardTempTypeObject:
+                fprintf(stderr, "  Guard temp %d (type object)\n",
+                        op->temp_guard.temp);
+                break;
+            case MVMDispOpcodeGuardTempLiteralObj:
+                fprintf(stderr, "  Guard temp %d (literal object of type %s)\n",
+                        op->temp_guard.temp,
+                        STABLE(((MVMObject *)dp->gc_constants[op->temp_guard.checkee]))->debug_name);
+                break;
+            case MVMDispOpcodeGuardTempLiteralStr: {
+                char *c_str = MVM_string_utf8_encode_C_string(tc, 
+                        ((MVMString *)dp->gc_constants[op->temp_guard.checkee]));
+                fprintf(stderr, "  Guard temp %d (literal string '%s')\n",
+                        op->temp_guard.temp, c_str);
+                MVM_free(c_str);
+                break;
+            }
+            case MVMDispOpcodeGuardTempLiteralInt:
+                fprintf(stderr, "  Guard temp %d (literal integer %"PRIi64")\n",
+                        op->temp_guard.temp,
+                        dp->constants[op->temp_guard.checkee].i64);
+                break;
+            case MVMDispOpcodeGuardTempLiteralNum:
+                fprintf(stderr, "  Guard temp %d (literal number %g)\n",
+                        op->temp_guard.temp,
+                        dp->constants[op->temp_guard.checkee].n64);
+                break;
+            case MVMDispOpcodeGuardTempNotLiteralObj:
+                fprintf(stderr, "  Guard temp %d (not literal object of type %s)\n",
+                        op->temp_guard.temp,
+                        STABLE(((MVMObject *)dp->gc_constants[op->temp_guard.checkee]))->debug_name);
+                break;
+
             /* Opcodes that load values into temporaries. */
             case MVMDispOpcodeLoadCaptureValue:
                 fprintf(stderr, "  Load argument %d into temporary %d\n",
@@ -536,8 +589,8 @@ MVMObject * MVM_disp_program_record_track_attr(MVMThreadContext *tc, MVMObject *
     switch (attr_kind) {
         case MVM_CALLSITE_ARG_OBJ:
             attr_value.o = MVM_p6opaque_read_object(tc, read_from, offset);
-            if (attr_value.o == NULL)
-                MVM_exception_throw_adhoc(tc, "Can only use dispatcher-track-attr on a vivified attribute");
+            if (attr_value.o == NULL) /* Hopefully this can be an error eventually */
+                attr_value.o = tc->instance->VMNull;
             break;
         case MVM_CALLSITE_ARG_INT:
             attr_value.i64 = MVM_p6opaque_read_int64(tc, read_from, offset);
@@ -1001,14 +1054,91 @@ static void emit_capture_guards(MVMThreadContext *tc, compile_state *cs,
             }
             break;
         default:
-            MVM_oops(tc, "Unexpected callsite arg type in emit_guards");
+            MVM_oops(tc, "Unexpected callsite arg type in emit_capture_guards");
     }
 }
 static void emit_attribute_guards(MVMThreadContext *tc, compile_state *cs,
-        MVMDispProgramRecordingValue *v) {
-    if (v->guard_literal || v->guard_type || v->guard_concreteness ||
-            MVM_VECTOR_ELEMS(v->not_literal_guards))
-        MVM_oops(tc, "Guarding of attributes NYI");
+        MVMDispProgramRecordingValue *v, MVMuint32 value_index) {
+    /* Ensure the attribute is loaded. */
+    MVMuint32 temp = get_temp_holding_value(tc, cs, value_index);
+    MVMRegister value = ((MVMTracked *)v->tracked)->body.value;
+
+    /* Now go by the kind of attribute. */
+    switch (v->attribute.kind) {
+        case MVM_CALLSITE_ARG_OBJ:
+            if (v->guard_literal) {
+                /* If we're guarding that it's a literal, we can disregard
+                 * the other kinds of guard, since this one implies both
+                 * type and concreteness. */
+                MVMDispProgramOp op;
+                op.code = MVMDispOpcodeGuardTempLiteralObj;
+                op.temp_guard.temp = temp;
+                op.temp_guard.checkee = add_program_constant_obj(tc, cs, value.o);
+                MVM_VECTOR_PUSH(cs->ops, op);
+            }
+            else {
+                if (v->guard_type) {
+                    MVMDispProgramOp op;
+                    if (v->guard_concreteness)
+                        op.code = IS_CONCRETE(value.o)
+                                ? MVMDispOpcodeGuardTempTypeConc
+                                : MVMDispOpcodeGuardTempTypeTypeObject;
+                    else
+                        op.code = MVMDispOpcodeGuardTempType;
+                    op.temp_guard.temp = temp;
+                    op.temp_guard.checkee = add_program_constant_stable(tc, cs,
+                            STABLE(value.o));
+                    MVM_VECTOR_PUSH(cs->ops, op);
+                }
+                else if (v->guard_concreteness) {
+                    MVMDispProgramOp op;
+                    op.code = IS_CONCRETE(value.o)
+                            ? MVMDispOpcodeGuardTempConc
+                            : MVMDispOpcodeGuardTempTypeObject;
+                    op.temp_guard.temp = temp;
+                    MVM_VECTOR_PUSH(cs->ops, op);
+                }
+                MVMuint32 i;
+                for (i = 0; i < MVM_VECTOR_ELEMS(v->not_literal_guards); i++) {
+                    MVMDispProgramOp op;
+                    op.code = MVMDispOpcodeGuardTempNotLiteralObj;
+                    op.temp_guard.temp = temp;
+                    op.temp_guard.checkee = add_program_constant_obj(tc, cs,
+                            v->not_literal_guards[i]);
+                    MVM_VECTOR_PUSH(cs->ops, op);
+                }
+            }
+            break;
+        case MVM_CALLSITE_ARG_STR:
+            if (v->guard_literal) {
+                MVMDispProgramOp op;
+                op.code = MVMDispOpcodeGuardTempLiteralStr;
+                op.temp_guard.temp = temp;
+                op.temp_guard.checkee = add_program_constant_str(tc, cs, value.s);
+                MVM_VECTOR_PUSH(cs->ops, op);
+            }
+            break;
+        case MVM_CALLSITE_ARG_INT:
+            if (v->guard_literal) {
+                MVMDispProgramOp op;
+                op.code = MVMDispOpcodeGuardTempLiteralInt;
+                op.temp_guard.temp = temp;
+                op.temp_guard.checkee = add_program_constant_int(tc, cs, value.i64);
+                MVM_VECTOR_PUSH(cs->ops, op);
+            }
+            break;
+        case MVM_CALLSITE_ARG_NUM:
+            if (v->guard_literal) {
+                MVMDispProgramOp op;
+                op.code = MVMDispOpcodeGuardTempLiteralInt;
+                op.temp_guard.temp = temp;
+                op.temp_guard.checkee = add_program_constant_num(tc, cs, value.n64);
+                MVM_VECTOR_PUSH(cs->ops, op);
+            }
+            break;
+        default:
+            MVM_oops(tc, "Unexpected callsite arg type in emit_capture_guards");
+    }
 }
 static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         compile_state *cs, MVMuint32 callsite_idx) {
@@ -1178,7 +1308,7 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
             emit_capture_guards(tc, &cs, v);
         }
         else if (v->source == MVMDispProgramRecordingAttributeValue) {
-            emit_attribute_guards(tc, &cs, v);
+            emit_attribute_guards(tc, &cs, v, i);
         }
     }
 
@@ -1383,6 +1513,70 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 break;
             }
 
+            /* Temporary guard ops. */
+            case MVMDispOpcodeGuardTempType: {
+                MVMRegister val = record->temps[op->temp_guard.temp];
+                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op->temp_guard.checkee])
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardTempTypeConc: {
+                MVMRegister val = record->temps[op->temp_guard.temp];
+                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op->temp_guard.checkee]
+                        || !IS_CONCRETE(val.o))
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardTempTypeTypeObject: {
+                MVMRegister val = record->temps[op->temp_guard.temp];
+                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op->temp_guard.checkee]
+                        || IS_CONCRETE(val.o))
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardTempConc: {
+                MVMRegister val = record->temps[op->temp_guard.temp];
+                if (!IS_CONCRETE(val.o))
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardTempTypeObject: {
+                MVMRegister val = record->temps[op->temp_guard.temp];
+                if (IS_CONCRETE(val.o))
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardTempLiteralObj: {
+                MVMRegister val = record->temps[op->temp_guard.temp];
+                if (val.o != (MVMObject *)dp->gc_constants[op->temp_guard.checkee])
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardTempLiteralStr: {
+                MVMRegister val = record->temps[op->temp_guard.temp];
+                if (!MVM_string_equal(tc, val.s, (MVMString *)dp->gc_constants[op->temp_guard.checkee]))
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardTempLiteralInt: {
+                MVMRegister val = record->temps[op->temp_guard.temp];
+                if (val.i64 != dp->constants[op->temp_guard.checkee].i64)
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardTempLiteralNum: {
+                MVMRegister val = record->temps[op->temp_guard.temp];
+                if (val.n64 != dp->constants[op->temp_guard.checkee].n64)
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardTempNotLiteralObj: {
+                MVMRegister val = record->temps[op->temp_guard.temp];
+                if (val.o == (MVMObject *)dp->gc_constants[op->temp_guard.checkee])
+                    goto rejection;
+                break;
+            }
+
             /* Load ops. */
             case MVMDispOpcodeLoadCaptureValue:
                 record->temps[op->load.temp] = args->source[args->map[op->load.idx]];
@@ -1396,10 +1590,12 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
             case MVMDispOpcodeLoadConstantNum:
                 record->temps[op->load.temp].n64 = dp->constants[op->load.idx].n64;
                 break;
-            case MVMDispOpcodeLoadAttributeObj:
-                record->temps[op->load.temp].o = MVM_p6opaque_read_object(tc,
+            case MVMDispOpcodeLoadAttributeObj: {
+                MVMObject *o = MVM_p6opaque_read_object(tc,
                         record->temps[op->load.temp].o, op->load.idx);
+                record->temps[op->load.temp].o = o ? o : tc->instance->VMNull;
                 break;
+            }
             case MVMDispOpcodeLoadAttributeInt:
                 record->temps[op->load.temp].i64 = MVM_p6opaque_read_int64(tc,
                         record->temps[op->load.temp].o, op->load.idx);
