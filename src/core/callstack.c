@@ -358,6 +358,17 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
             case MVM_CALLSTACK_RECORD_START_REGION:
                 /* Nothing to mark. */
                 break;
+            case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
+            case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED: {
+                MVMCallStackDispatchRecord *disp_record = (MVMCallStackDispatchRecord *)record;
+                MVM_disp_program_mark_recording(tc, &(disp_record->rec), worklist);
+                MVM_disp_program_mark_outcome(tc, &(disp_record->outcome), worklist);
+                add_collectable(tc, worklist, snapshot, disp_record->current_capture.o,
+                        "Dispatch recording current capture");
+                add_collectable(tc, worklist, snapshot, disp_record->update_sf,
+                        "Dispatch recording static frame root");
+                break;
+            }
             default:
                 MVM_panic(1, "Unknown call stack record type in GC marking");
         }

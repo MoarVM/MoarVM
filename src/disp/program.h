@@ -350,4 +350,8 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
 
 /* Memory management of dispatch programs. */
 void MVM_disp_program_mark(MVMThreadContext *tc, MVMDispProgram *dp, MVMGCWorklist *worklist);
+void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecording *rec,
+        MVMGCWorklist *worklist);
+void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *outcome,
+        MVMGCWorklist *worklist);
 void MVM_disp_program_destroy(MVMThreadContext *tc, MVMDispProgram *dp);

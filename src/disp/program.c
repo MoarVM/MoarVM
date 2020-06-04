@@ -1337,6 +1337,62 @@ void MVM_disp_program_mark(MVMThreadContext *tc, MVMDispProgram *dp, MVMGCWorkli
         MVM_gc_worklist_add(tc, worklist, &(dp->gc_constants[i]));
 }
 
+/* Mark the recording state of a dispatch program. */
+static void mark_recording_capture(MVMThreadContext *tc, MVMDispProgramRecordingCapture *cap,
+        MVMGCWorklist *worklist) {
+    MVM_gc_worklist_add(tc, worklist, &(cap->capture));
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(cap->captures); i++)
+        mark_recording_capture(tc, &(cap->captures[i]), worklist);
+}
+void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecording *rec,
+        MVMGCWorklist *worklist) {
+    MVMuint32 i, j;
+    for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++) {
+        MVMDispProgramRecordingValue *value = &(rec->values[i]);
+        switch (value->source) {
+            case MVMDispProgramRecordingCaptureValue:
+                /* Nothing to mark. */
+                break;
+            case MVMDispProgramRecordingLiteralValue:
+                if (value->literal.kind == MVM_CALLSITE_ARG_OBJ ||
+                        value->literal.kind == MVM_CALLSITE_ARG_STR)
+                    MVM_gc_worklist_add(tc, worklist, &(value->literal.value.o));
+                break;
+            case MVMDispProgramRecordingAttributeValue:
+                // TODO
+                MVM_panic(1, "Marking dispatch program attribute value NYI");
+                break;
+        }
+        MVM_gc_worklist_add(tc, worklist, &(value->tracked));
+        for (j = 0; j < MVM_VECTOR_ELEMS(value->not_literal_guards); j++)
+            MVM_gc_worklist_add(tc, worklist, &(value->not_literal_guards[i]));
+    }
+    mark_recording_capture(tc, &(rec->initial_capture), worklist);
+    MVM_gc_worklist_add(tc, worklist, &(rec->outcome_capture));
+}
+
+/* Mark the outcome of a dispatch program. */
+void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *outcome,
+        MVMGCWorklist *worklist) {
+    switch (outcome->kind) {
+        case MVM_DISP_OUTCOME_FAILED:
+        case MVM_DISP_OUTCOME_CFUNCTION:
+            /* Nothing to mark for these. */
+            break;
+        case MVM_DISP_OUTCOME_EXPECT_DELEGATE:
+            MVM_gc_worklist_add(tc, worklist, &(outcome->delegate_capture));
+            break;
+        case MVM_DISP_OUTCOME_VALUE:
+            if (outcome->result_kind == MVM_reg_obj || outcome->result_kind == MVM_reg_str)
+                MVM_gc_worklist_add(tc, worklist, &(outcome->result_value.o));
+            break;
+        case MVM_DISP_OUTCOME_BYTECODE:
+            MVM_gc_worklist_add(tc, worklist, &(outcome->code));
+            break;
+    }
+}
+
 /* Release memory associated with a dispatch program. */
 void MVM_disp_program_destroy(MVMThreadContext *tc, MVMDispProgram *dp) {
     MVM_free(dp->constants);
