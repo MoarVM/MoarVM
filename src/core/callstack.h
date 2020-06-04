@@ -190,6 +190,10 @@ struct MVMCallStackDispatchRun {
     /* Temporaries (actually allocated after this record, which is variable
      * length). */
     MVMRegister *temps;
+
+    /* The dispatch program that was chosen (used to know how to mark the
+     * temporaries, if needed). */
+    MVMDispProgram *chosen_dp;
 };
 
 /* Functions for working with the call stack. */
