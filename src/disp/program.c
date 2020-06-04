@@ -1650,7 +1650,7 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 invoke_args.map = MVM_args_identity_map(tc, invoke_args.callsite);
                 MVMuint32 to_copy = op->copy_arg_tail.tail_args;
                 if (to_copy > 0) {
-                    MVMuint32 source_idx = invoke_args.callsite->flag_count - to_copy;
+                    MVMuint32 source_idx = args->callsite->flag_count - to_copy;
                     MVMuint32 target_idx = dp->first_args_temporary +
                             (invoke_args.callsite->flag_count - to_copy);
                     MVMuint32 i;
