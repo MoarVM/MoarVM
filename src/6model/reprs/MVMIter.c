@@ -249,10 +249,10 @@ MVMint64 MVM_iter_istrue(MVMThreadContext *tc, MVMIter *iter) {
         case MVM_ITER_MODE_ARRAY_INT:
         case MVM_ITER_MODE_ARRAY_NUM:
         case MVM_ITER_MODE_ARRAY_STR:
-            return iter->body.array_state.index + 1 < iter->body.array_state.limit ? 1 : 0;
+            return MVM_iter_istrue_array(tc, iter);
             break;
         case MVM_ITER_MODE_HASH:
-            return iter->body.hash_state.next != NULL ? 1 : 0;
+            return MVM_iter_istrue_hash(tc, iter);
             break;
         default:
             MVM_exception_throw_adhoc(tc, "Invalid iteration mode used");

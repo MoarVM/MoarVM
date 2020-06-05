@@ -6435,7 +6435,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_boolify_iter_arr): {
                 MVMIter *iter = (MVMIter *)GET_REG(cur_op, 2).o;
 
-                GET_REG(cur_op, 0).i64 = iter->body.array_state.index + 1 < iter->body.array_state.limit ? 1 : 0;
+                GET_REG(cur_op, 0).i64 = MVM_iter_istrue_array(tc, iter);
 
                 cur_op += 4;
                 goto NEXT;
@@ -6443,7 +6443,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_boolify_iter_hash): {
                 MVMIter *iter = (MVMIter *)GET_REG(cur_op, 2).o;
 
-                GET_REG(cur_op, 0).i64 = iter->body.hash_state.next != NULL ? 1 : 0;
+                GET_REG(cur_op, 0).i64 = MVM_iter_istrue_hash(tc, iter);
 
                 cur_op += 4;
                 goto NEXT;

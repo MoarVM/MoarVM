@@ -37,3 +37,25 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target);
 MVMint64 MVM_iter_istrue(MVMThreadContext *tc, MVMIter *iter);
 MVMString * MVM_iterkey_s(MVMThreadContext *tc, MVMIter *iterator);
 MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator);
+
+MVM_STATIC_INLINE MVMint64 MVM_iter_istrue_array(MVMThreadContext *tc, MVMIter *iterator) {
+    return iterator->body.array_state.index + 1 < iterator->body.array_state.limit ? 1 : 0;
+}
+
+MVM_STATIC_INLINE MVMint64 MVM_iter_istrue_hash(MVMThreadContext *tc, MVMIter *iterator) {
+#if HASH_DEBUG_ITER
+    MVMIterBody *body = &iterator->body;
+    MVMObject *target = body->target;
+    if (body->hash_state.next && body->hash_state.next->hash_handle.tbl != ((MVMHash *)target)->body.hash_head->hash_handle.tbl) {
+        MVM_oops(tc, "different hash next %p %p",
+                 body->hash_state.next->hash_handle.tbl,
+                 ((MVMHash *)target)->body.hash_head->hash_handle.tbl);
+    }
+    if (body->hash_state.curr && body->hash_state.curr->hash_handle.tbl != ((MVMHash *)target)->body.hash_head->hash_handle.tbl) {
+        MVM_oops(tc, "different hash curr %p %p",
+                 body->hash_state.curr->hash_handle.tbl,
+                 ((MVMHash *)target)->body.hash_head->hash_handle.tbl);
+    }
+#endif
+    return iterator->body.hash_state.next != NULL ? 1 : 0;
+}
