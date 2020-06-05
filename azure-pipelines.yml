@@ -35,64 +35,66 @@ stages:
 - stage: Test
   condition: ne( variables['BUILD_PRECOMP_RELEASE'], 'yes' )
   jobs:
-    - job: Test
+    # Keep the job and matrix entry names as short as possible as the webinterface
+    # leaves little space for the name.
+    - job: T
       strategy:
        matrix:
-         Windows_MoarVM:
+         Win_MVM:
           IMAGE_NAME: 'windows-2019'
           RAKUDO_OPTIONS: ''
           NQP_OPTIONS: '--backends=moar'
           MOAR_OPTIONS: ''
-         Windows_JVM:
+         Win_JVM:
           IMAGE_NAME: 'windows-2019'
           BACKEND: 'JVM'
           RAKUDO_OPTIONS: ''
           NQP_OPTIONS: '--backends=jvm'
           MOAR_OPTIONS: ''
-         Windows_MoarVM_relocatable:
+         Win_MVM_relocatable:
           IMAGE_NAME: 'windows-2019'
           RELOCATABLE: 'yes'
           RAKUDO_OPTIONS: '--relocatable'
           NQP_OPTIONS: '--backends=moar --relocatable'
           MOAR_OPTIONS: '--relocatable'
 
-         MacOS_MoarVM:
+         Mac_MVM:
           IMAGE_NAME: 'macOS-10.15'
           RAKUDO_OPTIONS: ''
           NQP_OPTIONS: '--backends=moar'
           MOAR_OPTIONS: ''
-         MacOS_JVM:
+         Mac_JVM:
           IMAGE_NAME: 'macOS-10.15'
           BACKEND: 'JVM'
           RAKUDO_OPTIONS: ''
           NQP_OPTIONS: '--backends=jvm'
           MOAR_OPTIONS: ''
-         MacOS_MoarVM_relocatable:
+         Mac_MVM_reloc:
           IMAGE_NAME: 'macOS-10.15'
           RELOCATABLE: 'yes'
           RAKUDO_OPTIONS: '--relocatable'
           NQP_OPTIONS: '--backends=moar --relocatable'
           MOAR_OPTIONS: '--relocatable'
 
-         Linux_MoarVM:
+         Lin_MVM:
           IMAGE_NAME: 'ubuntu-18.04'
           RAKUDO_OPTIONS: ''
           NQP_OPTIONS: '--backends=moar'
           MOAR_OPTIONS: ''
-         Linux_JVM:
+         Lin_JVM:
           IMAGE_NAME: 'ubuntu-18.04'
           BACKEND: 'JVM'
           RAKUDO_OPTIONS: ''
           NQP_OPTIONS: '--backends=jvm'
           MOAR_OPTIONS: ''
-         Linux_MoarVM_relocatable:
+         Lin_MVM_reloc:
           IMAGE_NAME: 'ubuntu-18.04'
           RELOCATABLE: 'yes'
           RAKUDO_OPTIONS: '--relocatable'
           NQP_OPTIONS: '--backends=moar --relocatable'
           MOAR_OPTIONS: '--relocatable'
 
-         MVM_njit_gcc:
+         MVM_gcc_njit:
           ONLY_ON: 'MoarVM'
           IMAGE_NAME: 'ubuntu-18.04'
           NQP_OPTIONS: '--backends=moar'
@@ -102,7 +104,7 @@ stages:
           IMAGE_NAME: 'ubuntu-18.04'
           NQP_OPTIONS: '--backends=moar'
           MOAR_OPTIONS: '--cc=gcc'
-         MVM_njit_clang:
+         MVM_clang_njit:
           ONLY_ON: 'MoarVM'
           IMAGE_NAME: 'ubuntu-18.04'
           NQP_OPTIONS: '--backends=moar'
@@ -112,22 +114,22 @@ stages:
           IMAGE_NAME: 'ubuntu-18.04'
           NQP_OPTIONS: '--backends=moar'
           MOAR_OPTIONS: '--cc=clang'
-         MVM_njit_libffi_gcc:
+         MVM_gcc_njit_libffi:
           ONLY_ON: 'MoarVM'
           IMAGE_NAME: 'ubuntu-18.04'
           NQP_OPTIONS: '--backends=moar'
           MOAR_OPTIONS: '--has-libffi --no-jit --cc=gcc'
-         MVM_libffi_gcc:
+         MVM_gcc_libffi:
           ONLY_ON: 'MoarVM'
           IMAGE_NAME: 'ubuntu-18.04'
           NQP_OPTIONS: '--backends=moar'
           MOAR_OPTIONS: '--has-libffi --cc=gcc'
-         MVM_njit_libffi_clang:
+         MVM_clang_njit_libffi:
           ONLY_ON: 'MoarVM'
           IMAGE_NAME: 'ubuntu-18.04'
           NQP_OPTIONS: '--backends=moar'
           MOAR_OPTIONS: '--has-libffi --no-jit --cc=clang'
-         MVM_libffi_clang:
+         MVM_clang_libffi:
           ONLY_ON: 'MoarVM'
           IMAGE_NAME: 'ubuntu-18.04'
           NQP_OPTIONS: '--backends=moar'
