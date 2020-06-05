@@ -99,6 +99,7 @@ stages:
       workspace:
         clean: all
       timeoutInMinutes: 180
+      condition: not( and( eq( variables['TRIGGERING_REPO'], 'MoarVM'), eq( variables['BACKEND'], 'JVM') ) )
       steps:
 
         - pwsh: |
