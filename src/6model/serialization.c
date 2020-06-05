@@ -1991,7 +1991,7 @@ static void check_and_dissect_input(MVMThreadContext *tc,
     char   *data_end;
     if (data_str) {
         /* Grab data from string. */
-        char *data_b64 = (char *)MVM_string_ascii_encode(tc, data_str, NULL, 0);
+        char *data_b64 = (char *)MVM_string_ascii_encode_any(tc, data_str);
         data = (char *)base64_decode(data_b64, &data_len);
         MVM_free(data_b64);
         reader->data_needs_free = 1;
@@ -2666,7 +2666,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
         MVMString *name = MVM_serialization_read_str(tc, reader);
         const MVMContainerConfigurer *cc = MVM_6model_get_container_config(tc, name);
         if (!cc) {
-            char *cname = MVM_string_ascii_encode(tc, name, NULL, 0);
+            char *cname = MVM_string_ascii_encode_any(tc, name);
             char *waste[] = { cname, NULL };
             fail_deserialize(tc, waste, reader, "Could not look up the container config for '%s'",
                 cname);
