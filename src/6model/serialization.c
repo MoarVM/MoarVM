@@ -2161,11 +2161,11 @@ static void resolve_dependencies(MVMThreadContext *tc, MVMSerializationReader *r
         sc = MVM_sc_find_by_handle(tc, handle);
         if (sc == NULL) {
             MVMString *desc = read_string_from_heap(tc, reader, read_int32(table_pos, 4));
-            char *cname = MVM_string_ascii_encode(tc, desc, NULL, 0);
+            char *cname = MVM_string_utf8_c8_encode_C_string(tc, desc);
             char *cdesc = NULL;
             char *waste[] = { cname, NULL, NULL };
             if (reader->root.sc->body->description) {
-                cdesc = MVM_string_ascii_encode(tc, reader->root.sc->body->description, NULL, 0);
+                cdesc = MVM_string_utf8_encode_C_string(tc, reader->root.sc->body->description);
                 waste[1] = cdesc;
             }
             else {
