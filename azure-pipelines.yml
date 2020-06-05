@@ -48,6 +48,7 @@ stages:
          Win_JVM:
            IMAGE_NAME: 'windows-2019'
            BACKEND: 'JVM'
+           MOAR_CHECKOUT_TYPE: 'none'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=jvm'
            MOAR_OPTIONS: ''
@@ -66,6 +67,7 @@ stages:
          Mac_JVM:
            IMAGE_NAME: 'macOS-10.15'
            BACKEND: 'JVM'
+           MOAR_CHECKOUT_TYPE: 'none'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=jvm'
            MOAR_OPTIONS: ''
@@ -84,6 +86,7 @@ stages:
          Lin_JVM:
            IMAGE_NAME: 'ubuntu-18.04'
            BACKEND: 'JVM'
+           MOAR_CHECKOUT_TYPE: 'none'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=jvm'
            MOAR_OPTIONS: ''
@@ -183,12 +186,7 @@ stages:
 
         - script: perl selfrepo/tools/build/checkout-repos-for-test.pl $(RAKUDO_CHECKOUT_TYPE) $(NQP_CHECKOUT_TYPE) $(MOAR_CHECKOUT_TYPE)
           workingDirectory: $(Pipeline.Workspace)
-          condition: ne( variables['BACKEND'], 'JVM')
-          displayName: Checkout repositories (MoarVM)
-        - script: perl selfrepo/tools/build/checkout-repos-for-test.pl $(RAKUDO_CHECKOUT_TYPE) $(NQP_CHECKOUT_TYPE) none
-          workingDirectory: $(Pipeline.Workspace)
-          condition: eq( variables['BACKEND'], 'JVM')
-          displayName: Checkout repositories (JVM)
+          displayName: Checkout repositories
 
         # Build MoarVM
         - script: |
