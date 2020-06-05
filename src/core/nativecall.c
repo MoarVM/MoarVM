@@ -645,19 +645,19 @@ void MVM_nativecall_setup(MVMThreadContext *tc, MVMNativeCallBody *body, unsigne
         body->lib_name = NULL;
         if (interval_id)
             MVM_telemetry_interval_stop(tc, interval_id, "error building native call");
-        MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate native library '%s': %s", body->lib_name, dlerror());
+        MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate native library '%s': %s", waste[0], dlerror());
     }
 
     if (!body->entry_point) {
         body->entry_point = MVM_nativecall_find_sym(lib_handle, body->sym_name);
         if (!body->entry_point) {
             char *waste[] = { body->sym_name, body->lib_name, NULL };
-            body->lib_name = NULL;
             body->sym_name = NULL;
+            body->lib_name = NULL;
             if (interval_id)
                 MVM_telemetry_interval_stop(tc, interval_id, "error building native call");
             MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate symbol '%s' in native library '%s'",
-                body->sym_name, body->lib_name);
+                waste[0], waste[1]);
         }
     }
 
