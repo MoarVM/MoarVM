@@ -31,8 +31,6 @@ variables:
   MOAR_CHECKOUT_TYPE: "rev-$(Build.SourceVersion)-selfrepo"
   TRIGGERING_REPO: MoarVM
 
-
-
 stages:
 - stage: Test
   condition: ne( variables['BUILD_PRECOMP_RELEASE'], 'yes' )
@@ -94,12 +92,64 @@ stages:
           NQP_OPTIONS: '--backends=moar --relocatable'
           MOAR_OPTIONS: '--relocatable'
 
+         MVM_njit_gcc:
+          ONLY_ON: 'MoarVM'
+          IMAGE_NAME: 'ubuntu-18.04'
+          NQP_OPTIONS: '--backends=moar'
+          MOAR_OPTIONS: '--no-jit --cc=gcc'
+         MVM_gcc:
+          ONLY_ON: 'MoarVM'
+          IMAGE_NAME: 'ubuntu-18.04'
+          NQP_OPTIONS: '--backends=moar'
+          MOAR_OPTIONS: '--cc=gcc'
+         MVM_njit_clang:
+          ONLY_ON: 'MoarVM'
+          IMAGE_NAME: 'ubuntu-18.04'
+          NQP_OPTIONS: '--backends=moar'
+          MOAR_OPTIONS: '--no-jit --cc=clang'
+         MVM_clang:
+          ONLY_ON: 'MoarVM'
+          IMAGE_NAME: 'ubuntu-18.04'
+          NQP_OPTIONS: '--backends=moar'
+          MOAR_OPTIONS: '--cc=clang'
+         MVM_njit_libffi_gcc:
+          ONLY_ON: 'MoarVM'
+          IMAGE_NAME: 'ubuntu-18.04'
+          NQP_OPTIONS: '--backends=moar'
+          MOAR_OPTIONS: '--has-libffi --no-jit --cc=gcc'
+         MVM_libffi_gcc:
+          ONLY_ON: 'MoarVM'
+          IMAGE_NAME: 'ubuntu-18.04'
+          NQP_OPTIONS: '--backends=moar'
+          MOAR_OPTIONS: '--has-libffi --cc=gcc'
+         MVM_njit_libffi_clang:
+          ONLY_ON: 'MoarVM'
+          IMAGE_NAME: 'ubuntu-18.04'
+          NQP_OPTIONS: '--backends=moar'
+          MOAR_OPTIONS: '--has-libffi --no-jit --cc=clang'
+         MVM_libffi_clang:
+          ONLY_ON: 'MoarVM'
+          IMAGE_NAME: 'ubuntu-18.04'
+          NQP_OPTIONS: '--backends=moar'
+          MOAR_OPTIONS: '--has-libffi --cc=clang'
+         MVM_coverage:
+          ONLY_ON: 'MoarVM'
+          IMAGE_NAME: 'ubuntu-18.04'
+          NQP_OPTIONS: '--backends=moar'
+          MOAR_OPTIONS: '--compiler=clang --coverage --optimize=0 --debug=3 --cc=clang'
+          COVERAGE: 1
+          USE_CLANG_LATEST: 1
+
       pool:
         vmImage: $(IMAGE_NAME)
       workspace:
         clean: all
       timeoutInMinutes: 180
-      condition: not( and( eq( variables['TRIGGERING_REPO'], 'MoarVM'), eq( variables['BACKEND'], 'JVM') ) )
+      condition: >
+        and(
+          not( and( eq( variables['TRIGGERING_REPO'], 'MoarVM'), eq( variables['BACKEND'], 'JVM') ) ),
+          or( eq( variables['ONLY_ON'], variables['TRIGGERING_REPO'] ), eq( variables['ONLY_ON'], '' ) )
+        )
       steps:
 
         - pwsh: |
@@ -253,6 +303,14 @@ stages:
         - publish: $(Pipeline.Workspace)/install-moved
           condition: and( eq( variables['RELOCATABLE'], 'yes' ), ne( variables['BACKEND'], 'JVM') )
           displayName: Publish build artifact
+
+        - script: |
+            git clone --depth 1 'https://github.com/samcv/MoarVM-cover.git' &&
+            cp -v MoarVM-cover/html-cover.sh . &&
+            cp -v MoarVM-cover/nqp-profile ../nqp/ &&
+            cp -v MoarVM-cover/merge-profraw.sh ../nqp/ &&
+            ./html-cover.sh 2
+          condition: eq( variables['COVERAGE'], 'yes' )
 
 - stage: Build_Precomp_Release
   condition: eq( variables['BUILD_PRECOMP_RELEASE'], 'yes' )
