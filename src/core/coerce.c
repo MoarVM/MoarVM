@@ -325,7 +325,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
 }
 
 MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *s) {
-    char     *enc = MVM_string_ascii_encode(tc, s, NULL, 0);
+    char     *enc = MVM_string_ascii_encode_any(tc, s);
     MVMint64  i   = strtoll(enc, NULL, 10);
     MVM_free(enc);
     return i;

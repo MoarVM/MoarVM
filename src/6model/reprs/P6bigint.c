@@ -242,7 +242,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         body->u.smallint.value = MVM_serialization_read_int(tc, reader);
     } else {  /* big int */
         mp_err err;
-        char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), NULL, 0);
+        char *buf = MVM_string_ascii_encode_any(tc, MVM_serialization_read_str(tc, reader));
         body->u.bigint = MVM_malloc(sizeof(mp_int));
         if ((err = mp_init(body->u.bigint)) != MP_OKAY) {
             MVM_free(body->u.bigint);
