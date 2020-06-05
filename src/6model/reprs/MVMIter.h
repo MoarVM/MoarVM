@@ -37,3 +37,11 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target);
 MVMint64 MVM_iter_istrue(MVMThreadContext *tc, MVMIter *iter);
 MVMString * MVM_iterkey_s(MVMThreadContext *tc, MVMIter *iterator);
 MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator);
+
+MVM_STATIC_INLINE MVMint64 MVM_iter_istrue_array(MVMThreadContext *tc, MVMIter *iter) {
+    return iter->body.array_state.index + 1 < iter->body.array_state.limit ? 1 : 0;
+}
+
+MVM_STATIC_INLINE MVMint64 MVM_iter_istrue_hash(MVMThreadContext *tc, MVMIter *iter) {
+    return iter->body.hash_state.next != NULL ? 1 : 0;
+}
