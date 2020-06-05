@@ -28,7 +28,7 @@ variables:
     Enter-VsDevShell -VsInstallPath $installPath -SkipAutomaticLocation -DevCmdArguments "-arch=amd64"
   RAKUDO_CHECKOUT_TYPE: master
   NQP_CHECKOUT_TYPE: master
-  MOAR_CHECKOUT_TYPE: "rev-$(Build.SourceVersion)-$(Build.Repository.Uri)"
+  MOAR_CHECKOUT_TYPE: "rev-$(Build.SourceVersion)-selfrepo"
   TRIGGERING_REPO: MoarVM
 
 
@@ -126,14 +126,14 @@ stages:
           condition: and( eq( variables['BACKEND'], 'JVM'), eq( variables['Agent.OS'], 'Windows_NT' ) )
 
         - checkout: self
-          path: script-source
-          displayName: Checkout repository
+          path: selfrepo
+          displayName: Checkout script repo
 
-        - script: perl script-source/tools/build/checkout-repos-for-test.pl $(RAKUDO_CHECKOUT_TYPE) $(NQP_CHECKOUT_TYPE) $(MOAR_CHECKOUT_TYPE)
+        - script: perl selfrepo/tools/build/checkout-repos-for-test.pl $(RAKUDO_CHECKOUT_TYPE) $(NQP_CHECKOUT_TYPE) $(MOAR_CHECKOUT_TYPE)
           workingDirectory: $(Pipeline.Workspace)
           condition: ne( variables['BACKEND'], 'JVM')
           displayName: Checkout repositories (MoarVM)
-        - script: perl script-source/tools/build/checkout-repos-for-test.pl $(RAKUDO_CHECKOUT_TYPE) $(NQP_CHECKOUT_TYPE) none
+        - script: perl selfrepo/tools/build/checkout-repos-for-test.pl $(RAKUDO_CHECKOUT_TYPE) $(NQP_CHECKOUT_TYPE) none
           workingDirectory: $(Pipeline.Workspace)
           condition: eq( variables['BACKEND'], 'JVM')
           displayName: Checkout repositories (JVM)
