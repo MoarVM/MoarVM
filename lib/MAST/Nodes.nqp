@@ -766,6 +766,14 @@ class MAST::Frame is MAST::Node {
     has @!buffer-stack;
     has @!child-label-fixups;
 
+    method WHICH() {
+        "MAST::Frame|$!cuuid|$!name"
+    }
+
+    method raku() {
+        "MAST::Frame.new(:cuuid($!cuuid), :name<$!name>)"
+    }
+
     class SubBuffer {
         has $!bytecode;
         has int32 $!annotations-offset;
