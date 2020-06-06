@@ -1434,13 +1434,8 @@
 (template: hllhash
   (^getf (^hllconfig) MVMHLLConfig slurpy_hash_type))
 
-(template: getcurhllsym
-  (let: (($hllname (^getf (cu) MVMCompUnit body.hll_name)))
-    (call (^func &MVM_hll_sym_get)
-      (arglist
-        (carg (tc)     ptr)
-        (carg $hllname ptr)
-        (carg $1       ptr)) ptr_sz)))
+(template: sp_gethashentryvalue
+  (^getf $1 MVMHashEntry value))
 
 (template: gethllsym
   (call (^func &MVM_hll_sym_get)
