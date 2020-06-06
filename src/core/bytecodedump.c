@@ -261,7 +261,7 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
                 MVMuint16 *local_types = frame_has_inlines ? maybe_candidate->local_types : frame->body.local_types;
                 operand_size = 2;
                 a("loc_%u_%s", GET_REG(cur_op, 0),
-                    get_typename(local_types[GET_REG(cur_op, 0)]));
+                    local_types ? get_typename(local_types[GET_REG(cur_op, 0)]) : "unknown");
             }
             else if (op_rw == MVM_operand_read_lex || op_rw == MVM_operand_write_lex) {
                 /* lexical operand */
