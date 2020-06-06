@@ -907,7 +907,6 @@ class MAST::Frame is MAST::Node {
         $!outer              := MAST::Node;
         %!lexical_map        := nqp::hash();
         %!debug_map          := nqp::hash();
-        @!debug_map_idxs     := nqp::list_i();
         @!static_lex_values  := nqp::list_i();
         $!writer             := $writer;
         $!compunit           := $compunit;
@@ -923,7 +922,6 @@ class MAST::Frame is MAST::Node {
         %!labels             := nqp::hash;
         @!labels             := nqp::list;
         %!label-fixups       := nqp::hash;
-        @!lexical_names_idxs := nqp::list_i;
         @!buffer-stack       := nqp::list;
         @!child-label-fixups := nqp::list_i;
         nqp::setelems($!bytecode, $initial_bytecode_size);
@@ -934,6 +932,8 @@ class MAST::Frame is MAST::Node {
     }
 
     method prepare() {
+        @!lexical_names_idxs := nqp::list_i;
+        @!debug_map_idxs     := nqp::list_i();
         for @!lexical_names {
             nqp::push_i(@!lexical_names_idxs, self.add-string($_));
         }
