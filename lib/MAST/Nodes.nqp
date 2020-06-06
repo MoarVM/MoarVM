@@ -228,14 +228,22 @@ class MAST::CompUnit is MAST::Node {
 
     has $!writer;
 
-    method BUILD(:$writer) {
-        $!writer := $writer;
-        @!frames := nqp::list;
-        @!sc_handles := nqp::list;
-        %!sc_lookup  := nqp::hash;
-        @!extop_sigs := nqp::list;
-        %!extop_idx  := nqp::hash;
-        @!extop_names := nqp::list;
+    method BUILD(
+        :$writer,
+        :@frames      = nqp::list,
+        :@sc_handles  = nqp::list,
+        :%sc_lookup   = nqp::hash,
+        :@extop_sigs  = nqp::list,
+        :@extop_names = nqp::list,
+        :%extop_idx   = nqp::hash,
+    ) {
+        $!writer      := $writer;
+        @!frames      := @frames;
+        @!sc_handles  := @sc_handles;
+        %!sc_lookup   := %sc_lookup;
+        @!extop_sigs  := @extop_sigs;
+        @!extop_names := @extop_names;
+        %!extop_idx   := %extop_idx;
     }
 
     method writer() {
