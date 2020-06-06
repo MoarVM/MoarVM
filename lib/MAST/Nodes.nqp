@@ -193,6 +193,9 @@ class MAST::CompUnit is MAST::Node {
     # The HLL name.
     has str $!hll;
 
+    # The unit's mainline frame.
+    has $!mainline_frame;
+
     # The frame for the main entry point, if any.
     has $!main_frame;
 
@@ -253,6 +256,12 @@ class MAST::CompUnit is MAST::Node {
         nqp::defined($hll)
             ?? ($!hll := $hll)
             !! $!hll
+    }
+
+    method mainline_frame($frame?) {
+        nqp::defined($frame)
+            ?? ($!mainline_frame := $frame)
+            !! $!mainline_frame
     }
 
     method main_frame($frame?) {

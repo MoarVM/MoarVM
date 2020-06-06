@@ -3,7 +3,7 @@
 /* Some constants. */
 #define HEADER_SIZE                 92
 #define MIN_BYTECODE_VERSION        5
-#define MAX_BYTECODE_VERSION        6
+#define MAX_BYTECODE_VERSION        7
 #define FRAME_HEADER_SIZE           (11 * 4 + 3 * 2 + (bytecode_version >= 6 ? 4 : 0))
 #define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
 #define FRAME_SLV_SIZE              (2 * 2 + 2 * 4)
@@ -68,6 +68,7 @@ typedef struct {
     MVMStaticFrame **frames;
 
     /* Special frame indexes */
+    MVMuint32  mainline_frame;
     MVMuint32  main_frame;
     MVMuint32  load_frame;
     MVMuint32  deserialize_frame;
@@ -138,7 +139,7 @@ static MVMString * get_heap_string(MVMThreadContext *tc, MVMCompUnit *cu, Reader
 static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMCompUnitBody *cu_body = &cu->body;
     ReaderState *rs = NULL;
-    MVMuint32 version, offset, size;
+    MVMuint32 version, offset, size, version7_offset = 0;
 
     /* Sanity checks. */
     if (cu_body->data_size < HEADER_SIZE)
@@ -239,10 +240,15 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
 
     /* Locate special frame indexes. Note, they are 0 for none, and the
      * index + 1 if there is one. */
-    rs->main_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET);
-    rs->load_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET + 4);
-    rs->deserialize_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET + 8);
-    if (rs->main_frame > rs->expected_frames
+    if (version >= 7) {
+        rs->mainline_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET);
+        version7_offset = 4;
+    }
+    rs->main_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET + version7_offset);
+    rs->load_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET + 4 + version7_offset);
+    rs->deserialize_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET + 8 + version7_offset);
+    if (rs->mainline_frame > rs->expected_frames
+            || rs->main_frame > rs->expected_frames
             || rs->load_frame > rs->expected_frames
             || rs->deserialize_frame > rs->expected_frames) {
         MVM_exception_throw_adhoc(tc, "Special frame index out of bounds");
@@ -920,6 +926,9 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
         MVM_cu_string(tc, cu, rs->hll_str_idx));
 
     /* Resolve special frames. */
+    if (rs->mainline_frame)
+        MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->mainline_frame,
+            rs->mainline_frame ? rs->frames[rs->mainline_frame - 1] : rs->frames[0]);
     MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->main_frame,
         rs->main_frame ? rs->frames[rs->main_frame - 1] : rs->frames[0]);
     if (rs->load_frame)

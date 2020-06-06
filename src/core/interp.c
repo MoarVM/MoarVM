@@ -3312,7 +3312,19 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 CHECK_CONC(maybe_cu);
                 if (REPR(maybe_cu)->ID == MVM_REPR_ID_MVMCompUnit) {
                     MVMCompUnit *cu = (MVMCompUnit *)maybe_cu;
-                    GET_REG(cur_op, 0).o = cu->body.coderefs[0];
+                    if (cu->body.mainline_frame) {
+                        MVMObject *coderef;
+                        for (MVMuint32 i = 0; i < cu->body.num_frames; i++) {
+                            if (((MVMCode*)cu->body.coderefs[i])->body.sf == cu->body.mainline_frame) {
+                                coderef = cu->body.coderefs[i];
+                                break;
+                            }
+                        }
+                        GET_REG(cur_op, 0).o = coderef ? coderef : cu->body.coderefs[0];
+                    }
+                    else {
+                        GET_REG(cur_op, 0).o = cu->body.coderefs[0];
+                    }
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "compunitmainline requires an MVMCompUnit");

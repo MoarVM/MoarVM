@@ -56,6 +56,7 @@ struct MVMCompUnitBody {
     MVMuint32        orig_frames;   /* Original from loading comp unit. */
 
     /* Special frames. */
+    MVMStaticFrame  *mainline_frame;
     MVMStaticFrame  *main_frame;
     MVMStaticFrame  *load_frame;
     MVMStaticFrame  *deserialize_frame;
