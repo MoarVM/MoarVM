@@ -280,9 +280,15 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
                 /* inefficient, I know. should use a hash. */
                 for (m = 0; m < cu->body.num_frames; m++) {
                     if (get_frame(tc, cu, m) == applicable_frame) {
-                        char *lexname = frame_lexicals ? frame_lexicals[m][idx] : "lex??";
-                        a("lex_Frame_%u_%s_%s", m, lexname,
-                            get_typename(applicable_frame->body.lexical_types[idx]));
+                        if (frame_lexicals) {
+                            char *lexname = frame_lexicals[m][idx];
+                            a("lex_Frame_%u_%s_%s", m, lexname,
+                                get_typename(applicable_frame->body.lexical_types[idx]));
+                        }
+                        else {
+                            a("lex_Frame_%u_lex%d_%s", m, idx,
+                                get_typename(applicable_frame->body.lexical_types[idx]));
+                        }
                     }
                 }
             }
