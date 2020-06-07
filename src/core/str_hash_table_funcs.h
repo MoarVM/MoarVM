@@ -233,6 +233,7 @@ MVM_STATIC_INLINE void *MVM_str_hash_unbind_nt(MVMThreadContext *tc,
 
             return have;
         }
+        prev = have;
         have = have->hh_next;
     }
     /* Strange. Not in the hash. */
