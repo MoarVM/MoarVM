@@ -426,21 +426,24 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
     for (k = 0; k < cu->body.num_frames; k++) {
         MVMStaticFrame *frame = get_frame(tc, cu, k);
-        MVMLexicalRegistry *current;
-        char **lexicals;
 
         if (!frame->body.fully_deserialized) {
             MVM_bytecode_finish_frame(tc, cu, frame, 1);
         }
 
-        lexicals = (char **)MVM_malloc(sizeof(char *) * frame->body.num_lexicals);
-        frame_lexicals[k] = lexicals;
+        MVMuint32 num_lexicals = frame->body.num_lexicals;
+        if (num_lexicals) {
+            MVMLexicalRegistry **lexical_names_list = frame->body.lexical_names_list;
 
-        HASH_ITER(tc, hash_handle, frame->body.lexical_names, current, {
-            name->body.storage.blob_32 = (MVMint32 *)current->hash_handle.key;
-            name->body.num_graphs      = (MVMuint32)current->hash_handle.keylen / sizeof(MVMGrapheme32);
-            lexicals[current->value]   = MVM_string_utf8_encode_C_string(tc, name);
-        });
+            char **lexicals = (char **)MVM_malloc(sizeof(char *) * num_lexicals);
+            for (j = 0; j < num_lexicals; j++) {
+                lexicals[j]   = MVM_string_utf8_encode_C_string(tc, lexical_names_list[j]->key);
+            }
+            frame_lexicals[k] = lexicals;
+        }
+        else {
+            frame_lexicals[k] = NULL;
+        }
     }
     for (k = 0; k < cu->body.num_frames; k++) {
         MVMStaticFrame *frame = get_frame(tc, cu, k);
