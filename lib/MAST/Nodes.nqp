@@ -959,6 +959,11 @@ class MAST::Frame is MAST::Node {
         }
     }
 
+    method clear_index() {
+        $!frame_idx := -1;
+        $!flags := nqp::bitand_i($!flags, nqp::bitneg_i($FRAME_FLAG_HAS_INDEX));
+    }
+
     method set_index(int $idx) {
         $!frame_idx := $idx;
         $!flags     := nqp::bitor_i($!flags, $FRAME_FLAG_HAS_INDEX);
