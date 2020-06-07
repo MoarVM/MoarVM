@@ -1423,21 +1423,19 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
     }
 
     static_info = frame->static_info;
-    lexical_names = static_info->body.lexical_names;
     MVMuint32 num_lexicals = static_info->body.num_lexicals;
     debug_locals = static_info->body.instrumentation
         ? static_info->body.instrumentation->debug_locals
         : NULL;
     if (num_lexicals || debug_locals) {
-        MVMLexicalRegistry *entry;
         MVMStaticFrameDebugLocal *debug_entry;
         MVMuint64 lexical_index = 0;
 
         /* Count up total number of symbols; that is, the lexicals plus the
          * debug names where the names to not overlap with the lexicals. */
-        MVMuint64 lexcount = static_info->body.num_lexicals;
+        MVMuint64 lexcount = num_lexicals;
         HASH_ITER(dtc, hash_handle, debug_locals, debug_entry, {
-            MVM_HASH_GET(dtc, lexical_names, debug_entry->name, entry);
+            MVMLexicalRegistry *entry = MVM_get_lexical_by_name(dtc, static_info, debug_entry->name);
             if (!entry)
                 lexcount++;
         });
@@ -1489,7 +1487,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         };
 
         HASH_ITER(dtc, hash_handle, debug_locals, debug_entry, {
-            MVM_HASH_GET(dtc, lexical_names, debug_entry->name, entry);
+            MVMLexicalRegistry *entry = MVM_get_lexical_by_name(dtc, static_info, debug_entry->name);
             if (!entry) {
                 char *c_key_name = MVM_string_utf8_encode_C_string(dtc, debug_entry->name);
                 MVMRegister *result = &frame->work[debug_entry->local_idx];

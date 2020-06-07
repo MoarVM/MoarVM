@@ -1324,11 +1324,8 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
 MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type) {
     MVMFrame *cur_frame = tc->cur_frame;
     while (cur_frame != NULL) {
-        MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
-        if (lexical_names) {
-            /* Indexes were formerly stored off-by-one to avoid semi-predicate issue. */
-            MVMLexicalRegistry *entry;
-            MVM_HASH_GET(tc, lexical_names, name, entry)
+        if (cur_frame->static_info->body.num_lexicals) {
+            MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
             if (entry) {
                 if (MVM_LIKELY(cur_frame->static_info->body.lexical_types[entry->value] == type)) {
                     MVMRegister *result = &cur_frame->env[entry->value];
@@ -1361,10 +1358,8 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
 MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMRegister value) {
     MVMFrame *cur_frame = tc->cur_frame;
     while (cur_frame != NULL) {
-        MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
-        if (lexical_names) {
-            MVMLexicalRegistry *entry;
-            MVM_HASH_GET(tc, lexical_names, name, entry)
+        if (cur_frame->static_info->body.num_lexicals) {
+            MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
             if (entry) {
                 if (cur_frame->static_info->body.lexical_types[entry->value] == type) {
                     if (type == MVM_reg_obj || type == MVM_reg_str) {
@@ -1415,11 +1410,8 @@ MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString
  * the specified frame. Only works if it's an object lexical.  */
 MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
     while (cur_frame != NULL) {
-        MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
-        if (lexical_names) {
-            /* Indexes were formerly stored off-by-one to avoid semi-predicate issue. */
-            MVMLexicalRegistry *entry;
-            MVM_HASH_GET(tc, lexical_names, name, entry)
+        if (cur_frame->static_info->body.num_lexicals) {
+            MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
             if (entry) {
                 if (cur_frame->static_info->body.lexical_types[entry->value] == MVM_reg_obj) {
                     MVMRegister *result = &cur_frame->env[entry->value];
@@ -1710,10 +1702,8 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
 /* Returns the storage unit for the lexical in the specified frame. Does not
  * try to vivify anything - gets exactly what is there. */
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
-    MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
-    if (MVM_LIKELY(lexical_names != NULL)) {
-        MVMLexicalRegistry *entry;
-        MVM_HASH_GET(tc, lexical_names, name, entry)
+    if (MVM_LIKELY(f->static_info->body.num_lexicals != 0)) {
+        MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, f->static_info, name);
         if (entry)
             return &f->env[entry->value];
     }
@@ -1727,10 +1717,8 @@ MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *na
 
 /* Returns the storage unit for the lexical in the specified frame. */
 MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name, MVMuint16 type) {
-    MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
-    if (lexical_names) {
-        MVMLexicalRegistry *entry;
-        MVM_HASH_GET(tc, lexical_names, name, entry)
+    if (f->static_info->body.num_lexicals) {
+        MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, f->static_info, name);
         if (entry && f->static_info->body.lexical_types[entry->value] == type) {
             MVMRegister *result = &f->env[entry->value];
             if (type == MVM_reg_obj && !result->o)
@@ -1775,10 +1763,8 @@ MVMuint16 MVM_frame_translate_to_primspec(MVMThreadContext *tc, MVMuint16 kind) 
 
 /* Returns the primitive type specification for a lexical. */
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
-    MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
-    if (lexical_names) {
-        MVMLexicalRegistry *entry;
-        MVM_HASH_GET(tc, lexical_names, name, entry)
+    if (f->static_info->body.num_lexicals) {
+        MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, f->static_info, name);
         if (entry)
             return MVM_frame_translate_to_primspec(tc,
                     f->static_info->body.lexical_types[entry->value]);

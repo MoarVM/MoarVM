@@ -363,3 +363,9 @@ char * MVM_staticframe_file_location(MVMThreadContext *tc, MVMStaticFrame *sf) {
         MVM_free(filename_utf8);
     return result;
 }
+
+MVMLexicalRegistry *MVM_get_lexical_by_name(MVMThreadContext *tc, MVMStaticFrame *sf, MVMString *name) {
+    MVMLexicalRegistry *entry;
+    MVM_HASH_GET(tc, sf->body.lexical_names, name, entry);
+    return entry;
+}

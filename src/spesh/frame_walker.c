@@ -231,28 +231,22 @@ MVMuint32 MVM_spesh_frame_walker_get_lex(MVMThreadContext *tc, MVMSpeshFrameWalk
     MVMFrame *cur_frame;
     MVMStaticFrame *sf;
     MVMuint32 base_index;
-    MVMLexicalRegistry *lexical_names;
     find_lex_info(tc, fw, &cur_frame, &sf, &base_index);
-    lexical_names = sf->body.lexical_names;
-    if (lexical_names) {
-        /* Indexes were formerly stored off-by-one to avoid semi-predicate issue. */
-        MVMLexicalRegistry *entry;
-        MVM_HASH_GET(tc, lexical_names, name, entry)
-        if (entry) {
-            MVMint32 index = base_index + entry->value;
-            MVMRegister *result = &cur_frame->env[index];
-            MVMuint16 kind = sf->body.lexical_types[entry->value];
-            *found_out = result;
-            *found_kind_out = kind;
-            if (vivify && kind == MVM_reg_obj && !result->o) {
-                MVMROOT(tc, cur_frame, {
+    MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, sf, name);
+    if (entry) {
+        MVMint32 index = base_index + entry->value;
+        MVMRegister *result = &cur_frame->env[index];
+        MVMuint16 kind = sf->body.lexical_types[entry->value];
+        *found_out = result;
+        *found_kind_out = kind;
+        if (vivify && kind == MVM_reg_obj && !result->o) {
+            MVMROOT(tc, cur_frame, {
                     MVM_frame_vivify_lexical(tc, cur_frame, index);
                 });
-            }
-            if (found_frame)
-                *found_frame = cur_frame;
-            return 1;
         }
+        if (found_frame)
+            *found_frame = cur_frame;
+        return 1;
     }
     return 0;
 }
@@ -434,15 +428,10 @@ MVMint64 MVM_spesh_frame_walker_get_lexical_primspec(MVMThreadContext *tc,
     MVMFrame *cur_frame;
     MVMStaticFrame *sf;
     MVMuint32 base_index;
-    MVMLexicalRegistry *lexical_names;
     find_lex_info(tc, fw, &cur_frame, &sf, &base_index);
-    lexical_names = sf->body.lexical_names;
-    if (lexical_names) {
-        MVMLexicalRegistry *entry;
-        MVM_HASH_GET(tc, lexical_names, name, entry)
-        if (entry)
-            return MVM_frame_translate_to_primspec(tc, sf->body.lexical_types[entry->value]);
-    }
+    MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, sf, name);
+    if (entry)
+        return MVM_frame_translate_to_primspec(tc, sf->body.lexical_types[entry->value]);
     return -1;
 }
 
