@@ -653,15 +653,24 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         for (j = 0; j < sf->body.num_lexicals; j++) {
             MVMString *name = get_heap_string(tc, cu, NULL, pos, 6 * j + 2);
             MVMLexicalRegistry *entry = MVM_calloc(1, sizeof(MVMLexicalRegistry));
-            MVM_HASH_BIND_FREE(tc, sf->body.lexical_names, name, entry, {
-                if (sf->body.num_locals) {
-                    MVM_free_null(sf->body.local_types);
-                }
-                MVM_free_null(sf->body.lexical_types);
-                MVM_free_null(sf->body.lexical_names_list);
-                MVM_free(entry);
-            });
 
+            /* If we do not have "many" lexicals, don't bother making a lookup
+             * hash. Instead, MVM_get_lexical_by_name will simply do a linear
+             * search of the list. This should be faster for short lists.
+             * The choice of 5 entries is guesswork, and ought to be refined by
+             * benchmarking. This location is the only place where we need this
+             * "magic" constant, hence I don't see the need to #define it
+             * somewhere else for just one use point. */
+            if (sf->body.num_lexicals > 5) {
+                MVM_HASH_BIND_FREE(tc, sf->body.lexical_names, name, entry, {
+                    if (sf->body.num_locals) {
+                        MVM_free_null(sf->body.local_types);
+                    }
+                    MVM_free_null(sf->body.lexical_types);
+                    MVM_free_null(sf->body.lexical_names_list);
+                    MVM_free(entry);
+                });
+            }
             MVM_ASSIGN_REF(tc, &(sf->common.header), entry->key, name);
             sf->body.lexical_names_list[j] = entry;
             entry->value = j;

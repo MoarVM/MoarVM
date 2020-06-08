@@ -60,6 +60,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMuint32 num_lexicals = src_body->num_lexicals;
     dest_body->num_lexicals = num_lexicals;
     if (num_lexicals) {
+        int create_hash = src_body->lexical_names != NULL;
         MVMuint16 *lexical_types = MVM_malloc(sizeof(MVMuint16) * src_body->num_lexicals);
         MVMLexicalRegistry **lexical_names_list = MVM_malloc(sizeof(MVMLexicalRegistry *) * src_body->num_lexicals);
         memcpy(lexical_types, src_body->lexical_types,
@@ -71,9 +72,11 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
             MVMLexicalRegistry *current = lexical_names_list[j];
 
             MVMLexicalRegistry *new_entry = MVM_malloc(sizeof(MVMLexicalRegistry));
-            MVM_HASH_BIND_FREE(tc, dest_body->lexical_names, current->key, new_entry, {
-                MVM_free(new_entry);
-            });
+            if (create_hash) {
+                MVM_HASH_BIND_FREE(tc, dest_body->lexical_names, current->key, new_entry, {
+                    MVM_free(new_entry);
+                });
+            }
             /* don't need to clone the string */
             MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
             new_entry->value = current->value;
@@ -194,7 +197,8 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(body->local_types);
     MVM_free(body->lexical_types);
     MVM_free(body->lexical_names_list);
-    MVM_HASH_DESTROY(tc, hash_handle, MVMLexicalRegistry, body->lexical_names);
+    if (body->lexical_names)
+        MVM_HASH_DESTROY(tc, hash_handle, MVMLexicalRegistry, body->lexical_names);
 }
 
 static const MVMStorageSpec storage_spec = {
@@ -364,8 +368,24 @@ char * MVM_staticframe_file_location(MVMThreadContext *tc, MVMStaticFrame *sf) {
     return result;
 }
 
+/* We could change this code (and bytecode.c) to lazily only build the lookup
+ * hash on the first lookup. I don't have a feel for how often no lookups are
+ * made, and hence whether the added complexity would be much of a saving. */
 MVMLexicalRegistry *MVM_get_lexical_by_name(MVMThreadContext *tc, MVMStaticFrame *sf, MVMString *name) {
     MVMLexicalRegistry *entry;
-    MVM_HASH_GET(tc, sf->body.lexical_names, name, entry);
-    return entry;
+    /* deserialize_frames in bytecode.c doesn't create the lookup hash if there
+     * are only a small number of lexicals in this frame. */
+    if (sf->body.lexical_names) {
+        MVM_HASH_GET(tc, sf->body.lexical_names, name, entry);
+        return entry;
+    }
+
+    MVMLexicalRegistry **lexical_names_list = sf->body.lexical_names_list;
+    MVMuint32 num_lexicals = sf->body.num_lexicals;
+    for (MVMuint32 j = 0; j < num_lexicals; j++) {
+        entry = lexical_names_list[j];
+        if (MVM_string_equal(tc, name, entry->key))
+            return entry;
+    }
+    return NULL;
 }
