@@ -1327,23 +1327,20 @@ static void optimize_getcurhllsym(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
         }
         uv_mutex_lock(&tc->instance->mutex_hll_syms);
         hash = MVM_repr_at_key_o(tc, syms, hll_name);
-        /* `result = MVM_repr_at_key_o(tc, hash, sym)` from MVM_get_hll_sym,
+        /* `result = MVM_repr_at_key_o(tc, hash, sym)` from MVM_hll_sym_get,
          * but getting the hash entry instead of its value. */
         if (hash && REPR(hash)->ID == MVM_REPR_ID_MVMHash) {
             MVMHashEntry *entry = NULL;
             MVM_HASH_GET(tc, ((MVMHashBody *)OBJECT_BODY(hash))->hash_head, sym_facts->value.s, entry);
             uv_mutex_unlock(&tc->instance->mutex_hll_syms);
             if (entry) {
-                MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[is_gethllsym + 1], ins);
+                MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
                 MVM_spesh_graph_add_comment(tc, g, ins, "specialized from %s", ins->info->name);
                 ins->info = MVM_op_get_op(MVM_OP_sp_gethashentryvalue);
                 if (is_gethllsym) {
-                    /* getcurhllsym only has two operands so we can just reuse them, but gethllsym has
-                     * three, so we need to effectively get rid of one. */
-                    MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
-                    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
-                    new_operands[0] = ins->operands[0];
-                    ins->operands = new_operands;
+                    /* getcurhllsym only has two operands, but gethllsym has
+                     * three, so we need to delete the spesh usages of the third. */
+                    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[2], ins);
                 }
                 ins->operands[1].lit_i64 = (MVMint64)entry;
                 MVM_spesh_use_facts(tc, g, sym_facts);
