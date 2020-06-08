@@ -1325,7 +1325,6 @@ static void optimize_getcurhllsym(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
         else {
             hll_name = g->sf->body.cu->body.hll_name;
         }
-        MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&tc->instance->mutex_hll_syms);
         hash = MVM_repr_at_key_o(tc, syms, hll_name);
         /* `result = MVM_repr_at_key_o(tc, hash, sym)` from MVM_get_hll_sym,
@@ -1347,14 +1346,12 @@ static void optimize_getcurhllsym(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
                     ins->operands = new_operands;
                 }
                 ins->operands[1].lit_i64 = (MVMint64)entry;
-                sym_facts->value.i = (MVMint64)entry;
                 MVM_spesh_use_facts(tc, g, sym_facts);
             }
         }
         else {
             uv_mutex_unlock(&tc->instance->mutex_hll_syms);
         }
-        MVM_gc_mark_thread_unblocked(tc);
     }
 }
 
