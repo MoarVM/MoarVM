@@ -1939,7 +1939,11 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         else if (IS_CONCRETE(code) && STABLE(code)->invocation_spec) {
             /* What kind of invocation will it be? */
             MVMInvocationSpec *is = STABLE(code)->invocation_spec;
-            if (!MVM_is_null(tc, is->md_class_handle)) {
+            if (is->invocation_handler) {
+                /* Can't do anything with an invocation handler. */
+                return;
+            }
+            else if (!MVM_is_null(tc, is->md_class_handle)) {
                 /* Multi-dispatch. Check if this is a dispatch where we can
                  * use the cache directly. */
                 MVMRegister dest;
