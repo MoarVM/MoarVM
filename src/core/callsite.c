@@ -220,7 +220,7 @@ MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_p
 /* Copies the named args of one callsite into another. */
 void copy_nameds(MVMCallsite *to, MVMCallsite *from) {
     if (from->arg_names) {
-        MVMuint32 num_names = from->flag_count - to->num_pos;
+        MVMuint32 num_names = from->flag_count - from->num_pos;
         size_t memory_area = num_names * sizeof(MVMString *);
         to->arg_names = MVM_malloc(memory_area);
         memcpy(to->arg_names, from->arg_names, memory_area);
