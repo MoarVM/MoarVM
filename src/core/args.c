@@ -913,7 +913,6 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
 MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     MVMObject *type = (*(tc->interp_cu))->body.hll_config->slurpy_hash_type, *result = NULL, *box = NULL;
     MVMArgInfo arg_info;
-    MVMuint32 flag_pos, arg_pos;
     MVMRegister reg;
     int reset_ctx = ctx == NULL;
     arg_info.exists = 0;
@@ -930,63 +929,120 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
     if (reset_ctx)
         ctx = &tc->cur_frame->params;
 
-    if (ctx->version != MVM_ARGS_LEGACY)
-        MVM_panic(1, "Cannot handle new callsite format in MVM_args_slurpy_named");
+    if (ctx->version == MVM_ARGS_LEGACY) {
+        MVMuint32 flag_pos, arg_pos;
+        for (flag_pos = arg_pos = ctx->legacy.num_pos; arg_pos < ctx->legacy.arg_count; flag_pos++, arg_pos += 2) {
+            MVMString *key;
 
-    for (flag_pos = arg_pos = ctx->legacy.num_pos; arg_pos < ctx->legacy.arg_count; flag_pos++, arg_pos += 2) {
-        MVMString *key;
+            if (is_named_used(ctx, flag_pos - ctx->legacy.num_pos))
+                continue;
 
-        if (is_named_used(ctx, flag_pos - ctx->legacy.num_pos))
-            continue;
+            key = ctx->legacy.args[arg_pos].s;
 
-        key = ctx->legacy.args[arg_pos].s;
+            if (!key || !IS_CONCRETE(key)) {
+                MVM_exception_throw_adhoc(tc, "slurpy hash needs concrete key");
+            }
+            arg_info.arg    = ctx->legacy.args[arg_pos + 1];
+            arg_info.flags  = (ctx->legacy.arg_flags ? ctx->legacy.arg_flags : ctx->legacy.callsite->arg_flags)[flag_pos];
+            arg_info.exists = 1;
 
-        if (!key || !IS_CONCRETE(key)) {
-            MVM_exception_throw_adhoc(tc, "slurpy hash needs concrete key");
+            if (arg_info.flags & MVM_CALLSITE_ARG_FLAT) {
+                MVM_exception_throw_adhoc(tc, "Arg has not been flattened in slurpy_named");
+            }
+
+            switch (arg_info.flags & MVM_CALLSITE_ARG_TYPE_MASK) {
+                case MVM_CALLSITE_ARG_OBJ: {
+                    REPR(result)->ass_funcs.bind_key(tc, STABLE(result),
+                        result, OBJECT_BODY(result), (MVMObject *)key, arg_info.arg, MVM_reg_obj);
+                    if (reset_ctx)
+                        ctx = &(tc->cur_frame->params);
+                    break;
+                }
+                case MVM_CALLSITE_ARG_INT: {
+                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
+                    box_slurpy_named_int(tc, type, result, box, arg_info.arg.i64, reg, key);
+                    MVM_gc_root_temp_pop(tc);
+                    if (reset_ctx)
+                        ctx = &(tc->cur_frame->params);
+                    break;
+                }
+                case MVM_CALLSITE_ARG_NUM: {
+                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
+                    box_slurpy_named(tc, type, result, box, arg_info.arg.n64, reg, num_box_type, "num", set_num, key);
+                    MVM_gc_root_temp_pop(tc);
+                    if (reset_ctx)
+                        ctx = &(tc->cur_frame->params);
+                    break;
+                }
+                case MVM_CALLSITE_ARG_STR: {
+                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
+                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&arg_info.arg.s);
+                    box_slurpy_named(tc, type, result, box, arg_info.arg.s, reg, str_box_type, "str", set_str, key);
+                    MVM_gc_root_temp_pop_n(tc, 2);
+                    if (reset_ctx)
+                        ctx = &(tc->cur_frame->params);
+                    break;
+                }
+                default:
+                    MVM_exception_throw_adhoc(tc, "Arg flag is empty in slurpy_named");
+            }
         }
-        arg_info.arg    = ctx->legacy.args[arg_pos + 1];
-        arg_info.flags  = (ctx->legacy.arg_flags ? ctx->legacy.arg_flags : ctx->legacy.callsite->arg_flags)[flag_pos];
-        arg_info.exists = 1;
+    }
+    else {
+        MVMCallsite *cs = ctx->arg_info.callsite;
+        MVMuint16 arg_idx;
+        for (arg_idx = cs->num_pos; arg_idx < cs->flag_count; arg_idx++) {
+            /* Skip any args already used. */
+            MVMuint32 named_idx = arg_idx - cs->num_pos;
+            if (is_named_used(ctx, named_idx))
+                continue;
 
-        if (arg_info.flags & MVM_CALLSITE_ARG_FLAT) {
-            MVM_exception_throw_adhoc(tc, "Arg has not been flattened in slurpy_named");
-        }
+            /* Grab and check the arg name, which is to be the hash key. */
+            MVMString *key = cs->arg_names[named_idx];
+            if (!key || !IS_CONCRETE(key)) {
+                MVM_exception_throw_adhoc(tc, "slurpy hash needs concrete key");
+            }
 
-        switch (arg_info.flags & MVM_CALLSITE_ARG_TYPE_MASK) {
-            case MVM_CALLSITE_ARG_OBJ: {
-                REPR(result)->ass_funcs.bind_key(tc, STABLE(result),
-                    result, OBJECT_BODY(result), (MVMObject *)key, arg_info.arg, MVM_reg_obj);
-                if (reset_ctx)
-                    ctx = &(tc->cur_frame->params);
-                break;
+            /* Process the value. */
+            arg_info.arg = ctx->arg_info.source[ctx->arg_info.map[arg_idx]];
+            arg_info.flags = cs->arg_flags[arg_idx];
+            arg_info.exists = 1;
+            switch (arg_info.flags & MVM_CALLSITE_ARG_TYPE_MASK) {
+                case MVM_CALLSITE_ARG_OBJ: {
+                    REPR(result)->ass_funcs.bind_key(tc, STABLE(result),
+                        result, OBJECT_BODY(result), (MVMObject *)key, arg_info.arg, MVM_reg_obj);
+                    if (reset_ctx)
+                        ctx = &(tc->cur_frame->params);
+                    break;
+                }
+                case MVM_CALLSITE_ARG_INT: {
+                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
+                    box_slurpy_named_int(tc, type, result, box, arg_info.arg.i64, reg, key);
+                    MVM_gc_root_temp_pop(tc);
+                    if (reset_ctx)
+                        ctx = &(tc->cur_frame->params);
+                    break;
+                }
+                case MVM_CALLSITE_ARG_NUM: {
+                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
+                    box_slurpy_named(tc, type, result, box, arg_info.arg.n64, reg, num_box_type, "num", set_num, key);
+                    MVM_gc_root_temp_pop(tc);
+                    if (reset_ctx)
+                        ctx = &(tc->cur_frame->params);
+                    break;
+                }
+                case MVM_CALLSITE_ARG_STR: {
+                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
+                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&arg_info.arg.s);
+                    box_slurpy_named(tc, type, result, box, arg_info.arg.s, reg, str_box_type, "str", set_str, key);
+                    MVM_gc_root_temp_pop_n(tc, 2);
+                    if (reset_ctx)
+                        ctx = &(tc->cur_frame->params);
+                    break;
+                }
+                default:
+                    MVM_exception_throw_adhoc(tc, "Arg flag is empty in slurpy_named");
             }
-            case MVM_CALLSITE_ARG_INT: {
-                MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
-                box_slurpy_named_int(tc, type, result, box, arg_info.arg.i64, reg, key);
-                MVM_gc_root_temp_pop(tc);
-                if (reset_ctx)
-                    ctx = &(tc->cur_frame->params);
-                break;
-            }
-            case MVM_CALLSITE_ARG_NUM: {
-                MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
-                box_slurpy_named(tc, type, result, box, arg_info.arg.n64, reg, num_box_type, "num", set_num, key);
-                MVM_gc_root_temp_pop(tc);
-                if (reset_ctx)
-                    ctx = &(tc->cur_frame->params);
-                break;
-            }
-            case MVM_CALLSITE_ARG_STR: {
-                MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
-                MVM_gc_root_temp_push(tc, (MVMCollectable **)&arg_info.arg.s);
-                box_slurpy_named(tc, type, result, box, arg_info.arg.s, reg, str_box_type, "str", set_str, key);
-                MVM_gc_root_temp_pop_n(tc, 2);
-                if (reset_ctx)
-                    ctx = &(tc->cur_frame->params);
-                break;
-            }
-            default:
-                MVM_exception_throw_adhoc(tc, "Arg flag is empty in slurpy_named");
         }
     }
 
