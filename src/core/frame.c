@@ -1063,9 +1063,11 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
 
     /* If it's a call stack frame, its environment wasn't closed over, so it
      * can go away immediately. */
+    MVMuint32 clear_caller;
     if (MVM_FRAME_IS_ON_CALLSTACK(tc, returner)) {
         if (returner->env)
             MVM_fixed_size_free(tc, tc->instance->fsa, returner->allocd_env, returner->env);
+        clear_caller = 0;
     }
 
     /* Otherwise, NULL  out ->work, to indicate the frame is no longer in
@@ -1075,8 +1077,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
      * in dynamic scope. */
     else {
         returner->work = NULL;
-        if (!need_caller)
-            returner->caller = NULL;
+        clear_caller = !need_caller;
     }
 
     /* Unwind call stack entries. From this, we find out the caller. This may
@@ -1085,23 +1086,13 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
      * return to the runloop. */
     MVMuint32 thunked = 0;
     MVMFrame *caller = MVM_callstack_unwind_frame(tc, unwind, &thunked);
+    if (clear_caller)
+        returner->caller = NULL;
     if (thunked)
         return 1;
 
     /* Switch back to the caller frame if there is one. */
     if (caller && (returner != tc->thread_entry_frame || tc->nested_interpreter)) {
-       if (tc->jit_return_address != NULL) {
-            /* on a JIT frame, exit to interpreter afterwards */
-            MVMJitCode *jitcode = returner->spesh_cand->body.jitcode;
-            MVM_jit_code_set_current_position(tc, jitcode, returner, jitcode->exit_label);
-            /* given that we might throw in the special-return, act as if we've
-             * left the current frame (which is true) */
-            tc->jit_return_address = NULL;
-        }
-
-        tc->cur_frame = caller;
-        tc->current_frame_nr = caller->sequence_nr;
-
         *(tc->interp_cur_op) = caller->return_address;
         *(tc->interp_bytecode_start) = MVM_frame_effective_bytecode(caller);
         *(tc->interp_reg_base) = caller->work;
