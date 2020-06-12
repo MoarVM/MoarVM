@@ -255,6 +255,25 @@ static void handle_end_of_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunk
         tc->stack_top = tc->stack_top->prev;
     }
 }
+static void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
+    MVMFrame *caller = returner->caller;
+    if (caller && (returner != tc->thread_entry_frame || tc->nested_interpreter)) {
+       if (tc->jit_return_address != NULL) {
+            /* on a JIT frame, exit to interpreter afterwards */
+            MVMJitCode *jitcode = returner->spesh_cand->body.jitcode;
+            MVM_jit_code_set_current_position(tc, jitcode, returner, jitcode->exit_label);
+            /* given that we might throw in the special-return, act as if we've
+             * left the current frame (which is true) */
+            tc->jit_return_address = NULL;
+        }
+
+        tc->cur_frame = caller;
+        tc->current_frame_nr = caller->sequence_nr;
+    }
+    else {
+        tc->cur_frame = NULL;
+    }
+}
 MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional, MVMuint32 *thunked) {
     do {
         /* Ensure region and stack top are in a consistent state. */
@@ -270,6 +289,21 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                 tc->stack_current_region = tc->stack_current_region->prev;
                 tc->stack_top = tc->stack_top->prev;
                 break;
+            case MVM_CALLSTACK_RECORD_FRAME:
+                exit_frame(tc, &(((MVMCallStackFrame *)tc->stack_top)->frame));
+                tc->stack_current_region->alloc = (char *)tc->stack_top;
+                tc->stack_top = tc->stack_top->prev;
+                break;
+            case MVM_CALLSTACK_RECORD_HEAP_FRAME:
+                exit_frame(tc, ((MVMCallStackHeapFrame *)tc->stack_top)->frame);
+                tc->stack_current_region->alloc = (char *)tc->stack_top;
+                tc->stack_top = tc->stack_top->prev;
+                break;
+            case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
+                exit_frame(tc, ((MVMCallStackPromotedFrame *)tc->stack_top)->frame);
+                tc->stack_current_region->alloc = (char *)tc->stack_top;
+                tc->stack_top = tc->stack_top->prev;
+                break;
             case MVM_CALLSTACK_RECORD_DEOPT_FRAME:
                 /* Deopt it, but don't move stack top back, since we're either
                  * turning the current frame into a deoptimized one or will put
@@ -278,9 +312,6 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                 MVM_spesh_deopt_during_unwind(tc);
                 break;
             case MVM_CALLSTACK_RECORD_START:
-            case MVM_CALLSTACK_RECORD_FRAME:
-            case MVM_CALLSTACK_RECORD_HEAP_FRAME:
-            case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED:
             case MVM_CALLSTACK_RECORD_DISPATCH_RUN:
                 /* No cleanup to do, just move to next record. */
