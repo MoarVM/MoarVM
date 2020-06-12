@@ -51,6 +51,7 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
         MVM_repr_at_key_o(tc, config, tc->instance->str_consts.path));
 
     if (MVM_is_null(tc, (MVMObject*)path_str)) {
+        MVM_free(col);
         MVM_exception_throw_adhoc(tc, "Didn't specify a path for the heap snapshot profiler");
     }
 
@@ -59,6 +60,7 @@ void MVM_profile_heap_start(MVMThreadContext *tc, MVMObject *config) {
     col->fh = MVM_platform_fopen(path, "w");
 
     if (!col->fh) {
+        MVM_free(col);
         char *waste[2] = {path, NULL};
         MVM_exception_throw_adhoc_free(tc, waste, "Couldn't open heap snapshot target file %s: %s", path, strerror(errno));
     }

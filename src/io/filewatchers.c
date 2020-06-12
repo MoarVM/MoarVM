@@ -98,12 +98,16 @@ MVMObject * MVM_io_file_watch(MVMThreadContext *tc, MVMObject *queue,
     char *c_path = MVM_string_utf8_c8_encode_C_string(tc, path);
 
     /* Validate REPRs. */
-    if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
+    if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue) {
+        MVM_free(c_path);
         MVM_exception_throw_adhoc(tc,
             "file watch target queue must have ConcBlockingQueue REPR");
-    if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
+    }
+    if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask) {
+        MVM_free(c_path);
         MVM_exception_throw_adhoc(tc,
             "file watch result type must have REPR AsyncTask");
+    }
 
     /* Create async task handle. */
     MVMROOT2(tc, queue, schedulee, {

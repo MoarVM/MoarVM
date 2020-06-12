@@ -678,8 +678,10 @@ void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeSt
     graph_length = 0;
     for (i = 0; i < num_seps; i++) {
         MVMuint32 num_graphs = MVM_string_graphs(tc, seps[i]);
-        if (num_graphs > 0xFFFF)
+        if (num_graphs > 0xFFFF) {
+            MVM_free(sep_spec->sep_lengths);
             MVM_exception_throw_adhoc(tc, "Line separator (%"PRIu32") too long, max allowed is 65535", num_graphs);
+        }
         sep_spec->sep_lengths[i] = num_graphs;
         graph_length += num_graphs;
     }

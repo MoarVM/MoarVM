@@ -1463,7 +1463,9 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                  * there is no debug local override for it (which means the lexical
                  * was lowered into a local, but preserved for some reason). */
                 c_key_name = MVM_string_utf8_encode_C_string(dtc, entry->key);
-                MVM_HASH_GET(dtc, debug_locals, entry->key, debug_entry);
+                MVM_HASH_GET_FREE(dtc, debug_locals, entry->key, debug_entry, {
+                    MVM_free(c_key_name);
+                });
                 if (debug_entry && static_info->body.local_types[debug_entry->local_idx] == lextype) {
                     result = &frame->work[debug_entry->local_idx];
                     was_from_local = 1;

@@ -107,7 +107,7 @@ static MVMuint8 read_int8(MVMuint8 *buffer, size_t offset) {
 }
 
 /* Cleans up reader state. */
-static void cleanup_all(MVMThreadContext *tc, ReaderState *rs) {
+static void cleanup_all(ReaderState *rs) {
     MVM_free(rs->frames);
     MVM_free(rs->frame_outer_fixups);
     MVM_free(rs);
@@ -117,7 +117,7 @@ static void cleanup_all(MVMThreadContext *tc, ReaderState *rs) {
  * of the stream. */
 MVM_STATIC_INLINE void ensure_can_read(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs, MVMuint8 *pos, MVMuint32 size) {
     if (pos + size > rs->read_limit) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Read past end of bytecode stream");
     }
 }
@@ -128,7 +128,7 @@ static MVMString * get_heap_string(MVMThreadContext *tc, MVMCompUnit *cu, Reader
     MVMuint32 heap_index = read_int32(buffer, offset);
     if (heap_index >= cu->body.num_strings) {
         if (rs)
-            cleanup_all(tc, rs);
+            cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "String heap index beyond end of string heap");
     }
     return MVM_cu_string(tc, cu, heap_index);
@@ -161,7 +161,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Locate SC dependencies segment. */
     offset = read_int32(cu_body->data_start, SCDEP_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Serialization contexts segment starts after end of stream");
     }
     rs->sc_seg       = cu_body->data_start + offset;
@@ -170,7 +170,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Locate extension ops segment. */
     offset = read_int32(cu_body->data_start, EXTOP_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Extension ops segment starts after end of stream");
     }
     rs->extop_seg       = cu_body->data_start + offset;
@@ -179,7 +179,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Locate frames segment. */
     offset = read_int32(cu_body->data_start, FRAME_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Frames segment starts after end of stream");
     }
     rs->frame_seg       = cu_body->data_start + offset;
@@ -188,7 +188,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Locate callsites segment. */
     offset = read_int32(cu_body->data_start, CALLSITE_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Callsites segment starts after end of stream");
     }
     rs->callsite_seg       = cu_body->data_start + offset;
@@ -197,7 +197,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* Locate strings segment. */
     offset = read_int32(cu_body->data_start, STRING_HEADER_OFFSET);
     if (offset > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Strings segment starts after end of stream");
     }
     rs->string_seg       = cu_body->data_start + offset;
@@ -207,7 +207,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     offset = read_int32(cu_body->data_start, SCDATA_HEADER_OFFSET);
     size = read_int32(cu_body->data_start, SCDATA_HEADER_OFFSET + 4);
     if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Serialized data segment overflows end of stream");
     }
     if (offset) {
@@ -219,7 +219,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     offset = read_int32(cu_body->data_start, BYTECODE_HEADER_OFFSET);
     size = read_int32(cu_body->data_start, BYTECODE_HEADER_OFFSET + 4);
     if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Bytecode segment overflows end of stream");
     }
     rs->bytecode_seg  = cu_body->data_start + offset;
@@ -229,7 +229,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
     offset = read_int32(cu_body->data_start, ANNOTATION_HEADER_OFFSET);
     size = read_int32(cu_body->data_start, ANNOTATION_HEADER_OFFSET + 4);
     if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Annotation segment overflows end of stream");
     }
     rs->annotation_seg  = cu_body->data_start + offset;
@@ -251,6 +251,7 @@ static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
             || rs->main_frame > rs->expected_frames
             || rs->load_frame > rs->expected_frames
             || rs->deserialize_frame > rs->expected_frames) {
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Special frame index out of bounds");
     }
 
@@ -282,7 +283,10 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
 
         /* Resolve to string. */
         if (sh_idx >= cu_body->num_strings) {
-            cleanup_all(tc, rs);
+            cleanup_all(rs);
+            MVM_free_null(cu_body->scs);
+            MVM_free_null(cu_body->scs_to_resolve);
+            MVM_free_null(cu_body->sc_handle_idxs);
             MVM_exception_throw_adhoc(tc, "String heap index beyond end of string heap");
         }
         cu_body->sc_handle_idxs[i] = sh_idx;
@@ -300,7 +304,14 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
             if (!scb) {
                 scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
                 scb->handle = handle;
-                MVM_HASH_BIND(tc, tc->instance->sc_weakhash, handle, scb);
+                MVM_HASH_BIND_FREE(tc, tc->instance->sc_weakhash, handle, scb, {
+                    cleanup_all(rs);
+                    MVM_free_null(cu_body->scs);
+                    MVM_free_null(cu_body->scs_to_resolve);
+                    MVM_free_null(cu_body->sc_handle_idxs);
+                    scb->handle = NULL;
+                    MVM_free(scb);
+                });
                 MVM_sc_add_all_scs_entry(tc, scb);
             }
             cu_body->scs_to_resolve[i] = scb;
@@ -336,7 +347,8 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
 
         /* Lookup name string. */
         if (name_idx >= cu->body.num_strings) {
-            cleanup_all(tc, rs);
+            cleanup_all(rs);
+            MVM_fixed_size_free(tc, tc->instance->fsa, num * sizeof(MVMExtOpRecord), extops);
             MVM_exception_throw_adhoc(tc,
                     "String heap index beyond end of string heap");
         }
@@ -438,7 +450,8 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
                 }
 
             fail:
-                cleanup_all(tc, rs);
+                cleanup_all(rs);
+                MVM_fixed_size_free(tc, tc->instance->fsa, num * sizeof(MVMExtOpRecord), extops);
                 MVM_exception_throw_adhoc(tc, "Invalid operand descriptor");
             }
         }
@@ -459,7 +472,7 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
 
     /* Allocate frames array. */
     if (rs->expected_frames == 0) {
-        cleanup_all(tc, rs);
+        cleanup_all(rs);
         MVM_exception_throw_adhoc(tc, "Bytecode file must have at least one frame");
     }
     frames = MVM_malloc(sizeof(MVMStaticFrame *) * rs->expected_frames);
@@ -483,11 +496,14 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
         bytecode_pos = read_int32(pos, 0);
         bytecode_size = read_int32(pos, 4);
         if (bytecode_pos >= rs->bytecode_size) {
-            cleanup_all(tc, rs);
-            MVM_exception_throw_adhoc(tc, "Frame has invalid bytecode start point %d (size %d)", bytecode_pos, rs->bytecode_size);
+            MVMuint32 bytecode_size = rs->bytecode_size;
+            cleanup_all(rs);
+            MVM_free(frames);
+            MVM_exception_throw_adhoc(tc, "Frame has invalid bytecode start point %d (size %d)", bytecode_pos, bytecode_size);
         }
         if (bytecode_pos + bytecode_size > rs->bytecode_size) {
-            cleanup_all(tc, rs);
+            cleanup_all(rs);
+            MVM_free(frames);
             MVM_exception_throw_adhoc(tc, "Frame bytecode overflows bytecode stream");
         }
         static_frame_body->bytecode      = rs->bytecode_seg + bytecode_pos;
@@ -510,7 +526,8 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
             MVMuint32 annot_offset    = read_int32(pos, 26);
             MVMuint32 num_annotations = read_int32(pos, 30);
             if (annot_offset + num_annotations * 12 > rs->annotation_size) {
-                cleanup_all(tc, rs);
+                cleanup_all(rs);
+                MVM_free(frames);
                 MVM_exception_throw_adhoc(tc, "Frame annotation segment overflows bytecode stream");
             }
             static_frame_body->annotations_data = rs->annotation_seg + annot_offset;
@@ -574,7 +591,8 @@ static MVMStaticFrame ** deserialize_frames(MVMThreadContext *tc, MVMCompUnit *c
                 MVM_ASSIGN_REF(tc, &(frames[i]->common.header), frames[i]->body.outer, frames[rs->frame_outer_fixups[i]]);
             }
             else {
-                cleanup_all(tc, rs);
+                cleanup_all(rs);
+                MVM_free(frames);
                 MVM_exception_throw_adhoc(tc, "Invalid frame outer index; cannot fixup");
             }
         }
@@ -635,13 +653,20 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         for (j = 0; j < sf->body.num_lexicals; j++) {
             MVMString *name = get_heap_string(tc, cu, NULL, pos, 6 * j + 2);
             MVMLexicalRegistry *entry = MVM_calloc(1, sizeof(MVMLexicalRegistry));
+            MVM_HASH_BIND_FREE(tc, sf->body.lexical_names, name, entry, {
+                if (sf->body.num_locals) {
+                    MVM_free_null(sf->body.local_types);
+                }
+                MVM_free_null(sf->body.lexical_types);
+                MVM_free_null(sf->body.lexical_names_list);
+                MVM_free(entry);
+            });
 
             MVM_ASSIGN_REF(tc, &(sf->common.header), entry->key, name);
             sf->body.lexical_names_list[j] = entry;
             entry->value = j;
 
             sf->body.lexical_types[j] = read_int16(pos, 6 * j);
-            MVM_HASH_BIND(tc, sf->body.lexical_names, name, entry)
         }
         pos += 6 * sf->body.num_lexicals;
     }
@@ -684,6 +709,18 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
 
         if (lex_idx >= sf->body.num_lexicals) {
             MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
+            if (sf->body.num_locals) {
+                MVM_free_null(sf->body.local_types);
+            }
+            if (sf->body.num_lexicals) {
+                MVM_free_null(sf->body.lexical_types);
+                MVM_free_null(sf->body.lexical_names_list);
+            }
+            if (sf->body.num_handlers) {
+                MVM_free_null(sf->body.handlers);
+            }
+            MVM_free_null(sf->body.static_env);
+            MVM_free_null(sf->body.static_env_flags);
             MVM_exception_throw_adhoc(tc, "Lexical index out of bounds: %d >= %d", lex_idx, sf->body.num_lexicals);
         }
 
@@ -694,6 +731,18 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
             MVMSerializationContext *sc = MVM_sc_get_sc(tc, cu, read_int32(pos, 4));
             if (sc == NULL) {
                 MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
+                if (sf->body.num_locals) {
+                    MVM_free_null(sf->body.local_types);
+                }
+                if (sf->body.num_lexicals) {
+                    MVM_free_null(sf->body.lexical_types);
+                    MVM_free_null(sf->body.lexical_names_list);
+                }
+                if (sf->body.num_handlers) {
+                    MVM_free_null(sf->body.handlers);
+                }
+                MVM_free_null(sf->body.static_env);
+                MVM_free_null(sf->body.static_env_flags);
                 MVM_exception_throw_adhoc(tc, "SC not yet resolved; lookup failed");
             }
             MVMObject *wval;
@@ -716,7 +765,9 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
             MVMStaticFrameDebugLocal *entry = MVM_calloc(1, sizeof(MVMStaticFrameDebugLocal));
             entry->local_idx = idx;
             MVM_ASSIGN_REF(tc, &(sf->common.header), entry->name, name);
-            MVM_HASH_BIND(tc, ins->debug_locals, name, entry);
+            MVM_HASH_BIND_FREE(tc, ins->debug_locals, name, entry, {
+                MVM_free(entry);
+            });
             pos += 6;
         }
         sf->body.instrumentation = ins;
@@ -798,16 +849,49 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
          * before all nameds (flattening named counts as named). */
         for (j = 0; j < elems; j++) {
             if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT) {
-                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ))
+                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ)) {
+                    MVMuint32 k;
+                    for (k = 0; k <= i; k++) {
+                        if (!callsites[i]->is_interned) {
+                            MVM_free(callsites[i]->arg_flags);
+                            MVM_free_null(callsites[i]);
+                        }
+                    }
+                    MVM_fixed_size_free(tc, tc->instance->fsa,
+                        sizeof(MVMCallsite *) * rs->expected_callsites,
+                        callsites);
                     MVM_exception_throw_adhoc(tc, "Flattened positional args must be objects");
-                if (nameds_slots)
+                }
+                if (nameds_slots) {
+                    MVMuint32 k;
+                    for (k = 0; k <= i; k++) {
+                        if (!callsites[i]->is_interned) {
+                            MVM_free(callsites[i]->arg_flags);
+                            MVM_free_null(callsites[i]);
+                        }
+                    }
+                    MVM_fixed_size_free(tc, tc->instance->fsa,
+                        sizeof(MVMCallsite *) * rs->expected_callsites,
+                        callsites);
                     MVM_exception_throw_adhoc(tc, "Flattened positional args must appear before named args");
+                }
                 has_flattening = 1;
                 positionals++;
             }
             else if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT_NAMED) {
-                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ))
+                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ)) {
+                    MVMuint32 k;
+                    for (k = 0; k <= i; k++) {
+                        if (!callsites[i]->is_interned) {
+                            MVM_free(callsites[i]->arg_flags);
+                            MVM_free_null(callsites[i]);
+                        }
+                    }
+                    MVM_fixed_size_free(tc, tc->instance->fsa,
+                        sizeof(MVMCallsite *) * rs->expected_callsites,
+                        callsites);
                     MVM_exception_throw_adhoc(tc, "Flattened named args must be objects");
+                }
                 has_flattening = 1;
                 nameds_slots++;
             }
@@ -816,6 +900,16 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
                 nameds_non_flattening++;
             }
             else if (nameds_slots) {
+                MVMuint32 k;
+                for (k = 0; k <= i; k++) {
+                    if (!callsites[i]->is_interned) {
+                        MVM_free(callsites[i]->arg_flags);
+                        MVM_free_null(callsites[i]);
+                    }
+                }
+                MVM_fixed_size_free(tc, tc->instance->fsa,
+                    sizeof(MVMCallsite *) * rs->expected_callsites,
+                        callsites);
                 MVM_exception_throw_adhoc(tc, "All positional args must appear before named args, violated by arg %d in callsite %d", j, i);
             }
             else {
@@ -918,8 +1012,11 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     cu_body->num_callsites = rs->expected_callsites;
     cu_body->orig_callsites = rs->expected_callsites;
 
-    if (rs->hll_str_idx > rs->expected_strings)
+    if (rs->hll_str_idx > rs->expected_strings) {
+        MVM_free(cu_body->string_heap_fast_table);
+        MVM_fixed_size_free(tc, tc->instance->fsa, rs->expected_strings * sizeof(MVMString *), cu_body->strings);
         MVM_exception_throw_adhoc(tc, "Unpacking bytecode: HLL name string index out of range: %d > %d", rs->hll_str_idx, rs->expected_strings);
+    }
 
     /* Resolve HLL name. */
     MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->hll_name,
@@ -937,7 +1034,7 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
         MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->deserialize_frame, rs->frames[rs->deserialize_frame - 1]);
 
     /* Clean up reader state. */
-    cleanup_all(tc, rs);
+    cleanup_all(rs);
 
     /* Restore normal GC allocation. */
     MVM_gc_allocate_gen2_default_clear(tc);

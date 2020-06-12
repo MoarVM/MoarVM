@@ -1089,6 +1089,9 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
             MVMObject    *handler;
             MVMCallsite *two_args_callsite;
 
+            if (return_value)
+                MVM_exception_throw_adhoc(tc, "return_value + exit_handler case NYI");
+
             /* Force the frame onto the heap, since we'll reference it from the
              * unwind data. */
             MVMROOT3(tc, frame, cur_frame, return_value, {
@@ -1113,8 +1116,6 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                 ud->abs_addr = abs_addr;
                 ud->rel_addr = rel_addr;
                 ud->jit_return_label = jit_return_label;
-                if (return_value)
-                    MVM_exception_throw_adhoc(tc, "return_value + exit_handler case NYI");
                 MVM_frame_special_return(tc, cur_frame, continue_unwind, NULL, ud,
                     mark_unwind_data);
             }

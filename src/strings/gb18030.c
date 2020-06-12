@@ -97,9 +97,10 @@ MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *res
                 }
             }
             
-            MVM_exception_throw_adhoc(tc, 
-            "Error decoding gb18030 string: invalid gb18030 format. Last byte seen was 0x%hhX\n", 
-            (MVMuint8)gb18030[i]);
+            MVM_free(result->body.storage.blob_32);
+            MVM_exception_throw_adhoc(tc,
+                "Error decoding gb18030 string: invalid gb18030 format. Last byte seen was 0x%hhX\n",
+                (MVMuint8)gb18030[i]);
         }
     }
 
@@ -170,6 +171,7 @@ MVMuint32 MVM_string_gb18030_decodestream(MVMThreadContext *tc, MVMDecodeStream 
                         graph = gb18030_index_to_cp_len4(len4_byte1, len4_byte2, len4_byte3, len4_byte4);
                         is_len4 = 0;
                     } else {
+                        MVM_free(buffer);
                         MVM_exception_throw_adhoc(tc, 
                          "Error decoding gb18030 string: invalid gb18030 format. Last four bytes seen was 0x%x, 0x%x, 0x%x, 0x%x\n", 
                          len4_byte1, len4_byte2, len4_byte3, len4_byte4);
@@ -207,6 +209,7 @@ MVMuint32 MVM_string_gb18030_decodestream(MVMThreadContext *tc, MVMDecodeStream 
                     }
                     graph = gb18030_index_to_cp_len2(last_codepoint, codepoint);
                     if (graph == GB18030_NULL) {
+                        MVM_free(buffer);
                         MVM_exception_throw_adhoc(tc, 
                         "Error decoding gb18030 string: invalid gb18030 format. Last two bytes seen was 0x%x, 0x%x\n", 
                         last_codepoint, codepoint);

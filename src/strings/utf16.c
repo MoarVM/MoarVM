@@ -255,6 +255,7 @@ static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
         MVMGrapheme32 g;
 
         if ((value & 0xFC00) == 0xDC00) {
+            MVM_free(result->body.storage.blob_32);
             MVM_unicode_normalizer_cleanup(tc, &norm);
             MVM_exception_throw_adhoc(tc, "Malformed UTF-16; unexpected low surrogate");
         }
@@ -262,11 +263,13 @@ static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
         if ((value & 0xFC00) == 0xD800) { /* high surrogate */
             utf16 += 2;
             if (utf16 == utf16_end) {
+                MVM_free(result->body.storage.blob_32);
                 MVM_unicode_normalizer_cleanup(tc, &norm);
                 MVM_exception_throw_adhoc(tc, "Malformed UTF-16; incomplete surrogate pair");
             }
             value2 = (utf16[high] << 8) + utf16[low];
             if ((value2 & 0xFC00) != 0xDC00) {
+                MVM_free(result->body.storage.blob_32);
                 MVM_unicode_normalizer_cleanup(tc, &norm);
                 MVM_exception_throw_adhoc(tc, "Malformed UTF-16; incomplete surrogate pair");
             }

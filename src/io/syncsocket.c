@@ -336,6 +336,7 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc,
 #endif
         }
         default:
+            MVM_free(host_cstr);
             MVM_exception_throw_adhoc(tc, "Unsupported socket family: %"PRIu16"", family);
             break;
     }
@@ -351,12 +352,16 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc,
             hints.ai_socktype = SOCK_DGRAM;
             break;
         case MVM_SOCKET_TYPE_RAW:
+            MVM_free(host_cstr);
             MVM_exception_throw_adhoc(tc, "Support for raw sockets NYI");
         case MVM_SOCKET_TYPE_RDM:
+            MVM_free(host_cstr);
             MVM_exception_throw_adhoc(tc, "Support for RDM sockets NYI");
         case MVM_SOCKET_TYPE_SEQPACKET:
+            MVM_free(host_cstr);
             MVM_exception_throw_adhoc(tc, "Support for seqpacket sockets NYI");
         default:
+            MVM_free(host_cstr);
             MVM_exception_throw_adhoc(tc, "Unsupported socket type: %"PRIi64"", type);
     }
 
@@ -371,6 +376,7 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc,
             hints.ai_protocol = IPPROTO_UDP;
             break;
         default:
+            MVM_free(host_cstr);
             MVM_exception_throw_adhoc(tc, "Unsupported socket protocol: %"PRIi64"", protocol);
     }
 

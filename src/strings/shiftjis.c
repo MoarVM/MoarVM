@@ -260,6 +260,7 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
                     if (1 < repl_length) repl_pos++;
                 }
                 else {
+                    MVM_free(result->body.storage.blob_32);
                     /* Throw if it's unmapped */
                     MVM_exception_throw_adhoc(tc,
                         "Error decoding shiftjis string: could not decode byte 0x%hhX",
@@ -272,6 +273,7 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
                 continue;
             }
             else {
+                MVM_free(result->body.storage.blob_32);
                 MVM_exception_throw_adhoc(tc, "shiftjis decoder encountered an internal error.\n");
             }
         }
@@ -299,6 +301,7 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
     /* If we end up with Shift_JIS_lead still set, that means we're missing a byte
      * that should have followed it. */
     if (Shift_JIS_lead != 0x00) {
+        MVM_free(result->body.storage.blob_32);
         MVM_exception_throw_adhoc(tc, "Error, ended decode of shiftjis expecting another byte. "
             "Last byte seen was 0x%hhX\n", Shift_JIS_lead);
     }
@@ -397,6 +400,7 @@ MVMuint32 MVM_string_shiftjis_decodestream(MVMThreadContext *tc, MVMDecodeStream
                     continue;
                 }
                 else {
+                    MVM_free(buffer);
                     MVM_exception_throw_adhoc(tc, "shiftjis decoder encountered an internal error. This bug should be reported.\n");
                 }
             }

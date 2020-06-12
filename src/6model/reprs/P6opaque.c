@@ -209,6 +209,30 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     MVM_free(st->REPR_data);
 }
 
+/* Frees the representation data.*/
+static void free_repr_data(MVMP6opaqueREPRData *repr_data) {
+    if (repr_data->name_to_index_mapping) {
+        MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
+        while (cur_map_entry->class_key != NULL) {
+            MVM_free(cur_map_entry->names);
+            MVM_free(cur_map_entry->slots);
+            cur_map_entry++;
+        }
+        MVM_free(repr_data->name_to_index_mapping);
+    }
+
+    MVM_free(repr_data->attribute_offsets);
+    MVM_free(repr_data->flattened_stables);
+    MVM_free(repr_data->auto_viv_values);
+    MVM_free(repr_data->unbox_slots);
+    MVM_free(repr_data->gc_obj_mark_offsets);
+    MVM_free(repr_data->initialize_slots);
+    MVM_free(repr_data->gc_mark_slots);
+    MVM_free(repr_data->gc_cleanup_slots);
+
+    MVM_free(repr_data);
+}
+
 /* Helper for complaining about attribute access errors. */
 MVM_NO_RETURN static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name, MVMSTable *target_type) MVM_NO_RETURN_ATTRIBUTE;
 MVM_NO_RETURN static void no_such_attribute(MVMThreadContext *tc, const char *action, MVMObject *class_handle, MVMString *name, MVMSTable *target_type) {
@@ -667,13 +691,13 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     if (st->REPR_data)
         MVM_exception_throw_adhoc(tc, "Type %s is already composed", MVM_6model_get_stable_debug_name(tc, st));
 
-    /* Allocate the representation data. */
-    repr_data = (MVMP6opaqueREPRData *)MVM_calloc(1, sizeof(MVMP6opaqueREPRData));
-
     /* Find attribute information. */
     info = MVM_repr_at_key_o(tc, info_hash, str_attribute);
     if (MVM_is_null(tc, info))
         MVM_exception_throw_adhoc(tc, "P6opaque: missing attribute protocol in compose of %s", MVM_6model_get_stable_debug_name(tc, st));
+
+    /* Allocate the representation data. */
+    repr_data = (MVMP6opaqueREPRData *)MVM_calloc(1, sizeof(MVMP6opaqueREPRData));
 
     /* In this first pass, we'll loop over the MRO entries, looking for
      * if there is any multiple inheritance and counting the number of
@@ -761,8 +785,14 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             MVMuint32 align;
 
             /* Ensure we have a name. */
-            if (MVM_is_null(tc, name_obj))
+            if (MVM_is_null(tc, name_obj)) {
+                if (num_attrs) {
+                    MVM_free_null(name_map->names);
+                    MVM_free_null(name_map->slots);
+                }
+                free_repr_data(repr_data);
                 MVM_exception_throw_adhoc(tc, "P6opaque: %s missing attribute name for attribute %"PRId64, MVM_6model_get_stable_debug_name(tc, st), i);
+            }
 
             if (REPR(name_obj)->ID == MVM_REPR_ID_MVMString) {
                 MVM_ASSIGN_REF(tc, &(st->header), name_map->names[i], (MVMString *)name_obj);
@@ -808,21 +838,39 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                         /* If it boxes a primitive, note that. */
                         switch (unboxed_type) {
                             case MVM_STORAGE_SPEC_BP_INT:
-                                if (repr_data->unbox_int_slot >= 0)
+                                if (repr_data->unbox_int_slot >= 0) {
+                                    if (num_attrs) {
+                                        MVM_free_null(name_map->names);
+                                        MVM_free_null(name_map->slots);
+                                    }
+                                    free_repr_data(repr_data);
                                     MVM_exception_throw_adhoc(tc,
                                         "While composing %s: Duplicate box_target for native int: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), repr_data->unbox_int_slot, i);
+                                }
                                 repr_data->unbox_int_slot = cur_slot;
                                 break;
                             case MVM_STORAGE_SPEC_BP_NUM:
-                                if (repr_data->unbox_num_slot >= 0)
+                                if (repr_data->unbox_num_slot >= 0) {
+                                    if (num_attrs) {
+                                        MVM_free_null(name_map->names);
+                                        MVM_free_null(name_map->slots);
+                                    }
+                                    free_repr_data(repr_data);
                                     MVM_exception_throw_adhoc(tc,
                                         "While composing %s: Duplicate box_target for native num: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), repr_data->unbox_num_slot, i);
+                                }
                                 repr_data->unbox_num_slot = cur_slot;
                                 break;
                             case MVM_STORAGE_SPEC_BP_STR:
-                                if (repr_data->unbox_str_slot >= 0)
+                                if (repr_data->unbox_str_slot >= 0) {
+                                    if (num_attrs) {
+                                        MVM_free_null(name_map->names);
+                                        MVM_free_null(name_map->slots);
+                                    }
+                                    free_repr_data(repr_data);
                                     MVM_exception_throw_adhoc(tc,
                                         "While composing %s: Duplicate box_target for native str: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), repr_data->unbox_str_slot, i);
+                                }
                                 repr_data->unbox_str_slot = cur_slot;
                                 break;
                             default:
@@ -857,24 +905,48 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
             /* Is it a positional or associative delegate? */
             if (MVM_repr_exists_key(tc, attr_info, str_pos_del)) {
-                if (repr_data->pos_del_slot != -1)
+                if (repr_data->pos_del_slot != -1) {
+                    if (num_attrs) {
+                        MVM_free_null(name_map->names);
+                        MVM_free_null(name_map->slots);
+                    }
+                    free_repr_data(repr_data);
                     MVM_exception_throw_adhoc(tc,
                         "While composing %s: Duplicate positional delegate attributes: %d and %"PRId64"", MVM_6model_get_stable_debug_name(tc, st), repr_data->pos_del_slot, cur_slot);
+                }
                 if (unboxed_type == MVM_STORAGE_SPEC_BP_NONE)
                     repr_data->pos_del_slot = cur_slot;
-                else
+                else {
+                    if (num_attrs) {
+                        MVM_free_null(name_map->names);
+                        MVM_free_null(name_map->slots);
+                    }
+                    free_repr_data(repr_data);
                     MVM_exception_throw_adhoc(tc,
                         "While composing %s: Positional delegate attribute must be a reference type", MVM_6model_get_stable_debug_name(tc, st));
+                }
             }
             if (MVM_repr_exists_key(tc, attr_info, str_ass_del)) {
-                if (repr_data->ass_del_slot != -1)
+                if (repr_data->ass_del_slot != -1) {
+                    if (num_attrs) {
+                        MVM_free_null(name_map->names);
+                        MVM_free_null(name_map->slots);
+                    }
+                    free_repr_data(repr_data);
                     MVM_exception_throw_adhoc(tc,
                         "While composing %s: Duplicate associative delegate attributes: %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), repr_data->pos_del_slot, cur_slot);
+                }
                 if (unboxed_type == MVM_STORAGE_SPEC_BP_NONE)
                     repr_data->ass_del_slot = cur_slot;
-                else
+                else {
+                    if (num_attrs) {
+                        MVM_free_null(name_map->names);
+                        MVM_free_null(name_map->slots);
+                    }
+                    free_repr_data(repr_data);
                     MVM_exception_throw_adhoc(tc,
                         "While composing %s: Associative delegate attribute must be a reference type", MVM_6model_get_stable_debug_name(tc, st));
+                }
             }
 
             /* Add the required space for this type.
@@ -1017,7 +1089,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     MVMuint64 cur_offset;
     MVMint16 cur_initialize_slot, cur_gc_mark_slot, cur_gc_cleanup_slot;
 
-    MVMP6opaqueREPRData *repr_data = MVM_malloc(sizeof(MVMP6opaqueREPRData));
+    MVMP6opaqueREPRData *repr_data = MVM_calloc(1, sizeof(MVMP6opaqueREPRData));
 
     repr_data->num_attributes = (MVMuint16)MVM_serialization_read_int(tc, reader);
 
@@ -1049,12 +1121,16 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         for (i = 0; i < repr_data->num_attributes; i++) {
             MVMuint16 repr_id = MVM_serialization_read_int(tc, reader);
             MVMuint16 slot = MVM_serialization_read_int(tc, reader);
-            if (slot > repr_data->num_attributes)
+            if (slot > repr_data->num_attributes) {
+                free_repr_data(repr_data);
                 MVM_exception_throw_adhoc(tc, "Serialization error: P6opaque's unbox slot out of range (slot %d > %d attributes).", slot, repr_data->num_attributes);
+            }
             if (repr_id < MVM_REPR_MAX_COUNT)
                 repr_data->unbox_slots[repr_id] = slot;
-            else
+            else {
+                free_repr_data(repr_data);
                 MVM_exception_throw_adhoc(tc, "Serialization error: P6opaque's unbox slot repr id out of range.");
+            }
         }
     } else {
         repr_data->unbox_slots = NULL;
@@ -1124,6 +1200,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
                 repr_data->gc_cleanup_slots[cur_gc_cleanup_slot++] = i;
 
             if (spec->align == 0) {
+                free_repr_data(repr_data);
                 MVM_exception_throw_adhoc(tc, "Serialization error: Storage Spec of P6opaque must not have align set to 0.");
             }
 

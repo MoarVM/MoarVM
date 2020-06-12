@@ -20,27 +20,37 @@ struct MVMHash {
 /* Function for REPR setup. */
 const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc);
 
-#define MVM_HASH_BIND(tc, hash, key, value) \
+#define MVM_HASH_BIND_FREE(tc, hash, key, value, block) \
     do { \
         if (MVM_LIKELY(!MVM_is_null(tc, (MVMObject *)key) && REPR(key)->ID == MVM_REPR_ID_MVMString \
                 && IS_CONCRETE(key))) { \
             HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, hash, key, value); \
         } \
         else { \
-            MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings (got %s)", MVM_6model_get_debug_name(tc, (MVMObject *)key)); \
+            char *debug_name = MVM_6model_get_debug_name(tc, (MVMObject *)key); \
+            block \
+            MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings (got %s)", debug_name); \
         } \
     } while (0);
 
-#define MVM_HASH_GET(tc, hash, key, value) \
+#define MVM_HASH_BIND(tc, hash, key, value) \
+    MVM_HASH_BIND_FREE(tc, hash, key, value, {});
+
+#define MVM_HASH_GET_FREE(tc, hash, key, value, block) \
     do { \
         if (MVM_LIKELY(!MVM_is_null(tc, (MVMObject *)key) && REPR(key)->ID == MVM_REPR_ID_MVMString \
                 && IS_CONCRETE(key))) { \
             HASH_FIND_VM_STR(tc, hash_handle, hash, key, value); \
         } \
         else { \
-            MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings (got %s)", MVM_6model_get_debug_name(tc, (MVMObject *)key)); \
+            char *debug_name = MVM_6model_get_debug_name(tc, (MVMObject *)key); \
+            block \
+            MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings (got %s)", debug_name); \
         } \
     } while (0);
+
+#define MVM_HASH_GET(tc, hash, key, value) \
+    MVM_HASH_GET_FREE(tc, hash, key, value, {});
 
 #define MVM_HASH_KEY(entry) ((MVMString *)(entry)->hash_handle.key)
 
