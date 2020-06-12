@@ -1704,6 +1704,7 @@ void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecordi
         MVMDispProgramRecordingValue *value = &(rec->values[i]);
         switch (value->source) {
             case MVMDispProgramRecordingCaptureValue:
+            case MVMDispProgramRecordingAttributeValue:
                 /* Nothing to mark. */
                 break;
             case MVMDispProgramRecordingLiteralValue:
@@ -1711,9 +1712,8 @@ void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecordi
                         value->literal.kind == MVM_CALLSITE_ARG_STR)
                     MVM_gc_worklist_add(tc, worklist, &(value->literal.value.o));
                 break;
-            case MVMDispProgramRecordingAttributeValue:
-                // TODO
-                MVM_panic(1, "Marking dispatch program attribute value NYI");
+            default:
+                MVM_panic(1, "Unknown dispatch program value kind to GC mark");
                 break;
         }
         MVM_gc_worklist_add(tc, worklist, &(value->tracked));
