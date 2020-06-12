@@ -50,7 +50,14 @@ static void dispatch_initial(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
         MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices, MVMuint32 bytecode_offset);
 
+static void dispatch_initial_flattening(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
+        MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices, MVMuint32 bytecode_offset);
+
 static MVMDispInlineCacheEntry unlinked_dispatch = { .run_dispatch = dispatch_initial };
+
+static MVMDispInlineCacheEntry unlinked_dispatch_flattening =
+    { .run_dispatch = dispatch_initial_flattening };
 
 static void dispatch_initial(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
@@ -69,6 +76,12 @@ static void dispatch_initial(MVMThreadContext *tc,
     /* Run the dispatcher. */
     MVM_disp_program_run_dispatch(tc, disp, capture, entry_ptr, seen,
             tc->cur_frame->static_info);
+}
+
+static void dispatch_initial_flattening(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
+        MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
+    MVM_panic(1, "flattening args to dispatch NYI");
 }
 
 static void dispatch_monomorphic(MVMThreadContext *tc,
@@ -227,6 +240,7 @@ void MVM_disp_inline_cache_setup(MVMThreadContext *tc, MVMStaticFrame *sf) {
     typedef struct {
         size_t offset;
         MVMuint16 op;
+        MVMuint16 callsite_idx;
     } Cacheable;
     MVMuint32 min_byte_interval = sf->body.bytecode_size;
     MVMuint32 last_cacheable = 0;
@@ -237,17 +251,19 @@ void MVM_disp_inline_cache_setup(MVMThreadContext *tc, MVMStaticFrame *sf) {
         /* If the op is cacheable, then collect it. */
         MVMuint16 op = *((MVMuint16 *)cur_op);
         const MVMOpInfo *info = MVM_bytecode_get_validated_op_info(tc, cu, op);
+        MVMint32 save_callsite_to = -1;
         if (info->uses_cache) {
             Cacheable c;
             c.offset = cur_op - sf->body.bytecode;
             c.op = op;
+            save_callsite_to = MVM_VECTOR_ELEMS(cacheable_ins);
             MVM_VECTOR_PUSH(cacheable_ins, c);
             if (c.offset - last_cacheable < min_byte_interval)
                 min_byte_interval = c.offset - last_cacheable;
             last_cacheable = c.offset;
         }
 
-        /* Step to the next op. */
+        /* Step to the next op, saving any spotted callsite if needed. */
         cur_op += 2;
         for (i = 0; i < info->num_operands; i++) {
             MVMuint8 flags = info->operands[i];
@@ -268,8 +284,12 @@ void MVM_disp_inline_cache_setup(MVMThreadContext *tc, MVMStaticFrame *sf) {
                     cur_op += 1;
                     break;
                 case MVM_operand_int16:
-                case MVM_operand_callsite:
                 case MVM_operand_coderef:
+                    cur_op += 2;
+                    break;
+                case MVM_operand_callsite:
+                    if (save_callsite_to >= 0)
+                        cacheable_ins[save_callsite_to].callsite_idx = *((MVMuint16 *)cur_op);
                     cur_op += 2;
                     break;
                 case MVM_operand_int32:
@@ -322,9 +342,13 @@ void MVM_disp_inline_cache_setup(MVMThreadContext *tc, MVMStaticFrame *sf) {
                 case MVM_OP_dispatch_i:
                 case MVM_OP_dispatch_n:
                 case MVM_OP_dispatch_s:
-                case MVM_OP_dispatch_o:
-                    entries[slot] = &unlinked_dispatch;
+                case MVM_OP_dispatch_o: {
+                    MVMCallsite *cs = sf->body.cu->body.callsites[cacheable_ins[i].callsite_idx];
+                    entries[slot] = cs->has_flattening
+                        ? &unlinked_dispatch_flattening
+                        : &unlinked_dispatch;
                     break;
+                }
                 default:
                     MVM_oops(tc, "Unimplemented case of inline cache unlinked state");
             }
@@ -411,7 +435,8 @@ void MVM_disp_inline_cache_mark(MVMThreadContext *tc, MVMDispInlineCache *cache,
                 MVM_gc_worklist_add(tc, worklist,
                         &(((MVMDispInlineCacheEntryResolvedGetLexStatic *)entry)->result));
             }
-            else if (entry->run_dispatch == dispatch_initial) {
+            else if (entry->run_dispatch == dispatch_initial ||
+                    entry->run_dispatch == dispatch_initial_flattening) {
                 /* Nothing to mark. */
             }
             else if (entry->run_dispatch == dispatch_monomorphic) {
