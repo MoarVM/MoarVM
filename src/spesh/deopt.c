@@ -362,11 +362,14 @@ void MVM_spesh_deopt_during_unwind(MVMThreadContext *tc) {
             top_frame = frame;
         }
 
-        /* Rewrite return address in the current top frame. */
+        /* Rewrite return address in the current top frame and sync current
+         * frame. */
         top_frame->return_address = top_frame->static_info->body.bytecode + deopt_target;
 #if MVM_LOG_DEOPTS
         fprintf(stderr, "    Deopt %u -> %u without uninlining\n", deopt_offset, deopt_target);
 #endif
+        tc->cur_frame = top_frame;
+        tc->current_frame_nr = top_frame->sequence_nr;
 
         finish_frame_deopt(tc, frame);
     }
