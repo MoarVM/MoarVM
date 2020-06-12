@@ -1939,7 +1939,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         else if (IS_CONCRETE(code) && STABLE(code)->invocation_spec) {
             /* What kind of invocation will it be? */
             MVMInvocationSpec *is = STABLE(code)->invocation_spec;
-            if (is->invocation_handler) {
+            if (IS_CONCRETE(is->invocation_handler)) {
                 /* Can't do anything with an invocation handler. */
                 return;
             }
