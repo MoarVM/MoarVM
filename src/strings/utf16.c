@@ -217,7 +217,8 @@ MVMString * MVM_string_utf16_decode(MVMThreadContext *tc,
  * a result of the specified type. The type must have the MVMString REPR. */
 static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
         const MVMObject *result_type, MVMuint8 *utf16_chars, size_t bytes, int endianess) {
-    MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
+    MVMString *result;
+    MVMGrapheme32 *buffer;
     size_t str_pos = 0;
     MVMuint8 *utf16 = (MVMuint8 *)utf16_chars;
     MVMuint8 *utf16_end = NULL;
@@ -244,7 +245,7 @@ static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
     utf16_end = utf16 + bytes;
 
     /* possibly allocating extra space; oh well */
-    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes / 2);
+    buffer = MVM_malloc(sizeof(MVMGrapheme32) * bytes / 2);
 
     /* Need to normalize to NFG as we decode. */
     MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
@@ -255,7 +256,7 @@ static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
         MVMGrapheme32 g;
 
         if ((value & 0xFC00) == 0xDC00) {
-            MVM_free(result->body.storage.blob_32);
+            MVM_free(buffer);
             MVM_unicode_normalizer_cleanup(tc, &norm);
             MVM_exception_throw_adhoc(tc, "Malformed UTF-16; unexpected low surrogate");
         }
@@ -263,13 +264,13 @@ static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
         if ((value & 0xFC00) == 0xD800) { /* high surrogate */
             utf16 += 2;
             if (utf16 == utf16_end) {
-                MVM_free(result->body.storage.blob_32);
+                MVM_free(buffer);
                 MVM_unicode_normalizer_cleanup(tc, &norm);
                 MVM_exception_throw_adhoc(tc, "Malformed UTF-16; incomplete surrogate pair");
             }
             value2 = (utf16[high] << 8) + utf16[low];
             if ((value2 & 0xFC00) != 0xDC00) {
-                MVM_free(result->body.storage.blob_32);
+                MVM_free(buffer);
                 MVM_unicode_normalizer_cleanup(tc, &norm);
                 MVM_exception_throw_adhoc(tc, "Malformed UTF-16; incomplete surrogate pair");
             }
@@ -279,9 +280,9 @@ static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
         /* TODO: check for invalid values */
         ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, value, &g);
         if (ready) {
-            result->body.storage.blob_32[str_pos++] = g;
+            buffer[str_pos++] = g;
             while (--ready > 0)
-                result->body.storage.blob_32[str_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+                buffer[str_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
         }
     }
 
@@ -289,9 +290,11 @@ static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
     MVM_unicode_normalizer_eof(tc, &norm);
     ready = MVM_unicode_normalizer_available(tc, &norm);
     while (ready--)
-        result->body.storage.blob_32[str_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
+        buffer[str_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
     MVM_unicode_normalizer_cleanup(tc, &norm);
 
+    result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
+    result->body.storage.blob_32 = buffer;
     result->body.storage_type = MVM_STRING_GRAPHEME_32;
     result->body.num_graphs   = str_pos;
 

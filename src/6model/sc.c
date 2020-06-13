@@ -17,11 +17,12 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
             uv_mutex_lock(&tc->instance->mutex_sc_registry);
             MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
             if (!scb) {
-                sc->body = scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
+                scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
                 MVM_ASSIGN_REF(tc, &(sc->common.header), scb->handle, handle);
                 MVM_HASH_BIND_FREE(tc, tc->instance->sc_weakhash, handle, scb, {
-                    MVM_free_null(sc->body);
+                    MVM_free(scb);
                 });
+                sc->body = scb;
                 /* Calling repr_init will allocate, BUT if it does so, and we
                  * get unlucky, the GC will try to acquire mutex_sc_registry.
                  * This deadlocks. Thus, we force allocation in gen2, which
