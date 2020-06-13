@@ -111,7 +111,7 @@ MVMObject * MVM_conditionvariable_from_lock(MVMThreadContext *tc, MVMReentrantMu
     });
     cv->body.condvar = MVM_malloc(sizeof(uv_cond_t));
     if ((init_stat = uv_cond_init(cv->body.condvar)) < 0) {
-        MVM_free(cv->body.condvar);
+        MVM_free_null(cv->body.condvar);
         MVM_exception_throw_adhoc(tc, "Failed to initialize condition variable: %s",
             uv_strerror(init_stat));
     }

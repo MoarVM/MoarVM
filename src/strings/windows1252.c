@@ -481,12 +481,11 @@ MVMString * MVM_string_windows125X_decode(MVMThreadContext *tc,
         const MVMObject *result_type, char *windows125X_c, size_t bytes,
         MVMString *replacement, const MVMuint16 *codetable, MVMint64 config) {
     MVMuint8 *windows125X = (MVMuint8 *)windows125X_c;
-    MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
+    MVMString *result;
     size_t pos, result_graphs, additional_bytes = 0;
     MVMStringIndex repl_length = replacement ? MVM_string_graphs(tc, replacement) : 0;
 
-    result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
+    MVMGrapheme32 *buffer = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
 
     result_graphs = 0;
     for (pos = 0; pos < bytes; pos++) {
@@ -506,11 +505,10 @@ MVMString * MVM_string_windows125X_decode(MVMThreadContext *tc,
                      * grapheme in the replacement string */
                     if (1 < repl_length) {
                         additional_bytes += repl_length - 1;
-                        result->body.storage.blob_32 = realloc(result->body.storage.blob_32,
-                            sizeof(MVMGrapheme32) * (additional_bytes + bytes));
+                        buffer = realloc(buffer, sizeof(MVMGrapheme32) * (additional_bytes + bytes));
                         for (; i < repl_length - 1; i++) {
                             MVMGrapheme32 graph = MVM_string_get_grapheme_at(tc, replacement, i);
-                            result->body.storage.blob_32[result_graphs++] = graph;
+                            buffer[result_graphs++] = graph;
                         }
                     }
                     /* Now we set `codepoint` to the last grapheme in the replacement
@@ -518,7 +516,7 @@ MVMString * MVM_string_windows125X_decode(MVMThreadContext *tc,
                     codepoint = MVM_string_get_grapheme_at(tc, replacement, i);
                 }
                 else if (MVM_ENCODING_CONFIG_STRICT(config)) {
-                    MVM_free(result->body.storage.blob_32);
+                    MVM_free(buffer);
                     /* Throw an exception if that codepoint has no mapping */
                     char *enc_name = codetable == windows1252_codepoints
                         ? "Windows-1252" : "Windows-1251";
@@ -535,8 +533,11 @@ MVMString * MVM_string_windows125X_decode(MVMThreadContext *tc,
                 }
             }
         }
-        result->body.storage.blob_32[result_graphs++] = codepoint;
+        buffer[result_graphs++] = codepoint;
     }
+    result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
+    result->body.storage.blob_32 = buffer;
+    result->body.storage_type = MVM_STRING_GRAPHEME_32;
     result->body.num_graphs = result_graphs;
 
     return result;
