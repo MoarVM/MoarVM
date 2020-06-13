@@ -469,6 +469,7 @@ UV_LINUX = 3rdparty/libuv/src/unix/linux-core@obj@ \
 
 UV_BSD = 3rdparty/libuv/src/unix/kqueue@obj@ \
          3rdparty/libuv/src/unix/posix-hrtime@obj@ \
+         3rdparty/libuv/src/unix/bsd-proctitle@obj@ \
          $(UV_UNIX)
 
 UV_OPENBSD = 3rdparty/libuv/src/unix/openbsd@obj@ \
