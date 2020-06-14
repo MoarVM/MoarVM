@@ -231,8 +231,15 @@ int MVM_repr_register_dynamic_repr(MVMThreadContext *tc, MVMREPROps *repr) {
     return 1;
 }
 
-#define register_core_repr(name) \
-    register_repr(tc, MVM##name##_initialize(tc), NULL)
+/* Core representations contain their IDs in their MVMREPROps. assert that they
+ * are the order is consistent. */
+
+#define register_core_repr(name) {                              \
+        const MVMREPROps *repr = MVM##name##_initialize(tc);    \
+        assert(repr->ID == tc->instance->num_reprs);            \
+        register_repr(tc, repr, NULL);                          \
+        tc->instance->num_reprs++;                              \
+    }
 
 /* Initializes the representations registry, building up all of the various
  * representations. */
@@ -240,6 +247,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     tc->instance->repr_list = MVM_malloc(
             MVM_REPR_MAX_COUNT * sizeof *tc->instance->repr_list);
 
+    tc->instance->num_reprs = 0;
     /* Add all core representations. */
     register_core_repr(String);
     register_core_repr(Array);
@@ -259,6 +267,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(Iter);
     register_core_repr(Context);
     register_core_repr(SCRef);
+    register_core_repr(SpeshLog);
     register_core_repr(CallCapture);
     register_core_repr(P6bigint);
     register_core_repr(NFA);
@@ -273,22 +282,21 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(CStr);
     register_core_repr(CArray);
     register_core_repr(CStruct);
-    register_core_repr(CUnion);
     register_core_repr(ReentrantMutex);
     register_core_repr(ConditionVariable);
     register_core_repr(Semaphore);
     register_core_repr(ConcBlockingQueue);
     register_core_repr(AsyncTask);
     register_core_repr(Null);
-    register_core_repr(CPPStruct);
     register_core_repr(NativeRef);
+    register_core_repr(CUnion);
     register_core_repr(MultiDimArray);
+    register_core_repr(CPPStruct);
     register_core_repr(Decoder);
-    register_core_repr(SpeshLog);
     register_core_repr(StaticFrameSpesh);
     register_core_repr(SpeshPluginState);
 
-    tc->instance->num_reprs = MVM_REPR_CORE_COUNT;
+    assert(tc->instance->num_reprs == MVM_REPR_CORE_COUNT);
 }
 
 static MVMReprRegistry * find_repr_by_name(MVMThreadContext *tc,
