@@ -432,11 +432,11 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
         MVMuint32 num_lexicals = frame->body.num_lexicals;
         if (num_lexicals) {
-            MVMLexicalRegistry **lexical_names_list = frame->body.lexical_names_list;
+            MVMString **lexical_names_list = frame->body.lexical_names_list;
 
             char **lexicals = (char **)MVM_malloc(sizeof(char *) * num_lexicals);
             for (j = 0; j < num_lexicals; j++) {
-                lexicals[j]   = MVM_string_utf8_encode_C_string(tc, lexical_names_list[j]->key);
+                lexicals[j]   = MVM_string_utf8_encode_C_string(tc, lexical_names_list[j]);
             }
             frame_lexicals[k] = lexicals;
         }

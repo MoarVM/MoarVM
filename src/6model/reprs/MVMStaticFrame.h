@@ -14,8 +14,8 @@ struct MVMStaticFrameBody {
     MVMuint16 *lexical_types;
 
     /* Lexicals name map. */
-    MVMLexicalRegistry *lexical_names;
-    MVMLexicalRegistry **lexical_names_list;
+    MVMIndexHashTable *lexical_names;
+    MVMString **lexical_names_list;
 
     /* Defaults for lexicals upon new frame creation. */
     MVMRegister *static_env;
@@ -153,4 +153,4 @@ const MVMREPROps * MVMStaticFrame_initialize(MVMThreadContext *tc);
 /* Debugging help. */
 char * MVM_staticframe_file_location(MVMThreadContext *tc, MVMStaticFrame *sf);
 
-MVMLexicalRegistry *MVM_get_lexical_by_name(MVMThreadContext *tc, MVMStaticFrame *sf, MVMString *name);
+MVMuint32 MVM_get_lexical_by_name(MVMThreadContext *tc, MVMStaticFrame *sf, MVMString *name);

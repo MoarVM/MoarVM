@@ -6,18 +6,6 @@
 #define MVM_FRAME_FLAG_HLL_3            1 << 5
 #define MVM_FRAME_FLAG_HLL_4            1 << 6
 
-/* Lexical hash entry for ->lexical_names on a frame. */
-struct MVMLexicalRegistry {
-    /* key string */
-    MVMString *key;
-
-    /* index of the lexical entry. */
-    MVMuint32 value;
-
-    /* the uthash hash handle inline struct. */
-    UT_hash_handle hash_handle;
-};
-
 /* Entry in the linked list of continuation tags for the frame. */
 struct MVMContinuationTag {
     /* The tag itself. */
