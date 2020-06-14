@@ -293,14 +293,17 @@ static MVMReprRegistry * find_repr_by_name(MVMThreadContext *tc,
         MVMString *name) {
     MVMReprRegistry *entry;
 
+    uv_mutex_lock(&tc->instance->mutex_repr_registry);
     MVM_HASH_GET(tc, tc->instance->repr_hash, name, entry)
 
     if (entry == NULL) {
         char *c_name = MVM_string_ascii_encode_any(tc, name);
         char *waste[] = { c_name, NULL };
+        uv_mutex_unlock(&tc->instance->mutex_repr_registry);
         MVM_exception_throw_adhoc_free(tc, waste, "Lookup by name of unknown REPR: %s",
             c_name);
     }
+    uv_mutex_unlock(&tc->instance->mutex_repr_registry);
 
     return entry;
 }
