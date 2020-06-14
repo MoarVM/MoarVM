@@ -1521,8 +1521,8 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
             MVMStrHashIterator iterator = MVM_str_hash_first(dtc, debug_locals);
             MVMStaticFrameDebugLocal *debug_entry;
             while ((debug_entry = MVM_str_hash_current(dtc, debug_locals, iterator))) {
-                MVMLexicalRegistry *entry = MVM_get_lexical_by_name(dtc, static_info, debug_entry->hash_handle.key);
-                if (!entry)
+                MVMuint32 idx = MVM_get_lexical_by_name(dtc, static_info, debug_entry->hash_handle.key);
+                if (idx != MVM_INDEX_HASH_NOT_FOUND)
                     lexcount++;
                 iterator = MVM_str_hash_next(dtc, debug_locals, iterator);
             }
@@ -1540,21 +1540,21 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         if (dtc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "will write %"PRIu64" lexicals\n", lexcount);
 
-        MVMLexicalRegistry **lexical_names_list = static_info->body.lexical_names_list;
+        MVMString **lexical_names_list = static_info->body.lexical_names_list;
 
         for (MVMuint32 j = 0; j < num_lexicals; j++) {
-            MVMLexicalRegistry *entry = lexical_names_list[j];
+            MVMString *name = lexical_names_list[j];
             MVMuint16 lextype = static_info->body.lexical_types[j];
             MVMRegister *result = &frame->env[j];
             MVMint32 was_from_local = 0;
             /* Lexical has to have a name - to get here it has already been added
                to the lookup hash, and that would have failed unless the key
                exists and is a concrete MVMString. */
-            assert(entry->key);
-            assert(IS_CONCRETE(entry->key));
+            assert(name);
+            assert(IS_CONCRETE(name));
             /* Check there is no debug local override for it (which means the lexical
              * was lowered into a local, but preserved for some reason). */
-            MVMStaticFrameDebugLocal *debug_entry = MVM_str_hash_fetch_nt(dtc, debug_locals, entry->key);
+            MVMStaticFrameDebugLocal *debug_entry = MVM_str_hash_fetch_nt(dtc, debug_locals, name);
             if (debug_entry && static_info->body.local_types[debug_entry->local_idx] == lextype) {
                 result = &frame->work[debug_entry->local_idx];
                 was_from_local = 1;
@@ -1562,9 +1562,9 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
 
             if (!was_from_local && lextype == MVM_reg_obj && !result->o) {
                 /* XXX this can't allocate? */
-                MVM_frame_vivify_lexical(dtc, frame, entry->value);
+                MVM_frame_vivify_lexical(dtc, frame, j);
             }
-            char *c_key_name = MVM_string_utf8_encode_C_string(dtc, entry->key);
+            char *c_key_name = MVM_string_utf8_encode_C_string(dtc, name);
             write_one_context_lexical(dtc, ctx, c_key_name, lextype, result);
             MVM_free(c_key_name);
             if (dtc->instance->debugserver->debugspam_protocol)
@@ -1580,9 +1580,9 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
             MVMStrHashIterator iterator = MVM_str_hash_first(dtc, debug_locals);
             MVMStaticFrameDebugLocal *debug_entry;
             while ((debug_entry = MVM_str_hash_current(dtc, debug_locals, iterator))) {
-                MVMLexicalRegistry *entry = MVM_get_lexical_by_name(dtc, static_info, debug_entry->hash_handle.key);
-                if (!entry) {
-                    char *c_key_name = MVM_string_utf8_encode_C_string(dtc, debug_entry->hash_handle.key);
+                MVMuint32 idx = MVM_get_lexical_by_name(dtc, static_info, debug_entry->hash_handle.key);
+                if (idx != MVM_INDEX_HASH_NOT_FOUND) {
+                    char *c_key_name = MVM_string_utf8_encode_C_string(dtc, lexical_names_list[idx]);
                     MVMRegister *result = &frame->work[debug_entry->local_idx];
                     MVMuint16 lextype = static_info->body.local_types[debug_entry->local_idx];
                     write_one_context_lexical(dtc, ctx, c_key_name, lextype, result);

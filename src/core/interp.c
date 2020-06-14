@@ -497,10 +497,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     if (!sf->body.fully_deserialized)
                         MVM_bytecode_finish_frame(tc, sf->body.cu, sf, 0);
                     if (sf->body.num_lexicals) {
-                        MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, sf, name);
-                        if (entry && sf->body.lexical_types[entry->value] == MVM_reg_obj) {
-                            MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[entry->value].o, val);
-                            sf->body.static_env_flags[entry->value] = (MVMuint8)flag;
+                        MVMuint32 idx = MVM_get_lexical_by_name(tc, sf, name);
+                        if (idx != MVM_INDEX_HASH_NOT_FOUND
+                            && sf->body.lexical_types[idx] == MVM_reg_obj) {
+                            MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[idx].o, val);
+                            sf->body.static_env_flags[idx] = (MVMuint8)flag;
                             found = 1;
                         }
                     }
