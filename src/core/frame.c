@@ -611,8 +611,12 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                         }
                         else {
                             /* Allocate storage for state vars. */
+                            MVMCode *cref = (MVMCode *)frame->code_ref;
+
                             state = (MVMRegister *)MVM_calloc(1, frame->static_info->body.env_size);
-                            ((MVMCode *)frame->code_ref)->body.state_vars = state;
+                            cref->body.state_vars = state;
+                            cref->body.state_vars_is_hll_init
+                                = (MVMuint8 *)MVM_calloc(1, MVM_BITARR8_BYTES_NEEDED(numlex));
                             state_act = 1;
 
                             /* Note that this frame should run state init code. */
@@ -1707,15 +1711,14 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
     }
 }
 
-/* Returns the storage unit for the lexical in the specified frame. Does not
- * try to vivify anything - gets exactly what is there. */
-MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
+/* Returns the index in the env array for the lexical in the specified frame. */
+MVM_PUBLIC MVMint64 MVM_frame_lexical_idx(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
     MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
     if (MVM_LIKELY(lexical_names != NULL)) {
         MVMLexicalRegistry *entry;
         MVM_HASH_GET(tc, lexical_names, name, entry)
         if (entry)
-            return &f->env[entry->value];
+            return entry->value;
     }
     {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -1723,6 +1726,12 @@ MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *na
         MVM_exception_throw_adhoc_free(tc, waste, "Frame has no lexical with name '%s'",
             c_name);
     }
+}
+
+/* Returns the storage unit for the lexical in the specified frame. Does not
+ * try to vivify anything - gets exactly what is there. */
+MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
+    return &f->env[ MVM_frame_lexical_idx(tc, f, name) ];
 }
 
 /* Returns the storage unit for the lexical in the specified frame. */
