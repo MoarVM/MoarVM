@@ -470,16 +470,22 @@ UV_LINUX = 3rdparty/libuv/src/unix/linux-core@obj@ \
 UV_BSD = 3rdparty/libuv/src/unix/kqueue@obj@ \
          3rdparty/libuv/src/unix/posix-hrtime@obj@ \
          3rdparty/libuv/src/unix/bsd-proctitle@obj@ \
+         3rdparty/libuv/src/unix/bsd-ifaddrs@obj@ \
          $(UV_UNIX)
 
 UV_OPENBSD = 3rdparty/libuv/src/unix/openbsd@obj@ \
+             3rdparty/libuv/src/unix/random-getentropy@obj@ \
              $(UV_BSD)
 
 UV_NETBSD = 3rdparty/libuv/src/unix/netbsd@obj@ \
             $(UV_BSD)
 
 UV_FREEBSD = 3rdparty/libuv/src/unix/freebsd@obj@ \
+             3rdparty/libuv/src/unix/random-getrandom@obj@ \
              $(UV_BSD)
+
+UV_DRAGONFLYBSD = 3rdparty/libuv/src/unix/freebsd@obj@ \
+                  $(UV_BSD)
 
 UV_DARWIN = 3rdparty/libuv/src/unix/darwin@obj@ \
             3rdparty/libuv/src/unix/darwin-proctitle@obj@ \
