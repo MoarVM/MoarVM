@@ -619,7 +619,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                     MVMuint16  i, count;
                     MVMuint16 *type_map;
                     MVMuint16  name_count = frame->static_info->body.num_lexicals;
-                    MVMLexicalRegistry **names = frame->static_info->body.lexical_names_list;
+                    MVMString **names = frame->static_info->body.lexical_names_list;
                     if (frame->spesh_cand && frame->spesh_cand->lexical_types) {
                         type_map = frame->spesh_cand->lexical_types;
                         count    = frame->spesh_cand->num_lexicals;
@@ -632,7 +632,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                         if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj) {
                             if (i < name_count)
                                 MVM_profile_heap_add_collectable_rel_vm_str(tc, ss,
-                                    (MVMCollectable *)frame->env[i].o, names[i]->key);
+                                    (MVMCollectable *)frame->env[i].o, names[i]);
                             else
                                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                                     (MVMCollectable *)frame->env[i].o, "Lexical (inlined)");
