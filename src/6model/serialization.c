@@ -1247,7 +1247,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
 
     /* Grab lexpad, which we'll serialize later on. */
     MVMStaticFrame *sf   = frame->static_info;
-    MVMLexicalRegistry **lexnames = sf->body.lexical_names_list;
+    MVMString **lexnames = sf->body.lexical_names_list;
 
     /* Locate the static code ref this context points to. */
     MVMObject *static_code_ref = closure_to_static_code_ref(tc, frame->code_ref, 1);
@@ -1288,7 +1288,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     /* Serialize lexicals. */
     MVM_serialization_write_int(tc, writer, sf->body.num_lexicals);
     for (i = 0; i < sf->body.num_lexicals; i++) {
-        MVM_serialization_write_str(tc, writer, lexnames[i]->key);
+        MVM_serialization_write_str(tc, writer, lexnames[i]);
         switch (sf->body.lexical_types[i]) {
             case MVM_reg_int8:
             case MVM_reg_int16:
