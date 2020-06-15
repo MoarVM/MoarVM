@@ -116,6 +116,19 @@ void MVM_callsite_destroy(MVMCallsite *cs) {
     MVM_free(cs);
 }
 
+/* Copies the named args of one callsite into another. */
+void copy_nameds(MVMCallsite *to, const MVMCallsite *from) {
+    if (from->arg_names) {
+        MVMuint32 num_names = from->flag_count - from->num_pos;
+        size_t memory_area = num_names * sizeof(MVMString *);
+        to->arg_names = MVM_malloc(memory_area);
+        memcpy(to->arg_names, from->arg_names, memory_area);
+    }
+    else {
+        to->arg_names = NULL;
+    }
+}
+
 /* Copy a callsite. */
 MVMCallsite * MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
     MVMCallsite *copy = MVM_malloc(sizeof(MVMCallsite));
@@ -125,22 +138,11 @@ MVMCallsite * MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
         memcpy(copy->arg_flags, cs->arg_flags, cs->flag_count);
     }
 
-    if (cs->arg_names) {
-        MVMint32 num_named = MVM_callsite_num_nameds(tc, cs);
+    copy_nameds(copy, cs);
 
-        copy->arg_names = MVM_malloc(num_named * sizeof(MVMString *));
-        memcpy(copy->arg_names, cs->arg_names, num_named * sizeof(MVMString *));
-    }
-    else {
-        copy->arg_names = NULL;
-    }
-
-    if (cs->with_invocant) {
-        copy->with_invocant = MVM_callsite_copy(tc, cs->with_invocant);
-    }
-    else {
-        copy->with_invocant = NULL;
-    }
+    copy->with_invocant = cs->with_invocant
+        ? MVM_callsite_copy(tc, cs->with_invocant)
+        : NULL;
 
     copy->flag_count = cs->flag_count;
     copy->arg_count = cs->arg_count;
@@ -150,7 +152,6 @@ MVMCallsite * MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
 
     return copy;
 }
-
 
 /* Tries to intern the callsite, freeing and updating the one passed in and
  * replacing it with an already interned one if we find it. */
@@ -238,16 +239,6 @@ void MVM_callsite_cleanup_interns(MVMInstance *instance) {
         }
     }
     MVM_free(instance->callsite_interns);
-}
-
-/* Copies the named args of one callsite into another. */
-void copy_nameds(MVMCallsite *to, MVMCallsite *from) {
-    if (from->arg_names) {
-        MVMuint32 num_names = from->flag_count - from->num_pos;
-        size_t memory_area = num_names * sizeof(MVMString *);
-        to->arg_names = MVM_malloc(memory_area);
-        memcpy(to->arg_names, from->arg_names, memory_area);
-    }
 }
 
 /* Produce a new callsite consisting of the current one with a positional
