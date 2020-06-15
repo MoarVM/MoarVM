@@ -1,19 +1,6 @@
 #include "moar.h"
 
-/* Checks if two callsiates are equal. */
-static MVMint32 callsites_equal(MVMThreadContext *tc, MVMCallsite *cs1, MVMCallsite *cs2,
-                                MVMint32 num_flags, MVMint32 num_nameds) {
-    MVMint32 i;
-
-    if (num_flags && memcmp(cs1->arg_flags, cs2->arg_flags, num_flags))
-        return 0;
-
-    for (i = 0; i < num_nameds; i++)
-        if (!MVM_string_equal(tc, cs1->arg_names[i], cs2->arg_names[i]))
-            return 0;
-
-    return 1;
-}
+/* Some callsites used in the VM are interned at startup from static memory. */
 
 static MVMCallsite   zero_arity_callsite = { NULL, 0, 0, 0, 0, 0, 0, 0 };
 
@@ -49,7 +36,31 @@ static MVMCallsiteEntry obj_obj_obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                        MVM_CALLSITE_ARG_OBJ };
 static MVMCallsite     obj_obj_obj_callsite = { obj_obj_obj_arg_flags, 3, 3, 3, 0, 0, NULL, NULL };
 
-MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id) {
+/* Intern common callsites at startup. */
+void MVM_callsite_initialize_common(MVMThreadContext *tc) {
+    MVMCallsite *ptr;
+    ptr = &zero_arity_callsite;
+    MVM_callsite_try_intern(tc, &ptr);
+    ptr = &obj_callsite;
+    MVM_callsite_try_intern(tc, &ptr);
+    ptr = &obj_obj_callsite;
+    MVM_callsite_try_intern(tc, &ptr);
+    ptr = &obj_int_callsite;
+    MVM_callsite_try_intern(tc, &ptr);
+    ptr = &obj_num_callsite;
+    MVM_callsite_try_intern(tc, &ptr);
+    ptr = &obj_str_callsite;
+    MVM_callsite_try_intern(tc, &ptr);
+    ptr = &int_int_callsite;
+    MVM_callsite_try_intern(tc, &ptr);
+    ptr = &obj_obj_str_callsite;
+    MVM_callsite_try_intern(tc, &ptr);
+    ptr = &obj_obj_obj_callsite;
+    MVM_callsite_try_intern(tc, &ptr);
+}
+
+/* Obtain one of the common callsites. */
+MVM_PUBLIC MVMCallsite * MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id) {
     switch (id) {
         case MVM_CALLSITE_ID_ZERO_ARITY:
             return &zero_arity_callsite;
@@ -74,6 +85,7 @@ MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonC
     }
 }
 
+/* Check if a callsite is one of the common, VM-built-in, ones. */
 int MVM_callsite_is_common(MVMCallsite *cs) {
     return cs == &zero_arity_callsite   ||
            cs == &obj_callsite          ||
@@ -86,6 +98,21 @@ int MVM_callsite_is_common(MVMCallsite *cs) {
            cs == &obj_obj_obj_callsite;
 }
 
+/* Checks if two callsites are equal. */
+static MVMint32 callsites_equal(MVMThreadContext *tc, MVMCallsite *cs1, MVMCallsite *cs2,
+                                MVMint32 num_flags, MVMint32 num_nameds) {
+    if (num_flags && memcmp(cs1->arg_flags, cs2->arg_flags, num_flags))
+        return 0;
+
+    MVMint32 i;
+    for (i = 0; i < num_nameds; i++)
+        if (!MVM_string_equal(tc, cs1->arg_names[i], cs2->arg_names[i]))
+            return 0;
+
+    return 1;
+}
+
+/* Destroy a callsite, freeing the memory associated with it. */
 void MVM_callsite_destroy(MVMCallsite *cs) {
     if (cs->flag_count) {
         MVM_free(cs->arg_flags);
@@ -102,7 +129,8 @@ void MVM_callsite_destroy(MVMCallsite *cs) {
     MVM_free(cs);
 }
 
-MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
+/* Copy a callsite. */
+MVMCallsite * MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
     MVMCallsite *copy = MVM_malloc(sizeof(MVMCallsite));
 
     if (cs->flag_count) {
@@ -136,28 +164,6 @@ MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
     return copy;
 }
 
-void MVM_callsite_initialize_common(MVMThreadContext *tc) {
-    MVMCallsite *ptr;
-
-    ptr = &zero_arity_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
-    ptr = &obj_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
-    ptr = &obj_obj_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
-    ptr = &obj_int_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
-    ptr = &obj_num_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
-    ptr = &obj_str_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
-    ptr = &int_int_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
-    ptr = &obj_obj_str_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
-    ptr = &obj_obj_obj_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
-}
 
 /* Tries to intern the callsite, freeing and updating the one passed in and
  * replacing it with an already interned one if we find it. */
