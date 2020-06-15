@@ -547,7 +547,7 @@ our %OS_DRAGONFLY = (
     syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
 
     -thirdparty => {
-        uv => { %TP_UVDUMMY, objects => '$(UV_FREEBSD)' },
+        uv => { %TP_UVDUMMY, objects => '$(UV_DRAGONFLYBSD)' },
     },
 );
 
