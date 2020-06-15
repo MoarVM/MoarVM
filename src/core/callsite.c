@@ -38,6 +38,15 @@ static MVMCallsite     obj_obj_obj_callsite = { obj_obj_obj_arg_flags, 3, 3, 3, 
 
 /* Intern common callsites at startup. */
 void MVM_callsite_initialize_common(MVMThreadContext *tc) {
+    /* Initialize the intern storage. */
+    MVMCallsiteInterns *interns = tc->instance->callsite_interns;
+    interns->max_arity = MVM_INTERN_ARITY_SOFT_LIMIT - 1;
+    interns->by_arity = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
+            MVM_INTERN_ARITY_SOFT_LIMIT * sizeof(MVMCallsite **));
+    interns->num_by_arity = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
+            MVM_INTERN_ARITY_SOFT_LIMIT * sizeof(MVMuint32));
+
+    /* Intern callsites. */
     MVMCallsite *ptr;
     ptr = &zero_arity_callsite;
     MVM_callsite_intern(tc, &ptr, 0, 1);
@@ -173,9 +182,9 @@ MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr,
         MVMuint32 force, MVMuint32 steal) {
     MVMCallsiteInterns *interns    = tc->instance->callsite_interns;
     MVMCallsite        *cs         = *cs_ptr;
-    MVMint32            num_flags  = cs->flag_count;
-    MVMint32            num_nameds = MVM_callsite_num_nameds(tc, cs);
-    MVMint32 i, found;
+    MVMuint32           num_flags  = cs->flag_count;
+    MVMuint32           num_nameds = MVM_callsite_num_nameds(tc, cs);
+    MVMuint32 i, found;
 
     /* Can't intern anything with flattening. */
     if (cs->has_flattening) {
@@ -194,56 +203,76 @@ MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr,
         return;
     }
 
-    /* We don't like to intern beyond a given arity limit, but will if force
-     * mode is on. */
-    if (num_flags >= MVM_INTERN_ARITY_LIMIT) {
-        // TODO
-        if (force)
-            MVM_exception_throw_adhoc(tc, "Force interning of large callsites NYI");
-        return;
-    }
-
     /* Obtain mutex protecting interns store. */
     uv_mutex_lock(&tc->instance->mutex_callsite_interns);
 
     /* Search for a match. */
     found = 0;
-    for (i = 0; i < interns->num_by_arity[num_flags]; i++) {
-        if (callsites_equal(tc, interns->by_arity[num_flags][i], cs, num_flags, num_nameds)) {
-            /* Got a match! If we were asked to steal the callsite we were passed,
-             * then we should free it. */
-            if (steal) {
-                if (num_flags)
-                    MVM_free(cs->arg_flags);
-                MVM_free(cs->arg_names);
-                MVM_free(cs);
+    if (num_flags < interns->max_arity) {
+        for (i = 0; i < interns->num_by_arity[num_flags]; i++) {
+            if (callsites_equal(tc, interns->by_arity[num_flags][i], cs, num_flags, num_nameds)) {
+                /* Got a match! If we were asked to steal the callsite we were passed,
+                 * then we should free it. */
+                if (steal) {
+                    if (num_flags)
+                        MVM_free(cs->arg_flags);
+                    MVM_free(cs->arg_names);
+                    MVM_free(cs);
+                }
+                *cs_ptr = interns->by_arity[num_flags][i];
+                found = 1;
+                break;
             }
-            *cs_ptr = interns->by_arity[num_flags][i];
-            found = 1;
-            break;
         }
     }
 
-    /* If it wasn't found, store it for the future. */
-    if (!found) {
-        if (interns->num_by_arity[num_flags] % MVM_INTERN_ARITY_LIMIT == 0) {
-            if (interns->num_by_arity[num_flags])
-                interns->by_arity[num_flags] = MVM_realloc(
-                    interns->by_arity[num_flags],
-                    sizeof(MVMCallsite *) * (interns->num_by_arity[num_flags] + MVM_INTERN_ARITY_LIMIT));
-            else
-                interns->by_arity[num_flags] = MVM_malloc(sizeof(MVMCallsite *) * MVM_INTERN_ARITY_LIMIT);
+    /* If it wasn't found, store it, either if we're below the soft limit or
+     * we're in force mode. */
+    if (!found && (num_flags < MVM_INTERN_ARITY_SOFT_LIMIT || force)) {
+        /* See if we need to grow the arity storage because we have a new,
+         * larger, arity. */
+        if (num_flags >= interns->max_arity) {
+            MVMuint32 prev_elems = interns->max_arity + 1;
+            MVMuint32 new_elems = num_flags + 1;
+            interns->by_arity = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa,
+                    interns->by_arity,
+                    prev_elems * sizeof(MVMCallsite **),
+                    new_elems * sizeof(MVMCallsite **));
+            memset(interns->by_arity + prev_elems, 0, (new_elems - prev_elems) * sizeof(MVMCallsite *));
+            interns->num_by_arity = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa,
+                    interns->num_by_arity,
+                    prev_elems * sizeof(MVMuint32),
+                    new_elems * sizeof(MVMuint32));
+            memset(interns->num_by_arity + prev_elems, 0, (new_elems - prev_elems) * sizeof(MVMuint32));
+            MVM_barrier(); /* To make sure we updated the arrays above first. */
+            interns->max_arity = num_flags;
         }
+
+        /* See if we need to grow the storage for this arity.*/
+        MVMuint32 cur_size = interns->num_by_arity[num_flags];
+        if (cur_size % MVM_INTERN_ARITY_GROW == 0) {
+            interns->by_arity[num_flags] = cur_size != 0
+                ? MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa,
+                    interns->by_arity[num_flags],
+                    cur_size * sizeof(MVMCallsite *),
+                    (cur_size + MVM_INTERN_ARITY_GROW) * sizeof(MVMCallsite *))
+                : MVM_fixed_size_alloc(tc, tc->instance->fsa, 
+                    MVM_INTERN_ARITY_GROW * sizeof(MVMCallsite *));
+        }
+
+        /* Install the new callsite. */
         if (steal) {
             cs->is_interned = 1;
-            interns->by_arity[num_flags][interns->num_by_arity[num_flags]++] = cs;
+            interns->by_arity[num_flags][cur_size] = cs;
         }
         else {
             MVMCallsite *copy = MVM_callsite_copy(tc, cs);
             copy->is_interned = 1;
-            interns->by_arity[num_flags][interns->num_by_arity[num_flags]++] = cs;
+            interns->by_arity[num_flags][cur_size] = cs;
             *cs_ptr = copy;
         }
+        MVM_barrier(); /* To make sure we installed callsite pointer first. */
+        interns->num_by_arity[num_flags]++;
     }
 
     /* Finally, release mutex. */
@@ -263,8 +292,9 @@ static int is_common(MVMCallsite *cs) {
            cs == &obj_obj_obj_callsite;
 }
 void MVM_callsite_cleanup_interns(MVMInstance *instance) {
+    MVMCallsiteInterns *interns = instance->callsite_interns;
     MVMuint32 i;
-    for (i = 0; i < MVM_INTERN_ARITY_LIMIT; i++) {
+    for (i = 0; i < interns->max_arity; i++) {
         MVMuint32 callsite_count = instance->callsite_interns->num_by_arity[i];
         if (callsite_count) {
             MVMCallsite **callsites = instance->callsite_interns->by_arity[i];
@@ -274,9 +304,14 @@ void MVM_callsite_cleanup_interns(MVMInstance *instance) {
                 if (!is_common(callsite))
                     MVM_callsite_destroy(callsite);
             }
-            MVM_free(callsites);
+            MVM_fixed_size_free(instance->main_thread, instance->fsa,
+                    callsite_count * sizeof(MVMCallsite *),
+                    callsites);
         }
     }
+    MVM_fixed_size_free(instance->main_thread, instance->fsa,
+            interns->max_arity * sizeof(MVMuint32),
+            interns->num_by_arity);
     MVM_free(instance->callsite_interns);
 }
 
