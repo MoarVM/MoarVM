@@ -40,23 +40,23 @@ static MVMCallsite     obj_obj_obj_callsite = { obj_obj_obj_arg_flags, 3, 3, 3, 
 void MVM_callsite_initialize_common(MVMThreadContext *tc) {
     MVMCallsite *ptr;
     ptr = &zero_arity_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
+    MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &obj_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
+    MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &obj_obj_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
+    MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &obj_int_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
+    MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &obj_num_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
+    MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &obj_str_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
+    MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &int_int_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
+    MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &obj_obj_str_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
+    MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &obj_obj_obj_callsite;
-    MVM_callsite_try_intern(tc, &ptr);
+    MVM_callsite_intern(tc, &ptr, 0, 1);
 }
 
 /* Obtain one of the common callsites. */
@@ -153,9 +153,16 @@ MVMCallsite * MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
     return copy;
 }
 
-/* Tries to intern the callsite, freeing and updating the one passed in and
- * replacing it with an already interned one if we find it. */
-MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr) {
+/* Interns a callsite, provided it is possible to do so. The force option
+ * means we should intern it no matter what, even if it's beyond our
+ * preferred size. The steal option means that we should take over the
+ * management of the memory of the callsite that is passed; if we replace
+ * it with an existing intern, then we should free it, otherwise we can
+ * just use it as the interned one. If steal is set to false, and we want
+ * to intern the callsite, then we should make a copy of it and intern
+ * that. */
+MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr,
+        MVMuint32 force, MVMuint32 steal) {
     MVMCallsiteInterns *interns    = tc->instance->callsite_interns;
     MVMCallsite        *cs         = *cs_ptr;
     MVMint32            num_flags  = cs->flag_count;
@@ -163,16 +170,30 @@ MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_p
     MVMint32 i, found;
 
     /* Can't intern anything with flattening. */
-    if (cs->has_flattening)
+    if (cs->has_flattening) {
+        if (force)
+            MVM_exception_throw_adhoc(tc,
+                "Should not force interning of a flattening callsite");
         return;
+    }
 
-    /* Also can't intern past the max arity. */
-    if (num_flags >= MVM_INTERN_ARITY_LIMIT)
+    /* Cannot intern things when we don't have the callsite names (we always
+     * should nowadays, so TODO remove this after adding a check in bytecode.c
+     * that we always have them.) */
+    if (num_nameds > 0 && !cs->arg_names) {
+        if (force)
+            MVM_exception_throw_adhoc(tc, "Force interning of a callsite without named arg names");
         return;
+    }
 
-    /* Can intern things with nameds, provided we know the names. */
-    if (num_nameds > 0 && !cs->arg_names)
+    /* We don't like to intern beyond a given arity limit, but will if force
+     * mode is on. */
+    if (num_flags >= MVM_INTERN_ARITY_LIMIT) {
+        // TODO
+        if (force)
+            MVM_exception_throw_adhoc(tc, "Force interning of large callsites NYI");
         return;
+    }
 
     /* Obtain mutex protecting interns store. */
     uv_mutex_lock(&tc->instance->mutex_callsite_interns);
@@ -181,12 +202,14 @@ MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_p
     found = 0;
     for (i = 0; i < interns->num_by_arity[num_flags]; i++) {
         if (callsites_equal(tc, interns->by_arity[num_flags][i], cs, num_flags, num_nameds)) {
-            /* Got a match! Free the one we were passed and replace it with
-             * the interned one. */
-            if (num_flags)
-                MVM_free(cs->arg_flags);
-            MVM_free(cs->arg_names);
-            MVM_free(cs);
+            /* Got a match! If we were asked to steal the callsite we were passed,
+             * then we should free it. */
+            if (steal) {
+                if (num_flags)
+                    MVM_free(cs->arg_flags);
+                MVM_free(cs->arg_names);
+                MVM_free(cs);
+            }
             *cs_ptr = interns->by_arity[num_flags][i];
             found = 1;
             break;
@@ -203,8 +226,16 @@ MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_p
             else
                 interns->by_arity[num_flags] = MVM_malloc(sizeof(MVMCallsite *) * MVM_INTERN_ARITY_LIMIT);
         }
-        interns->by_arity[num_flags][interns->num_by_arity[num_flags]++] = cs;
-        cs->is_interned = 1;
+        if (steal) {
+            cs->is_interned = 1;
+            interns->by_arity[num_flags][interns->num_by_arity[num_flags]++] = cs;
+        }
+        else {
+            MVMCallsite *copy = MVM_callsite_copy(tc, cs);
+            copy->is_interned = 1;
+            interns->by_arity[num_flags][interns->num_by_arity[num_flags]++] = cs;
+            *cs_ptr = copy;
+        }
     }
 
     /* Finally, release mutex. */
@@ -267,7 +298,7 @@ MVMCallsite * MVM_callsite_drop_positional(MVMThreadContext *tc, MVMCallsite *cs
 
     /* Try to intern it, and return the result (which may be the interned
      * version that already existed, or may newly intern this). */
-    MVM_callsite_try_intern(tc, &new_callsite);
+    MVM_callsite_intern(tc, &new_callsite, 0, 1);
     return new_callsite;
 }
 
@@ -302,6 +333,6 @@ MVMCallsite * MVM_callsite_insert_positional(MVMThreadContext *tc, MVMCallsite *
 
     /* Try to intern it, and return the result (which may be the interned
      * version that already existed, or may newly intern this). */
-    MVM_callsite_try_intern(tc, &new_callsite);
+    MVM_callsite_intern(tc, &new_callsite, 0, 1);
     return new_callsite;
 }
