@@ -33,9 +33,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     for (i = 0; i < count; i++)
         if (flags[i] & MVM_CALLSITE_ARG_STR || flags[i] & MVM_CALLSITE_ARG_OBJ)
             MVM_gc_worklist_add(tc, worklist, &(body->args[i].o));
-    if (!body->callsite->is_interned) {
-        MVM_panic(1, "MVMCapture.gc_mark on non-interned callsite NYI");
-    }
+    if (!body->callsite->is_interned)
+        MVM_callsite_mark(tc, body->callsite, worklist);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -45,9 +44,8 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         MVM_fixed_size_free(tc, tc->instance->fsa,
                 capture->body.callsite->flag_count * sizeof(MVMRegister),
                 capture->body.args);
-    if (capture->body.callsite && !capture->body.callsite->is_interned) {
-        MVM_panic(1, "MVMCapture.gc_free on non-interned callsite NYI");
-    }
+    if (capture->body.callsite && !capture->body.callsite->is_interned)
+        MVM_callsite_destroy(capture->body.callsite);
 }
 
 static const MVMStorageSpec storage_spec = {
@@ -104,7 +102,9 @@ static const MVMREPROps MVMCapture_this_repr = {
     NULL, /* describe_refs */
 };
 
-/* Form a capture object from an argument description. */
+/* Form a capture object from an argument description. If the callsite is not an
+ * interned one, then it will be copied, since an MVMCapture assumes that it
+ * owns a non-interned callsite. */
 MVMObject * MVM_capture_from_args(MVMThreadContext *tc, MVMArgs arg_info) {
     /* Put callsite arguments into a flat buffer. */
     MVMCallsite *callsite = arg_info.callsite;
@@ -116,9 +116,9 @@ MVMObject * MVM_capture_from_args(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* Form capture object. */
     MVMObject *capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
-    if (!callsite->is_interned)
-        MVM_panic(1, "MVM_capture_from_args with non-interned callsite NYI");
-    ((MVMCapture *)capture)->body.callsite = callsite;
+    ((MVMCapture *)capture)->body.callsite = callsite->is_interned
+        ? callsite
+        : MVM_callsite_copy(tc, callsite);
     ((MVMCapture *)capture)->body.args = args;
     return capture;
 }

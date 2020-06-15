@@ -102,6 +102,7 @@ MVM_PUBLIC MVMCallsite * MVM_callsite_get_common(MVMThreadContext *tc, MVMCommon
 MVMCallsite * MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs);
 MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs,
         MVMuint32 force, MVMuint32 steal);
+void MVM_callsite_mark(MVMThreadContext *tc, MVMCallsite *cs, MVMGCWorklist *worklist);
 void MVM_callsite_destroy(MVMCallsite *cs);
 void MVM_callsite_cleanup_interns(MVMInstance *instance);
 
