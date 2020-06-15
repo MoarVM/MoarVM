@@ -857,6 +857,9 @@ static MVMuint32 add_program_constant_num(MVMThreadContext *tc, compile_state *c
 }
 static MVMuint32 add_program_constant_callsite(MVMThreadContext *tc, compile_state *cs,
         MVMCallsite *value) {
+    /* The callsite must be interned to be used in a dispatch program. */
+    if (!value->is_interned)
+        MVM_callsite_intern(tc, &value, 1, 0);
     MVMDispProgramConstant c = { .cs = value };
     MVM_VECTOR_PUSH(cs->constants, c);
     return MVM_VECTOR_ELEMS(cs->constants) - 1;
