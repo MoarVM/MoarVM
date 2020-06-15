@@ -225,8 +225,7 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
                 if (hll->foreign_transform_array) {
                     /* Invoke and set result register as return location. */
                     MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_array, NULL);
-                    MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
-
+                    MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
                     MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, inv_arg_callsite);
                     tc->cur_frame->args[0].o = obj;
                     STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
@@ -239,8 +238,7 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
                 if (hll->foreign_transform_hash) {
                     /* Invoke and set result register as return location. */
                     MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_hash, NULL);
-                    MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
-
+                    MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
                     MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, inv_arg_callsite);
                     tc->cur_frame->args[0].o = obj;
                     STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
@@ -253,7 +251,7 @@ void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMReg
                 if (hll->foreign_transform_code) {
                     /* Invoke and set result register as return location. */
                     MVMObject *code = MVM_frame_find_invokee(tc, hll->foreign_transform_code, NULL);
-                    MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+                    MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
 
                     MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, inv_arg_callsite);
                     tc->cur_frame->args[0].o = obj;

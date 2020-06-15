@@ -1194,7 +1194,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
         }
 
         handler = MVM_frame_find_invokee(tc, hll->exit_handler, NULL);
-        two_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ);
+        two_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ);
         MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, two_args_callsite);
         cur_frame->args[0].o = cur_frame->code_ref;
         cur_frame->args[1].o = result;
@@ -1270,7 +1270,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                 MVM_exception_throw_adhoc(tc, "Thread entry point frame cannot have an exit handler");
 
             handler = MVM_frame_find_invokee(tc, hll->exit_handler, NULL);
-            two_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ);
+            two_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ);
             MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, two_args_callsite);
             cur_frame->args[0].o = cur_frame->code_ref;
             cur_frame->args[1].o = tc->instance->VMNull;

@@ -27,7 +27,7 @@ void MVM_continuation_reset(MVMThreadContext *tc, MVMObject *tag,
     else {
         /* Run the passed code. */
         MVM_callstack_new_continuation_region(tc, tag);
-        MVMCallsite *null_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS);
+        MVMCallsite *null_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_ZERO_ARITY);
         code = MVM_frame_find_invokee(tc, code, NULL);
         MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, null_args_callsite);
         STABLE(code)->invoke(tc, code, null_args_callsite, tc->cur_frame->args);
@@ -106,7 +106,7 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
      * interpreter to run this, which then returns control to the
      * original reset or invoke. */
     code = MVM_frame_find_invokee(tc, code, NULL);
-    MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+    MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
     MVM_args_setup_thunk(tc, tc->cur_frame->return_value, tc->cur_frame->return_type, inv_arg_callsite);
     tc->cur_frame->args[0].o = cont;
     STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
@@ -205,7 +205,7 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
         cont->body.res_reg->o = tc->instance->VMNull;
     }
     else {
-        MVMCallsite *null_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS);
+        MVMCallsite *null_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_ZERO_ARITY);
         code = MVM_frame_find_invokee(tc, code, NULL);
         MVM_args_setup_thunk(tc, cont->body.res_reg, MVM_RETURN_OBJ, null_args_callsite);
         STABLE(code)->invoke(tc, code, null_args_callsite, tc->cur_frame->args);

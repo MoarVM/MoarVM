@@ -27,41 +27,17 @@ typedef enum {
     MVM_CALLSITE_ARG_FLAT_NAMED = 128
 } MVMCallsiteFlags;
 
+/* Callsites that are used within the VM. */
 typedef enum {
-    /* Zero argument callsite. */
-    MVM_CALLSITE_ID_NULL_ARGS,
-
-    /* Dummy, invocant-arg callsite. Taken from coerce.c;
-     * OBJ */
-    MVM_CALLSITE_ID_INV_ARG,
-
-    /* Callsite for container store. Taken from containers.c;
-     * OBJ, OBJ */
-    MVM_CALLSITE_ID_TWO_OBJ,
-
-    /* Callsite for method not found errors. Taken from 6model.c;
-     * OBJ, STR */
-    MVM_CALLSITE_ID_METH_NOT_FOUND,
-
-    /* Callsite for finding methods. Taken from 6model.c;
-     * OBJ, OBJ, STR */
-    MVM_CALLSITE_ID_FIND_METHOD,
-
-    /* Callsite for typechecks. Taken from 6model.c;
-     * OBJ, OBJ, OBJ */
-    MVM_CALLSITE_ID_TYPECHECK,
-
-    /* Callsite OBJ, INT */
+    MVM_CALLSITE_ID_ZERO_ARITY,
+    MVM_CALLSITE_ID_OBJ,
+    MVM_CALLSITE_ID_OBJ_OBJ,
     MVM_CALLSITE_ID_OBJ_INT,
-
-    /* Callsite OBJ, INT */
     MVM_CALLSITE_ID_OBJ_NUM,
-
-    /* Callsite OBJ, STR */
     MVM_CALLSITE_ID_OBJ_STR,
-
-    /* Callsite INT, INT */
     MVM_CALLSITE_ID_INT_INT,
+    MVM_CALLSITE_ID_OBJ_OBJ_STR,
+    MVM_CALLSITE_ID_OBJ_OBJ_OBJ,
 } MVMCommonCallsiteID;
 
 /* A callsite entry is just one of the above flags. */
