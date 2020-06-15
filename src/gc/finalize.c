@@ -31,7 +31,7 @@ void MVM_gc_finalize_add_to_queue(MVMThreadContext *tc, MVMObject *obj) {
 static void finalize_handler_caller(MVMThreadContext *tc, void *sr_data) {
     MVMObject *handler = MVM_hll_current(tc)->finalize_handler;
     if (handler) {
-        MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+        MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
         MVMObject *drain;
 
         /* Drain the finalizing queue to an array. */

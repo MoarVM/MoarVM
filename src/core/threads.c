@@ -55,7 +55,8 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
 
     /* Create initial frame, which sets up all of the interpreter state also. */
     invokee = MVM_frame_find_invokee(tc, invokee, NULL);
-    STABLE(invokee)->invoke(tc, invokee, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS), NULL);
+    STABLE(invokee)->invoke(tc, invokee,
+            MVM_callsite_get_common(tc, MVM_CALLSITE_ID_ZERO_ARITY), NULL);
 
     /* This frame should be marked as the thread entry frame, so that any
      * return from it will cause us to drop out of the interpreter and end
