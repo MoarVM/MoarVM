@@ -130,6 +130,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up REPR registry mutex. */
     init_mutex(instance->mutex_repr_registry, "REPR registry");
+    MVM_index_hash_build(&instance->repr_hash);
 
     /* Set up HLL config mutex. */
     init_mutex(instance->mutex_hllconfigs, "hll configs");
@@ -577,8 +578,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Cleanup REPR registry */
     uv_mutex_destroy(&instance->mutex_repr_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMReprRegistry, instance->repr_hash);
-    MVM_free(instance->repr_list);
+    MVM_index_hash_demolish(instance->main_thread, &instance->repr_hash);
+    MVM_free(instance->repr_names);
+    MVM_free(instance->repr_vtables);
 
     /* Clean up GC related resources. */
     uv_mutex_destroy(&instance->mutex_permroots);

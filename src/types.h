@@ -147,7 +147,6 @@ typedef struct MVMP6opaqueREPRData MVMP6opaqueREPRData;
 typedef struct MVMP6str MVMP6str;
 typedef struct MVMP6strBody MVMP6strBody;
 typedef union  MVMRegister MVMRegister;
-typedef struct MVMReprRegistry MVMReprRegistry;
 typedef struct MVMREPROps MVMREPROps;
 typedef struct MVMREPROps_Associative MVMREPROps_Associative;
 typedef struct MVMREPROps_Attribute MVMREPROps_Attribute;
