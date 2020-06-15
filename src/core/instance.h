@@ -92,18 +92,6 @@ struct MVMStringConsts {
     MVMString *replacement;
 };
 
-/* An entry in the representations registry. */
-struct MVMReprRegistry {
-    /* name of the REPR */
-    MVMString *name;
-
-    /* the REPR vtable */
-    const MVMREPROps *repr;
-
-    /* the uthash hash handle inline struct. */
-    UT_hash_handle hash_handle;
-};
-
 /* An entry in the persistent object IDs hash, used to give still-movable
  * objects a lifetime-unique ID. */
 struct MVMObjectId {
@@ -243,11 +231,14 @@ struct MVMInstance {
     /* Number of representations registered so far. */
     MVMuint32 num_reprs;
 
-    /* An array mapping representation IDs to registry entries. */
-    MVMReprRegistry **repr_list;
+    /* An array mapping representation IDs to REPR vtables. */
+    const MVMREPROps **repr_vtables;
 
-    /* A hash mapping representation names to registry entries. */
-    MVMReprRegistry *repr_hash;
+    /* An array mapping representation IDs to REPR names. */
+    MVMString **repr_names;
+
+    /* A hash mapping representation names to IDs. */
+    MVMIndexHashTable repr_hash;
 
     /* Mutex for REPR registration. */
     uv_mutex_t mutex_repr_registry;
