@@ -1157,7 +1157,7 @@ static void callback_invoke(MVMThreadContext *tc, void *data) {
     ResolverData *r = (ResolverData*)data;
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, r->site);
     MVMObject *code = body->resolve_lib_name;
-    MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+    MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
     r->args[0].o = body->resolve_lib_name_arg;
     STABLE(code)->invoke(tc, code, callsite, r->args);
 

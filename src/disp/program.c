@@ -310,7 +310,7 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
 /* Run a dispatch callback, which will record a dispatch program. */
 static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         MVMDispDefinition *disp, MVMObject *capture, MVMuint32 *thunked) {
-    MVMCallsite *disp_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+    MVMCallsite *disp_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
     record->current_capture.o = capture;
     MVMArgs dispatch_args = {
         .callsite = disp_callsite,

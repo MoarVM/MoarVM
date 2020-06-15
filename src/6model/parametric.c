@@ -112,10 +112,10 @@ void MVM_6model_parametric_parameterize(MVMThreadContext *tc, MVMObject *type, M
     prd->result                             = result;
     MVM_frame_special_return(tc, tc->cur_frame, finish_parameterizing, free_parameterize_sr_data,
         prd, mark_parameterize_sr_data);
-    MVM_args_setup_thunk(tc, result, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ));
+    MVM_args_setup_thunk(tc, result, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
     tc->cur_frame->args[0].o = st->WHAT;
     tc->cur_frame->args[1].o = params;
-    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ), tc->cur_frame->args);
+    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ), tc->cur_frame->args);
 }
 
 /* Try to find an existing parameterization of the specified type and
