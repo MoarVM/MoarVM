@@ -1423,20 +1423,19 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
     }
 
     static_info = frame->static_info;
-    lexical_names = static_info->body.lexical_names;
+    MVMuint32 num_lexicals = static_info->body.num_lexicals;
     debug_locals = static_info->body.instrumentation
         ? static_info->body.instrumentation->debug_locals
         : NULL;
-    if (lexical_names || debug_locals) {
-        MVMLexicalRegistry *entry;
+    if (num_lexicals || debug_locals) {
         MVMStaticFrameDebugLocal *debug_entry;
         MVMuint64 lexical_index = 0;
 
         /* Count up total number of symbols; that is, the lexicals plus the
          * debug names where the names to not overlap with the lexicals. */
-        MVMuint64 lexcount = static_info->body.num_lexicals;
+        MVMuint64 lexcount = num_lexicals;
         HASH_ITER(dtc, hash_handle, debug_locals, debug_entry, {
-            MVM_HASH_GET(dtc, lexical_names, debug_entry->name, entry);
+            MVMLexicalRegistry *entry = MVM_get_lexical_by_name(dtc, static_info, debug_entry->name);
             if (!entry)
                 lexcount++;
         });
@@ -1453,28 +1452,30 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         if (dtc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "will write %"PRIu64" lexicals\n", lexcount);
 
-        HASH_ITER(dtc, hash_handle, lexical_names, entry, {
-            MVMuint16 lextype = static_info->body.lexical_types[entry->value];
-            MVMRegister *result = &frame->env[entry->value];
+        MVMLexicalRegistry **lexical_names_list = static_info->body.lexical_names_list;
+
+        for (MVMuint32 j = 0; j < num_lexicals; j++) {
+            MVMLexicalRegistry *entry = lexical_names_list[j];
+            MVMuint16 lextype = static_info->body.lexical_types[j];
+            MVMRegister *result = &frame->env[j];
             char *c_key_name;
             MVMint32 was_from_local = 0;
-            if (entry->key && IS_CONCRETE(entry->key)) {
-                /* Lexical has a name (should always be the case, really). Check
-                 * there is no debug local override for it (which means the lexical
-                 * was lowered into a local, but preserved for some reason). */
-                c_key_name = MVM_string_utf8_encode_C_string(dtc, entry->key);
-                MVM_HASH_GET_FREE(dtc, debug_locals, entry->key, debug_entry, {
-                    MVM_free(c_key_name);
-                });
-                if (debug_entry && static_info->body.local_types[debug_entry->local_idx] == lextype) {
-                    result = &frame->work[debug_entry->local_idx];
-                    was_from_local = 1;
-                }
+            /* Lexical has to have a name - to get here it has already been added
+               to the lookup hash, and that would have failed unless the key
+               exists and is a concrete MVMString. */
+            assert(entry->key);
+            assert(IS_CONCRETE(entry->key));
+            /* Check there is no debug local override for it (which means the lexical
+             * was lowered into a local, but preserved for some reason). */
+            c_key_name = MVM_string_utf8_encode_C_string(dtc, entry->key);
+            MVM_HASH_GET_FREE(dtc, debug_locals, entry->key, debug_entry, {
+                MVM_free(c_key_name);
+            });
+            if (debug_entry && static_info->body.local_types[debug_entry->local_idx] == lextype) {
+                result = &frame->work[debug_entry->local_idx];
+                was_from_local = 1;
             }
-            else {
-                c_key_name = MVM_malloc(12 + 16);
-                sprintf(c_key_name, "<lexical %"PRIu64">", lexical_index);
-            }
+
             if (!was_from_local && lextype == MVM_reg_obj && !result->o) {
                 /* XXX this can't allocate? */
                 MVM_frame_vivify_lexical(dtc, frame, entry->value);
@@ -1483,10 +1484,10 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
             if (dtc->instance->debugserver->debugspam_protocol)
                 fprintf(stderr, "wrote a lexical\n");
             lexical_index++;
-        });
+        };
 
         HASH_ITER(dtc, hash_handle, debug_locals, debug_entry, {
-            MVM_HASH_GET(dtc, lexical_names, debug_entry->name, entry);
+            MVMLexicalRegistry *entry = MVM_get_lexical_by_name(dtc, static_info, debug_entry->name);
             if (!entry) {
                 char *c_key_name = MVM_string_utf8_encode_C_string(dtc, debug_entry->name);
                 MVMRegister *result = &frame->work[debug_entry->local_idx];

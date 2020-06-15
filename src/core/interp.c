@@ -496,9 +496,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVMuint8 found = 0;
                     if (!sf->body.fully_deserialized)
                         MVM_bytecode_finish_frame(tc, sf->body.cu, sf, 0);
-                    if (sf->body.lexical_names) {
-                        MVMLexicalRegistry *entry;
-                        MVM_HASH_GET(tc, sf->body.lexical_names, name, entry);
+                    if (sf->body.num_lexicals) {
+                        MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, sf, name);
                         if (entry && sf->body.lexical_types[entry->value] == MVM_reg_obj) {
                             MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[entry->value].o, val);
                             sf->body.static_env_flags[entry->value] = (MVMuint8)flag;
