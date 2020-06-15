@@ -82,16 +82,28 @@ struct MVMCallsite {
  * have that many slots available (e.g. find_method(how, obj, name)). */
 #define MVM_MIN_CALLSITE_SIZE 3
 
-/* Maximum arity + 1 that we'll intern callsites by. */
-#define MVM_INTERN_ARITY_LIMIT 8
+/* Maximum arity of a callsite (where arity is including positionals and
+ * nameds in this case) that we immediately consider for interning. However,
+ * we are willing to go over this if we are forced to intern something. */
+#define MVM_INTERN_ARITY_SOFT_LIMIT     8
+
+/* The growth size of the intern list for a given arity. */
+#define MVM_INTERN_ARITY_GROW           8
 
 /* Interned callsites data structure. */
 struct MVMCallsiteInterns {
-    /* Array of callsites, by arity. */
-    MVMCallsite **by_arity[MVM_INTERN_ARITY_LIMIT];
+    /* 2-level array of pointers to callsites, first indexed by the arity,
+     * then callsite of that arity. Allocated via the FSA and freed at a
+     * safepoint if we grow beyond it. */
+    MVMCallsite ***by_arity;
 
-    /* Number of callsites we have interned by arity. */
-    MVMint32 num_by_arity[MVM_INTERN_ARITY_LIMIT];
+    /* Number of callsites we have interned by each arity. Also allocated
+     * using the FSA and freed at a safepoint on growth. */
+    MVMuint32 *num_by_arity;
+
+    /* The maximum interned arity so far (the element count of the above two
+     * arrays). */
+    MVMuint32 max_arity;
 };
 
 /* Functions relating to common callsites used within the VM. */
