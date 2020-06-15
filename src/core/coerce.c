@@ -37,7 +37,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
         switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
             case MVM_BOOL_MODE_CALL_METHOD: {
                 MVMObject *code = MVM_frame_find_invokee(tc, bs->method, NULL);
-                MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+                MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
                 if (res_reg) {
                     /* We need to do the invocation, and set this register
                      * the result. Then we just do the call. For the flip
@@ -304,7 +304,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
         MVMObject *code = MVM_frame_find_invokee(tc, strmeth, NULL);
-        MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+        MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
 
         MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_STR, inv_arg_callsite);
         tc->cur_frame->args[0].o = obj;
@@ -353,7 +353,7 @@ void MVM_coerce_smart_numify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
         MVMObject *code = MVM_frame_find_invokee(tc, nummeth, NULL);
-        MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+        MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
 
         MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_NUM, inv_arg_callsite);
         tc->cur_frame->args[0].o = obj;
@@ -400,7 +400,7 @@ void MVM_coerce_smart_intify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *
         /* We need to do the invocation; just set it up with our result reg as
          * the one for the call. */
         MVMObject *code = MVM_frame_find_invokee(tc, intmeth, NULL);
-        MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+        MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
 
         MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_INT, inv_arg_callsite);
         tc->cur_frame->args[0].o = obj;

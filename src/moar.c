@@ -477,7 +477,9 @@ static void setup_std_handles(MVMThreadContext *tc) {
  * the initial invocation. */
 static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
     /* Create initial frame, which sets up all of the interpreter state also. */
-    MVM_frame_invoke(tc, (MVMStaticFrame *)data, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS), NULL, NULL, NULL, -1);
+    MVM_frame_invoke(tc, (MVMStaticFrame *)data,
+        MVM_callsite_get_common(tc, MVM_CALLSITE_ID_ZERO_ARITY),
+        NULL, NULL, NULL, -1);
 }
 
 /* Run deserialization frame, if there is one. Disable specialization
