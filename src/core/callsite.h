@@ -94,22 +94,17 @@ struct MVMCallsiteInterns {
     MVMint32 num_by_arity[MVM_INTERN_ARITY_LIMIT];
 };
 
-/* Initialize the "common" callsites */
+/* Functions relating to common callsites used within the VM. */
 void MVM_callsite_initialize_common(MVMThreadContext *tc);
-
-/* Get any of the "common" callsites */
-MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id);
-
+MVM_PUBLIC MVMCallsite * MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id);
 int MVM_callsite_is_common(MVMCallsite *cs);
 
+/* Other copying, interning, and cleanup. */
+MVMCallsite * MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs);
+MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);
 void MVM_callsite_destroy(MVMCallsite *cs);
 
-MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs);
-
-/* Callsite interning function. */
-MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);
-
-/* Callsite transformation function. */
+/* Callsite transformations. */
 MVMCallsite * MVM_callsite_drop_positional(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx);
 MVMCallsite * MVM_callsite_insert_positional(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx,
         MVMCallsiteFlags flag);
