@@ -1407,7 +1407,6 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         ? find_handle_target(dtc, argument->handle_id)
         : dtc->instance->VMNull;
     MVMStaticFrame *static_info;
-    MVMLexicalRegistry *lexical_names;
     MVMStaticFrameDebugLocal *debug_locals;
 
     MVMFrame *frame;
