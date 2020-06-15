@@ -97,12 +97,12 @@ struct MVMCallsiteInterns {
 /* Functions relating to common callsites used within the VM. */
 void MVM_callsite_initialize_common(MVMThreadContext *tc);
 MVM_PUBLIC MVMCallsite * MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id);
-int MVM_callsite_is_common(MVMCallsite *cs);
 
 /* Other copying, interning, and cleanup. */
 MVMCallsite * MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs);
 MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);
 void MVM_callsite_destroy(MVMCallsite *cs);
+void MVM_callsite_cleanup_interns(MVMInstance *instance);
 
 /* Callsite transformations. */
 MVMCallsite * MVM_callsite_drop_positional(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx);
