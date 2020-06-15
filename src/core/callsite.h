@@ -100,7 +100,8 @@ MVM_PUBLIC MVMCallsite * MVM_callsite_get_common(MVMThreadContext *tc, MVMCommon
 
 /* Other copying, interning, and cleanup. */
 MVMCallsite * MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs);
-MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);
+MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs,
+        MVMuint32 force, MVMuint32 steal);
 void MVM_callsite_destroy(MVMCallsite *cs);
 void MVM_callsite_cleanup_interns(MVMInstance *instance);
 
