@@ -529,32 +529,6 @@ void MVM_vm_exit(MVMInstance *instance) {
     exit(0);
 }
 
-static void cleanup_callsite_interns(MVMInstance *instance) {
-    int i;
-
-    for (i = 0; i < MVM_INTERN_ARITY_LIMIT; i++) {
-        int callsite_count = instance->callsite_interns->num_by_arity[i];
-        int j;
-
-        if (callsite_count) {
-            MVMCallsite **callsites = instance->callsite_interns->by_arity[i];
-
-            for (j = 0; j < callsite_count; j++) {
-                MVMCallsite *callsite = callsites[j];
-
-                if (MVM_callsite_is_common(callsite)) {
-                    continue;
-                }
-
-                MVM_callsite_destroy(callsite);
-            }
-
-            MVM_free(callsites);
-        }
-    }
-    MVM_free(instance->callsite_interns);
-}
-
 /* Destroys a VM instance. This must be called only from the main thread. It
  * should clear up all resources and free all memory; in practice, it falls
  * short of this goal at the moment. */
@@ -642,7 +616,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up interned callsites */
     uv_mutex_destroy(&instance->mutex_callsite_interns);
-    cleanup_callsite_interns(instance);
+    MVM_callsite_cleanup_interns(instance);
 
     /* Release this interpreter's hold on Unicode database */
     MVM_unicode_release(instance->main_thread);

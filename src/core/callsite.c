@@ -85,19 +85,6 @@ MVM_PUBLIC MVMCallsite * MVM_callsite_get_common(MVMThreadContext *tc, MVMCommon
     }
 }
 
-/* Check if a callsite is one of the common, VM-built-in, ones. */
-int MVM_callsite_is_common(MVMCallsite *cs) {
-    return cs == &zero_arity_callsite   ||
-           cs == &obj_callsite          ||
-           cs == &obj_obj_callsite      ||
-           cs == &obj_str_callsite      ||
-           cs == &obj_int_callsite      ||
-           cs == &obj_num_callsite      ||
-           cs == &int_int_callsite      ||
-           cs == &obj_obj_str_callsite  ||
-           cs == &obj_obj_obj_callsite;
-}
-
 /* Checks if two callsites are equal. */
 static MVMint32 callsites_equal(MVMThreadContext *tc, MVMCallsite *cs1, MVMCallsite *cs2,
                                 MVMint32 num_flags, MVMint32 num_nameds) {
@@ -221,6 +208,36 @@ MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs_p
 
     /* Finally, release mutex. */
     uv_mutex_unlock(&tc->instance->mutex_callsite_interns);
+}
+
+/* Free the memory associated with interned callsites. */
+static int is_common(MVMCallsite *cs) {
+    return cs == &zero_arity_callsite   ||
+           cs == &obj_callsite          ||
+           cs == &obj_obj_callsite      ||
+           cs == &obj_str_callsite      ||
+           cs == &obj_int_callsite      ||
+           cs == &obj_num_callsite      ||
+           cs == &int_int_callsite      ||
+           cs == &obj_obj_str_callsite  ||
+           cs == &obj_obj_obj_callsite;
+}
+void MVM_callsite_cleanup_interns(MVMInstance *instance) {
+    MVMuint32 i;
+    for (i = 0; i < MVM_INTERN_ARITY_LIMIT; i++) {
+        MVMuint32 callsite_count = instance->callsite_interns->num_by_arity[i];
+        if (callsite_count) {
+            MVMCallsite **callsites = instance->callsite_interns->by_arity[i];
+            MVMuint32 j;
+            for (j = 0; j < callsite_count; j++) {
+                MVMCallsite *callsite = callsites[j];
+                if (!is_common(callsite))
+                    MVM_callsite_destroy(callsite);
+            }
+            MVM_free(callsites);
+        }
+    }
+    MVM_free(instance->callsite_interns);
 }
 
 /* Copies the named args of one callsite into another. */
