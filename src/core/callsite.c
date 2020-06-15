@@ -99,6 +99,14 @@ static MVMint32 callsites_equal(MVMThreadContext *tc, MVMCallsite *cs1, MVMCalls
     return 1;
 }
 
+/* GC marks a callsite (really, just its named args). */
+void MVM_callsite_mark(MVMThreadContext *tc, MVMCallsite *cs, MVMGCWorklist *worklist) {
+    MVMuint32 num_names = cs->flag_count - cs->num_pos;
+    MVMuint32 i;
+    for (i = 0; i < num_names; i++)
+        MVM_gc_worklist_add(tc, worklist, &(cs->arg_names[i]));
+}
+
 /* Destroy a callsite, freeing the memory associated with it. */
 void MVM_callsite_destroy(MVMCallsite *cs) {
     if (cs->flag_count) {
