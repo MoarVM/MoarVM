@@ -22,7 +22,7 @@ typedef struct {
 static void code_pair_fetch_internal(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res, MVMReturnType res_type) {
     CodePairContData        *data = (CodePairContData *)STABLE(cont)->container_data;
     MVMObject               *code = MVM_frame_find_invokee(tc, data->fetch_code, NULL);
-    MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+    MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
     MVM_args_setup_thunk(tc, res, res_type, inv_arg_callsite);
     tc->cur_frame->args[0].o      = cont;
     STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
@@ -56,7 +56,7 @@ static void code_pair_store_internal(MVMThreadContext *tc, MVMObject *cont, MVMR
 static void code_pair_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *obj) {
     MVMRegister r;
     r.o = obj;
-    code_pair_store_internal(tc, cont, r, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ));
+    code_pair_store_internal(tc, cont, r, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
 }
 
 static void code_pair_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
@@ -226,7 +226,7 @@ static void value_desc_cont_fetch_s(MVMThreadContext *tc, MVMObject *cont, MVMRe
 static void value_desc_cont_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *value) {
     MVMValueDescContainer *data = (MVMValueDescContainer *)STABLE(cont)->container_data;
     MVMObject *code = MVM_frame_find_invokee(tc, data->store, NULL);
-    MVMCallsite *cs = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ);
+    MVMCallsite *cs = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ);
     MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, cs);
     tc->cur_frame->args[0].o = cont;
     tc->cur_frame->args[1].o = value;
@@ -260,7 +260,7 @@ static void value_desc_cont_store_s(MVMThreadContext *tc, MVMObject *cont, MVMSt
 static void value_desc_cont_store_unchecked(MVMThreadContext *tc, MVMObject *cont, MVMObject *value) {
     MVMValueDescContainer *data = (MVMValueDescContainer *)STABLE(cont)->container_data;
     MVMObject *code = MVM_frame_find_invokee(tc, data->store_unchecked, NULL);
-    MVMCallsite *cs = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ);
+    MVMCallsite *cs = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ);
     MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, cs);
     tc->cur_frame->args[0].o = cont;
     tc->cur_frame->args[1].o = value;
@@ -335,7 +335,7 @@ static void value_desc_cont_cas(MVMThreadContext *tc, MVMObject *cont,
                               MVMRegister *result) {
     MVMValueDescContainer *data = (MVMValueDescContainer *)STABLE(cont)->container_data;
     MVMObject *code = MVM_frame_find_invokee(tc, data->cas, NULL);
-    MVMCallsite *cs = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TYPECHECK);
+    MVMCallsite *cs = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ_OBJ);
     MVM_args_setup_thunk(tc, result, MVM_RETURN_OBJ, cs);
     tc->cur_frame->args[0].o = cont;
     tc->cur_frame->args[1].o = expected;
@@ -352,7 +352,7 @@ static MVMObject * value_desc_cont_atomic_load(MVMThreadContext *tc, MVMObject *
 void value_desc_cont_atomic_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *value) {
     MVMValueDescContainer *data = (MVMValueDescContainer *)STABLE(cont)->container_data;
     MVMObject *code = MVM_frame_find_invokee(tc, data->atomic_store, NULL);
-    MVMCallsite *cs = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ);
+    MVMCallsite *cs = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ);
     MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, cs);
     tc->cur_frame->args[0].o = cont;
     tc->cur_frame->args[1].o = value;

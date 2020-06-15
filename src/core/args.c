@@ -1246,7 +1246,7 @@ void MVM_args_bind_failed(MVMThreadContext *tc) {
         MVM_exception_throw_adhoc(tc, "Bind error occurred, but HLL has no handler");
     bind_error = MVM_frame_find_invokee(tc, bind_error, NULL);
     res = MVM_calloc(1, sizeof(MVMRegister));
-    inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
+    inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
     MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, inv_arg_callsite);
     MVM_frame_special_return(tc, cur_frame, bind_error_return, bind_error_unwind, res, mark_sr_data);
     cur_frame->args[0].o = cc_obj;

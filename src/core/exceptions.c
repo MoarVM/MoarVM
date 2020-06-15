@@ -401,8 +401,9 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
             ah, NULL);
 
         /* Invoke the handler frame and return to runloop. */
-        STABLE(handler_code)->invoke(tc, handler_code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS),
-                                     cur_frame->args);
+        STABLE(handler_code)->invoke(tc, handler_code,
+            MVM_callsite_get_common(tc, MVM_CALLSITE_ID_ZERO_ARITY),
+            cur_frame->args);
         break;
     }
     default:

@@ -148,7 +148,7 @@ MVMCallsite * find_callsite_and_args(MVMThreadContext *tc, MVMRegister **args) {
     else {
         /* No call, so it's the entry point frame. */
         *args = NULL;
-        return MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS);
+        return MVM_callsite_get_common(tc, MVM_CALLSITE_ID_ZERO_ARITY);
     }
 }
 

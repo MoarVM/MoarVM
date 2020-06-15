@@ -15,28 +15,14 @@ static MVMint32 callsites_equal(MVMThreadContext *tc, MVMCallsite *cs1, MVMCalls
     return 1;
 }
 
-static MVMCallsite   null_args_callsite = { NULL, 0, 0, 0, 0, 0, 0, 0 };
+static MVMCallsite   zero_arity_callsite = { NULL, 0, 0, 0, 0, 0, 0, 0 };
 
 static MVMCallsiteEntry obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     inv_arg_callsite = { obj_arg_flags, 1, 1, 1, 0, 0, 0, 0 };
+static MVMCallsite     obj_callsite = { obj_arg_flags, 1, 1, 1, 0, 0, 0, 0 };
 
-static MVMCallsiteEntry two_obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ,
+static MVMCallsiteEntry obj_obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                                 MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite    two_args_callsite = { two_obj_arg_flags, 2, 2, 2, 0, 0, NULL, NULL };
-
-static MVMCallsiteEntry mnfe_flags[] = { MVM_CALLSITE_ARG_OBJ,
-                                         MVM_CALLSITE_ARG_STR };
-static MVMCallsite     methnotfound_callsite = { mnfe_flags, 2, 2, 2, 0, 0, NULL, NULL };
-
-static MVMCallsiteEntry fm_flags[] = { MVM_CALLSITE_ARG_OBJ,
-                                       MVM_CALLSITE_ARG_OBJ,
-                                       MVM_CALLSITE_ARG_STR };
-static MVMCallsite     findmeth_callsite = { fm_flags, 3, 3, 3, 0, 0, NULL, NULL };
-
-static MVMCallsiteEntry tc_flags[] = { MVM_CALLSITE_ARG_OBJ,
-                                       MVM_CALLSITE_ARG_OBJ,
-                                       MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     typecheck_callsite = { tc_flags, 3, 3, 3, 0, 0, NULL, NULL };
+static MVMCallsite    obj_obj_callsite = { obj_obj_arg_flags, 2, 2, 2, 0, 0, NULL, NULL };
 
 static MVMCallsiteEntry obj_int_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                             MVM_CALLSITE_ARG_INT };
@@ -46,27 +32,31 @@ static MVMCallsiteEntry obj_num_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                             MVM_CALLSITE_ARG_NUM };
 static MVMCallsite    obj_num_callsite = { obj_num_flags, 2, 2, 2, 0, 0, NULL, NULL };
 
-static MVMCallsiteEntry obj_str_flags[] = { MVM_CALLSITE_ARG_OBJ,
-                                            MVM_CALLSITE_ARG_STR };
-static MVMCallsite    obj_str_callsite = { obj_str_flags, 2, 2, 2, 0, 0, NULL, NULL };
+static MVMCallsiteEntry obj_str_arg_flags[] = { MVM_CALLSITE_ARG_OBJ,
+                                         MVM_CALLSITE_ARG_STR };
+static MVMCallsite     obj_str_callsite = { obj_str_arg_flags, 2, 2, 2, 0, 0, NULL, NULL };
 
 static MVMCallsiteEntry int_int_arg_flags[] = { MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_INT };
-static MVMCallsite     int_int_arg_callsite = { int_int_arg_flags, 2, 2, 2, 0, 0, 0, 0 };
+static MVMCallsite     int_int_callsite = { int_int_arg_flags, 2, 2, 2, 0, 0, 0, 0 };
+
+static MVMCallsiteEntry obj_obj_str_arg_flags[] = { MVM_CALLSITE_ARG_OBJ,
+                                       MVM_CALLSITE_ARG_OBJ,
+                                       MVM_CALLSITE_ARG_STR };
+static MVMCallsite     obj_obj_str_callsite = { obj_obj_str_arg_flags, 3, 3, 3, 0, 0, NULL, NULL };
+
+static MVMCallsiteEntry obj_obj_obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ,
+                                       MVM_CALLSITE_ARG_OBJ,
+                                       MVM_CALLSITE_ARG_OBJ };
+static MVMCallsite     obj_obj_obj_callsite = { obj_obj_obj_arg_flags, 3, 3, 3, 0, 0, NULL, NULL };
 
 MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id) {
     switch (id) {
-        case MVM_CALLSITE_ID_NULL_ARGS:
-            return &null_args_callsite;
-        case MVM_CALLSITE_ID_INV_ARG:
-            return &inv_arg_callsite;
-        case MVM_CALLSITE_ID_TWO_OBJ:
-            return &two_args_callsite;
-        case MVM_CALLSITE_ID_METH_NOT_FOUND:
-            return &methnotfound_callsite;
-        case MVM_CALLSITE_ID_FIND_METHOD:
-            return &findmeth_callsite;
-        case MVM_CALLSITE_ID_TYPECHECK:
-            return &typecheck_callsite;
+        case MVM_CALLSITE_ID_ZERO_ARITY:
+            return &zero_arity_callsite;
+        case MVM_CALLSITE_ID_OBJ:
+            return &obj_callsite;
+        case MVM_CALLSITE_ID_OBJ_OBJ:
+            return &obj_obj_callsite;
         case MVM_CALLSITE_ID_OBJ_INT:
             return &obj_int_callsite;
         case MVM_CALLSITE_ID_OBJ_NUM:
@@ -74,22 +64,26 @@ MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonC
         case MVM_CALLSITE_ID_OBJ_STR:
             return &obj_str_callsite;
         case MVM_CALLSITE_ID_INT_INT:
-            return &int_int_arg_callsite;
+            return &int_int_callsite;
+        case MVM_CALLSITE_ID_OBJ_OBJ_STR:
+            return &obj_obj_str_callsite;
+        case MVM_CALLSITE_ID_OBJ_OBJ_OBJ:
+            return &obj_obj_obj_callsite;
         default:
             MVM_exception_throw_adhoc(tc, "get_common_callsite: id %d unknown", id);
     }
 }
 
 int MVM_callsite_is_common(MVMCallsite *cs) {
-    return cs == &null_args_callsite    ||
-           cs == &inv_arg_callsite      ||
-           cs == &two_args_callsite     ||
-           cs == &methnotfound_callsite ||
-           cs == &findmeth_callsite     ||
-           cs == &typecheck_callsite    ||
+    return cs == &zero_arity_callsite   ||
+           cs == &obj_callsite          ||
+           cs == &obj_obj_callsite      ||
+           cs == &obj_str_callsite      ||
            cs == &obj_int_callsite      ||
            cs == &obj_num_callsite      ||
-           cs == &obj_str_callsite;
+           cs == &int_int_callsite      ||
+           cs == &obj_obj_str_callsite  ||
+           cs == &obj_obj_obj_callsite;
 }
 
 void MVM_callsite_destroy(MVMCallsite *cs) {
@@ -145,17 +139,23 @@ MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
 void MVM_callsite_initialize_common(MVMThreadContext *tc) {
     MVMCallsite *ptr;
 
-    ptr = &inv_arg_callsite;
+    ptr = &zero_arity_callsite;
     MVM_callsite_try_intern(tc, &ptr);
-    ptr = &null_args_callsite;
+    ptr = &obj_callsite;
     MVM_callsite_try_intern(tc, &ptr);
-    ptr = &methnotfound_callsite;
+    ptr = &obj_obj_callsite;
     MVM_callsite_try_intern(tc, &ptr);
-    ptr = &two_args_callsite;
+    ptr = &obj_int_callsite;
     MVM_callsite_try_intern(tc, &ptr);
-    ptr = &findmeth_callsite;
+    ptr = &obj_num_callsite;
     MVM_callsite_try_intern(tc, &ptr);
-    ptr = &typecheck_callsite;
+    ptr = &obj_str_callsite;
+    MVM_callsite_try_intern(tc, &ptr);
+    ptr = &int_int_callsite;
+    MVM_callsite_try_intern(tc, &ptr);
+    ptr = &obj_obj_str_callsite;
+    MVM_callsite_try_intern(tc, &ptr);
+    ptr = &obj_obj_obj_callsite;
     MVM_callsite_try_intern(tc, &ptr);
 }
 
