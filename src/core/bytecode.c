@@ -958,7 +958,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
          * VM already knows about). If it does, it will free the memory
          * associated and replace it with the interned one. Otherwise it
          * will store this one, provided it meets the interning rules. */
-        MVM_callsite_try_intern(tc, &(callsites[i]));
+        MVM_callsite_intern(tc, &(callsites[i]), 0, 1);
     }
 
     /* Add one on to the maximum, to allow space for unshifting an extra
