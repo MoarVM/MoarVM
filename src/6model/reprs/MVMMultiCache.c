@@ -103,9 +103,9 @@ static const MVMREPROps MVMMultiCache_this_repr = {
 };
 
 /* Filters for various parts of action.arg_match. */
-#define MVM_MULTICACHE_ARG_IDX_FILTER  (2 * MVM_INTERN_ARITY_LIMIT - 1)
-#define MVM_MULTICACHE_ARG_CONC_FILTER (2 * MVM_INTERN_ARITY_LIMIT)
-#define MVM_MULTICACHE_ARG_RW_FILTER   (4 * MVM_INTERN_ARITY_LIMIT)
+#define MVM_MULTICACHE_ARG_IDX_FILTER  (2 * MVM_INTERN_ARITY_SOFT_LIMIT - 1)
+#define MVM_MULTICACHE_ARG_CONC_FILTER (2 * MVM_INTERN_ARITY_SOFT_LIMIT)
+#define MVM_MULTICACHE_ARG_RW_FILTER   (4 * MVM_INTERN_ARITY_SOFT_LIMIT)
 #define MVM_MULTICACHE_TYPE_ID_FILTER  (0xFFFFFFFFFFFFFFFFULL ^ (MVM_TYPE_CACHE_ID_INCR - 1))
 
 /* Debug support dumps the tree after each addition. */
@@ -147,8 +147,8 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
     MVMMultiCacheBody *cache = NULL;
     MVMCallsite       *cs    = NULL;
     MVMArgProcContext *apc   = NULL;
-    MVMuint64          match_flags[2 * MVM_INTERN_ARITY_LIMIT];
-    size_t             match_arg_idx[MVM_INTERN_ARITY_LIMIT];
+    MVMuint64          match_flags[2 * MVM_INTERN_ARITY_SOFT_LIMIT];
+    size_t             match_arg_idx[MVM_INTERN_ARITY_SOFT_LIMIT];
     MVMuint32          flag, i, num_obj_args, have_head, have_tree,
                        have_callsite, matched_args, unmatched_arg,
                        tweak_node, insert_node;
