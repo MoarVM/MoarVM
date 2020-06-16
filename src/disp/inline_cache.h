@@ -58,6 +58,13 @@ struct MVMDispInlineCacheEntryMonomorphicDispatch {
     MVMDispProgram *dp;
 };
 
+/* A resolved monomorphic entry for dispatch with flattening. */
+struct MVMDispInlineCacheEntryMonomorphicDispatchFlattening {
+    MVMDispInlineCacheEntry base;
+    MVMCallsite *flattened_cs;
+    MVMDispProgram *dp;
+};
+
 /* A resolved polymorphic entry for dispatch. */
 struct MVMDispInlineCacheEntryPolymorphicDispatch {
     MVMDispInlineCacheEntry base;
@@ -75,5 +82,5 @@ MVMuint32 MVM_disp_inline_cache_get_slot(MVMThreadContext *tc, MVMStaticFrame *s
         MVMuint32 bytecode_offset);
 void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *entry,
-        MVMStaticFrame *root, MVMDispProgram *dp);
+        MVMStaticFrame *root, MVMCallsite *initial_cs, MVMDispProgram *dp);
 void MVM_disp_inline_cache_destroy(MVMThreadContext *tc, MVMDispInlineCache *cache);
