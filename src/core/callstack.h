@@ -123,14 +123,26 @@ struct MVMCallStackContinuationTag {
 };
 
 /* An argument flattening record, used to hold the results of flattening a
- * dispatch's arguments. A pointer into this is then used as the args source
- * in the following dispatch. */
+ * dispatch's arguments. The layout is:
+ * 1. This struct.
+ * 2. Callsite flags, rounded up to nearest 8 bytes.
+ * 3. Arguments buffer.
+ * Thus this is a record of dynamic length. */
 #define MVM_CALLSTACK_RECORD_FLATTENING         7
 struct MVMCallStackFlattening {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
 
-    /* TODO */
+    /* A callsite that we produce, flattened in here to avoid a malloc. We
+     * may actually end up not using it, if it matches an interned one. The
+     * arg flags are allocated on the end of this record. */
+    MVMCallsite produced_cs;
+
+    /* The args for the dispatch. The callsite is either a pointer to
+     * produced_cs above, or to an interned callsite. The map is the
+     * identity mapping. The source points to an area at the end of
+     * this record. */
+    MVMArgs arg_info;
 };
 
 /* A dispatch recording phase record, when we're running the dispatch
@@ -203,6 +215,8 @@ MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc);
 MVMCallStackDispatchRecord * MVM_callstack_allocate_dispatch_record(MVMThreadContext *tc);
 MVMCallStackDispatchRun * MVM_callstack_allocate_dispatch_run(MVMThreadContext *tc,
         MVMuint32 num_temps);
+MVMCallStackFlattening * MVM_callstack_allocate_flattening(MVMThreadContext *tc,
+        MVMuint16 num_args, MVMuint16 num_pos);
 void MVM_callstack_new_continuation_region(MVMThreadContext *tc, MVMObject *tag);
 MVMCallStackRegion * MVM_callstack_continuation_slice(MVMThreadContext *tc, MVMObject *tag,
         MVMActiveHandler **active_handlers);
