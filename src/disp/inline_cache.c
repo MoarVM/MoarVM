@@ -81,7 +81,17 @@ static void dispatch_initial(MVMThreadContext *tc,
 static void dispatch_initial_flattening(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
         MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
-    MVM_panic(1, "flattening args to dispatch NYI");
+    /* Resolve the dispatcher. */
+    MVMDispDefinition *disp = MVM_disp_registry_find(tc, id);
+
+    /* Perform flattening of arguments, then form a capture. */
+    MVMCallStackFlattening *record = MVM_args_perform_flattening(tc, cs,
+            tc->cur_frame->work, arg_indices);
+    MVMObject *capture = MVM_capture_from_args(tc, record->arg_info);
+
+    /* Run the dispatcher. */
+    MVM_disp_program_run_dispatch(tc, disp, capture, entry_ptr, seen,
+            tc->cur_frame->static_info);
 }
 
 static void dispatch_monomorphic(MVMThreadContext *tc,
@@ -104,6 +114,12 @@ static void dispatch_monomorphic(MVMThreadContext *tc,
         if (MVM_spesh_log_is_logging(tc))
             MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, 0);
     }
+}
+
+static void dispatch_monomorphic_flattening(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
+        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
+    MVM_panic(1, "monomorphic flattening dispatch NYI");
 }
 
 static void dispatch_polymorphic(MVMThreadContext *tc,
@@ -152,7 +168,7 @@ static void gc_barrier_program(MVMThreadContext *tc, MVMStaticFrame *root,
 }
 void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *entry,
-        MVMStaticFrame *root, MVMDispProgram *dp) {
+        MVMStaticFrame *root, MVMCallsite *initial_cs, MVMDispProgram *dp) {
     /* Ensure that the entry is current (this is re-checked when we actaully
      * update it, but this ensures we won't dereference a dangling pointer
      * below). */
@@ -168,6 +184,20 @@ void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         new_entry->dp = dp;
         gc_barrier_program(tc, root, dp);
         if (!try_update_cache_entry(tc, entry_ptr, &unlinked_dispatch, &(new_entry->base)))
+            MVM_disp_program_destroy(tc, dp);
+    }
+    else if (entry->run_dispatch == dispatch_initial_flattening) {
+        /* Unlinked flattening -> monomorphic flattening transition. Since we shall
+         * retain the callsite to assert against, we force interning of it. */
+        MVMDispInlineCacheEntryMonomorphicDispatchFlattening *new_entry = MVM_fixed_size_alloc(tc,
+                tc->instance->fsa, sizeof(MVMDispInlineCacheEntryMonomorphicDispatchFlattening));
+        new_entry->base.run_dispatch = dispatch_monomorphic_flattening;
+        if (!initial_cs->is_interned)
+            MVM_callsite_intern(tc, &initial_cs, 1, 0);
+        new_entry->flattened_cs = initial_cs;
+        new_entry->dp = dp;
+        gc_barrier_program(tc, root, dp);
+        if (!try_update_cache_entry(tc, entry_ptr, &unlinked_dispatch_flattening, &(new_entry->base)))
             MVM_disp_program_destroy(tc, dp);
     }
     else if (entry->run_dispatch == dispatch_monomorphic) {
@@ -374,7 +404,8 @@ void cleanup_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry *entry) {
         MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
                 sizeof(MVMDispInlineCacheEntryResolvedGetLexStatic), entry);
     }
-    else if (entry->run_dispatch == dispatch_initial) {
+    else if (entry->run_dispatch == dispatch_initial ||
+            entry->run_dispatch == dispatch_initial_flattening) {
         /* Never free initial dispatch state. */
     }
     else if (entry->run_dispatch == dispatch_monomorphic) {
