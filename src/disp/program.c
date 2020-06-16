@@ -308,6 +308,13 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
 #endif
 
 /* Run a dispatch callback, which will record a dispatch program. */
+static MVMFrame * find_calling_frame(MVMCallStackRecord *prev) {
+    /* Typically, we'll have the frame right off, but if there was flattening,
+     * we need to skip that frame between the two. */
+    if (prev->kind == MVM_CALLSTACK_RECORD_FLATTENING)
+        prev = prev->prev;
+    return MVM_callstack_record_to_frame(prev);
+}
 static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         MVMDispDefinition *disp, MVMObject *capture, MVMuint32 *thunked) {
     MVMCallsite *disp_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
@@ -327,7 +334,7 @@ static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *recor
         record->outcome.kind = MVM_DISP_OUTCOME_EXPECT_DELEGATE;
         record->outcome.delegate_disp = NULL;
         record->outcome.delegate_capture = NULL;
-        tc->cur_frame = MVM_callstack_record_to_frame(tc->stack_top->prev);
+        tc->cur_frame = find_calling_frame(tc->stack_top->prev);
         MVM_frame_dispatch(tc, (MVMCode *)dispatch, dispatch_args, -1);
         if (thunked)
             *thunked = 1;
@@ -1403,7 +1410,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             return 0;
         case MVM_DISP_OUTCOME_VALUE: {
             process_recording(tc, record);
-            MVMFrame *caller = MVM_callstack_record_to_frame(record->common.prev);
+            MVMFrame *caller = find_calling_frame(record->common.prev);
             switch (record->outcome.result_kind) {
                 case MVM_reg_obj:
                     MVM_args_set_dispatch_result_obj(tc, caller, record->outcome.result_value.o);
@@ -1425,7 +1432,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
         case MVM_DISP_OUTCOME_BYTECODE:
             process_recording(tc, record);
             record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
-            tc->cur_frame = MVM_callstack_record_to_frame(tc->stack_top->prev);
+            tc->cur_frame = find_calling_frame(tc->stack_top->prev);
             MVM_frame_dispatch(tc, record->outcome.code, record->outcome.args, -1);
             if (thunked)
                 *thunked = 1;
@@ -1433,7 +1440,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
         case MVM_DISP_OUTCOME_CFUNCTION:
             process_recording(tc, record);
             record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
-            tc->cur_frame = MVM_callstack_record_to_frame(tc->stack_top->prev);
+            tc->cur_frame = find_calling_frame(tc->stack_top->prev);
             record->outcome.c_func(tc, record->outcome.args);
             return 1;
         default:
