@@ -901,7 +901,7 @@ static MVMuint32 get_temp_holding_value(MVMThreadContext *tc, compile_state *cs,
     switch (v->source) {
         case MVMDispProgramRecordingCaptureValue:
             op.code = MVMDispOpcodeLoadCaptureValue;
-            op.load.idx = value_index;
+            op.load.idx = v->capture.index;
             break;
         case MVMDispProgramRecordingLiteralValue:
             switch (v->literal.kind) {
