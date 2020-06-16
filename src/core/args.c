@@ -38,6 +38,151 @@ void MVM_args_destroy_identity_map(MVMThreadContext *tc) {
             tc->instance->identity_arg_map);
 }
 
+/* Perform flattening of arguments as provided, and return the resulting
+ * callstack record. */
+MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCallsite *cs,
+        MVMRegister *source, MVMuint16 *map) {
+    /* Go through the callsite and find the flattening things, counting up the
+     * number of arguments it will provide and validating that we know how to
+     * flatten the passed object. We also save the flatten counts, just in case,
+     * so we do not end up doing a buffer overrun if the source gets mutated in
+     * the meantime. */
+    MVMuint32 num_pos = 0;
+    MVMuint32 num_args = 0;
+    MVMuint16 i;
+    MVMuint16 *flatten_counts = alloca(cs->flag_count * sizeof(MVMuint16));
+    for (i = 0; i < cs->flag_count; i++) {
+        MVMCallsiteFlags flag = cs->arg_flags[i];
+        if (flag & MVM_CALLSITE_ARG_FLAT) {
+            /* Positional flattening. */
+            MVMObject *list = source[map[i]].o;
+            if (REPR(list)->ID != MVM_REPR_ID_VMArray || !IS_CONCRETE(list))
+                MVM_exception_throw_adhoc(tc,
+                        "Argument flattening array must be a concrete VMArray");
+            MVMint64 elems = REPR(list)->elems(tc, STABLE(list), list, OBJECT_BODY(list));
+            if (elems > 0xFFFF)
+                MVM_exception_throw_adhoc(tc,
+                        "Flattened array has %"PRId64" elements, but argument lists are limited to %"PRId32"",
+                        elems, 0xFFFF);
+            flatten_counts[i] = (MVMuint16)elems;
+            num_pos += (MVMuint16)elems;
+            num_args += (MVMuint16)elems;
+        }
+        else if (flag & MVM_CALLSITE_ARG_FLAT_NAMED) {
+            /* Named flattening. */
+            MVMObject *hash = source[map[i]].o;
+            if (REPR(hash)->ID != MVM_REPR_ID_MVMHash || !IS_CONCRETE(hash))
+                MVM_exception_throw_adhoc(tc,
+                        "Argument flattening hash must be a concrete VMHash");
+            MVMint64 elems = REPR(hash)->elems(tc, STABLE(hash), hash, OBJECT_BODY(hash));
+            if (elems > 0xFFFF)
+                MVM_exception_throw_adhoc(tc,
+                        "Flattened hash has %"PRId64" elements, but argument lists are limited to %"PRId32"",
+                        elems, 0xFFFF);
+            flatten_counts[i] = (MVMuint16)elems;
+            num_args += (MVMuint16)elems;
+        }
+        else if (flag & MVM_CALLSITE_ARG_NAMED) {
+            /* Named arg. */
+            num_args++;
+        }
+        else {
+            /* Positional arg. */
+            num_pos++;
+            num_args++;
+        }
+    }
+
+    /* Ensure we're in range. */
+    if (num_args > 0xFFFF)
+        MVM_exception_throw_adhoc(tc,
+                "Flattening produced %"PRId32" values, but argument lists are limited to %"PRId32"",
+                num_args, 0xFFFF);
+
+    /* Now populate the flattening record with the arguments. */
+    MVMCallStackFlattening *record = MVM_callstack_allocate_flattening(tc, num_args, num_pos);
+    MVMuint16 cur_orig_name = 0;
+    MVMuint16 cur_new_arg = 0;
+    MVMuint16 cur_new_name = 0;
+    for (i = 0; i < cs->flag_count; i++) {
+        MVMCallsiteFlags flag = cs->arg_flags[i];
+        if (flag & MVM_CALLSITE_ARG_FLAT) {
+            /* Positional flattening. */
+            if (flatten_counts[i] == 0)
+                continue;
+            MVMuint16 j;
+            MVMObject *list = source[map[i]].o;
+            MVMStorageSpec lss = REPR(list)->pos_funcs.get_elem_storage_spec(tc, STABLE(list));
+            for (j = 0; j < flatten_counts[i]; j++) {
+                switch (lss.inlineable ? lss.boxed_primitive : 0) {
+                    case MVM_STORAGE_SPEC_BP_INT:
+                        record->produced_cs.arg_flags[cur_new_arg] = MVM_CALLSITE_ARG_INT;
+                        record->arg_info.source[cur_new_arg].i64 = MVM_repr_at_pos_i(tc, list, j);
+                        break;
+                    case MVM_STORAGE_SPEC_BP_NUM:
+                        record->produced_cs.arg_flags[cur_new_arg] = MVM_CALLSITE_ARG_NUM;
+                        record->arg_info.source[cur_new_arg].n64 = MVM_repr_at_pos_n(tc, list, j);
+                        break;
+                    case MVM_STORAGE_SPEC_BP_STR:
+                        record->produced_cs.arg_flags[cur_new_arg] = MVM_CALLSITE_ARG_STR;
+                        record->arg_info.source[cur_new_arg].s = MVM_repr_at_pos_s(tc, list, j);
+                        break;
+                    default:
+                        record->produced_cs.arg_flags[cur_new_arg] = MVM_CALLSITE_ARG_OBJ;
+                        record->arg_info.source[cur_new_arg].o = MVM_repr_at_pos_o(tc, list, j);
+                        break;
+                }
+                cur_new_arg++;
+            }
+        }
+        else if (flag & MVM_CALLSITE_ARG_FLAT_NAMED) {
+            /* Named flattening. */
+            if (flatten_counts[i] == 0)
+                continue;
+            MVMObject *hash = source[map[i]].o;
+            MVMHashBody *body = &((MVMHash *)hash)->body;
+            MVMHashEntry *current;
+            MVMuint32 limit = flatten_counts[i];
+            MVMuint32 j = 0;
+            HASH_ITER_FAST(tc, hash_handle, body->hash_head, current, {
+                if (j++ < limit) { /* Drop silently, we don't want to throw here. */
+                    MVMString *arg_name = MVM_HASH_KEY(current);
+                    // TODO dedupe
+                    record->produced_cs.arg_flags[cur_new_arg] =
+                            MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
+                    record->arg_info.source[cur_new_arg].o = current->value;
+                    cur_new_arg++;
+                    record->produced_cs.arg_names[cur_new_name] = arg_name;
+                    cur_new_name++;
+                }
+            });
+        }
+        else if (flag & MVM_CALLSITE_ARG_NAMED) {
+            /* Named arg. */
+            // TODO dedupe
+            record->produced_cs.arg_flags[cur_new_arg] = cs->arg_flags[i];
+            record->arg_info.source[cur_new_arg] = source[map[i]];
+            cur_new_arg++;
+            record->produced_cs.arg_names[cur_new_name] = cs->arg_names[cur_orig_name];
+            cur_orig_name++;
+            cur_new_name++;
+        }
+        else {
+            /* Positional arg. */
+            record->produced_cs.arg_flags[cur_new_arg] = cs->arg_flags[i];
+            record->arg_info.source[cur_new_arg] = source[map[i]];
+            cur_new_arg++;
+        }
+    }
+
+    /* See if we can intern it, but don't force that to happen at this point.
+     * It should *not* steal this callsite, because it's "stack" allocated;
+     * if it makes an intern of it, then it should copy it. */
+    MVM_callsite_intern(tc, &(record->arg_info.callsite), 0, 0);
+
+    return record;
+}
+
 /* Grows the identity map to a new size. */
 void MVM_args_grow_identity_map(MVMThreadContext *tc, MVMCallsite *callsite) {
     uv_mutex_lock(&tc->instance->mutex_callsite_interns);

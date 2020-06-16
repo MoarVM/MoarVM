@@ -355,6 +355,7 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                 MVM_spesh_deopt_during_unwind(tc);
                 break;
             case MVM_CALLSTACK_RECORD_START:
+            case MVM_CALLSTACK_RECORD_FLATTENING:
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED:
             case MVM_CALLSTACK_RECORD_DISPATCH_RUN:
                 /* No cleanup to do, just move to next record. */
