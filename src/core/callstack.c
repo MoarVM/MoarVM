@@ -114,6 +114,49 @@ MVMCallStackDispatchRun * MVM_callstack_allocate_dispatch_run(MVMThreadContext *
     return record;
 }
 
+/* Allocates a flattening record on the callstack, with space for the specified
+ * number of arguments (both their flags and the args buffer itself) as well as
+ * the list of argument name strings. Setup is performed as follows:
+ * 1. produced_cs has its arg_flags pointing into a buffer of the right size to
+ *    write the produced flags into, arg_names also pointing to an appropriate
+ *    buffer, flag_count set to num_args, num_pos set as passed, and the rest
+ *    zeroed.
+ * 2. arg_info has its callsite pointer set to point at produced_cs, its map
+ *    to point to an identity map of at least num_args length, and its source
+ *    pointing at a buffer of num_args MVMRegisters.
+ * Neither the arg_flags nor the arg names list nor the source are zeroed, as
+ * it is expected they will all be written during the flattening process. */
+static MVMuint32 to_8_bytes(MVMuint32 num) {
+    return (num + 8 - 1) & -8;
+}
+MVMCallStackFlattening * MVM_callstack_allocate_flattening(MVMThreadContext *tc,
+        MVMuint16 num_args, MVMuint16 num_pos) {
+    /* Allocate. */
+    size_t record_size = to_8_bytes(sizeof(MVMCallStackFlattening));
+    size_t flags_size = to_8_bytes(num_args);
+    size_t nameds_size = (num_args - num_pos) * sizeof(MVMString *);
+    size_t args_size = num_args * sizeof(MVMRegister);
+    tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_FLATTENING,
+            record_size + flags_size + nameds_size + args_size);
+    MVMCallStackFlattening *record = (MVMCallStackFlattening *)tc->stack_top;
+
+    /* Setup callsite area to produce. */
+    record->produced_cs.arg_flags = (MVMCallsiteEntry *)((char *)record + record_size);
+    record->produced_cs.flag_count = num_args;
+    record->produced_cs.num_pos = num_pos;
+    record->produced_cs.is_interned = 0;
+    record->produced_cs.has_flattening = 0;
+    record->produced_cs.arg_names = (MVMString **)((char *)record + record_size + flags_size);
+
+    /* Set up arg info. */
+    record->arg_info.callsite = &(record->produced_cs);
+    record->arg_info.map = MVM_args_identity_map(tc, record->arg_info.callsite);
+    record->arg_info.source = (MVMRegister *)((char *)record + record_size +
+            flags_size + nameds_size);
+
+    return record;
+}
+
 /* Creates a new region for a continuation. By a continuation boundary starting
  * a new region, we are able to take the continuation by slicing off the entire
  * region from the regions linked list. The continuation tags always go at the
