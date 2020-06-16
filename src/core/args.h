@@ -99,6 +99,8 @@ MVM_STATIC_INLINE MVMuint16 * MVM_args_identity_map(MVMThreadContext *tc,
     return tc->instance->identity_arg_map;
 }
 void MVM_args_destroy_identity_map(MVMThreadContext *tc);
+MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCallsite *cs,
+        MVMRegister *source, MVMuint16 *map);
 
 /* Arity checking and named handling. */
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max);
