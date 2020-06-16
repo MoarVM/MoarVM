@@ -1342,10 +1342,9 @@ static MVMint32 create_caller_or_outer_context_debug_handle(MVMThreadContext *dt
     return 0;
 }
 
-static void write_one_context_lexical(MVMThreadContext *dtc, cmp_ctx_t *ctx, char *c_key_name,
+static void write_one_context_lexical(MVMThreadContext *dtc, cmp_ctx_t *ctx, const char *c_key_name,
         MVMuint16 lextype, MVMRegister *result) {
     cmp_write_str(ctx, c_key_name, strlen(c_key_name));
-    MVM_free(c_key_name);
 
     if (lextype == MVM_reg_obj) { /* Object */
         char *debugname;
@@ -1457,7 +1456,6 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
             MVMLexicalRegistry *entry = lexical_names_list[j];
             MVMuint16 lextype = static_info->body.lexical_types[j];
             MVMRegister *result = &frame->env[j];
-            char *c_key_name;
             MVMint32 was_from_local = 0;
             /* Lexical has to have a name - to get here it has already been added
                to the lookup hash, and that would have failed unless the key
@@ -1466,10 +1464,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
             assert(IS_CONCRETE(entry->key));
             /* Check there is no debug local override for it (which means the lexical
              * was lowered into a local, but preserved for some reason). */
-            c_key_name = MVM_string_utf8_encode_C_string(dtc, entry->key);
-            MVM_HASH_GET_FREE(dtc, debug_locals, entry->key, debug_entry, {
-                MVM_free(c_key_name);
-            });
+            MVM_HASH_GET(dtc, debug_locals, entry->key, debug_entry);
             if (debug_entry && static_info->body.local_types[debug_entry->local_idx] == lextype) {
                 result = &frame->work[debug_entry->local_idx];
                 was_from_local = 1;
@@ -1479,7 +1474,9 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                 /* XXX this can't allocate? */
                 MVM_frame_vivify_lexical(dtc, frame, entry->value);
             }
+            char *c_key_name = MVM_string_utf8_encode_C_string(dtc, entry->key);
             write_one_context_lexical(dtc, ctx, c_key_name, lextype, result);
+            MVM_free(c_key_name);
             if (dtc->instance->debugserver->debugspam_protocol)
                 fprintf(stderr, "wrote a lexical\n");
             lexical_index++;
@@ -1492,6 +1489,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                 MVMRegister *result = &frame->work[debug_entry->local_idx];
                 MVMuint16 lextype = static_info->body.local_types[debug_entry->local_idx];
                 write_one_context_lexical(dtc, ctx, c_key_name, lextype, result);
+                MVM_free(c_key_name);
             }
         });
     } else {
