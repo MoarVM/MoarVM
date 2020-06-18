@@ -3,7 +3,7 @@
 /* Create op info for a dispatch instruction, so that during specialization we
  * can pretend it's not varargs. */
 MVMOpInfo * MVM_spesh_disp_create_dispatch_op_info(MVMThreadContext *tc, MVMSpeshGraph *g,
-        MVMOpInfo *base_info, MVMCallsite *callsite) {
+        const MVMOpInfo *base_info, MVMCallsite *callsite) {
     /* In general, ops support up to an operand limit; in the case that there are more,
      * we'd overrun the buffer. We thus allocate more. */
     MVMuint32 total_ops = base_info->num_operands + callsite->flag_count;
@@ -17,7 +17,7 @@ MVMOpInfo * MVM_spesh_disp_create_dispatch_op_info(MVMThreadContext *tc, MVMSpes
 
     /* Tweak the operand count and set up new operand info based on the callsite. */
     dispatch_info->num_operands += callsite->flag_count;
-    MVMuint16 operand_index = base_info->opcode == MVM_OP_dispatch_v ? 2 : 3;
+    MVMuint16 operand_index = base_info->num_operands;
     MVMuint16 flag_index;
     for (flag_index = 0; flag_index < callsite->flag_count; operand_index++, flag_index++) {
         MVMCallsiteFlags flag = callsite->arg_flags[flag_index];
@@ -49,7 +49,40 @@ typedef struct {
  * static frame and inline cache offset. */
 static void rewrite_to_sp_dispatch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
         MVMuint32 bytecode_offset) {
-    MVM_panic(1, "rewrite to sp_dispatch_* is NYI");
+    /* Resolve the callsite. */
+    MVMuint32 callsite_idx = ins->operands[ins->info->opcode == MVM_OP_dispatch_v ? 1 : 2].callsite_idx;
+    MVMCallsite *callsite = g->sf->body.cu->body.callsites[callsite_idx];
+
+    /* Pick the new dispatch instruction and create instruction info for it. */
+    const MVMOpInfo *new_ins_base_info;
+    switch (ins->info->opcode) {
+        case MVM_OP_dispatch_v: new_ins_base_info = MVM_op_get_op(MVM_OP_sp_dispatch_v); break;
+        case MVM_OP_dispatch_i: new_ins_base_info = MVM_op_get_op(MVM_OP_sp_dispatch_i); break;
+        case MVM_OP_dispatch_n: new_ins_base_info = MVM_op_get_op(MVM_OP_sp_dispatch_n); break;
+        case MVM_OP_dispatch_o: new_ins_base_info = MVM_op_get_op(MVM_OP_sp_dispatch_o); break;
+        case MVM_OP_dispatch_s: new_ins_base_info = MVM_op_get_op(MVM_OP_sp_dispatch_s); break;
+        default:
+            MVM_oops(tc, "Unexpected dispatch instruction to rewrite");
+    }
+    MVMOpInfo *new_ins_info = MVM_spesh_disp_create_dispatch_op_info(tc, g,
+            new_ins_base_info, callsite);
+    ins->info = new_ins_info;
+
+    /* Rewrite the operands. */
+    MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g,
+            new_ins_info->num_operands * sizeof(MVMSpeshOperand));
+    MVMuint32 target = 0;
+    MVMuint32 source = 0;
+    if (new_ins_info->opcode != MVM_OP_sp_dispatch_v)
+        new_operands[target++] = ins->operands[source++]; /* Result value */
+    new_operands[target++] = ins->operands[source++]; /* Dispatcher name */
+    new_operands[target++] = ins->operands[source++]; /* Callsite index */
+    new_operands[target++].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+            (MVMCollectable *)g->sf);
+    new_operands[target++].lit_ui32 = MVM_disp_inline_cache_get_slot(tc, g->sf, bytecode_offset);
+    memcpy(new_operands + target, ins->operands + source,
+            callsite->flag_count * sizeof(MVMSpeshOperand));
+    ins->operands = new_operands;
 }
 
 /* Rewrite an unhit dispatch instruction. */
