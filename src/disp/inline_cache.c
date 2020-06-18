@@ -157,19 +157,19 @@ static void dispatch_polymorphic(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
         MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
     /* Set up dispatch run record. */
-    MVMDispInlineCacheEntryPolymorphicDispatch *disp =
+    MVMDispInlineCacheEntryPolymorphicDispatch *entry =
             (MVMDispInlineCacheEntryPolymorphicDispatch *)seen;
     MVMCallStackDispatchRun *record = MVM_callstack_allocate_dispatch_run(tc,
-            disp->max_temporaries);
+            entry->max_temporaries);
     record->arg_info.callsite = callsite;
     record->arg_info.source = tc->cur_frame->work;
     record->arg_info.map = arg_indices;
 
     /* Go through the dispatch programs, taking the first one that works. */
     MVMuint32 i;
-    for (i = 0; i < disp->num_dps; i++) {
-        if (MVM_disp_program_run(tc, disp->dps[i], record)) {
-            record->chosen_dp = disp->dps[i];
+    for (i = 0; i < entry->num_dps; i++) {
+        if (MVM_disp_program_run(tc, entry->dps[i], record)) {
+            record->chosen_dp = entry->dps[i];
             if (MVM_spesh_log_is_logging(tc))
                 MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, i);
             return;
@@ -190,19 +190,19 @@ static void dispatch_polymorphic_flattening(MVMThreadContext *tc,
             tc->cur_frame->work, arg_indices);
 
     /* Set up dispatch run record. */
-    MVMDispInlineCacheEntryPolymorphicDispatchFlattening *disp =
+    MVMDispInlineCacheEntryPolymorphicDispatchFlattening *entry =
             (MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)seen;
     MVMCallStackDispatchRun *record = MVM_callstack_allocate_dispatch_run(tc,
-            disp->max_temporaries);
+            entry->max_temporaries);
     record->arg_info = flat_record->arg_info;
 
     /* Go through the callsite and dispatch program pairs, taking the first one
      * that works. */
     MVMuint32 i;
-    for (i = 0; i < disp->num_dps; i++) {
-        if (flat_record->arg_info.callsite == disp->flattened_css[i]) {
-            if (MVM_disp_program_run(tc, disp->dps[i], record)) {
-                record->chosen_dp = disp->dps[i];
+    for (i = 0; i < entry->num_dps; i++) {
+        if (flat_record->arg_info.callsite == entry->flattened_css[i]) {
+            if (MVM_disp_program_run(tc, entry->dps[i], record)) {
+                record->chosen_dp = entry->dps[i];
                 if (MVM_spesh_log_is_logging(tc))
                     MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, i);
                 return;
@@ -210,7 +210,13 @@ static void dispatch_polymorphic_flattening(MVMThreadContext *tc,
         }
     }
 
-    MVM_panic(1, "polymorphic flattening dispatch second level handling NYI");
+    /* If we get here, then none of the callsite/dispatch program pairings
+     * matched, so we need to run the dispatch callback again. */
+    MVM_callstack_unwind_dispatch_run(tc);
+    MVMDispDefinition *disp = MVM_disp_registry_find(tc, id);
+    MVMObject *capture = MVM_capture_from_args(tc, flat_record->arg_info);
+    MVM_disp_program_run_dispatch(tc, disp, capture, entry_ptr, seen,
+            tc->cur_frame->static_info);
 }
 
 /* Transition a callsite such that it incorporates a newly record dispatch
@@ -324,6 +330,33 @@ void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         memcpy(new_entry->dps, prev_entry->dps, prev_entry->num_dps * sizeof(MVMDispProgram *));
         new_entry->dps[prev_entry->num_dps] = dp;
         set_max_temps(new_entry);
+        gc_barrier_program(tc, root, dp);
+        if (!try_update_cache_entry(tc, entry_ptr, entry, &(new_entry->base)))
+            MVM_disp_program_destroy(tc, dp);
+    }
+    else if (entry->run_dispatch == dispatch_polymorphic_flattening) {
+        /* Polymorphic flattening -> polymorphic flattening transition. */
+        MVMDispInlineCacheEntryPolymorphicDispatchFlattening *prev_entry =
+                (MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry;
+        MVMDispInlineCacheEntryPolymorphicDispatchFlattening *new_entry = MVM_fixed_size_alloc(tc,
+                tc->instance->fsa, sizeof(MVMDispInlineCacheEntryPolymorphicDispatchFlattening));
+        new_entry->base.run_dispatch = dispatch_polymorphic_flattening;
+        new_entry->num_dps = prev_entry->num_dps + 1;
+
+        new_entry->flattened_css = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                new_entry->num_dps * sizeof(MVMCallsite *));
+        memcpy(new_entry->flattened_css, prev_entry->flattened_css,
+                prev_entry->num_dps * sizeof(MVMCallsite * *));
+        if (!initial_cs->is_interned)
+            MVM_callsite_intern(tc, &initial_cs, 1, 0);
+        new_entry->flattened_css[prev_entry->num_dps] = initial_cs;
+
+        new_entry->dps = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                new_entry->num_dps * sizeof(MVMDispProgram *));
+        memcpy(new_entry->dps, prev_entry->dps, prev_entry->num_dps * sizeof(MVMDispProgram *));
+        new_entry->dps[prev_entry->num_dps] = dp;
+
+        set_max_temps_flattening(new_entry);
         gc_barrier_program(tc, root, dp);
         if (!try_update_cache_entry(tc, entry_ptr, entry, &(new_entry->base)))
             MVM_disp_program_destroy(tc, dp);
@@ -519,6 +552,17 @@ void cleanup_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry *entry) {
                 ((MVMDispInlineCacheEntryPolymorphicDispatch *)entry)->dps);
         MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
                 sizeof(MVMDispInlineCacheEntryPolymorphicDispatch), entry);
+    }
+    else if (entry->run_dispatch == dispatch_polymorphic_flattening) {
+        MVMuint32 num_dps = ((MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry)->num_dps;
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+                num_dps * sizeof(MVMCallsite *),
+                ((MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry)->flattened_css);
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+                num_dps * sizeof(MVMDispProgram *),
+                ((MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry)->dps);
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
+                sizeof(MVMDispInlineCacheEntryPolymorphicDispatchFlattening), entry);
     }
     else {
         MVM_oops(tc, "Unimplemented cleanup_entry case");
