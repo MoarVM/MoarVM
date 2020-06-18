@@ -119,7 +119,35 @@ static void dispatch_monomorphic(MVMThreadContext *tc,
 static void dispatch_monomorphic_flattening(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
         MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
-    MVM_panic(1, "monomorphic flattening dispatch NYI");
+    /* First, perform flattening of the arguments. */
+    MVMCallStackFlattening *flat_record = MVM_args_perform_flattening(tc, callsite,
+            tc->cur_frame->work, arg_indices);
+
+    /* In the best case, the resulting callsite matches, so we're maybe
+     * really monomorphic. */
+    MVMDispInlineCacheEntryMonomorphicDispatchFlattening *entry =
+            (MVMDispInlineCacheEntryMonomorphicDispatchFlattening *)seen;
+    if (flat_record->arg_info.callsite == entry->flattened_cs) {
+        MVMDispProgram *dp = entry->dp;
+        MVMCallStackDispatchRun *record = MVM_callstack_allocate_dispatch_run(tc,
+                dp->num_temporaries);
+        record->arg_info = flat_record->arg_info;
+        if (MVM_disp_program_run(tc, dp, record)) {
+            /* It matches, so we're ready to continue. */
+            record->chosen_dp = dp;
+            if (MVM_spesh_log_is_logging(tc))
+                MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, 0);
+            return;
+        }
+        else {
+            /* Dispatch program failed. Remove this record. */
+            MVM_callstack_unwind_dispatch_run(tc);
+        }
+    }
+
+    /* If we get here, then either the callsite didn't match or the dispatch
+     * program didn't match, so we need to try again. */
+    MVM_panic(1, "polymorphic flattening dispatch NYI");
 }
 
 static void dispatch_polymorphic(MVMThreadContext *tc,
