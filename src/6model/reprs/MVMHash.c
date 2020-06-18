@@ -207,9 +207,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     qsort(keys, elems, sizeof(MVMString*), cmp_strings);
     for (i = 0; i < elems; i++) {
         MVMHashEntry *entry;
-        MVM_HASH_GET_FREE(tc, body->hash_head, keys[i], entry, {
-            MVM_free(keys);
-        });
+        HASH_FIND_VM_STR(tc, hash_handle, body->hash_head, keys[i], entry);
         MVM_serialization_write_str(tc, writer, keys[i]);
         MVM_serialization_write_ref(tc, writer, entry->value);
     }
