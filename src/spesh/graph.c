@@ -236,21 +236,17 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 
         /* dispatch ops have a variable number of arguments based on a callsite. */
         if (MVM_op_get_mark(info->opcode)[1] == 'd') {
-            /* fake up an op info struct for the duration of the spesh graph's life */
+            /* Fake up an op info struct for the duration of this spesh graph's
+             * life, so everything else can pretend it's got a fixed number of
+             * arguments. */
             MVMOpInfo *dispatch_info = MVM_spesh_alloc(tc, g, sizeof(MVMOpInfo));
-            MVMCallsite *callsite = cu->body.callsites[GET_UI16(args, 2 + (info->opcode == MVM_OP_dispatch_v ? 0 : 2))];
-            MVMuint16 operand_index;
-            MVMuint16 flag_index;
-
-            /*fprintf(stderr, "this callsite has %d args\n", callsite->flag_count);*/
-            /*fprintf(stderr, "this op has %d args\n", info->num_operands);*/
-
-            operand_index = info->opcode == MVM_OP_dispatch_v ? 2 : 3;
-
+            MVMuint32 callsite_arg_offset = 4 + (info->opcode == MVM_OP_dispatch_v ? 0 : 2);
+            MVMCallsite *callsite = cu->body.callsites[GET_UI16(args, callsite_arg_offset)];
             memcpy(dispatch_info, info, sizeof(MVMOpInfo));
             dispatch_info->num_operands += callsite->flag_count;
-
-            for (flag_index = 0; operand_index < callsite->flag_count + info->num_operands; operand_index++, flag_index++) {
+            MVMuint16 operand_index = info->opcode == MVM_OP_dispatch_v ? 2 : 3;
+            MVMuint16 flag_index;
+            for (flag_index = 0; flag_index < callsite->flag_count; operand_index++, flag_index++) {
                 MVMCallsiteFlags flag = callsite->arg_flags[flag_index];
                 if (flag & MVM_CALLSITE_ARG_OBJ) {
                     dispatch_info->operands[operand_index] = MVM_operand_obj;
@@ -265,17 +261,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     dispatch_info->operands[operand_index] = MVM_operand_str;
                 }
                 dispatch_info->operands[operand_index] |= MVM_operand_read_reg;
-                /*fprintf(stderr, "(%d) %2x -> %4x ", operand_index, flag, dispatch_info->operands[operand_index]);*/
             }
-            /*fprintf(stderr, "\n");*/
-
-            for (operand_index = 0; operand_index < dispatch_info->num_operands; operand_index++) {
-                /*fprintf(stderr, "%4x ", dispatch_info->operands[operand_index]);*/
-            }
-            /*fprintf(stderr, "\n");*/
-
-            info = dispatch_info;
-            ins_node->info = dispatch_info;
+            ins_node->info = info = dispatch_info;
         }
 
         /* Go over operands. */
