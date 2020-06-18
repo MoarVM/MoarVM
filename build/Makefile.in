@@ -258,6 +258,7 @@ HEADERS = src/moar.h \
           src/core/args.h \
           src/core/exceptions.h \
           src/core/interp.h \
+          src/core/str_hash_table_funcs.h \
           src/core/alloc.h \
           src/core/vector.h \
           src/core/frame.h \
