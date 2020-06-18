@@ -390,6 +390,11 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         case MVM_OP_return_s:
         case MVM_OP_return_o:
         case MVM_OP_return:
+        case MVM_OP_dispatch_v:
+        case MVM_OP_dispatch_i:
+        case MVM_OP_dispatch_n:
+        case MVM_OP_dispatch_s:
+        case MVM_OP_dispatch_o:
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
             next_bbs = 1;
             break;
