@@ -43,10 +43,10 @@
 # * :predeoptonepoint means that we may deoptimize (fall back to slow-path
 #   code) before this instruction, but just locally within the current frame
 # * :deoptallpoint means that we may globally deoptimize (this goes only on an
-#   invoke; the callsite address will be rewritten)
+#   invoke or dispatch; the callsite address will be rewritten)
 # * :maycausedeopt means that the execution of this instruction might lead to a
 #   (local or global) deoptimization; used by the optimizer to make sure it
-#   does not delete instructions whose results are needed the other site of a
+#   does not delete instructions whose results are needed the other side of a
 #   deopt
 # * :noinline means it is never safe to inline this op
 # * :invokish means the op may invoke (used by the JIT)
@@ -886,11 +886,11 @@ freemem             w(int64) :pure
 totalmem            w(int64) :pure
 nextdispatcherfor   r(obj) r(obj)
 takenextdispatcher  w(obj) :noinline
-dispatch_v       .d str callsite :cache
-dispatch_i       .d w(int64) str callsite :cache
-dispatch_n       .d w(num64) str callsite :cache
-dispatch_s       .d w(str) str callsite :cache
-dispatch_o       .d w(obj) str callsite :cache
+dispatch_v       .d str callsite :cache :deoptallpoint :deoptonepoint :maycausedeopt :specializable
+dispatch_i       .d w(int64) str callsite :cache :deoptallpoint :deoptonepoint :maycausedeopt :specializable
+dispatch_n       .d w(num64) str callsite :cache :deoptallpoint :deoptonepoint :maycausedeopt :specializable
+dispatch_s       .d w(str) str callsite :cache :deoptallpoint :deoptonepoint :maycausedeopt :specializable
+dispatch_o       .d w(obj) str callsite :cache :deoptallpoint :deoptonepoint :maycausedeopt :specializable
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
@@ -946,6 +946,14 @@ sp_bindlex_os    .s wl(`1) r(`1)
 # inline cache slot, which means we don't have to worry about the bytecode
 # positions changing (and makes it more comfortable to JIT).
 sp_getlexstatic_o .s w(obj) r(str) sslot uint32 :pure
+
+# Specialized form of dispatch_* for when we don't manage to rewrite it into
+# anything more optimal. These precalculate the inline cache slot.
+sp_dispatch_v    .s str callsite sslot uint32 :maycausedeopt
+sp_dispatch_i    .s w(int64) str callsite sslot uint32 :maycausedeopt
+sp_dispatch_n    .s w(num64) str callsite sslot uint32 :maycausedeopt
+sp_dispatch_s    .s w(str) str callsite sslot uint32 :maycausedeopt
+sp_dispatch_o    .s w(obj) str callsite sslot uint32 :maycausedeopt
 
 # Following are for fast, unchecked grabbing of args from the arg buffer.
 sp_getarg_o      .s w(obj) int16 :pure
