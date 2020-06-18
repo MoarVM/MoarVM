@@ -223,6 +223,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/spesh/plugin@obj@ \
           src/spesh/frame_walker@obj@ \
           src/spesh/pea@obj@ \
+          src/spesh/disp@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/parse_num@obj@ \
@@ -395,6 +396,7 @@ HEADERS = src/moar.h \
           src/spesh/plugin.h \
           src/spesh/frame_walker.h \
           src/spesh/pea.h \
+          src/spesh/disp.h \
           src/strings/unicode_gen.h \
           src/strings/normalize.h \
           src/strings/decode_stream.h \

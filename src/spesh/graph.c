@@ -234,35 +234,15 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             MVM_bytecode_advance_annotation(tc, &sf->body, ann_ptr);
         }
 
-        /* dispatch ops have a variable number of arguments based on a callsite. */
+        /* Dispatch ops have a variable number of arguments based on a callsite. */
         if (MVM_op_get_mark(info->opcode)[1] == 'd') {
             /* Fake up an op info struct for the duration of this spesh graph's
              * life, so everything else can pretend it's got a fixed number of
              * arguments. */
-            MVMOpInfo *dispatch_info = MVM_spesh_alloc(tc, g, sizeof(MVMOpInfo));
             MVMuint32 callsite_arg_offset = 4 + (info->opcode == MVM_OP_dispatch_v ? 0 : 2);
             MVMCallsite *callsite = cu->body.callsites[GET_UI16(args, callsite_arg_offset)];
-            memcpy(dispatch_info, info, sizeof(MVMOpInfo));
-            dispatch_info->num_operands += callsite->flag_count;
-            MVMuint16 operand_index = info->opcode == MVM_OP_dispatch_v ? 2 : 3;
-            MVMuint16 flag_index;
-            for (flag_index = 0; flag_index < callsite->flag_count; operand_index++, flag_index++) {
-                MVMCallsiteFlags flag = callsite->arg_flags[flag_index];
-                if (flag & MVM_CALLSITE_ARG_OBJ) {
-                    dispatch_info->operands[operand_index] = MVM_operand_obj;
-                }
-                else if (flag & MVM_CALLSITE_ARG_INT) {
-                    dispatch_info->operands[operand_index] = MVM_operand_int64;
-                }
-                else if (flag & MVM_CALLSITE_ARG_NUM) {
-                    dispatch_info->operands[operand_index] = MVM_operand_num64;
-                }
-                else if (flag & MVM_CALLSITE_ARG_STR) {
-                    dispatch_info->operands[operand_index] = MVM_operand_str;
-                }
-                dispatch_info->operands[operand_index] |= MVM_operand_read_reg;
-            }
-            ins_node->info = info = dispatch_info;
+            ins_node->info = info = MVM_spesh_disp_create_dispatch_op_info(tc, g, info,
+                    callsite);
         }
 
         /* Go over operands. */

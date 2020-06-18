@@ -150,6 +150,7 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "core/regionalloc.h"
 #include "spesh/dump.h"
 #include "spesh/debug.h"
+#include "spesh/disp.h"
 #include "spesh/pea.h"
 #include "spesh/graph.h"
 #include "spesh/codegen.h"
