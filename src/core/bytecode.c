@@ -291,10 +291,17 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
         }
         cu_body->sc_handle_idxs[i] = sh_idx;
         handle = MVM_cu_string(tc, cu, sh_idx);
+        if (!MVM_str_hash_key_is_valid(tc, handle)) {
+            cleanup_all(rs);
+            MVM_free_null(cu_body->scs);
+            MVM_free_null(cu_body->scs_to_resolve);
+            MVM_free_null(cu_body->sc_handle_idxs);
+            MVM_str_hash_key_throw_invalid(tc, handle);
+        }
 
         /* See if we can resolve it. */
         uv_mutex_lock(&tc->instance->mutex_sc_registry);
-        MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
+        HASH_FIND_VM_STR(tc, hash_handle, tc->instance->sc_weakhash, handle, scb);
         if (scb && scb->sc) {
             cu_body->scs_to_resolve[i] = NULL;
             MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->scs[i], scb->sc);
@@ -304,14 +311,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
             if (!scb) {
                 scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
                 scb->handle = handle;
-                MVM_HASH_BIND_FREE(tc, tc->instance->sc_weakhash, handle, scb, {
-                    cleanup_all(rs);
-                    MVM_free_null(cu_body->scs);
-                    MVM_free_null(cu_body->scs_to_resolve);
-                    MVM_free_null(cu_body->sc_handle_idxs);
-                    scb->handle = NULL;
-                    MVM_free(scb);
-                });
+                HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->sc_weakhash, handle, scb);
                 MVM_sc_add_all_scs_entry(tc, scb);
             }
             cu_body->scs_to_resolve[i] = scb;
@@ -651,6 +651,11 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
 
         /* Read in data. */
         for (j = 0; j < sf->body.num_lexicals; j++) {
+            /* get_heap_string returns a concrete MVMString, which will always
+             * pass the MVM_str_hash_key_is_valid check.
+             * (It can also throw an exception on malformed bytecode, which we
+             * don't handle well here, because we don't release the mutex if
+             * that happens, and we don't free up memory either.) */
             MVMString *name = get_heap_string(tc, cu, NULL, pos, 6 * j + 2);
             MVMLexicalRegistry *entry = MVM_calloc(1, sizeof(MVMLexicalRegistry));
 
@@ -662,14 +667,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
              * "magic" constant, hence I don't see the need to #define it
              * somewhere else for just one use point. */
             if (sf->body.num_lexicals > 5) {
-                MVM_HASH_BIND_FREE(tc, sf->body.lexical_names, name, entry, {
-                    if (sf->body.num_locals) {
-                        MVM_free_null(sf->body.local_types);
-                    }
-                    MVM_free_null(sf->body.lexical_types);
-                    MVM_free_null(sf->body.lexical_names_list);
-                    MVM_free(entry);
-                });
+                HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, sf->body.lexical_names, name, entry);
             }
             MVM_ASSIGN_REF(tc, &(sf->common.header), entry->key, name);
             sf->body.lexical_names_list[j] = entry;
@@ -774,9 +772,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
             MVMStaticFrameDebugLocal *entry = MVM_calloc(1, sizeof(MVMStaticFrameDebugLocal));
             entry->local_idx = idx;
             MVM_ASSIGN_REF(tc, &(sf->common.header), entry->name, name);
-            MVM_HASH_BIND_FREE(tc, ins->debug_locals, name, entry, {
-                MVM_free(entry);
-            });
+            HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, ins->debug_locals, name, entry);
             pos += 6;
         }
         sf->body.instrumentation = ins;
