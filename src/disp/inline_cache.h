@@ -73,6 +73,15 @@ struct MVMDispInlineCacheEntryPolymorphicDispatch {
     MVMuint32 max_temporaries;
 };
 
+/* A resolved polymorphic entry for dispatch with flattening. */
+struct MVMDispInlineCacheEntryPolymorphicDispatchFlattening {
+    MVMDispInlineCacheEntry base;
+    MVMCallsite **flattened_css;
+    MVMDispProgram **dps;
+    MVMuint32 num_dps; // Also the number of flattend callsites
+    MVMuint32 max_temporaries;
+};
+
 void MVM_disp_inline_cache_setup(MVMThreadContext *tc, MVMStaticFrame *sf);
 void MVM_disp_inline_cache_mark(MVMThreadContext *tc, MVMDispInlineCache *cache,
         MVMGCWorklist *worklist);
