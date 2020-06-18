@@ -208,7 +208,7 @@ MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr,
 
     /* Search for a match. */
     found = 0;
-    if (num_flags < interns->max_arity) {
+    if (num_flags <= interns->max_arity) {
         for (i = 0; i < interns->num_by_arity[num_flags]; i++) {
             if (callsites_equal(tc, interns->by_arity[num_flags][i], cs, num_flags, num_nameds)) {
                 /* Got a match! If we were asked to steal the callsite we were passed,
@@ -231,7 +231,7 @@ MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr,
     if (!found && (num_flags < MVM_INTERN_ARITY_SOFT_LIMIT || force)) {
         /* See if we need to grow the arity storage because we have a new,
          * larger, arity. */
-        if (num_flags >= interns->max_arity) {
+        if (num_flags > interns->max_arity) {
             MVMuint32 prev_elems = interns->max_arity + 1;
             MVMuint32 new_elems = num_flags + 1;
             interns->by_arity = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa,
@@ -268,7 +268,7 @@ MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr,
         else {
             MVMCallsite *copy = MVM_callsite_copy(tc, cs);
             copy->is_interned = 1;
-            interns->by_arity[num_flags][cur_size] = cs;
+            interns->by_arity[num_flags][cur_size] = copy;
             *cs_ptr = copy;
         }
         MVM_barrier(); /* To make sure we installed callsite pointer first. */
