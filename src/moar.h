@@ -186,6 +186,7 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "strings/utf16.h"
 #include "strings/iter.h"
 #include "strings/ops.h"
+#include "core/str_hash_table_funcs.h"
 #include "strings/unicode_gen.h"
 #include "strings/unicode.h"
 #include "strings/latin1.h"
