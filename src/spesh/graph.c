@@ -235,11 +235,15 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         }
 
         /* Dispatch ops have a variable number of arguments based on a callsite. */
-        if (MVM_op_get_mark(info->opcode)[1] == 'd') {
+        if (MVM_op_get_mark(info->opcode)[1] == 'd' ||
+                (MVM_op_get_mark(info->opcode)[1] == 's' &&
+                    info->opcode >= MVM_OP_sp_dispatch_v &&
+                    info->opcode <= MVM_OP_sp_dispatch_o)) {
             /* Fake up an op info struct for the duration of this spesh graph's
              * life, so everything else can pretend it's got a fixed number of
              * arguments. */
-            MVMuint32 callsite_arg_offset = 4 + (info->opcode == MVM_OP_dispatch_v ? 0 : 2);
+            MVMuint32 callsite_arg_offset = 4 +
+                (info->opcode == MVM_OP_dispatch_v || info->opcode == MVM_OP_sp_dispatch_v ? 0 : 2);
             MVMCallsite *callsite = cu->body.callsites[GET_UI16(args, callsite_arg_offset)];
             ins_node->info = info = MVM_spesh_disp_create_dispatch_op_info(tc, g, info,
                     callsite);

@@ -134,7 +134,7 @@ void MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPla
     MVM_VECTOR_INIT(outcome_hits, 0);
     MVMuint32 total_hits = 0;
     MVMuint32 i;
-    for (i = 0; i < p->num_type_stats; i++) {
+    for (i = 0; i < (p ? p->num_type_stats : 0); i++) {
         MVMSpeshStatsByType *ts = p->type_stats[i];
         MVMuint32 j;
         for (j = 0; j < ts->num_by_offset; j++) {
