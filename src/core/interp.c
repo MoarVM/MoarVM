@@ -6084,6 +6084,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 10;
                 goto NEXT;
             }
+            OP(sp_dispatch_v):
+            OP(sp_dispatch_i):
+            OP(sp_dispatch_n):
+            OP(sp_dispatch_s):
+            OP(sp_dispatch_o):
+                MVM_panic(1, "sp_dispatch_* NYI");
             OP(sp_getarg_o):
                 GET_REG(cur_op, 0).o = tc->cur_frame->params.version == MVM_ARGS_LEGACY
                     ? tc->cur_frame->params.legacy.args[GET_UI16(cur_op, 2)].o
