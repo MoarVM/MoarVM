@@ -6084,12 +6084,86 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 10;
                 goto NEXT;
             }
-            OP(sp_dispatch_v):
-            OP(sp_dispatch_i):
-            OP(sp_dispatch_n):
-            OP(sp_dispatch_s):
-            OP(sp_dispatch_o):
-                MVM_panic(1, "sp_dispatch_* NYI");
+            OP(sp_dispatch_v): {
+                MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 0));
+                MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 4)];
+                MVMStaticFrame *sf = (MVMStaticFrame *)tc->cur_frame
+                        ->effective_spesh_slots[GET_UI16(cur_op, 6)];
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get_spesh(sf,
+                        GET_UI32(cur_op, 8));
+                MVMDispInlineCacheEntry *ice = *ice_ptr;
+                MVMuint16 *args = (MVMuint16 *)(cur_op + 12);
+                tc->cur_frame->return_value = NULL;
+                tc->cur_frame->return_type = MVM_RETURN_VOID;
+                cur_op += 12 + 2 * callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
+                ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args, -1);
+                goto NEXT;
+            }
+            OP(sp_dispatch_i): {
+                MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
+                MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
+                MVMStaticFrame *sf = (MVMStaticFrame *)tc->cur_frame
+                        ->effective_spesh_slots[GET_UI16(cur_op, 8)];
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get_spesh(sf,
+                        GET_UI32(cur_op, 10));
+                MVMDispInlineCacheEntry *ice = *ice_ptr;
+                MVMuint16 *args = (MVMuint16 *)(cur_op + 14);
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type  = MVM_RETURN_INT;
+                cur_op += 14 + 2 * callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
+                ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args, -1);
+                goto NEXT;
+            }
+            OP(sp_dispatch_n): {
+                MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
+                MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
+                MVMStaticFrame *sf = (MVMStaticFrame *)tc->cur_frame
+                        ->effective_spesh_slots[GET_UI16(cur_op, 8)];
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get_spesh(sf,
+                        GET_UI32(cur_op, 10));
+                MVMDispInlineCacheEntry *ice = *ice_ptr;
+                MVMuint16 *args = (MVMuint16 *)(cur_op + 14);
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type  = MVM_RETURN_NUM;
+                cur_op += 14 + 2 * callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
+                ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args, -1);
+                goto NEXT;
+            }
+            OP(sp_dispatch_s): {
+                MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
+                MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
+                MVMStaticFrame *sf = (MVMStaticFrame *)tc->cur_frame
+                        ->effective_spesh_slots[GET_UI16(cur_op, 8)];
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get_spesh(sf,
+                        GET_UI32(cur_op, 10));
+                MVMDispInlineCacheEntry *ice = *ice_ptr;
+                MVMuint16 *args = (MVMuint16 *)(cur_op + 14);
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type  = MVM_RETURN_STR;
+                cur_op += 14 + 2 * callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
+                ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args, -1);
+                goto NEXT;
+            }
+            OP(sp_dispatch_o): {
+                MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
+                MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
+                MVMStaticFrame *sf = (MVMStaticFrame *)tc->cur_frame
+                        ->effective_spesh_slots[GET_UI16(cur_op, 8)];
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get_spesh(sf,
+                        GET_UI32(cur_op, 10));
+                MVMDispInlineCacheEntry *ice = *ice_ptr;
+                MVMuint16 *args = (MVMuint16 *)(cur_op + 14);
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type  = MVM_RETURN_OBJ;
+                cur_op += 14 + 2 * callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
+                ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args, -1);
+                goto NEXT;
+            }
             OP(sp_getarg_o):
                 GET_REG(cur_op, 0).o = tc->cur_frame->params.version == MVM_ARGS_LEGACY
                     ? tc->cur_frame->params.legacy.args[GET_UI16(cur_op, 2)].o
