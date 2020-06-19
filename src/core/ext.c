@@ -15,7 +15,9 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
 
     uv_mutex_lock(&tc->instance->mutex_ext_registry);
 
-    MVM_HASH_GET(tc, tc->instance->ext_registry, name, entry);
+    /* MVM_string_concatenate returns a concrete MVMString, will always pass the
+     * MVM_str_hash_key_is_valid check. */
+    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->ext_registry, name, entry);
 
     /* Extension already loaded. */
     if (entry) {
@@ -34,9 +36,7 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
     }
 
     entry = MVM_malloc(sizeof *entry);
-    MVM_HASH_BIND_FREE(tc, tc->instance->ext_registry, name, entry, {
-        MVM_free(entry);
-    });
+    HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->ext_registry, name, entry);
     entry->sym = sym;
     entry->name = name;
 
@@ -63,7 +63,7 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
 
     uv_mutex_lock(&tc->instance->mutex_extop_registry);
 
-    MVM_HASH_GET(tc, tc->instance->extop_registry, name, entry);
+    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->extop_registry, name, entry);
 
     /* Op already registered, so just verify its signature. */
     if (entry) {
@@ -150,9 +150,7 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     }
 
     entry                    = MVM_malloc(sizeof *entry);
-    MVM_HASH_BIND_FREE(tc, tc->instance->extop_registry, name, entry, {
-        MVM_free(entry);
-    });
+    HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->extop_registry, name, entry);
     entry->name              = name;
     entry->func              = func;
     entry->info.name         = cname;
@@ -192,9 +190,13 @@ const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
     if (record->info)
         return record->info;
 
+    if (!MVM_str_hash_key_is_valid(tc, record->name)) {
+        MVM_str_hash_key_throw_invalid(tc, record->name);
+    }
+
     uv_mutex_lock(&tc->instance->mutex_extop_registry);
 
-    MVM_HASH_GET(tc, tc->instance->extop_registry, record->name, entry);
+    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->extop_registry, record->name, entry);
 
     if (!entry) {
         uv_mutex_unlock(&tc->instance->mutex_extop_registry);

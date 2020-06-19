@@ -9,19 +9,21 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
     MVMSerializationContext     *sc;
     MVMSerializationContextBody *scb = NULL;
 
+    if (!MVM_str_hash_key_is_valid(tc, handle)) {
+        MVM_str_hash_key_throw_invalid(tc, handle);
+    }
+
     /* Allocate. */
     MVMROOT(tc, handle, {
         sc = (MVMSerializationContext *)REPR(tc->instance->SCRef)->allocate(tc, STABLE(tc->instance->SCRef));
         MVMROOT(tc, sc, {
             /* Add to weak lookup hash. */
             uv_mutex_lock(&tc->instance->mutex_sc_registry);
-            MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
+            HASH_FIND_VM_STR(tc, hash_handle, tc->instance->sc_weakhash, handle, scb);
             if (!scb) {
                 scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
                 MVM_ASSIGN_REF(tc, &(sc->common.header), scb->handle, handle);
-                MVM_HASH_BIND_FREE(tc, tc->instance->sc_weakhash, handle, scb, {
-                    MVM_free(scb);
-                });
+                HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->sc_weakhash, handle, scb);
                 sc->body = scb;
                 /* Calling repr_init will allocate, BUT if it does so, and we
                  * get unlucky, the GC will try to acquire mutex_sc_registry.
@@ -342,8 +344,12 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
 /* Resolves an SC handle using the SC weakhash. */
 MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString *handle) {
     MVMSerializationContextBody *scb;
+    if (!MVM_str_hash_key_is_valid(tc, handle)) {
+        MVM_str_hash_key_throw_invalid(tc, handle);
+    }
+
     uv_mutex_lock(&tc->instance->mutex_sc_registry);
-    MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
+    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->sc_weakhash, handle, scb);
     uv_mutex_unlock(&tc->instance->mutex_sc_registry);
     return scb && scb->sc ? scb->sc : NULL;
 }

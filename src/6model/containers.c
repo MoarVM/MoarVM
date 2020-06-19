@@ -742,15 +742,17 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
         const MVMContainerConfigurer *configurer) {
     MVMContainerRegistry *entry;
 
+    if (!MVM_str_hash_key_is_valid(tc, name)) {
+        MVM_str_hash_key_throw_invalid(tc, name);
+    }
+
     uv_mutex_lock(&tc->instance->mutex_container_registry);
 
-    MVM_HASH_GET(tc, tc->instance->container_registry, name, entry);
+    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->container_registry, name, entry);
 
     if (!entry) {
         entry = MVM_malloc(sizeof(MVMContainerRegistry));
-        MVM_HASH_BIND_FREE(tc, tc->instance->container_registry, name, entry, {
-            MVM_free(entry);
-        });
+        HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->container_registry, name, entry);
         entry->name = name;
         entry->configurer  = configurer;
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name,
@@ -765,8 +767,13 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
 /* Gets a container configurer from the registry. */
 const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name) {
     MVMContainerRegistry *entry;
+
+    if (!MVM_str_hash_key_is_valid(tc, name)) {
+        MVM_str_hash_key_throw_invalid(tc, name);
+    }
+
     uv_mutex_lock(&tc->instance->mutex_container_registry);
-    MVM_HASH_GET(tc, tc->instance->container_registry, name, entry);
+    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->container_registry, name, entry);
     uv_mutex_unlock(&tc->instance->mutex_container_registry);
     return entry != NULL ? entry->configurer : NULL;
 }
