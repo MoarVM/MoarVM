@@ -3,26 +3,26 @@
 MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
     MVMHLLConfig *entry;
 
+    if (!MVM_str_hash_key_is_valid(tc, name)) {
+        MVM_str_hash_key_throw_invalid(tc, name);
+    }
+
     uv_mutex_lock(&tc->instance->mutex_hllconfigs);
 
     if (tc->instance->hll_compilee_depth) {
-        MVM_HASH_GET(tc, tc->instance->compilee_hll_configs, name, entry);
+        HASH_FIND_VM_STR(tc, hash_handle, tc->instance->compilee_hll_configs, name, entry);
     }
     else {
-        MVM_HASH_GET(tc, tc->instance->compiler_hll_configs, name, entry);
+        HASH_FIND_VM_STR(tc, hash_handle, tc->instance->compiler_hll_configs, name, entry);
     }
 
     if (!entry) {
         entry = MVM_calloc(1, sizeof(MVMHLLConfig));
         if (tc->instance->hll_compilee_depth) {
-            MVM_HASH_BIND_FREE(tc, tc->instance->compilee_hll_configs, name, entry, {
-                MVM_free(entry);
-            });
+            HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->compilee_hll_configs, name, entry);
         }
         else {
-            MVM_HASH_BIND_FREE(tc, tc->instance->compiler_hll_configs, name, entry, {
-                MVM_free(entry);
-            });
+            HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->compiler_hll_configs, name, entry);
         }
         entry->name = name;
         entry->int_box_type = tc->instance->boot_types.BOOTInt;

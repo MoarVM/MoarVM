@@ -92,10 +92,14 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     /* Work out actual filename to use, taking --libpath into account. */
     filename = MVM_file_in_libpath(tc, filename);
 
+    if (!MVM_str_hash_key_is_valid(tc, filename)) {
+        MVM_str_hash_key_throw_invalid(tc, filename);
+    }
+
     /* See if we already loaded this. */
     uv_mutex_lock(&tc->instance->mutex_loaded_compunits);
     MVM_tc_set_ex_release_mutex(tc, &tc->instance->mutex_loaded_compunits);
-    MVM_HASH_GET(tc, tc->instance->loaded_compunits, filename, loaded_name);
+    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->loaded_compunits, filename, loaded_name);
     if (loaded_name) {
         /* already loaded */
         goto LEAVE;
@@ -114,9 +118,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
         run_comp_unit(tc, cu);
 
         loaded_name = MVM_calloc(1, sizeof(MVMLoadedCompUnitName));
-        MVM_HASH_BIND_FREE(tc, tc->instance->loaded_compunits, filename, loaded_name, {
-            MVM_free(loaded_name);
-        });
+        HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->loaded_compunits, filename, loaded_name);
         loaded_name->filename = filename;
     });
 
