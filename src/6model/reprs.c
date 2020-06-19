@@ -181,15 +181,18 @@ GCC_DIAG_ON(return-type)
 static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr, MVMString *name) {
     MVMReprRegistry *entry;
 
+    /* register_core_repr calls us with name NULL. MVM_string_ascii_decode_nt
+     * returns a concrete MVMString, will always pass the
+     * MVM_str_hash_key_is_valid check.
+     * Our other caller has already validated name. */
+
     if (!name)
         name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString,
                 repr->name);
 
     /* Fill a registry entry. */
     entry = MVM_malloc(sizeof(MVMReprRegistry));
-    MVM_HASH_BIND_FREE(tc, tc->instance->repr_hash, name, entry, {
-        MVM_free(entry);
-    });
+    HASH_ADD_KEYPTR_VM_STR(tc, hash_handle, tc->instance->repr_hash, name, entry);
     entry->name = name;
     entry->repr = repr;
 
@@ -204,12 +207,11 @@ static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr, MVMStrin
 
 int MVM_repr_register_dynamic_repr(MVMThreadContext *tc, MVMREPROps *repr) {
     MVMReprRegistry *entry;
-    MVMString *name;
+    MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, repr->name);
 
     uv_mutex_lock(&tc->instance->mutex_repr_registry);
 
-    name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, repr->name);
-    MVM_HASH_GET(tc, tc->instance->repr_hash, name, entry);
+    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->repr_hash, name, entry);
     if (entry) {
         uv_mutex_unlock(&tc->instance->mutex_repr_registry);
         return 0;
@@ -293,8 +295,12 @@ static MVMReprRegistry * find_repr_by_name(MVMThreadContext *tc,
         MVMString *name) {
     MVMReprRegistry *entry;
 
+    if (!MVM_str_hash_key_is_valid(tc, name)) {
+        MVM_str_hash_key_throw_invalid(tc, name);
+    }
+
     uv_mutex_lock(&tc->instance->mutex_repr_registry);
-    MVM_HASH_GET(tc, tc->instance->repr_hash, name, entry)
+    HASH_FIND_VM_STR(tc, hash_handle, tc->instance->repr_hash, name, entry);
 
     if (entry == NULL) {
         char *c_name = MVM_string_ascii_encode_any(tc, name);
