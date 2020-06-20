@@ -34,15 +34,9 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
         MVM_exception_throw_adhoc_free(tc, waste, "extension symbol (%s) not found", c_name);
     }
 
-    struct MVMFixKeyHashHandle *indirection
-        = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof (struct MVMFixKeyHashHandle));
-
-    entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMExtRegistry));
-    indirection->key = (void *)entry;
+    entry = MVM_fixkey_hash_insert_nt(tc, &tc->instance->ext_registry, name);
     entry->sym = sym;
-    entry->hash_key = name;
 
-    MVM_fixkey_hash_bind_nt(tc, &tc->instance->ext_registry, indirection);
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_key,
         "Extension name hash key");
 
@@ -150,12 +144,7 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
         }
     }
 
-    struct MVMFixKeyHashHandle *indirection
-        = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof (struct MVMFixKeyHashHandle));
-
-    entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMExtOpRegistry));
-    indirection->key = (void *)entry;
-    entry->hash_key = name;
+    entry = MVM_fixkey_hash_insert_nt(tc, &tc->instance->extop_registry, name);
     entry->func              = func;
     entry->info.name         = cname;
     entry->info.opcode       = (MVMuint16)-1;
@@ -176,7 +165,6 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     entry->no_jit     = flags & MVM_EXTOP_NO_JIT;
     entry->allocating = flags & MVM_EXTOP_ALLOCATING;
 
-    MVM_fixkey_hash_bind_nt(tc, &tc->instance->extop_registry, indirection);
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_key,
         "Extension op name hash key");
 

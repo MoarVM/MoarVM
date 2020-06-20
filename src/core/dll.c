@@ -34,14 +34,8 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
     MVM_free(cpath);
 
     if (!entry) {
-        struct MVMFixKeyHashHandle *indirection
-            = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof (struct MVMFixKeyHashHandle));
-        entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof (MVMDLLRegistry));
-
-        indirection->key = (void *)entry;
+        entry = MVM_fixkey_hash_insert_nt(tc, &tc->instance->dll_registry, name);
         entry->refcount = 0;
-        entry->hash_key = name;
-        MVM_fixkey_hash_bind_nt(tc, &tc->instance->dll_registry, indirection);
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_key,
             "DLL name hash key");
     }
