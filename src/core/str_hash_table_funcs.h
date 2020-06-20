@@ -221,12 +221,12 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nt(MVMThreadContext *tc,
 }
 
 
-MVM_STATIC_INLINE void *MVM_str_hash_unbind_nt(MVMThreadContext *tc,
-                                               MVMStrHashTable *hashtable,
-                                               MVMString *want) {
+MVM_STATIC_INLINE void MVM_str_hash_delete_nt(MVMThreadContext *tc,
+                                              MVMStrHashTable *hashtable,
+                                              MVMString *want) {
 
     if (MVM_UNLIKELY(hashtable->log2_num_buckets == 0)) {
-        return NULL;
+        return;
     }
 
     MVMHashv hashv = want->body.cached_hash_code;
@@ -258,13 +258,14 @@ MVM_STATIC_INLINE void *MVM_str_hash_unbind_nt(MVMThreadContext *tc,
             hashtable->last_delete_at = bucket_num;
 #endif
 
-            return have;
+            MVM_fixed_size_free(tc, tc->instance->fsa,  hashtable->entry_size, have);
+            return;
         }
         prev = have;
         have = have->hh_next;
     }
     /* Strange. Not in the hash. */
-    return NULL;
+    return;
 }
 
 /* This one is private: */
@@ -339,18 +340,13 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch(MVMThreadContext *tc,
     return MVM_str_hash_fetch_nt(tc, hashtable, want);
 }
 
-/* Because for this stage we're simply rearranging uthash from "inside out" we
- * must retain its behaviour. This isn't *delete* because the thing in the hash
- * isn't freed up. So name this "unbind" because it is the inverse of bind, and
- * return the "thing" that was in the has so that the caller can (still) free
- * it. */
-MVM_STATIC_INLINE void *MVM_str_hash_unbind(MVMThreadContext *tc,
-                                            MVMStrHashTable *hashtable,
-                                            MVMString *want) {
+MVM_STATIC_INLINE void MVM_str_hash_delete(MVMThreadContext *tc,
+                                           MVMStrHashTable *hashtable,
+                                           MVMString *want) {
     if (!MVM_str_hash_key_is_valid(tc, want)) {
         MVM_str_hash_key_throw_invalid(tc, want);
     }
-    return MVM_str_hash_unbind_nt(tc, hashtable, want);
+    MVM_str_hash_delete_nt(tc, hashtable, want);
 }
 
 /* Iterators. The plan is that MVMStrHashIterator will become a MVMuint64,
