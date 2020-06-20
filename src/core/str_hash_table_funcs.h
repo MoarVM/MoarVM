@@ -93,14 +93,16 @@ MVM_STATIC_INLINE void MVM_str_hash_allocate_buckets(MVMThreadContext *tc,
 #endif
 }
 
-MVM_STATIC_INLINE void MVM_str_hash_bind_nt(MVMThreadContext *tc,
+/* UNCONDITIONALLY creates a new hash entry with the given key, returning the
+ * newly allocated entry. Doesn't check if the key already exists. Use with
+ * care. */
+MVM_STATIC_INLINE void *MVM_str_hash_insert_nt(MVMThreadContext *tc,
                                             MVMStrHashTable *hashtable,
-                                            struct MVMStrHashHandle *entry) {
+                                            MVMString *key) {
     if (MVM_UNLIKELY(hashtable->log2_num_buckets == 0)) {
         MVM_str_hash_allocate_buckets(tc, hashtable);
     }
 
-    MVMString *key = entry->key;
     MVMHashv hashv = key->body.cached_hash_code;
     if (!hashv) {
         MVM_string_compute_hash_code(tc, key);
@@ -108,6 +110,10 @@ MVM_STATIC_INLINE void MVM_str_hash_bind_nt(MVMThreadContext *tc,
     }
     MVMHashBktNum bucket_num = MVM_str_hash_bucket(hashv, hashtable->log2_num_buckets);
     struct MVMStrHashBucket *bucket = hashtable->buckets + bucket_num;
+
+    struct MVMStrHashHandle *entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, hashtable->entry_size);
+    entry->key = key;
+
     entry->hh_next = bucket->hh_head;
     bucket->hh_head = entry;
     ++hashtable->num_items;
@@ -119,6 +125,7 @@ MVM_STATIC_INLINE void MVM_str_hash_bind_nt(MVMThreadContext *tc,
                      && hashtable->noexpand != 1)) {
         MVM_str_hash_expand_buckets(tc, hashtable);
     }
+    return entry;
 }
 
 MVM_STATIC_INLINE void *MVM_str_hash_lvalue_fetch_nt(MVMThreadContext *tc,
@@ -165,7 +172,7 @@ MVM_STATIC_INLINE void *MVM_str_hash_lvalue_fetch_nt(MVMThreadContext *tc,
     struct MVMStrHashHandle *entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, hashtable->entry_size);
     entry->key = NULL;
 
-    /* So this is (mostly) the code from bind above. */
+    /* So this is (mostly) the code from insert above. */
     entry->hh_next = bucket->hh_head;
     bucket->hh_head = entry;
     ++hashtable->num_items;
@@ -283,7 +290,10 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next_bucket(MVMThreadContext *
 
 /*******************************************************************************
  * Proposed public API is what follows, plus MVM_str_hash_build and
- * MVM_str_hash_demolish. And (probably) the *_nt variants of the calls below.
+ * MVM_str_hash_demolish. And (probably) the *_nt variants of the calls below,
+ * plus MVM_str_hash_insert_nt (with the caveat that it is a footgun and will
+ * insert duplicate keys unless you are careful).
+ * Maybe we should rename it to MVM_str_hash_footgun. Or blunderbuss. Or gonne.
  ******************************************************************************/
 
 /* Use these two functions to
@@ -303,16 +313,6 @@ MVM_STATIC_INLINE void MVM_str_hash_key_throw_invalid(MVMThreadContext *tc,
                                                       MVMString *key) {
     MVM_exception_throw_adhoc(tc, "Hash keys must be concrete strings (got %s)",
                               MVM_6model_get_debug_name(tc, (MVMObject *)key));
-}
-
-MVM_STATIC_INLINE void MVM_str_hash_bind(MVMThreadContext *tc,
-                                         MVMStrHashTable *hashtable,
-                                         struct MVMStrHashHandle *entry) {
-    MVMString *key = entry->key;
-    if (!MVM_str_hash_key_is_valid(tc, key)) {
-        MVM_str_hash_key_throw_invalid(tc, key);
-    }
-    return MVM_str_hash_bind_nt(tc, hashtable, entry);
 }
 
 /* Looks up entry for key, creating it if necessary.
