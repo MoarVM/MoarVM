@@ -143,11 +143,7 @@ static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVMString *key = get_string_key(tc, key_obj);
     MVMStrHashTable *hashtable = &(body->hashtable);
 
-    MVMHashEntry *old_entry = MVM_str_hash_unbind(tc, hashtable, key);
-    if (old_entry) {
-        MVM_fixed_size_free(tc, tc->instance->fsa,
-            sizeof(MVMHashEntry), old_entry);
-    }
+    MVM_str_hash_delete(tc, hashtable, key);
 }
 
 static MVMStorageSpec get_value_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
