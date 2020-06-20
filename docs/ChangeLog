@@ -1,3 +1,69 @@
+New in 2020.06
+
+6model:
++ [e4ff69495] Setup inlined CStruct assigned during construction
++ [57c8bb84e] Fix CStruct handling of inlined attributes
++ [55ee90b17][a5061624d] Add MVM_HASH_(BIND|GET)_FREE macros
++ [3149bbb4f] find_repr_by_name now holds mutex_repr_registry when reading repr_hash
++ [c70587551] Where possible, iterate over lexical_names_list instead of lexical_names
++ [290f518af] Free REPR data before throws and where appropriate, set `st->REPR_data` to NULL
++ [7a799da87] Copy lexical_names_list when copying a StaticFrame
++ [2922f3d1a] mutex_container_registry is held while reading from container_registry
++ [3fe584876] Use correct encoding for deserializing strings
++ [4d0da364d] Wrap all access to lexical_names with MVM_get_lexical_by_name
++ [3658e4cd1] Don't make a lookup hash for lexical names for frames with few lexicals
+Core:
++ [de8955822] Fix segfault in bytecode dumper when local_types is NULL
++ [72f720788] Move check (return value+exit handler) earlier
++ [c1c25e33f] Remove the unused `tc` parameter of cleanup_all
++ [17969cfb5] Remove redundant if when reading bytecode
++ [396c90039] Don't obliterate lib_name in exception text of NativeCall
++ [9e12424fb] Show index of outer lexials in bytecode dump instead of ??
++ [520c35124] Allow for explicitly marking the mainline_frame in the bytecode
++ [5d98d8eb6] Remove name assignment in struct MVMDLLRegistry
+GC:
++ [1a46b0ae7] Possibly fix MVM_panic from entering GC during spesh
+IO:
++ [ee8f3af70] Always handle proc exec arguments verbatim on Windows
++ [780271899] Fix reading closed dir handles on Windows
++ [157387214] Fix closing a dir never read from on Windows
+JIT:
++ [7f33af885] JIT atpos/bindpos for known i64 array
++ [680a8cc72] Remove prof_enter JIT template
++ [9b60b37ca] JIT getcurhllsym and gethllsym
+Libraries:
++ [6ab7dab5f] Backport a change in libtommath to fix build on x86 Windows
++ [a4b195936] Update libuv to version 1.38.0
+Other:
++ [8eb552323] Fix some possible double frees
++ [565e55ce1] Fix the order of some MVM_calloc arguments
++ [3f6e6582e] Convert MVM_free+NULL to MVM_free_null
++ [f47e6ee5a][6cf18281d][c1c25e33f][8cd9ca87c][e736c1fb8]
+  Free memory that had been allocated before a throw
++ [aeec50e0a] Simplify counting of lexical_names
++ [1bad1eff6] Simplify some MVM_string_ascii_encode calls
++ [9c758d5eb] Fix duplication of lists when MAST::Frames get written to bytecode multiple times
++ [a7f988940] Add methods WHICH and raku to MAST::Frame for easier debugging
++ [995c70ca8] Allow for MAST::CompUnit to share its lists with an outer compilation
++ [6c7ee4e8f] Add a method for clearing a cached index on a MAST::Frame
++ [c177e85cc] Remove two unused variables
+Profiler:
++ [a48790029] Use FSA for alloc and dealloc counts
++ [2041902da] Remove a major source of space waste from alloc counts growth
++ [269d307a8] Add a layer of indirection between call graph and types/sf
++ [03c9154e8] Remove commented out profiler code
+Spesh:
++ [9b60b37ca][af1475ec1] Spesh getcurhllsym and gethllsym
++ [12c7a44a8] Simplify MVMLexicalRegistry code
+Tooling/Build:
++ [fc7922e5e][42a2424ba][eacb89a27][631008c61][932f5c208][b8506d45a]
+  [ac94564c7][a99ab1e4f][852576e7d] Add an AzureCI test setup
++ [bc904b8bd][0257ecac4][0dc625f18]
+  Add a new GCC plugin to find cases where an MVM_exception_throw_adhoc is possibly missing a free
++ [20a2a9114] Introduce UV_BSD to avoid duplication in Makefile
++ [06f041fb0][eafa7b39185a29f50271120b105d7087709f75f7] Fix build an FreeBSD
++ [fc092556b] Fix broken builds on older versions of GCC
+
 New in 2020.05
 
 + [c59514234] Use the FSA for ConcBlockingQueue
