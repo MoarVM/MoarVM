@@ -301,21 +301,19 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
         /* See if we can resolve it. */
         uv_mutex_lock(&tc->instance->mutex_sc_registry);
         struct MVMSerializationContextWeakHashEntry *entry
-            = MVM_str_hash_fetch_nt(tc, &tc->instance->sc_weakhash, handle);
-        if (entry && entry->scb->sc) {
+            = MVM_str_hash_lvalue_fetch_nt(tc, &tc->instance->sc_weakhash, handle);
+        if (entry->hash_handle.key && entry->scb->sc) {
             cu_body->scs_to_resolve[i] = NULL;
             entry->scb->claimed = 1;
             MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->scs[i], entry->scb->sc);
         }
         else {
-            if (!entry) {
-                entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(struct MVMSerializationContextWeakHashEntry));
+            if (!entry->hash_handle.key) {
                 entry->hash_handle.key = handle;
 
                 MVMSerializationContextBody *scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
                 entry->scb = scb;
                 scb->handle = handle;
-                MVM_str_hash_bind_nt(tc, &tc->instance->sc_weakhash, &entry->hash_handle);
                 MVM_sc_add_all_scs_entry(tc, scb);
             }
             cu_body->scs_to_resolve[i] = entry->scb;

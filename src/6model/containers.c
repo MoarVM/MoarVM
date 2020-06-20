@@ -747,13 +747,11 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
 
     uv_mutex_lock(&tc->instance->mutex_container_registry);
 
-    MVMContainerRegistry *entry = MVM_str_hash_fetch_nt(tc, &tc->instance->container_registry, name);
+    MVMContainerRegistry *entry = MVM_str_hash_lvalue_fetch_nt(tc, &tc->instance->container_registry, name);
 
-    if (!entry) {
-        entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMContainerRegistry));
+    if (!entry->hash_handle.key) {
         entry->configurer      = configurer;
         entry->hash_handle.key = name;
-        MVM_str_hash_bind_nt(tc, &tc->instance->container_registry, &entry->hash_handle);
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
             "Container configuration hash key");
     }
