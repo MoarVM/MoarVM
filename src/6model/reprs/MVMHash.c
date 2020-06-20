@@ -112,20 +112,15 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
         MVM_exception_throw_adhoc(tc,
             "MVMHash representation does not support native type storage");
 
-    /* first check whether we can must update the old entry. */
-    MVMHashEntry *entry = MVM_str_hash_fetch_nt(tc, hashtable, key);
-    if (!entry) {
-        if (!MVM_str_hash_entry_size(tc, hashtable)) {
-            MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry));
-        }
-        entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMHashEntry));
-        entry->hash_handle.key = key;
-        MVM_ASSIGN_REF(tc, &(root->header), entry->value, value.o);
-        MVM_str_hash_bind_nt(tc, hashtable, &entry->hash_handle);
-        MVM_gc_write_barrier(tc, &(root->header), &(key->common.header));
+    if (!MVM_str_hash_entry_size(tc, hashtable)) {
+        MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry));
     }
-    else {
-        MVM_ASSIGN_REF(tc, &(root->header), entry->value, value.o);
+
+    MVMHashEntry *entry = MVM_str_hash_lvalue_fetch_nt(tc, hashtable, key);
+    MVM_ASSIGN_REF(tc, &(root->header), entry->value, value.o);
+    if (!entry->hash_handle.key) {
+        entry->hash_handle.key = key;
+        MVM_gc_write_barrier(tc, &(root->header), &(key->common.header));
     }
 }
 void MVMHash_bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister value, MVMuint16 kind) {

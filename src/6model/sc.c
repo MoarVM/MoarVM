@@ -19,16 +19,14 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
             /* Add to weak lookup hash. */
             uv_mutex_lock(&tc->instance->mutex_sc_registry);
             struct MVMSerializationContextWeakHashEntry *entry
-                = MVM_str_hash_fetch_nt(tc, &tc->instance->sc_weakhash, handle);
-            if (!entry) {
-                entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(struct MVMSerializationContextWeakHashEntry));
+                = MVM_str_hash_lvalue_fetch_nt(tc, &tc->instance->sc_weakhash, handle);
+            if (!entry->hash_handle.key) {
                 entry->hash_handle.key = handle;
 
                 MVMSerializationContextBody *scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
                 entry->scb = scb;
                 sc->body = scb;
                 MVM_ASSIGN_REF(tc, &(sc->common.header), scb->handle, handle);
-                MVM_str_hash_bind_nt(tc, &tc->instance->sc_weakhash, &entry->hash_handle);
                 /* Calling repr_init will allocate, BUT if it does so, and we
                  * get unlucky, the GC will try to acquire mutex_sc_registry.
                  * This deadlocks. Thus, we force allocation in gen2, which
