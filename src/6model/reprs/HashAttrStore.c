@@ -34,13 +34,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMStrHashIterator iterator = MVM_str_hash_first(tc, src_hashtable);
     MVMHashEntry *entry;
     while ((entry = MVM_str_hash_current(tc, src_hashtable, iterator))) {
-        MVMHashEntry *new_entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            sizeof(MVMHashEntry));
-        MVMString *key = entry->hash_handle.key;
-        new_entry->hash_handle.key = key;
+        MVMHashEntry *new_entry = MVM_str_hash_insert_nt(tc, dest_hashtable, entry->hash_handle.key);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, entry->value);
-        MVM_str_hash_bind_nt(tc, dest_hashtable, &new_entry->hash_handle);
-        MVM_gc_write_barrier(tc, &(dest_root->header), &(key->common.header));
+        MVM_gc_write_barrier(tc, &(dest_root->header), &(entry->hash_handle.key->common.header));
         iterator = MVM_str_hash_next(tc, src_hashtable, iterator);
     }
 }
