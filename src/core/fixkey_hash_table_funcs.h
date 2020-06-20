@@ -78,14 +78,16 @@ MVM_STATIC_INLINE void MVM_fixkey_hash_allocate_buckets(MVMThreadContext *tc,
     hashtable->log2_num_buckets = HASH_INITIAL_NUM_BUCKETS_LOG2;
 }
 
-MVM_STATIC_INLINE void MVM_fixkey_hash_bind_nt(MVMThreadContext *tc,
-                                               MVMFixKeyHashTable *hashtable,
-                                               struct MVMFixKeyHashHandle *entry) {
+/* UNCONDITIONALLY creates a new hash entry with the given key, returning the
+ * newly allocated entry. Doesn't check if the key already exists. Use with
+ * care. */
+MVM_STATIC_INLINE void *MVM_fixkey_hash_insert_nt(MVMThreadContext *tc,
+                                                  MVMFixKeyHashTable *hashtable,
+                                                  MVMString *key) {
     if (MVM_UNLIKELY(hashtable->log2_num_buckets == 0)) {
         MVM_fixkey_hash_allocate_buckets(tc, hashtable);
     }
 
-    MVMString *key = *entry->key;
     MVMHashv hashv = key->body.cached_hash_code;
     if (!hashv) {
         MVM_string_compute_hash_code(tc, key);
@@ -93,13 +95,22 @@ MVM_STATIC_INLINE void MVM_fixkey_hash_bind_nt(MVMThreadContext *tc,
     }
     MVMHashBktNum bucket_num = MVM_fixkey_hash_bucket(hashv, hashtable->log2_num_buckets);
     struct MVMFixKeyHashBucket *bucket = hashtable->buckets + bucket_num;
-    entry->hh_next = bucket->hh_head;
-    bucket->hh_head = entry;
+
+    struct MVMFixKeyHashHandle *indirection
+        = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof (struct MVMFixKeyHashHandle));
+    MVMString **entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, hashtable->entry_size);
+    *entry = key;
+    indirection->key = entry;
+
+    indirection->hh_next = bucket->hh_head;
+    bucket->hh_head = indirection;
     ++hashtable->num_items;
     if (MVM_UNLIKELY(++(bucket->count) >= ((bucket->expand_mult+1) * HASH_BKT_CAPACITY_THRESH)
                      && hashtable->noexpand != 1)) {
         MVM_fixkey_hash_expand_buckets(tc, hashtable);
     }
+
+    return entry;
 }
 
 /* Looks up entry for key, creating it if necessary.
@@ -153,7 +164,7 @@ MVM_STATIC_INLINE void *MVM_fixkey_hash_lvalue_fetch_nt(MVMThreadContext *tc,
 
     indirection->key = entry;
 
-    /* So this is (mostly) the code from bind above. */
+    /* So this is (mostly) the code from insert above. */
     indirection->hh_next = bucket->hh_head;
     bucket->hh_head = indirection;
     ++hashtable->num_items;
