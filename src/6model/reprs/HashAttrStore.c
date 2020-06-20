@@ -93,20 +93,15 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         MVM_exception_throw_adhoc(tc,
             "HashAttrStore representation does not support native attribute storage");
 
-    /* first check whether we can must update the old entry. */
-    MVMHashEntry *entry = MVM_str_hash_fetch_nt(tc, hashtable, name);
-    if (!entry) {
-        if (!MVM_str_hash_entry_size(tc, hashtable)) {
-            MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry));
-        }
-        entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMHashEntry));
-        entry->hash_handle.key = name;
-        MVM_ASSIGN_REF(tc, &(root->header), entry->value, value_reg.o);
-        MVM_str_hash_bind_nt(tc, hashtable, &entry->hash_handle);
-        MVM_gc_write_barrier(tc, &(root->header), &(name->common.header));
+    if (!MVM_str_hash_entry_size(tc, hashtable)) {
+        MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry));
     }
-    else {
-        MVM_ASSIGN_REF(tc, &(root->header), entry->value, value_reg.o);
+
+    MVMHashEntry *entry = MVM_str_hash_lvalue_fetch_nt(tc, hashtable, name);
+    MVM_ASSIGN_REF(tc, &(root->header), entry->value, value_reg.o);
+    if (!entry->hash_handle.key) {
+        entry->hash_handle.key = name;
+        MVM_gc_write_barrier(tc, &(root->header), &(name->common.header));
     }
 }
 
