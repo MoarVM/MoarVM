@@ -1445,7 +1445,7 @@ void string_heap_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollect
     gzFile str_fh = open_coll_file(col, "strings");
 #endif
 
-    i = col->strings_written;
+    i = col->num_strings - col->strings_written;
 
     fputs("strs", fh);
 
@@ -1716,9 +1716,9 @@ void snapshot_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection
     collectables_to_filehandle_ver2(tc, col, entry);
     references_to_filehandle_ver2(tc, col, entry);
 
-    string_heap_to_filehandle_ver2(tc, col);
-    types_to_filehandle_ver2(tc, col);
-    static_frames_to_filehandle_ver2(tc, col);
+    /*string_heap_to_filehandle_ver2(tc, col);*/
+    /*types_to_filehandle_ver2(tc, col);*/
+    /*static_frames_to_filehandle_ver2(tc, col);*/
 
     /*entry->incremental_data = index->stringheap_size + index->types_size + index->staticframes_size;*/
 }
