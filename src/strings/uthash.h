@@ -99,12 +99,6 @@ void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa,
 /* calculate the element whose hash handle address is hhe */
 #define ELMT_FROM_HH(tbl,hhp) ((void*)(((char*)(hhp)) - ((tbl)->hho)))
 
-#define HASH_FIND_VM_STR_AND_DELETE(tc,hh,head,key,out,prev) do {\
-    HASH_FIND_VM_STR_prev(tc,hh,head,key,out,prev);\
-    if (out)\
-        HASH_DELETE(hh,head,out,prev);\
-} while (0)
-
 #define HASH_FIND_AND_DELETE(hh,head,keyptr,keylen,out,prev) do {\
     HASH_FIND_prev(hh,head,keyptr,keylen,out,prev);\
     if (out)\
@@ -133,8 +127,7 @@ void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa,
                       keyptr,keylen,out,_hf_hashv, prev);\
   }\
 } while (0)
-#define DETERMINE_BUCKET_AND(hashv, num_bkts)\
-    ((hashv) & ((num_bkts) - 1))
+
 /* Fibonacci bucket determination.
  * Since we grow bucket sizes in multiples of two, we just need a right
  * bitmask to get it on the correct scale. This has an advantage over using &ing
@@ -148,45 +141,6 @@ void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa,
 
 #define WHICH_BUCKET(hashv, num_bkts, offset)\
     (DETERMINE_BUCKET_FIB((hashv), (offset)))
-
-#define HASH_FIND_VM_STR(tc,hh,head,key,out)\
-do {\
-    MVMHashv _hf_hashv;\
-    MVMHashBktNum _hf_bkt;\
-    out=NULL;\
-    if (head) {\
-        MVMHashv cached_hash = (key)->body.cached_hash_code;\
-        if (cached_hash) {\
-            _hf_hashv = cached_hash;\
-            _hf_bkt = WHICH_BUCKET((_hf_hashv), (head)->hh.tbl->num_buckets, (head)->hh.tbl->log2_num_buckets);\
-        }\
-        else {\
-            HASH_FCN_VM_STR(tc, key, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt, (head)->hh.tbl->log2_num_buckets);\
-        }\
-        HASH_FIND_IN_BKT_VM_STR(tc, (head)->hh.tbl, hh,\
-            (head)->hh.tbl->buckets[ _hf_bkt ], key, out, _hf_hashv);\
-    }\
-} while (0)
-
-#define HASH_FIND_VM_STR_prev(tc,hh,head,key,out, prev)\
-do {\
-    MVMHashv _hf_hashv;\
-    MVMHashBktNum _hf_bkt;\
-    out=NULL;\
-    prev=NULL;\
-    if (head) {\
-        MVMHashv cached_hash = (key)->body.cached_hash_code;\
-        if (cached_hash) {\
-            _hf_hashv = cached_hash;\
-            _hf_bkt = WHICH_BUCKET((_hf_hashv), (head)->hh.tbl->num_buckets, (head)->hh.tbl->log2_num_buckets);\
-        }\
-        else {\
-            HASH_FCN_VM_STR(tc, key, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt, (head)->hh.tbl->log2_num_buckets);\
-        }\
-        HASH_FIND_IN_BKT_VM_STR_prev(tc, (head)->hh.tbl, hh,\
-            (head)->hh.tbl->buckets[ _hf_bkt ], key, out, _hf_hashv, prev);\
-    }\
-} while (0)
 
 MVM_STATIC_INLINE MVMuint64 ptr_hash_64_to_64(MVMuint64 u) {
     /* Thomas Wong's hash from
@@ -251,30 +205,6 @@ MVM_STATIC_INLINE void HASH_MAKE_TABLE(MVMThreadContext *tc, void *head, UT_hash
          (add)->hh.hashv, _ha_bkt, (head)->hh.tbl->log2_num_buckets);\
     HASH_ADD_TO_BKT(tc, &((head)->hh.tbl->buckets[_ha_bkt]),&(add)->hh, (head)->hh.tbl);\
     HASH_FSCK(hh,head);\
-} while(0)
-
-#define HASH_ADD_KEYPTR_VM_STR(tc,hh,head,key_in,add)\
-do {\
-    MVMHashBktNum _ha_bkt;\
-    MVMHashv cached_hash = (key_in)->body.cached_hash_code;\
-    (add)->hh.key = (key_in);\
-    if (!(head)) {\
-        head = (add);\
-        HASH_MAKE_TABLE(tc, head, &((head)->hh));\
-    }\
-    (head)->hh.tbl->num_items++;\
-    (add)->hh.tbl = (head)->hh.tbl;\
-    if (cached_hash) {\
-        (add)->hh.hashv = cached_hash;\
-        _ha_bkt = WHICH_BUCKET((cached_hash),((head)->hh.tbl->num_buckets),\
-                              (head)->hh.tbl->log2_num_buckets);\
- }\
- else {\
-     HASH_FCN_VM_STR(tc, key_in, (head)->hh.tbl->num_buckets,\
-        (add)->hh.hashv, _ha_bkt, (head)->hh.tbl->log2_num_buckets);\
- }\
- HASH_ADD_TO_BKT(tc, &((head)->hh.tbl->buckets[_ha_bkt]),&(add)->hh, (head)->hh.tbl);\
- HASH_FSCK(hh,head);\
 } while(0)
 
 #define HASH_TO_BKT( hashv, num_bkts, bkt, offset )\
@@ -403,70 +333,12 @@ do {\
 
 /* Use Siphash as the hash function. */
 #define HASH_FCN HASH_SIP
-#define HASH_FCN_VM_STR HASH_SIP_VM_STR
 
-#define HASH_JEN_MIX(a,b,c) do {\
-    a -= b; a -= c; a ^= ( c >> 13 );\
-    b -= c; b -= a; b ^= ( a << 8 );\
-    c -= a; c -= b; c ^= ( b >> 13 );\
-    a -= b; a -= c; a ^= ( c >> 12 );\
-    b -= c; b -= a; b ^= ( a << 16 );\
-    c -= a; c -= b; c ^= ( b >> 5 );\
-    a -= b; a -= c; a ^= ( c >> 3 );\
-    b -= c; b -= a; b ^= ( a << 10 );\
-    c -= a; c -= b; c ^= ( b >> 15 );\
-} while (0)
 #define HASH_SIP(key, keylen, num_bkts,hashv, bkt, offset)\
 do {\
     hashv = siphash24((MVMuint8*)key, keylen, tc->instance->hashSecrets);\
     bkt = WHICH_BUCKET(hashv, num_bkts, offset);\
 } while (0)
-#define HASH_JEN(key,keylen,num_bkts,hashv,bkt,offset) do {\
-    MVMuint32 _hj_i,_hj_j,_hj_k;\
-    MVMuint8 *_hj_key=(MVMuint8 *)(key);\
-    hashv = tc->instance->hashSecrets[1];\
-    _hj_i = _hj_j = 0x9e3779b9;\
-    _hj_k = (MVMuint32)(keylen);\
-    while (_hj_k >= 12) {\
-        _hj_i += (_hj_key[0] + ( (MVMuint32)_hj_key[1] << 8 )\
-              + ( (MVMuint32)_hj_key[2] << 16 )\
-              + ( (MVMuint32)_hj_key[3] << 24 ) );\
-        _hj_j += (_hj_key[4] + ( (MVMuint32)_hj_key[5] << 8 )\
-              + ( (MVMuint32)_hj_key[6] << 16 )\
-              + ( (MVMuint32)_hj_key[7] << 24 ) );\
-        hashv += (_hj_key[8] + ( (MVMuint32)_hj_key[9] << 8 )\
-              + ( (MVMuint32)_hj_key[10] << 16 )\
-              + ( (MVMuint32)_hj_key[11] << 24 ) );\\
-        HASH_JEN_MIX(_hj_i, _hj_j, hashv);\
-        _hj_key += 12;\
-        _hj_k -= 12;\
-    }\
-    hashv += keylen;\
-    switch ( _hj_k ) {\
-        case 11: hashv += ( (MVMuint32)_hj_key[10] << 24 );\
-        case 10: hashv += ( (MVMuint32)_hj_key[9]  << 16 );\
-        case 9:  hashv += ( (MVMuint32)_hj_key[8]  <<  8 );\
-        case 8:  _hj_j += ( (MVMuint32)_hj_key[7]  << 24 );\
-        case 7:  _hj_j += ( (MVMuint32)_hj_key[6]  << 16 );\
-        case 6:  _hj_j += ( (MVMuint32)_hj_key[5]  <<  8 );\
-        case 5:  _hj_j += _hj_key[4];\
-        case 4:  _hj_i += ( (MVMuint32)_hj_key[3]  << 24 );\
-        case 3:  _hj_i += ( (MVMuint32)_hj_key[2]  << 16 );\
-        case 2:  _hj_i += ( (MVMuint32)_hj_key[1]  <<  8 );\
-        case 1:  _hj_i += _hj_key[0];\
-    }\
-    HASH_JEN_MIX(_hj_i, _hj_j, hashv);\
-    if (hashv == 0) {\
-        hashv += keylen;\
-    }\
-    bkt = WHICH_BUCKET(hashv, num_bkts, offset);\
-} while(0)
-
-#define HASH_SIP_VM_STR(tc,key,num_bkts,hashv,bkt,offset) do {\
-    MVM_string_compute_hash_code((tc), (key));\
-    (hashv) = (key)->body.cached_hash_code;\
-    (bkt) = WHICH_BUCKET((hashv), (num_bkts), (offset));\
-} while(0)
 
 /* key comparison function; return 0 if keys equal */
 #define HASH_KEYCMP(a,b,len) memcmp(a,b,len)
@@ -506,47 +378,6 @@ do {\
             prev = out = NULL;\
         }\
     }\
-} while(0)
-
-/* iterate over items in a known bucket to find desired item */
-#define HASH_FIND_IN_BKT_VM_STR(tc,tbl,hh,head,key_in,out,hashval)\
-do {\
-    if (head.hh_head) DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,head.hh_head));\
-    else out=NULL;\
-    while (out) {\
-        if (hashval == (out)->hh.hashv) {\
-            MVMString *key_out = (MVMString *)((out)->hh.key);\
-            if ((key_in) == key_out || MVM_string_substrings_equal_nocheck(tc, (key_in), 0,\
-                    (key_in)->body.num_graphs, key_out, 0))\
-                break;\
-        }\
-        if ((out)->hh.hh_next)\
-            DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,(out)->hh.hh_next));\
-        else\
-            out = NULL;\
-    }\
-} while(0)
-
-/* iterate over items in a known bucket to find desired item */
-#define HASH_FIND_IN_BKT_VM_STR_prev(tc,tbl,hh,head,key_in,out,hashval, prev)\
-do {\
- if (head.hh_head) DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,head.hh_head));\
- else {\
-     out=NULL;\
-     prev=NULL;\
- }\
- while (out) {\
-    if (hashval == (out)->hh.hashv && MVM_string_equal(tc, (key_in), (MVMString *)((out)->hh.key)))\
-        break;\
-    if ((out)->hh.hh_next)  {\
-        prev = out;\
-        DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,(out)->hh.hh_next));\
-    }\
-    else {\
-        out = NULL;\
-        prev = NULL;\
-    }\
- }\
 } while(0)
 
 /* Bucket expansion has the effect of doubling the number of buckets
@@ -666,10 +497,12 @@ MVM_STATIC_INLINE void HASH_DEL_IN_BKT(UT_hash_bucket *head, UT_hash_handle *hh_
         (head)=NULL;\
     }\
 } while(0)
+
+/* We want to put this back at the end: */
+
 #define GET_X_BITS(number, num_bits)\
     ((number) >> ((sizeof(number) * 8) - (num_bits)))
-/* obtain a count of items in the hash */
-#define HASH_CNT(hh,head) ((head)?((head)->hh.tbl->num_items):0)
+
 /* This is used since the compiler optimizes it better. */
 MVM_STATIC_INLINE MVMHashBktNum GET_X_BITS_BKT_RAND(MVM_UT_bucket_rand bucket_rand, MVMHashUInt num_bits) {
     switch (num_bits) {
@@ -717,27 +550,7 @@ MVM_STATIC_INLINE MVMHashBktNum GET_X_BITS_BKT_RAND(MVM_UT_bucket_rand bucket_ra
  * 2 ^ 3 = 1; 3 ^ 3 = 0;
  * 4 ^ 3 = 7; 5 ^ 3 = 6
  * 6 ^ 3 = 5; 7 ^ 3 = 4 */
-#if MVM_HASH_RANDOMIZE
-#define GET_PRAND_BKT(raw_bkt_num, hashtable)\
-    (GET_X_BITS_BKT_RAND(hashtable->bucket_rand, hashtable->log2_num_buckets) ^ (raw_bkt_num))
-#else
-#define GET_PRAND_BKT(raw_bkt_num, hashtable) (raw_bkt_num)
-#endif
-MVM_STATIC_INLINE void * HASH_ITER_FIRST_ITEM(
-        struct UT_hash_table *ht, MVMHashBktNum *bucket_tmp) {
-    if (!ht)
-        return NULL;
-#if MVM_HASH_THROW_ON_ITER_AFTER_ADD_KEY
-    ht->bucket_rand_last = ht->bucket_rand;
-#endif
-    while (*bucket_tmp < ht->num_buckets) {
-        struct UT_hash_handle *hh_head = ht->buckets[GET_PRAND_BKT(*bucket_tmp, ht)].hh_head;
-        if (hh_head)
-            return ELMT_FROM_HH(ht, hh_head);
-        (*bucket_tmp)++;
-    }
-    return NULL;
-}
+
 /* This is an optimized version of HASH_ITER which doesn't do any iteration
  * order randomization. This version is faster and should be used to iterate
  * through which the iteration order is not exposed to the user. */
@@ -756,43 +569,5 @@ MVM_STATIC_INLINE void * HASH_ITER_FIRST_ITEM(
         }\
     }\
 } while (0)
-
-#define HASH_ITER(tc, hh, hash, current, code) do {\
-    MVMHashBktNum bucket_tmp = 0;\
-    struct UT_hash_table *ht;\
-    if (hash && (ht = hash->hh.tbl)) {\
-        while (bucket_tmp < ht->num_buckets) {\
-            struct UT_hash_handle *current_hh =\
-                ht->buckets[GET_PRAND_BKT(bucket_tmp, ht)].hh_head;\
-            while (current_hh) {\
-                current = ELMT_FROM_HH(ht, current_hh);\
-                current_hh = current_hh->hh_next;\
-                code\
-            }\
-            (bucket_tmp)++;\
-        }\
-    }\
-} while (0)
-
-
-MVM_STATIC_INLINE void * HASH_ITER_NEXT_ITEM(MVMThreadContext *tc,
-        struct UT_hash_handle *cur_handle, MVMHashBktNum *bucket_tmp) {
-    struct UT_hash_table *ht = cur_handle->tbl;
-#if MVM_HASH_THROW_ON_ITER_AFTER_ADD_KEY
-    /* Warn if the user has been *caught* inserting keys during an iteration. */
-    if (ht->bucket_rand_last != ht->bucket_rand)
-        MVM_exception_throw_adhoc(tc, "Warning: trying to insert into the hash while iterating has undefined functionality\n");
-#endif
-    if (cur_handle->hh_next)
-        return ELMT_FROM_HH(ht, cur_handle->hh_next);
-    (*bucket_tmp)++;
-    while (*bucket_tmp < ht->num_buckets) {
-        struct UT_hash_handle *hh_head = ht->buckets[GET_PRAND_BKT(*bucket_tmp, ht)].hh_head;
-        if (hh_head)
-            return ELMT_FROM_HH(ht, hh_head);
-        (*bucket_tmp)++;
-    }
-    return NULL;
-}
 
 #endif /* UTHASH_H */

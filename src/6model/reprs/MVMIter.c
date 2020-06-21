@@ -265,7 +265,7 @@ MVMString * MVM_iterkey_s(MVMThreadContext *tc, MVMIter *iterator) {
         MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
 
     struct MVMHashEntry *entry = MVM_str_hash_current(tc, hashtable, iterator->body.hash_state.curr);
-    return MVM_HASH_KEY(entry);
+    return entry->hash_handle.key;
 }
 
 MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator) {
