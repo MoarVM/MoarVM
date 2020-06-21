@@ -1453,7 +1453,8 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
 
         MVMLexicalRegistry **lexical_names_list = static_info->body.lexical_names_list;
 
-        for (MVMuint32 j = 0; j < num_lexicals; j++) {
+        MVMuint32 j;
+        for (j = 0; j < num_lexicals; j++) {
             MVMLexicalRegistry *entry = lexical_names_list[j];
             MVMuint16 lextype = static_info->body.lexical_types[j];
             MVMRegister *result = &frame->env[j];
