@@ -71,7 +71,7 @@ sub MAIN {
     get-emoji();
 }
 sub download-file ( Str:D $url, Str:D $filename ) {
-    qqx{curl "$url" -o "$filename"};
+    qqx{curl --ftp-method nocwd "$url" -o "$filename"};
 }
 sub download-set-file ( Str:D $url, Str:D $filename, Str:D $dir) {
     if ! so "$dir/$filename".IO.f {
@@ -103,15 +103,16 @@ sub get-emoji {
     my $emoji-dir = "ftp://ftp.unicode.org/Public/emoji/";
     my @emoji-vers;
     say "Getting a listing of the Emoji versions";
-    for qqx{curl -s "$emoji-dir"}.lines {
+    for qqx{curl --ftp-method nocwd -s "$emoji-dir"}.lines {
         push @emoji-vers, .split(/' '+/)[8];
     }
     say "Emoji versions: ", @emoji-vers.join(', ');
     #exit;
-    my @sorted-emoji-versions = @emoji-vers».Int.sort.reverse;
+    my @sorted-emoji-versions = @emoji-vers.sort(*.Num).reverse;
+    #say "Emoji versions: ", @sorted-emoji-versions.join(', ');
     for @sorted-emoji-versions.grep($first-emoji-ver <= *) -> $version {
         say "See version $version of Emoji, checking to see if it's a draft";
-        my $readme = qqx{curl -s "ftp://ftp.unicode.org/Public/emoji/$version/ReadMe.txt"}.chomp;
+        my $readme = qqx{curl --ftp-method nocwd -s "ftp://ftp.unicode.org/Public/emoji/$version/ReadMe.txt"}.chomp;
         if $readme.match(/draft|PRELIMINARY/, :i) {
             say "Looks like $version is a draft. ReadMe.txt text: <<$readme>>";
             next;
