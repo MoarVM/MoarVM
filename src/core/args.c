@@ -917,7 +917,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                 MVMStrHashIterator iterator = MVM_str_hash_first(tc, hashtable);
                 MVMHashEntry *current;
                 while ((current = MVM_str_hash_current(tc, hashtable, iterator))) {
-                    MVMString *arg_name = MVM_HASH_KEY(current);
+                    MVMString *arg_name = current->hash_handle.key;
                     if (!seen_name(tc, arg_name, new_args, new_num_pos, new_arg_pos)) {
                         if (new_arg_pos + 1 >= new_args_size) {
                             new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
