@@ -13,24 +13,21 @@ MVMuint64 MVM_gc_object_id(MVMThreadContext *tc, MVMObject *obj) {
 
     /* Otherwise, see if we already have a persistent object ID. */
     else {
-        MVMObjectId *entry;
         uv_mutex_lock(&tc->instance->mutex_object_ids);
         if (obj->header.flags1 & MVM_CF_HAS_OBJECT_ID) {
             /* Has one, so just look up by address in the hash ID hash. */
-            HASH_FIND(hash_handle, tc->instance->object_ids, (void *)&obj,
-                sizeof(MVMObject *), entry);
+
+            struct MVMPtrHashHandle *entry = MVM_ptr_hash_fetch(tc, &tc->instance->object_ids, obj);
+            assert(entry);
+            id = entry->value;
         }
         else {
             /* Hasn't got one; allocate it a place in gen2 and make an entry
              * in the persistent object ID hash. */
-            entry            = MVM_calloc(1, sizeof(MVMObjectId));
-            entry->current   = obj;
-            entry->gen2_addr = (uintptr_t)MVM_gc_gen2_allocate_zeroed(tc->gen2, obj->header.size);
-            HASH_ADD_KEYPTR(hash_handle, tc->instance->object_ids, &(entry->current),
-                sizeof(MVMObject *), entry);
+            id = (uintptr_t)MVM_gc_gen2_allocate_zeroed(tc->gen2, obj->header.size);
+            MVM_ptr_hash_insert(tc, &tc->instance->object_ids, obj, id);
             obj->header.flags1 |= MVM_CF_HAS_OBJECT_ID;
         }
-        id = entry->gen2_addr;
         uv_mutex_unlock(&tc->instance->mutex_object_ids);
     }
 
@@ -41,13 +38,8 @@ MVMuint64 MVM_gc_object_id(MVMThreadContext *tc, MVMObject *obj) {
  * this removes the hash entry for it and returns the pre-allocated gen2
  * address. */
 void * MVM_gc_object_id_use_allocation(MVMThreadContext *tc, MVMCollectable *item) {
-    MVMObjectId *entry, *prev;
-    void        *addr;
     uv_mutex_lock(&tc->instance->mutex_object_ids);
-    HASH_FIND_prev(hash_handle, tc->instance->object_ids, (void *)&item, sizeof(MVMObject *), entry, prev);
-    addr = (void *)entry->gen2_addr;
-    HASH_DELETE(hash_handle, tc->instance->object_ids, entry, prev);
-    MVM_free(entry);
+    void *addr = (void *) MVM_ptr_hash_fetch_and_delete(tc, &tc->instance->object_ids, item);
     item->flags1 ^= MVM_CF_HAS_OBJECT_ID;
     uv_mutex_unlock(&tc->instance->mutex_object_ids);
     return addr;
@@ -56,9 +48,7 @@ void * MVM_gc_object_id_use_allocation(MVMThreadContext *tc, MVMCollectable *ite
 /* Clears hash entry for a persistent object ID when an object dies in the
  * nursery. */
 void MVM_gc_object_id_clear(MVMThreadContext *tc, MVMCollectable *item) {
-    MVMObjectId *entry, *prev;
     uv_mutex_lock(&tc->instance->mutex_object_ids);
-    HASH_FIND_AND_DELETE(hash_handle, tc->instance->object_ids, (void *)&item, sizeof(MVMObject *), entry, prev);
-    MVM_free(entry);
+    (void) MVM_ptr_hash_fetch_and_delete(tc, &tc->instance->object_ids, item);
     uv_mutex_unlock(&tc->instance->mutex_object_ids);
 }

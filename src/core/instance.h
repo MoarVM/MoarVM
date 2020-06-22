@@ -92,20 +92,6 @@ struct MVMStringConsts {
     MVMString *replacement;
 };
 
-/* An entry in the persistent object IDs hash, used to give still-movable
- * objects a lifetime-unique ID. */
-struct MVMObjectId {
-    /* The current object address. */
-    MVMObject *current;
-
-    /* Then gen2 address that forms the persistent ID, and where we'll move
-     * the object to if it lives long enough. */
-    uintptr_t  gen2_addr;
-
-    /* Hash handle. */
-    UT_hash_handle hash_handle;
-};
-
 struct MVMEventSubscriptions {
     uv_mutex_t mutex_event_subscription;
 
@@ -213,7 +199,7 @@ struct MVMInstance {
 
     /* Persistent object ID hash, used to give nursery objects a lifetime
      * unique ID. Plus a lock to protect it. */
-    MVMObjectId *object_ids;
+    MVMPtrHashTable     object_ids;
     uv_mutex_t    mutex_object_ids;
 
     /* Fixed size allocator. */
