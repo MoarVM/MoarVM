@@ -112,7 +112,7 @@ struct MVMObjectId {
 
     /* Then gen2 address that forms the persistent ID, and where we'll move
      * the object to if it lives long enough. */
-    MVMCollectable *gen2_addr;
+    uintptr_t  gen2_addr;
 
     /* Hash handle. */
     UT_hash_handle hash_handle;
