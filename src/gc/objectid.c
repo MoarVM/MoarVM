@@ -25,12 +25,12 @@ MVMuint64 MVM_gc_object_id(MVMThreadContext *tc, MVMObject *obj) {
              * in the persistent object ID hash. */
             entry            = MVM_calloc(1, sizeof(MVMObjectId));
             entry->current   = obj;
-            entry->gen2_addr = MVM_gc_gen2_allocate_zeroed(tc->gen2, obj->header.size);
+            entry->gen2_addr = (uintptr_t)MVM_gc_gen2_allocate_zeroed(tc->gen2, obj->header.size);
             HASH_ADD_KEYPTR(hash_handle, tc->instance->object_ids, &(entry->current),
                 sizeof(MVMObject *), entry);
             obj->header.flags |= MVM_CF_HAS_OBJECT_ID;
         }
-        id = (uintptr_t)entry->gen2_addr;
+        id = entry->gen2_addr;
         uv_mutex_unlock(&tc->instance->mutex_object_ids);
     }
 
@@ -45,7 +45,7 @@ void * MVM_gc_object_id_use_allocation(MVMThreadContext *tc, MVMCollectable *ite
     void        *addr;
     uv_mutex_lock(&tc->instance->mutex_object_ids);
     HASH_FIND_prev(hash_handle, tc->instance->object_ids, (void *)&item, sizeof(MVMObject *), entry, prev);
-    addr = entry->gen2_addr;
+    addr = (void *)entry->gen2_addr;
     HASH_DELETE(hash_handle, tc->instance->object_ids, entry, prev);
     MVM_free(entry);
     item->flags ^= MVM_CF_HAS_OBJECT_ID;
