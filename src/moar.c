@@ -163,6 +163,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up persistent object ID hash mutex. */
     init_mutex(instance->mutex_object_ids, "object ID hash");
+    MVM_ptr_hash_build(instance->main_thread, &instance->object_ids);
 
     /* Allocate all things during following setup steps directly in gen2, as
      * they will have program lifetime. */
