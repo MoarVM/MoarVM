@@ -288,7 +288,6 @@ typedef struct MVMHeapSnapshotCollectable MVMHeapSnapshotCollectable;
 typedef struct MVMHeapSnapshotReference MVMHeapSnapshotReference;
 typedef struct MVMHeapSnapshotState MVMHeapSnapshotState;
 typedef struct MVMHeapSnapshotWorkItem MVMHeapSnapshotWorkItem;
-typedef struct MVMHeapSnapshotSeen MVMHeapSnapshotSeen;
 typedef struct MVMDebugServerBreakpointInfo MVMDebugServerBreakpointInfo;
 typedef struct MVMDebugServerBreakpointFileTable MVMDebugServerBreakpointFileTable;
 typedef struct MVMDebugServerBreakpointTable MVMDebugServerBreakpointTable;

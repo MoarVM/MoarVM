@@ -248,34 +248,16 @@ static void add_reference_vm_str(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
    add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING, str_idx, to);
 }
 
-/* Adds an entry to the seen hash. */
-static MVMuint64 saw(MVMThreadContext *tc, MVMHeapSnapshotState *ss, void *addr, MVMuint64 idx) {
-    MVMHeapSnapshotSeen *seen = MVM_calloc(1, sizeof(MVMHeapSnapshotSeen));
-    seen->address = addr;
-    seen->idx = idx;
-    HASH_ADD_KEYPTR(hash_handle, ss->seen, &(seen->address), sizeof(void *), seen);
-
-    /* So that it's trivial to tailcall optimise this function: */
-    return idx;
-}
-
-/* Checks for an entry in the seen hash. If we find an entry, write the index
- * into the index pointer passed. */
-static MVMHeapSnapshotSeen *seen(MVMThreadContext *tc, MVMHeapSnapshotState *ss, void *addr) {
-    MVMHeapSnapshotSeen *entry;
-    HASH_FIND(hash_handle, ss->seen, &addr, sizeof(void *), entry);
-    return entry;
-}
-
 /* Gets the index of a collectable, either returning an existing index if we've
  * seen it before or adding it if not. */
 static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
         MVMHeapSnapshotState *ss, MVMCollectable *collectable) {
-    MVMHeapSnapshotSeen *entry = seen(tc, ss, collectable);
+    struct MVMPtrHashHandle *entry = MVM_ptr_hash_lvalue_fetch(tc, &ss->seen, collectable);
 
-    if (entry) {
-        return entry->idx;
+    if (entry->key) {
+        return entry->value;
     }
+    entry->key = collectable;
 
     MVMuint64 idx;
     if (collectable->flags1 & MVM_CF_STABLE) {
@@ -295,22 +277,25 @@ static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
         ss->col->total_objects++;
     }
 
-    return saw(tc, ss, collectable, idx);
+    entry->value = idx;
+    return idx;
 }
 
 /* Gets the index of a frame, either returning an existing index if we've seen
  * it before or adding it if not. */
 static MVMuint64 get_frame_idx(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         MVMFrame *frame) {
-    MVMHeapSnapshotSeen *entry = seen(tc, ss, frame);
+    struct MVMPtrHashHandle *entry = MVM_ptr_hash_lvalue_fetch(tc, &ss->seen, frame);
 
-    if (entry) {
-        return entry->idx;
+    if (entry->key) {
+        return entry->value;
     }
+    entry->key = frame;
 
     MVMuint64 idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_FRAME, frame);
     ss->col->total_frames++;
-    return saw(tc, ss, frame, idx);
+    entry->value = idx;
+    return idx;
 }
 
 /* Adds a type table index reference to the collectable snapshot entry, either
@@ -806,7 +791,7 @@ static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
 
     /* Clean up temporary state. */
     MVM_free(ss.workitems);
-    MVM_HASH_DESTROY(tc, hash_handle, MVMHeapSnapshotSeen, ss.seen);
+    MVM_ptr_hash_demolish(tc, &ss.seen);
     MVM_gc_worklist_destroy(tc, ss.gcwl);
 }
 
