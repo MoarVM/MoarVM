@@ -213,7 +213,7 @@ struct MVMHeapSnapshotState {
     MVMuint64 ref_from;
 
     /* The seen hash of collectables (including frames). */
-    MVMHeapSnapshotSeen *seen;
+    MVMPtrHashTable seen;
 
     /* We sometimes use GC mark functions to find references. Keep a worklist
      * around for those times (much cheaper than allocating it whenever we
@@ -244,18 +244,6 @@ struct MVMHeapSnapshotWorkItem {
 
     /* Target collectable, if any. */
     void *target;
-};
-
-/* Heap seen hash entry used while taking a heap snapshot. */
-struct MVMHeapSnapshotSeen {
-    /* The seen address. */
-    void *address;
-
-    /* The collectables index it has. */
-    MVMuint64 idx;
-
-    /* Hash handle. */
-    UT_hash_handle hash_handle;
 };
 
 MVMint32 MVM_profile_heap_profiling(MVMThreadContext *tc);
