@@ -878,85 +878,69 @@ MVMuint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint codepoi
 }
 
 /* XXX make all the statics members of the global MVM instance instead? */
-static MVMUnicodeNameRegistry *property_codes_by_names_aliases;
-static MVMUnicodeGraphemeNameRegistry *property_codes_by_seq_names;
+static MVMUniHashTable property_codes_by_names_aliases;
+static MVMUniHashTable property_codes_by_seq_names;
 
 static void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_property_keypairs;
 
     while (num_names--) {
-        MVMUnicodeNameRegistry *entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-        entry->name = (char *)unicode_property_keypairs[num_names].name;
-        entry->codepoint = unicode_property_keypairs[num_names].value;
-        HASH_ADD_KEYPTR(hash_handle, property_codes_by_names_aliases,
-            entry->name, strlen(entry->name), entry);
+        MVM_uni_hash_insert(tc, &property_codes_by_names_aliases,
+                            unicode_property_keypairs[num_names].name,
+                            unicode_property_keypairs[num_names].value);
+
     }
 }
 static void generate_property_codes_by_seq_names(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_seq_keypairs;
 
     while (num_names--) {
-        MVMUnicodeGraphemeNameRegistry *entry = MVM_malloc(sizeof(MVMUnicodeGraphemeNameRegistry));
-        entry->name = (char *)uni_seq_pairs[num_names].name;
-        entry->structindex = uni_seq_pairs[num_names].value;
-        HASH_ADD_KEYPTR(hash_handle, property_codes_by_seq_names,
-            entry->name, strlen(entry->name), entry);
+        MVM_uni_hash_insert(tc, &property_codes_by_seq_names,
+                            uni_seq_pairs[num_names].name,
+                            uni_seq_pairs[num_names].value);
     }
 }
 
 MVMint64 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 size;
     char *cname = MVM_string_ascii_encode(tc, name, &size, 0);
-    MVMUnicodeNameRegistry *result;
-    if (!property_codes_by_names_aliases) {
+    if (!MVM_uni_hash_count(tc, &property_codes_by_names_aliases)) {
         generate_property_codes_by_names_aliases(tc);
     }
-    HASH_FIND(hash_handle, property_codes_by_names_aliases, cname, strlen((const char *)cname), result);
-    MVM_free(cname); /* not really codepoint, really just an index */
-    return result ? result->codepoint : 0;
+    struct MVMUniHashHandle *result = MVM_uni_hash_fetch(tc, &property_codes_by_names_aliases, cname);
+    return result ? result->value : 0;
 }
 
 static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
-    MVMUnicodeNameRegistry **hash_array = MVM_calloc(MVM_NUM_PROPERTY_CODES, sizeof(MVMUnicodeNameRegistry *));
+    /* A bit of a hack - we're relying on the implementation detail that zeroes
+     * is a valid start state for the hash. */
+    MVMUniHashTable *hash_array = MVM_calloc(MVM_NUM_PROPERTY_CODES, sizeof(MVMUniHashTable));
     MVMuint32 index = 0;
-    MVMUnicodeNameRegistry *entry = NULL, *binaries = NULL;
     for ( ; index < num_unicode_property_value_keypairs; index++) {
         MVMint32 property_code = unicode_property_value_keypairs[index].value >> 24;
-        entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-        entry->name = (char *)unicode_property_value_keypairs[index].name;
-        entry->codepoint = unicode_property_value_keypairs[index].value & 0xFFFFFF;
-        HASH_ADD_KEYPTR(hash_handle, hash_array[property_code],
-            entry->name, strlen(entry->name), entry);
+        MVM_uni_hash_insert(tc, &hash_array[property_code],
+                            unicode_property_value_keypairs[index].name,
+                            unicode_property_value_keypairs[index].value & 0xFFFFFF);
     }
     for (index = 0; index < MVM_NUM_PROPERTY_CODES; index++) {
-        if (!hash_array[index]) {
-            if (!binaries) {
-                MVMUnicodeNamedValue yes[8] = { {"T",1}, {"Y",1},
-                    {"Yes",1}, {"yes",1}, {"True",1}, {"true",1}, {"t",1}, {"y",1} };
-                MVMUnicodeNamedValue no [8] = { {"F",0}, {"N",0},
-                    {"No",0}, {"no",0}, {"False",0}, {"false",0}, {"f",0}, {"n",0} };
-                MVMuint8 i;
-                for (i = 0; i < 8; i++) {
-                    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-                    entry->name = (char *)yes[i].name;
-                    entry->codepoint = yes[i].value;
-                    HASH_ADD_KEYPTR(hash_handle, binaries, yes[i].name, strlen(yes[i].name), entry);
-                }
-                for (i = 0; i < 8; i++) {
-                    entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-                    entry->name = (char *)no[i].name;
-                    entry->codepoint = no[i].value;
-                    HASH_ADD_KEYPTR(hash_handle, binaries, no[i].name, strlen(no[i].name), entry);
-                }
+        if (!MVM_uni_hash_count(tc, &hash_array[index])) {
+            MVMUnicodeNamedValue yes[8] = { {"T",1}, {"Y",1},
+                {"Yes",1}, {"yes",1}, {"True",1}, {"true",1}, {"t",1}, {"y",1} };
+            MVMUnicodeNamedValue no [8] = { {"F",0}, {"N",0},
+                {"No",0}, {"no",0}, {"False",0}, {"false",0}, {"f",0}, {"n",0} };
+            MVMuint8 i;
+            for (i = 0; i < 8; i++) {
+                MVM_uni_hash_insert(tc, &hash_array[index], yes[i].name, yes[i].value);
             }
-            hash_array[index] = binaries;
+            for (i = 0; i < 8; i++) {
+                MVM_uni_hash_insert(tc, &hash_array[index], no[i].name, no[i].value);
+            }
         }
     }
     unicode_property_values_hashes = hash_array;
 }
 MVMint32 unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, const char *cname, MVMuint64 cname_length) {
     char *out_str = NULL;
-    MVMUnicodeNameRegistry *result = NULL;
                                    /* number + dash + property_value + NULL */
     MVMuint64 out_str_length = length_of_num(property_code) + 1 + cname_length + 1;
     if (1024 < out_str_length)
@@ -965,8 +949,10 @@ MVMint32 unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 pro
     out_str = alloca(sizeof(char) * out_str_length);
     snprintf(out_str, out_str_length, "%"PRIi64"-%s", property_code, cname);
 
-    HASH_FIND(hash_handle, unicode_property_values_hashes[property_code], out_str, out_str_length - 1, result);
-    return result ? result->codepoint : 0;
+    struct MVMUniHashHandle *result = MVM_uni_hash_fetch(tc,
+                                                         &unicode_property_values_hashes[property_code],
+                                                         out_str);
+    return result ? result->value : 0;
 }
 MVMint64 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, MVMString *name) {
     if (property_code <= 0 || MVM_NUM_PROPERTY_CODES <= property_code)
@@ -1032,19 +1018,7 @@ void MVM_unicode_release(MVMThreadContext *tc)
         int i;
 
         for (i = 0; i < MVM_NUM_PROPERTY_CODES; i++) {
-            int j;
-
-            if (!unicode_property_values_hashes[i]) {
-                continue;
-            }
-
-            for(j = i + 1; j < MVM_NUM_PROPERTY_CODES; j++) {
-                if (unicode_property_values_hashes[i] == unicode_property_values_hashes[j]) {
-                    unicode_property_values_hashes[j] = NULL;
-                }
-            }
-            MVM_HASH_DESTROY(tc, hash_handle, MVMUnicodeNameRegistry, unicode_property_values_hashes[i]);
-            assert(!unicode_property_values_hashes[i]);
+            MVM_uni_hash_demolish(tc, &unicode_property_values_hashes[i]);
         }
 
         MVM_free(unicode_property_values_hashes);
@@ -1059,8 +1033,6 @@ void MVM_unicode_release(MVMThreadContext *tc)
  sequences and looks up the sequence name */
 MVMString * MVM_unicode_string_from_name(MVMThreadContext *tc, MVMString *name) {
     MVMString * name_uc = MVM_string_uc(tc, name);
-    char * cname = NULL;
-    MVMUnicodeGraphemeNameRegistry *result;
 
     MVMGrapheme32 result_graph = MVM_unicode_lookup_by_name(tc, name_uc);
     /* If it's just a codepoint, return that */
@@ -1070,17 +1042,19 @@ MVMString * MVM_unicode_string_from_name(MVMThreadContext *tc, MVMString *name) 
     /* Otherwise look up the sequence */
     else {
         const MVMint32 *uni_seq = NULL;
-        cname = MVM_string_utf8_encode_C_string(tc, name_uc);
-        if (!property_codes_by_seq_names) {
+        char *cname = MVM_string_utf8_encode_C_string(tc, name_uc);
+        if (!MVM_uni_hash_count(tc, &property_codes_by_seq_names)) {
             generate_property_codes_by_seq_names(tc);
         }
-        HASH_FIND(hash_handle, property_codes_by_seq_names, cname, strlen((const char *)cname), result);
+        struct MVMUniHashHandle *result = MVM_uni_hash_fetch(tc,
+                                                             &property_codes_by_seq_names,
+                                                             cname);
         MVM_free(cname);
         /* If we can't find a result return an empty string */
         if (!result)
             return tc->instance->str_consts.empty;
 
-        uni_seq = uni_seq_enum[result->structindex];
+        uni_seq = uni_seq_enum[result->value];
         /* The first element is the number of codepoints in the sequence */
         return MVM_unicode_codepoints_c_array_to_nfg_string(tc, (MVMCodepoint *) uni_seq + 1, uni_seq[0]);
     }
