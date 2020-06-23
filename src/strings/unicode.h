@@ -11,16 +11,5 @@ MVMCodepoint MVM_unicode_find_primary_composite(MVMThreadContext *tc, MVMCodepoi
 #define MVM_unicode_case_change_type_title 2
 #define MVM_unicode_case_change_type_fold  3
 
-struct MVMUnicodeNameRegistry {
-    char *name;
-    MVMGrapheme32 codepoint;
-    UT_hash_handle hash_handle;
-};
-struct MVMUnicodeGraphemeNameRegistry {
-    char *name;
-    MVMint32 structindex;
-    UT_hash_handle hash_handle;
-};
-
 void MVM_unicode_init(MVMThreadContext *tc);
 void MVM_unicode_release(MVMThreadContext *tc);
