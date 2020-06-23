@@ -99,11 +99,6 @@ void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa,
 /* calculate the element whose hash handle address is hhe */
 #define ELMT_FROM_HH(tbl,hhp) ((void*)(((char*)(hhp)) - ((tbl)->hho)))
 
-#define HASH_FIND_AND_DELETE(hh,head,keyptr,keylen,out,prev) do {\
-    HASH_FIND_prev(hh,head,keyptr,keylen,out,prev);\
-    if (out)\
-        HASH_DELETE(hh,head,out,prev);\
-} while (0)
 #define HASH_FIND(hh,head,keyptr,keylen,out) do {\
     MVMHashv _hf_hashv;\
     MVMHashBktNum _hf_bkt;\
@@ -114,18 +109,6 @@ void * MVM_fixed_size_alloc_zeroed(MVMThreadContext *tc, MVMFixedSizeAlloc *fsa,
         HASH_FIND_IN_BKT((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],\
                           keyptr,keylen,out,_hf_hashv);\
     }\
-} while (0)
-#define HASH_FIND_prev(hh,head,keyptr,keylen,out,prev) do {\
-    MVMHashv _hf_hashv;\
-    MVMHashBktNum _hf_bkt;\
-    out=NULL;\
-    prev=NULL;\
-    if (head) {\
-        HASH_FCN(keyptr,keylen, (head)->hh.tbl->num_buckets, _hf_hashv, _hf_bkt,\
-                (head)->hh.tbl->log2_num_buckets);\
-        HASH_FIND_IN_BKT_prev((head)->hh.tbl, hh, (head)->hh.tbl->buckets[ _hf_bkt ],\
-                      keyptr,keylen,out,_hf_hashv, prev);\
-  }\
 } while (0)
 
 /* Fibonacci bucket determination.
@@ -207,89 +190,6 @@ MVM_STATIC_INLINE void HASH_MAKE_TABLE(MVMThreadContext *tc, void *head, UT_hash
     HASH_FSCK(hh,head);\
 } while(0)
 
-#define HASH_TO_BKT( hashv, num_bkts, bkt, offset )\
-do {\
-  bkt = WHICH_BUCKET((hashv), (num_bkts), (offset));\
-} while(0)
-
-/* delete "delptr" from the hash table.
- * The use of _hd_hh_del below deserves special explanation.
- * These used to be expressed using (delptr) but that led to a bug
- * if someone used the same symbol for the head and deletee, like
- *  HASH_DELETE(hh,users,users);
- * We want that to work, but by changing the head (users) below
- * we were forfeiting our ability to further refer to the deletee (users)
- * in the patch-up process. Solution: use scratch space to
- * copy the deletee pointer, then the latter references are via that
- * scratch pointer rather than through the repointed (users) symbol.
- */
-
-/* Use HASH_DELETE normally. If you get compilation errors due to the macro defining
- * the same goto label multiple times, use HASH_DELETE_MACRO which lets you
- * specify a prefix for the goto label which will prevent the conflict. */
-#define HASH_DELETE(hh,head,delptr,prevptr)\
-    HASH_DELETE_MACRO(hh,head,delptr,prevptr, MVM_HASH)
-#define HASH_DELETE_MACRO(hh,head,delptr,prevptr,label) do {\
-    MVMHashBktNum _hd_bkt;\
-    struct UT_hash_handle *_hd_hh_del, *_hd_hh_prevptr;\
-    if ( (head)->hh.tbl->num_items == 1 )  {\
-        uthash_free(tc, (head)->hh.tbl->buckets,\
-                   (head)->hh.tbl->num_buckets * sizeof(struct UT_hash_bucket) );\
-        uthash_free(tc, (head)->hh.tbl, sizeof(UT_hash_table));\
-        (head) = NULL;\
-    }\
-    else {\
-        _hd_hh_del = &((delptr)->hh);\
-        _hd_hh_prevptr = prevptr ? &((prevptr)->hh) : NULL;\
-        if ((delptr) == (head)) {\
-            MVMHashBktNum cur = 0;\
-            while (cur < (head)->hh.tbl->num_buckets) {\
-                UT_hash_handle *cand = (head)->hh.tbl->buckets[cur].hh_head;\
-                while (cand) {\
-                    if (cand && cand != &((delptr)->hh)) {\
-                        DECLTYPE_ASSIGN((head), ELMT_FROM_HH((head)->hh.tbl,cand));\
-                        goto label ## REPLACED_HEAD;\
-                    }\
-                    cand = cand->hh_next;\
-                }\
-                cur++;\
-            }\
-            uthash_fatal("Failed to replace deleted head");\
-            label ## REPLACED_HEAD:\
-            ;\
-        }\
-        _hd_bkt = WHICH_BUCKET( _hd_hh_del->hashv, (head)->hh.tbl->num_buckets,\
-                              (head)->hh.tbl->log2_num_buckets);\
-        HASH_DEL_IN_BKT(&((head)->hh.tbl->buckets[_hd_bkt]), _hd_hh_del, _hd_hh_prevptr);\
-        (head)->hh.tbl->num_items--;\
-    }\
-    HASH_FSCK(hh,head);\
-} while (0)
-
-/* This delete's a pointer by address from the hash. */
-#define HASH_DELETE_PTR(tc, hh, hash, delptr, hashentry_type) do {\
-    struct UT_hash_table *ht;\
-    if (hash && (ht = hash->hh.tbl)) {\
-        MVMHashBktNum bucket_tmp = WHICH_BUCKET((delptr)->hh.hashv,\
-            (delptr)->hh.tbl->num_buckets,\
-            (delptr)->hh.tbl->log2_num_buckets);\
-        struct UT_hash_handle *current_hh = ht->buckets[bucket_tmp].hh_head;\
-        hashentry_type *prev = NULL, *current = NULL;\
-        while (current_hh) {\
-            current = ELMT_FROM_HH(ht, current_hh);\
-            if ((delptr) == current) {\
-                HASH_DELETE(hh, (hash), (current), (prev));\
-                current_hh = NULL;\
-            }\
-            else {\
-                current_hh = current_hh->hh_next;\
-                prev = current;\
-            }\
-        }\
-    }\
-    HASH_FSCK(hh, hash);\
-} while (0)
-
 /* HASH_FSCK checks hash integrity on every add/delete when HASH_DEBUG is defined.
  * This is for uthash developer only; it compiles away if HASH_DEBUG isn't defined.
  */
@@ -357,27 +257,6 @@ do {\
         else\
             out = NULL;\
  }\
-} while(0)
-
-
-/* iterate over items in a known bucket to find desired item */
-#define HASH_FIND_IN_BKT_prev(tbl,hh,head,keyptr,keylen_in,out,hashval,prev)\
-do {\
-    if (head.hh_head) DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,head.hh_head));\
-    else prev = out = NULL;\
-    while (out) {\
-        if ((out)->hh.hashv == hashval && (out)->hh.keylen == keylen_in) {\
-            if ((HASH_KEYCMP((out)->hh.key,keyptr,keylen_in)) == 0)\
-                break;\
-        }\
-        if ((out)->hh.hh_next) {\
-            prev = out;\
-            DECLTYPE_ASSIGN(out,ELMT_FROM_HH(tbl,(out)->hh.hh_next));\
-        }\
-        else {\
-            prev = out = NULL;\
-        }\
-    }\
 } while(0)
 
 /* Bucket expansion has the effect of doubling the number of buckets
@@ -476,17 +355,6 @@ MVM_STATIC_INLINE void HASH_ADD_TO_BKT(MVMThreadContext *tc, UT_hash_bucket *buc
     }
 }
 
-
-/* remove an item from a given bucket */
-MVM_STATIC_INLINE void HASH_DEL_IN_BKT(UT_hash_bucket *head, UT_hash_handle *hh_del, UT_hash_handle *hh_prev) {
-    head->count--;
-    if (head->hh_head == hh_del) {
-        head->hh_head = hh_del->hh_next;
-    }
-    if (hh_prev) {
-        hh_prev->hh_next = hh_del->hh_next;
-    }
-}
 
 
 #define HASH_CLEAR(tc,hh,head) do {\
