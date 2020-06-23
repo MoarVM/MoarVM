@@ -1150,14 +1150,16 @@ sub emit_names_hash_builder {
     Okay not to be threadsafe since its value is deterministic
         and I don't care about the tiny potential for a memory leak
         in the event of a race condition. */
-static MVMUnicodeNameRegistry *codepoints_by_name = NULL;
+
+ /* static, so will be 0 initialised. */
+static MVMUniHashTable codepoints_by_name;
+
 static void generate_codepoints_by_name(MVMThreadContext *tc) {
     MVMint32 extent_index = 0;
     MVMint32 codepoint = 0;
     MVMint32 codepoint_table_index = 0;
     MVMint16 i = num_unicode_namealias_keypairs - 1;
 
-    MVMUnicodeNameRegistry *entry;
     for (; extent_index < MVM_NUM_UNICODE_EXTENTS; extent_index++) {
         MVMint32 length;
         codepoint = codepoint_extents[extent_index][0];
@@ -1176,10 +1178,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
                      * <control> <CJK UNIFIED IDEOGRAPH> <CJK COMPATIBILITY IDEOGRAPH>
                      * <surrogate> <TANGUT IDEOGRAPH> <private-use> */
                     if (name && *name != '<') {
-                        MVMUnicodeNameRegistry *entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-                        entry->name = (char *)name;
-                        entry->codepoint = codepoint;
-                        HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, name, strlen(name), entry);
+                        MVM_uni_hash_insert(tc, &codepoints_by_name, name, codepoint);
                     }
                     codepoint++;
                     codepoint_table_index++;
@@ -1196,10 +1195,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
             case $FATE_SPAN: {
                 const char *name = codepoint_names[codepoint_table_index];
                 if (name && *name != '<') {
-                    MVMUnicodeNameRegistry *entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-                    entry->name = (char *)name;
-                    entry->codepoint = codepoint;
-                    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, name, strlen(name), entry);
+                    MVM_uni_hash_insert(tc, &codepoints_by_name, name, codepoint);
                 }
                 codepoint += length;
                 codepoint_table_index++;
@@ -1208,11 +1204,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
         }
     }
     for (; i >= 0; i--) {
-        entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-        entry->name = uni_namealias_pairs[i].name;
-        entry->codepoint =  uni_namealias_pairs[i].codepoint;
-        HASH_ADD_KEYPTR(hash_handle, codepoints_by_name,  uni_namealias_pairs[i].name,  uni_namealias_pairs[i].strlen, entry);
-
+        MVM_uni_hash_insert(tc, &codepoints_by_name, uni_namealias_pairs[i].name, uni_namealias_pairs[i].codepoint);
     }
 
 }
