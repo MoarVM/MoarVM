@@ -1580,7 +1580,7 @@ sub emit_unicode_property_value_keypairs {
             $done{"$propname$_"} ||= push @lines, $lines{$propname}->{$_};
         }
     }
-    my $out = "\nstatic MVMUnicodeNameRegistry **unicode_property_values_hashes;\n" .
+    my $out = "\nstatic MVMUniHashTable *unicode_property_values_hashes;\n" .
     "static const MVMUnicodeNamedValue unicode_property_value_keypairs[" . scalar(@lines) . "] = {\n" .
     "    " . stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS) . "\n" .
     "};";
