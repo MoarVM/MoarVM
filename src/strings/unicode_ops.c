@@ -674,12 +674,10 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
 /* Looks up a codepoint by name. Lazily constructs a hash. */
 MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
     char *cname = MVM_string_utf8_encode_C_string(tc, name);
-    size_t cname_len = strlen((const char *) cname );
-    MVMUnicodeNameRegistry *result;
-    if (!codepoints_by_name) {
+    if (!MVM_uni_hash_count(&codepoints_by_name)) {
         generate_codepoints_by_name(tc);
     }
-    HASH_FIND(hash_handle, codepoints_by_name, cname, cname_len, result);
+    struct MVMUniHashHandle *result = MVM_uni_hash_fetch(tc, &codepoints_by_name, cname);
     if (!result) {
         #define prefixes_len 7
         const char *prefixes[prefixes_len] = {
@@ -691,6 +689,7 @@ MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) 
             "<PRIVATE-USE-",
             "TANGUT IDEOGRAPH-"
         };
+        size_t cname_len = strlen((const char *) cname );
         int i;
         for (i = 0; i < prefixes_len; i++) {
             size_t str_len = strlen(prefixes[i]);
@@ -718,7 +717,7 @@ MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) 
         }
     }
     MVM_free(cname);
-    return result ? result->codepoint : -1;
+    return result ? result->value : -1;
 }
 /* Quickly determines the length of a number 6.5x faster than doing log10 after
  * compiler optimization */

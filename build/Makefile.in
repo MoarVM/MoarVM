@@ -94,6 +94,7 @@ OBJECTS1 = src/core/callsite@obj@ \
           src/core/fixkey_hash_table@obj@ \
           src/core/index_hash_table@obj@ \
           src/core/ptr_hash_table@obj@ \
+          src/core/uni_hash_table@obj@ \
           src/core/threadcontext@obj@ \
           src/core/compunit@obj@ \
           src/core/bytecode@obj@ \
@@ -270,6 +271,8 @@ HEADERS = src/moar.h \
           src/core/index_hash_table_funcs.h \
           src/core/ptr_hash_table.h \
           src/core/ptr_hash_table_funcs.h \
+          src/core/uni_hash_table.h \
+          src/core/uni_hash_table_funcs.h \
           src/core/alloc.h \
           src/core/vector.h \
           src/core/frame.h \
