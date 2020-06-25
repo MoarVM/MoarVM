@@ -1241,69 +1241,93 @@ static void free_unwind_data(MVMThreadContext *tc, void *sr_data) {
 }
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
                          MVMuint32 rel_addr, MVMObject *return_value, void *jit_return_label) {
-    while (tc->cur_frame != frame) {
-        MVMFrame *cur_frame = tc->cur_frame;
-        if (cur_frame->static_info->body.has_exit_handler &&
-                !(cur_frame->flags & MVM_FRAME_FLAG_EXIT_HAND_RUN)) {
-            /* We're unwinding a frame with an exit handler. Thus we need to
-             * pause the unwind, run the exit handler, and keep enough info
-             * around in order to finish up the unwind afterwards. */
-            MVMHLLConfig *hll    = MVM_hll_current(tc);
-            MVMFrame     *caller;
-            MVMObject    *handler;
-            MVMCallsite *two_args_callsite;
-
-            if (return_value)
-                MVM_exception_throw_adhoc(tc, "return_value + exit_handler case NYI");
-
-            /* Force the frame onto the heap, since we'll reference it from the
-             * unwind data. */
-            MVMROOT3(tc, frame, cur_frame, return_value, {
-                frame = MVM_frame_force_to_heap(tc, frame);
-                cur_frame = tc->cur_frame;
-            });
-
-            caller = cur_frame->caller;
-            if (!caller)
-                MVM_exception_throw_adhoc(tc, "Entry point frame cannot have an exit handler");
-            if (cur_frame == tc->thread_entry_frame)
-                MVM_exception_throw_adhoc(tc, "Thread entry point frame cannot have an exit handler");
-
-            handler = MVM_frame_find_invokee(tc, hll->exit_handler, NULL);
-            two_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ);
-            MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, two_args_callsite);
-            cur_frame->args[0].o = cur_frame->code_ref;
-            cur_frame->args[1].o = tc->instance->VMNull;
-            {
-                MVMUnwindData *ud = MVM_malloc(sizeof(MVMUnwindData));
-                ud->frame = frame;
-                ud->abs_addr = abs_addr;
-                ud->rel_addr = rel_addr;
-                ud->jit_return_label = jit_return_label;
-                MVM_frame_special_return(tc, cur_frame, continue_unwind, free_unwind_data, ud,
-                    mark_unwind_data);
-            }
-            cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
-            STABLE(handler)->invoke(tc, handler, two_args_callsite, cur_frame->args);
-            return;
-        }
-        else {
-            /* If we're profiling, log an exit. */
-            if (tc->instance->profiling)
-                MVM_profile_log_unwind(tc);
-
-            /* No exit handler, so just remove the frame. */
-            if (!remove_one_frame(tc, 1))
-                MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
-        }
+    /* Lazy deopt means that we might have located an exception handler in
+     * optimized code, but then at the point we call remove_one_frame we'll
+     * end up deoptimizing it. That means the address here will be out of date.
+     * This can only happen if we actually have frames to unwind; if we are
+     * already in the current frame it cannot. So first handle that local
+     * jump case... */
+    if (tc->cur_frame == frame) {
+        if (abs_addr)
+            *tc->interp_cur_op = abs_addr;
+        else if (rel_addr)
+            *tc->interp_cur_op = *tc->interp_bytecode_start + rel_addr;
+        if (jit_return_label)
+            MVM_jit_code_set_current_position(tc, tc->cur_frame->spesh_cand->body.jitcode,
+                    tc->cur_frame, jit_return_label);
     }
-    if (abs_addr)
-        *tc->interp_cur_op = abs_addr;
-    else if (rel_addr)
-        *tc->interp_cur_op = *tc->interp_bytecode_start + rel_addr;
 
-    if (jit_return_label) {
-        MVM_jit_code_set_current_position(tc, tc->cur_frame->spesh_cand->body.jitcode, tc->cur_frame, jit_return_label);
+    /* Failing that, we'll set things up as if we're doing a return into the
+     * frame, thus tweaking its return address and JIT label. That will cause
+     * remove_one_frame and any lazy deopt to move use to the right place. */
+    else {
+        while (tc->cur_frame != frame) {
+            MVMFrame *cur_frame = tc->cur_frame;
+
+            if (cur_frame->static_info->body.has_exit_handler &&
+                    !(cur_frame->flags & MVM_FRAME_FLAG_EXIT_HAND_RUN)) {
+                /* We're unwinding a frame with an exit handler. Thus we need to
+                 * pause the unwind, run the exit handler, and keep enough info
+                 * around in order to finish up the unwind afterwards. */
+                MVMHLLConfig *hll    = MVM_hll_current(tc);
+                MVMObject    *handler;
+                MVMCallsite *two_args_callsite;
+
+                if (return_value)
+                    MVM_exception_throw_adhoc(tc, "return_value + exit_handler case NYI");
+
+                /* Force the frame onto the heap, since we'll reference it from the
+                 * unwind data. */
+                MVMROOT3(tc, frame, cur_frame, return_value, {
+                    frame = MVM_frame_force_to_heap(tc, frame);
+                    cur_frame = tc->cur_frame;
+                });
+
+                MVMFrame *caller = cur_frame->caller;
+                if (!caller)
+                    MVM_exception_throw_adhoc(tc, "Entry point frame cannot have an exit handler");
+                if (cur_frame == tc->thread_entry_frame)
+                    MVM_exception_throw_adhoc(tc, "Thread entry point frame cannot have an exit handler");
+
+                handler = MVM_frame_find_invokee(tc, hll->exit_handler, NULL);
+                two_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ);
+                MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, two_args_callsite);
+                cur_frame->args[0].o = cur_frame->code_ref;
+                cur_frame->args[1].o = tc->instance->VMNull;
+                {
+                    MVMUnwindData *ud = MVM_malloc(sizeof(MVMUnwindData));
+                    ud->frame = frame;
+                    ud->abs_addr = abs_addr;
+                    ud->rel_addr = rel_addr;
+                    ud->jit_return_label = jit_return_label;
+                    MVM_frame_special_return(tc, cur_frame, continue_unwind,
+                        free_unwind_data, ud, mark_unwind_data);
+                }
+                cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
+                STABLE(handler)->invoke(tc, handler, two_args_callsite, cur_frame->args);
+                return;
+            }
+            else {
+                /* If we're profiling, log an exit. */
+                if (tc->instance->profiling)
+                    MVM_profile_log_unwind(tc);
+
+                /* No exit handler, so just remove the frame, first tweaking
+                 * the return address so we can have the interpreter moved to
+                 * the right place. */
+                MVMFrame *caller = cur_frame->caller;
+                if (caller == frame) {
+                    if (abs_addr)
+                        caller->return_address = abs_addr;
+                    else if (rel_addr)
+                        caller->return_address = MVM_frame_effective_bytecode(caller) + rel_addr; 
+                    if (jit_return_label)
+                        caller->jit_entry_label = jit_return_label;
+                }
+                if (!remove_one_frame(tc, 1))
+                    MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
+            }
+        }
     }
 
     if (return_value)
