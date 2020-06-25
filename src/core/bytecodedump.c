@@ -164,17 +164,19 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
                 op_info = NULL;
             }
         }
-        if (MVM_op_get_mark(op_num)[1] == 'd') {
+        if (MVM_op_get_mark(op_num)[1] == 'd' || op_num == MVM_OP_sp_dispatch_v || op_num == MVM_OP_sp_dispatch_i || op_num == MVM_OP_sp_dispatch_n || op_num == MVM_OP_sp_dispatch_s || op_num == MVM_OP_sp_dispatch_o) {
             /* These are var-arg ops; grab callsite and synthesize op info */
             /* TODO this wants factoring out into a common function */
-            MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 4 + (op_num == MVM_OP_dispatch_v ? 0 : 2))];
+            MVMuint8 op_is_void = op_num == MVM_OP_dispatch_v || op_num == MVM_OP_sp_dispatch_v;
+            MVMuint8 op_is_spesh = MVM_op_get_mark(op_num)[1] == 's';
+            MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 4 + (op_is_void ? 0 : 2))];
             MVMuint16 operand_index;
             MVMuint16 flag_index;
 
-            fprintf(stderr, "this callsite (%d) has %d args\n", GET_UI16(cur_op, 4 + (op_num == MVM_OP_dispatch_v ? 0 : 2)), callsite->flag_count);
-            fprintf(stderr, "this op has %d args\n", op_info->num_operands);
+            /*fprintf(stderr, "this callsite (%d) has %d args\n", GET_UI16(cur_op, 4 + (op_is_void ? 0 : 2)), callsite->flag_count);*/
+            /*fprintf(stderr, "this op has %d args\n", op_info->num_operands);*/
 
-            operand_index = op_num == MVM_OP_dispatch_v ? 2 : 3;
+            operand_index = (op_is_void ? 2 : 3) + (op_is_spesh ? 2 : 0);
 
             memcpy(&temporary_op_info, op_info, sizeof(MVMOpInfo));
             temporary_op_info.num_operands += callsite->flag_count;
@@ -182,26 +184,28 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
             for (flag_index = 0; operand_index < callsite->flag_count + op_info->num_operands; operand_index++, flag_index++) {
                 MVMCallsiteFlags flag = callsite->arg_flags[flag_index];
                 if (flag & MVM_CALLSITE_ARG_OBJ) {
-                    temporary_op_info.operands[operand_index] = MVM_operand_obj;
+                    temporary_op_info.operands[operand_index] = MVM_operand_obj | MVM_operand_read_reg;
                 }
                 else if (flag & MVM_CALLSITE_ARG_INT) {
-                    temporary_op_info.operands[operand_index] = MVM_operand_int64;
+                    temporary_op_info.operands[operand_index] = MVM_operand_int64 | MVM_operand_read_reg;
                 }
                 else if (flag & MVM_CALLSITE_ARG_NUM) {
-                    temporary_op_info.operands[operand_index] = MVM_operand_num64;
+                    temporary_op_info.operands[operand_index] = MVM_operand_num64 | MVM_operand_read_reg;
                 }
                 else if (flag & MVM_CALLSITE_ARG_STR) {
-                    temporary_op_info.operands[operand_index] = MVM_operand_str;
+                    temporary_op_info.operands[operand_index] = MVM_operand_str | MVM_operand_read_reg;
                 }
-                temporary_op_info.operands[operand_index] |= MVM_operand_read_reg;
-                fprintf(stderr, "(%d) %2x -> %4x ", operand_index, flag, temporary_op_info.operands[operand_index]);
+                else {
+                    temporary_op_info.operands[operand_index] = MVM_operand_str | MVM_operand_read_reg;
+                }
+                /*fprintf(stderr, "(%d) %2x -> %4x ", operand_index, flag, temporary_op_info.operands[operand_index]);*/
             }
-            fprintf(stderr, "\n");
+            /*fprintf(stderr, "\n");*/
 
-            for (operand_index = 0; operand_index < temporary_op_info.num_operands; operand_index++) {
-                fprintf(stderr, "%4x ", temporary_op_info.operands[operand_index]);
-            }
-            fprintf(stderr, "\n");
+            /*for (operand_index = 0; operand_index < temporary_op_info.num_operands; operand_index++) {*/
+                /*fprintf(stderr, "%4x ", temporary_op_info.operands[operand_index]);*/
+            /*}*/
+            /*fprintf(stderr, "\n");*/
 
             op_info = &temporary_op_info;
         }
