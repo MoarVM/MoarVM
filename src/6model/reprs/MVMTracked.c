@@ -85,7 +85,15 @@ static const MVMREPROps MVMTracked_this_repr = {
 
 /* Create a tracked wrapper of the specified value and kind. */
 MVMObject * MVM_tracked_create(MVMThreadContext *tc, MVMRegister value, MVMCallsiteFlags kind) {
-    MVMObject *tracked = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTTracked);
+    MVMObject *tracked;
+    if (kind & (MVM_CALLSITE_ARG_OBJ | MVM_CALLSITE_ARG_STR)) {
+        MVMROOT(tc, value.o, {
+            tracked = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTTracked);
+        });
+    }
+    else {
+        tracked = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTTracked);
+    }
     ((MVMTracked *)tracked)->body.value = value;
     ((MVMTracked *)tracked)->body.kind = kind;
     return tracked;

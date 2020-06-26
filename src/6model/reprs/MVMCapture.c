@@ -225,7 +225,15 @@ MVMObject * MVM_capture_insert_arg(MVMThreadContext *tc, MVMObject *capture_obj,
 
     /* Allocate a new capture before we begin; this is the only GC allocation
      * we do. */
-    MVMObject *new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
+    MVMObject *new_capture;
+    if (kind & (MVM_CALLSITE_ARG_OBJ | MVM_CALLSITE_ARG_STR)) {
+        MVMROOT(tc, value.o, {
+            new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
+        });
+    }
+    else {
+        new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
+    }
 
     /* We need a callsite with the argument that is being inserted. */
     MVMCallsite *new_callsite = MVM_callsite_insert_positional(tc, capture->body.callsite,
