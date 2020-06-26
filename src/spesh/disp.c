@@ -97,6 +97,17 @@ static MVMuint32 find_disp_op_first_real_arg(MVMThreadContext *tc, MVMSpeshIns *
     }
     return 0;
 }
+/* XXX stolen from spesh/facts.c */
+static void copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperand to, MVMSpeshOperand from) {
+    MVMSpeshFacts *tfacts = &g->facts[to.reg.orig][to.reg.i];
+    MVMSpeshFacts *ffacts = &g->facts[from.reg.orig][from.reg.i];
+    tfacts->flags         = ffacts->flags;
+    tfacts->type          = ffacts->type;
+    tfacts->decont_type   = ffacts->decont_type;
+    tfacts->value         = ffacts->value;
+    tfacts->log_guards    = ffacts->log_guards;
+    tfacts->num_log_guards = ffacts->num_log_guards;
+}
 /* XXX Stolen from spesh/optimize.c */
 static void find_deopt_target_and_index(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
                                  MVMuint32 *deopt_target_out, MVMuint32 *deopt_index_out) {
@@ -299,6 +310,8 @@ static MVMSpeshIns *rewrite_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph
                 set_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
                 set_ins->operands[0] = ins->operands[0];
                 set_ins->operands[1] = temporaries[op->res_value.temp];
+                copy_facts(tc, g, set_ins->operands[0], set_ins->operands[1]);
+                MVM_spesh_graph_add_comment(tc, g, set_ins, "set instruction from ResultValueObj");
                 MVM_spesh_usages_add_by_reg(tc, g, set_ins->operands[1], set_ins);
                 MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, set_ins);
                 MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
