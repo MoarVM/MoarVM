@@ -313,6 +313,23 @@ static MVMSpeshIns *rewrite_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph
                 MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, set_ins);
                 break;
             }
+            case MVMDispOpcodeSet: {
+                MVMSpeshIns *set_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                MVMSpeshFacts *target_facts;
+                fprintf(stderr, "  Set temporary %d value from temporary %d in bb %p\n",
+                        op->load.temp, op->load.idx, bb);
+                set_ins->info = MVM_op_get_op(MVM_OP_set);
+                set_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
+                set_ins->operands[0] = temporaries[op->load.temp];
+                set_ins->operands[1] = temporaries[op->load.idx];
+                copy_facts(tc, g, set_ins->operands[0], set_ins->operands[1]);
+                MVM_spesh_graph_add_comment(tc, g, set_ins, "set instruction from Set");
+                target_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                MVM_spesh_usages_add_by_reg(tc, g, set_ins->operands[1], set_ins);
+                MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, set_ins);
+                target_facts->writer = set_ins;
+                break;
+            }
             case MVMDispOpcodeResultValueObj: {
                 MVMSpeshIns *set_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
                 MVMSpeshFacts *target_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
