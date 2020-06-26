@@ -85,27 +85,276 @@ static void rewrite_to_sp_dispatch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
     ins->operands = new_operands;
 }
 
+static MVMuint32 find_disp_op_first_real_arg(MVMThreadContext *tc, MVMSpeshIns *ins) {
+    if (ins->info->opcode == MVM_OP_dispatch_v) {
+        return 2;
+    }
+    else if (ins->info->opcode == MVM_OP_dispatch_i || 
+            ins->info->opcode == MVM_OP_dispatch_n || 
+            ins->info->opcode == MVM_OP_dispatch_s || 
+            ins->info->opcode == MVM_OP_dispatch_o) {
+        return 3;
+    }
+    return 0;
+}
+/* XXX Stolen from spesh/optimize.c */
+static void find_deopt_target_and_index(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+                                 MVMuint32 *deopt_target_out, MVMuint32 *deopt_index_out) {
+    MVMSpeshAnn *deopt_ann = ins->annotations;
+    while (deopt_ann) {
+        if (deopt_ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS) {
+            *deopt_target_out = g->deopt_addrs[2 * deopt_ann->data.deopt_idx];
+            *deopt_index_out = deopt_ann->data.deopt_idx;
+            return;
+        }
+        deopt_ann = deopt_ann->next;
+    }
+    MVM_panic(1, "Spesh: unexpectedly missing deopt annotation on prepargs");
+}
+static void add_synthetic_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                           MVMSpeshIns *ins, MVMuint32 deopt_index) {
+    MVMSpeshAnn *ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+    ann->type = MVM_SPESH_ANN_DEOPT_SYNTH;
+    ann->data.deopt_idx = deopt_index;
+    ann->next = ins->annotations;
+    ins->annotations = ann;
+}
+static MVMSpeshOperand insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                  MVMSpeshOperand operand, MVMSpeshIns *insert_pos,
+                                  MVMint8 concness, MVMSTable *type,
+                                  MVMuint32 add_comment) {
+    MVMuint32 deopt_target, deopt_index, new_deopt_index;
+
+    MVMuint8 has_type = type != NULL;
+
+    /* Split the SSA version of the arg. */
+    MVMSpeshOperand guard_reg = MVM_spesh_manipulate_split_version(tc, g,
+            operand, bb, insert_pos);
+
+    MVMSpeshFacts *guard_facts;
+
+    /* Insert guard before prepargs (this means they stack up in order). */
+    MVMSpeshIns *guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    guard->info = MVM_op_get_op(
+            concness == -1 ? (has_type ? MVM_OP_sp_guardtype : MVM_OP_sp_guardjusttype) :
+            concness ==  0 ? (has_type ? MVM_OP_sp_guard : MVM_OP_no_op) :
+            concness ==  1 ? (has_type ? MVM_OP_sp_guardconc : MVM_OP_sp_guardjustconc) : MVM_OP_no_op
+        );
+    guard->operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
+    guard->operands[0] = guard_reg;
+    guard->operands[1] = operand;
+    if (has_type)
+        guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+            (MVMCollectable *)type);
+    else
+        guard->operands[2].lit_i16 = 0;
+    find_deopt_target_and_index(tc, g, insert_pos, &deopt_target, &deopt_index);
+
+    MVM_spesh_manipulate_insert_ins(tc, bb, insert_pos->prev, guard);
+    MVM_spesh_usages_add_by_reg(tc, g, operand, guard);
+    guard_facts = MVM_spesh_get_facts(tc, g, guard_reg);
+    guard_facts->writer = guard;
+
+    if (has_type) {
+        guard_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+        guard_facts->type   = type->WHAT;
+        MVM_spesh_graph_add_comment(tc, g, guard, "set facts to known type on %d(%d)", guard_reg.reg.orig, guard_reg.reg.i);
+    }
+    if (concness == -1) {
+        guard_facts->flags |= MVM_SPESH_FACT_TYPEOBJ;
+        MVM_spesh_graph_add_comment(tc, g, guard, "set facts to known typeobject on %d(%d)", guard_reg.reg.orig, guard_reg.reg.i);
+    }
+    else if (concness == 1) {
+        guard_facts->flags |= MVM_SPESH_FACT_CONCRETE;
+        MVM_spesh_graph_add_comment(tc, g, guard, "set facts to known concrete on %d(%d)", guard_reg.reg.orig, guard_reg.reg.i);
+    }
+
+    if (add_comment) {
+        if (has_type)
+            MVM_spesh_graph_add_comment(tc, g, guard, "inserted dispatch program guard %d(%d) <- %d(%d) for type %s",
+                    guard_reg.reg.orig, guard_reg.reg.i,
+                    operand.reg.orig,   operand.reg.i,
+                    MVM_6model_get_stable_debug_name(tc, type));
+        else
+            MVM_spesh_graph_add_comment(tc, g, guard, "inserted dispatch program guard");
+    }
+
+    /* Also give the instruction a deopt annotation, and related it to the
+     * one on the prepargs. */
+    new_deopt_index = MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
+        MVM_SPESH_ANN_DEOPT_ONE_INS);
+    guard->operands[3].lit_ui32 = new_deopt_index;
+    add_synthetic_deopt_annotation(tc, g, guard, deopt_index);
+
+    return guard_reg;
+}
+static MVMSpeshIns *rewrite_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins,
+        MVMDispProgram *dp) {
+    MVMuint32 i;
+    MVMSpeshOperand *args = &ins->operands[find_disp_op_first_real_arg(tc, ins)];
+    MVMSpeshOperand *temporaries = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * dp->num_temporaries);
+    MVMSpeshIns *resume_optimization_point = ins->prev;
+
+    if (dp->first_args_temporary != dp->num_temporaries) {
+        fprintf(stderr, "----\nignoring program with first_args_temporary != num_temporaries\n----\n\n");
+        return NULL;
+    }
+    fprintf(stderr, "----\nbuilding spesh code for disp program\n----\n\n");
+
+    MVM_spesh_graph_add_comment(tc, g, ins->prev ? ins->prev : bb->first_ins, "Rewritten from a %s op", ins->info->name);
+
+    for (i = 0; i < dp->num_temporaries; i++) {
+        /* the "type" of the reg isn't explicit in the program's metadata, it's
+         * implicit in the way it's used.
+         * XXX just go with objects for temporaries
+         */
+        temporaries[i] = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+    }
+
+    for (i = 0; i < dp->num_ops; i++) {
+        MVMDispProgramOp *op = &(dp->ops[i]);
+        switch (op->code) {
+            case MVMDispOpcodeGuardArgType:
+                fprintf(stderr, "  Guard arg %d (type=%s)\n",
+                        op->arg_guard.arg_idx,
+                        ((MVMSTable *)dp->gc_constants[op->arg_guard.checkee])->debug_name);
+                goto nyi;
+                break;
+            case MVMDispOpcodeGuardArgTypeConc:
+                fprintf(stderr, "  Guard arg %d (type=%s, concrete)\n",
+                        op->arg_guard.arg_idx,
+                        ((MVMSTable *)dp->gc_constants[op->arg_guard.checkee])->debug_name);
+                args[op->arg_guard.arg_idx] =
+                    insert_arg_type_guard(tc, g, bb,
+                            args[op->arg_guard.arg_idx], ins,
+                            1, ((MVMSTable *)dp->gc_constants[op->arg_guard.checkee]),
+                            1);
+                break;
+           case MVMDispOpcodeGuardArgTypeTypeObject:
+                fprintf(stderr, "  Guard arg %d (type=%s, type object)\n",
+                        op->arg_guard.arg_idx,
+                        ((MVMSTable *)dp->gc_constants[op->arg_guard.checkee])->debug_name);
+                goto nyi;
+                break;
+            case MVMDispOpcodeGuardArgConc:
+                fprintf(stderr, "  Guard arg %d (concrete)\n",
+                        op->arg_guard.arg_idx);
+                goto nyi;
+                break;
+            case MVMDispOpcodeGuardArgTypeObject:
+                fprintf(stderr, "  Guard arg %d (type object)\n",
+                        op->arg_guard.arg_idx);
+                goto nyi;
+                break;
+            case MVMDispOpcodeGuardArgLiteralObj:
+                fprintf(stderr, "  Guard arg %d (literal object of type %s)\n",
+                        op->arg_guard.arg_idx,
+                        STABLE(((MVMObject *)dp->gc_constants[op->arg_guard.checkee]))->debug_name);
+                goto nyi;
+                break;
+            case MVMDispOpcodeGuardArgLiteralStr: {
+                char *c_str = MVM_string_utf8_encode_C_string(tc, 
+                        ((MVMString *)dp->gc_constants[op->arg_guard.checkee]));
+                fprintf(stderr, "  Guard arg %d (literal string '%s')\n",
+                        op->arg_guard.arg_idx, c_str);
+                MVM_free(c_str);
+                goto nyi;
+                break;
+            }
+            case MVMDispOpcodeGuardArgLiteralInt:
+                fprintf(stderr, "  Guard arg %d (literal integer %"PRIi64")\n",
+                        op->arg_guard.arg_idx,
+                        dp->constants[op->arg_guard.checkee].i64);
+                goto nyi;
+                break;
+            case MVMDispOpcodeGuardArgLiteralNum:
+                fprintf(stderr, "  Guard arg %d (literal number %g)\n",
+                        op->arg_guard.arg_idx,
+                        dp->constants[op->arg_guard.checkee].n64);
+                goto nyi;
+                break;
+            case MVMDispOpcodeGuardArgNotLiteralObj:
+                fprintf(stderr, "  Guard arg %d (not literal object of type %s)\n",
+                        op->arg_guard.arg_idx,
+                        STABLE(((MVMObject *)dp->gc_constants[op->arg_guard.checkee]))->debug_name);
+                goto nyi;
+                break;
+            case MVMDispOpcodeLoadCaptureValue: {
+                MVMSpeshIns *set_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                fprintf(stderr, "  adding a set op\n");
+                set_ins->info = MVM_op_get_op(MVM_OP_set);
+                set_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
+                set_ins->operands[0] = temporaries[op->load.temp];
+                set_ins->operands[1] = args[op->arg_guard.arg_idx];
+                MVM_spesh_usages_add_by_reg(tc, g, set_ins->operands[1], set_ins);
+                MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, set_ins);
+                break;
+            }
+            case MVMDispOpcodeResultValueObj: {
+                MVMSpeshIns *set_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                MVMSpeshFacts *target_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                fprintf(stderr, "  Set result object value from temporary %d\n",
+                        op->res_value.temp);
+                set_ins->info = MVM_op_get_op(MVM_OP_set);
+                set_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
+                set_ins->operands[0] = ins->operands[0];
+                set_ins->operands[1] = temporaries[op->res_value.temp];
+                MVM_spesh_usages_add_by_reg(tc, g, set_ins->operands[1], set_ins);
+                MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, set_ins);
+                MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+                target_facts->writer = set_ins;
+                return resume_optimization_point;
+            }
+            default:
+                fprintf(stderr, "  .... no %d.\n", op->code);
+                return NULL;
+        }
+    }
+nyi:
+    fprintf(stderr, " NYI, sorry!\n");
+cleanup:
+    for (i = 0; i < dp->num_temporaries; i++) {
+        /* the "type" of the reg isn't explicit in the program's metadata, it's
+         * implicit in the way it's used.
+         * XXX just go with objects for temporaries
+         */
+        MVM_spesh_manipulate_release_temp_reg(tc, g, temporaries[i]);
+    }
+    return NULL;
+}
+
 /* Rewrite an unhit dispatch instruction. */
-static void rewrite_unhit(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+static MVMSpeshIns *rewrite_unhit(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins,
         MVMuint32 bytecode_offset) {
     MVM_spesh_graph_add_comment(tc, g, ins, "Never dispatched");
     rewrite_to_sp_dispatch(tc, g, ins, bytecode_offset);
+    return ins;
 }
 
 /* Rewrite a dispatch instruction that is considered monomorphic. */
-static void rewrite_monomorphic(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+static MVMSpeshIns *rewrite_monomorphic(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins,
         MVMuint32 bytecode_offset, MVMuint32 outcome) {
-    // TODO
-    MVM_spesh_graph_add_comment(tc, g, ins, "Deemed monomorphic (outcome %d)", outcome);
+    MVMuint32 disp_slot = MVM_disp_inline_cache_get_slot(tc, g->sf, bytecode_offset);
+    MVMDispInlineCache *cache = &(g->sf->body.inline_cache);
+    MVMDispInlineCacheEntry *entry = cache->entries[bytecode_offset >> cache->bit_shift];
+    MVMuint32 kind = MVM_disp_inline_cache_get_kind(tc, entry);
+    if (kind == MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH) {
+        MVMSpeshIns *result = rewrite_dispatch_program(tc, g, bb, ins, ((MVMDispInlineCacheEntryMonomorphicDispatch *)entry)->dp);
+        if (result)
+            return result;
+    }
+    MVM_spesh_graph_add_comment(tc, g, ins, "Deemed monomorphic (outcome %d, entry kind %d)", outcome, kind);
     rewrite_to_sp_dispatch(tc, g, ins, bytecode_offset);
+    return ins;
 }
 
 /* Rewrite a dispatch instruction that is polymorphic or megamorphic. */
-static void rewrite_polymorphic(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+static MVMSpeshIns *rewrite_polymorphic(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins,
         MVMuint32 bytecode_offset, OutcomeHitCount *outcomes, MVMuint32 num_outcomes) {
     // TODO
     MVM_spesh_graph_add_comment(tc, g, ins, "Deemed polymorphic");
     rewrite_to_sp_dispatch(tc, g, ins, bytecode_offset);
+    return ins;
 }
 
 /* Drives the overall process of optimizing a dispatch instruction. The instruction
@@ -115,8 +364,9 @@ static void rewrite_polymorphic(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
 static int compare_hits(const void *a, const void *b) {
     return ((OutcomeHitCount *)b)->hits - ((OutcomeHitCount *)a)->hits;
 }
-void MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p,
+MVMSpeshIns *MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshPlanned *p,
         MVMSpeshIns *ins) {
+    MVMSpeshIns *result = ins;
     /* Locate the inline cache bytecode offset. There must always be one. */
     MVMSpeshAnn *ann = ins->annotations;
     while (ann) {
@@ -169,18 +419,20 @@ void MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPla
     }
     qsort(outcome_hits, MVM_VECTOR_ELEMS(outcome_hits), sizeof(OutcomeHitCount), compare_hits);
 
+
     /* If there are no hits, we can only rewrite it to sp_dispatch. */
     if (MVM_VECTOR_ELEMS(outcome_hits) == 0)
-        rewrite_unhit(tc, g, ins, bytecode_offset);
+        result = rewrite_unhit(tc, g, bb, ins, bytecode_offset);
 
     /* If there's one hit, *or* the top hit has > 99% of the total hits, then we
      * rewrite it to monomorphic. */
     else if ((100 * outcome_hits[0].hits) / total_hits >= 99)
-        rewrite_monomorphic(tc, g, ins, bytecode_offset, outcome_hits[0].outcome);
+        result = rewrite_monomorphic(tc, g, bb, ins, bytecode_offset, outcome_hits[0].outcome);
 
     /* Otherwise, it's polymoprhic or megamorphic. */
     else
-        rewrite_polymorphic(tc, g, ins, bytecode_offset, outcome_hits, MVM_VECTOR_ELEMS(outcome_hits));
+        result = rewrite_polymorphic(tc, g, bb, ins, bytecode_offset, outcome_hits, MVM_VECTOR_ELEMS(outcome_hits));
 
     MVM_VECTOR_DESTROY(outcome_hits);
+    return result;
 }
