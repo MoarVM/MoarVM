@@ -117,6 +117,15 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
         iterator = MVM_str_hash_next(tc, weakhash, iterator);
     }
 
+    MVMStrHashTable *const containers = &tc->instance->container_registry;
+    iterator = MVM_str_hash_first(tc, containers);
+    MVMContainerRegistry *registry;
+    while ((registry = MVM_str_hash_current(tc, containers, iterator))) {
+        add_collectable(tc, worklist, snapshot, registry->hash_handle.key,
+                        "Container configuration hash key");
+        iterator = MVM_str_hash_next(tc, containers, iterator);
+    }
+
     MVMStrHashTable *const current_lcun = &tc->instance->loaded_compunits;
     iterator = MVM_str_hash_first(tc, current_lcun);
     MVMLoadedCompUnitName *lcun;
