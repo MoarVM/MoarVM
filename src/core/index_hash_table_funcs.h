@@ -59,11 +59,7 @@ MVM_STATIC_INLINE void MVM_index_hash_store_nt(MVMThreadContext *tc,
         hashtable->log2_num_buckets = HASH_INITIAL_NUM_BUCKETS_LOG2;
     }
 
-    MVMHashv hashv = key->body.cached_hash_code;
-    if (!hashv) {
-        MVM_string_compute_hash_code(tc, key);
-        hashv = key->body.cached_hash_code;
-    }
+    MVMHashv hashv = MVM_string_hash_code(tc, key);
     MVMHashBktNum bucket_num = MVM_str_hash_bucket(hashv, hashtable->log2_num_buckets);
     struct MVMIndexHashBucket *bucket = hashtable->buckets + bucket_num;
     struct MVMIndexHashHandle *entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
@@ -87,11 +83,7 @@ MVM_STATIC_INLINE MVMuint32 MVM_index_hash_fetch_nt(MVMThreadContext *tc,
         return MVM_INDEX_HASH_NOT_FOUND;
     }
 
-    MVMHashv hashv = want->body.cached_hash_code;
-    if (!hashv) {
-        MVM_string_compute_hash_code(tc, want);
-        hashv = want->body.cached_hash_code;
-    }
+    MVMHashv hashv = MVM_string_hash_code(tc, want);
     MVMHashBktNum bucket_num = MVM_str_hash_bucket(hashv, hashtable->log2_num_buckets);
     struct MVMIndexHashBucket *bucket = hashtable->buckets + bucket_num;
     struct MVMIndexHashHandle *have = bucket->hh_head;
