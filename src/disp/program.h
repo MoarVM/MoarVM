@@ -41,7 +41,8 @@ typedef enum {
     MVM_DISP_OUTCOME_CFUNCTION
 } MVMDispProgramOutcomeKind;
 
-/* The outcome of a dispatch program. Used for both the record and run case. */
+/* The outcome of a dispatch program. Used only in the record case; the run
+ * just does the effect of that outcome. */
 struct MVMDispProgramOutcome {
     /* The kind of outcome we have. */
     MVMDispProgramOutcomeKind kind;

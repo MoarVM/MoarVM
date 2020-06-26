@@ -193,9 +193,6 @@ struct MVMCallStackDispatchRun {
     /* The initial arguments to the dispatch. */
     MVMArgs arg_info;
 
-    /* The outcome of the dispatch. */
-    MVMDispProgramOutcome outcome;
-
     /* The number of temporaries allocated. */
     MVMuint32 num_temps;
 
@@ -206,6 +203,10 @@ struct MVMCallStackDispatchRun {
     /* The dispatch program that was chosen (used to know how to mark the
      * temporaries, if needed). */
     MVMDispProgram *chosen_dp;
+
+    /* If we rewrote the args into the temporaries, the callsite to mark
+     * them with. Junk if the chosen_dp has not got any arg temporaries. */
+    MVMCallsite *temp_mark_callsite;
 };
 
 /* Functions for working with the call stack. */
