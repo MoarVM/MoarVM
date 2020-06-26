@@ -62,12 +62,8 @@ size_t record_size(MVMCallStackRecord *record) {
             return sizeof(MVMCallStackPromotedFrame);
         case MVM_CALLSTACK_RECORD_CONTINUATION_TAG:
             return sizeof(MVMCallStackContinuationTag);
-        case MVM_CALLSTACK_RECORD_FLATTENING:
-            return sizeof(MVMCallStackFlattening);
         case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
             return sizeof(MVMCallStackDispatchRecord);
-        case MVM_CALLSTACK_RECORD_DISPATCH_RUN:
-            return sizeof(MVMCallStackDispatchRun);
         default:
             MVM_panic(1, "Unknown callstack record type in record_size");
     }
