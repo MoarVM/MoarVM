@@ -175,7 +175,7 @@ void MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPla
 
     /* If there's one hit, *or* the top hit has > 99% of the total hits, then we
      * rewrite it to monomorphic. */
-    else if ((100 * outcome_hits[1].hits) / total_hits >= 99)
+    else if ((100 * outcome_hits[0].hits) / total_hits >= 99)
         rewrite_monomorphic(tc, g, ins, bytecode_offset, outcome_hits[0].outcome);
 
     /* Otherwise, it's polymoprhic or megamorphic. */
