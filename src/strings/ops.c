@@ -2896,7 +2896,7 @@ typedef union {
  * If this isn't set, MVM_MAYBE_TO_LITTLE_ENDIAN_32 does nothing (the default).
  * This would mainly be useful for debugging or if there were some other reason
  * someone cared that hashes were identical on different endian platforms */
-void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
+MVMuint64 MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
 #if defined(MVM_HASH_FORCE_LITTLE_ENDIAN)
     const MVMuint64 key[2] = {
         MVM_MAYBE_TO_LITTLE_ENDIAN_64(tc->instance->hashSecrets[0]),
@@ -2954,5 +2954,5 @@ void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
             break;
         }
     }
-    s->body.cached_hash_code = hash;
+    return s->body.cached_hash_code = hash;
 }
