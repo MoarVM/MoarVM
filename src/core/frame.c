@@ -939,21 +939,6 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *debug_tc,
             /* frame is safe from the GC as we wouldn't be here if it wasn't on the stack */
             MVMFrame *promoted = MVM_gc_allocate_frame(debug_tc);
 
-            /* Bump heap promotion counter, to encourage allocating this kind
-             * of frame directly on the heap in the future. If the frame was
-             * entered at least 50 times, and over 80% of the entries lead to
-             * an eventual heap promotion, them we'll mark it to be allocated
-             * right away on the heap. Note that entries is only bumped when
-             * spesh logging is taking place, so we only bump the number of
-             * heap promotions in that case too. */
-            MVMStaticFrame *sf = cur_to_promote->static_info;
-            if (!sf->body.allocate_on_heap && cur_to_promote->spesh_correlation_id) {
-                MVMuint32 promos = sf->body.spesh->body.num_heap_promotions++;
-                MVMuint32 entries = sf->body.spesh->body.spesh_entries_recorded;
-                if (entries > 50 && promos > (4 * entries) / 5)
-                    sf->body.allocate_on_heap = 1;
-            }
-
             /* Copy current frame's body to it. */
             memcpy(
                 (char *)promoted + sizeof(MVMCollectable),
