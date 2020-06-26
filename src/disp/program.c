@@ -1670,6 +1670,8 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                     for (i = 0; i < to_copy; i++)
                         record->temps[target_idx++] = args->source[args->map[source_idx++]];
                 }
+                /* We need to stash this for correct marking of temporaries. */
+                record->temp_mark_callsite = invoke_args.callsite;
                 break;
             }
 
@@ -1740,13 +1742,11 @@ void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecordi
 /* Mark the temporaries of a dispatch program. */
 void MVM_disp_program_mark_run_temps(MVMThreadContext *tc, MVMDispProgram *dp,
         MVMCallsite *cs, MVMRegister *temps, MVMGCWorklist *worklist) {
-    if (dp && dp->num_temporaries != dp->first_args_temporary) {
-        MVMuint32 i;
-        for (i = 0; i < cs->flag_count; i++) {
-            if (cs->arg_flags[i] & (MVM_CALLSITE_ARG_OBJ | MVM_CALLSITE_ARG_STR)) {
-                MVMuint32 temp_idx = dp->first_args_temporary + i;
-                MVM_gc_worklist_add(tc, worklist, &(temps[temp_idx]));
-            }
+    MVMuint32 i;
+    for (i = 0; i < cs->flag_count; i++) {
+        if (cs->arg_flags[i] & (MVM_CALLSITE_ARG_OBJ | MVM_CALLSITE_ARG_STR)) {
+            MVMuint32 temp_idx = dp->first_args_temporary + i;
+            MVM_gc_worklist_add(tc, worklist, &(temps[temp_idx]));
         }
     }
 }
