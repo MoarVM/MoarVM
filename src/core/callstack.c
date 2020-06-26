@@ -455,10 +455,11 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
             }
             case MVM_CALLSTACK_RECORD_DISPATCH_RUN: {
                 MVMCallStackDispatchRun *disp_run = (MVMCallStackDispatchRun *)record;
-                MVM_disp_program_mark_run_temps(tc, disp_run->chosen_dp,
-                        disp_run->outcome.args.callsite, disp_run->temps,
-                        worklist);
-                MVM_disp_program_mark_outcome(tc, &(disp_run->outcome), worklist);
+                MVMDispProgram *dp = disp_run->chosen_dp;
+                if (dp && dp->num_temporaries != dp->first_args_temporary)
+                    MVM_disp_program_mark_run_temps(tc, dp,
+                            disp_run->temp_mark_callsite, disp_run->temps,
+                            worklist);
                 break;
             }
             default:
