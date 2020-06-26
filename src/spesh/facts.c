@@ -725,6 +725,7 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[3].reg.orig, ins->operands[3].reg.i);
             break;
         case MVM_OP_encoderep:
+        case MVM_OP_encoderepconf:
             create_facts(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[4].reg.orig, ins->operands[4].reg.i);
