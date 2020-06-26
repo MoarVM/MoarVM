@@ -192,6 +192,12 @@ static MVMSpeshOperand insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph
 
     /* Also give the instruction a deopt annotation, and related it to the
      * one on the prepargs. */
+    /*
+     * XXX the deopt address is wrong, at least some of the time; it returns to
+     * after the dispatch_* op in the deopted program, so any necessary work
+     * will likely be skipped, resulting in segfaults in spesh guard running
+     * and such
+     */
     new_deopt_index = MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
         MVM_SPESH_ANN_DEOPT_ONE_INS);
     guard->operands[3].lit_ui32 = new_deopt_index;
