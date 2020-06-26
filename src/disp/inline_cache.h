@@ -36,6 +36,8 @@ typedef void MVMDispInlineCacheRunDispatch(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
         MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices, MVMuint32 bytecode_offset);
 
+#define MVM_INLINE_CACHE_KIND_INITIAL 0
+#define MVM_INLINE_CACHE_KIND_INITIAL_FLATTENING 1
 /* The baseline inline cache entry. These always start with a pointer to
  * invoke to reach the handler. */
 struct MVMDispInlineCacheEntry {
@@ -46,18 +48,21 @@ struct MVMDispInlineCacheEntry {
     };
 };
 
+#define MVM_INLINE_CACHE_KIND_RESOLVED_GET_LEX_STATIC 2
 /* A resolved entry for getlexstatic. */
 struct MVMDispInlineCacheEntryResolvedGetLexStatic {
     MVMDispInlineCacheEntry base;
     MVMObject *result;
 };
 
+#define MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH 3
 /* A resolved monomorphic entry for dispatch. */
 struct MVMDispInlineCacheEntryMonomorphicDispatch {
     MVMDispInlineCacheEntry base;
     MVMDispProgram *dp;
 };
 
+#define MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH_FLATTENING 4
 /* A resolved monomorphic entry for dispatch with flattening. */
 struct MVMDispInlineCacheEntryMonomorphicDispatchFlattening {
     MVMDispInlineCacheEntry base;
@@ -65,6 +70,7 @@ struct MVMDispInlineCacheEntryMonomorphicDispatchFlattening {
     MVMDispProgram *dp;
 };
 
+#define MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH 5
 /* A resolved polymorphic entry for dispatch. */
 struct MVMDispInlineCacheEntryPolymorphicDispatch {
     MVMDispInlineCacheEntry base;
@@ -73,6 +79,7 @@ struct MVMDispInlineCacheEntryPolymorphicDispatch {
     MVMuint32 max_temporaries;
 };
 
+#define MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH_FLATTENING 6
 /* A resolved polymorphic entry for dispatch with flattening. */
 struct MVMDispInlineCacheEntryPolymorphicDispatchFlattening {
     MVMDispInlineCacheEntry base;
@@ -89,6 +96,8 @@ MVMObject * MVM_disp_inline_cache_get_lex_resolution(MVMThreadContext *tc, MVMSt
         MVMuint32 bytecode_offset);
 MVMuint32 MVM_disp_inline_cache_get_slot(MVMThreadContext *tc, MVMStaticFrame *sf,
         MVMuint32 bytecode_offset);
+MVMuint32 MVM_disp_inline_cache_get_kind(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry *entry);
 void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *entry,
         MVMStaticFrame *root, MVMCallsite *initial_cs, MVMDispProgram *dp);

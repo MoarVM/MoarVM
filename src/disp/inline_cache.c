@@ -215,6 +215,29 @@ static void dispatch_polymorphic_flattening(MVMThreadContext *tc,
             tc->cur_frame->static_info);
 }
 
+MVMuint32 MVM_disp_inline_cache_get_kind(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry *entry) {
+    if (entry->run_dispatch == dispatch_initial) {
+        return MVM_INLINE_CACHE_KIND_INITIAL;
+    }
+    else if (entry->run_dispatch == dispatch_initial_flattening) {
+        return MVM_INLINE_CACHE_KIND_INITIAL_FLATTENING;
+    }
+    else if (entry->run_dispatch == dispatch_monomorphic) {
+        return MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH;
+    }
+    else if (entry->run_dispatch == dispatch_monomorphic_flattening) {
+        return MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH_FLATTENING;
+    }
+    else if (entry->run_dispatch == dispatch_polymorphic) {
+        return MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH;
+    }
+    else if (entry->run_dispatch == dispatch_polymorphic_flattening) {
+        return MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH_FLATTENING;
+    }
+    MVM_oops(tc, "Unknown handler in inline cache entry");
+}
+
 /* Transition a callsite such that it incorporates a newly record dispatch
  * program. */
 static void set_max_temps(MVMDispInlineCacheEntryPolymorphicDispatch *entry) {
@@ -242,14 +265,17 @@ static void gc_barrier_program(MVMThreadContext *tc, MVMStaticFrame *root,
 void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *entry,
         MVMStaticFrame *root, MVMCallsite *initial_cs, MVMDispProgram *dp) {
+    MVMuint32 kind;
     /* Ensure that the entry is current (this is re-checked when we actaully
      * update it, but this ensures we won't dereference a dangling pointer
      * below). */
     if (*entry_ptr != entry)
         return;
 
+    kind = MVM_disp_inline_cache_get_kind(tc, entry); 
+
     /* Now go by the initial state. */
-    if (entry->run_dispatch == dispatch_initial) {
+    if (kind == MVM_INLINE_CACHE_KIND_INITIAL) {
         /* Unlinked -> monomorphic transition. */
         MVMDispInlineCacheEntryMonomorphicDispatch *new_entry = MVM_fixed_size_alloc(tc,
                 tc->instance->fsa, sizeof(MVMDispInlineCacheEntryMonomorphicDispatch));
@@ -259,7 +285,7 @@ void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         if (!try_update_cache_entry(tc, entry_ptr, &unlinked_dispatch, &(new_entry->base)))
             MVM_disp_program_destroy(tc, dp);
     }
-    else if (entry->run_dispatch == dispatch_initial_flattening) {
+    else if (kind == MVM_INLINE_CACHE_KIND_INITIAL_FLATTENING) {
         /* Unlinked flattening -> monomorphic flattening transition. Since we shall
          * retain the callsite to assert against, we force interning of it. */
         MVMDispInlineCacheEntryMonomorphicDispatchFlattening *new_entry = MVM_fixed_size_alloc(tc,
@@ -273,7 +299,7 @@ void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         if (!try_update_cache_entry(tc, entry_ptr, &unlinked_dispatch_flattening, &(new_entry->base)))
             MVM_disp_program_destroy(tc, dp);
     }
-    else if (entry->run_dispatch == dispatch_monomorphic) {
+    else if (kind == MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH) {
         /* Monomorphic -> polymorphic transition. */
         MVMDispInlineCacheEntryPolymorphicDispatch *new_entry = MVM_fixed_size_alloc(tc,
                 tc->instance->fsa, sizeof(MVMDispInlineCacheEntryPolymorphicDispatch));
@@ -288,7 +314,7 @@ void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         if (!try_update_cache_entry(tc, entry_ptr, entry, &(new_entry->base)))
             MVM_disp_program_destroy(tc, dp);
     }
-    else if (entry->run_dispatch == dispatch_monomorphic_flattening) {
+    else if (kind == MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH_FLATTENING) {
         /* Monomorphic flattening -> polymorphic flattening transition. */
         MVMDispInlineCacheEntryPolymorphicDispatchFlattening *new_entry = MVM_fixed_size_alloc(tc,
                 tc->instance->fsa, sizeof(MVMDispInlineCacheEntryPolymorphicDispatchFlattening));
@@ -313,7 +339,7 @@ void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         if (!try_update_cache_entry(tc, entry_ptr, entry, &(new_entry->base)))
             MVM_disp_program_destroy(tc, dp);
     }
-    else if (entry->run_dispatch == dispatch_polymorphic) {
+    else if (kind == MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH) {
         /* Polymorphic -> polymorphic transition. */
         MVMDispInlineCacheEntryPolymorphicDispatch *prev_entry =
                 (MVMDispInlineCacheEntryPolymorphicDispatch *)entry;
@@ -330,7 +356,7 @@ void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         if (!try_update_cache_entry(tc, entry_ptr, entry, &(new_entry->base)))
             MVM_disp_program_destroy(tc, dp);
     }
-    else if (entry->run_dispatch == dispatch_polymorphic_flattening) {
+    else if (kind == MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH_FLATTENING) {
         /* Polymorphic flattening -> polymorphic flattening transition. */
         MVMDispInlineCacheEntryPolymorphicDispatchFlattening *prev_entry =
                 (MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry;
