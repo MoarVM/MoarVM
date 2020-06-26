@@ -1677,10 +1677,12 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
 
             /* Invocation results. */
             case MVMDispOpcodeResultBytecode:
+                record->chosen_dp = dp;
                 MVM_frame_dispatch(tc, (MVMCode *)record->temps[op->res_code.temp_invokee].o,
                         invoke_args, -1);
                 break;
             case MVMDispOpcodeResultCFunction: {
+                record->chosen_dp = dp;
                 MVMCFunction *wrapper = (MVMCFunction *)record->temps[op->res_code.temp_invokee].o;
                 wrapper->body.func(tc, invoke_args);
                 MVM_callstack_unwind_dispatch_run(tc);
