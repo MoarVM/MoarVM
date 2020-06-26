@@ -106,6 +106,10 @@ static const MVMREPROps MVMCapture_this_repr = {
  * interned one, then it will be copied, since an MVMCapture assumes that it
  * owns a non-interned callsite. */
 MVMObject * MVM_capture_from_args(MVMThreadContext *tc, MVMArgs arg_info) {
+    /* Allocate capture before we begin, otherwise we might end up with outdated
+     * pointeres in args. */
+    MVMObject *capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
+
     /* Put callsite arguments into a flat buffer. */
     MVMCallsite *callsite = arg_info.callsite;
     MVMRegister *args = MVM_fixed_size_alloc(tc, tc->instance->fsa,
@@ -115,7 +119,6 @@ MVMObject * MVM_capture_from_args(MVMThreadContext *tc, MVMArgs arg_info) {
         args[i] = arg_info.source[arg_info.map[i]];
 
     /* Form capture object. */
-    MVMObject *capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
     ((MVMCapture *)capture)->body.callsite = callsite->is_interned
         ? callsite
         : MVM_callsite_copy(tc, callsite);
@@ -188,6 +191,10 @@ MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture_obj, M
     if (idx >= capture->body.callsite->num_pos)
         MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
 
+    /* Allocate a new capture before we begin; this is the only GC allocation
+     * we do. */
+    MVMObject *new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
+
     /* We need a callsite without the argument that is being dropped. */
     MVMCallsite *new_callsite = MVM_callsite_drop_positional(tc, capture->body.callsite, idx);
 
@@ -203,7 +210,6 @@ MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture_obj, M
     }
 
     /* Form new capture object. */
-    MVMObject *new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
     ((MVMCapture *)new_capture)->body.callsite = new_callsite;
     ((MVMCapture *)new_capture)->body.args = new_args;
     return new_capture;
@@ -216,6 +222,10 @@ MVMObject * MVM_capture_insert_arg(MVMThreadContext *tc, MVMObject *capture_obj,
     MVMCapture *capture = validate_capture(tc, capture_obj);
     if (idx > capture->body.callsite->num_pos)
         MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
+
+    /* Allocate a new capture before we begin; this is the only GC allocation
+     * we do. */
+    MVMObject *new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
 
     /* We need a callsite with the argument that is being inserted. */
     MVMCallsite *new_callsite = MVM_callsite_insert_positional(tc, capture->body.callsite,
@@ -237,7 +247,6 @@ MVMObject * MVM_capture_insert_arg(MVMThreadContext *tc, MVMObject *capture_obj,
         new_args[to] = value;
 
     /* Form new capture object. */
-    MVMObject *new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
     ((MVMCapture *)new_capture)->body.callsite = new_callsite;
     ((MVMCapture *)new_capture)->body.args = new_args;
     return new_capture;
