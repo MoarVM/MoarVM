@@ -311,7 +311,8 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
 static MVMFrame * find_calling_frame(MVMCallStackRecord *prev) {
     /* Typically, we'll have the frame right off, but if there was flattening,
      * we need to skip that frame between the two. */
-    if (prev->kind == MVM_CALLSTACK_RECORD_FLATTENING)
+    while (prev->kind == MVM_CALLSTACK_RECORD_FLATTENING ||
+            prev->kind == MVM_CALLSTACK_RECORD_START_REGION)
         prev = prev->prev;
     return MVM_callstack_record_to_frame(prev);
 }
