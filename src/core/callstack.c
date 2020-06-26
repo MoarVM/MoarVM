@@ -284,6 +284,13 @@ static int is_bytecode_frame(MVMuint8 kind) {
             return 0;
     }
 }
+static void unwind_region_start(MVMThreadContext *tc) {
+    if (tc->stack_top->kind == MVM_CALLSTACK_RECORD_START_REGION) {
+        tc->stack_current_region->alloc = (char *)tc->stack_top;
+        tc->stack_current_region = tc->stack_current_region->prev;
+        tc->stack_top = tc->stack_top->prev;
+    }
+}
 static void handle_end_of_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunked) {
     /* End of a dispatch recording; make callback to update the
      * inline cache, put the result in place, and take any further
@@ -296,6 +303,7 @@ static void handle_end_of_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunk
         assert((char *)disp_record == (char *)tc->stack_top);
         tc->stack_current_region->alloc = (char *)tc->stack_top;
         tc->stack_top = tc->stack_top->prev;
+        unwind_region_start(tc);
     }
 }
 static void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
@@ -392,6 +400,7 @@ void MVM_callstack_unwind_dispatch_run(MVMThreadContext *tc) {
     assert(tc->stack_top->kind == MVM_CALLSTACK_RECORD_DISPATCH_RUN);
     tc->stack_current_region->alloc = (char *)tc->stack_top;
     tc->stack_top = tc->stack_top->prev;
+    unwind_region_start(tc);
 }
 
 /* Walk the linked list of records and mark each of them. */
