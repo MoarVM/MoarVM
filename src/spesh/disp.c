@@ -300,11 +300,15 @@ static MVMSpeshIns *rewrite_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph
                 break;
             case MVMDispOpcodeLoadCaptureValue: {
                 MVMSpeshIns *set_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                fprintf(stderr, "  Load argument %d into temporary %d\n",
+                        op->load.idx, op->load.temp);
                 fprintf(stderr, "  adding a set op\n");
                 set_ins->info = MVM_op_get_op(MVM_OP_set);
                 set_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
                 set_ins->operands[0] = temporaries[op->load.temp];
-                set_ins->operands[1] = args[op->arg_guard.arg_idx];
+                set_ins->operands[1] = args[op->load.idx];
+                copy_facts(tc, g, set_ins->operands[0], set_ins->operands[1]);
+                MVM_spesh_graph_add_comment(tc, g, set_ins, "set instruction from LoadCaptureValue");
                 MVM_spesh_usages_add_by_reg(tc, g, set_ins->operands[1], set_ins);
                 MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, set_ins);
                 break;
