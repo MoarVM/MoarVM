@@ -5813,7 +5813,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 0));
                 MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 4)];
                 MVMuint16 *args = (MVMuint16 *)(cur_op + 6);
-                MVMuint32 bytecode_offset = cur_op - *tc->interp_bytecode_start;
+                MVMuint32 bytecode_offset = cur_op - *tc->interp_bytecode_start - 2;
                 tc->cur_frame->return_value = NULL;
                 tc->cur_frame->return_type = MVM_RETURN_VOID;
                 cur_op += 6 + 2 * callsite->flag_count;
@@ -5828,7 +5828,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
                 MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
                 MVMuint16 *args = (MVMuint16 *)(cur_op + 8);
-                MVMuint32 bytecode_offset = cur_op - *tc->interp_bytecode_start;
+                MVMuint32 bytecode_offset = cur_op - *tc->interp_bytecode_start - 2;
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                 tc->cur_frame->return_type  = MVM_RETURN_INT;
                 cur_op += 8 + 2 * callsite->flag_count;
@@ -5843,7 +5843,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
                 MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
                 MVMuint16 *args = (MVMuint16 *)(cur_op + 8);
-                MVMuint32 bytecode_offset = cur_op - *tc->interp_bytecode_start;
+                MVMuint32 bytecode_offset = cur_op - *tc->interp_bytecode_start - 2;
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                 tc->cur_frame->return_type  = MVM_RETURN_NUM;
                 cur_op += 8 + 2 * callsite->flag_count;
@@ -5858,7 +5858,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
                 MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
                 MVMuint16 *args = (MVMuint16 *)(cur_op + 8);
-                MVMuint32 bytecode_offset = cur_op - *tc->interp_bytecode_start;
+                MVMuint32 bytecode_offset = cur_op - *tc->interp_bytecode_start - 2;
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                 tc->cur_frame->return_type  = MVM_RETURN_STR;
                 cur_op += 8 + 2 * callsite->flag_count;
@@ -5873,7 +5873,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
                 MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
                 MVMuint16 *args = (MVMuint16 *)(cur_op + 8);
-                MVMuint32 bytecode_offset = cur_op - *tc->interp_bytecode_start;
+                MVMuint32 bytecode_offset = cur_op - *tc->interp_bytecode_start - 2;
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                 tc->cur_frame->return_type  = MVM_RETURN_OBJ;
                 cur_op += 8 + 2 * callsite->flag_count;
