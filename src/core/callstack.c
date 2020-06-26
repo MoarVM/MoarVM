@@ -40,6 +40,10 @@ static void next_region(MVMThreadContext *tc) {
 static MVMCallStackRecord * allocate_record(MVMThreadContext *tc, MVMuint8 kind, size_t size) {
     MVMCallStackRegion *region = tc->stack_current_region;
     if ((region->alloc_limit - region->alloc) < (ptrdiff_t)size) {
+        size_t real_limit = MVM_CALLSTACK_REGION_SIZE - sizeof(MVMCallStackContinuationTag);
+        if (size > real_limit)
+            MVM_oops(tc, "Oversize callstack record requested (wanted %d, maximum %d)",
+                    size, real_limit);
         next_region(tc);
         tc->stack_top = allocate_record_unchecked(tc, MVM_CALLSTACK_RECORD_START_REGION,
                 sizeof(MVMCallStackRegionStart));
