@@ -110,7 +110,6 @@ static void dispatch_monomorphic(MVMThreadContext *tc,
         dispatch_initial(tc, entry_ptr, seen, id, callsite, arg_indices, bytecode_offset);
     }
     else {
-        record->chosen_dp = dp;
         if (MVM_spesh_log_is_logging(tc))
             MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, 0);
     }
@@ -134,7 +133,6 @@ static void dispatch_monomorphic_flattening(MVMThreadContext *tc,
         record->arg_info = flat_record->arg_info;
         if (MVM_disp_program_run(tc, dp, record)) {
             /* It matches, so we're ready to continue. */
-            record->chosen_dp = dp;
             if (MVM_spesh_log_is_logging(tc))
                 MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, 0);
             return;
@@ -169,7 +167,6 @@ static void dispatch_polymorphic(MVMThreadContext *tc,
     MVMuint32 i;
     for (i = 0; i < entry->num_dps; i++) {
         if (MVM_disp_program_run(tc, entry->dps[i], record)) {
-            record->chosen_dp = entry->dps[i];
             if (MVM_spesh_log_is_logging(tc))
                 MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, i);
             return;
@@ -202,7 +199,6 @@ static void dispatch_polymorphic_flattening(MVMThreadContext *tc,
     for (i = 0; i < entry->num_dps; i++) {
         if (flat_record->arg_info.callsite == entry->flattened_css[i]) {
             if (MVM_disp_program_run(tc, entry->dps[i], record)) {
-                record->chosen_dp = entry->dps[i];
                 if (MVM_spesh_log_is_logging(tc))
                     MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, i);
                 return;
