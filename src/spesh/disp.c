@@ -229,7 +229,11 @@ static MVMSpeshIns *rewrite_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph
                 fprintf(stderr, "  Guard arg %d (type=%s)\n",
                         op->arg_guard.arg_idx,
                         ((MVMSTable *)dp->gc_constants[op->arg_guard.checkee])->debug_name);
-                goto nyi;
+                args[op->arg_guard.arg_idx] =
+                    insert_arg_type_guard(tc, g, bb,
+                            args[op->arg_guard.arg_idx], ins,
+                            0, ((MVMSTable *)dp->gc_constants[op->arg_guard.checkee]),
+                            1);
                 break;
             case MVMDispOpcodeGuardArgTypeConc:
                 fprintf(stderr, "  Guard arg %d (type=%s, concrete)\n",
@@ -245,7 +249,11 @@ static MVMSpeshIns *rewrite_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph
                 fprintf(stderr, "  Guard arg %d (type=%s, type object)\n",
                         op->arg_guard.arg_idx,
                         ((MVMSTable *)dp->gc_constants[op->arg_guard.checkee])->debug_name);
-                goto nyi;
+                args[op->arg_guard.arg_idx] =
+                    insert_arg_type_guard(tc, g, bb,
+                            args[op->arg_guard.arg_idx], ins,
+                            -1, ((MVMSTable *)dp->gc_constants[op->arg_guard.checkee]),
+                            1);
                 break;
             case MVMDispOpcodeGuardArgConc:
                 fprintf(stderr, "  Guard arg %d (concrete)\n",
