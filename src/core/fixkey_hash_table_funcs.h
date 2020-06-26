@@ -88,11 +88,7 @@ MVM_STATIC_INLINE void *MVM_fixkey_hash_insert_nt(MVMThreadContext *tc,
         MVM_fixkey_hash_allocate_buckets(tc, hashtable);
     }
 
-    MVMHashv hashv = key->body.cached_hash_code;
-    if (!hashv) {
-        MVM_string_compute_hash_code(tc, key);
-        hashv = key->body.cached_hash_code;
-    }
+    MVMHashv hashv = MVM_string_hash_code(tc, key);
     MVMHashBktNum bucket_num = MVM_fixkey_hash_bucket(hashv, hashtable->log2_num_buckets);
     struct MVMFixKeyHashBucket *bucket = hashtable->buckets + bucket_num;
 
@@ -123,11 +119,7 @@ MVM_STATIC_INLINE void *MVM_fixkey_hash_insert_nt(MVMThreadContext *tc,
 MVM_STATIC_INLINE void *MVM_fixkey_hash_lvalue_fetch_nt(MVMThreadContext *tc,
                                                         MVMFixKeyHashTable *hashtable,
                                                         MVMString *key) {
-    MVMHashv hashv = key->body.cached_hash_code;
-    if (!hashv) {
-        MVM_string_compute_hash_code(tc, key);
-        hashv = key->body.cached_hash_code;
-    }
+    MVMHashv hashv = MVM_string_hash_code(tc, key);
     MVMHashBktNum bucket_num;
     struct MVMFixKeyHashBucket *bucket;
 
@@ -186,11 +178,7 @@ MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nt(MVMThreadContext *tc,
         return NULL;
     }
 
-    MVMHashv hashv = want->body.cached_hash_code;
-    if (!hashv) {
-        MVM_string_compute_hash_code(tc, want);
-        hashv = want->body.cached_hash_code;
-    }
+    MVMHashv hashv = MVM_string_hash_code(tc, want);
     MVMHashBktNum bucket_num = MVM_fixkey_hash_bucket(hashv, hashtable->log2_num_buckets);
     struct MVMFixKeyHashBucket *bucket = hashtable->buckets + bucket_num;
     struct MVMFixKeyHashHandle *have = bucket->hh_head;
