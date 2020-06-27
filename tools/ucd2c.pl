@@ -774,7 +774,7 @@ sub emit_codepoints_and_planes {
     # jnthn: Would it still use the same amount of memory to combine these tables? XXX
     $DB_SECTIONS->{BBB_codepoint_names} =
         "static const char *codepoint_names[$index] = {\n    ".
-            stack_lines(\@name_lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS).
+            stack_lines(\@name_lines, ",", ",\n    ", 0, 0).
             "\n};";
     $DB_SECTIONS->{BBB_codepoint_bitfield_indexes} =
         "static const MVMuint16 codepoint_bitfield_indexes[$index] = {\n    ".
