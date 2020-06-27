@@ -726,17 +726,10 @@ sub emit_codepoints_and_planes {
                 $toadd = $point;
                 $span_length = 0;
             }
-            my $usually = 1;  # occasionally change NULL to the name to cut name search time
             for (; 1 < $span_length; $span_length--) {
                 # catch up to last code
                 $last_point = $last_point->{next_point};
-                 # occasionally change NULL to the name to cut name search time
-                if ($last_point->{name} =~ / ^ [<] /x && $usually++ % 25) {
-                    ecap_push_name_line(\@name_lines, undef, $last_point, \@bitfield_index_lines, \$bytes, \$index, 1);
-                }
-                else {
-                    ecap_push_name_line(\@name_lines, $last_point->{name}, $last_point, \@bitfield_index_lines, \$bytes, \$index);
-                }
+                ecap_push_name_line(\@name_lines, $last_point->{name}, $last_point, \@bitfield_index_lines, \$bytes, \$index);
             }
             $span_length = 0;
         }

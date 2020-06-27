@@ -748,13 +748,6 @@ MVMString * MVM_unicode_get_name(MVMThreadContext *tc, MVMint64 codepoint) {
         MVMint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
         if (codepoint_row != -1) {
             name = codepoint_names[codepoint_row];
-            if (!name) {
-                while (codepoint_row && !codepoint_names[codepoint_row])
-                    codepoint_row--;
-                name = codepoint_names[codepoint_row];
-                if (name && name[0] != '<')
-                    name = NULL;
-            }
         }
         if (!name) {
             /* U+FDD0..U+FDEF and the last two codepoints of each block
