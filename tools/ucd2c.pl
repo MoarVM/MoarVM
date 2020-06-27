@@ -14,6 +14,10 @@ $Data::Dumper::Maxdepth = 1;
 # Download allkeys.txt from http://www.unicode.org/Public/UCA/latest/
 # and place into a folder named UCA under the UNIDATA directory.
 
+my $have_rakudo = `rakudo -e 'say "Hello world"'`;
+die "You need rakudo in your path to run this script\n"
+    unless $have_rakudo =~ /\AHello world/;
+
 my $DEBUG = $ENV{UCD2CDEBUG} // 0;
 
 binmode STDOUT, ':encoding(UTF-8)';
@@ -2096,7 +2100,9 @@ sub Jamo {
         }
     }
     my $hs = join ',', @hangul_syllables;
-    my $out = `perl6 -e 'my \@cps = $hs; for \@cps -> \$cp { \$cp.chr.NFD.list.join(",").say };'`;
+    my $out = `rakudo -e 'my \@cps = $hs; for \@cps -> \$cp { \$cp.chr.NFD.list.join(",").say };'`;
+    die "Problem running rakudo to process Hangul syllables: \$? was $?"
+        if $?;
     my @out_lines = split "\n", $out;
     my $i = 0;
     for my $line (@out_lines) {
