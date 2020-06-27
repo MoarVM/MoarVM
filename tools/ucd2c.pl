@@ -1175,7 +1175,10 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
                 for (; extent_span_index < length
                     && codepoint_table_index < MVM_CODEPOINT_NAMES_COUNT; extent_span_index++) {
                     const char *name = codepoint_names[codepoint_table_index];
-                    if (name) {
+                    /* We want to skip various placeholder names that are duplicated:
+                     * <control> <CJK UNIFIED IDEOGRAPH> <CJK COMPATIBILITY IDEOGRAPH>
+                     * <surrogate> <TANGUT IDEOGRAPH> <private-use> */
+                    if (name && *name != '<') {
                         MVMUnicodeNameRegistry *entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
                         entry->name = (char *)name;
                         entry->codepoint = codepoint;
@@ -1195,7 +1198,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
             /* Fate Span */
             case $FATE_SPAN: {
                 const char *name = codepoint_names[codepoint_table_index];
-                if (name) {
+                if (name && *name != '<') {
                     MVMUnicodeNameRegistry *entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
                     entry->name = (char *)name;
                     entry->codepoint = codepoint;
