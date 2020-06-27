@@ -662,7 +662,7 @@ sub ecap_push_name_line {
     if (!defined $name) {
         push @$bitfield_index_lines,
             ($annotate_anyway
-                ? "/*$$index*/$point->{bitfield_index}/*$point->{code_str} */"
+                ? "/*$$index*/$point->{bitfield_index}/* $point->{code_str} */"
                 : "0"
             );
         push @$name_lines, "NULL";
@@ -1772,10 +1772,7 @@ sub read_file {
     my $fname = shift;
     open my $FILE, '<', $fname or croak "Couldn't open file '$fname': $!";
     binmode $FILE, ':encoding(UTF-8)';
-    my @lines = ();
-    while( <$FILE> ) {
-        push @lines, $_;
-    }
+    my @lines = <$FILE>;
     close $FILE;
     return \@lines;
 }
@@ -1784,6 +1781,9 @@ sub write_file {
     my ($fname, $contents) = @_;
     open my $FILE, '>', $fname or croak "Couldn't open file '$fname': $!";
     binmode $FILE, ':encoding(UTF-8)';
+    # Ensure generated files always end with a newline.
+    $contents .= "\n"
+        unless $contents =~ /\n\z/;
     print $FILE trim_trailing($contents);
     close $FILE;
     return;
