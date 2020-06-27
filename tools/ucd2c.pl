@@ -658,24 +658,21 @@ sub add_extent {
 }
 # Used in emit_codepoints_and_planes to push the codepoints name onto bitfield_index_lines
 sub ecap_push_name_line {
-    my ($name_lines, $name, $point, $bitfield_index_lines, $bytes, $index, $annotate_anyway) = @_;
+    my ($name_lines, $name, $point, $bitfield_index_lines, $index) = @_;
+    my $bytes;
     if (!defined $name) {
-        push @$bitfield_index_lines,
-            ($annotate_anyway
-                ? "/*$$index*/$point->{bitfield_index}/* $point->{code_str} */"
-                : "0"
-            );
+        push @$bitfield_index_lines, "0";
         push @$name_lines, "NULL";
     }
     else {
-        $$bytes += length($point->{name}) + 1; # length + 1 for the NULL
+        $bytes = length($point->{name}) + 1; # length + 1 for the NULL
         push @$bitfield_index_lines, "/*$$index*/$point->{bitfield_index}/* $point->{code_str} */";
         push @$name_lines, "/*$$index*/\"$point->{name}\"/* $point->{code_str} */";
     }
-    $$bytes += 2; # hopefully these are compacted since they are trivially aligned being two bytes
-    $$bytes += 8; # 8 for the pointer
-    $$index++;
-    return;
+    ++$$index;
+    $bytes += 2; # hopefully these are compacted since they are trivially aligned being two bytes
+    $bytes += 8; # 8 for the pointer
+    return $bytes;
 }
 sub emit_codepoints_and_planes {
     my ($first_point) = @_;
@@ -729,7 +726,7 @@ sub emit_codepoints_and_planes {
             for (; 1 < $span_length; $span_length--) {
                 # catch up to last code
                 $last_point = $last_point->{next_point};
-                ecap_push_name_line(\@name_lines, $last_point->{name}, $last_point, \@bitfield_index_lines, \$bytes, \$index);
+                $bytes += ecap_push_name_line(\@name_lines, $last_point->{name}, $last_point, \@bitfield_index_lines, \$index);
             }
             $span_length = 0;
         }
@@ -744,7 +741,7 @@ sub emit_codepoints_and_planes {
             $toadd = $point;
         }
         for (; $last_code < $point->{code} - 1; $last_code++) {
-            ecap_push_name_line(\@name_lines, undef, $point, \@bitfield_index_lines, \$bytes, \$index);
+            $bytes += ecap_push_name_line(\@name_lines, undef, $point, \@bitfield_index_lines, \$index);
         }
 
         croak "$last_code  " . Dumper($point) unless $last_code == $point->{code} - 1;
@@ -756,7 +753,7 @@ sub emit_codepoints_and_planes {
         }
         $toadd = undef;
         # a normal codepoint that we don't want to compress
-        ecap_push_name_line(\@name_lines, $point->{name}, $point, \@bitfield_index_lines, \$bytes, \$index);
+        $bytes += ecap_push_name_line(\@name_lines, $point->{name}, $point, \@bitfield_index_lines, \$index);
         $last_code = $point->{code};
         $point->{main_index} = $index;
         $last_point = $point;
