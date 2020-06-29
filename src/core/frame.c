@@ -571,6 +571,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             frame = allocate_frame(tc, static_frame, chosen_cand, 0);
             frame->spesh_correlation_id = 0;
         }
+        frame->code_ref = code_ref;
+        frame->outer = outer;
         if (chosen_cand->body.jitcode) {
             chosen_bytecode = chosen_cand->body.jitcode->bytecode;
             frame->jit_entry_label = chosen_cand->body.jitcode->labels[0];
@@ -594,6 +596,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             frame->effective_spesh_slots = NULL;
             frame->spesh_correlation_id = 0;
         }
+        frame->code_ref = code_ref;
+        frame->outer = outer;
         chosen_bytecode = static_frame->body.bytecode;
 
         /* If we should be spesh logging, set the correlation ID. */
@@ -616,12 +620,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             }
         }
     }
-
-    /* Store the code ref (NULL at the top-level). */
-    frame->code_ref = code_ref;
-
-    /* Outer. */
-    frame->outer = outer;
 
     /* Initialize argument processing. */
     MVM_args_proc_init(tc, &frame->params, callsite, args);
@@ -720,6 +718,8 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
             frame = allocate_frame(tc, static_frame, chosen_cand, 0);
             frame->spesh_correlation_id = 0;
         }
+        frame->code_ref = (MVMObject *)code;
+        frame->outer = outer;
         if (chosen_cand->body.jitcode) {
             chosen_bytecode = chosen_cand->body.jitcode->bytecode;
             frame->jit_entry_label = chosen_cand->body.jitcode->labels[0];
@@ -743,6 +743,8 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
             frame->effective_spesh_slots = NULL;
             frame->spesh_correlation_id = 0;
         }
+        frame->code_ref = (MVMObject *)code;
+        frame->outer = outer;
         chosen_bytecode = static_frame->body.bytecode;
 
         /* If we should be spesh logging, set the correlation ID. */
@@ -766,12 +768,6 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
             }
         }
     }
-
-    /* Store the code ref (NULL at the top-level). */
-    frame->code_ref = (MVMObject *)code;
-
-    /* Outer. */
-    frame->outer = outer;
 
     /* Initialize argument processing. */
     MVM_args_proc_setup(tc, &(frame->params), args);
