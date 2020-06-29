@@ -462,6 +462,11 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                             worklist);
                 break;
             }
+            case MVM_CALLSTACK_RECORD_FLATTENING: {
+                MVMCallStackFlattening *f_record = (MVMCallStackFlattening *)record;
+                MVM_callsite_mark(tc, &f_record->produced_cs, worklist);
+                break;
+            }
             default:
                 MVM_panic(1, "Unknown call stack record type in GC marking");
         }
