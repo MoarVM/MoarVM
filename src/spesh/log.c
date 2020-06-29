@@ -250,3 +250,13 @@ void MVM_spesh_log_dispatch_resolution(MVMThreadContext *tc, MVMuint32 bytecode_
     entry->plugin.guard_index = guard_index;
     commit_entry(tc, sl);
 }
+void MVM_spesh_log_dispatch_resolution_for_correlation_id(MVMThreadContext *tc, MVMint32 cid, MVMuint32 bytecode_offset,
+                                     MVMuint16 guard_index) {
+    MVMSpeshLog *sl = tc->spesh_log;
+    MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+    entry->kind = MVM_SPESH_LOG_DISPATCH_RESOLUTION;
+    entry->id = cid;
+    entry->plugin.bytecode_offset = bytecode_offset;
+    entry->plugin.guard_index = guard_index;
+    commit_entry(tc, sl);
+}

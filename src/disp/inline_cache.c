@@ -97,6 +97,7 @@ static void dispatch_initial_flattening(MVMThreadContext *tc,
 static void dispatch_monomorphic(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
         MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
+    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
     MVMDispProgram *dp = ((MVMDispInlineCacheEntryMonomorphicDispatch *)seen)->dp;
     MVMCallStackDispatchRun *record = MVM_callstack_allocate_dispatch_run(tc,
             dp->num_temporaries);
@@ -110,14 +111,15 @@ static void dispatch_monomorphic(MVMThreadContext *tc,
         dispatch_initial(tc, entry_ptr, seen, id, callsite, arg_indices, bytecode_offset);
     }
     else {
-        if (MVM_spesh_log_is_logging(tc))
-            MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, 0);
+        if (MVM_spesh_log_is_logging(tc) && cid)
+            MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, cid, bytecode_offset, 0);
     }
 }
 
 static void dispatch_monomorphic_flattening(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
         MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
+    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
     /* First, perform flattening of the arguments. */
     MVMCallStackFlattening *flat_record = MVM_args_perform_flattening(tc, callsite,
             tc->cur_frame->work, arg_indices);
@@ -133,8 +135,8 @@ static void dispatch_monomorphic_flattening(MVMThreadContext *tc,
         record->arg_info = flat_record->arg_info;
         if (MVM_disp_program_run(tc, dp, record)) {
             /* It matches, so we're ready to continue. */
-            if (MVM_spesh_log_is_logging(tc))
-                MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, 0);
+            if (MVM_spesh_log_is_logging(tc) && cid)
+                MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, cid, bytecode_offset, 0);
             return;
         }
         else {
@@ -154,6 +156,7 @@ static void dispatch_monomorphic_flattening(MVMThreadContext *tc,
 static void dispatch_polymorphic(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
         MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
+    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
     /* Set up dispatch run record. */
     MVMDispInlineCacheEntryPolymorphicDispatch *entry =
             (MVMDispInlineCacheEntryPolymorphicDispatch *)seen;
@@ -167,8 +170,8 @@ static void dispatch_polymorphic(MVMThreadContext *tc,
     MVMuint32 i;
     for (i = 0; i < entry->num_dps; i++) {
         if (MVM_disp_program_run(tc, entry->dps[i], record)) {
-            if (MVM_spesh_log_is_logging(tc))
-                MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, i);
+            if (MVM_spesh_log_is_logging(tc) && cid)
+                    MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, cid, bytecode_offset, i);
             return;
         }
     }
@@ -182,6 +185,7 @@ static void dispatch_polymorphic(MVMThreadContext *tc,
 static void dispatch_polymorphic_flattening(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
         MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
+    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
     /* First, perform flattening of the arguments. */
     MVMCallStackFlattening *flat_record = MVM_args_perform_flattening(tc, callsite,
             tc->cur_frame->work, arg_indices);
@@ -199,8 +203,8 @@ static void dispatch_polymorphic_flattening(MVMThreadContext *tc,
     for (i = 0; i < entry->num_dps; i++) {
         if (flat_record->arg_info.callsite == entry->flattened_css[i]) {
             if (MVM_disp_program_run(tc, entry->dps[i], record)) {
-                if (MVM_spesh_log_is_logging(tc))
-                    MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, i);
+                if (MVM_spesh_log_is_logging(tc) && cid)
+                    MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, cid, bytecode_offset, i);
                 return;
             }
         }

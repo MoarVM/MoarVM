@@ -51,3 +51,5 @@ void MVM_spesh_log_plugin_resolution(MVMThreadContext *tc, MVMuint32 bytecode_of
         MVMuint16 guard_index);
 void MVM_spesh_log_dispatch_resolution(MVMThreadContext *tc, MVMuint32 bytecode_offset,
         MVMuint16 guard_index);
+void MVM_spesh_log_dispatch_resolution_for_correlation_id(MVMThreadContext *tc, MVMint32 cid, MVMuint32 bytecode_offset,
+        MVMuint16 guard_index);
