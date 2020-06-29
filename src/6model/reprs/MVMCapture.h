@@ -19,7 +19,8 @@ const MVMREPROps * MVMCapture_initialize(MVMThreadContext *tc);
 MVMObject * MVM_capture_from_args(MVMThreadContext *tc, MVMArgs args);
 
 /* Operations for accessing arguments in MVMCapture objects. */
-MVMint64 MVM_capture_num_args(MVMThreadContext *tc, MVMObject *capture);
+MVMint64 MVM_capture_num_pos_args(MVMThreadContext *tc, MVMObject *capture);
+MVMint64 MVM_capture_arg_pos_primspec(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx);
 void MVM_capture_arg_pos(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx,
         MVMRegister *arg_out, MVMCallsiteFlags *arg_type_out);
 MVMObject * MVM_capture_arg_pos_o(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx);

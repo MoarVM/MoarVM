@@ -1390,7 +1390,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 0).i64 = cc->body.apc->legacy.num_pos;
                 }
                 else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
-                    GET_REG(cur_op, 0).i64 = MVM_capture_num_args(tc, obj);
+                    GET_REG(cur_op, 0).i64 = MVM_capture_num_pos_args(tc, obj);
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "captureposelems needs a MVMCallCapture");
@@ -1492,6 +1492,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         MVM_exception_throw_adhoc(tc,
                             "Bad argument index (%"PRId64") given to captureposprimspec", i);
                     }
+                }
+                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
+                    GET_REG(cur_op, 0).i64 = MVM_capture_arg_pos_primspec(tc, obj, i);
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "captureposprimspec needs a MVMCallCapture");
