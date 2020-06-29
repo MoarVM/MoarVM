@@ -224,10 +224,9 @@ void MVM_spesh_log_return_to_unlogged(MVMThreadContext *tc) {
 }
 
 /* Log the result of a dispatch. */
-void MVM_spesh_log_dispatch_resolution(MVMThreadContext *tc, MVMuint32 bytecode_offset,
-                                       MVMuint16 result_index) {
+void MVM_spesh_log_dispatch_resolution_for_correlation_id(MVMThreadContext *tc,
+        MVMint32 cid, MVMuint32 bytecode_offset, MVMuint16 result_index) {
     MVMSpeshLog *sl = tc->spesh_log;
-    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
     MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
     entry->kind = MVM_SPESH_LOG_DISPATCH_RESOLUTION;
     entry->id = cid;
