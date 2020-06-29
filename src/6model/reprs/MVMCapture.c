@@ -134,6 +134,12 @@ static MVMCapture * validate_capture(MVMThreadContext *tc, MVMObject *capture) {
     return (MVMCapture *)capture;
 }
 
+/* Get the number of positional arguments that the capture has. */
+MVMint64 MVM_capture_num_args(MVMThreadContext *tc, MVMObject *capture_obj) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    return capture->body.callsite->num_pos;
+}
+
 /* Access a positional object argument of an argument capture object. */
 MVMObject * MVM_capture_arg_pos_o(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
     MVMCapture *capture = validate_capture(tc, capture_obj);
