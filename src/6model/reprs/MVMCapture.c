@@ -135,9 +135,26 @@ static MVMCapture * validate_capture(MVMThreadContext *tc, MVMObject *capture) {
 }
 
 /* Get the number of positional arguments that the capture has. */
-MVMint64 MVM_capture_num_args(MVMThreadContext *tc, MVMObject *capture_obj) {
+MVMint64 MVM_capture_num_pos_args(MVMThreadContext *tc, MVMObject *capture_obj) {
     MVMCapture *capture = validate_capture(tc, capture_obj);
     return capture->body.callsite->num_pos;
+}
+
+/* Get the primitive value kind for a positional argument. */
+MVMint64 MVM_capture_arg_pos_primspec(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    if (idx >= capture->body.callsite->num_pos)
+        MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
+    switch (capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK) {
+        case MVM_CALLSITE_ARG_INT:
+            return MVM_STORAGE_SPEC_BP_INT;
+        case MVM_CALLSITE_ARG_NUM:
+            return MVM_STORAGE_SPEC_BP_NUM;
+        case MVM_CALLSITE_ARG_STR:
+            return MVM_STORAGE_SPEC_BP_STR;
+        default:
+            return MVM_STORAGE_SPEC_BP_NONE;
+    }
 }
 
 /* Access a positional object argument of an argument capture object. */
