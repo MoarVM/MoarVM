@@ -420,8 +420,10 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
     while (record) {
         switch (MVM_callstack_kind_ignoring_deopt(record)) {
             case MVM_CALLSTACK_RECORD_FRAME:
-                MVM_gc_root_add_frame_roots_to_worklist(tc, worklist,
-                        &(((MVMCallStackFrame *)record)->frame));
+                /* TODO make sure the heap snapshot profiler doesn't miss this */
+                if (worklist)
+                    MVM_gc_root_add_frame_roots_to_worklist(tc, worklist,
+                            &(((MVMCallStackFrame *)record)->frame));
                 break;
             case MVM_CALLSTACK_RECORD_HEAP_FRAME:
                 add_collectable(tc, worklist, snapshot,
