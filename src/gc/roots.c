@@ -147,7 +147,11 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     add_collectable(tc, worklist, snapshot, tc->instance->subscriptions.GCEvent,
         "VM Event SpeshOverviewEvent type");
 
-    MVM_disp_registry_mark(tc, worklist);
+    if (worklist)
+        MVM_disp_registry_mark(tc, worklist);
+    else
+        MVM_disp_registry_describe(tc, snapshot);
+
     MVM_debugserver_mark_handles(tc, worklist, snapshot);
 }
 
