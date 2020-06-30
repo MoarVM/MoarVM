@@ -43,4 +43,5 @@ void MVM_disp_registry_register(MVMThreadContext *tc, MVMString *id, MVMObject *
         MVMObject *resume);
 MVMDispDefinition * MVM_disp_registry_find(MVMThreadContext *tc, MVMString *id);
 void MVM_disp_registry_mark(MVMThreadContext *tc, MVMGCWorklist *worklist);
+void MVM_disp_registry_describe(MVMThreadContext *tc, MVMHeapSnapshotState *snapshot);
 void MVM_disp_registry_destroy(MVMThreadContext *tc);
