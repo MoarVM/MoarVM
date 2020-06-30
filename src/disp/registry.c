@@ -144,6 +144,22 @@ void MVM_disp_registry_mark(MVMThreadContext *tc, MVMGCWorklist *worklist) {
         }
     }
 }
+void MVM_disp_registry_describe(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
+    MVMDispRegistry *reg = &(tc->instance->disp_registry);
+    MVMDispRegistryTable *table = reg->table;
+    size_t i;
+    for (i = 0; i < table->alloc_dispatchers; i++) {
+        MVMDispDefinition *disp = table->dispatchers[i];
+        if (disp) {
+            MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                (MVMCollectable *)disp->id, "Dispatch Program ID");
+            MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                (MVMCollectable *)disp->dispatch, "Dispatch Program dispatch");
+            MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+                (MVMCollectable *)disp->resume, "Dispatch Program resume");
+        }
+    }
+}
 
 /* Tear down the dispatcher registry, freeing all memory associated with it. */
 void MVM_disp_registry_destroy(MVMThreadContext *tc) {
