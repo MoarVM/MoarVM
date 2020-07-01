@@ -1434,6 +1434,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
         }
         case MVM_DISP_OUTCOME_BYTECODE:
             process_recording(tc, record);
+            MVM_disp_program_recording_destroy(tc, &(record->rec));
             record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
             tc->cur_frame = find_calling_frame(tc->stack_top->prev);
             MVM_frame_dispatch(tc, record->outcome.code, record->outcome.args, -1);
@@ -1442,6 +1443,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             return 0;
         case MVM_DISP_OUTCOME_CFUNCTION:
             process_recording(tc, record);
+            MVM_disp_program_recording_destroy(tc, &(record->rec));
             record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
             tc->cur_frame = find_calling_frame(tc->stack_top->prev);
             record->outcome.c_func(tc, record->outcome.args);
@@ -1780,4 +1782,19 @@ void MVM_disp_program_destroy(MVMThreadContext *tc, MVMDispProgram *dp) {
     MVM_free(dp->gc_constants);
     MVM_free(dp->ops);
     MVM_free(dp);
+}
+
+/* Free the memory associated with a dispatch program recording. */
+void destroy_recording_capture(MVMThreadContext *tc, MVMDispProgramRecordingCapture *cap) {
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(cap->captures); i++)
+        destroy_recording_capture(tc, &(cap->captures[i]));
+    MVM_VECTOR_DESTROY(cap->captures);
+}
+void MVM_disp_program_recording_destroy(MVMThreadContext *tc, MVMDispProgramRecording *rec) {
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++)
+        MVM_VECTOR_DESTROY(rec->values[i].not_literal_guards);
+    MVM_VECTOR_DESTROY(rec->values);
+    destroy_recording_capture(tc, &(rec->initial_capture));
 }

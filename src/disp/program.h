@@ -412,3 +412,4 @@ void MVM_disp_program_mark_run_temps(MVMThreadContext *tc, MVMDispProgram *dp,
 void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *outcome,
         MVMGCWorklist *worklist);
 void MVM_disp_program_destroy(MVMThreadContext *tc, MVMDispProgram *dp);
+void MVM_disp_program_recording_destroy(MVMThreadContext *tc, MVMDispProgramRecording *rec);
