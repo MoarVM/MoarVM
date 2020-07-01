@@ -301,6 +301,7 @@ static void handle_end_of_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunk
     MVMuint32 remove_dispatch_frame = MVM_disp_program_record_end(tc, disp_record, thunked);
     if (remove_dispatch_frame) {
         assert((char *)disp_record == (char *)tc->stack_top);
+        MVM_disp_program_recording_destroy(tc, &(disp_record->rec));
         tc->stack_current_region->alloc = (char *)tc->stack_top;
         tc->stack_top = tc->stack_top->prev;
         unwind_region_start(tc);
