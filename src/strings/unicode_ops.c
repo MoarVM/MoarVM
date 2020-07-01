@@ -677,7 +677,7 @@ MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) 
     if (!MVM_uni_hash_count(&codepoints_by_name)) {
         generate_codepoints_by_name(tc);
     }
-    struct MVMUniHashHandle *result = MVM_uni_hash_fetch(tc, &codepoints_by_name, cname);
+    struct MVMUniHashEntry *result = MVM_uni_hash_fetch(tc, &codepoints_by_name, cname);
     if (!result) {
         #define prefixes_len 7
         const char *prefixes[prefixes_len] = {
@@ -907,7 +907,7 @@ MVMint64 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name
     if (!MVM_uni_hash_count(&property_codes_by_names_aliases)) {
         generate_property_codes_by_names_aliases(tc);
     }
-    struct MVMUniHashHandle *result = MVM_uni_hash_fetch(tc, &property_codes_by_names_aliases, cname);
+    struct MVMUniHashEntry *result = MVM_uni_hash_fetch(tc, &property_codes_by_names_aliases, cname);
     return result ? result->value : 0;
 }
 
@@ -949,9 +949,9 @@ MVMint32 unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 pro
     out_str = alloca(sizeof(char) * out_str_length);
     snprintf(out_str, out_str_length, "%"PRIi64"-%s", property_code, cname);
 
-    struct MVMUniHashHandle *result = MVM_uni_hash_fetch(tc,
-                                                         &unicode_property_values_hashes[property_code],
-                                                         out_str);
+    struct MVMUniHashEntry *result = MVM_uni_hash_fetch(tc,
+                                                        &unicode_property_values_hashes[property_code],
+                                                        out_str);
     return result ? result->value : 0;
 }
 MVMint64 MVM_unicode_name_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, MVMString *name) {
@@ -1046,9 +1046,9 @@ MVMString * MVM_unicode_string_from_name(MVMThreadContext *tc, MVMString *name) 
         if (!MVM_uni_hash_count(&property_codes_by_seq_names)) {
             generate_property_codes_by_seq_names(tc);
         }
-        struct MVMUniHashHandle *result = MVM_uni_hash_fetch(tc,
-                                                             &property_codes_by_seq_names,
-                                                             cname);
+        struct MVMUniHashEntry *result = MVM_uni_hash_fetch(tc,
+                                                            &property_codes_by_seq_names,
+                                                            cname);
         MVM_free(cname);
         /* If we can't find a result return an empty string */
         if (!result)
