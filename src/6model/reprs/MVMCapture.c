@@ -207,6 +207,18 @@ void MVM_capture_arg_pos(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32
     *arg_type_out = capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK;
 }
 
+/* Checks if the capture has a named arg with the specified name. */
+MVMint64 MVM_capture_has_named_arg(MVMThreadContext *tc, MVMObject *capture_obj, MVMString *name) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    MVMCallsite *cs = capture->body.callsite;
+    MVMuint32 num_nameds = cs->flag_count - cs->num_pos;
+    MVMuint32 i;
+    for (i = 0; i < num_nameds; i++)
+        if (MVM_string_equal(tc, cs->arg_names[i], name))
+            return 1;
+    return 0;
+}
+
 /* Produce a new capture by taking the current one and dropping the specified
  * positional argument from it. */
 MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
