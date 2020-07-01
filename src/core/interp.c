@@ -1561,6 +1561,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 0).i64 = MVM_args_has_named(tc, cc->body.apc,
                         GET_REG(cur_op, 4).s);
                 }
+                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
+                    GET_REG(cur_op, 0).i64 = MVM_capture_has_named_arg(tc, obj,
+                        GET_REG(cur_op, 4).s);
+                }
                 else {
                     MVM_exception_throw_adhoc(tc, "captureexistsnamed needs a MVMCallCapture");
                 }
