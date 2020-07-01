@@ -130,7 +130,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up REPR registry mutex. */
     init_mutex(instance->mutex_repr_registry, "REPR registry");
-    MVM_index_hash_build(&instance->repr_hash);
+    MVM_index_hash_build(instance->main_thread, &instance->repr_hash);
 
     /* Set up HLL config mutex. */
     init_mutex(instance->mutex_hllconfigs, "hll configs");

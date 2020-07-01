@@ -73,14 +73,14 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         } else {
             lexical_names = MVM_fixed_size_alloc(tc, tc->instance->fsa,
                                                  sizeof(MVMIndexHashTable));
-            MVM_index_hash_build(lexical_names);
+            MVM_index_hash_build(tc, lexical_names);
         }
 
         for (MVMuint32 j = 0; j < num_lexicals; j++) {
             /* don't need to clone the string */
             MVM_ASSIGN_REF(tc, &(dest_root->header), lexical_names_list[j], src_body->lexical_names_list[j]);
             if (lexical_names) {
-                MVM_index_hash_store_nt(tc, lexical_names, lexical_names_list, j);
+                MVM_index_hash_insert_nt(tc, lexical_names, lexical_names_list, j);
             }
         }
         dest_body->lexical_names_list = lexical_names_list;
@@ -244,7 +244,7 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
         size += sizeof(MVMString *) * body->num_lexicals;
 
         if (body->lexical_names) {
-            size += sizeof(struct MVMIndexHashHandle) * body->num_lexicals;
+            size += sizeof(struct MVMIndexHashEntry) * body->num_lexicals;
         }
 
         size += sizeof(MVMFrameHandler) * body->num_handlers;
