@@ -329,7 +329,9 @@ MVMCallsite * MVM_callsite_drop_positional(MVMThreadContext *tc, MVMCallsite *cs
     new_callsite->num_pos = cs->num_pos - 1;
     new_callsite->flag_count = cs->flag_count - 1;
     new_callsite->arg_count = cs->arg_count - 1;
-    new_callsite->arg_flags = MVM_malloc(new_callsite->flag_count);
+    new_callsite->arg_flags = new_callsite->flag_count
+        ? MVM_malloc(new_callsite->flag_count)
+        : NULL;
     MVMuint32 from, to = 0;
     for (from = 0; from < cs->flag_count; from++) {
         if (from != idx) {
