@@ -1,105 +1,157 @@
 #include "moar.h"
 
+#define INDEX_LOAD_FACTOR 0.75
+#define INDEX_INITIAL_SIZE 8
+#define INDEX_INITIAL_KEY_RIGHT_SHIFT (8 * sizeof(MVMuint64) - 3)
+
+/* Frees the entire contents of the hash, leaving you just the hashtable itself,
+   which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_index_hash_demolish(MVMThreadContext *tc, MVMIndexHashTable *hashtable) {
-    /* Never allocated? (or already demolished?) */
-    if (MVM_UNLIKELY(hashtable->log2_num_buckets == 0))
-        return;
+    free(hashtable->entries);
+    free(hashtable->metadata);
+}
+/* and then free memory if you allocated it */
 
-    struct MVMIndexHashBucket *bucket = hashtable->buckets;
-    const struct MVMIndexHashBucket *const bucket_end
-        = hashtable->buckets + hashtable->num_buckets;
 
-    do {
-        struct MVMIndexHashHandle *head = bucket->hh_head;
-        while (head) {
-            struct MVMIndexHashHandle *next = head->hh_next;
-            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(struct MVMIndexHashHandle), head);
-            head = next;
-        }
-    } while (++bucket < bucket_end);
-
-    MVM_fixed_size_free(tc, tc->instance->fsa,
-                        hashtable->num_buckets*sizeof(struct MVMIndexHashBucket),
-                        hashtable->buckets);
-    /* We shouldn't need either of these, but make something foolproof and they
-       invent a better fool: */
-    hashtable->buckets = NULL;
-    hashtable->log2_num_buckets = 0;
-    hashtable->num_items = 0;
+MVM_STATIC_INLINE MVMuint32 hash_true_size(MVMIndexHashTable *hashtable) {
+    MVMuint32 true_size = hashtable->official_size + hashtable->max_items - 1;
+    if (hashtable->official_size + MVM_HASH_MAX_PROBE_DISTANCE < true_size) {
+        true_size = hashtable->official_size + MVM_HASH_MAX_PROBE_DISTANCE;
+    }
+    return true_size;
 }
 
-/* Bucket expansion has the effect of doubling the number of buckets
- * and redistributing the items into the new buckets. Ideally the
- * items will distribute more or less evenly into the new buckets
- * (the extent to which this is true is a measure of the quality of
- * the hash function as it applies to the key domain).
- *
- * With the items distributed into more buckets, the chain length
- * (item count) in each bucket is reduced. Thus by expanding buckets
- * the hash keeps a bound on the chain length. This bounded chain
- * length is the essence of how a hash provides constant time lookup.
- *
- * The calculation of tbl->ideal_chain_maxlen below deserves some
- * explanation. First, keep in mind that we're calculating the ideal
- * maximum chain length based on the *new* (doubled) bucket count.
- * In fractions this is just n/b (n=number of items,b=new num buckets).
- * Since the ideal chain length is an integer, we want to calculate
- * ceil(n/b). We don't depend on floating point arithmetic in this
- * hash, so to calculate ceil(n/b) with integers we could write
- *
- *      ceil(n/b) = (n/b) + ((n%b)?1:0)
- *
- * and in fact a previous version of this hash did just that.
- * But now we have improved things a bit by recognizing that b is
- * always a power of two. We keep its base 2 log handy (call it lb),
- * so now we can write this with a bit shift and logical AND:
- *
- *      ceil(n/b) = (n>>lb) + ( (n & (b-1)) ? 1:0)
- *
- */
-void MVM_index_hash_expand_buckets(MVMThreadContext *tc, MVMIndexHashTable *tbl, MVMString **list) {
-    MVMHashBktNum he_bkt;
-    MVMHashBktNum he_bkt_i;
-    struct MVMIndexHashHandle *he_thh, *_he_hh_nxt;
-    struct MVMIndexHashBucket *he_new_buckets, *_he_newbkt;
-    MVMHashBktNum new_num_bkts = tbl->num_buckets * 2;
-    MVMHashUInt new_log2_num_buckets = tbl->log2_num_buckets + 1;
-    he_new_buckets =
-        MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-                                    new_num_bkts * sizeof(struct MVMIndexHashBucket));
-    tbl->ideal_chain_maxlen =
-        (tbl->num_items >> new_log2_num_buckets) +
-        ((tbl->num_items & (new_num_bkts-1)) ? 1 : 0);
-    tbl->nonideal_items = 0;
-    /* Iterate the buckets */
-    for(he_bkt_i = 0; he_bkt_i < tbl->num_buckets; he_bkt_i++) {
-        he_thh = tbl->buckets[ he_bkt_i ].hh_head;
-        /* Iterate items in the bucket */
-        while (he_thh) {
-            _he_hh_nxt = he_thh->hh_next;
-            MVMString *key = list[he_thh->index];
-            he_bkt = MVM_str_hash_bucket(key->body.cached_hash_code, new_log2_num_buckets);
-            _he_newbkt = &(he_new_buckets[ he_bkt ]);
-            if (++(_he_newbkt->count) > tbl->ideal_chain_maxlen) {
-                tbl->nonideal_items++;
-                _he_newbkt->expand_mult = _he_newbkt->count /
-                                          tbl->ideal_chain_maxlen;
-           }
-           he_thh->hh_next = _he_newbkt->hh_head;
-           _he_newbkt->hh_head = he_thh;
-           he_thh = _he_hh_nxt;
+MVM_STATIC_INLINE void hash_allocate_common(MVMIndexHashTable *hashtable) {
+    hashtable->max_items = hashtable->official_size * INDEX_LOAD_FACTOR;
+    size_t actual_items = hash_true_size(hashtable);
+    hashtable->entries = malloc(sizeof(struct MVMIndexHashEntry) * actual_items);
+    hashtable->metadata = calloc(actual_items + 1, 1);
+    /* A sentinel. This marks an occupied slot, at its ideal position. */
+    hashtable->metadata[actual_items] = 1;
+}
+
+MVM_STATIC_INLINE void hash_initial_allocate(MVMIndexHashTable *hashtable) {
+    hashtable->key_right_shift = INDEX_INITIAL_KEY_RIGHT_SHIFT;
+    hashtable->official_size = INDEX_INITIAL_SIZE;
+
+    hash_allocate_common(hashtable);
+}
+
+/* make sure you still have your copies of entries and metadata before you
+   call this. */
+MVM_STATIC_INLINE void hash_grow(MVMIndexHashTable *hashtable) {
+    --hashtable->key_right_shift;
+    hashtable->official_size *= 2;
+
+    hash_allocate_common(hashtable);
+}
+
+MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
+                                            MVMIndexHashTable *hashtable,
+                                            MVMString **list,
+                                            MVMuint32 idx) {
+    if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {
+        MVM_oops(tc, "oops, attempt to recursively call grow when adding %i",
+                 idx);
+    }
+
+    unsigned int probe_distance = 1;
+    MVMuint64 hash_val = MVM_string_hash_code(tc, list[idx]);
+    MVMHashNumItems bucket = hash_val >> hashtable->key_right_shift;
+    char *entry_raw = hashtable->entries + bucket * sizeof(struct MVMIndexHashEntry);
+    MVMuint8 *metadata = hashtable->metadata + bucket;
+    while (1) {
+        if (*metadata < probe_distance) {
+            /* this is our slot. occupied or not, it is our rightful place. */
+
+            if (*metadata == 0) {
+                /* Open goal. Score! */
+            } else {
+                /* make room. */
+
+                /* Optimisation first seen in Martin Ankerl's implementation -
+                   we don't need actually implement the "stealing" by swapping
+                   elements and carrying on with insert. The invariant of the
+                   hash is that probe distances are never out of order, and as
+                   all the following elements have probe distances in order, we
+                   can maintain the invariant just as well by moving everything
+                   along by one. */
+                MVMuint8 *find_me_a_gap = metadata;
+                MVMuint8 old_probe_distance = *metadata;
+                do {
+                    MVMuint8 new_probe_distance = 1 + old_probe_distance;
+                    if (new_probe_distance == MVM_HASH_MAX_PROBE_DISTANCE) {
+                        /* Optimisation from Martin Ankerl's implementation:
+                           setting this to zero forces a resize on any insert,
+                           *before* the actual insert, so that we never end up
+                           having to handle overflow *during* this loop. This
+                           loop can always complete. */
+                        hashtable->max_items = 0;
+                    }
+                    /* a swap: */
+                    old_probe_distance = *++find_me_a_gap;
+                    *find_me_a_gap = new_probe_distance;
+                } while (old_probe_distance);
+
+                MVMuint32 entries_to_move = find_me_a_gap - metadata;
+                memmove(entry_raw + sizeof(struct MVMIndexHashEntry), entry_raw,
+                        sizeof(struct MVMIndexHashEntry) * entries_to_move);
+            }
+
+            *metadata = probe_distance;
+            struct MVMIndexHashEntry *entry = (struct MVMIndexHashEntry *) entry_raw;
+            entry->index = idx;
+
+            return;
         }
+
+        if (*metadata == probe_distance) {
+            struct MVMIndexHashEntry *entry = (struct MVMIndexHashEntry *) entry_raw;
+            if (entry->index == idx) {
+                /* definately XXX - what should we do here? */
+                MVM_oops(tc, "insert duplicate for %u", idx);
+            }
+        }
+        ++probe_distance;
+        ++metadata;
+        entry_raw += sizeof(struct MVMIndexHashEntry);
+        assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
+        assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
+        assert(metadata < hashtable->metadata + hashtable->official_size + 256);
     }
-    MVM_fixed_size_free(tc, tc->instance->fsa,
-                        tbl->num_buckets*sizeof(struct MVMIndexHashBucket),
-                        tbl->buckets);
-    tbl->num_buckets = new_num_bkts;
-    tbl->log2_num_buckets = new_log2_num_buckets;
-    tbl->buckets = he_new_buckets;
-    tbl->ineff_expands = (tbl->nonideal_items > (tbl->num_items >> 1))
-        ? (tbl->ineff_expands+1)
-        : 0;
-    if (tbl->ineff_expands > 1) {
-        tbl->noexpand=1;
+}
+
+/* UNCONDITIONALLY creates a new hash entry with the given key and value.
+ * Doesn't check if the key already exists. Use with care. */
+void MVM_index_hash_insert_nt(MVMThreadContext *tc,
+                              MVMIndexHashTable *hashtable,
+                              MVMString **list,
+                              MVMuint32 idx) {
+    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+        hash_initial_allocate(hashtable);
     }
+    else if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {
+        MVMuint32 true_size =  hash_true_size(hashtable);
+        char *entry_raw_orig = hashtable->entries;
+        MVMuint8 *metadata_orig = hashtable->metadata;
+
+        hash_grow(hashtable);
+
+        char *entry_raw = entry_raw_orig;
+        MVMuint8 *metadata = metadata_orig;
+        MVMHashNumItems bucket = 0;
+        while (bucket < true_size) {
+            if (*metadata) {
+                struct MVMIndexHashEntry *entry = (struct MVMIndexHashEntry *) entry_raw;
+                hash_insert_internal(tc, hashtable, list, entry->index);
+            }
+            ++bucket;
+            ++metadata;
+            entry_raw += sizeof(struct MVMIndexHashEntry);
+        }
+        free(entry_raw_orig);
+        free(metadata_orig);
+    }
+    hash_insert_internal(tc, hashtable, list, idx);
+    ++hashtable->cur_items;
 }

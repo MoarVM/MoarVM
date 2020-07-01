@@ -191,7 +191,7 @@ static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr, MVMStrin
     /* Enter into registry. */
     tc->instance->repr_vtables[repr->ID] = repr;
     tc->instance->repr_names[repr->ID] = name;
-    MVM_index_hash_store_nt(tc, &tc->instance->repr_hash, tc->instance->repr_names, repr->ID);
+    MVM_index_hash_insert_nt(tc, &tc->instance->repr_hash, tc->instance->repr_names, repr->ID);
 
     /* Name should become a permanent GC root. */
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&tc->instance->repr_names[repr->ID], "REPR name");
