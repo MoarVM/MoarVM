@@ -92,6 +92,7 @@ typedef double   MVMnum64;
 
 /* Hashes */
 #define HASH_DEBUG_ITER 1
+#define MVM_HASH_MAX_PROBE_DISTANCE 255
 
 #include "strings/uthash_types.h"
 
