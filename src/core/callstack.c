@@ -377,6 +377,9 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                 }
                 else {
                     /* There was an exception; just leave the frame behind. */
+                    MVMCallStackDispatchRecord *disp_record =
+                        (MVMCallStackDispatchRecord *)tc->stack_top;
+                    MVM_disp_program_recording_destroy(tc, &(disp_record->rec));
                     tc->stack_current_region->alloc = (char *)tc->stack_top;
                     tc->stack_top = tc->stack_top->prev;
                 }
