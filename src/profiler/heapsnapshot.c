@@ -252,7 +252,7 @@ static void add_reference_vm_str(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
  * seen it before or adding it if not. */
 static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
         MVMHeapSnapshotState *ss, MVMCollectable *collectable) {
-    struct MVMPtrHashHandle *entry = MVM_ptr_hash_lvalue_fetch(tc, &ss->seen, collectable);
+    struct MVMPtrHashEntry *entry = MVM_ptr_hash_lvalue_fetch(tc, &ss->seen, collectable);
 
     if (entry->key) {
         return entry->value;
@@ -285,7 +285,7 @@ static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
  * it before or adding it if not. */
 static MVMuint64 get_frame_idx(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         MVMFrame *frame) {
-    struct MVMPtrHashHandle *entry = MVM_ptr_hash_lvalue_fetch(tc, &ss->seen, frame);
+    struct MVMPtrHashEntry *entry = MVM_ptr_hash_lvalue_fetch(tc, &ss->seen, frame);
 
     if (entry->key) {
         return entry->value;

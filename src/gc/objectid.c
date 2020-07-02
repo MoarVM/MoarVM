@@ -17,7 +17,7 @@ MVMuint64 MVM_gc_object_id(MVMThreadContext *tc, MVMObject *obj) {
         if (obj->header.flags & MVM_CF_HAS_OBJECT_ID) {
             /* Has one, so just look up by address in the hash ID hash. */
 
-            struct MVMPtrHashHandle *entry = MVM_ptr_hash_fetch(tc, &tc->instance->object_ids, obj);
+            struct MVMPtrHashEntry *entry = MVM_ptr_hash_fetch(tc, &tc->instance->object_ids, obj);
             assert(entry);
             id = entry->value;
         }
