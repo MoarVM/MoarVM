@@ -48,15 +48,14 @@ MVM_STATIC_INLINE void hash_grow(MVMUniHashTable *hashtable) {
 
 MVMuint64 MVM_uni_hash_fsck(MVMUniHashTable *hashtable, MVMuint32 mode);
 
-MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
-                                            MVMUniHashTable *hashtable,
-                                            const char *key,
-                                            MVMuint32 hash_val,
-                                            MVMint32 value) {
+MVM_STATIC_INLINE struct MVMUniHashEntry *hash_insert_internal(MVMThreadContext *tc,
+                                                               MVMUniHashTable *hashtable,
+                                                               const char *key,
+                                                               MVMuint32 hash_val) {
     if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {
         MVM_uni_hash_fsck(hashtable, 5);
-        MVM_oops(tc, "oops, attempt to recursively call grow when adding %s => %d",
-                 key, value);
+        MVM_oops(tc, "oops, attempt to recursively call grow when adding %s",
+                 key);
     }
 
     unsigned int probe_distance = 1;
@@ -103,21 +102,14 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
 
             *metadata = probe_distance;
             struct MVMUniHashEntry *entry = (struct MVMUniHashEntry *) entry_raw;
-            entry->key = key;
-            entry->hash_val = hash_val;
-            entry->value = value;
-
-            return;
+            entry->key = NULL;
+            return entry;
         }
 
         if (*metadata == probe_distance) {
             struct MVMUniHashEntry *entry = (struct MVMUniHashEntry *) entry_raw;
             if (entry->hash_val == hash_val && 0 == strcmp(entry->key, key)) {
-                if (value != entry->value) {
-                    /* definately XXX - what should we do here? */
-                    MVM_oops(tc, "insert conflict, %s is %u, %i != %i", key, hash_val, value, entry->value);
-                }
-                return;
+                return entry;
             }
         }
         ++probe_distance;
@@ -129,16 +121,23 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
     }
 }
 
-/* UNCONDITIONALLY creates a new hash entry with the given key and value.
- * Doesn't check if the key already exists. Use with care. */
-void MVM_uni_hash_insert(MVMThreadContext *tc,
-                         MVMUniHashTable *hashtable,
-                         const char *key,
-                         MVMint32 value) {
+/* I think that we are going to expose this soon. */
+MVM_STATIC_INLINE void *MVM_uni_hash_lvalue_fetch(MVMThreadContext *tc,
+                                                  MVMUniHashTable *hashtable,
+                                                  const char *key) {
     if (MVM_UNLIKELY(hashtable->entries == NULL)) {
         hash_initial_allocate(hashtable);
     }
     else if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {
+        /* We should avoid growing the hash if we don't need to.
+         * It's expensive, and for hashes with iterators, growing the hash
+         * invalidates iterators. Which is buggy behaviour if the fetch doesn't
+         * need to create a key. */
+        struct MVMUniHashEntry *entry = MVM_uni_hash_fetch(tc, hashtable, key);
+        if (entry) {
+            return entry;
+        }
+
         MVMuint32 true_size =  hash_true_size(hashtable);
         char *entry_raw_orig = hashtable->entries;
         MVMuint8 *metadata_orig = hashtable->metadata;
@@ -150,8 +149,11 @@ void MVM_uni_hash_insert(MVMThreadContext *tc,
         MVMHashNumItems bucket = 0;
         while (bucket < true_size) {
             if (*metadata) {
-                struct MVMUniHashEntry *entry = (struct MVMUniHashEntry *) entry_raw;
-                hash_insert_internal(tc, hashtable, entry->key, entry->hash_val, entry->value);
+                struct MVMUniHashEntry *old_entry = (struct MVMUniHashEntry *) entry_raw;
+                struct MVMUniHashEntry *new_entry =
+                    hash_insert_internal(tc, hashtable, old_entry->key, old_entry->hash_val);
+                assert(new_entry->key == NULL);
+                *new_entry = *old_entry;
             }
             ++bucket;
             ++metadata;
@@ -161,8 +163,34 @@ void MVM_uni_hash_insert(MVMThreadContext *tc,
         MVM_free(metadata_orig);
     }
     MVMuint32 hash_val = MVM_uni_hash_code(key, strlen(key));
-    hash_insert_internal(tc, hashtable, key, hash_val, value);
-    ++hashtable->cur_items;
+    struct MVMUniHashEntry *new_entry
+        = hash_insert_internal(tc, hashtable, key, hash_val);
+    if (!new_entry->key) {
+        new_entry->hash_val = hash_val;
+        ++hashtable->cur_items;
+    }
+    return new_entry;
+}
+
+/* UNCONDITIONALLY creates a new hash entry with the given key and value.
+ * Doesn't check if the key already exists. Use with care.
+ * (well that's the official line. As you can see, the XXX suggests we currently
+ * don't exploit the documented freedom.) */
+void MVM_uni_hash_insert(MVMThreadContext *tc,
+                         MVMUniHashTable *hashtable,
+                         const char *key,
+                         MVMint32 value) {
+    struct MVMUniHashEntry *new_entry = MVM_uni_hash_lvalue_fetch(tc, hashtable, key);
+    if (new_entry->key) {
+        if (value != new_entry->value) {
+            MVMuint32 hash_val = MVM_uni_hash_code(key, strlen(key));
+            /* definately XXX - what should we do here? */
+            MVM_oops(tc, "insert conflict, %s is %u, %i != %i", key, hash_val, value, new_entry->value);
+        }
+    } else {
+        new_entry->key = key;
+        new_entry->value = value;
+    }
 }
 
 /* This is not part of the public API, and subject to change at any point.
