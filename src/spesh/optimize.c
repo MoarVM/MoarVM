@@ -544,6 +544,55 @@ static void optimize_not_i(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *
     }
 }
 
+static void optimize_bitwise_int_math(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
+    MVMSpeshFacts *lhs_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    MVMSpeshFacts *rhs_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
+    if ((lhs_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && (rhs_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)) {
+        MVMint64 lhs_v = lhs_facts->value.i;
+        MVMint64 rhs_v = rhs_facts->value.i;
+        MVMint64 result_v;
+        char *opname = ins->info->name;
+
+        switch (ins->info->opcode) {
+            case MVM_OP_band_i:
+                result_v = lhs_v & rhs_v;
+                break;
+            case MVM_OP_bor_i:
+                result_v = lhs_v | rhs_v;
+                break;
+            case MVM_OP_bxor_i:
+                result_v = lhs_v ^ rhs_v;
+                break;
+            default:
+                MVM_spesh_graph_add_comment(tc, g, ins, "not the right opcode for some reason lol %s %d", opname, ins->info->opcode);
+                return;
+        }
+
+        /* Turn the op into a constant and set result facts. */
+        MVMSpeshFacts *dest_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        dest_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+        dest_facts->value.i = result_v;
+        ins->info = MVM_op_get_op(MVM_OP_const_i64);
+        ins->operands[1].lit_i64 = result_v;
+
+        /* This op no longer uses the source values. */
+        MVM_spesh_usages_delete(tc, g, lhs_facts, ins);
+        MVM_spesh_usages_delete(tc, g, rhs_facts, ins);
+
+        /* Need to depend on the source facts. */
+        MVM_spesh_use_facts(tc, g, lhs_facts);
+        MVM_spesh_use_facts(tc, g, rhs_facts);
+        MVM_spesh_facts_depend(tc, g, dest_facts, lhs_facts);
+        MVM_spesh_facts_depend(tc, g, dest_facts, rhs_facts);
+
+        MVM_spesh_graph_add_comment(tc, g, ins, "optimized math from an %s op.", opname);
+    }
+    else {
+        MVM_spesh_graph_add_comment(tc, g, ins, "looked at this but no luck. flags: %d and %d", lhs_facts->flags, rhs_facts->flags);
+    }
+}
+
+
 /* objprimspec can be done at spesh-time if we know the type of something.
  * Another thing is, that if we rely on the type being known, we'll be assured
  * we'll have a guard that promises the object in question to be non-null. */
@@ -2726,6 +2775,11 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_not_i:
             optimize_not_i(tc, g, ins, bb);
             break;
+        case MVM_OP_band_i:
+        case MVM_OP_bor_i:
+        case MVM_OP_bxor_i:
+            optimize_bitwise_int_math(tc, g, ins, bb);
+            break;
         case MVM_OP_prepargs:
             arg_info.cs = g->sf->body.cu->body.callsites[ins->operands[0].callsite_idx];
             arg_info.prepargs_ins = ins;
@@ -3268,6 +3322,11 @@ static void post_inline_visit_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
                 if (ins->prev && ins->prev->info->opcode == ins->info->opcode &&
                         ins->operands[0].reg.orig == ins->prev->operands[0].reg.orig)
                     MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->prev);
+                break;
+            case MVM_OP_band_i:
+            case MVM_OP_bor_i:
+            case MVM_OP_bxor_i:
+                optimize_bitwise_int_math(tc, g, ins, bb);
                 break;
             case MVM_OP_prof_allocated:
                 optimize_prof_allocated(tc, g, bb, ins);
