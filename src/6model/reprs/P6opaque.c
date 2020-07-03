@@ -1909,6 +1909,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6num) {
                 MVMSpeshOperand *orig_operands = ins->operands;
                 ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_n);
+                MVM_spesh_graph_add_comment(tc, g, ins, "%s a %s",
+                    ins->info->name, MVM_6model_get_stable_debug_name(tc, st));
                 ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
                 ins->operands[0] = orig_operands[0];
                 ins->operands[1] = orig_operands[1];
@@ -1922,6 +1924,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_str_slot];
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6str) {
                 MVMSpeshOperand *orig_operands = ins->operands;
+                MVM_spesh_graph_add_comment(tc, g, ins, "%s a %s",
+                    ins->info->name, MVM_6model_get_stable_debug_name(tc, st));
                 ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_s);
                 ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
                 ins->operands[0] = orig_operands[0];
