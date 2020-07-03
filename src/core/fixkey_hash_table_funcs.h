@@ -1,36 +1,7 @@
-/* Public API at the end of the file. */
-
-/* At the moment this is a massively revised version of uthash.h, hence: */
-
-/*
-Copyright (c) 2003-2014, Troy D. Hanson    http://troydhanson.github.com/uthash/
-All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-    * Redistributions of source code must retain the above copyright
-      notice, this list of conditions and the following disclaimer.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS
-IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
-TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A
-PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER
-OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
-EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
-PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR
-PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF
-LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING
-NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-*/
-
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable);
 /* and then free memory if you allocated it */
-
-void MVM_fixkey_hash_expand_buckets(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable);
 
 /* Call this before you use the hashtable, to initialise it.
  * Doesn't allocate memory - you can embed the struct within a larger struct if
@@ -40,160 +11,69 @@ MVM_STATIC_INLINE void MVM_fixkey_hash_build(MVMThreadContext *tc, MVMFixKeyHash
     if (MVM_UNLIKELY(entry_size == 0 || entry_size > 1024 || entry_size & 3)) {
         MVM_oops(tc, "Hash table entry_size %" PRIu32 " is invalid", entry_size);
     }
-    hashtable->buckets = NULL;
-    hashtable->num_buckets = 0;
-    hashtable->log2_num_buckets = 0;
-    hashtable->num_items = 0;
-    hashtable->ideal_chain_maxlen = 0;
-    hashtable->nonideal_items = 0;
-    hashtable->ineff_expands = 0;
-    hashtable->noexpand = 0;
+    memset(hashtable, 0, sizeof(*hashtable));
     hashtable->entry_size = entry_size;
 }
 
-/* Fibonacci bucket determination.
- * Since we grow bucket sizes in multiples of two, we just need a right
- * bitmask to get it on the correct scale. This has an advantage over using &ing
- * or % to get the bucket number because it uses the full bit width of the hash.
- * If the size of the hashv is changed we will need to change max_hashv_div_phi,
- * to be max_hashv / phi rounded to the nearest *odd* number.
- * max_hashv / phi = 11400714819323198485 */
-#define max_hashv_div_phi UINT64_C(11400714819323198485)
-
-MVM_STATIC_INLINE MVMHashBktNum MVM_fixkey_hash_bucket(MVMuint64 hashv, MVMuint32 offset) {
-    return (hashv * max_hashv_div_phi) >> ((sizeof(MVMHashv)*8) - offset);
+MVM_STATIC_INLINE MVMuint64 MVM_fixkey_hash_code(MVMThreadContext *tc, MVMString *key) {
+    return MVM_string_hash_code(tc, key) * UINT64_C(11400714819323198485);
 }
 
-MVM_STATIC_INLINE void MVM_fixkey_hash_allocate_buckets(MVMThreadContext *tc,
-                                                        MVMFixKeyHashTable *hashtable) {
-    if (MVM_UNLIKELY(hashtable->entry_size == 0))
-        MVM_oops(tc, "Hash table entry_size not set");
-    if (MVM_UNLIKELY(hashtable->entry_size > 1024 || hashtable->entry_size & 3))
-        MVM_oops(tc, "Hash table entry_size %" PRIu32 " is invalid", hashtable->entry_size);
+/* UNCONDITIONALLY creates a new hash entry with the given key and value.
+ * Doesn't check if the key already exists. Use with care. */
+void *MVM_fixkey_hash_insert_nt(MVMThreadContext *tc,
+                                MVMFixKeyHashTable *hashtable,
+                                MVMString *key);
 
-    /* Lazily allocate the hash table. */
-    hashtable->buckets = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-                                                     HASH_INITIAL_NUM_BUCKETS * sizeof(struct MVMFixKeyHashBucket));
-    hashtable->num_buckets = HASH_INITIAL_NUM_BUCKETS;
-    hashtable->log2_num_buckets = HASH_INITIAL_NUM_BUCKETS_LOG2;
-}
-
-/* UNCONDITIONALLY creates a new hash entry with the given key, returning the
- * newly allocated entry. Doesn't check if the key already exists. Use with
- * care. */
-MVM_STATIC_INLINE void *MVM_fixkey_hash_insert_nt(MVMThreadContext *tc,
-                                                  MVMFixKeyHashTable *hashtable,
-                                                  MVMString *key) {
-    if (MVM_UNLIKELY(hashtable->log2_num_buckets == 0)) {
-        MVM_fixkey_hash_allocate_buckets(tc, hashtable);
+MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nt(MVMThreadContext *tc,
+                                                 MVMFixKeyHashTable *hashtable,
+                                                 MVMString *key) {
+    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+        return NULL;
     }
-
-    MVMHashv hashv = MVM_string_hash_code(tc, key);
-    MVMHashBktNum bucket_num = MVM_fixkey_hash_bucket(hashv, hashtable->log2_num_buckets);
-    struct MVMFixKeyHashBucket *bucket = hashtable->buckets + bucket_num;
-
-    struct MVMFixKeyHashHandle *indirection
-        = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof (struct MVMFixKeyHashHandle));
-    MVMString **entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, hashtable->entry_size);
-    *entry = key;
-    indirection->key = entry;
-
-    indirection->hh_next = bucket->hh_head;
-    bucket->hh_head = indirection;
-    ++hashtable->num_items;
-    if (MVM_UNLIKELY(++(bucket->count) >= ((bucket->expand_mult+1) * HASH_BKT_CAPACITY_THRESH)
-                     && hashtable->noexpand != 1)) {
-        MVM_fixkey_hash_expand_buckets(tc, hashtable);
+    unsigned int probe_distance = 1;
+    MVMHashNumItems bucket = MVM_fixkey_hash_code(tc, key) >> hashtable->key_right_shift;
+    char *entry_raw = hashtable->entries + bucket * sizeof(MVMString ***);
+    MVMuint8 *metadata = hashtable->metadata + bucket;
+    while (1) {
+        if (*metadata == probe_distance) {
+            MVMString ***entry = (MVMString ***) entry_raw;
+            /* A struct, which starts with an MVMString * */
+            MVMString **indirection = *entry;
+            if (*indirection == key
+                || (MVM_string_graphs_nocheck(tc, key) == MVM_string_graphs_nocheck(tc, *indirection)
+                    && MVM_string_substrings_equal_nocheck(tc, key, 0,
+                                                           MVM_string_graphs_nocheck(tc, key),
+                                                           *indirection, 0))) {
+                return indirection;
+            }
+        }
+        /* There's a sentinel at the end. This will terminate: */
+        if (*metadata < probe_distance) {
+            /* So, if we hit 0, the bucket is empty. "Not found".
+               If we hit something with a lower probe distance then...
+               consider what would have happened had this key been inserted into
+               the hash table - it would have stolen this slot, and the key we
+               find here now would have been displaced futher on. Hence, the key
+               we seek can't be in the hash table. */
+            return NULL;
+        }
+        ++probe_distance;
+        ++metadata;
+        entry_raw += sizeof(MVMString ***);
+        assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
+        assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
+        assert(metadata < hashtable->metadata + hashtable->official_size + 256);
     }
-
-    return entry;
 }
 
 /* Looks up entry for key, creating it if necessary.
  * Returns the structure we indirect to.
- * If it's freshly allocated, then entry->key is NULL (you need to fill this in)
+ * If it's freshly allocated, then *entry is NULL (you need to fill this in)
  * and everything else is uninitialised.
  * This might seem like a quirky API, but it's intended to fill a common pattern
  * we have, and the use of NULL key avoids needing two return values.
  * DON'T FORGET to fill in the NULL key. */
-MVM_STATIC_INLINE void *MVM_fixkey_hash_lvalue_fetch_nt(MVMThreadContext *tc,
-                                                        MVMFixKeyHashTable *hashtable,
-                                                        MVMString *key) {
-    MVMHashv hashv = MVM_string_hash_code(tc, key);
-    MVMHashBktNum bucket_num;
-    struct MVMFixKeyHashBucket *bucket;
-
-    if (MVM_UNLIKELY(hashtable->log2_num_buckets == 0)) {
-        MVM_fixkey_hash_allocate_buckets(tc, hashtable);
-        bucket_num = MVM_str_hash_bucket(hashv, hashtable->log2_num_buckets);
-        bucket = hashtable->buckets + bucket_num;
-    }
-    else {
-        bucket_num = MVM_fixkey_hash_bucket(hashv, hashtable->log2_num_buckets);
-        bucket = hashtable->buckets + bucket_num;
-        struct MVMFixKeyHashHandle *have = bucket->hh_head;
-        /* iterate over items in a known bucket to find desired item */
-        /* not adding the shortcut of comparing string cached hash values as it's
-         * slightly complex, and this code will die soon */
-        while (have) {
-            if (*have->key == key
-                || (MVM_string_graphs_nocheck(tc, key) == MVM_string_graphs_nocheck(tc, *have->key)
-                    && MVM_string_substrings_equal_nocheck(tc, key, 0,
-                                                           MVM_string_graphs_nocheck(tc, key),
-                                                           *have->key, 0))) {
-                return have->key;
-            }
-            have = have->hh_next;
-        }
-    }
-
-    /* Not found: */
-
-    struct MVMFixKeyHashHandle *indirection
-        = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof (struct MVMFixKeyHashHandle));
-    MVMString **entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, hashtable->entry_size);
-    *entry = NULL;
-
-    indirection->key = entry;
-
-    /* So this is (mostly) the code from insert above. */
-    indirection->hh_next = bucket->hh_head;
-    bucket->hh_head = indirection;
-    ++hashtable->num_items;
-    if (MVM_UNLIKELY(++(bucket->count) >= ((bucket->expand_mult+1) * HASH_BKT_CAPACITY_THRESH)
-                     && hashtable->noexpand != 1)) {
-        *entry = key;
-        MVM_fixkey_hash_expand_buckets(tc, hashtable);
-        *entry = NULL;
-    }
-
-    return entry;
-}
-
-/* Returns the structure we indirect to. */
-MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nt(MVMThreadContext *tc,
-                                                 MVMFixKeyHashTable *hashtable,
-                                                 MVMString *want) {
-    if (MVM_UNLIKELY(hashtable->log2_num_buckets == 0)) {
-        return NULL;
-    }
-
-    MVMHashv hashv = MVM_string_hash_code(tc, want);
-    MVMHashBktNum bucket_num = MVM_fixkey_hash_bucket(hashv, hashtable->log2_num_buckets);
-    struct MVMFixKeyHashBucket *bucket = hashtable->buckets + bucket_num;
-    struct MVMFixKeyHashHandle *have = bucket->hh_head;
-    /* iterate over items in a known bucket to find desired item */
-    /* not adding the shortcut of comparing string cached hash values as it's
-     * slightly complex, and this code will die soon */
-    while (have) {
-        if (*have->key == want
-            || (MVM_string_graphs_nocheck(tc, want) == MVM_string_graphs_nocheck(tc, *have->key)
-                && MVM_string_substrings_equal_nocheck(tc, want, 0,
-                                                       MVM_string_graphs_nocheck(tc, want),
-                                                       *have->key, 0))) {
-            return have->key;
-        }
-        have = have->hh_next;
-    }
-    return NULL;
-}
+void *MVM_fixkey_hash_lvalue_fetch_nt(MVMThreadContext *tc,
+                                      MVMFixKeyHashTable *hashtable,
+                                      MVMString *key);
