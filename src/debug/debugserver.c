@@ -1939,7 +1939,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     }
     else if (repr_id == MVM_REPR_ID_MVMHash) {
         if (IS_CONCRETE(target)) {
-            slots += 4; /* num_buckets, num_items, nonideal_items, ineff_expands */
+            slots += 1; /* num_items */
         }
         slots += 3; /* features */
         cmp_write_map(ctx, slots);
@@ -1947,14 +1947,10 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         if (IS_CONCRETE(target)) {
             MVMStrHashTable *hashtable = &(((MVMHashBody *)OBJECT_BODY(target))->hashtable);
 
-            cmp_write_str(ctx, "mvmhash_num_buckets", 19);
-            cmp_write_int(ctx, hashtable->num_buckets);
+            /* FIXME. What stats should we generate? Some are O(1),
+             * some are O(n) (like mean probe length, and its SD) */
             cmp_write_str(ctx, "mvmhash_num_items", 17);
-            cmp_write_int(ctx, hashtable->num_items);
-            cmp_write_str(ctx, "mvmhash_nonideal_items", 22);
-            cmp_write_int(ctx, hashtable->nonideal_items);
-            cmp_write_str(ctx, "mvmhash_ineff_expands", 21);
-            cmp_write_int(ctx, hashtable->ineff_expands);
+            cmp_write_int(ctx, hashtable->cur_items);
         }
 
         write_object_features(dtc, ctx, 0, 0, 1);
