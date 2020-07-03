@@ -3180,6 +3180,10 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
                 writer->operands[0] = new_target;
                 new_target_facts->writer = writer;
                 new_target_facts->dead_writer = 0;
+                new_target_facts->flags = source_facts->flags;
+                new_target_facts->value = source_facts->value;
+                new_target_facts->type = source_facts->type;
+                new_target_facts->decont_type = source_facts->decont_type;
                 return;
             }
         }
@@ -3211,6 +3215,8 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
             }
         }
     }
+
+    copy_facts(tc, g, ins->operands[0], ins->operands[1]);
 }
 
 /* Find box_* that are used by a matching unbox_*. This can happen in part due
