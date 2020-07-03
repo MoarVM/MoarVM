@@ -458,12 +458,13 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
         MVMint32 i;
         for (i = 0; i < cs->num_pos; i++) {
             MVMCallsiteEntry arg_flag = cs->arg_flags[i];
+            MVMCallsiteEntry arg_type = arg_flag & MVM_CALLSITE_ARG_TYPE_MASK;
             if (pos_ins[i]) {
                 switch (pos_ins[i]->info->opcode) {
                 case MVM_OP_param_rp_i:
                 case MVM_OP_param_op_i:
-                    if (arg_flag != MVM_CALLSITE_ARG_INT)
-                        if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
+                    if (arg_type != MVM_CALLSITE_ARG_INT)
+                        if (arg_type != MVM_CALLSITE_ARG_OBJ ||
                                 !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_INT)) {
                             MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
                                     "bailed argument spesh: expected arg flag %ld to be int or box an int; type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
@@ -472,8 +473,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     break;
                 case MVM_OP_param_rp_u:
                 case MVM_OP_param_op_u:
-                    if (arg_flag != MVM_CALLSITE_ARG_INT)
-                        if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
+                    if (arg_type != MVM_CALLSITE_ARG_INT)
+                        if (arg_type != MVM_CALLSITE_ARG_OBJ ||
                                 !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_INT)) {
                             MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
                                     "bailed argument spesh: expected arg flag %ld to be int or box an int; type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
@@ -482,8 +483,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     break;
                 case MVM_OP_param_rp_n:
                 case MVM_OP_param_op_n:
-                    if (arg_flag != MVM_CALLSITE_ARG_NUM)
-                        if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
+                    if (arg_type != MVM_CALLSITE_ARG_NUM)
+                        if (arg_type != MVM_CALLSITE_ARG_OBJ ||
                                 !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_NUM)) {
                             MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
                                     "bailed argument spesh: expected arg flag %ld to be num or box a num", i);
@@ -492,8 +493,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     break;
                 case MVM_OP_param_rp_s:
                 case MVM_OP_param_op_s:
-                    if (arg_flag != MVM_CALLSITE_ARG_STR)
-                        if (arg_flag != MVM_CALLSITE_ARG_OBJ ||
+                    if (arg_type != MVM_CALLSITE_ARG_STR)
+                        if (arg_type != MVM_CALLSITE_ARG_OBJ ||
                                 !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_STR)) {
                             MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
                                     "bailed argument spesh: expected arg flag %ld to be str or box a str type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
@@ -502,8 +503,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     break;
                 case MVM_OP_param_rp_o:
                 case MVM_OP_param_op_o:
-                    if (arg_flag != MVM_CALLSITE_ARG_OBJ && arg_flag != MVM_CALLSITE_ARG_INT &&
-                        arg_flag != MVM_CALLSITE_ARG_NUM && arg_flag != MVM_CALLSITE_ARG_STR) {
+                    if (arg_type != MVM_CALLSITE_ARG_OBJ && arg_type != MVM_CALLSITE_ARG_INT &&
+                        arg_type != MVM_CALLSITE_ARG_NUM && arg_type != MVM_CALLSITE_ARG_STR) {
                         MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
                                 "bailed argument spesh: expected arg flag %ld to be obj or int or num or str", i);
                         goto cleanup;
@@ -638,13 +639,14 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
          * facts. */
         for (i = 0; i < cs->num_pos; i++) {
             MVMCallsiteEntry arg_flag = cs->arg_flags[i];
+            MVMCallsiteEntry arg_type = arg_flag & MVM_CALLSITE_ARG_TYPE_MASK;
             if (!pos_ins[i])
                 continue;
             switch (pos_ins[i]->info->opcode) {
                 /* FIXME add support for param_rp_u here */
             case MVM_OP_param_rp_i:
             case MVM_OP_param_op_i:
-                if (arg_flag == MVM_CALLSITE_ARG_INT) {
+                if (arg_type == MVM_CALLSITE_ARG_INT) {
                     pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
                 }
                 else {
@@ -656,7 +658,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 break;
             case MVM_OP_param_rp_u:
             case MVM_OP_param_op_u:
-                if (arg_flag == MVM_CALLSITE_ARG_INT) {
+                if (arg_type == MVM_CALLSITE_ARG_INT) {
                     pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
                 }
                 else {
@@ -668,7 +670,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 break;
             case MVM_OP_param_rp_n:
             case MVM_OP_param_op_n:
-                if (arg_flag == MVM_CALLSITE_ARG_NUM) {
+                if (arg_type == MVM_CALLSITE_ARG_NUM) {
                     pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_n);
                 }
                 else {
@@ -680,7 +682,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 break;
             case MVM_OP_param_rp_s:
             case MVM_OP_param_op_s:
-                if (arg_flag == MVM_CALLSITE_ARG_STR) {
+                if (arg_type == MVM_CALLSITE_ARG_STR) {
                     pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_s);
                 }
                 else {
@@ -692,7 +694,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 break;
             case MVM_OP_param_rp_o:
             case MVM_OP_param_op_o:
-                if (arg_flag == MVM_CALLSITE_ARG_OBJ) {
+                if (arg_type == MVM_CALLSITE_ARG_OBJ) {
                     pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);
                     if (type_tuple && type_tuple[i].type) {
                         add_facts(tc, g, i, type_tuple[i], pos_ins[i]);
@@ -700,19 +702,19 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                             g->specialized_on_invocant = 1;
                     }
                 }
-                else if (arg_flag == MVM_CALLSITE_ARG_INT) {
+                else if (arg_type == MVM_CALLSITE_ARG_INT) {
                     pos_box(tc, g, pos_bb[i], pos_ins[i],
                         MVM_op_get_op(MVM_OP_hllboxtype_i), MVM_op_get_op(MVM_OP_box_i),
                         MVM_op_get_op(MVM_OP_sp_getarg_i), MVM_reg_int64);
                     pos_added[i] += 2;
                 }
-                else if (arg_flag == MVM_CALLSITE_ARG_NUM) {
+                else if (arg_type == MVM_CALLSITE_ARG_NUM) {
                     pos_box(tc, g, pos_bb[i], pos_ins[i],
                         MVM_op_get_op(MVM_OP_hllboxtype_n), MVM_op_get_op(MVM_OP_box_n),
                         MVM_op_get_op(MVM_OP_sp_getarg_n), MVM_reg_num64);
                     pos_added[i] += 2;
                 }
-                else if (arg_flag == MVM_CALLSITE_ARG_STR) {
+                else if (arg_type == MVM_CALLSITE_ARG_STR) {
                     pos_box(tc, g, pos_bb[i], pos_ins[i],
                         MVM_op_get_op(MVM_OP_hllboxtype_s), MVM_op_get_op(MVM_OP_box_s),
                         MVM_op_get_op(MVM_OP_sp_getarg_s), MVM_reg_str);
