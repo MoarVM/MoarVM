@@ -1877,13 +1877,28 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
     case MVM_OP_decont_i:
         if (repr_data->unbox_int_slot >= 0) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_int_slot];
+            MVMSpeshFacts *facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6bigint) {
-                MVMSpeshOperand *orig_operands = ins->operands;
-                ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_bi);
-                ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-                ins->operands[0] = orig_operands[0];
-                ins->operands[1] = orig_operands[1];
-                ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_int_slot];
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && IS_CONCRETE(facts->value.o)) {
+                    MVMint64 result = MVM_repr_get_int(tc, facts->value.o);
+                    MVMSpeshFacts *target_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[0]);
+                    MVM_spesh_graph_add_comment(tc, g, ins, "unboxed literal to value %ld", result);
+                    ins->info = MVM_op_get_op(MVM_OP_const_i64);
+                    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+                    ins->operands[1].lit_i64 = result;
+                    target_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+                    target_facts->value.i = result;
+                }
+                else {
+                    MVMSpeshOperand *orig_operands = ins->operands;
+                    MVM_spesh_graph_add_comment(tc, g, ins, "%s a %s",
+                        ins->info->name, MVM_6model_get_stable_debug_name(tc, st));
+                    ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_bi);
+                    ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                    ins->operands[0] = orig_operands[0];
+                    ins->operands[1] = orig_operands[1];
+                    ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_int_slot];
+                }
             }
         }
         break;
