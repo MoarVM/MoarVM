@@ -977,6 +977,14 @@ static void optimize_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     }
 }
 
+/* If we have a const_i and a coerce_iu or coerce_ui, we can emit a const_i instead. */
+static void optimize_signedness_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    // fooled you! these coerces are actually
+    // equivalent to "set" in implementation.
+    ins->info = MVM_op_get_op(MVM_OP_set);
+    copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+}
+
 /* If we know the type of a significant operand, we might try to specialize by
  * representation. */
 static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -2807,6 +2815,10 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             }
             break;
         }
+        case MVM_OP_coerce_ui:
+        case MVM_OP_coerce_iu:
+            optimize_signedness_coerce(tc, g, bb, ins);
+            break;
         case MVM_OP_coerce_in:
             optimize_coerce(tc, g, bb, ins);
             break;
@@ -3322,6 +3334,10 @@ static void post_inline_visit_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
                 if (ins->prev && ins->prev->info->opcode == ins->info->opcode &&
                         ins->operands[0].reg.orig == ins->prev->operands[0].reg.orig)
                     MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->prev);
+                break;
+            case MVM_OP_coerce_ui:
+            case MVM_OP_coerce_iu:
+                optimize_signedness_coerce(tc, g, bb, ins);
                 break;
             case MVM_OP_band_i:
             case MVM_OP_bor_i:
