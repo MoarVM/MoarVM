@@ -3313,8 +3313,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVMCompUnit *cu = (MVMCompUnit *)maybe_cu;
                     if (cu->body.mainline_frame) {
                         MVMObject *coderef;
-                        MVMuint32 i;
-                        for (i = 0; i < cu->body.num_frames; i++) {
+                        for (MVMuint32 i = 0; i < cu->body.num_frames; i++) {
                             if (((MVMCode*)cu->body.coderefs[i])->body.sf == cu->body.mainline_frame) {
                                 coderef = cu->body.coderefs[i];
                                 break;
