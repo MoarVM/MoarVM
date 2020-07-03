@@ -549,18 +549,28 @@ static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs) {
         append(ds, "Positional flags: ");
     for (i = 0; i < cs->num_pos; i++) {
         MVMCallsiteEntry arg_flag = cs->arg_flags[i];
+        MVMCallsiteEntry arg_type = arg_flag & MVM_CALLSITE_ARG_TYPE_MASK;
+        MVMCallsiteEntry other_flags = arg_flag & ~MVM_CALLSITE_ARG_TYPE_MASK;
 
         if (i)
             append(ds, ", ");
 
-        if (arg_flag == MVM_CALLSITE_ARG_OBJ) {
+        if (arg_type == MVM_CALLSITE_ARG_OBJ) {
             append(ds, "obj");
-        } else if (arg_flag == MVM_CALLSITE_ARG_INT) {
+        } else if (arg_type == MVM_CALLSITE_ARG_INT) {
             append(ds, "int");
-        } else if (arg_flag == MVM_CALLSITE_ARG_NUM) {
+        } else if (arg_type == MVM_CALLSITE_ARG_NUM) {
             append(ds, "num");
-        } else if (arg_flag == MVM_CALLSITE_ARG_STR) {
+        } else if (arg_type == MVM_CALLSITE_ARG_STR) {
             append(ds, "str");
+        }
+        if (other_flags) {
+            if (other_flags == MVM_CALLSITE_ARG_LITERAL) {
+                append(ds, "lit");
+            }
+            else {
+                appendf(ds, "??%d", arg_flag);
+            }
         }
     }
     if (cs->num_pos)
