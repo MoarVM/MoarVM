@@ -319,6 +319,78 @@ static MVMSpeshIns *rewrite_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph
                 MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, set_ins);
                 break;
             }
+            case MVMDispOpcodeLoadAttributeObj: {
+                fprintf(stderr, "  Deference object attribute at offset %d in temporary %d\n",
+                        op->load.idx, op->load.temp);
+                MVMSpeshIns *get_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                MVMSpeshFacts *target_facts;
+                get_ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_o);
+                get_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 3);
+                get_ins->operands[1] = temporaries[op->load.temp];
+                temporaries[op->load.temp] = MVM_spesh_manipulate_new_version(tc, g, temporaries[op->load.temp].reg.orig);
+                get_ins->operands[0] = temporaries[op->load.temp];
+                get_ins->operands[2].lit_i16 = op->load.idx;
+                target_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                MVM_spesh_graph_add_comment(tc, g, get_ins, "p6oget_o instruction from LoadAttributeObj");
+                MVM_spesh_usages_add_by_reg(tc, g, get_ins->operands[1], get_ins);
+                MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, get_ins);
+                target_facts->writer = get_ins;
+                break;
+            }
+            case MVMDispOpcodeLoadAttributeInt: {
+                fprintf(stderr, "  Deference integer attribute at offset %d in temporary %d\n",
+                        op->load.idx, op->load.temp);
+                MVMSpeshIns *get_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                MVMSpeshFacts *target_facts;
+                get_ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_i);
+                get_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 3);
+                get_ins->operands[1] = temporaries[op->load.temp];
+                temporaries[op->load.temp] = MVM_spesh_manipulate_new_version(tc, g, temporaries[op->load.temp].reg.orig);
+                get_ins->operands[0] = temporaries[op->load.temp];
+                get_ins->operands[2].lit_i16 = op->load.idx;
+                target_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                MVM_spesh_graph_add_comment(tc, g, get_ins, "p6oget_i instruction from LoadAttributeInt");
+                MVM_spesh_usages_add_by_reg(tc, g, get_ins->operands[1], get_ins);
+                MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, get_ins);
+                target_facts->writer = get_ins;
+                break;
+            }
+            case MVMDispOpcodeLoadAttributeNum: {
+                fprintf(stderr, "  Deference num attribute at offset %d in temporary %d\n",
+                        op->load.idx, op->load.temp);
+                MVMSpeshIns *get_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                MVMSpeshFacts *target_facts;
+                get_ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_n);
+                get_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 3);
+                get_ins->operands[1] = temporaries[op->load.temp];
+                temporaries[op->load.temp] = MVM_spesh_manipulate_new_version(tc, g, temporaries[op->load.temp].reg.orig);
+                get_ins->operands[0] = temporaries[op->load.temp];
+                get_ins->operands[2].lit_i16 = op->load.idx;
+                target_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                MVM_spesh_graph_add_comment(tc, g, get_ins, "p6oget_n instruction from LoadAttributeNum");
+                MVM_spesh_usages_add_by_reg(tc, g, get_ins->operands[1], get_ins);
+                MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, get_ins);
+                target_facts->writer = get_ins;
+                break;
+            }
+            case MVMDispOpcodeLoadAttributeStr: {
+                fprintf(stderr, "  Deference string attribute at offset %d in temporary %d\n",
+                        op->load.idx, op->load.temp);
+                MVMSpeshIns *get_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                MVMSpeshFacts *target_facts;
+                get_ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_s);
+                get_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 3);
+                get_ins->operands[1] = temporaries[op->load.temp];
+                temporaries[op->load.temp] = MVM_spesh_manipulate_new_version(tc, g, temporaries[op->load.temp].reg.orig);
+                get_ins->operands[0] = temporaries[op->load.temp];
+                get_ins->operands[2].lit_i16 = op->load.idx;
+                target_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                MVM_spesh_graph_add_comment(tc, g, get_ins, "p6oget_s instruction from LoadAttributeStr");
+                MVM_spesh_usages_add_by_reg(tc, g, get_ins->operands[1], get_ins);
+                MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, get_ins);
+                target_facts->writer = get_ins;
+                break;
+            }
             case MVMDispOpcodeSet: {
                 MVMSpeshIns *set_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
                 MVMSpeshFacts *target_facts;
