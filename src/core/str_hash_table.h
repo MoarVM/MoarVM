@@ -43,8 +43,6 @@ And we only need about 5 functions in our API.
 Unclear so far, but I have some ideas
 
 * how to do randomisation
-* how to support the Perl 5 requirement that one can delete the key under the
-  current iterator without the world ending.
 
 Not all the optimisations described above are in place yet. Starting with
 "minimum viable product", with a design that should support adding them.
@@ -91,11 +89,6 @@ typedef struct {
  * as the reprs headers are included as one block, *most* of the MVMStrHashTable
  * functions need to be later. */
 
-/* This is private. We need it out here for the inline functions. Use them. */
-MVM_STATIC_INLINE MVMuint32 MVM_str_hash_kompromat(MVMStrHashTable *hashtable) {
-    return hashtable->official_size + hashtable->probe_overflow_size;
-}
-
 MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_end(MVMThreadContext *tc,
                                                       MVMStrHashTable *hashtable) {
     MVMStrHashIterator retval;
@@ -103,7 +96,7 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_end(MVMThreadContext *tc,
     retval.owner = hashtable->ht_id;
     retval.serial = hashtable->serial;
 #endif
-    retval.pos = MVM_str_hash_kompromat(hashtable);
+    retval.pos = 0;
     return retval;
 }
 
@@ -120,5 +113,5 @@ MVM_STATIC_INLINE int MVM_str_hash_at_end(MVMThreadContext *tc,
                  iterator.serial, hashtable->serial);
     }
 #endif
-    return iterator.pos == MVM_str_hash_kompromat(hashtable);
+    return iterator.pos == 0;
 }

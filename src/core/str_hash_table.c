@@ -11,8 +11,10 @@ MVM_STATIC_INLINE MVMuint32 hash_true_size(MVMStrHashTable *hashtable) {
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable) {
-    MVM_free(hashtable->entries);
-    MVM_free(hashtable->metadata);
+    if (hashtable->metadata) {
+        MVM_free(hashtable->entries);
+        MVM_free(hashtable->metadata - 1);
+    }
     /* We shouldn't need these, but make something foolproof and they invent a
      * better fool: */
     hashtable->cur_items = 0;
@@ -25,15 +27,26 @@ void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable) {
 MVM_STATIC_INLINE void hash_allocate_common(MVMStrHashTable *hashtable) {
     hashtable->max_items = hashtable->official_size * STR_LOAD_FACTOR;
     uint32_t overflow_size = hashtable->max_items - 1;
+    /* -1 because...
+     * probe distance of 1 is the correct bucket.
+     * hence for a value whose ideal slot is the last bucket, it's *in* the
+     * official allocation.
+     * probe distance of 2 is the first extra bucket beyond the official
+     * allocation
+     * probe distance of 255 is the 254th beyond the official allocation.
+     */
     if (MVM_HASH_MAX_PROBE_DISTANCE < overflow_size) {
-        hashtable->probe_overflow_size = MVM_HASH_MAX_PROBE_DISTANCE;
+        hashtable->probe_overflow_size = MVM_HASH_MAX_PROBE_DISTANCE - 1;
     } else {
         hashtable->probe_overflow_size = overflow_size;
     }
     size_t actual_items = hash_true_size(hashtable);
     hashtable->entries = MVM_malloc(hashtable->entry_size * actual_items);
-    hashtable->metadata = MVM_calloc(actual_items + 1, 1);
+    hashtable->metadata = MVM_calloc(1 + actual_items + 1, 1);
     /* A sentinel. This marks an occupied slot, at its ideal position. */
+    *hashtable->metadata = 1;
+    ++hashtable->metadata;
+    /* A sentinel at the other end. Again, occupited, ideal position. */
     hashtable->metadata[actual_items] = 1;
 }
 
@@ -170,7 +183,7 @@ void *MVM_str_hash_lvalue_fetch_nt(MVMThreadContext *tc,
             entry_raw += hashtable->entry_size;
         }
         MVM_free(entry_raw_orig);
-        MVM_free(metadata_orig);
+        MVM_free(metadata_orig - 1);
     }
     struct MVMStrHashHandle *new_entry
         = hash_insert_internal(tc, hashtable, key);
