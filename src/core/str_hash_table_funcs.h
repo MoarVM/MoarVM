@@ -145,7 +145,13 @@ MVM_STATIC_INLINE void MVM_str_hash_delete(MVMThreadContext *tc,
     MVM_str_hash_delete_nt(tc, hashtable, want);
 }
 
-/* absolute values of numeric indexes used here are going to change. Don't cheat
+/* This is private. We need it out here for the inline functions. Use them. */
+MVM_STATIC_INLINE MVMuint32 MVM_str_hash_kompromat(MVMStrHashTable *hashtable) {
+    return hashtable->official_size + hashtable->probe_overflow_size;
+}
+
+/* iterators are stored as unsigned values, metadata index plus one.
+ * This is clearly an internal implementation detail. Don't cheat.
  */
 MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next(MVMThreadContext *tc,
                                                        MVMStrHashTable *hashtable,
@@ -169,18 +175,18 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next(MVMThreadContext *tc,
     }
 #endif
 
-    uint32_t true_size = MVM_str_hash_kompromat(hashtable);
-    /* Yes this can be optimised to word at a time skip ahead.
-     * (Beware of endianness)
-     * But before that, I'd like to change it to iterate downwards ie --
-     * Because that is the opposite direction from the hash probing. */
-    while (++iterator.pos < true_size) {
-        if (hashtable->metadata[iterator.pos]) {
+    if (iterator.pos == 0) {
+        MVM_oops(tc, "Calling str_hash_next when iterator is already at the end");
+    }
+
+    /* Whilst this looks like it can be optimised to word at a time skip ahead.
+     * (Beware of endianness) it isn't easy *yet*, because one can overrun the
+     * allocated buffer, and that makes ASAN very excited. */
+    while (--iterator.pos > 0) {
+        if (hashtable->metadata[iterator.pos - 1]) {
             return iterator;
         }
     }
-
-    iterator.pos = true_size;
     return iterator;
 }
 
@@ -193,14 +199,14 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_first(MVMThreadContext *tc,
     }
 
     MVMStrHashIterator iterator;
-    iterator.pos = 0;
+    iterator.pos = MVM_str_hash_kompromat(hashtable);
 
 #if HASH_DEBUG_ITER
     iterator.owner = hashtable->ht_id;
     iterator.serial = hashtable->serial;
 #endif
 
-    if (hashtable->metadata[0]) {
+    if (hashtable->metadata[iterator.pos - 1]) {
         return iterator;
     }
     return MVM_str_hash_next(tc, hashtable, iterator);
@@ -225,8 +231,8 @@ MVM_STATIC_INLINE void *MVM_str_hash_current(MVMThreadContext *tc,
         /* Bother. This seems to be part of our de-facto API. */
         return NULL;
     }
-    assert(hashtable->metadata[iterator.pos]);
-    return hashtable->entries + hashtable->entry_size * iterator.pos;
+    assert(hashtable->metadata[iterator.pos - 1]);
+    return hashtable->entries + hashtable->entry_size * (iterator.pos - 1);
 }
 
 MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_count(MVMThreadContext *tc,

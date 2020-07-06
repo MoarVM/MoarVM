@@ -15,8 +15,10 @@ MVM_STATIC_INLINE MVMuint32 hash_true_size(MVMPtrHashTable *hashtable) {
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_ptr_hash_demolish(MVMThreadContext *tc, MVMPtrHashTable *hashtable) {
-    free(hashtable->entries);
-    free(hashtable->metadata);
+    if (hashtable->metadata) {
+        free(hashtable->entries);
+        free(hashtable->metadata - 1);
+    }
 }
 /* and then free memory if you allocated it */
 
@@ -25,8 +27,11 @@ MVM_STATIC_INLINE void hash_allocate_common(MVMPtrHashTable *hashtable) {
     hashtable->max_items = hashtable->official_size * PTR_LOAD_FACTOR;
     size_t actual_items = hash_true_size(hashtable);
     hashtable->entries = malloc(sizeof(struct MVMPtrHashEntry) * actual_items);
-    hashtable->metadata = calloc(actual_items + 1, 1);
+    hashtable->metadata = calloc(1 + actual_items + 1, 1);
     /* A sentinel. This marks an occupied slot, at its ideal position. */
+    *hashtable->metadata = 1;
+    ++hashtable->metadata;
+    /* A sentinel at the other end. Again, occupited, ideal position. */
     hashtable->metadata[actual_items] = 1;
 }
 
@@ -155,7 +160,7 @@ struct MVMPtrHashEntry *MVM_ptr_hash_lvalue_fetch(MVMThreadContext *tc,
             entry_raw += sizeof(struct MVMPtrHashEntry);
         }
         free(entry_raw_orig);
-        free(metadata_orig);
+        free(metadata_orig - 1);
     }
     struct MVMPtrHashEntry *new_entry
         = hash_insert_internal(tc, hashtable, key);

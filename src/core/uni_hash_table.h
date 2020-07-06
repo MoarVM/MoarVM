@@ -43,8 +43,6 @@ And we only need about 5 functions in our API.
 Unclear so far, but I have some ideas
 
 * how to do randomisation
-* how to support the Perl 5 requirement that one can delete the key under the
-  current iterator without the world ending.
 
 Not all the optimisations described above are in place yet. Starting with
 "minimum viable product", with a design that should support adding them.
