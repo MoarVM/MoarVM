@@ -15,8 +15,10 @@ MVM_STATIC_INLINE MVMuint32 hash_true_size(MVMIndexHashTable *hashtable) {
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_index_hash_demolish(MVMThreadContext *tc, MVMIndexHashTable *hashtable) {
-    MVM_free(hashtable->entries);
-    MVM_free(hashtable->metadata);
+    if (hashtable->metadata) {
+        MVM_free(hashtable->entries);
+        MVM_free(hashtable->metadata - 1);
+    }
 }
 /* and then free memory if you allocated it */
 
@@ -25,8 +27,11 @@ MVM_STATIC_INLINE void hash_allocate_common(MVMIndexHashTable *hashtable) {
     hashtable->max_items = hashtable->official_size * INDEX_LOAD_FACTOR;
     size_t actual_items = hash_true_size(hashtable);
     hashtable->entries = MVM_malloc(sizeof(struct MVMIndexHashEntry) * actual_items);
-    hashtable->metadata = MVM_calloc(actual_items + 1, 1);
+    hashtable->metadata = MVM_calloc(1 + actual_items + 1, 1);
     /* A sentinel. This marks an occupied slot, at its ideal position. */
+    *hashtable->metadata = 1;
+    ++hashtable->metadata;
+    /* A sentinel at the other end. Again, occupited, ideal position. */
     hashtable->metadata[actual_items] = 1;
 }
 
@@ -150,7 +155,7 @@ void MVM_index_hash_insert_nt(MVMThreadContext *tc,
             entry_raw += sizeof(struct MVMIndexHashEntry);
         }
         MVM_free(entry_raw_orig);
-        MVM_free(metadata_orig);
+        MVM_free(metadata_orig - 1);
     }
     hash_insert_internal(tc, hashtable, list, idx);
     ++hashtable->cur_items;
