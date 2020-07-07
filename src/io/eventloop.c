@@ -83,6 +83,7 @@ static void enter_loop(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister 
     uv_loop_t    *loop = tc->instance->event_loop;
     uv_async_t   *async = tc->instance->event_loop_wakeup;
 
+    pthread_setname_np(pthread_self(), "async io thread");
     /* Bind the thread context for the wakeup signal */
     async->data = tc;
 

@@ -15,6 +15,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
             tc->instance->boot_types.BOOTArray);
     });
 
+    pthread_setname_np(pthread_self(), "spesh optimizer");
     tc->instance->speshworker_thread_id = tc->thread_obj->body.thread_id;
 
     MVMROOT2(tc, updated_static_frames, previous_static_frames, {
