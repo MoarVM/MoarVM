@@ -68,7 +68,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         memcpy(lexical_names_list, src_body->lexical_names_list,
                sizeof(MVMLexicalRegistry *) * src_body->num_lexicals);
 
-        for (MVMuint32 j = 0; j < num_lexicals; j++) {
+        MVMuint32 j;
+        for (j = 0; j < num_lexicals; j++) {
             MVMLexicalRegistry *current = lexical_names_list[j];
 
             MVMLexicalRegistry *new_entry = MVM_malloc(sizeof(MVMLexicalRegistry));
@@ -150,7 +151,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVMuint32 num_lexicals = body->num_lexicals;
     MVMLexicalRegistry **lexical_names_list = body->lexical_names_list;
 
-    for (MVMuint32 j = 0; j < num_lexicals; j++) {
+    MVMuint32 j;
+    for (j = 0; j < num_lexicals; j++) {
         MVMLexicalRegistry *current = lexical_names_list[j];
         MVM_gc_worklist_add(tc, worklist, &current->hash_handle.key);
         MVM_gc_worklist_add(tc, worklist, &current->key);
@@ -292,7 +294,8 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
     MVMuint32 num_lexicals = body->num_lexicals;
     MVMLexicalRegistry **lexical_names_list = body->lexical_names_list;
 
-    for (MVMuint32 j = 0; j < num_lexicals; j++) {
+    MVMuint32 j;
+    for (j = 0; j < num_lexicals; j++) {
         MVMLexicalRegistry *current = lexical_names_list[j];
         MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
             (MVMCollectable *)current->key, "Lexical name", &nonstatic_cache_1);
@@ -382,7 +385,8 @@ MVMLexicalRegistry *MVM_get_lexical_by_name(MVMThreadContext *tc, MVMStaticFrame
 
     MVMLexicalRegistry **lexical_names_list = sf->body.lexical_names_list;
     MVMuint32 num_lexicals = sf->body.num_lexicals;
-    for (MVMuint32 j = 0; j < num_lexicals; j++) {
+    MVMuint32 j;
+    for (j = 0; j < num_lexicals; j++) {
         entry = lexical_names_list[j];
         if (MVM_string_equal(tc, name, entry->key))
             return entry;
