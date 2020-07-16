@@ -483,6 +483,36 @@ EOT
     $config->{has_pthread_yield} = $has_pthread_yield || 0
 }
 
+sub pthread_setname_np {
+    my ($config) = @_;
+    my $restore = _to_probe_dir();
+    _spew('try.c', <<'EOT');
+#define _GNU_SOURCE
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+
+int main(int argc, char **argv) {
+    char *name_target = malloc(20);
+    pthread_setname_np(pthread_self(), "testthread");
+    if (pthread_getname_np(pthread_self(), name_target, 20) == 0) {
+        if (strncmp(name_target, "testthread", strlen("testthread")) == 0) {
+            return EXIT_SUCCESS;
+        }
+        else {
+            return EXIT_FAILURE;
+        }
+    }
+    return EXIT_FAILURE;
+}
+EOT
+
+    print ::dots('    probing pthread_setname_np support (optional)');
+    my $has_pthread_setname_np = compile($config, 'try') && system('./try') == 0;
+    print $has_pthread_setname_np ? "YES\n": "NO\n";
+    $config->{has_pthread_setname_np} = $has_pthread_setname_np || 0
+}
+
 sub numbits {
     my ($config) = @_;
     my $restore = _to_probe_dir();

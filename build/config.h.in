@@ -34,6 +34,11 @@
 #define MVM_HAS_PTHREAD_YIELD @has_pthread_yield@
 #endif
 
+/* pthread_setname_np() detection */
+#if @has_pthread_setname_np@
+#define MVM_HAS_PTHREAD_SETNAME_NP @has_pthread_setname_np@
+#endif
+
 #if @has_fn_malloc_trim@
 #define MVM_HAS_FN_MALLOC_TRIM @has_fn_malloc_trim@
 #endif

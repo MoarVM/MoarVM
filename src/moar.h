@@ -1,3 +1,10 @@
+#ifdef HAVE_PTHREAD_SETNAME_NP
+/* pthread_setname_np only exists if we set _GNU_SOURCE extremely early.
+ * We will need to be vgilant to not accidentally use gnu extensions in
+ * other places without checking properly. */
+#define _GNU_SOURCE
+#endif
+
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
@@ -12,14 +19,6 @@
 
 /* platform-specific setjmp override */
 #include <platform/setjmp.h>
-
-/* If we're building for GLIBC, we need to set _GNU_SOURCE so that
- * pthread will export pthread_setname_np for us.
- */
-#if (2 < __GLIBC__) ||  ((2 == __GLIBC__) && (12 <= __GLIBC_MINOR__))
-#define _GNU_SOURCE
-#include <pthread.h>
-#endif
 
 /* libuv
  * must precede atomic_ops.h so we get the ordering of Winapi headers right

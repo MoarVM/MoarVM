@@ -15,7 +15,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
             tc->instance->boot_types.BOOTArray);
     });
 
-#if (2 < __GLIBC__) ||  ((2 == __GLIBC__) && (12 <= __GLIBC_MINOR__))
+#ifdef HAVE_PTHREAD_SETNAME_NP
     pthread_setname_np(pthread_self(), "spesh optimizer");
 #endif
 

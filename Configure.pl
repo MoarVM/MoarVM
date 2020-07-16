@@ -534,6 +534,7 @@ if ($config{cc} eq 'cl') {
 build::probe::C_type_bool(\%config, \%defaults);
 build::probe::computed_goto(\%config, \%defaults);
 build::probe::pthread_yield(\%config, \%defaults);
+build::probe::pthread_setname_np(\%config, \%defaults);
 build::probe::check_fn_malloc_trim(\%config, \%defaults);
 if ($^O eq 'aix') {
     build::probe::numbits(\%config, \%defaults);
