@@ -357,10 +357,10 @@ void MVM_thread_set_self_name(MVMThreadContext *tc, MVMString *name) {
             if (strlen(c_name) > 0 && pthread_setname_np(pthread_self(), c_name) == 0) {
                 success = 1;
             }
-            MVM_free(c_name);
             if (strlen(c_name) == 0) {
                 acceptable_length = -1;
             }
+            MVM_free(c_name);
             acceptable_length--;
         }
     });
