@@ -2576,6 +2576,10 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
 
     vm->debugserver->thread_id = tc->thread_obj->body.thread_id;
 
+#if MVM_HAS_PTHREAD_SETNAME_NP
+    pthread_setname_np(pthread_self(), "debugserver");
+#endif
+
     {
 #ifdef _WIN32
         WORD wVersionRequested;
