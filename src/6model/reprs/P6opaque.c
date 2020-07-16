@@ -1785,6 +1785,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 !(st->mode_flags & MVM_FINALIZE_TYPE)) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_int_slot];
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6bigint) {
+                MVMSpeshFacts *value_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+
                 /* Turn into a sp_fastbox_bi[_ic] instruction. */
                 MVMint32 int_cache_type_idx = MVM_intcache_type_index(tc, st->WHAT);
                 MVMSpeshFacts *tgt_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
@@ -1801,11 +1803,15 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 ins->operands[4] = orig_operands[1];
                 ins->operands[5].lit_i16 = (MVMint16)int_cache_type_idx;
                 MVM_spesh_usages_delete_by_reg(tc, g, orig_operands[2], ins);
-                tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
+                tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_KNOWN_BOX_SRC;
                 tgt_facts->type = st->WHAT;
 
                 MVM_spesh_graph_add_comment(tc, g, ins, "box_i into a %s",
                         MVM_6model_get_stable_debug_name(tc, st));
+
+                if (value_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                    MVM_spesh_graph_add_comment(tc, g, ins, "could have made literal");
+                }
             }
         }
         break;
@@ -1828,7 +1834,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 MVM_spesh_graph_add_comment(tc, g, fastcreate, "box_n into a %s",
                         MVM_6model_get_stable_debug_name(tc, st));
 
-                tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
+                tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_KNOWN_BOX_SRC;
                 tgt_facts->type = st->WHAT;
 
                 /* Change instruction to a bind. */
@@ -1846,6 +1852,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 !(st->mode_flags & MVM_FINALIZE_TYPE)) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_str_slot];
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6str) {
+                MVMSpeshFacts *value_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+
                 /* Prepend a fastcreate instruction. */
                 MVMSpeshIns *fastcreate = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
                 MVMSpeshFacts *tgt_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
@@ -1860,7 +1868,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 MVM_spesh_graph_add_comment(tc, g, fastcreate, "box_s into a %s",
                         MVM_6model_get_stable_debug_name(tc, st));
 
-                tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
+                tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_KNOWN_BOX_SRC;
                 tgt_facts->type = st->WHAT;
 
                 /* Change instruction to a bind. */
@@ -1870,6 +1878,10 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 ins->operands[1].lit_i16 = sizeof(MVMObject) +
                     repr_data->attribute_offsets[repr_data->unbox_str_slot];
                 MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
+
+                if (value_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                    MVM_spesh_graph_add_comment(tc, g, ins, "would have known literal value");
+                }
             }
         }
         break;
@@ -1877,8 +1889,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
     case MVM_OP_decont_i:
         if (repr_data->unbox_int_slot >= 0) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_int_slot];
-            MVMSpeshFacts *facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6bigint) {
+                MVMSpeshFacts *facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
                 if ((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && IS_CONCRETE(facts->value.o)) {
                     MVMint64 result = MVM_repr_get_int(tc, facts->value.o);
                     MVMSpeshFacts *target_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[0]);
@@ -1907,14 +1919,27 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         if (repr_data->unbox_num_slot >= 0) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_num_slot];
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6num) {
-                MVMSpeshOperand *orig_operands = ins->operands;
-                ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_n);
-                MVM_spesh_graph_add_comment(tc, g, ins, "%s a %s",
-                    ins->info->name, MVM_6model_get_stable_debug_name(tc, st));
-                ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-                ins->operands[0] = orig_operands[0];
-                ins->operands[1] = orig_operands[1];
-                ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_num_slot];
+                MVMSpeshFacts *facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && IS_CONCRETE(facts->value.o)) {
+                    MVMnum64 result = MVM_repr_get_num(tc, facts->value.o);
+                    MVMSpeshFacts *target_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[0]);
+                    MVM_spesh_graph_add_comment(tc, g, ins, "unboxed literal to value %f", result);
+                    ins->info = MVM_op_get_op(MVM_OP_const_n64);
+                    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+                    ins->operands[1].lit_n64 = result;
+                    target_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+                    target_facts->value.n = result;
+                }
+                else {
+                    MVMSpeshOperand *orig_operands = ins->operands;
+                    ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_n);
+                    MVM_spesh_graph_add_comment(tc, g, ins, "%s a %s",
+                        ins->info->name, MVM_6model_get_stable_debug_name(tc, st));
+                    ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                    ins->operands[0] = orig_operands[0];
+                    ins->operands[1] = orig_operands[1];
+                    ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_num_slot];
+                }
             }
         }
         break;
@@ -1923,14 +1948,27 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         if (repr_data->unbox_str_slot >= 0) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_str_slot];
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6str) {
-                MVMSpeshOperand *orig_operands = ins->operands;
-                MVM_spesh_graph_add_comment(tc, g, ins, "%s a %s",
-                    ins->info->name, MVM_6model_get_stable_debug_name(tc, st));
-                ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_s);
-                ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-                ins->operands[0] = orig_operands[0];
-                ins->operands[1] = orig_operands[1];
-                ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_str_slot];
+                MVMSpeshFacts *facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && IS_CONCRETE(facts->value.o)) {
+                    MVMString *result = MVM_repr_get_str(tc, facts->value.o);
+                    MVMSpeshFacts *target_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[0]);
+                    MVM_spesh_graph_add_comment(tc, g, ins, "unboxed literal string", result);
+                    ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+                    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+                    ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)result);
+                    target_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+                    target_facts->value.s = result;
+                }
+                else {
+                    MVMSpeshOperand *orig_operands = ins->operands;
+                    MVM_spesh_graph_add_comment(tc, g, ins, "%s a %s",
+                        ins->info->name, MVM_6model_get_stable_debug_name(tc, st));
+                    ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_s);
+                    ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                    ins->operands[0] = orig_operands[0];
+                    ins->operands[1] = orig_operands[1];
+                    ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_str_slot];
+                }
             }
         }
         break;
