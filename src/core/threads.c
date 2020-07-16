@@ -346,10 +346,23 @@ void MVM_thread_join_foreground(MVMThreadContext *tc) {
 
 void MVM_thread_set_self_name(MVMThreadContext *tc, MVMString *name) {
     #if MVM_HAS_PTHREAD_SETNAME_NP
-    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-    while (pthread_setname_np(pthread_self(), c_name) == -ERANGE) {
-        c_name[strlen(c_name) - 1] = '\0';
-    }
-    MVM_free(c_name);
+    MVMuint64 name_length = MVM_string_graphs(tc, name);
+    MVMint16 acceptable_length = name_length > 15 ? 15 : name_length;
+    MVMuint8 success = 0;
+    MVMROOT(tc, name, {
+    while (acceptable_length > 0 && !success) {
+            MVMString *substring = MVM_string_substring(tc, name, 0, acceptable_length);
+            char *c_name = MVM_string_utf8_encode_C_string(tc, substring);
+            /* pthread man page says names are allowed to be 15 bytes long... */
+            if (strlen(c_name) > 0 && pthread_setname_np(pthread_self(), c_name) == 0) {
+                success = 1;
+            }
+            MVM_free(c_name);
+            if (strlen(c_name) == 0) {
+                acceptable_length = -1;
+            }
+            acceptable_length--;
+        }
+    });
     #endif
 }
