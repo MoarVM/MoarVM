@@ -352,7 +352,7 @@ void MVM_thread_set_self_name(MVMThreadContext *tc, MVMString *name) {
     MVMROOT(tc, name, {
     while (acceptable_length > 0 && !success) {
             MVMString *substring = MVM_string_substring(tc, name, 0, acceptable_length);
-            char *c_name = MVM_string_utf8_encode_C_string(tc, substring);
+            char *c_name = MVM_string_utf8_c8_encode_C_string(tc, substring);
             /* pthread man page says names are allowed to be 15 bytes long... */
             if (strlen(c_name) > 0 && pthread_setname_np(pthread_self(), c_name) == 0) {
                 success = 1;
