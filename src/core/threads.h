@@ -9,3 +9,4 @@ MVMObject * MVM_thread_current(MVMThreadContext *tc);
 MVMint64 MVM_thread_lock_count(MVMThreadContext *tc, MVMObject *thread);
 MVMint32 MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head);
 void MVM_thread_join_foreground(MVMThreadContext *tc);
+void MVM_thread_set_self_name(MVMThreadContext *tc, MVMString *name);

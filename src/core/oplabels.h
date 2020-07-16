@@ -664,7 +664,7 @@ static const void * const LABELS[] = {
     &&OP_ordbaseat,
     &&OP_neverrepossess,
     &&OP_scdisclaim,
-    &&OP_DEPRECATED_31,
+    &&OP_setthreadname,
     &&OP_atpos2d_i,
     &&OP_atpos2d_n,
     &&OP_atpos2d_s,

@@ -344,3 +344,12 @@ void MVM_thread_join_foreground(MVMThreadContext *tc) {
     }
 }
 
+void MVM_thread_set_self_name(MVMThreadContext *tc, MVMString *name) {
+    #if MVM_HAS_PTHREAD_SETNAME_NP
+    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+    while (pthread_setname_np(pthread_self(), c_name) == -ERANGE) {
+        c_name[strlen(c_name) - 1] = '\0';
+    }
+    MVM_free(c_name);
+    #endif
+}

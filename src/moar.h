@@ -1,4 +1,7 @@
-#ifdef HAVE_PTHREAD_SETNAME_NP
+/* Configuration. */
+#include "gen/config.h"
+
+#if MVM_HAS_PTHREAD_SETNAME_NP
 /* pthread_setname_np only exists if we set _GNU_SOURCE extremely early.
  * We will need to be vgilant to not accidentally use gnu extensions in
  * other places without checking properly. */
@@ -10,9 +13,6 @@
 #include <stdio.h>
 #include <setjmp.h>
 #include <stddef.h>
-
-/* Configuration. */
-#include "gen/config.h"
 
 /* Standard integer types. */
 #include <platform/inttypes.h>

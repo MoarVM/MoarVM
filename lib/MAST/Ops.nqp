@@ -3277,7 +3277,7 @@ BEGIN {
     33,
     65,
     65,
-    66,
+    57,
     34,
     65,
     33,
@@ -4396,7 +4396,7 @@ BEGIN {
     'ordbaseat', 660,
     'neverrepossess', 661,
     'scdisclaim', 662,
-    'DEPRECATED_31', 663,
+    'setthreadname', 663,
     'atpos2d_i', 664,
     'atpos2d_n', 665,
     'atpos2d_s', 666,
@@ -5221,7 +5221,7 @@ BEGIN {
     'ordbaseat',
     'neverrepossess',
     'scdisclaim',
-    'DEPRECATED_31',
+    'setthreadname',
     'atpos2d_i',
     'atpos2d_n',
     'atpos2d_s',
@@ -10338,7 +10338,7 @@ BEGIN {
         nqp::writeuint($bytecode, $elems, 662, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'DEPRECATED_31', sub ($op0) {
+    'setthreadname', sub ($op0) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 663, 5);

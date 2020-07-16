@@ -664,7 +664,7 @@
 #define MVM_OP_ordbaseat 660
 #define MVM_OP_neverrepossess 661
 #define MVM_OP_scdisclaim 662
-#define MVM_OP_DEPRECATED_31 663
+#define MVM_OP_setthreadname 663
 #define MVM_OP_atpos2d_i 664
 #define MVM_OP_atpos2d_n 665
 #define MVM_OP_atpos2d_s 666

@@ -721,7 +721,7 @@ eqatim_s            w(int64) r(str) r(str) r(int64) :pure
 ordbaseat           w(int64) r(str) r(int64) :pure
 neverrepossess      r(obj)
 scdisclaim          r(obj)
-DEPRECATED_31       w(obj)
+setthreadname       r(str)
 atpos2d_i           w(int64) r(obj) r(int64) r(int64) :pure :specializable
 atpos2d_n           w(num64) r(obj) r(int64) r(int64) :pure :specializable
 atpos2d_s           w(str) r(obj) r(int64) r(int64) :pure :specializable

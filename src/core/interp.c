@@ -4713,6 +4713,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_sc_disclaim(tc, (MVMSerializationContext *)GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
+            OP(setthreadname):
+                MVM_thread_set_self_name(tc, GET_REG(cur_op, 0).s); 
+                cur_op += 2;
+                goto NEXT;
             OP(atpos2d_i):
                 GET_REG(cur_op, 0).i64 = MVM_repr_at_pos_2d_i(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
@@ -6652,8 +6656,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The spawn op was removed in MoarVM 2017.07.");
             OP(DEPRECATED_30):
                 MVM_exception_throw_adhoc(tc, "The shell op was removed in MoarVM 2017.07.");
-            OP(DEPRECATED_31):
-                MVM_exception_throw_adhoc(tc, "The syncpipe op was removed in MoarVM 2017.07.");
             OP(DEPRECATED_32):
                 MVM_exception_throw_adhoc(tc, "The close_fhi op was removed in MoarVM 2017.07.");
             OP(DEPRECATED_33):
