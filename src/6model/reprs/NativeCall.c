@@ -99,8 +99,8 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     MVMNativeCallBody *body = (MVMNativeCallBody *)data;
     MVMint16 i = 0;
     if (reader->root.version >= 22) {
-        body->lib_name = MVM_serialization_read_cstr(tc, reader);
-        body->sym_name = MVM_serialization_read_cstr(tc, reader);
+        body->lib_name = MVM_serialization_read_cstr(tc, reader, NULL);
+        body->sym_name = MVM_serialization_read_cstr(tc, reader, NULL);
         body->convention = MVM_serialization_read_int(tc, reader);
         body->num_args = MVM_serialization_read_int(tc, reader);
         body->ret_type = MVM_serialization_read_int(tc, reader);
