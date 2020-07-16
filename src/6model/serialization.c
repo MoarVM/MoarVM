@@ -326,6 +326,17 @@ static void expand_storage_if_needed(MVMThreadContext *tc, MVMSerializationWrite
     }
 }
 
+/* Writing function for arrays. */
+void MVM_serialization_write_array(MVMThreadContext *tc,
+        MVMSerializationWriter *writer, const void *array, size_t size) {
+    MVM_serialization_write_int(tc, writer, size);
+    if (size) {
+        expand_storage_if_needed(tc, writer, size);
+        memcpy(*(writer->cur_write_buffer) + *(writer->cur_write_offset), array, size);
+        *(writer->cur_write_offset) += size;
+    }
+}
+
 /* Writing function for null-terminated char array strings */
 void MVM_serialization_write_cstr(MVMThreadContext *tc, MVMSerializationWriter *writer, char *string) {
     size_t len;
@@ -1736,6 +1747,22 @@ MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationRea
         *(reader->cur_read_offset) += 2;
     }
     return read_string_from_heap(tc, reader, offset);
+}
+
+/* Reading function for arrays. */
+void * MVM_serialization_read_array(MVMThreadContext *tc, MVMSerializationReader *reader, size_t *size) {
+    size_t  array_size = MVM_serialization_read_int(tc, reader);
+    void   *array      = NULL;
+    if (array_size) {
+        const MVMuint8 *read_at = (MVMuint8 *)*(reader->cur_read_buffer) + *(reader->cur_read_offset);
+        assert_can_read(tc, reader, array_size);
+        array = MVM_malloc(array_size);
+        memcpy(array, read_at, array_size);
+        *(reader->cur_read_offset) += array_size;
+    }
+    if (size)
+        *size = array_size;
+    return array;
 }
 
 /* Reading function for null-terminated char array strings */
