@@ -15,7 +15,7 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
             tc->instance->boot_types.BOOTArray);
     });
 
-#ifdef HAVE_PTHREAD_SETNAME_NP
+#ifdef MVM_HAS_PTHREAD_SETNAME_NP
     pthread_setname_np(pthread_self(), "spesh optimizer");
 #endif
 
