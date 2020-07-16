@@ -2,7 +2,7 @@
 #include "platform/threads.h"
 
 #define DEBUGSERVER_MAJOR_PROTOCOL_VERSION 1
-#define DEBUGSERVER_MINOR_PROTOCOL_VERSION 1
+#define DEBUGSERVER_MINOR_PROTOCOL_VERSION 2
 
 #define bool int
 #define true TRUE
@@ -904,7 +904,15 @@ static void send_thread_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data
 
     cur_thread = vm->threads;
     while (cur_thread) {
-        cmp_write_map(ctx, 5);
+        char *threadname = NULL;
+#if MVM_HAS_PTHREAD_SETNAME_NP
+        threadname = malloc(16);
+        if (pthread_getname_np((pthread_t)cur_thread->body.native_thread_id, threadname, 16) != 0) {
+            MVM_free_null(threadname);
+        }
+#endif
+
+        cmp_write_map(ctx, 5 + (threadname != NULL && strlen(threadname)));
 
         cmp_write_str(ctx, "thread", 6);
         cmp_write_integer(ctx, cur_thread->body.thread_id);
@@ -920,6 +928,12 @@ static void send_thread_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data
 
         cmp_write_str(ctx, "num_locks", 9);
         cmp_write_integer(ctx, MVM_thread_lock_count(dtc, (MVMObject *)cur_thread));
+
+        if (threadname != NULL && strlen(threadname)) {
+            cmp_write_str(ctx, "name", 4);
+            cmp_write_str(ctx, threadname, strlen(threadname));
+            MVM_free(threadname);
+        }
 
         cur_thread = cur_thread->body.next;
     }
