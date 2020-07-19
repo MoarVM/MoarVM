@@ -73,7 +73,6 @@ typedef struct MVMKnowHOWAttributeREPR MVMKnowHOWAttributeREPR;
 typedef struct MVMKnowHOWAttributeREPRBody MVMKnowHOWAttributeREPRBody;
 typedef struct MVMKnowHOWREPR MVMKnowHOWREPR;
 typedef struct MVMKnowHOWREPRBody MVMKnowHOWREPRBody;
-typedef struct MVMLoadedCompUnitName MVMLoadedCompUnitName;
 typedef struct MVMNFA MVMNFA;
 typedef struct MVMNFABody MVMNFABody;
 typedef struct MVMNFAStateInfo MVMNFAStateInfo;
