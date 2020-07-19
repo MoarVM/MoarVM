@@ -126,15 +126,6 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
         iterator = MVM_str_hash_next(tc, containers, iterator);
     }
 
-    MVMStrHashTable *const current_lcun = &tc->instance->loaded_compunits;
-    iterator = MVM_str_hash_first(tc, current_lcun);
-    MVMLoadedCompUnitName *lcun;
-    while ((lcun = MVM_str_hash_current(tc, current_lcun, iterator))) {
-        add_collectable(tc, worklist, snapshot, lcun->hash_handle.key,
-            "Loaded compilation unit filename");
-        iterator = MVM_str_hash_next(tc, current_lcun, iterator);
-    }
-
     add_collectable(tc, worklist, snapshot, tc->instance->cached_backend_config,
         "Cached backend configuration hash");
 

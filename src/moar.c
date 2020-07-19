@@ -155,7 +155,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up loaded compunits hash mutex. */
     init_mutex(instance->mutex_loaded_compunits, "loaded compunits");
-    MVM_str_hash_build(instance->main_thread, &instance->loaded_compunits, sizeof(MVMLoadedCompUnitName));
+    MVM_fixkey_hash_build(instance->main_thread, &instance->loaded_compunits, sizeof(MVMString *));
 
     /* Set up container registry mutex. */
     init_mutex(instance->mutex_container_registry, "container registry");
@@ -621,7 +621,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Hash of filenames of compunits loaded from disk. */
     uv_mutex_destroy(&instance->mutex_loaded_compunits);
-    MVM_str_hash_demolish(instance->main_thread, &instance->loaded_compunits);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->loaded_compunits);
 
     /* Clean up Container registry. */
     uv_mutex_destroy(&instance->mutex_container_registry);
