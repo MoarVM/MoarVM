@@ -97,7 +97,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     /* See if we already loaded this. */
     uv_mutex_lock(&tc->instance->mutex_loaded_compunits);
     MVM_tc_set_ex_release_mutex(tc, &tc->instance->mutex_loaded_compunits);
-    if (MVM_str_hash_fetch_nt(tc, &tc->instance->loaded_compunits, filename)) {
+    if (MVM_fixkey_hash_fetch_nt(tc, &tc->instance->loaded_compunits, filename)) {
         /* already loaded */
         goto LEAVE;
     }
@@ -114,7 +114,9 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
 
         run_comp_unit(tc, cu);
 
-        MVM_str_hash_insert_nt(tc, &tc->instance->loaded_compunits, filename);
+        MVMString **key = MVM_fixkey_hash_insert_nt(tc, &tc->instance->loaded_compunits, filename);
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)key,
+                                       "Loaded compilation unit filename");
     });
 
 LEAVE:
