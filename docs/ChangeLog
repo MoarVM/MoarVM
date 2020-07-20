@@ -16,7 +16,7 @@ JIT:
 + [19374884] Add JIT templates for return_(i|n|s)
 
 Other:
-+ [a4cb0c51,2a3290df,183becd20a0a9ba9,953bac6c] Give io loop thread and spesh thread a name
++ [a4cb0c51,2a3290df,183becd2,0a0a9ba9,953bac6c] Give io loop thread and spesh thread a name
 
 Spesh:
 + [9a9ca434] Propagate facts in set elimination in one more case
