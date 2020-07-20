@@ -1,3 +1,39 @@
+New in 2020.07
+
+6model:
++ [32ce5f97] Constant-fold spesh-time-known unbox/decont_n/s
+
+Core:
++ [44504309,8e75378f,1d52655e,d564695f] Introduce the setthreadname op
+
+Debug Server:
++ [707f6ce7,12780324] Debugserver Protocol 1.2: add thread "name" field
+
+GC:
++ [06d8cdd1] Fix compiler warning in GC debug code
+
+JIT:
++ [19374884] Add JIT templates for return_(i|n|s)
+
+Other:
++ [a4cb0c51,2a3290df,183becd2,0a0a9ba9,953bac6c] Give io loop thread and spesh thread a name
+
+Spesh:
++ [9a9ca434] Propagate facts in set elimination in one more case
++ [af5b89b6] Give known type flag when turning return to box in inline
+
+Unicode:
++ [e5d597d1] Eliminate $annotate_anyway, which is no longer used
++ [1d00a2b5] Don't add placeholders such as "<control>" to the Unicode names lookup hash
++ [07dbc19a] Don't change the name to NULL (occasionally, if it starts with '<')
++ [0369f512] Unwrap the generated codepoint_names to one entry per line
++ [cfe6ed8f] Consistent whitespace for the initialiser for codepoint_bitfield_indexes
++ [23dfde97] Fix building on older compilers by explicitly stating gnu99 usage
++ [67c8413f] Fix ucd2c.pl script error propagation
+
+Tooling/Build:
++ [0c651c23] Fix downloading of Unicode data
+
 New in 2020.06
 
 6model:
