@@ -64,10 +64,7 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
      * need to check. */
     tc->last_payload = instance->VMNull;
 
-    /* Initialize plugin_guard_args so we never have to do a NULL check */
-    tc->plugin_guard_args = instance->VMNull;
-
-    /* Note that these two assignments above are repeated in
+    /* Note that the last assignment above is repeated in
      * MVM_6model_bootstrap because VMNull doesn't exist yet when the very
      * first tc is created. */
 

@@ -5521,38 +5521,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 8;
                 goto NEXT;
             }
-            OP(speshreg):
-                MVM_spesh_plugin_register(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).s,
-                    GET_REG(cur_op, 4).o);
-                cur_op += 6;
-                goto NEXT;
-            OP(speshresolve):
-                MVM_spesh_plugin_resolve(tc, MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)),
-                        &GET_REG(cur_op, 0), cur_op - 2, cur_op + 6, cur_callsite);
-                goto NEXT;
-            OP(speshguardtype):
-                MVM_spesh_plugin_addguard_type(tc, GET_REG(cur_op, 0).o,
-                    GET_REG(cur_op, 2).o);
-                cur_op += 4;
-                goto NEXT;
-            OP(speshguardconcrete):
-                MVM_spesh_plugin_addguard_concrete(tc, GET_REG(cur_op, 0).o);
-                cur_op += 2;
-                goto NEXT;
-            OP(speshguardtypeobj):
-                MVM_spesh_plugin_addguard_typeobj(tc, GET_REG(cur_op, 0).o);
-                cur_op += 2;
-                goto NEXT;
-            OP(speshguardobj):
-                MVM_spesh_plugin_addguard_obj(tc, GET_REG(cur_op, 0).o);
-                cur_op += 2;
-                goto NEXT;
-            OP(speshguardgetattr):
-                GET_REG(cur_op, 0).o = MVM_spesh_plugin_addguard_getattr(tc,
-                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
-                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)));
-                cur_op += 10;
-                goto NEXT;
+            OP(DEPRECATED_38):
+            OP(DEPRECATED_39):
+            OP(DEPRECATED_80):
+            OP(DEPRECATED_41):
+            OP(DEPRECATED_42):
+            OP(DEPRECATED_43):
+            OP(DEPRECATED_44):
+                MVM_exception_throw_adhoc(tc, "Specializer plugins are no longer supported");
             OP(atomicbindattr_o):
                 MVM_repr_atomic_bind_attr_o(tc, GET_REG(cur_op, 0).o,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
@@ -5595,10 +5571,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(speshguardnotobj):
-                MVM_spesh_plugin_addguard_notobj(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
-                cur_op += 4;
-                goto NEXT;
+            OP(DEPRECATED_45):
+                MVM_exception_throw_adhoc(tc, "Specializer plugins are no longer supported");
             OP(hllbool): {
                 MVMObject *bool_value = GET_REG(cur_op, 2).i64
                     ? cu->body.hll_config->true_value
@@ -6262,12 +6236,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     code->body.outer, (MVMObject *)code, spesh_cand);
                 goto NEXT;
             }
-            OP(sp_speshresolve):
-                MVM_spesh_plugin_resolve_spesh(tc, MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)),
-                    &GET_REG(cur_op, 0), GET_UI32(cur_op, 6),
-                    (MVMStaticFrame *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 10)],
-                    cur_op + 12, cur_callsite);
-                goto NEXT;
             OP(sp_paramnamesused):
                 MVM_args_throw_named_unused_error(tc, (MVMString *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 0)]);
@@ -6937,9 +6905,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The asec_n op was removed in MoarVM 2021.04.");
             OP(DEPRECATED_37):
                 MVM_exception_throw_adhoc(tc, "The sech_n op was removed in MoarVM 2021.04.");
-            OP(DEPRECATED_38):
+            OP(DEPRECATED_46):
                 MVM_exception_throw_adhoc(tc, "The time_i op was removed in MoarVM 2021.04.");
-            OP(DEPRECATED_39):
+            OP(DEPRECATED_47):
                 MVM_exception_throw_adhoc(tc, "The time_n op was removed in MoarVM 2021.04.");
             OP(DEPRECATED_40):
                 MVM_exception_throw_adhoc(tc, "The graphs_s op was removed in MoarVM 2021.04.");

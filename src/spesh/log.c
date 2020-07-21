@@ -226,21 +226,9 @@ void MVM_spesh_log_return_to_unlogged(MVMThreadContext *tc) {
     commit_entry(tc, sl);
 }
 
-/* Log the result of a spesh plugin resolution. */
-void MVM_spesh_log_plugin_resolution(MVMThreadContext *tc, MVMuint32 bytecode_offset,
-                                     MVMuint16 guard_index) {
-    MVMSpeshLog *sl = tc->spesh_log;
-    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
-    MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
-    entry->kind = MVM_SPESH_LOG_PLUGIN_RESOLUTION;
-    entry->id = cid;
-    entry->plugin.bytecode_offset = bytecode_offset;
-    entry->plugin.guard_index = guard_index;
-    commit_entry(tc, sl);
-}
-
+/* Log the result of a dispatcher. */
 void MVM_spesh_log_dispatch_resolution(MVMThreadContext *tc, MVMuint32 bytecode_offset,
-                                     MVMuint16 guard_index) {
+                                       MVMuint16 guard_index) {
     MVMSpeshLog *sl = tc->spesh_log;
     MVMint32 cid = tc->cur_frame->spesh_correlation_id;
     MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);

@@ -61,7 +61,6 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->int_multidim_ref, "HLL int_multidim_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->num_multidim_ref, "HLL num_multidim_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->str_multidim_ref, "HLL str_multidim_ref");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->spesh_plugins, "HLL spesh plugins");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name, "HLL name");
     }
 

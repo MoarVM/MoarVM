@@ -2201,105 +2201,6 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         MVM_spesh_manipulate_release_temp_reg(tc, g, code_temp);
 }
 
-/* Considers a spesh plugin's logged data. If it gives a consistent result,
- * then replaces this instruction with a spesh slot that resolves to the
- * result, and prepends guards as specified by the plugin. */
-static void optimize_plugin(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-                            MVMSpeshIns *ins, MVMSpeshPlanned *p) {
-    MVMint32 agg_guard_index;
-
-    /* Locate logged annotation. */
-    MVMSpeshAnn *ann = ins->annotations;
-    MVMSpeshAnn *logged_ann = NULL;
-    while (ann) {
-        switch (ann->type) {
-            case MVM_SPESH_ANN_LOGGED:
-                logged_ann = ann;
-                break;
-        }
-        ann = ann->next;
-    }
-
-    /* Search for a stable guard index. (Later, we can stack up a set of
-     * conditions or some such if there's no stable or really popular one. */
-    agg_guard_index = -1;
-    if (logged_ann) {
-        MVMuint32 agg_guard_index_count = 0;
-        MVMuint32 i;
-        for (i = 0; i < p->num_type_stats; i++) {
-            MVMSpeshStatsByType *ts = p->type_stats[i];
-            MVMuint32 j;
-            for (j = 0; j < ts->num_by_offset; j++) {
-                if (ts->by_offset[j].bytecode_offset == logged_ann->data.bytecode_offset) {
-                    /* Go over the guard indexes. */
-                    MVMuint32 num_plugin_guards = ts->by_offset[j].num_plugin_guards;
-                    MVMuint32 k;
-                    for (k = 0; k < num_plugin_guards; k++) {
-                        /* If it's inconsistent with the aggregated guard index,
-                         * then first check if the index we're now seeing is either
-                         * massively more popular or massively less popular. If
-                         * massively less, disregard this one. If massively more,
-                         * disregard the previous one. */
-                        MVMuint32 cur_guard_index = ts->by_offset[j].plugin_guards[k].guard_index;
-                        MVMuint32 count = ts->by_offset[j].plugin_guards[k].count;
-                        if (agg_guard_index >= 0) {
-                            if ((MVMuint32)agg_guard_index != cur_guard_index) {
-                                if (count > 100 * agg_guard_index_count) {
-                                    /* This one is hugely more popular. */
-                                    agg_guard_index = cur_guard_index;
-                                    agg_guard_index_count = 0;
-                                }
-                                else if (agg_guard_index_count > 100 * count) {
-                                    /* This one is hugely less popular. */
-                                    continue;
-                                }
-                                else {
-                                    /* Unstable guard indexes. */
-                                    agg_guard_index = -1;
-                                    goto specialize;
-                                }
-                            }
-                        }
-                        else {
-                            agg_guard_index = cur_guard_index;
-                        }
-                        agg_guard_index_count += count;
-                    }
-
-                    /* No need to consider searching after this offset. */
-                    break;
-                }
-            }
-        }
-    }
-
-    specialize:
-    /* If we picked a guard index, insert the guards and rewrite the resolve
-     * instruction. If not, just rewrite the resolve instruction into the
-     * spesh version of itself including the index. */
-    if (agg_guard_index != -1) {
-        if (MVM_spesh_debug_enabled(tc)) {
-            MVMString *plugin_name = MVM_spesh_get_string(tc, g, ins->operands[1]);
-            char *plugin_name_c = MVM_string_utf8_encode_C_string(tc, plugin_name);
-            MVM_spesh_graph_add_comment(tc, g, ins, "spesh plugin '%s'",
-                    plugin_name_c);
-            MVM_free(plugin_name_c);
-        }
-        MVM_spesh_plugin_rewrite_resolve(tc, g, bb, ins, logged_ann->data.bytecode_offset,
-                agg_guard_index);
-    }
-    else {
-        MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
-        new_operands[0] = ins->operands[0];
-        new_operands[1] = ins->operands[1];
-        new_operands[2].lit_ui32 = logged_ann->data.bytecode_offset;
-        new_operands[3].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
-                (MVMCollectable *)g->sf);
-        ins->info = MVM_op_get_op(MVM_OP_sp_speshresolve);
-        ins->operands = new_operands;
-    }
-}
-
 static void optimize_coverage_log(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     char *cache        = (char *)(uintptr_t)ins->operands[3].lit_i64;
     MVMint32 cache_idx = ins->operands[2].lit_i32;
@@ -2802,22 +2703,6 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_invoke_o:
             if (!bb->inlined)
                 optimize_call(tc, g, bb, ins, p, 1, &arg_info);
-            break;
-        case MVM_OP_speshresolve:
-            if (p) {
-                /* Rewriting spesh plugins will insert a bunch of instructions
-                 * in front of the generated code, which would be skipped by
-                 * our loop, so we skip to before the prepargs that belongs to
-                 * it so that we run across the new instructions, too. */
-                MVMSpeshIns *prepargs = ins->prev;
-                do {
-                    prepargs = prepargs->prev;
-                } while (prepargs && prepargs->info->opcode != MVM_OP_prepargs);
-                optimize_plugin(tc, g, bb, ins, p);
-                if (prepargs && prepargs->prev && prepargs->prev->next && prepargs->prev->next->info->opcode != MVM_OP_prepargs) {
-                    ins = prepargs->prev;
-                }
-            }
             break;
         case MVM_OP_islist:
         case MVM_OP_ishash:
