@@ -452,7 +452,7 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             }
             ann = ann->next;
         }
-        if (p && ann_deopt_one && ann_logged && ins->info->opcode != MVM_OP_speshresolve)
+        if (p && ann_deopt_one && ann_logged)
             log_facts(tc, g, bb, ins, p, ann_deopt_one, ann_logged);
 
         /* Look for ops that are fact-interesting. */

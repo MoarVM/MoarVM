@@ -23,10 +23,6 @@ struct MVMStaticFrameSpeshBody {
      * from logs. */
     MVMSpeshStats *spesh_stats;
 
-    /* Specializer plugin state for this static frame. Allocated with FSA and
-     * updated atomically. */
-    MVMSpeshPluginState *plugin_state;
-
     /* Number of times the frame was promoted to the heap, when it was not
      * specialized. Used to decide whether we'll directly allocate this frame
      * on the heap. */

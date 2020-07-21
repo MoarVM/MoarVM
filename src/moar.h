@@ -192,7 +192,6 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "spesh/stats.h"
 #include "spesh/plan.h"
 #include "spesh/arg_guard.h"
-#include "spesh/plugin.h"
 #include "spesh/frame_walker.h"
 #include "strings/nfg.h"
 #include "strings/normalize.h"
