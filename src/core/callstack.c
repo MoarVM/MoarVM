@@ -473,7 +473,7 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                 MVMuint16 flagi;
                 MVMCallsite *cs = &f_record->produced_cs;
                 MVM_callsite_mark(tc, cs, worklist);
-                for (flagi = 0; flagi < f_record->produced_cs.arg_count; flagi++) {
+                for (flagi = 0; flagi < f_record->produced_cs.flag_count; flagi++) {
                     MVMuint8 flagtype = cs->arg_flags[flagi] & MVM_CALLSITE_ARG_TYPE_MASK;
                     if (flagtype == MVM_CALLSITE_ARG_OBJ || flagtype == MVM_CALLSITE_ARG_STR) {
                         add_collectable(tc, worklist, snapshot, f_record->arg_info.source[f_record->arg_info.map[flagi]].o,
