@@ -263,16 +263,6 @@ struct MVMThreadContext {
     MVMint32 osr_hunt_frame_nr;
     MVMint32 osr_hunt_num_spesh_candidates;
 
-    /* If we are currently in a spesh plugin, the current set of guards we
-     * have recorded. */
-    MVMSpeshPluginGuard *plugin_guards;
-    MVMObject *plugin_guard_args;
-    MVMuint32 num_plugin_guards;
-
-    MVMSpeshPluginGuard *temp_plugin_guards;
-    MVMObject *temp_plugin_guard_args;
-    MVMuint32 temp_num_plugin_guards;
-
     /************************************************************************
      * Per-thread state held by assorted VM subsystems
      ************************************************************************/

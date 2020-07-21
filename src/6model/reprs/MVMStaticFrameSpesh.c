@@ -33,7 +33,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
             MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]);
         }
     }
-    MVM_gc_worklist_add(tc, worklist, &body->plugin_state);
 }
 
 /* Called by the VM in order to free memory associated with this object. */

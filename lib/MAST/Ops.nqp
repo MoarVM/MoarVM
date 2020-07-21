@@ -4267,11 +4267,11 @@ BEGIN {
     'srand', 502,
     'rand_i', 503,
     'rand_n', 504,
-    'DEPRECATED_38', 505,
+    'DEPRECATED_46', 505,
     'sleep', 506,
     'newthread', 507,
     'threadjoin', 508,
-    'DEPRECATED_39', 509,
+    'DEPRECATED_47', 509,
     'exit', 510,
     'DEPRECATED_30', 511,
     'cwd', 512,
@@ -4557,18 +4557,18 @@ BEGIN {
     'getppid', 792,
     'getsignals', 793,
     'slice', 794,
-    'speshreg', 795,
-    'speshresolve', 796,
-    'speshguardtype', 797,
-    'speshguardconcrete', 798,
-    'speshguardtypeobj', 799,
-    'speshguardobj', 800,
-    'speshguardgetattr', 801,
+    'DEPRECATED_38', 795,
+    'DEPRECATED_39', 796,
+    'DEPRECATED_80', 797,
+    'DEPRECATED_41', 798,
+    'DEPRECATED_42', 799,
+    'DEPRECATED_43', 800,
+    'DEPRECATED_44', 801,
     'atomicbindattr_o', 802,
     'casattr_o', 803,
     'atkey_u', 804,
     'coerce_us', 805,
-    'speshguardnotobj', 806,
+    'DEPRECATED_45', 806,
     'hllbool', 807,
     'hllboolfor', 808,
     'decodelocaltime', 809,
@@ -5098,11 +5098,11 @@ BEGIN {
     'srand',
     'rand_i',
     'rand_n',
-    'DEPRECATED_38',
+    'DEPRECATED_46',
     'sleep',
     'newthread',
     'threadjoin',
-    'DEPRECATED_39',
+    'DEPRECATED_47',
     'exit',
     'DEPRECATED_30',
     'cwd',
@@ -5388,18 +5388,18 @@ BEGIN {
     'getppid',
     'getsignals',
     'slice',
-    'speshreg',
-    'speshresolve',
-    'speshguardtype',
-    'speshguardconcrete',
-    'speshguardtypeobj',
-    'speshguardobj',
-    'speshguardgetattr',
+    'DEPRECATED_38',
+    'DEPRECATED_39',
+    'DEPRECATED_80',
+    'DEPRECATED_41',
+    'DEPRECATED_42',
+    'DEPRECATED_43',
+    'DEPRECATED_44',
     'atomicbindattr_o',
     'casattr_o',
     'atkey_u',
     'coerce_us',
-    'speshguardnotobj',
+    'DEPRECATED_45',
     'hllbool',
     'hllboolfor',
     'decodelocaltime',
@@ -9181,7 +9181,7 @@ BEGIN {
         nqp::writeuint($bytecode, $elems, 504, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'DEPRECATED_38', sub ($op0) {
+    'DEPRECATED_46', sub ($op0) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 505, 5);
@@ -9207,7 +9207,7 @@ BEGIN {
         nqp::writeuint($bytecode, $elems, 508, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'DEPRECATED_39', sub ($op0) {
+    'DEPRECATED_47', sub ($op0) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 509, 5);
@@ -11421,7 +11421,7 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'speshreg', sub ($op0, $op1, $op2) {
+    'DEPRECATED_38', sub ($op0, $op1, $op2) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 795, 5);
@@ -11429,39 +11429,39 @@ BEGIN {
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'speshresolve', sub ($op0, str $op1) {
+    'DEPRECATED_39', sub ($op0, str $op1) {
         my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 796, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'speshguardtype', sub ($op0, $op1) {
+    'DEPRECATED_80', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 797, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'speshguardconcrete', sub ($op0) {
+    'DEPRECATED_41', sub ($op0) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 798, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'speshguardtypeobj', sub ($op0) {
+    'DEPRECATED_42', sub ($op0) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 799, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'speshguardobj', sub ($op0) {
+    'DEPRECATED_43', sub ($op0) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 800, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'speshguardgetattr', sub ($op0, $op1, $op2, str $op3) {
+    'DEPRECATED_44', sub ($op0, $op1, $op2, str $op3) {
         my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 801, 5);
@@ -11505,7 +11505,7 @@ BEGIN {
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'speshguardnotobj', sub ($op0, $op1) {
+    'DEPRECATED_45', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 806, 5);

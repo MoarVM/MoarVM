@@ -642,7 +642,6 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_boot_type(tc, MVM_REPR_ID_ReentrantMutex, boot_types.BOOTReentrantMutex, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMSpeshLog, SpeshLog, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMStaticFrameSpesh, StaticFrameSpesh, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
-    create_stub_boot_type(tc, MVM_REPR_ID_MVMSpeshPluginState, SpeshPluginState, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMSpeshCandidate, SpeshCandidate, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMCapture, boot_types.BOOTCapture, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMTracked, boot_types.BOOTTracked, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
@@ -681,7 +680,6 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     meta_objectifier(tc, boot_types.BOOTReentrantMutex, "BOOTReentrantMutex");
     meta_objectifier(tc, SpeshLog, "SpeshLog");
     meta_objectifier(tc, StaticFrameSpesh, "StaticFrameSpesh");
-    meta_objectifier(tc, SpeshPluginState, "SpeshPluginState");
     meta_objectifier(tc, SpeshCandidate, "SpeshCandidate");
     meta_objectifier(tc, boot_types.BOOTCapture, "BOOTCapture");
     meta_objectifier(tc, boot_types.BOOTTracked, "BOOTTracked");
@@ -710,7 +708,6 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
      * runs before the bootstrap, but tries to initialize these fields to
      * VMNull regardless */
     tc->last_payload = tc->instance->VMNull;
-    tc->plugin_guard_args = tc->instance->VMNull;
 
     /* Set up HLL roles. */
     STABLE(tc->instance->boot_types.BOOTInt)->hll_role   = MVM_HLL_ROLE_INT;

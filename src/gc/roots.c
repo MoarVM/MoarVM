@@ -223,7 +223,7 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     if (worklist)
         MVM_profile_instrumented_mark_data(tc, worklist);
 
-    /* Specialization log, stack simulation, and plugin state. */
+    /* Specialization log and stack simulation state. */
     add_collectable(tc, worklist, snapshot, tc->spesh_log, "Specialization log");
     if (worklist)
         MVM_spesh_sim_stack_gc_mark(tc, tc->spesh_sim_stack, worklist);
@@ -235,15 +235,6 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
         else
             MVM_spesh_graph_describe(tc, tc->spesh_active_graph, snapshot);
     }
-    if (worklist)
-        MVM_spesh_plugin_guard_list_mark(tc, tc->plugin_guards, tc->num_plugin_guards, worklist);
-    if (tc->temp_plugin_guards)
-        MVM_spesh_plugin_guard_list_mark(tc, tc->temp_plugin_guards, tc->temp_num_plugin_guards, worklist);
-    add_collectable(tc, worklist, snapshot, tc->plugin_guard_args,
-        "Plugin guard args");
-    if (tc->temp_plugin_guard_args)
-        add_collectable(tc, worklist, snapshot, tc->temp_plugin_guard_args,
-            "Temporary plugin guard args");
 
     if (tc->step_mode_frame)
         add_collectable(tc, worklist, snapshot, tc->step_mode_frame,

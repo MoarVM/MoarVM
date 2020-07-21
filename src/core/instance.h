@@ -461,9 +461,6 @@ struct MVMInstance {
      * StaticFrameSpesh type for hanging spesh data off frames. */
     MVMObject *SpeshLog;
     MVMObject *StaticFrameSpesh;
-
-    MVMObject *SpeshPluginState;
-
     MVMObject *SpeshCandidate;
 
     /* Set of bootstrapping types. */
