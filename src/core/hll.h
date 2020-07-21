@@ -64,12 +64,6 @@ struct MVMHLLConfig {
     MVMObject *true_value;
     MVMObject *false_value;
 
-    /* Array of types to pass to compiler.c */
-    MVMObject *mast_types;
-
-    /* Spesh plugins hash. */
-    MVMObject *spesh_plugins;
-
     /* The maximum code size that we'll inline. */
     MVMuint32 max_inline_size;
 };

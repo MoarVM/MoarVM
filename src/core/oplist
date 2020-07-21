@@ -562,11 +562,11 @@ chdir               r(str)
 srand               r(int64)
 rand_i              w(int64) :confprog
 rand_n              w(num64) :confprog
-DEPRECATED_38       w(int64) :pure :confprog
+DEPRECATED_46       w(int64) :pure :confprog
 sleep               r(num64)
 newthread           w(obj) r(obj) r(int64)
 threadjoin          r(obj)
-DEPRECATED_39       w(num64) :pure :confprog
+DEPRECATED_47       w(num64) :pure :confprog
 exit                r(int64) :confprog
 DEPRECATED_30       w(int64) r(str) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 cwd                 w(str) :pure :confprog
@@ -855,18 +855,18 @@ decoderepconf       w(str) r(obj) r(str) r(str) r(int64)
 getppid             w(int64)
 getsignals          w(obj) :useshll
 slice               w(obj) r(obj) r(int64) r(int64)
-speshreg            r(str) r(str) r(obj)
-speshresolve     -a w(obj) str :deoptonepoint :logged :noinline :specializable :invokish
-speshguardtype      r(obj) r(obj)
-speshguardconcrete  r(obj)
-speshguardtypeobj   r(obj)
-speshguardobj       r(obj)
-speshguardgetattr   w(obj) r(obj) r(obj) str
+DEPRECATED_38       r(str) r(str) r(obj)
+DEPRECATED_39    -a w(obj) str :deoptonepoint :logged :noinline :specializable :invokish
+DEPRECATED_80       r(obj) r(obj)
+DEPRECATED_41       r(obj)
+DEPRECATED_42       r(obj)
+DEPRECATED_43       r(obj)
+DEPRECATED_44       w(obj) r(obj) r(obj) str
 atomicbindattr_o    r(obj) r(obj) r(str) r(obj) :specializable
 casattr_o           w(obj) r(obj) r(obj) r(str) r(obj) r(obj) :specializable
 atkey_u             w(uint64) r(obj) r(str) :specializable
 coerce_us           w(str) r(uint64) :pure
-speshguardnotobj    r(obj) r(obj)
+DEPRECATED_45       r(obj) r(obj)
 hllbool             w(obj) r(int64) :pure :useshll
 hllboolfor          w(obj) r(int64) r(str) :pure :useshll
 decodelocaltime     w(obj) r(int64)
@@ -967,12 +967,6 @@ sp_fastinvoke_i  .s w(int64) r(obj) int16 :maycausedeopt
 sp_fastinvoke_n  .s w(num64) r(obj) int16 :maycausedeopt
 sp_fastinvoke_s  .s w(str) r(obj) int16 :maycausedeopt
 sp_fastinvoke_o  .s w(obj) r(obj) int16 :maycausedeopt
-
-# Spesh plugin resolve instruction's post-spesh from. The bytecode position is
-# included inside of the instruction since it will have moved afterwards, and
-# we also include the static frame so that this instruction can survive being
-# inlined.
-sp_speshresolve    .s w(obj) str uint32 sslot :maycausedeopt :useshll :invokish
 
 # Error generation if a named param is unused (name goes in spesh slot).
 sp_paramnamesused  .s sslot

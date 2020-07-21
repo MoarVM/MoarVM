@@ -469,7 +469,6 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMint16      code_register_or_name;
     MVMint16      spesh_cand_or_sf_slot;
     MVMint16      is_fast;
-    MVMint16      is_resolve = 0;
     MVMuint32     resolve_offset = 0;
 
     while ((ins = ins->next)) {
@@ -582,15 +581,6 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
             spesh_cand_or_sf_slot = ins->operands[2].lit_i16;
             is_fast               = 1;
             goto checkargs;
-        case MVM_OP_sp_speshresolve:
-            return_type           = MVM_RETURN_OBJ;
-            return_register       = ins->operands[0].reg.orig;;
-            code_register_or_name = ins->operands[1].lit_ui32;
-            resolve_offset        = ins->operands[2].lit_ui32;
-            spesh_cand_or_sf_slot = ins->operands[3].lit_i16;
-            is_fast               = 0;
-            is_resolve            = 1;
-            goto checkargs;
         default:
             MVM_spesh_graph_add_comment(tc, iter->graph, ins,
                 "BAIL: Unexpected opcode in invoke sequence: <%s>",
@@ -620,7 +610,6 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
     node->u.invoke.resolve_offset        = resolve_offset;
     node->u.invoke.reentry_label         = reentry_label;
     node->u.invoke.is_fast               = is_fast;
-    node->u.invoke.is_resolve            = is_resolve;
     jg_append_node(jg, node);
 
     /* append reentry label */
