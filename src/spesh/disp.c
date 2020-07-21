@@ -142,13 +142,13 @@ void MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPla
                 /* We found some stats at the offset of the dispatch. Count the
                  * hits. */
                 MVMuint32 k;
-                for (k = 0; k < ts->by_offset[j].num_plugin_guards; k++) {
-                    MVMSpeshStatsPluginGuardCount *outcome_count =
-                            &(ts->by_offset[j].plugin_guards[k]);
+                for (k = 0; k < ts->by_offset[j].num_dispatch_results; k++) {
+                    MVMSpeshStatsDispatchResultCount *outcome_count =
+                            &(ts->by_offset[j].dispatch_results[k]);
                     MVMuint32 l;
                     MVMuint32 found = 0;
                     for (l = 0; l < MVM_VECTOR_ELEMS(outcome_hits); l++) {
-                        if (outcome_hits[l].outcome == outcome_count->guard_index) {
+                        if (outcome_hits[l].outcome == outcome_count->result_index) {
                             outcome_hits[l].hits += outcome_count->count;
                             found = 1;
                             break;
@@ -156,7 +156,7 @@ void MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPla
                     }
                     if (!found) {
                         OutcomeHitCount ohc = {
-                            .outcome = outcome_count->guard_index,
+                            .outcome = outcome_count->result_index,
                             .hits = outcome_count->count
                         };
                         MVM_VECTOR_PUSH(outcome_hits, ohc);

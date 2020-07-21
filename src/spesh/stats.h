@@ -101,9 +101,9 @@ struct MVMSpeshStatsByOffset {
     MVMuint32 num_type_tuples;
     MVMSpeshStatsTypeTupleCount *type_tuples;
 
-    /* Number of times spesh plugin guard indexes were recorded. */
-    MVMSpeshStatsPluginGuardCount *plugin_guards;
-    MVMuint32 num_plugin_guards;
+    /* Number of times spesh dispatch results were recorded. */
+    MVMSpeshStatsDispatchResultCount *dispatch_results;
+    MVMuint32 num_dispatch_results;
 };
 
 /* Counts of a given type that has shown up at a bytecode offset. */
@@ -144,10 +144,10 @@ struct MVMSpeshStatsTypeTupleCount {
     MVMuint32 count;
 };
 
-/* Counts of a given spesh plugin guard index. */
-struct MVMSpeshStatsPluginGuardCount {
-    /* The guard index that the plugin resolved to. */
-    MVMuint32 guard_index;
+/* Counts of a given dispatch result index. */
+struct MVMSpeshStatsDispatchResultCount {
+    /* The index of the dispatch result in the inline cache entry. */
+    MVMuint32 result_index;
 
     /* The number of times we've seen it. */
     MVMuint32 count;
