@@ -184,26 +184,26 @@ void add_invoke_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
     oss->invokes[found].was_multi_count = was_multi ? 1 : 0;
 }
 
-/* Adds/increments the count of a plugin guard index seen at the given offset. */
-void add_plugin_guard_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
-                                MVMuint32 guard_index) {
+/* Adds/increments the count of a dispatch result seen at the given offset. */
+void add_dispatch_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
+                            MVMuint32 result_index) {
     /* If we have it already, increment the count. */
     MVMuint32 found;
-    MVMuint32 n = oss->num_plugin_guards;
+    MVMuint32 n = oss->num_dispatch_results;
     for (found = 0; found < n; found++) {
-        if (oss->plugin_guards[found].guard_index == guard_index) {
-            oss->plugin_guards[found].count++;
+        if (oss->dispatch_results[found].result_index == result_index) {
+            oss->dispatch_results[found].count++;
             return;
         }
     }
 
     /* Otherwise, add it to the list. */
-    found = oss->num_plugin_guards;
-    oss->num_plugin_guards++;
-    oss->plugin_guards = MVM_realloc(oss->plugin_guards,
-            oss->num_plugin_guards * sizeof(MVMSpeshStatsPluginGuardCount));
-    oss->plugin_guards[found].guard_index = guard_index;
-    oss->plugin_guards[found].count = 1;
+    found = oss->num_dispatch_results;
+    oss->num_dispatch_results++;
+    oss->dispatch_results = MVM_realloc(oss->dispatch_results,
+            oss->num_dispatch_results * sizeof(MVMSpeshStatsDispatchResultCount));
+    oss->dispatch_results[found].result_index = result_index;
+    oss->dispatch_results[found].count = 1;
 }
 
 /* Adds/increments the count of a type tuple seen at the given offset. */
@@ -348,11 +348,10 @@ void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
                         e->invoke.caller_is_outer, e->invoke.was_multi);
                     break;
                 }
-                case MVM_SPESH_LOG_DISPATCH_RESOLUTION:
-                case MVM_SPESH_LOG_PLUGIN_RESOLUTION: {
+                case MVM_SPESH_LOG_DISPATCH_RESOLUTION: {
                     MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
-                        e->plugin.bytecode_offset);
-                    add_plugin_guard_at_offset(tc, oss, e->plugin.guard_index);
+                        e->dispatch.bytecode_offset);
+                    add_dispatch_at_offset(tc, oss, e->dispatch.result_index);
                     break;
                 }
             }
@@ -589,8 +588,7 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
             case MVM_SPESH_LOG_TYPE:
             case MVM_SPESH_LOG_RETURN:
             case MVM_SPESH_LOG_INVOKE:
-            case MVM_SPESH_LOG_DISPATCH_RESOLUTION:
-            case MVM_SPESH_LOG_PLUGIN_RESOLUTION: {
+            case MVM_SPESH_LOG_DISPATCH_RESOLUTION: {
                 /* We only incorporate these into the model later, and only
                  * then if we need to. For now, just keep references to
                  * them. */
@@ -750,7 +748,7 @@ void MVM_spesh_stats_destroy(MVMThreadContext *tc, MVMSpeshStats *ss) {
                     for (l = 0; l < by_offset->num_type_tuples; l++)
                         MVM_free(by_offset->type_tuples[l].arg_types);
                     MVM_free(by_offset->type_tuples);
-                    MVM_free(by_offset->plugin_guards);
+                    MVM_free(by_offset->dispatch_results);
                 }
                 MVM_free(by_type->by_offset);
                 MVM_free(by_type->arg_types);
