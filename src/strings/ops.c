@@ -1246,10 +1246,10 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
         if (H_offset < 0)
             H_offset = 0; /* XXX I think this is the right behavior here */
     }
-    /* If the offset is greater or equal to the number of Haystack graphemes
-     * return 0. Since size of graphemes could change under casefolding, we
+    /* If the offset is greater to the number of Haystack graphemes return 0.
+     * Since size of graphemes could change under casefolding, we
      * can't assume too much. If optimizing this be careful */
-    if (H_graphs <= H_offset)
+    if (H_graphs < H_offset)
         return 0;
     MVMROOT(tc, Haystack, {
         needle_fc = ignorecase ? MVM_string_fc(tc, needle) : needle;
