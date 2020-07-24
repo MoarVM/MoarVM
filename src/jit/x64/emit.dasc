@@ -222,6 +222,8 @@ const unsigned char * MVM_jit_actions(void) {
 /* return value */
 |.define RV, rax
 |.define RVd, eax
+|.define RVw, ax
+|.define RVb, al
 |.define RVF, xmm0
 
 
@@ -1551,27 +1553,27 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         switch(ins->info->opcode) {
         case MVM_OP_eqaddr:
         case MVM_OP_eq_i:
-            | sete al;
+            | sete RVb;
             break;
         case MVM_OP_ne_i:
-            | setne al;
+            | setne RVb;
             break;
         case MVM_OP_lt_i:
-            | setl al;
+            | setl RVb;
             break;
         case MVM_OP_le_i:
-            | setle al;
+            | setle RVb;
             break;
         case MVM_OP_gt_i:
-            | setg al;
+            | setg RVb;
             break;
         case MVM_OP_ge_i:
-            | setge al;
+            | setge RVb;
             break;
         }
         /* zero extend al (lower byte) to rax (whole register) */
-        | movzx rax, al;
-        | mov WORK[reg_a], rax;
+        | movzx RV, RVb;
+        | mov WORK[reg_a], RV;
         break;
     }
     case MVM_OP_cmp_i : {
@@ -1615,20 +1617,20 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
          * interp.c */
         switch(ins->info->opcode) {
             case MVM_OP_gt_s:
-                | sete al;
+                | sete RVb;
                 break;
             case MVM_OP_ge_s:
-                | setle al;
+                | setle RVb;
                 break;
             case MVM_OP_lt_s:
-                | sete al;
+                | sete RVb;
                 break;
             case MVM_OP_le_s:
-                | setge al;
+                | setge RVb;
                 break;
         }
-        | movzx rax, al;
-        | mov WORK[reg], rax;
+        | movzx RV, RVb;
+        | mov WORK[reg], RV;
         break;
     }
     case MVM_OP_not_i: {
@@ -1712,32 +1714,32 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         switch(ins->info->opcode) {
         case MVM_OP_eq_I:
             | cmp RV, MP_EQ
-            | sete al;
+            | sete RVb;
             break;
         case MVM_OP_ne_I:
             | cmp RV, MP_EQ
-            | setne al;
+            | setne RVb;
             break;
         case MVM_OP_lt_I:
             | cmp RV, MP_LT
-            | sete al;
+            | sete RVb;
             break;
         case MVM_OP_le_I:
             | cmp RV, MP_GT
-            | setne al;
+            | setne RVb;
             break;
         case MVM_OP_gt_I:
             | cmp RV, MP_GT
-            | sete al;
+            | sete RVb;
             break;
         case MVM_OP_ge_I:
             | cmp RV, MP_LT
-            | setne al;
+            | setne RVb;
             break;
         }
         /* zero extend al (lower byte) to rax (whole register) */
-        | movzx rax, al;
-        | mov WORK[reg_a], rax;
+        | movzx RV, RVb;
+        | mov WORK[reg_a], RV;
         break;
     }
     case MVM_OP_isint:
@@ -2263,9 +2265,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov TMP3w, word ARGPROCCONTEXT:TMP2->num_pos;
         | mov TMP2w, word ARGPROCCONTEXT:TMP2->arg_count;
         | cmp TMP2w, TMP3w;
-        | setne al;
-        | movzx rax, al;
-        | mov WORK[dest], rax;
+        | setne RVb;
+        | movzx RV, RVb;
+        | mov WORK[dest], RV;
         break;
     }
     case MVM_OP_capturenamedshash: {
