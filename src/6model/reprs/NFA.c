@@ -49,7 +49,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         if (nfa->body.num_state_edges[i])
             MVM_fixed_size_free(tc, tc->instance->fsa, nfa->body.num_state_edges[i] * sizeof(MVMNFAStateInfo), nfa->body.states[i]);
     MVM_fixed_size_free(tc, tc->instance->fsa, nfa->body.num_states * sizeof(MVMNFAStateInfo *), nfa->body.states);
-    MVM_fixed_size_free(tc, tc->instance->fsa, nfa->body.num_states * sizeof(MVMint64), nfa->body.num_state_edges);
+    MVM_fixed_size_free(tc, tc->instance->fsa, nfa->body.num_states * sizeof(MVMuint32), nfa->body.num_state_edges);
 }
 
 
@@ -184,12 +184,14 @@ static void sort_states_and_add_synth_cp_node(MVMThreadContext *tc, MVMNFABody *
     MVMint64 s;
     for (s = 0; s < body->num_states; s++) {
         /* See if there's enough interesting edges to do the opt. */
-        MVMint32 applicable_edges = 0;
-        MVMint64 num_orig_edges = body->num_state_edges[s];
+        MVMuint32 applicable_edges = 0;
+        MVMuint32 first_edge_index = body->state_first_edge[s];
+        MVMuint32 last_edge_index  = body->state_first_edge[s + 1];
+        MVMuint32 num_orig_edges = last_edge_index - first_edge_index;
         if (num_orig_edges >= 4) {
-            MVMint64 e;
-            for (e = 0; e < num_orig_edges; e++) {
-                MVMint64 act = body->states[s][e].act;
+            MVMuint32 e;
+            for (e = first_edge_index; e < last_edge_index; e++) {
+                MVMint64 act = body->states[e].act;
                 if (act == MVM_NFA_EDGE_CODEPOINT || act == MVM_NFA_EDGE_CODEPOINT_LL)
                     applicable_edges++;
             }
@@ -202,10 +204,13 @@ static void sort_states_and_add_synth_cp_node(MVMThreadContext *tc, MVMNFABody *
                 num_new_edges * sizeof(MVMNFAStateInfo));
             new_edges[0].act = MVM_NFA_EDGE_SYNTH_CP_COUNT;
             new_edges[0].arg.i = applicable_edges;
-            memcpy(new_edges + 1, body->states[s], num_orig_edges * sizeof(MVMNFAStateInfo));
+            memcpy(new_edges + 1, body->states + first_edge_index, num_new_edges * sizeof(MVMNFAStateInfo));
             qsort(new_edges, num_new_edges, sizeof(MVMNFAStateInfo), opt_edge_comp);
             MVM_fixed_size_free(tc, tc->instance->fsa, num_orig_edges * sizeof(MVMNFAStateInfo),
                     body->states[s]);
+            /*
+             * TODO this changes the total number of edges, so needs to memmove stuff around ...
+             */
             body->states[s] = new_edges;
             body->num_state_edges[s] = num_new_edges;
         }
@@ -225,9 +230,10 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 
     if (body->num_states > 0) {
         /* Read state edge list counts. */
-        body->num_state_edges = MVM_fixed_size_alloc(tc, tc->instance->fsa, body->num_states * sizeof(MVMint64));
-        for (i = 0; i < body->num_states; i++)
+        body->num_state_edges = MVM_fixed_size_alloc(tc, tc->instance->fsa, body->num_states * sizeof(MVMint32));
+        for (i = 0; i < body->num_states; i++) {
             body->num_state_edges[i] = MVM_serialization_read_int(tc, reader);
+        }
 
         /* Read state graph. */
         body->states = MVM_fixed_size_alloc(tc, tc->instance->fsa, body->num_states * sizeof(MVMNFAStateInfo *));
@@ -379,6 +385,7 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
     MVMObject  *nfa_obj;
     MVMNFABody *nfa;
     MVMint64    i, j, num_states;
+    MVMuint64 total_edges = 0;
 
     MVMROOT2(tc, states, nfa_type, {
         /* Create NFA object. */
@@ -392,19 +399,28 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
         num_states = MVM_repr_elems(tc, states) - 1;
         nfa->num_states = num_states;
         if (num_states > 0) {
-            nfa->num_state_edges = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, num_states * sizeof(MVMint64));
-            nfa->states = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, num_states * sizeof(MVMNFAStateInfo *));
+            nfa->state_first_edge = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, (num_states + 1) * sizeof(MVMint32));
         }
+
         for (i = 0; i < num_states; i++) {
             MVMObject *edge_info = MVM_repr_at_pos_o(tc, states, i + 1);
             MVMint64   elems     = MVM_repr_elems(tc, edge_info);
             MVMint64   edges     = elems / 3;
-            MVMint64   cur_edge  = 0;
 
-            nfa->num_state_edges[i] = edges;
-            if (edges > 0) {
-                nfa->states[i] = MVM_fixed_size_alloc(tc, tc->instance->fsa, edges * sizeof(MVMNFAStateInfo));
-            }
+            nfa->state_first_edge[i] = total_edges;
+            total_edges += edges;
+        }
+        nfa->state_first_edge[num_states] = total_edges;
+
+        nfa->states = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, total_edges * sizeof(MVMNFAStateInfo));
+
+        for (i = 0; i < num_states; i++) {
+            MVMObject *edge_info = MVM_repr_at_pos_o(tc, states, i + 1);
+            MVMint64   elems     = MVM_repr_elems(tc, edge_info);
+            MVMint64   edges     = elems / 3;
+            MVMint64   cur_edge;
+
+            cur_edge = nfa->state_first_edge[i];
 
             for (j = 0; j < elems; j += 3) {
                 MVMint64 act = MVM_coerce_simple_intify(tc,
@@ -414,12 +430,12 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                 if (to <= 0 && act != MVM_NFA_EDGE_FATE)
                     MVM_exception_throw_adhoc(tc, "Invalid to edge %"PRId64" in NFA statelist", to);
 
-                nfa->states[i][cur_edge].act = act;
-                nfa->states[i][cur_edge].to = to;
+                nfa->states[cur_edge].act = act;
+                nfa->states[cur_edge].to = to;
 
                 switch (act & 0xff) {
                 case MVM_NFA_EDGE_FATE:
-                    nfa->states[i][cur_edge].arg.i = MVM_coerce_simple_intify(tc,
+                    nfa->states[cur_edge].arg.i = MVM_coerce_simple_intify(tc,
                         MVM_repr_at_pos_o(tc, edge_info, j + 1));
                     break;
                 case MVM_NFA_EDGE_CODEPOINT:
@@ -427,18 +443,19 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                 case MVM_NFA_EDGE_CODEPOINT_NEG:
                 case MVM_NFA_EDGE_CODEPOINT_M:
                 case MVM_NFA_EDGE_CODEPOINT_M_NEG:
-                    nfa->states[i][cur_edge].arg.g = get_grapheme(tc,
+                    nfa->states[cur_edge].arg.g = get_grapheme(tc,
                         MVM_repr_at_pos_o(tc, edge_info, j + 1));
+                    /*total_32bit_args++;*/
                     break;
                 case MVM_NFA_EDGE_CHARCLASS:
                 case MVM_NFA_EDGE_CHARCLASS_NEG:
-                    nfa->states[i][cur_edge].arg.i = MVM_coerce_simple_intify(tc,
+                    nfa->states[cur_edge].arg.i = MVM_coerce_simple_intify(tc,
                         MVM_repr_at_pos_o(tc, edge_info, j + 1));
                     break;
                 case MVM_NFA_EDGE_CHARLIST:
                 case MVM_NFA_EDGE_CHARLIST_NEG:
                     MVM_ASSIGN_REF(tc, &(nfa_obj->header),
-                        nfa->states[i][cur_edge].arg.s,
+                        nfa->states[cur_edge].arg.s,
                         MVM_repr_get_str(tc, MVM_repr_at_pos_o(tc, edge_info, j + 1)));
                     break;
                 case MVM_NFA_EDGE_CODEPOINT_I:
@@ -453,9 +470,9 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                 case MVM_NFA_EDGE_CHARRANGE_M:
                 case MVM_NFA_EDGE_CHARRANGE_M_NEG: {
                     MVMObject *arg = MVM_repr_at_pos_o(tc, edge_info, j + 1);
-                    nfa->states[i][cur_edge].arg.uclc.lc = MVM_coerce_simple_intify(tc,
+                    nfa->states[cur_edge].arg.uclc.lc = MVM_coerce_simple_intify(tc,
                         MVM_repr_at_pos_o(tc, arg, 0));
-                    nfa->states[i][cur_edge].arg.uclc.uc = MVM_coerce_simple_intify(tc,
+                    nfa->states[cur_edge].arg.uclc.uc = MVM_coerce_simple_intify(tc,
                         MVM_repr_at_pos_o(tc, arg, 1));
                     break;
                 }

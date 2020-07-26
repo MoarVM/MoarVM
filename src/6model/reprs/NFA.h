@@ -34,8 +34,8 @@
 
 /* State entry. */
 struct MVMNFAStateInfo {
-    MVMint64 act;
-    MVMint64 to;
+    MVMint32  act;
+    MVMuint32 to;
     union {
         MVMGrapheme32  g;
         MVMint64       i;
@@ -49,10 +49,10 @@ struct MVMNFAStateInfo {
 
 /* Body of an NFA. */
 struct MVMNFABody {
-    MVMObject        *fates;
-    MVMint64          num_states;
-    MVMint64         *num_state_edges;
-    MVMNFAStateInfo **states;
+    MVMObject         *fates;
+    MVMuint32          num_states;
+    MVMuint32         *state_first_edge;
+    MVMNFAStateInfo   *states;
 };
 
 struct MVMNFA {
