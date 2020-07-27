@@ -283,7 +283,12 @@ static void add_to_bin_freelist(MVMThreadContext *tc, MVMFixedSizeAlloc *al,
 }
 void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t bytes, void *to_free) {
 #if FSA_SIZE_DEBUG
-    MVMFixedSizeAllocDebug *dbg = (MVMFixedSizeAllocDebug *)((char *)to_free - 8);
+    MVMFixedSizeAllocDebug *dbg;
+    if (!to_free) {
+        MVM_free(to_free);
+        return;
+    }
+    dbg = (MVMFixedSizeAllocDebug *)((char *)to_free - 8);
     if (dbg->alloc_size != bytes) {
 #ifdef MVM_VALGRIND_SUPPORT
         if (RUNNING_ON_VALGRIND) {
@@ -302,6 +307,10 @@ void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t byt
     MVM_free(dbg);
 #else
     MVMuint32 bin = bin_for(bytes);
+    if (!to_free) {
+        MVM_free(to_free);
+        return;
+    }
     if (bin < MVM_FSA_BINS) {
         /* Add to freelist chained through a bin. */
         add_to_bin_freelist(tc, al, bin, to_free);
