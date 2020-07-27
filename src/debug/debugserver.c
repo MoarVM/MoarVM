@@ -1285,6 +1285,42 @@ static void send_handle_equivalence_classes(MVMThreadContext *dtc, cmp_ctx_t *ct
     MVM_free(counts);
 }
 
+static MVMuint64 request_find_method(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMInstance *vm = dtc->instance;
+    MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
+    MVMObject *target = find_handle_target(dtc, argument->handle_id);
+    MVMThreadContext *tc;
+    MVMString *method_name = NULL;
+
+    if (!to_do) {
+        if (dtc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "no thread found for context/code obj handle (or thread not eligible)\n");
+        return 1;
+    }
+
+    tc = to_do->body.tc;
+
+    if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
+        if (dtc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %zu)\n", to_do->body.tc->gc_status);
+        return 1;
+    }
+
+    if (!target) {
+        if (dtc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "could not retrieve object of handle %ld", argument->handle_id);
+        return 1;
+    }
+
+    MVM_gc_allocate_gen2_default_set(tc);
+    method_name = MVM_string_utf8_decode(tc, tc->instance->VMString, argument->name, strlen(argument->name));
+    MVM_gc_allocate_gen2_default_clear(tc);
+
+    allocate_and_send_handle(dtc, ctx, argument, MVM_spesh_try_find_method(tc, target, method_name));
+
+    return 0;
+}
+
 static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
     MVMInstance *vm = dtc->instance;
     MVMThread *to_do = thread ? thread : find_thread_by_id(vm, argument->thread_id);
@@ -2735,6 +2771,10 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                 case MT_StepOut:
                     COMMUNICATE_RESULT(setup_step(tc, &ctx, &argument, MVMDebugSteppingMode_STEP_OUT, NULL));
                     break;
+                case MT_FindMethod:
+                    if (request_find_method(tc, &ctx, &argument)) {
+                        communicate_error(tc, &ctx, &argument);
+                    }
                 case MT_ObjectAttributesRequest:
                     if (request_object_attributes(tc, &ctx, &argument)) {
                         communicate_error(tc, &ctx, &argument);
