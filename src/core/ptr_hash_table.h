@@ -38,12 +38,6 @@ go inline. And it turns out, our keys are always pointers, and easily "hashed"
 (either because they are, because they point to something that caches its
 hash value, or because we fake it and explicitly store the hash value.)
 
-And we only need about 5 functions in our API.
-
-Unclear so far, but I have some ideas
-
-* how to do randomisation
-
 Not all the optimisations described above are in place yet. Starting with
 "minimum viable product", with a design that should support adding them.
 

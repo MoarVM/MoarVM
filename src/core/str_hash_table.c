@@ -23,8 +23,8 @@ void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable) {
 }
 /* and then free memory if you allocated it */
 
-
-MVM_STATIC_INLINE void hash_allocate_common(MVMStrHashTable *hashtable) {
+MVM_STATIC_INLINE void hash_allocate_common(MVMThreadContext *tc,
+                                            MVMStrHashTable *hashtable) {
     hashtable->max_items = hashtable->official_size * STR_LOAD_FACTOR;
     uint32_t overflow_size = hashtable->max_items - 1;
     /* -1 because...
@@ -48,26 +48,37 @@ MVM_STATIC_INLINE void hash_allocate_common(MVMStrHashTable *hashtable) {
     ++hashtable->metadata;
     /* A sentinel at the other end. Again, occupited, ideal position. */
     hashtable->metadata[actual_items] = 1;
+#if MVM_HASH_RANDOMIZE
+    hashtable->salt = MVM_proc_rand_i(tc);
+#else
+    hashtable->salt = 0;
+#endif
 }
 
 MVM_STATIC_INLINE void hash_initial_allocate(MVMThreadContext *tc,
                                              MVMStrHashTable *hashtable) {
     hashtable->key_right_shift = STR_INITIAL_KEY_RIGHT_SHIFT;
     hashtable->official_size = STR_INITIAL_SIZE;
-#if HASH_DEBUG_ITER
-    hashtable->ht_id = MVM_proc_rand_i(tc);
-#endif
 
-    hash_allocate_common(hashtable);
+    hash_allocate_common(tc, hashtable);
+
+#if HASH_DEBUG_ITER
+#  if MVM_HASH_RANDOMIZE
+    hashtable->ht_id = hashtable->salt;
+#  else
+    hashtable->salt = MVM_proc_rand_i(tc);
+#  endif
+#endif
 }
 
 /* make sure you still have your copies of entries and metadata before you
    call this. */
-MVM_STATIC_INLINE void hash_grow(MVMStrHashTable *hashtable) {
+MVM_STATIC_INLINE void hash_grow(MVMThreadContext *tc,
+                                 MVMStrHashTable *hashtable) {
     --hashtable->key_right_shift;
     hashtable->official_size *= 2;
 
-    hash_allocate_common(hashtable);
+    hash_allocate_common(tc, hashtable);
 }
 
 MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext *tc,
@@ -79,7 +90,7 @@ MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext
     }
 
     unsigned int probe_distance = 1;
-    MVMHashNumItems bucket = MVM_str_hash_code(tc, key) >> hashtable->key_right_shift;
+    MVMHashNumItems bucket = MVM_str_hash_code(tc, hashtable->salt, key) >> hashtable->key_right_shift;
     char *entry_raw = hashtable->entries + bucket * hashtable->entry_size;
     MVMuint8 *metadata = hashtable->metadata + bucket;
     while (1) {
@@ -165,7 +176,7 @@ void *MVM_str_hash_lvalue_fetch_nt(MVMThreadContext *tc,
         char *entry_raw_orig = hashtable->entries;
         MVMuint8 *metadata_orig = hashtable->metadata;
 
-        hash_grow(hashtable);
+        hash_grow(tc, hashtable);
 
         char *entry_raw = entry_raw_orig;
         MVMuint8 *metadata = metadata_orig;
@@ -221,7 +232,7 @@ void MVM_str_hash_delete_nt(MVMThreadContext *tc,
         return;
     }
     unsigned int probe_distance = 1;
-    MVMHashNumItems bucket = MVM_str_hash_code(tc, key) >> hashtable->key_right_shift;
+    MVMHashNumItems bucket = MVM_str_hash_code(tc, hashtable->salt, key) >> hashtable->key_right_shift;
     char *entry_raw = hashtable->entries + bucket * hashtable->entry_size;
     uint8_t *metadata = hashtable->metadata + bucket;
     while (1) {
@@ -365,7 +376,7 @@ MVMuint64 MVM_str_hash_fsck(MVMThreadContext *tc, MVMStrHashTable *hashtable, MV
                 prev_offset = 0;
             } else {
                 /* OK, it is a concrete string (still). */
-                MVMuint64 hash_val = MVM_str_hash_code(tc, key);
+                MVMuint64 hash_val = MVM_str_hash_code(tc, hashtable->salt, key);
                 MVMuint32 ideal_bucket = hash_val >> hashtable->key_right_shift;
                 MVMint64 offset = 1 + bucket - ideal_bucket;
                 int wrong_bucket = offset != *metadata;
