@@ -1576,10 +1576,6 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         };
 
         if (debug_locals) {
-            /* This iterator was not HASH_ITER_FAST
-             * Does it matter if we expose hash order via the debug server?
-             * Does the debug server already give you the keys to the kingdom?
-             */
             MVMStrHashIterator iterator = MVM_str_hash_first(dtc, debug_locals);
             MVMStaticFrameDebugLocal *debug_entry;
             while ((debug_entry = MVM_str_hash_current(dtc, debug_locals, iterator))) {
