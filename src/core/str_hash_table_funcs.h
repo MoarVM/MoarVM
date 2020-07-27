@@ -27,8 +27,10 @@ MVM_STATIC_INLINE void MVM_str_hash_build(MVMThreadContext *tc, MVMStrHashTable 
 #endif
 }
 
-MVM_STATIC_INLINE MVMuint64 MVM_str_hash_code(MVMThreadContext *tc, MVMString *key) {
-    return MVM_string_hash_code(tc, key) * UINT64_C(11400714819323198485);
+MVM_STATIC_INLINE MVMuint64 MVM_str_hash_code(MVMThreadContext *tc,
+                                              MVMuint64 salt,
+                                              MVMString *key) {
+    return (MVM_string_hash_code(tc, key) ^ salt) * UINT64_C(11400714819323198485);
 }
 
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
@@ -44,7 +46,7 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nt(MVMThreadContext *tc,
         return NULL;
     }
     unsigned int probe_distance = 1;
-    MVMHashNumItems bucket = MVM_str_hash_code(tc, key) >> hashtable->key_right_shift;
+    MVMHashNumItems bucket = MVM_str_hash_code(tc, hashtable->salt, key) >> hashtable->key_right_shift;
     char *entry_raw = hashtable->entries + bucket * hashtable->entry_size;
     MVMuint8 *metadata = hashtable->metadata + bucket;
     while (1) {
