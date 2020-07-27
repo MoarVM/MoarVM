@@ -1882,7 +1882,6 @@ start:
     case MVM_OP_islist:
     case MVM_OP_ishash:
     case MVM_OP_sp_boolify_iter_arr:
-    case MVM_OP_sp_boolify_iter_hash:
     case MVM_OP_lexprimspec:
     case MVM_OP_objprimspec:
     case MVM_OP_objprimbits:
