@@ -105,6 +105,7 @@ typedef enum {
     FS_handle_id  = 256,
     FS_frame_number = 512,
     FS_arguments    = 1024,
+    FS_name       = 2048,
 } fields_set;
 
 typedef struct {
@@ -125,6 +126,8 @@ typedef struct {
     MVMuint64 handle_id;
 
     MVMuint32 frame_number;
+
+    char *name;
 
     MVMuint32 argument_count;
     argument_data *arguments;
@@ -393,7 +396,7 @@ MVMuint8 check_requirements(MVMThreadContext *tc, request_data *data) {
             break;
 
         case MT_FindMethod:
-            /* TODO we've got to have some name field or something */
+            REQUIRE(FS_name, "A name field is required");
             /* Fall-Through */
         case MT_DecontainerizeHandle:
             REQUIRE(FS_thread_id, "A thread field is required");
@@ -2481,6 +2484,10 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
             FIELD_FOUND(FS_handles, "handles field duplicated");
             type_to_parse = 3;
         }
+        else if (strncmp(key_str, "name", 4) == 0) {
+            FIELD_FOUND(FS_name, "name field duplicated");
+            type_to_parse = 2;
+        }
         else {
             if (tc->instance->debugserver->debugspam_protocol)
                 fprintf(stderr, "the hell is a %s?\n", key_str);
@@ -2525,15 +2532,24 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
             data->fields_set = data->fields_set | field_to_set;
         }
         else if (type_to_parse == 2) {
-            uint32_t strsize = 1024;
-            char *string = MVM_calloc(strsize, sizeof(char));
+            uint32_t strsize;
+            char *string;
+
+            CHECK(cmp_read_str_size(ctx, &strsize), "Couldn't read string size for a key");
+
+            string = MVM_calloc(strsize + 1, sizeof(char));
             if (tc->instance->debugserver->debugspam_protocol)
-                fprintf(stderr, "reading a string for %s\n", key_str);
-            CHECK(cmp_read_str(ctx, string, &strsize), "Couldn't read string for a key");
+                fprintf(stderr, "reading a string for %s size %ld\n", key_str, strsize);
+            CHECK(ctx->read(ctx, string, strsize), "Couldn't read string for a key");
+            if (tc->instance->debugserver->debugspam_protocol)
+                fprintf(stderr, "Value is \"%s\"\n", string);
 
             switch (field_to_set) {
                 case FS_file:
                     data->file = string;
+                    break;
+                case FS_name:
+                    data->name = string;
                     break;
                 default:
                     data->parse_fail = 1;

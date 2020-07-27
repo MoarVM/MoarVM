@@ -680,7 +680,8 @@ operation.
         "type": 35,
         "id": $id,
         "thread": 1,
-        "handle": 1234
+        "handle": 1234,
+        "name": "frobify",
     }
 
 ### Invoke (36)
