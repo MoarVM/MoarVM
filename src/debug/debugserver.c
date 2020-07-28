@@ -1321,6 +1321,42 @@ static MVMuint64 request_find_method(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
     return 0;
 }
 
+static MVMuint64 request_object_decontainerize(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMInstance *vm = dtc->instance;
+    MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
+    MVMObject *target = find_handle_target(dtc, argument->handle_id);
+    MVMThreadContext *tc;
+
+    if (!to_do) {
+        if (dtc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "no thread found for context/code obj handle (or thread not eligible)\n");
+        return 1;
+    }
+
+    tc = to_do->body.tc;
+
+    if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
+        if (dtc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %zu)\n", to_do->body.tc->gc_status);
+        return 1;
+    }
+
+    if (!target) {
+        if (dtc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "could not retrieve object of handle %ld", argument->handle_id);
+        return 1;
+    }
+
+    if (STABLE(target)->container_spec && STABLE(target)->container_spec->fetch_never_invokes) {
+        MVMRegister r;
+        STABLE(target)->container_spec->fetch(dtc, target, &r);
+        allocate_and_send_handle(dtc, ctx, argument, r.o);
+    }
+
+    return 0;
+}
+
+
 static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
     MVMInstance *vm = dtc->instance;
     MVMThread *to_do = thread ? thread : find_thread_by_id(vm, argument->thread_id);
@@ -2775,6 +2811,12 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     if (request_find_method(tc, &ctx, &argument)) {
                         communicate_error(tc, &ctx, &argument);
                     }
+                    break;
+                case MT_DecontainerizeHandle:
+                    if (request_object_decontainerize(tc, &ctx, &argument)) {
+                        communicate_error(tc, &ctx, &argument);
+                    }
+                    break;
                 case MT_ObjectAttributesRequest:
                     if (request_object_attributes(tc, &ctx, &argument)) {
                         communicate_error(tc, &ctx, &argument);
