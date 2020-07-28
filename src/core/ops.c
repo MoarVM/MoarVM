@@ -12956,7 +12956,7 @@ MVM_PUBLIC MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op) {
 }
 
 MVM_PUBLIC const char *MVM_op_get_mark(unsigned short op) {
-    if (op > 825) {
+    if (op > 825 && op < MVM_OP_EXT_BASE) {
         return ".s";
     } else if (op == 23) {
         return ".j";

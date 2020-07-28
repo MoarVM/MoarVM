@@ -487,7 +487,7 @@ sub mark_spans(@ops) {
         my $spesh-start = @spans.pop.<start>;
         my @pieces;
         @pieces.push: q:s:to/CODE/;
-            if (op > $spesh-start) {
+            if (op > $spesh-start && op < MVM_OP_EXT_BASE) {
                 return ".s";
             CODE
         for @spans {
