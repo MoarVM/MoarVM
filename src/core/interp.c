@@ -2760,11 +2760,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(sp_gethashentryvalue): {
-                GET_REG(cur_op, 0).o = ((MVMHashEntry *)MVM_BC_get_I64(cur_op, 2))->value;
-                cur_op += 10;
-                goto NEXT;
-            }
             OP(bindcurhllsym): {
                 MVMObject *syms = tc->instance->hll_syms, *hash;
                 MVMString *hll_name = tc->cur_frame->static_info->body.cu->body.hll_name;
