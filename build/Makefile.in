@@ -446,8 +446,6 @@ HEADERS = src/moar.h \
           src/gen/config.h \
           src/debug/debugserver.h \
           src/strings/siphash/csiphash.h \
-          src/strings/uthash_types.h \
-          src/strings/uthash.h \
           3rdparty/cmp/cmp.h \
           src/platform/memmem32.h
 
