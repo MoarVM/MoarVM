@@ -72,6 +72,19 @@ static FILE *fopen_perhaps_with_pid(char *env_var, char *path, const char *mode)
     exit(1);
 }
 
+MVM_STATIC_INLINE MVMuint64 ptr_hash_64_to_64(MVMuint64 u) {
+    /* Thomas Wong's hash from
+     * https://web.archive.org/web/20120211151329/http://www.concentric.net/~Ttwang/tech/inthash.htm */
+    u = (~u) + (u << 21);
+    u =   u  ^ (u >> 24);
+    u =  (u  + (u <<  3)) + (u << 8);
+    u =   u  ^ (u >> 14);
+    u =  (u  + (u <<  2)) + (u << 4);
+    u =   u  ^ (u >> 28);
+    u =   u  + (u << 31);
+    return (MVMuint64)u;
+}
+
 /* Create a new instance of the VM. */
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
