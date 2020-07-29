@@ -279,3 +279,168 @@ void MVM_str_hash_delete_nt(MVMThreadContext *tc,
         assert(metadata < hashtable->metadata + hashtable->official_size + 256);
     }
 }
+
+
+/* This is not part of the public API, and subject to change at any point.
+   (possibly in ways that are actually incompatible but won't generate compiler
+   warnings.) */
+MVMuint64 MVM_str_hash_fsck(MVMThreadContext *tc, MVMStrHashTable *hashtable, MVMuint32 mode) {
+    const char *prefix_hashes = mode & MVM_HASH_FSCK_PREFIX_HASHES ? "# " : "";
+    MVMuint32 display = mode & 3;
+    MVMuint64 errors = 0;
+    MVMuint64 seen = 0;
+
+    if (hashtable->entries == NULL) {
+        if (display) {
+            fprintf(stderr, "%s NULL %p (empty)\n", prefix_hashes, hashtable);
+        }
+        return 0;
+    }
+
+    MVMuint32 true_size = hash_true_size(hashtable);
+    char *entry_raw = hashtable->entries;
+    MVMuint8 *metadata = hashtable->metadata;
+    MVMuint32 bucket = 0;
+    MVMint64 prev_offset = 0;
+    while (bucket < true_size) {
+        if (!*metadata) {
+            /* empty slot. */
+            prev_offset = 0;
+            if (display == 2) {
+                fprintf(stderr, "%s%3X\n", prefix_hashes, bucket);
+            }
+        } else {
+            ++seen;
+
+            struct MVMStrHashHandle *entry = (struct MVMStrHashHandle *) entry_raw;
+            char *problem = NULL;
+            MVMString *key = NULL;
+            if (!entry) {
+                problem = "entry NULL";
+            } else {
+                key = entry->key;
+                if (!key) {
+                    problem = "key NULL";
+                }
+            }
+            if (!problem) {
+                if ((MVMObject *)key == tc->instance->VMNull) {
+                    problem = "VMNull";
+                } else {
+                    if (mode & MVM_HASH_FSCK_CHECK_FROMSPACE) {
+                        MVMThread *cur_thread = tc->instance->threads;
+                        while (cur_thread) {
+                            MVMThreadContext *thread_tc = cur_thread->body.tc;
+                            if (thread_tc && thread_tc->nursery_fromspace &&
+                            (char *)(key) >= (char *)thread_tc->nursery_fromspace &&
+                            (char *)(key) < (char *)thread_tc->nursery_fromspace +
+                                thread_tc->nursery_fromspace_size) {
+                                problem = "fromspace";
+                                break;
+                            }
+                            cur_thread = cur_thread->body.next;
+                        }
+                    }
+                }
+            }
+            if (!problem) {
+                if (((MVMCollectable *)key)->flags1 & MVM_CF_DEBUG_IN_GEN2_FREE_LIST) {
+                    problem = "gen2 freelist";
+                } else if (REPR(key)->ID != MVM_REPR_ID_MVMString) {
+                    problem = "not a string";
+                } else if (!IS_CONCRETE(key)) {
+                    problem = "type object";
+                }
+            }
+
+            if (problem) {
+                ++errors;
+                if (display) {
+                    fprintf(stderr, "%s%3X! %s\n", prefix_hashes, bucket, problem);
+                }
+                /* We don't have any great choices here. The metadata signals a
+                 * key, but as it is corrupt, we can't compute its ideal bucket,
+                 * and hence its offset, so we can't remember that for the next
+                 * bucket. */
+                prev_offset = 0;
+            } else {
+                /* OK, it is a concrete string (still). */
+                MVMuint64 hash_val = MVM_str_hash_code(tc, key);
+                MVMuint32 ideal_bucket = hash_val >> hashtable->key_right_shift;
+                MVMint64 offset = 1 + bucket - ideal_bucket;
+                int wrong_bucket = offset != *metadata;
+                int wrong_order = offset < 1 || offset > prev_offset + 1;
+
+                if (display == 2
+                    || (display == 1 && (wrong_bucket || wrong_order))) {
+                    /* And if you think that these two are overkill, you haven't
+                     * had to debug this stuff :-/ */
+                    char open;
+                    char close;
+                    if (((MVMCollectable *)key)->flags1 & MVM_CF_SECOND_GEN) {
+                        open = '{';
+                        close = '}';
+                    } else if (((MVMCollectable *)key)->flags1 & MVM_CF_NURSERY_SEEN) {
+                        open = '[';
+                        close = ']';
+                    } else {
+                        open = '(';
+                        close = ')';
+                    }
+
+                    MVMuint64 len = MVM_string_graphs(tc, key);
+                    if (mode & MVM_HASH_FSCK_KEY_VIA_API) {
+                        char *c_key = MVM_string_utf8_encode_C_string(tc, key);
+                        fprintf(stderr,
+                                "%s%3X%c%3"PRIx64"%c%0"PRIx64" %c%2"PRIu64"%c %p %s\n",
+                                prefix_hashes,
+                                bucket, wrong_bucket ? '!' : ' ',
+                                offset, wrong_order ? '!' : ' ', hash_val,
+                                open, len, close, key, c_key);
+                        MVM_free(c_key);
+                    } else {
+                        /* Cheat. Don't use the API.
+                         * (Doesn't allocate, so can't deadlock.) */
+                        if (key->body.storage_type == MVM_STRING_GRAPHEME_ASCII && len < 0xFFF) {
+                            fprintf(stderr,
+                                    "%s%3X%c%3"PRIx64"%c%0"PRIx64" %c%2"PRIu64"%c %p \"%*s\"\n",
+                                    prefix_hashes, bucket,
+                                    wrong_bucket ? '!' : ' ', offset,
+                                    wrong_order ? '!' : ' ', hash_val,
+                                    open, len, close, key,
+                                    (int) len, key->body.storage.blob_ascii);
+                        } else {
+                            fprintf(stderr,
+                                    "%s%3X%c%3"PRIx64"%c%0"PRIx64" %c%2"PRIu64"%c %p %u@%p\n",
+                                    prefix_hashes,
+                                    bucket, wrong_bucket ? '!' : ' ',
+                                    offset, wrong_order ? '!' : ' ', hash_val,
+                                    open, len, close, key,
+                                    key->body.storage_type, key);
+                        }
+                    }
+                }
+                errors += wrong_bucket + wrong_order;
+                prev_offset = offset;
+            }
+        }
+        ++bucket;
+        ++metadata;
+        entry_raw += hashtable->entry_size;
+    }
+    if (*metadata != 1) {
+        ++errors;
+        if (display) {
+            fprintf(stderr, "%s    %02x!\n", prefix_hashes, *metadata);
+        }
+    }
+    if (seen != hashtable->cur_items) {
+        ++errors;
+        if (display) {
+            fprintf(stderr, "%s %"PRIx64" != %"PRIx32"\n",
+                    prefix_hashes, seen, hashtable->cur_items);
+        }
+    }
+
+    return errors;
+}
