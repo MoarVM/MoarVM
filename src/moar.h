@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <setjmp.h>
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 
 /* Standard integer types. */
 #include <platform/inttypes.h>
@@ -92,9 +94,11 @@ typedef double   MVMnum64;
 
 /* Hashes */
 #define HASH_DEBUG_ITER 1
+#define MVM_HASH_RANDOMIZE 1
 #define MVM_HASH_MAX_PROBE_DISTANCE 255
 
-#include "strings/uthash_types.h"
+typedef MVMuint32 MVMHashNumItems;
+typedef MVMuint64 MVMHashv;
 
 MVM_PUBLIC MVMint32 MVM_jit_support(void);
 
@@ -105,7 +109,6 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "gc/wb.h"
 #include "core/vector.h"
 #include "core/threadcontext.h"
-#include "strings/uthash_types.h"
 #include "core/exceptions.h"
 #include "core/str_hash_table.h"
 #include "core/fixkey_hash_table.h"
@@ -113,7 +116,6 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "core/ptr_hash_table.h"
 #include "core/uni_hash_table.h"
 #include "core/instance.h"
-#include "strings/uthash.h"
 #include "core/interp.h"
 #include "core/callsite.h"
 #include "core/args.h"
@@ -207,6 +209,7 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "strings/unicode_ops.h"
 #include "strings/gb2312.h"
 #include "strings/gb18030.h"
+#include "strings/siphash/csiphash.h"
 #include "io/io.h"
 #include "io/eventloop.h"
 #include "io/syncfile.h"
