@@ -145,6 +145,23 @@ MVM_STATIC_INLINE void MVM_str_hash_delete(MVMThreadContext *tc,
     MVM_str_hash_delete_nt(tc, hashtable, want);
 }
 
+/* This is not part of the public API, and subject to change at any point.
+ * (possibly in ways that are actually incompatible but won't generate compiler
+ * warnings.)
+ * Currently 0 is a check with no display, and it always returns the error
+ * count. */
+enum {
+    MVM_HASH_FICK_DISPLAY_NONE      = 0x00,
+    MVM_HASH_FSCK_DISPLAY_ERRORS    = 0x01,
+    MVM_HASH_FSCK_DISPLAY_ALL       = 0x02,
+    MVM_HASH_FSCK_PREFIX_HASHES     = 0x04,
+    MVM_HASH_FSCK_KEY_VIA_API       = 0x08, /* not just ASCII keys, might deadlock */
+    MVM_HASH_FSCK_CHECK_FROMSPACE   = 0x10  /* O(n) test. */
+};
+
+MVMuint64 MVM_str_hash_fsck(MVMThreadContext *tc, MVMStrHashTable *hashtable, MVMuint32 mode);
+
+
 /* This is private. We need it out here for the inline functions. Use them. */
 MVM_STATIC_INLINE MVMuint32 MVM_str_hash_kompromat(MVMStrHashTable *hashtable) {
     return hashtable->official_size + hashtable->probe_overflow_size;
