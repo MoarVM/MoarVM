@@ -1468,9 +1468,6 @@
 (template: hllhash
   (^getf (^hllconfig) MVMHLLConfig slurpy_hash_type))
 
-(template: sp_gethashentryvalue
-  (^getf $1 MVMHashEntry value))
-
 (template: gethllsym
   (call (^func &MVM_hll_sym_get)
     (arglist
