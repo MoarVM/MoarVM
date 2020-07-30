@@ -229,13 +229,15 @@ MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename, MVMint
                     MVMString *fileext = MVM_string_substring(tc, filename, n, -1);
                     char *ext  = MVM_string_utf8_c8_encode_C_string(tc, fileext);
                     char *pext = getenv("PATHEXT");
-                    int plen   = strlen(pext);
-                    int i;
-                    for (i = 0; i < plen; i++) {
-                        if (0 == stricmp(ext, pext++)) {
-                             r = 1;
-                             break;
+                    char *delim = ";";
+                    char *ptr = strtok(pext, delim);
+
+                    while(ptr != NULL) {
+                        if (0 == stricmp(ext, ptr)) {
+                            r = 1;
+                            break;
                         }
+                        ptr = strtok(NULL, delim);
                     }
                     MVM_free(ext);
                     MVM_free(pext);
