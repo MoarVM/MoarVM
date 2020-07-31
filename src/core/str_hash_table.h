@@ -133,6 +133,8 @@ typedef struct {
 #endif
 }  MVMStrHashIterator;
 
+MVMuint32 MVM_round_up_log_base2(MVMuint32 v);
+
 /* So why is this here, instead of _funcs?
  * Because it is needed in MVM_iter_istrue_hash, which is inline in MVMIter.h
  * So this definition has to be before that definition.
