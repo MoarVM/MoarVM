@@ -3,11 +3,18 @@
 void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable);
 /* and then free memory if you allocated it */
 
+void MVM_str_hash_initial_allocate(MVMThreadContext *tc,
+                                   MVMStrHashTable *hashtable,
+                                   MVMuint32 entries);
+
 /* Call this before you use the hashtable, to initialise it.
- * Doesn't allocate memory - you can embed the struct within a larger struct if
- * you wish.
+ * Doesn't allocate memory for the hashtable struct itself - you can embed the
+ * struct within a larger struct if you wish.
  */
-MVM_STATIC_INLINE void MVM_str_hash_build(MVMThreadContext *tc, MVMStrHashTable *hashtable, MVMuint32 entry_size) {
+MVM_STATIC_INLINE void MVM_str_hash_build(MVMThreadContext *tc,
+                                          MVMStrHashTable *hashtable,
+                                          MVMuint32 entry_size,
+                                          MVMuint32 entries) {
     if (MVM_UNLIKELY(entry_size == 0 || entry_size > 255 || entry_size & 3)) {
         MVM_oops(tc, "Hash table entry_size %" PRIu32 " is invalid", entry_size);
     }
@@ -25,6 +32,9 @@ MVM_STATIC_INLINE void MVM_str_hash_build(MVMThreadContext *tc, MVMStrHashTable 
     hashtable->serial = 0;
     hashtable->last_delete_at = ~0;
 #endif
+    if (entries) {
+        MVM_str_hash_initial_allocate(tc, hashtable, entries);
+    }
 }
 
 MVM_STATIC_INLINE MVMuint64 MVM_str_hash_code(MVMThreadContext *tc,
