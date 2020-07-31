@@ -551,7 +551,7 @@ static void optimize_bitwise_int_math(MVMThreadContext *tc, MVMSpeshGraph *g, MV
         MVMint64 lhs_v = lhs_facts->value.i;
         MVMint64 rhs_v = rhs_facts->value.i;
         MVMint64 result_v;
-        char *opname = ins->info->name;
+        const char *opname = ins->info->name;
 
         switch (ins->info->opcode) {
             case MVM_OP_band_i:

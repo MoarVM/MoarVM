@@ -1325,15 +1325,12 @@ static MVMuint64 request_object_decontainerize(MVMThreadContext *dtc, cmp_ctx_t 
     MVMInstance *vm = dtc->instance;
     MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
     MVMObject *target = find_handle_target(dtc, argument->handle_id);
-    MVMThreadContext *tc;
 
     if (!to_do) {
         if (dtc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "no thread found for context/code obj handle (or thread not eligible)\n");
         return 1;
     }
-
-    tc = to_do->body.tc;
 
     if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
         if (dtc->instance->debugserver->debugspam_protocol)
@@ -2611,7 +2608,7 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
 
             string = MVM_calloc(strsize + 1, sizeof(char));
             if (tc->instance->debugserver->debugspam_protocol)
-                fprintf(stderr, "reading a string for %s size %ld\n", key_str, strsize);
+                fprintf(stderr, "reading a string for %s size %u\n", key_str, strsize);
             CHECK(ctx->read(ctx, string, strsize), "Couldn't read string for a key");
             if (tc->instance->debugserver->debugspam_protocol)
                 fprintf(stderr, "Value is \"%s\"\n", string);
