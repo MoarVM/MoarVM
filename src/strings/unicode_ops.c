@@ -884,6 +884,8 @@ static MVMUniHashTable property_codes_by_seq_names;
 static void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_property_keypairs;
 
+    MVM_uni_hash_build(tc, &property_codes_by_names_aliases, num_names);
+
     while (num_names--) {
         MVM_uni_hash_insert(tc, &property_codes_by_names_aliases,
                             unicode_property_keypairs[num_names].name,
@@ -893,6 +895,8 @@ static void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
 }
 static void generate_property_codes_by_seq_names(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_seq_keypairs;
+
+    MVM_uni_hash_build(tc, &property_codes_by_seq_names, num_names);
 
     while (num_names--) {
         MVM_uni_hash_insert(tc, &property_codes_by_seq_names,

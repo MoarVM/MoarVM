@@ -3,12 +3,21 @@
 void MVM_uni_hash_demolish(MVMThreadContext *tc, MVMUniHashTable *hashtable);
 /* and then free memory if you allocated it */
 
+void MVM_uni_hash_initial_allocate(MVMThreadContext *tc,
+                                   MVMUniHashTable *hashtable,
+                                   MVMuint32 entries);
+
 /* Call this before you use the hashtable, to initialise it.
- * Doesn't allocate memory - you can embed the struct within a larger struct if
- * you wish.
+ * Doesn't allocate memory for the hashtable struct itself - you can embed the
+ * struct within a larger struct if you wish.
  */
-MVM_STATIC_INLINE void MVM_uni_hash_build(MVMThreadContext *tc, MVMUniHashTable *hashtable) {
+MVM_STATIC_INLINE void MVM_uni_hash_build(MVMThreadContext *tc,
+                                          MVMUniHashTable *hashtable,
+                                          MVMuint32 entries) {
     memset(hashtable, 0, sizeof(*hashtable));
+    if (entries) {
+        MVM_uni_hash_initial_allocate(tc, hashtable, entries);
+    }
 }
 
 /* Unicode names (etc) are not under the control of an external attacker [:-)]
