@@ -4,12 +4,12 @@ void MVM_index_hash_demolish(MVMThreadContext *tc, MVMIndexHashTable *hashtable)
 /* and then free memory if you allocated it */
 
 /* Call this before you use the hashtable, to initialise it.
- * Doesn't allocate memory - you can embed the struct within a larger struct if
- * you wish.
+ * Doesn't allocate memory for the hashtable struct itself - you can embed the
+ * struct within a larger struct if you wish.
  */
-MVM_STATIC_INLINE void MVM_index_hash_build(MVMThreadContext *tc, MVMIndexHashTable *hashtable) {
-    memset(hashtable, 0, sizeof(*hashtable));
-}
+void MVM_index_hash_build(MVMThreadContext *tc,
+                          MVMIndexHashTable *hashtable,
+                          MVMuint32 entries);
 
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
  * Doesn't check if the key already exists. Use with care. */

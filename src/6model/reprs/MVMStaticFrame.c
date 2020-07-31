@@ -73,7 +73,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         } else {
             lexical_names = MVM_fixed_size_alloc(tc, tc->instance->fsa,
                                                  sizeof(MVMIndexHashTable));
-            MVM_index_hash_build(tc, lexical_names);
+            MVM_index_hash_build(tc, lexical_names, src_body->num_lexicals);
         }
 
         for (MVMuint32 j = 0; j < num_lexicals; j++) {
