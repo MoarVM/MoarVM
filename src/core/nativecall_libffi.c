@@ -86,7 +86,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
     if (!tc->native_callback_cache) {
         tc->native_callback_cache = MVM_fixed_size_alloc(tc, tc->instance->fsa,
                                                          sizeof (MVMStrHashTable));
-        MVM_str_hash_build(tc, tc->native_callback_cache, sizeof(MVMNativeCallbackCacheHead));
+        MVM_str_hash_build(tc, tc->native_callback_cache, sizeof(MVMNativeCallbackCacheHead), 0);
     }
 
     MVMNativeCallbackCacheHead *callback_data_head

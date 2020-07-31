@@ -164,7 +164,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up SC registry mutex. */
     init_mutex(instance->mutex_sc_registry, "sc registry");
-    MVM_str_hash_build(instance->main_thread, &instance->sc_weakhash, sizeof(struct MVMSerializationContextWeakHashEntry));
+    MVM_str_hash_build(instance->main_thread, &instance->sc_weakhash, sizeof(struct MVMSerializationContextWeakHashEntry), 0);
 
     /* Set up loaded compunits hash mutex. */
     init_mutex(instance->mutex_loaded_compunits, "loaded compunits");
@@ -172,7 +172,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up container registry mutex. */
     init_mutex(instance->mutex_container_registry, "container registry");
-    MVM_str_hash_build(instance->main_thread, &instance->container_registry, sizeof(MVMContainerRegistry));
+    MVM_str_hash_build(instance->main_thread, &instance->container_registry, sizeof(MVMContainerRegistry), 0);
 
     /* Set up persistent object ID hash mutex. */
     init_mutex(instance->mutex_object_ids, "object ID hash");
