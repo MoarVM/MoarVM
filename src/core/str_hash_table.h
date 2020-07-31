@@ -126,11 +126,11 @@ struct MVMStrHashHandle {
 };
 
 typedef struct {
-#if HASH_DEBUG_ITER
-    MVMuint64 owner;
-    MVMuint32 serial;
-#endif
     MVMuint32 pos;
+#if HASH_DEBUG_ITER
+    MVMuint32 serial;
+    MVMuint64 owner;
+#endif
 }  MVMStrHashIterator;
 
 /* So why is this here, instead of _funcs?
