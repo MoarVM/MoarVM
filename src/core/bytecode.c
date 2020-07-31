@@ -778,7 +778,8 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
             ins = MVM_calloc(1, sizeof(MVMStaticFrameInstrumentation));
         if (!ins->debug_locals) {
             ins->debug_locals = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMStrHashTable));
-            MVM_str_hash_build(tc, ins->debug_locals, sizeof(MVMStaticFrameDebugLocal));
+            MVM_str_hash_build(tc, ins->debug_locals, sizeof(MVMStaticFrameDebugLocal),
+                               num_debug_locals);
         }
         for (j = 0; j < num_debug_locals; j++) {
             MVMuint16 idx = read_int16(pos, 0);

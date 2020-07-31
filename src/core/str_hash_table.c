@@ -79,10 +79,21 @@ MVM_STATIC_INLINE void hash_allocate_common(MVMThreadContext *tc,
 #endif
 }
 
-MVM_STATIC_INLINE void hash_initial_allocate(MVMThreadContext *tc,
-                                             MVMStrHashTable *hashtable) {
-    hashtable->key_right_shift = STR_INITIAL_KEY_RIGHT_SHIFT;
-    hashtable->official_size = STR_INITIAL_SIZE;
+void MVM_str_hash_initial_allocate(MVMThreadContext *tc,
+                                   MVMStrHashTable *hashtable,
+                                   MVMuint32 entries) {
+    if (entries <= STR_INITIAL_SIZE * STR_LOAD_FACTOR) {
+        /* "Too small" - use our original defaults. */
+        hashtable->key_right_shift = STR_INITIAL_KEY_RIGHT_SHIFT;
+        hashtable->official_size = STR_INITIAL_SIZE;
+    } else {
+        /* Minimum size we need to allocate, given the load factor. */
+        MVMuint32 min_needed = entries * (1.0 / STR_LOAD_FACTOR);
+        MVMuint32 initial_size_base2 = MVM_round_up_log_base2(min_needed);
+
+        hashtable->key_right_shift = (8 * sizeof(MVMuint64) - initial_size_base2);
+        hashtable->official_size = 1 << initial_size_base2;
+    }
 
     hash_allocate_common(tc, hashtable);
 
@@ -184,7 +195,7 @@ void *MVM_str_hash_lvalue_fetch_nt(MVMThreadContext *tc,
                                    MVMStrHashTable *hashtable,
                                    MVMString *key) {
     if (MVM_UNLIKELY(hashtable->entries == NULL)) {
-        hash_initial_allocate(tc, hashtable);
+        MVM_str_hash_initial_allocate(tc, hashtable, 0);
     }
     else if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {
         /* We should avoid growing the hash if we don't need to.

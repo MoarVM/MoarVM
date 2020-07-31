@@ -34,7 +34,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         // XXX Is this a valid assumption?
         MVM_oops(tc, "copy_to on MVMHash that is already initialized");
     }
-    MVM_str_hash_build(tc, dest_hashtable, sizeof(MVMHashEntry));
+    MVM_str_hash_build(tc, dest_hashtable, sizeof(MVMHashEntry),
+                       MVM_str_hash_count(tc, src_hashtable));
     MVMStrHashIterator iterator = MVM_str_hash_first(tc, src_hashtable);
     MVMHashEntry *entry;
     while ((entry = MVM_str_hash_current(tc, src_hashtable, iterator))) {
@@ -106,7 +107,7 @@ static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
             "MVMHash representation does not support native type storage");
 
     if (!MVM_str_hash_entry_size(tc, hashtable)) {
-        MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry));
+        MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry), 0);
     }
 
     MVMHashEntry *entry = MVM_str_hash_lvalue_fetch_nt(tc, hashtable, key);
@@ -177,8 +178,8 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         // XXX Is this a valid assumption?
         MVM_oops(tc, "deserialize on MVMHash that is already initialized");
     }
-    MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry));
     MVMint64 elems = MVM_serialization_read_int(tc, reader);
+    MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry), elems);
     MVMint64 i;
     for (i = 0; i < elems; i++) {
         MVMString *key = MVM_serialization_read_str(tc, reader);
