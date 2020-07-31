@@ -35,9 +35,22 @@ MVM_STATIC_INLINE void hash_allocate_common(MVMIndexHashTable *hashtable) {
     hashtable->metadata[actual_items] = 1;
 }
 
-MVM_STATIC_INLINE void hash_initial_allocate(MVMIndexHashTable *hashtable) {
-    hashtable->key_right_shift = INDEX_INITIAL_KEY_RIGHT_SHIFT;
-    hashtable->official_size = INDEX_INITIAL_SIZE;
+void MVM_index_hash_build(MVMThreadContext *tc,
+                          MVMIndexHashTable *hashtable,
+                          MVMuint32 entries) {
+    memset(hashtable, 0, sizeof(*hashtable));
+    if (entries <= INDEX_INITIAL_SIZE * INDEX_LOAD_FACTOR) {
+        /* "Too small" - use our original defaults. */
+        hashtable->key_right_shift = INDEX_INITIAL_KEY_RIGHT_SHIFT;
+        hashtable->official_size = INDEX_INITIAL_SIZE;
+    } else {
+        /* Minimum size we need to allocate, given the load factor. */
+        MVMuint32 min_needed = entries * (1.0 / INDEX_LOAD_FACTOR);
+        MVMuint32 initial_size_base2 = MVM_round_up_log_base2(min_needed);
+
+        hashtable->key_right_shift = (8 * sizeof(MVMuint64) - initial_size_base2);
+        hashtable->official_size = 1 << initial_size_base2;
+    }
 
     hash_allocate_common(hashtable);
 }
@@ -132,10 +145,8 @@ void MVM_index_hash_insert_nt(MVMThreadContext *tc,
                               MVMIndexHashTable *hashtable,
                               MVMString **list,
                               MVMuint32 idx) {
-    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
-        hash_initial_allocate(hashtable);
-    }
-    else if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {
+    assert(hashtable->entries != NULL);
+    if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {
         MVMuint32 true_size =  hash_true_size(hashtable);
         char *entry_raw_orig = hashtable->entries;
         MVMuint8 *metadata_orig = hashtable->metadata;
