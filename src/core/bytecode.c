@@ -666,7 +666,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         } else {
             lexical_names = MVM_fixed_size_alloc(tc, tc->instance->fsa,
                                                  sizeof(MVMIndexHashTable));
-            MVM_index_hash_build(tc, lexical_names);
+            MVM_index_hash_build(tc, lexical_names, sf->body.num_lexicals);
         }
         sf->body.lexical_names = lexical_names;
 
