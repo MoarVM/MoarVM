@@ -170,28 +170,6 @@ struct MVMPtrHashEntry *MVM_ptr_hash_lvalue_fetch(MVMThreadContext *tc,
     return new_entry;
 }
 
-/* UNCONDITIONALLY creates a new hash entry with the given key and value.
- * Doesn't check if the key already exists. Use with care.
- * (well that's the official line. As you can see, the XXX suggests we currently
- * don't exploit the documented freedom.) */
-void MVM_ptr_hash_insert(MVMThreadContext *tc,
-                         MVMPtrHashTable *hashtable,
-                         const void *key,
-                         uintptr_t value) {
-    struct MVMPtrHashEntry *new_entry = MVM_ptr_hash_lvalue_fetch(tc, hashtable, key);
-    if (new_entry->key) {
-        if (value != new_entry->value) {
-            MVMHashNumItems bucket = MVM_ptr_hash_code(key) >> hashtable->key_right_shift;
-            /* definately XXX - what should we do here? */
-            MVM_oops(tc, "insert conflict, %p is %u, %"PRIu64" != %"PRIu64,
-                     key, bucket, (MVMuint64) value, (MVMuint64) new_entry->value);
-        }
-    } else {
-        new_entry->key = key;
-        new_entry->value = value;
-    }
-}
-
 uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
                                         MVMPtrHashTable *hashtable,
                                         const void *key) {

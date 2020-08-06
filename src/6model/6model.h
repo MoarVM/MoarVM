@@ -134,8 +134,33 @@ typedef enum {
     /* Have we allocated memory to store a serialization index? */
     MVM_CF_SERIALZATION_INDEX_ALLOCATED = 256,
 
-    /* Have we arranged a persistent object ID for this object? */
-    MVM_CF_HAS_OBJECT_ID = 512,
+    /* Previously we had
+     * Have we arranged a persistent object ID for this object?
+     *
+     * MVM_CF_HAS_OBJECT_ID = 512,
+     *
+     * but having a flag bit for this, without the object flags accessed via
+     * atomic operations results in race conditions, where two different threads
+     * attempt to (read, update, write) the flags values, and one update gets
+     * lost. In particular, this would hit quite often between this flag (set by
+     * any thread calling MVM_gc_object_id), and MVM_CF_REF_FROM_GEN2, set as a
+     * result of some other thread hitting a write barrier.
+     *
+     * The assumption now is that our new Robin Hood hash implementation is
+     * performant enough that it's a better trade off to simply attempt to fetch
+     * or delete from tc->instance->object_ids each time we would have used the
+     * flag, instead of slowing down all flag accesses (particularly write
+     * barrier actions) with atomic operations, which have to fight against the
+     * CPU caches.
+     *
+     * In particular, the combination of open addressing being cache friendly
+     * generally, and our implementation packing each entry's metadata into one
+     * byte means that the entire object_ids metadata is likely to be in the CPU
+     * cache during the GC run, which will help considerably.
+     *
+     * If, for other reasons, we need to move to atomic operations for object
+     * flag accesses, then we should consider re-instating this flag and the
+     * code that used to handle it. */
 
     /* Have we flagged this object as something we must never repossess? */
     /* Note: if you're hunting for a flag, some day in the future when we

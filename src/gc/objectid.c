@@ -14,19 +14,16 @@ MVMuint64 MVM_gc_object_id(MVMThreadContext *tc, MVMObject *obj) {
     /* Otherwise, see if we already have a persistent object ID. */
     else {
         uv_mutex_lock(&tc->instance->mutex_object_ids);
-        if (obj->header.flags & MVM_CF_HAS_OBJECT_ID) {
-            /* Has one, so just look up by address in the hash ID hash. */
-
-            struct MVMPtrHashEntry *entry = MVM_ptr_hash_fetch(tc, &tc->instance->object_ids, obj);
-            assert(entry);
+        struct MVMPtrHashEntry *entry = MVM_ptr_hash_lvalue_fetch(tc, &tc->instance->object_ids, obj);
+        if (entry->key) {
             id = entry->value;
         }
         else {
+            entry->key = obj;
             /* Hasn't got one; allocate it a place in gen2 and make an entry
              * in the persistent object ID hash. */
             id = (uintptr_t)MVM_gc_gen2_allocate_zeroed(tc->gen2, obj->header.size);
-            MVM_ptr_hash_insert(tc, &tc->instance->object_ids, obj, id);
-            obj->header.flags |= MVM_CF_HAS_OBJECT_ID;
+            entry->value = id;
         }
         uv_mutex_unlock(&tc->instance->mutex_object_ids);
     }
@@ -40,7 +37,6 @@ MVMuint64 MVM_gc_object_id(MVMThreadContext *tc, MVMObject *obj) {
 void * MVM_gc_object_id_use_allocation(MVMThreadContext *tc, MVMCollectable *item) {
     uv_mutex_lock(&tc->instance->mutex_object_ids);
     void *addr = (void *) MVM_ptr_hash_fetch_and_delete(tc, &tc->instance->object_ids, item);
-    item->flags ^= MVM_CF_HAS_OBJECT_ID;
     uv_mutex_unlock(&tc->instance->mutex_object_ids);
     return addr;
 }

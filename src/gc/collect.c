@@ -268,13 +268,14 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
              *   * A persistent ID was requested?
              *   * It is referenced by a gen2 aggregate
              */
-            if (item->flags & (MVM_CF_NURSERY_SEEN | MVM_CF_HAS_OBJECT_ID | MVM_CF_REF_FROM_GEN2)) {
+            new_addr = MVM_gc_object_id_use_allocation(tc, item);
+            if (new_addr || (item->flags & (MVM_CF_NURSERY_SEEN | MVM_CF_REF_FROM_GEN2))) {
                 /* Yes; we should move it to the second generation. Allocate
                  * space in the second generation. */
                 to_gen2 = 1;
-                new_addr = item->flags & MVM_CF_HAS_OBJECT_ID
-                    ? MVM_gc_object_id_use_allocation(tc, item)
-                    : MVM_gc_gen2_allocate(gen2, item->size);
+                if (!new_addr) {
+                    new_addr = MVM_gc_gen2_allocate(gen2, item->size);
+                }
 
                 /* Add on to the promoted amount (used both to decide when to do
                  * the next full collection, as well as for profiling). Note we
@@ -594,7 +595,7 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *executing_thread, MV
             if (dead && item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
                 MVM_free(item->sc_forward_u.sci);
 #endif
-            if (dead && item->flags & MVM_CF_HAS_OBJECT_ID)
+            if (dead)
                 MVM_gc_object_id_clear(tc, item);
         }
         else if (item->flags & MVM_CF_STABLE) {
@@ -630,7 +631,7 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *executing_thread, MV
             if (dead && item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
                 MVM_free(item->sc_forward_u.sci);
 #endif
-            if (dead && item->flags & MVM_CF_HAS_OBJECT_ID)
+            if (dead)
                 MVM_gc_object_id_clear(tc, item);
         }
 
