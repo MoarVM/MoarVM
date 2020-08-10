@@ -125,43 +125,43 @@ typedef enum {
     MVM_CF_FRAME = 4,
 
     /* Have we allocated memory to store a serialization index? */
-    MVM_CF_SERIALZATION_INDEX_ALLOCATED = 256,
+    MVM_CF_SERIALZATION_INDEX_ALLOCATED = 8,
 
     /* Have we arranged a persistent object ID for this object? */
-    MVM_CF_HAS_OBJECT_ID = 512,
+    MVM_CF_HAS_OBJECT_ID = 16,
 
     /* Have we flagged this object as something we must never repossess? */
     /* Note: if you're hunting for a flag, some day in the future when we
      * have used them all, this one is easy enough to eliminate by having the
      * tiny number of objects marked this way in a remembered set. */
-    MVM_CF_NEVER_REPOSSESS = 1024
+    MVM_CF_NEVER_REPOSSESS = 32
 } MVMCollectableFlags1;
 
 typedef enum {
     /* Has already been seen once in GC nursery. */
-    MVM_CF_NURSERY_SEEN = 8,
+    MVM_CF_NURSERY_SEEN = 1,
 
     /* Has been promoted to the old generation. */
-    MVM_CF_SECOND_GEN = 16,
+    MVM_CF_SECOND_GEN = 2,
 
     /* Has already been added to the gen2 aggregates pointing to nursery
      * objects list. */
-    MVM_CF_IN_GEN2_ROOT_LIST = 32,
+    MVM_CF_IN_GEN2_ROOT_LIST = 4,
 
     /* A full GC run has found this object to be live. */
-    MVM_CF_GEN2_LIVE = 64,
+    MVM_CF_GEN2_LIVE = 8,
 
     /* This object in fromspace is live with a valid forwarder. */
     /* TODO - should be possible to use the same bit for this and GEN2_LIVE. */
-    MVM_CF_FORWARDER_VALID = 128,
+    MVM_CF_FORWARDER_VALID = 16,
 
     /* Is this object a nursery object that has been referenced from gen2?
      * Used to promote it earlier. */
-    MVM_CF_REF_FROM_GEN2 = 2048,
+    MVM_CF_REF_FROM_GEN2 = 32,
 
     /* Has this item been chained into a gen2 freelist? This is only used in
      * GC debug more. */
-    MVM_CF_DEBUG_IN_GEN2_FREE_LIST = 4096
+    MVM_CF_DEBUG_IN_GEN2_FREE_LIST = 64
 } MVMCollectableFlags2;
 
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
@@ -211,8 +211,8 @@ struct MVMCollectable {
     MVMuint32 owner;
 
     /* Collectable flags (see MVMCollectableFlags). */
-    MVMuint16 flags1;
-    MVMuint16 flags2;
+    MVMuint8 flags1;
+    MVMuint8 flags2;
 
     /* Object size, in bytes. */
     MVMuint16 size;
