@@ -227,13 +227,13 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
         else {
             /* Free gen2 unmarked if full collection. */
             if (gen == MVMGCGenerations_Both) {
-                /* Tell malloc implementation to free empty pages to kernel.
-                 * Currently only activated for Linux. */
-                MVM_malloc_trim();
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
                     "Thread %d run %d : freeing gen2 of thread %d\n",
                     other->thread_id);
                 MVM_gc_collect_free_gen2_unmarked(tc, other, 0);
+                /* Tell malloc implementation to free empty pages to kernel.
+                 * Currently only activated for Linux. */
+                MVM_malloc_trim();
             }
 
             /* Contribute this thread's promoted bytes. */
