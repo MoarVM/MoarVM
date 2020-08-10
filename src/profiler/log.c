@@ -434,14 +434,14 @@ void MVM_profiler_log_gc_deallocate(MVMThreadContext *tc, MVMObject *object) {
 
         MVMuint8 dealloc_target = 0;
 
-        if (what->header.flags & MVM_CF_FORWARDER_VALID)
+        if (what->header.flags2 & MVM_CF_FORWARDER_VALID)
             what = (MVMObject *)what->header.sc_forward_u.forwarder;
 
         MVM_ASSERT_NOT_FROMSPACE(tc, what);
 
-        if (item->flags & MVM_CF_SECOND_GEN)
+        if (item->flags2 & MVM_CF_SECOND_GEN)
             dealloc_target = 2;
-        else if (item->flags & MVM_CF_NURSERY_SEEN)
+        else if (item->flags2 & MVM_CF_NURSERY_SEEN)
             dealloc_target = 1;
 
         /* See if there's an existing node to update. */

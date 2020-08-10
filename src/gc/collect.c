@@ -203,15 +203,15 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
 
         /* If it's in the second generation and we're only doing a nursery,
          * collection, we have nothing to do. */
-        item_gen2 = item->flags & MVM_CF_SECOND_GEN;
+        item_gen2 = item->flags2 & MVM_CF_SECOND_GEN;
         if (item_gen2) {
             if (gen == MVMGCGenerations_Nursery)
                 continue;
-            if (item->flags & MVM_CF_GEN2_LIVE) {
+            if (item->flags2 & MVM_CF_GEN2_LIVE) {
                 /* gen2 and marked as live. */
                 continue;
             }
-        } else if (item->flags & MVM_CF_FORWARDER_VALID) {
+        } else if (item->flags2 & MVM_CF_FORWARDER_VALID) {
             /* If the item was already seen and copied, then it will have a
              * forwarding address already. Just update this pointer to the
              * new address and we're done. */
@@ -249,13 +249,13 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* At this point, we didn't already see the object, which means we
          * need to take some action. Go on the generation... */
         if (item_gen2) {
-            assert(!(item->flags & MVM_CF_FORWARDER_VALID));
+            assert(!(item->flags2 & MVM_CF_FORWARDER_VALID));
             /* It's in the second generation. We'll just mark it. */
             new_addr = item;
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT)) {
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : handle %p was already %p\n", item_ptr, new_addr);
             }
-            item->flags |= MVM_CF_GEN2_LIVE;
+            item->flags2 |= MVM_CF_GEN2_LIVE;
             assert(*item_ptr == new_addr);
         } else {
             /* Catch NULL stable (always sign of trouble) in debug mode. */
@@ -268,11 +268,12 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
              *   * A persistent ID was requested?
              *   * It is referenced by a gen2 aggregate
              */
-            if (item->flags & (MVM_CF_NURSERY_SEEN | MVM_CF_HAS_OBJECT_ID | MVM_CF_REF_FROM_GEN2)) {
+            if (item->flags1 & MVM_CF_HAS_OBJECT_ID
+                || item->flags2 & (MVM_CF_NURSERY_SEEN | MVM_CF_REF_FROM_GEN2)) {
                 /* Yes; we should move it to the second generation. Allocate
                  * space in the second generation. */
                 to_gen2 = 1;
-                new_addr = item->flags & MVM_CF_HAS_OBJECT_ID
+                new_addr = item->flags1 & MVM_CF_HAS_OBJECT_ID
                     ? MVM_gc_object_id_use_allocation(tc, item)
                     : MVM_gc_gen2_allocate(gen2, item->size);
 
@@ -286,17 +287,17 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : copying an object %p of size %d to gen2 %p\n",
                     item, item->size, new_addr);
                 memcpy(new_addr, item, item->size);
-                if (new_addr->flags & MVM_CF_NURSERY_SEEN)
-                    new_addr->flags ^= MVM_CF_NURSERY_SEEN;
-                new_addr->flags |= MVM_CF_SECOND_GEN;
+                if (new_addr->flags2 & MVM_CF_NURSERY_SEEN)
+                    new_addr->flags2 ^= MVM_CF_NURSERY_SEEN;
+                new_addr->flags2 |= MVM_CF_SECOND_GEN;
 
                 /* If it's a frame with an active work area, we need to keep
                  * on visiting it. Also add on object's unmanaged size. */
-                if (new_addr->flags & MVM_CF_FRAME) {
+                if (new_addr->flags1 & MVM_CF_FRAME) {
                     if (((MVMFrame *)new_addr)->work)
                         MVM_gc_root_gen2_add(tc, (MVMCollectable *)new_addr);
                 }
-                else if (!(new_addr->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
+                else if (!(new_addr->flags1 & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE))) {
                     MVMObject *new_obj_addr = (MVMObject *)new_addr;
                     if (REPR(new_obj_addr)->unmanaged_size) {
                         MVMuint64 unmanaged_size =  REPR(new_obj_addr)->unmanaged_size(tc,
@@ -310,7 +311,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 /* If we're going to sweep the second generation, also need
                  * to mark it as live. */
                 if (gen == MVMGCGenerations_Both)
-                    new_addr->flags |= MVM_CF_GEN2_LIVE;
+                    new_addr->flags2 |= MVM_CF_GEN2_LIVE;
             }
             else {
                 /* No, so it will live in the nursery for another GC
@@ -318,25 +319,25 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                 new_addr = (MVMCollectable *)tc->nursery_alloc;
                 tc->nursery_alloc = (char *)tc->nursery_alloc + MVM_ALIGN_SIZE(item->size);
                 GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : copying an object %p (reprid %d) of size %d to tospace %p\n",
-                    item, (item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_FRAME)) ? -1 : (int)REPR(item)->ID, item->size, new_addr);
+                    item, (item->flags1 & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_FRAME)) ? -1 : (int)REPR(item)->ID, item->size, new_addr);
 
                 /* Copy the object to tospace and mark it as seen in the
                  * nursery (so the next time around it will move to the
                  * older generation, if it survives). */
                 memcpy(new_addr, item, item->size);
-                new_addr->flags |= MVM_CF_NURSERY_SEEN;
+                new_addr->flags2 |= MVM_CF_NURSERY_SEEN;
             }
 
             /* Store the forwarding pointer and update the original
              * reference. */
             if (MVM_GC_DEBUG_ENABLED(MVM_GC_DEBUG_COLLECT) && new_addr != item) {
-                GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from referent %p (reprid %d) to %p\n", item_ptr, item, (item->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_FRAME)) ? -1 : (int)REPR(item)->ID, new_addr);
+                GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : updating handle %p from referent %p (reprid %d) to %p\n", item_ptr, item, (item->flags1 & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_FRAME)) ? -1 : (int)REPR(item)->ID, new_addr);
             }
             *item_ptr = new_addr;
             item->sc_forward_u.forwarder = new_addr;
             /* Set the flag on the copy of item *in fromspace* to mark that the
                forwarder pointer is valid. */
-            item->flags |= MVM_CF_FORWARDER_VALID;
+            item->flags2 |= MVM_CF_FORWARDER_VALID;
         }
 
         /* Finally, we need to mark the collectable (at its moved address).
@@ -366,7 +367,7 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
     MVMuint16 i;
     MVMuint32 sc_idx;
 
-    assert(!(new_addr->flags & MVM_CF_FORWARDER_VALID));
+    assert(!(new_addr->flags2 & MVM_CF_FORWARDER_VALID));
     /*assert(REPR(new_addr));*/
     sc_idx = MVM_sc_get_idx_of_sc(new_addr);
     if (sc_idx > 0) {
@@ -377,11 +378,11 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
         MVM_gc_worklist_add(tc, worklist, &(tc->instance->all_scs[sc_idx]->sc));
     }
 
-    if (new_addr->flags & MVM_CF_TYPE_OBJECT) {
+    if (new_addr->flags1 & MVM_CF_TYPE_OBJECT) {
         /* Add the STable to the worklist. */
         MVM_gc_worklist_add(tc, worklist, &((MVMObject *)new_addr)->st);
     }
-    else if (new_addr->flags & MVM_CF_STABLE) {
+    else if (new_addr->flags1 & MVM_CF_STABLE) {
         /* Add all references in the STable to the work list. */
         MVMSTable *new_addr_st = (MVMSTable *)new_addr;
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->method_cache);
@@ -418,7 +419,7 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
         if (new_addr_st->REPR->gc_mark_repr_data)
             new_addr_st->REPR->gc_mark_repr_data(tc, new_addr_st, worklist);
     }
-    else if (new_addr->flags & MVM_CF_FRAME) {
+    else if (new_addr->flags1 & MVM_CF_FRAME) {
         MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, (MVMFrame *)new_addr);
     }
     else {
@@ -556,7 +557,7 @@ static void add_in_tray_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklis
 static void MVM_gc_collect_enqueue_stable_for_deletion(MVMThreadContext *tc, MVMSTable *st) {
     MVMSTable *old_head;
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
-    assert(!(st->header.flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED));
+    assert(!(st->header.flags1 & MVM_CF_SERIALZATION_INDEX_ALLOCATED));
 #endif
     do {
         old_head = tc->instance->stables_to_free;
@@ -582,37 +583,37 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *executing_thread, MV
         /* The object here is dead if it never got a forwarding pointer
          * written in to it. */
         MVMCollectable *item = (MVMCollectable *)scan;
-        MVMuint8 dead = !(item->flags & MVM_CF_FORWARDER_VALID);
+        MVMuint8 dead = !(item->flags2 & MVM_CF_FORWARDER_VALID);
 
         if (!dead)
             assert(item->sc_forward_u.forwarder != NULL);
 
         /* Now go by collectable type. */
-        if (item->flags & MVM_CF_TYPE_OBJECT) {
+        if (item->flags1 & MVM_CF_TYPE_OBJECT) {
             /* Type object */
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
-            if (dead && item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
+            if (dead && item->flags1 & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
                 MVM_free(item->sc_forward_u.sci);
 #endif
-            if (dead && item->flags & MVM_CF_HAS_OBJECT_ID)
+            if (dead && item->flags1 & MVM_CF_HAS_OBJECT_ID)
                 MVM_gc_object_id_clear(tc, item);
         }
-        else if (item->flags & MVM_CF_STABLE) {
+        else if (item->flags1 & MVM_CF_STABLE) {
             MVMSTable *st = (MVMSTable *)item;
             if (dead) {
 /*            GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : enqueuing an STable %d in the nursery to be freed\n", item);*/
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
-                if (item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
+                if (item->flags1 & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
                     MVM_free(item->sc_forward_u.sci);
                     /* Arguably we don't need to do this, if we're always
                        consistent about what we put on the stable queue. */
-                    item->flags &= ~MVM_CF_SERIALZATION_INDEX_ALLOCATED;
+                    item->flags1 &= ~MVM_CF_SERIALZATION_INDEX_ALLOCATED;
                 }
 #endif
                 MVM_gc_collect_enqueue_stable_for_deletion(tc, st);
             }
         }
-        else if (item->flags & MVM_CF_FRAME) {
+        else if (item->flags1 & MVM_CF_FRAME) {
             if (dead)
                 MVM_frame_destroy(tc, (MVMFrame *)item);
         }
@@ -627,10 +628,10 @@ void MVM_gc_collect_free_nursery_uncopied(MVMThreadContext *executing_thread, MV
                 MVM_profiler_log_gc_deallocate(executing_thread, obj);
             }
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
-            if (dead && item->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
+            if (dead && item->flags1 & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
                 MVM_free(item->sc_forward_u.sci);
 #endif
-            if (dead && item->flags & MVM_CF_HAS_OBJECT_ID)
+            if (dead && item->flags1 & MVM_CF_HAS_OBJECT_ID)
                 MVM_gc_object_id_clear(tc, item);
         }
 
@@ -698,26 +699,26 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *executing_thread, MVMTh
 
                 /* Otherwise, it must be a collectable of some kind. Is it
                  * live? */
-                else if (col->flags & MVM_CF_GEN2_LIVE) {
+                else if (col->flags2 & MVM_CF_GEN2_LIVE) {
                     /* Yes; clear the mark. */
-                    col->flags &= ~MVM_CF_GEN2_LIVE;
+                    col->flags2 &= ~MVM_CF_GEN2_LIVE;
                 }
                 else {
                     GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : collecting an object %p in the gen2\n", col);
                     /* No, it's dead. Do any cleanup. */
 #if MVM_GC_DEBUG
-                    col->flags |= MVM_CF_DEBUG_IN_GEN2_FREE_LIST;
+                    col->flags2 |= MVM_CF_DEBUG_IN_GEN2_FREE_LIST;
 #endif
-                    if (col->flags & MVM_CF_TYPE_OBJECT) {
+                    if (col->flags1 & MVM_CF_TYPE_OBJECT) {
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
-                        if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
+                        if (col->flags1 & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
                             MVM_free(col->sc_forward_u.sci);
 #endif
                     }
-                    else if (col->flags & MVM_CF_STABLE) {
+                    else if (col->flags1 & MVM_CF_STABLE) {
                         if (
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
-                            !(col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) &&
+                            !(col->flags1 & MVM_CF_SERIALZATION_INDEX_ALLOCATED) &&
 #endif
                             col->sc_forward_u.sc.sc_idx == 0
                             && col->sc_forward_u.sc.idx == (unsigned)MVM_DIRECT_SC_IDX_SENTINEL) {
@@ -726,7 +727,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *executing_thread, MVMTh
                         }
                         else {
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
-                            if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
+                            if (col->flags1 & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
                                 /* Whatever happens next, we can free this
                                    memory immediately, because no-one will be
                                    serializing a dead STable. */
@@ -734,7 +735,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *executing_thread, MVMTh
                                          && col->sc_forward_u.sci->idx
                                          == MVM_DIRECT_SC_IDX_SENTINEL));
                                 MVM_free(col->sc_forward_u.sci);
-                                col->flags &= ~MVM_CF_SERIALZATION_INDEX_ALLOCATED;
+                                col->flags1 &= ~MVM_CF_SERIALZATION_INDEX_ALLOCATED;
                             }
 #endif
                             if (global_destruction) {
@@ -751,7 +752,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *executing_thread, MVMTh
                             continue;
                         }
                     }
-                    else if (col->flags & MVM_CF_FRAME) {
+                    else if (col->flags1 & MVM_CF_FRAME) {
                         MVM_frame_destroy(tc, (MVMFrame *)col);
                     }
                     else {
@@ -763,7 +764,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *executing_thread, MVMTh
                         if (STABLE(obj) && REPR(obj)->gc_free)
                             REPR(obj)->gc_free(tc, obj);
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
-                        if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
+                        if (col->flags1 & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
                             MVM_free(col->sc_forward_u.sci);
 #endif
                     }
@@ -786,20 +787,20 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *executing_thread, MVMTh
     for (i = 0; i < gen2->num_overflows; i++) {
         if (gen2->overflows[i]) {
             MVMCollectable *col = gen2->overflows[i];
-            if (col->flags & MVM_CF_GEN2_LIVE) {
+            if (col->flags2 & MVM_CF_GEN2_LIVE) {
                 /* A living over-sized object; just clear the mark. */
-                col->flags &= ~MVM_CF_GEN2_LIVE;
+                col->flags2 &= ~MVM_CF_GEN2_LIVE;
             }
             else {
                 /* Dead over-sized object. We know if it's this big it cannot
                  * be a type object or STable, so only need handle the simple
                  * object case. */
-                if (!(col->flags & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_FRAME))) {
+                if (!(col->flags1 & (MVM_CF_TYPE_OBJECT | MVM_CF_STABLE | MVM_CF_FRAME))) {
                     MVMObject *obj = (MVMObject *)col;
                     if (REPR(obj)->gc_free)
                         REPR(obj)->gc_free(tc, obj);
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
-                    if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
+                    if (col->flags1 & MVM_CF_SERIALZATION_INDEX_ALLOCATED)
                         MVM_free(col->sc_forward_u.sci);
 #endif
                 }

@@ -82,7 +82,7 @@ static void walk_thread_finalize_queue(MVMThreadContext *tc, MVMuint8 gen) {
     for (i = 0; i < tc->num_finalize; i++) {
         /* See if it's dead, taking which generation we've marked into
          * account. */
-        MVMuint32 flags   = tc->finalize[i]->header.flags;
+        MVMuint32 flags   = tc->finalize[i]->header.flags2;
         MVMuint32 in_gen2 = flags & MVM_CF_SECOND_GEN;
         if (gen == MVMGCGenerations_Both || !in_gen2) {
             MVMuint32 live = flags & (MVM_CF_GEN2_LIVE | MVM_CF_FORWARDER_VALID);

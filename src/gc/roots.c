@@ -271,7 +271,7 @@ void MVM_gc_root_temp_pop_all(MVMThreadContext *tc) {
  * do it on every stack push). */
 static MVMuint32 is_stack_frame(MVMThreadContext *tc, MVMCollectable **c) {
     MVMCollectable *maybe_frame = *c;
-    return maybe_frame && maybe_frame->flags == 0 && maybe_frame->owner == 0;
+    return maybe_frame && maybe_frame->flags1 == 0 && maybe_frame->owner == 0;
 }
 void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     MVMuint32         i, num_roots;
@@ -296,7 +296,7 @@ void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable *c) {
     /* Ensure the collectable is not null. */
     if (c == NULL)
         MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null collectable address as an inter-generational root");
-    assert(!(c->flags & MVM_CF_FORWARDER_VALID));
+    assert(!(c->flags2 & MVM_CF_FORWARDER_VALID));
 
     /* Allocate extra gen2 aggregate space if needed. */
     if (tc->num_gen2roots == tc->alloc_gen2roots) {
@@ -310,7 +310,7 @@ void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable *c) {
     tc->num_gen2roots++;
 
     /* Flag it as added, so we don't add it multiple times. */
-    c->flags |= MVM_CF_IN_GEN2_ROOT_LIST;
+    c->flags2 |= MVM_CF_IN_GEN2_ROOT_LIST;
 }
 
 /* Adds the set of thread-local inter-generational roots to a GC worklist. As
@@ -337,13 +337,13 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
         /* Put things it references into the worklist; since the worklist will
          * be set not to include gen2 things, only nursery things will make it
          * in. */
-        assert(!(gen2roots[i]->flags & MVM_CF_FORWARDER_VALID));
+        assert(!(gen2roots[i]->flags2 & MVM_CF_FORWARDER_VALID));
         MVM_gc_mark_collectable(tc, worklist, gen2roots[i]);
 
         /* If we added any nursery objects, or if we are a frame with ->work
          * area, keep in this list. */
         if (worklist->items != items_before_mark ||
-                (gen2roots[i]->flags & MVM_CF_FRAME && ((MVMFrame *)gen2roots[i])->work)) {
+                (gen2roots[i]->flags1 & MVM_CF_FRAME && ((MVMFrame *)gen2roots[i])->work)) {
             gen2roots[insert_pos] = gen2roots[i];
             insert_pos++;
         }
@@ -352,7 +352,7 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
          * thread may also clear this flag if it also had the entry in its
          * inter-gen list, so be careful to clear it, not just toggle. */
         else {
-            gen2roots[i]->flags &= ~MVM_CF_IN_GEN2_ROOT_LIST;
+            gen2roots[i]->flags2 &= ~MVM_CF_IN_GEN2_ROOT_LIST;
         }
     }
 
@@ -378,14 +378,14 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
     MVMuint32        cur_survivor;
 
     /* Find the first collected object. */
-    while (i < num_roots && gen2roots[i]->flags & MVM_CF_GEN2_LIVE)
+    while (i < num_roots && gen2roots[i]->flags2 & MVM_CF_GEN2_LIVE)
         i++;
     cur_survivor = i;
 
     /* Slide others back so the alive ones are at the start of the list. */
     while (i < num_roots) {
-        if (gen2roots[i]->flags & MVM_CF_GEN2_LIVE) {
-            assert(!(gen2roots[i]->flags & MVM_CF_FORWARDER_VALID));
+        if (gen2roots[i]->flags2 & MVM_CF_GEN2_LIVE) {
+            assert(!(gen2roots[i]->flags2 & MVM_CF_FORWARDER_VALID));
             gen2roots[cur_survivor++] = gen2roots[i];
         }
         i++;

@@ -199,9 +199,9 @@ struct MVMInvocationSpec {
 
 /* Checks if a frame is allocated on a call stack or on the heap. If it is on
  * the call stack, then it will have zeroed flags (since heap-allocated frames
- * always have the "I'm a heap frame" bit set). */
+ * always have the "I'm a heap frame" bit set - MVM_CF_FRAME). */
 MVM_STATIC_INLINE MVMuint32 MVM_FRAME_IS_ON_CALLSTACK(MVMThreadContext *tc, MVMFrame *frame) {
-    return frame->header.flags == 0;
+    return frame->header.flags1 == 0;
 }
 
 /* Forces a frame to the callstack if needed. Done as a static inline to make

@@ -103,7 +103,15 @@ struct MVMStorageSpec {
 #define MVM_STORAGE_SPEC_CAN_BOX_STR    4
 #define MVM_STORAGE_SPEC_CAN_BOX_MASK   7
 
-/* Flags that may be set on any collectable. */
+/* Flags that may be set on any collectable.
+ * These are split across two bytes so that we can set MVM_CF_HAS_OBJECT_ID and
+ * MVM_CF_REF_FROM_GEN2 from different threads without a data race.
+ * (Plenty of work for the CPU cache coherency hardware, but no race.)
+ * This avoids the need to use atomic operations to manipulate the flags. */
+
+/* Needed to provide a migration path for the code in Rakudo's perl6_ops.c */
+#define MVM_COLLECTABLE_FLAGS1
+
 typedef enum {
     /* Is a type object (and thus not a concrete instance). */
     MVM_CF_TYPE_OBJECT = 1,
@@ -111,9 +119,25 @@ typedef enum {
     /* Is an STable. */
     MVM_CF_STABLE = 2,
 
-    /* Is a heap-promoted call frame. */
+    /* Is a heap-promoted call frame.
+     * Beware, this flag bit must not overlap with any values set by macros
+     * MVM_FRAME_FLAG_* in frame.h */
     MVM_CF_FRAME = 4,
 
+    /* Have we allocated memory to store a serialization index? */
+    MVM_CF_SERIALZATION_INDEX_ALLOCATED = 256,
+
+    /* Have we arranged a persistent object ID for this object? */
+    MVM_CF_HAS_OBJECT_ID = 512,
+
+    /* Have we flagged this object as something we must never repossess? */
+    /* Note: if you're hunting for a flag, some day in the future when we
+     * have used them all, this one is easy enough to eliminate by having the
+     * tiny number of objects marked this way in a remembered set. */
+    MVM_CF_NEVER_REPOSSESS = 1024
+} MVMCollectableFlags1;
+
+typedef enum {
     /* Has already been seen once in GC nursery. */
     MVM_CF_NURSERY_SEEN = 8,
 
@@ -131,26 +155,14 @@ typedef enum {
     /* TODO - should be possible to use the same bit for this and GEN2_LIVE. */
     MVM_CF_FORWARDER_VALID = 128,
 
-    /* Have we allocated memory to store a serialization index? */
-    MVM_CF_SERIALZATION_INDEX_ALLOCATED = 256,
-
-    /* Have we arranged a persistent object ID for this object? */
-    MVM_CF_HAS_OBJECT_ID = 512,
-
-    /* Have we flagged this object as something we must never repossess? */
-    /* Note: if you're hunting for a flag, some day in the future when we
-     * have used them all, this one is easy enough to eliminate by having the
-     * tiny number of objects marked this way in a remembered set. */
-    MVM_CF_NEVER_REPOSSESS = 1024,
-
     /* Is this object a nursery object that has been referenced from gen2?
      * Used to promote it earlier. */
     MVM_CF_REF_FROM_GEN2 = 2048,
 
     /* Has this item been chained into a gen2 freelist? This is only used in
      * GC debug more. */
-    MVM_CF_DEBUG_IN_GEN2_FREE_LIST = 4096,
-} MVMCollectableFlags;
+    MVM_CF_DEBUG_IN_GEN2_FREE_LIST = 4096
+} MVMCollectableFlags2;
 
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
 struct MVMSerializationIndex {
@@ -199,7 +211,8 @@ struct MVMCollectable {
     MVMuint32 owner;
 
     /* Collectable flags (see MVMCollectableFlags). */
-    MVMuint16 flags;
+    MVMuint16 flags1;
+    MVMuint16 flags2;
 
     /* Object size, in bytes. */
     MVMuint16 size;
@@ -688,7 +701,7 @@ struct MVMREPROps {
 #define OBJECT_BODY(o)   (&(((MVMObjectStooge *)(o))->data))
 
 /* Macros for getting/setting type-objectness. */
-#define IS_CONCRETE(o)   (!(((MVMObject *)o)->header.flags & MVM_CF_TYPE_OBJECT))
+#define IS_CONCRETE(o)   (!(((MVMObject *)o)->header.flags1 & MVM_CF_TYPE_OBJECT))
 
 /* Some functions related to 6model core functionality. */
 MVM_PUBLIC MVMObject * MVM_6model_get_how(MVMThreadContext *tc, MVMSTable *st);

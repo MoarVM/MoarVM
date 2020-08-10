@@ -235,11 +235,11 @@ const unsigned char * MVM_jit_actions(void) {
 
 
 |.macro check_wb, root, ref, lbl;
-| test word COLLECTABLE:root->flags, MVM_CF_SECOND_GEN;
+| test word COLLECTABLE:root->flags2, MVM_CF_SECOND_GEN;
 | jz lbl;
 | test ref, ref;
 | jz lbl;
-| test word COLLECTABLE:ref->flags, MVM_CF_SECOND_GEN;
+| test word COLLECTABLE:ref->flags2, MVM_CF_SECOND_GEN;
 | jnz lbl;
 |.endmacro;
 
@@ -273,7 +273,7 @@ const unsigned char * MVM_jit_actions(void) {
 |.endmacro
 
 |.macro test_type_object, reg
-| test word OBJECT:reg->header.flags, MVM_CF_TYPE_OBJECT
+| test word OBJECT:reg->header.flags1, MVM_CF_TYPE_OBJECT
 |.endmacro
 
 |.macro gc_sync_point
@@ -364,7 +364,7 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
 
 static MVMuint64 try_emit_gen2_ref(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                    MVMJitGraph *jg, MVMObject *obj, MVMint16 reg) {
-    if (!(obj->header.flags & MVM_CF_SECOND_GEN))
+    if (!(obj->header.flags2 & MVM_CF_SECOND_GEN))
         return 0;
     | mov64 TMP1, (uintptr_t)obj;
     | mov WORK[reg], TMP1;
@@ -733,7 +733,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | jnz >4;
             /* if null, vivify as type object from spesh slot */
             | get_spesh_slot TMP3, spesh_idx;
-            if (!(spesh_value->flags & MVM_CF_SECOND_GEN)) {
+            if (!(spesh_value->flags2 & MVM_CF_SECOND_GEN)) {
                 /* need to hit write barrier? */
                 | check_wb TMP1, TMP3, >3;
                 | mov qword [rbp-0x28], TMP2; // address

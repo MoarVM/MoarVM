@@ -364,7 +364,7 @@ void MVM_sc_disclaim(MVMThreadContext *tc, MVMSerializationContext *sc) {
         obj = root_objects[i];
         col = &obj->header;
 #ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
-        if (col->flags & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
+        if (col->flags1 & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
             struct MVMSerializationIndex *const sci = col->sc_forward_u.sci;
             col->sc_forward_u.sci = NULL;
             MVM_free(sci);
@@ -401,7 +401,7 @@ void MVM_sc_disclaim(MVMThreadContext *tc, MVMSerializationContext *sc) {
 
 /* SC repossession barrier. */
 void MVM_SC_WB_OBJ(MVMThreadContext *tc, MVMObject *obj) {
-    assert(!(obj->header.flags & MVM_CF_FORWARDER_VALID));
+    assert(!(obj->header.flags2 & MVM_CF_FORWARDER_VALID));
     assert(MVM_sc_get_idx_of_sc(&obj->header) != (MVMuint32)~0);
     if (MVM_sc_get_idx_of_sc(&obj->header) > 0 && !(obj->st->mode_flags & MVM_NEVER_REPOSSESS_TYPE))
         MVM_sc_wb_hit_obj(tc, obj);
@@ -418,7 +418,7 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
         return;
 
     /* Same if the object is flagged as one to never repossess. */
-    if (obj->header.flags & MVM_CF_NEVER_REPOSSESS)
+    if (obj->header.flags1 & MVM_CF_NEVER_REPOSSESS)
         return;
 
     /* Otherwise, check that the object's SC is different from the SC

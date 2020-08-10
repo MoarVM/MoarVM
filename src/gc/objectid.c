@@ -7,7 +7,7 @@ MVMuint64 MVM_gc_object_id(MVMThreadContext *tc, MVMObject *obj) {
 
     /* If it's already in the old generation, just use memory address, as
      * gen2 objects never move. */
-    if (obj->header.flags & MVM_CF_SECOND_GEN) {
+    if (obj->header.flags2 & MVM_CF_SECOND_GEN) {
         id = (uintptr_t)obj;
     }
 
@@ -15,7 +15,7 @@ MVMuint64 MVM_gc_object_id(MVMThreadContext *tc, MVMObject *obj) {
     else {
         MVMObjectId *entry;
         uv_mutex_lock(&tc->instance->mutex_object_ids);
-        if (obj->header.flags & MVM_CF_HAS_OBJECT_ID) {
+        if (obj->header.flags1 & MVM_CF_HAS_OBJECT_ID) {
             /* Has one, so just look up by address in the hash ID hash. */
             HASH_FIND(hash_handle, tc->instance->object_ids, (void *)&obj,
                 sizeof(MVMObject *), entry);
@@ -28,7 +28,7 @@ MVMuint64 MVM_gc_object_id(MVMThreadContext *tc, MVMObject *obj) {
             entry->gen2_addr = MVM_gc_gen2_allocate_zeroed(tc->gen2, obj->header.size);
             HASH_ADD_KEYPTR(hash_handle, tc->instance->object_ids, &(entry->current),
                 sizeof(MVMObject *), entry);
-            obj->header.flags |= MVM_CF_HAS_OBJECT_ID;
+            obj->header.flags1 |= MVM_CF_HAS_OBJECT_ID;
         }
         id = (uintptr_t)entry->gen2_addr;
         uv_mutex_unlock(&tc->instance->mutex_object_ids);
@@ -48,7 +48,7 @@ void * MVM_gc_object_id_use_allocation(MVMThreadContext *tc, MVMCollectable *ite
     addr = entry->gen2_addr;
     HASH_DELETE(hash_handle, tc->instance->object_ids, entry, prev);
     MVM_free(entry);
-    item->flags ^= MVM_CF_HAS_OBJECT_ID;
+    item->flags1 ^= MVM_CF_HAS_OBJECT_ID;
     uv_mutex_unlock(&tc->instance->mutex_object_ids);
     return addr;
 }

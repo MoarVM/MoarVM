@@ -276,15 +276,15 @@ static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
         MVMHeapSnapshotState *ss, MVMCollectable *collectable) {
     MVMuint64 idx;
     if (!seen(tc, ss, collectable, &idx)) {
-        if (collectable->flags & MVM_CF_STABLE) {
+        if (collectable->flags1 & MVM_CF_STABLE) {
             idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_STABLE, collectable);
             ss->col->total_stables++;
         }
-        else if (collectable->flags & MVM_CF_TYPE_OBJECT) {
+        else if (collectable->flags1 & MVM_CF_TYPE_OBJECT) {
             idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT, collectable);
             ss->col->total_typeobjects++;
         }
-        else if (collectable->flags & MVM_CF_FRAME) {
+        else if (collectable->flags1 & MVM_CF_FRAME) {
             idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_FRAME, collectable);
             ss->col->total_frames++;
         }
@@ -383,8 +383,8 @@ static void set_static_frame_index(MVMThreadContext *tc, MVMHeapSnapshotState *s
        marked as live for this gc run. Do it here to prevent it from getting freed
        after taking this heap snapshot, while it's actually still referenced from the
        comp unit's strings list */
-    if (file_name && file_name->common.header.flags & MVM_CF_SECOND_GEN)
-        file_name->common.header.flags |= MVM_CF_GEN2_LIVE;
+    if (file_name && file_name->common.header.flags2 & MVM_CF_SECOND_GEN)
+        file_name->common.header.flags2 |= MVM_CF_GEN2_LIVE;
 
     MVMuint64 file_idx = get_vm_string_index(tc, ss, file_name);
 

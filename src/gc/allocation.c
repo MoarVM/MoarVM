@@ -62,7 +62,7 @@ MVMSTable * MVM_gc_allocate_stable(MVMThreadContext *tc, const MVMREPROps *repr,
     MVMSTable *st;
     MVMROOT(tc, how, {
         st                = MVM_gc_allocate_zeroed(tc, sizeof(MVMSTable));
-        st->header.flags |= MVM_CF_STABLE;
+        st->header.flags1 = MVM_CF_STABLE;
         st->header.size   = sizeof(MVMSTable);
         st->header.owner  = tc->thread_id;
         st->REPR          = repr;
@@ -79,7 +79,7 @@ MVMObject * MVM_gc_allocate_type_object(MVMThreadContext *tc, MVMSTable *st) {
     MVMObject *obj;
     MVMROOT(tc, st, {
         obj                = MVM_gc_allocate_zeroed(tc, sizeof(MVMObject));
-        obj->header.flags |= MVM_CF_TYPE_OBJECT;
+        obj->header.flags1 = MVM_CF_TYPE_OBJECT;
         obj->header.size   = sizeof(MVMObject);
         obj->header.owner  = tc->thread_id;
         MVM_ASSIGN_REF(tc, &(obj->header), obj->st, st);
@@ -104,7 +104,7 @@ MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st) {
 /* Allocates a new heap frame. */
 MVMFrame * MVM_gc_allocate_frame(MVMThreadContext *tc) {
     MVMFrame *f = MVM_gc_allocate_zeroed(tc, sizeof(MVMFrame));
-    f->header.flags |= MVM_CF_FRAME;
+    f->header.flags1 = MVM_CF_FRAME;
     f->header.size   = sizeof(MVMFrame);
     f->header.owner  = tc->thread_id;
     return f;
