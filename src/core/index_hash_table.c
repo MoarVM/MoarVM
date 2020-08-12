@@ -1,8 +1,7 @@
 #include "moar.h"
 
 #define INDEX_LOAD_FACTOR 0.75
-#define INDEX_INITIAL_SIZE 8
-#define INDEX_INITIAL_KEY_RIGHT_SHIFT (8 * sizeof(MVMuint64) - 3)
+#define INDEX_MIN_SIZE_BASE_2 3
 
 MVM_STATIC_INLINE MVMuint32 hash_true_size(MVMIndexHashTable *hashtable) {
     MVMuint32 true_size = hashtable->official_size + hashtable->max_items - 1;
@@ -39,18 +38,22 @@ void MVM_index_hash_build(MVMThreadContext *tc,
                           MVMIndexHashTable *hashtable,
                           MVMuint32 entries) {
     memset(hashtable, 0, sizeof(*hashtable));
-    if (entries <= INDEX_INITIAL_SIZE * INDEX_LOAD_FACTOR) {
-        /* "Too small" - use our original defaults. */
-        hashtable->key_right_shift = INDEX_INITIAL_KEY_RIGHT_SHIFT;
-        hashtable->official_size = INDEX_INITIAL_SIZE;
+
+    MVMuint32 initial_size_base2;
+    if (!entries) {
+        initial_size_base2 = INDEX_MIN_SIZE_BASE_2;
     } else {
         /* Minimum size we need to allocate, given the load factor. */
         MVMuint32 min_needed = entries * (1.0 / INDEX_LOAD_FACTOR);
-        MVMuint32 initial_size_base2 = MVM_round_up_log_base2(min_needed);
-
-        hashtable->key_right_shift = (8 * sizeof(MVMuint64) - initial_size_base2);
-        hashtable->official_size = 1 << initial_size_base2;
+        initial_size_base2 = MVM_round_up_log_base2(min_needed);
+        if (initial_size_base2 < INDEX_MIN_SIZE_BASE_2) {
+            /* "Too small" - use our original defaults. */
+            initial_size_base2 = INDEX_MIN_SIZE_BASE_2;
+        }
     }
+
+    hashtable->key_right_shift = (8 * sizeof(MVMuint64) - initial_size_base2);
+    hashtable->official_size = 1 << initial_size_base2;
 
     hash_allocate_common(hashtable);
 }
