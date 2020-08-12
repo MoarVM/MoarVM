@@ -1,8 +1,7 @@
 #include "moar.h"
 
 #define STR_LOAD_FACTOR 0.75
-#define STR_INITIAL_SIZE 8
-#define STR_INITIAL_KEY_RIGHT_SHIFT (8 * sizeof(MVMuint64) - 3)
+#define STR_MIN_SIZE_BASE_2 3
 
 /* Adapted from the log_base2 function.
  * https://graphics.stanford.edu/~seander/bithacks.html#IntegerLogDeBruijn
@@ -82,18 +81,21 @@ MVM_STATIC_INLINE void hash_allocate_common(MVMThreadContext *tc,
 void MVM_str_hash_initial_allocate(MVMThreadContext *tc,
                                    MVMStrHashTable *hashtable,
                                    MVMuint32 entries) {
-    if (entries <= STR_INITIAL_SIZE * STR_LOAD_FACTOR) {
-        /* "Too small" - use our original defaults. */
-        hashtable->key_right_shift = STR_INITIAL_KEY_RIGHT_SHIFT;
-        hashtable->official_size = STR_INITIAL_SIZE;
+    MVMuint32 initial_size_base2;
+    if (!entries) {
+        initial_size_base2 = STR_MIN_SIZE_BASE_2;
     } else {
         /* Minimum size we need to allocate, given the load factor. */
         MVMuint32 min_needed = entries * (1.0 / STR_LOAD_FACTOR);
-        MVMuint32 initial_size_base2 = MVM_round_up_log_base2(min_needed);
-
-        hashtable->key_right_shift = (8 * sizeof(MVMuint64) - initial_size_base2);
-        hashtable->official_size = 1 << initial_size_base2;
+        initial_size_base2 = MVM_round_up_log_base2(min_needed);
+        if (initial_size_base2 < STR_MIN_SIZE_BASE_2) {
+            /* "Too small" - use our original defaults. */
+            initial_size_base2 = STR_MIN_SIZE_BASE_2;
+        }
     }
+
+    hashtable->key_right_shift = (8 * sizeof(MVMuint64) - initial_size_base2);
+    hashtable->official_size = 1 << initial_size_base2;
 
     hash_allocate_common(tc, hashtable);
 

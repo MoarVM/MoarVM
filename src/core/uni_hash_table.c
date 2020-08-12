@@ -1,8 +1,7 @@
 #include "moar.h"
 
 #define UNI_LOAD_FACTOR 0.75
-#define UNI_INITIAL_SIZE 8
-#define UNI_INITIAL_KEY_RIGHT_SHIFT (8 * sizeof(MVMuint32) - 3)
+#define UNI_MIN_SIZE_BASE_2 3
 
 MVM_STATIC_INLINE MVMuint32 hash_true_size(MVMUniHashTable *hashtable) {
     MVMuint32 true_size = hashtable->official_size + hashtable->max_items - 1;
@@ -38,18 +37,21 @@ MVM_STATIC_INLINE void hash_allocate_common(MVMUniHashTable *hashtable) {
 void MVM_uni_hash_initial_allocate(MVMThreadContext *tc,
                                    MVMUniHashTable *hashtable,
                                    MVMuint32 entries) {
-    if (entries <= UNI_INITIAL_SIZE * UNI_LOAD_FACTOR) {
-        /* "Too small" - use our original defaults. */
-        hashtable->key_right_shift = UNI_INITIAL_KEY_RIGHT_SHIFT;
-        hashtable->official_size = UNI_INITIAL_SIZE;
+    MVMuint32 initial_size_base2;
+    if (!entries) {
+        initial_size_base2 = UNI_MIN_SIZE_BASE_2;
     } else {
         /* Minimum size we need to allocate, given the load factor. */
         MVMuint32 min_needed = entries * (1.0 / UNI_LOAD_FACTOR);
-        MVMuint32 initial_size_base2 = MVM_round_up_log_base2(min_needed);
-
-        hashtable->key_right_shift = (8 * sizeof(MVMuint32) - initial_size_base2);
-        hashtable->official_size = 1 << initial_size_base2;
+        initial_size_base2 = MVM_round_up_log_base2(min_needed);
+        if (initial_size_base2 < UNI_MIN_SIZE_BASE_2) {
+            /* "Too small" - use our original defaults. */
+            initial_size_base2 = UNI_MIN_SIZE_BASE_2;
+        }
     }
+
+    hashtable->key_right_shift = (8 * sizeof(MVMuint32) - initial_size_base2);
+    hashtable->official_size = 1 << initial_size_base2;
 
     hash_allocate_common(hashtable);
 }
