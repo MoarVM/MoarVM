@@ -305,8 +305,8 @@ MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name) {
         char *c_name = MVM_string_ascii_encode_any(tc, name);
         char *waste[] = { c_name, NULL };
         uv_mutex_unlock(&tc->instance->mutex_repr_registry);
-        MVM_exception_throw_adhoc_free(tc, waste, "Lookup by name %p of unknown REPR: %s",
-                                       name, c_name);
+        MVM_exception_throw_adhoc_free(tc, waste, "Lookup by name of unknown REPR: %s",
+                                       c_name);
     }
     uv_mutex_unlock(&tc->instance->mutex_repr_registry);
 
