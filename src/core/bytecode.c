@@ -682,7 +682,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
             sf->body.lexical_types[j] = read_int16(pos, 6 * j);
 
             if (lexical_names) {
-                MVM_index_hash_insert_nt(tc, lexical_names, lexical_names_list, j);
+                MVM_index_hash_insert_nocheck(tc, lexical_names, lexical_names_list, j);
             }
         }
         pos += 6 * sf->body.num_lexicals;
