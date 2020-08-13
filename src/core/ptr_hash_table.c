@@ -31,7 +31,7 @@ MVM_STATIC_INLINE void hash_allocate_common(MVMPtrHashTable *hashtable) {
     /* A sentinel. This marks an occupied slot, at its ideal position. */
     *hashtable->metadata = 1;
     ++hashtable->metadata;
-    /* A sentinel at the other end. Again, occupited, ideal position. */
+    /* A sentinel at the other end. Again, occupied, ideal position. */
     hashtable->metadata[actual_items] = 1;
 }
 
