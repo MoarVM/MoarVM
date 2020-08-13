@@ -281,7 +281,8 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
 
         /* Ensure collectable header flags and owner are zeroed, which means we'll
          * never try to mark or root the frame. */
-        frame->header.flags = 0;
+        frame->header.flags1 = 0;
+        frame->header.flags2 = 0;
         frame->header.owner = 0;
 
         /* Current arguments callsite must be NULL as it's used in GC. Extra must

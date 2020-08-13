@@ -19,7 +19,7 @@
                 MVM_panic(1, "Collectable %p in fromspace accessed", c); \
             cur_thread = cur_thread->body.next; \
         } \
-        if (((MVMCollectable *)c)->flags & MVM_CF_DEBUG_IN_GEN2_FREE_LIST) \
+        if (((MVMCollectable *)c)->flags2 & MVM_CF_DEBUG_IN_GEN2_FREE_LIST) \
             MVM_panic(1, "Collectable %p in a gen2 freelist accessed", c); \
     } \
 } while (0)
@@ -27,10 +27,10 @@
     MVMFrame *check = f; \
     while (check) { \
         MVM_ASSERT_NOT_FROMSPACE(tc, check); \
-        if ((check->header.flags & MVM_CF_SECOND_GEN) && \
+        if ((check->header.flags2 & MVM_CF_SECOND_GEN) && \
                 check->caller && \
-                !(check->caller->header.flags & MVM_CF_SECOND_GEN) && \
-                !(check->header.flags & MVM_CF_IN_GEN2_ROOT_LIST)) \
+                !(check->caller->header.flags2 & MVM_CF_SECOND_GEN) && \
+                !(check->header.flags2 & MVM_CF_IN_GEN2_ROOT_LIST)) \
             MVM_panic(1, "Illegal Gen2 -> Nursery in caller chain (not in inter-gen set)"); \
         check = check->caller; \
     } \

@@ -39,20 +39,20 @@ struct MVMGCWorklist {
                 MVM_panic(1, "Zeroed owner in item added to GC worklist"); \
             if ((*item_to_add)->owner > tc->instance->next_user_thread_id) \
                 MVM_panic(1, "Invalid owner in item added to GC worklist"); \
-            if ((*item_to_add)->flags & MVM_CF_DEBUG_IN_GEN2_FREE_LIST) \
+            if ((*item_to_add)->flags2 & MVM_CF_DEBUG_IN_GEN2_FREE_LIST) \
                 MVM_panic(1, "Adding item to worklist already freed in gen2\n"); \
-            if ((*item_to_add)->flags & MVM_CF_FRAME) {\
+            if ((*item_to_add)->flags1 & MVM_CF_FRAME) {\
                 if (!((MVMFrame *)(*item_to_add))->static_info) \
                     MVM_panic(1, "Frame with NULL static_info added to worklist"); \
             }\
-            else if (((*item_to_add)->flags & MVM_CF_STABLE) == 0 && !STABLE(*item_to_add)) \
+            else if (((*item_to_add)->flags1 & MVM_CF_STABLE) == 0 && !STABLE(*item_to_add)) \
                 MVM_panic(1, "NULL STable in item added to GC worklist"); \
             if ((char *)*item_to_add >= (char *)tc->nursery_alloc && \
                     (char *)*item_to_add < (char *)tc->nursery_alloc_limit) \
                 MVM_panic(1, "Adding pointer %p to past fromspace to GC worklist", \
                     *item_to_add); \
         } \
-        if (*item_to_add && (worklist->include_gen2 || !((*item_to_add)->flags & MVM_CF_SECOND_GEN))) { \
+        if (*item_to_add && (worklist->include_gen2 || !((*item_to_add)->flags2 & MVM_CF_SECOND_GEN))) { \
             if (worklist->items == worklist->alloc) \
                 MVM_gc_worklist_add_slow(tc, worklist, item_to_add); \
             else \
@@ -69,7 +69,7 @@ struct MVMGCWorklist {
 #define MVM_gc_worklist_add(tc, worklist, item) \
     do { \
         MVMCollectable **item_to_add = (MVMCollectable **)(item);\
-        if (*item_to_add && (worklist->include_gen2 || !((*item_to_add)->flags & MVM_CF_SECOND_GEN))) { \
+        if (*item_to_add && (worklist->include_gen2 || !((*item_to_add)->flags2 & MVM_CF_SECOND_GEN))) { \
             if (worklist->items == worklist->alloc) \
                 MVM_gc_worklist_add_slow(tc, worklist, item_to_add); \
             else \
@@ -90,13 +90,13 @@ do { \
  * is False before calling this macro. */
 #define MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, item) \
 do { \
-    if (*item && !( (*(MVMCollectable**)item)->flags & MVM_CF_SECOND_GEN)) { \
+    if (*item && !( (*(MVMCollectable**)item)->flags2 & MVM_CF_SECOND_GEN)) { \
         worklist->list[worklist->items++] = (MVMCollectable**)item; \
     } \
 } while (0)
 #define MVM_gc_worklist_add_object_no_include_gen2_nocheck(tc, worklist, object) \
 do { \
-    if (*object && !( (*object)->header.flags & MVM_CF_SECOND_GEN)) { \
+    if (*object && !( (*object)->header.flags2 & MVM_CF_SECOND_GEN)) { \
         worklist->list[worklist->items++] = (MVMCollectable**)object; \
     } \
 } while (0)

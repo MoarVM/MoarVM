@@ -179,7 +179,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     spesh->body.spesh_candidates = new_candidate_list;
 
     /* May now be referencing nursery objects, so barrier just in case. */
-    if (spesh->common.header.flags & MVM_CF_SECOND_GEN)
+    if (spesh->common.header.flags2 & MVM_CF_SECOND_GEN)
         MVM_gc_write_barrier_hit(tc, (MVMCollectable *)spesh);
 
     /* Regenerate the guards, and bump the candidate count only after they

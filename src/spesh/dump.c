@@ -380,7 +380,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                 if (sc)
                     result = (MVMCollectable *)MVM_sc_try_get_object(tc, sc, idx);
                 if (result) {
-                    if (result->flags & MVM_CF_STABLE) {
+                    if (result->flags1 & MVM_CF_STABLE) {
                         debug_name = MVM_6model_get_stable_debug_name(tc, (MVMSTable *)result);
                         repr_name  = ((MVMSTable *)result)->REPR->name;
                     } else {
@@ -655,10 +655,10 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
             MVMCollectable *value = g->spesh_slots[i];
             if (value == NULL)
                 appendf(&ds, "    %d = NULL\n", i);
-            else if (value->flags & MVM_CF_STABLE)
+            else if (value->flags1 & MVM_CF_STABLE)
                 appendf(&ds, "    %d = STable (%s)\n", i,
                     MVM_6model_get_stable_debug_name(tc, (MVMSTable *)value));
-            else if (value->flags & MVM_CF_TYPE_OBJECT)
+            else if (value->flags1 & MVM_CF_TYPE_OBJECT)
                 appendf(&ds, "    %d = Type Object (%s)\n", i,
                     MVM_6model_get_debug_name(tc, (MVMObject *)value));
             else {
