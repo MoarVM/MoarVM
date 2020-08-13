@@ -16,7 +16,7 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
 
     /* MVM_string_concatenate returns a concrete MVMString, will always pass the
      * MVM_str_hash_key_is_valid check. */
-    MVMExtRegistry *entry = MVM_fixkey_hash_fetch_nt(tc, &tc->instance->ext_registry, name);
+    MVMExtRegistry *entry = MVM_fixkey_hash_fetch_nocheck(tc, &tc->instance->ext_registry, name);
 
     /* Extension already loaded. */
     if (entry) {
@@ -34,7 +34,7 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
         MVM_exception_throw_adhoc_free(tc, waste, "extension symbol (%s) not found", c_name);
     }
 
-    entry = MVM_fixkey_hash_insert_nt(tc, &tc->instance->ext_registry, name);
+    entry = MVM_fixkey_hash_insert_nocheck(tc, &tc->instance->ext_registry, name);
     entry->sym = sym;
 
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_key,
@@ -57,7 +57,7 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
 
     uv_mutex_lock(&tc->instance->mutex_extop_registry);
 
-    struct MVMExtOpRegistry *entry = MVM_fixkey_hash_fetch_nt(tc, &tc->instance->extop_registry, name);
+    struct MVMExtOpRegistry *entry = MVM_fixkey_hash_fetch_nocheck(tc, &tc->instance->extop_registry, name);
 
     /* Op already registered, so just verify its signature. */
     if (entry) {
@@ -144,7 +144,7 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
         }
     }
 
-    entry = MVM_fixkey_hash_insert_nt(tc, &tc->instance->extop_registry, name);
+    entry = MVM_fixkey_hash_insert_nocheck(tc, &tc->instance->extop_registry, name);
     entry->func              = func;
     entry->info.name         = cname;
     entry->info.opcode       = (MVMuint16)-1;
@@ -186,7 +186,7 @@ const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
 
     uv_mutex_lock(&tc->instance->mutex_extop_registry);
 
-    MVMExtOpRegistry *entry = MVM_fixkey_hash_fetch_nt(tc, &tc->instance->extop_registry, record->name);
+    MVMExtOpRegistry *entry = MVM_fixkey_hash_fetch_nocheck(tc, &tc->instance->extop_registry, record->name);
 
     if (!entry) {
         uv_mutex_unlock(&tc->instance->mutex_extop_registry);

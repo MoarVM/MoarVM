@@ -21,13 +21,13 @@ MVM_STATIC_INLINE MVMuint64 MVM_fixkey_hash_code(MVMThreadContext *tc, MVMString
 
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
  * Doesn't check if the key already exists. Use with care. */
-void *MVM_fixkey_hash_insert_nt(MVMThreadContext *tc,
-                                MVMFixKeyHashTable *hashtable,
-                                MVMString *key);
+void *MVM_fixkey_hash_insert_nocheck(MVMThreadContext *tc,
+                                     MVMFixKeyHashTable *hashtable,
+                                     MVMString *key);
 
-MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nt(MVMThreadContext *tc,
-                                                 MVMFixKeyHashTable *hashtable,
-                                                 MVMString *key) {
+MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nocheck(MVMThreadContext *tc,
+                                                      MVMFixKeyHashTable *hashtable,
+                                                      MVMString *key) {
     if (MVM_UNLIKELY(hashtable->entries == NULL)) {
         return NULL;
     }
@@ -74,6 +74,6 @@ MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nt(MVMThreadContext *tc,
  * This might seem like a quirky API, but it's intended to fill a common pattern
  * we have, and the use of NULL key avoids needing two return values.
  * DON'T FORGET to fill in the NULL key. */
-void *MVM_fixkey_hash_lvalue_fetch_nt(MVMThreadContext *tc,
-                                      MVMFixKeyHashTable *hashtable,
-                                      MVMString *key);
+void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
+                                           MVMFixKeyHashTable *hashtable,
+                                           MVMString *key);

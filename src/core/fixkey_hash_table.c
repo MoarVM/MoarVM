@@ -145,9 +145,9 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
 /* Oh, fsck, I needed to implement this: */
 MVMuint64 MVM_fixkey_hash_fsck(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable, MVMuint32 mode);
 
-void *MVM_fixkey_hash_lvalue_fetch_nt(MVMThreadContext *tc,
-                                      MVMFixKeyHashTable *hashtable,
-                                      MVMString *key) {
+void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
+                                           MVMFixKeyHashTable *hashtable,
+                                           MVMString *key) {
     if (MVM_UNLIKELY(hashtable->entries == NULL)) {
         hash_initial_allocate(hashtable);
     }
@@ -156,7 +156,7 @@ void *MVM_fixkey_hash_lvalue_fetch_nt(MVMThreadContext *tc,
          * It's expensive, and for hashes with iterators, growing the hash
          * invalidates iterators. Which is buggy behaviour if the fetch doesn't
          * need to create a key. */
-        MVMString **entry = MVM_fixkey_hash_fetch_nt(tc, hashtable, key);
+        MVMString **entry = MVM_fixkey_hash_fetch_nocheck(tc, hashtable, key);
         if (entry) {
             return entry;
         }
@@ -183,7 +183,7 @@ void *MVM_fixkey_hash_lvalue_fetch_nt(MVMThreadContext *tc,
                     hash_insert_internal(tc, hashtable, *entry);
                 if(*new_indirection) {
                     char *wrong = MVM_string_utf8_encode_C_string(tc, key);
-                    MVM_oops(tc, "new_indrection was not NULL in MVM_fixkey_hash_lvalue_fetch_nt when adding key %s", wrong);
+                    MVM_oops(tc, "new_indrection was not NULL in MVM_fixkey_hash_lvalue_fetch_nocheck when adding key %s", wrong);
                 } else {
                     *new_indirection = *old_indirection;
                 }
@@ -211,10 +211,10 @@ void *MVM_fixkey_hash_lvalue_fetch_nt(MVMThreadContext *tc,
  * Doesn't check if the key already exists. Use with care.
  * (well that's the official line. As you can see, the oops suggests we
  * currently don't exploit the documented freedom.) */
-void *MVM_fixkey_hash_insert_nt(MVMThreadContext *tc,
-                                MVMFixKeyHashTable *hashtable,
-                                MVMString *key) {
-    MVMString **new_entry = MVM_fixkey_hash_lvalue_fetch_nt(tc, hashtable, key);
+void *MVM_fixkey_hash_insert_nocheck(MVMThreadContext *tc,
+                                     MVMFixKeyHashTable *hashtable,
+                                     MVMString *key) {
+    MVMString **new_entry = MVM_fixkey_hash_lvalue_fetch_nocheck(tc, hashtable, key);
     if (*new_entry) {
         /* This footgun has a safety catch. */
         MVM_oops(tc, "duplicate key in fixkey_hash_insert");
