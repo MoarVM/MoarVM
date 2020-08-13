@@ -10,10 +10,10 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
     uv_mutex_lock(&tc->instance->mutex_hllconfigs);
 
     if (tc->instance->hll_compilee_depth) {
-        entry = MVM_fixkey_hash_lvalue_fetch_nt(tc, &tc->instance->compilee_hll_configs, name);
+        entry = MVM_fixkey_hash_lvalue_fetch_nocheck(tc, &tc->instance->compilee_hll_configs, name);
     }
     else {
-        entry = MVM_fixkey_hash_lvalue_fetch_nt(tc, &tc->instance->compiler_hll_configs, name);
+        entry = MVM_fixkey_hash_lvalue_fetch_nocheck(tc, &tc->instance->compiler_hll_configs, name);
     }
 
     if (!entry->name) {
