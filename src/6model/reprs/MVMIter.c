@@ -240,7 +240,6 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
             iterator->body.mode = MVM_ITER_MODE_HASH;
             MVMStrHashTable *hashtable = &(((MVMHash *)target)->body.hashtable);
             iterator->body.hash_state.curr = MVM_str_hash_end(tc, hashtable);
-            assert(MVM_str_hash_at_end(tc, hashtable, iterator->body.hash_state.curr)); // XXX
             iterator->body.hash_state.next = MVM_str_hash_first(tc, hashtable);
             MVM_ASSIGN_REF(tc, &(iterator->common.header), iterator->body.target, target);
         }
