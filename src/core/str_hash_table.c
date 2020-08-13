@@ -243,8 +243,9 @@ void *MVM_str_hash_lvalue_fetch_nt(MVMThreadContext *tc,
 
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
  * Doesn't check if the key already exists. Use with care.
- * (well that's the official line. As you can see, the XXX suggests we currently
- * don't exploit the documented freedom.) */
+ * (well that's the official line. As you can see, the exception suggests we
+ * currently don't exploit the documented freedom, and actually sanity check
+ * what we are given.) */
 void *MVM_str_hash_insert_nt(MVMThreadContext *tc,
                              MVMStrHashTable *hashtable,
                              MVMString *key) {

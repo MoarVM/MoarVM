@@ -221,7 +221,6 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next(MVMThreadContext *tc,
 
 MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_first(MVMThreadContext *tc,
                                                         MVMStrHashTable *hashtable) {
-
     if (MVM_UNLIKELY(!hashtable->entry_size || hashtable->entries == NULL)) {
         /* Bother. Both clauses above seems to be part of our de-facto API. */
         return MVM_str_hash_end(tc, hashtable);
