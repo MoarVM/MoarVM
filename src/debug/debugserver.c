@@ -1554,7 +1554,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
             assert(IS_CONCRETE(name));
             /* Check there is no debug local override for it (which means the lexical
              * was lowered into a local, but preserved for some reason). */
-            MVMStaticFrameDebugLocal *debug_entry = MVM_str_hash_fetch_nt(dtc, debug_locals, name);
+            MVMStaticFrameDebugLocal *debug_entry = MVM_str_hash_fetch_nocheck(dtc, debug_locals, name);
             if (debug_entry && static_info->body.local_types[debug_entry->local_idx] == lextype) {
                 result = &frame->work[debug_entry->local_idx];
                 was_from_local = 1;

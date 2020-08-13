@@ -120,7 +120,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     uv_mutex_lock(&tc->instance->mutex_sc_registry);
     /* sc->body->handle is only written to by code that has already validated
      * that handle is a concrete string. */
-    MVM_str_hash_delete_nt(tc, &tc->instance->sc_weakhash, sc->body->handle);
+    MVM_str_hash_delete_nocheck(tc, &tc->instance->sc_weakhash, sc->body->handle);
     tc->instance->all_scs[sc->body->sc_idx] = NULL;
     uv_mutex_unlock(&tc->instance->mutex_sc_registry);
 

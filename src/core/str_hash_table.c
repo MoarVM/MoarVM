@@ -193,9 +193,9 @@ MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext
     }
 }
 
-void *MVM_str_hash_lvalue_fetch_nt(MVMThreadContext *tc,
-                                   MVMStrHashTable *hashtable,
-                                   MVMString *key) {
+void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
+                                        MVMStrHashTable *hashtable,
+                                        MVMString *key) {
     if (MVM_UNLIKELY(hashtable->entries == NULL)) {
         MVM_str_hash_initial_allocate(tc, hashtable, 0);
     }
@@ -204,7 +204,7 @@ void *MVM_str_hash_lvalue_fetch_nt(MVMThreadContext *tc,
          * It's expensive, and for hashes with iterators, growing the hash
          * invalidates iterators. Which is buggy behaviour if the fetch doesn't
          * need to create a key. */
-        struct MVMStrHashHandle *entry = MVM_str_hash_fetch_nt(tc, hashtable, key);
+        struct MVMStrHashHandle *entry = MVM_str_hash_fetch_nocheck(tc, hashtable, key);
         if (entry) {
             return entry;
         }
@@ -246,9 +246,9 @@ void *MVM_str_hash_lvalue_fetch_nt(MVMThreadContext *tc,
  * (well that's the official line. As you can see, the exception suggests we
  * currently don't exploit the documented freedom, and actually sanity check
  * what we are given.) */
-void *MVM_str_hash_insert_nt(MVMThreadContext *tc,
-                             MVMStrHashTable *hashtable,
-                             MVMString *key) {
+void *MVM_str_hash_insert_nocheck(MVMThreadContext *tc,
+                                  MVMStrHashTable *hashtable,
+                                  MVMString *key) {
     struct MVMStrHashHandle *new_entry = MVM_str_hash_lvalue_fetch(tc, hashtable, key);
     if (new_entry->key) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, key);
@@ -262,9 +262,9 @@ void *MVM_str_hash_insert_nt(MVMThreadContext *tc,
 }
 
 
-void MVM_str_hash_delete_nt(MVMThreadContext *tc,
-                            MVMStrHashTable *hashtable,
-                            MVMString *key) {
+void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
+                                 MVMStrHashTable *hashtable,
+                                 MVMString *key) {
     if (MVM_UNLIKELY(hashtable->entries == NULL)) {
         /* Should this be an oops? */
         return;
