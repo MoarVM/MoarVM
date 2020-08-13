@@ -13,15 +13,15 @@ void MVM_index_hash_build(MVMThreadContext *tc,
 
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
  * Doesn't check if the key already exists. Use with care. */
-void MVM_index_hash_insert_nt(MVMThreadContext *tc,
+void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
                               MVMIndexHashTable *hashtable,
-                              MVMString **list,
-                              MVMuint32 idx);
+                                   MVMString **list,
+                                   MVMuint32 idx);
 
-MVM_STATIC_INLINE MVMuint32 MVM_index_hash_fetch_nt(MVMThreadContext *tc,
-                                                    MVMIndexHashTable *hashtable,
-                                                    MVMString **list,
-                                                    MVMString *want) {
+MVM_STATIC_INLINE MVMuint32 MVM_index_hash_fetch_nocheck(MVMThreadContext *tc,
+                                                         MVMIndexHashTable *hashtable,
+                                                         MVMString **list,
+                                                         MVMString *want) {
     if (MVM_UNLIKELY(hashtable->entries == NULL)) {
         return MVM_INDEX_HASH_NOT_FOUND;
     }
@@ -68,5 +68,5 @@ MVM_STATIC_INLINE MVMuint32 MVM_index_hash_fetch(MVMThreadContext *tc,
     if (!MVM_str_hash_key_is_valid(tc, want)) {
         MVM_str_hash_key_throw_invalid(tc, want);
     }
-    return MVM_index_hash_fetch_nt(tc, hashtable, list, want);
+    return MVM_index_hash_fetch_nocheck(tc, hashtable, list, want);
 }

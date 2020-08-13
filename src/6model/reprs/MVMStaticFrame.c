@@ -80,7 +80,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
             /* don't need to clone the string */
             MVM_ASSIGN_REF(tc, &(dest_root->header), lexical_names_list[j], src_body->lexical_names_list[j]);
             if (lexical_names) {
-                MVM_index_hash_insert_nt(tc, lexical_names, lexical_names_list, j);
+                MVM_index_hash_insert_nocheck(tc, lexical_names, lexical_names_list, j);
             }
         }
         dest_body->lexical_names_list = lexical_names_list;

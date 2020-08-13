@@ -144,10 +144,10 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
 
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
  * Doesn't check if the key already exists. Use with care. */
-void MVM_index_hash_insert_nt(MVMThreadContext *tc,
-                              MVMIndexHashTable *hashtable,
-                              MVMString **list,
-                              MVMuint32 idx) {
+void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
+                                   MVMIndexHashTable *hashtable,
+                                   MVMString **list,
+                                   MVMuint32 idx) {
     assert(hashtable->entries != NULL);
     if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {
         MVMuint32 true_size =  hash_true_size(hashtable);

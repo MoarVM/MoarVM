@@ -191,7 +191,7 @@ static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr, MVMStrin
     /* Enter into registry. */
     tc->instance->repr_vtables[repr->ID] = repr;
     tc->instance->repr_names[repr->ID] = name;
-    MVM_index_hash_insert_nt(tc, &tc->instance->repr_hash, tc->instance->repr_names, repr->ID);
+    MVM_index_hash_insert_nocheck(tc, &tc->instance->repr_hash, tc->instance->repr_names, repr->ID);
 
     /* Name should become a permanent GC root. */
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&tc->instance->repr_names[repr->ID], "REPR name");
@@ -202,7 +202,7 @@ int MVM_repr_register_dynamic_repr(MVMThreadContext *tc, MVMREPROps *repr) {
 
     uv_mutex_lock(&tc->instance->mutex_repr_registry);
 
-    MVMuint32 idx = MVM_index_hash_fetch_nt(tc, &tc->instance->repr_hash, tc->instance->repr_names, name);
+    MVMuint32 idx = MVM_index_hash_fetch_nocheck(tc, &tc->instance->repr_hash, tc->instance->repr_names, name);
     if (idx != MVM_INDEX_HASH_NOT_FOUND) {
         uv_mutex_unlock(&tc->instance->mutex_repr_registry);
         return 0;
@@ -300,7 +300,7 @@ MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name) {
     }
 
     uv_mutex_lock(&tc->instance->mutex_repr_registry);
-    MVMuint32 idx = MVM_index_hash_fetch_nt(tc, &tc->instance->repr_hash, tc->instance->repr_names, name);
+    MVMuint32 idx = MVM_index_hash_fetch_nocheck(tc, &tc->instance->repr_hash, tc->instance->repr_names, name);
     if (idx == MVM_INDEX_HASH_NOT_FOUND) {
         char *c_name = MVM_string_ascii_encode_any(tc, name);
         char *waste[] = { c_name, NULL };
