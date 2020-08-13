@@ -31,7 +31,9 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMStrHashTable *src_hashtable = &(src_body->hashtable);
     MVMStrHashTable *dest_hashtable = &(dest_body->hashtable);
     if (MVM_str_hash_entry_size(tc, dest_hashtable)) {
-        // XXX Is this a valid assumption?
+        /* copy_to is, on reference types, only ever used as part of clone, and
+         * that will always target a freshly created object.
+         * So this should be unreachable. */
         MVM_oops(tc, "copy_to on MVMHash that is already initialized");
     }
     MVM_str_hash_build(tc, dest_hashtable, sizeof(MVMHashEntry),
@@ -176,7 +178,13 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     MVMHashBody *body = (MVMHashBody *)data;
     MVMStrHashTable *hashtable = &(body->hashtable);
     if (MVM_str_hash_entry_size(tc, hashtable)) {
-        // XXX Is this a valid assumption?
+        /* This should be unreachable. As clarified by @jnthn:
+         *   The key question here is "what happens if the hash is repossessed".
+         *   When that happens, the original one has this happen to it:
+         *   [citing code in `repossess` in serialisation.c, which calls `memset`
+         *   on the body.]
+         * After that memset, MVM_str_hash_entry_size will return 0, hence this
+         * code must be unreachable.] */
         MVM_oops(tc, "deserialize on MVMHash that is already initialized");
     }
     MVMint64 elems = MVM_serialization_read_int(tc, reader);
