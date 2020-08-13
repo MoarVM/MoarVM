@@ -93,7 +93,7 @@ typedef double   MVMnum64;
 #endif
 
 /* Hashes */
-#define HASH_DEBUG_ITER 1
+#define HASH_DEBUG_ITER 0
 #define MVM_HASH_RANDOMIZE 1
 #define MVM_HASH_MAX_PROBE_DISTANCE 255
 

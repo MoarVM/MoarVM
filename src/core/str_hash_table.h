@@ -3,7 +3,7 @@
 A C implementation of https://github.com/martinus/robin-hood-hashing
 by Martin Ankerl <http://martin.ankerl.com>
 
-Better than what we have. Not better than his. His is hard to beat.
+Better than what we had. Not better than his. His is hard to beat.
 
 His design is for a Robin Hood hash (ie open addressing, Robin Hood probing)
 with:
