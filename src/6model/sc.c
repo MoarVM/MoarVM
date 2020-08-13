@@ -19,7 +19,7 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
             /* Add to weak lookup hash. */
             uv_mutex_lock(&tc->instance->mutex_sc_registry);
             struct MVMSerializationContextWeakHashEntry *entry
-                = MVM_str_hash_lvalue_fetch_nt(tc, &tc->instance->sc_weakhash, handle);
+                = MVM_str_hash_lvalue_fetch_nocheck(tc, &tc->instance->sc_weakhash, handle);
             if (!entry->hash_handle.key) {
                 entry->hash_handle.key = handle;
 
@@ -350,7 +350,7 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
 MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString *handle) {
     uv_mutex_lock(&tc->instance->mutex_sc_registry);
     struct MVMSerializationContextWeakHashEntry *entry
-        = MVM_str_hash_fetch_nt(tc, &tc->instance->sc_weakhash, handle);
+        = MVM_str_hash_fetch_nocheck(tc, &tc->instance->sc_weakhash, handle);
     uv_mutex_unlock(&tc->instance->mutex_sc_registry);
     return entry ? entry->scb->sc : NULL;
 }

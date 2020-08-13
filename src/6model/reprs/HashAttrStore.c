@@ -35,7 +35,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMStrHashIterator iterator = MVM_str_hash_first(tc, src_hashtable);
     MVMHashEntry *entry;
     while ((entry = MVM_str_hash_current(tc, src_hashtable, iterator))) {
-        MVMHashEntry *new_entry = MVM_str_hash_insert_nt(tc, dest_hashtable, entry->hash_handle.key);
+        MVMHashEntry *new_entry = MVM_str_hash_insert_nocheck(tc, dest_hashtable, entry->hash_handle.key);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, entry->value);
         MVM_gc_write_barrier(tc, &(dest_root->header), &(entry->hash_handle.key->common.header));
         iterator = MVM_str_hash_next(tc, src_hashtable, iterator);
@@ -96,7 +96,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry), 0);
     }
 
-    MVMHashEntry *entry = MVM_str_hash_lvalue_fetch_nt(tc, hashtable, name);
+    MVMHashEntry *entry = MVM_str_hash_lvalue_fetch_nocheck(tc, hashtable, name);
     MVM_ASSIGN_REF(tc, &(root->header), entry->value, value_reg.o);
     if (!entry->hash_handle.key) {
         entry->hash_handle.key = name;

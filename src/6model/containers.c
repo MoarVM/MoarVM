@@ -747,7 +747,7 @@ void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
 
     uv_mutex_lock(&tc->instance->mutex_container_registry);
 
-    MVMContainerRegistry *entry = MVM_str_hash_lvalue_fetch_nt(tc, &tc->instance->container_registry, name);
+    MVMContainerRegistry *entry = MVM_str_hash_lvalue_fetch_nocheck(tc, &tc->instance->container_registry, name);
 
     if (!entry->hash_handle.key) {
         entry->configurer      = configurer;
@@ -765,7 +765,7 @@ const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext 
     }
 
     uv_mutex_lock(&tc->instance->mutex_container_registry);
-    MVMContainerRegistry *entry = MVM_str_hash_fetch_nt(tc, &tc->instance->container_registry, name);
+    MVMContainerRegistry *entry = MVM_str_hash_fetch_nocheck(tc, &tc->instance->container_registry, name);
     uv_mutex_unlock(&tc->instance->mutex_container_registry);
     return entry ? entry->configurer : NULL;
 }

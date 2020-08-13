@@ -301,7 +301,7 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
         /* See if we can resolve it. */
         uv_mutex_lock(&tc->instance->mutex_sc_registry);
         struct MVMSerializationContextWeakHashEntry *entry
-            = MVM_str_hash_lvalue_fetch_nt(tc, &tc->instance->sc_weakhash, handle);
+            = MVM_str_hash_lvalue_fetch_nocheck(tc, &tc->instance->sc_weakhash, handle);
         if (entry->hash_handle.key && entry->scb->sc) {
             cu_body->scs_to_resolve[i] = NULL;
             entry->scb->claimed = 1;
@@ -784,7 +784,7 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         for (j = 0; j < num_debug_locals; j++) {
             MVMuint16 idx = read_int16(pos, 0);
             MVMString *name = get_heap_string(tc, cu, NULL, pos, 2);
-            MVMStaticFrameDebugLocal *entry = MVM_str_hash_insert_nt(tc, ins->debug_locals, name);
+            MVMStaticFrameDebugLocal *entry = MVM_str_hash_insert_nocheck(tc, ins->debug_locals, name);
             entry->local_idx = idx;
             MVM_ASSIGN_REF(tc, &(sf->common.header), entry->hash_handle.key, name);
             pos += 6;

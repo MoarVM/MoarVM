@@ -45,13 +45,13 @@ MVM_STATIC_INLINE MVMuint64 MVM_str_hash_code(MVMThreadContext *tc,
 
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
  * Doesn't check if the key already exists. Use with care. */
-void *MVM_str_hash_insert_nt(MVMThreadContext *tc,
-                             MVMStrHashTable *hashtable,
-                             MVMString *key);
+void *MVM_str_hash_insert_nocheck(MVMThreadContext *tc,
+                                  MVMStrHashTable *hashtable,
+                                  MVMString *key);
 
-MVM_STATIC_INLINE void *MVM_str_hash_fetch_nt(MVMThreadContext *tc,
-                                              MVMStrHashTable *hashtable,
-                                              MVMString *key) {
+MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
+                                                   MVMStrHashTable *hashtable,
+                                                   MVMString *key) {
     if (MVM_UNLIKELY(hashtable->entries == NULL)) {
         return NULL;
     }
@@ -96,13 +96,13 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nt(MVMThreadContext *tc,
  * This might seem like a quirky API, but it's intended to fill a common pattern
  * we have, and the use of NULL key avoids needing two return values.
  * DON'T FORGET to fill in the NULL key. */
-void *MVM_str_hash_lvalue_fetch_nt(MVMThreadContext *tc,
-                                   MVMStrHashTable *hashtable,
-                                   MVMString *key);
+void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
+                                        MVMStrHashTable *hashtable,
+                                        MVMString *key);
 
-void MVM_str_hash_delete_nt(MVMThreadContext *tc,
-                            MVMStrHashTable *hashtable,
-                            MVMString *want);
+void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
+                                 MVMStrHashTable *hashtable,
+                                 MVMString *want);
 
 /* Use these two functions to
  * 1: move the is-concrete-or-throw test before critical sections (eg before
@@ -136,7 +136,7 @@ MVM_STATIC_INLINE void *MVM_str_hash_lvalue_fetch(MVMThreadContext *tc,
     if (!MVM_str_hash_key_is_valid(tc, key)) {
         MVM_str_hash_key_throw_invalid(tc, key);
     }
-    return MVM_str_hash_lvalue_fetch_nt(tc, hashtable, key);
+    return MVM_str_hash_lvalue_fetch_nocheck(tc, hashtable, key);
 }
 
 MVM_STATIC_INLINE void *MVM_str_hash_fetch(MVMThreadContext *tc,
@@ -145,7 +145,7 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch(MVMThreadContext *tc,
     if (!MVM_str_hash_key_is_valid(tc, want)) {
         MVM_str_hash_key_throw_invalid(tc, want);
     }
-    return MVM_str_hash_fetch_nt(tc, hashtable, want);
+    return MVM_str_hash_fetch_nocheck(tc, hashtable, want);
 }
 
 MVM_STATIC_INLINE void MVM_str_hash_delete(MVMThreadContext *tc,
@@ -154,7 +154,7 @@ MVM_STATIC_INLINE void MVM_str_hash_delete(MVMThreadContext *tc,
     if (!MVM_str_hash_key_is_valid(tc, want)) {
         MVM_str_hash_key_throw_invalid(tc, want);
     }
-    MVM_str_hash_delete_nt(tc, hashtable, want);
+    MVM_str_hash_delete_nocheck(tc, hashtable, want);
 }
 
 /* This is not part of the public API, and subject to change at any point.
