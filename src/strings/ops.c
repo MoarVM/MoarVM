@@ -2884,8 +2884,7 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp) {
 }
 
 /* Takes a string and computes a hash code for it, storing it in the hash code
- * cache field of the string. Hashing code is derived from the Jenkins hash
- * implementation in uthash.h. */
+ * cache field of the string. */
 typedef union {
     MVMuint32 graphs[2];
     MVMuint64 u64;
