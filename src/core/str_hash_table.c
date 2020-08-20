@@ -197,6 +197,12 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
                                         MVMStrHashTable *hashtable,
                                         MVMString *key) {
     if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+        if (MVM_UNLIKELY(hashtable->entry_size == 0)) {
+            /* This isn't going to work, because we'll call MVM_malloc() with a
+             * zero size, and likely malloc() will return NULL and hence
+             * MVM_malloc() will panic. */
+            MVM_oops(tc, "Attempting insert on MVM_str_hash without setting entry_size");
+        }
         MVM_str_hash_initial_allocate(tc, hashtable, 0);
     }
     else if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {

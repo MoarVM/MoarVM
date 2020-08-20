@@ -149,6 +149,11 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
                                            MVMFixKeyHashTable *hashtable,
                                            MVMString *key) {
     if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+        if (MVM_UNLIKELY(hashtable->entry_size == 0)) {
+            /* This isn't going to work, because we'll allocate 0 bytes from the
+             * FSA, but then try to write a pointer into it. */
+            MVM_oops(tc, "Attempting insert on MVM_fixkey_hash without setting entry_size");
+        }
         hash_initial_allocate(hashtable);
     }
     else if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {
