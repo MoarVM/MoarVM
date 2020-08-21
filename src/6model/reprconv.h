@@ -159,15 +159,15 @@ MVM_PUBLIC MVMObject * MVM_repr_casattr_o(MVMThreadContext *tc, MVMObject *objec
 MVM_STATIC_INLINE void MVM_repr_emulate_fetch_delete_key(MVMThreadContext *tc, MVMObject *obj, MVMString *key, MVMRegister *value) {
     if (MVM_LIKELY(IS_CONCRETE(obj))) {
         if (REPR(obj)->ID == MVM_REPR_ID_MVMHash) {
-            MVMHash_at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
-                           (MVMObject *)key, value, MVM_reg_obj);
+            MVMHash_fetch_and_delete_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                                         (MVMObject *)key, value, MVM_reg_obj);
         }
         else {
             REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
                                         (MVMObject *)key, value, MVM_reg_obj);
+            REPR(obj)->ass_funcs.delete_key(tc, STABLE(obj), obj,
+                                            OBJECT_BODY(obj), (MVMObject *)key);
         }
-        REPR(obj)->ass_funcs.delete_key(tc, STABLE(obj), obj,
-                                        OBJECT_BODY(obj), (MVMObject *)key);
     }
     else {
         value->o = tc->instance->VMNull;

@@ -335,6 +335,85 @@ void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
     }
 }
 
+/* Unclear to me how this and the prevous function can be merged efficiently,
+ * and without hacks (ie returning a hunk of memory that doesn't really map to
+ * pointer.) */
+MVMObject *MVM_str_hash_fetch_and_delete(MVMThreadContext *tc,
+                                         MVMStrHashTable *hashtable,
+                                         MVMString *key) {
+    if (MVM_UNLIKELY(hashtable->entry_size != sizeof(struct MVMHashEntry))) {
+        MVM_oops(tc, "MVM_str_hash_lvalue_delete can only be called on a hashtable with entrysize == %u (not %u)",
+                 (unsigned int) sizeof(struct MVMHashEntry),
+                 (unsigned int) hashtable->entry_size);
+    }
+    if (!MVM_str_hash_key_is_valid(tc, key)) {
+        MVM_str_hash_key_throw_invalid(tc, key);
+    }
+    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+        /* Should this be an oops? */
+        return NULL;
+    }
+    unsigned int probe_distance = 1;
+    MVMHashNumItems bucket = MVM_str_hash_code(tc, hashtable->salt, key) >> hashtable->key_right_shift;
+    char *entry_raw = hashtable->entries + bucket * hashtable->entry_size;
+    uint8_t *metadata = hashtable->metadata + bucket;
+    while (1) {
+        if (*metadata == probe_distance) {
+            struct MVMHashEntry *entry = (struct MVMHashEntry *) entry_raw;
+            if (entry->hash_handle.key == key
+                || (MVM_string_graphs_nocheck(tc, key) == MVM_string_graphs_nocheck(tc, entry->hash_handle.key)
+                    && MVM_string_substrings_equal_nocheck(tc, key, 0,
+                                                           MVM_string_graphs_nocheck(tc, key),
+                                                           entry->hash_handle.key, 0))) {
+                /* Target acquired. */
+
+                MVMObject *value = entry->value;
+                uint8_t *metadata_target = metadata;
+                /* Look at the next slot */
+                uint8_t old_probe_distance = metadata_target[1];
+                while (old_probe_distance > 1) {
+                    /* OK, we can move this one. */
+                    *metadata_target = old_probe_distance - 1;
+                    /* Try the next one, etc */
+                    ++metadata_target;
+                    old_probe_distance = metadata_target[1];
+                }
+                /* metadata_target now points to the metadata for the last thing
+                   we did move. (possibly still our target). */
+
+                uint32_t entries_to_move = metadata_target - metadata;
+                if (entries_to_move) {
+                    memmove(entry_raw, entry_raw + hashtable->entry_size,
+                            hashtable->entry_size * entries_to_move);
+                }
+                /* and this slot is now emtpy. */
+                *metadata_target = 0;
+                --hashtable->cur_items;
+
+                /* Job's a good 'un. */
+                return value;
+            }
+        }
+        /* There's a sentinel at the end. This will terminate: */
+        if (*metadata < probe_distance) {
+            /* So, if we hit 0, the bucket is empty. "Not found".
+               If we hit something with a lower probe distance then...
+               consider what would have happened had this key been inserted into
+               the hash table - it would have stolen this slot, and the key we
+               find here now would have been displaced futher on. Hence, the key
+               we seek can't be in the hash table. */
+            /* Strange. Not in the hash. Should this be an oops? */
+            return NULL;
+        }
+        ++probe_distance;
+        ++metadata;
+        entry_raw += hashtable->entry_size;
+        assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
+        assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
+        assert(metadata < hashtable->metadata + hashtable->official_size + 256);
+    }
+}
+
 
 /* This is not part of the public API, and subject to change at any point.
    (possibly in ways that are actually incompatible but won't generate compiler

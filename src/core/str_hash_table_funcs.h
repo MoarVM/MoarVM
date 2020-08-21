@@ -139,6 +139,10 @@ MVM_STATIC_INLINE void *MVM_str_hash_lvalue_fetch(MVMThreadContext *tc,
     return MVM_str_hash_lvalue_fetch_nocheck(tc, hashtable, key);
 }
 
+MVMObject *MVM_str_hash_fetch_and_delete(MVMThreadContext *tc,
+                                         MVMStrHashTable *hashtable,
+                                         MVMString *key);
+
 MVM_STATIC_INLINE void *MVM_str_hash_fetch(MVMThreadContext *tc,
                                            MVMStrHashTable *hashtable,
                                            MVMString *want) {

@@ -143,6 +143,18 @@ static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     MVM_str_hash_delete(tc, hashtable, key);
 }
 
+void MVMHash_fetch_and_delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister *result, MVMuint16 kind) {
+    MVMHashBody   *body = (MVMHashBody *)data;
+    MVMStrHashTable *hashtable = &(body->hashtable);
+
+    if (MVM_UNLIKELY(kind != MVM_reg_obj))
+        MVM_exception_throw_adhoc(tc,
+            "MVMHash representation does not support native type storage");
+
+    MVMObject *value = MVM_str_hash_fetch_and_delete(tc, hashtable, (MVMString *)key_obj);
+    result->o = value != NULL ? value : tc->instance->VMNull;
+}
+
 static MVMStorageSpec get_value_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
     MVMStorageSpec spec;
     spec.inlineable      = MVM_STORAGE_SPEC_REFERENCE;
