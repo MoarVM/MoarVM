@@ -2522,9 +2522,9 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_DEPRECATED_33,
-        "DEPRECATED_33",
-        2,
+        MVM_OP_fetch_delete_key,
+        "fetch_delete_key",
+        3,
         0,
         0,
         0,
@@ -2532,8 +2532,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_ins }
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
         MVM_OP_DEPRECATED_34,

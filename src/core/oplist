@@ -236,7 +236,7 @@ die                 w(obj) r(str) :throwish
 rethrow             r(obj) :throwish
 resume              r(obj) :throwish
 takehandlerresult   w(obj)
-DEPRECATED_33       w(obj) ins
+fetch_delete_key    w(obj) r(obj) r(str) :specializable
 DEPRECATED_34       w(obj) r(obj)
 backtracestrings    w(obj) r(obj) :pure
 usecapture          w(obj) :noinline

@@ -181,7 +181,7 @@ static const void * const LABELS[] = {
     &&OP_rethrow,
     &&OP_resume,
     &&OP_takehandlerresult,
-    &&OP_DEPRECATED_33,
+    &&OP_fetch_delete_key,
     &&OP_DEPRECATED_34,
     &&OP_backtracestrings,
     &&OP_usecapture,

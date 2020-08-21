@@ -1354,6 +1354,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(fetch_delete_key): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVM_repr_emulate_fetch_delete_key(tc, obj, GET_REG(cur_op, 4).s, &GET_REG(cur_op, 0));
+                MVM_SC_WB_OBJ(tc, obj);
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(backtracestrings):
                 GET_REG(cur_op, 0).o = MVM_exception_backtrace_strings(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
@@ -6654,8 +6661,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The shell op was removed in MoarVM 2017.07.");
             OP(DEPRECATED_32):
                 MVM_exception_throw_adhoc(tc, "The close_fhi op was removed in MoarVM 2017.07.");
-            OP(DEPRECATED_33):
-                MVM_exception_throw_adhoc(tc, "The newlexotic op was removed in MoarVM 2017.08.");
             OP(DEPRECATED_34):
                 MVM_exception_throw_adhoc(tc, "The lexoticresult op was removed in MoarVM 2017.08.");
             OP(coverage_log): {
