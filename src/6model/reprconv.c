@@ -527,6 +527,12 @@ MVMObject * MVM_repr_at_key_o(MVMThreadContext *tc, MVMObject *obj, MVMString *k
     return tc->instance->VMNull;
 }
 
+MVMObject * MVM_repr_fetch_delete_key(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
+    MVMRegister value;
+    MVM_repr_emulate_fetch_delete_key(tc, obj, key, &value);
+    return value.o;
+}
+
 void MVM_repr_bind_key_i(MVMThreadContext *tc, MVMObject *obj, MVMString *key, MVMint64 val) {
     MVMRegister value;
     value.i64 = val;

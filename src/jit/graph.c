@@ -208,6 +208,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_atkey_s: return MVM_repr_at_key_s;
     case MVM_OP_atkey_o: return MVM_repr_at_key_o;
 
+    case MVM_OP_fetch_delete_key: return MVM_repr_fetch_delete_key;
+
     case MVM_OP_bindpos_i: return MVM_repr_bind_pos_i;
     case MVM_OP_bindpos_n: return MVM_repr_bind_pos_n;
     case MVM_OP_bindpos_s: return MVM_repr_bind_pos_s;
@@ -835,6 +837,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_OP_atkey_s:
         case MVM_OP_atkey_o:
         case MVM_OP_elems:
+        case MVM_OP_fetch_delete_key:
         case MVM_OP_shift_i:
         case MVM_OP_shift_n:
         case MVM_OP_shift_s:
@@ -881,6 +884,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
             case MVM_OP_atkey_n:
             case MVM_OP_atkey_s:
             case MVM_OP_atkey_o:
+            case MVM_OP_fetch_delete_key:
                 alternative = 1;
                 MVM_FALLTHROUGH
             case MVM_OP_atpos_i:
@@ -1516,7 +1520,8 @@ skipdevirt:
     case MVM_OP_atpos_o:
     case MVM_OP_atkey_o:
     case MVM_OP_atkey_s:
-    case MVM_OP_atpos_s: {
+    case MVM_OP_atpos_s:
+    case MVM_OP_fetch_delete_key: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint32 invocant = ins->operands[1].reg.orig;
         MVMint32 position = ins->operands[2].reg.orig;
@@ -2577,6 +2582,7 @@ start:
     case MVM_OP_atkey_n:
     case MVM_OP_atkey_s:
     case MVM_OP_atkey_o:
+    case MVM_OP_fetch_delete_key:
     case MVM_OP_bindpos_i:
     case MVM_OP_bindpos_n:
     case MVM_OP_bindpos_s:

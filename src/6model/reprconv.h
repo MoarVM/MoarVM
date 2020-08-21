@@ -173,3 +173,5 @@ MVM_STATIC_INLINE void MVM_repr_emulate_fetch_delete_key(MVMThreadContext *tc, M
         value->o = tc->instance->VMNull;
     }
 }
+
+MVMObject * MVM_repr_fetch_delete_key(MVMThreadContext *tc, MVMObject *obj, MVMString *key);

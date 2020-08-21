@@ -2880,6 +2880,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_atkey_s:
         case MVM_OP_atkey_o:
         case MVM_OP_elems:
+        case MVM_OP_fetch_delete_key:
         case MVM_OP_shift_i:
         case MVM_OP_shift_n:
         case MVM_OP_shift_s:
