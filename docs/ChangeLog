@@ -1,3 +1,23 @@
+New in 2020.08
+
+Core:
++ [c0ed9e32] Make extop marks reachable again in MVM_op_get_mark
+
+Debug Server:
++ [b78b523d][2a9f0f06] Implement `FindMethod` op and add a `name` field for it
++ [7a2881a8] Implement simplest case of `decont` op
++ [f6f12f5a] Fix compiler warnings
+
+GC:
++ [da237717] Move MVM_malloc_trim call after MVM_gc_collect_free_gen2_unmarked call
+
+Strings:
++ [393ae579] Fix case insensitive string matching with an empty string
+
+Tooling/Build:
++ [6d5a3b02] Make `Configure.pl` executable again
++ [1f182b48] Add new `Configure.pl` flag `--dtrace` which allows to put DTrace points in the code
+
 New in 2020.07
 
 6model:
