@@ -143,17 +143,6 @@ MVMuint32 MVM_round_up_log_base2(MVMuint32 v);
  * as the reprs headers are included as one block, *most* of the MVMStrHashTable
  * functions need to be later. */
 
-MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_end(MVMThreadContext *tc,
-                                                      MVMStrHashTable *hashtable) {
-    MVMStrHashIterator retval;
-#if HASH_DEBUG_ITER
-    retval.owner = hashtable->ht_id;
-    retval.serial = hashtable->serial;
-#endif
-    retval.pos = 0;
-    return retval;
-}
-
 MVM_STATIC_INLINE int MVM_str_hash_at_end(MVMThreadContext *tc,
                                            MVMStrHashTable *hashtable,
                                            MVMStrHashIterator iterator) {

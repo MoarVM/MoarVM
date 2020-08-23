@@ -221,22 +221,51 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next(MVMThreadContext *tc,
 
 MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_first(MVMThreadContext *tc,
                                                         MVMStrHashTable *hashtable) {
-    if (hashtable->cur_items == 0) {
-        return MVM_str_hash_end(tc, hashtable);
-    }
-
     MVMStrHashIterator iterator;
-    iterator.pos = MVM_str_hash_kompromat(hashtable);
-
 #if HASH_DEBUG_ITER
     iterator.owner = hashtable->ht_id;
     iterator.serial = hashtable->serial;
 #endif
 
+    if (hashtable->cur_items == 0) {
+        /* We are already at the end. */
+        iterator.pos = 0;
+        return iterator;
+    }
+
+    iterator.pos = MVM_str_hash_kompromat(hashtable);
+
     if (hashtable->metadata[iterator.pos - 1]) {
         return iterator;
     }
     return MVM_str_hash_next(tc, hashtable, iterator);
+}
+
+MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_start(MVMThreadContext *tc,
+                                                        MVMStrHashTable *hashtable) {
+    MVMStrHashIterator retval;
+#if HASH_DEBUG_ITER
+    retval.owner = hashtable->ht_id;
+    retval.serial = hashtable->serial;
+#endif
+    retval.pos = MVM_str_hash_kompromat(hashtable) + 1;
+    return retval;
+}
+
+MVM_STATIC_INLINE int MVM_str_hash_at_start(MVMThreadContext *tc,
+                                            MVMStrHashTable *hashtable,
+                                            MVMStrHashIterator iterator) {
+#if HASH_DEBUG_ITER
+    if (iterator.owner != hashtable->ht_id) {
+        MVM_oops(tc, "MVM_str_hash_at_end called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
+                 iterator.owner, hashtable->ht_id);
+    }
+    if (iterator.serial != hashtable->serial) {
+        MVM_oops(tc, "MVM_str_hash_at_end called with an iterator with the wrong serial number: %u != %u",
+                 iterator.serial, hashtable->serial);
+    }
+#endif
+    return iterator.pos == MVM_str_hash_kompromat(hashtable) + 1;
 }
 
 /* FIXME - this needs a better name: */
