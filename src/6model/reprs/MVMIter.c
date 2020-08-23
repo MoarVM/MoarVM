@@ -290,7 +290,7 @@ MVMString * MVM_iterkey_s(MVMThreadContext *tc, MVMIter *iterator) {
         || MVM_str_hash_at_start(tc, hashtable, iterator->body.hash_state.curr))
         MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
 
-    struct MVMHashEntry *entry = MVM_str_hash_current(tc, hashtable, iterator->body.hash_state.curr);
+    struct MVMHashEntry *entry = MVM_str_hash_current_nocheck(tc, hashtable, iterator->body.hash_state.curr);
     return entry->hash_handle.key;
 }
 
@@ -320,7 +320,7 @@ MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator) {
         if (MVM_str_hash_at_end(tc, hashtable, iterator->body.hash_state.curr)
             || MVM_str_hash_at_start(tc, hashtable, iterator->body.hash_state.curr))
             MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
-        struct MVMHashEntry *entry = MVM_str_hash_current(tc, hashtable, iterator->body.hash_state.curr);
+        struct MVMHashEntry *entry = MVM_str_hash_current_nocheck(tc, hashtable, iterator->body.hash_state.curr);
         result.o = entry->value;
         if (!result.o)
             result.o = tc->instance->VMNull;

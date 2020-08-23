@@ -173,8 +173,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     if (body->instrumentation && body->instrumentation->debug_locals) {
         MVMStrHashTable *const debug_locals = body->instrumentation->debug_locals;
         MVMStrHashIterator iterator = MVM_str_hash_first(tc, debug_locals);
-        MVMStaticFrameDebugLocal *local;
-        while ((local = MVM_str_hash_current(tc, debug_locals, iterator))) {
+        while (!MVM_str_hash_at_end(tc, debug_locals, iterator)) {
+            MVMStaticFrameDebugLocal *local = MVM_str_hash_current_nocheck(tc, debug_locals, iterator);
             MVM_gc_worklist_add(tc, worklist, &local->hash_handle.key);
             iterator = MVM_str_hash_next(tc, debug_locals, iterator);
         }

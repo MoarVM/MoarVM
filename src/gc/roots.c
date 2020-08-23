@@ -103,8 +103,9 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
      * keys of it anyway... */
     MVMStrHashTable *const weakhash = &tc->instance->sc_weakhash;
     MVMStrHashIterator iterator = MVM_str_hash_first(tc, weakhash);
-    struct MVMSerializationContextWeakHashEntry *current;
-    while ((current = MVM_str_hash_current(tc, weakhash, iterator))) {
+    while (!MVM_str_hash_at_end(tc, weakhash, iterator)) {
+        struct MVMSerializationContextWeakHashEntry *current
+            = MVM_str_hash_current_nocheck(tc, weakhash, iterator);
         /* mark the string handle pointer iff it hasn't yet been resolved */
         add_collectable(tc, worklist, snapshot, current->hash_handle.key,
             "SC weakhash hash key");
@@ -119,8 +120,8 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 
     MVMStrHashTable *const containers = &tc->instance->container_registry;
     iterator = MVM_str_hash_first(tc, containers);
-    MVMContainerRegistry *registry;
-    while ((registry = MVM_str_hash_current(tc, containers, iterator))) {
+    while (!MVM_str_hash_at_end(tc, containers, iterator)) {
+        MVMContainerRegistry *registry = MVM_str_hash_current_nocheck(tc, containers, iterator);
         add_collectable(tc, worklist, snapshot, registry->hash_handle.key,
                         "Container configuration hash key");
         iterator = MVM_str_hash_next(tc, containers, iterator);
@@ -189,8 +190,9 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     if (tc->native_callback_cache) {
         MVMStrHashTable *cache = tc->native_callback_cache;
         MVMStrHashIterator iterator = MVM_str_hash_first(tc, cache);
-        struct MVMNativeCallbackCacheHead *current_cbceh;
-        while ((current_cbceh = MVM_str_hash_current(tc, cache, iterator))) {
+        while (!MVM_str_hash_at_end(tc, cache, iterator)) {
+            struct MVMNativeCallbackCacheHead *current_cbceh
+                = MVM_str_hash_current_nocheck(tc, cache, iterator);
             MVMint32 i;
             MVMNativeCallback *entry = current_cbceh->head;
             add_collectable(tc, worklist, snapshot, current_cbceh->hash_handle.key,

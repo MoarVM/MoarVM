@@ -268,6 +268,14 @@ MVM_STATIC_INLINE int MVM_str_hash_at_start(MVMThreadContext *tc,
     return iterator.pos == MVM_str_hash_kompromat(hashtable) + 1;
 }
 
+/* Only call this if MVM_str_hash_at_end returns false. */
+MVM_STATIC_INLINE void *MVM_str_hash_current_nocheck(MVMThreadContext *tc,
+                                                     MVMStrHashTable *hashtable,
+                                                     MVMStrHashIterator iterator) {
+    assert(hashtable->metadata[iterator.pos - 1]);
+    return hashtable->entries + hashtable->entry_size * (iterator.pos - 1);
+}
+
 /* FIXME - this needs a better name: */
 MVM_STATIC_INLINE void *MVM_str_hash_current(MVMThreadContext *tc,
                                              MVMStrHashTable *hashtable,
@@ -283,12 +291,13 @@ MVM_STATIC_INLINE void *MVM_str_hash_current(MVMThreadContext *tc,
     }
 #endif
 
-    if (MVM_UNLIKELY(MVM_str_hash_at_end(tc, hashtable, iterator))) {
+    /* This is MVM_str_hash_at_end without the HASH_DEBUG_ITER checks duplicated. */
+    if (MVM_UNLIKELY(iterator.pos == 0)) {
         /* Bother. This seems to be part of our de-facto API. */
         return NULL;
     }
-    assert(hashtable->metadata[iterator.pos - 1]);
-    return hashtable->entries + hashtable->entry_size * (iterator.pos - 1);
+
+    return MVM_str_hash_current_nocheck(tc, hashtable, iterator);
 }
 
 MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_count(MVMThreadContext *tc,

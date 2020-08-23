@@ -39,8 +39,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVM_str_hash_build(tc, dest_hashtable, sizeof(MVMHashEntry),
                        MVM_str_hash_count(tc, src_hashtable));
     MVMStrHashIterator iterator = MVM_str_hash_first(tc, src_hashtable);
-    MVMHashEntry *entry;
-    while ((entry = MVM_str_hash_current(tc, src_hashtable, iterator))) {
+    while (!MVM_str_hash_at_end(tc, src_hashtable, iterator)) {
+        MVMHashEntry *entry = MVM_str_hash_current_nocheck(tc, src_hashtable, iterator);
         MVMHashEntry *new_entry = MVM_str_hash_insert_nocheck(tc, dest_hashtable, entry->hash_handle.key);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, entry->value);
         MVM_gc_write_barrier(tc, &(dest_root->header), &(entry->hash_handle.key->common.header));
@@ -55,8 +55,8 @@ static void MVMHash_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVM
     MVM_gc_worklist_presize_for(tc, worklist, 2 * MVM_str_hash_count(tc, hashtable));
     if (worklist->include_gen2) {
         MVMStrHashIterator iterator = MVM_str_hash_first(tc, hashtable);
-        MVMHashEntry *current;
-        while ((current = MVM_str_hash_current(tc, hashtable, iterator))) {
+        while (!MVM_str_hash_at_end(tc, hashtable, iterator)) {
+            MVMHashEntry *current = MVM_str_hash_current_nocheck(tc, hashtable, iterator);
             MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, &current->hash_handle.key);
             MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, &current->value);
             iterator = MVM_str_hash_next(tc, hashtable, iterator);
@@ -64,8 +64,8 @@ static void MVMHash_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVM
     }
     else {
         MVMStrHashIterator iterator = MVM_str_hash_first(tc, hashtable);
-        MVMHashEntry *current;
-        while ((current = MVM_str_hash_current(tc, hashtable, iterator))) {
+        while (!MVM_str_hash_at_end(tc, hashtable, iterator)) {
+            MVMHashEntry *current = MVM_str_hash_current_nocheck(tc, hashtable, iterator);
             MVMCollectable **key = (MVMCollectable **) &current->hash_handle.key;
             MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, key);
             MVM_gc_worklist_add_object_no_include_gen2_nocheck(tc, worklist, &current->value);
@@ -208,8 +208,8 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     MVMuint64 i = 0;
     MVM_serialization_write_int(tc, writer, elems);
     MVMStrHashIterator iterator = MVM_str_hash_first(tc, hashtable);
-    MVMHashEntry *current;
-    while ((current = MVM_str_hash_current(tc, hashtable, iterator))) {
+    while (!MVM_str_hash_at_end(tc, hashtable, iterator)) {
+        MVMHashEntry *current = MVM_str_hash_current_nocheck(tc, hashtable, iterator);
         keys[i++] = current->hash_handle.key;
         iterator = MVM_str_hash_next(tc, hashtable, iterator);
     }

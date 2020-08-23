@@ -1519,8 +1519,9 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         MVMuint64 lexcount = static_info->body.num_lexicals;
         if (debug_locals) {
             MVMStrHashIterator iterator = MVM_str_hash_first(dtc, debug_locals);
-            MVMStaticFrameDebugLocal *debug_entry;
-            while ((debug_entry = MVM_str_hash_current(dtc, debug_locals, iterator))) {
+            while (!MVM_str_hash_at_end(dtc, debug_locals, iterator)) {
+                MVMStaticFrameDebugLocal *debug_entry
+                    = MVM_str_hash_current_nocheck(dtc, debug_locals, iterator);
                 MVMuint32 idx = MVM_get_lexical_by_name(dtc, static_info, debug_entry->hash_handle.key);
                 if (idx != MVM_INDEX_HASH_NOT_FOUND)
                     lexcount++;
@@ -1576,8 +1577,9 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
 
         if (debug_locals) {
             MVMStrHashIterator iterator = MVM_str_hash_first(dtc, debug_locals);
-            MVMStaticFrameDebugLocal *debug_entry;
-            while ((debug_entry = MVM_str_hash_current(dtc, debug_locals, iterator))) {
+            while (!MVM_str_hash_at_end(dtc, debug_locals, iterator)) {
+                MVMStaticFrameDebugLocal *debug_entry
+                    = MVM_str_hash_current_nocheck(dtc, debug_locals, iterator);
                 MVMuint32 idx = MVM_get_lexical_by_name(dtc, static_info, debug_entry->hash_handle.key);
                 if (idx != MVM_INDEX_HASH_NOT_FOUND) {
                     char *c_key_name = MVM_string_utf8_encode_C_string(dtc, lexical_names_list[idx]);
@@ -2248,8 +2250,8 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
         cmp_write_map(ctx, count);
 
         MVMStrHashIterator iterator = MVM_str_hash_first(dtc, hashtable);
-        MVMHashEntry *entry;
-        while ((entry = MVM_str_hash_current(dtc, hashtable, iterator))) {
+        while (!MVM_str_hash_at_end(dtc, hashtable, iterator)) {
+            MVMHashEntry *entry = MVM_str_hash_current_nocheck(dtc, hashtable, iterator);
             char *key = MVM_string_utf8_encode_C_string(dtc, entry->hash_handle.key);
             MVMObject *value = entry->value;
             char *value_debug_name = value ? MVM_6model_get_debug_name(dtc, value) : "VMNull";
