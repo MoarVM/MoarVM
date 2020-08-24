@@ -115,7 +115,7 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
         else if (!current->scb->claimed)
             add_collectable(tc, worklist, snapshot, current->scb->sc,
                 "SC weakhash unclaimed SC");
-        iterator = MVM_str_hash_next(tc, weakhash, iterator);
+        iterator = MVM_str_hash_next_nocheck(tc, weakhash, iterator);
     }
 
     MVMStrHashTable *const containers = &tc->instance->container_registry;
@@ -124,7 +124,7 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
         MVMContainerRegistry *registry = MVM_str_hash_current_nocheck(tc, containers, iterator);
         add_collectable(tc, worklist, snapshot, registry->hash_handle.key,
                         "Container configuration hash key");
-        iterator = MVM_str_hash_next(tc, containers, iterator);
+        iterator = MVM_str_hash_next_nocheck(tc, containers, iterator);
     }
 
     add_collectable(tc, worklist, snapshot, tc->instance->cached_backend_config,
@@ -205,7 +205,7 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
                                 "Native callback cache target");
                 entry = entry->next;
             }
-            iterator = MVM_str_hash_next(tc, cache, iterator);
+            iterator = MVM_str_hash_next_nocheck(tc, cache, iterator);
         }
     }
 

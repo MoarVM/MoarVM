@@ -1525,7 +1525,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                 MVMuint32 idx = MVM_get_lexical_by_name(dtc, static_info, debug_entry->hash_handle.key);
                 if (idx != MVM_INDEX_HASH_NOT_FOUND)
                     lexcount++;
-                iterator = MVM_str_hash_next(dtc, debug_locals, iterator);
+                iterator = MVM_str_hash_next_nocheck(dtc, debug_locals, iterator);
             }
         }
 
@@ -1587,7 +1587,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
                     MVMuint16 lextype = static_info->body.local_types[debug_entry->local_idx];
                     write_one_context_lexical(dtc, ctx, c_key_name, lextype, result);
                 }
-                iterator = MVM_str_hash_next(dtc, debug_locals, iterator);
+                iterator = MVM_str_hash_next_nocheck(dtc, debug_locals, iterator);
             }
         }
     } else {
@@ -2277,7 +2277,7 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
 
             MVM_free(key);
 
-            iterator = MVM_str_hash_next(dtc, hashtable, iterator);
+            iterator = MVM_str_hash_next_nocheck(dtc, hashtable, iterator);
         }
     }
 

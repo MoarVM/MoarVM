@@ -182,6 +182,22 @@ MVM_STATIC_INLINE MVMuint32 MVM_str_hash_kompromat(MVMStrHashTable *hashtable) {
 /* iterators are stored as unsigned values, metadata index plus one.
  * This is clearly an internal implementation detail. Don't cheat.
  */
+
+/* Only call this if MVM_str_hash_at_end returns false. */
+MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next_nocheck(MVMThreadContext *tc,
+                                                               MVMStrHashTable *hashtable,
+                                                               MVMStrHashIterator iterator) {
+    /* Whilst this looks like it can be optimised to word at a time skip ahead.
+     * (Beware of endianness) it isn't easy *yet*, because one can overrun the
+     * allocated buffer, and that makes ASAN very excited. */
+    while (--iterator.pos > 0) {
+        if (hashtable->metadata[iterator.pos - 1]) {
+            return iterator;
+        }
+    }
+    return iterator;
+}
+
 MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next(MVMThreadContext *tc,
                                                        MVMStrHashTable *hashtable,
                                                        MVMStrHashIterator iterator) {
@@ -208,15 +224,7 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next(MVMThreadContext *tc,
         MVM_oops(tc, "Calling str_hash_next when iterator is already at the end");
     }
 
-    /* Whilst this looks like it can be optimised to word at a time skip ahead.
-     * (Beware of endianness) it isn't easy *yet*, because one can overrun the
-     * allocated buffer, and that makes ASAN very excited. */
-    while (--iterator.pos > 0) {
-        if (hashtable->metadata[iterator.pos - 1]) {
-            return iterator;
-        }
-    }
-    return iterator;
+    return MVM_str_hash_next_nocheck(tc, hashtable, iterator);
 }
 
 MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_first(MVMThreadContext *tc,

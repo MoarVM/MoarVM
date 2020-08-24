@@ -930,7 +930,7 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                         (new_args + new_arg_pos++)->o = current->value;
                         new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
                     }
-                    iterator = MVM_str_hash_next(tc, hashtable, iterator);
+                    iterator = MVM_str_hash_next_nocheck(tc, hashtable, iterator);
                 }
             }
             else if (arg_info.arg.o) {

@@ -44,7 +44,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         MVMHashEntry *new_entry = MVM_str_hash_insert_nocheck(tc, dest_hashtable, entry->hash_handle.key);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, entry->value);
         MVM_gc_write_barrier(tc, &(dest_root->header), &(entry->hash_handle.key->common.header));
-        iterator = MVM_str_hash_next(tc, src_hashtable, iterator);
+        iterator = MVM_str_hash_next_nocheck(tc, src_hashtable, iterator);
     }
 }
 
@@ -59,7 +59,7 @@ static void MVMHash_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVM
             MVMHashEntry *current = MVM_str_hash_current_nocheck(tc, hashtable, iterator);
             MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, &current->hash_handle.key);
             MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, &current->value);
-            iterator = MVM_str_hash_next(tc, hashtable, iterator);
+            iterator = MVM_str_hash_next_nocheck(tc, hashtable, iterator);
         }
     }
     else {
@@ -69,7 +69,7 @@ static void MVMHash_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVM
             MVMCollectable **key = (MVMCollectable **) &current->hash_handle.key;
             MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, key);
             MVM_gc_worklist_add_object_no_include_gen2_nocheck(tc, worklist, &current->value);
-            iterator = MVM_str_hash_next(tc, hashtable, iterator);
+            iterator = MVM_str_hash_next_nocheck(tc, hashtable, iterator);
         }
     }
 }
@@ -211,7 +211,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     while (!MVM_str_hash_at_end(tc, hashtable, iterator)) {
         MVMHashEntry *current = MVM_str_hash_current_nocheck(tc, hashtable, iterator);
         keys[i++] = current->hash_handle.key;
-        iterator = MVM_str_hash_next(tc, hashtable, iterator);
+        iterator = MVM_str_hash_next_nocheck(tc, hashtable, iterator);
     }
     cmp_tc = tc;
     qsort(keys, elems, sizeof(MVMString*), cmp_strings);

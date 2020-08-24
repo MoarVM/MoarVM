@@ -176,7 +176,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         while (!MVM_str_hash_at_end(tc, debug_locals, iterator)) {
             MVMStaticFrameDebugLocal *local = MVM_str_hash_current_nocheck(tc, debug_locals, iterator);
             MVM_gc_worklist_add(tc, worklist, &local->hash_handle.key);
-            iterator = MVM_str_hash_next(tc, debug_locals, iterator);
+            iterator = MVM_str_hash_next_nocheck(tc, debug_locals, iterator);
         }
     }
 }

@@ -127,7 +127,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
             body->hash_state.curr = body->hash_state.next;
             if (MVM_str_hash_at_end(tc, hashtable, body->hash_state.curr))
                 MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
-            body->hash_state.next = MVM_str_hash_next(tc, hashtable, body->hash_state.curr);
+            body->hash_state.next = MVM_str_hash_next_nocheck(tc, hashtable, body->hash_state.curr);
             value->o = root;
             return;
         default:
