@@ -290,7 +290,18 @@ static int are_we_group_member(MVMThreadContext *tc, gid_t group) {
     }
 FILE_IS(readable, R)
 FILE_IS(writable, W)
-FILE_IS(executable, X)
+    MVMint64 MVM_file_isexecutable (MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) {
+        if (!MVM_file_exists(tc, filename, use_lstat))
+            return 0;
+        else {
+            uv_stat_t statbuf = file_info(tc, filename, use_lstat);
+            MVMint64 r = (statbuf.st_mode & S_IXOTH)
+                      || (statbuf.st_uid == geteuid() && (statbuf.st_mode & S_IXUSR))
+                      || (are_we_group_member(tc, statbuf.st_gid) && (statbuf.st_mode & S_IXGRP))
+                      || (geteuid() == 0 && (statbuf.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)));
+            return r ? 1 : 0;
+        }
+    }
 #endif
 
 /* Get a MoarVM file handle representing one of the standard streams */
