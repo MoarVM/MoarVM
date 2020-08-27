@@ -15,9 +15,7 @@
 #include <string.h>
 #endif
 
-void * MVM_memmem(const void *haystack, size_t haystacklen, const void *needle, size_t needlelen) {
-    return memmem(haystack, haystacklen, needle, needlelen);
-}
+#define MVM_memmem memmem
 
 /* Extended info:
  * In glibc, the Knuth-Morris-Pratt algorithm was added as of git tag glibc-2.8-44-g0caca71ac9 */

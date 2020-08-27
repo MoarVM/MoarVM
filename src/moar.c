@@ -1,8 +1,10 @@
+#include "platform/memmem.h"
 #include "moar.h"
 #include "platform/io.h"
 #include <platform/threads.h>
 #include "platform/random.h"
 #include "platform/time.h"
+#include "platform/mmap.h"
 #if defined(_MSC_VER)
 #define snprintf _snprintf
 #endif
@@ -478,7 +480,42 @@ void MVM_vm_run_bytecode(MVMInstance *instance, MVMuint8 *bytes, MVMuint32 size)
 void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
     /* Map the compilation unit into memory and dissect it. */
     MVMThreadContext *tc = instance->main_thread;
-    MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
+    void        *block       = NULL;
+    void        *handle      = NULL;
+    uv_file      fd;
+    MVMuint64    size;
+    uv_fs_t req;
+
+    /* Ensure the file exists, and get its size. */
+    if (uv_fs_stat(NULL, &req, filename, NULL) < 0) {
+        MVM_exception_throw_adhoc(tc, "While looking for '%s': %s", filename, uv_strerror(req.result));
+    }
+
+    size = req.statbuf.st_size;
+    /* Map the bytecode file into memory. */
+    if ((fd = uv_fs_open(NULL, &req, filename, O_RDONLY, 0, NULL)) < 0) {
+        MVM_exception_throw_adhoc(tc, "While trying to open '%s': %s", filename, uv_strerror(req.result));
+    }
+
+    block = MVM_platform_map_file(fd, &handle, (size_t)size, 0);
+
+    if (block == NULL) {
+        /* FIXME: check errno or GetLastError() */
+        MVM_exception_throw_adhoc(tc, "Could not map file '%s' into memory: %s", filename, "FIXME");
+    }
+
+    /* Look for MOARVM magic string from the start of the file. */
+    char *needle = "MOARVM\r\n";
+
+    void *bytecode_start = MVM_memmem(block, size, (void *)needle, strlen(needle));
+
+    if (bytecode_start == NULL) {
+        MVM_exception_throw_adhoc(tc, "Could not find moarvm bytecode header anywhere in %s", filename);
+    }
+
+    size_t offset = (intptr_t)bytecode_start - (intptr_t)block;
+
+    MVMCompUnit      *cu = MVM_cu_map_from_file_handle(tc, fd, offset);
     char *dump = MVM_bytecode_dump(tc, cu);
     size_t dumplen = strlen(dump);
     size_t position = 0;
