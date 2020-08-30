@@ -7,7 +7,7 @@
  * Solaris doesn't seem to have memmem                                        */
 
 #if defined(_WIN32) || defined(__APPLE__) || defined(__Darwin__) || defined(__sun)
-#include "../3rdparty/freebsd/memmem.c"
+void *memmem(const void *h0, size_t k, const void *n0, size_t l);
 #else
 /* On systems that use glibc, you must define _GNU_SOURCE before including string.h
  * to get access to memmem. */

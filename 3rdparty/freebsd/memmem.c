@@ -1,3 +1,4 @@
+#if defined(_WIN32) || defined(__APPLE__) || defined(__Darwin__) || defined(__sun)
 /*-
  * Copyright (c) 2005-2014 Rich Felker, et al.
  *
@@ -179,3 +180,4 @@ void *memmem(const void *h0, size_t k, const void *n0, size_t l)
 
 	return twoway_memmem(h, h+k, n, l);
 }
+#endif

@@ -243,6 +243,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/platform/sys@obj@ \
           src/platform/random@obj@ \
           src/platform/memmem32@obj@ \
+          3rdparty/freebsd/memmem@obj@ \
           src/platform/malloc_trim@obj@ \
           src/moar@obj@ \
           @platform@ \
