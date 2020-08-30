@@ -500,8 +500,11 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
     block = MVM_platform_map_file(fd, &handle, (size_t)size, 0);
 
     if (block == NULL) {
-        /* FIXME: check errno or GetLastError() */
-        MVM_exception_throw_adhoc(tc, "Could not map file '%s' into memory: %s", filename, "FIXME");
+#if defined(_WIN32)
+        MVM_exception_throw_adhoc(tc, "Could not map file '%s' into memory: %d", filename, GetLastError());
+#else
+        MVM_exception_throw_adhoc(tc, "Could not map file '%s' into memory: %s", filename, strerror(errno));
+#endif
     }
 
     /* Look for MOARVM magic string from the start of the file. */
