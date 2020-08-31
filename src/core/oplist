@@ -1062,8 +1062,6 @@ sp_mul_I         .s w(obj) int16 sslot r(obj) r(obj) int16 int16 :pure
 
 sp_bool_I        .s w(int64) r(obj) int16 :pure
 
-sp_gethashentryvalue  .s w(obj) int64 :pure
-
 # Profiler recording ops. Naming convention: start with prof_. Must all be
 # marked .s, which is how the validator knows to exclude them. (For that
 # purpose, we treat them as a kind of spesh op).

@@ -27,64 +27,71 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMHashBody *src_body  = (MVMHashBody *)src;
     MVMHashBody *dest_body = (MVMHashBody *)dest;
-    MVMHashEntry *current  = NULL;
 
-    /* NOTE: if we really wanted to, we could avoid rehashing... */
-    HASH_ITER_FAST(tc, hash_handle, src_body->hash_head, current, {
-        MVMHashEntry *new_entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            sizeof(MVMHashEntry));
-        MVMString *key = MVM_HASH_KEY(current);
-        MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, current->value);
-        MVM_HASH_BIND_FREE(tc, dest_body->hash_head, key, new_entry, {
-            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), new_entry);
-        });
-        MVM_gc_write_barrier(tc, &(dest_root->header), &(key->common.header));
-    });
+    MVMStrHashTable *src_hashtable = &(src_body->hashtable);
+    MVMStrHashTable *dest_hashtable = &(dest_body->hashtable);
+    if (MVM_str_hash_entry_size(tc, dest_hashtable)) {
+        /* copy_to is, on reference types, only ever used as part of clone, and
+         * that will always target a freshly created object.
+         * So this should be unreachable. */
+        MVM_oops(tc, "copy_to on MVMHash that is already initialized");
+    }
+    MVM_str_hash_build(tc, dest_hashtable, sizeof(MVMHashEntry),
+                       MVM_str_hash_count(tc, src_hashtable));
+    MVMStrHashIterator iterator = MVM_str_hash_first(tc, src_hashtable);
+    MVMHashEntry *entry;
+    while ((entry = MVM_str_hash_current(tc, src_hashtable, iterator))) {
+        MVMHashEntry *new_entry = MVM_str_hash_insert_nocheck(tc, dest_hashtable, entry->hash_handle.key);
+        MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, entry->value);
+        MVM_gc_write_barrier(tc, &(dest_root->header), &(entry->hash_handle.key->common.header));
+        iterator = MVM_str_hash_next(tc, src_hashtable, iterator);
+    }
 }
 
 /* Adds held objects to the GC worklist. */
 static void MVMHash_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMHashBody     *body = (MVMHashBody *)data;
-    MVMHashEntry *current = NULL;
-    MVM_gc_worklist_presize_for(tc, worklist, 2 * HASH_CNT(hash_handle, body->hash_head));
+    MVMStrHashTable *hashtable = &(body->hashtable);
+    MVM_gc_worklist_presize_for(tc, worklist, 2 * MVM_str_hash_count(tc, hashtable));
     if (worklist->include_gen2) {
-        HASH_ITER_FAST(tc, hash_handle, body->hash_head, current, {
+        MVMStrHashIterator iterator = MVM_str_hash_first(tc, hashtable);
+        MVMHashEntry *current;
+        while ((current = MVM_str_hash_current(tc, hashtable, iterator))) {
             MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, &current->hash_handle.key);
             MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, &current->value);
-        });
+            iterator = MVM_str_hash_next(tc, hashtable, iterator);
+        }
     }
     else {
-        HASH_ITER_FAST(tc, hash_handle, body->hash_head, current, {
-            MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, &current->hash_handle.key);
+        MVMStrHashIterator iterator = MVM_str_hash_first(tc, hashtable);
+        MVMHashEntry *current;
+        while ((current = MVM_str_hash_current(tc, hashtable, iterator))) {
+            MVMCollectable **key = (MVMCollectable **) &current->hash_handle.key;
+            MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, key);
             MVM_gc_worklist_add_object_no_include_gen2_nocheck(tc, worklist, &current->value);
-        });
+            iterator = MVM_str_hash_next(tc, hashtable, iterator);
+        }
     }
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMHash *h = (MVMHash *)obj;
-    MVMHashEntry *current = NULL, *tmp = NULL;
-    HASH_ITER_FAST(tc, hash_handle, h->body.hash_head, current, {
-        if (current != h->body.hash_head)
-            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), current);
-    });
-    tmp = h->body.hash_head;
-    HASH_CLEAR(tc, hash_handle, h->body.hash_head);
-    if (tmp)
-        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), tmp);
+    MVMStrHashTable *hashtable = &(h->body.hashtable);
+
+    MVM_str_hash_demolish(tc, hashtable);
 }
 
 static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister *result, MVMuint16 kind) {
     MVMHashBody   *body = (MVMHashBody *)data;
-    MVMHashEntry *entry = NULL;
-    /* key_obj checked in MVM_HASH_GET */
-    MVM_HASH_GET(tc, body->hash_head, (MVMString *)key_obj, entry);
-    if (MVM_LIKELY(kind == MVM_reg_obj))
-        result->o = entry != NULL ? entry->value : tc->instance->VMNull;
-    else
+    MVMStrHashTable *hashtable = &(body->hashtable);
+
+    if (MVM_UNLIKELY(kind != MVM_reg_obj))
         MVM_exception_throw_adhoc(tc,
             "MVMHash representation does not support native type storage");
+
+    MVMHashEntry *entry = MVM_str_hash_fetch(tc, hashtable, (MVMString *)key_obj);
+    result->o = entry != NULL ? entry->value : tc->instance->VMNull;
 }
 void MVMHash_at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister *result, MVMuint16 kind) {
     at_key(tc, st, root, data, key_obj, result, kind);
@@ -92,26 +99,25 @@ void MVMHash_at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 
 static void bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister value, MVMuint16 kind) {
     MVMHashBody   *body = (MVMHashBody *)data;
-    MVMHashEntry *entry = NULL;
+    MVMStrHashTable *hashtable = &(body->hashtable);
 
-    MVMString *key = (MVMString *)key_obj; /* Checked in MVM_HASH_GET. */
+    MVMString *key = (MVMString *)key_obj;
+    if (!MVM_str_hash_key_is_valid(tc, key)) {
+        MVM_str_hash_key_throw_invalid(tc, key);
+    }
     if (MVM_UNLIKELY(kind != MVM_reg_obj))
         MVM_exception_throw_adhoc(tc,
             "MVMHash representation does not support native type storage");
 
-    /* first check whether we can must update the old entry. */
-    MVM_HASH_GET(tc, body->hash_head, key, entry);
-    if (!entry) {
-        entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            sizeof(MVMHashEntry));
-        MVM_ASSIGN_REF(tc, &(root->header), entry->value, value.o);
-        MVM_HASH_BIND_FREE(tc, body->hash_head, key, entry, {
-            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), entry);
-        });
-        MVM_gc_write_barrier(tc, &(root->header), &(key->common.header));
+    if (!MVM_str_hash_entry_size(tc, hashtable)) {
+        MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry), 0);
     }
-    else {
-        MVM_ASSIGN_REF(tc, &(root->header), entry->value, value.o);
+
+    MVMHashEntry *entry = MVM_str_hash_lvalue_fetch_nocheck(tc, hashtable, key);
+    MVM_ASSIGN_REF(tc, &(root->header), entry->value, value.o);
+    if (!entry->hash_handle.key) {
+        entry->hash_handle.key = key;
+        MVM_gc_write_barrier(tc, &(root->header), &(key->common.header));
     }
 }
 void MVMHash_bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister value, MVMuint16 kind) {
@@ -119,26 +125,22 @@ void MVMHash_bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
 }
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMHashBody *body = (MVMHashBody *)data;
-    return HASH_CNT(hash_handle, body->hash_head);
-}
+    return MVM_str_hash_count(tc, &(body->hashtable));}
 
 static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj) {
     MVMHashBody   *body = (MVMHashBody *)data;
-    MVMHashEntry *entry = NULL;
-    /* key_obj checked in MVM_HASH_GET */
-    MVM_HASH_GET(tc, body->hash_head, (MVMString *)key_obj, entry);
+    /* key_obj checked in MVM_str_hash_fetch */
+    MVMStrHashTable *hashtable = &(body->hashtable);
+    MVMHashEntry *entry = MVM_str_hash_fetch(tc, hashtable, (MVMString *)key_obj);
     return entry != NULL;
 }
 
 static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj) {
     MVMHashBody *body = (MVMHashBody *)data;
     MVMString *key = get_string_key(tc, key_obj);
-    MVMHashEntry *old_entry = NULL, *prev_entry = NULL;
-    HASH_FIND_VM_STR_AND_DELETE(tc, hash_handle, body->hash_head, key, old_entry, prev_entry);
-    if (old_entry) {
-        MVM_fixed_size_free(tc, tc->instance->fsa,
-            sizeof(MVMHashEntry), old_entry);
-    }
+    MVMStrHashTable *hashtable = &(body->hashtable);
+
+    MVM_str_hash_delete(tc, hashtable, key);
 }
 
 static MVMStorageSpec get_value_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
@@ -174,17 +176,28 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 /* Deserialize the representation. */
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMHashBody *body = (MVMHashBody *)data;
+    MVMStrHashTable *hashtable = &(body->hashtable);
+    if (MVM_str_hash_entry_size(tc, hashtable)) {
+        /* This should be unreachable. As clarified by @jnthn:
+         *   The key question here is "what happens if the hash is repossessed".
+         *   When that happens, the original one has this happen to it:
+         *   [citing code in `repossess` in serialisation.c, which calls `memset`
+         *   on the body.]
+         * After that memset, MVM_str_hash_entry_size will return 0, hence this
+         * code must be unreachable.] */
+        MVM_oops(tc, "deserialize on MVMHash that is already initialized");
+    }
     MVMint64 elems = MVM_serialization_read_int(tc, reader);
+    MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry), elems);
     MVMint64 i;
     for (i = 0; i < elems; i++) {
         MVMString *key = MVM_serialization_read_str(tc, reader);
+        if (!MVM_str_hash_key_is_valid(tc, key)) {
+            MVM_str_hash_key_throw_invalid(tc, key);
+        }
         MVMObject *value = MVM_serialization_read_ref(tc, reader);
-        MVMHashEntry *entry = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            sizeof(MVMHashEntry));
+        MVMHashEntry *entry = MVM_str_hash_insert_nocheck(tc, hashtable, key);
         MVM_ASSIGN_REF(tc, &(root->header), entry->value, value);
-        MVM_HASH_BIND_FREE(tc, body->hash_head, key, entry, {
-            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMHashEntry), entry);
-        });
     }
 }
 
@@ -195,21 +208,21 @@ static int cmp_strings(const void *s1, const void *s2) {
 }
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMHashBody *body = (MVMHashBody *)data;
-    MVMHashEntry *current = NULL;
-    MVMuint64 elems = HASH_CNT(hash_handle, body->hash_head);
+    MVMStrHashTable *hashtable = &(body->hashtable);
+    MVMuint64 elems = MVM_str_hash_count(tc, hashtable);
     MVMString **keys = MVM_malloc(sizeof(MVMString *) * elems);
     MVMuint64 i = 0;
     MVM_serialization_write_int(tc, writer, elems);
-    HASH_ITER_FAST(tc, hash_handle, body->hash_head, current, {
-        keys[i++] = MVM_HASH_KEY(current);
-    });
+    MVMStrHashIterator iterator = MVM_str_hash_first(tc, hashtable);
+    MVMHashEntry *current;
+    while ((current = MVM_str_hash_current(tc, hashtable, iterator))) {
+        keys[i++] = current->hash_handle.key;
+        iterator = MVM_str_hash_next(tc, hashtable, iterator);
+    }
     cmp_tc = tc;
     qsort(keys, elems, sizeof(MVMString*), cmp_strings);
     for (i = 0; i < elems; i++) {
-        MVMHashEntry *entry;
-        MVM_HASH_GET_FREE(tc, body->hash_head, keys[i], entry, {
-            MVM_free(keys);
-        });
+        MVMHashEntry *entry = MVM_str_hash_fetch_nocheck(tc, hashtable, keys[i]);
         MVM_serialization_write_str(tc, writer, keys[i]);
         MVM_serialization_write_ref(tc, writer, entry->value);
     }
@@ -248,7 +261,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
 static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMHashBody *body = (MVMHashBody *)data;
 
-    return sizeof(MVMHashEntry) * HASH_CNT(hash_handle, body->hash_head);
+    return sizeof(MVMHashEntry) * MVM_str_hash_count(tc, &(body->hashtable));
 }
 
 /* Initializes the representation. */

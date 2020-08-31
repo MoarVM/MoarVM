@@ -248,52 +248,36 @@ static void add_reference_vm_str(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
    add_reference(tc, ss, MVM_SNAPSHOT_REF_KIND_STRING, str_idx, to);
 }
 
-/* Adds an entry to the seen hash. */
-static void saw(MVMThreadContext *tc, MVMHeapSnapshotState *ss, void *addr, MVMuint64 idx) {
-    MVMHeapSnapshotSeen *seen = MVM_calloc(1, sizeof(MVMHeapSnapshotSeen));
-    seen->address = addr;
-    seen->idx = idx;
-    HASH_ADD_KEYPTR(hash_handle, ss->seen, &(seen->address), sizeof(void *), seen);
-}
-
-/* Checks for an entry in the seen hash. If we find an entry, write the index
- * into the index pointer passed. */
-static MVMuint32 seen(MVMThreadContext *tc, MVMHeapSnapshotState *ss, void *addr, MVMuint64 *idx) {
-    MVMHeapSnapshotSeen *entry;
-    HASH_FIND(hash_handle, ss->seen, &addr, sizeof(void *), entry);
-    if (entry) {
-        *idx = entry->idx;
-        return 1;
-    }
-    else {
-        return 0;
-    }
-}
-
 /* Gets the index of a collectable, either returning an existing index if we've
  * seen it before or adding it if not. */
 static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
         MVMHeapSnapshotState *ss, MVMCollectable *collectable) {
-    MVMuint64 idx;
-    if (!seen(tc, ss, collectable, &idx)) {
-        if (collectable->flags1 & MVM_CF_STABLE) {
-            idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_STABLE, collectable);
-            ss->col->total_stables++;
-        }
-        else if (collectable->flags1 & MVM_CF_TYPE_OBJECT) {
-            idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT, collectable);
-            ss->col->total_typeobjects++;
-        }
-        else if (collectable->flags1 & MVM_CF_FRAME) {
-            idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_FRAME, collectable);
-            ss->col->total_frames++;
-        }
-        else {
-            idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_OBJECT, collectable);
-            ss->col->total_objects++;
-        }
-        saw(tc, ss, collectable, idx);
+    struct MVMPtrHashEntry *entry = MVM_ptr_hash_lvalue_fetch(tc, &ss->seen, collectable);
+
+    if (entry->key) {
+        return entry->value;
     }
+    entry->key = collectable;
+
+    MVMuint64 idx;
+    if (collectable->flags1 & MVM_CF_STABLE) {
+        idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_STABLE, collectable);
+        ss->col->total_stables++;
+    }
+    else if (collectable->flags1 & MVM_CF_TYPE_OBJECT) {
+        idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT, collectable);
+        ss->col->total_typeobjects++;
+    }
+    else if (collectable->flags1 & MVM_CF_FRAME) {
+        idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_FRAME, collectable);
+        ss->col->total_frames++;
+    }
+    else {
+        idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_OBJECT, collectable);
+        ss->col->total_objects++;
+    }
+
+    entry->value = idx;
     return idx;
 }
 
@@ -301,12 +285,16 @@ static MVMuint64 get_collectable_idx(MVMThreadContext *tc,
  * it before or adding it if not. */
 static MVMuint64 get_frame_idx(MVMThreadContext *tc, MVMHeapSnapshotState *ss,
         MVMFrame *frame) {
-    MVMuint64 idx;
-    if (!seen(tc, ss, frame, &idx)) {
-        idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_FRAME, frame);
-        ss->col->total_frames++;
-        saw(tc, ss, frame, idx);
+    struct MVMPtrHashEntry *entry = MVM_ptr_hash_lvalue_fetch(tc, &ss->seen, frame);
+
+    if (entry->key) {
+        return entry->value;
     }
+    entry->key = frame;
+
+    MVMuint64 idx = push_workitem(tc, ss, MVM_SNAPSHOT_COL_KIND_FRAME, frame);
+    ss->col->total_frames++;
+    entry->value = idx;
     return idx;
 }
 
@@ -616,7 +604,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                     MVMuint16  i, count;
                     MVMuint16 *type_map;
                     MVMuint16  name_count = frame->static_info->body.num_lexicals;
-                    MVMLexicalRegistry **names = frame->static_info->body.lexical_names_list;
+                    MVMString **names = frame->static_info->body.lexical_names_list;
                     if (frame->spesh_cand && frame->spesh_cand->lexical_types) {
                         type_map = frame->spesh_cand->lexical_types;
                         count    = frame->spesh_cand->num_lexicals;
@@ -629,7 +617,7 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                         if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj) {
                             if (i < name_count)
                                 MVM_profile_heap_add_collectable_rel_vm_str(tc, ss,
-                                    (MVMCollectable *)frame->env[i].o, names[i]->key);
+                                    (MVMCollectable *)frame->env[i].o, names[i]);
                             else
                                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                                     (MVMCollectable *)frame->env[i].o, "Lexical (inlined)");
@@ -803,7 +791,7 @@ static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
 
     /* Clean up temporary state. */
     MVM_free(ss.workitems);
-    MVM_HASH_DESTROY(tc, hash_handle, MVMHeapSnapshotSeen, ss.seen);
+    MVM_ptr_hash_demolish(tc, &ss.seen);
     MVM_gc_worklist_destroy(tc, ss.gcwl);
 }
 

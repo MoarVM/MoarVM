@@ -75,6 +75,13 @@ MVM_STATIC_INLINE int MVM_string_buf32_can_fit_into_8bit(MVMGrapheme32 *active_b
     }
     return val ? 0 : 1;
 }
+
+MVMuint64 MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s);
+MVM_STATIC_INLINE MVMuint64 MVM_string_hash_code(MVMThreadContext *tc, MVMString *s) {
+    return s->body.cached_hash_code ? s->body.cached_hash_code
+        : MVM_string_compute_hash_code(tc, s);
+}
+
 MVMGrapheme32 MVM_string_get_grapheme_at_nocheck(MVMThreadContext *tc, MVMString *a, MVMint64 index);
 MVMint64 MVM_string_equal(MVMThreadContext *tc, MVMString *a, MVMString *b);
 MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
@@ -133,7 +140,6 @@ MVMint64 MVM_string_find_not_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMSt
 MVMuint8 MVM_string_find_encoding(MVMThreadContext *tc, MVMString *name);
 MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp);
 MVMint64 MVM_string_grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGrapheme32 g);
-void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s);
 MVMString * MVM_string_ascii_from_buf_nocheck(MVMThreadContext *tc, MVMGrapheme8 *buf, MVMStringIndex len);
 char * MVM_string_encoding_cname(MVMThreadContext *tc, MVMint64 encoding);
 /* If MVM_DEBUG_NFG is 1, calls to NFG_CHECK will re_nfg the given string

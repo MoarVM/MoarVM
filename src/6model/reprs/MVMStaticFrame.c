@@ -60,29 +60,32 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMuint32 num_lexicals = src_body->num_lexicals;
     dest_body->num_lexicals = num_lexicals;
     if (num_lexicals) {
-        int create_hash = src_body->lexical_names != NULL;
         MVMuint16 *lexical_types = MVM_malloc(sizeof(MVMuint16) * src_body->num_lexicals);
-        MVMLexicalRegistry **lexical_names_list = MVM_malloc(sizeof(MVMLexicalRegistry *) * src_body->num_lexicals);
         memcpy(lexical_types, src_body->lexical_types,
                sizeof(MVMuint16) * src_body->num_lexicals);
-        memcpy(lexical_names_list, src_body->lexical_names_list,
-               sizeof(MVMLexicalRegistry *) * src_body->num_lexicals);
+
+        MVMString **lexical_names_list = MVM_malloc(sizeof(MVMString *) * src_body->num_lexicals);
+
+        MVMIndexHashTable *lexical_names;
+
+        if (src_body->lexical_names == NULL) {
+            lexical_names = NULL;
+        } else {
+            lexical_names = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                                                 sizeof(MVMIndexHashTable));
+            MVM_index_hash_build(tc, lexical_names, src_body->num_lexicals);
+        }
 
         for (MVMuint32 j = 0; j < num_lexicals; j++) {
-            MVMLexicalRegistry *current = lexical_names_list[j];
-
-            MVMLexicalRegistry *new_entry = MVM_malloc(sizeof(MVMLexicalRegistry));
-            if (create_hash) {
-                MVM_HASH_BIND_FREE(tc, dest_body->lexical_names, current->key, new_entry, {
-                    MVM_free(new_entry);
-                });
-            }
             /* don't need to clone the string */
-            MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->key, current->key);
-            new_entry->value = current->value;
+            MVM_ASSIGN_REF(tc, &(dest_root->header), lexical_names_list[j], src_body->lexical_names_list[j]);
+            if (lexical_names) {
+                MVM_index_hash_insert_nocheck(tc, lexical_names, lexical_names_list, j);
+            }
         }
         dest_body->lexical_names_list = lexical_names_list;
         dest_body->lexical_types = lexical_types;
+        dest_body->lexical_names = lexical_names;
     }
     else {
         dest_body->lexical_names_list = NULL;
@@ -133,7 +136,6 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 /* Adds held objects to the GC worklist. */
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMStaticFrameBody *body = (MVMStaticFrameBody *)data;
-    MVMStaticFrameDebugLocal *current_debug_local;
 
     /* mvmobjects */
     MVM_gc_worklist_add(tc, worklist, &body->cu);
@@ -148,12 +150,10 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 
     /* lexical names */
     MVMuint32 num_lexicals = body->num_lexicals;
-    MVMLexicalRegistry **lexical_names_list = body->lexical_names_list;
+    MVMString **lexical_names_list = body->lexical_names_list;
 
     for (MVMuint32 j = 0; j < num_lexicals; j++) {
-        MVMLexicalRegistry *current = lexical_names_list[j];
-        MVM_gc_worklist_add(tc, worklist, &current->hash_handle.key);
-        MVM_gc_worklist_add(tc, worklist, &current->key);
+        MVM_gc_worklist_add(tc, worklist, &lexical_names_list[j]);
     }
 
     /* static env */
@@ -170,10 +170,14 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_gc_worklist_add(tc, worklist, &body->spesh);
 
     /* Debug symbols. */
-    if (body->instrumentation) {
-        HASH_ITER_FAST(tc, hash_handle, body->instrumentation->debug_locals, current_debug_local, {
-            MVM_gc_worklist_add(tc, worklist, &current_debug_local->name);
-        });
+    if (body->instrumentation && body->instrumentation->debug_locals) {
+        MVMStrHashTable *const debug_locals = body->instrumentation->debug_locals;
+        MVMStrHashIterator iterator = MVM_str_hash_first(tc, debug_locals);
+        MVMStaticFrameDebugLocal *local;
+        while ((local = MVM_str_hash_current(tc, debug_locals, iterator))) {
+            MVM_gc_worklist_add(tc, worklist, &local->hash_handle.key);
+            iterator = MVM_str_hash_next(tc, debug_locals, iterator);
+        }
     }
 }
 
@@ -197,8 +201,11 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(body->local_types);
     MVM_free(body->lexical_types);
     MVM_free(body->lexical_names_list);
-    if (body->lexical_names)
-        MVM_HASH_DESTROY(tc, hash_handle, MVMLexicalRegistry, body->lexical_names);
+    if (body->lexical_names) {
+        MVM_index_hash_demolish(tc, body->lexical_names);
+        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMIndexHashTable),
+                            body->lexical_names);
+    }
 }
 
 static const MVMStorageSpec storage_spec = {
@@ -234,9 +241,11 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
         if (body->bytecode != body->orig_bytecode)
             size += body->bytecode_size;
 
-        size += sizeof(MVMLexicalRegistry *) * body->num_lexicals;
+        size += sizeof(MVMString *) * body->num_lexicals;
 
-        size += sizeof(MVMLexicalRegistry) * body->num_lexicals;
+        if (body->lexical_names) {
+            size += sizeof(struct MVMIndexHashEntry) * body->num_lexicals;
+        }
 
         size += sizeof(MVMFrameHandler) * body->num_handlers;
 
@@ -290,12 +299,11 @@ static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTa
 
     /* lexical names */
     MVMuint32 num_lexicals = body->num_lexicals;
-    MVMLexicalRegistry **lexical_names_list = body->lexical_names_list;
+    MVMString **lexical_names_list = body->lexical_names_list;
 
     for (MVMuint32 j = 0; j < num_lexicals; j++) {
-        MVMLexicalRegistry *current = lexical_names_list[j];
         MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
-            (MVMCollectable *)current->key, "Lexical name", &nonstatic_cache_1);
+            (MVMCollectable *)lexical_names_list[j], "Lexical name", &nonstatic_cache_1);
     }
 
     /* static env */
@@ -371,21 +379,18 @@ char * MVM_staticframe_file_location(MVMThreadContext *tc, MVMStaticFrame *sf) {
 /* We could change this code (and bytecode.c) to lazily only build the lookup
  * hash on the first lookup. I don't have a feel for how often no lookups are
  * made, and hence whether the added complexity would be much of a saving. */
-MVMLexicalRegistry *MVM_get_lexical_by_name(MVMThreadContext *tc, MVMStaticFrame *sf, MVMString *name) {
-    MVMLexicalRegistry *entry;
+MVMuint32 MVM_get_lexical_by_name(MVMThreadContext *tc, MVMStaticFrame *sf, MVMString *name) {
     /* deserialize_frames in bytecode.c doesn't create the lookup hash if there
      * are only a small number of lexicals in this frame. */
     if (sf->body.lexical_names) {
-        MVM_HASH_GET(tc, sf->body.lexical_names, name, entry);
-        return entry;
+        return MVM_index_hash_fetch(tc, sf->body.lexical_names, sf->body.lexical_names_list, name);
     }
 
-    MVMLexicalRegistry **lexical_names_list = sf->body.lexical_names_list;
+    MVMString **lexical_names_list = sf->body.lexical_names_list;
     MVMuint32 num_lexicals = sf->body.num_lexicals;
     for (MVMuint32 j = 0; j < num_lexicals; j++) {
-        entry = lexical_names_list[j];
-        if (MVM_string_equal(tc, name, entry->key))
-            return entry;
+        if (MVM_string_equal(tc, name, lexical_names_list[j]))
+            return j;
     }
-    return NULL;
+    return MVM_INDEX_HASH_NOT_FOUND;
 }

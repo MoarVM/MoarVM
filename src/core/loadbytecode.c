@@ -86,17 +86,18 @@ void MVM_load_bytecode_buffer_to_cu(MVMThreadContext *tc, MVMObject *buf, MVMReg
     }
 }
 void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
-    MVMCompUnit *cu;
-    MVMLoadedCompUnitName *loaded_name;
 
     /* Work out actual filename to use, taking --libpath into account. */
     filename = MVM_file_in_libpath(tc, filename);
 
+    if (!MVM_str_hash_key_is_valid(tc, filename)) {
+        MVM_str_hash_key_throw_invalid(tc, filename);
+    }
+
     /* See if we already loaded this. */
     uv_mutex_lock(&tc->instance->mutex_loaded_compunits);
     MVM_tc_set_ex_release_mutex(tc, &tc->instance->mutex_loaded_compunits);
-    MVM_HASH_GET(tc, tc->instance->loaded_compunits, filename, loaded_name);
-    if (loaded_name) {
+    if (MVM_fixkey_hash_fetch_nocheck(tc, &tc->instance->loaded_compunits, filename)) {
         /* already loaded */
         goto LEAVE;
     }
@@ -106,18 +107,16 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
         char *c_filename = MVM_string_utf8_c8_encode_C_string(tc, filename);
         /* XXX any exception from MVM_cu_map_from_file needs to be handled
          *     and c_filename needs to be freed */
-        cu = MVM_cu_map_from_file(tc, c_filename);
+        MVMCompUnit *cu = MVM_cu_map_from_file(tc, c_filename);
         MVM_free(c_filename);
         cu->body.filename = filename;
         MVM_gc_write_barrier_hit(tc, (MVMCollectable *)cu);
 
         run_comp_unit(tc, cu);
 
-        loaded_name = MVM_calloc(1, sizeof(MVMLoadedCompUnitName));
-        MVM_HASH_BIND_FREE(tc, tc->instance->loaded_compunits, filename, loaded_name, {
-            MVM_free(loaded_name);
-        });
-        loaded_name->filename = filename;
+        MVMString **key = MVM_fixkey_hash_insert_nocheck(tc, &tc->instance->loaded_compunits, filename);
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)key,
+                                       "Loaded compilation unit filename");
     });
 
 LEAVE:

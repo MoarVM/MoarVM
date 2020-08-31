@@ -10,20 +10,18 @@ typedef void MVMExtOpFactDiscover(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
 #define MVM_EXTOP_ALLOCATING    16
 
 struct MVMExtRegistry {
+    MVMString *hash_key;
     MVMDLLSym *sym;
-    MVMString *name;
-    UT_hash_handle hash_handle;
 };
 
 struct MVMExtOpRegistry {
-    MVMString *name;
+    MVMString *hash_key;
     MVMExtOpFunc *func;
     MVMOpInfo info;
     MVMExtOpSpesh *spesh;
     MVMExtOpFactDiscover *discover;
     MVMuint32 no_jit;
     MVMuint32 allocating;
-    UT_hash_handle hash_handle;
 };
 
 int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext);

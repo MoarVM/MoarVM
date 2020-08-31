@@ -73,7 +73,6 @@ ffi_abi MVM_nativecall_get_calling_convention(MVMThreadContext *tc, MVMString *n
 //~ static char callback_handler(DCCallback *cb, DCArgs *args, DCValue *result, MVMNativeCallback *data);
 static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void *data);
 static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMObject *sig_info) {
-    MVMNativeCallbackCacheHead *callback_data_head = NULL;
     MVMNativeCallback **callback_data_handle;
     MVMString          *cuid;
 
@@ -83,13 +82,19 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
     /* Try to locate existing cached callback info. */
     callback = MVM_frame_find_invokee(tc, callback, NULL);
     cuid     = ((MVMCode *)callback)->body.sf->body.cuuid;
-    MVM_HASH_GET(tc, tc->native_callback_cache, cuid, callback_data_head);
 
-    if (!callback_data_head) {
-        callback_data_head = MVM_malloc(sizeof(MVMNativeCallbackCacheHead));
-        MVM_HASH_BIND_FREE(tc, tc->native_callback_cache, cuid, callback_data_head, {
-            MVM_free(callback_data_head);
-        });
+    if (!tc->native_callback_cache) {
+        tc->native_callback_cache = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                                                         sizeof (MVMStrHashTable));
+        MVM_str_hash_build(tc, tc->native_callback_cache, sizeof(MVMNativeCallbackCacheHead), 0);
+    }
+
+    MVMNativeCallbackCacheHead *callback_data_head
+        = MVM_str_hash_lvalue_fetch(tc, tc->native_callback_cache, cuid);
+
+    if (!callback_data_head->hash_handle.key) {
+        /* MVM_str_hash_lvalue_fetch created a new entry. Fill it in: */
+        callback_data_head->hash_handle.key = cuid;
         callback_data_head->head = NULL;
     }
 

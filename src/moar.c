@@ -74,6 +74,19 @@ static FILE *fopen_perhaps_with_pid(char *env_var, char *path, const char *mode)
     exit(1);
 }
 
+MVM_STATIC_INLINE MVMuint64 ptr_hash_64_to_64(MVMuint64 u) {
+    /* Thomas Wong's hash from
+     * https://web.archive.org/web/20120211151329/http://www.concentric.net/~Ttwang/tech/inthash.htm */
+    u = (~u) + (u << 21);
+    u =   u  ^ (u >> 24);
+    u =  (u  + (u <<  3)) + (u << 8);
+    u =   u  ^ (u >> 14);
+    u =  (u  + (u <<  2)) + (u << 4);
+    u =   u  ^ (u >> 28);
+    u =   u  + (u << 31);
+    return (MVMuint64)u;
+}
+
 /* Create a new instance of the VM. */
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
@@ -132,30 +145,40 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up REPR registry mutex. */
     init_mutex(instance->mutex_repr_registry, "REPR registry");
+    MVM_index_hash_build(instance->main_thread, &instance->repr_hash, MVM_REPR_CORE_COUNT);
 
     /* Set up HLL config mutex. */
     init_mutex(instance->mutex_hllconfigs, "hll configs");
+    MVM_fixkey_hash_build(instance->main_thread, &instance->compiler_hll_configs, sizeof(MVMHLLConfig));
+    MVM_fixkey_hash_build(instance->main_thread, &instance->compilee_hll_configs, sizeof(MVMHLLConfig));
 
     /* Set up DLL registry mutex. */
     init_mutex(instance->mutex_dll_registry, "REPR registry");
+    MVM_fixkey_hash_build(instance->main_thread, &instance->dll_registry, sizeof(struct MVMDLLRegistry));
 
     /* Set up extension registry mutex. */
     init_mutex(instance->mutex_ext_registry, "extension registry");
+    MVM_fixkey_hash_build(instance->main_thread, &instance->ext_registry, sizeof(struct MVMExtRegistry));
 
     /* Set up extension op registry mutex. */
     init_mutex(instance->mutex_extop_registry, "extension op registry");
+    MVM_fixkey_hash_build(instance->main_thread, &instance->extop_registry, sizeof(MVMExtOpRegistry));
 
     /* Set up SC registry mutex. */
     init_mutex(instance->mutex_sc_registry, "sc registry");
+    MVM_str_hash_build(instance->main_thread, &instance->sc_weakhash, sizeof(struct MVMSerializationContextWeakHashEntry), 0);
 
     /* Set up loaded compunits hash mutex. */
     init_mutex(instance->mutex_loaded_compunits, "loaded compunits");
+    MVM_fixkey_hash_build(instance->main_thread, &instance->loaded_compunits, sizeof(MVMString *));
 
     /* Set up container registry mutex. */
     init_mutex(instance->mutex_container_registry, "container registry");
+    MVM_str_hash_build(instance->main_thread, &instance->container_registry, sizeof(MVMContainerRegistry), 0);
 
     /* Set up persistent object ID hash mutex. */
     init_mutex(instance->mutex_object_ids, "object ID hash");
+    MVM_ptr_hash_build(instance->main_thread, &instance->object_ids);
 
     /* Allocate all things during following setup steps directly in gen2, as
      * they will have program lifetime. */
@@ -609,8 +632,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Cleanup REPR registry */
     uv_mutex_destroy(&instance->mutex_repr_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMReprRegistry, instance->repr_hash);
-    MVM_free(instance->repr_list);
+    MVM_index_hash_demolish(instance->main_thread, &instance->repr_hash);
+    MVM_free(instance->repr_names);
+    MVM_free(instance->repr_vtables);
 
     /* Clean up GC related resources. */
     uv_mutex_destroy(&instance->mutex_permroots);
@@ -628,34 +652,33 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Hash of HLLConfig. */
     uv_mutex_destroy(&instance->mutex_hllconfigs);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMHLLConfig, instance->compiler_hll_configs);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMHLLConfig, instance->compilee_hll_configs);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->compiler_hll_configs);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->compilee_hll_configs);
 
     /* Clean up Hash of DLLs. */
     uv_mutex_destroy(&instance->mutex_dll_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMDLLRegistry, instance->dll_registry);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->dll_registry);
 
     /* Clean up Hash of extensions. */
     uv_mutex_destroy(&instance->mutex_ext_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMExtRegistry, instance->ext_registry);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->ext_registry);
 
     /* Clean up Hash of extension ops. */
     uv_mutex_destroy(&instance->mutex_extop_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMExtOpRegistry, instance->extop_registry);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->extop_registry);
 
     /* Clean up Hash of all known serialization contexts; all SCs list is in
      * FSA space and so cleaned up with that. */
     uv_mutex_destroy(&instance->mutex_sc_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMSerializationContextBody, instance->sc_weakhash);
+    MVM_str_hash_demolish(instance->main_thread, &instance->sc_weakhash);
 
     /* Clean up Hash of filenames of compunits loaded from disk. */
     uv_mutex_destroy(&instance->mutex_loaded_compunits);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMLoadedCompUnitName, instance->loaded_compunits);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->loaded_compunits);
 
     /* Clean up Container registry. */
     uv_mutex_destroy(&instance->mutex_container_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMContainerRegistry, instance->container_registry);
-
+    MVM_str_hash_demolish(instance->main_thread, &instance->container_registry);
     /* Clean up Hash of compiler objects keyed by name. */
     uv_mutex_destroy(&instance->mutex_compiler_registry);
 

@@ -273,7 +273,6 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
     /* Resolve all the things. */
     pos = rs->sc_seg;
     for (i = 0; i < rs->expected_scs; i++) {
-        MVMSerializationContextBody *scb;
         MVMString *handle;
 
         /* Grab string heap index. */
@@ -291,30 +290,33 @@ static void deserialize_sc_deps(MVMThreadContext *tc, MVMCompUnit *cu, ReaderSta
         }
         cu_body->sc_handle_idxs[i] = sh_idx;
         handle = MVM_cu_string(tc, cu, sh_idx);
+        if (!MVM_str_hash_key_is_valid(tc, handle)) {
+            cleanup_all(rs);
+            MVM_free_null(cu_body->scs);
+            MVM_free_null(cu_body->scs_to_resolve);
+            MVM_free_null(cu_body->sc_handle_idxs);
+            MVM_str_hash_key_throw_invalid(tc, handle);
+        }
 
         /* See if we can resolve it. */
         uv_mutex_lock(&tc->instance->mutex_sc_registry);
-        MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
-        if (scb && scb->sc) {
+        struct MVMSerializationContextWeakHashEntry *entry
+            = MVM_str_hash_lvalue_fetch_nocheck(tc, &tc->instance->sc_weakhash, handle);
+        if (entry->hash_handle.key && entry->scb->sc) {
             cu_body->scs_to_resolve[i] = NULL;
-            MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->scs[i], scb->sc);
-            scb->claimed = 1;
+            entry->scb->claimed = 1;
+            MVM_ASSIGN_REF(tc, &(cu->common.header), cu_body->scs[i], entry->scb->sc);
         }
         else {
-            if (!scb) {
-                scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
+            if (!entry->hash_handle.key) {
+                entry->hash_handle.key = handle;
+
+                MVMSerializationContextBody *scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
+                entry->scb = scb;
                 scb->handle = handle;
-                MVM_HASH_BIND_FREE(tc, tc->instance->sc_weakhash, handle, scb, {
-                    cleanup_all(rs);
-                    MVM_free_null(cu_body->scs);
-                    MVM_free_null(cu_body->scs_to_resolve);
-                    MVM_free_null(cu_body->sc_handle_idxs);
-                    scb->handle = NULL;
-                    MVM_free(scb);
-                });
                 MVM_sc_add_all_scs_entry(tc, scb);
             }
-            cu_body->scs_to_resolve[i] = scb;
+            cu_body->scs_to_resolve[i] = entry->scb;
             cu_body->scs[i] = NULL;
         }
         uv_mutex_unlock(&tc->instance->mutex_sc_registry);
@@ -647,35 +649,41 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
     if (sf->body.num_lexicals) {
         /* Allocate names hash and types list. */
         sf->body.lexical_types = MVM_malloc(sizeof(MVMuint16) * sf->body.num_lexicals);
-        sf->body.lexical_names_list = MVM_malloc(sizeof(MVMLexicalRegistry *) * sf->body.num_lexicals);
+        MVMString **lexical_names_list = MVM_malloc(sizeof(MVMString *) * sf->body.num_lexicals);
+        sf->body.lexical_names_list = lexical_names_list;
+
+        /* If we do not have "many" lexicals, don't bother making a lookup
+         * hash. Instead, MVM_get_lexical_by_name will simply do a linear search
+         * of the list. This should be faster for short lists.  The choice of 5
+         * entries is guesswork, and ought to be refined by benchmarking. This
+         * location is the only place where we need this "magic" constant, hence
+         * I don't see the need to #define it somewhere else for just one use
+         * point. */
+        MVMIndexHashTable *lexical_names;
+
+       if (sf->body.num_lexicals <= 5) {
+            lexical_names = NULL;
+        } else {
+            lexical_names = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                                                 sizeof(MVMIndexHashTable));
+            MVM_index_hash_build(tc, lexical_names, sf->body.num_lexicals);
+        }
+        sf->body.lexical_names = lexical_names;
 
         /* Read in data. */
         for (j = 0; j < sf->body.num_lexicals; j++) {
+            /* get_heap_string returns a concrete MVMString, which will always
+             * pass the MVM_str_hash_key_is_valid check.
+             * (It can also throw an exception on malformed bytecode, which we
+             * don't handle well here, because we don't release the mutex if
+             * that happens, and we don't free up memory either.) */
             MVMString *name = get_heap_string(tc, cu, NULL, pos, 6 * j + 2);
-            MVMLexicalRegistry *entry = MVM_calloc(1, sizeof(MVMLexicalRegistry));
-
-            /* If we do not have "many" lexicals, don't bother making a lookup
-             * hash. Instead, MVM_get_lexical_by_name will simply do a linear
-             * search of the list. This should be faster for short lists.
-             * The choice of 5 entries is guesswork, and ought to be refined by
-             * benchmarking. This location is the only place where we need this
-             * "magic" constant, hence I don't see the need to #define it
-             * somewhere else for just one use point. */
-            if (sf->body.num_lexicals > 5) {
-                MVM_HASH_BIND_FREE(tc, sf->body.lexical_names, name, entry, {
-                    if (sf->body.num_locals) {
-                        MVM_free_null(sf->body.local_types);
-                    }
-                    MVM_free_null(sf->body.lexical_types);
-                    MVM_free_null(sf->body.lexical_names_list);
-                    MVM_free(entry);
-                });
-            }
-            MVM_ASSIGN_REF(tc, &(sf->common.header), entry->key, name);
-            sf->body.lexical_names_list[j] = entry;
-            entry->value = j;
-
+            MVM_ASSIGN_REF(tc, &(sf->common.header), lexical_names_list[j], name);
             sf->body.lexical_types[j] = read_int16(pos, 6 * j);
+
+            if (lexical_names) {
+                MVM_index_hash_insert_nocheck(tc, lexical_names, lexical_names_list, j);
+            }
         }
         pos += 6 * sf->body.num_lexicals;
     }
@@ -768,15 +776,17 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         MVMStaticFrameInstrumentation *ins = sf->body.instrumentation;
         if (!ins)
             ins = MVM_calloc(1, sizeof(MVMStaticFrameInstrumentation));
+        if (!ins->debug_locals) {
+            ins->debug_locals = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMStrHashTable));
+            MVM_str_hash_build(tc, ins->debug_locals, sizeof(MVMStaticFrameDebugLocal),
+                               num_debug_locals);
+        }
         for (j = 0; j < num_debug_locals; j++) {
             MVMuint16 idx = read_int16(pos, 0);
             MVMString *name = get_heap_string(tc, cu, NULL, pos, 2);
-            MVMStaticFrameDebugLocal *entry = MVM_calloc(1, sizeof(MVMStaticFrameDebugLocal));
+            MVMStaticFrameDebugLocal *entry = MVM_str_hash_insert_nocheck(tc, ins->debug_locals, name);
             entry->local_idx = idx;
-            MVM_ASSIGN_REF(tc, &(sf->common.header), entry->name, name);
-            MVM_HASH_BIND_FREE(tc, ins->debug_locals, name, entry, {
-                MVM_free(entry);
-            });
+            MVM_ASSIGN_REF(tc, &(sf->common.header), entry->hash_handle.key, name);
             pos += 6;
         }
         sf->body.instrumentation = ins;

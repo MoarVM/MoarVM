@@ -881,9 +881,7 @@
     $1))
 
 (template: reprname
-  (^getf
-    (load (idx (^get_instance_field repr_list) (^repr_id $1) ptr_sz) ptr_sz)
-    MVMReprRegistry name))
+  (load (idx (^get_instance_field repr_names) (^repr_id $1) ptr_sz) ptr_sz))
 
 (template: eqaddr (flagval (eq $1 $2)))
 
@@ -1469,9 +1467,6 @@
 
 (template: hllhash
   (^getf (^hllconfig) MVMHLLConfig slurpy_hash_type))
-
-(template: sp_gethashentryvalue
-  (^getf $1 MVMHashEntry value))
 
 (template: gethllsym
   (call (^func &MVM_hll_sym_get)

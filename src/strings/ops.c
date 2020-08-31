@@ -2884,8 +2884,7 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp) {
 }
 
 /* Takes a string and computes a hash code for it, storing it in the hash code
- * cache field of the string. Hashing code is derived from the Jenkins hash
- * implementation in uthash.h. */
+ * cache field of the string. */
 typedef union {
     MVMuint32 graphs[2];
     MVMuint64 u64;
@@ -2896,7 +2895,7 @@ typedef union {
  * If this isn't set, MVM_MAYBE_TO_LITTLE_ENDIAN_32 does nothing (the default).
  * This would mainly be useful for debugging or if there were some other reason
  * someone cared that hashes were identical on different endian platforms */
-void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
+MVMuint64 MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
 #if defined(MVM_HASH_FORCE_LITTLE_ENDIAN)
     const MVMuint64 key[2] = {
         MVM_MAYBE_TO_LITTLE_ENDIAN_64(tc->instance->hashSecrets[0]),
@@ -2954,5 +2953,5 @@ void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
             break;
         }
     }
-    s->body.cached_hash_code = hash;
+    return s->body.cached_hash_code = hash;
 }

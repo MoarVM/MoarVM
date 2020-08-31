@@ -1428,10 +1428,9 @@ static MVMint32 create_caller_or_outer_context_debug_handle(MVMThreadContext *dt
     return 0;
 }
 
-static void write_one_context_lexical(MVMThreadContext *dtc, cmp_ctx_t *ctx, char *c_key_name,
+static void write_one_context_lexical(MVMThreadContext *dtc, cmp_ctx_t *ctx, const char *c_key_name,
         MVMuint16 lextype, MVMRegister *result) {
     cmp_write_str(ctx, c_key_name, strlen(c_key_name));
-    MVM_free(c_key_name);
 
     if (lextype == MVM_reg_obj) { /* Object */
         char *debugname;
@@ -1493,7 +1492,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         ? find_handle_target(dtc, argument->handle_id)
         : dtc->instance->VMNull;
     MVMStaticFrame *static_info;
-    MVMStaticFrameDebugLocal *debug_locals;
+    MVMStrHashTable *debug_locals;
 
     MVMFrame *frame;
     if (MVM_is_null(dtc, this_ctx) || !IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
@@ -1513,17 +1512,21 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         ? static_info->body.instrumentation->debug_locals
         : NULL;
     if (num_lexicals || debug_locals) {
-        MVMStaticFrameDebugLocal *debug_entry;
         MVMuint64 lexical_index = 0;
 
         /* Count up total number of symbols; that is, the lexicals plus the
          * debug names where the names to not overlap with the lexicals. */
-        MVMuint64 lexcount = num_lexicals;
-        HASH_ITER(dtc, hash_handle, debug_locals, debug_entry, {
-            MVMLexicalRegistry *entry = MVM_get_lexical_by_name(dtc, static_info, debug_entry->name);
-            if (!entry)
-                lexcount++;
-        });
+        MVMuint64 lexcount = static_info->body.num_lexicals;
+        if (debug_locals) {
+            MVMStrHashIterator iterator = MVM_str_hash_first(dtc, debug_locals);
+            MVMStaticFrameDebugLocal *debug_entry;
+            while ((debug_entry = MVM_str_hash_current(dtc, debug_locals, iterator))) {
+                MVMuint32 idx = MVM_get_lexical_by_name(dtc, static_info, debug_entry->hash_handle.key);
+                if (idx != MVM_INDEX_HASH_NOT_FOUND)
+                    lexcount++;
+                iterator = MVM_str_hash_next(dtc, debug_locals, iterator);
+            }
+        }
 
         cmp_write_map(ctx, 3);
         cmp_write_str(ctx, "id", 2);
@@ -1537,25 +1540,23 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         if (dtc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "will write %"PRIu64" lexicals\n", lexcount);
 
-        MVMLexicalRegistry **lexical_names_list = static_info->body.lexical_names_list;
+        MVMString **lexical_names_list = static_info->body.lexical_names_list;
 
         for (MVMuint32 j = 0; j < num_lexicals; j++) {
-            MVMLexicalRegistry *entry = lexical_names_list[j];
+            MVMString *name = lexical_names_list[j];
             MVMuint16 lextype = static_info->body.lexical_types[j];
             MVMRegister *result = &frame->env[j];
-            char *c_key_name;
             MVMint32 was_from_local = 0;
             /* Lexical has to have a name - to get here it has already been added
                to the lookup hash, and that would have failed unless the key
                exists and is a concrete MVMString. */
-            assert(entry->key);
-            assert(IS_CONCRETE(entry->key));
+            assert(name);
+            assert(IS_CONCRETE(name));
             /* Check there is no debug local override for it (which means the lexical
              * was lowered into a local, but preserved for some reason). */
-            c_key_name = MVM_string_utf8_encode_C_string(dtc, entry->key);
-            MVM_HASH_GET_FREE(dtc, debug_locals, entry->key, debug_entry, {
-                MVM_free(c_key_name);
-            });
+            MVMStaticFrameDebugLocal *debug_entry = debug_locals
+                ? MVM_str_hash_fetch_nocheck(dtc, debug_locals, name)
+                : NULL;
             if (debug_entry && static_info->body.local_types[debug_entry->local_idx] == lextype) {
                 result = &frame->work[debug_entry->local_idx];
                 was_from_local = 1;
@@ -1563,23 +1564,30 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
 
             if (!was_from_local && lextype == MVM_reg_obj && !result->o) {
                 /* XXX this can't allocate? */
-                MVM_frame_vivify_lexical(dtc, frame, entry->value);
+                MVM_frame_vivify_lexical(dtc, frame, j);
             }
+            char *c_key_name = MVM_string_utf8_encode_C_string(dtc, name);
             write_one_context_lexical(dtc, ctx, c_key_name, lextype, result);
+            MVM_free(c_key_name);
             if (dtc->instance->debugserver->debugspam_protocol)
                 fprintf(stderr, "wrote a lexical\n");
             lexical_index++;
         };
 
-        HASH_ITER(dtc, hash_handle, debug_locals, debug_entry, {
-            MVMLexicalRegistry *entry = MVM_get_lexical_by_name(dtc, static_info, debug_entry->name);
-            if (!entry) {
-                char *c_key_name = MVM_string_utf8_encode_C_string(dtc, debug_entry->name);
-                MVMRegister *result = &frame->work[debug_entry->local_idx];
-                MVMuint16 lextype = static_info->body.local_types[debug_entry->local_idx];
-                write_one_context_lexical(dtc, ctx, c_key_name, lextype, result);
+        if (debug_locals) {
+            MVMStrHashIterator iterator = MVM_str_hash_first(dtc, debug_locals);
+            MVMStaticFrameDebugLocal *debug_entry;
+            while ((debug_entry = MVM_str_hash_current(dtc, debug_locals, iterator))) {
+                MVMuint32 idx = MVM_get_lexical_by_name(dtc, static_info, debug_entry->hash_handle.key);
+                if (idx != MVM_INDEX_HASH_NOT_FOUND) {
+                    char *c_key_name = MVM_string_utf8_encode_C_string(dtc, lexical_names_list[idx]);
+                    MVMRegister *result = &frame->work[debug_entry->local_idx];
+                    MVMuint16 lextype = static_info->body.local_types[debug_entry->local_idx];
+                    write_one_context_lexical(dtc, ctx, c_key_name, lextype, result);
+                }
+                iterator = MVM_str_hash_next(dtc, debug_locals, iterator);
             }
-        });
+        }
     } else {
         cmp_write_map(ctx, 3);
         cmp_write_str(ctx, "id", 2);
@@ -1929,36 +1937,18 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     }
     else if (repr_id == MVM_REPR_ID_MVMHash) {
         if (IS_CONCRETE(target)) {
-            slots += 4; /* num_buckets, num_items, nonideal_items, ineff_expands */
+            slots += 1; /* num_items */
         }
         slots += 3; /* features */
         cmp_write_map(ctx, slots);
 
         if (IS_CONCRETE(target)) {
-            MVMHashBody *body = (MVMHashBody *)OBJECT_BODY(target);
-            MVMHashEntry *handle = body->hash_head;
-            UT_hash_table *tbl = handle ? body->hash_head->hash_handle.tbl : 0;
+            MVMStrHashTable *hashtable = &(((MVMHashBody *)OBJECT_BODY(target))->hashtable);
 
-            if (tbl) {
-                cmp_write_str(ctx, "mvmhash_num_buckets", 19);
-                cmp_write_int(ctx, tbl->num_buckets);
-                cmp_write_str(ctx, "mvmhash_num_items", 17);
-                cmp_write_int(ctx, tbl->num_items);
-                cmp_write_str(ctx, "mvmhash_nonideal_items", 22);
-                cmp_write_int(ctx, tbl->nonideal_items);
-                cmp_write_str(ctx, "mvmhash_ineff_expands", 21);
-                cmp_write_int(ctx, tbl->ineff_expands);
-            }
-            else {
-                cmp_write_str(ctx, "mvmhash_num_buckets", 19);
-                cmp_write_int(ctx, 0);
-                cmp_write_str(ctx, "mvmhash_num_items", 17);
-                cmp_write_int(ctx, 0);
-                cmp_write_str(ctx, "mvmhash_nonideal_items", 22);
-                cmp_write_int(ctx, 0);
-                cmp_write_str(ctx, "mvmhash_ineff_expands", 21);
-                cmp_write_int(ctx, 0);
-            }
+            /* FIXME. What stats should we generate? Some are O(1),
+             * some are O(n) (like mean probe length, and its SD) */
+            cmp_write_str(ctx, "mvmhash_num_items", 17);
+            cmp_write_int(ctx, hashtable->cur_items);
         }
 
         write_object_features(dtc, ctx, 0, 0, 1);
@@ -2242,10 +2232,8 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
     }
 
     if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
-        MVMHashBody *body = (MVMHashBody *)OBJECT_BODY(target);
-        MVMuint64 count = HASH_CNT(hash_handle, body->hash_head);
-
-        MVMHashEntry *entry = NULL;
+        MVMStrHashTable *hashtable = &(((MVMHashBody *)OBJECT_BODY(target))->hashtable);
+        MVMuint64 count = MVM_str_hash_count(dtc, hashtable);
 
         cmp_write_map(ctx, 4);
         cmp_write_str(ctx, "id", 2);
@@ -2259,7 +2247,9 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
         cmp_write_str(ctx, "contents", 8);
         cmp_write_map(ctx, count);
 
-        HASH_ITER(dtc, hash_handle, body->hash_head, entry, {
+        MVMStrHashIterator iterator = MVM_str_hash_first(dtc, hashtable);
+        MVMHashEntry *entry;
+        while ((entry = MVM_str_hash_current(dtc, hashtable, iterator))) {
             char *key = MVM_string_utf8_encode_C_string(dtc, entry->hash_handle.key);
             MVMObject *value = entry->value;
             char *value_debug_name = value ? MVM_6model_get_debug_name(dtc, value) : "VMNull";
@@ -2284,7 +2274,9 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
                 cmp_write_bool(ctx, STABLE(value)->container_spec == NULL ? 0 : 1);
 
             MVM_free(key);
-        });
+
+            iterator = MVM_str_hash_next(dtc, hashtable, iterator);
+        }
     }
 
     return 0;

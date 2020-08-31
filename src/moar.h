@@ -8,11 +8,12 @@
 #define _GNU_SOURCE
 #endif
 
-#include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <setjmp.h>
 #include <stddef.h>
+#include <stdlib.h>
+#include <string.h>
 
 /* Standard integer types. */
 #include <platform/inttypes.h>
@@ -91,10 +92,13 @@ typedef double   MVMnum64;
 #  define MVM_USED_BY_JIT
 #endif
 
-/* stuff for uthash */
-#define uthash_fatal(msg) MVM_exception_throw_adhoc(tc, "internal hash error: " msg)
+/* Hashes */
+#define HASH_DEBUG_ITER 0
+#define MVM_HASH_RANDOMIZE 1
+#define MVM_HASH_MAX_PROBE_DISTANCE 255
 
-#include "strings/uthash_types.h"
+typedef MVMuint32 MVMHashNumItems;
+typedef MVMuint64 MVMHashv;
 
 MVM_PUBLIC MVMint32 MVM_jit_support(void);
 
@@ -105,12 +109,16 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "gc/wb.h"
 #include "core/vector.h"
 #include "core/threadcontext.h"
+#include "core/exceptions.h"
+#include "core/str_hash_table.h"
+#include "core/fixkey_hash_table.h"
+#include "core/index_hash_table.h"
+#include "core/ptr_hash_table.h"
+#include "core/uni_hash_table.h"
 #include "core/instance.h"
-#include "strings/uthash.h"
 #include "core/interp.h"
 #include "core/callsite.h"
 #include "core/args.h"
-#include "core/exceptions.h"
 #include "core/alloc.h"
 #include "core/frame.h"
 #include "core/callstack.h"
@@ -137,7 +145,6 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "6model/reprs.h"
 #include "6model/reprconv.h"
 #include "6model/bootstrap.h"
-#include "6model/containers.h"
 #include "6model/sc.h"
 #include "6model/serialization.h"
 #include "6model/parametric.h"
@@ -186,6 +193,14 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "strings/utf16.h"
 #include "strings/iter.h"
 #include "strings/ops.h"
+#include "core/fixedsizealloc.h"
+#include "io/procops.h"
+#include "core/str_hash_table_funcs.h"
+#include "core/fixkey_hash_table_funcs.h"
+#include "core/index_hash_table_funcs.h"
+#include "core/ptr_hash_table_funcs.h"
+#include "core/uni_hash_table_funcs.h"
+#include "6model/containers.h"
 #include "strings/unicode_gen.h"
 #include "strings/unicode.h"
 #include "strings/latin1.h"
@@ -194,13 +209,13 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "strings/unicode_ops.h"
 #include "strings/gb2312.h"
 #include "strings/gb18030.h"
+#include "strings/siphash/csiphash.h"
 #include "io/io.h"
 #include "io/eventloop.h"
 #include "io/syncfile.h"
 #include "io/syncsocket.h"
 #include "io/fileops.h"
 #include "io/dirops.h"
-#include "io/procops.h"
 #include "io/timers.h"
 #include "io/filewatchers.h"
 #include "io/signals.h"
@@ -208,7 +223,6 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "io/asyncsocketudp.h"
 #include "math/bigintops.h"
 #include "core/intcache.h"
-#include "core/fixedsizealloc.h"
 #include "jit/graph.h"
 #include "jit/label.h"
 #include "jit/expr.h"

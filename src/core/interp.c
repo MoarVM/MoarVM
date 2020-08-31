@@ -497,10 +497,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     if (!sf->body.fully_deserialized)
                         MVM_bytecode_finish_frame(tc, sf->body.cu, sf, 0);
                     if (sf->body.num_lexicals) {
-                        MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, sf, name);
-                        if (entry && sf->body.lexical_types[entry->value] == MVM_reg_obj) {
-                            MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[entry->value].o, val);
-                            sf->body.static_env_flags[entry->value] = (MVMuint8)flag;
+                        MVMuint32 idx = MVM_get_lexical_by_name(tc, sf, name);
+                        if (idx != MVM_INDEX_HASH_NOT_FOUND
+                            && sf->body.lexical_types[idx] == MVM_reg_obj) {
+                            MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[idx].o, val);
+                            sf->body.static_env_flags[idx] = (MVMuint8)flag;
                             found = 1;
                         }
                     }
@@ -1953,7 +1954,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(reprname): {
                 const MVMREPROps *repr = REPR(GET_REG(cur_op, 2).o);
-                GET_REG(cur_op, 0).s = tc->instance->repr_list[repr->ID]->name;
+                GET_REG(cur_op, 0).s = tc->instance->repr_names[repr->ID];
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2757,11 +2758,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *hll_name = tc->cur_frame->static_info->body.cu->body.hll_name;
                 GET_REG(cur_op, 0).o = MVM_hll_sym_get(tc, hll_name, GET_REG(cur_op, 2).s);
                 cur_op += 4;
-                goto NEXT;
-            }
-            OP(sp_gethashentryvalue): {
-                GET_REG(cur_op, 0).o = ((MVMHashEntry *)MVM_BC_get_I64(cur_op, 2))->value;
-                cur_op += 10;
                 goto NEXT;
             }
             OP(bindcurhllsym): {
@@ -6435,7 +6431,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_boolify_iter_arr): {
                 MVMIter *iter = (MVMIter *)GET_REG(cur_op, 2).o;
 
-                GET_REG(cur_op, 0).i64 = iter->body.array_state.index + 1 < iter->body.array_state.limit ? 1 : 0;
+                GET_REG(cur_op, 0).i64 = MVM_iter_istrue_array(tc, iter);
 
                 cur_op += 4;
                 goto NEXT;
@@ -6443,7 +6439,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_boolify_iter_hash): {
                 MVMIter *iter = (MVMIter *)GET_REG(cur_op, 2).o;
 
-                GET_REG(cur_op, 0).i64 = iter->body.hash_state.next != NULL ? 1 : 0;
+                GET_REG(cur_op, 0).i64 = MVM_iter_istrue_hash(tc, iter);
 
                 cur_op += 4;
                 goto NEXT;

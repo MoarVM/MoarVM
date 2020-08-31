@@ -92,32 +92,6 @@ struct MVMStringConsts {
     MVMString *replacement;
 };
 
-/* An entry in the representations registry. */
-struct MVMReprRegistry {
-    /* name of the REPR */
-    MVMString *name;
-
-    /* the REPR vtable */
-    const MVMREPROps *repr;
-
-    /* the uthash hash handle inline struct. */
-    UT_hash_handle hash_handle;
-};
-
-/* An entry in the persistent object IDs hash, used to give still-movable
- * objects a lifetime-unique ID. */
-struct MVMObjectId {
-    /* The current object address. */
-    MVMObject *current;
-
-    /* Then gen2 address that forms the persistent ID, and where we'll move
-     * the object to if it lives long enough. */
-    MVMCollectable *gen2_addr;
-
-    /* Hash handle. */
-    UT_hash_handle hash_handle;
-};
-
 struct MVMEventSubscriptions {
     uv_mutex_t mutex_event_subscription;
 
@@ -128,6 +102,11 @@ struct MVMEventSubscriptions {
 
     MVMuint64 vm_startup_hrtime;
     MVMnum64  vm_startup_now;
+};
+
+struct MVMSerializationContextWeakHashEntry {
+    struct MVMStrHashHandle hash_handle;
+    MVMSerializationContextBody *scb;
 };
 
 /* Represents a MoarVM instance. */
@@ -220,7 +199,7 @@ struct MVMInstance {
 
     /* Persistent object ID hash, used to give nursery objects a lifetime
      * unique ID. Plus a lock to protect it. */
-    MVMObjectId *object_ids;
+    MVMPtrHashTable     object_ids;
     uv_mutex_t    mutex_object_ids;
 
     /* Fixed size allocator. */
@@ -238,17 +217,20 @@ struct MVMInstance {
     /* Number of representations registered so far. */
     MVMuint32 num_reprs;
 
-    /* An array mapping representation IDs to registry entries. */
-    MVMReprRegistry **repr_list;
+    /* An array mapping representation IDs to REPR vtables. */
+    const MVMREPROps **repr_vtables;
 
-    /* A hash mapping representation names to registry entries. */
-    MVMReprRegistry *repr_hash;
+    /* An array mapping representation IDs to REPR names. */
+    MVMString **repr_names;
+
+    /* A hash mapping representation names to IDs. */
+    MVMIndexHashTable repr_hash;
 
     /* Mutex for REPR registration. */
     uv_mutex_t mutex_repr_registry;
 
     /* Container type registry and mutex to protect it. */
-    MVMContainerRegistry *container_registry;
+    MVMStrHashTable       container_registry;
     uv_mutex_t      mutex_container_registry;
 
     /* Hash of all known serialization contexts. Marked for GC iff
@@ -257,7 +239,7 @@ struct MVMInstance {
      * simply nulled. That makes it a small memory leak if a lot of
      * SCs are created and go away over time. The mutex protects all
      * the weakhash and all SCs list. */
-    MVMSerializationContextBody  *sc_weakhash;
+    MVMStrHashTable               sc_weakhash;
     MVMSerializationContextBody **all_scs;
     MVMuint32                     all_scs_next_idx;
     MVMuint32                     all_scs_alloc;
@@ -474,8 +456,8 @@ struct MVMInstance {
     /* Hashes of HLLConfig objects. compiler_hll_configs is those for the
      * running compiler, and the default. compilee_hll_configs is used if
      * hll_compilee_depth is > 0. */
-    MVMHLLConfig *compiler_hll_configs;
-    MVMHLLConfig *compilee_hll_configs;
+    MVMFixKeyHashTable compiler_hll_configs;
+    MVMFixKeyHashTable compilee_hll_configs;
     MVMint64      hll_compilee_depth;
     uv_mutex_t    mutex_hllconfigs;
 
@@ -488,20 +470,20 @@ struct MVMInstance {
     uv_mutex_t    mutex_compiler_registry;
 
     /* Hash of filenames of compunits loaded from disk. */
-    MVMLoadedCompUnitName *loaded_compunits;
+    MVMFixKeyHashTable     loaded_compunits;
     uv_mutex_t       mutex_loaded_compunits;
 
     /* Hash of all loaded DLLs. */
-    MVMDLLRegistry  *dll_registry;
-    uv_mutex_t mutex_dll_registry;
+    MVMFixKeyHashTable     dll_registry;
+    uv_mutex_t       mutex_dll_registry;
 
     /* Hash of all loaded extensions. */
-    MVMExtRegistry  *ext_registry;
-    uv_mutex_t mutex_ext_registry;
+    MVMFixKeyHashTable     ext_registry;
+    uv_mutex_t       mutex_ext_registry;
 
     /* Hash of all registered extension ops. */
-    MVMExtOpRegistry *extop_registry;
-    uv_mutex_t  mutex_extop_registry;
+    MVMFixKeyHashTable     extop_registry;
+    uv_mutex_t       mutex_extop_registry;
 
     /************************************************************************
      * Bytecode instrumentations (profiler, coverage, etc.)

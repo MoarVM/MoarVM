@@ -14,8 +14,8 @@ struct MVMStaticFrameBody {
     MVMuint16 *lexical_types;
 
     /* Lexicals name map. */
-    MVMLexicalRegistry *lexical_names;
-    MVMLexicalRegistry **lexical_names_list;
+    MVMIndexHashTable *lexical_names;
+    MVMString **lexical_names_list;
 
     /* Defaults for lexicals upon new frame creation. */
     MVMRegister *static_env;
@@ -134,19 +134,17 @@ struct MVMStaticFrameInstrumentation {
     MVMFrameHandler *uninstrumented_handlers;
     MVMuint32        uninstrumented_bytecode_size;
     MVMuint32        instrumented_bytecode_size;
-    MVMStaticFrameDebugLocal *debug_locals;
+    MVMStrHashTable *debug_locals;
 
     MVMuint8         profiler_confprog_result;
     MVMuint8         profiler_confprog_version;
 };
 
 struct MVMStaticFrameDebugLocal {
+    /* The lexical's name is the key: */
+    struct MVMStrHashHandle hash_handle;
     /* The index of the local where the value lives. */
     MVMuint16 local_idx;
-    /* The name of the lexical. */
-    MVMString *name;
-    /* The uthash hash handle inline struct. */
-    UT_hash_handle hash_handle;
 };
 
 /* Function for REPR setup. */
@@ -155,4 +153,4 @@ const MVMREPROps * MVMStaticFrame_initialize(MVMThreadContext *tc);
 /* Debugging help. */
 char * MVM_staticframe_file_location(MVMThreadContext *tc, MVMStaticFrame *sf);
 
-MVMLexicalRegistry *MVM_get_lexical_by_name(MVMThreadContext *tc, MVMStaticFrame *sf, MVMString *name);
+MVMuint32 MVM_get_lexical_by_name(MVMThreadContext *tc, MVMStaticFrame *sf, MVMString *name);

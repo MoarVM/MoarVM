@@ -260,7 +260,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                                 ascension++, cursor = &cursor->outer->body) { };
                         if (cursor->fully_deserialized) {
                             if (cur_ins->operands[i].lex.idx < cursor->num_lexicals) {
-                                char *cstr = MVM_string_utf8_encode_C_string(tc, cursor->lexical_names_list[cur_ins->operands[i].lex.idx]->key);
+                                char *cstr = MVM_string_utf8_encode_C_string(tc, cursor->lexical_names_list[cur_ins->operands[i].lex.idx]);
                                 appendf(ds, ",%s)", cstr);
                                 MVM_free(cstr);
                             } else {

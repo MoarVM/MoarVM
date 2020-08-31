@@ -1326,12 +1326,12 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
     MVMFrame *cur_frame = tc->cur_frame;
     while (cur_frame != NULL) {
         if (cur_frame->static_info->body.num_lexicals) {
-            MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
-            if (entry) {
-                if (MVM_LIKELY(cur_frame->static_info->body.lexical_types[entry->value] == type)) {
-                    MVMRegister *result = &cur_frame->env[entry->value];
+            MVMuint32 idx = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
+            if (idx != MVM_INDEX_HASH_NOT_FOUND) {
+                if (MVM_LIKELY(cur_frame->static_info->body.lexical_types[idx] == type)) {
+                    MVMRegister *result = &cur_frame->env[idx];
                     if (type == MVM_reg_obj && !result->o)
-                        MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
+                        MVM_frame_vivify_lexical(tc, cur_frame, idx);
                     return result;
                 }
                 else {
@@ -1360,15 +1360,15 @@ MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *
     MVMFrame *cur_frame = tc->cur_frame;
     while (cur_frame != NULL) {
         if (cur_frame->static_info->body.num_lexicals) {
-            MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
-            if (entry) {
-                if (cur_frame->static_info->body.lexical_types[entry->value] == type) {
+            MVMuint32 idx = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
+            if (idx != MVM_INDEX_HASH_NOT_FOUND) {
+                if (cur_frame->static_info->body.lexical_types[idx] == type) {
                     if (type == MVM_reg_obj || type == MVM_reg_str) {
                         MVM_ASSIGN_REF(tc, &(cur_frame->header),
-                            cur_frame->env[entry->value].o, value.o);
+                            cur_frame->env[idx].o, value.o);
                     }
                     else {
-                        cur_frame->env[entry->value] = value;
+                        cur_frame->env[idx] = value;
                     }
                     return;
                 }
@@ -1412,12 +1412,12 @@ MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString
 MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
     while (cur_frame != NULL) {
         if (cur_frame->static_info->body.num_lexicals) {
-            MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
-            if (entry) {
-                if (cur_frame->static_info->body.lexical_types[entry->value] == MVM_reg_obj) {
-                    MVMRegister *result = &cur_frame->env[entry->value];
+            MVMuint32 idx = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
+            if (idx != MVM_INDEX_HASH_NOT_FOUND) {
+                if (cur_frame->static_info->body.lexical_types[idx] == MVM_reg_obj) {
+                    MVMRegister *result = &cur_frame->env[idx];
                     if (!result->o)
-                        MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
+                        MVM_frame_vivify_lexical(tc, cur_frame, idx);
                     return result;
                 }
                 else {
@@ -1704,9 +1704,9 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
  * try to vivify anything - gets exactly what is there. */
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
     if (MVM_LIKELY(f->static_info->body.num_lexicals != 0)) {
-        MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, f->static_info, name);
-        if (entry)
-            return &f->env[entry->value];
+        MVMuint32 idx = MVM_get_lexical_by_name(tc, f->static_info, name);
+        if (idx != MVM_INDEX_HASH_NOT_FOUND)
+            return &f->env[idx];
     }
     {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -1719,11 +1719,11 @@ MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *na
 /* Returns the storage unit for the lexical in the specified frame. */
 MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name, MVMuint16 type) {
     if (f->static_info->body.num_lexicals) {
-        MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, f->static_info, name);
-        if (entry && f->static_info->body.lexical_types[entry->value] == type) {
-            MVMRegister *result = &f->env[entry->value];
+        MVMuint32 idx = MVM_get_lexical_by_name(tc, f->static_info, name);
+        if (idx != MVM_INDEX_HASH_NOT_FOUND && f->static_info->body.lexical_types[idx] == type) {
+            MVMRegister *result = &f->env[idx];
             if (type == MVM_reg_obj && !result->o)
-                MVM_frame_vivify_lexical(tc, f, entry->value);
+                MVM_frame_vivify_lexical(tc, f, idx);
             return result;
         }
     }
@@ -1765,10 +1765,10 @@ MVMuint16 MVM_frame_translate_to_primspec(MVMThreadContext *tc, MVMuint16 kind) 
 /* Returns the primitive type specification for a lexical. */
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
     if (f->static_info->body.num_lexicals) {
-        MVMLexicalRegistry *entry = MVM_get_lexical_by_name(tc, f->static_info, name);
-        if (entry)
+        MVMuint32 idx = MVM_get_lexical_by_name(tc, f->static_info, name);
+        if (idx != MVM_INDEX_HASH_NOT_FOUND)
             return MVM_frame_translate_to_primspec(tc,
-                    f->static_info->body.lexical_types[entry->value]);
+                    f->static_info->body.lexical_types[idx]);
     }
     {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);

@@ -65,8 +65,6 @@ void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
 /* Adds anything that is a root thanks to being referenced by instance,
  * but that isn't permanent. */
 void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
-    MVMSerializationContextBody *current;
-    MVMLoadedCompUnitName       *current_lcun;
     MVMString                  **int_to_str_cache;
     MVMuint32                    i;
 
@@ -103,24 +101,30 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 
     /* okay, so this makes the weak hash slightly less weak.. for certain
      * keys of it anyway... */
-    HASH_ITER_FAST(tc, hash_handle, tc->instance->sc_weakhash, current, {
+    MVMStrHashTable *const weakhash = &tc->instance->sc_weakhash;
+    MVMStrHashIterator iterator = MVM_str_hash_first(tc, weakhash);
+    struct MVMSerializationContextWeakHashEntry *current;
+    while ((current = MVM_str_hash_current(tc, weakhash, iterator))) {
         /* mark the string handle pointer iff it hasn't yet been resolved */
         add_collectable(tc, worklist, snapshot, current->hash_handle.key,
             "SC weakhash hash key");
-        if (!current->sc)
-            add_collectable(tc, worklist, snapshot, current->handle,
+        if (!current->scb->sc)
+            add_collectable(tc, worklist, snapshot, current->scb->handle,
                 "SC weakhash unresolved handle");
-        else if (!current->claimed)
-            add_collectable(tc, worklist, snapshot, current->sc,
+        else if (!current->scb->claimed)
+            add_collectable(tc, worklist, snapshot, current->scb->sc,
                 "SC weakhash unclaimed SC");
-    });
+        iterator = MVM_str_hash_next(tc, weakhash, iterator);
+    }
 
-    HASH_ITER_FAST(tc, hash_handle, tc->instance->loaded_compunits, current_lcun, {
-        add_collectable(tc, worklist, snapshot, current_lcun->hash_handle.key,
-            "Loaded compilation unit hash key");
-        add_collectable(tc, worklist, snapshot, current_lcun->filename,
-            "Loaded compilation unit filename");
-    });
+    MVMStrHashTable *const containers = &tc->instance->container_registry;
+    iterator = MVM_str_hash_first(tc, containers);
+    MVMContainerRegistry *registry;
+    while ((registry = MVM_str_hash_current(tc, containers, iterator))) {
+        add_collectable(tc, worklist, snapshot, registry->hash_handle.key,
+                        "Container configuration hash key");
+        iterator = MVM_str_hash_next(tc, containers, iterator);
+    }
 
     add_collectable(tc, worklist, snapshot, tc->instance->cached_backend_config,
         "Cached backend configuration hash");
@@ -148,8 +152,6 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 /* Adds anything that is a root thanks to being referenced by a thread,
  * context, but that isn't permanent. */
 void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
-    MVMNativeCallbackCacheHead *current_cbceh;
-
     /* Any active exception handlers and payload. */
     MVMActiveHandler *cur_ah = tc->active_handlers;
     while (cur_ah != NULL) {
@@ -184,20 +186,26 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     add_collectable(tc, worklist, snapshot, tc->next_dispatcher_for, "Next dispatcher for");
 
     /* Callback cache. */
-    HASH_ITER_FAST(tc, hash_handle, tc->native_callback_cache, current_cbceh, {
-        MVMint32 i;
-        MVMNativeCallback *entry = current_cbceh->head;
-        add_collectable(tc, worklist, snapshot, current_cbceh->hash_handle.key,
-            "Native callback cache key");
-        while (entry) {
-            for (i = 0; i < entry->num_types; i++)
-                add_collectable(tc, worklist, snapshot, entry->types[i],
-                    "Native callback cache type");
-            add_collectable(tc, worklist, snapshot, entry->target,
-                "Native callback cache target");
-            entry = entry->next;
+    if (tc->native_callback_cache) {
+        MVMStrHashTable *cache = tc->native_callback_cache;
+        MVMStrHashIterator iterator = MVM_str_hash_first(tc, cache);
+        struct MVMNativeCallbackCacheHead *current_cbceh;
+        while ((current_cbceh = MVM_str_hash_current(tc, cache, iterator))) {
+            MVMint32 i;
+            MVMNativeCallback *entry = current_cbceh->head;
+            add_collectable(tc, worklist, snapshot, current_cbceh->hash_handle.key,
+                            "Native callback cache key");
+            while (entry) {
+                for (i = 0; i < entry->num_types; i++)
+                    add_collectable(tc, worklist, snapshot, entry->types[i],
+                                    "Native callback cache type");
+                add_collectable(tc, worklist, snapshot, entry->target,
+                                "Native callback cache target");
+                entry = entry->next;
+            }
+            iterator = MVM_str_hash_next(tc, cache, iterator);
         }
-    });
+    }
 
     /* Profiling data. */
     if (worklist)

@@ -117,7 +117,6 @@
 |.type U32, MVMuint32
 |.type U64, MVMuint64
 |.type MPINT, mp_int
-|.type MVMHASHENTRY, MVMHashEntry
 
 
 /* Static allocation of relevant types to registers. I pick
@@ -1780,17 +1779,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov aword WORK[dst], TMP1;
         break;
     }
-    case MVM_OP_sp_boolify_iter_hash: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 obj = ins->operands[1].reg.orig;
-        | mov TMP1, aword WORK[obj];
-        | mov TMP2, MVMITER:TMP1->body.hash_state.next;
-        | test TMP2, TMP2;
-        | setnz TMP2b;
-        | movzx TMP2, TMP2b;
-        | mov aword WORK[dst], TMP2;
-        break;
-    }
     case MVM_OP_objprimspec: {
         MVMint16 dst  = ins->operands[0].reg.orig;
         MVMint16 type = ins->operands[1].reg.orig;
@@ -2118,14 +2106,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov ARG1, TC;
         | callp &MVM_args_bind_failed;
         |1:
-        break;
-    }
-    case MVM_OP_sp_gethashentryvalue: {
-        MVMint16 dst   = ins->operands[0].reg.orig;
-        MVMint64 entry = ins->operands[1].lit_i64;
-        | mov64 TMP1, entry;
-        | mov TMP1, MVMHASHENTRY:TMP1->value;
-        | mov WORK[dst], TMP1;
         break;
     }
     case MVM_OP_prof_enterspesh:

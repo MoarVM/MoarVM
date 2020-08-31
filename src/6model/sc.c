@@ -7,7 +7,10 @@
  * their to-resolve list after installing itself in the appropriate slot. */
 MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
     MVMSerializationContext     *sc;
-    MVMSerializationContextBody *scb = NULL;
+
+    if (!MVM_str_hash_key_is_valid(tc, handle)) {
+        MVM_str_hash_key_throw_invalid(tc, handle);
+    }
 
     /* Allocate. */
     MVMROOT(tc, handle, {
@@ -15,14 +18,15 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
         MVMROOT(tc, sc, {
             /* Add to weak lookup hash. */
             uv_mutex_lock(&tc->instance->mutex_sc_registry);
-            MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
-            if (!scb) {
-                scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
-                MVM_ASSIGN_REF(tc, &(sc->common.header), scb->handle, handle);
-                MVM_HASH_BIND_FREE(tc, tc->instance->sc_weakhash, handle, scb, {
-                    MVM_free(scb);
-                });
+            struct MVMSerializationContextWeakHashEntry *entry
+                = MVM_str_hash_lvalue_fetch_nocheck(tc, &tc->instance->sc_weakhash, handle);
+            if (!entry->hash_handle.key) {
+                entry->hash_handle.key = handle;
+
+                MVMSerializationContextBody *scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
+                entry->scb = scb;
                 sc->body = scb;
+                MVM_ASSIGN_REF(tc, &(sc->common.header), scb->handle, handle);
                 /* Calling repr_init will allocate, BUT if it does so, and we
                  * get unlucky, the GC will try to acquire mutex_sc_registry.
                  * This deadlocks. Thus, we force allocation in gen2, which
@@ -36,17 +40,20 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
                 scb->sc = sc;
                 MVM_sc_add_all_scs_entry(tc, scb);
             }
-            else if (scb->sc) {
-                /* we lost a race to create it! */
-                sc = scb->sc;
-            }
             else {
-                scb->sc = sc;
-                sc->body = scb;
-                MVM_ASSIGN_REF(tc, &(sc->common.header), scb->handle, handle);
-                MVM_gc_allocate_gen2_default_set(tc);
-                MVM_repr_init(tc, (MVMObject *)sc);
-                MVM_gc_allocate_gen2_default_clear(tc);
+                MVMSerializationContextBody *scb = entry->scb;
+                if (scb->sc) {
+                    /* we lost a race to create it! */
+                    sc = scb->sc;
+                }
+                else {
+                    scb->sc = sc;
+                    sc->body = scb;
+                    MVM_ASSIGN_REF(tc, &(sc->common.header), scb->handle, handle);
+                    MVM_gc_allocate_gen2_default_set(tc);
+                    MVM_repr_init(tc, (MVMObject *)sc);
+                    MVM_gc_allocate_gen2_default_clear(tc);
+                }
             }
             uv_mutex_unlock(&tc->instance->mutex_sc_registry);
         });
@@ -341,11 +348,11 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
 
 /* Resolves an SC handle using the SC weakhash. */
 MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString *handle) {
-    MVMSerializationContextBody *scb;
     uv_mutex_lock(&tc->instance->mutex_sc_registry);
-    MVM_HASH_GET(tc, tc->instance->sc_weakhash, handle, scb);
+    struct MVMSerializationContextWeakHashEntry *entry
+        = MVM_str_hash_fetch_nocheck(tc, &tc->instance->sc_weakhash, handle);
     uv_mutex_unlock(&tc->instance->mutex_sc_registry);
-    return scb && scb->sc ? scb->sc : NULL;
+    return entry ? entry->scb->sc : NULL;
 }
 
 /* Marks all objects, stables and codes that belong to this SC as free to be taken by another. */
