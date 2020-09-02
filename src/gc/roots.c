@@ -152,6 +152,15 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     else
         MVM_disp_registry_describe(tc, snapshot);
 
+    MVMStrHashTable *const syscalls = &tc->instance->syscalls;
+    iterator = MVM_str_hash_first(tc, syscalls);
+    MVMDispSysCallHashEntry *syscall_he;
+    while ((syscall_he = MVM_str_hash_current(tc, syscalls, iterator))) {
+        add_collectable(tc, worklist, snapshot, syscall_he->hash_handle.key,
+                "Dispatch syscall table hash key");
+        iterator = MVM_str_hash_next(tc, syscalls, iterator);
+    }
+
     MVM_debugserver_mark_handles(tc, worklist, snapshot);
 }
 
