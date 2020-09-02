@@ -157,6 +157,7 @@ MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCa
                     record->produced_cs.arg_names[cur_new_name] = arg_name;
                     cur_new_name++;
                 }
+                iterator = MVM_str_hash_next(tc, hashtable, iterator);
             }
         }
         else if (flag & MVM_CALLSITE_ARG_NAMED) {
