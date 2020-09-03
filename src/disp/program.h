@@ -150,6 +150,16 @@ struct MVMDispProgramRecordingCapture {
     MVM_VECTOR_DECL(MVMDispProgramRecordingCapture, captures);
 };
 
+/* Dispatch state saved during this recording, keyed on the dispatch
+ * definition. */
+struct MVMDispProgramRecordingState {
+    /* The dispatcher that saved state. */
+    MVMDispDefinition *disp;
+
+    /* The capture (which must appear in the capture tree). */
+    MVMObject *capture;
+};
+
 /* Recording state of a dispatch program, updated as we move through the record
  * phase. */
 struct MVMDispProgramRecording {
@@ -159,6 +169,9 @@ struct MVMDispProgramRecording {
     /* The values that we have encountered while recording, and maybe added
      * guards against. */
     MVM_VECTOR_DECL(MVMDispProgramRecordingValue, values);
+
+    /* Any dispatcher state that we have saved. */
+    MVM_VECTOR_DECL(MVMDispProgramRecordingState, states);
 
     /* The index of the value that is the outcome of the dispatch. For a value
      * outcome, it's the value we'll produce. For the invocations, it's the
