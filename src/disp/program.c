@@ -8,7 +8,7 @@
 #if DUMP_RECORDINGS
 static void dump_recording_capture(MVMThreadContext *tc,
         MVMDispProgramRecordingCapture *capture, MVMuint32 indent,
-        MVMObject *outcome) {
+        MVMDispProgramRecording *rec) {
     char *indent_str = alloca(indent + 1);
     memset(indent_str, ' ', indent);
     indent_str[indent] = '\0';
@@ -27,11 +27,18 @@ static void dump_recording_capture(MVMThreadContext *tc,
             fprintf(stderr, "%sUnknown transforamtion\n", indent_str);
             break;
     }
-    if (capture->capture == outcome)
+    if (capture->capture == rec->outcome_capture)
         fprintf(stderr, "%s  Used as args for invoke result\n", indent_str);
     MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(rec->states); i++) {
+        if (rec->states[i].capture == capture->capture) {
+            char *disp_id = MVM_string_utf8_encode_C_string(tc, rec->states[i].disp->id);
+            fprintf(stderr, "%s  Used as dispatch state for %s\n", indent_str, disp_id);
+            MVM_free(disp_id);
+        }
+    }
     for (i = 0; i < MVM_VECTOR_ELEMS(capture->captures); i++)
-        dump_recording_capture(tc, &(capture->captures[i]), indent + 2, outcome);
+        dump_recording_capture(tc, &(capture->captures[i]), indent + 2, rec);
 }
 static void dump_recording_values(MVMThreadContext *tc, MVMDispProgramRecording *rec) {
     MVMuint32 i;
@@ -85,7 +92,7 @@ static void dump_recording_values(MVMThreadContext *tc, MVMDispProgramRecording 
 static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *record) {
     fprintf(stderr, "Dispatch recording\n");
     fprintf(stderr, "  Captures:\n");
-    dump_recording_capture(tc, &(record->rec.initial_capture), 4, record->rec.outcome_capture);
+    dump_recording_capture(tc, &(record->rec.initial_capture), 4, &(record->rec));
     fprintf(stderr, "  Values:\n");
     dump_recording_values(tc, &(record->rec));
     fprintf(stderr, "  Outcome:\n");
@@ -319,6 +326,7 @@ static MVMFrame * find_calling_frame(MVMCallStackRecord *prev) {
 static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         MVMDispDefinition *disp, MVMObject *capture, MVMuint32 *thunked) {
     MVMCallsite *disp_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
+    record->current_disp = disp;
     record->current_capture.o = capture;
     MVMArgs dispatch_args = {
         .callsite = disp_callsite,
@@ -354,6 +362,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     record->rec.initial_capture.transformation = MVMDispProgramRecordingInitial;
     MVM_VECTOR_INIT(record->rec.initial_capture.captures, 8);
     MVM_VECTOR_INIT(record->rec.values, 16);
+    MVM_VECTOR_INIT(record->rec.states, 4);
     record->rec.outcome_capture = NULL;
     record->ic_entry_ptr = ic_entry_ptr;
     record->ic_entry = ic_entry;
@@ -743,10 +752,24 @@ MVMObject * MVM_disp_program_record_capture_insert_constant_arg(MVMThreadContext
 
 /* Record the setting of the dispatch state. */
 void MVM_disp_program_record_set_state(MVMThreadContext *tc, MVMObject *capture) {
-    /* Make sure we're in a dispatcher and that the capture is tracked. */
+    /* Make sure we're in a resumable dispatcher and that the capture is
+     * tracked. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    if (!record->current_disp->resume)
+        MVM_exception_throw_adhoc(tc,
+            "Can only use dispatcher-set-state in a resumable dispatcher");
     ensure_known_capture(tc, record, capture);
-    MVM_panic(1, "set state nyi");
+
+    /* Record the saving of the dispatch state for this dispatcher, making
+     * sure we didn't already save state for it. */
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(record->rec.states); i++)
+        if (record->rec.states[i].disp == record->current_disp)
+            MVM_exception_throw_adhoc(tc, "Already set state for this dispatcher");
+    MVMDispProgramRecordingState new_state;
+    new_state.disp = record->current_disp;
+    new_state.capture = capture;
+    MVM_VECTOR_PUSH(record->rec.states, new_state);
 }
 
 /* Record the getting of the dispatch state. */
@@ -773,7 +796,7 @@ void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatche
     record->outcome.delegate_capture = capture;
 }
 
-/* Record a program terminator that is a constant boject value. */
+/* Record a program terminator that is a constant object value. */
 void MVM_disp_program_record_result_constant(MVMThreadContext *tc, MVMCallsiteFlags kind,
         MVMRegister value) {
     /* Record the result action. */
@@ -1755,6 +1778,9 @@ void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecordi
             MVM_gc_worklist_add(tc, worklist, &(value->not_literal_guards[i]));
     }
     mark_recording_capture(tc, &(rec->initial_capture), worklist);
+    for (i = 0; i < MVM_VECTOR_ELEMS(rec->states); i++) {
+        MVM_gc_worklist_add(tc, worklist, &(rec->states[i].capture));
+    }
     MVM_gc_worklist_add(tc, worklist, &(rec->outcome_capture));
 }
 
@@ -1811,5 +1837,6 @@ void MVM_disp_program_recording_destroy(MVMThreadContext *tc, MVMDispProgramReco
     for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++)
         MVM_VECTOR_DESTROY(rec->values[i].not_literal_guards);
     MVM_VECTOR_DESTROY(rec->values);
+    MVM_VECTOR_DESTROY(rec->states);
     destroy_recording_capture(tc, &(rec->initial_capture));
 }
