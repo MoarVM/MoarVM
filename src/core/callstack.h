@@ -157,6 +157,9 @@ struct MVMCallStackDispatchRecord {
      * derived and guards established. */
     MVMDispProgramRecording rec;
 
+    /* The current dispatcher that we're running. */
+    MVMDispDefinition *current_disp;
+
     /* Register holding the current capture. Starts out as the initial capture
      * and then, in the case we delegate, becomes the one sent to the delegate
      * dispatcher. */
