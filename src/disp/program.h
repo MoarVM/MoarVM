@@ -388,6 +388,8 @@ MVMObject * MVM_disp_program_record_capture_insert_constant_arg(MVMThreadContext
         MVMObject *capture, MVMuint32 index, MVMCallsiteFlags kind, MVMRegister value);
 MVMObject * MVM_disp_program_record_capture_insert_arg(MVMThreadContext *tc,
         MVMObject *capture, MVMuint32 index, MVMObject *tracked);
+void MVM_disp_program_record_set_state(MVMThreadContext *tc, MVMObject *capture);
+MVMObject * MVM_disp_program_record_get_state(MVMThreadContext *tc);
 void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatcher_id,
         MVMObject *capture);
 void MVM_disp_program_record_result_constant(MVMThreadContext *tc, MVMCallsiteFlags kind,
