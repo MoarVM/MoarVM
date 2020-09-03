@@ -236,6 +236,41 @@ static MVMDispSysCall dispatcher_guard_not_literal_obj = {
     .expected_concrete = { 1, 0 }
 };
 
+/* dispatcher-set-state */
+static void dispatcher_set_state_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVM_disp_program_record_set_state(tc, capture);
+    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_set_state = {
+    .c_name = "dispatcher-set-state",
+    .implementation = dispatcher_set_state_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMCapture },
+    .expected_concrete = { 1 },
+};
+
+/* dispatcher-get-state */
+static void dispatcher_get_state_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *capture = MVM_disp_program_record_get_state(tc);
+    MVM_args_set_result_obj(tc, capture, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_get_state = {
+    .c_name = "dispatcher-get-state",
+    .implementation = dispatcher_get_state_impl,
+    .min_args = 0,
+    .max_args = 0,
+    .expected_kinds = { },
+    .expected_reprs = { },
+    .expected_concrete = { },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -265,6 +300,8 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_guard_concreteness);
     add_to_hash(tc, &dispatcher_guard_literal);
     add_to_hash(tc, &dispatcher_guard_not_literal_obj);
+    add_to_hash(tc, &dispatcher_set_state);
+    add_to_hash(tc, &dispatcher_get_state);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
