@@ -741,6 +741,21 @@ MVMObject * MVM_disp_program_record_capture_insert_constant_arg(MVMThreadContext
     return new_capture;
 }
 
+/* Record the setting of the dispatch state. */
+void MVM_disp_program_record_set_state(MVMThreadContext *tc, MVMObject *capture) {
+    /* Make sure we're in a dispatcher and that the capture is tracked. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    ensure_known_capture(tc, record, capture);
+    MVM_panic(1, "set state nyi");
+}
+
+/* Record the getting of the dispatch state. */
+MVMObject * MVM_disp_program_record_get_state(MVMThreadContext *tc) {
+    /* Make sure we're in a dispatcher. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    MVM_panic(1, "get state nyi");
+}
+
 /* Record a delegation from one dispatcher to another. */
 void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatcher_id,
         MVMObject *capture) {
