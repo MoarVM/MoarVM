@@ -1,5 +1,9 @@
 #include "moar.h"
 
+/* Set this to 1 to force all P6opaque objects to immediately use body.replaced.
+ */
+#define MVM_P6OPAQUE_DEBUG 0
+
 #ifndef MAX
     #define MAX(x,y) ((x)>(y)?(x):(y))
 #endif
@@ -63,8 +67,15 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 
 /* Creates a new instance based on the type object. */
 static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
-    if (st->size)
-        return MVM_gc_allocate_object(tc, st);
+    if (st->size) {
+        MVMObject *obj = MVM_gc_allocate_object(tc, st);
+#if MVM_P6OPAQUE_DEBUG
+        size_t size = st->size - sizeof(MVMObject);
+        memset(&((MVMP6opaque *)obj)->body, 0xFE, size);
+        ((MVMP6opaque *)obj)->body.replaced = MVM_calloc(1, size);
+#endif
+        return obj;
+    }
     else
         MVM_exception_throw_adhoc(tc, "P6opaque: must compose %s before allocating", MVM_6model_get_stable_debug_name(tc, st));
 }
@@ -91,6 +102,11 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMuint16 i;
     src = MVM_p6opaque_real_data(tc, src);
+
+#if MVM_P6OPAQUE_DEBUG
+    assert(*(void **)dest);
+    dest = *(void **)dest;
+#endif
 
     /* Flattened in REPRs need a chance to copy 'emselves. */
     for (i = 0; i < repr_data->num_attributes; i++) {
