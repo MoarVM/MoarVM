@@ -999,10 +999,13 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
                 align_to(&cur_offset, (MVMuint32)ss->align);
                 cur_offset += ss->bits / 8;
             }
-            else
+            else {
+                align_to(&cur_offset, ALIGNOF(MVMObject *));
                 cur_offset += sizeof(MVMObject *);
+            }
         }
         else {
+            align_to(&cur_offset, ALIGNOF(MVMObject *));
             cur_offset += sizeof(MVMObject *);
         }
     }
@@ -1177,6 +1180,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     cur_gc_cleanup_slot = 0;
     for (i = 0; i < repr_data->num_attributes; i++) {
         if (repr_data->flattened_stables[i] == NULL) {
+            align_to(&cur_offset, ALIGNOF(MVMObject *));
             /* Store position. */
             repr_data->attribute_offsets[i] = cur_offset;
 
@@ -1212,6 +1216,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             cur_offset += spec->bits / 8;
         }
     }
+    assert(cur_offset <= st->size + sizeof(MVMP6opaqueBody) - sizeof(MVMP6opaque));
     repr_data->initialize_slots[cur_initialize_slot] = -1;
     repr_data->gc_mark_slots[cur_gc_mark_slot] = -1;
     repr_data->gc_cleanup_slots[cur_gc_cleanup_slot] = -1;
