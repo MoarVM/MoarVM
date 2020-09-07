@@ -2083,7 +2083,7 @@ size_t MVM_p6opaque_attr_offset(MVMThreadContext *tc, MVMObject *type,
 /* Find the offset into the object of a bigint attribute. */
 MVMuint16 MVM_p6opaque_get_bigint_offset(MVMThreadContext *tc, MVMSTable *st) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
-    if (repr_data->unbox_slots) {
+    if (repr_data->unbox_slots && !st->is_mixin_type) {
         MVMuint16 slot = repr_data->unbox_slots[MVM_REPR_ID_P6bigint];
         if (slot != MVM_P6OPAQUE_NO_UNBOX_SLOT)
             return sizeof(MVMObject) + repr_data->attribute_offsets[slot];
