@@ -198,7 +198,6 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/spesh/dump@obj@ \
           src/spesh/graph@obj@ \
           src/spesh/codegen@obj@ \
-          src/spesh/candidate@obj@ \
           src/spesh/manipulate@obj@ \
           src/spesh/args@obj@ \
           src/spesh/usages@obj@ \
@@ -221,6 +220,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/spesh/plugin@obj@ \
           src/spesh/frame_walker@obj@ \
           src/spesh/pea@obj@ \
+          src/6model/reprs/MVMSpeshCandidate@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/parse_num@obj@ \
@@ -376,7 +376,6 @@ HEADERS = src/moar.h \
           src/spesh/debug.h \
           src/spesh/graph.h \
           src/spesh/codegen.h \
-          src/spesh/candidate.h \
           src/spesh/manipulate.h \
           src/spesh/args.h \
           src/spesh/usages.h \
@@ -397,6 +396,7 @@ HEADERS = src/moar.h \
           src/spesh/plugin.h \
           src/spesh/frame_walker.h \
           src/spesh/pea.h \
+          src/6model/reprs/MVMSpeshCandidate.h \
           src/strings/unicode_gen.h \
           src/strings/normalize.h \
           src/strings/decode_stream.h \

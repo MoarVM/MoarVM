@@ -208,10 +208,10 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 /* Gets the effective size for inlining considerations of a specialization,
  * which is its code size minus the code size of its inlines. */
 static MVMint32 get_effective_size(MVMThreadContext *tc, MVMSpeshCandidate *cand) {
-    MVMint32 result = cand->bytecode_size;
+    MVMint32 result = cand->body.bytecode_size;
     MVMuint32 i;
-    for (i = 0; i < cand->num_inlines; i++)
-        result -= cand->inlines[i].bytecode_size;
+    for (i = 0; i < cand->body.num_inlines; i++)
+        result -= cand->body.inlines[i].bytecode_size;
     if (result < 0)
         result = 0;
     return (MVMuint32)result;
@@ -277,7 +277,7 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
          * sure it stays available for deopt. */
         MVMuint32 i;
         MVM_spesh_facts_discover(tc, ig, NULL, 1);
-        add_deopt_usages(tc, ig, cand->deopt_usage_info, deopt_usage_ins);
+        add_deopt_usages(tc, ig, cand->body.deopt_usage_info, deopt_usage_ins);
         for (i = 0; i < ig->num_inlines; i++) {
             /* We can't be very precise about this, because we don't know the
              * SSA version in effect. So bump usages of all version of the

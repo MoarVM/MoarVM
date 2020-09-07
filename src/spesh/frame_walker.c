@@ -48,7 +48,7 @@ static void go_to_next_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
         fw->inline_idx = NO_INLINE;
         return;
     }
-    MVMJitCode *jitcode = cand->jitcode;
+    MVMJitCode *jitcode = cand->body.jitcode;
     if (jitcode) {
         MVMuint32 idx = MVM_jit_code_get_active_inlines(tc, jitcode, fw->jit_position, fw->inline_idx + 1);
         if (idx < jitcode->num_inlines) {
@@ -58,8 +58,8 @@ static void go_to_next_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
     }
     else {
         MVMuint32 i;
-        for (i = fw->inline_idx + 1; i < cand->num_inlines; i++) {
-            if (fw->deopt_offset > cand->inlines[i].start && fw->deopt_offset <= cand->inlines[i].end) {
+        for (i = fw->inline_idx + 1; i < cand->body.num_inlines; i++) {
+            if (fw->deopt_offset > cand->body.inlines[i].start && fw->deopt_offset <= cand->body.inlines[i].end) {
                 /* Found an applicable inline. */
                 fw->inline_idx = i;
                 return;
@@ -76,8 +76,8 @@ static void go_to_next_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
 static void go_to_first_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMFrame *prev) {
     MVMFrame *f = fw->cur_caller_frame;
     MVMSpeshCandidate *spesh_cand = f->spesh_cand;
-    if (spesh_cand && spesh_cand->inlines) {
-        MVMJitCode *jitcode = spesh_cand->jitcode;
+    if (spesh_cand && spesh_cand->body.inlines) {
+        MVMJitCode *jitcode = spesh_cand->body.jitcode;
         if (jitcode && f->jit_entry_label) {
             void *current_position = prev && prev->extra && prev->extra->caller_jit_position
                 ? prev->extra->caller_jit_position
@@ -94,7 +94,7 @@ static void go_to_first_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MV
                 ? prev->extra->caller_deopt_idx - 1
                 : MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, f);
             if (deopt_idx >= 0) {
-                fw->deopt_offset = spesh_cand->deopts[2 * deopt_idx + 1];
+                fw->deopt_offset = spesh_cand->body.deopts[2 * deopt_idx + 1];
                 fw->inline_idx = -1;
                 go_to_next_inline(tc, fw);
                 return;
@@ -169,7 +169,7 @@ MVMuint32 MVM_spesh_frame_walker_next(MVMThreadContext *tc, MVMSpeshFrameWalker 
                 outer = fw->cur_caller_frame->outer;
             }
             else {
-                MVMSpeshInline *i = &(spesh_cand->inlines[fw->inline_idx]);
+                MVMSpeshInline *i = &(spesh_cand->body.inlines[fw->inline_idx]);
                 MVMCode *code = (MVMCode *)fw->cur_caller_frame->work[i->code_ref_reg].o;
                 outer = code ? code->body.outer : NULL;
             }
@@ -214,8 +214,8 @@ static void find_lex_info(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMFram
             *base_index_out = 0;
         }
         else {
-            *sf_out = spesh_cand->inlines[fw->inline_idx].sf;
-            *base_index_out = spesh_cand->inlines[fw->inline_idx].lexicals_start;
+            *sf_out = spesh_cand->body.inlines[fw->inline_idx].sf;
+            *base_index_out = spesh_cand->body.inlines[fw->inline_idx].lexicals_start;
         }
     }
 }
@@ -259,7 +259,7 @@ MVMuint32 MVM_spesh_frame_walker_move_outer(MVMThreadContext *tc, MVMSpeshFrameW
         outer = fw->cur_caller_frame->outer;
     }
     else {
-        MVMSpeshInline *i = &(spesh_cand->inlines[fw->inline_idx]);
+        MVMSpeshInline *i = &(spesh_cand->body.inlines[fw->inline_idx]);
         MVMCode *code = (MVMCode *)fw->cur_caller_frame->work[i->code_ref_reg].o;
         outer = code ? code->body.outer : NULL;
     }
@@ -306,7 +306,7 @@ MVMuint32 MVM_spesh_frame_walker_move_caller_skip_thunks(MVMThreadContext *tc,
         MVMSpeshCandidate *spesh_cand = fw->cur_caller_frame->spesh_cand;
         MVMStaticFrame *sf = (fw->inline_idx == NO_INLINE || !spesh_cand)
             ? fw->cur_caller_frame->static_info
-            : spesh_cand->inlines[fw->inline_idx].sf;
+            : spesh_cand->body.inlines[fw->inline_idx].sf;
         if (!sf->body.is_thunk)
             return 1;
     }
@@ -443,7 +443,7 @@ MVMObject * MVM_spesh_frame_walker_get_code(MVMThreadContext *tc, MVMSpeshFrameW
     if (fw->inline_idx == NO_INLINE || !spesh_cand)
         return fw->cur_caller_frame->code_ref;
     return fw->cur_caller_frame->work[
-        spesh_cand->inlines[fw->inline_idx].code_ref_reg
+        spesh_cand->body.inlines[fw->inline_idx].code_ref_reg
     ].o;
 }
 

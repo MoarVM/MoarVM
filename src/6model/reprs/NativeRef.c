@@ -226,8 +226,8 @@ MVMObject * MVM_nativeref_lex_i(MVMThreadContext *tc, MVMuint16 outers, MVMuint1
     ref_type = MVM_hll_current(tc)->int_lex_ref;
     if (ref_type) {
         MVMFrame  *f = get_lexical_outer(tc, outers);
-        MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
-            ? f->spesh_cand->lexical_types
+        MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->body.lexical_types
+            ? f->spesh_cand->body.lexical_types
             : f->static_info->body.lexical_types;
         MVMuint16 type = lexical_types[idx];
         if (type != MVM_reg_int64 && type != MVM_reg_int32 &&
@@ -245,8 +245,8 @@ MVMObject * MVM_nativeref_lex_n(MVMThreadContext *tc, MVMuint16 outers, MVMuint1
     ref_type = MVM_hll_current(tc)->num_lex_ref;
     if (ref_type) {
         MVMFrame  *f = get_lexical_outer(tc, outers);
-        MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
-            ? f->spesh_cand->lexical_types
+        MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->body.lexical_types
+            ? f->spesh_cand->body.lexical_types
             : f->static_info->body.lexical_types;
         MVMuint16 type = lexical_types[idx];
         if (type != MVM_reg_num64 && type != MVM_reg_num32)
@@ -261,8 +261,8 @@ MVMObject * MVM_nativeref_lex_s(MVMThreadContext *tc, MVMuint16 outers, MVMuint1
     ref_type = MVM_hll_current(tc)->str_lex_ref;
     if (ref_type) {
         MVMFrame  *f = get_lexical_outer(tc, outers);
-        MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
-            ? f->spesh_cand->lexical_types
+        MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->body.lexical_types
+            ? f->spesh_cand->body.lexical_types
             : f->static_info->body.lexical_types;
         if (lexical_types[idx] != MVM_reg_str)
             MVM_exception_throw_adhoc(tc, "getlexref_s: lexical is not a str (%d, %d)", outers, idx);

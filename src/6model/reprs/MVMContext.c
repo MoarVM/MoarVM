@@ -275,11 +275,11 @@ static void snapshot_frame_callees(MVMThreadContext *tc, MVMFrame *f) {
         MVMSpeshCandidate *cand = f->caller->spesh_cand;
         MVMFrameExtra *extra = MVM_frame_extra(tc, f);
         extra->caller_info_needed = 1;
-        if (cand && cand->num_inlines) {
-            if (cand->jitcode) {
+        if (cand && cand->body.num_inlines) {
+            if (cand->body.jitcode) {
                 if (extra->caller_jit_position)
                     return;
-                extra->caller_jit_position = MVM_jit_code_get_current_position(tc, cand->jitcode, f->caller);
+                extra->caller_jit_position = MVM_jit_code_get_current_position(tc, cand->body.jitcode, f->caller);
             }
             else {
                 if (extra->caller_deopt_idx)

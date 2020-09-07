@@ -610,9 +610,9 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                     MVMuint16 *type_map;
                     MVMuint16  name_count = frame->static_info->body.num_lexicals;
                     MVMString **names = frame->static_info->body.lexical_names_list;
-                    if (frame->spesh_cand && frame->spesh_cand->lexical_types) {
-                        type_map = frame->spesh_cand->lexical_types;
-                        count    = frame->spesh_cand->num_lexicals;
+                    if (frame->spesh_cand && frame->spesh_cand->body.lexical_types) {
+                        type_map = frame->spesh_cand->body.lexical_types;
+                        count    = frame->spesh_cand->body.num_lexicals;
                     }
                     else {
                         type_map = frame->static_info->body.lexical_types;

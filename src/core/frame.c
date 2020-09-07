@@ -265,7 +265,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
 
     if (heap) {
         /* Allocate frame on the heap. We know it's already zeroed. */
-        MVMROOT(tc, static_frame, {
+        MVMROOT2(tc, static_frame, spesh_cand, {
             if (tc->cur_frame)
                 MVM_frame_force_to_heap(tc, tc->cur_frame);
             frame = MVM_gc_allocate_frame(tc);
@@ -294,11 +294,11 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
 
     /* Allocate space for lexicals and work area. */
     static_frame_body = &(static_frame->body);
-    env_size = spesh_cand ? spesh_cand->env_size : static_frame_body->env_size;
+    env_size = spesh_cand ? spesh_cand->body.env_size : static_frame_body->env_size;
 
-    jitcode = spesh_cand ? spesh_cand->jitcode : NULL;
+    jitcode = spesh_cand ? spesh_cand->body.jitcode : NULL;
     num_locals = jitcode && jitcode->local_types ? jitcode->num_locals :
-        (spesh_cand ? spesh_cand->num_locals : static_frame_body->num_locals);
+        (spesh_cand ? spesh_cand->body.num_locals : static_frame_body->num_locals);
     if (env_size) {
         frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
         frame->allocd_env = env_size;
@@ -307,7 +307,7 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
         frame->env = NULL;
         frame->allocd_env = 0;
     }
-    work_size = spesh_cand ? spesh_cand->work_size : static_frame_body->work_size;
+    work_size = spesh_cand ? spesh_cand->body.work_size : static_frame_body->work_size;
     if (work_size) {
         if (spesh_cand) {
             /* Allocate zeroed memory. Spesh makes sure we have VMNull setup in
@@ -349,18 +349,18 @@ static MVMFrame * allocate_heap_frame(MVMThreadContext *tc, MVMStaticFrame *stat
     MVMStaticFrameBody *static_frame_body;
 
     /* Allocate the frame. */
-    MVMROOT(tc, static_frame, {
+    MVMROOT2(tc, static_frame, spesh_cand, {
         frame = MVM_gc_allocate_frame(tc);
     });
 
     /* Allocate space for lexicals and work area. */
     static_frame_body = &(static_frame->body);
-    env_size = spesh_cand ? spesh_cand->env_size : static_frame_body->env_size;
+    env_size = spesh_cand ? spesh_cand->body.env_size : static_frame_body->env_size;
     if (env_size) {
         frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
         frame->allocd_env = env_size;
     }
-    work_size = spesh_cand ? spesh_cand->work_size : static_frame_body->work_size;
+    work_size = spesh_cand ? spesh_cand->body.work_size : static_frame_body->work_size;
     if (work_size) {
         if (spesh_cand) {
             /* We make sure to initialize anything that can be read before
@@ -378,7 +378,7 @@ static MVMFrame * allocate_heap_frame(MVMThreadContext *tc, MVMStaticFrame *stat
 
         /* Calculate args buffer position. */
         frame->args = frame->work + (spesh_cand
-            ? spesh_cand->num_locals
+            ? spesh_cand->body.num_locals
             : static_frame_body->num_locals);
     }
 
@@ -509,7 +509,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     if (spesh_cand >= 0) {
         MVMSpeshCandidate *chosen_cand = spesh->body.spesh_candidates[spesh_cand];
         if (static_frame->body.allocate_on_heap) {
-            MVMROOT3(tc, static_frame, code_ref, outer, {
+            MVMROOT4(tc, static_frame, code_ref, outer, chosen_cand, {
                 frame = allocate_frame(tc, static_frame, chosen_cand, 1);
             });
         }
@@ -517,15 +517,15 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
             frame = allocate_frame(tc, static_frame, chosen_cand, 0);
             frame->spesh_correlation_id = 0;
         }
-        if (chosen_cand->jitcode) {
-            chosen_bytecode = chosen_cand->jitcode->bytecode;
-            frame->jit_entry_label = chosen_cand->jitcode->labels[0];
+        if (chosen_cand->body.jitcode) {
+            chosen_bytecode = chosen_cand->body.jitcode->bytecode;
+            frame->jit_entry_label = chosen_cand->body.jitcode->labels[0];
         }
         else {
-            chosen_bytecode = chosen_cand->bytecode;
+            chosen_bytecode = chosen_cand->body.bytecode;
         }
-        frame->effective_spesh_slots = chosen_cand->spesh_slots;
-        frame->spesh_cand = chosen_cand;
+        frame->effective_spesh_slots = chosen_cand->body.spesh_slots;
+        MVM_ASSIGN_REF(tc, &(frame->header), frame->spesh_cand, chosen_cand);
     }
     else {
         MVMint32 on_heap = static_frame->body.allocate_on_heap;
@@ -923,7 +923,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
 
        if (tc->jit_return_address != NULL) {
             /* on a JIT frame, exit to interpreter afterwards */
-            MVMJitCode *jitcode = returner->spesh_cand->jitcode;
+            MVMJitCode *jitcode = returner->spesh_cand->body.jitcode;
             MVM_jit_code_set_current_position(tc, jitcode, returner, jitcode->exit_label);
             /* given that we might throw in the special-return, act as if we've
              * left the current frame (which is true) */
@@ -1143,7 +1143,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
         *tc->interp_cur_op = *tc->interp_bytecode_start + rel_addr;
 
     if (jit_return_label) {
-        MVM_jit_code_set_current_position(tc, tc->cur_frame->spesh_cand->jitcode, tc->cur_frame, jit_return_label);
+        MVM_jit_code_set_current_position(tc, tc->cur_frame->spesh_cand->body.jitcode, tc->cur_frame, jit_return_label);
     }
 
     if (return_value)
@@ -1262,9 +1262,9 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
     else if (f->spesh_cand) {
         MVMuint32 i;
         flags = NULL;
-        for (i = 0; i < f->spesh_cand->num_inlines; i++) {
-            MVMStaticFrame *isf = f->spesh_cand->inlines[i].sf;
-            effective_idx = idx - f->spesh_cand->inlines[i].lexicals_start;
+        for (i = 0; i < f->spesh_cand->body.num_inlines; i++) {
+            MVMStaticFrame *isf = f->spesh_cand->body.inlines[i].sf;
+            effective_idx = idx - f->spesh_cand->body.inlines[i].lexicals_start;
             if (effective_idx < isf->body.num_lexicals) {
                 flags        = isf->body.static_env_flags;
                 static_env   = isf->body.static_env;

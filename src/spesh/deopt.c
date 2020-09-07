@@ -28,15 +28,15 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
     MVMReturnType  last_res_type = 0;
     MVMuint32      last_return_deopt_idx = 0;
     MVMuint32 i;
-    for (i = 0; i < cand->num_inlines; i++) {
-        if (offset > cand->inlines[i].start && offset <= cand->inlines[i].end) {
+    for (i = 0; i < cand->body.num_inlines; i++) {
+        if (offset > cand->body.inlines[i].start && offset <= cand->body.inlines[i].end) {
             /* Create the frame. */
-            MVMCode        *ucode = (MVMCode *)f->work[cand->inlines[i].code_ref_reg].o;
-            MVMStaticFrame *usf   = cand->inlines[i].sf;
+            MVMCode        *ucode = (MVMCode *)f->work[cand->body.inlines[i].code_ref_reg].o;
+            MVMStaticFrame *usf   = cand->body.inlines[i].sf;
             MVMFrame       *uf;
             if (REPR(ucode)->ID != MVM_REPR_ID_MVMCode)
                 MVM_panic(1, "Deopt: did not find code object when uninlining");
-            MVMROOT4(tc, f, callee, last_uninlined, usf, {
+            MVMROOT5(tc, f, callee, last_uninlined, usf, cand, {
                 uf = MVM_frame_create_for_deopt(tc, usf, ucode);
             });
 #if MVM_LOG_DEOPTS
@@ -47,21 +47,21 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
 
             /* Copy the locals and lexicals into place. */
             if (usf->body.num_locals)
-                memcpy(uf->work, f->work + cand->inlines[i].locals_start,
+                memcpy(uf->work, f->work + cand->body.inlines[i].locals_start,
                     usf->body.num_locals * sizeof(MVMRegister));
             if (usf->body.num_lexicals)
-                memcpy(uf->env, f->env + cand->inlines[i].lexicals_start,
+                memcpy(uf->env, f->env + cand->body.inlines[i].lexicals_start,
                     usf->body.num_lexicals * sizeof(MVMRegister));
 
             /* Store the callsite, in case we need it for further processing
              * of arguments. (TODO may need to consider the rest of the arg
              * processing context too.) */
-            uf->params.callsite = cand->inlines[i].cs;
+            uf->params.callsite = cand->body.inlines[i].cs;
 
             /* Store the named argument used bit field, since if we deopt in
              * argument handling code we may have missed some. */
-            if (cand->inlines[i].deopt_named_used_bit_field)
-                uf->params.named_used.bit_field = cand->inlines[i].deopt_named_used_bit_field;
+            if (cand->body.inlines[i].deopt_named_used_bit_field)
+                uf->params.named_used.bit_field = cand->body.inlines[i].deopt_named_used_bit_field;
 
             /* Did we already uninline a frame? */
             if (last_uninlined) {
@@ -72,7 +72,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
 
                 /* Set up the return location. */
                 uf->return_address = usf->body.bytecode +
-                    cand->deopts[2 * last_return_deopt_idx];
+                    cand->body.deopts[2 * last_return_deopt_idx];
 
                 /* Set result type and register. */
                 uf->return_type = last_res_type;
@@ -104,7 +104,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                     }
                     else {
                         MVMuint16 orig_reg = (MVMuint16)(f->return_value - f->work);
-                        MVMuint16 ret_reg  = orig_reg - cand->inlines[i].locals_start;
+                        MVMuint16 ret_reg  = orig_reg - cand->body.inlines[i].locals_start;
                         uf->return_value = uf->work + ret_reg;
                     }
                 }
@@ -122,15 +122,15 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
 
             /* Update tracking variables for last uninline. */
             last_uninlined        = uf;
-            last_res_reg          = cand->inlines[i].res_reg;
-            last_res_type         = cand->inlines[i].res_type;
-            last_return_deopt_idx = cand->inlines[i].return_deopt_idx;
+            last_res_reg          = cand->body.inlines[i].res_reg;
+            last_res_type         = cand->body.inlines[i].res_type;
+            last_return_deopt_idx = cand->body.inlines[i].return_deopt_idx;
         }
     }
     if (last_uninlined) {
         /* Set return address, which we need to resolve to the deopt'd one. */
         f->return_address = f->static_info->body.bytecode +
-            cand->deopts[2 * last_return_deopt_idx];
+            cand->body.deopts[2 * last_return_deopt_idx];
 
         /* Set result type and register. */
         f->return_type = last_res_type;
@@ -162,8 +162,8 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
 }
 
 static void deopt_named_args_used(MVMThreadContext *tc, MVMFrame *f) {
-    if (f->spesh_cand->deopt_named_used_bit_field)
-        f->params.named_used.bit_field = f->spesh_cand->deopt_named_used_bit_field;
+    if (f->spesh_cand->body.deopt_named_used_bit_field)
+        f->params.named_used.bit_field = f->spesh_cand->body.deopt_named_used_bit_field;
 }
 
 /* Materialize an individual replaced object. */
@@ -171,12 +171,12 @@ static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMObject ***m
                                MVMuint16 info_idx, MVMuint16 target_reg) {
     MVMSpeshCandidate *cand = f->spesh_cand;
     if (!*materialized)
-        *materialized = MVM_calloc(MVM_VECTOR_ELEMS(cand->deopt_pea.materialize_info), sizeof(MVMObject *));
+        *materialized = MVM_calloc(MVM_VECTOR_ELEMS(cand->body.deopt_pea.materialize_info), sizeof(MVMObject *));
     if (!(*materialized)[info_idx]) {
-        MVMSpeshPEAMaterializeInfo *mi = &(cand->deopt_pea.materialize_info[info_idx]);
-        MVMSTable *st = (MVMSTable *)cand->spesh_slots[mi->stable_sslot];
+        MVMSpeshPEAMaterializeInfo *mi = &(cand->body.deopt_pea.materialize_info[info_idx]);
+        MVMSTable *st = (MVMSTable *)cand->body.spesh_slots[mi->stable_sslot];
         MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
-        MVMROOT(tc, f, {
+        MVMROOT2(tc, f, cand, {
             MVMObject *obj = MVM_gc_allocate_object(tc, st);
             char *data = (char *)OBJECT_BODY(obj);
             MVMuint32 num_attrs = repr_data->num_attributes;
@@ -221,11 +221,11 @@ static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMObject ***m
 static void materialize_replaced_objects(MVMThreadContext *tc, MVMFrame *f, MVMint32 deopt_index) {
     MVMuint32 i;
     MVMSpeshCandidate *cand = f->spesh_cand;
-    MVMuint32 num_deopt_points = MVM_VECTOR_ELEMS(cand->deopt_pea.deopt_point);
+    MVMuint32 num_deopt_points = MVM_VECTOR_ELEMS(cand->body.deopt_pea.deopt_point);
     MVMObject **materialized = NULL;
-    MVMROOT(tc, f, {
+    MVMROOT2(tc, f, cand, {
         for (i = 0; i < num_deopt_points; i++) {
-            MVMSpeshPEADeoptPoint *dp = &(cand->deopt_pea.deopt_point[i]);
+            MVMSpeshPEADeoptPoint *dp = &(cand->body.deopt_pea.deopt_point[i]);
             if (dp->deopt_point_idx == deopt_index)
                 materialize_object(tc, f, &materialized, dp->materialize_info_idx, dp->target_reg);
         }
@@ -244,7 +244,7 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMuint32 deopt_idx, 
     });
 
     /* Check if we have inlines. */
-    if (f->spesh_cand->inlines) {
+    if (f->spesh_cand->body.inlines) {
         /* Yes, going to have to re-create the frames; uninline
          * moves the interpreter, so we can just tweak the last
          * frame. For the moment, uninlining creates its frames
@@ -290,10 +290,10 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_idx) {
 #endif
     clear_dynlex_cache(tc, f);
     assert(f->spesh_cand != NULL);
-    assert(deopt_idx < f->spesh_cand->num_deopts);
+    assert(deopt_idx < f->spesh_cand->body.num_deopts);
     if (f->spesh_cand) {
-        MVMuint32 deopt_target = f->spesh_cand->deopts[deopt_idx * 2];
-        MVMuint32 deopt_offset = f->spesh_cand->deopts[deopt_idx * 2 + 1];
+        MVMuint32 deopt_target = f->spesh_cand->body.deopts[deopt_idx * 2];
+        MVMuint32 deopt_offset = f->spesh_cand->body.deopts[deopt_idx * 2 + 1];
 #if MVM_LOG_DEOPTS
         fprintf(stderr, "    Will deopt %u -> %u\n", deopt_offset, deopt_target);
 #endif
@@ -314,8 +314,8 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_idx) {
  * the point of its latest call. Returns -1 if none can be resolved. */
 MVMint32 MVM_spesh_deopt_find_inactive_frame_deopt_idx(MVMThreadContext *tc, MVMFrame *f) {
     /* Is it JITted code? */
-    if (f->spesh_cand->jitcode) {
-        MVMJitCode *jitcode = f->spesh_cand->jitcode;
+    if (f->spesh_cand->body.jitcode) {
+        MVMJitCode *jitcode = f->spesh_cand->body.jitcode;
         MVMuint32 idx = MVM_jit_code_get_active_deopt_idx(tc, jitcode, f);
         if (idx < jitcode->num_deopts) {
             MVMint32 deopt_idx = jitcode->deopts[idx].idx;
@@ -327,11 +327,11 @@ MVMint32 MVM_spesh_deopt_find_inactive_frame_deopt_idx(MVMThreadContext *tc, MVM
     }
     else {
         /* Not JITted; see if we can find the return address in the deopt table. */
-        MVMint32 ret_offset = f->return_address - f->spesh_cand->bytecode;
-        MVMint32 n = f->spesh_cand->num_deopts * 2;
+        MVMint32 ret_offset = f->return_address - f->spesh_cand->body.bytecode;
+        MVMint32 n = f->spesh_cand->body.num_deopts * 2;
         MVMint32 i;
         for (i = 0; i < n; i += 2) {
-            if (f->spesh_cand->deopts[i + 1] == ret_offset) {
+            if (f->spesh_cand->body.deopts[i + 1] == ret_offset) {
                 MVMint32 deopt_idx = i / 2;
 #if MVM_LOG_DEOPTS
                 fprintf(stderr, "    Found deopt index for interpeter (idx %d)\n", deopt_idx);
@@ -368,12 +368,12 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
             if (deopt_idx >= 0) {
                 /* Re-create any frames needed if we're in an inline; if not,
                  * just update return address. */
-                MVMint32 deopt_offset = f->spesh_cand->deopts[2 * deopt_idx + 1];
-                MVMint32 deopt_target = f->spesh_cand->deopts[2 * deopt_idx];
+                MVMint32 deopt_offset = f->spesh_cand->body.deopts[2 * deopt_idx + 1];
+                MVMint32 deopt_target = f->spesh_cand->body.deopts[2 * deopt_idx];
                 MVMROOT2(tc, f, l, {
                     materialize_replaced_objects(tc, f, deopt_idx);
                 });
-                if (f->spesh_cand->inlines) {
+                if (f->spesh_cand->body.inlines) {
                     MVMROOT2(tc, f, l, {
                         uninline(tc, f, f->spesh_cand, deopt_offset, deopt_target, l);
                     });
@@ -395,7 +395,7 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
                 /* No spesh cand/slots needed now. */
                 deopt_named_args_used(tc, f);
                 f->effective_spesh_slots = NULL;
-                if (f->spesh_cand->jitcode) {
+                if (f->spesh_cand->body.jitcode) {
                     f->spesh_cand = NULL;
                     f->jit_entry_label = NULL;
                     /* XXX This break is wrong and hides a bug. */

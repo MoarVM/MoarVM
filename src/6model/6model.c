@@ -181,15 +181,13 @@ MVMint32 MVM_6model_find_method_spesh(MVMThreadContext *tc, MVMObject *obj, MVMS
     if (!MVM_is_null(tc, meth)) {
         /* Got it; cache. Must be careful due to threads
          * reading, races, etc. */
-        MVMStaticFrame *sf = tc->cur_frame->static_info;
         uv_mutex_lock(&tc->instance->mutex_spesh_install);
         if (!tc->cur_frame->effective_spesh_slots[ss_idx + 1]) {
-            MVMStaticFrameSpesh *spesh = sf->body.spesh;
-            MVM_ASSIGN_REF(tc, &(spesh->common.header),
+            MVM_ASSIGN_REF(tc, &(tc->cur_frame->spesh_cand->common.header),
                            tc->cur_frame->effective_spesh_slots[ss_idx + 1],
                            (MVMCollectable *)meth);
             MVM_barrier();
-            MVM_ASSIGN_REF(tc, &(spesh->common.header),
+            MVM_ASSIGN_REF(tc, &(tc->cur_frame->spesh_cand->common.header),
                            tc->cur_frame->effective_spesh_slots[ss_idx],
                            (MVMCollectable *)STABLE(obj));
         }

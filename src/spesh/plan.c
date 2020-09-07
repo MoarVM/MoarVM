@@ -6,9 +6,9 @@ MVMint32 have_existing_specialization(MVMThreadContext *tc, MVMStaticFrame *sf,
     MVMStaticFrameSpesh *sfs = sf->body.spesh;
     MVMuint32 i;
     for (i = 0; i < sfs->body.num_spesh_candidates; i++) {
-        if (sfs->body.spesh_candidates[i]->cs == cs) {
+        if (sfs->body.spesh_candidates[i]->body.cs == cs) {
             /* Callsite matches. Is it a matching certain specialization? */
-            MVMSpeshStatsType *cand_type_tuple = sfs->body.spesh_candidates[i]->type_tuple;
+            MVMSpeshStatsType *cand_type_tuple = sfs->body.spesh_candidates[i]->body.type_tuple;
             if (type_tuple == NULL && cand_type_tuple == NULL) {
                 /* Yes, so we're done. */
                 return 1;
