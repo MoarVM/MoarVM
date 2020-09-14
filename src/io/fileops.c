@@ -13,6 +13,19 @@
 #define DEFAULT_MODE _S_IWRITE /* work around sucky libuv defaults */
 #endif
 
+static MVMint64 file_info_with_error(MVMThreadContext *tc, uv_stat_t* stat, MVMString *filename, MVMint32 use_lstat) {
+    char * const a = MVM_string_utf8_c8_encode_C_string(tc, filename);
+    uv_fs_t req;
+
+    MVMint64 res = use_lstat
+      ? uv_fs_lstat(NULL, &req, a, NULL)
+      :  uv_fs_stat(NULL, &req, a, NULL);
+    *stat = req.statbuf;
+
+    MVM_free(a);
+    return res;
+}
+
 static uv_stat_t file_info(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) {
     char * const a = MVM_string_utf8_c8_encode_C_string(tc, filename);
     uv_fs_t req;
@@ -202,10 +215,11 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f, MVMint32 use_lstat)
 #ifdef _WIN32
 #define FILE_IS(name, rwx) \
     MVMint64 MVM_file_is ## name (MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) { \
-        if (!MVM_file_exists(tc, filename, use_lstat)) \
+        uv_stat_t statbuf; \
+        if (file_info_with_error(tc, &statbuf, filename, use_lstat) < 0) { \
             return 0; \
+        } \
         else { \
-            uv_stat_t statbuf = file_info(tc, filename, use_lstat); \
             MVMint64 r = (statbuf.st_mode & S_I ## rwx ); \
             return r ? 1 : 0; \
         } \
@@ -213,37 +227,35 @@ MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f, MVMint32 use_lstat)
 FILE_IS(readable, READ)
 FILE_IS(writable, WRITE)
 MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) {
-    if (!MVM_file_exists(tc, filename, use_lstat))
+    MVMint64 r = 0;
+    uv_stat_t statbuf;
+    if (file_info_with_error(tc, &statbuf, filename, use_lstat) < 0)
         return 0;
+    else if ((statbuf.st_mode & S_IFMT) == S_IFDIR)
+        return 1;
     else {
-        MVMint64 r = 0;
-        uv_stat_t statbuf = file_info(tc, filename, use_lstat);
-        if ((statbuf.st_mode & S_IFMT) == S_IFDIR)
-            return 1;
-        else {
-            /* true if fileext is in PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC */
-            MVMString *dot = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, ".");
-            MVMROOT(tc, dot, {
-                MVMint64 n = MVM_string_index_from_end(tc, filename, dot, 0);
-                if (n >= 0) {
-                    MVMString *fileext = MVM_string_substring(tc, filename, n, -1);
-                    char *ext  = MVM_string_utf8_c8_encode_C_string(tc, fileext);
-                    char *pext = getenv("PATHEXT");
-                    int plen   = strlen(pext);
-                    int i;
-                    for (i = 0; i < plen; i++) {
-                        if (0 == stricmp(ext, pext++)) {
-                             r = 1;
-                             break;
-                        }
+        /* true if fileext is in PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC */
+        MVMString *dot = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, ".");
+        MVMROOT(tc, dot, {
+            MVMint64 n = MVM_string_index_from_end(tc, filename, dot, 0);
+            if (n >= 0) {
+                MVMString *fileext = MVM_string_substring(tc, filename, n, -1);
+                char *ext  = MVM_string_utf8_c8_encode_C_string(tc, fileext);
+                char *pext = getenv("PATHEXT");
+                int plen   = strlen(pext);
+                int i;
+                for (i = 0; i < plen; i++) {
+                    if (0 == stricmp(ext, pext++)) {
+                         r = 1;
+                         break;
                     }
-                    MVM_free(ext);
-                    MVM_free(pext);
                 }
-            });
-        }
-        return r;
+                MVM_free(ext);
+                MVM_free(pext);
+            }
+        });
     }
+    return r;
 }
 #else
 
@@ -277,10 +289,10 @@ static int are_we_group_member(MVMThreadContext *tc, gid_t group) {
 }
 #define FILE_IS(name, rwx) \
     MVMint64 MVM_file_is ## name (MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) { \
-        if (!MVM_file_exists(tc, filename, use_lstat)) \
+        uv_stat_t statbuf; \
+        if (file_info_with_error(tc, &statbuf, filename, use_lstat) < 0) \
             return 0; \
         else { \
-            uv_stat_t statbuf = file_info(tc, filename, use_lstat); \
             MVMint64 r = (statbuf.st_mode & S_I ## rwx ## OTH) \
                       || (statbuf.st_uid == geteuid() && (statbuf.st_mode & S_I ## rwx ## USR)) \
                       || (geteuid() == 0) \
@@ -290,11 +302,11 @@ static int are_we_group_member(MVMThreadContext *tc, gid_t group) {
     }
 FILE_IS(readable, R)
 FILE_IS(writable, W)
-    MVMint64 MVM_file_isexecutable (MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) {
-        if (!MVM_file_exists(tc, filename, use_lstat))
+    MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) {
+        uv_stat_t statbuf;
+        if (file_info_with_error(tc, &statbuf, filename, use_lstat) < 0)
             return 0;
         else {
-            uv_stat_t statbuf = file_info(tc, filename, use_lstat);
             MVMint64 r = (statbuf.st_mode & S_IXOTH)
                       || (statbuf.st_uid == geteuid() && (statbuf.st_mode & S_IXUSR))
                       || (are_we_group_member(tc, statbuf.st_gid) && (statbuf.st_mode & S_IXGRP))
