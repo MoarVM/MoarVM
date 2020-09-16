@@ -57,7 +57,7 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
     }
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_str_hash_code(tc, hashtable->salt, key) >> hashtable->key_right_shift;
-    char *entry_raw = hashtable->entries + bucket * hashtable->entry_size;
+    char *entry_raw = hashtable->entries - bucket * hashtable->entry_size;
     MVMuint8 *metadata = hashtable->metadata + bucket;
     while (1) {
         if (*metadata == probe_distance) {
@@ -82,7 +82,7 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
         }
         ++probe_distance;
         ++metadata;
-        entry_raw += hashtable->entry_size;
+        entry_raw -= hashtable->entry_size;
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
         assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
         assert(metadata < hashtable->metadata + hashtable->official_size + 256);
@@ -282,7 +282,7 @@ MVM_STATIC_INLINE void *MVM_str_hash_current_nocheck(MVMThreadContext *tc,
                                                      MVMStrHashTable *hashtable,
                                                      MVMStrHashIterator iterator) {
     assert(hashtable->metadata[iterator.pos - 1]);
-    return hashtable->entries + hashtable->entry_size * (iterator.pos - 1);
+    return hashtable->entries - hashtable->entry_size * (iterator.pos - 1);
 }
 
 /* FIXME - this needs a better name: */

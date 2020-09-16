@@ -26,11 +26,12 @@ void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtabl
         }
         ++bucket;
         ++metadata;
-        entry_raw += sizeof(MVMString ***);
+        entry_raw -= sizeof(MVMString ***);
     }
 
-    if (hashtable->metadata) {
-        MVM_free(hashtable->entries);
+    if (hashtable->entries) {
+        MVM_free(hashtable->entries
+             - sizeof(MVMString ***) * (hash_true_size(hashtable) - 1));
         MVM_free(metadata - 1);
     }
 }
@@ -40,7 +41,9 @@ void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtabl
 MVM_STATIC_INLINE void hash_allocate_common(MVMFixKeyHashTable *hashtable) {
     hashtable->max_items = hashtable->official_size * FIXKEY_LOAD_FACTOR;
     size_t actual_items = hash_true_size(hashtable);
-    hashtable->entries = MVM_malloc(sizeof(MVMString ***) * actual_items);
+    /* We point to the *last* entry in the array, not the one-after-the end. */
+    hashtable->entries = (char *) MVM_malloc(hashtable->entry_size * actual_items)
+        + sizeof(MVMString ***) * (actual_items - 1);
     hashtable->metadata = MVM_calloc(1 + actual_items + 1, 1);
     /* A sentinel. This marks an occupied slot, at its ideal position. */
     *hashtable->metadata = 1;
@@ -75,7 +78,7 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
 
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_fixkey_hash_code(tc, key) >> hashtable->key_right_shift;
-    char *entry_raw = hashtable->entries + bucket * sizeof(MVMString ***);
+    char *entry_raw = hashtable->entries - bucket * sizeof(MVMString ***);
     MVMuint8 *metadata = hashtable->metadata + bucket;
     while (1) {
         if (*metadata < probe_distance) {
@@ -111,8 +114,17 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
                 } while (old_probe_distance);
 
                 MVMuint32 entries_to_move = find_me_a_gap - metadata;
-                memmove(entry_raw + sizeof(MVMString ***), entry_raw,
-                        sizeof(MVMString ***) * entries_to_move);
+                size_t size_to_move = sizeof(MVMString ***) * entries_to_move;
+                /* When we had entries *ascending* this was
+                 * memmove(entry_raw + sizeof(MVMString ***), entry_raw,
+                 *         sizeof(MVMString ***) * entries_to_move);
+                 * because we point to the *start* of the block of memory we
+                 * want to move, and we want to move it one "entry" forwards.
+                 * `entry_raw` is still a pointer to where we want to make free
+                 * space, but what want to do now is move everything at it and
+                 * *before* it downwards. */
+                char *dest = entry_raw - size_to_move;
+                memmove(dest, dest + sizeof(MVMString ***), size_to_move);
             }
 
             /* The same test and optimisation as in the "make room" loop - we're
@@ -143,7 +155,7 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
         }
         ++probe_distance;
         ++metadata;
-        entry_raw += sizeof(MVMString ***);
+        entry_raw -= sizeof(MVMString ***);
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
         assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
         assert(metadata < hashtable->metadata + hashtable->official_size + 256);
@@ -203,9 +215,9 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
             }
             ++bucket;
             ++metadata;
-            entry_raw += sizeof(MVMString ***);
+            entry_raw -= sizeof(MVMString ***);
         }
-        MVM_free(entry_raw_orig);
+        MVM_free(entry_raw_orig - sizeof(MVMString ***) * (true_size - 1));
         MVM_free(metadata_orig - 1);
     }
     MVMString ***indirection = hash_insert_internal(tc, hashtable, key);
@@ -295,7 +307,7 @@ MVMuint64 MVM_fixkey_hash_fsck(MVMThreadContext *tc, MVMFixKeyHashTable *hashtab
         }
         ++bucket;
         ++metadata;
-        entry_raw += sizeof(MVMString ***);
+        entry_raw -= sizeof(MVMString ***);
     }
     if (*metadata != 1) {
         ++errors;

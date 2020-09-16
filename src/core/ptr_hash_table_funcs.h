@@ -52,7 +52,7 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *MVM_ptr_hash_fetch(MVMThreadContext *t
     }
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_ptr_hash_code(key) >> hashtable->key_right_shift;
-    char *entry_raw = hashtable->entries + bucket * sizeof(struct MVMPtrHashEntry);
+    char *entry_raw = hashtable->entries - bucket * sizeof(struct MVMPtrHashEntry);
     MVMuint8 *metadata = hashtable->metadata + bucket;
     while (1) {
         if (*metadata == probe_distance) {
@@ -73,7 +73,7 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *MVM_ptr_hash_fetch(MVMThreadContext *t
         }
         ++probe_distance;
         ++metadata;
-        entry_raw += sizeof(struct MVMPtrHashEntry);
+        entry_raw -= sizeof(struct MVMPtrHashEntry);
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
         assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
         assert(metadata < hashtable->metadata + hashtable->official_size + 256);
