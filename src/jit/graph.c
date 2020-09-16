@@ -1763,6 +1763,7 @@ start:
     case MVM_OP_trunc_u16:
     case MVM_OP_trunc_i32:
     case MVM_OP_trunc_u32:
+    case MVM_OP_sp_istrue_n:
         /* comparison (integer) */
     case MVM_OP_eq_i:
     case MVM_OP_ne_i:

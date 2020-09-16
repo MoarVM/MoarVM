@@ -1470,6 +1470,17 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], TMP2;
         break;
     }
+    case MVM_OP_sp_istrue_n: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 src = ins->operands[1].reg.orig;
+        | movsd xmm0, qword WORK[src];
+        | xorps xmm1, xmm1;
+        | cmpsd xmm0, xmm1, 4;
+        | movd TMP1, xmm0;
+        | and TMP1, 1;
+        | mov WORK[dst], TMP1;
+        break;
+    }
     case MVM_OP_add_n:
     case MVM_OP_sub_n:
     case MVM_OP_mul_n:
