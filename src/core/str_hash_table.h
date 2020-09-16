@@ -103,6 +103,61 @@ spot (some) problems.
  * attack, and preferably suggest a better solution. :-)
  * (As you can see from "in turn", people were wrong before.)
  */
+
+/* Conceptually, the design is this
+ *
+ *  Control            Entries
+ *  structure
+ *
+ * +-------------+    +----------------+----------------+----------------+----
+ * |             |    | probe distance | probe distance | probe distance |
+ * | entries     | -> | key            | key            | key            | ...
+ * | other stuff |    | value          | value          | value          |
+ * +-------------+    +----------------+----------------+----------------+----
+ *
+ * but as probe distance is one byte, and key is a pointer, this would waste a
+ * lot of memory due to alignment padding, so the design actually ends up as
+ * this, with probe distance stored separately a byte array, `metadata`.
+ *
+ * Also, "conceptually"...
+ * We are using open addressing. What this means is that, whilst each hash entry
+ * has an "ideal" location in the array, if that location is already in use, we
+ * put the entry "nearby". With "Robin Hood" hashing, "nearby" is a location
+ * "soon" after (with logic for re-ordering entries), but the upshot of this is
+ * that the "actual" position is "ideal" + "probe distance", and that value has
+ * to be wrapped (modulo the array size) to find the actual bucket location.
+ *
+ * So modulo approach means that a hash of size 8 looks like this:
+ *
+ * +-------------+    +---+---+---+---+---+---+---+---+
+ * | metadata    | -> | a | b | c | d | e | f | g | h |  probe distances
+ * |             |    +---+---+---+---+---+---+---+---+
+ * |             |
+ * |             |    +---+---+---+---+---+---+---+---+
+ * | entries     | -> | A | B | C | D | E | F | G | H |  key, value
+ * | other stuff |    +---+---+---+---+---+---+---+---+
+ * +-------------+
+ *
+ * whereas what actually do is "unwrap" the modulo, and allocate the worst case
+ * extra array slots at the end (longest possible probe distance, starting at
+ * the last "official" entry). So for an array of size 8, load factor of 0.75,
+ * the longest probe distance is 5 (when all 6 entries would ideally be in the
+ * last bucket), so what we actually have is this
+ *
+ * +----------+    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ * | metadata | -> | 1 | a | b | c | d | e | f | g | h | i | j | k | l | m | 1 |
+ * |          |    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ * | (other)  |
+ * |          |        +---+---+---+---+---+---+---+---+---+---+---+---+---+
+ * | entries  | ->     | A | B | C | D | E | F | G | H | I | J | K | L | M |
+ * +----------+        +---+---+---+---+---+---+---+---+---+---+---+---+---+
+ *
+ *                     <-- official bucket positions --><--   overflow   -->
+ *
+ * We include sentinel values at each end of the metadata to make iteration
+ * easier.
+ */
+
 struct MVMStrHashTable {
     /* strictly void *, but this makes the pointer arithmetic easier */
     char *entries;
