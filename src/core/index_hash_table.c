@@ -14,8 +14,9 @@ MVM_STATIC_INLINE MVMuint32 hash_true_size(MVMIndexHashTable *hashtable) {
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_index_hash_demolish(MVMThreadContext *tc, MVMIndexHashTable *hashtable) {
-    if (hashtable->metadata) {
-        MVM_free(hashtable->entries);
+    if (hashtable->entries) {
+        MVM_free(hashtable->entries
+                 - sizeof(struct MVMIndexHashEntry) * (hash_true_size(hashtable) - 1));
         MVM_free(hashtable->metadata - 1);
     }
 }
@@ -25,7 +26,9 @@ void MVM_index_hash_demolish(MVMThreadContext *tc, MVMIndexHashTable *hashtable)
 MVM_STATIC_INLINE void hash_allocate_common(MVMIndexHashTable *hashtable) {
     hashtable->max_items = hashtable->official_size * INDEX_LOAD_FACTOR;
     size_t actual_items = hash_true_size(hashtable);
-    hashtable->entries = MVM_malloc(sizeof(struct MVMIndexHashEntry) * actual_items);
+    /* We point to the *last* entry in the array, not the one-after-the end. */
+    hashtable->entries = (char *) MVM_malloc(sizeof(struct MVMIndexHashEntry) * actual_items)
+        + sizeof(struct MVMIndexHashEntry) * (actual_items - 1);
     hashtable->metadata = MVM_calloc(1 + actual_items + 1, 1);
     /* A sentinel. This marks an occupied slot, at its ideal position. */
     *hashtable->metadata = 1;
@@ -79,7 +82,7 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
     unsigned int probe_distance = 1;
     MVMuint64 hash_val = MVM_string_hash_code(tc, list[idx]);
     MVMHashNumItems bucket = hash_val >> hashtable->key_right_shift;
-    char *entry_raw = hashtable->entries + bucket * sizeof(struct MVMIndexHashEntry);
+    char *entry_raw = hashtable->entries - bucket * sizeof(struct MVMIndexHashEntry);
     MVMuint8 *metadata = hashtable->metadata + bucket;
     while (1) {
         if (*metadata < probe_distance) {
@@ -115,10 +118,19 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
                 } while (old_probe_distance);
 
                 MVMuint32 entries_to_move = find_me_a_gap - metadata;
-                memmove(entry_raw + sizeof(struct MVMIndexHashEntry), entry_raw,
-                        sizeof(struct MVMIndexHashEntry) * entries_to_move);
-
+                size_t size_to_move = sizeof(struct MVMIndexHashEntry) * entries_to_move;
+                /* When we had entries *ascending* this was
+                 * memmove(entry_raw + sizeof(struct MVMIndexHashEntry), entry_raw,
+                 *         sizeof(struct MVMIndexHashEntry) * entries_to_move);
+                 * because we point to the *start* of the block of memory we
+                 * want to move, and we want to move it one "entry" forwards.
+                 * `entry_raw` is still a pointer to where we want to make free
+                 * space, but what want to do now is move everything at it and
+                 * *before* it downwards. */
+                char *dest = entry_raw - size_to_move;
+                memmove(dest, dest + sizeof(struct MVMIndexHashEntry), size_to_move);
             }
+            
             /* The same test and optimisation as in the "make room" loop - we're
              * about to insert something at the (current) max_probe_distance, so
              * signal to the next insertion that it needs to take action first.
@@ -143,7 +155,7 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
         }
         ++probe_distance;
         ++metadata;
-        entry_raw += sizeof(struct MVMIndexHashEntry);
+        entry_raw -= sizeof(struct MVMIndexHashEntry);
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
         assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
         assert(metadata < hashtable->metadata + hashtable->official_size + 256);
@@ -174,9 +186,9 @@ void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
             }
             ++bucket;
             ++metadata;
-            entry_raw += sizeof(struct MVMIndexHashEntry);
+            entry_raw -= sizeof(struct MVMIndexHashEntry);
         }
-        MVM_free(entry_raw_orig);
+        MVM_free(entry_raw_orig - sizeof(struct MVMIndexHashEntry) * (true_size - 1));
         MVM_free(metadata_orig - 1);
     }
     hash_insert_internal(tc, hashtable, list, idx);

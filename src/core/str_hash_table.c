@@ -34,8 +34,9 @@ MVM_STATIC_INLINE MVMuint32 hash_true_size(MVMStrHashTable *hashtable) {
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable) {
-    if (hashtable->metadata) {
-        MVM_free(hashtable->entries);
+    if (hashtable->entries) {
+        MVM_free(hashtable->entries
+                 - hashtable->entry_size * (hash_true_size(hashtable) - 1));
         MVM_free(hashtable->metadata - 1);
     }
     /* We shouldn't need these, but make something foolproof and they invent a
@@ -64,7 +65,9 @@ MVM_STATIC_INLINE void hash_allocate_common(MVMThreadContext *tc,
         hashtable->probe_overflow_size = overflow_size;
     }
     size_t actual_items = hash_true_size(hashtable);
-    hashtable->entries = MVM_malloc(hashtable->entry_size * actual_items);
+    /* We point to the *last* entry in the array, not the one-after-the end. */
+    hashtable->entries = (char *) MVM_malloc(hashtable->entry_size * actual_items)
+        + hashtable->entry_size * (actual_items - 1);
     hashtable->metadata = MVM_calloc(1 + actual_items + 1, 1);
     /* A sentinel. This marks an occupied slot, at its ideal position. */
     *hashtable->metadata = 1;
@@ -128,7 +131,7 @@ MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext
 
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_str_hash_code(tc, hashtable->salt, key) >> hashtable->key_right_shift;
-    char *entry_raw = hashtable->entries + bucket * hashtable->entry_size;
+    char *entry_raw = hashtable->entries - bucket * hashtable->entry_size;
     MVMuint8 *metadata = hashtable->metadata + bucket;
     while (1) {
         if (*metadata < probe_distance) {
@@ -164,9 +167,18 @@ MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext
                 } while (old_probe_distance);
 
                 MVMuint32 entries_to_move = find_me_a_gap - metadata;
-                memmove(entry_raw + hashtable->entry_size, entry_raw,
-                        hashtable->entry_size * entries_to_move);
-            }
+                size_t size_to_move = hashtable->entry_size * entries_to_move;
+                /* When we had entries *ascending* this was
+                 * memmove(entry_raw + hashtable->entry_size, entry_raw,
+                 *         hashtable->entry_size * entries_to_move);
+                 * because we point to the *start* of the block of memory we
+                 * want to move, and we want to move it one "entry" forwards.
+                 * `entry_raw` is still a pointer to where we want to make free
+                 * space, but what want to do now is move everything at it and
+                 * *before* it downwards. */
+                char *dest = entry_raw - size_to_move;
+                memmove(dest, dest + hashtable->entry_size, size_to_move);
+             }
 
             /* The same test and optimisation as in the "make room" loop - we're
              * about to insert something at the (current) max_probe_distance, so
@@ -199,7 +211,7 @@ MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext
         }
         ++probe_distance;
         ++metadata;
-        entry_raw += hashtable->entry_size;
+        entry_raw -= hashtable->entry_size;
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
         assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
         assert(metadata < hashtable->metadata + hashtable->official_size + 256);
@@ -247,9 +259,9 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
             }
             ++bucket;
             ++metadata;
-            entry_raw += hashtable->entry_size;
+            entry_raw -= hashtable->entry_size;
         }
-        MVM_free(entry_raw_orig);
+        MVM_free(entry_raw_orig - hashtable->entry_size * (true_size - 1));
         MVM_free(metadata_orig - 1);
     }
     struct MVMStrHashHandle *new_entry
@@ -290,7 +302,7 @@ void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
     }
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_str_hash_code(tc, hashtable->salt, key) >> hashtable->key_right_shift;
-    char *entry_raw = hashtable->entries + bucket * hashtable->entry_size;
+    char *entry_raw = hashtable->entries - bucket * hashtable->entry_size;
     uint8_t *metadata = hashtable->metadata + bucket;
     while (1) {
         if (*metadata == probe_distance) {
@@ -317,8 +329,19 @@ void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
 
                 uint32_t entries_to_move = metadata_target - metadata;
                 if (entries_to_move) {
-                    memmove(entry_raw, entry_raw + hashtable->entry_size,
-                            hashtable->entry_size * entries_to_move);
+                    size_t size_to_move = hashtable->entry_size * entries_to_move;
+                    /* When we had entries *ascending* in memory, this was
+                     * memmove(entry_raw, entry_raw + hashtable->entry_size,
+                     *         hashtable->entry_size * entries_to_move);
+                     * because we point to the *start* of the block of memory we
+                     * want to move, and we want to move the block one "entry"
+                     * backwards.
+                     * `entry_raw` is still a pointer to the entry that we need
+                     * to ovewrite, but now we need to move everything *before*
+                     * it upwards to close the gap. */
+                    memmove(entry_raw - size_to_move + hashtable->entry_size,
+                            entry_raw - size_to_move,
+                            size_to_move);
                 }
                 /* and this slot is now emtpy. */
                 *metadata_target = 0;
@@ -349,7 +372,7 @@ void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
         }
         ++probe_distance;
         ++metadata;
-        entry_raw += hashtable->entry_size;
+        entry_raw -= hashtable->entry_size;
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
         assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
         assert(metadata < hashtable->metadata + hashtable->official_size + 256);
@@ -502,7 +525,7 @@ MVMuint64 MVM_str_hash_fsck(MVMThreadContext *tc, MVMStrHashTable *hashtable, MV
         }
         ++bucket;
         ++metadata;
-        entry_raw += hashtable->entry_size;
+        entry_raw -= hashtable->entry_size;
     }
     if (*metadata != 1) {
         ++errors;

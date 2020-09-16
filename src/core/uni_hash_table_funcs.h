@@ -51,7 +51,7 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *MVM_uni_hash_fetch(MVMThreadContext *t
     unsigned int probe_distance = 1;
     MVMuint32 hash_val = MVM_uni_hash_code(key, strlen(key));
     MVMHashNumItems bucket = hash_val >> hashtable->key_right_shift;
-    char *entry_raw = hashtable->entries + bucket * sizeof(struct MVMUniHashEntry);
+    char *entry_raw = hashtable->entries - bucket * sizeof(struct MVMUniHashEntry);
     MVMuint8 *metadata = hashtable->metadata + bucket;
     while (1) {
         if (*metadata == probe_distance) {
@@ -72,7 +72,7 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *MVM_uni_hash_fetch(MVMThreadContext *t
         }
         ++probe_distance;
         ++metadata;
-        entry_raw += sizeof(struct MVMUniHashEntry);
+        entry_raw -= sizeof(struct MVMUniHashEntry);
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
         assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
         assert(metadata < hashtable->metadata + hashtable->official_size + 256);
