@@ -2088,9 +2088,11 @@ MVMuint32 MVM_p6opaque_offset_to_attr_idx(MVMThreadContext *tc, MVMObject *type,
 #ifdef DEBUG_HELPERS
 /* This is meant to be called in a debugging session and not used anywhere else.
  * Please don't delete. */
+MVM_VECTOR_DECL(MVMObject*, dump_p6opaque_seen);
 static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)STABLE(obj)->REPR_data;
     MVMP6opaqueBody *data = MVM_p6opaque_real_data(tc, OBJECT_BODY(obj));
+    MVM_VECTOR_PUSH(dump_p6opaque_seen, obj);
     if (repr_data) {
         MVMint16 const num_attributes = repr_data->num_attributes;
         MVMint16 cur_attribute = 0;
@@ -2123,14 +2125,36 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
                             MVMObject *value = get_obj_at_offset(data, offset);
                             if (value != NULL && REPR(value)->ID == MVM_REPR_ID_P6opaque) {
                                 fprintf(stderr, "=");
-                                dump_p6opaque(tc, value, 1);
+                                size_t i = 0;
+                                int recurse = 1;
+                                for (; i < MVM_VECTOR_ELEMS(dump_p6opaque_seen); i++)
+                                    if (dump_p6opaque_seen[i] == value)
+                                        recurse = 0;
+                                if (recurse)
+                                    dump_p6opaque(tc, value, 1);
+                                else
+                                    fprintf(stderr, "<already seen>");
+                            }
+                            if (value != NULL && REPR(value)->ID == MVM_REPR_ID_MVMCode) {
+                                MVMCode *code = (MVMCode*)value;
+                                MVMStaticFrame *sf = code->body.sf;
+                                fprintf(
+                                    stderr,
+                                    "=%p %s (%s/cuuid %s)",
+                                    code,
+                                    code->body.name ? MVM_string_utf8_maybe_encode_C_string(tc, code->body.name) : "<null>",
+                                    sf->body.name   ? MVM_string_utf8_maybe_encode_C_string(tc, sf->body.name)   : "<null>",
+                                    sf->body.cuuid  ? MVM_string_utf8_maybe_encode_C_string(tc, sf->body.cuuid)  : "<null>"
+                                );
                             }
                         }
                         else {
                             if (attr_st->REPR->ID == MVM_REPR_ID_P6str) {
-                                char * const str = MVM_string_utf8_encode_C_string(tc, (MVMString *)get_obj_at_offset(data, offset));
-                                fprintf(stderr, "='%s'", str);
-                                MVM_free(str);
+                                MVMString *str = (MVMString *)get_obj_at_offset(data, offset);
+                                char * const c_str = str ? MVM_string_utf8_encode_C_string(tc, str) : "<null>";
+                                fprintf(stderr, "='%s'", c_str);
+                                if (str)
+                                    MVM_free(c_str);
                             }
                             else if (attr_st->REPR->ID == MVM_REPR_ID_P6int) {
                                 MVMint64 val = attr_st->REPR->box_funcs.get_int(tc, attr_st, obj, (char *)data + offset);
@@ -2159,6 +2183,8 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
 }
 
 void MVM_dump_p6opaque(MVMThreadContext *tc, MVMObject *obj) {
+    MVM_VECTOR_INIT(dump_p6opaque_seen, 8);
     dump_p6opaque(tc, obj, 0);
+    MVM_VECTOR_DESTROY(dump_p6opaque_seen);
 }
 #endif
