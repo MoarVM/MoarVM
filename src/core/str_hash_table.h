@@ -135,11 +135,11 @@ Not all the optimisations described above are in place yet. Starting with
  * | other stuff |    +---+---+---+---+---+---+---+---+
  * +-------------+
  *
- * whereas what actually do is "unwrap" the modulo, and allocate the worst case
- * extra array slots at the end (longest possible probe distance, starting at
- * the last "official" entry). So for an array of size 8, load factor of 0.75,
- * the longest probe distance is 5 (when all 6 entries would ideally be in the
- * last bucket), so what we actually have is this
+ * whereas what we actually do is "unwrap" the modulo, and allocate the worst
+ * case extra array slots at the end (longest possible probe distance, starting
+ * at the last "official" entry). So for an array of size 8, load factor of
+ * 0.75 the longest probe distance is 5 (when all 6 entries would ideally be in
+ * the last bucket), so what we actually have is this
  *
  * +----------+    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
  * | metadata | -> | 1 | a | b | c | d | e | f | g | h | i | j | k | l | m | 1 |
@@ -153,12 +153,28 @@ Not all the optimisations described above are in place yet. Starting with
  *
  * We include sentinel values at each end of the metadata to make iteration
  * easier.
+ *
+ * Finally, to reduce allocations keep things in the same CPU cache lines, what
+ * we allocate in memory actually looks like this:
+ *
+ * ---+---+---+---+---+---+---+---+---------+---+---+---+---+---+---+---+---+---
+ * ...| G | F | E | D | C | B | A | control | 1 | a | b | c | d | e | f | g |...
+ * ---+---+---+---+---+---+---+---+---------+---+---+---+---+---+---+---+---+---
+ *                                ^
+ *                                |
+ *                              +---+
+ * the public MVMStrHashTable   |   |
+ *                              +---+
+ *
+ * is just a pointer to the dynamically allocated structure.
+ *
+ * This layout means that a hash clone is
+ * 1) malloc
+ * 2) memcpy
+ * 3) fix up the GC invariants
  */
 
 struct MVMStrHashTableControl {
-    /* strictly void *, but this makes the pointer arithmetic easier */
-    MVMuint8 *entries;
-    MVMuint8 *metadata;
     MVMuint64 salt;
 #if HASH_DEBUG_ITER
     MVMuint64 ht_id;
