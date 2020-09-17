@@ -84,8 +84,8 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *hash_insert_internal(MVMThreadContext 
 
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = hash_val >> hashtable->key_right_shift;
-    MVMuint8 *entry_raw = hashtable->entries - bucket * sizeof(struct MVMUniHashEntry);
-    MVMuint8 *metadata = hashtable->metadata + bucket;
+    MVMuint8 *entry_raw = MVM_uni_hash_entries(hashtable) - bucket * sizeof(struct MVMUniHashEntry);
+    MVMuint8 *metadata = MVM_uni_hash_metadata(hashtable) + bucket;
     while (1) {
         if (*metadata < probe_distance) {
             /* this is our slot. occupied or not, it is our rightful place. */
@@ -157,8 +157,8 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *hash_insert_internal(MVMThreadContext 
         ++metadata;
         entry_raw -= sizeof(struct MVMUniHashEntry);
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
-        assert(metadata < hashtable->metadata + hashtable->official_size + 256);
+        assert(metadata < MVM_uni_hash_metadata(hashtable) + hashtable->official_size + hashtable->max_items);
+        assert(metadata < MVM_uni_hash_metadata(hashtable) + hashtable->official_size + 256);
     }
 }
 
@@ -166,7 +166,7 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *hash_insert_internal(MVMThreadContext 
 MVM_STATIC_INLINE void *MVM_uni_hash_lvalue_fetch(MVMThreadContext *tc,
                                                   MVMUniHashTable *hashtable,
                                                   const char *key) {
-    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+    if (MVM_UNLIKELY(MVM_uni_hash_entries(hashtable) == NULL)) {
         MVM_uni_hash_initial_allocate(tc, hashtable, 0);
     }
     else if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {
@@ -180,8 +180,8 @@ MVM_STATIC_INLINE void *MVM_uni_hash_lvalue_fetch(MVMThreadContext *tc,
         }
 
         MVMuint32 true_size =  hash_true_size(hashtable);
-        MVMuint8 *entry_raw_orig = hashtable->entries;
-        MVMuint8 *metadata_orig = hashtable->metadata;
+        MVMuint8 *entry_raw_orig = MVM_uni_hash_entries(hashtable);
+        MVMuint8 *metadata_orig = MVM_uni_hash_metadata(hashtable);
 
         hash_grow(hashtable);
 
@@ -242,13 +242,13 @@ MVMuint64 MVM_uni_hash_fsck(MVMUniHashTable *hashtable, MVMuint32 mode) {
     MVMuint64 errors = 0;
     MVMuint64 seen = 0;
 
-    if (hashtable->entries == NULL) {
+    if (MVM_uni_hash_entries(hashtable) == NULL) {
         return 0;
     }
 
     MVMuint32 true_size = hash_true_size(hashtable);
-    MVMuint8 *entry_raw = hashtable->entries;
-    MVMuint8 *metadata = hashtable->metadata;
+    MVMuint8 *entry_raw = MVM_uni_hash_entries(hashtable);
+    MVMuint8 *metadata = MVM_uni_hash_metadata(hashtable);
     MVMuint32 bucket = 0;
     MVMint64 prev_offset = 0;
     while (bucket < true_size) {

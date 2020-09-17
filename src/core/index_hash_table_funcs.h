@@ -1,3 +1,12 @@
+/* These are private. We need them out here for the inline functions. Use thosethem.
+ */
+MVM_STATIC_INLINE MVMuint8 *MVM_index_hash_metadata(const MVMIndexHashTable *hashtable) {
+    return hashtable->metadata;
+}
+MVM_STATIC_INLINE MVMuint8 *MVM_index_hash_entries(const MVMIndexHashTable *hashtable) {
+    return hashtable->entries;
+}
+
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_index_hash_demolish(MVMThreadContext *tc, MVMIndexHashTable *hashtable);
@@ -34,8 +43,8 @@ MVM_STATIC_INLINE MVMuint32 MVM_index_hash_fetch_nocheck(MVMThreadContext *tc,
     unsigned int probe_distance = 1;
     MVMuint64 hash_val = MVM_string_hash_code(tc, want);
     MVMHashNumItems bucket = hash_val >> hashtable->key_right_shift;
-    MVMuint8 *entry_raw = hashtable->entries - bucket * sizeof(struct MVMIndexHashEntry);
-    MVMuint8 *metadata = hashtable->metadata + bucket;
+    MVMuint8 *entry_raw = MVM_index_hash_entries(hashtable) - bucket * sizeof(struct MVMIndexHashEntry);
+    MVMuint8 *metadata = MVM_index_hash_metadata(hashtable) + bucket;
     while (1) {
         if (*metadata == probe_distance) {
             struct MVMIndexHashEntry *entry = (struct MVMIndexHashEntry *) entry_raw;
@@ -62,8 +71,8 @@ MVM_STATIC_INLINE MVMuint32 MVM_index_hash_fetch_nocheck(MVMThreadContext *tc,
         ++metadata;
         entry_raw -= sizeof(struct MVMIndexHashEntry);
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
-        assert(metadata < hashtable->metadata + hashtable->official_size + 256);
+        assert(metadata < MVM_index_hash_metadata(hashtable) + hashtable->official_size + hashtable->max_items);
+        assert(metadata < MVM_index_hash_metadata(hashtable) + hashtable->official_size + 256);
     }
 }
 

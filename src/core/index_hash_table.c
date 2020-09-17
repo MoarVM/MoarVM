@@ -84,8 +84,8 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
     unsigned int probe_distance = 1;
     MVMuint64 hash_val = MVM_string_hash_code(tc, list[idx]);
     MVMHashNumItems bucket = hash_val >> hashtable->key_right_shift;
-    MVMuint8 *entry_raw = hashtable->entries - bucket * sizeof(struct MVMIndexHashEntry);
-    MVMuint8 *metadata = hashtable->metadata + bucket;
+    MVMuint8 *entry_raw = MVM_index_hash_entries(hashtable) - bucket * sizeof(struct MVMIndexHashEntry);
+    MVMuint8 *metadata = MVM_index_hash_metadata(hashtable) + bucket;
     while (1) {
         if (*metadata < probe_distance) {
             /* this is our slot. occupied or not, it is our rightful place. */
@@ -159,8 +159,8 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
         ++metadata;
         entry_raw -= sizeof(struct MVMIndexHashEntry);
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
-        assert(metadata < hashtable->metadata + hashtable->official_size + 256);
+        assert(metadata < MVM_index_hash_metadata(hashtable) + hashtable->official_size + hashtable->max_items);
+        assert(metadata < MVM_index_hash_metadata(hashtable) + hashtable->official_size + 256);
     }
 }
 
@@ -170,11 +170,11 @@ void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
                                    MVMIndexHashTable *hashtable,
                                    MVMString **list,
                                    MVMuint32 idx) {
-    assert(hashtable->entries != NULL);
+    assert(MVM_index_hash_entries(hashtable) != NULL);
     if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {
         MVMuint32 true_size =  hash_true_size(hashtable);
-        MVMuint8 *entry_raw_orig = hashtable->entries;
-        MVMuint8 *metadata_orig = hashtable->metadata;
+        MVMuint8 *entry_raw_orig = MVM_index_hash_entries(hashtable);
+        MVMuint8 *metadata_orig = MVM_index_hash_metadata(hashtable);
 
         hash_grow(hashtable);
 
