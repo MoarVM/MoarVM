@@ -52,7 +52,7 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *MVM_ptr_hash_fetch(MVMThreadContext *t
     }
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_ptr_hash_code(key) >> hashtable->key_right_shift;
-    char *entry_raw = hashtable->entries - bucket * sizeof(struct MVMPtrHashEntry);
+    MVMuint8 *entry_raw = hashtable->entries - bucket * sizeof(struct MVMPtrHashEntry);
     MVMuint8 *metadata = hashtable->metadata + bucket;
     while (1) {
         if (*metadata == probe_distance) {

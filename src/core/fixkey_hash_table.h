@@ -48,7 +48,7 @@ spot (some) problems.
 
 struct MVMFixKeyHashTable {
     /* strictly void *, but this makes the pointer arithmetic easier */
-    char *entries;
+    MVMuint8 *entries;
     MVMuint8 *metadata;
     MVMHashNumItems cur_items;
     MVMHashNumItems max_items; /* hit this and we grow */

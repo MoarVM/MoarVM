@@ -160,7 +160,7 @@ spot (some) problems.
 
 struct MVMStrHashTable {
     /* strictly void *, but this makes the pointer arithmetic easier */
-    char *entries;
+    MVMuint8 *entries;
     MVMuint8 *metadata;
     MVMuint64 salt;
 #if HASH_DEBUG_ITER
