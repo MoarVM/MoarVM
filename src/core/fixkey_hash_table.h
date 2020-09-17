@@ -43,7 +43,7 @@ Not all the optimisations described above are in place yet. Starting with
 
 */
 
-struct MVMFixKeyHashTable {
+struct MVMFixKeyHashTableControl {
     /* strictly void *, but this makes the pointer arithmetic easier */
     MVMuint8 *entries;
     MVMuint8 *metadata;
@@ -52,4 +52,8 @@ struct MVMFixKeyHashTable {
     MVMHashNumItems official_size;
     MVMuint16 entry_size;
     MVMuint8 key_right_shift;
+};
+
+struct MVMFixKeyHashTable {
+    struct MVMFixKeyHashTableControl *table;
 };

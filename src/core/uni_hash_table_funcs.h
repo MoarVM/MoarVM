@@ -1,10 +1,10 @@
 /* These are private. We need them out here for the inline functions. Use those.
  */
-MVM_STATIC_INLINE MVMuint8 *MVM_uni_hash_metadata(const MVMUniHashTable *hashtable) {
-    return hashtable->metadata;
+MVM_STATIC_INLINE MVMuint8 *MVM_uni_hash_metadata(const struct MVMUniHashTableControl *control) {
+    return control->metadata;
 }
-MVM_STATIC_INLINE MVMuint8 *MVM_uni_hash_entries(const MVMUniHashTable *hashtable) {
-    return hashtable->entries;
+MVM_STATIC_INLINE MVMuint8 *MVM_uni_hash_entries(const struct MVMUniHashTableControl *control) {
+    return control->entries;
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -13,7 +13,7 @@ void MVM_uni_hash_demolish(MVMThreadContext *tc, MVMUniHashTable *hashtable);
 /* and then free memory if you allocated it */
 
 void MVM_uni_hash_initial_allocate(MVMThreadContext *tc,
-                                   MVMUniHashTable *hashtable,
+                                   struct MVMUniHashTableControl *control,
                                    MVMuint32 entries);
 
 /* Call this before you use the hashtable, to initialise it.
@@ -23,15 +23,18 @@ void MVM_uni_hash_initial_allocate(MVMThreadContext *tc,
 MVM_STATIC_INLINE void MVM_uni_hash_build(MVMThreadContext *tc,
                                           MVMUniHashTable *hashtable,
                                           MVMuint32 entries) {
-    memset(hashtable, 0, sizeof(*hashtable));
+    struct MVMUniHashTableControl *control
+        = MVM_calloc(1,sizeof(struct MVMUniHashTableControl));
+    hashtable->table = control;
     if (entries) {
-        MVM_uni_hash_initial_allocate(tc, hashtable, entries);
+        MVM_uni_hash_initial_allocate(tc, control, entries);
     }
 }
 
 MVM_STATIC_INLINE int MVM_uni_hash_is_empty(MVMThreadContext *tc,
                                             MVMUniHashTable *hashtable) {
-    return hashtable->cur_items == 0;
+    struct MVMUniHashTableControl *control = hashtable->table;
+    return !control || control->cur_items == 0;
 }
 
 /* Unicode names (etc) are not under the control of an external attacker [:-)]
@@ -62,12 +65,12 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *MVM_uni_hash_fetch(MVMThreadContext *t
     if (MVM_uni_hash_is_empty(tc, hashtable)) {
         return NULL;
     }
-    assert(hashtable->entries);
+    struct MVMUniHashTableControl *control = hashtable->table;
     unsigned int probe_distance = 1;
     MVMuint32 hash_val = MVM_uni_hash_code(key, strlen(key));
-    MVMHashNumItems bucket = hash_val >> hashtable->key_right_shift;
-    MVMuint8 *entry_raw = MVM_uni_hash_entries(hashtable) - bucket * sizeof(struct MVMUniHashEntry);
-    MVMuint8 *metadata = MVM_uni_hash_metadata(hashtable) + bucket;
+    MVMHashNumItems bucket = hash_val >> control->key_right_shift;
+    MVMuint8 *entry_raw = MVM_uni_hash_entries(control) - bucket * sizeof(struct MVMUniHashEntry);
+    MVMuint8 *metadata = MVM_uni_hash_metadata(control) + bucket;
     while (1) {
         if (*metadata == probe_distance) {
             struct MVMUniHashEntry *entry = (struct MVMUniHashEntry *) entry_raw;
@@ -89,7 +92,7 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *MVM_uni_hash_fetch(MVMThreadContext *t
         ++metadata;
         entry_raw -= sizeof(struct MVMUniHashEntry);
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < MVM_uni_hash_metadata(hashtable) + hashtable->official_size + hashtable->max_items);
-        assert(metadata < MVM_uni_hash_metadata(hashtable) + hashtable->official_size + 256);
+        assert(metadata < MVM_uni_hash_metadata(control) + control->official_size + control->max_items);
+        assert(metadata < MVM_uni_hash_metadata(control) + control->official_size + 256);
     }
 }
