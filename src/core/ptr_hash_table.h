@@ -43,7 +43,7 @@ Not all the optimisations described above are in place yet. Starting with
 
 */
 
-struct MVMPtrHashTable {
+struct MVMPtrHashTableControl {
     /* strictly void *, but this makes the pointer arithmetic easier */
     MVMuint8 *entries;
     MVMuint8 *metadata;
@@ -51,6 +51,10 @@ struct MVMPtrHashTable {
     MVMHashNumItems max_items; /* hit this and we grow */
     MVMHashNumItems official_size;
     MVMuint8 key_right_shift;
+};
+
+struct MVMPtrHashTable {
+    struct MVMPtrHashTableControl *table;
 };
 
 struct MVMPtrHashEntry {

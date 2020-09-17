@@ -1,10 +1,10 @@
 /* These are private. We need them out here for the inline functions. Use those.
  */
-MVM_STATIC_INLINE MVMuint8 *MVM_fixkey_hash_metadata(const MVMFixKeyHashTable *hashtable) {
-    return hashtable->metadata;
+MVM_STATIC_INLINE MVMuint8 *MVM_fixkey_hash_metadata(const struct MVMFixKeyHashTableControl *control) {
+    return control->metadata;
 }
-MVM_STATIC_INLINE MVMuint8 *MVM_fixkey_hash_entries(const MVMFixKeyHashTable *hashtable) {
-    return hashtable->entries;
+MVM_STATIC_INLINE MVMuint8 *MVM_fixkey_hash_entries(const struct MVMFixKeyHashTableControl *control) {
+    return control->entries;
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -20,13 +20,16 @@ MVM_STATIC_INLINE void MVM_fixkey_hash_build(MVMThreadContext *tc, MVMFixKeyHash
     if (MVM_UNLIKELY(entry_size == 0 || entry_size > 1024 || entry_size & 3)) {
         MVM_oops(tc, "Hash table entry_size %" PRIu32 " is invalid", entry_size);
     }
-    memset(hashtable, 0, sizeof(*hashtable));
-    hashtable->entry_size = entry_size;
+    struct MVMFixKeyHashTableControl *control
+        = MVM_calloc(1,sizeof(struct MVMFixKeyHashTableControl));
+    control->entry_size = entry_size;
+    hashtable->table = control;
 }
 
 MVM_STATIC_INLINE int MVM_fixkey_hash_is_empty(MVMThreadContext *tc,
                                                MVMFixKeyHashTable *hashtable) {
-    return hashtable->cur_items == 0;
+    struct MVMFixKeyHashTableControl *control = hashtable->table;
+    return !control || control->cur_items == 0;
 }
 
 MVM_STATIC_INLINE MVMuint64 MVM_fixkey_hash_code(MVMThreadContext *tc, MVMString *key) {
@@ -45,11 +48,11 @@ MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nocheck(MVMThreadContext *tc,
     if (MVM_fixkey_hash_is_empty(tc, hashtable)) {
         return NULL;
     }
-    assert(hashtable->entries);
+    struct MVMFixKeyHashTableControl *control = hashtable->table;
     unsigned int probe_distance = 1;
-    MVMHashNumItems bucket = MVM_fixkey_hash_code(tc, key) >> hashtable->key_right_shift;
-    MVMuint8 *entry_raw = MVM_fixkey_hash_entries(hashtable) - bucket * sizeof(MVMString ***);
-    MVMuint8 *metadata = MVM_fixkey_hash_metadata(hashtable) + bucket;
+    MVMHashNumItems bucket = MVM_fixkey_hash_code(tc, key) >> control->key_right_shift;
+    MVMuint8 *entry_raw = MVM_fixkey_hash_entries(control) - bucket * sizeof(MVMString ***);
+    MVMuint8 *metadata = MVM_fixkey_hash_metadata(control) + bucket;
     while (1) {
         if (*metadata == probe_distance) {
             MVMString ***entry = (MVMString ***) entry_raw;
@@ -77,8 +80,8 @@ MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nocheck(MVMThreadContext *tc,
         ++metadata;
         entry_raw -= sizeof(MVMString ***);
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < MVM_fixkey_hash_metadata(hashtable) + hashtable->official_size + hashtable->max_items);
-        assert(metadata < MVM_fixkey_hash_metadata(hashtable) + hashtable->official_size + 256);
+        assert(metadata < MVM_fixkey_hash_metadata(control) + control->official_size + control->max_items);
+        assert(metadata < MVM_fixkey_hash_metadata(control) + control->official_size + 256);
     }
 }
 

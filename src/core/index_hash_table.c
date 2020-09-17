@@ -3,10 +3,10 @@
 #define INDEX_LOAD_FACTOR 0.75
 #define INDEX_MIN_SIZE_BASE_2 3
 
-MVM_STATIC_INLINE MVMuint32 hash_true_size(MVMIndexHashTable *hashtable) {
-    MVMuint32 true_size = hashtable->official_size + hashtable->max_items - 1;
-    if (hashtable->official_size + MVM_HASH_MAX_PROBE_DISTANCE < true_size) {
-        true_size = hashtable->official_size + MVM_HASH_MAX_PROBE_DISTANCE;
+MVM_STATIC_INLINE MVMuint32 hash_true_size(const struct MVMIndexHashTableControl *control) {
+    MVMuint32 true_size = control->official_size + control->max_items - 1;
+    if (control->official_size + MVM_HASH_MAX_PROBE_DISTANCE < true_size) {
+        true_size = control->official_size + MVM_HASH_MAX_PROBE_DISTANCE;
     }
     return true_size;
 }
@@ -14,35 +14,41 @@ MVM_STATIC_INLINE MVMuint32 hash_true_size(MVMIndexHashTable *hashtable) {
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_index_hash_demolish(MVMThreadContext *tc, MVMIndexHashTable *hashtable) {
-    if (hashtable->entries) {
-        MVM_free(hashtable->entries
-                 - sizeof(struct MVMIndexHashEntry) * (hash_true_size(hashtable) - 1));
+    struct MVMIndexHashTableControl *control = hashtable->table;
+    if (!control)
+        return;
+    if (control->entries) {
+        MVM_free(control->entries
+                 - sizeof(struct MVMIndexHashEntry) * (hash_true_size(control) - 1));
     }
+    MVM_free(control);
+    hashtable->table = NULL;
 }
 /* and then free memory if you allocated it */
 
 
-MVM_STATIC_INLINE void hash_allocate_common(MVMIndexHashTable *hashtable) {
-    hashtable->max_items = hashtable->official_size * INDEX_LOAD_FACTOR;
-    size_t actual_items = hash_true_size(hashtable);
+MVM_STATIC_INLINE void hash_allocate_common(struct MVMIndexHashTableControl *control) {
+    control->max_items = control->official_size * INDEX_LOAD_FACTOR;
+    size_t actual_items = hash_true_size(control);
     size_t entries_size = sizeof(struct MVMIndexHashEntry) * actual_items;
     size_t metadata_size = 1 + actual_items + 1;
-    hashtable->metadata
+    control->metadata
         = (MVMuint8 *) MVM_malloc(entries_size + metadata_size) + entries_size;
-    memset(hashtable->metadata, 0, metadata_size);
+    memset(control->metadata, 0, metadata_size);
     /* We point to the *last* entry in the array, not the one-after-the end. */
-    hashtable->entries = hashtable->metadata - sizeof(struct MVMIndexHashEntry);
+    control->entries = control->metadata - sizeof(struct MVMIndexHashEntry);
     /* A sentinel. This marks an occupied slot, at its ideal position. */
-    *hashtable->metadata = 1;
-    ++hashtable->metadata;
+    *control->metadata = 1;
+    ++control->metadata;
     /* A sentinel at the other end. Again, occupied, ideal position. */
-    hashtable->metadata[actual_items] = 1;
+    control->metadata[actual_items] = 1;
 }
 
 void MVM_index_hash_build(MVMThreadContext *tc,
                           MVMIndexHashTable *hashtable,
                           MVMuint32 entries) {
-    memset(hashtable, 0, sizeof(*hashtable));
+    struct MVMIndexHashTableControl *control = MVM_calloc(1,sizeof(struct MVMIndexHashTableControl));
+    hashtable->table = control;
 
     MVMuint32 initial_size_base2;
     if (!entries) {
@@ -57,35 +63,35 @@ void MVM_index_hash_build(MVMThreadContext *tc,
         }
     }
 
-    hashtable->key_right_shift = (8 * sizeof(MVMuint64) - initial_size_base2);
-    hashtable->official_size = 1 << initial_size_base2;
+    control->key_right_shift = (8 * sizeof(MVMuint64) - initial_size_base2);
+    control->official_size = 1 << initial_size_base2;
 
-    hash_allocate_common(hashtable);
+    hash_allocate_common(control);
 }
 
 /* make sure you still have your copies of entries and metadata before you
    call this. */
-MVM_STATIC_INLINE void hash_grow(MVMIndexHashTable *hashtable) {
-    --hashtable->key_right_shift;
-    hashtable->official_size *= 2;
+MVM_STATIC_INLINE void hash_grow(struct MVMIndexHashTableControl *control) {
+    --control->key_right_shift;
+    control->official_size *= 2;
 
-    hash_allocate_common(hashtable);
+    hash_allocate_common(control);
 }
 
 MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
-                                            MVMIndexHashTable *hashtable,
+                                            struct MVMIndexHashTableControl *control,
                                             MVMString **list,
                                             MVMuint32 idx) {
-    if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {
+    if (MVM_UNLIKELY(control->cur_items >= control->max_items)) {
         MVM_oops(tc, "oops, attempt to recursively call grow when adding %i",
                  idx);
     }
 
     unsigned int probe_distance = 1;
     MVMuint64 hash_val = MVM_string_hash_code(tc, list[idx]);
-    MVMHashNumItems bucket = hash_val >> hashtable->key_right_shift;
-    MVMuint8 *entry_raw = MVM_index_hash_entries(hashtable) - bucket * sizeof(struct MVMIndexHashEntry);
-    MVMuint8 *metadata = MVM_index_hash_metadata(hashtable) + bucket;
+    MVMHashNumItems bucket = hash_val >> control->key_right_shift;
+    MVMuint8 *entry_raw = MVM_index_hash_entries(control) - bucket * sizeof(struct MVMIndexHashEntry);
+    MVMuint8 *metadata = MVM_index_hash_metadata(control) + bucket;
     while (1) {
         if (*metadata < probe_distance) {
             /* this is our slot. occupied or not, it is our rightful place. */
@@ -112,7 +118,7 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
                            *before* the actual insert, so that we never end up
                            having to handle overflow *during* this loop. This
                            loop can always complete. */
-                        hashtable->max_items = 0;
+                        control->max_items = 0;
                     }
                     /* a swap: */
                     old_probe_distance = *++find_me_a_gap;
@@ -138,7 +144,7 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
              * signal to the next insertion that it needs to take action first.
              */
             if (probe_distance == MVM_HASH_MAX_PROBE_DISTANCE) {
-                hashtable->max_items = 0;
+                control->max_items = 0;
             }
 
             *metadata = probe_distance;
@@ -159,8 +165,8 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
         ++metadata;
         entry_raw -= sizeof(struct MVMIndexHashEntry);
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < MVM_index_hash_metadata(hashtable) + hashtable->official_size + hashtable->max_items);
-        assert(metadata < MVM_index_hash_metadata(hashtable) + hashtable->official_size + 256);
+        assert(metadata < MVM_index_hash_metadata(control) + control->official_size + control->max_items);
+        assert(metadata < MVM_index_hash_metadata(control) + control->official_size + 256);
     }
 }
 
@@ -170,13 +176,15 @@ void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
                                    MVMIndexHashTable *hashtable,
                                    MVMString **list,
                                    MVMuint32 idx) {
-    assert(MVM_index_hash_entries(hashtable) != NULL);
-    if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {
-        MVMuint32 true_size =  hash_true_size(hashtable);
-        MVMuint8 *entry_raw_orig = MVM_index_hash_entries(hashtable);
-        MVMuint8 *metadata_orig = MVM_index_hash_metadata(hashtable);
+    struct MVMIndexHashTableControl *control = hashtable->table;
+    assert(control);
+    assert(MVM_index_hash_entries(control) != NULL);
+    if (MVM_UNLIKELY(control->cur_items >= control->max_items)) {
+        MVMuint32 true_size =  hash_true_size(control);
+        MVMuint8 *entry_raw_orig = MVM_index_hash_entries(control);
+        MVMuint8 *metadata_orig = MVM_index_hash_metadata(control);
 
-        hash_grow(hashtable);
+        hash_grow(control);
 
         MVMuint8 *entry_raw = entry_raw_orig;
         MVMuint8 *metadata = metadata_orig;
@@ -184,7 +192,7 @@ void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
         while (bucket < true_size) {
             if (*metadata) {
                 struct MVMIndexHashEntry *entry = (struct MVMIndexHashEntry *) entry_raw;
-                hash_insert_internal(tc, hashtable, list, entry->index);
+                hash_insert_internal(tc, control, list, entry->index);
             }
             ++bucket;
             ++metadata;
@@ -192,6 +200,6 @@ void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
         }
         MVM_free(entry_raw_orig - sizeof(struct MVMIndexHashEntry) * (true_size - 1));
     }
-    hash_insert_internal(tc, hashtable, list, idx);
-    ++hashtable->cur_items;
+    hash_insert_internal(tc, control, list, idx);
+    ++control->cur_items;
 }

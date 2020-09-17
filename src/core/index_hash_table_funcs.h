@@ -1,10 +1,10 @@
 /* These are private. We need them out here for the inline functions. Use thosethem.
  */
-MVM_STATIC_INLINE MVMuint8 *MVM_index_hash_metadata(const MVMIndexHashTable *hashtable) {
-    return hashtable->metadata;
+MVM_STATIC_INLINE MVMuint8 *MVM_index_hash_metadata(const struct MVMIndexHashTableControl *control) {
+    return control->metadata;
 }
-MVM_STATIC_INLINE MVMuint8 *MVM_index_hash_entries(const MVMIndexHashTable *hashtable) {
-    return hashtable->entries;
+MVM_STATIC_INLINE MVMuint8 *MVM_index_hash_entries(const struct MVMIndexHashTableControl *control) {
+    return control->entries;
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -22,7 +22,8 @@ void MVM_index_hash_build(MVMThreadContext *tc,
 
 MVM_STATIC_INLINE int MVM_index_hash_is_empty(MVMThreadContext *tc,
                                               MVMIndexHashTable *hashtable) {
-    return hashtable->cur_items == 0;
+    struct MVMIndexHashTableControl *control = hashtable->table;
+    return !control || control->cur_items == 0;
 }
 
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
@@ -39,12 +40,12 @@ MVM_STATIC_INLINE MVMuint32 MVM_index_hash_fetch_nocheck(MVMThreadContext *tc,
     if (MVM_index_hash_is_empty(tc, hashtable)) {
         return MVM_INDEX_HASH_NOT_FOUND;
     }
-    assert(hashtable->entries);
+    struct MVMIndexHashTableControl *control = hashtable->table;
     unsigned int probe_distance = 1;
     MVMuint64 hash_val = MVM_string_hash_code(tc, want);
-    MVMHashNumItems bucket = hash_val >> hashtable->key_right_shift;
-    MVMuint8 *entry_raw = MVM_index_hash_entries(hashtable) - bucket * sizeof(struct MVMIndexHashEntry);
-    MVMuint8 *metadata = MVM_index_hash_metadata(hashtable) + bucket;
+    MVMHashNumItems bucket = hash_val >> control->key_right_shift;
+    MVMuint8 *entry_raw = MVM_index_hash_entries(control) - bucket * sizeof(struct MVMIndexHashEntry);
+    MVMuint8 *metadata = MVM_index_hash_metadata(control) + bucket;
     while (1) {
         if (*metadata == probe_distance) {
             struct MVMIndexHashEntry *entry = (struct MVMIndexHashEntry *) entry_raw;
@@ -71,8 +72,8 @@ MVM_STATIC_INLINE MVMuint32 MVM_index_hash_fetch_nocheck(MVMThreadContext *tc,
         ++metadata;
         entry_raw -= sizeof(struct MVMIndexHashEntry);
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < MVM_index_hash_metadata(hashtable) + hashtable->official_size + hashtable->max_items);
-        assert(metadata < MVM_index_hash_metadata(hashtable) + hashtable->official_size + 256);
+        assert(metadata < MVM_index_hash_metadata(control) + control->official_size + control->max_items);
+        assert(metadata < MVM_index_hash_metadata(control) + control->official_size + 256);
     }
 }
 

@@ -1,10 +1,10 @@
 /* These are private. We need them out here for the inline functions. Use those.
  */
-MVM_STATIC_INLINE MVMuint8 *MVM_ptr_hash_metadata(const MVMPtrHashTable *hashtable) {
-    return hashtable->metadata;
+MVM_STATIC_INLINE MVMuint8 *MVM_ptr_hash_metadata(const struct MVMPtrHashTableControl *control) {
+    return control->metadata;
 }
-MVM_STATIC_INLINE MVMuint8 *MVM_ptr_hash_entries(const MVMPtrHashTable *hashtable) {
-    return hashtable->entries;
+MVM_STATIC_INLINE MVMuint8 *MVM_ptr_hash_entries(const struct MVMPtrHashTableControl *control) {
+    return control->entries;
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -22,7 +22,8 @@ MVM_STATIC_INLINE void MVM_ptr_hash_build(MVMThreadContext *tc, MVMPtrHashTable 
 
 MVM_STATIC_INLINE int MVM_ptr_hash_is_empty(MVMThreadContext *tc,
                                             MVMPtrHashTable *hashtable) {
-    return hashtable->cur_items == 0;
+    struct MVMPtrHashTableControl *control = hashtable->table;
+    return !control || control->cur_items == 0;
 }
 
 /* Fibonacci bucket determination.
@@ -64,11 +65,11 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *MVM_ptr_hash_fetch(MVMThreadContext *t
     if (MVM_ptr_hash_is_empty(tc, hashtable)) {
         return NULL;
     }
-    assert(hashtable->entries);
+    struct MVMPtrHashTableControl *control = hashtable->table;
     unsigned int probe_distance = 1;
-    MVMHashNumItems bucket = MVM_ptr_hash_code(key) >> hashtable->key_right_shift;
-    MVMuint8 *entry_raw = MVM_ptr_hash_entries(hashtable) - bucket * sizeof(struct MVMPtrHashEntry);
-    MVMuint8 *metadata = MVM_ptr_hash_metadata(hashtable) + bucket;
+    MVMHashNumItems bucket = MVM_ptr_hash_code(key) >> control->key_right_shift;
+    MVMuint8 *entry_raw = MVM_ptr_hash_entries(control) - bucket * sizeof(struct MVMPtrHashEntry);
+    MVMuint8 *metadata = MVM_ptr_hash_metadata(control) + bucket;
     while (1) {
         if (*metadata == probe_distance) {
             struct MVMPtrHashEntry *entry = (struct MVMPtrHashEntry *) entry_raw;
@@ -90,8 +91,8 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *MVM_ptr_hash_fetch(MVMThreadContext *t
         ++metadata;
         entry_raw -= sizeof(struct MVMPtrHashEntry);
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < MVM_ptr_hash_metadata(hashtable) + hashtable->official_size + hashtable->max_items);
-        assert(metadata < MVM_ptr_hash_metadata(hashtable) + hashtable->official_size + 256);
+        assert(metadata < MVM_ptr_hash_metadata(control) + control->official_size + control->max_items);
+        assert(metadata < MVM_ptr_hash_metadata(control) + control->official_size + 256);
     }
 }
 
