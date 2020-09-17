@@ -17,7 +17,6 @@ void MVM_index_hash_demolish(MVMThreadContext *tc, MVMIndexHashTable *hashtable)
     if (hashtable->entries) {
         MVM_free(hashtable->entries
                  - sizeof(struct MVMIndexHashEntry) * (hash_true_size(hashtable) - 1));
-        MVM_free(hashtable->metadata - 1);
     }
 }
 /* and then free memory if you allocated it */
@@ -26,10 +25,13 @@ void MVM_index_hash_demolish(MVMThreadContext *tc, MVMIndexHashTable *hashtable)
 MVM_STATIC_INLINE void hash_allocate_common(MVMIndexHashTable *hashtable) {
     hashtable->max_items = hashtable->official_size * INDEX_LOAD_FACTOR;
     size_t actual_items = hash_true_size(hashtable);
+    size_t entries_size = sizeof(struct MVMIndexHashEntry) * actual_items;
+    size_t metadata_size = 1 + actual_items + 1;
+    hashtable->metadata
+        = (MVMuint8 *) MVM_malloc(entries_size + metadata_size) + entries_size;
+    memset(hashtable->metadata, 0, metadata_size);
     /* We point to the *last* entry in the array, not the one-after-the end. */
-    hashtable->entries = (MVMuint8 *) MVM_malloc(sizeof(struct MVMIndexHashEntry) * actual_items)
-        + sizeof(struct MVMIndexHashEntry) * (actual_items - 1);
-    hashtable->metadata = MVM_calloc(1 + actual_items + 1, 1);
+    hashtable->entries = hashtable->metadata - sizeof(struct MVMIndexHashEntry);
     /* A sentinel. This marks an occupied slot, at its ideal position. */
     *hashtable->metadata = 1;
     ++hashtable->metadata;
@@ -189,7 +191,6 @@ void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
             entry_raw -= sizeof(struct MVMIndexHashEntry);
         }
         MVM_free(entry_raw_orig - sizeof(struct MVMIndexHashEntry) * (true_size - 1));
-        MVM_free(metadata_orig - 1);
     }
     hash_insert_internal(tc, hashtable, list, idx);
     ++hashtable->cur_items;

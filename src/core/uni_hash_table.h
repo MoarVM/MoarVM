@@ -41,9 +41,6 @@ hash value, or because we fake it and explicitly store the hash value.)
 Not all the optimisations described above are in place yet. Starting with
 "minimum viable product", with a design that should support adding them.
 
-Also starting out by using two memory blocks, so that ASAN and valgrind can
-spot (some) problems.
-
 */
 
 struct MVMUniHashTable {

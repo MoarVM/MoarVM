@@ -37,7 +37,6 @@ void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable) {
     if (hashtable->entries) {
         MVM_free(hashtable->entries
                  - hashtable->entry_size * (hash_true_size(hashtable) - 1));
-        MVM_free(hashtable->metadata - 1);
     }
     /* We shouldn't need these, but make something foolproof and they invent a
      * better fool: */
@@ -65,10 +64,13 @@ MVM_STATIC_INLINE void hash_allocate_common(MVMThreadContext *tc,
         hashtable->probe_overflow_size = overflow_size;
     }
     size_t actual_items = hash_true_size(hashtable);
+    size_t entries_size = hashtable->entry_size * actual_items;
+    size_t metadata_size = 1 + actual_items + 1;
+    hashtable->metadata
+        = (MVMuint8 *) MVM_malloc(entries_size + metadata_size) + entries_size;
+    memset(hashtable->metadata, 0, metadata_size);
     /* We point to the *last* entry in the array, not the one-after-the end. */
-    hashtable->entries = (MVMuint8 *) MVM_malloc(hashtable->entry_size * actual_items)
-        + hashtable->entry_size * (actual_items - 1);
-    hashtable->metadata = MVM_calloc(1 + actual_items + 1, 1);
+    hashtable->entries = hashtable->metadata - hashtable->entry_size;
     /* A sentinel. This marks an occupied slot, at its ideal position. */
     *hashtable->metadata = 1;
     ++hashtable->metadata;
@@ -262,7 +264,6 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
             entry_raw -= hashtable->entry_size;
         }
         MVM_free(entry_raw_orig - hashtable->entry_size * (true_size - 1));
-        MVM_free(metadata_orig - 1);
     }
     struct MVMStrHashHandle *new_entry
         = hash_insert_internal(tc, hashtable, key);
