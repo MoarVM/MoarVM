@@ -4,10 +4,10 @@ MVM_STATIC_INLINE MVMuint32 MVM_str_hash_kompromat(const struct MVMStrHashTableC
     return control->official_size + control->probe_overflow_size;
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_str_hash_metadata(const struct MVMStrHashTableControl *control) {
-    return control->metadata;
+    return (MVMuint8 *) control + sizeof(struct MVMStrHashTableControl) + 1;
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_str_hash_entries(const struct MVMStrHashTableControl *control) {
-    return control->entries;
+    return (MVMuint8 *) control - control->entry_size;
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -15,42 +15,11 @@ MVM_STATIC_INLINE MVMuint8 *MVM_str_hash_entries(const struct MVMStrHashTableCon
 void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable);
 /* and then free memory if you allocated it */
 
-void MVM_str_hash_initial_allocate(MVMThreadContext *tc,
-                                   struct MVMStrHashTableControl *control,
-                                   MVMuint32 entries);
-
-/* Call this before you use the hashtable, to initialise it.
- * Doesn't allocate memory for the hashtable struct itself - you can embed the
- * struct within a larger struct if you wish.
- */
-MVM_STATIC_INLINE void MVM_str_hash_build(MVMThreadContext *tc,
-                                          MVMStrHashTable *hashtable,
-                                          MVMuint32 entry_size,
-                                          MVMuint32 entries) {
-    if (MVM_UNLIKELY(entry_size == 0 || entry_size > 255 || entry_size & 3)) {
-        MVM_oops(tc, "Hash table entry_size %" PRIu32 " is invalid", entry_size);
-    }
-    struct MVMStrHashTableControl *control
-        = MVM_calloc(1,sizeof(struct MVMStrHashTableControl));
-    control->entry_size = entry_size;
-    hashtable->table = control;
-
-#if HASH_DEBUG_ITER
-    /* Given that we can embed the hashtable structure into other structures
-     * (such as MVMHash) and those enclosing structures can be moved (GC!) we
-     * can't use the address of this structure as its ID for debugging. We
-     * could use the address of the first buckets array that we allocate, but if
-     * we grow, then that memory could well be re-used for another hashtable,
-     * and then we have two hashtables with the same ID, which rather defeats
-     * the need to have (likely to be) unique IDs, to spot iterator leakage. */
-    control->ht_id = 0;
-    control->serial = 0;
-    control->last_delete_at = 0;
-#endif
-    if (entries) {
-        MVM_str_hash_initial_allocate(tc, control, entries);
-    }
-}
+/* Call this before you use the hashtable, to initialise it. */
+void MVM_str_hash_build(MVMThreadContext *tc,
+                        MVMStrHashTable *hashtable,
+                        MVMuint32 entry_size,
+                        MVMuint32 entries);
 
 MVM_STATIC_INLINE int MVM_str_hash_is_empty(MVMThreadContext *tc,
                                             MVMStrHashTable *hashtable) {

@@ -27,25 +27,31 @@ MVMuint32 MVM_round_up_log_base2(MVMuint32 v) {
     return MultiplyDeBruijnBitPosition[(uint32_t)(v * 0x07C4ACDDU) >> 27];
 }
 
+MVM_STATIC_INLINE void hash_demolish_internal(MVMThreadContext *tc,
+                                              struct MVMStrHashTableControl *control) {
+    size_t actual_items = MVM_str_hash_kompromat(control);
+    size_t entries_size = control->entry_size * actual_items;
+    char *start = (char *)control - entries_size;
+    MVM_free(start);
+}
+
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable) {
     struct MVMStrHashTableControl *control = hashtable->table;
     if (!control)
         return;
-    if (control->entries) {
-        MVM_free(control->entries
-                 - control->entry_size * (MVM_str_hash_kompromat(control) - 1));
-    }
-    MVM_free(control);
+    hash_demolish_internal(tc, control);
     hashtable->table = NULL;
 }
 /* and then free memory if you allocated it */
 
-MVM_STATIC_INLINE void hash_allocate_common(MVMThreadContext *tc,
-                                            struct MVMStrHashTableControl *control) {
-    control->max_items = control->official_size * STR_LOAD_FACTOR;
-    uint32_t overflow_size = control->max_items - 1;
+MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadContext *tc,
+                                                                      MVMuint8 entry_size,
+                                                                      MVMuint8 key_right_shift,
+                                                                      MVMuint32 official_size) {
+    MVMuint32 max_items = official_size * STR_LOAD_FACTOR;
+    MVMuint32 overflow_size = max_items - 1;
     /* -1 because...
      * probe distance of 1 is the correct bucket.
      * hence for a value whose ideal slot is the last bucket, it's *in* the
@@ -54,34 +60,53 @@ MVM_STATIC_INLINE void hash_allocate_common(MVMThreadContext *tc,
      * allocation
      * probe distance of 255 is the 254th beyond the official allocation.
      */
+    MVMuint8 probe_overflow_size;
     if (MVM_HASH_MAX_PROBE_DISTANCE < overflow_size) {
-        control->probe_overflow_size = MVM_HASH_MAX_PROBE_DISTANCE - 1;
+        probe_overflow_size = MVM_HASH_MAX_PROBE_DISTANCE - 1;
     } else {
-        control->probe_overflow_size = overflow_size;
+        probe_overflow_size = overflow_size;
     }
-    size_t actual_items = MVM_str_hash_kompromat(control);
-    size_t entries_size = control->entry_size * actual_items;
+    size_t actual_items = official_size + probe_overflow_size;
+    size_t entries_size = entry_size * actual_items;
     size_t metadata_size = 1 + actual_items + 1;
-    control->metadata
-        = (MVMuint8 *) MVM_malloc(entries_size + metadata_size) + entries_size;
-    memset(control->metadata, 0, metadata_size);
-    /* We point to the *last* entry in the array, not the one-after-the end. */
-    control->entries = control->metadata - control->entry_size;
+    size_t total_size
+        = entries_size + sizeof(struct MVMStrHashTableControl) + metadata_size;
+
+    struct MVMStrHashTableControl *control =
+        (struct MVMStrHashTableControl *) ((char *)MVM_malloc(total_size) + entries_size);
+
+    control->official_size = official_size;
+    control->max_items = max_items;
+    control->probe_overflow_size = probe_overflow_size;
+    control->key_right_shift = key_right_shift;
+    control->entry_size = entry_size;
+
+    MVMuint8 *metadata = (MVMuint8 *)(control + 1);
+    memset(metadata, 0, metadata_size);
+
     /* A sentinel. This marks an occupied slot, at its ideal position. */
-    *control->metadata = 1;
-    ++control->metadata;
-    /* A sentinel at the other end. Again, occupied, ideal position. */
-    control->metadata[actual_items] = 1;
+    metadata[actual_items + 1] = 1;
+    /* A sentinel at the other end. Again, occupited, ideal position. */
+    metadata[0] = 1;
+
 #if MVM_HASH_RANDOMIZE
     control->salt = MVM_proc_rand_i(tc);
 #else
     control->salt = 0;
 #endif
+
+    return control;
 }
 
-void MVM_str_hash_initial_allocate(MVMThreadContext *tc,
-                                   struct MVMStrHashTableControl *control,
-                                   MVMuint32 entries) {
+void MVM_str_hash_build(MVMThreadContext *tc,
+                        MVMStrHashTable *hashtable,
+                        MVMuint32 entry_size,
+                        MVMuint32 entries)
+{
+    if (MVM_UNLIKELY(entry_size == 0 || entry_size > 255 || entry_size & 3)) {
+        MVM_oops(tc, "Hash table entry_size %" PRIu32 " is invalid", entry_size);
+    }
+
     MVMuint32 initial_size_base2;
     if (!entries) {
         initial_size_base2 = STR_MIN_SIZE_BASE_2;
@@ -95,28 +120,32 @@ void MVM_str_hash_initial_allocate(MVMThreadContext *tc,
         }
     }
 
-    control->key_right_shift = (8 * sizeof(MVMuint64) - initial_size_base2);
-    control->official_size = 1 << initial_size_base2;
+    struct MVMStrHashTableControl *control
+        = hash_allocate_common(tc,
+                               entry_size,
+                               (8 * sizeof(MVMuint64) - initial_size_base2),
+                               1 << initial_size_base2);
 
-    hash_allocate_common(tc, control);
+    control->cur_items = 0;
 
 #if HASH_DEBUG_ITER
 #  if MVM_HASH_RANDOMIZE
+    /* Given that we can embed the hashtable structure into other structures
+     * (such as MVMHash) and those enclosing structures can be moved (GC!) we
+     * can't use the address of this structure as its ID for debugging. We
+     * could use the address of the first buckets array that we allocate, but if
+     * we grow, then that memory could well be re-used for another hashtable,
+     * and then we have two hashtables with the same ID, which rather defeats
+     * the need to have (likely to be) unique IDs, to spot iterator leakage. */
     control->ht_id = control->salt;
 #  else
-    control->salt = MVM_proc_rand_i(tc);
+    control->ht_id = MVM_proc_rand_i(tc);
 #  endif
+    control->serial = 0;
+    control->last_delete_at = 0;
 #endif
-}
 
-/* make sure you still have your copies of entries and metadata before you
-   call this. */
-MVM_STATIC_INLINE void hash_grow(MVMThreadContext *tc,
-                                 struct MVMStrHashTableControl *control) {
-    --control->key_right_shift;
-    control->official_size *= 2;
-
-    hash_allocate_common(tc, control);
+    hashtable->table = control;
 }
 
 MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext *tc,
@@ -220,14 +249,8 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
                                         MVMStrHashTable *hashtable,
                                         MVMString *key) {
     struct MVMStrHashTableControl *control = hashtable->table;
-    if (MVM_UNLIKELY(MVM_str_hash_entries(control) == NULL)) {
-        if (MVM_UNLIKELY(control->entry_size == 0)) {
-            /* This isn't going to work, because we'll call MVM_malloc() with a
-             * zero size, and likely malloc() will return NULL and hence
-             * MVM_malloc() will panic. */
-            MVM_oops(tc, "Attempting insert on MVM_str_hash without setting entry_size");
-        }
-        MVM_str_hash_initial_allocate(tc, control, 0);
+    if (MVM_UNLIKELY(!control)) {
+        MVM_oops(tc, "Attempting insert on MVM_str_hash without first calling MVM_str_hash_build");
     }
     else if (MVM_UNLIKELY(control->cur_items >= control->max_items)) {
         /* We should avoid growing the hash if we don't need to.
@@ -243,7 +266,20 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
         MVMuint8 *entry_raw_orig = MVM_str_hash_entries(control);
         MVMuint8 *metadata_orig = MVM_str_hash_metadata(control);
 
-        hash_grow(tc, control);
+        struct MVMStrHashTableControl *control_orig = control;
+
+        control = hash_allocate_common(tc,
+                                       control_orig->entry_size,
+                                       control_orig->key_right_shift - 1,
+                                       control_orig->official_size * 2);
+
+        control->cur_items = control_orig->cur_items;
+#if HASH_DEBUG_ITER
+        control->ht_id = control_orig->ht_id;
+        control->serial = control_orig->serial;
+        control->last_delete_at = control_orig->last_delete_at;
+#endif
+        hashtable->table = control;
 
         MVMuint8 *entry_raw = entry_raw_orig;
         MVMuint8 *metadata = metadata_orig;
@@ -260,7 +296,7 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
             ++metadata;
             entry_raw -= control->entry_size;
         }
-        MVM_free(entry_raw_orig - control->entry_size * (true_size - 1));
+        hash_demolish_internal(tc, control_orig);
     }
     struct MVMStrHashHandle *new_entry
         = hash_insert_internal(tc, control, key);
