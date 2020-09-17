@@ -28,7 +28,7 @@ MVM_STATIC_INLINE MVMuint32 MVM_index_hash_fetch_nocheck(MVMThreadContext *tc,
     unsigned int probe_distance = 1;
     MVMuint64 hash_val = MVM_string_hash_code(tc, want);
     MVMHashNumItems bucket = hash_val >> hashtable->key_right_shift;
-    char *entry_raw = hashtable->entries - bucket * sizeof(struct MVMIndexHashEntry);
+    MVMuint8 *entry_raw = hashtable->entries - bucket * sizeof(struct MVMIndexHashEntry);
     MVMuint8 *metadata = hashtable->metadata + bucket;
     while (1) {
         if (*metadata == probe_distance) {

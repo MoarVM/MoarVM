@@ -27,7 +27,7 @@ MVM_STATIC_INLINE void hash_allocate_common(MVMIndexHashTable *hashtable) {
     hashtable->max_items = hashtable->official_size * INDEX_LOAD_FACTOR;
     size_t actual_items = hash_true_size(hashtable);
     /* We point to the *last* entry in the array, not the one-after-the end. */
-    hashtable->entries = (char *) MVM_malloc(sizeof(struct MVMIndexHashEntry) * actual_items)
+    hashtable->entries = (MVMuint8 *) MVM_malloc(sizeof(struct MVMIndexHashEntry) * actual_items)
         + sizeof(struct MVMIndexHashEntry) * (actual_items - 1);
     hashtable->metadata = MVM_calloc(1 + actual_items + 1, 1);
     /* A sentinel. This marks an occupied slot, at its ideal position. */
@@ -82,7 +82,7 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
     unsigned int probe_distance = 1;
     MVMuint64 hash_val = MVM_string_hash_code(tc, list[idx]);
     MVMHashNumItems bucket = hash_val >> hashtable->key_right_shift;
-    char *entry_raw = hashtable->entries - bucket * sizeof(struct MVMIndexHashEntry);
+    MVMuint8 *entry_raw = hashtable->entries - bucket * sizeof(struct MVMIndexHashEntry);
     MVMuint8 *metadata = hashtable->metadata + bucket;
     while (1) {
         if (*metadata < probe_distance) {
@@ -127,7 +127,7 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
                  * `entry_raw` is still a pointer to where we want to make free
                  * space, but what want to do now is move everything at it and
                  * *before* it downwards. */
-                char *dest = entry_raw - size_to_move;
+                MVMuint8 *dest = entry_raw - size_to_move;
                 memmove(dest, dest + sizeof(struct MVMIndexHashEntry), size_to_move);
             }
             
@@ -171,12 +171,12 @@ void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
     assert(hashtable->entries != NULL);
     if (MVM_UNLIKELY(hashtable->cur_items >= hashtable->max_items)) {
         MVMuint32 true_size =  hash_true_size(hashtable);
-        char *entry_raw_orig = hashtable->entries;
+        MVMuint8 *entry_raw_orig = hashtable->entries;
         MVMuint8 *metadata_orig = hashtable->metadata;
 
         hash_grow(hashtable);
 
-        char *entry_raw = entry_raw_orig;
+        MVMuint8 *entry_raw = entry_raw_orig;
         MVMuint8 *metadata = metadata_orig;
         MVMHashNumItems bucket = 0;
         while (bucket < true_size) {

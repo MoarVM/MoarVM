@@ -33,7 +33,7 @@ MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nocheck(MVMThreadContext *tc,
     }
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_fixkey_hash_code(tc, key) >> hashtable->key_right_shift;
-    char *entry_raw = hashtable->entries - bucket * sizeof(MVMString ***);
+    MVMuint8 *entry_raw = hashtable->entries - bucket * sizeof(MVMString ***);
     MVMuint8 *metadata = hashtable->metadata + bucket;
     while (1) {
         if (*metadata == probe_distance) {
