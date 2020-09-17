@@ -32,7 +32,6 @@ void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtabl
     if (hashtable->entries) {
         MVM_free(hashtable->entries
              - sizeof(MVMString ***) * (hash_true_size(hashtable) - 1));
-        MVM_free(metadata - 1);
     }
 }
 /* and then free memory if you allocated it */
@@ -41,10 +40,13 @@ void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtabl
 MVM_STATIC_INLINE void hash_allocate_common(MVMFixKeyHashTable *hashtable) {
     hashtable->max_items = hashtable->official_size * FIXKEY_LOAD_FACTOR;
     size_t actual_items = hash_true_size(hashtable);
+    size_t entries_size = sizeof(MVMString ***) * actual_items;
+    size_t metadata_size = 1 + actual_items + 1;
+    hashtable->metadata
+        = (MVMuint8 *) MVM_malloc(entries_size + metadata_size) + entries_size;
+    memset(hashtable->metadata, 0, metadata_size);
     /* We point to the *last* entry in the array, not the one-after-the end. */
-    hashtable->entries = (MVMuint8 *) MVM_malloc(hashtable->entry_size * actual_items)
-        + sizeof(MVMString ***) * (actual_items - 1);
-    hashtable->metadata = MVM_calloc(1 + actual_items + 1, 1);
+    hashtable->entries = hashtable->metadata - sizeof(MVMString ***);
     /* A sentinel. This marks an occupied slot, at its ideal position. */
     *hashtable->metadata = 1;
     ++hashtable->metadata;
@@ -218,7 +220,6 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
             entry_raw -= sizeof(MVMString ***);
         }
         MVM_free(entry_raw_orig - sizeof(MVMString ***) * (true_size - 1));
-        MVM_free(metadata_orig - 1);
     }
     MVMString ***indirection = hash_insert_internal(tc, hashtable, key);
     if (!*indirection) {
