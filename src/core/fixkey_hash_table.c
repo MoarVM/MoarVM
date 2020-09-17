@@ -16,8 +16,8 @@ MVM_STATIC_INLINE MVMuint32 hash_true_size(MVMFixKeyHashTable *hashtable) {
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable) {
     MVMuint32 true_size = hash_true_size(hashtable);
-    MVMuint8 *entry_raw = hashtable->entries;
-    MVMuint8 *metadata = hashtable->metadata;
+    MVMuint8 *entry_raw = MVM_fixkey_hash_entries(hashtable);
+    MVMuint8 *metadata = MVM_fixkey_hash_metadata(hashtable);
     MVMuint32 bucket = 0;
     while (bucket < true_size) {
         if (*metadata) {
@@ -80,8 +80,8 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
 
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_fixkey_hash_code(tc, key) >> hashtable->key_right_shift;
-    MVMuint8 *entry_raw = hashtable->entries - bucket * sizeof(MVMString ***);
-    MVMuint8 *metadata = hashtable->metadata + bucket;
+    MVMuint8 *entry_raw = MVM_fixkey_hash_entries(hashtable) - bucket * sizeof(MVMString ***);
+    MVMuint8 *metadata = MVM_fixkey_hash_metadata(hashtable) + bucket;
     while (1) {
         if (*metadata < probe_distance) {
             /* this is our slot. occupied or not, it is our rightful place. */
@@ -159,8 +159,8 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
         ++metadata;
         entry_raw -= sizeof(MVMString ***);
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
-        assert(metadata < hashtable->metadata + hashtable->official_size + 256);
+        assert(metadata < MVM_fixkey_hash_metadata(hashtable) + hashtable->official_size + hashtable->max_items);
+        assert(metadata < MVM_fixkey_hash_metadata(hashtable) + hashtable->official_size + 256);
     }
 }
 
@@ -170,7 +170,7 @@ MVMuint64 MVM_fixkey_hash_fsck(MVMThreadContext *tc, MVMFixKeyHashTable *hashtab
 void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
                                            MVMFixKeyHashTable *hashtable,
                                            MVMString *key) {
-    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+    if (MVM_UNLIKELY(MVM_fixkey_hash_entries(hashtable) == NULL)) {
         if (MVM_UNLIKELY(hashtable->entry_size == 0)) {
             /* This isn't going to work, because we'll allocate 0 bytes from the
              * FSA, but then try to write a pointer into it. */
@@ -189,8 +189,8 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
         }
 
         MVMuint32 true_size =  hash_true_size(hashtable);
-        MVMuint8 *entry_raw_orig = hashtable->entries;
-        MVMuint8 *metadata_orig = hashtable->metadata;
+        MVMuint8 *entry_raw_orig = MVM_fixkey_hash_entries(hashtable);
+        MVMuint8 *metadata_orig = MVM_fixkey_hash_metadata(hashtable);
 
         hash_grow(hashtable);
 
@@ -259,13 +259,13 @@ MVMuint64 MVM_fixkey_hash_fsck(MVMThreadContext *tc, MVMFixKeyHashTable *hashtab
     MVMuint64 errors = 0;
     MVMuint64 seen = 0;
 
-    if (hashtable->entries == NULL) {
+    if (MVM_fixkey_hash_entries(hashtable) == NULL) {
         return 0;
     }
 
     MVMuint32 true_size = hash_true_size(hashtable);
-    MVMuint8 *entry_raw = hashtable->entries;
-    MVMuint8 *metadata = hashtable->metadata;
+    MVMuint8 *entry_raw = MVM_fixkey_hash_entries(hashtable);
+    MVMuint8 *metadata = MVM_fixkey_hash_metadata(hashtable);
     MVMuint32 bucket = 0;
     MVMint64 prev_offset = 0;
     while (bucket < true_size) {

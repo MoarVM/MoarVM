@@ -1,3 +1,15 @@
+/* These are private. We need them out here for the inline functions. Use those.
+ */
+MVM_STATIC_INLINE MVMuint32 MVM_str_hash_kompromat(const MVMStrHashTable *hashtable) {
+    return hashtable->official_size + hashtable->probe_overflow_size;
+}
+MVM_STATIC_INLINE MVMuint8 *MVM_str_hash_metadata(const MVMStrHashTable *hashtable) {
+    return hashtable->metadata;
+}
+MVM_STATIC_INLINE MVMuint8 *MVM_str_hash_entries(const MVMStrHashTable *hashtable) {
+    return hashtable->entries;
+}
+
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable);
@@ -63,8 +75,8 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
     assert(hashtable->entries);
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_str_hash_code(tc, hashtable->salt, key) >> hashtable->key_right_shift;
-    MVMuint8 *entry_raw = hashtable->entries - bucket * hashtable->entry_size;
-    MVMuint8 *metadata = hashtable->metadata + bucket;
+    MVMuint8 *entry_raw = MVM_str_hash_entries(hashtable) - bucket * hashtable->entry_size;
+    MVMuint8 *metadata = MVM_str_hash_metadata(hashtable) + bucket;
     while (1) {
         if (*metadata == probe_distance) {
             struct MVMStrHashHandle *entry = (struct MVMStrHashHandle *) entry_raw;
@@ -90,8 +102,8 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
         ++metadata;
         entry_raw -= hashtable->entry_size;
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
-        assert(metadata < hashtable->metadata + hashtable->official_size + 256);
+        assert(metadata < MVM_str_hash_metadata(hashtable) + hashtable->official_size + hashtable->max_items);
+        assert(metadata < MVM_str_hash_metadata(hashtable) + hashtable->official_size + 256);
     }
 }
 
@@ -179,12 +191,6 @@ enum {
 
 MVMuint64 MVM_str_hash_fsck(MVMThreadContext *tc, MVMStrHashTable *hashtable, MVMuint32 mode);
 
-
-/* This is private. We need it out here for the inline functions. Use them. */
-MVM_STATIC_INLINE MVMuint32 MVM_str_hash_kompromat(MVMStrHashTable *hashtable) {
-    return hashtable->official_size + hashtable->probe_overflow_size;
-}
-
 /* iterators are stored as unsigned values, metadata index plus one.
  * This is clearly an internal implementation detail. Don't cheat.
  */
@@ -197,7 +203,7 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next_nocheck(MVMThreadContext 
      * (Beware of endianness) it isn't easy *yet*, because one can overrun the
      * allocated buffer, and that makes ASAN very excited. */
     while (--iterator.pos > 0) {
-        if (hashtable->metadata[iterator.pos - 1]) {
+        if (MVM_str_hash_metadata(hashtable)[iterator.pos - 1]) {
             return iterator;
         }
     }
@@ -249,7 +255,7 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_first(MVMThreadContext *tc,
 
     iterator.pos = MVM_str_hash_kompromat(hashtable);
 
-    if (hashtable->metadata[iterator.pos - 1]) {
+    if (MVM_str_hash_metadata(hashtable)[iterator.pos - 1]) {
         return iterator;
     }
     return MVM_str_hash_next(tc, hashtable, iterator);
@@ -287,8 +293,8 @@ MVM_STATIC_INLINE int MVM_str_hash_at_start(MVMThreadContext *tc,
 MVM_STATIC_INLINE void *MVM_str_hash_current_nocheck(MVMThreadContext *tc,
                                                      MVMStrHashTable *hashtable,
                                                      MVMStrHashIterator iterator) {
-    assert(hashtable->metadata[iterator.pos - 1]);
-    return hashtable->entries - hashtable->entry_size * (iterator.pos - 1);
+    assert(MVM_str_hash_metadata(hashtable)[iterator.pos - 1]);
+    return MVM_str_hash_entries(hashtable) - hashtable->entry_size * (iterator.pos - 1);
 }
 
 /* FIXME - this needs a better name: */
