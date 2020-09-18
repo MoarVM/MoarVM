@@ -30,20 +30,19 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
     MVMStrHashTable *src_hashtable = &(src_body->hashtable);
     MVMStrHashTable *dest_hashtable = &(dest_body->hashtable);
-    if (MVM_str_hash_entry_size(tc, dest_hashtable)) {
+
+    if (dest_hashtable->table) {
         /* copy_to is, on reference types, only ever used as part of clone, and
          * that will always target a freshly created object.
          * So this should be unreachable. */
         MVM_oops(tc, "copy_to on MVMHash that is already initialized");
     }
-    MVM_str_hash_build(tc, dest_hashtable, sizeof(MVMHashEntry),
-                       MVM_str_hash_count(tc, src_hashtable));
-    MVMStrHashIterator iterator = MVM_str_hash_first(tc, src_hashtable);
-    while (!MVM_str_hash_at_end(tc, src_hashtable, iterator)) {
-        MVMHashEntry *entry = MVM_str_hash_current_nocheck(tc, src_hashtable, iterator);
-        MVMHashEntry *new_entry = MVM_str_hash_insert_nocheck(tc, dest_hashtable, entry->hash_handle.key);
-        MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, entry->value);
-        MVM_gc_write_barrier(tc, &(dest_root->header), &(new_entry->hash_handle.key->common.header));
+    MVM_str_hash_shallow_copy(tc, src_hashtable, dest_hashtable);
+    MVMStrHashIterator iterator = MVM_str_hash_first(tc, dest_hashtable);
+    while (!MVM_str_hash_at_end(tc, dest_hashtable, iterator)) {
+        MVMHashEntry *entry = MVM_str_hash_current_nocheck(tc, dest_hashtable, iterator);
+        MVM_gc_write_barrier(tc, &(dest_root->header), &(entry->value->header));
+        MVM_gc_write_barrier(tc, &(dest_root->header), &(entry->hash_handle.key->common.header));
         iterator = MVM_str_hash_next_nocheck(tc, src_hashtable, iterator);
     }
 }
