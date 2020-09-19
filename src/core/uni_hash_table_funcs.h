@@ -1,10 +1,10 @@
 /* These are private. We need them out here for the inline functions. Use those.
  */
 MVM_STATIC_INLINE MVMuint8 *MVM_uni_hash_metadata(const struct MVMUniHashTableControl *control) {
-    return control->metadata;
+    return (MVMuint8 *) control + sizeof(struct MVMUniHashTableControl) + 1;
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_uni_hash_entries(const struct MVMUniHashTableControl *control) {
-    return control->entries;
+    return (MVMuint8 *) control - sizeof(struct MVMUniHashEntry);
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -12,24 +12,9 @@ MVM_STATIC_INLINE MVMuint8 *MVM_uni_hash_entries(const struct MVMUniHashTableCon
 void MVM_uni_hash_demolish(MVMThreadContext *tc, MVMUniHashTable *hashtable);
 /* and then free memory if you allocated it */
 
-void MVM_uni_hash_initial_allocate(MVMThreadContext *tc,
-                                   struct MVMUniHashTableControl *control,
-                                   MVMuint32 entries);
-
-/* Call this before you use the hashtable, to initialise it.
- * Doesn't allocate memory for the hashtable struct itself - you can embed the
- * struct within a larger struct if you wish.
- */
-MVM_STATIC_INLINE void MVM_uni_hash_build(MVMThreadContext *tc,
-                                          MVMUniHashTable *hashtable,
-                                          MVMuint32 entries) {
-    struct MVMUniHashTableControl *control
-        = MVM_calloc(1,sizeof(struct MVMUniHashTableControl));
-    hashtable->table = control;
-    if (entries) {
-        MVM_uni_hash_initial_allocate(tc, control, entries);
-    }
-}
+void MVM_uni_hash_build(MVMThreadContext *tc,
+                        struct MVMUniHashTable *hashtable,
+                        MVMuint32 entries);
 
 MVM_STATIC_INLINE int MVM_uni_hash_is_empty(MVMThreadContext *tc,
                                             MVMUniHashTable *hashtable) {
