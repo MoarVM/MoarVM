@@ -661,14 +661,12 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
          * point. */
         MVMIndexHashTable *lexical_names;
 
-       if (sf->body.num_lexicals <= 5) {
+        if (sf->body.num_lexicals <= 5) {
             lexical_names = NULL;
         } else {
-            lexical_names = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-                                                 sizeof(MVMIndexHashTable));
+            lexical_names = &sf->body.lexical_names;
             MVM_index_hash_build(tc, lexical_names, sf->body.num_lexicals);
         }
-        sf->body.lexical_names = lexical_names;
 
         /* Read in data. */
         for (j = 0; j < sf->body.num_lexicals; j++) {
