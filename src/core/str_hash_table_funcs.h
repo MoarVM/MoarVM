@@ -4,7 +4,7 @@ MVM_STATIC_INLINE MVMuint32 MVM_str_hash_kompromat(const struct MVMStrHashTableC
     return control->official_size + control->probe_overflow_size;
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_str_hash_metadata(const struct MVMStrHashTableControl *control) {
-    return (MVMuint8 *) control + sizeof(struct MVMStrHashTableControl) + 1;
+    return (MVMuint8 *) control + sizeof(struct MVMStrHashTableControl);
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_str_hash_entries(const struct MVMStrHashTableControl *control) {
     return (MVMuint8 *) control - control->entry_size;

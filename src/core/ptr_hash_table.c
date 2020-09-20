@@ -49,7 +49,7 @@ MVM_STATIC_INLINE struct MVMPtrHashTableControl *hash_allocate_common(MVMThreadC
     }
     size_t actual_items = official_size + probe_overflow_size;
     size_t entries_size = sizeof(struct MVMPtrHashEntry) * actual_items;
-    size_t metadata_size = 1 + actual_items + 1;
+    size_t metadata_size = actual_items + 1;
     size_t total_size
         = entries_size + sizeof(struct MVMPtrHashTableControl) + metadata_size;
 
@@ -65,9 +65,7 @@ MVM_STATIC_INLINE struct MVMPtrHashTableControl *hash_allocate_common(MVMThreadC
     memset(metadata, 0, metadata_size);
 
     /* A sentinel. This marks an occupied slot, at its ideal position. */
-    metadata[actual_items + 1] = 1;
-    /* A sentinel at the other end. Again, occupited, ideal position. */
-    metadata[0] = 1;
+    metadata[actual_items] = 1;
 
     return control;
 }
