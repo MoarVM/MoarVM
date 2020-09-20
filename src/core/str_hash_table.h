@@ -141,9 +141,9 @@ Not all the optimisations described above are in place yet. Starting with
  * 0.75 the longest probe distance is 5 (when all 6 entries would ideally be in
  * the last bucket), so what we actually have is this
  *
- * +----------+    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
- * | metadata | -> | 1 | a | b | c | d | e | f | g | h | i | j | k | l | m | 1 |
- * |          |    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ * +----------+        +---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ * | metadata | ->     | a | b | c | d | e | f | g | h | i | j | k | l | m | 1 |
+ * |          |        +---+---+---+---+---+---+---+---+---+---+---+---+---+---+
  * | (other)  |
  * |          |        +---+---+---+---+---+---+---+---+---+---+---+---+---+
  * | entries  | ->     | A | B | C | D | E | F | G | H | I | J | K | L | M |
@@ -151,15 +151,17 @@ Not all the optimisations described above are in place yet. Starting with
  *
  *                     <-- official bucket positions --><--   overflow   -->
  *
- * We include sentinel values at each end of the metadata to make iteration
- * easier.
+ * We include a sentinel values at the end of the metadata so that the probe
+ * distance loop doesn't need a bounds check. We *had* allocated an extra byte
+ * the start too, to make the pointer arithmetic work, but that isn't needed
+ * now that we use a single memory block.
  *
  * Finally, to reduce allocations keep things in the same CPU cache lines, what
  * we allocate in memory actually looks like this:
  *
- * ---+---+---+---+---+---+---+---+---------+---+---+---+---+---+---+---+---+---
- * ...| G | F | E | D | C | B | A | control | 1 | a | b | c | d | e | f | g |...
- * ---+---+---+---+---+---+---+---+---------+---+---+---+---+---+---+---+---+---
+ * ---+---+---+---+---+---+---+---+---------+---+---+---+---+---+---+---+---
+ * ...| G | F | E | D | C | B | A | control | a | b | c | d | e | f | g |...
+ * ---+---+---+---+---+---+---+---+---------+---+---+---+---+---+---+---+---
  *                                ^
  *                                |
  *                              +---+

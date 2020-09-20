@@ -1,7 +1,7 @@
 /* These are private. We need them out here for the inline functions. Use those.
  */
 MVM_STATIC_INLINE MVMuint8 *MVM_fixkey_hash_metadata(const struct MVMFixKeyHashTableControl *control) {
-    return (MVMuint8 *) control + sizeof(struct MVMFixKeyHashTableControl) + 1;
+    return (MVMuint8 *) control + sizeof(struct MVMFixKeyHashTableControl);
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_fixkey_hash_entries(const struct MVMFixKeyHashTableControl *control) {
     return (MVMuint8 *) control - sizeof(MVMString ***);
