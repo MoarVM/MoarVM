@@ -1,10 +1,10 @@
 /* These are private. We need them out here for the inline functions. Use those.
  */
 MVM_STATIC_INLINE MVMuint8 *MVM_ptr_hash_metadata(const struct MVMPtrHashTableControl *control) {
-    return control->metadata;
+    return (MVMuint8 *) control + sizeof(struct MVMPtrHashTableControl) + 1;
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_ptr_hash_entries(const struct MVMPtrHashTableControl *control) {
-    return control->entries;
+    return (MVMuint8 *) control - sizeof(struct MVMPtrHashEntry);
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -17,7 +17,7 @@ void MVM_ptr_hash_demolish(MVMThreadContext *tc, MVMPtrHashTable *hashtable);
  * you wish.
  */
 MVM_STATIC_INLINE void MVM_ptr_hash_build(MVMThreadContext *tc, MVMPtrHashTable *hashtable) {
-    memset(hashtable, 0, sizeof(*hashtable));
+    hashtable->table = NULL;
 }
 
 MVM_STATIC_INLINE int MVM_ptr_hash_is_empty(MVMThreadContext *tc,
