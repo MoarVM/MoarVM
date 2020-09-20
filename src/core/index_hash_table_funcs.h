@@ -1,10 +1,10 @@
 /* These are private. We need them out here for the inline functions. Use thosethem.
  */
 MVM_STATIC_INLINE MVMuint8 *MVM_index_hash_metadata(const struct MVMIndexHashTableControl *control) {
-    return control->metadata;
+    return (MVMuint8 *) control + sizeof(struct MVMIndexHashTableControl) + 1;
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_index_hash_entries(const struct MVMIndexHashTableControl *control) {
-    return control->entries;
+    return (MVMuint8 *) control - sizeof(struct MVMIndexHashEntry);
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
