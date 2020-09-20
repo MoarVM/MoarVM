@@ -1,10 +1,10 @@
 /* These are private. We need them out here for the inline functions. Use those.
  */
 MVM_STATIC_INLINE MVMuint8 *MVM_fixkey_hash_metadata(const struct MVMFixKeyHashTableControl *control) {
-    return control->metadata;
+    return (MVMuint8 *) control + sizeof(struct MVMFixKeyHashTableControl) + 1;
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_fixkey_hash_entries(const struct MVMFixKeyHashTableControl *control) {
-    return control->entries;
+    return (MVMuint8 *) control - sizeof(MVMString ***);
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -16,15 +16,7 @@ void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtabl
  * Doesn't allocate memory - you can embed the struct within a larger struct if
  * you wish.
  */
-MVM_STATIC_INLINE void MVM_fixkey_hash_build(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable, MVMuint32 entry_size) {
-    if (MVM_UNLIKELY(entry_size == 0 || entry_size > 1024 || entry_size & 3)) {
-        MVM_oops(tc, "Hash table entry_size %" PRIu32 " is invalid", entry_size);
-    }
-    struct MVMFixKeyHashTableControl *control
-        = MVM_calloc(1,sizeof(struct MVMFixKeyHashTableControl));
-    control->entry_size = entry_size;
-    hashtable->table = control;
-}
+void MVM_fixkey_hash_build(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable, MVMuint32 entry_size);
 
 MVM_STATIC_INLINE int MVM_fixkey_hash_is_empty(MVMThreadContext *tc,
                                                MVMFixKeyHashTable *hashtable) {

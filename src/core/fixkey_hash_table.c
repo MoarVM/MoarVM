@@ -12,12 +12,21 @@ MVM_STATIC_INLINE MVMuint32 hash_true_size(const struct MVMFixKeyHashTableContro
     return true_size;
 }
 
+void hash_demolish_internal(MVMThreadContext *tc,
+                            struct MVMFixKeyHashTableControl *control) {
+    size_t actual_items = hash_true_size(control);
+    size_t entries_size = sizeof(MVMString ***) * actual_items;
+    char *start = (char *)control - entries_size;
+    MVM_free(start);
+}
+
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable) {
     struct MVMFixKeyHashTableControl *control = hashtable->table;
     if (!control)
         return;
+
     MVMuint32 true_size = hash_true_size(control);
     MVMuint8 *entry_raw = MVM_fixkey_hash_entries(control);
     MVMuint8 *metadata = MVM_fixkey_hash_metadata(control);
@@ -32,47 +41,69 @@ void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtabl
         entry_raw -= sizeof(MVMString ***);
     }
 
-    if (control->entries) {
-        MVM_free(control->entries
-             - sizeof(MVMString ***) * (hash_true_size(control) - 1));
-    }
-    MVM_free(control);
+    hash_demolish_internal(tc, control);
     hashtable->table = NULL;
 }
 /* and then free memory if you allocated it */
 
 
-MVM_STATIC_INLINE void hash_allocate_common(struct MVMFixKeyHashTableControl *control) {
-    control->max_items = control->official_size * FIXKEY_LOAD_FACTOR;
-    size_t actual_items = hash_true_size(control);
+MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThreadContext *tc,
+                                                                         MVMuint16 entry_size,
+                                                                         MVMuint8 key_right_shift,
+                                                                         MVMuint32 official_size) {
+    MVMuint32 max_items = official_size * FIXKEY_LOAD_FACTOR;
+    MVMuint32 overflow_size = max_items - 1;
+    /* -1 because...
+     * probe distance of 1 is the correct bucket.
+     * hence for a value whose ideal slot is the last bucket, it's *in* the
+     * official allocation.
+     * probe distance of 2 is the first extra bucket beyond the official
+     * allocation
+     * probe distance of 255 is the 254th beyond the official allocation.
+     */
+    MVMuint8 probe_overflow_size;
+    if (MVM_HASH_MAX_PROBE_DISTANCE < overflow_size) {
+        probe_overflow_size = MVM_HASH_MAX_PROBE_DISTANCE - 1;
+    } else {
+        probe_overflow_size = overflow_size;
+    }
+    size_t actual_items = official_size + probe_overflow_size;
     size_t entries_size = sizeof(MVMString ***) * actual_items;
     size_t metadata_size = 1 + actual_items + 1;
-    control->metadata
-        = (MVMuint8 *) MVM_malloc(entries_size + metadata_size) + entries_size;
-    memset(control->metadata, 0, metadata_size);
-    /* We point to the *last* entry in the array, not the one-after-the end. */
-    control->entries = control->metadata - sizeof(MVMString ***);
+    size_t total_size
+        = entries_size + sizeof(struct MVMFixKeyHashTableControl) + metadata_size;
+
+    struct MVMFixKeyHashTableControl *control =
+        (struct MVMFixKeyHashTableControl *) ((char *)MVM_malloc(total_size) + entries_size);
+
+    control->official_size = official_size;
+    control->max_items = max_items;
+    control->probe_overflow_size = probe_overflow_size;
+    control->key_right_shift = key_right_shift;
+    control->entry_size = entry_size;
+
+    MVMuint8 *metadata = (MVMuint8 *)(control + 1);
+    memset(metadata, 0, metadata_size);
+
     /* A sentinel. This marks an occupied slot, at its ideal position. */
-    *control->metadata = 1;
-    ++control->metadata;
-    /* A sentinel at the other end. Again, occupied, ideal position. */
-    control->metadata[actual_items] = 1;
+    metadata[actual_items + 1] = 1;
+    /* A sentinel at the other end. Again, occupited, ideal position. */
+    metadata[0] = 1;
+
+    return control;
 }
 
-MVM_STATIC_INLINE void hash_initial_allocate(struct MVMFixKeyHashTableControl *control) {
-    control->key_right_shift = FIXKEY_INITIAL_KEY_RIGHT_SHIFT;
-    control->official_size = FIXKEY_INITIAL_SIZE;
-
-    hash_allocate_common(control);
-}
-
-/* make sure you still have your copies of entries and metadata before you
-   call this. */
-MVM_STATIC_INLINE void hash_grow(struct MVMFixKeyHashTableControl *control) {
-    --control->key_right_shift;
-    control->official_size *= 2;
-
-    hash_allocate_common(control);
+void MVM_fixkey_hash_build(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable, MVMuint32 entry_size) {
+    if (MVM_UNLIKELY(entry_size == 0 || entry_size > 1024 || entry_size & 3)) {
+        MVM_oops(tc, "Hash table entry_size %" PRIu32 " is invalid", entry_size);
+    }
+    struct MVMFixKeyHashTableControl *control
+        = hash_allocate_common(tc,
+                               entry_size,
+                               FIXKEY_INITIAL_KEY_RIGHT_SHIFT,
+                               FIXKEY_INITIAL_SIZE);
+    control->cur_items = 0;
+    hashtable->table = control;
 }
 
 MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
@@ -176,13 +207,11 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
                                            MVMFixKeyHashTable *hashtable,
                                            MVMString *key) {
     struct MVMFixKeyHashTableControl *control = hashtable->table;
-    if (!control || MVM_UNLIKELY(MVM_fixkey_hash_entries(control) == 0)) {
-        if (MVM_UNLIKELY(control->entry_size == 0)) {
-            /* This isn't going to work, because we'll allocate 0 bytes from the
-             * FSA, but then try to write a pointer into it. */
-            MVM_oops(tc, "Attempting insert on MVM_fixkey_hash without setting entry_size");
-        }
-        hash_initial_allocate(control);
+    if (!control) {
+        /* This isn't going to work. We don't know entry_size, so we can't even
+         * guess, because we would try allocate 0 bytes from the FSA, but then
+         * try to write a pointer into it. */
+        MVM_oops(tc, "Attempting insert on MVM_fixkey_hash without setting entry_size");
     }
     else if (MVM_UNLIKELY(control->cur_items >= control->max_items)) {
         /* We should avoid growing the hash if we don't need to.
@@ -198,7 +227,15 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
         MVMuint8 *entry_raw_orig = MVM_fixkey_hash_entries(control);
         MVMuint8 *metadata_orig = MVM_fixkey_hash_metadata(control);
 
-        hash_grow(control);
+        struct MVMFixKeyHashTableControl *control_orig = control;
+
+        control = hash_allocate_common(tc,
+                                       control_orig->entry_size,
+                                       control_orig->key_right_shift - 1,
+                                       control_orig->official_size * 2);
+
+        control->cur_items = control_orig->cur_items;
+        hashtable->table = control;
 
         MVMuint8 *entry_raw = entry_raw_orig;
         MVMuint8 *metadata = metadata_orig;
@@ -225,7 +262,7 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
             ++metadata;
             entry_raw -= sizeof(MVMString ***);
         }
-        MVM_free(entry_raw_orig - sizeof(MVMString ***) * (true_size - 1));
+        hash_demolish_internal(tc, control_orig);
     }
     MVMString ***indirection = hash_insert_internal(tc, control, key);
     if (!*indirection) {
