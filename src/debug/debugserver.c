@@ -1509,7 +1509,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
     static_info = frame->static_info;
     MVMuint32 num_lexicals = static_info->body.num_lexicals;
     debug_locals = static_info->body.instrumentation
-        ? static_info->body.instrumentation->debug_locals
+        ? &static_info->body.instrumentation->debug_locals
         : NULL;
     if (num_lexicals || debug_locals) {
         MVMuint64 lexical_index = 0;
