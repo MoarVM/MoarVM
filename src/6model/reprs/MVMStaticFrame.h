@@ -14,7 +14,7 @@ struct MVMStaticFrameBody {
     MVMuint16 *lexical_types;
 
     /* Lexicals name map. */
-    MVMIndexHashTable *lexical_names;
+    MVMIndexHashTable lexical_names;
     MVMString **lexical_names_list;
 
     /* Defaults for lexicals upon new frame creation. */

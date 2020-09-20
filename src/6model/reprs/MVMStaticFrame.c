@@ -65,27 +65,15 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
                sizeof(MVMuint16) * src_body->num_lexicals);
 
         MVMString **lexical_names_list = MVM_malloc(sizeof(MVMString *) * src_body->num_lexicals);
-
-        MVMIndexHashTable *lexical_names;
-
-        if (src_body->lexical_names == NULL) {
-            lexical_names = NULL;
-        } else {
-            lexical_names = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-                                                 sizeof(MVMIndexHashTable));
-            MVM_index_hash_build(tc, lexical_names, src_body->num_lexicals);
-        }
-
         for (MVMuint32 j = 0; j < num_lexicals; j++) {
             /* don't need to clone the string */
             MVM_ASSIGN_REF(tc, &(dest_root->header), lexical_names_list[j], src_body->lexical_names_list[j]);
-            if (lexical_names) {
-                MVM_index_hash_insert_nocheck(tc, lexical_names, lexical_names_list, j);
-            }
         }
+        /* This correctly handles the case where lexical_names.table is NULL */
+        MVM_index_hash_shallow_copy(tc, &src_body->lexical_names, &dest_body->lexical_names);
+
         dest_body->lexical_names_list = lexical_names_list;
         dest_body->lexical_types = lexical_types;
-        dest_body->lexical_names = lexical_names;
     }
     else {
         dest_body->lexical_names_list = NULL;
@@ -201,11 +189,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(body->local_types);
     MVM_free(body->lexical_types);
     MVM_free(body->lexical_names_list);
-    if (body->lexical_names) {
-        MVM_index_hash_demolish(tc, body->lexical_names);
-        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMIndexHashTable),
-                            body->lexical_names);
-    }
+    MVM_index_hash_demolish(tc, &body->lexical_names);
 }
 
 static const MVMStorageSpec storage_spec = {
@@ -243,7 +227,8 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
 
         size += sizeof(MVMString *) * body->num_lexicals;
 
-        if (body->lexical_names) {
+        /* This isn't quite accurate. Should we try to be more accurate? */
+        if (MVM_index_hash_built(tc, &body->lexical_names)) {
             size += sizeof(struct MVMIndexHashEntry) * body->num_lexicals;
         }
 
@@ -382,8 +367,8 @@ char * MVM_staticframe_file_location(MVMThreadContext *tc, MVMStaticFrame *sf) {
 MVMuint32 MVM_get_lexical_by_name(MVMThreadContext *tc, MVMStaticFrame *sf, MVMString *name) {
     /* deserialize_frames in bytecode.c doesn't create the lookup hash if there
      * are only a small number of lexicals in this frame. */
-    if (sf->body.lexical_names) {
-        return MVM_index_hash_fetch(tc, sf->body.lexical_names, sf->body.lexical_names_list, name);
+    if (MVM_index_hash_built(tc, &sf->body.lexical_names)) {
+        return MVM_index_hash_fetch(tc, &sf->body.lexical_names, sf->body.lexical_names_list, name);
     }
 
     MVMString **lexical_names_list = sf->body.lexical_names_list;

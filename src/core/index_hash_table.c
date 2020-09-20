@@ -3,13 +3,9 @@
 #define INDEX_LOAD_FACTOR 0.75
 #define INDEX_MIN_SIZE_BASE_2 3
 
-MVM_STATIC_INLINE MVMuint32 hash_true_size(const struct MVMIndexHashTableControl *control) {
-    return control->official_size + control->probe_overflow_size;
-}
-
 MVM_STATIC_INLINE void hash_demolish_internal(MVMThreadContext *tc,
                                               struct MVMIndexHashTableControl *control) {
-    size_t actual_items = hash_true_size(control);
+    size_t actual_items = MVM_index_hash_kompromat(control);
     size_t entries_size = sizeof(struct MVMIndexHashEntry) * actual_items;
     char *start = (char *)control - entries_size;
     MVM_free(start);
@@ -196,7 +192,7 @@ void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
     assert(control);
     assert(MVM_index_hash_entries(control) != NULL);
     if (MVM_UNLIKELY(control->cur_items >= control->max_items)) {
-        MVMuint32 true_size =  hash_true_size(control);
+        MVMuint32 true_size =  MVM_index_hash_kompromat(control);
         MVMuint8 *entry_raw_orig = MVM_index_hash_entries(control);
         MVMuint8 *metadata_orig = MVM_index_hash_metadata(control);
 
