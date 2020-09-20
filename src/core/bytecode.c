@@ -776,15 +776,14 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         MVMStaticFrameInstrumentation *ins = sf->body.instrumentation;
         if (!ins)
             ins = MVM_calloc(1, sizeof(MVMStaticFrameInstrumentation));
-        if (!ins->debug_locals) {
-            ins->debug_locals = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMStrHashTable));
-            MVM_str_hash_build(tc, ins->debug_locals, sizeof(MVMStaticFrameDebugLocal),
+        if (!MVM_str_hash_entry_size(tc, &ins->debug_locals)) {
+            MVM_str_hash_build(tc, &ins->debug_locals, sizeof(MVMStaticFrameDebugLocal),
                                num_debug_locals);
         }
         for (j = 0; j < num_debug_locals; j++) {
             MVMuint16 idx = read_int16(pos, 0);
             MVMString *name = get_heap_string(tc, cu, NULL, pos, 2);
-            MVMStaticFrameDebugLocal *entry = MVM_str_hash_insert_nocheck(tc, ins->debug_locals, name);
+            MVMStaticFrameDebugLocal *entry = MVM_str_hash_insert_nocheck(tc, &ins->debug_locals, name);
             entry->local_idx = idx;
             MVM_ASSIGN_REF(tc, &(sf->common.header), entry->hash_handle.key, name);
             pos += 6;
