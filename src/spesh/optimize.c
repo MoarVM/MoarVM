@@ -1279,12 +1279,25 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
             /* And now defer another bit of optimization */
             optimize_isconcrete(tc, g, ins);
             break;
-            /* We need to change the register type for our result for this,
-             * means we need to insert a temporarary and a coerce:
-        case MVM_BOOL_MODE_UNBOX_NUM:
-             op_info = MVM_op_get_op(MVM_OP_unbox_i);
-             break;
-            */
+        case MVM_BOOL_MODE_UNBOX_NUM: {
+            /* Unbox it into a temporary number register. */
+            MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_num64);
+            MVMSpeshIns *unbox_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+            unbox_ins->info = MVM_op_get_op(MVM_OP_unbox_n);
+            unbox_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+            unbox_ins->operands[0] = temp;
+            unbox_ins->operands[1] = ins->operands[1];
+            MVM_spesh_get_facts(tc, g, unbox_ins->operands[0])->writer = unbox_ins;
+            MVM_spesh_usages_add_by_reg(tc, g, unbox_ins->operands[1], unbox_ins);
+            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+            MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, unbox_ins);
+
+            /* Tweak the original instruction to test this. */
+            ins->info = MVM_op_get_op(MVM_OP_sp_istrue_n);
+            ins->operands[1] = temp;
+            MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
+            break;
+        }
         default:
             return;
         }
