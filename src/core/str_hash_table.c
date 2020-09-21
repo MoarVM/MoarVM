@@ -68,7 +68,7 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
     }
     size_t actual_items = official_size + probe_overflow_size;
     size_t entries_size = entry_size * actual_items;
-    size_t metadata_size = actual_items + 1;
+    size_t metadata_size = MVM_hash_round_size_up(actual_items + 1);
     size_t total_size
         = entries_size + sizeof(struct MVMStrHashTableControl) + metadata_size;
 
