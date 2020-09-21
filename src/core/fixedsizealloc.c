@@ -177,6 +177,12 @@ static void * alloc_from_global(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVM
     return alloc_slow_path(tc, al, bin);
 }
 void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t bytes) {
+    /* This doesn't work with the current code, and it implies the caller is
+     * mighty confused. Hence it's better to flag this up than revise the rest
+     * of this code to hide the real problem. */
+    if (!bytes)
+        MVM_oops(tc, "MVM_fixed_size_alloc request for 0 bytes");
+
 #if FSA_SIZE_DEBUG
     MVMFixedSizeAllocDebug *dbg = MVM_malloc(bytes + sizeof(MVMuint64));
     dbg->alloc_size = bytes;
