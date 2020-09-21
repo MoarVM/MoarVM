@@ -10,6 +10,14 @@ MVM_STATIC_INLINE MVMuint8 *MVM_str_hash_entries(const struct MVMStrHashTableCon
     return (MVMuint8 *) control - control->entry_size;
 }
 
+/* round up to a multiple of sizeof(long). My assumption is that this is won't
+ * cause any extra allocation, but will both be faster for memcpy/memset, and
+ * also a natural size for processing the metadata array in chunks larger than
+ * byte-by-byte. */
+MVM_STATIC_INLINE size_t MVM_hash_round_size_up(size_t wanted) {
+    return (wanted - 1 + sizeof(long)) & ~(sizeof(long) - 1);
+}
+
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable);
@@ -37,7 +45,7 @@ MVM_STATIC_INLINE void MVM_str_hash_shallow_copy(MVMThreadContext *tc,
         return;
     size_t actual_items = MVM_str_hash_kompromat(control);
     size_t entries_size = control->entry_size * actual_items;
-    size_t metadata_size = actual_items + 1;
+    size_t metadata_size = MVM_hash_round_size_up(actual_items + 1);
     const char *start = (const char *)control - entries_size;
     size_t total_size
         = entries_size + sizeof(struct MVMStrHashTableControl) + metadata_size;

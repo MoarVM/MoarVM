@@ -39,7 +39,7 @@ MVM_STATIC_INLINE void MVM_index_hash_shallow_copy(MVMThreadContext *tc,
         return;
     size_t actual_items = MVM_index_hash_kompromat(control);
     size_t entries_size = sizeof(struct MVMIndexHashEntry) * actual_items;
-    size_t metadata_size = actual_items + 1;
+    size_t metadata_size = MVM_hash_round_size_up(actual_items + 1);
     const char *start = (const char *)control - entries_size;
     size_t total_size
         = entries_size + sizeof(struct MVMIndexHashTableControl) + metadata_size;
