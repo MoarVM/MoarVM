@@ -11,9 +11,12 @@
 #define GET_REG(pc, idx)    *((MVMuint16 *)(pc + idx))
 #define GET_I16(pc, idx)    *((MVMint16 *)(pc + idx))
 #define GET_UI16(pc, idx)   *((MVMuint16 *)(pc + idx))
-#define GET_I32(pc, idx)    *((MVMint32 *)(pc + idx))
-#define GET_UI32(pc, idx)   *((MVMuint32 *)(pc + idx))
-#define GET_N32(pc, idx)    *((MVMnum32 *)(pc + idx))
+
+MVM_STATIC_INLINE MVMuint32 GET_UI32(const MVMuint8 *pc, MVMint32 idx) {
+    MVMuint32 retval;
+    memcpy(&retval, pc + idx, sizeof(retval));
+    return retval;
+}
 
 #define MSG(val, msg) "Bytecode validation error at offset %" PRIu32 \
     ", instruction %" PRIu32 ":\n" msg, \
