@@ -43,7 +43,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         MVMHashEntry *entry = MVM_str_hash_current_nocheck(tc, src_hashtable, iterator);
         MVMHashEntry *new_entry = MVM_str_hash_insert_nocheck(tc, dest_hashtable, entry->hash_handle.key);
         MVM_ASSIGN_REF(tc, &(dest_root->header), new_entry->value, entry->value);
-        MVM_gc_write_barrier(tc, &(dest_root->header), &(entry->hash_handle.key->common.header));
+        MVM_gc_write_barrier(tc, &(dest_root->header), &(new_entry->hash_handle.key->common.header));
         iterator = MVM_str_hash_next_nocheck(tc, src_hashtable, iterator);
     }
 }
