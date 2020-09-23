@@ -703,6 +703,10 @@ tools/repr_size_table@exe@: tools/repr_size_table@obj@ @moarlib@ $(DLL_LIBS)
 	$(MSG) linking $@
 	$(CMD)@tomrule@ $(NOOUT)
 
+@gmplib@:
+	$(MSG) building $@...
+	$(CMD)@gmprule@ $(NOOUT)
+
 @shalib@: @shaobjects@
 	$(MSG) linking $@
 	$(CMD)@sharule@ $(NOOUT)

@@ -2,6 +2,7 @@ CINCLUDES := -Isrc \
              -isystem 3rdparty/libuv/include \
              -isystem 3rdparty/libatomicops/src \
              -isystem 3rdparty/libtommath \
+             -isystem 3rdparty/gmp \
              -isystem 3rdparty/sha1 \
              -isystem 3rdparty/dynasm \
              -isystem 3rdparty/dyncall/dynload \
