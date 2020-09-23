@@ -506,7 +506,7 @@ pow_I               w(obj) r(obj) r(obj) r(obj) r(obj) :pure
 gcd_I               w(obj) r(obj) r(obj) r(obj) :pure
 lcm_I               w(obj) r(obj) r(obj) r(obj) :pure
 expmod_I            w(obj) r(obj) r(obj) r(obj) r(obj) :pure
-isprime_I           w(int64) r(obj) r(int64) :pure
+isprime_I           w(int64) r(obj) :pure
 rand_I              w(obj) r(obj) r(obj)
 coerce_In           w(num64) r(obj) :pure
 coerce_Is           w(str) r(obj) :pure
