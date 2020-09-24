@@ -219,6 +219,10 @@ struct MVMDispProgram {
     /* Ops we execute to evaluate the dispatch program. */
     MVMuint32 num_ops;
     MVMDispProgramOp *ops;
+
+    /* Resumptions, if any, ordered innermost first. */
+    MVMDispProgramResumption *resumptions;
+    MVMuint32 num_resumptions;
 };
 
 /* Various kinds of constant we use during a dispatch program, to let us keep
@@ -388,6 +392,12 @@ struct MVMDispProgramOp {
             MVMuint32 temp_invokee;
         } res_code;
     };
+};
+
+/* Information about a possible dispatch resumption. */
+struct MVMDispProgramResumption {
+    /* The dispatcher that we can resume. */
+    MVMDispDefinition *disp;
 };
 
 /* Functions called during the recording. */
