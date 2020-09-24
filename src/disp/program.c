@@ -750,14 +750,15 @@ MVMObject * MVM_disp_program_record_capture_insert_constant_arg(MVMThreadContext
     return new_capture;
 }
 
-/* Record the setting of the dispatch state. */
-void MVM_disp_program_record_set_state(MVMThreadContext *tc, MVMObject *capture) {
+/* Record the setting of the dispatch resume init args (the arguments that
+ * should be made available for initializing resumption). */
+void MVM_disp_program_record_set_resume_init_args(MVMThreadContext *tc, MVMObject *capture) {
     /* Make sure we're in a resumable dispatcher and that the capture is
      * tracked. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
     if (!record->current_disp->resume)
         MVM_exception_throw_adhoc(tc,
-            "Can only use dispatcher-set-state in a resumable dispatcher");
+            "Can only use dispatcher-set-resume-init-args in a resumable dispatcher");
     ensure_known_capture(tc, record, capture);
 
     /* Record the saving of the dispatch state for this dispatcher, making
@@ -765,18 +766,18 @@ void MVM_disp_program_record_set_state(MVMThreadContext *tc, MVMObject *capture)
     MVMuint32 i;
     for (i = 0; i < MVM_VECTOR_ELEMS(record->rec.states); i++)
         if (record->rec.states[i].disp == record->current_disp)
-            MVM_exception_throw_adhoc(tc, "Already set state for this dispatcher");
+            MVM_exception_throw_adhoc(tc, "Already set resume init args for this dispatcher");
     MVMDispProgramRecordingState new_state;
     new_state.disp = record->current_disp;
     new_state.capture = capture;
     MVM_VECTOR_PUSH(record->rec.states, new_state);
 }
 
-/* Record the getting of the dispatch state. */
-MVMObject * MVM_disp_program_record_get_state(MVMThreadContext *tc) {
+/* Record the getting of the dispatch rsume init args. */
+MVMObject * MVM_disp_program_record_get_resume_init_args(MVMThreadContext *tc) {
     /* Make sure we're in a dispatcher. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    MVM_panic(1, "get state nyi");
+    MVM_panic(1, "get resume init args nyi");
 }
 
 /* Record a delegation from one dispatcher to another. */

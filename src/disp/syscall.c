@@ -236,17 +236,17 @@ static MVMDispSysCall dispatcher_guard_not_literal_obj = {
     .expected_concrete = { 1, 0 }
 };
 
-/* dispatcher-set-state */
-static void dispatcher_set_state_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+/* dispatcher-set-resume-init-args */
+static void dispatcher_set_resume_init_args_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMArgProcContext arg_ctx;
     MVM_args_proc_setup(tc, &arg_ctx, arg_info);
     MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
-    MVM_disp_program_record_set_state(tc, capture);
+    MVM_disp_program_record_set_resume_init_args(tc, capture);
     MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
 }
-static MVMDispSysCall dispatcher_set_state = {
-    .c_name = "dispatcher-set-state",
-    .implementation = dispatcher_set_state_impl,
+static MVMDispSysCall dispatcher_set_resume_init_args = {
+    .c_name = "dispatcher-set-resume-init-args",
+    .implementation = dispatcher_set_resume_init_args_impl,
     .min_args = 1,
     .max_args = 1,
     .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
@@ -254,16 +254,16 @@ static MVMDispSysCall dispatcher_set_state = {
     .expected_concrete = { 1 },
 };
 
-/* dispatcher-get-state */
-static void dispatcher_get_state_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+/* dispatcher-get-resume-init-args */
+static void dispatcher_get_resume_init_args_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMArgProcContext arg_ctx;
     MVM_args_proc_setup(tc, &arg_ctx, arg_info);
-    MVMObject *capture = MVM_disp_program_record_get_state(tc);
+    MVMObject *capture = MVM_disp_program_record_get_resume_init_args(tc);
     MVM_args_set_result_obj(tc, capture, MVM_RETURN_CURRENT_FRAME);
 }
-static MVMDispSysCall dispatcher_get_state = {
-    .c_name = "dispatcher-get-state",
-    .implementation = dispatcher_get_state_impl,
+static MVMDispSysCall dispatcher_get_resume_init_args = {
+    .c_name = "dispatcher-get-resume-init-args",
+    .implementation = dispatcher_get_resume_init_args_impl,
     .min_args = 0,
     .max_args = 0,
     .expected_kinds = { },
@@ -300,8 +300,8 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_guard_concreteness);
     add_to_hash(tc, &dispatcher_guard_literal);
     add_to_hash(tc, &dispatcher_guard_not_literal_obj);
-    add_to_hash(tc, &dispatcher_set_state);
-    add_to_hash(tc, &dispatcher_get_state);
+    add_to_hash(tc, &dispatcher_set_resume_init_args);
+    add_to_hash(tc, &dispatcher_get_resume_init_args);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
