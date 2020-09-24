@@ -29,8 +29,8 @@ our %TP_TOM = (
 our %TP_GMP = (
     name => 'gmp',
     path => '3rdparty/gmp',
-    rule  => 'cd 3rdparty/gmp && sh .bootstrap && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure @crossconf@ && $(MAKE) && cp .libs/libgmp.a . && cd ..',
-    clean => 'cd 3rdparty/gmp && $(MAKE) clean && $(RM) libgmp.a',
+    rule  => 'cd 3rdparty/gmp && sh .bootstrap && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure @gmpconf@ @crossconf@ && $(MAKE) && cp .libs/libgmp.a . && cd ..',
+    clean => 'cd 3rdparty/gmp && $(MAKE) clean && $(RM) libgmp.a fat.h',
 );
 
 our %TP_MT = (
