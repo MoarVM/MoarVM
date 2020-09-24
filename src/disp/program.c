@@ -122,191 +122,202 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
         fprintf(stderr, "Dispatch program (%d temporaries, args from %d)\n",
                 dp->num_temporaries, dp->first_args_temporary);
     MVMuint32 i;
+    fprintf(stderr, "  Ops:\n");
     for (i = 0; i < dp->num_ops; i++) {
         MVMDispProgramOp *op = &(dp->ops[i]);
         switch (op->code) {
             /* Opcodes that guard on values in argument slots */
             case MVMDispOpcodeGuardArgType:
-                fprintf(stderr, "  Guard arg %d (type=%s)\n",
+                fprintf(stderr, "    Guard arg %d (type=%s)\n",
                         op->arg_guard.arg_idx,
                         ((MVMSTable *)dp->gc_constants[op->arg_guard.checkee])->debug_name);
                 break;
             case MVMDispOpcodeGuardArgTypeConc:
-                fprintf(stderr, "  Guard arg %d (type=%s, concrete)\n",
+                fprintf(stderr, "    Guard arg %d (type=%s, concrete)\n",
                         op->arg_guard.arg_idx,
                         ((MVMSTable *)dp->gc_constants[op->arg_guard.checkee])->debug_name);
                 break;
            case MVMDispOpcodeGuardArgTypeTypeObject:
-                fprintf(stderr, "  Guard arg %d (type=%s, type object)\n",
+                fprintf(stderr, "    Guard arg %d (type=%s, type object)\n",
                         op->arg_guard.arg_idx,
                         ((MVMSTable *)dp->gc_constants[op->arg_guard.checkee])->debug_name);
                 break;
             case MVMDispOpcodeGuardArgConc:
-                fprintf(stderr, "  Guard arg %d (concrete)\n",
+                fprintf(stderr, "    Guard arg %d (concrete)\n",
                         op->arg_guard.arg_idx);
                 break;
             case MVMDispOpcodeGuardArgTypeObject:
-                fprintf(stderr, "  Guard arg %d (type object)\n",
+                fprintf(stderr, "    Guard arg %d (type object)\n",
                         op->arg_guard.arg_idx);
                 break;
             case MVMDispOpcodeGuardArgLiteralObj:
-                fprintf(stderr, "  Guard arg %d (literal object of type %s)\n",
+                fprintf(stderr, "    Guard arg %d (literal object of type %s)\n",
                         op->arg_guard.arg_idx,
                         STABLE(((MVMObject *)dp->gc_constants[op->arg_guard.checkee]))->debug_name);
                 break;
             case MVMDispOpcodeGuardArgLiteralStr: {
                 char *c_str = MVM_string_utf8_encode_C_string(tc, 
                         ((MVMString *)dp->gc_constants[op->arg_guard.checkee]));
-                fprintf(stderr, "  Guard arg %d (literal string '%s')\n",
+                fprintf(stderr, "    Guard arg %d (literal string '%s')\n",
                         op->arg_guard.arg_idx, c_str);
                 MVM_free(c_str);
                 break;
             }
             case MVMDispOpcodeGuardArgLiteralInt:
-                fprintf(stderr, "  Guard arg %d (literal integer %"PRIi64")\n",
+                fprintf(stderr, "    Guard arg %d (literal integer %"PRIi64")\n",
                         op->arg_guard.arg_idx,
                         dp->constants[op->arg_guard.checkee].i64);
                 break;
             case MVMDispOpcodeGuardArgLiteralNum:
-                fprintf(stderr, "  Guard arg %d (literal number %g)\n",
+                fprintf(stderr, "    Guard arg %d (literal number %g)\n",
                         op->arg_guard.arg_idx,
                         dp->constants[op->arg_guard.checkee].n64);
                 break;
             case MVMDispOpcodeGuardArgNotLiteralObj:
-                fprintf(stderr, "  Guard arg %d (not literal object of type %s)\n",
+                fprintf(stderr, "    Guard arg %d (not literal object of type %s)\n",
                         op->arg_guard.arg_idx,
                         STABLE(((MVMObject *)dp->gc_constants[op->arg_guard.checkee]))->debug_name);
                 break;
 
             /* Opcodes that guard on values in temporaries */
             case MVMDispOpcodeGuardTempType:
-                fprintf(stderr, "  Guard temp %d (type=%s)\n",
+                fprintf(stderr, "    Guard temp %d (type=%s)\n",
                         op->temp_guard.temp,
                         ((MVMSTable *)dp->gc_constants[op->temp_guard.checkee])->debug_name);
                 break;
             case MVMDispOpcodeGuardTempTypeConc:
-                fprintf(stderr, "  Guard temp %d (type=%s, concrete)\n",
+                fprintf(stderr, "    Guard temp %d (type=%s, concrete)\n",
                         op->temp_guard.temp,
                         ((MVMSTable *)dp->gc_constants[op->temp_guard.checkee])->debug_name);
                 break;
            case MVMDispOpcodeGuardTempTypeTypeObject:
-                fprintf(stderr, "  Guard temp %d (type=%s, type object)\n",
+                fprintf(stderr, "    Guard temp %d (type=%s, type object)\n",
                         op->temp_guard.temp,
                         ((MVMSTable *)dp->gc_constants[op->temp_guard.checkee])->debug_name);
                 break;
             case MVMDispOpcodeGuardTempConc:
-                fprintf(stderr, "  Guard temp %d (concrete)\n",
+                fprintf(stderr, "    Guard temp %d (concrete)\n",
                         op->temp_guard.temp);
                 break;
             case MVMDispOpcodeGuardTempTypeObject:
-                fprintf(stderr, "  Guard temp %d (type object)\n",
+                fprintf(stderr, "    Guard temp %d (type object)\n",
                         op->temp_guard.temp);
                 break;
             case MVMDispOpcodeGuardTempLiteralObj:
-                fprintf(stderr, "  Guard temp %d (literal object of type %s)\n",
+                fprintf(stderr, "    Guard temp %d (literal object of type %s)\n",
                         op->temp_guard.temp,
                         STABLE(((MVMObject *)dp->gc_constants[op->temp_guard.checkee]))->debug_name);
                 break;
             case MVMDispOpcodeGuardTempLiteralStr: {
                 char *c_str = MVM_string_utf8_encode_C_string(tc, 
                         ((MVMString *)dp->gc_constants[op->temp_guard.checkee]));
-                fprintf(stderr, "  Guard temp %d (literal string '%s')\n",
+                fprintf(stderr, "    Guard temp %d (literal string '%s')\n",
                         op->temp_guard.temp, c_str);
                 MVM_free(c_str);
                 break;
             }
             case MVMDispOpcodeGuardTempLiteralInt:
-                fprintf(stderr, "  Guard temp %d (literal integer %"PRIi64")\n",
+                fprintf(stderr, "    Guard temp %d (literal integer %"PRIi64")\n",
                         op->temp_guard.temp,
                         dp->constants[op->temp_guard.checkee].i64);
                 break;
             case MVMDispOpcodeGuardTempLiteralNum:
-                fprintf(stderr, "  Guard temp %d (literal number %g)\n",
+                fprintf(stderr, "    Guard temp %d (literal number %g)\n",
                         op->temp_guard.temp,
                         dp->constants[op->temp_guard.checkee].n64);
                 break;
             case MVMDispOpcodeGuardTempNotLiteralObj:
-                fprintf(stderr, "  Guard temp %d (not literal object of type %s)\n",
+                fprintf(stderr, "    Guard temp %d (not literal object of type %s)\n",
                         op->temp_guard.temp,
                         STABLE(((MVMObject *)dp->gc_constants[op->temp_guard.checkee]))->debug_name);
                 break;
 
             /* Opcodes that load values into temporaries. */
             case MVMDispOpcodeLoadCaptureValue:
-                fprintf(stderr, "  Load argument %d into temporary %d\n",
+                fprintf(stderr, "    Load argument %d into temporary %d\n",
                         op->load.idx, op->load.temp);
                 break;
             case MVMDispOpcodeLoadConstantObjOrStr:
-                fprintf(stderr, "  Load collectable constant at index %d into temporary %d\n",
+                fprintf(stderr, "    Load collectable constant at index %d into temporary %d\n",
                         op->load.idx, op->load.temp);
                 break;
             case MVMDispOpcodeLoadConstantInt:
-                fprintf(stderr, "  Load integer constant at index %d into temporary %d\n",
+                fprintf(stderr, "    Load integer constant at index %d into temporary %d\n",
                         op->load.idx, op->load.temp);
                 break;
             case MVMDispOpcodeLoadConstantNum:
-                fprintf(stderr, "  Load number constant at index %d into temporary %d\n",
+                fprintf(stderr, "    Load number constant at index %d into temporary %d\n",
                         op->load.idx, op->load.temp);
                 break;
             case MVMDispOpcodeLoadAttributeObj:
-                fprintf(stderr, "  Deference object attribute at offset %d in temporary %d\n",
+                fprintf(stderr, "    Deference object attribute at offset %d in temporary %d\n",
                         op->load.idx, op->load.temp);
                 break;
             case MVMDispOpcodeLoadAttributeInt:
-                fprintf(stderr, "  Deference integer attribute at offset %d in temporary %d\n",
+                fprintf(stderr, "    Deference integer attribute at offset %d in temporary %d\n",
                         op->load.idx, op->load.temp);
                 break;
             case MVMDispOpcodeLoadAttributeNum:
-                fprintf(stderr, "  Deference number attribute at offset %d in temporary %d\n",
+                fprintf(stderr, "    Deference number attribute at offset %d in temporary %d\n",
                         op->load.idx, op->load.temp);
                 break;
             case MVMDispOpcodeLoadAttributeStr:
-                fprintf(stderr, "  Deference string attribute at offset %d in temporary %d\n",
+                fprintf(stderr, "    Deference string attribute at offset %d in temporary %d\n",
                         op->load.idx, op->load.temp);
                 break;
             case MVMDispOpcodeSet:
-                fprintf(stderr, "  Copy temporary %d into temporary %d\n",
+                fprintf(stderr, "    Copy temporary %d into temporary %d\n",
                         op->load.idx, op->load.temp);
                 break;
 
             /* Opcodes that set a result value */
             case MVMDispOpcodeResultValueObj:
-                fprintf(stderr, "  Set result object value from temporary %d\n",
+                fprintf(stderr, "    Set result object value from temporary %d\n",
                         op->res_value.temp);
                 break;
             case MVMDispOpcodeResultValueStr:
-                fprintf(stderr, "  Set result string value from temporary %d\n",
+                fprintf(stderr, "    Set result string value from temporary %d\n",
                         op->res_value.temp);
                 break;
             case MVMDispOpcodeResultValueInt:
-                fprintf(stderr, "  Set result integer value from temporary %d\n",
+                fprintf(stderr, "    Set result integer value from temporary %d\n",
                         op->res_value.temp);
                 break;
             case MVMDispOpcodeResultValueNum:
-                fprintf(stderr, "  Set result num value from temporary %d\n",
+                fprintf(stderr, "    Set result num value from temporary %d\n",
                         op->res_value.temp);
                 break;
 
             /* Opcodes that handle invocation results. */
             case MVMDispOpcodeUseArgsTail:
-                fprintf(stderr, "  Skip first %d args of incoming capture; callsite from %d\n",
+                fprintf(stderr, "    Skip first %d args of incoming capture; callsite from %d\n",
                         op->use_arg_tail.skip_args, op->use_arg_tail.callsite_idx);
                 break;
             case MVMDispOpcodeCopyArgsTail:
-                fprintf(stderr, "  Copy final %d args of incoming capture; callsite from %d\n",
+                fprintf(stderr, "    Copy final %d args of incoming capture; callsite from %d\n",
                         op->copy_arg_tail.tail_args, op->copy_arg_tail.callsite_idx);
                 break;
             case MVMDispOpcodeResultBytecode:
-                fprintf(stderr, "  Invoke MVMCode in temporary %d\n",
+                fprintf(stderr, "    Invoke MVMCode in temporary %d\n",
                         op->res_code.temp_invokee);
                 break;
             case MVMDispOpcodeResultCFunction:
-                fprintf(stderr, "  Invoke MVMCFunction in temporary %d\n",
+                fprintf(stderr, "    Invoke MVMCFunction in temporary %d\n",
                         op->res_code.temp_invokee);
                 break;
 
             default:
-                fprintf(stderr, "  UNKNOWN OP %d\n", op->code);
+                fprintf(stderr, "    UNKNOWN OP %d\n", op->code);
+        }
+    }
+
+    if (dp->num_resumptions) {
+        fprintf(stderr, "  Resumptions:\n");
+        for (i = 0; i < dp->num_resumptions; i++) {
+            MVMDispProgramResumption *res = &(dp->resumptions[i]);
+            char *c_id = MVM_string_utf8_encode_C_string(tc, res->disp->id);
+            fprintf(stderr, "    Dispatcher %s\n", c_id);
+            MVM_free(c_id);
         }
     }
 }
@@ -1462,6 +1473,25 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
     dp->num_temporaries = MVM_VECTOR_ELEMS(cs.value_temps) + cs.args_buffer_temps;
     dp->first_args_temporary = MVM_VECTOR_ELEMS(cs.value_temps);
 
+    /* Add the resumptions. We re-order them so that they come innermost
+     * first, which is how we shall visit them later on when looking for a
+     * dispatcher to resume. */
+    MVMuint32 num_resumptions = MVM_VECTOR_ELEMS(record->rec.resume_inits);
+    dp->num_resumptions = num_resumptions;
+    if (num_resumptions) {
+        dp->resumptions = MVM_calloc(num_resumptions, sizeof(MVMDispProgramResumption));
+        for (i = 0; i < num_resumptions; i++) {
+            MVMDispProgramResumption *res = &(dp->resumptions[i]);
+            MVMDispProgramRecordingResumeInit *res_init =
+                &(record->rec.resume_inits[num_resumptions - (i + 1)]);
+            res->disp = res_init->disp;
+            // TODO resume init state stuff
+        }
+    }
+    else {
+        dp->resumptions = NULL;
+    }
+
     /* Clean up (we don't free most of the vectors because we've given them
      * over to the MVMDispProgram). */
     MVM_VECTOR_DESTROY(cs.value_temps);
@@ -1863,6 +1893,7 @@ void MVM_disp_program_destroy(MVMThreadContext *tc, MVMDispProgram *dp) {
     MVM_free(dp->constants);
     MVM_free(dp->gc_constants);
     MVM_free(dp->ops);
+    MVM_free(dp->resumptions);
     MVM_free(dp);
 }
 
