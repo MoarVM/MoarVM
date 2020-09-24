@@ -30,10 +30,10 @@ static void dump_recording_capture(MVMThreadContext *tc,
     if (capture->capture == rec->outcome_capture)
         fprintf(stderr, "%s  Used as args for invoke result\n", indent_str);
     MVMuint32 i;
-    for (i = 0; i < MVM_VECTOR_ELEMS(rec->states); i++) {
-        if (rec->states[i].capture == capture->capture) {
-            char *disp_id = MVM_string_utf8_encode_C_string(tc, rec->states[i].disp->id);
-            fprintf(stderr, "%s  Used as dispatch state for %s\n", indent_str, disp_id);
+    for (i = 0; i < MVM_VECTOR_ELEMS(rec->resume_inits); i++) {
+        if (rec->resume_inits[i].capture == capture->capture) {
+            char *disp_id = MVM_string_utf8_encode_C_string(tc, rec->resume_inits[i].disp->id);
+            fprintf(stderr, "%s  Used as resume init args for %s\n", indent_str, disp_id);
             MVM_free(disp_id);
         }
     }
@@ -362,7 +362,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     record->rec.initial_capture.transformation = MVMDispProgramRecordingInitial;
     MVM_VECTOR_INIT(record->rec.initial_capture.captures, 8);
     MVM_VECTOR_INIT(record->rec.values, 16);
-    MVM_VECTOR_INIT(record->rec.states, 4);
+    MVM_VECTOR_INIT(record->rec.resume_inits, 4);
     record->rec.outcome_capture = NULL;
     record->ic_entry_ptr = ic_entry_ptr;
     record->ic_entry = ic_entry;
@@ -761,16 +761,16 @@ void MVM_disp_program_record_set_resume_init_args(MVMThreadContext *tc, MVMObjec
             "Can only use dispatcher-set-resume-init-args in a resumable dispatcher");
     ensure_known_capture(tc, record, capture);
 
-    /* Record the saving of the dispatch state for this dispatcher, making
-     * sure we didn't already save state for it. */
+    /* Record the saving of the resume init state for this dispatcher, making
+     * sure we didn't already do so. */
     MVMuint32 i;
-    for (i = 0; i < MVM_VECTOR_ELEMS(record->rec.states); i++)
-        if (record->rec.states[i].disp == record->current_disp)
+    for (i = 0; i < MVM_VECTOR_ELEMS(record->rec.resume_inits); i++)
+        if (record->rec.resume_inits[i].disp == record->current_disp)
             MVM_exception_throw_adhoc(tc, "Already set resume init args for this dispatcher");
-    MVMDispProgramRecordingState new_state;
-    new_state.disp = record->current_disp;
-    new_state.capture = capture;
-    MVM_VECTOR_PUSH(record->rec.states, new_state);
+    MVMDispProgramRecordingResumeInit new_resume_init;
+    new_resume_init.disp = record->current_disp;
+    new_resume_init.capture = capture;
+    MVM_VECTOR_PUSH(record->rec.resume_inits, new_resume_init);
 }
 
 /* Record the getting of the dispatch rsume init args. */
@@ -1779,8 +1779,8 @@ void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecordi
             MVM_gc_worklist_add(tc, worklist, &(value->not_literal_guards[i]));
     }
     mark_recording_capture(tc, &(rec->initial_capture), worklist);
-    for (i = 0; i < MVM_VECTOR_ELEMS(rec->states); i++) {
-        MVM_gc_worklist_add(tc, worklist, &(rec->states[i].capture));
+    for (i = 0; i < MVM_VECTOR_ELEMS(rec->resume_inits); i++) {
+        MVM_gc_worklist_add(tc, worklist, &(rec->resume_inits[i].capture));
     }
     MVM_gc_worklist_add(tc, worklist, &(rec->outcome_capture));
 }
@@ -1838,6 +1838,6 @@ void MVM_disp_program_recording_destroy(MVMThreadContext *tc, MVMDispProgramReco
     for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++)
         MVM_VECTOR_DESTROY(rec->values[i].not_literal_guards);
     MVM_VECTOR_DESTROY(rec->values);
-    MVM_VECTOR_DESTROY(rec->states);
+    MVM_VECTOR_DESTROY(rec->resume_inits);
     destroy_recording_capture(tc, &(rec->initial_capture));
 }
