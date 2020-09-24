@@ -162,9 +162,17 @@ struct MVMDispProgramRecordingResumeInit {
 
 /* Recording state of a dispatch program, updated as we move through the record
  * phase. */
+typedef enum {
+    MVMDispProgramRecordingResumeNone,
+    MVMDispProgramRecordingResumeTopmost,
+    MVMDispProgramRecordingResumeCaller
+} MVMDispProgramRecordingResumeKind;
 struct MVMDispProgramRecording {
     /* The initial argument capture, top of the tree of captures. */
     MVMDispProgramRecordingCapture initial_capture;
+
+    /* The kind of resume dispatch we're doing, if any. */
+    MVMDispProgramRecordingResumeKind resume_kind;
 
     /* The values that we have encountered while recording, and maybe added
      * guards against. */
@@ -403,6 +411,8 @@ MVMObject * MVM_disp_program_record_capture_insert_arg(MVMThreadContext *tc,
         MVMObject *capture, MVMuint32 index, MVMObject *tracked);
 void MVM_disp_program_record_set_resume_init_args(MVMThreadContext *tc, MVMObject *capture);
 MVMObject * MVM_disp_program_record_get_resume_init_args(MVMThreadContext *tc);
+void MVM_disp_program_record_resume(MVMThreadContext *tc, MVMObject *capture);
+void MVM_disp_program_record_resume_caller(MVMThreadContext *tc, MVMObject *capture);
 void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatcher_id,
         MVMObject *capture);
 void MVM_disp_program_record_result_constant(MVMThreadContext *tc, MVMCallsiteFlags kind,
