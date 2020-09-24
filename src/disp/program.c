@@ -360,6 +360,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
     record->rec.initial_capture.capture = capture;
     record->rec.initial_capture.transformation = MVMDispProgramRecordingInitial;
+    record->rec.resume_kind = MVMDispProgramRecordingResumeNone;
     MVM_VECTOR_INIT(record->rec.initial_capture.captures, 8);
     MVM_VECTOR_INIT(record->rec.values, 16);
     MVM_VECTOR_INIT(record->rec.resume_inits, 4);
@@ -773,11 +774,50 @@ void MVM_disp_program_record_set_resume_init_args(MVMThreadContext *tc, MVMObjec
     MVM_VECTOR_PUSH(record->rec.resume_inits, new_resume_init);
 }
 
-/* Record the getting of the dispatch rsume init args. */
+/* Record the getting of the dispatch resume init args. */
 MVMObject * MVM_disp_program_record_get_resume_init_args(MVMThreadContext *tc) {
-    /* Make sure we're in a dispatcher. */
+    /* Make sure we're in a dispatcher and that we're in a resume. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    if (record->rec.resume_kind == MVMDispProgramRecordingResumeNone)
+        MVM_exception_throw_adhoc(tc,
+            "Can only use dispatcher-get-resume-init-args in a resume callback");
     MVM_panic(1, "get resume init args nyi");
+}
+
+/* Ensure we're in a state where running the resume dispatcher is OK. */
+static void ensure_resume_ok(MVMThreadContext *tc, MVMCallStackDispatchRecord *record) {
+    if (record->rec.resume_kind != MVMDispProgramRecordingResumeNone)
+        MVM_exception_throw_adhoc(tc, "Can only enter a resumption once in a dispatch");
+}
+
+/* Record the resumption of a dispatch. */
+void MVM_disp_program_record_resume(MVMThreadContext *tc, MVMObject *capture) {
+    /* Make sure we're in a dispatcher and that we didn't already call resume. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    ensure_resume_ok(tc, record);
+    ensure_known_capture(tc, record, capture);
+
+    /* Find the dispatch record we're going to be resuming. */
+
+    /* Record the kind of dispatch resumption we're doing, and then delegate to
+     * the appropriate `resume` dispatcher callback. */
+    record->rec.resume_kind = MVMDispProgramRecordingResumeTopmost;
+    MVM_panic(1, "record resume nyi");
+}
+
+/* Record the resumption of a dispatch found relative to our caller. */
+void MVM_disp_program_record_resume_caller(MVMThreadContext *tc, MVMObject *capture) {
+    /* Make sure we're in a dispatcher and that we didn't already call resume. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    ensure_resume_ok(tc, record);
+    ensure_known_capture(tc, record, capture);
+
+    /* Find the dispatch record we're going to be resuming. */
+
+    /* Record the kind of dispatch resumption we're doing, and then delegate to
+     * the appropriate `resume` dispatcher callback. */
+    record->rec.resume_kind = MVMDispProgramRecordingResumeCaller;
+    MVM_panic(1, "record resume caller nyi");
 }
 
 /* Record a delegation from one dispatcher to another. */

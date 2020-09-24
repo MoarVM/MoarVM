@@ -188,7 +188,11 @@ MVMObject * MVM_disp_boot_syscall_dispatch(MVMThreadContext *tc) {
 /* The boot-resume dispatcher resumes the first dispatcher found
  * by walking down the call stack (not counting the current one). */
 static void boot_resume(MVMThreadContext *tc, MVMArgs arg_info) {
-    MVM_panic(1, "boot-resume NYI");
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVM_args_checkarity(tc, &arg_ctx, 1, 1);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVM_disp_program_record_resume(tc, capture);
 }
 
 /* Gets the MVMCFunction object wrapping the boot resume dispatcher. */
@@ -200,7 +204,11 @@ MVMObject * MVM_disp_boot_resume_dispatch(MVMThreadContext *tc) {
  * the callstack (and any immediately preceding dispatcher), and then
  * proceeds as `boot-resume` would. */
 static void boot_resume_caller(MVMThreadContext *tc, MVMArgs arg_info) {
-    MVM_panic(1, "boot-resume-caller NYI");
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVM_args_checkarity(tc, &arg_ctx, 1, 1);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVM_disp_program_record_resume_caller(tc, capture);
 }
 
 /* Gets the MVMCFunction object wrapping the boot resume caller dispatcher. */
