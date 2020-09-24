@@ -184,3 +184,26 @@ static void boot_syscall(MVMThreadContext *tc, MVMArgs arg_info) {
 MVMObject * MVM_disp_boot_syscall_dispatch(MVMThreadContext *tc) {
     return wrap(tc, boot_syscall);
 }
+
+/* The boot-resume dispatcher resumes the first dispatcher found
+ * by walking down the call stack (not counting the current one). */
+static void boot_resume(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVM_panic(1, "boot-resume NYI");
+}
+
+/* Gets the MVMCFunction object wrapping the boot resume dispatcher. */
+MVMObject * MVM_disp_boot_resume_dispatch(MVMThreadContext *tc) {
+    return wrap(tc, boot_resume);
+}
+
+/* The boot-resume-caller dispatcher skips past the current frame on
+ * the callstack (and any immediately preceding dispatcher), and then
+ * proceeds as `boot-resume` would. */
+static void boot_resume_caller(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVM_panic(1, "boot-resume-caller NYI");
+}
+
+/* Gets the MVMCFunction object wrapping the boot resume caller dispatcher. */
+MVMObject * MVM_disp_boot_resume_caller_dispatch(MVMThreadContext *tc) {
+    return wrap(tc, boot_resume_caller);
+}
