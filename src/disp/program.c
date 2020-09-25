@@ -382,6 +382,32 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     run_dispatch(tc, record, disp, capture, NULL);
 }
 
+/* Run a resume callback. */
+static void run_resume(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
+        MVMDispDefinition *disp, MVMObject *capture, MVMuint32 *thunked) {
+    MVMCallsite *disp_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
+    record->current_disp = disp;
+    record->current_capture.o = capture;
+    MVMArgs resume_args = {
+        .callsite = disp_callsite,
+        .source = &(record->current_capture),
+        .map = MVM_args_identity_map(tc, disp_callsite)
+    };
+    MVMObject *resume = disp->resume;
+    if (REPR(resume)->ID == MVM_REPR_ID_MVMCode) {
+        record->outcome.kind = MVM_DISP_OUTCOME_EXPECT_DELEGATE;
+        record->outcome.delegate_disp = NULL;
+        record->outcome.delegate_capture = NULL;
+        tc->cur_frame = find_calling_frame(tc->stack_top->prev);
+        MVM_frame_dispatch(tc, (MVMCode *)resume, resume_args, -1);
+        if (thunked)
+            *thunked = 1;
+    }
+    else {
+        MVM_panic(1, "resume callback only supported as a MVMCode");
+    }
+}
+
 /* Calculates the path to a capture. If the capture is not found, then an
  * exception will be thrown. The caller should pass in a pointer to a
  * CapturePath, which will be populated with the path to that capture. */
@@ -809,11 +835,16 @@ void MVM_disp_program_record_resume(MVMThreadContext *tc, MVMObject *capture) {
     ensure_known_capture(tc, record, capture);
 
     /* Find the dispatch record we're going to be resuming. */
+    MVMDispProgram *resume_dp;
+    if (!MVM_disp_resume_find_topmost(tc, &resume_dp))
+        MVM_exception_throw_adhoc(tc, "No resumable dispatch in dynamic scope");
 
     /* Record the kind of dispatch resumption we're doing, and then delegate to
      * the appropriate `resume` dispatcher callback. */
     record->rec.resume_kind = MVMDispProgramRecordingResumeTopmost;
-    MVM_panic(1, "record resume nyi");
+    record->outcome.kind = MVM_DISP_OUTCOME_RESUME;
+    record->outcome.resume_dp = resume_dp;
+    record->outcome.resume_capture = capture;
 }
 
 /* Record the resumption of a dispatch found relative to our caller. */
@@ -1504,8 +1535,23 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
             record->ic_entry, record->update_sf,
             ((MVMCapture *)record->rec.initial_capture.capture)->body.callsite,
             dp);
-    if (!installed)
-        MVM_disp_program_destroy(tc, dp);
+
+    /* We may need to keep the dispatch program around for the sake of any
+     * resumptions. */
+    if (dp->num_resumptions > 0) {
+        record->produced_dp = dp;
+        // TODO handle marking and cleanup in the non-successful case
+        if (!installed)
+            MVM_panic(1, "NYI case of race building resumable dispatch program");
+    }
+
+    /* If there's no resumptions and the transition failed, can destory the
+     * dispatch program immediately. */
+    else {
+        record->produced_dp = NULL;
+        if (!installed)
+            MVM_disp_program_destroy(tc, dp);
+    }
 }
 
 /* Called when we have finished recording a dispatch program. */
@@ -1522,6 +1568,13 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             else
                 MVM_exception_throw_adhoc(tc, "Dispatch callback failed to delegate to a dispatcher");
             return 0;
+        case MVM_DISP_OUTCOME_RESUME: {
+            // TODO handle multiple resume points in one dispatch
+            MVMDispDefinition *resume_disp = record->outcome.resume_dp->resumptions[0].disp;
+            run_resume(tc, record, resume_disp,
+                    record->outcome.resume_capture, thunked);
+            return 0;
+        }
         case MVM_DISP_OUTCOME_VALUE: {
             process_recording(tc, record);
             MVMFrame *caller = find_calling_frame(record->common.prev);
@@ -1879,6 +1932,9 @@ void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *
             break;
         case MVM_DISP_OUTCOME_EXPECT_DELEGATE:
             MVM_gc_worklist_add(tc, worklist, &(outcome->delegate_capture));
+            break;
+        case MVM_DISP_OUTCOME_RESUME:
+            MVM_gc_worklist_add(tc, worklist, &(outcome->resume_capture));
             break;
         case MVM_DISP_OUTCOME_VALUE:
             if (outcome->result_kind == MVM_reg_obj || outcome->result_kind == MVM_reg_str)
