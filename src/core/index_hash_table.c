@@ -87,6 +87,15 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
 
             if (*metadata == 0) {
                 /* Open goal. Score! */
+                /* However, we can still exceed the maximum probe distance.
+                 * Optimisation from Martin Ankerl's implementation:
+                 * setting this to zero forces a resize on any insert, *before*
+                 * the actual insert, so that we never end up having to handle
+                 * overflow *during* this loop. This loop can always complete.
+                 */
+                if (probe_distance == MVM_HASH_MAX_PROBE_DISTANCE) {
+                    hashtable->max_items = 0;
+                }
             } else {
                 /* make room. */
 
@@ -102,11 +111,8 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
                 do {
                     MVMuint8 new_probe_distance = 1 + old_probe_distance;
                     if (new_probe_distance == MVM_HASH_MAX_PROBE_DISTANCE) {
-                        /* Optimisation from Martin Ankerl's implementation:
-                           setting this to zero forces a resize on any insert,
-                           *before* the actual insert, so that we never end up
-                           having to handle overflow *during* this loop. This
-                           loop can always complete. */
+                        /* Again, without action, any insertion might cause us
+                         * to excede our probe distance. */
                         hashtable->max_items = 0;
                     }
                     /* a swap: */
