@@ -179,6 +179,9 @@ struct MVMCallStackDispatchRecord {
     /* The static frame owning the inline cache (needed for upholding the
      * inter-gen GC invariant). */
     MVMStaticFrame *update_sf;
+
+    /* The produced dispatch program. */
+    MVMDispProgram *produced_dp;
 };
 
 /* A dispatch record frame is turned into this once the dispatch has already
@@ -228,7 +231,6 @@ void MVM_callstack_continuation_append(MVMThreadContext *tc, MVMCallStackRegion 
         MVMCallStackRecord *stack_top, MVMObject *update_tag);
 MVMFrame * MVM_callstack_first_frame_in_region(MVMThreadContext *tc, MVMCallStackRegion *region);
 MVMCallStackDispatchRecord * MVM_callstack_find_topmost_dispatch_recording(MVMThreadContext *tc);
-MVMCallStackRecord * MVM_callstack_find_dispatch(MVMThreadContext *tc, MVMuint32 skip);
 MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional, MVMuint32 *thunked);
 void MVM_callstack_unwind_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunked);
 void MVM_callstack_unwind_dispatch_run(MVMThreadContext *tc);

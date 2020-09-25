@@ -31,6 +31,10 @@ typedef enum {
      * dispatcher to delegate to. */
     MVM_DISP_OUTCOME_EXPECT_DELEGATE,
 
+    /* Indicates we are going to invoke the resume callback of the specified
+     * dispatcher. */
+    MVM_DISP_OUTCOME_RESUME,
+
     /* Return a value (produced by the dispatch program). */
     MVM_DISP_OUTCOME_VALUE,
 
@@ -70,6 +74,11 @@ struct MVMDispProgramOutcome {
         struct {
             MVMDispDefinition *delegate_disp;
             MVMObject *delegate_capture;
+        };
+        /* A dispatch resumption. */
+        struct {
+            MVMDispProgram *resume_dp;
+            MVMObject *resume_capture;
         };
     };
 };
