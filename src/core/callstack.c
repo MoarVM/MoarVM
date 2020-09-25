@@ -273,20 +273,6 @@ MVMCallStackDispatchRecord * MVM_callstack_find_topmost_dispatch_recording(MVMTh
     return (MVMCallStackDispatchRecord *)MVM_callstack_iter_current(tc, &iter);
 }
 
-/* Finds a dispatch (recorded or run) record from the stack top, skipping the
- * specified number of them. Returns NULL if none is found. */
-MVMCallStackRecord * MVM_callstack_find_dispatch(MVMThreadContext *tc, MVMuint32 skip) {
-    MVMCallStackIterator iter;
-    MVM_callstack_iter_dispatch_init(tc, &iter, tc->stack_top);
-    MVMint32 cur = skip;
-    while (cur >= 0) {
-        if (!MVM_callstack_iter_move_next(tc, &iter))
-            return NULL;
-        cur--;
-    }
-    return MVM_callstack_iter_current(tc, &iter);
-}
-
 /* Unwind the calls stack until we reach a prior bytecode frame. */
 static int is_bytecode_frame(MVMuint8 kind) {
     switch (kind) {
