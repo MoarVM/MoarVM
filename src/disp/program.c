@@ -1500,10 +1500,12 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
     dump_program(tc, dp);
 
     /* Transition the inline cache to incorporate this dispatch program. */
-    MVM_disp_inline_cache_transition(tc, record->ic_entry_ptr, record->ic_entry,
-            record->update_sf,
+    MVMuint32 installed = MVM_disp_inline_cache_transition(tc, record->ic_entry_ptr,
+            record->ic_entry, record->update_sf,
             ((MVMCapture *)record->rec.initial_capture.capture)->body.callsite,
             dp);
+    if (!installed)
+        MVM_disp_program_destroy(tc, dp);
 }
 
 /* Called when we have finished recording a dispatch program. */
