@@ -89,7 +89,7 @@ MVMObject * MVM_disp_inline_cache_get_lex_resolution(MVMThreadContext *tc, MVMSt
         MVMuint32 bytecode_offset);
 MVMuint32 MVM_disp_inline_cache_get_slot(MVMThreadContext *tc, MVMStaticFrame *sf,
         MVMuint32 bytecode_offset);
-void MVM_disp_inline_cache_transition(MVMThreadContext *tc,
+MVMuint32 MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *entry,
         MVMStaticFrame *root, MVMCallsite *initial_cs, MVMDispProgram *dp);
 void MVM_disp_inline_cache_destroy(MVMThreadContext *tc, MVMDispInlineCache *cache);
