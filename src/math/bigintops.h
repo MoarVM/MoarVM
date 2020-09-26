@@ -17,7 +17,7 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
 MVMObject * MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
 MVMObject * MVM_bigint_lcm(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b);
 
-MVMObject * MVM_bigint_or(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
+MVMObject * MVM_bigint_ior(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
 MVMObject * MVM_bigint_xor(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
 MVMObject * MVM_bigint_and(MVMThreadContext *tc, MVMObject *result, MVMObject *a, MVMObject *b);
 
