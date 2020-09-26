@@ -1,3 +1,57 @@
+New in 2020.09
+
+6model:
++ [497748f7] Split `flags` in struct MVMCollectable into `flags1` and `flags2`
++ [effc5549] P6int: make set_int and get_int globally available
++ [a526f424] Remove tiny indirection from MVMHash_at_key/bind_key
++ [9c6bb7ab] Deserialization: rely on MVMHash being the known repr
++ [f029d3c7] Deserialization: use P6int repr being known in read_ref
++ [88efde45] Deserialization: rely on P6str REPR being known
++ [b37770a7] Deserialization: rely on known REPR in read_array_var/int/str
++ [9caec0fc] Deserialization: rely on knowledge of owned_objects REPR
++ [2dfe1c53] Introduce MVMP6str_get_str and MVMP6str_set_str
++ [429bd31f] Introduce MVM_VMArray_bind_pos
++ [f01930b5] Introduce MVM_VMArray_push
++ [1fdfdf59] Fix endless recursion and segfault in dump_p6opaque
++ [124fe2be] copy_to should call MVM_gc_write_barrier with the *new* key's address
+
+Core:
++ [381e3d69] MVMObjectId.gen2_add is now uintptr_t, instead of an actual pointer
++ [50d3311c] Better specialize boolification of boxed Num
+
+Debug Server:
+
++ [fc9dd762] Reorder alloc/free of `c_key_name` in the debug server
+
+IO:
++ [b243d017] Fix MVM_file_isexecutable() when being root
++ [96d32a1a] Don't duplicate file existence checks
+
+Libraries:
++ [29ce8171] Update libuv to version 1.39.0
+
+Other:
++ [b74b94d5,c61c18a2,2c294cbf,215854f8,040e9d63,2a271e16,aba462b2,
+   3043135c,0418b7af,9b423954,54899926,c3df90ea,07c7b4fe,5e146efb,
+   14d11334,2bf3a4e2,cff7a0cd,1aacf8f4,4af853d7,0f0d2103,ebd07472,
+   9d0f1b32,1b20ca88,2181d48d,e6e5cc90,41175efc,1413f9ce,2cce7319,
+   1ea0e520,04843cb1,a02c8e70,d85f38d8,d359a605,9f83de80,58193f0a,
+   d9c31aef,5660597a,e81219d4,be2f129c,b13d3de8,b08f8d45,f03ba463,
+   287d41eb,bac1ae1c,df72ab3d,d35c6e39,b0dac61c,ba847c25,754490c7,
+   390f30d4,a644e33f,2c7f96c2,282ea895,ac6c5be0,976a070c,0ac64285,
+   8a9586ee,8e24dc61,46d60c7b,3cf44324,6c4ba42f,e541297e,fbfc8a0f,
+   ef6a37b,e3ad7ced,590bac47,322c2e0b,25c70bfe] Introduce new hash implementation based on Robin Hood Hash
++ [8a3857,489ab696,63665640,004ce49c] make moar --dump use memmem to find "MOARVM\r\n" string
+
+Platform:
++ [87ad486f,07721999] Fix MoarVM building on Sparc 64
+
+Profiler:
++ [6441fa6b] Return `MVMHeapSnapshotSeen *` from seen in heapsnapshot.c
+
+Tooling/Build:
++ [c3941772] Add 'macroify_mallocs.p6' script
+
 New in 2020.08
 
 Core:
