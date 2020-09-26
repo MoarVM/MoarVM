@@ -339,7 +339,7 @@ else {
     push @hllincludes, 'libtommath';
 }
 
-$config{gmpconf} = '';
+$config{gmpconf} = '--enable-shared=no --with-pic';
 if ($args{'has-gmp'}) {
     warn "Option --enable-gmp-fat is only useful without --has-gmp"
         if exists $args{'enable-gmp-fat'};
@@ -356,10 +356,10 @@ if ($args{'has-gmp'}) {
 }
 else {
     # Make libgmp.a available for linking
-    $config{gmpconf} = '--enable-fat' if $args{'enable-gmp-fat'};
+    $config{gmpconf} .= ' --enable-fat' if $args{'enable-gmp-fat'};
     $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/gmp';
-    $config{lincludes} .= " -L./3rdparty/gmp";
-    unshift @{$config{usrlibs}}, 'gmp';
+    $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/gmp\"\n"
+                        . "\t\$(CP) 3rdparty/gmp/*.h \"\$(DESTDIR)\$(PREFIX)/include/gmp\"\n";
 }
 
 if ($args{'has-libffi'}) {
