@@ -757,6 +757,7 @@ realclean: clean
 	-$(CMD)@mtclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@dcclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@cmpclean@ $(NOOUT) $(NOERR)
+	-$(CMD)@gmpclean@ $(NOOUT) $(NOERR)
 	-$(RM) $(MINILUA) $(NOOUT) $(NOERR)
 
 distclean: realclean
