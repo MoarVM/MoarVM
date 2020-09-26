@@ -1307,28 +1307,67 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
     return result;
 }
 
-MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 rounds) {
-    /* mp_prime_is_prime returns True for 1, and I think
-     * it's worth special-casing this particular number :-)
-     */
-    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+/* Forišek and Jančina, "Fast Primality Testing for Integers That Fit into a Machine Word", 2015
+ *  FJ32_256 code slightly modifed to work in MoarVM
+ */
+static uint16_t bases[]={15591,2018,166,7429,8064,16045,10503,4399,1949,1295,2776,3620,560,3128,5212,
+2657,2300,2021,4652,1471,9336,4018,2398,20462,10277,8028,2213,6219,620,3763,4852,5012,3185,
+1333,6227,5298,1074,2391,5113,7061,803,1269,3875,422,751,580,4729,10239,746,2951,556,2206,
+3778,481,1522,3476,481,2487,3266,5633,488,3373,6441,3344,17,15105,1490,4154,2036,1882,1813,
+467,3307,14042,6371,658,1005,903,737,1887,7447,1888,2848,1784,7559,3400,951,13969,4304,177,41,
+19875,3110,13221,8726,571,7043,6943,1199,352,6435,165,1169,3315,978,233,3003,2562,2994,10587,
+10030,2377,1902,5354,4447,1555,263,27027,2283,305,669,1912,601,6186,429,1930,14873,1784,1661,
+524,3577,236,2360,6146,2850,55637,1753,4178,8466,222,2579,2743,2031,2226,2276,374,2132,813,
+23788,1610,4422,5159,1725,3597,3366,14336,579,165,1375,10018,12616,9816,1371,536,1867,10864,
+857,2206,5788,434,8085,17618,727,3639,1595,4944,2129,2029,8195,8344,6232,9183,8126,1870,3296,
+7455,8947,25017,541,19115,368,566,5674,411,522,1027,8215,2050,6544,10049,614,774,2333,3007,
+35201,4706,1152,1785,1028,1540,3743,493,4474,2521,26845,8354,864,18915,5465,2447,42,4511,
+1660,166,1249,6259,2553,304,272,7286,73,6554,899,2816,5197,13330,7054,2818,3199,811,922,350,
+7514,4452,3449,2663,4708,418,1621,1171,3471,88,11345,412,1559,194};
 
-    if (MVM_BIGINT_IS_BIG(ba) || ba->u.smallint.value != 1) {
-        mp_int *ia = force_bigint(tc, ba, 0);
-        if (mp_cmp_d(ia, 1) == MP_EQ || ia->sign == MP_NEG) {
+static MVMint64 is_SPRP(uint32_t n, uint32_t a) {
+    uint32_t d = n-1, s = 0;
+    while ((d&1)==0) ++s, d>>=1;
+    uint64_t cur = 1, pw = d;
+    while (pw) {
+        if (pw & 1) cur = (cur*a) % n;
+        a = ((uint64_t)a*a) % n;
+        pw >>= 1;
+    }
+    if (cur == 1) return 1;
+    for (uint32_t r=0; r<s; r++) {
+        if (cur == n-1) return 1;
+        cur = (cur*cur) % n;
+    }
+    return 0;
+}
+
+MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a) {
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+    if (MVM_BIGINT_IS_BIG(ba)) {
+        mp_int *ia = ba->u.bigint;
+        mp_err err;
+        mp_bool result;
+
+        if (ia->sign == MP_NEG) {
             return 0;
         }
-        else {
-            mp_err err;
-            mp_bool result;
-            if ((err = mp_prime_is_prime(ia, rounds, &result)) != MP_OKAY)
-                MVM_exception_throw_adhoc(tc, "Error checking primality of a big integer: %s", mp_error_to_string(err));
-            return result;
-        }
-    } else {
-        /* we only reach this if we have a smallint that's equal to 1.
-         * which we define as not-prime. */
-        return 0;
+
+        if ((err = mp_prime_is_prime(ia, 40, &result)) != MP_OKAY)
+            MVM_exception_throw_adhoc(tc, "Error checking primality of a big integer: %s", mp_error_to_string(err));
+
+        return result;
+    }
+    else {
+        MVMuint32 x = ba->u.smallint.value;
+        if (x==2 || x==3 || x==5 || x==7) return 1;
+        if (x%2==0 || x%3==0 || x%5==0 || x%7==0) return 0;
+        if (x<121) return (x>1);
+        uint64_t h = x;
+        h = ((h >> 16) ^ h) * 0x45d9f3b;
+        h = ((h >> 16) ^ h) * 0x45d9f3b;
+        h = ((h >> 16) ^ h) & 255;
+        return is_SPRP(x,bases[h]);
     }
 }
 

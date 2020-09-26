@@ -1829,8 +1829,7 @@
   (call (^func &MVM_bigint_is_prime)
     (arglist
       (carg (tc) ptr)
-      (carg $1   ptr)
-      (carg $2   int)) int_sz))
+      (carg $1   ptr)) int_sz))
 
 (template: rand_I
   (call (^func &MVM_bigint_rand)
