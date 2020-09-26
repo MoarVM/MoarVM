@@ -1955,7 +1955,7 @@
 (template: lt_I
   (flagval
     (eq
-      (const (&QUOTE MP_LT) int_sz)
+      (const (&QUOTE -1) int_sz)
       (call (^func &MVM_bigint_cmp)
         (arglist
           (carg (tc) ptr)
@@ -1965,7 +1965,7 @@
 (template: le_I
   (flagval
     (ne
-      (const (&QUOTE MP_GT) int_sz)
+      (const (&QUOTE 1) int_sz)
       (call (^func &MVM_bigint_cmp)
         (arglist
           (carg (tc) ptr)
@@ -1975,7 +1975,7 @@
 (template: gt_I
   (flagval
     (eq
-      (const (&QUOTE MP_GT) int_sz)
+      (const (&QUOTE 1) int_sz)
       (call (^func &MVM_bigint_cmp)
         (arglist
           (carg (tc) ptr)
@@ -1985,7 +1985,7 @@
 (template: ge_I
   (flagval
     (ne
-      (const (&QUOTE MP_LT) int_sz)
+      (const (&QUOTE -1) int_sz)
       (call (^func &MVM_bigint_cmp)
         (arglist
           (carg (tc) ptr)
@@ -1993,7 +1993,7 @@
           (carg $2   ptr)) int_sz))))
 
 (template: bor_I
-  (call (^func &MVM_bigint_or)
+  (call (^func &MVM_bigint_ior)
     (arglist
       (carg (tc) ptr)
       (carg $3   ptr)

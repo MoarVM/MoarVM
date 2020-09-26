@@ -1109,6 +1109,8 @@ MVMnum64 MVM_proc_randscale_n(MVMThreadContext *tc, MVMnum64 scale) {
 /* seed random number generator */
 void MVM_proc_seed(MVMThreadContext *tc, MVMint64 seed) {
     jfs64_init(tc->rand_state, (MVMuint64)seed);
+    gmp_randinit_mt(tc->gmp_rand_state);
+    gmp_randseed_ui(tc->gmp_rand_state, seed);
 }
 
 /* gets the system time since the epoch in nanoseconds */

@@ -2,7 +2,7 @@
 #define MVMSUSPENDSTATUS_MASK 12
 
 #define MVM_NUM_TEMP_BIGINTS 3
-#include "tommath.h"
+#include "gmp.h"
 
 /* Possible values for the thread execution interrupt flag. */
 typedef enum {
@@ -276,10 +276,11 @@ struct MVMThreadContext {
 
     /* Random number generator state. */
     MVMuint64 rand_state[4];
+    gmp_randstate_t gmp_rand_state;
 
     /* Temporary big integers for when we need to upgrade operands in order
      * to perform an operation. */
-    mp_int *temp_bigints[MVM_NUM_TEMP_BIGINTS];
+    mpz_t *temp_bigints[MVM_NUM_TEMP_BIGINTS];
 
     /* NFA evaluator memory cache, to avoid many allocations; see NFA.c. */
     MVMuint32 *nfa_done;
