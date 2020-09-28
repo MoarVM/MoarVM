@@ -83,15 +83,6 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
 
             if (*metadata == 0) {
                 /* Open goal. Score! */
-                /* However, we can still exceed the maximum probe distance.
-                 * Optimisation from Martin Ankerl's implementation:
-                 * setting this to zero forces a resize on any insert, *before*
-                 * the actual insert, so that we never end up having to handle
-                 * overflow *during* this loop. This loop can always complete.
-                 */
-                if (probe_distance == MVM_HASH_MAX_PROBE_DISTANCE) {
-                    hashtable->max_items = 0;
-                }
             } else {
                 /* make room. */
 
@@ -107,8 +98,11 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
                 do {
                     MVMuint8 new_probe_distance = 1 + old_probe_distance;
                     if (new_probe_distance == MVM_HASH_MAX_PROBE_DISTANCE) {
-                        /* Again, without action, any insertion might cause us
-                         * to excede our probe distance. */
+                        /* Optimisation from Martin Ankerl's implementation:
+                           setting this to zero forces a resize on any insert,
+                           *before* the actual insert, so that we never end up
+                           having to handle overflow *during* this loop. This
+                           loop can always complete. */
                         hashtable->max_items = 0;
                     }
                     /* a swap: */
@@ -119,6 +113,14 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
                 MVMuint32 entries_to_move = find_me_a_gap - metadata;
                 memmove(entry_raw + sizeof(MVMString ***), entry_raw,
                         sizeof(MVMString ***) * entries_to_move);
+            }
+
+            /* The same test and optimisation as in the "make room" loop - we're
+             * about to insert something at the (current) max_probe_distance, so
+             * signal to the next insertion that it needs to take action first.
+             */
+            if (probe_distance == MVM_HASH_MAX_PROBE_DISTANCE) {
+                hashtable->max_items = 0;
             }
 
             *metadata = probe_distance;
