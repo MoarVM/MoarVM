@@ -269,8 +269,7 @@ MVM_STATIC_INLINE int MVM_str_hash_at_start(MVMThreadContext *tc,
                  iterator.owner, hashtable->ht_id);
     }
     if (!(iterator.serial == hashtable->serial
-          || (iterator.serial == hashtable->serial - 1 &&
-              iterator.pos == hashtable->last_delete_at))) {
+          || MVM_str_hash_iterator_target_deleted(tc, hashtable, iterator))) {
         MVM_oops(tc, "MVM_str_hash_at_start called with an iterator with the wrong serial number: %u != %u",
                  iterator.serial, hashtable->serial);
     }

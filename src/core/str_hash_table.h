@@ -190,6 +190,18 @@ typedef struct {
 
 MVMuint32 MVM_round_up_log_base2(MVMuint32 v);
 
+#if HASH_DEBUG_ITER
+MVM_STATIC_INLINE int MVM_str_hash_iterator_target_deleted(MVMThreadContext *tc,
+                                                           MVMStrHashTable *hashtable,
+                                                           MVMStrHashIterator iterator) {
+    /* Returns true if the hash entry that the iterator points to has been
+     * deleted (and this is the only action on the hash since the iterator was
+     * created) */
+    return iterator.serial == hashtable->serial - 1 &&
+        iterator.pos == hashtable->last_delete_at;
+}
+#endif
+
 /* So why is this here, instead of _funcs?
  * Because it is needed in MVM_iter_istrue_hash, which is inline in MVMIter.h
  * So this definition has to be before that definition.
@@ -207,8 +219,7 @@ MVM_STATIC_INLINE int MVM_str_hash_at_end(MVMThreadContext *tc,
                  iterator.owner, hashtable->ht_id);
     }
     if (!(iterator.serial == hashtable->serial
-          || (iterator.serial == hashtable->serial - 1 &&
-              iterator.pos == hashtable->last_delete_at))) {
+          || MVM_str_hash_iterator_target_deleted(tc, hashtable, iterator))) {
         MVM_oops(tc, "MVM_str_hash_at_end called with an iterator with the wrong serial number: %u != %u",
                  iterator.serial, hashtable->serial);
     }

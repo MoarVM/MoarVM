@@ -53,8 +53,7 @@ MVM_STATIC_INLINE MVMint64 MVM_iter_istrue_hash(MVMThreadContext *tc, MVMIter *i
     }
     /* OK, to implement "delete at current iterator position" we need
      * to cheat somewhat. */
-    if (body->hash_state.curr.serial == hashtable->serial - 1
-        && body->hash_state.curr.pos == hashtable->last_delete_at) {
+    if (MVM_str_hash_iterator_target_deleted(tc, hashtable, body->hash_state.curr)) {
         /* The only action taken on the hash was to delete at the
          * current iterator. In which case, the "next" iterator is
          * valid (but has already been advanced beyond pos, so we
