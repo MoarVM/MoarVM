@@ -206,7 +206,9 @@ MVM_STATIC_INLINE int MVM_str_hash_at_end(MVMThreadContext *tc,
         MVM_oops(tc, "MVM_str_hash_at_end called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
                  iterator.owner, hashtable->ht_id);
     }
-    if (iterator.serial != hashtable->serial) {
+    if (!(iterator.serial == hashtable->serial
+          || (iterator.serial == hashtable->serial - 1 &&
+              iterator.pos == hashtable->last_delete_at))) {
         MVM_oops(tc, "MVM_str_hash_at_end called with an iterator with the wrong serial number: %u != %u",
                  iterator.serial, hashtable->serial);
     }

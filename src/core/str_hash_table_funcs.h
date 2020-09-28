@@ -30,7 +30,7 @@ MVM_STATIC_INLINE void MVM_str_hash_build(MVMThreadContext *tc,
      * the need to have (likely to be) unique IDs, to spot iterator leakage. */
     hashtable->ht_id = 0;
     hashtable->serial = 0;
-    hashtable->last_delete_at = ~0;
+    hashtable->last_delete_at = 0;
 #endif
     if (entries) {
         MVM_str_hash_initial_allocate(tc, hashtable, entries);
@@ -265,11 +265,13 @@ MVM_STATIC_INLINE int MVM_str_hash_at_start(MVMThreadContext *tc,
                                             MVMStrHashIterator iterator) {
 #if HASH_DEBUG_ITER
     if (iterator.owner != hashtable->ht_id) {
-        MVM_oops(tc, "MVM_str_hash_at_end called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
+        MVM_oops(tc, "MVM_str_hash_at_start called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
                  iterator.owner, hashtable->ht_id);
     }
-    if (iterator.serial != hashtable->serial) {
-        MVM_oops(tc, "MVM_str_hash_at_end called with an iterator with the wrong serial number: %u != %u",
+    if (!(iterator.serial == hashtable->serial
+          || (iterator.serial == hashtable->serial - 1 &&
+              iterator.pos == hashtable->last_delete_at))) {
+        MVM_oops(tc, "MVM_str_hash_at_start called with an iterator with the wrong serial number: %u != %u",
                  iterator.serial, hashtable->serial);
     }
 #endif

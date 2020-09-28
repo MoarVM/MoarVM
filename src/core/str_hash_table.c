@@ -176,6 +176,11 @@ MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext
                 hashtable->max_items = 0;
             }
 
+#if HASH_DEBUG_ITER
+            ++hashtable->serial;
+            hashtable->last_delete_at = 0;
+#endif
+
             *metadata = probe_distance;
             struct MVMStrHashHandle *entry = (struct MVMStrHashHandle *) entry_raw;
             entry->key = NULL;
@@ -318,6 +323,14 @@ void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
                 /* and this slot is now emtpy. */
                 *metadata_target = 0;
                 --hashtable->cur_items;
+
+#if HASH_DEBUG_ITER
+            ++hashtable->serial;
+            /* We need to calculate the interator position corresponding to the
+             * hash bucket we actually used. `metadata - hashtable->metadata
+             * gives the bucket, and iterators store `$bucket + 1`, hence: */
+            hashtable->last_delete_at = 1 + metadata - hashtable->metadata;
+#endif
 
                 /* Job's a good 'un. */
                 return;
