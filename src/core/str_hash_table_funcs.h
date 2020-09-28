@@ -163,7 +163,7 @@ MVM_STATIC_INLINE void MVM_str_hash_delete(MVMThreadContext *tc,
  * Currently 0 is a check with no display, and it always returns the error
  * count. */
 enum {
-    MVM_HASH_FICK_DISPLAY_NONE      = 0x00,
+    MVM_HASH_FSCK_DISPLAY_NONE      = 0x00,
     MVM_HASH_FSCK_DISPLAY_ERRORS    = 0x01,
     MVM_HASH_FSCK_DISPLAY_ALL       = 0x02,
     MVM_HASH_FSCK_PREFIX_HASHES     = 0x04,

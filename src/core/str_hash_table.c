@@ -11,9 +11,9 @@
  * What we need is to round the value rounded up to the next power of 2, and
  * then the log base 2 of that. Don't call this with v == 0. */
 MVMuint32 MVM_round_up_log_base2(MVMuint32 v) {
-    static const unsigned int MultiplyDeBruijnBitPosition[32] = {
-        0, 9, 1, 10, 13, 21, 2, 29, 11, 14, 16, 18, 22, 25, 3, 30,
-        8, 12, 20, 28, 15, 17, 24, 7, 19, 27, 23, 6, 26, 5, 4, 31
+    static const uint8_t MultiplyDeBruijnBitPosition[32] = {
+        1, 10, 2, 11, 14, 22, 3, 30, 12, 15, 17, 19, 23, 26, 4, 31,
+        9, 13, 21, 29, 16, 18, 25, 8, 20, 28, 24, 7, 27, 6, 5, 32
     };
 
     /* this rounds (v - 1) down to one less than a power of 2 */
@@ -24,7 +24,7 @@ MVMuint32 MVM_round_up_log_base2(MVMuint32 v) {
     v |= v >> 8;
     v |= v >> 16;
 
-    return 1 + MultiplyDeBruijnBitPosition[(MVMuint32)(v * 0x07C4ACDDU) >> 27];
+    return MultiplyDeBruijnBitPosition[(uint32_t)(v * 0x07C4ACDDU) >> 27];
 }
 
 MVM_STATIC_INLINE MVMuint32 hash_true_size(MVMStrHashTable *hashtable) {
