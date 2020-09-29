@@ -57,6 +57,7 @@ MVM_STATIC_INLINE struct MVMUniHashTableControl *hash_allocate_common(MVMThreadC
 
     control->official_size = official_size;
     control->max_items = max_items;
+    control->cur_items = 0;
     control->probe_overflow_size = probe_overflow_size;
     control->key_right_shift = key_right_shift;
 
@@ -85,12 +86,9 @@ void MVM_uni_hash_build(MVMThreadContext *tc,
         }
     }
 
-    struct MVMUniHashTableControl *control
-        = hash_allocate_common(tc,
-                               (8 * sizeof(MVMuint32) - initial_size_base2),
-                               1 << initial_size_base2);
-    control->cur_items = 0;
-    hashtable->table = control;
+    hashtable->table = hash_allocate_common(tc,
+                                            (8 * sizeof(MVMuint32) - initial_size_base2),
+                                            1 << initial_size_base2);
 }
 
 static MVMuint64 uni_hash_fsck_internal(struct MVMUniHashTableControl *control, MVMuint32 mode);
@@ -164,9 +162,12 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *hash_insert_internal(MVMThreadContext 
                 control->max_items = 0;
             }
 
+            ++control->cur_items;
+
             *metadata = probe_distance;
             struct MVMUniHashEntry *entry = (struct MVMUniHashEntry *) entry_raw;
             entry->key = NULL;
+            entry->hash_val = hash_val;
             return entry;
         }
 
@@ -214,7 +215,6 @@ MVM_STATIC_INLINE void *MVM_uni_hash_lvalue_fetch(MVMThreadContext *tc,
                                        control_orig->key_right_shift - 1,
                                        control_orig->official_size * 2);
 
-        control->cur_items = control_orig->cur_items;
         hashtable->table = control;
 
         MVMuint8 *entry_raw = entry_raw_orig;
@@ -235,13 +235,7 @@ MVM_STATIC_INLINE void *MVM_uni_hash_lvalue_fetch(MVMThreadContext *tc,
         hash_demolish_internal(tc, control_orig);
     }
     MVMuint32 hash_val = MVM_uni_hash_code(key, strlen(key));
-    struct MVMUniHashEntry *new_entry
-        = hash_insert_internal(tc, control, key, hash_val);
-    if (!new_entry->key) {
-        new_entry->hash_val = hash_val;
-        ++control->cur_items;
-    }
-    return new_entry;
+    return hash_insert_internal(tc, control, key, hash_val);
 }
 
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
