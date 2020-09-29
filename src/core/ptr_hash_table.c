@@ -58,6 +58,7 @@ MVM_STATIC_INLINE struct MVMPtrHashTableControl *hash_allocate_common(MVMThreadC
 
     control->official_size = official_size;
     control->max_items = max_items;
+    control->cur_items = 0;
     control->probe_overflow_size = probe_overflow_size;
     control->key_right_shift = key_right_shift;
 
@@ -137,6 +138,8 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
                 control->max_items = 0;
             }
 
+            ++control->cur_items;
+
             *metadata = probe_distance;
             struct MVMPtrHashEntry *entry = (struct MVMPtrHashEntry *) entry_raw;
             entry->key = NULL;
@@ -166,7 +169,6 @@ struct MVMPtrHashEntry *MVM_ptr_hash_lvalue_fetch(MVMThreadContext *tc,
         control = hash_allocate_common(tc,
                                        PTR_INITIAL_KEY_RIGHT_SHIFT,
                                        PTR_INITIAL_SIZE);
-        control->cur_items = 0;
         hashtable->table = control;
     }
     else if (MVM_UNLIKELY(control->cur_items >= control->max_items)) {
@@ -189,7 +191,6 @@ struct MVMPtrHashEntry *MVM_ptr_hash_lvalue_fetch(MVMThreadContext *tc,
                                        control_orig->key_right_shift - 1,
                                        control_orig->official_size * 2);
 
-        control->cur_items = control_orig->cur_items;
         hashtable->table = control;
 
         MVMuint8 *entry_raw = entry_raw_orig;
@@ -209,12 +210,7 @@ struct MVMPtrHashEntry *MVM_ptr_hash_lvalue_fetch(MVMThreadContext *tc,
         }
         hash_demolish_internal(tc, control_orig);
     }
-    struct MVMPtrHashEntry *new_entry
-        = hash_insert_internal(tc, control, key);
-    if (!new_entry->key) {
-        ++control->cur_items;
-    }
-    return new_entry;
+    return hash_insert_internal(tc, control, key);
 }
 
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.

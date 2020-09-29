@@ -53,6 +53,7 @@ MVM_STATIC_INLINE struct MVMIndexHashTableControl *hash_allocate_common(MVMThrea
 
     control->official_size = official_size;
     control->max_items = max_items;
+    control->cur_items = 0;
     control->probe_overflow_size = probe_overflow_size;
     control->key_right_shift = key_right_shift;
 
@@ -81,13 +82,9 @@ void MVM_index_hash_build(MVMThreadContext *tc,
         }
     }
 
-    struct MVMIndexHashTableControl *control
-        = hash_allocate_common(tc,
-                               (8 * sizeof(MVMuint64) - initial_size_base2),
-                               1 << initial_size_base2);
-
-    control->cur_items = 0;
-    hashtable->table = control;
+    hashtable->table = hash_allocate_common(tc,
+                                            (8 * sizeof(MVMuint64) - initial_size_base2),
+                                            1 << initial_size_base2);
 }
 
 MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
@@ -159,6 +156,8 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
                 control->max_items = 0;
             }
 
+            ++control->cur_items;
+
             *metadata = probe_distance;
             struct MVMIndexHashEntry *entry = (struct MVMIndexHashEntry *) entry_raw;
             entry->index = idx;
@@ -202,7 +201,6 @@ void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
                                        control_orig->key_right_shift - 1,
                                        control_orig->official_size * 2);
 
-        control->cur_items = control_orig->cur_items;
         hashtable->table = control;
 
         MVMuint8 *entry_raw = entry_raw_orig;
@@ -219,6 +217,5 @@ void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
         }
         hash_demolish_internal(tc, control_orig);
     }
-    hash_insert_internal(tc, control, list, idx);
-    ++control->cur_items;
+    return hash_insert_internal(tc, control, list, idx);
 }

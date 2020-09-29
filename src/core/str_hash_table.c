@@ -77,6 +77,7 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
 
     control->official_size = official_size;
     control->max_items = max_items;
+    control->cur_items = 0;
     control->probe_overflow_size = probe_overflow_size;
     control->key_right_shift = key_right_shift;
     control->entry_size = entry_size;
@@ -123,8 +124,6 @@ void MVM_str_hash_build(MVMThreadContext *tc,
                                entry_size,
                                (8 * sizeof(MVMuint64) - initial_size_base2),
                                1 << initial_size_base2);
-
-    control->cur_items = 0;
 
 #if HASH_DEBUG_ITER
 #  if MVM_HASH_RANDOMIZE
@@ -213,6 +212,7 @@ MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext
                 control->max_items = 0;
             }
 
+            ++control->cur_items;
 #if HASH_DEBUG_ITER
             ++control->serial;
             control->last_delete_at = 0;
@@ -271,7 +271,6 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
                                        control_orig->key_right_shift - 1,
                                        control_orig->official_size * 2);
 
-        control->cur_items = control_orig->cur_items;
 #if HASH_DEBUG_ITER
         control->ht_id = control_orig->ht_id;
         control->serial = control_orig->serial;
@@ -296,12 +295,7 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
         }
         hash_demolish_internal(tc, control_orig);
     }
-    struct MVMStrHashHandle *new_entry
-        = hash_insert_internal(tc, control, key);
-    if (!new_entry->key) {
-        ++control->cur_items;
-    }
-    return new_entry;
+    return hash_insert_internal(tc, control, key);
 }
 
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.

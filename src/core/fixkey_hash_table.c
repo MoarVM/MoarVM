@@ -78,6 +78,7 @@ MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThre
 
     control->official_size = official_size;
     control->max_items = max_items;
+    control->cur_items = 0;
     control->probe_overflow_size = probe_overflow_size;
     control->key_right_shift = key_right_shift;
     control->entry_size = entry_size;
@@ -95,13 +96,10 @@ void MVM_fixkey_hash_build(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable, 
     if (MVM_UNLIKELY(entry_size == 0 || entry_size > 1024 || entry_size & 3)) {
         MVM_oops(tc, "Hash table entry_size %" PRIu32 " is invalid", entry_size);
     }
-    struct MVMFixKeyHashTableControl *control
-        = hash_allocate_common(tc,
-                               entry_size,
-                               FIXKEY_INITIAL_KEY_RIGHT_SHIFT,
-                               FIXKEY_INITIAL_SIZE);
-    control->cur_items = 0;
-    hashtable->table = control;
+    hashtable->table = hash_allocate_common(tc,
+                                            entry_size,
+                                            FIXKEY_INITIAL_KEY_RIGHT_SHIFT,
+                                            FIXKEY_INITIAL_SIZE);
 }
 
 MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
@@ -171,6 +169,8 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
                 control->max_items = 0;
             }
 
+            ++control->cur_items;
+
             *metadata = probe_distance;
             MVMString ***indirection = (MVMString ***) entry_raw;
             /* Set this to NULL to signal that this has just been allocated. */
@@ -232,7 +232,6 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
                                        control_orig->key_right_shift - 1,
                                        control_orig->official_size * 2);
 
-        control->cur_items = control_orig->cur_items;
         hashtable->table = control;
 
         MVMuint8 *entry_raw = entry_raw_orig;
@@ -264,7 +263,6 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
     }
     MVMString ***indirection = hash_insert_internal(tc, control, key);
     if (!*indirection) {
-        ++control->cur_items;
         MVMString **entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, control->entry_size);
         /* and we then set *this* to NULL to signal to our caller that this is a
          * new allocation. */
