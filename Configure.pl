@@ -45,6 +45,7 @@ GetOptions(\%args, qw(
     os=s shell=s toolchain=s compiler=s
     ar=s cc=s ld=s make=s has-sha has-libuv
     static has-libtommath has-libatomic_ops
+    has-gmp enable-gmp-fat
     has-dyncall has-libffi pkgconfig=s
     build=s host=s big-endian jit! enable-jit
     prefix=s bindir=s libdir=s mastdir=s
@@ -92,8 +93,8 @@ if ( $args{relocatable} && ($^O eq 'aix' || $^O eq 'openbsd') ) {
     ".\n    Leave off the --relocatable flag to do a non-relocatable build.");
 }
 
-for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
-        has-libatomic_ops asan ubsan tsan valgrind dtrace show-vec)) {
+for (qw(coverage instrument static big-endian has-libtommath has-gmp has-sha
+        has-libuv has-libatomic_ops asan ubsan tsan valgrind dtrace show-vec)) {
     $args{$_} = 0 unless defined $args{$_};
 }
 
@@ -175,7 +176,7 @@ if ($^O eq 'darwin') {
     unless ($gnu_toolchain) {
         # When XCode toolchain is used then force use of XCode's make if
         # available.
-        $config{make} = '/usr/bin/make' if -x '/usr/bin/make'; 
+        $config{make} = '/usr/bin/make' if -x '/usr/bin/make';
     }
 
     # Here are the tools that seem to cause trouble.
@@ -316,6 +317,29 @@ else {
     $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
     $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/libtommath\"\n"
                         . "\t\$(CP) 3rdparty/libtommath/*.h \"\$(DESTDIR)\$(PREFIX)/include/libtommath\"\n";
+}
+
+$config{gmpconf} = '';
+if ($args{'has-gmp'}) {
+    warn "Option --enable-gmp-fat is only useful without --has-gmp"
+        if exists $args{'enable-gmp-fat'};
+    $defaults{-thirdparty}->{gmp} = undef;
+    unshift @{$config{usrlibs}}, 'gmp';
+    if (not $config{crossconf}) {
+        if (index($config{cincludes}, '-I/usr/local/include') == -1) {
+            $config{cincludes} = join(' ', $config{cincludes}, '-I/usr/local/include');
+        }
+        if (index($config{lincludes}, '-L/usr/local/lib') == -1) {
+            $config{lincludes} = join(' ', $config{lincludes}, '-L/usr/local/lib');
+        }
+    }
+}
+else {
+    # Make libgmp.a available for linking
+    $config{gmpconf} = '--enable-fat' if $args{'enable-gmp-fat'};
+    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/gmp';
+    $config{lincludes} .= " -L./3rdparty/gmp";
+    unshift @{$config{usrlibs}}, 'gmp';
 }
 
 if ($args{'has-libffi'}) {
@@ -958,8 +982,8 @@ __END__
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize] [--instrument]
                    [--static] [--prefix <path>] [--relocatable]
-                   [--has-libtommath] [--has-sha] [--has-libuv]
-                   [--has-libatomic_ops]
+                   [--has-libtommath] [--has-gmp] [--has-sha]
+                   [--has-libuv] [--has-libatomic_ops]
                    [--asan] [--ubsan] [--tsan] [--no-jit]
                    [--telemeh] [--git-cache-dir <path>]
 
@@ -1141,6 +1165,8 @@ Build and install MoarVM in addition to configuring it.
 
 =item --has-libtommath
 
+=item --has-gmp
+
 =item --has-sha
 
 =item --has-libuv
@@ -1154,6 +1180,15 @@ Build and install MoarVM in addition to configuring it.
 =item --pkgconfig=/path/to/pkgconfig/executable
 
 Provide path to the pkgconfig executable. Default: /usr/bin/pkg-config
+
+=item --enable-gmp-fat
+
+Build a "fat GMP". This version will check the CPU type it is running on
+(at runtime) and pick among multiple optimized implementations the one
+that fits best. May be useful for packagers.
+
+This flag only has an effect when we do build GMP, that is if the
+C<--has-gmp> option was B<not> set.
 
 =item --no-jit
 
