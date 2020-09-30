@@ -90,6 +90,7 @@ struct MVMStringConsts {
     MVMString *path;
     MVMString *config;
     MVMString *replacement;
+    MVMString *dot;
 };
 
 struct MVMEventSubscriptions {

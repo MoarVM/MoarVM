@@ -235,25 +235,22 @@ MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename, MVMint
         return 1;
     else {
         /* true if fileext is in PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC */
-        MVMString *dot = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, ".");
-        MVMROOT(tc, dot, {
-            MVMint64 n = MVM_string_index_from_end(tc, filename, dot, 0);
-            if (n >= 0) {
-                MVMString *fileext = MVM_string_substring(tc, filename, n, -1);
-                char *ext  = MVM_string_utf8_c8_encode_C_string(tc, fileext);
-                char *pext = getenv("PATHEXT");
-                int plen   = strlen(pext);
-                int i;
-                for (i = 0; i < plen; i++) {
-                    if (0 == stricmp(ext, pext++)) {
-                         r = 1;
-                         break;
-                    }
+        MVMint64 n = MVM_string_index_from_end(tc, filename, tc->instance->str_consts.dot, 0);
+        if (n >= 0) {
+            MVMString *fileext = MVM_string_substring(tc, filename, n, -1);
+            char *ext  = MVM_string_utf8_c8_encode_C_string(tc, fileext);
+            char *pext = getenv("PATHEXT");
+            int plen   = strlen(pext);
+            int i;
+            for (i = 0; i < plen; i++) {
+                if (0 == stricmp(ext, pext++)) {
+                     r = 1;
+                     break;
                 }
-                MVM_free(ext);
-                MVM_free(pext);
             }
-        });
+            MVM_free(ext);
+            MVM_free(pext);
+        }
     }
     return r;
 }
