@@ -1,6 +1,5 @@
 #include "moar.h"
 
-#define INDEX_LOAD_FACTOR 0.75
 #define INDEX_MIN_SIZE_BASE_2 3
 
 MVM_STATIC_INLINE void hash_demolish_internal(MVMThreadContext *tc,
@@ -27,7 +26,7 @@ MVM_STATIC_INLINE struct MVMIndexHashTableControl *hash_allocate_common(MVMThrea
                                                                         MVMuint8 key_right_shift,
                                                                         MVMuint8 official_size_log2) {
     MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
-    MVMuint32 max_items = official_size * INDEX_LOAD_FACTOR;
+    MVMuint32 max_items = official_size * MVM_INDEX_HASH_LOAD_FACTOR;
     MVMuint32 overflow_size = max_items - 1;
     /* -1 because...
      * probe distance of 1 is the correct bucket.
@@ -75,7 +74,7 @@ void MVM_index_hash_build(MVMThreadContext *tc,
         initial_size_base2 = INDEX_MIN_SIZE_BASE_2;
     } else {
         /* Minimum size we need to allocate, given the load factor. */
-        MVMuint32 min_needed = entries * (1.0 / INDEX_LOAD_FACTOR);
+        MVMuint32 min_needed = entries * (1.0 / MVM_INDEX_HASH_LOAD_FACTOR);
         initial_size_base2 = MVM_round_up_log_base2(min_needed);
         if (initial_size_base2 < INDEX_MIN_SIZE_BASE_2) {
             /* "Too small" - use our original defaults. */

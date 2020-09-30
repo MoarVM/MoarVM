@@ -1,6 +1,5 @@
 #include "moar.h"
 
-#define PTR_LOAD_FACTOR 0.75
 #define PTR_INITIAL_SIZE_LOG2 3
 #define PTR_INITIAL_KEY_RIGHT_SHIFT (8 * sizeof(uintptr_t) - 3)
 
@@ -32,7 +31,7 @@ MVM_STATIC_INLINE struct MVMPtrHashTableControl *hash_allocate_common(MVMThreadC
                                                                       MVMuint8 key_right_shift,
                                                                       MVMuint8 official_size_log2) {
     MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
-    MVMuint32 max_items = official_size * PTR_LOAD_FACTOR;
+    MVMuint32 max_items = official_size * MVM_PTR_HASH_LOAD_FACTOR;
     MVMuint32 overflow_size = max_items - 1;
     /* -1 because...
      * probe distance of 1 is the correct bucket.
@@ -155,7 +154,7 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
         assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + control->max_items);
+        assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + MVM_ptr_hash_max_items(control));
         assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + 256);
     }
 }
@@ -303,7 +302,7 @@ uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
         assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + control->max_items);
+        assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + MVM_ptr_hash_max_items(control));
         assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + 256);
     }
 }

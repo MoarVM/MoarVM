@@ -1,6 +1,5 @@
 #include "moar.h"
 
-#define STR_LOAD_FACTOR 0.75
 #define STR_MIN_SIZE_BASE_2 3
 
 /* Adapted from the log_base2 function.
@@ -51,7 +50,7 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
                                                                       MVMuint8 key_right_shift,
                                                                       MVMuint8 official_size_log2) {
     MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
-    MVMuint32 max_items = official_size * STR_LOAD_FACTOR;
+    MVMuint32 max_items = official_size * MVM_STR_HASH_LOAD_FACTOR;
     MVMuint32 overflow_size = max_items - 1;
     /* -1 because...
      * probe distance of 1 is the correct bucket.
@@ -112,7 +111,7 @@ void MVM_str_hash_build(MVMThreadContext *tc,
         initial_size_base2 = STR_MIN_SIZE_BASE_2;
     } else {
         /* Minimum size we need to allocate, given the load factor. */
-        MVMuint32 min_needed = entries * (1.0 / STR_LOAD_FACTOR);
+        MVMuint32 min_needed = entries * (1.0 / MVM_STR_HASH_LOAD_FACTOR);
         initial_size_base2 = MVM_round_up_log_base2(min_needed);
         if (initial_size_base2 < STR_MIN_SIZE_BASE_2) {
             /* "Too small" - use our original defaults. */
@@ -237,7 +236,7 @@ MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
         assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(ls.metadata < MVM_str_hash_metadata(control) + MVM_str_hash_official_size(control) + control->max_items);
+        assert(ls.metadata < MVM_str_hash_metadata(control) + MVM_str_hash_official_size(control) + MVM_str_hash_max_items(control));
         assert(ls.metadata < MVM_str_hash_metadata(control) + MVM_str_hash_official_size(control) + 256);
     }
 }
@@ -399,7 +398,7 @@ void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
         assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(ls.metadata < MVM_str_hash_metadata(control) + MVM_str_hash_official_size(control) + control->max_items);
+        assert(ls.metadata < MVM_str_hash_metadata(control) + MVM_str_hash_official_size(control) + MVM_str_hash_max_items(control));
         assert(ls.metadata < MVM_str_hash_metadata(control) + MVM_str_hash_official_size(control) + 256);
     }
 }

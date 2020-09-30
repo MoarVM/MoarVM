@@ -1,7 +1,11 @@
 /* These are private. We need them out here for the inline functions. Use those.
  */
+#define MVM_UNI_HASH_LOAD_FACTOR 0.75
 MVM_STATIC_INLINE MVMuint32 MVM_uni_hash_official_size(const struct MVMUniHashTableControl *control) {
     return 1 << (MVMuint32)control->official_size_log2;
+}
+MVM_STATIC_INLINE MVMuint32 MVM_uni_hash_max_items(const struct MVMUniHashTableControl *control) {
+    return MVM_uni_hash_official_size(control) * MVM_UNI_HASH_LOAD_FACTOR;
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_uni_hash_metadata(const struct MVMUniHashTableControl *control) {
     return (MVMuint8 *) control + sizeof(struct MVMUniHashTableControl);
@@ -92,7 +96,7 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *MVM_uni_hash_fetch(MVMThreadContext *t
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
         assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(ls.metadata < MVM_uni_hash_metadata(control) + MVM_uni_hash_official_size(control) + control->max_items);
+        assert(ls.metadata < MVM_uni_hash_metadata(control) + MVM_uni_hash_official_size(control) + MVM_uni_hash_max_items(control));
         assert(ls.metadata < MVM_uni_hash_metadata(control) + MVM_uni_hash_official_size(control) + 256);
     }
 }

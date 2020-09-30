@@ -1,6 +1,5 @@
 #include "moar.h"
 
-#define UNI_LOAD_FACTOR 0.75
 #define UNI_MIN_SIZE_BASE_2 3
 
 MVM_STATIC_INLINE MVMuint32 hash_true_size(const struct MVMUniHashTableControl *control) {
@@ -31,7 +30,7 @@ MVM_STATIC_INLINE struct MVMUniHashTableControl *hash_allocate_common(MVMThreadC
                                                                       MVMuint8 key_right_shift,
                                                                       MVMuint8 official_size_log2) {
     MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
-    MVMuint32 max_items = official_size * UNI_LOAD_FACTOR;
+    MVMuint32 max_items = official_size * MVM_UNI_HASH_LOAD_FACTOR;
     MVMuint32 overflow_size = max_items - 1;
     /* -1 because...
      * probe distance of 1 is the correct bucket.
@@ -79,7 +78,7 @@ void MVM_uni_hash_build(MVMThreadContext *tc,
         initial_size_base2 = UNI_MIN_SIZE_BASE_2;
     } else {
         /* Minimum size we need to allocate, given the load factor. */
-        MVMuint32 min_needed = entries * (1.0 / UNI_LOAD_FACTOR);
+        MVMuint32 min_needed = entries * (1.0 / MVM_UNI_HASH_LOAD_FACTOR);
         initial_size_base2 = MVM_round_up_log_base2(min_needed);
         if (initial_size_base2 < UNI_MIN_SIZE_BASE_2) {
             /* "Too small" - use our original defaults. */
@@ -181,7 +180,7 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *hash_insert_internal(MVMThreadContext 
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
         assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(ls.metadata < MVM_uni_hash_metadata(control) + MVM_uni_hash_official_size(control) + control->max_items);
+        assert(ls.metadata < MVM_uni_hash_metadata(control) + MVM_uni_hash_official_size(control) + MVM_uni_hash_max_items(control));
         assert(ls.metadata < MVM_uni_hash_metadata(control) + MVM_uni_hash_official_size(control) + 256);
     }
 }
