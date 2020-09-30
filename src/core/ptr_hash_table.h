@@ -48,7 +48,7 @@ struct MVMPtrHashTableControl {
     MVMHashNumItems max_items; /* hit this and we grow */
     MVMuint8 official_size_log2;
     MVMuint8 key_right_shift;
-    MVMuint8 probe_overflow_size;
+    MVMuint8 max_probe_distance;
 };
 
 struct MVMPtrHashTable {

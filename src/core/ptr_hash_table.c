@@ -4,7 +4,7 @@
 #define PTR_INITIAL_KEY_RIGHT_SHIFT (8 * sizeof(uintptr_t) - 3)
 
 MVM_STATIC_INLINE MVMuint32 hash_true_size(const struct MVMPtrHashTableControl *control) {
-    return MVM_ptr_hash_official_size(control) + control->probe_overflow_size;
+    return MVM_ptr_hash_official_size(control) + control->max_probe_distance;
 }
 
 MVM_STATIC_INLINE void hash_demolish_internal(MVMThreadContext *tc,
@@ -59,7 +59,7 @@ MVM_STATIC_INLINE struct MVMPtrHashTableControl *hash_allocate_common(MVMThreadC
     control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
     control->cur_items = 0;
-    control->probe_overflow_size = probe_overflow_size;
+    control->max_probe_distance = probe_overflow_size;
     control->key_right_shift = key_right_shift;
 
     MVMuint8 *metadata = (MVMuint8 *)(control + 1);
@@ -101,7 +101,7 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
                 MVMuint8 old_probe_distance = *ls.metadata;
                 do {
                     MVMuint8 new_probe_distance = 1 + old_probe_distance;
-                    if (new_probe_distance == MVM_HASH_MAX_PROBE_DISTANCE) {
+                    if (new_probe_distance == control->max_probe_distance) {
                         /* Optimisation from Martin Ankerl's implementation:
                            setting this to zero forces a resize on any insert,
                            *before* the actual insert, so that we never end up
@@ -132,7 +132,7 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
              * about to insert something at the (current) max_probe_distance, so
              * signal to the next insertion that it needs to take action first.
              */
-            if (ls.probe_distance == MVM_HASH_MAX_PROBE_DISTANCE) {
+            if (ls.probe_distance == control->max_probe_distance) {
                 control->max_items = 0;
             }
 
@@ -153,7 +153,7 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
         ++ls.probe_distance;
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
-        assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
+        assert(ls.probe_distance <= (unsigned int) control->max_probe_distance + 1);
         assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + MVM_ptr_hash_max_items(control));
         assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + 256);
     }
@@ -301,7 +301,7 @@ uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
         ++ls.probe_distance;
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
-        assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
+        assert(ls.probe_distance <= (unsigned int) control->max_probe_distance + 1);
         assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + MVM_ptr_hash_max_items(control));
         assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + 256);
     }

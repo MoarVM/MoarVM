@@ -8,7 +8,7 @@ MVM_STATIC_INLINE MVMuint32 MVM_str_hash_max_items(const struct MVMStrHashTableC
     return MVM_str_hash_official_size(control) * MVM_STR_HASH_LOAD_FACTOR;
 }
 MVM_STATIC_INLINE MVMuint32 MVM_str_hash_kompromat(const struct MVMStrHashTableControl *control) {
-    return MVM_str_hash_official_size(control) + control->probe_overflow_size;
+    return MVM_str_hash_official_size(control) + control->max_probe_distance;
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_str_hash_metadata(const struct MVMStrHashTableControl *control) {
     return (MVMuint8 *) control + sizeof(struct MVMStrHashTableControl);
@@ -131,7 +131,7 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
         ++ls.probe_distance;
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
-        assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
+        assert(ls.probe_distance <= (unsigned int) control->max_probe_distance + 1);
         assert(ls.metadata < MVM_str_hash_metadata(control) + MVM_str_hash_official_size(control) + MVM_str_hash_max_items(control));
         assert(ls.metadata < MVM_str_hash_metadata(control) + MVM_str_hash_official_size(control) + 256);
     }
