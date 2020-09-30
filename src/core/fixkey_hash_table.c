@@ -1,15 +1,11 @@
 #include "moar.h"
 
 #define FIXKEY_LOAD_FACTOR 0.75
-#define FIXKEY_INITIAL_SIZE 8
+#define FIXKEY_INITIAL_SIZE_LOG2 3
 #define FIXKEY_INITIAL_KEY_RIGHT_SHIFT (8 * sizeof(MVMuint64) - 3)
 
 MVM_STATIC_INLINE MVMuint32 hash_true_size(const struct MVMFixKeyHashTableControl *control) {
-    MVMuint32 true_size = control->official_size + control->max_items - 1;
-    if (control->official_size + MVM_HASH_MAX_PROBE_DISTANCE < true_size) {
-        true_size = control->official_size + MVM_HASH_MAX_PROBE_DISTANCE;
-    }
-    return true_size;
+    return MVM_fixkey_hash_official_size(control) + control->probe_overflow_size;
 }
 
 void hash_demolish_internal(MVMThreadContext *tc,
@@ -50,7 +46,8 @@ void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtabl
 MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThreadContext *tc,
                                                                          MVMuint16 entry_size,
                                                                          MVMuint8 key_right_shift,
-                                                                         MVMuint32 official_size) {
+                                                                         MVMuint8 official_size_log2) {
+    MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
     MVMuint32 max_items = official_size * FIXKEY_LOAD_FACTOR;
     MVMuint32 overflow_size = max_items - 1;
     /* -1 because...
@@ -76,7 +73,7 @@ MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThre
     struct MVMFixKeyHashTableControl *control =
         (struct MVMFixKeyHashTableControl *) ((char *)MVM_malloc(total_size) + entries_size);
 
-    control->official_size = official_size;
+    control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
     control->cur_items = 0;
     control->probe_overflow_size = probe_overflow_size;
@@ -99,7 +96,7 @@ void MVM_fixkey_hash_build(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable, 
     hashtable->table = hash_allocate_common(tc,
                                             entry_size,
                                             FIXKEY_INITIAL_KEY_RIGHT_SHIFT,
-                                            FIXKEY_INITIAL_SIZE);
+                                            FIXKEY_INITIAL_SIZE_LOG2);
 }
 
 MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
@@ -191,8 +188,8 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
         assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(ls.metadata < MVM_fixkey_hash_metadata(control) + control->official_size + control->max_items);
-        assert(ls.metadata < MVM_fixkey_hash_metadata(control) + control->official_size + 256);
+        assert(ls.metadata < MVM_fixkey_hash_metadata(control) + MVM_fixkey_hash_official_size(control) + control->max_items);
+        assert(ls.metadata < MVM_fixkey_hash_metadata(control) + MVM_fixkey_hash_official_size(control) + 256);
     }
 }
 
@@ -228,7 +225,7 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
         control = hash_allocate_common(tc,
                                        control_orig->entry_size,
                                        control_orig->key_right_shift - 1,
-                                       control_orig->official_size * 2);
+                                       control_orig->official_size_log2 + 1);
 
         hashtable->table = control;
 

@@ -46,8 +46,8 @@ Not all the optimisations described above are in place yet. Starting with
 struct MVMFixKeyHashTableControl {
     MVMHashNumItems cur_items;
     MVMHashNumItems max_items; /* hit this and we grow */
-    MVMHashNumItems official_size;
     MVMuint16 entry_size;
+    MVMuint8 official_size_log2;
     MVMuint8 key_right_shift;
     MVMuint8 probe_overflow_size;
 };

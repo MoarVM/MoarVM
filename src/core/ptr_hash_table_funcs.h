@@ -1,5 +1,8 @@
 /* These are private. We need them out here for the inline functions. Use those.
  */
+MVM_STATIC_INLINE MVMuint32 MVM_ptr_hash_official_size(const struct MVMPtrHashTableControl *control) {
+    return 1 << (MVMuint32)control->official_size_log2;
+}
 MVM_STATIC_INLINE MVMuint8 *MVM_ptr_hash_metadata(const struct MVMPtrHashTableControl *control) {
     return (MVMuint8 *) control + sizeof(struct MVMPtrHashTableControl);
 }
@@ -102,8 +105,8 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *MVM_ptr_hash_fetch(MVMThreadContext *t
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
         assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(ls.metadata < MVM_ptr_hash_metadata(control) + control->official_size + control->max_items);
-        assert(ls.metadata < MVM_ptr_hash_metadata(control) + control->official_size + 256);
+        assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + control->max_items);
+        assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + 256);
     }
 }
 

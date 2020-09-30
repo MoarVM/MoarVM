@@ -1,11 +1,11 @@
 #include "moar.h"
 
 #define PTR_LOAD_FACTOR 0.75
-#define PTR_INITIAL_SIZE 8
+#define PTR_INITIAL_SIZE_LOG2 3
 #define PTR_INITIAL_KEY_RIGHT_SHIFT (8 * sizeof(uintptr_t) - 3)
 
 MVM_STATIC_INLINE MVMuint32 hash_true_size(const struct MVMPtrHashTableControl *control) {
-    return control->official_size + control->probe_overflow_size;
+    return MVM_ptr_hash_official_size(control) + control->probe_overflow_size;
 }
 
 MVM_STATIC_INLINE void hash_demolish_internal(MVMThreadContext *tc,
@@ -30,7 +30,8 @@ void MVM_ptr_hash_demolish(MVMThreadContext *tc, MVMPtrHashTable *hashtable) {
 
 MVM_STATIC_INLINE struct MVMPtrHashTableControl *hash_allocate_common(MVMThreadContext *tc,
                                                                       MVMuint8 key_right_shift,
-                                                                      MVMuint32 official_size) {
+                                                                      MVMuint8 official_size_log2) {
+    MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
     MVMuint32 max_items = official_size * PTR_LOAD_FACTOR;
     MVMuint32 overflow_size = max_items - 1;
     /* -1 because...
@@ -56,7 +57,7 @@ MVM_STATIC_INLINE struct MVMPtrHashTableControl *hash_allocate_common(MVMThreadC
     struct MVMPtrHashTableControl *control =
         (struct MVMPtrHashTableControl *) ((char *)MVM_malloc(total_size) + entries_size);
 
-    control->official_size = official_size;
+    control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
     control->cur_items = 0;
     control->probe_overflow_size = probe_overflow_size;
@@ -154,8 +155,8 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
         assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(ls.metadata < MVM_ptr_hash_metadata(control) + control->official_size + control->max_items);
-        assert(ls.metadata < MVM_ptr_hash_metadata(control) + control->official_size + 256);
+        assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + control->max_items);
+        assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + 256);
     }
 }
 
@@ -166,7 +167,7 @@ struct MVMPtrHashEntry *MVM_ptr_hash_lvalue_fetch(MVMThreadContext *tc,
     if (MVM_UNLIKELY(!control)) {
         control = hash_allocate_common(tc,
                                        PTR_INITIAL_KEY_RIGHT_SHIFT,
-                                       PTR_INITIAL_SIZE);
+                                       PTR_INITIAL_SIZE_LOG2);
         hashtable->table = control;
     }
     else if (MVM_UNLIKELY(control->cur_items >= control->max_items)) {
@@ -187,7 +188,7 @@ struct MVMPtrHashEntry *MVM_ptr_hash_lvalue_fetch(MVMThreadContext *tc,
 
         control = hash_allocate_common(tc,
                                        control_orig->key_right_shift - 1,
-                                       control_orig->official_size * 2);
+                                       control_orig->official_size_log2 + 1);
 
         hashtable->table = control;
 
@@ -302,7 +303,7 @@ uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
         assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(ls.metadata < MVM_ptr_hash_metadata(control) + control->official_size + control->max_items);
-        assert(ls.metadata < MVM_ptr_hash_metadata(control) + control->official_size + 256);
+        assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + control->max_items);
+        assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + 256);
     }
 }

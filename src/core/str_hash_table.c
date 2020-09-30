@@ -49,7 +49,8 @@ void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable) {
 MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadContext *tc,
                                                                       MVMuint8 entry_size,
                                                                       MVMuint8 key_right_shift,
-                                                                      MVMuint32 official_size) {
+                                                                      MVMuint8 official_size_log2) {
+    MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
     MVMuint32 max_items = official_size * STR_LOAD_FACTOR;
     MVMuint32 overflow_size = max_items - 1;
     /* -1 because...
@@ -75,7 +76,7 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
     struct MVMStrHashTableControl *control =
         (struct MVMStrHashTableControl *) ((char *)MVM_malloc(total_size) + entries_size);
 
-    control->official_size = official_size;
+    control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
     control->cur_items = 0;
     control->probe_overflow_size = probe_overflow_size;
@@ -123,7 +124,7 @@ void MVM_str_hash_build(MVMThreadContext *tc,
         = hash_allocate_common(tc,
                                entry_size,
                                (8 * sizeof(MVMuint64) - initial_size_base2),
-                               1 << initial_size_base2);
+                               initial_size_base2);
 
 #if HASH_DEBUG_ITER
 #  if MVM_HASH_RANDOMIZE
@@ -236,8 +237,8 @@ MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
         assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(ls.metadata < MVM_str_hash_metadata(control) + control->official_size + control->max_items);
-        assert(ls.metadata < MVM_str_hash_metadata(control) + control->official_size + 256);
+        assert(ls.metadata < MVM_str_hash_metadata(control) + MVM_str_hash_official_size(control) + control->max_items);
+        assert(ls.metadata < MVM_str_hash_metadata(control) + MVM_str_hash_official_size(control) + 256);
     }
 }
 
@@ -267,7 +268,7 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
         control = hash_allocate_common(tc,
                                        control_orig->entry_size,
                                        control_orig->key_right_shift - 1,
-                                       control_orig->official_size * 2);
+                                       control_orig->official_size_log2 + 1);
 
 #if HASH_DEBUG_ITER
         control->ht_id = control_orig->ht_id;
@@ -398,8 +399,8 @@ void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
         assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(ls.metadata < MVM_str_hash_metadata(control) + control->official_size + control->max_items);
-        assert(ls.metadata < MVM_str_hash_metadata(control) + control->official_size + 256);
+        assert(ls.metadata < MVM_str_hash_metadata(control) + MVM_str_hash_official_size(control) + control->max_items);
+        assert(ls.metadata < MVM_str_hash_metadata(control) + MVM_str_hash_official_size(control) + 256);
     }
 }
 

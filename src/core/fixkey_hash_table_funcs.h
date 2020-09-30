@@ -1,5 +1,8 @@
 /* These are private. We need them out here for the inline functions. Use those.
  */
+MVM_STATIC_INLINE MVMuint32 MVM_fixkey_hash_official_size(const struct MVMFixKeyHashTableControl *control) {
+    return 1 << (MVMuint32)control->official_size_log2;
+}
 MVM_STATIC_INLINE MVMuint8 *MVM_fixkey_hash_metadata(const struct MVMFixKeyHashTableControl *control) {
     return (MVMuint8 *) control + sizeof(struct MVMFixKeyHashTableControl);
 }
@@ -82,8 +85,8 @@ MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nocheck(MVMThreadContext *tc,
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
         assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(ls.metadata < MVM_fixkey_hash_metadata(control) + control->official_size + control->max_items);
-        assert(ls.metadata < MVM_fixkey_hash_metadata(control) + control->official_size + 256);
+        assert(ls.metadata < MVM_fixkey_hash_metadata(control) + MVM_fixkey_hash_official_size(control) + control->max_items);
+        assert(ls.metadata < MVM_fixkey_hash_metadata(control) + MVM_fixkey_hash_official_size(control) + 256);
     }
 }
 

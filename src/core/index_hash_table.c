@@ -25,7 +25,8 @@ void MVM_index_hash_demolish(MVMThreadContext *tc, MVMIndexHashTable *hashtable)
 
 MVM_STATIC_INLINE struct MVMIndexHashTableControl *hash_allocate_common(MVMThreadContext *tc,
                                                                         MVMuint8 key_right_shift,
-                                                                        MVMuint32 official_size) {
+                                                                        MVMuint8 official_size_log2) {
+    MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
     MVMuint32 max_items = official_size * INDEX_LOAD_FACTOR;
     MVMuint32 overflow_size = max_items - 1;
     /* -1 because...
@@ -51,7 +52,7 @@ MVM_STATIC_INLINE struct MVMIndexHashTableControl *hash_allocate_common(MVMThrea
     struct MVMIndexHashTableControl *control =
         (struct MVMIndexHashTableControl *) ((char *)MVM_malloc(total_size) + entries_size);
 
-    control->official_size = official_size;
+    control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
     control->cur_items = 0;
     control->probe_overflow_size = probe_overflow_size;
@@ -84,7 +85,7 @@ void MVM_index_hash_build(MVMThreadContext *tc,
 
     hashtable->table = hash_allocate_common(tc,
                                             (8 * sizeof(MVMuint64) - initial_size_base2),
-                                            1 << initial_size_base2);
+                                            initial_size_base2);
 }
 
 MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
@@ -173,8 +174,8 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
         assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(ls.metadata < MVM_index_hash_metadata(control) + control->official_size + control->max_items);
-        assert(ls.metadata < MVM_index_hash_metadata(control) + control->official_size + 256);
+        assert(ls.metadata < MVM_index_hash_metadata(control) + MVM_index_hash_official_size(control) + control->max_items);
+        assert(ls.metadata < MVM_index_hash_metadata(control) + MVM_index_hash_official_size(control) + 256);
     }
 }
 
@@ -196,7 +197,7 @@ void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
 
         control = hash_allocate_common(tc,
                                        control_orig->key_right_shift - 1,
-                                       control_orig->official_size * 2);
+                                       control_orig->official_size_log2 + 1);
 
         hashtable->table = control;
 
