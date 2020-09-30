@@ -52,6 +52,18 @@ MVM_STATIC_INLINE MVMuint32 MVM_ptr_hash_code(const void *ptr) {
 }
 #endif
 
+MVM_STATIC_INLINE struct MVM_hash_loop_state
+MVM_ptr_hash_create_loop_state(struct MVMPtrHashTableControl *control,
+                               const void *key) {
+    struct MVM_hash_loop_state retval;
+    MVMHashNumItems bucket = MVM_ptr_hash_code(key) >> control->key_right_shift;
+    retval.probe_distance = 1;
+    retval.entry_size = sizeof(struct MVMPtrHashEntry);
+    retval.entry_raw = MVM_ptr_hash_entries(control) - bucket * retval.entry_size;
+    retval.metadata = MVM_ptr_hash_metadata(control) + bucket;
+    return retval;
+}
+
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
  * Doesn't check if the key already exists. Use with care. */
 void MVM_ptr_hash_insert(MVMThreadContext *tc,
@@ -65,20 +77,19 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *MVM_ptr_hash_fetch(MVMThreadContext *t
     if (MVM_ptr_hash_is_empty(tc, hashtable)) {
         return NULL;
     }
+
     struct MVMPtrHashTableControl *control = hashtable->table;
-    unsigned int probe_distance = 1;
-    MVMHashNumItems bucket = MVM_ptr_hash_code(key) >> control->key_right_shift;
-    MVMuint8 *entry_raw = MVM_ptr_hash_entries(control) - bucket * sizeof(struct MVMPtrHashEntry);
-    MVMuint8 *metadata = MVM_ptr_hash_metadata(control) + bucket;
+    struct MVM_hash_loop_state ls = MVM_ptr_hash_create_loop_state(control, key);
+
     while (1) {
-        if (*metadata == probe_distance) {
-            struct MVMPtrHashEntry *entry = (struct MVMPtrHashEntry *) entry_raw;
+        if (*ls.metadata == ls.probe_distance) {
+            struct MVMPtrHashEntry *entry = (struct MVMPtrHashEntry *) ls.entry_raw;
             if (entry->key == key) {
                 return entry;
             }
         }
         /* There's a sentinel at the end. This will terminate: */
-        if (*metadata < probe_distance) {
+        if (*ls.metadata < ls.probe_distance) {
             /* So, if we hit 0, the bucket is empty. "Not found".
                If we hit something with a lower probe distance then...
                consider what would have happened had this key been inserted into
@@ -87,12 +98,12 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *MVM_ptr_hash_fetch(MVMThreadContext *t
                we seek can't be in the hash table. */
             return NULL;
         }
-        ++probe_distance;
-        ++metadata;
-        entry_raw -= sizeof(struct MVMPtrHashEntry);
-        assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < MVM_ptr_hash_metadata(control) + control->official_size + control->max_items);
-        assert(metadata < MVM_ptr_hash_metadata(control) + control->official_size + 256);
+        ++ls.probe_distance;
+        ++ls.metadata;
+        ls.entry_raw -= ls.entry_size;
+        assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
+        assert(ls.metadata < MVM_ptr_hash_metadata(control) + control->official_size + control->max_items);
+        assert(ls.metadata < MVM_ptr_hash_metadata(control) + control->official_size + 256);
     }
 }
 

@@ -55,6 +55,20 @@ void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
                                    MVMString **list,
                                    MVMuint32 idx);
 
+MVM_STATIC_INLINE struct MVM_hash_loop_state
+MVM_index_hash_create_loop_state(MVMThreadContext *tc,
+                                 struct MVMIndexHashTableControl *control,
+                                 MVMString *key) {
+    MVMuint64 hash_val = MVM_string_hash_code(tc, key);
+    MVMHashNumItems bucket = hash_val >> control->key_right_shift;
+    struct MVM_hash_loop_state retval;
+    retval.probe_distance = 1;
+    retval.entry_size = sizeof(struct MVMIndexHashEntry);
+    retval.entry_raw = MVM_index_hash_entries(control) - bucket * retval.entry_size;
+    retval.metadata = MVM_index_hash_metadata(control) + bucket;
+    return retval;
+}
+
 MVM_STATIC_INLINE MVMuint32 MVM_index_hash_fetch_nocheck(MVMThreadContext *tc,
                                                          MVMIndexHashTable *hashtable,
                                                          MVMString **list,
@@ -62,15 +76,13 @@ MVM_STATIC_INLINE MVMuint32 MVM_index_hash_fetch_nocheck(MVMThreadContext *tc,
     if (MVM_index_hash_is_empty(tc, hashtable)) {
         return MVM_INDEX_HASH_NOT_FOUND;
     }
+
     struct MVMIndexHashTableControl *control = hashtable->table;
-    unsigned int probe_distance = 1;
-    MVMuint64 hash_val = MVM_string_hash_code(tc, want);
-    MVMHashNumItems bucket = hash_val >> control->key_right_shift;
-    MVMuint8 *entry_raw = MVM_index_hash_entries(control) - bucket * sizeof(struct MVMIndexHashEntry);
-    MVMuint8 *metadata = MVM_index_hash_metadata(control) + bucket;
+    struct MVM_hash_loop_state ls = MVM_index_hash_create_loop_state(tc, control, want);
+
     while (1) {
-        if (*metadata == probe_distance) {
-            struct MVMIndexHashEntry *entry = (struct MVMIndexHashEntry *) entry_raw;
+        if (*ls.metadata == ls.probe_distance) {
+            struct MVMIndexHashEntry *entry = (struct MVMIndexHashEntry *) ls.entry_raw;
             MVMString *key = list[entry->index];
             if (key == want
                 || (MVM_string_graphs_nocheck(tc, want) == MVM_string_graphs_nocheck(tc, key)
@@ -81,7 +93,7 @@ MVM_STATIC_INLINE MVMuint32 MVM_index_hash_fetch_nocheck(MVMThreadContext *tc,
             }
         }
         /* There's a sentinel at the end. This will terminate: */
-        if (*metadata < probe_distance) {
+        if (*ls.metadata < ls.probe_distance) {
             /* So, if we hit 0, the bucket is empty. "Not found".
                If we hit something with a lower probe distance then...
                consider what would have happened had this key been inserted into
@@ -90,12 +102,12 @@ MVM_STATIC_INLINE MVMuint32 MVM_index_hash_fetch_nocheck(MVMThreadContext *tc,
                we seek can't be in the hash table. */
             return MVM_INDEX_HASH_NOT_FOUND;
         }
-        ++probe_distance;
-        ++metadata;
-        entry_raw -= sizeof(struct MVMIndexHashEntry);
-        assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < MVM_index_hash_metadata(control) + control->official_size + control->max_items);
-        assert(metadata < MVM_index_hash_metadata(control) + control->official_size + 256);
+        ++ls.probe_distance;
+        ++ls.metadata;
+        ls.entry_raw -= ls.entry_size;
+        assert(ls.probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
+        assert(ls.metadata < MVM_index_hash_metadata(control) + control->official_size + control->max_items);
+        assert(ls.metadata < MVM_index_hash_metadata(control) + control->official_size + 256);
     }
 }
 
