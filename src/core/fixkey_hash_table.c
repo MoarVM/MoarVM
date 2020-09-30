@@ -195,6 +195,49 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
 /* Oh, fsck, I needed to implement this: */
 MVMuint64 MVM_fixkey_hash_fsck(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable, MVMuint32 mode);
 
+static struct MVMFixKeyHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
+                                                         struct MVMFixKeyHashTableControl *control,
+                                                         MVMString *key) {
+    MVMuint32 entries_in_use = calc_entries_in_use(control);
+    MVMuint8 *entry_raw_orig = MVM_fixkey_hash_entries(control);
+    MVMuint8 *metadata_orig = MVM_fixkey_hash_metadata(control);
+
+    struct MVMFixKeyHashTableControl *control_orig = control;
+
+    control = hash_allocate_common(tc,
+                                   control_orig->entry_size,
+                                   control_orig->key_right_shift - 1,
+                                   control_orig->official_size_log2 + 1);
+
+    MVMuint8 *entry_raw = entry_raw_orig;
+    MVMuint8 *metadata = metadata_orig;
+    MVMHashNumItems bucket = 0;
+    while (bucket < entries_in_use) {
+        if (*metadata) {
+            /* We need to "move" the pointer to entry from the old flat
+             * storage array storage to the new flat storage array.
+             * entry remains as was - that's the whole point of this hashtable
+             * variant - to keep the user-visible structure at a fixed address.
+             */
+            MVMString ***old_indirection = (MVMString ***) entry_raw;
+            MVMString **entry = *old_indirection;
+            MVMString ***new_indirection =
+                hash_insert_internal(tc, control, *entry);
+            if(*new_indirection) {
+                char *wrong = MVM_string_utf8_encode_C_string(tc, key);
+                MVM_oops(tc, "new_indrection was not NULL in MVM_fixkey_hash_lvalue_fetch_nocheck when adding key %s", wrong);
+            } else {
+                *new_indirection = *old_indirection;
+            }
+        }
+        ++bucket;
+        ++metadata;
+        entry_raw -= sizeof(MVMString ***);
+    }
+    hash_demolish_internal(tc, control_orig);
+    return control;
+}
+
 void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
                                            MVMFixKeyHashTable *hashtable,
                                            MVMString *key) {
@@ -215,46 +258,15 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
             return entry;
         }
 
-        MVMuint32 entries_in_use =  calc_entries_in_use(control);
-        MVMuint8 *entry_raw_orig = MVM_fixkey_hash_entries(control);
-        MVMuint8 *metadata_orig = MVM_fixkey_hash_metadata(control);
-
-        struct MVMFixKeyHashTableControl *control_orig = control;
-
-        control = hash_allocate_common(tc,
-                                       control_orig->entry_size,
-                                       control_orig->key_right_shift - 1,
-                                       control_orig->official_size_log2 + 1);
-
-        hashtable->table = control;
-
-        MVMuint8 *entry_raw = entry_raw_orig;
-        MVMuint8 *metadata = metadata_orig;
-        MVMHashNumItems bucket = 0;
-        while (bucket < entries_in_use) {
-            if (*metadata) {
-                /* We need to "move" the pointer to entry from the old flat
-                 * storage array storage to the new flat storage array.
-                 * entry remains as was - that's the whole point of this
-                 * hashtable variant - to keep the user-visible structure at a
-                 * fixed address. */
-                MVMString ***old_indirection = (MVMString ***) entry_raw;
-                MVMString **entry = *old_indirection;
-                MVMString ***new_indirection =
-                    hash_insert_internal(tc, control, *entry);
-                if(*new_indirection) {
-                    char *wrong = MVM_string_utf8_encode_C_string(tc, key);
-                    MVM_oops(tc, "new_indrection was not NULL in MVM_fixkey_hash_lvalue_fetch_nocheck when adding key %s", wrong);
-                } else {
-                    *new_indirection = *old_indirection;
-                }
-            }
-            ++bucket;
-            ++metadata;
-            entry_raw -= sizeof(MVMString ***);
+        struct MVMFixKeyHashTableControl *new_control = maybe_grow_hash(tc, control, key);
+        if (new_control) {
+            /* We could unconditionally assign this, but that would mean CPU
+             * cache writes even when it was unchanged, and the address of
+             * hashtable will not be in the same cache lines as we are writing
+             * for the hash internals, so it will churn the write cache. */
+            hashtable->table = control = new_control;
         }
-        hash_demolish_internal(tc, control_orig);
-    }
+   }
     MVMString ***indirection = hash_insert_internal(tc, control, key);
     if (!*indirection) {
         MVMString **entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, control->entry_size);

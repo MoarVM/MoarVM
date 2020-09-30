@@ -181,6 +181,37 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *hash_insert_internal(MVMThreadContext 
     }
 }
 
+static struct MVMUniHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
+                                                      struct MVMUniHashTableControl *control) {
+    MVMuint32 entries_in_use = MVM_uni_hash_official_size(control) + control->max_probe_distance;
+    MVMuint8 *entry_raw_orig = MVM_uni_hash_entries(control);
+    MVMuint8 *metadata_orig = MVM_uni_hash_metadata(control);
+
+    struct MVMUniHashTableControl *control_orig = control;
+
+    control = hash_allocate_common(tc,
+                                   control_orig->key_right_shift - 1,
+                                   control_orig->official_size_log2 + 1);
+
+    MVMuint8 *entry_raw = entry_raw_orig;
+    MVMuint8 *metadata = metadata_orig;
+    MVMHashNumItems bucket = 0;
+    while (bucket < entries_in_use) {
+        if (*metadata) {
+            struct MVMUniHashEntry *old_entry = (struct MVMUniHashEntry *) entry_raw;
+            struct MVMUniHashEntry *new_entry =
+                hash_insert_internal(tc, control, old_entry->key, old_entry->hash_val);
+            assert(new_entry->key == NULL);
+            *new_entry = *old_entry;
+        }
+        ++bucket;
+        ++metadata;
+        entry_raw -= sizeof(struct MVMUniHashEntry);
+    }
+    hash_demolish_internal(tc, control_orig);
+    return control;
+}
+
 /* I think that we are going to expose this soon. */
 MVM_STATIC_INLINE void *MVM_uni_hash_lvalue_fetch(MVMThreadContext *tc,
                                                   MVMUniHashTable *hashtable,
@@ -199,35 +230,14 @@ MVM_STATIC_INLINE void *MVM_uni_hash_lvalue_fetch(MVMThreadContext *tc,
         if (entry) {
             return entry;
         }
-
-        MVMuint32 entries_in_use = MVM_uni_hash_official_size(control) + control->max_probe_distance;
-        MVMuint8 *entry_raw_orig = MVM_uni_hash_entries(control);
-        MVMuint8 *metadata_orig = MVM_uni_hash_metadata(control);
-
-        struct MVMUniHashTableControl *control_orig = control;
-
-        control = hash_allocate_common(tc,
-                                       control_orig->key_right_shift - 1,
-                                       control_orig->official_size_log2 + 1);
-
-        hashtable->table = control;
-
-        MVMuint8 *entry_raw = entry_raw_orig;
-        MVMuint8 *metadata = metadata_orig;
-        MVMHashNumItems bucket = 0;
-        while (bucket < entries_in_use) {
-            if (*metadata) {
-                struct MVMUniHashEntry *old_entry = (struct MVMUniHashEntry *) entry_raw;
-                struct MVMUniHashEntry *new_entry =
-                    hash_insert_internal(tc, control, old_entry->key, old_entry->hash_val);
-                assert(new_entry->key == NULL);
-                *new_entry = *old_entry;
-            }
-            ++bucket;
-            ++metadata;
-            entry_raw -= sizeof(struct MVMUniHashEntry);
+        struct MVMUniHashTableControl *new_control = maybe_grow_hash(tc, control);
+        if (new_control) {
+            /* We could unconditionally assign this, but that would mean CPU
+             * cache writes even when it was unchanged, and the address of
+             * hashtable will not be in the same cache lines as we are writing
+             * for the hash internals, so it will churn the write cache. */
+            hashtable->table = control = new_control;
         }
-        hash_demolish_internal(tc, control_orig);
     }
     MVMuint32 hash_val = MVM_uni_hash_code(key, strlen(key));
     return hash_insert_internal(tc, control, key, hash_val);

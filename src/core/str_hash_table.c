@@ -242,6 +242,44 @@ MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext
     }
 }
 
+static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
+                                                      struct MVMStrHashTableControl *control) {
+    MVMuint32 entries_in_use =  MVM_str_hash_kompromat(control);
+    MVMuint8 *entry_raw_orig = MVM_str_hash_entries(control);
+    MVMuint8 *metadata_orig = MVM_str_hash_metadata(control);
+
+    struct MVMStrHashTableControl *control_orig = control;
+
+    control = hash_allocate_common(tc,
+                                   control_orig->entry_size,
+                                   control_orig->key_right_shift - 1,
+                                   control_orig->official_size_log2 + 1);
+
+#if HASH_DEBUG_ITER
+    control->ht_id = control_orig->ht_id;
+    control->serial = control_orig->serial;
+    control->last_delete_at = control_orig->last_delete_at;
+#endif
+
+    MVMuint8 *entry_raw = entry_raw_orig;
+    MVMuint8 *metadata = metadata_orig;
+    MVMHashNumItems bucket = 0;
+    while (bucket < entries_in_use) {
+        if (*metadata) {
+            struct MVMStrHashHandle *old_entry = (struct MVMStrHashHandle *) entry_raw;
+            void *new_entry_raw = hash_insert_internal(tc, control, old_entry->key);
+            struct MVMStrHashHandle *new_entry = (struct MVMStrHashHandle *) new_entry_raw;
+            assert(new_entry->key == NULL);
+            memcpy(new_entry, old_entry, control->entry_size);
+        }
+        ++bucket;
+        ++metadata;
+        entry_raw -= control->entry_size;
+    }
+    hash_demolish_internal(tc, control_orig);
+    return control;
+}
+
 void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
                                         MVMStrHashTable *hashtable,
                                         MVMString *key) {
@@ -259,40 +297,14 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
             return entry;
         }
 
-        MVMuint32 entries_in_use =  MVM_str_hash_kompromat(control);
-        MVMuint8 *entry_raw_orig = MVM_str_hash_entries(control);
-        MVMuint8 *metadata_orig = MVM_str_hash_metadata(control);
-
-        struct MVMStrHashTableControl *control_orig = control;
-
-        control = hash_allocate_common(tc,
-                                       control_orig->entry_size,
-                                       control_orig->key_right_shift - 1,
-                                       control_orig->official_size_log2 + 1);
-
-#if HASH_DEBUG_ITER
-        control->ht_id = control_orig->ht_id;
-        control->serial = control_orig->serial;
-        control->last_delete_at = control_orig->last_delete_at;
-#endif
-        hashtable->table = control;
-
-        MVMuint8 *entry_raw = entry_raw_orig;
-        MVMuint8 *metadata = metadata_orig;
-        MVMHashNumItems bucket = 0;
-        while (bucket < entries_in_use) {
-            if (*metadata) {
-                struct MVMStrHashHandle *old_entry = (struct MVMStrHashHandle *) entry_raw;
-                void *new_entry_raw = hash_insert_internal(tc, control, old_entry->key);
-                struct MVMStrHashHandle *new_entry = (struct MVMStrHashHandle *) new_entry_raw;
-                assert(new_entry->key == NULL);
-                memcpy(new_entry, old_entry, control->entry_size);
-            }
-            ++bucket;
-            ++metadata;
-            entry_raw -= control->entry_size;
+        struct MVMStrHashTableControl *new_control = maybe_grow_hash(tc, control);
+        if (new_control) {
+            /* We could unconditionally assign this, but that would mean CPU
+             * cache writes even when it was unchanged, and the address of
+             * hashtable will not be in the same cache lines as we are writing
+             * for the hash internals, so it will churn the write cache. */
+            hashtable->table = control = new_control;
         }
-        hash_demolish_internal(tc, control_orig);
     }
     return hash_insert_internal(tc, control, key);
 }

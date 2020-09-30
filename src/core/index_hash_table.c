@@ -178,6 +178,35 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
     }
 }
 
+static struct MVMIndexHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
+                                                        struct MVMIndexHashTableControl *control,
+                                                        MVMString **list) {
+    MVMuint32 entries_in_use =  MVM_index_hash_kompromat(control);
+    MVMuint8 *entry_raw_orig = MVM_index_hash_entries(control);
+    MVMuint8 *metadata_orig = MVM_index_hash_metadata(control);
+
+    struct MVMIndexHashTableControl *control_orig = control;
+
+    control = hash_allocate_common(tc,
+                                   control_orig->key_right_shift - 1,
+                                   control_orig->official_size_log2 + 1);
+
+    MVMuint8 *entry_raw = entry_raw_orig;
+    MVMuint8 *metadata = metadata_orig;
+    MVMHashNumItems bucket = 0;
+    while (bucket < entries_in_use) {
+        if (*metadata) {
+            struct MVMIndexHashEntry *entry = (struct MVMIndexHashEntry *) entry_raw;
+            hash_insert_internal(tc, control, list, entry->index);
+        }
+        ++bucket;
+        ++metadata;
+        entry_raw -= sizeof(struct MVMIndexHashEntry);
+    }
+    hash_demolish_internal(tc, control_orig);
+    return control;
+}
+
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
  * Doesn't check if the key already exists. Use with care. */
 void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
@@ -188,31 +217,14 @@ void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
     assert(control);
     assert(MVM_index_hash_entries(control) != NULL);
     if (MVM_UNLIKELY(control->cur_items >= control->max_items)) {
-        MVMuint32 entries_in_use =  MVM_index_hash_kompromat(control);
-        MVMuint8 *entry_raw_orig = MVM_index_hash_entries(control);
-        MVMuint8 *metadata_orig = MVM_index_hash_metadata(control);
-
-        struct MVMIndexHashTableControl *control_orig = control;
-
-        control = hash_allocate_common(tc,
-                                       control_orig->key_right_shift - 1,
-                                       control_orig->official_size_log2 + 1);
-
-        hashtable->table = control;
-
-        MVMuint8 *entry_raw = entry_raw_orig;
-        MVMuint8 *metadata = metadata_orig;
-        MVMHashNumItems bucket = 0;
-        while (bucket < entries_in_use) {
-            if (*metadata) {
-                struct MVMIndexHashEntry *entry = (struct MVMIndexHashEntry *) entry_raw;
-                hash_insert_internal(tc, control, list, entry->index);
-            }
-            ++bucket;
-            ++metadata;
-            entry_raw -= sizeof(struct MVMIndexHashEntry);
+        struct MVMIndexHashTableControl *new_control = maybe_grow_hash(tc, control, list);
+        if (new_control) {
+            /* We could unconditionally assign this, but that would mean CPU
+             * cache writes even when it was unchanged, and the address of
+             * hashtable will not be in the same cache lines as we are writing
+             * for the hash internals, so it will churn the write cache. */
+            hashtable->table = control = new_control;
         }
-        hash_demolish_internal(tc, control_orig);
     }
     return hash_insert_internal(tc, control, list, idx);
 }
