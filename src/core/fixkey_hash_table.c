@@ -3,14 +3,14 @@
 #define FIXKEY_INITIAL_SIZE_LOG2 3
 #define FIXKEY_INITIAL_KEY_RIGHT_SHIFT (8 * sizeof(MVMuint64) - 3)
 
-MVM_STATIC_INLINE MVMuint32 hash_true_size(const struct MVMFixKeyHashTableControl *control) {
+MVM_STATIC_INLINE MVMuint32 calc_entries_in_use(const struct MVMFixKeyHashTableControl *control) {
     return MVM_fixkey_hash_official_size(control) + control->max_probe_distance;
 }
 
 void hash_demolish_internal(MVMThreadContext *tc,
                             struct MVMFixKeyHashTableControl *control) {
-    size_t actual_items = hash_true_size(control);
-    size_t entries_size = sizeof(MVMString ***) * actual_items;
+    size_t allocated_items = MVM_fixkey_hash_allocated_items(control);
+    size_t entries_size = sizeof(MVMString ***) * allocated_items;
     char *start = (char *)control - entries_size;
     MVM_free(start);
 }
@@ -22,11 +22,11 @@ void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtabl
     if (!control)
         return;
 
-    MVMuint32 true_size = hash_true_size(control);
+    MVMuint32 entries_in_use = calc_entries_in_use(control);
     MVMuint8 *entry_raw = MVM_fixkey_hash_entries(control);
     MVMuint8 *metadata = MVM_fixkey_hash_metadata(control);
     MVMuint32 bucket = 0;
-    while (bucket < true_size) {
+    while (bucket < entries_in_use) {
         if (*metadata) {
             MVMString ***indirection = (MVMString ***) entry_raw;
             MVM_fixed_size_free(tc, tc->instance->fsa, control->entry_size, *indirection);
@@ -48,7 +48,6 @@ MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThre
                                                                          MVMuint8 official_size_log2) {
     MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
     MVMuint32 max_items = official_size * MVM_FIXKEY_HASH_LOAD_FACTOR;
-    MVMuint32 overflow_size = max_items - 1;
     /* -1 because...
      * probe distance of 1 is the correct bucket.
      * hence for a value whose ideal slot is the last bucket, it's *in* the
@@ -57,15 +56,15 @@ MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThre
      * allocation
      * probe distance of 255 is the 254th beyond the official allocation.
      */
-    MVMuint8 probe_overflow_size;
-    if (MVM_HASH_MAX_PROBE_DISTANCE < overflow_size) {
-        probe_overflow_size = MVM_HASH_MAX_PROBE_DISTANCE - 1;
+    MVMuint8 max_probe_distance_limit;
+    if ((MVM_HASH_MAX_PROBE_DISTANCE - 1) < (max_items - 1)) {
+        max_probe_distance_limit = MVM_HASH_MAX_PROBE_DISTANCE - 1;
     } else {
-        probe_overflow_size = overflow_size;
+        max_probe_distance_limit = max_items - 1;
     }
-    size_t actual_items = official_size + probe_overflow_size;
-    size_t entries_size = sizeof(MVMString ***) * actual_items;
-    size_t metadata_size = MVM_hash_round_size_up(actual_items + 1);
+    size_t allocated_items = official_size + max_probe_distance_limit;
+    size_t entries_size = sizeof(MVMString ***) * allocated_items;
+    size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
     size_t total_size
         = entries_size + sizeof(struct MVMFixKeyHashTableControl) + metadata_size;
 
@@ -75,7 +74,8 @@ MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThre
     control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
     control->cur_items = 0;
-    control->max_probe_distance = probe_overflow_size;
+    control->max_probe_distance = max_probe_distance_limit;
+    control->max_probe_distance_limit = max_probe_distance_limit;
     control->key_right_shift = key_right_shift;
     control->entry_size = entry_size;
 
@@ -83,7 +83,7 @@ MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThre
     memset(metadata, 0, metadata_size);
 
     /* A sentinel. This marks an occupied slot, at its ideal position. */
-    metadata[actual_items] = 1;
+    metadata[allocated_items] = 1;
 
     return control;
 }
@@ -215,7 +215,7 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
             return entry;
         }
 
-        MVMuint32 true_size =  hash_true_size(control);
+        MVMuint32 entries_in_use =  calc_entries_in_use(control);
         MVMuint8 *entry_raw_orig = MVM_fixkey_hash_entries(control);
         MVMuint8 *metadata_orig = MVM_fixkey_hash_metadata(control);
 
@@ -231,7 +231,7 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
         MVMuint8 *entry_raw = entry_raw_orig;
         MVMuint8 *metadata = metadata_orig;
         MVMHashNumItems bucket = 0;
-        while (bucket < true_size) {
+        while (bucket < entries_in_use) {
             if (*metadata) {
                 /* We need to "move" the pointer to entry from the old flat
                  * storage array storage to the new flat storage array.
@@ -297,12 +297,12 @@ MVMuint64 MVM_fixkey_hash_fsck(MVMThreadContext *tc, MVMFixKeyHashTable *hashtab
         return 0;
     }
 
-    MVMuint32 true_size = hash_true_size(control);
+    MVMuint32 entries_in_use = calc_entries_in_use(control);
     MVMuint8 *entry_raw = MVM_fixkey_hash_entries(control);
     MVMuint8 *metadata = MVM_fixkey_hash_metadata(control);
     MVMuint32 bucket = 0;
     MVMint64 prev_offset = 0;
-    while (bucket < true_size) {
+    while (bucket < entries_in_use) {
         if (!*metadata) {
             /* empty slot. */
             prev_offset = 0;

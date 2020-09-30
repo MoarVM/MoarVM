@@ -4,6 +4,9 @@
 MVM_STATIC_INLINE MVMuint32 MVM_ptr_hash_official_size(const struct MVMPtrHashTableControl *control) {
     return 1 << (MVMuint32)control->official_size_log2;
 }
+MVM_STATIC_INLINE MVMuint32 MVM_ptr_hash_allocated_items(const struct MVMPtrHashTableControl *control) {
+    return MVM_ptr_hash_official_size(control) + control->max_probe_distance_limit;
+}
 MVM_STATIC_INLINE MVMuint32 MVM_ptr_hash_max_items(const struct MVMPtrHashTableControl *control) {
     return MVM_ptr_hash_official_size(control) * MVM_PTR_HASH_LOAD_FACTOR;
 }

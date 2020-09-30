@@ -48,7 +48,14 @@ struct MVMPtrHashTableControl {
     MVMHashNumItems max_items; /* hit this and we grow */
     MVMuint8 official_size_log2;
     MVMuint8 key_right_shift;
+    /* This is the maximum probe distance we can use without updating the
+     * metadata. It might not *yet* be the maximum probe distance possible for
+     * the official_size. */
     MVMuint8 max_probe_distance;
+    /* This is the maximum probe distance possible for the official size.
+     * We can (re)calcuate this from other values in the struct, but it's easier
+     * to cache it as we have the space. */
+    MVMuint8 max_probe_distance_limit;
 };
 
 struct MVMPtrHashTable {

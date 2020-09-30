@@ -28,8 +28,8 @@ MVMuint32 MVM_round_up_log_base2(MVMuint32 v) {
 
 MVM_STATIC_INLINE void hash_demolish_internal(MVMThreadContext *tc,
                                               struct MVMStrHashTableControl *control) {
-    size_t actual_items = MVM_str_hash_kompromat(control);
-    size_t entries_size = control->entry_size * actual_items;
+    size_t allocated_items = MVM_str_hash_allocated_items(control);
+    size_t entries_size = control->entry_size * allocated_items;
     char *start = (char *)control - entries_size;
     MVM_free(start);
 }
@@ -51,7 +51,6 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
                                                                       MVMuint8 official_size_log2) {
     MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
     MVMuint32 max_items = official_size * MVM_STR_HASH_LOAD_FACTOR;
-    MVMuint32 overflow_size = max_items - 1;
     /* -1 because...
      * probe distance of 1 is the correct bucket.
      * hence for a value whose ideal slot is the last bucket, it's *in* the
@@ -60,15 +59,16 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
      * allocation
      * probe distance of 255 is the 254th beyond the official allocation.
      */
-    MVMuint8 probe_overflow_size;
-    if (MVM_HASH_MAX_PROBE_DISTANCE < overflow_size) {
-        probe_overflow_size = MVM_HASH_MAX_PROBE_DISTANCE - 1;
+    MVMuint8 max_probe_distance_limit;
+    if ((MVM_HASH_MAX_PROBE_DISTANCE - 1) < (max_items - 1)) {
+        max_probe_distance_limit = MVM_HASH_MAX_PROBE_DISTANCE - 1;
     } else {
-        probe_overflow_size = overflow_size;
+        max_probe_distance_limit = max_items - 1;
     }
-    size_t actual_items = official_size + probe_overflow_size;
-    size_t entries_size = entry_size * actual_items;
-    size_t metadata_size = MVM_hash_round_size_up(actual_items + 1);
+    size_t allocated_items = official_size + max_probe_distance_limit;
+    size_t entries_size = entry_size * allocated_items;
+    size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
+
     size_t total_size
         = entries_size + sizeof(struct MVMStrHashTableControl) + metadata_size;
 
@@ -78,7 +78,8 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
     control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
     control->cur_items = 0;
-    control->max_probe_distance = probe_overflow_size;
+    control->max_probe_distance = max_probe_distance_limit;
+    control->max_probe_distance_limit = max_probe_distance_limit;
     control->key_right_shift = key_right_shift;
     control->entry_size = entry_size;
 
@@ -86,7 +87,7 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
     memset(metadata, 0, metadata_size);
 
     /* A sentinel. This marks an occupied slot, at its ideal position. */
-    metadata[actual_items] = 1;
+    metadata[allocated_items] = 1;
 
 #if MVM_HASH_RANDOMIZE
     control->salt = MVM_proc_rand_i(tc);
@@ -258,7 +259,7 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
             return entry;
         }
 
-        MVMuint32 true_size =  MVM_str_hash_kompromat(control);
+        MVMuint32 entries_in_use =  MVM_str_hash_kompromat(control);
         MVMuint8 *entry_raw_orig = MVM_str_hash_entries(control);
         MVMuint8 *metadata_orig = MVM_str_hash_metadata(control);
 
@@ -279,7 +280,7 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
         MVMuint8 *entry_raw = entry_raw_orig;
         MVMuint8 *metadata = metadata_orig;
         MVMHashNumItems bucket = 0;
-        while (bucket < true_size) {
+        while (bucket < entries_in_use) {
             if (*metadata) {
                 struct MVMStrHashHandle *old_entry = (struct MVMStrHashHandle *) entry_raw;
                 void *new_entry_raw = hash_insert_internal(tc, control, old_entry->key);
@@ -421,12 +422,12 @@ MVMuint64 MVM_str_hash_fsck(MVMThreadContext *tc, MVMStrHashTable *hashtable, MV
         return 0;
     }
 
-    MVMuint32 true_size = MVM_str_hash_kompromat(control);
+    MVMuint32 allocated_items = MVM_str_hash_allocated_items(control);
     MVMuint8 *entry_raw = MVM_str_hash_entries(control);
     MVMuint8 *metadata = MVM_str_hash_metadata(control);
     MVMuint32 bucket = 0;
     MVMint64 prev_offset = 0;
-    while (bucket < true_size) {
+    while (bucket < allocated_items) {
         if (!*metadata) {
             /* empty slot. */
             prev_offset = 0;

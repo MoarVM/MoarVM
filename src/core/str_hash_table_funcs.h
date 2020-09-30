@@ -7,6 +7,9 @@ MVM_STATIC_INLINE MVMuint32 MVM_str_hash_official_size(const struct MVMStrHashTa
 MVM_STATIC_INLINE MVMuint32 MVM_str_hash_max_items(const struct MVMStrHashTableControl *control) {
     return MVM_str_hash_official_size(control) * MVM_STR_HASH_LOAD_FACTOR;
 }
+MVM_STATIC_INLINE MVMuint32 MVM_str_hash_allocated_items(const struct MVMStrHashTableControl *control) {
+    return MVM_str_hash_official_size(control) + control->max_probe_distance_limit;
+}
 MVM_STATIC_INLINE MVMuint32 MVM_str_hash_kompromat(const struct MVMStrHashTableControl *control) {
     return MVM_str_hash_official_size(control) + control->max_probe_distance;
 }
@@ -50,9 +53,9 @@ MVM_STATIC_INLINE void MVM_str_hash_shallow_copy(MVMThreadContext *tc,
     const struct MVMStrHashTableControl *control = source->table;
     if (!control)
         return;
-    size_t actual_items = MVM_str_hash_kompromat(control);
-    size_t entries_size = control->entry_size * actual_items;
-    size_t metadata_size = MVM_hash_round_size_up(actual_items + 1);
+    size_t allocated_items = MVM_str_hash_allocated_items(control);
+    size_t entries_size = control->entry_size * allocated_items;
+    size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
     const char *start = (const char *)control - entries_size;
     size_t total_size
         = entries_size + sizeof(struct MVMStrHashTableControl) + metadata_size;
