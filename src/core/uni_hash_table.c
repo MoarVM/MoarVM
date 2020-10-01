@@ -300,14 +300,26 @@ static MVMuint64 uni_hash_fsck_internal(struct MVMUniHashTableControl *control, 
             struct MVMUniHashEntry *entry = (struct MVMUniHashEntry *) entry_raw;
             MVMuint32 ideal_bucket = entry->hash_val >> control->key_right_shift;
             MVMint64 offset = 1 + bucket - ideal_bucket;
-            int wrong_bucket = offset != *metadata;
-            int wrong_order = offset < 1 || offset > prev_offset + 1;
+            char wrong_bucket = offset == *metadata ? ' ' : '!';
+            char wrong_order;
+            if (offset < 1) {
+                wrong_order = '<';
+            } else if (offset > control->max_probe_distance) {
+                ++errors;
+                wrong_order = '>';
+            } else if (offset > prev_offset + 1) {
+                ++errors;
+                wrong_order = '!';
+            } else {
+                wrong_order = ' ';
+            }
+            int error_count = (wrong_bucket != ' ') + (wrong_order != ' ');
 
-            if (display == 2 || wrong_bucket || wrong_order) {
+            if (display == 2 || error_count) {
                 fprintf(stderr, "%s%3X%c%3"PRIx64"%c%08X %s\n", prefix_hashes,
-                        bucket, wrong_bucket ? '!' : ' ', offset,
-                        wrong_order ? '!' : ' ', entry->hash_val, entry->key);
-                errors += wrong_bucket + wrong_order;
+                        bucket, wrong_bucket, offset,
+                        wrong_order, entry->hash_val, entry->key);
+                errors += error_count;
             }
             prev_offset = offset;
         }

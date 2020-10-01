@@ -146,6 +146,8 @@ void MVM_str_hash_build(MVMThreadContext *tc,
     hashtable->table = control;
 }
 
+static MVMuint64 hash_fsck_internal(MVMThreadContext *tc, struct MVMStrHashTableControl *hashtable, MVMuint32 mode);
+
 MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext *tc,
                                                                 struct MVMStrHashTableControl *control,
                                                                 MVMString *key) {
@@ -417,11 +419,7 @@ void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
 }
 
 
-/* This is not part of the public API, and subject to change at any point.
-   (possibly in ways that are actually incompatible but won't generate compiler
-   warnings.) */
-MVMuint64 MVM_str_hash_fsck(MVMThreadContext *tc, MVMStrHashTable *hashtable, MVMuint32 mode) {
-    struct MVMStrHashTableControl *control = hashtable->table;
+static MVMuint64 hash_fsck_internal(MVMThreadContext *tc, struct MVMStrHashTableControl *control, MVMuint32 mode) {
     const char *prefix_hashes = mode & MVM_HASH_FSCK_PREFIX_HASHES ? "# " : "";
     MVMuint32 display = mode & 3;
     MVMuint64 errors = 0;
@@ -429,7 +427,7 @@ MVMuint64 MVM_str_hash_fsck(MVMThreadContext *tc, MVMStrHashTable *hashtable, MV
 
     if (MVM_str_hash_entries(control) == NULL) {
         if (display) {
-            fprintf(stderr, "%s NULL %p (empty)\n", prefix_hashes, hashtable);
+            fprintf(stderr, "%s NULL %p (empty)\n", prefix_hashes, control);
         }
         return 0;
     }
@@ -505,11 +503,22 @@ MVMuint64 MVM_str_hash_fsck(MVMThreadContext *tc, MVMStrHashTable *hashtable, MV
                 MVMuint64 hash_val = MVM_str_hash_code(tc, control->salt, key);
                 MVMuint32 ideal_bucket = hash_val >> control->key_right_shift;
                 MVMint64 offset = 1 + bucket - ideal_bucket;
-                int wrong_bucket = offset != *metadata;
-                int wrong_order = offset < 1 || offset > prev_offset + 1;
+                char wrong_bucket = offset == *metadata ? ' ' : '!';
+                char wrong_order;
+                if (offset < 1) {
+                    wrong_order = '<';
+                } else if (offset > control->max_probe_distance) {
+                    ++errors;
+                    wrong_order = '>';
+                } else if (offset > prev_offset + 1) {
+                    ++errors;
+                    wrong_order = '!';
+                } else {
+                    wrong_order = ' ';
+                }
+                int error_count = (wrong_bucket != ' ') + (wrong_order != ' ');
 
-                if (display == 2
-                    || (display == 1 && (wrong_bucket || wrong_order))) {
+                if (display == 2 || (display == 1 && error_count)) {
                     /* And if you think that these two are overkill, you haven't
                      * had to debug this stuff :-/ */
                     char open;
@@ -529,10 +538,9 @@ MVMuint64 MVM_str_hash_fsck(MVMThreadContext *tc, MVMStrHashTable *hashtable, MV
                     if (mode & MVM_HASH_FSCK_KEY_VIA_API) {
                         char *c_key = MVM_string_utf8_encode_C_string(tc, key);
                         fprintf(stderr,
-                                "%s%3X%c%3"PRIx64"%c%0"PRIx64" %c%2"PRIu64"%c %p %s\n",
-                                prefix_hashes,
-                                bucket, wrong_bucket ? '!' : ' ',
-                                offset, wrong_order ? '!' : ' ', hash_val,
+                                "%s%3X%c%3"PRIx64"%c%016"PRIx64" %c%2"PRIu64"%c %p %s\n",
+                                prefix_hashes, bucket, wrong_bucket,
+                                offset, wrong_order, hash_val,
                                 open, len, close, key, c_key);
                         MVM_free(c_key);
                     } else {
@@ -540,24 +548,22 @@ MVMuint64 MVM_str_hash_fsck(MVMThreadContext *tc, MVMStrHashTable *hashtable, MV
                          * (Doesn't allocate, so can't deadlock.) */
                         if (key->body.storage_type == MVM_STRING_GRAPHEME_ASCII && len < 0xFFF) {
                             fprintf(stderr,
-                                    "%s%3X%c%3"PRIx64"%c%0"PRIx64" %c%2"PRIu64"%c %p \"%*s\"\n",
-                                    prefix_hashes, bucket,
-                                    wrong_bucket ? '!' : ' ', offset,
-                                    wrong_order ? '!' : ' ', hash_val,
+                                    "%s%3X%c%3"PRIx64"%c%016"PRIx64" %c%2"PRIu64"%c %p \"%*s\"\n",
+                                    prefix_hashes, bucket, wrong_bucket,
+                                    offset, wrong_order, hash_val,
                                     open, len, close, key,
                                     (int) len, key->body.storage.blob_ascii);
                         } else {
                             fprintf(stderr,
-                                    "%s%3X%c%3"PRIx64"%c%0"PRIx64" %c%2"PRIu64"%c %p %u@%p\n",
-                                    prefix_hashes,
-                                    bucket, wrong_bucket ? '!' : ' ',
-                                    offset, wrong_order ? '!' : ' ', hash_val,
+                                    "%s%3X%c%3"PRIx64"%c%016"PRIx64" %c%2"PRIu64"%c %p %u@%p\n",
+                                    prefix_hashes, bucket, wrong_bucket,
+                                    offset, wrong_order, hash_val,
                                     open, len, close, key,
                                     key->body.storage_type, key);
                         }
                     }
                 }
-                errors += wrong_bucket + wrong_order;
+                errors += error_count;
                 prev_offset = offset;
             }
         }
@@ -574,10 +580,17 @@ MVMuint64 MVM_str_hash_fsck(MVMThreadContext *tc, MVMStrHashTable *hashtable, MV
     if (seen != control->cur_items) {
         ++errors;
         if (display) {
-            fprintf(stderr, "%s %"PRIx64" != %"PRIx32"\n",
+            fprintf(stderr, "%s counted %"PRIx64" entries, expected %"PRIx32"\n",
                     prefix_hashes, seen, control->cur_items);
         }
     }
 
     return errors;
+}
+
+/* This is not part of the public API, and subject to change at any point.
+   (possibly in ways that are actually incompatible but won't generate compiler
+   warnings.) */
+MVMuint64 MVM_str_hash_fsck(MVMThreadContext *tc, MVMStrHashTable *hashtable, MVMuint32 mode) {
+    return hash_fsck_internal(tc, hashtable->table, mode);
 }
