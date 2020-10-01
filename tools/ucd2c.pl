@@ -125,7 +125,12 @@ sub main {
     #BidiMirroring();
     goto skip_most if $SKIP_MOST_MODE;
     binary_props('extracted/DerivedBinaryProperties');
-    binary_props("emoji-$highest_emoji_version/emoji-data");
+    if (-e "emoji-$highest_emoji_version/emoji-data") {
+        binary_props("emoji-$highest_emoji_version/emoji-data")
+    }
+    else {
+        binary_props("emoji/emoji-data");
+    }
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 3);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1);
     # sub Jamo sets names properly. Though at the moment Jamo_Short_Name likely
@@ -1871,11 +1876,15 @@ sub UnicodeData {
              || $point->{name} eq '<CJK Ideograph Extension C>'
              || $point->{name} eq '<CJK Ideograph Extension D>'
              || $point->{name} eq '<CJK Ideograph Extension E>'
-             || $point->{name} eq '<CJK Ideograph Extension F>')
+             || $point->{name} eq '<CJK Ideograph Extension F>'
+             || $point->{name} eq '<CJK Ideograph Extension G>')
             {
                 $point->{name} = '<CJK UNIFIED IDEOGRAPH>'
             }
             elsif ($point->{name} eq '<Tangut Ideograph>') {
+                $point->{name} = '<TANGUT IDEOGRAPH>';
+            }
+            elsif ($point->{name} eq '<Tangut Ideograph Supplement>') {
                 $point->{name} = '<TANGUT IDEOGRAPH>';
             }
             elsif ($point->{name} eq '<Hangul Syllable>') {
@@ -1899,7 +1908,8 @@ sub UnicodeData {
              || $point->{name} eq '<CJK UNIFIED IDEOGRAPH>'
              || $point->{name} eq '<private-use>'
              || $point->{name} eq '<surrogate>'
-             || $point->{name} eq '<TANGUT IDEOGRAPH>') {
+             || $point->{name} eq '<TANGUT IDEOGRAPH>'
+             || $point->{name} eq '<TANGUT IDEOGRAPH SUPPLIMENT>') {
             }
             else {
                 die "$point->{name} encountered. Make sure to check https://www.unicode.org/versions/Unicode10.0.0/ch04.pdf for Name Derivation Rule Prefix Strings\n" .
