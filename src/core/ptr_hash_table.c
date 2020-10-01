@@ -46,7 +46,7 @@ MVM_STATIC_INLINE struct MVMPtrHashTableControl *hash_allocate_common(MVMThreadC
     control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
     control->cur_items = 0;
-    control->max_probe_distance = max_probe_distance_limit;
+    control->max_probe_distance = max_probe_distance_limit > (4 - 1) ? (4 - 1) : max_probe_distance_limit;
     control->max_probe_distance_limit = max_probe_distance_limit;
     control->key_right_shift = key_right_shift;
 
@@ -164,6 +164,32 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
 
 static struct MVMPtrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
                                                       struct MVMPtrHashTableControl *control) {
+    /* control->max_items may have been set to 0 to trigger a call into this
+     * function. */
+    MVMuint32 max_items = MVM_ptr_hash_max_items(control);
+    MVMuint32 max_probe_distance_limit = control->max_probe_distance_limit;
+
+    /* We can hit both the probe limit and the max items on the same insertion.
+     * In which case, upping the probe limit isn't going to save us :-)
+     * But if we hit the probe limit max (even without hitting the max items)
+     * then we don't have more space in the metadata, so we're going to have to
+     * grow anyway. */
+    if (control->cur_items < max_items
+        && control->max_probe_distance < max_probe_distance_limit) {
+        /* We hit the probe limit, but not the max items count. */
+        MVMuint32 new_probe_distance
+            = 2 + 2 * (MVMuint32) control->max_probe_distance;
+        if (new_probe_distance > max_probe_distance_limit) {
+            new_probe_distance = max_probe_distance_limit;
+        }
+
+        control->max_probe_distance = new_probe_distance;
+        /* Reset this to its proper value. */
+        control->max_items = max_items;
+        assert(control->max_items);
+        return NULL;
+    }
+
     MVMuint32 entries_in_use = MVM_ptr_hash_official_size(control) + control->max_probe_distance - 1;
     MVMuint8 *entry_raw_orig = MVM_ptr_hash_entries(control);
     MVMuint8 *metadata_orig = MVM_ptr_hash_metadata(control);
@@ -184,6 +210,17 @@ static struct MVMPtrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
                 hash_insert_internal(tc, control, old_entry->key);
             assert(new_entry->key == NULL);
             *new_entry = *old_entry;
+
+            if (!control->max_items) {
+                /* Probably we hit the probe limit.
+                 * But it's just possible that one actual "grow" wasn't enough.
+                 */
+                struct MVMPtrHashTableControl *new_control
+                    = maybe_grow_hash(tc, control);
+                if (new_control) {
+                    control = new_control;
+                }
+            }
         }
         ++bucket;
         ++metadata;

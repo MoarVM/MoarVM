@@ -70,7 +70,7 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
     control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
     control->cur_items = 0;
-    control->max_probe_distance = max_probe_distance_limit;
+    control->max_probe_distance = max_probe_distance_limit > (4 - 1) ? (4 - 1) : max_probe_distance_limit;
     control->max_probe_distance_limit = max_probe_distance_limit;
     control->key_right_shift = key_right_shift;
     control->entry_size = entry_size;
@@ -144,8 +144,8 @@ MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext
                                                                 struct MVMStrHashTableControl *control,
                                                                 MVMString *key) {
     if (MVM_UNLIKELY(control->cur_items >= control->max_items)) {
-        MVM_oops(tc, "oops, attempt to recursively call grow when adding %p",
-                 key);
+        MVM_oops(tc, "oops, hash_insert_internal has no space (%"PRIu32" >= %"PRIu32" when adding %p",
+                 control->cur_items, control->max_items, key);
     }
 
     struct MVM_hash_loop_state ls = MVM_str_hash_create_loop_state(tc, control, key);
@@ -253,16 +253,44 @@ MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext
 
 static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
                                                       struct MVMStrHashTableControl *control) {
+    /* control->max_items may have been set to 0 to trigger a call into this
+     * function. */
+    MVMuint32 max_items = MVM_str_hash_max_items(control);
+    MVMuint32 max_probe_distance_limit = control->max_probe_distance_limit;
+
+    /* We can hit both the probe limit and the max items on the same insertion.
+     * In which case, upping the probe limit isn't going to save us :-)
+     * But if we hit the probe limit max (even without hitting the max items)
+     * then we don't have more space in the metadata, so we're going to have to
+     * grow anyway. */
+    if (control->cur_items < max_items
+        && control->max_probe_distance < max_probe_distance_limit) {
+        /* We hit the probe limit, but not the max items count. */
+        MVMuint32 new_probe_distance
+            = 2 + 2 * (MVMuint32) control->max_probe_distance;
+        if (new_probe_distance > max_probe_distance_limit) {
+            new_probe_distance = max_probe_distance_limit;
+        }
+
+        control->max_probe_distance = new_probe_distance;
+        /* Reset this to its proper value. */
+        control->max_items = max_items;
+        assert(control->max_items);
+        return NULL;
+    }
+
     MVMuint32 entries_in_use =  MVM_str_hash_kompromat(control);
     MVMuint8 *entry_raw_orig = MVM_str_hash_entries(control);
     MVMuint8 *metadata_orig = MVM_str_hash_metadata(control);
+    MVMuint8 entry_size = control->entry_size;
 
     struct MVMStrHashTableControl *control_orig = control;
 
     control = hash_allocate_common(tc,
-                                   control_orig->entry_size,
+                                   entry_size,
                                    control_orig->key_right_shift - 1,
                                    control_orig->official_size_log2 + 1);
+
 
 #if HASH_DEBUG_ITER
     control->ht_id = control_orig->ht_id;
@@ -280,12 +308,26 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
             struct MVMStrHashHandle *new_entry = (struct MVMStrHashHandle *) new_entry_raw;
             assert(new_entry->key == NULL);
             memcpy(new_entry, old_entry, control->entry_size);
+
+            if (!control->max_items) {
+                /* Probably we hit the probe limit.
+                 * But it's just possible that one actual "grow" wasn't enough.
+                 */
+                struct MVMStrHashTableControl *new_control
+                    = maybe_grow_hash(tc, control);
+                if (new_control) {
+                    control = new_control;
+                } else {
+                    /* else we expanded the probe distance and life is easy. */
+                }
+            }
         }
         ++bucket;
         ++metadata;
-        entry_raw -= control->entry_size;
+        entry_raw -= entry_size;
     }
     hash_demolish_internal(tc, control_orig);
+    assert(control->max_items);
     return control;
 }
 
@@ -315,6 +357,7 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
             hashtable->table = control = new_control;
         }
     }
+
     return hash_insert_internal(tc, control, key);
 }
 
