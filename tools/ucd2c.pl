@@ -1908,7 +1908,7 @@ sub UnicodeData {
              || $point->{name} eq '<CJK UNIFIED IDEOGRAPH>'
              || $point->{name} eq '<private-use>'
              || $point->{name} eq '<surrogate>'
-             || $point->{name} eq '<TANGUT IDEOGRAPH>' {
+             || $point->{name} eq '<TANGUT IDEOGRAPH>') {
             }
             else {
                 die "$point->{name} encountered. Make sure to check https://www.unicode.org/versions/Unicode10.0.0/ch04.pdf for Name Derivation Rule Prefix Strings\n" .
