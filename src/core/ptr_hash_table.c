@@ -28,21 +28,13 @@ MVM_STATIC_INLINE struct MVMPtrHashTableControl *hash_allocate_common(MVMThreadC
                                                                       MVMuint8 official_size_log2) {
     MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
     MVMuint32 max_items = official_size * MVM_PTR_HASH_LOAD_FACTOR;
-    /* -1 because...
-     * probe distance of 1 is the correct bucket.
-     * hence for a value whose ideal slot is the last bucket, it's *in* the
-     * official allocation.
-     * probe distance of 2 is the first extra bucket beyond the official
-     * allocation
-     * probe distance of 255 is the 254th beyond the official allocation.
-     */
     MVMuint8 max_probe_distance_limit;
-    if ((MVM_HASH_MAX_PROBE_DISTANCE - 1) < (max_items - 1)) {
-        max_probe_distance_limit = MVM_HASH_MAX_PROBE_DISTANCE - 1;
+    if (MVM_HASH_MAX_PROBE_DISTANCE < max_items) {
+        max_probe_distance_limit = MVM_HASH_MAX_PROBE_DISTANCE;
     } else {
-        max_probe_distance_limit = max_items - 1;
+        max_probe_distance_limit = max_items;
     }
-    size_t allocated_items = official_size + max_probe_distance_limit;
+    size_t allocated_items = official_size + max_probe_distance_limit - 1;
     size_t entries_size = sizeof(struct MVMPtrHashEntry) * allocated_items;
     size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
     size_t total_size
@@ -149,7 +141,22 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
         ++ls.probe_distance;
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
-        assert(ls.probe_distance <= (unsigned int) control->max_probe_distance + 1);
+
+        /* For insert, the loop must not iterate to any probe distance greater
+         * than the (current) maximum probe distance, because it must never
+         * insert an entry at a location beyond the maximum probe distance.
+         *
+         * For fetch and delete, the loop is permitted to reach (and read) one
+         * beyond the maximum probe distance (hence +1 in the seemingly
+         * analogous assertions) - but if so, it will always read from the
+         * metadata a probe distance which is lower than the current probe
+         * distance, and hence hit "not found" and terminate the loop.
+         *
+         * This is how the loop terminates when the max probe distance is
+         * reached without needing an explicit test for it, and why we need an
+         * initialised sentinel byte at the end of the metadata. */
+
+        assert(ls.probe_distance <= (unsigned int) control->max_probe_distance);
         assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + MVM_ptr_hash_max_items(control));
         assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + 256);
     }
@@ -157,7 +164,7 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
 
 static struct MVMPtrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
                                                       struct MVMPtrHashTableControl *control) {
-    MVMuint32 entries_in_use = MVM_ptr_hash_official_size(control) + control->max_probe_distance;
+    MVMuint32 entries_in_use = MVM_ptr_hash_official_size(control) + control->max_probe_distance - 1;
     MVMuint8 *entry_raw_orig = MVM_ptr_hash_entries(control);
     MVMuint8 *metadata_orig = MVM_ptr_hash_metadata(control);
 
@@ -300,7 +307,7 @@ uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
                If we hit something with a lower probe distance then...
                consider what would have happened had this key been inserted into
                the hash table - it would have stolen this slot, and the key we
-               find here now would have been displaced futher on. Hence, the key
+               find here now would have been displaced further on. Hence, the key
                we seek can't be in the hash table. */
             /* Strange. Not in the hash. Should this be an oops? */
             return 0;

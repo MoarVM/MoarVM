@@ -4,8 +4,15 @@
 MVM_STATIC_INLINE MVMuint32 MVM_uni_hash_official_size(const struct MVMUniHashTableControl *control) {
     return 1 << (MVMuint32)control->official_size_log2;
 }
+/* -1 because...
+ * probe distance of 1 is the correct bucket.
+ * hence for a value whose ideal slot is the last bucket, it's *in* the official
+ * allocation.
+ * probe distance of 2 is the first extra bucket beyond the official allocation
+ * probe distance of 255 is the 254th beyond the official allocation.
+ */
 MVM_STATIC_INLINE MVMuint32 MVM_uni_hash_allocated_items(const struct MVMUniHashTableControl *control) {
-    return MVM_uni_hash_official_size(control) + control->max_probe_distance_limit;
+    return MVM_uni_hash_official_size(control) + control->max_probe_distance_limit - 1;
 }
 MVM_STATIC_INLINE MVMuint32 MVM_uni_hash_max_items(const struct MVMUniHashTableControl *control) {
     return MVM_uni_hash_official_size(control) * MVM_UNI_HASH_LOAD_FACTOR;
@@ -91,7 +98,7 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *MVM_uni_hash_fetch(MVMThreadContext *t
                If we hit something with a lower probe distance then...
                consider what would have happened had this key been inserted into
                the hash table - it would have stolen this slot, and the key we
-               find here now would have been displaced futher on. Hence, the key
+               find here now would have been displaced further on. Hence, the key
                we seek can't be in the hash table. */
             return NULL;
         }
