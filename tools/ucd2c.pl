@@ -126,10 +126,10 @@ sub main {
     goto skip_most if $SKIP_MOST_MODE;
     binary_props('extracted/DerivedBinaryProperties');
     if (-e "emoji-$highest_emoji_version/emoji-data") {
-        binary_props("emoji-$highest_emoji_version/emoji-data")
+        binary_props("emoji-$highest_emoji_version/emoji-data") # v12.1 and earlier
     }
     else {
-        binary_props("emoji/emoji-data");
+        binary_props("emoji/emoji-data"); # v13.0 and later
     }
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 3);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1);
@@ -1857,6 +1857,9 @@ sub UnicodeData {
             $ideograph_start = $point;
             $point->{name}   =~ s/, First//;
         }
+        elsif ($name =~ / First/) {
+          die "Looks like support for a new thing needs to be added: $name"
+        }
         elsif ($ideograph_start) {
             $point->{name} = $ideograph_start->{name};
             my $current    = $ideograph_start;
@@ -1903,6 +1906,21 @@ sub UnicodeData {
                 die unless $gencat eq 'Cs';
                 $point->{name} = '<surrogate>';
             }
+            my $instructions_line_no = __LINE__;
+            my $instructions_1 = <<~'END';
+              Don't add anything here *unless*
+              Unicode has added a new "Name Derevation Rule Prefix String".
+              Extensions to *existing* prefixes should be normalized from their
+              format in the data file to the correct prefix string.
+              For example: if a new CJK Unified Ideograph extension is added
+              <CJK Ideograph Extension X> **AND** the "Name Derivation Rule Prefix Strings"
+              END
+            my $instructions_2 = <<~'END';
+              the table in the unicode ch04 documentation specifies the codepoint
+              in question results in prefix is CJK UNIFIED IDEOGRAPH then you can
+              modify the normalizing code above to change <CJK Ideograph Extension X>
+              into <CJK UNIFIED IDEOGRAPH>, which is already whitelisted
+              END
             if ($point->{name} eq '<HANGUL SYLLABLE>'
              || $point->{name} eq '<control>'
              || $point->{name} eq '<CJK UNIFIED IDEOGRAPH>'
@@ -1911,10 +1929,18 @@ sub UnicodeData {
              || $point->{name} eq '<TANGUT IDEOGRAPH>') {
             }
             else {
-                die "$point->{name} encountered. Make sure to check https://www.unicode.org/versions/Unicode10.0.0/ch04.pdf for Name Derivation Rule Prefix Strings\n" .
-                "Also you will likely have to make a change to MVM_unicode_get_name() and add a test to nqp";
-                say $code_str;
-                exit;
+                die <<~"END";
+                $point->{name} encountered. code_str: '$code_str'
+                ##############################
+                IMPORTANT: READ BELOW
+                Make sure to check
+                https://www.unicode.org/versions/latest/bookmarks.html
+                and click the link for Table 4-8. Name Derivation Rule Prefix Strings,
+                using this table as a reference along with
+                $instructions_2
+                Read more about this on comment line $instructions_line_no
+                You will likely have to make a change to MVM_unicode_get_name() and add a test to nqp
+                END
             }
         }
         if ($point->{name} =~ /^CJK COMPATIBILITY IDEOGRAPH-([A-F0-9]+)$/) {
