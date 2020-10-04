@@ -17,6 +17,11 @@
     #define MIN(x,y) ((x)<(y)?(x):(y))
 #endif
 
+/* GMP has an mpz_mod, but we don't use it, redefining it so we can use the MVM_BIGINT_BINARY_OP_2
+ * macro for MVM_bigint_mod. */
+#undef mpz_mod
+#define mpz_mod mpz_fdiv_r
+
 MVM_STATIC_INLINE void adjust_nursery(MVMThreadContext *tc, MVMP6bigintBody *body) {
     if (MVM_BIGINT_IS_BIG(body)) {
         int used = mpz_size(*body->u.bigint) * sizeof(mp_limb_t);
@@ -230,6 +235,7 @@ MVM_BIGINT_BINARY_OP_2(ior, { sc = sa | sb; })
 MVM_BIGINT_BINARY_OP_2(xor, { sc = sa ^ sb; })
 MVM_BIGINT_BINARY_OP_2(and, { sc = sa & sb; })
 MVM_BIGINT_BINARY_OP_2(gcd, { sa = abs((MVMint32)sa); sb = abs((MVMint32)sb); while (sb != 0) { sc = sb; sb = sa % sb; sa = sc; }; sc = sa; })
+MVM_BIGINT_BINARY_OP_2(mod, { sc = ((sa % sb) + sb) % sb; })
 
 MVMint64 MVM_bigint_cmp(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
@@ -245,41 +251,6 @@ MVMint64 MVM_bigint_cmp(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
         MVMint64 sb = bb->u.smallint.value;
         return sa == sb ? 0 : sa <  sb ? -1 : 1;
     }
-}
-
-MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b) {
-
-    MVMObject *result;
-
-    MVMROOT2(tc, a, b, {
-        result = MVM_repr_alloc_init(tc, result_type);
-    });
-
-    {
-        MVMP6bigintBody *ba = get_bigint_body(tc, a);
-        MVMP6bigintBody *bb = get_bigint_body(tc, b);
-        MVMP6bigintBody *bc;
-        bc = get_bigint_body(tc, result);
-
-        /* XXX the behavior of C's mod operator is not correct
-         * for our purposes. So we rely on mp_mod for all our modulus
-         * calculations for now. */
-        if (1 || MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) {
-            mpz_t *ia = force_bigint(tc, ba, 0);
-            mpz_t *ib = force_bigint(tc, bb, 1);
-            mpz_t *ic = MVM_malloc(sizeof(mpz_t));
-            mpz_init(*ic);
-            mpz_fdiv_r(*ic, *ia, *ib);
-            //if (mpz_sgn(*ib) == -1)
-            //    mpz_neg(*ic, *ic);
-            store_bigint_result(bc, ic);
-            adjust_nursery(tc, bc);
-        } else {
-            store_int64_result(tc, bc, ba->u.smallint.value % bb->u.smallint.value);
-        }
-    }
-
-    return result;
 }
 
 MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b) {
