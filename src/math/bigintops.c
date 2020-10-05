@@ -17,6 +17,18 @@
     #define MIN(x,y) ((x)<(y)?(x):(y))
 #endif
 
+#ifndef MPZ_IS_ZERO
+    #define MPZ_IS_ZERO(x) (mpz_cmp_ui((x), 0L) == 0)
+#endif
+
+#ifndef MPZ_IS_NEG
+    #define MPZ_IS_NEG(x) (mpz_sgn((x)) == -1)
+#endif
+
+#ifndef MPZ_IS_POS
+    #define MPZ_IS_POS(x) (mpz_sgn((x)) == 1)
+#endif
+
 /* GMP has an mpz_mod, but we don't use it, redefining it so we can use the MVM_BIGINT_BINARY_OP_2
  * macro for MVM_bigint_mod. */
 #undef mpz_mod
@@ -320,21 +332,21 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
     mpz_t *exponent    = force_bigint(tc, bb, 1);
     unsigned long exponent_d = 0;
 
-    if ((0 == mpz_cmp_si(*exponent, 0L)) || (0 == mpz_cmp_si(*base, 1L))) {
+    if (MPZ_IS_ZERO(*exponent) || (0 == mpz_cmp_si(*base, 1L))) {
         r = MVM_repr_box_int(tc, int_type, 1);
     }
-    else if (mpz_sgn(*exponent) == 1) {
+    else if (MPZ_IS_POS(*exponent)) {
         exponent_d = mpz_get_ui(*exponent);
         if ((1 <= mpz_cmp_ui(*exponent, exponent_d))) {
-            if (0 == mpz_cmp_si(*base, 0L)) {
+            if (MPZ_IS_ZERO(*base)) {
                 r = MVM_repr_box_int(tc, int_type, 0);
             }
             else if (mpz_get_si(*base) == 1 || mpz_get_si(*base) == -1) {
-                r = MVM_repr_box_int(tc, int_type, mpz_sgn(*base) == 1 || mpz_even_p(*exponent) ? 1 : -1);
+                r = MVM_repr_box_int(tc, int_type, MPZ_IS_POS(*base) || mpz_even_p(*exponent) ? 1 : -1);
             }
             else {
                 MVMnum64 inf;
-                if (mpz_sgn(*base) == 1 || mpz_even_p(*exponent)) {
+                if (MPZ_IS_POS(*base) || mpz_even_p(*exponent)) {
                     inf = MVM_num_posinf(tc);
                 }
                 else {
@@ -398,7 +410,7 @@ MVMObject *MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
  * a small int as well as cases when it is stored as a bigint */
 static int BIGINT_IS_NEGATIVE (MVMP6bigintBody *ba) {
     if (MVM_BIGINT_IS_BIG(ba)) {
-        return mpz_sgn(*mp_a) == -1;
+        return MPZ_IS_NEG(*mp_a);
     }
     else {
         return ba->u.smallint.value < 0;
@@ -480,7 +492,7 @@ MVMObject *MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result_type, MVMOb
     mpz_t *id = MVM_malloc(sizeof(mpz_t));
     mpz_init(*id);
 
-    if (mpz_cmp_ui(*ic, 0L) == 0 || (mpz_sgn(*ib) == -1 && (mpz_cmp_ui(*ic, 0L) == 0 || mpz_invert(*id, *ia, *ic) == 0))) {
+    if (MPZ_IS_ZERO(*ic) || (MPZ_IS_NEG(*ib) && (MPZ_IS_ZERO(*ic) || mpz_invert(*id, *ia, *ic) == 0))) {
         mpz_clear(*id);
         MVM_free(id);
         MVM_exception_throw_adhoc(tc, "Invalid values for expmod");
@@ -1151,7 +1163,7 @@ MVMint64 MVM_bigint_is_big(MVMThreadContext *tc, MVMObject *a) {
 MVMint64 MVM_bigint_bool(MVMThreadContext *tc, MVMObject *a) {
     MVMP6bigintBody *body = get_bigint_body(tc, a);
     if (MVM_BIGINT_IS_BIG(body)) {
-        return mpz_cmp_si(*body->u.bigint, 0L) != 0;
+        return !MPZ_IS_ZERO(*body->u.bigint);
     }
     else
         return body->u.smallint.value != 0;
