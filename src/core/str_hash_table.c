@@ -45,6 +45,43 @@ void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable) {
 }
 /* and then free memory if you allocated it */
 
+/* Relationship between "official" size (a power of two), how many buckets are
+ * actually allocated, and the sequence of
+ * ((max probe distances), (bits of hash stored in the metadata))
+ * max probe distance is expressed as 1 .. $n
+ * but the slot used is 0 .. $n - 1
+ * metadata is stored as 1 .. $n
+ * with 0 meaning "emtpy"
+ *
+ * This table also shows some sizes we don't use. Smallest allocation is 8 + 5.
+ *
+ *                            max probe distance
+ * buckets              <--   bits of extra hash    -->
+ * allocated            6    5    4    3    2    1    0
+ *    4 + 2             2 (from 3)
+ *    8 + 5             3    6 (from 7)
+ *   16 + 11            3    7   12 (from 15)
+ *   32 + 23            3    7   15   24 (from 31)
+ *   64 + 47            3    7   15   31   48 (from 63)
+ *  128 + 95            3    7   15   31   63   96 (from 127)
+ *  256 + 191           3    7   15   31   63  127  192 (from 255)
+ *  512 + 254           3    7   15   31   63  127  255
+ * 1024 + 254           3    7   15   31   63  127  255
+ *
+ * So for sizeof(long) == 4, the sentinel byte at the end of the allocated
+ * metadata never gets reached if we shift metadata long-at-a-time.
+ * For sizeof(long) == 8, it would get reached and shifted once if we have a
+ * hash with 8 + 5 buckets, and start with 6 bits of hash in the metadata,
+ * because we likely would first hit the short max probe distance of 3, and
+ * reprocess the metadata bytes from ((2 bits probe distance), (6 bits hash))
+ * to ((3 bits probe distance), (5 bits hash)), and if we do that 8-at-a-time,
+ * we would (also) touch the sentinel byte stored 5 in.
+ *
+ * So, simple, we don't start with 6 bits of hash. Max is 5 bits. Which means
+ * we can never grow the probe distance on our smallest 8 + 5 allocation - we
+ * always hit the probe distance limit first and resize to a 16 + 11 hash.
+ */
+
 MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadContext *tc,
                                                                       MVMuint8 entry_size,
                                                                       MVMuint8 key_right_shift,
@@ -70,7 +107,8 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
     control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
     control->cur_items = 0;
-    control->metadata_hash_bits = 0;
+    control->metadata_hash_bits = MVM_HASH_INITIAL_BITS_IN_METADATA;
+    /* ie 7: */
     MVMuint8 initial_probe_distance = (1 << (8 - MVM_HASH_INITIAL_BITS_IN_METADATA)) - 1;
     control->max_probe_distance = max_probe_distance_limit > initial_probe_distance ? initial_probe_distance : max_probe_distance_limit;
     control->max_probe_distance_limit = max_probe_distance_limit;
@@ -80,7 +118,12 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
     MVMuint8 *metadata = (MVMuint8 *)(control + 1);
     memset(metadata, 0, metadata_size);
 
-    /* A sentinel. This marks an occupied slot, at its ideal position. */
+    /* A sentinel. This marks an occupied slot, at its ideal position.
+     * As long as we start with (no more than) 5 metadata hash bits, certainly
+     * for the load factor we currently have (0.75) we can't actually reach this
+     * sentinel even with long-at-a-time reprocessing of the metadata, for any
+     * size shorter than the full allocation (at which point we no longer
+     * reprocess). */
     metadata[allocated_items] = 1;
 
 #if MVM_HASH_RANDOMIZE
@@ -273,6 +316,27 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
         if (new_probe_distance > max_probe_distance_limit) {
             new_probe_distance = max_probe_distance_limit;
         }
+
+        MVMuint8 *metadata = MVM_str_hash_metadata(control);
+        assert(metadata[MVM_str_hash_allocated_items(control)] == 1);
+        MVMuint32 in_use_items = MVM_str_hash_official_size(control) + max_probe_distance;
+        /* not `in_use_items + 1` because because we don't need to shift the
+         * sentinel. */
+        size_t metadata_size = MVM_hash_round_size_up(in_use_items);
+        size_t loop_count = metadata_size / sizeof(unsigned long);
+        unsigned long *p = (unsigned long *) metadata;
+        /* right shift each byte by 1 bit, clearing the top bit. */
+        do {
+            /* 0x7F7F7F7F7F7F7F7F on 64 bit systems, 0x7F7F7F7F on 32 bit,
+             * but without using constants or shifts larger than 32 bits, or
+             * the preprocessor. (So the compiler checks all code everywhere.)
+             * Will break on a system with 128 bit longs. */
+            *p = (*p >> 1) & (0x7F7F7F7FUL | (0x7F7F7F7FUL << (4 * sizeof(long))));
+            ++p;
+        } while (--loop_count);
+        assert(metadata[MVM_str_hash_allocated_items(control)] == 1);
+        assert(control->metadata_hash_bits);
+        --control->metadata_hash_bits;
 
         control->max_probe_distance = new_probe_distance;
         /* Reset this to its proper value. */

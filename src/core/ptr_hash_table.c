@@ -46,7 +46,8 @@ MVM_STATIC_INLINE struct MVMPtrHashTableControl *hash_allocate_common(MVMThreadC
     control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
     control->cur_items = 0;
-    control->metadata_hash_bits = 0;
+    control->metadata_hash_bits = MVM_HASH_INITIAL_BITS_IN_METADATA;
+    /* ie 7: */
     MVMuint8 initial_probe_distance = (1 << (8 - MVM_HASH_INITIAL_BITS_IN_METADATA)) - 1;
     control->max_probe_distance = max_probe_distance_limit > initial_probe_distance ? initial_probe_distance : max_probe_distance_limit;
     control->max_probe_distance_limit = max_probe_distance_limit;
@@ -55,7 +56,12 @@ MVM_STATIC_INLINE struct MVMPtrHashTableControl *hash_allocate_common(MVMThreadC
     MVMuint8 *metadata = (MVMuint8 *)(control + 1);
     memset(metadata, 0, metadata_size);
 
-    /* A sentinel. This marks an occupied slot, at its ideal position. */
+    /* A sentinel. This marks an occupied slot, at its ideal position.
+     * As long as we start with (no more than) 5 metadata hash bits, certainly
+     * for the load factor we currently have (0.75) we can't actually reach this
+     * sentinel even with long-at-a-time reprocessing of the metadata, for any
+     * size shorter than the full allocation (at which point we no longer
+     * reprocess). */
     metadata[allocated_items] = 1;
 
     return control;
@@ -184,6 +190,27 @@ static struct MVMPtrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
         if (new_probe_distance > max_probe_distance_limit) {
             new_probe_distance = max_probe_distance_limit;
         }
+
+        MVMuint8 *metadata = MVM_ptr_hash_metadata(control);
+        assert(metadata[MVM_ptr_hash_allocated_items(control)] == 1);
+        MVMuint32 in_use_items = MVM_ptr_hash_official_size(control) + max_probe_distance;
+        /* not `in_use_items + 1` because because we don't need to shift the
+         * sentinel. */
+        size_t metadata_size = MVM_hash_round_size_up(in_use_items);
+        size_t loop_count = metadata_size / sizeof(unsigned long);
+        unsigned long *p = (unsigned long *) metadata;
+        /* right shift each byte by 1 bit, clearing the top bit. */
+        do {
+            /* 0x7F7F7F7F7F7F7F7F on 64 bit systems, 0x7F7F7F7F on 32 bit,
+             * but without using constants or shifts larger than 32 bits, or
+             * the preprocessor. (So the compiler checks all code everywhere.)
+             * Will break on a system with 128 bit longs. */
+            *p = (*p >> 1) & (0x7F7F7F7FUL | (0x7F7F7F7FUL << (4 * sizeof(long))));
+            ++p;
+        } while (--loop_count);
+        assert(metadata[MVM_ptr_hash_allocated_items(control)] == 1);
+        assert(control->metadata_hash_bits);
+        --control->metadata_hash_bits;
 
         control->max_probe_distance = new_probe_distance;
         /* Reset this to its proper value. */

@@ -1,5 +1,9 @@
 /* These are private. We need them out here for the inline functions. Use those.
  */
+/* See comments in hash_allocate_common (and elsewhere) before changing the
+ * load factor, or PTR_MIN_SIZE_BASE_2 or MVM_HASH_INITIAL_BITS_IN_METADATA,
+ * and test with assertions enabled. The current choices permit certain
+ * optimisation assumptions in parts of the code. */
 #define MVM_PTR_HASH_LOAD_FACTOR 0.75
 MVM_STATIC_INLINE MVMuint32 MVM_ptr_hash_official_size(const struct MVMPtrHashTableControl *control) {
     return 1 << (MVMuint32)control->official_size_log2;
