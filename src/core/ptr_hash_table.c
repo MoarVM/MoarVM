@@ -46,7 +46,9 @@ MVM_STATIC_INLINE struct MVMPtrHashTableControl *hash_allocate_common(MVMThreadC
     control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
     control->cur_items = 0;
-    control->max_probe_distance = max_probe_distance_limit > (4 - 1) ? (4 - 1) : max_probe_distance_limit;
+    control->metadata_hash_bits = 0;
+    MVMuint8 initial_probe_distance = (1 << (8 - MVM_HASH_INITIAL_BITS_IN_METADATA)) - 1;
+    control->max_probe_distance = max_probe_distance_limit > initial_probe_distance ? initial_probe_distance : max_probe_distance_limit;
     control->max_probe_distance_limit = max_probe_distance_limit;
     control->key_right_shift = key_right_shift;
 
@@ -88,8 +90,8 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
                 MVMuint8 *find_me_a_gap = ls.metadata;
                 MVMuint8 old_probe_distance = *ls.metadata;
                 do {
-                    MVMuint8 new_probe_distance = 1 + old_probe_distance;
-                    if (new_probe_distance == control->max_probe_distance) {
+                    MVMuint32 new_probe_distance = ls.metadata_increment + old_probe_distance;
+                    if (new_probe_distance >> ls.probe_distance_shift == ls.max_probe_distance) {
                         /* Optimisation from Martin Ankerl's implementation:
                            setting this to zero forces a resize on any insert,
                            *before* the actual insert, so that we never end up
@@ -120,7 +122,7 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
              * about to insert something at the (current) max_probe_distance, so
              * signal to the next insertion that it needs to take action first.
              */
-            if (ls.probe_distance == control->max_probe_distance) {
+            if (ls.probe_distance >> ls.probe_distance_shift == control->max_probe_distance) {
                 control->max_items = 0;
             }
 
@@ -138,7 +140,7 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
                 return entry;
             }
         }
-        ++ls.probe_distance;
+        ls.probe_distance += ls.metadata_increment;
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
 
@@ -156,7 +158,7 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
          * reached without needing an explicit test for it, and why we need an
          * initialised sentinel byte at the end of the metadata. */
 
-        assert(ls.probe_distance <= (unsigned int) control->max_probe_distance);
+        assert(ls.probe_distance <= ls.max_probe_distance * ls.metadata_increment);
         assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + MVM_ptr_hash_max_items(control));
         assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + 256);
     }
@@ -167,6 +169,7 @@ static struct MVMPtrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
     /* control->max_items may have been set to 0 to trigger a call into this
      * function. */
     MVMuint32 max_items = MVM_ptr_hash_max_items(control);
+    MVMuint32 max_probe_distance = control->max_probe_distance;
     MVMuint32 max_probe_distance_limit = control->max_probe_distance_limit;
 
     /* We can hit both the probe limit and the max items on the same insertion.
@@ -175,10 +178,9 @@ static struct MVMPtrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
      * then we don't have more space in the metadata, so we're going to have to
      * grow anyway. */
     if (control->cur_items < max_items
-        && control->max_probe_distance < max_probe_distance_limit) {
+        && max_probe_distance < max_probe_distance_limit) {
         /* We hit the probe limit, but not the max items count. */
-        MVMuint32 new_probe_distance
-            = 2 + 2 * (MVMuint32) control->max_probe_distance;
+        MVMuint32 new_probe_distance = 1 + 2 * max_probe_distance;
         if (new_probe_distance > max_probe_distance_limit) {
             new_probe_distance = max_probe_distance_limit;
         }
@@ -304,9 +306,9 @@ uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
                 uint8_t *metadata_target = ls.metadata;
                 /* Look at the next slot */
                 uint8_t old_probe_distance = metadata_target[1];
-                while (old_probe_distance > 1) {
+                while (old_probe_distance > ls.metadata_increment) {
                     /* OK, we can move this one. */
-                    *metadata_target = old_probe_distance - 1;
+                    *metadata_target = old_probe_distance - ls.metadata_increment;
                     /* Try the next one, etc */
                     ++metadata_target;
                     old_probe_distance = metadata_target[1];
@@ -349,10 +351,10 @@ uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
             /* Strange. Not in the hash. Should this be an oops? */
             return 0;
         }
-        ++ls.probe_distance;
+        ls.probe_distance += ls.metadata_increment;
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
-        assert(ls.probe_distance <= (unsigned int) control->max_probe_distance + 1);
+        assert(ls.probe_distance <= (control->max_probe_distance + 1) * ls.metadata_increment);
         assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + MVM_ptr_hash_max_items(control));
         assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + 256);
     }

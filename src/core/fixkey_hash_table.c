@@ -66,7 +66,9 @@ MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThre
     control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
     control->cur_items = 0;
-    control->max_probe_distance = max_probe_distance_limit > (4 - 1) ? (4 - 1) : max_probe_distance_limit;
+    control->metadata_hash_bits = 0;
+    MVMuint8 initial_probe_distance = (1 << (8 - MVM_HASH_INITIAL_BITS_IN_METADATA)) - 1;
+    control->max_probe_distance = max_probe_distance_limit > initial_probe_distance ? initial_probe_distance : max_probe_distance_limit;
     control->max_probe_distance_limit = max_probe_distance_limit;
     control->key_right_shift = key_right_shift;
     control->entry_size = entry_size;
@@ -119,8 +121,8 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
                 MVMuint8 *find_me_a_gap = ls.metadata;
                 MVMuint8 old_probe_distance = *ls.metadata;
                 do {
-                    MVMuint8 new_probe_distance = 1 + old_probe_distance;
-                    if (new_probe_distance == control->max_probe_distance) {
+                    MVMuint32 new_probe_distance = ls.metadata_increment + old_probe_distance;
+                    if (new_probe_distance >> ls.probe_distance_shift == ls.max_probe_distance) {
                         /* Optimisation from Martin Ankerl's implementation:
                            setting this to zero forces a resize on any insert,
                            *before* the actual insert, so that we never end up
@@ -151,7 +153,7 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
              * about to insert something at the (current) max_probe_distance, so
              * signal to the next insertion that it needs to take action first.
              */
-            if (ls.probe_distance == control->max_probe_distance) {
+            if (ls.probe_distance >> ls.probe_distance_shift == control->max_probe_distance) {
                 control->max_items = 0;
             }
 
@@ -175,7 +177,7 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
                 return indirection;
             }
         }
-        ++ls.probe_distance;
+        ls.probe_distance += ls.metadata_increment;
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
 
@@ -193,7 +195,7 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
          * reached without needing an explicit test for it, and why we need an
          * initialised sentinel byte at the end of the metadata. */
 
-        assert(ls.probe_distance <= (unsigned int) control->max_probe_distance);
+        assert(ls.probe_distance <= ls.max_probe_distance * ls.metadata_increment);
         assert(ls.metadata < MVM_fixkey_hash_metadata(control) + MVM_fixkey_hash_official_size(control) + MVM_fixkey_hash_max_items(control));
         assert(ls.metadata < MVM_fixkey_hash_metadata(control) + MVM_fixkey_hash_official_size(control) + 256);
     }
@@ -208,6 +210,7 @@ static struct MVMFixKeyHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
     /* control->max_items may have been set to 0 to trigger a call into this
      * function. */
     MVMuint32 max_items = MVM_fixkey_hash_max_items(control);
+    MVMuint32 max_probe_distance = control->max_probe_distance;
     MVMuint32 max_probe_distance_limit = control->max_probe_distance_limit;
 
     /* We can hit both the probe limit and the max items on the same insertion.
@@ -216,10 +219,9 @@ static struct MVMFixKeyHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
      * then we don't have more space in the metadata, so we're going to have to
      * grow anyway. */
     if (control->cur_items < max_items
-        && control->max_probe_distance < max_probe_distance_limit) {
+        && max_probe_distance < max_probe_distance_limit) {
         /* We hit the probe limit, but not the max items count. */
-        MVMuint32 new_probe_distance
-            = 2 + 2 * (MVMuint32) control->max_probe_distance;
+        MVMuint32 new_probe_distance = 1 + 2 * max_probe_distance;
         if (new_probe_distance > max_probe_distance_limit) {
             new_probe_distance = max_probe_distance_limit;
         }

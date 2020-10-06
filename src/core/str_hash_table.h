@@ -196,6 +196,7 @@ struct MVMStrHashTableControl {
      * We can (re)calcuate this from other values in the struct, but it's easier
      * to cache it as we have the space. */
     MVMuint8 max_probe_distance_limit;
+    MVMuint8 metadata_hash_bits;
 };
 
 struct MVMStrHashTable {

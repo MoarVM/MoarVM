@@ -79,8 +79,11 @@ MVM_index_hash_create_loop_state(MVMThreadContext *tc,
     MVMuint64 hash_val = MVM_string_hash_code(tc, key);
     MVMHashNumItems bucket = hash_val >> control->key_right_shift;
     struct MVM_hash_loop_state retval;
-    retval.probe_distance = 1;
     retval.entry_size = sizeof(struct MVMIndexHashEntry);
+    retval.metadata_increment = 1 << control->metadata_hash_bits;
+    retval.probe_distance_shift = control->metadata_hash_bits;
+    retval.max_probe_distance = control->max_probe_distance;
+    retval.probe_distance = retval.metadata_increment;
     retval.entry_raw = MVM_index_hash_entries(control) - bucket * retval.entry_size;
     retval.metadata = MVM_index_hash_metadata(control) + bucket;
     return retval;
@@ -119,10 +122,10 @@ MVM_STATIC_INLINE MVMuint32 MVM_index_hash_fetch_nocheck(MVMThreadContext *tc,
                we seek can't be in the hash table. */
             return MVM_INDEX_HASH_NOT_FOUND;
         }
-        ++ls.probe_distance;
+        ls.probe_distance += ls.metadata_increment;
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
-        assert(ls.probe_distance <= (unsigned int) control->max_probe_distance + 1);
+        assert(ls.probe_distance <= (ls.max_probe_distance + 1) * ls.metadata_increment);
         assert(ls.metadata < MVM_index_hash_metadata(control) + MVM_index_hash_official_size(control) + MVM_index_hash_max_items(control));
         assert(ls.metadata < MVM_index_hash_metadata(control) + MVM_index_hash_official_size(control) + 256);
     }
