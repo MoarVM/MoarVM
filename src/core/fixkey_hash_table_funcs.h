@@ -57,14 +57,25 @@ MVM_fixkey_hash_create_loop_state(MVMThreadContext *tc,
                                   struct MVMFixKeyHashTableControl *control,
                                   MVMString *key) {
     MVMuint64 hash_val = MVM_string_hash_code(tc, key);
-    MVMHashNumItems bucket = hash_val >> control->key_right_shift;
     struct MVM_hash_loop_state retval;
     retval.entry_size = sizeof(MVMString ***);
     retval.metadata_increment = 1 << control->metadata_hash_bits;
     retval.metadata_hash_mask = retval.metadata_increment - 1;
     retval.probe_distance_shift = control->metadata_hash_bits;
     retval.max_probe_distance = control->max_probe_distance;
-    retval.probe_distance = retval.metadata_increment | retval.metadata_hash_mask;
+
+    MVMHashNumItems bucket;
+    unsigned int used_hash_bits
+        = hash_val >> (control->key_right_shift - control->metadata_hash_bits);
+    if (control->metadata_hash_bits) {
+        retval.probe_distance = retval.metadata_increment | (used_hash_bits & retval.metadata_hash_mask);
+        bucket = used_hash_bits >> control->metadata_hash_bits;
+    } else {
+        /* metadata_increment is 1, metadata_hash_mask is 0 */
+        retval.probe_distance = 1;
+        bucket = used_hash_bits;
+    }
+
     retval.entry_raw = MVM_fixkey_hash_entries(control) - bucket * retval.entry_size;
     retval.metadata = MVM_fixkey_hash_metadata(control) + bucket;
     return retval;

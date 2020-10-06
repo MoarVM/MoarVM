@@ -38,8 +38,10 @@ go inline. And it turns out, our keys are always pointers, and easily "hashed"
 (either because they are, because they point to something that caches its
 hash value, or because we fake it and explicitly store the hash value.)
 
-Not all the optimisations described above are in place yet. Starting with
-"minimum viable product", with a design that should support adding them.
+Some tuning is still possible (and probably a good idea), but the only
+significant code optimisation not implemented would be to change iterator
+metadata processing to be word-at-a-time when possible. And even that might not
+be worth it.
 
 */
 
@@ -142,7 +144,7 @@ Not all the optimisations described above are in place yet. Starting with
  * the last bucket), so what we actually have is this
  *
  * +----------+        +---+---+---+---+---+---+---+---+---+---+---+---+---+---+
- * | metadata | ->     | a | b | c | d | e | f | g | h | i | j | k | l | m | 1 |
+ * | metadata | ->     | a | b | c | d | e | f | g | h | i | j | k | l | m | 0 |
  * |          |        +---+---+---+---+---+---+---+---+---+---+---+---+---+---+
  * | (other)  |
  * |          |        +---+---+---+---+---+---+---+---+---+---+---+---+---+
