@@ -155,7 +155,7 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
          * insert an entry at a location beyond the maximum probe distance.
          *
          * For fetch and delete, the loop is permitted to reach (and read) one
-         * beyond the maximum probe distance (hence +1 in the seemingly
+         * beyond the maximum probe distance (hence +2 in the seemingly
          * analogous assertions) - but if so, it will always read from the
          * metadata a probe distance which is lower than the current probe
          * distance, and hence hit "not found" and terminate the loop.
@@ -164,7 +164,7 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
          * reached without needing an explicit test for it, and why we need an
          * initialised sentinel byte at the end of the metadata. */
 
-        assert(ls.probe_distance <= ls.max_probe_distance * ls.metadata_increment);
+        assert(ls.probe_distance < (ls.max_probe_distance + 1) * ls.metadata_increment);
         assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + MVM_ptr_hash_max_items(control));
         assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + 256);
     }
@@ -333,7 +333,7 @@ uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
                 uint8_t *metadata_target = ls.metadata;
                 /* Look at the next slot */
                 uint8_t old_probe_distance = metadata_target[1];
-                while (old_probe_distance > ls.metadata_increment) {
+                while (old_probe_distance > (ls.metadata_increment | ls.metadata_hash_mask)) {
                     /* OK, we can move this one. */
                     *metadata_target = old_probe_distance - ls.metadata_increment;
                     /* Try the next one, etc */

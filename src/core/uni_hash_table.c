@@ -181,7 +181,7 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *hash_insert_internal(MVMThreadContext 
          * insert an entry at a location beyond the maximum probe distance.
          *
          * For fetch and delete, the loop is permitted to reach (and read) one
-         * beyond the maximum probe distance (hence +1 in the seemingly
+         * beyond the maximum probe distance (hence +2 in the seemingly
          * analogous assertions) - but if so, it will always read from the
          * metadata a probe distance which is lower than the current probe
          * distance, and hence hit "not found" and terminate the loop.
@@ -190,7 +190,7 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *hash_insert_internal(MVMThreadContext 
          * reached without needing an explicit test for it, and why we need an
          * initialised sentinel byte at the end of the metadata. */
 
-        assert(ls.probe_distance <= ls.max_probe_distance * ls.metadata_increment);
+        assert(ls.probe_distance < (ls.max_probe_distance + 1) * ls.metadata_increment);
         assert(ls.metadata < MVM_uni_hash_metadata(control) + MVM_uni_hash_official_size(control) + MVM_uni_hash_max_items(control));
         assert(ls.metadata < MVM_uni_hash_metadata(control) + MVM_uni_hash_official_size(control) + 256);
     }

@@ -61,9 +61,10 @@ MVM_fixkey_hash_create_loop_state(MVMThreadContext *tc,
     struct MVM_hash_loop_state retval;
     retval.entry_size = sizeof(MVMString ***);
     retval.metadata_increment = 1 << control->metadata_hash_bits;
+    retval.metadata_hash_mask = retval.metadata_increment - 1;
     retval.probe_distance_shift = control->metadata_hash_bits;
     retval.max_probe_distance = control->max_probe_distance;
-    retval.probe_distance = retval.metadata_increment;
+    retval.probe_distance = retval.metadata_increment | retval.metadata_hash_mask;
     retval.entry_raw = MVM_fixkey_hash_entries(control) - bucket * retval.entry_size;
     retval.metadata = MVM_fixkey_hash_metadata(control) + bucket;
     return retval;
@@ -105,7 +106,7 @@ MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nocheck(MVMThreadContext *tc,
         ls.probe_distance += ls.metadata_increment;
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
-        assert(ls.probe_distance <= (ls.max_probe_distance + 1) * ls.metadata_increment);
+        assert(ls.probe_distance < (ls.max_probe_distance + 2) * ls.metadata_increment);
         assert(ls.metadata < MVM_fixkey_hash_metadata(control) + MVM_fixkey_hash_official_size(control) + MVM_fixkey_hash_max_items(control));
         assert(ls.metadata < MVM_fixkey_hash_metadata(control) + MVM_fixkey_hash_official_size(control) + 256);
     }
