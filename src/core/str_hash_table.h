@@ -153,7 +153,7 @@ be worth it.
  *
  *                     <-- official bucket positions --><--   overflow   -->
  *
- * We include a sentinel values at the end of the metadata so that the probe
+ * We include a sentinel value at the end of the metadata so that the probe
  * distance loop doesn't need a bounds check. We *had* allocated an extra byte
  * at the start too, to make the pointer arithmetic work, but that isn't needed
  * now that we use a single memory block.

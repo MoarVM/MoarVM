@@ -55,14 +55,6 @@ MVM_STATIC_INLINE struct MVMUniHashTableControl *hash_allocate_common(MVMThreadC
     MVMuint8 *metadata = (MVMuint8 *)(control + 1);
     memset(metadata, 0, metadata_size);
 
-    /* A sentinel. This marks an occupied slot, at its ideal position.
-     * As long as we start with (no more than) 5 metadata hash bits, certainly
-     * for the load factor we currently have (0.75) we can't actually reach this
-     * sentinel even with long-at-a-time reprocessing of the metadata, for any
-     * size shorter than the full allocation (at which point we no longer
-     * reprocess). */
-    metadata[allocated_items] = 1;
-
     return control;
 }
 
@@ -218,7 +210,6 @@ static struct MVMUniHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
         }
 
         MVMuint8 *metadata = MVM_uni_hash_metadata(control);
-        assert(metadata[MVM_uni_hash_allocated_items(control)] == 1);
         MVMuint32 in_use_items = MVM_uni_hash_official_size(control) + max_probe_distance;
         /* not `in_use_items + 1` because because we don't need to shift the
          * sentinel. */
@@ -234,7 +225,6 @@ static struct MVMUniHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
             *p = (*p >> 1) & (0x7F7F7F7FUL | (0x7F7F7F7FUL << (4 * sizeof(long))));
             ++p;
         } while (--loop_count);
-        assert(metadata[MVM_uni_hash_allocated_items(control)] == 1);
         assert(control->metadata_hash_bits);
         --control->metadata_hash_bits;
 

@@ -68,16 +68,33 @@ void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable) {
  *  512 + 254           3    7   15   31   63  127  255
  * 1024 + 254           3    7   15   31   63  127  255
  *
- * So for sizeof(long) == 4, the sentinel byte at the end of the allocated
- * metadata never gets reached if we shift metadata long-at-a-time.
- * For sizeof(long) == 8, it would get reached and shifted once if we have a
- * hash with 8 + 5 buckets, and start with 6 bits of hash in the metadata,
- * because we likely would first hit the short max probe distance of 3, and
- * reprocess the metadata bytes from ((2 bits probe distance), (6 bits hash))
- * to ((3 bits probe distance), (5 bits hash)), and if we do that 8-at-a-time,
- * we would (also) touch the sentinel byte stored 5 in.
+ * As originally implemented one beyond the end of the metadata there was a
+ * sentinel byte with the value 1. It transpires that 0 will work just as well.
  *
- * So, simple, we don't start with 6 bits of hash. Max is 5 bits. Which means
+ * To simplify the search code in `fetch` and `delete` there needs to be a value
+ * there *that can be read* that represents "not found" (so either an empty slot
+ * or an entry with a lower probe distance). 0 is an empty slot, 1 is an entry
+ * in its ideal slot - either will do. (Don't worry about metadata shifting -
+ * the comment that this commit deletes explains how that used to be handled).
+ *
+ * By having this sentinel `fetch` and `delete` can eliminate an extra condition
+ * check in the loop - they no longer need to also test for "have we exceeded
+ * the probe distance", because (instead) they will always terminate in this
+ * case by finding an entry with a lower probe distance (or an empty slot). The
+ * sentinel covers the corner case of maximum possible probe distance starting
+ * from the last bucket.
+ *
+ * Martin Ankerl's implementation used a sentinel of 1, because it was also
+ * needed to terminate the word-at-a-time iterator skip ahead, which rapidly
+ * traverses the metadata corresponding to large unallocated areas. We don't
+ * need that, and won't need that at the *end* even if we do choose to implement
+ * word-at-a-time iterators, because we iterate in reverse, from the end of the
+ * metadata to the start. (If we need a sentinel at all, it would need to be the
+ * last byte of the control structure. And could "cheat" and share space with
+ * anything in the control structure that is guaranteed to be non-zero,)
+ *
+ * To avoid too much early metadata shifting, we don't start with 6 bits of
+ * hash. Max is currently 5 bits (we should check if 4 is better). Which means
  * we can never grow the probe distance on our smallest 8 + 5 allocation - we
  * always hit the probe distance limit first and resize to a 16 + 11 hash.
  */
@@ -117,14 +134,6 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
 
     MVMuint8 *metadata = (MVMuint8 *)(control + 1);
     memset(metadata, 0, metadata_size);
-
-    /* A sentinel. This marks an occupied slot, at its ideal position.
-     * As long as we start with (no more than) 5 metadata hash bits, certainly
-     * for the load factor we currently have (0.75) we can't actually reach this
-     * sentinel even with long-at-a-time reprocessing of the metadata, for any
-     * size shorter than the full allocation (at which point we no longer
-     * reprocess). */
-    metadata[allocated_items] = 1;
 
 #if MVM_HASH_RANDOMIZE
     control->salt = MVM_proc_rand_i(tc);
@@ -318,7 +327,6 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
         }
 
         MVMuint8 *metadata = MVM_str_hash_metadata(control);
-        assert(metadata[MVM_str_hash_allocated_items(control)] == 1);
         MVMuint32 in_use_items = MVM_str_hash_official_size(control) + max_probe_distance;
         /* not `in_use_items + 1` because because we don't need to shift the
          * sentinel. */
@@ -334,7 +342,6 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
             *p = (*p >> 1) & (0x7F7F7F7FUL | (0x7F7F7F7FUL << (4 * sizeof(long))));
             ++p;
         } while (--loop_count);
-        assert(metadata[MVM_str_hash_allocated_items(control)] == 1);
         assert(control->metadata_hash_bits);
         --control->metadata_hash_bits;
 
