@@ -131,8 +131,7 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
             entry->key = NULL;
             return entry;
         }
-
-        if (*ls.metadata == ls.probe_distance) {
+        else if (*ls.metadata == ls.probe_distance) {
             struct MVMPtrHashEntry *entry = (struct MVMPtrHashEntry *) ls.entry_raw;
             if (entry->key == key) {
                 return entry;
@@ -358,7 +357,7 @@ uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
             }
         }
         /* There's a sentinel at the end. This will terminate: */
-        if (*ls.metadata < ls.probe_distance) {
+        else if (*ls.metadata < ls.probe_distance) {
             /* So, if we hit 0, the bucket is empty. "Not found".
                If we hit something with a lower probe distance then...
                consider what would have happened had this key been inserted into

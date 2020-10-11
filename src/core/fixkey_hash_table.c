@@ -163,8 +163,7 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
             *indirection = NULL;
             return indirection;
         }
-
-        if (*ls.metadata == ls.probe_distance) {
+        else if (*ls.metadata == ls.probe_distance) {
             MVMString ***indirection = (MVMString ***) ls.entry_raw;
             MVMString **entry = *indirection;
             if (*entry == key

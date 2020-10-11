@@ -153,8 +153,7 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
 
             return;
         }
-
-        if (*ls.metadata == ls.probe_distance) {
+        else if (*ls.metadata == ls.probe_distance) {
             struct MVMIndexHashEntry *entry = (struct MVMIndexHashEntry *) ls.entry_raw;
             if (entry->index == idx) {
                 /* definately XXX - what should we do here? */

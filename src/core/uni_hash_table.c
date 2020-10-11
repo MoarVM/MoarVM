@@ -157,8 +157,7 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *hash_insert_internal(MVMThreadContext 
             entry->hash_val = hash_val;
             return entry;
         }
-
-        if (*ls.metadata == ls.probe_distance) {
+        else if (*ls.metadata == ls.probe_distance) {
             struct MVMUniHashEntry *entry = (struct MVMUniHashEntry *) ls.entry_raw;
             if (entry->hash_val == hash_val && 0 == strcmp(entry->key, key)) {
                 return entry;
