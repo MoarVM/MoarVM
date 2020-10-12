@@ -435,7 +435,7 @@ MVMObject *MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
  * a small int as well as cases when it is stored as a bigint */
 static int BIGINT_IS_NEGATIVE (MVMP6bigintBody *ba) {
     if (MVM_BIGINT_IS_BIG(ba)) {
-        return MPZ_IS_NEG(*mp_a);
+        return MPZ_IS_NEG(*ba->u.bigint);
     }
     else {
         return ba->u.smallint.value < 0;
@@ -1037,8 +1037,13 @@ static MVMint64 is_SPRP(uint32_t n, uint32_t a) {
 MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
     if (MVM_BIGINT_IS_BIG(ba)) {
-        mpz_t *ia = ba->u.bigint;
-        return mpz_probab_prime_p(*ia, 64);
+        /* We used to do 100 rounds, but that was overkill and we decided 40 was sufficient.
+         * TODO:
+         * However, GMP > 6.1.2 subtracts 24 from the value passed because it does a Baillie-PSW
+         * probable prime test before the Miller-Rabin tests. According to their documentation:
+         *     "Reasonable values of reps are between 15 and 50."
+         * so we might be safe reducing this value even more. */
+        return mpz_probab_prime_p(*ba->u.bigint, 40+24);
     }
     else {
         MVMint32 x = ba->u.smallint.value;
@@ -1171,25 +1176,21 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
    information */
 MVMint64 MVM_bigint_is_big(MVMThreadContext *tc, MVMObject *a) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
-
     if (MVM_BIGINT_IS_BIG(ba)) {
-        mpz_t *b = ba->u.bigint;
-        MVMint64 is_big = mpz_size(*b) > 1;
-        /* XXX somebody please check that on a 32 bit platform */
-        if (is_big == 0 && mpz_getlimbn(*b, 0) & ~0x7FFFFFFFUL)
-            is_big = 1;
-        return is_big;
-    } else {
+        return !mpz_fits_sint_p(*ba->u.bigint);
+    }
+    else {
         /* if it's in a smallint, it's 32 bits big at most and fits into an INTVAL easily. */
         return 0;
     }
 }
 
 MVMint64 MVM_bigint_bool(MVMThreadContext *tc, MVMObject *a) {
-    MVMP6bigintBody *body = get_bigint_body(tc, a);
-    if (MVM_BIGINT_IS_BIG(body)) {
-        return !MPZ_IS_ZERO(*body->u.bigint);
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+    if (MVM_BIGINT_IS_BIG(ba)) {
+        return !MPZ_IS_ZERO(*ba->u.bigint);
     }
-    else
-        return body->u.smallint.value != 0;
+    else {
+        return ba->u.smallint.value != 0;
+    }
 }
