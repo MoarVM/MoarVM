@@ -34,6 +34,12 @@
 #undef mpz_mod
 #define mpz_mod mpz_fdiv_r
 
+static jmp_buf buf;
+
+void handler(int signal) {
+    longjmp(buf, 1);
+}
+
 MVM_STATIC_INLINE void adjust_nursery(MVMThreadContext *tc, MVMP6bigintBody *body) {
     if (MVM_BIGINT_IS_BIG(body)) {
         int used = mpz_size(*body->u.bigint) * sizeof(mp_limb_t);
@@ -332,19 +338,41 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
     mpz_t *exponent    = force_bigint(tc, bb, 1);
     unsigned long exponent_d = 0;
 
+    /* base ** 0 || 1 ** exponent == 1 */
     if (MPZ_IS_ZERO(*exponent) || (0 == mpz_cmp_si(*base, 1L))) {
         r = MVM_repr_box_int(tc, int_type, 1);
     }
+    /* 0 ** exponent == 0 */
+    else if (MPZ_IS_ZERO(*base)) {
+        r = MVM_repr_box_int(tc, int_type, 0);
+    }
+    /* (-)1 ** exponent == (-)1 */
+    else if (mpz_get_ui(*base) == 1) {
+        r = MVM_repr_box_int(tc, int_type, MPZ_IS_POS(*base) || mpz_even_p(*exponent) ? 1 : -1);
+    }
     else if (MPZ_IS_POS(*exponent)) {
         exponent_d = mpz_get_ui(*exponent);
-        if ((1 <= mpz_cmp_ui(*exponent, exponent_d))) {
-            if (MPZ_IS_ZERO(*base)) {
-                r = MVM_repr_box_int(tc, int_type, 0);
-            }
-            else if (mpz_get_si(*base) == 1 || mpz_get_si(*base) == -1) {
-                r = MVM_repr_box_int(tc, int_type, MPZ_IS_POS(*base) || mpz_even_p(*exponent) ? 1 : -1);
+        if (mpz_cmp_ui(*exponent, exponent_d) > 0) {
+            MVMnum64 inf;
+            if (MPZ_IS_POS(*base) || mpz_even_p(*exponent)) {
+                inf = MVM_num_posinf(tc);
             }
             else {
+                inf = MVM_num_neginf(tc);
+            }
+            r = MVM_repr_box_num(tc, num_type, inf);
+        }
+        else {
+            mpz_t *ic = MVM_malloc(sizeof(mpz_t));
+            MVMP6bigintBody *resbody;
+            mpz_init(*ic);
+            MVM_gc_mark_thread_blocked(tc);
+            signal(SIGABRT, handler);
+            if (setjmp(buf)) {
+                signal(SIGABRT, NULL);
+                MVM_gc_mark_thread_unblocked(tc);
+                mpz_clear(*ic);
+                MVM_free(ic);
                 MVMnum64 inf;
                 if (MPZ_IS_POS(*base) || mpz_even_p(*exponent)) {
                     inf = MVM_num_posinf(tc);
@@ -354,18 +382,15 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
                 }
                 r = MVM_repr_box_num(tc, num_type, inf);
             }
-        }
-        else {
-            mpz_t *ic = MVM_malloc(sizeof(mpz_t));
-            MVMP6bigintBody *resbody;
-            mpz_init(*ic);
-            MVM_gc_mark_thread_blocked(tc);
-            mpz_pow_ui(*ic, *base, exponent_d);
-            MVM_gc_mark_thread_unblocked(tc);
-            r = MVM_repr_alloc_init(tc, int_type);
-            resbody = get_bigint_body(tc, r);
-            store_bigint_result(resbody, ic);
-            adjust_nursery(tc, resbody);
+            else {
+                mpz_pow_ui(*ic, *base, exponent_d);
+                signal(SIGABRT, NULL);
+                MVM_gc_mark_thread_unblocked(tc);
+                r = MVM_repr_alloc_init(tc, int_type);
+                resbody = get_bigint_body(tc, r);
+                store_bigint_result(resbody, ic);
+                adjust_nursery(tc, resbody);
+            }
         }
     }
     else {
