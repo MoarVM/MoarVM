@@ -952,24 +952,25 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
     MVMP6bigintBody *bb = get_bigint_body(tc, b);
 
     MVMint8 use_small_arithmetic = 0;
-    MVMint8 have_to_negate = 0;
-    MVMint32 smallint_max = 0;
+    /* This has to be an MVMint64 (and we have to use labs below) because u.smallint.value
+     * could be INT_MIN. Calling abs on INT_MIN is UB and negating it is still INT_MIN. */
+    MVMint64 smallint_max = 0;
 
     if (MVM_BIGINT_IS_BIG(bb)) {
         if (can_be_smallint(bb->u.bigint)) {
             use_small_arithmetic = 1;
-            smallint_max = mpz_getlimbn(*bb->u.bigint, 0);
-            have_to_negate = mpz_sgn(*bb->u.bigint) == -1;
+            smallint_max = mpz_get_ui(*bb->u.bigint);
         }
-    } else {
+    }
+    else {
         use_small_arithmetic = 1;
-        smallint_max = bb->u.smallint.value;
+        smallint_max = labs(bb->u.smallint.value);
     }
 
     if (use_small_arithmetic) {
         unsigned long result_int = tinymt64_generate_uint64(tc->rand_state);
         result_int = result_int % smallint_max;
-        if (have_to_negate)
+        if (BIGINT_IS_NEGATIVE(bb))
             result_int *= -1;
 
         MVMROOT2(tc, type, b, {
