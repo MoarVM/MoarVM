@@ -536,13 +536,6 @@ MVMObject *MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result_type, MVMOb
     return result;
 }
 
-void MVM_bigint_from_str(MVMThreadContext *tc, MVMObject *a, const char *buf) {
-    MVMP6bigintBody *body = get_bigint_body(tc, a);
-    mpz_t *i = MVM_malloc(sizeof(mpz_t));
-    mpz_init_set_str(*i, buf, 10);
-    store_bigint_result(body, i);
-    adjust_nursery(tc, body);
-}
 #define can_fit_into_8bit(g) ((-128 <= (g) && (g) <= 127))
 MVMObject * MVM_coerce_sI(MVMThreadContext *tc, MVMString *s, MVMObject *type) {
     char *buf = NULL;
@@ -588,7 +581,26 @@ MVMObject * MVM_coerce_sI(MVMThreadContext *tc, MVMString *s, MVMObject *type) {
     }
     buf[s->body.num_graphs] = 0;
 
-    MVM_bigint_from_str(tc, a, buf);
+    MVMP6bigintBody *body = get_bigint_body(tc, a);
+    mpz_t *ia = MVM_malloc(sizeof(mpz_t));
+    if (mpz_init_set_str(*ia, buf, 10) == -1) {
+        mpz_clear(*ia);
+        MVM_free(ia);
+        char *waste[] = { NULL, NULL };
+        char *err;
+        if (is_malloced) {
+            waste[0] = buf;
+        }
+        else {
+            err = MVM_malloc(s->body.num_graphs + 1);
+            strcpy(err, buf);
+            waste[0] = err;
+        }
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to convert '%s' to a bigint", is_malloced ? buf : err);
+    }
+    store_bigint_result(body, ia);
+    adjust_nursery(tc, body);
+
     if (is_malloced) MVM_free(buf);
     return a;
 }
@@ -657,7 +669,6 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
 
 MVMnum64 MVM_bigint_to_num(MVMThreadContext *tc, MVMObject *a) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
-
     if (MVM_BIGINT_IS_BIG(ba)) {
         return mpz_get_d(*ba->u.bigint);
     } else {
