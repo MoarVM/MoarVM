@@ -297,10 +297,10 @@ void *MVM_str_hash_insert_nocheck(MVMThreadContext *tc,
 void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
                                  MVMStrHashTable *hashtable,
                                  MVMString *key) {
-    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
-        /* Should this be an oops? */
+    if (MVM_str_hash_is_empty(tc, hashtable)) {
         return;
     }
+    assert(hashtable->entries);
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_str_hash_code(tc, hashtable->salt, key) >> hashtable->key_right_shift;
     MVMuint8 *entry_raw = hashtable->entries - bucket * hashtable->entry_size;

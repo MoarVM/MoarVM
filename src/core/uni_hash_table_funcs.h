@@ -20,6 +20,11 @@ MVM_STATIC_INLINE void MVM_uni_hash_build(MVMThreadContext *tc,
     }
 }
 
+MVM_STATIC_INLINE int MVM_uni_hash_is_empty(MVMThreadContext *tc,
+                                            MVMUniHashTable *hashtable) {
+    return hashtable->cur_items == 0;
+}
+
 /* Unicode names (etc) are not under the control of an external attacker [:-)]
  * so we don't need a cryptographic hash function here. I'm assuming that
  * 32 bit FNV1a is good enough and fast enough to be useful. */
@@ -45,9 +50,10 @@ void MVM_uni_hash_insert(MVMThreadContext *tc,
 MVM_STATIC_INLINE struct MVMUniHashEntry *MVM_uni_hash_fetch(MVMThreadContext *tc,
                                                               MVMUniHashTable *hashtable,
                                                               const char *key) {
-    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+    if (MVM_uni_hash_is_empty(tc, hashtable)) {
         return NULL;
     }
+    assert(hashtable->entries);
     unsigned int probe_distance = 1;
     MVMuint32 hash_val = MVM_uni_hash_code(key, strlen(key));
     MVMHashNumItems bucket = hash_val >> hashtable->key_right_shift;
@@ -77,9 +83,4 @@ MVM_STATIC_INLINE struct MVMUniHashEntry *MVM_uni_hash_fetch(MVMThreadContext *t
         assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
         assert(metadata < hashtable->metadata + hashtable->official_size + 256);
     }
-}
-
-MVM_STATIC_INLINE MVMHashNumItems MVM_uni_hash_count(MVMThreadContext *tc,
-                                                     MVMUniHashTable *hashtable) {
-    return hashtable->cur_items;
 }

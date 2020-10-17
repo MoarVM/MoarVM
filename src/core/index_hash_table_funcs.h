@@ -11,6 +11,11 @@ void MVM_index_hash_build(MVMThreadContext *tc,
                           MVMIndexHashTable *hashtable,
                           MVMuint32 entries);
 
+MVM_STATIC_INLINE int MVM_index_hash_is_empty(MVMThreadContext *tc,
+                                              MVMIndexHashTable *hashtable) {
+    return hashtable->cur_items == 0;
+}
+
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
  * Doesn't check if the key already exists. Use with care. */
 void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
@@ -22,9 +27,10 @@ MVM_STATIC_INLINE MVMuint32 MVM_index_hash_fetch_nocheck(MVMThreadContext *tc,
                                                          MVMIndexHashTable *hashtable,
                                                          MVMString **list,
                                                          MVMString *want) {
-    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+    if (MVM_index_hash_is_empty(tc, hashtable)) {
         return MVM_INDEX_HASH_NOT_FOUND;
     }
+    assert(hashtable->entries);
     unsigned int probe_distance = 1;
     MVMuint64 hash_val = MVM_string_hash_code(tc, want);
     MVMHashNumItems bucket = hash_val >> hashtable->key_right_shift;

@@ -37,6 +37,11 @@ MVM_STATIC_INLINE void MVM_str_hash_build(MVMThreadContext *tc,
     }
 }
 
+MVM_STATIC_INLINE int MVM_str_hash_is_empty(MVMThreadContext *tc,
+                                            MVMStrHashTable *hashtable) {
+    return hashtable->cur_items == 0;
+}
+
 MVM_STATIC_INLINE MVMuint64 MVM_str_hash_code(MVMThreadContext *tc,
                                               MVMuint64 salt,
                                               MVMString *key) {
@@ -52,9 +57,10 @@ void *MVM_str_hash_insert_nocheck(MVMThreadContext *tc,
 MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
                                                    MVMStrHashTable *hashtable,
                                                    MVMString *key) {
-    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+    if (MVM_str_hash_is_empty(tc, hashtable)) {
         return NULL;
     }
+    assert(hashtable->entries);
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_str_hash_code(tc, hashtable->salt, key) >> hashtable->key_right_shift;
     MVMuint8 *entry_raw = hashtable->entries - bucket * hashtable->entry_size;
