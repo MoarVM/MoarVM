@@ -117,6 +117,7 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
 
     size_t total_size
         = entries_size + sizeof(struct MVMStrHashTableControl) + metadata_size;
+    assert(total_size == MVM_hash_round_size_up(total_size));
 
     struct MVMStrHashTableControl *control =
         (struct MVMStrHashTableControl *) ((char *)MVM_malloc(total_size) + entries_size);

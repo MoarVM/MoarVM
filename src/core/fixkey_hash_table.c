@@ -59,6 +59,7 @@ MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThre
     size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
     size_t total_size
         = entries_size + sizeof(struct MVMFixKeyHashTableControl) + metadata_size;
+    assert(total_size == MVM_hash_round_size_up(total_size));
 
     struct MVMFixKeyHashTableControl *control =
         (struct MVMFixKeyHashTableControl *) ((char *)MVM_malloc(total_size) + entries_size);

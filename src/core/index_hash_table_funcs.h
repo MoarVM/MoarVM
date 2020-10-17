@@ -59,7 +59,7 @@ MVM_STATIC_INLINE void MVM_index_hash_shallow_copy(MVMThreadContext *tc,
     if (!control)
         return;
     size_t allocated_items = MVM_index_hash_allocated_items(control);
-    size_t entries_size = sizeof(struct MVMIndexHashEntry) * allocated_items;
+    size_t entries_size = MVM_hash_round_size_up(sizeof(struct MVMIndexHashEntry) * allocated_items);
     size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
     const char *start = (const char *)control - entries_size;
     size_t total_size

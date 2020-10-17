@@ -5,7 +5,7 @@
 MVM_STATIC_INLINE void hash_demolish_internal(MVMThreadContext *tc,
                                               struct MVMIndexHashTableControl *control) {
     size_t allocated_items = MVM_index_hash_allocated_items(control);
-    size_t entries_size = sizeof(struct MVMIndexHashEntry) * allocated_items;
+    size_t entries_size = MVM_hash_round_size_up(sizeof(struct MVMIndexHashEntry) * allocated_items);
     char *start = (char *)control - entries_size;
     MVM_free(start);
 }
@@ -34,10 +34,21 @@ MVM_STATIC_INLINE struct MVMIndexHashTableControl *hash_allocate_common(MVMThrea
         max_probe_distance_limit = max_items;
     }
     size_t allocated_items = official_size + max_probe_distance_limit - 1;
-    size_t entries_size = sizeof(struct MVMIndexHashEntry) * allocated_items;
+    /* MVM_index_hash is the only variant that needs this round up here, because
+     * it's the only variant where the entry size is not a multiple of pointers/
+     * unsigned longs.
+     *
+     * (It's always 32 bit, so on 64 bit systems we might want to allocate an
+     * odd number of entries, and without this we'd end up with control and then
+     * *metadata* not unsigned long aligned. Which breaks alignment assumptions
+     * in maybe_grow_hash, on platforms where this matters. Certainly sparc64,
+     * but possibly also x86_64 if the compiler decides that the code in the
+     * loop can be compiled to vector instructions.) */
+    size_t entries_size = MVM_hash_round_size_up(sizeof(struct MVMIndexHashEntry) * allocated_items);
     size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
     size_t total_size
         = entries_size + sizeof(struct MVMIndexHashTableControl) + metadata_size;
+    assert(total_size == MVM_hash_round_size_up(total_size));
 
     struct MVMIndexHashTableControl *control =
         (struct MVMIndexHashTableControl *) ((char *)MVM_malloc(total_size) + entries_size);
