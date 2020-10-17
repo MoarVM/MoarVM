@@ -477,7 +477,11 @@ void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
                 uint8_t *metadata_target = ls.metadata;
                 /* Look at the next slot */
                 uint8_t old_probe_distance = metadata_target[1];
-                while (old_probe_distance > (ls.metadata_increment | ls.metadata_hash_mask)) {
+                /* Without this, gcc seemed always to want to recalculate this
+                 * for each loop iteration. Also, expressing this only in terms
+                 * of ls.metadata_increment avoids 1 load (albeit from cache) */
+                const uint8_t can_move = 2 * ls.metadata_increment;
+                while (old_probe_distance >= can_move) {
                     /* OK, we can move this one. */
                     *metadata_target = old_probe_distance - ls.metadata_increment;
                     /* Try the next one, etc */

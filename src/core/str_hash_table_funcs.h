@@ -101,6 +101,16 @@ struct MVM_hash_loop_state {
     MVMuint16 entry_size;
 };
 
+/* This function turns out to be quite hot. We initialise looping on a *lot* of
+ * hashes. Removing a branch from this function reduced the instruction dispatch
+ * by over 0.1% for a non-trivial program (according to cachegrind. Sure, it
+ * doesn't change the likely cache misses, which is the first-order driver of
+ * performance.)
+ *
+ * Inspecting annotated compiler assembly output suggests that optimisers move
+ * the sections of this function around in the inlined code, and hopefully don't
+ * initialised any values until they are used. */
+
 MVM_STATIC_INLINE struct MVM_hash_loop_state
 MVM_str_hash_create_loop_state(MVMThreadContext *tc,
                                struct MVMStrHashTableControl *control,
@@ -115,14 +125,12 @@ MVM_str_hash_create_loop_state(MVMThreadContext *tc,
 
     unsigned int used_hash_bits
         = hash_val >> (control->key_right_shift - control->metadata_hash_bits);
-    MVMHashNumItems bucket;
-    if (control->metadata_hash_bits) {
-        retval.probe_distance = retval.metadata_increment | (used_hash_bits & retval.metadata_hash_mask);
-        bucket = used_hash_bits >> control->metadata_hash_bits;
-    } else {
-        /* metadata_increment is 1, metadata_hash_mask is 0 */
-        retval.probe_distance = 1;
-        bucket = used_hash_bits;
+    retval.probe_distance = retval.metadata_increment | (used_hash_bits & retval.metadata_hash_mask);
+    MVMHashNumItems bucket = used_hash_bits >> control->metadata_hash_bits;
+    if (!control->metadata_hash_bits) {
+        assert(retval.probe_distance == 1);
+        assert(retval.metadata_hash_mask == 0);
+        assert(bucket == used_hash_bits);
     }
 
     retval.entry_raw = MVM_str_hash_entries(control) - bucket * retval.entry_size;

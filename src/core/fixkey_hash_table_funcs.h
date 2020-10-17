@@ -64,16 +64,14 @@ MVM_fixkey_hash_create_loop_state(MVMThreadContext *tc,
     retval.probe_distance_shift = control->metadata_hash_bits;
     retval.max_probe_distance = control->max_probe_distance;
 
-    MVMHashNumItems bucket;
     unsigned int used_hash_bits
         = hash_val >> (control->key_right_shift - control->metadata_hash_bits);
-    if (control->metadata_hash_bits) {
-        retval.probe_distance = retval.metadata_increment | (used_hash_bits & retval.metadata_hash_mask);
-        bucket = used_hash_bits >> control->metadata_hash_bits;
-    } else {
-        /* metadata_increment is 1, metadata_hash_mask is 0 */
-        retval.probe_distance = 1;
-        bucket = used_hash_bits;
+    retval.probe_distance = retval.metadata_increment | (used_hash_bits & retval.metadata_hash_mask);
+    MVMHashNumItems bucket = used_hash_bits >> control->metadata_hash_bits;
+    if (!control->metadata_hash_bits) {
+        assert(retval.probe_distance == 1);
+        assert(retval.metadata_hash_mask == 0);
+        assert(bucket == used_hash_bits);
     }
 
     retval.entry_raw = MVM_fixkey_hash_entries(control) - bucket * retval.entry_size;
