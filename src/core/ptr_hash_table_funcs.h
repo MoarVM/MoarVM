@@ -11,6 +11,11 @@ MVM_STATIC_INLINE void MVM_ptr_hash_build(MVMThreadContext *tc, MVMPtrHashTable 
     memset(hashtable, 0, sizeof(*hashtable));
 }
 
+MVM_STATIC_INLINE int MVM_ptr_hash_is_empty(MVMThreadContext *tc,
+                                            MVMPtrHashTable *hashtable) {
+    return hashtable->cur_items == 0;
+}
+
 /* Fibonacci bucket determination.
  * pointers are not under the control of the external (ab)user, so we don't need
  * a crypographic hash. Moreover, "good enough" is likely better than "perfect"
@@ -47,9 +52,10 @@ void MVM_ptr_hash_insert(MVMThreadContext *tc,
 MVM_STATIC_INLINE struct MVMPtrHashEntry *MVM_ptr_hash_fetch(MVMThreadContext *tc,
                                                              MVMPtrHashTable *hashtable,
                                                              const void *key) {
-    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+    if (MVM_ptr_hash_is_empty(tc, hashtable)) {
         return NULL;
     }
+    assert(hashtable->entries);
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_ptr_hash_code(key) >> hashtable->key_right_shift;
     MVMuint8 *entry_raw = hashtable->entries - bucket * sizeof(struct MVMPtrHashEntry);

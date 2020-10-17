@@ -15,6 +15,11 @@ MVM_STATIC_INLINE void MVM_fixkey_hash_build(MVMThreadContext *tc, MVMFixKeyHash
     hashtable->entry_size = entry_size;
 }
 
+MVM_STATIC_INLINE int MVM_fixkey_hash_is_empty(MVMThreadContext *tc,
+                                               MVMFixKeyHashTable *hashtable) {
+    return hashtable->cur_items == 0;
+}
+
 MVM_STATIC_INLINE MVMuint64 MVM_fixkey_hash_code(MVMThreadContext *tc, MVMString *key) {
     return MVM_string_hash_code(tc, key) * UINT64_C(11400714819323198485);
 }
@@ -28,9 +33,10 @@ void *MVM_fixkey_hash_insert_nocheck(MVMThreadContext *tc,
 MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nocheck(MVMThreadContext *tc,
                                                       MVMFixKeyHashTable *hashtable,
                                                       MVMString *key) {
-    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+    if (MVM_fixkey_hash_is_empty(tc, hashtable)) {
         return NULL;
     }
+    assert(hashtable->entries);
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_fixkey_hash_code(tc, key) >> hashtable->key_right_shift;
     MVMuint8 *entry_raw = hashtable->entries - bucket * sizeof(MVMString ***);

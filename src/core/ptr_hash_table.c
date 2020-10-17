@@ -216,10 +216,11 @@ void MVM_ptr_hash_insert(MVMThreadContext *tc,
 uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
                                         MVMPtrHashTable *hashtable,
                                         const void *key) {
-    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+    if (MVM_ptr_hash_is_empty(tc, hashtable)) {
         /* Should this be an oops? */
         return 0;
     }
+    assert(hashtable->entries);
     unsigned int probe_distance = 1;
     MVMHashNumItems bucket = MVM_ptr_hash_code(key) >> hashtable->key_right_shift;
     MVMuint8 *entry_raw = hashtable->entries - bucket * sizeof(struct MVMPtrHashEntry);
