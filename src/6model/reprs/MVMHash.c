@@ -254,7 +254,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
 static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
     MVMHashBody *body = (MVMHashBody *)data;
 
-    return sizeof(MVMHashEntry) * MVM_str_hash_count(tc, &(body->hashtable));
+    return MVM_str_hash_allocated_size(tc, &(body->hashtable));
 }
 
 /* Initializes the representation. */

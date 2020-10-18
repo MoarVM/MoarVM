@@ -45,6 +45,19 @@ MVM_STATIC_INLINE size_t MVM_hash_round_size_up(size_t wanted) {
     return (wanted - 1 + sizeof(long)) & ~(sizeof(long) - 1);
 }
 
+MVM_STATIC_INLINE size_t MVM_str_hash_allocated_size(MVMThreadContext *tc, MVMStrHashTable *hashtable) {
+    struct MVMStrHashTableControl *control = hashtable->table;
+    if (!control)
+        return 0;
+    if (control->cur_items == 0 && control->max_items == 0)
+        return sizeof(*control);
+
+    size_t allocated_items = MVM_str_hash_allocated_items(control);
+    size_t entries_size = control->entry_size * allocated_items;
+    size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
+    return entries_size + sizeof(struct MVMStrHashTableControl) + metadata_size;
+}
+
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable);
