@@ -6,8 +6,11 @@ MVM_STATIC_INLINE void hash_demolish_internal(MVMThreadContext *tc,
                                               struct MVMIndexHashTableControl *control) {
     size_t allocated_items = MVM_index_hash_allocated_items(control);
     size_t entries_size = MVM_hash_round_size_up(sizeof(struct MVMIndexHashEntry) * allocated_items);
+    size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
+    size_t total_size
+        = entries_size + sizeof(struct MVMIndexHashTableControl) + metadata_size;
     char *start = (char *)control - entries_size;
-    MVM_free(start);
+    MVM_fixed_size_free(tc, tc->instance->fsa, total_size, start);
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -51,7 +54,7 @@ MVM_STATIC_INLINE struct MVMIndexHashTableControl *hash_allocate_common(MVMThrea
     assert(total_size == MVM_hash_round_size_up(total_size));
 
     struct MVMIndexHashTableControl *control =
-        (struct MVMIndexHashTableControl *) ((char *)MVM_malloc(total_size) + entries_size);
+        (struct MVMIndexHashTableControl *) ((char *)MVM_fixed_size_alloc(tc, tc->instance->fsa, total_size) + entries_size);
 
     control->official_size_log2 = official_size_log2;
     control->max_items = max_items;

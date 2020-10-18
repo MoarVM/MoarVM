@@ -64,7 +64,7 @@ MVM_STATIC_INLINE void MVM_index_hash_shallow_copy(MVMThreadContext *tc,
     const char *start = (const char *)control - entries_size;
     size_t total_size
         = entries_size + sizeof(struct MVMIndexHashTableControl) + metadata_size;
-    char *target = MVM_malloc(total_size);
+    char *target =  MVM_fixed_size_alloc(tc, tc->instance->fsa, total_size);
     memcpy(target, start, total_size);
     dest->table = (struct MVMIndexHashTableControl *)(target + entries_size);
 }

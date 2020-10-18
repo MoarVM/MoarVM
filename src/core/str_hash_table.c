@@ -29,14 +29,18 @@ MVMuint32 MVM_round_up_log_base2(MVMuint32 v) {
 MVM_STATIC_INLINE void hash_demolish_internal(MVMThreadContext *tc,
                                               struct MVMStrHashTableControl *control) {
     if (control->cur_items == 0 && control->max_items == 0) {
-        MVM_free(control);
+        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(*control), control);
         return;
     }
 
     size_t allocated_items = MVM_str_hash_allocated_items(control);
     size_t entries_size = control->entry_size * allocated_items;
+    size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
     char *start = (char *)control - entries_size;
-    MVM_free(start);
+
+    size_t total_size
+        = entries_size + sizeof(struct MVMStrHashTableControl) + metadata_size;
+    MVM_fixed_size_free(tc, tc->instance->fsa, total_size, start);
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -125,7 +129,7 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
     assert(total_size == MVM_hash_round_size_up(total_size));
 
     struct MVMStrHashTableControl *control =
-        (struct MVMStrHashTableControl *) ((char *)MVM_malloc(total_size) + entries_size);
+        (struct MVMStrHashTableControl *) ((char *) MVM_fixed_size_alloc(tc, tc->instance->fsa, total_size) + entries_size);
 
     control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
@@ -161,7 +165,7 @@ void MVM_str_hash_build(MVMThreadContext *tc,
 
     struct MVMStrHashTableControl *control;
     if (!entries) {
-        control = MVM_malloc(sizeof(*control));
+        control = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(*control));
         /* cur_items and max_items both 0 signals that we only allocated a
          * control structure. */
         memset(control, 0, sizeof(*control));
@@ -319,7 +323,7 @@ MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext
 static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
                                                       struct MVMStrHashTableControl *control) {
     if (MVM_UNLIKELY(control->cur_items == 0 && control->max_items == 0)) {
-        const struct MVMStrHashTableControl *control_orig = control;
+        struct MVMStrHashTableControl *control_orig = control;
         control = hash_allocate_common(tc,
                                        control_orig->entry_size,
                                        (8 * sizeof(MVMuint64) - STR_MIN_SIZE_BASE_2),
@@ -327,7 +331,7 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
 #if HASH_DEBUG_ITER
         control->ht_id = control_orig->ht_id;
 #endif
-        MVM_free(control_orig);
+        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(*control_orig), control_orig);
         return control;
     }
 
