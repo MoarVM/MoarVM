@@ -6,9 +6,11 @@
  * optimisation assumptions in parts of the code. */
 #define MVM_STR_HASH_LOAD_FACTOR 0.75
 MVM_STATIC_INLINE MVMuint32 MVM_str_hash_official_size(const struct MVMStrHashTableControl *control) {
+    assert(!(control->cur_items == 0 && control->max_items == 0));
     return 1 << (MVMuint32)control->official_size_log2;
 }
 MVM_STATIC_INLINE MVMuint32 MVM_str_hash_max_items(const struct MVMStrHashTableControl *control) {
+    assert(!(control->cur_items == 0 && control->max_items == 0));
     return MVM_str_hash_official_size(control) * MVM_STR_HASH_LOAD_FACTOR;
 }
 /* -1 because...
@@ -19,15 +21,19 @@ MVM_STATIC_INLINE MVMuint32 MVM_str_hash_max_items(const struct MVMStrHashTableC
  * probe distance of 255 is the 254th beyond the official allocation.
  */
 MVM_STATIC_INLINE MVMuint32 MVM_str_hash_allocated_items(const struct MVMStrHashTableControl *control) {
+    assert(!(control->cur_items == 0 && control->max_items == 0));
     return MVM_str_hash_official_size(control) + control->max_probe_distance_limit - 1;
 }
 MVM_STATIC_INLINE MVMuint32 MVM_str_hash_kompromat(const struct MVMStrHashTableControl *control) {
+    assert(!(control->cur_items == 0 && control->max_items == 0));
     return MVM_str_hash_official_size(control) + control->max_probe_distance - 1;
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_str_hash_metadata(const struct MVMStrHashTableControl *control) {
+    assert(!(control->cur_items == 0 && control->max_items == 0));
     return (MVMuint8 *) control + sizeof(struct MVMStrHashTableControl);
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_str_hash_entries(const struct MVMStrHashTableControl *control) {
+    assert(!(control->cur_items == 0 && control->max_items == 0));
     return (MVMuint8 *) control - control->entry_size;
 }
 
@@ -64,15 +70,21 @@ MVM_STATIC_INLINE void MVM_str_hash_shallow_copy(MVMThreadContext *tc,
     const struct MVMStrHashTableControl *control = source->table;
     if (!control)
         return;
-    size_t allocated_items = MVM_str_hash_allocated_items(control);
-    size_t entries_size = control->entry_size * allocated_items;
-    size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
-    const char *start = (const char *)control - entries_size;
-    size_t total_size
-        = entries_size + sizeof(struct MVMStrHashTableControl) + metadata_size;
-    char *target = MVM_malloc(total_size);
-    memcpy(target, start, total_size);
-    dest->table = (struct MVMStrHashTableControl *)(target + entries_size);
+    if (control->cur_items == 0 && control->max_items == 0) {
+        struct MVMStrHashTableControl *empty = MVM_malloc(sizeof(*empty));
+        memcpy(empty, control, sizeof(*empty));
+        dest->table = empty;
+    } else {
+        size_t allocated_items = MVM_str_hash_allocated_items(control);
+        size_t entries_size = control->entry_size * allocated_items;
+        size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
+        const char *start = (const char *)control - entries_size;
+        size_t total_size
+            = entries_size + sizeof(struct MVMStrHashTableControl) + metadata_size;
+        char *target = MVM_malloc(total_size);
+        memcpy(target, start, total_size);
+        dest->table = (struct MVMStrHashTableControl *)(target + entries_size);
+    }
 #if HASH_DEBUG_ITER
     dest->table->ht_id = MVM_proc_rand_i(tc);
 #endif

@@ -28,6 +28,11 @@ MVMuint32 MVM_round_up_log_base2(MVMuint32 v) {
 
 MVM_STATIC_INLINE void hash_demolish_internal(MVMThreadContext *tc,
                                               struct MVMStrHashTableControl *control) {
+    if (control->cur_items == 0 && control->max_items == 0) {
+        MVM_free(control);
+        return;
+    }
+
     size_t allocated_items = MVM_str_hash_allocated_items(control);
     size_t entries_size = control->entry_size * allocated_items;
     char *start = (char *)control - entries_size;
@@ -154,24 +159,30 @@ void MVM_str_hash_build(MVMThreadContext *tc,
         MVM_oops(tc, "Hash table entry_size %" PRIu32 " is invalid", entry_size);
     }
 
-    MVMuint32 initial_size_base2;
+    struct MVMStrHashTableControl *control;
     if (!entries) {
-        initial_size_base2 = STR_MIN_SIZE_BASE_2;
+        control = MVM_malloc(sizeof(*control));
+        /* cur_items and max_items both 0 signals that we only allocated a
+         * control structure. */
+        memset(control, 0, sizeof(*control));
+        control->entry_size = entry_size;
+#if MVM_HASH_RANDOMIZE
+        control->salt = MVM_proc_rand_i(tc);
+#endif
     } else {
         /* Minimum size we need to allocate, given the load factor. */
         MVMuint32 min_needed = entries * (1.0 / MVM_STR_HASH_LOAD_FACTOR);
-        initial_size_base2 = MVM_round_up_log_base2(min_needed);
+        MVMuint32 initial_size_base2 = MVM_round_up_log_base2(min_needed);
         if (initial_size_base2 < STR_MIN_SIZE_BASE_2) {
             /* "Too small" - use our original defaults. */
             initial_size_base2 = STR_MIN_SIZE_BASE_2;
         }
-    }
 
-    struct MVMStrHashTableControl *control
-        = hash_allocate_common(tc,
-                               entry_size,
-                               (8 * sizeof(MVMuint64) - initial_size_base2),
-                               initial_size_base2);
+        control = hash_allocate_common(tc,
+                                       entry_size,
+                                       (8 * sizeof(MVMuint64) - initial_size_base2),
+                                       initial_size_base2);
+    }
 
 #if HASH_DEBUG_ITER
 #  if MVM_HASH_RANDOMIZE
@@ -307,6 +318,19 @@ MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext
 
 static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
                                                       struct MVMStrHashTableControl *control) {
+    if (MVM_UNLIKELY(control->cur_items == 0 && control->max_items == 0)) {
+        const struct MVMStrHashTableControl *control_orig = control;
+        control = hash_allocate_common(tc,
+                                       control_orig->entry_size,
+                                       (8 * sizeof(MVMuint64) - STR_MIN_SIZE_BASE_2),
+                                       STR_MIN_SIZE_BASE_2);
+#if HASH_DEBUG_ITER
+        control->ht_id = control_orig->ht_id;
+#endif
+        MVM_free(control_orig);
+        return control;
+    }
+
     /* control->max_items may have been set to 0 to trigger a call into this
      * function. */
     MVMuint32 max_items = MVM_str_hash_max_items(control);

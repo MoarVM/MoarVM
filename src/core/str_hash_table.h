@@ -185,6 +185,13 @@ struct MVMStrHashTableControl {
     MVMuint32 serial;
     MVMuint32 last_delete_at;
 #endif
+    /* If cur_items and max_items are *both* 0 then we only allocated a control
+     * structure. All of the other entries in the struct are bogus, apart from
+     * entry_size, and calling many of the accessor methods for the hash will
+     * fail assertions.
+     * ("Doctor, Doctor, it hurts when I do this". "Well, don't do that then.")
+     * Iterators will return end immediately, fetch will fast track a not-found
+     * result, and insert will immediately allocate the default minimum size. */
     MVMHashNumItems cur_items;
     MVMHashNumItems max_items; /* hit this and we grow */
     MVMuint8 official_size_log2;
