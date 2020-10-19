@@ -408,7 +408,18 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
             void *new_entry_raw = hash_insert_internal(tc, control, old_entry->key);
             struct MVMStrHashHandle *new_entry = (struct MVMStrHashHandle *) new_entry_raw;
             assert(new_entry->key == NULL);
-            memcpy(new_entry, old_entry, control->entry_size);
+            if (MVM_LIKELY(entry_size == sizeof(MVMHashEntry))) {
+                /* The `memcpy` in the else is equivalent to this, and quite
+                 * possibly its implementation starts with a jump-table based on
+                 * size. I'd just like to give the compiler an enormous hint that
+                 * the pointers are going to be word aligned, and that "two
+                 * pointers" is the most common size. */
+                MVMHashEntry *from = (MVMHashEntry *) entry_raw;
+                MVMHashEntry *to = (MVMHashEntry *) new_entry_raw;
+                *to = *from;
+            } else {
+                memcpy(new_entry, old_entry, entry_size);
+            }
 
             if (!control->max_items) {
                 /* Probably we hit the probe limit.
