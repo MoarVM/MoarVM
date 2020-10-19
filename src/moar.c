@@ -852,3 +852,12 @@ void MVM_vm_set_lib_path(MVMInstance *instance, int count, const char **lib_path
 int MVM_exepath(char* buffer, size_t* size) {
     return uv_exepath(buffer, size);
 }
+
+#ifdef _WIN32
+int MVM_set_std_handles_to_nul() {
+    if (!MVM_set_std_handle_to_nul(stdin,  0, 1, STD_INPUT_HANDLE))  return 0;
+    if (!MVM_set_std_handle_to_nul(stdout, 1, 0, STD_OUTPUT_HANDLE)) return 0;
+    if (!MVM_set_std_handle_to_nul(stderr, 2, 0, STD_ERROR_HANDLE))  return 0;
+    return 1;
+}
+#endif

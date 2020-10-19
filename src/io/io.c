@@ -392,3 +392,45 @@ void MVM_io_flush_standard_handles(MVMThreadContext *tc) {
     MVM_io_flush(tc, tc->instance->stdout_handle, 0);
     MVM_io_flush(tc, tc->instance->stderr_handle, 0);
 }
+
+#ifdef _WIN32
+int MVM_set_std_handle_to_nul(FILE *file, int fd, BOOL read, int std_handle_type) {
+    /* Found on https://docs.microsoft.com/en-us/cpp/c-runtime-library/reference/get-osfhandle?view=vs-2019:
+
+       "When stdin, stdout, and stderr aren't associated with a stream (for example, in a Windows
+       application without a console window), the file descriptor values for these streams are
+       returned from _fileno as the special value -2. Similarly, if you use a 0, 1, or 2 as the
+       file descriptor parameter instead of the result of a call to _fileno, _get_osfhandle also
+       returns the special value -2 when the file descriptor is not associated with a stream, and
+       does not set errno. However, this is not a valid file handle value, and subsequent calls
+       that attempt to use it are likely to fail."
+
+       See https://jdebp.eu/FGA/redirecting-standard-io.html
+           https://stackoverflow.com/a/50358201 (Especially the comments of Eryk Sun)
+    */
+    FILE* stream;
+    HANDLE new_handle;
+
+    if (_fileno(file) != -2 || _get_osfhandle(fd) != -2)
+        // The handles are initialized. Don't touch!
+        return 1;
+
+    /* FD 1 is in an error state (_get_osfhandle(1) == -2). Close it. The FD number is up for grabs
+        after this call. */
+    if (_close(fd) != 0)
+        return 0;
+
+    /* FILE *stdout is in an error state (_fileno(stdout) == -2). Reopen it to a "NUL:" file. This
+        will take the next free FD number. So it's important to call this sequentially for FD 0, 1
+        and 2. */
+    if (freopen_s(&stream, "NUL:", read ? "r" : "w", file) != 0)
+        return 0;
+
+    /* Set the underlying Windows handle as the STD handler. */
+    new_handle = (HANDLE)_get_osfhandle(fd);
+    if (!SetStdHandle(std_handle_type, new_handle))
+        return 0;
+
+    return 1;
+}
+#endif
