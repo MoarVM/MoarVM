@@ -259,6 +259,11 @@ MVM_PUBLIC void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObj
 /* Returns absolute executable path. */
 MVM_PUBLIC int MVM_exepath(char* buffer, size_t* size);
 
+#ifdef _WIN32
+/* Reopens STDIN, STDOUT, STDERR to the 'NUL' device. */
+MVM_PUBLIC int MVM_set_std_handles_to_nul();
+#endif
+
 /* Seems that both 32 and 64 bit sparc need this crutch */
 #if defined(__s390__) || defined(__sparc__)
 AO_t AO_fetch_compare_and_swap_emulation(volatile AO_t *addr, AO_t old_val, AO_t new_val);
