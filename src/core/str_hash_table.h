@@ -277,11 +277,11 @@ be worth it.
  * metadata byte            12  11  28  3b  4f  45
  *                               ^
  *                              != 0x1b (so can't match)
- *                              >= 0x10 (so keep going)
+ *                              >= 0x1b (so keep going)
  *
  *                                   ^
  *                                  != 0x2b (so can't match)
- *                                  >= 0x20 (so keep going)
+ *                                  >= 0x2b (so keep going)
  *
  *                                       ^
  *                                      == 0x3b (so might match)
@@ -291,7 +291,7 @@ be worth it.
  * and for 'k' != 'd'. They fall out naturally from the existing byte
  * comparisons, and how the metadata is stored.
  *
- * For lookup We have had to do a little more CPU work to calculate the metadata
+ * For lookup we have had to do a little more CPU work to calculate the metadata
  * byte we expect to see (figuring out the increment, rather than it just being
  * +1 each time) but we hope that pays off by doing less work on key comparisons
  * (and fewer cache misses)
@@ -305,15 +305,15 @@ be worth it.
  *
  *                                       ^
  *                                      != 0x3a (so can't match)
- *                                      >= 0x30 (so keep going)
+ *                                      >= 0x3a (so keep going)
  *
  *                                           ^
  *                                          != 0x4a (so can't match)
- *                                          >= 0x40 (so keep going)
+ *                                          >= 0x4a (so keep going)
  *
  *                                                   ^
  *                                              != 0x5a (so can't match)
- *                                              <  0x50 (so not found; return)
+ *                                              <  0x5a (so not found; return)
  *
  *
  * There is, however, a trade off. For the examples at the top, without the
@@ -380,7 +380,6 @@ be worth it.
  * which we can do word-at-a-type with a suitable mask (0x7f7f7f7f7f7f7f7f)
  * and without re-ordering *anything*.
  *
- *
  * Note for tuning this
  *
  * 1) we don't *have* to start out by using 4 (or even 5) bits for metadata. We
@@ -399,7 +398,10 @@ be worth it.
  *    differently at different hash sizes (or if the hash size was given at
  *    build time).
  *
- * The metadata lookup loop is pretty tight. For arm32, it's 7 instructions,
+ * 5) see the comment in str_hash_table_funcs.h about (not) checking the key's
+ *    full 64 hash value
+ *
+ * The metadata lookup loop is pretty tight. For arm32, it's 8 instructions,
  * for each metadata "miss".
  *
  * The hash bits in metadata doesn't bring us as much speedup as I had hoped. I

@@ -173,6 +173,84 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
     struct MVMStrHashTableControl *control = hashtable->table;
     struct MVM_hash_loop_state ls = MVM_str_hash_create_loop_state(tc, control, key);
 
+    /* Comments in str_hash_table.h describe the various invariants.
+     * Another way of thinking about them, which is hard to draw in ASCII (or
+     * Unicode) because we don't have a way to draw diagonal lines of different
+     * gradients. So look at the second diagram in
+     * https://martin.ankerl.com/2016/09/21/very-fast-hashmap-in-c-part-2/
+     *
+     * The Robin Hood invariant meant that all entries contesting the same
+     * "ideal" bucket are in one contiguous block in memory. Each of these
+     * (variable sized) groups is strictly in the same order as the
+     * (fixed size of 1) ideal buckets.
+     * Assuming higher memory drawn to the right, drawing lines from the "ideal"
+     * bucket to the 1+ entries contesting it, no lines will cross.
+     * (The gradient of the line is the probe distance).
+     *
+     * Robin Hood makes no constraint on the order of entries within each group.
+     * The "hash bits in metadata" implementation *does* - entries within each
+     * group must be sorted by (used) extra hash metadata bits, ascending.
+     *
+     * (Order for 2+ entries with identical extra hash value bits does not
+     * matter. For such entries, this means that the hash values are identical
+     * in the topmost $n + $m bits, where we use $n to determine the "ideal"
+     * bucket, and $m more in the metadata. It's only these "unordered" entries
+     * that we even consider for the full key-is-equal test)
+     *
+     * Implicit in all of this (I think) is that effectively the loop structure
+     * below is not the *only* way of looking at the search for an entry.
+     * Instead of this one loop with a test, one could have 2 loops
+     *
+     * while (*ls.metadata > ls.probe_distance) {
+     *     ls.probe_distance += ls.metadata_increment;
+     *      ++ls.metadata;
+     * }
+     * initialise entry raw...
+     * while (*ls.metadata == ls.probe_distance) {
+     *     key checking...
+     *         return if found...
+     *     ls.probe_distance += ls.metadata_increment;
+     *     ++ls.metadata;
+     *     ls.entry_raw -= ls.entry_size;
+     * }
+     * return not found
+     *
+     * This might be marginally more efficient, but benchmarking so far suggests
+     * that it's not obvious whether any win is worth the complexity trade off.
+     *
+     * As to whether we should (also) add a check on the (64 bit) values of
+     * MVM_string_hash_code() for key and entry->key (after the pointer
+     * comparison)
+     *
+     * I'm sure that someone documented this online much better than I can
+     * explain it, but I can't find it to link to it.
+     *
+     * "It might not be worth it" (so if you want to try, benchmark it)
+     *
+     * Specifically, the way this loop works (see just above), if we're using
+     * $n bits from the hash to chose the "ideal" bucket, and because the probe
+     * distance test (of regular Robin Hood hashing) already avoids the need to
+     * even compare keys for entries not from "our" "ideal" bucket, we already
+     * know that at best only 64 - $n bits of hash value might differ.
+     * As we're *also* using $m bits of hash in the metadata (for $m < $n),
+     * the metadata loop means that we only get to the point of comparing keys
+     * iff $n - $m bits of hash are the same, Meaning that at most we only have
+     * a 1 in (64 - $n - $m) chance of the comparison (correctly) rejecting a
+     * key without us needing to hit the full string comparison.
+     * So it's not as big a win as it first might seem to be, particularly for
+     * larger hashes where $n is larger.
+     *
+     * For a *hit* (a found key) we have to do the string comparison anyway.
+     * So the only gain of adding the hash test first (two 64 bit loads and a
+     * comparison, and it's only that frugal if one breaks some encapsulation)
+     * is if we perform lots of lookups that are misses
+     * (not found in the hash, or map to the same "ideal" bucket)
+     *
+     * And given that the *next* check is `MVM_string_graphs_nocheck` we would
+     * only win if we have "lots" of strings that map to close-enough hash
+     * values and happen to be the same length. Is this that likely?
+     */
+
     while (1) {
         if (*ls.metadata == ls.probe_distance) {
             struct MVMStrHashHandle *entry = (struct MVMStrHashHandle *) ls.entry_raw;
@@ -194,6 +272,14 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
                we seek can't be in the hash table. */
             return NULL;
         }
+        /* This is actually the "body" of the lookup loop. gcc on 32 bit arm
+         * gets the entire loop (arithmetic, 1 test, two branches) down to 8
+         * instructions. By replacing `ls.entry_raw` and its update in the loop
+         * with a calcuation above we can get the loop down to 7 instructions,
+         * but cachegrind (on x86_64) thinks that it results in slightly more
+         * instructions dispatched, more memory accesses and more cache misses.
+         * The extra complexity probably isn't worth it. Look elsewhere for
+         * savings. */
         ls.probe_distance += ls.metadata_increment;
         ++ls.metadata;
         ls.entry_raw -= ls.entry_size;
