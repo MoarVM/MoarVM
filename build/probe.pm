@@ -493,7 +493,7 @@ sub pthread_setname_np {
 #include <unistd.h>
 
 int main(int argc, char **argv) {
-    char *name_target = malloc(20);
+    char name_target[20];
     pthread_setname_np(pthread_self(), "testthread");
     if (pthread_getname_np(pthread_self(), name_target, 20) == 0) {
         if (strncmp(name_target, "testthread", strlen("testthread")) == 0) {
