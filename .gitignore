@@ -61,7 +61,6 @@ moar
 *.psess
 /nmake.cmd
 UNIDATA/*
-/src/strings/unicode.c
 *.class
 tags
 install/

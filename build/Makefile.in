@@ -648,9 +648,7 @@ src/main@obj@: src/main.c
 	$(MSG) compiling $@
 	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @mainflags@ $(CINCLUDES) @ccout@$@ $*.c
 
-src/strings/unicode.c: src/strings/unicode_db.c src/strings/unicode_uca.c src/strings/unicode_ops.c
-	$(MSG) generating $@
-	$(CMD) $(CAT) src/strings/unicode_db.c src/strings/unicode_uca.c src/strings/unicode_ops.c > $@ $(NOERR)
+src/strings/unicode@obj@: src/strings/unicode_db.c src/strings/unicode_uca.c src/strings/unicode_ops.c
 
 # Minilua requires only -lm, no libraries
 $(MINILUA): 3rdparty/dynasm/minilua.c
@@ -749,7 +747,7 @@ distclean: realclean
 	$(MSG) remove executable and libraries
 	-$(CMD)$(RM) moar@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
 	$(MSG) remove configuration and generated files
-	-$(CMD)$(RM) Makefile src/gen/config.h src/gen/config.c src/strings/unicode.c \
+	-$(CMD)$(RM) Makefile src/gen/config.h src/gen/config.c \
 	    tools/check.mk 3rdparty/libatomicops/config.log 3rdparty/libatomicops/config.status $(NOOUT) $(NOERR)
 	-$(CMD)$(RM_RF) build/mk-moar-pc.pl pkgconfig/ $(NOOUT) $(NOERR)
 
