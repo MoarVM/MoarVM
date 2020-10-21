@@ -13,7 +13,9 @@ MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, const MVMObject *resul
             buffer[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
             i++;
         }
-        else if (ascii[i] >= 0) {
+        /* `ascii[i] < 0` is always false on platforms where char is unsigned.
+         * This expression works whatever plain char is. */
+        else if ((ascii[i] & 0x80) == 0) {
             buffer[result_graphs++] = ascii[i];
         }
         else {
