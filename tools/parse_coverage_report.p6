@@ -2,17 +2,17 @@
 
 use v6;
 
-sub MAIN(
+sub MAIN (
     Str  $coverage where *.IO.e, # full-cover
-    Str  $source   where *.IO.e, # gen/moar/CORE.setting
-    Str :$annotations,  # setting
+    Str  $source   where *.IO.e, # gen/moar/CORE.c.setting
+    Str :$annotations,           # setting
 ) {
     my (%annotations, %covered-lines)
-    := |await (start get-annotations-from $annotations),
-               start get-coverage-from    $coverage;
+      := await (start get-annotations-from $annotations),
+                start get-coverage-from    $coverage;
 
     my (%all, %stats is BagHash, $current-file, @lines, int $i);
-    for $source.IO.lines -> $line {
+    for $source.IO.lines -> $line is copy {
         $i++;
         when $line.starts-with: '#line 1 SETTING::src' {
             $current-file
@@ -24,7 +24,7 @@ sub MAIN(
         }
 
         @lines.push: $_ => $line with do with $current-file {
-            when so %covered-lines{$_}{~$i} { %stats<covered>++;   'c' }
+            when so %covered-lines{$_}{~$i} { %stats<covered>++; $line ~= "\t| %covered-lines{$current-file}{~$i}.keys.sort.join(', ')"; 'c' }
             when so   %annotations{$_}{~$i} { %stats<uncovered>++; 'u' }
             %stats<uncovered>++; 'i';
         }
@@ -147,14 +147,22 @@ multi get-annotations-from ($ann) {
     %
 }
 
-sub get-coverage-from($file) {
+sub get-coverage-from ($file) {
     note "Reading coverage report from $file";
-    my %coverage .= push: $file.IO.lines.grep(*.starts-with: 'HIT').map: {
-        .[1] => .[2] with .words # filename => line number
+    my %coverage;
+    my $current-file = '<core>';
+    my $current-file's-line-number = -1;
+    for $file.IO.lines.grep({.starts-with('HIT  SETTING::') || .starts-with('HIT  t/spec')}) {
+        my ($filename, $line-number) = .words[1, *-1];
+        if !$filename.starts-with('SETTING::') {
+            $current-file = $filename;
+            $current-file's-line-number = $line-number;
+        }
+        %coverage{$filename}{$line-number}{"$current-file:$current-file's-line-number"}++;
     }
 
-    note "Coverage report read: {%coverage{*;}».elems.sum} lines covered.";
-    %coverage».Set
+    note "Coverage report read: {%coverage{*;}».keys.sum} lines covered.";
+    %coverage
 }
 
 my $*css = q:to/CSS/;
