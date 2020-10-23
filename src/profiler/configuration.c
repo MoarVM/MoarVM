@@ -218,7 +218,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
     const MVMOpInfo *info;
     MVMuint8 *prev_op_bc_ptr = state->bc_pointer;
 
-    junkprint(stderr, "validate op at %x\n", state->bc_pointer - state->bytecode_root);
+    junkprint(stderr, "validate op at %lx\n", state->bc_pointer - state->bytecode_root);
 
     if (!MVM_op_is_allowed_in_confprog(opcode)) {
         /*MVMuint16 op;*/
@@ -227,13 +227,20 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                 /*junkprint(stderr, "op %s (%d) is allowed\n", MVM_op_get_op(op)->name, op);*/
             /*}*/
         /*}*/
+        /* Sigh, so, pointer differences are ptrdiff_t, and (at least on some 32
+         * bit platforms) that's `int`,
+         * (even though on those platforms sizeof(int) == sizeof(long))
+         * and so compilers warn about format string mismatch.
+         * And sigh again, it's not until C11 that we get %tx to specify the
+         * size as that of ptrdiff_t, so we can't rely on on that here.
+         * So cast to unsigned long. */
         MVM_exception_throw_adhoc(tc, "Invalid opcode detected in confprog: %d (%s) at position 0x%lx",
-                opcode, MVM_op_get_op(opcode)->name, state->bc_pointer - state->bytecode_root);
+                opcode, MVM_op_get_op(opcode)->name, (unsigned long) (state->bc_pointer - state->bytecode_root));
     }
     info = MVM_op_get_op(opcode);
     if (!info)
         MVM_exception_throw_adhoc(tc, "Invalid opcode detected in confprog: %d  at position 0x%lx",
-                opcode, state->bc_pointer - state->bytecode_root);
+                opcode, (unsigned long) (state->bc_pointer - state->bytecode_root));
 
     state->prev_op = state->cur_op;
     state->cur_op = info;
@@ -396,7 +403,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
         new_info = MVM_op_get_op(new_opcode);
         if (!new_info)
             MVM_exception_throw_adhoc(tc, "Invalid opcode detected in confprog: %d  at position 0x%lx",
-                    opcode, state->bc_pointer - state->bytecode_root);
+                    opcode, (unsigned long) (state->bc_pointer - state->bytecode_root));
 
         state->prev_op = state->cur_op;
         state->cur_op = new_info;

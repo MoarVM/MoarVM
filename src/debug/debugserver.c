@@ -1308,7 +1308,7 @@ static MVMuint64 request_find_method(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
 
     if (!target) {
         if (dtc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "could not retrieve object of handle %ld", argument->handle_id);
+            fprintf(stderr, "could not retrieve object of handle %"PRId64, argument->handle_id);
         return 1;
     }
 
@@ -1340,7 +1340,7 @@ static MVMuint64 request_object_decontainerize(MVMThreadContext *dtc, cmp_ctx_t 
 
     if (!target) {
         if (dtc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "could not retrieve object of handle %ld", argument->handle_id);
+            fprintf(stderr, "could not retrieve object of handle %"PRId64, argument->handle_id);
         return 1;
     }
 
