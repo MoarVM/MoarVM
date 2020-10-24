@@ -3164,7 +3164,6 @@ static void resolve_param_interns(MVMThreadContext *tc, MVMSerializationReader *
             MVM_sc_set_stable(tc, reader->root.sc, st_idx, STABLE(matching));
         }
     }
-    MVM_free(matches);
 }
 
 /* Takes serialized data, an empty SerializationContext to deserialize it into,
