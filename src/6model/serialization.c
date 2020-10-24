@@ -1660,7 +1660,8 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
         switch_endian(write_to, need);
     }
 #else
-#   ifdef MVM_CAN_UNALIGNED_INT64
+    /* Written out longhand to avoid the non-inlined function call:
+     * memcpy(&result, read_at, need); */
     /* GCC and Clang both optimize this */
     switch (MVM_EXPECT(need, 2)) {
         case 7:
@@ -1685,9 +1686,6 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
             ((MVMuint8*)&result)[0] = read_at[0];
             break;
     }
-#   else
-    memcpy(&result, read_at, need);
-#   endif
 #endif
 
     /* Having pieced the (unsigned) value back together, sign extend it:  */
