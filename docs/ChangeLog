@@ -1,3 +1,31 @@
+New in 2020.10
+
+6model:
++ [fb992950] Add MVM_str_hash_iterator_target_deleted() for HASH_DEBUG_ITER
+
+Core:
++ [df77d3cf] Simplify and optimize isprime_I
++ [8852896d] A more complete fix for the hash max probe distance bug
++ [a27c7882] Make lookup table in MVP_round_up_log_base2() based on uint8_t
++ [0015fd05] Re-instate meaningful hash iterator debugging inside HASH_DEBUG_ITER
++ [60070970] oops if MVM_fixed_size_alloc() is called for a size of 0 bytes
+
+Debug Server:
++ [3c3a24bf] Fix two *printf size warnings reported on ILP32 platforms
+
+IO:
++ [95d21703] Minor optimization of MVM_file_isexecutable on Windows
++ [882dbf04] Add a function to fix up the STD IO handles
+
+Strings:
+
++ [a989f7b5] `char` can be unsigned. Rewrite the "is it ASCII?" test to handle this too
+
+Tooling/Build:
+
++ [dc50eddd] For the pthread_setname_np probe, use an auto char array instead of malloc
++ [4f5787d3] Create a unicode.c with #include directives instead of generating it with cat
+
 New in 2020.09
 
 6model:
