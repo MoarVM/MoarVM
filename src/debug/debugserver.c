@@ -909,7 +909,7 @@ static void send_thread_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data
     while (cur_thread) {
         char *threadname = NULL;
 #if MVM_HAS_PTHREAD_SETNAME_NP
-        threadname = malloc(16);
+        threadname = MVM_malloc(16);
         if (pthread_getname_np((pthread_t)cur_thread->body.native_thread_id, threadname, 16) != 0) {
             MVM_free_null(threadname);
         }
