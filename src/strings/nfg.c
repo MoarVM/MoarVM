@@ -462,7 +462,7 @@ static void cache_crlf(MVMThreadContext *tc) {
 }
 void MVM_nfg_init(MVMThreadContext *tc) {
     int init_stat;
-    tc->instance->nfg = calloc(1, sizeof(MVMNFGState));
+    tc->instance->nfg = MVM_calloc(1, sizeof(MVMNFGState));
     if ((init_stat = uv_mutex_init(&(tc->instance->nfg->update_mutex))) < 0) {
         fprintf(stderr, "MoarVM: Initialization of NFG update mutex failed\n    %s\n",
             uv_strerror(init_stat));

@@ -505,7 +505,7 @@ MVMString * MVM_string_windows125X_decode(MVMThreadContext *tc,
                      * grapheme in the replacement string */
                     if (1 < repl_length) {
                         additional_bytes += repl_length - 1;
-                        buffer = realloc(buffer, sizeof(MVMGrapheme32) * (additional_bytes + bytes));
+                        buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (additional_bytes + bytes));
                         for (; i < repl_length - 1; i++) {
                             MVMGrapheme32 graph = MVM_string_get_grapheme_at(tc, replacement, i);
                             buffer[result_graphs++] = graph;
