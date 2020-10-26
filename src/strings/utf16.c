@@ -302,8 +302,7 @@ static MVMString * MVM_string_utf16_decode_main(MVMThreadContext *tc,
 }
 MVM_STATIC_INLINE MVMuint16 swap_bytes(MVMuint16 uint16, int enable_byte_swap) {
     return enable_byte_swap
-        ? (((MVMuint8*) &uint16)[0] << 8)
-            + ((MVMuint8*) &uint16)[1]
+        ? (uint16 << 8) | (uint16 >> 8)
         : uint16;
 }
 char * MVM_string_utf16_encode_substr_main(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement, MVMint32 translate_newlines, int endianess);
