@@ -441,6 +441,14 @@ MVMint64 MVM_nativeref_read_lex_i(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     MVMRegister *var = &(ref->body.u.lex.frame->env[ref->body.u.lex.env_idx]);
     switch (ref->body.u.lex.type) {
+        case MVM_reg_uint8:
+            return var->u8;
+        case MVM_reg_uint16:
+            return var->u16;
+        case MVM_reg_uint32:
+            return var->u32;
+        case MVM_reg_uint64:
+            return var->u64;
         case MVM_reg_int8:
             return var->i8;
         case MVM_reg_int16:
@@ -510,6 +518,18 @@ void MVM_nativeref_write_lex_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint6
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     MVMRegister *var = &(ref->body.u.lex.frame->env[ref->body.u.lex.env_idx]);
     switch (ref->body.u.lex.type) {
+        case MVM_reg_uint8:
+            var->u8 = (MVMuint8)value;
+            break;
+        case MVM_reg_uint16:
+            var->u16 = (MVMuint16)value;
+            break;
+        case MVM_reg_uint32:
+            var->u32 = (MVMuint32)value;
+            break;
+        case MVM_reg_uint64:
+            var->u64 = (MVMuint64)value;
+            break;
         case MVM_reg_int8:
             var->i8 = (MVMint8)value;
             break;
