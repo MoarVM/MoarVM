@@ -98,7 +98,7 @@
 /* Endian translation (file format is little endian, so on big endian we need
  * to twiddle. */
 #ifdef MVM_BIGENDIAN
-static void switch_endian(char *bytes, size_t size)
+MVM_STATIC_INLINE void switch_endian(char *bytes, size_t size)
 {
     size_t low  = 0;
     size_t high = size - 1;
@@ -1479,7 +1479,7 @@ static MVMint64 read_int64(const char *buffer, size_t offset) {
     MVMint64 value;
     memcpy(&value, buffer + offset, 8);
 #ifdef MVM_BIGENDIAN
-    switch_endian(&value, 8);
+    switch_endian((char *)&value, 8);
 #endif
     return value;
 }
@@ -1489,7 +1489,7 @@ static MVMint32 read_int32(const char *buffer, size_t offset) {
     MVMint32 value;
     memcpy(&value, buffer + offset, 4);
 #ifdef MVM_BIGENDIAN
-    switch_endian(&value, 4);
+    switch_endian((char *)&value, 4);
 #endif
     return value;
 }
@@ -1498,7 +1498,7 @@ static MVMuint16 read_uint16(const char *buffer, size_t offset) {
     MVMuint16 value;
     memcpy(&value, buffer + offset, 2);
 #ifdef MVM_BIGENDIAN
-    switch_endian(&value, 2);
+    switch_endian((char *)&value, 2);
 #endif
     return value;
 }
@@ -1508,7 +1508,7 @@ static MVMnum64 read_double(const char *buffer, size_t offset) {
     MVMnum64 value;
     memcpy(&value, buffer + offset, 8);
 #ifdef MVM_BIGENDIAN
-    switch_endian(&value, 8);
+    switch_endian((char *)&value, 8);
 #endif
     return value;
 }
@@ -1636,7 +1636,7 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
         memcpy(&result, read_at, 8);
 #endif
 #ifdef MVM_BIGENDIAN
-        switch_endian(&result, 8);
+        switch_endian((char *)&result, 8);
 #endif
         *(reader->cur_read_offset) += 9;
         return result;
@@ -1653,16 +1653,34 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
 
     /* The remaining 1 to 7 lower bytes follow next in the serialization stream.
      */
-#ifdef MVM_BIGENDIAN
-    {
-        MVMuint8 *write_to = (MVMuint8 *)&result + 8 - need;
-        memcpy(write_to, read_at, need);
-        switch_endian(write_to, need);
-    }
-#else
-#   ifdef MVM_CAN_UNALIGNED_INT64
+    /* Written out longhand to avoid the non-inlined function call:
+     * memcpy(&result, read_at, need);
+     * We can also inline the endian switch for big endian platforms. */
     /* GCC and Clang both optimize this */
     switch (MVM_EXPECT(need, 2)) {
+#ifdef MVM_BIGENDIAN
+        case 7:
+            ((MVMuint8*)&result)[1] = read_at[6];
+            MVM_FALLTHROUGH
+        case 6:
+            ((MVMuint8*)&result)[2] = read_at[5];
+            MVM_FALLTHROUGH
+        case 5:
+            ((MVMuint8*)&result)[3] = read_at[4];
+            MVM_FALLTHROUGH
+        case 4:
+            ((MVMuint8*)&result)[4] = read_at[3];
+            MVM_FALLTHROUGH
+        case 3:
+            ((MVMuint8*)&result)[5] = read_at[2];
+            MVM_FALLTHROUGH
+        case 2:
+            ((MVMuint8*)&result)[6] = read_at[1];
+            MVM_FALLTHROUGH
+        case 1:
+            ((MVMuint8*)&result)[7] = read_at[0];
+            break;
+#else
         case 7:
             ((MVMuint8*)&result)[6] = read_at[6];
             MVM_FALLTHROUGH
@@ -1684,11 +1702,8 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
         case 1:
             ((MVMuint8*)&result)[0] = read_at[0];
             break;
-    }
-#   else
-    memcpy(&result, read_at, need);
-#   endif
 #endif
+    }
 
     /* Having pieced the (unsigned) value back together, sign extend it:  */
     result = result << (64 - 4 - 8 * need);
