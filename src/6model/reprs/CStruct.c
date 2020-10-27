@@ -516,7 +516,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                                     obj = MVM_nativecall_make_cpointer(tc, typeobj, cobj);
                                 }
                                 else if(type == MVM_CSTRUCT_ATTR_STRING) {
-                                    MVMROOT2(tc, typeobj, root, {
+                                    MVMROOT(tc, typeobj, {
                                         MVMString *str = MVM_string_utf8_decode(tc, tc->instance->VMString,
                                             cobj, strlen(cobj));
                                         obj = MVM_repr_box_str(tc, typeobj, str);
