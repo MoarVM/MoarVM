@@ -2335,7 +2335,7 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
     MVMint64        i, syms;
 
     /* Save last read positions. */
-    MVMint32   orig_contexts_data_offset = reader->stables_data_offset;
+    MVMint32   orig_contexts_data_offset = reader->contexts_data_offset;
     char     **orig_read_buffer          = reader->cur_read_buffer;
     MVMint32  *orig_read_offset          = reader->cur_read_offset;
     char     **orig_read_end             = reader->cur_read_end;
