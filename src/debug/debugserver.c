@@ -1320,6 +1320,43 @@ static MVMuint64 request_find_method(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
     return 0;
 }
 
+static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMInstance *vm = dtc->instance;
+    MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
+    MVMObject *target = find_handle_target(dtc, argument->handle_id);
+    MVMThreadContext *tc;
+
+    if (!to_do) {
+        if (dtc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "no thread found for context/code obj handle (or thread not eligible)\n");
+        return 1;
+    }
+
+    tc = to_do->body.tc;
+
+    if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
+        if (dtc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %zu)\n", to_do->body.tc->gc_status);
+        return 1;
+    }
+
+    if (!target) {
+        if (dtc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "could not retrieve object of handle %"PRId64, argument->handle_id);
+        return 1;
+    }
+
+    if (REPR(target)->ID != MVM_REPR_ID_MVMCode) {
+        if (dtc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "object of handle %"PRId64" is not an MVMCode, it's a %s", argument->handle_id, REPR(target)->name);
+        return 1;
+    }
+
+    fprintf(stderr, "invoke requested, but not yet implemented for tc %p ...", tc);
+
+    return 0;
+}
+
 static MVMuint64 request_object_decontainerize(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
     MVMInstance *vm = dtc->instance;
     MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
@@ -2381,6 +2418,20 @@ static bool is_valid_int(cmp_object_t *obj, MVMuint64 *result) {
     return 1;
 }
 
+static bool is_valid_num(cmp_object_t *obj, MVMnum64 *result) {
+    switch (obj->type) {
+        case CMP_TYPE_FLOAT:
+            *result = obj->as.flt;
+            break;
+        case CMP_TYPE_DOUBLE:
+            *result = obj->as.dbl;
+            break;
+        default:
+            return 0;
+    }
+    return 1;
+}
+
 #define CHECK(operation, message) do { if(!(operation)) { data->parse_fail = 1; data->parse_fail_message = (message); if (tc->instance->debugserver->debugspam_protocol) fprintf(stderr, "CMP error: %s; %s\n", cmp_strerror(ctx), message); return 0; } } while(0)
 #define FIELD_FOUND(field, duplicated_message) do { if(data->fields_set & (field)) { data->parse_fail = 1; data->parse_fail_message = duplicated_message;  return 0; }; field_to_set = (field); } while (0)
 
@@ -2550,6 +2601,10 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
             FIELD_FOUND(FS_name, "name field duplicated");
             type_to_parse = 2;
         }
+        else if (strncmp(key_str, "arguments", 15) == 0) {
+            FIELD_FOUND(FS_arguments, "arguments field duplicated");
+            type_to_parse = 4;
+        }
         else {
             if (tc->instance->debugserver->debugspam_protocol)
                 fprintf(stderr, "the hell is a %s?\n", key_str);
@@ -2635,6 +2690,102 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
             }
             data->fields_set = data->fields_set | field_to_set;
         }
+        else if (type_to_parse == 4) {
+            uint32_t arraysize = 0;
+            uint32_t index;
+            CHECK(cmp_read_array(ctx, &arraysize), "Couldn't read array for a key");
+            data->argument_count = arraysize;
+            data->arguments = MVM_malloc(arraysize * sizeof(argument_data));
+            for (index = 0; index < arraysize; index++) {
+                char key_str[16];
+                MVMuint32 str_size = 15;
+                uint32_t map_size;
+                uint32_t map_index;
+
+                MVMuint8 kind_set = 0;
+                MVMint32 kind = -1;
+                MVMuint8 handle_is_set = 0;
+
+                CHECK(cmp_read_map(ctx, &map_size), "Couldn't read map inside an array for arguments");
+                CHECK(map_size >= 4, "map inside of array for arguments is too small.");
+                
+                for (map_index = 0; map_index < map_size / 2; map_index++) {
+                    CHECK(cmp_read_str(ctx, key_str, &str_size), "Couldn't read a key string for an argument");
+                    if (strncmp(key_str, "kind", 15) == 0) {
+                        CHECK(kind_set == 0, "kind value duplicated for an argument");
+                        str_size = 15;
+                        CHECK(cmp_read_str(ctx, key_str, &str_size), "Couldn't read a kind for an argument");
+                        if (strncmp(key_str, "object", 15) == 0) {
+                            CHECK(kind == -1 || kind == MVM_reg_obj, "kind for argument doesn't match passed value");
+                            kind = MVM_reg_obj;
+                            kind_set = 1;
+                        }
+                        else if (strncmp(key_str, "int", 15) == 0) {
+                            CHECK(kind == -1 || kind == MVM_reg_int64, "kind for argument doesn't match passed value");
+                            kind = MVM_reg_int64;
+                            kind_set = 1;
+                        }
+                        else if (strncmp(key_str, "num", 15) == 0) {
+                            CHECK(kind == -1 || kind == MVM_reg_num64, "kind for argument doesn't match passed value");
+                            kind = MVM_reg_num64;
+                            kind_set = 1;
+                        }
+                        else if (strncmp(key_str, "str", 15) == 0) {
+                            CHECK(kind == -1 || kind == MVM_reg_str, "kind for argument doesn't match passed value");
+                            kind = MVM_reg_str;
+                            kind_set = 1;
+                        }
+                        else {
+                            CHECK(0, "unknown kind for argument in invoke");
+                        }
+                    }
+                    else if (strncmp(key_str, "handle", 15) == 0) {
+                        cmp_object_t object;
+                        MVMuint64 result;
+                        CHECK(kind_set == 0 || kind == MVM_reg_obj, "kind for argument inappropriate for handle argument");
+                        CHECK(handle_is_set == 0, "handle field duplicated in argument");
+                        CHECK(cmp_read_object(ctx, &object), "Couldn't read value for a key");
+                        CHECK(is_valid_int(&object, &result), "Couldn't read integer value for a handle");
+                        data->arguments[index].arg_u.o = result;
+                        handle_is_set = 1;
+                        kind = MVM_reg_obj;
+                    }
+                    else if (strncmp(key_str, "value", 15) == 0) {
+                        CHECK(kind_set == 0 || kind != MVM_reg_obj, "kind for argument inappropriate for non-handle argument");
+                        CHECK(handle_is_set == 0, "cannot have both handle and value entry in argument");
+                        cmp_object_t object;
+                        MVMuint64 int_result;
+                        MVMnum64 num_result;
+                        CHECK(cmp_read_object(ctx, &object), "Couldn't read value for a key");
+                        if (is_valid_int(&object, &int_result)) {
+                            CHECK(kind_set == 0 || kind == MVM_reg_int64, "kind for argument inappropriate");
+                            data->arguments[index].arg_u.i = int_result;
+                            kind = MVM_reg_int64;
+                        }
+                        else if (is_valid_num(&object, &num_result)) {
+                            CHECK(kind_set == 0 || kind == MVM_reg_num64, "kind for argument inappropriate");
+                            data->arguments[index].arg_u.n = num_result;
+                            kind = MVM_reg_num64;
+                        }
+                        else if (object.type == CMP_TYPE_STR32 || object.type == CMP_TYPE_STR16 || object.type == CMP_TYPE_STR8 || object.type == CMP_TYPE_FIXSTR) {
+                            CHECK(0, "passing string arguments in invoke NYI");
+                        }
+                        else {
+                            CHECK(0, "inappropriate messagepack type for argument value");
+                        }
+                    }
+                    else if (strncmp(key_str, "name", 15) == 0) {
+                        CHECK(0, "named arguments for invocation NYI");
+                    }
+                    /* as per the specification, unknown arguments should be ignored. */
+                }
+
+                CHECK(kind_set, "argument map did not have a 'kind' key.");
+                CHECK(kind != MVM_reg_obj || handle_is_set, "kind is set to obj, but no handle passed");
+            }
+            data->fields_set = data->fields_set | field_to_set;
+        }
+
         else if (type_to_parse == -1) {
             skip_whole_object(tc, ctx, data);
         }

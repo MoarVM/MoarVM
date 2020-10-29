@@ -694,6 +694,8 @@ thread must be suspended at the point this request is issued, and will be
 returned to suspended state again after the lookup has taken place. Note that
 breakpoints may be hit and will be fired during this operation.
 
+Named arguments require a "name" entry in the argument's map that gives a string.
+
     {
         "type": 36,
         "id": $id,
