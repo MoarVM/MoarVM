@@ -2812,6 +2812,10 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
         /* Calculate location of object's table row. */
         char *obj_table_row = reader->root.objects_table + i * OBJECTS_TABLE_ENTRY_SIZE;
 
+        char     **orig_read_buffer         = reader->cur_read_buffer;
+        MVMint32  *orig_read_offset         = reader->cur_read_offset;
+        char     **orig_read_end            = reader->cur_read_end;
+
         /* Set current read buffer to the correct thing. */
         reader->cur_read_buffer = &(reader->root.objects_data);
         reader->cur_read_offset = &(reader->objects_data_offset);
@@ -2826,6 +2830,10 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
             fail_deserialize(tc, NULL, reader, "Missing deserialize REPR function for %s (%s)",
                 REPR(obj)->name, MVM_6model_get_debug_name(tc, obj));
         reader->current_object = NULL;
+
+        reader->cur_read_buffer     = orig_read_buffer;
+        reader->cur_read_offset     = orig_read_offset;
+        reader->cur_read_end        = orig_read_end;
     }
 }
 
@@ -3018,6 +3026,10 @@ void MVM_serialization_finish_deserialize_method_cache(MVMThreadContext *tc, MVM
         if (st->method_cache_sc) {
             MVMObject *cache;
 
+            char     **orig_read_buffer         = sr->cur_read_buffer;
+            MVMint32  *orig_read_offset         = sr->cur_read_offset;
+            char     **orig_read_end            = sr->cur_read_end;
+
             /* Set reader's position. */
             sr->stables_data_offset    = st->method_cache_offset;
             sr->cur_read_buffer        = &(sr->root.stables_data);
@@ -3039,6 +3051,10 @@ void MVM_serialization_finish_deserialize_method_cache(MVMThreadContext *tc, MVM
             MVM_gc_allocate_gen2_default_clear(tc);
             sr->working--;
             st->method_cache_sc = NULL;
+
+            sr->cur_read_buffer     = orig_read_buffer;
+            sr->cur_read_offset     = orig_read_offset;
+            sr->cur_read_end        = orig_read_end;
         }
         MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
     }
