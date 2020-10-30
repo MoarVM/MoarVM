@@ -962,3 +962,52 @@ the given object.
             [2, 5, 7]
         ]
     }
+
+### HLL Symbol Request (48)
+
+MoarVM features a mechanism for objects and types to be registered
+with an HLL, for example "nqp" or "perl6" or "raku". This request
+allows you to find the available HLLs, a given HLL's keys, and
+the value for a given key.
+
+The first two variants will result in an HLL Symbol Response, while
+the third one will result in a Handle Result message.
+
+Get all HLL names:
+
+    {
+        "type": 48,
+        "id": $id,
+    }
+
+Get an HLL's symbol names:
+
+    {
+        "type": 48,
+        "id": $id,
+        "HLL": "nqp"
+    }
+
+Get the value for a symbol:
+
+    {
+        "type": 48,
+        "id": $id,
+        "HLL": "nqp",
+        "name": "
+    }
+
+### HLL Symbol Response (49)
+
+For cases where the HLL Symbol Request results in a list of strings, i.e.
+when all HLL names or an HLL's symbols are requested, the HLL Symbol
+Response will be emitted.
+
+    {
+        "type": 49,
+        "id": $id,
+        "keys": [
+            "one",
+            "two",
+        ]
+    }

@@ -72,6 +72,8 @@ typedef enum {
     MT_ObjectAssociativesResponse,
     MT_HandleEquivalenceRequest,
     MT_HandleEquivalenceResponse,
+    MT_HLLSymbolRequest,
+    MT_HLLSymbolResponse,
 } message_type;
 
 typedef enum {
@@ -105,6 +107,7 @@ typedef enum {
     FS_frame_number = 512,
     FS_arguments    = 1024,
     FS_name       = 2048,
+    FS_hll        = 4096,
 } fields_set;
 
 typedef struct {
@@ -133,6 +136,8 @@ typedef struct {
 
     MVMuint8  parse_fail;
     const char *parse_fail_message;
+
+    char *hll;
 
     fields_set fields_set;
 } request_data;
@@ -360,6 +365,8 @@ MVM_PUBLIC void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32
 MVMuint8 check_requirements(MVMThreadContext *tc, request_data *data) {
     fields_set accepted = FS_id | FS_type;
 
+    MVMuint8 allow_optional = 0;
+
     REQUIRE(FS_id, "An id field is required");
     REQUIRE(FS_type, "A type field is required");
     switch (data->type) {
@@ -422,11 +429,15 @@ MVMuint8 check_requirements(MVMThreadContext *tc, request_data *data) {
             REQUIRE(FS_arguments, "An arguments field is required");
             break;
 
+        case MT_HLLSymbolRequest:
+            allow_optional = 1;
+            break;
+
         default:
             break;
     }
 
-    if (data->fields_set != accepted) {
+    if (data->fields_set != accepted && !allow_optional) {
         if (tc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "debugserver: too many fields in message of type %d: accepted 0x%x, got 0x%x\n", data->type, accepted, data->fields_set);
     }
@@ -1282,6 +1293,133 @@ static void send_handle_equivalence_classes(MVMThreadContext *dtc, cmp_ctx_t *ct
     MVM_free(representant);
     MVM_free(objects);
     MVM_free(counts);
+}
+
+static MVMuint64 request_hll_symbol_data(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMInstance *vm = dtc->instance;
+
+    MVMHash *hll_syms;
+    MVMHash *hll_hash;
+    MVMStrHashTable *hashtable;
+
+    MVMString *hll_name_str = NULL;
+    MVMString *key_str = NULL;
+    
+    if (argument->fields_set & FS_hll) {
+        hll_name_str = MVM_string_utf8_decode(dtc, vm->VMString, argument->hll, strlen(argument->hll));
+    }
+    MVM_gc_root_temp_push(dtc, (MVMCollectable **)&hll_name_str);
+
+    if (argument->fields_set & FS_name) {
+        key_str  = MVM_string_utf8_decode(dtc, vm->VMString, argument->name, strlen(argument->name));
+    }
+    MVM_gc_root_temp_push(dtc, (MVMCollectable **)&key_str);
+
+    if (!(vm->hll_syms) || !IS_CONCRETE(vm->hll_syms)) {
+        if (dtc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "No HLL syms hash found in instance ?!?\n");
+        
+        MVM_gc_root_temp_pop_n(dtc, 2);
+        return 1;
+    }
+
+    uv_mutex_lock(&vm->mutex_hll_syms);
+
+    hll_syms = (MVMHash *)vm->hll_syms;
+    hashtable = &(hll_syms->body.hashtable);
+
+    if (!(argument->fields_set & FS_hll)) {
+        /* First variant: return all knows HLLs */
+        MVMuint64 num_hlls = MVM_str_hash_count(dtc, hashtable);
+        MVMStrHashIterator iterator = MVM_str_hash_first(dtc, hashtable);
+
+        cmp_write_map(ctx, 3);
+
+        cmp_write_str(ctx, "type", 4);
+        cmp_write_integer(ctx, MT_HLLSymbolResponse);
+
+        cmp_write_str(ctx, "id", 2);
+        cmp_write_integer(ctx, argument->id);
+
+        cmp_write_str(ctx, "keys", 4);
+        cmp_write_array(ctx, num_hlls);
+        while (!MVM_str_hash_at_end(dtc, hashtable, iterator)) {
+            MVMHashEntry *current = MVM_str_hash_current_nocheck(dtc, hashtable, iterator);
+            MVMString *key = current->hash_handle.key;
+            char *key_cstr = MVM_string_utf8_encode_C_string(dtc, key);
+
+            cmp_write_str(ctx, key_cstr, strlen(key_cstr));
+            MVM_free(key_cstr);
+
+            iterator = MVM_str_hash_next_nocheck(dtc, hashtable, iterator);
+        }
+
+        MVM_gc_root_temp_pop_n(dtc, 2);
+        uv_mutex_unlock(&vm->mutex_hll_syms);
+        return 0;
+    }
+
+    if (!MVM_repr_exists_key(dtc, (MVMObject *)hll_syms, hll_name_str)) {
+        if (dtc->instance->debugserver->debugspam_protocol) {
+            fprintf(stderr, "No HLL registered for this name: %s\n", argument->hll);
+        }
+
+        MVM_gc_root_temp_pop_n(dtc, 2);
+        uv_mutex_unlock(&vm->mutex_hll_syms);
+        return 1;
+    }
+
+    hll_hash = (MVMHash *)MVM_repr_at_key_o(dtc, (MVMObject *)hll_syms, hll_name_str);
+    hashtable = &(hll_hash->body.hashtable);
+
+    if (!(argument->fields_set & FS_name)) {
+        /* Second variant: return all keys of this HLLs */
+        MVMuint64 num_keys = MVM_str_hash_count(dtc, hashtable);
+        MVMStrHashIterator iterator = MVM_str_hash_first(dtc, hashtable);
+
+        cmp_write_map(ctx, 3);
+
+        cmp_write_str(ctx, "type", 4);
+        cmp_write_integer(ctx, MT_HLLSymbolResponse);
+
+        cmp_write_str(ctx, "id", 2);
+        cmp_write_integer(ctx, argument->id);
+
+        cmp_write_str(ctx, "keys", 4);
+        cmp_write_array(ctx, num_keys);
+        while (!MVM_str_hash_at_end(dtc, hashtable, iterator)) {
+            MVMHashEntry *current = MVM_str_hash_current_nocheck(dtc, hashtable, iterator);
+            MVMString *key = current->hash_handle.key;
+            char *key_cstr = MVM_string_utf8_encode_C_string(dtc, key);
+
+            cmp_write_str(ctx, key_cstr, strlen(key_cstr));
+            MVM_free(key_cstr);
+
+            iterator = MVM_str_hash_next_nocheck(dtc, hashtable, iterator);
+        }
+
+        MVM_gc_root_temp_pop_n(dtc, 2);
+        uv_mutex_unlock(&vm->mutex_hll_syms);
+        return 0;
+    }
+
+    if (!MVM_repr_exists_key(dtc, (MVMObject *)hll_hash, key_str)) {
+        if (dtc->instance->debugserver->debugspam_protocol) {
+            fprintf(stderr, "This HLL has nothing for key %s\n", argument->name);
+        }
+
+        MVM_gc_root_temp_pop_n(dtc, 2);
+        uv_mutex_unlock(&vm->mutex_hll_syms);
+        return 1;
+    }
+    else {
+        MVMObject *value = MVM_repr_at_key_o(dtc, (MVMObject *)hll_hash, key_str);
+        allocate_and_send_handle(dtc, ctx, argument, value);
+
+        MVM_gc_root_temp_pop_n(dtc, 2);
+        uv_mutex_unlock(&vm->mutex_hll_syms);
+        return 0;
+    }
 }
 
 static MVMuint64 request_find_method(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
@@ -2601,6 +2739,10 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
             FIELD_FOUND(FS_name, "name field duplicated");
             type_to_parse = 2;
         }
+        else if (strncmp(key_str, "hll", 3) == 0) {
+            FIELD_FOUND(FS_hll, "hll field duplicated");
+            type_to_parse = 2;
+        }
         else if (strncmp(key_str, "arguments", 15) == 0) {
             FIELD_FOUND(FS_arguments, "arguments field duplicated");
             type_to_parse = 4;
@@ -2667,6 +2809,9 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
                     break;
                 case FS_name:
                     data->name = string;
+                    break;
+                case FS_hll:
+                    data->hll = string;
                     break;
                 default:
                     data->parse_fail = 1;
@@ -3001,6 +3146,9 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     break;
                 case MT_HandleEquivalenceRequest:
                     send_handle_equivalence_classes(tc, &ctx, &argument);
+                    break;
+                case MT_HLLSymbolRequest:
+                    COMMUNICATE_ERROR(request_hll_symbol_data(tc, &ctx, &argument));
                     break;
                 default: /* Unknown command or NYI */
                     if (tc->instance->debugserver->debugspam_protocol)
