@@ -1133,47 +1133,23 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     if (st->mode_flags & MVM_PARAMETERIZED_TYPE) {
         MVMint64 i, num_params;
 
-        /* To deserve an entry in the intern table, we need that both the type
-         * being parameterized and all of the arguments are from an SC other
-         * than the one we're currently serializing. Otherwise, there is no
-         * way the parameterized type in question could have been produced by
-         * another compilation unit. We keep a counter of things, which should
-         * add up to parameters + 1 if we need the intern entry. */
-        MVMuint32 internability = 0;
-
-        /* Write a reference to the type being parameterized, and increment the
-         * internability if it's from a different SC (easier to check that after,
-         * as writing the ref will be sure to mark it as being in this one if it
-         * has no SC yet). */
+        /* Write a reference to the type being parameterized. */
         MVMObject *ptype  = st->paramet.erized.parametric_type;
         MVMObject *params = st->paramet.erized.parameters;
         MVM_serialization_write_ref(tc, writer, ptype);
-        if (MVM_sc_get_obj_sc(tc, ptype) != writer->root.sc)
-            internability++;
 
         /* Write the parameters. We write them like an array, but an element at a
-         * time so we can check if an intern table entry is needed. */
+         * time */
         num_params = MVM_repr_elems(tc, params);
         /* This typically seems to have values between 1 and 3: */
         MVM_serialization_write_int(tc, writer, num_params);
         for (i = 0; i < num_params; i++) {
-            /* Save where we were before writing this parameter. */
-            size_t pre_write_mark = *(writer->cur_write_offset);
-
             /* Write parameter. */
-            MVMObject *parameter = MVM_repr_at_pos_o(tc, params, i);
-            MVM_serialization_write_ref(tc, writer, parameter);
-
-            /* If what we write was an object reference and it's from another
-             * SC, add to the internability count. */
-            if (*(*(writer->cur_write_buffer) + pre_write_mark) == REFVAR_OBJECT)
-                if (MVM_sc_get_obj_sc(tc, parameter) != writer->root.sc)
-                    internability++;
+            MVM_serialization_write_ref(tc, writer, MVM_repr_at_pos_o(tc, params, i));
         }
 
-        /* Make intern table entry if needed. */
-        if (internability == num_params + 1)
-            add_param_intern(tc, writer, st->WHAT, ptype, params);
+        /* Make intern table entry. */
+        add_param_intern(tc, writer, st->WHAT, ptype, params);
     }
 
     MVM_serialization_write_cstr(tc, writer, MVM_6model_get_stable_debug_name(tc, st));
