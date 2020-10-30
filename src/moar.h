@@ -292,3 +292,14 @@ AO_t AO_fetch_compare_and_swap_emulation(volatile AO_t *addr, AO_t old_val, AO_t
  * which the other atomic operation macros are used... */
 #define MVM_store(addr, new) AO_store_full((volatile AO_t *)(addr), (AO_t)(new))
 #define MVM_load(addr) AO_load_full((volatile AO_t *)(addr))
+
+#ifndef MVM_THREAD_LOCAL
+
+/* Fallback to an implememtation using UV's APIs (pretty much pthreads) */
+extern uv_key_t MVM_running_threads_context_key;
+
+MVM_STATIC_INLINE MVMThreadContext *MVM_get_running_threads_context(void) {
+    return uv_key_get(&MVM_running_threads_context_key);
+}
+
+#endif

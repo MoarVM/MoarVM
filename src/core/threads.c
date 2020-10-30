@@ -76,6 +76,13 @@ static void start_thread(void *data) {
     /* Stash thread ID. */
     tc->thread_obj->body.native_thread_id = MVM_platform_thread_id();
 
+#ifndef MVM_THREAD_LOCAL
+    /* Store this thread's thread context pointer, so that we can retrieve it
+     * in places where we can't pass it in to, such as the callback function
+     * used by qsort. */
+    uv_key_set(&MVM_running_threads_context_key, tc);
+#endif
+
     /* Create a spesh log for this thread, unless it's just going to run C
      * code (and thus it's a VM internal worker). */
     if (REPR(tc->thread_obj->body.invokee)->ID != MVM_REPR_ID_MVMCFunction)
