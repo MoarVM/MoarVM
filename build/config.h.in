@@ -46,6 +46,11 @@
 /* How this compiler does static inline functions. */
 #define MVM_STATIC_INLINE @static_inline@
 
+#if @has_thread_local@
+/* How this compiler declares thread local storage. */
+#define MVM_THREAD_LOCAL @thread_local@
+#endif
+
 #if @can_unaligned_int32@
 #define MVM_CAN_UNALIGNED_INT32
 #endif
