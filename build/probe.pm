@@ -491,6 +491,7 @@ sub pthread_setname_np {
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <string.h>
 
 int main(int argc, char **argv) {
     char name_target[20];
