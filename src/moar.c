@@ -87,7 +87,9 @@ MVM_STATIC_INLINE MVMuint64 ptr_hash_64_to_64(MVMuint64 u) {
     return (MVMuint64)u;
 }
 
-#ifndef MVM_THREAD_LOCAL
+#ifdef MVM_THREAD_LOCAL
+MVM_THREAD_LOCAL MVMThreadContext *MVM_running_threads_context;
+#else
 uv_key_t MVM_running_threads_context_key;
 
 static void
