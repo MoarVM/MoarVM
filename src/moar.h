@@ -261,7 +261,7 @@ MVM_PUBLIC int MVM_exepath(char* buffer, size_t* size);
 
 #ifdef _WIN32
 /* Reopens STDIN, STDOUT, STDERR to the 'NUL' device. */
-MVM_PUBLIC int MVM_set_std_handles_to_nul();
+MVM_PUBLIC int MVM_set_std_handles_to_nul(void);
 #endif
 
 /* Seems that both 32 and 64 bit sparc need this crutch */

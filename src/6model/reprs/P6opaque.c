@@ -662,7 +662,7 @@ static void mk_storage_spec(MVMThreadContext *tc, MVMP6opaqueREPRData * repr_dat
 }
 
 /* Compose the representation. */
-static MVMuint16 * allocate_unbox_slots() {
+static MVMuint16 * allocate_unbox_slots(void) {
     MVMuint16 *slots = MVM_malloc(MVM_REPR_MAX_COUNT * sizeof(MVMuint16));
     MVMuint16 i;
     for (i = 0; i < MVM_REPR_MAX_COUNT; i++)
