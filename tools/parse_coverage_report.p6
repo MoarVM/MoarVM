@@ -2,14 +2,14 @@
 
 use v6;
 
-sub MAIN(
+sub MAIN (
     Str  $coverage where *.IO.e, # full-cover
-    Str  $source   where *.IO.e, # gen/moar/CORE.setting
-    Str :$annotations,  # setting
+    Str  $source   where *.IO.e, # gen/moar/CORE.c.setting
+    Str :$annotations,           # setting
 ) {
     my (%annotations, %covered-lines)
-    := |await (start get-annotations-from $annotations),
-               start get-coverage-from    $coverage;
+      := await (start get-annotations-from $annotations),
+                start get-coverage-from    $coverage;
 
     my (%all, %stats is BagHash, $current-file, @lines, int $i);
     for $source.IO.lines -> $line {
@@ -23,8 +23,8 @@ sub MAIN(
             $i = 0;
         }
 
-        @lines.push: $_ => $line with do with $current-file {
-            when so %covered-lines{$_}{~$i} { %stats<covered>++;   'c' }
+        @lines.push: $_ => ($line, %covered-lines{$current-file}{~$i}.keys.sort // ()) with do with $current-file {
+            when so %covered-lines{$_}{~$i} { %stats<covered>++; 'c' }
             when so   %annotations{$_}{~$i} { %stats<uncovered>++; 'u' }
             %stats<uncovered>++; 'i';
         }
@@ -116,7 +116,16 @@ sub create-coverage-file (%stats, @lines) {
                     <ol style="font-family: monospace">
                 TMPL
             @lines.map({
-                '<li class="' ~ .key ~ '">' ~ .value.trans: ['<'] => ['&lt;']
+                my $extra = '';
+                my @fls = .value[1];
+                if @fls {
+                    $extra ~= "\t| ";
+                    if @fls > 3 {
+                        @fls.splice(2, *, '…<span title="' ~ @fls[2..*].join(', ') ~ qq|" style="color:blue">and @fls[2..*].elems() more</span>|);
+                    }
+                    $extra ~= @fls.join(', ');
+                }
+                '<li class="' ~ .key ~ '">' ~ .value[0].trans(['<'] => ['&lt;']) ~ $extra
             }),
             '</ol>';
 
@@ -147,14 +156,22 @@ multi get-annotations-from ($ann) {
     %
 }
 
-sub get-coverage-from($file) {
+sub get-coverage-from ($file) {
     note "Reading coverage report from $file";
-    my %coverage .= push: $file.IO.lines.grep(*.starts-with: 'HIT').map: {
-        .[1] => .[2] with .words # filename => line number
+    my %coverage;
+    my $current-file = '<core>';
+    my $current-file's-line-number = -1;
+    for $file.IO.lines.grep({.starts-with('HIT  SETTING::') || .starts-with('HIT  t/spec')}) {
+        my ($filename, $line-number) = .words[1, *-1];
+        if !$filename.starts-with('SETTING::') {
+            $current-file = $filename;
+            $current-file's-line-number = $line-number;
+        }
+        %coverage{$filename}{$line-number}{"$current-file:$current-file's-line-number"}++;
     }
 
-    note "Coverage report read: {%coverage{*;}».elems.sum} lines covered.";
-    %coverage».Set
+    note "Coverage report read: {%coverage{*;}».keys.sum} lines covered.";
+    %coverage
 }
 
 my $*css = q:to/CSS/;
