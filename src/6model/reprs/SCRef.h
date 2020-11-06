@@ -28,6 +28,12 @@ struct MVMSerializationContextBody {
     MVMObject *rep_indexes;
     MVMObject *rep_scs;
 
+    MVMuint64  num_param_intern_lookup;
+    MVMuint32 *param_intern_lookup;
+
+    MVMuint64  num_param_intern_st_lookup;
+    MVMuint32 *param_intern_st_lookup;
+
     /* Some things we deserialize are not directly in an SC root set, but
      * rather are owned by others. This is mostly thanks to Parrot legacy,
      * where not everything was a 6model object. This is an array in twos,

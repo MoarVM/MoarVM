@@ -127,6 +127,8 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     /* Free manually managed object and STable root list memory. */
     MVM_free(sc->body->root_objects);
     MVM_free(sc->body->root_stables);
+    MVM_free(sc->body->param_intern_lookup);
+    MVM_free(sc->body->param_intern_st_lookup);
 
     /* If we have a serialization reader, clean that up too. */
     if (sc->body->sr) {
