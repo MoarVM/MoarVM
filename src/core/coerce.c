@@ -532,10 +532,12 @@ void MVM_box_int(MVMThreadContext *tc, MVMint64 value, MVMObject *type,
     MVMObject *box = MVM_intcache_get(tc, type, value);
     if (box == 0) {
         box = REPR(type)->allocate(tc, STABLE(type));
-        if (REPR(box)->initialize)
-            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-        REPR(box)->box_funcs.set_int(tc, STABLE(box), box,
-                                     OBJECT_BODY(box), value);
+        MVMROOT(tc, box, {
+            if (REPR(box)->initialize)
+                REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+            REPR(box)->box_funcs.set_int(tc, STABLE(box), box,
+                                         OBJECT_BODY(box), value);
+        });
     }
     dst->o = box;
 }
@@ -543,12 +545,13 @@ void MVM_box_int(MVMThreadContext *tc, MVMint64 value, MVMObject *type,
 void MVM_box_num(MVMThreadContext *tc, MVMnum64 value, MVMObject *type,
                  MVMRegister * dst) {
     MVMObject *box = REPR(type)->allocate(tc, STABLE(type));
-    if (REPR(box)->initialize)
-        REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-    REPR(box)->box_funcs.set_num(tc, STABLE(box), box,
-                                 OBJECT_BODY(box), value);
+    MVMROOT(tc, box, {
+        if (REPR(box)->initialize)
+            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+        REPR(box)->box_funcs.set_num(tc, STABLE(box), box,
+                                     OBJECT_BODY(box), value);
+    });
     dst->o = box;
-
 }
 
 MVMString * MVM_unbox_str(MVMThreadContext *tc, MVMObject *obj) {
@@ -564,19 +567,23 @@ void MVM_box_str(MVMThreadContext *tc, MVMString *value, MVMObject *type,
     MVMObject *box;
     MVMROOT(tc, value, {
         box = REPR(type)->allocate(tc, STABLE(type));
-        if (REPR(box)->initialize)
-            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-        REPR(box)->box_funcs.set_str(tc, STABLE(box), box,
-                                     OBJECT_BODY(box), value);
-        dst->o = box;
+        MVMROOT(tc, box, {
+            if (REPR(box)->initialize)
+                REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+            REPR(box)->box_funcs.set_str(tc, STABLE(box), box,
+                                         OBJECT_BODY(box), value);
+            dst->o = box;
+        });
     });
 }
 
 void MVM_box_uint(MVMThreadContext *tc, MVMuint64 value, MVMObject *type,
              MVMRegister * dst) {
     MVMObject *box = REPR(type)->allocate(tc, STABLE(type));
-    if (REPR(box)->initialize)
-        REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-    REPR(box)->box_funcs.set_uint(tc, STABLE(box), box, OBJECT_BODY(box), value);
+    MVMROOT(tc, value, {
+        if (REPR(box)->initialize)
+            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
+        REPR(box)->box_funcs.set_uint(tc, STABLE(box), box, OBJECT_BODY(box), value);
+    });
     dst->o = box;
 }
