@@ -526,32 +526,12 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
     return result;
 }
 
+void MVM_box_int(MVMThreadContext *tc, MVMint64 value, MVMObject *type, MVMRegister *dst) {
+    dst->o = MVM_repr_box_int(tc, type, value);
+};
 
-void MVM_box_int(MVMThreadContext *tc, MVMint64 value, MVMObject *type,
-             MVMRegister * dst) {
-    MVMObject *box = MVM_intcache_get(tc, type, value);
-    if (box == 0) {
-        box = REPR(type)->allocate(tc, STABLE(type));
-        MVMROOT(tc, box, {
-            if (REPR(box)->initialize)
-                REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-            REPR(box)->box_funcs.set_int(tc, STABLE(box), box,
-                                         OBJECT_BODY(box), value);
-        });
-    }
-    dst->o = box;
-}
-
-void MVM_box_num(MVMThreadContext *tc, MVMnum64 value, MVMObject *type,
-                 MVMRegister * dst) {
-    MVMObject *box = REPR(type)->allocate(tc, STABLE(type));
-    MVMROOT(tc, box, {
-        if (REPR(box)->initialize)
-            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-        REPR(box)->box_funcs.set_num(tc, STABLE(box), box,
-                                     OBJECT_BODY(box), value);
-    });
-    dst->o = box;
+void MVM_box_num(MVMThreadContext *tc, MVMnum64 value, MVMObject *type, MVMRegister *dst) {
+    dst->o = MVM_repr_box_num(tc, type, value);
 }
 
 MVMString * MVM_unbox_str(MVMThreadContext *tc, MVMObject *obj) {
@@ -562,28 +542,10 @@ MVMString * MVM_unbox_str(MVMThreadContext *tc, MVMObject *obj) {
         STABLE(obj), obj, OBJECT_BODY(obj));
 }
 
-void MVM_box_str(MVMThreadContext *tc, MVMString *value, MVMObject *type,
-                 MVMRegister *dst) {
-    MVMObject *box;
-    MVMROOT(tc, value, {
-        box = REPR(type)->allocate(tc, STABLE(type));
-        MVMROOT(tc, box, {
-            if (REPR(box)->initialize)
-                REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-            REPR(box)->box_funcs.set_str(tc, STABLE(box), box,
-                                         OBJECT_BODY(box), value);
-            dst->o = box;
-        });
-    });
+void MVM_box_str(MVMThreadContext *tc, MVMString *value, MVMObject *type, MVMRegister *dst) {
+    dst->o = MVM_repr_box_str(tc, type, value);
 }
 
-void MVM_box_uint(MVMThreadContext *tc, MVMuint64 value, MVMObject *type,
-             MVMRegister * dst) {
-    MVMObject *box = REPR(type)->allocate(tc, STABLE(type));
-    MVMROOT(tc, value, {
-        if (REPR(box)->initialize)
-            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-        REPR(box)->box_funcs.set_uint(tc, STABLE(box), box, OBJECT_BODY(box), value);
-    });
-    dst->o = box;
+void MVM_box_uint(MVMThreadContext *tc, MVMuint64 value, MVMObject *type, MVMRegister *dst) {
+    dst->o = MVM_repr_box_uint(tc, type, value);
 }
