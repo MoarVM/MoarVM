@@ -151,9 +151,9 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_smrt_numify: return MVM_coerce_smart_numify;
     case MVM_OP_smrt_strify: return MVM_coerce_smart_stringify;
     case MVM_OP_gethow: return MVM_6model_get_how_obj;
-    case MVM_OP_box_i: return MVM_box_int;
-    case MVM_OP_box_s: return MVM_box_str;
-    case MVM_OP_box_n: return MVM_box_num;
+    case MVM_OP_box_i: return MVM_repr_box_int;
+    case MVM_OP_box_s: return MVM_repr_box_str;
+    case MVM_OP_box_n: return MVM_repr_box_num;
     case MVM_OP_unbox_i: return MVM_repr_get_int;
     case MVM_OP_unbox_u: return MVM_repr_get_uint;
     case MVM_OP_unbox_s: return MVM_repr_get_str;
@@ -2933,10 +2933,9 @@ start:
         MVMint16 val = ins->operands[1].reg.orig;
         MVMint16 type = ins->operands[2].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_REG_VAL_F, { val } },
                                  { MVM_JIT_REG_VAL, { type } },
-                                 { MVM_JIT_REG_ADDR, { dst } }};
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+                                 { MVM_JIT_REG_VAL_F, { val } }};
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_box_s:
@@ -2945,10 +2944,9 @@ start:
         MVMint16 val = ins->operands[1].reg.orig;
         MVMint16 type = ins->operands[2].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_REG_VAL, { val } },
                                  { MVM_JIT_REG_VAL, { type } },
-                                 { MVM_JIT_REG_ADDR, { dst } }};
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+                                 { MVM_JIT_REG_VAL, { val } }};
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
     case MVM_OP_unbox_i: {

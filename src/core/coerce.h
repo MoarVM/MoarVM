@@ -21,6 +21,5 @@ MVMObject* MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMin
 
 /* Objification */
 void MVM_box_int(MVMThreadContext *tc, MVMint64 value, MVMObject *type, MVMRegister *dst);
-void MVM_box_num(MVMThreadContext *tc, MVMnum64 value, MVMObject *type, MVMRegister *dst);
 void MVM_box_str(MVMThreadContext *tc, MVMString *value, MVMObject *type, MVMRegister *dst);
 MVMString * MVM_unbox_str(MVMThreadContext *tc, MVMObject *obj);

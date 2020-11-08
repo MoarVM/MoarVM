@@ -530,10 +530,6 @@ void MVM_box_int(MVMThreadContext *tc, MVMint64 value, MVMObject *type, MVMRegis
     dst->o = MVM_repr_box_int(tc, type, value);
 };
 
-void MVM_box_num(MVMThreadContext *tc, MVMnum64 value, MVMObject *type, MVMRegister *dst) {
-    dst->o = MVM_repr_box_num(tc, type, value);
-}
-
 MVMString * MVM_unbox_str(MVMThreadContext *tc, MVMObject *obj) {
     if (!IS_CONCRETE(obj))
         MVM_exception_throw_adhoc(tc, "Cannot unbox a type object (%s) to a str.",
