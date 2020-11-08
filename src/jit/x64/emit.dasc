@@ -2451,16 +2451,14 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         break;
     }
     case MVM_OP_sp_fastbox_i:
-    case MVM_OP_sp_fastbox_i_ic:
-    case MVM_OP_sp_fastbox_bi:
-    case MVM_OP_sp_fastbox_bi_ic: {
+    case MVM_OP_sp_fastbox_bi: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 offset = ins->operands[3].lit_i16;
         MVMint16 val = ins->operands[4].reg.orig;
         emit_fastcreate(tc, compiler, jg, ins);
         | mov aword WORK[dst], RV;
         | mov TMP3, WORK[val];
-        if (op == MVM_OP_sp_fastbox_i || op == MVM_OP_sp_fastbox_i_ic) {
+        if (op == MVM_OP_sp_fastbox_i) {
             /* Normal integer */
             | mov qword [RV+offset], TMP3;
         }

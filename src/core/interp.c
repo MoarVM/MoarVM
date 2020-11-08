@@ -6276,29 +6276,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 10;
                 goto NEXT;
             }
-            OP(sp_fastbox_i_ic): {
-                MVMint64 value = GET_REG(cur_op, 8).i64;
-                MVMObject *obj = fastcreate(tc, cur_op);
-                *((MVMint64 *)((char *)obj + GET_UI16(cur_op, 6))) = value;
-                GET_REG(cur_op, 0).o = obj;
-                cur_op += 12;
-                goto NEXT;
-            }
-            OP(sp_fastbox_bi_ic): {
-                MVMint64 value = GET_REG(cur_op, 8).i64;
-                MVMObject *obj = fastcreate(tc, cur_op);
-                MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)obj + GET_UI16(cur_op, 6));
-                if (MVM_IS_32BIT_INT(value)) {
-                    body->u.smallint.value = (MVMint32)value;
-                    body->u.smallint.flag = MVM_BIGINT_32_FLAG;
-                }
-                else {
-                    MVM_p6bigint_store_as_mp_int(tc, body, value);
-                }
-                GET_REG(cur_op, 0).o = obj;
-                cur_op += 12;
-                goto NEXT;
-            }
             OP(sp_deref_get_i64): {
                 MVMObject *o      = GET_REG(cur_op, 2).o;
                 MVMint64 **target = ((MVMint64 **)((char *)o + GET_UI16(cur_op, 4)));

@@ -1936,9 +1936,7 @@ start:
     case MVM_OP_sp_atomicstore_o:
         /* Specialized boxings */
     case MVM_OP_sp_fastbox_i:
-    case MVM_OP_sp_fastbox_i_ic:
     case MVM_OP_sp_fastbox_bi:
-    case MVM_OP_sp_fastbox_bi_ic:
         /* Specialized boxings */
     case MVM_OP_sp_add_I:
     case MVM_OP_sp_sub_I:

@@ -12434,34 +12434,6 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_spesh_slot, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_sp_fastbox_i_ic,
-        "sp_fastbox_i_ic",
-        6,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_spesh_slot, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_int16 }
-    },
-    {
-        MVM_OP_sp_fastbox_bi_ic,
-        "sp_fastbox_bi_ic",
-        6,
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_int16, MVM_operand_spesh_slot, MVM_operand_int16, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_int16 }
-    },
-    {
         MVM_OP_sp_deref_get_i64,
         "sp_deref_get_i64",
         3,
@@ -12911,7 +12883,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 922;
+static const unsigned short MVM_op_counts = 920;
 
 static const MVMuint16 last_op_allowed = 824;
 
