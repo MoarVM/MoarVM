@@ -20,6 +20,4 @@ MVMObject* MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMin
 #define MVM_INT_TO_STR_CACHE_SIZE 64
 
 /* Objification */
-void MVM_box_int(MVMThreadContext *tc, MVMint64 value, MVMObject *type, MVMRegister *dst);
-void MVM_box_str(MVMThreadContext *tc, MVMString *value, MVMObject *type, MVMRegister *dst);
 MVMString * MVM_unbox_str(MVMThreadContext *tc, MVMObject *obj);

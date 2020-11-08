@@ -526,18 +526,10 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
     return result;
 }
 
-void MVM_box_int(MVMThreadContext *tc, MVMint64 value, MVMObject *type, MVMRegister *dst) {
-    dst->o = MVM_repr_box_int(tc, type, value);
-};
-
 MVMString * MVM_unbox_str(MVMThreadContext *tc, MVMObject *obj) {
     if (!IS_CONCRETE(obj))
         MVM_exception_throw_adhoc(tc, "Cannot unbox a type object (%s) to a str.",
             MVM_6model_get_debug_name(tc, obj));
     return REPR(obj)->box_funcs.get_str(tc,
         STABLE(obj), obj, OBJECT_BODY(obj));
-}
-
-void MVM_box_str(MVMThreadContext *tc, MVMString *value, MVMObject *type, MVMRegister *dst) {
-    dst->o = MVM_repr_box_str(tc, type, value);
 }
