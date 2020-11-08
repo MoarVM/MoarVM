@@ -2518,8 +2518,7 @@ static void optimize_bigint_binary_op(MVMThreadContext *tc, MVMSpeshGraph *g, MV
     }
     if (common_type && REPR(common_type)->ID == MVM_REPR_ID_P6opaque) {
         MVMuint16 offset = MVM_p6opaque_get_bigint_offset(tc, common_type->st);
-        MVMint16 cache_type_index = MVM_intcache_type_index(tc, common_type->st->WHAT);
-        if (offset && cache_type_index >= 0) {
+        if (offset) {
             /* Lower the op. */
             MVMSpeshOperand *orig_operands = ins->operands;
             switch (ins->info->opcode) {
@@ -2536,7 +2535,6 @@ static void optimize_bigint_binary_op(MVMThreadContext *tc, MVMSpeshGraph *g, MV
             ins->operands[3] = orig_operands[1];
             ins->operands[4] = orig_operands[2];
             ins->operands[5].lit_i16 = offset;
-            ins->operands[6].lit_i16 = cache_type_index;
             MVM_spesh_usages_delete_by_reg(tc, g, orig_operands[3], ins);
 
             /* Mark all facts as used. */

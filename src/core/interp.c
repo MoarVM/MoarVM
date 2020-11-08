@@ -6486,7 +6486,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_bigint_fallback_add(tc, ba, bb, bc);
                 }
                 GET_REG(cur_op, 0).o = result_obj;
-                cur_op += 14;
+                cur_op += 12;
                 goto NEXT;
             }
             OP(sp_sub_I): {
@@ -6512,7 +6512,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_bigint_fallback_sub(tc, ba, bb, bc);
                 }
                 GET_REG(cur_op, 0).o = result_obj;
-                cur_op += 14;
+                cur_op += 12;
                 goto NEXT;
             }
             OP(sp_mul_I): {
@@ -6538,7 +6538,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_bigint_fallback_mul(tc, ba, bb, bc);
                 }
                 GET_REG(cur_op, 0).o = result_obj;
-                cur_op += 14;
+                cur_op += 12;
                 goto NEXT;
             }
             OP(sp_bool_I): {
