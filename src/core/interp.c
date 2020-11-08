@@ -6278,36 +6278,24 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_fastbox_i_ic): {
                 MVMint64 value = GET_REG(cur_op, 8).i64;
-                if (value >= -1 && value < 15) {
-                    MVMint16 slot = GET_UI16(cur_op, 10);
-                    GET_REG(cur_op, 0).o = tc->instance->int_const_cache->cache[slot][value + 1];
-                }
-                else {
-                    MVMObject *obj = fastcreate(tc, cur_op);
-                    *((MVMint64 *)((char *)obj + GET_UI16(cur_op, 6))) = value;
-                    GET_REG(cur_op, 0).o = obj;
-                }
+                MVMObject *obj = fastcreate(tc, cur_op);
+                *((MVMint64 *)((char *)obj + GET_UI16(cur_op, 6))) = value;
+                GET_REG(cur_op, 0).o = obj;
                 cur_op += 12;
                 goto NEXT;
             }
             OP(sp_fastbox_bi_ic): {
                 MVMint64 value = GET_REG(cur_op, 8).i64;
-                if (value >= -1 && value < 15) {
-                    MVMint16 slot = GET_UI16(cur_op, 10);
-                    GET_REG(cur_op, 0).o = tc->instance->int_const_cache->cache[slot][value + 1];
+                MVMObject *obj = fastcreate(tc, cur_op);
+                MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)obj + GET_UI16(cur_op, 6));
+                if (MVM_IS_32BIT_INT(value)) {
+                    body->u.smallint.value = (MVMint32)value;
+                    body->u.smallint.flag = MVM_BIGINT_32_FLAG;
                 }
                 else {
-                    MVMObject *obj = fastcreate(tc, cur_op);
-                    MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)obj + GET_UI16(cur_op, 6));
-                    if (MVM_IS_32BIT_INT(value)) {
-                        body->u.smallint.value = (MVMint32)value;
-                        body->u.smallint.flag = MVM_BIGINT_32_FLAG;
-                    }
-                    else {
-                        MVM_p6bigint_store_as_mp_int(tc, body, value);
-                    }
-                    GET_REG(cur_op, 0).o = obj;
+                    MVM_p6bigint_store_as_mp_int(tc, body, value);
                 }
+                GET_REG(cur_op, 0).o = obj;
                 cur_op += 12;
                 goto NEXT;
             }
@@ -6484,15 +6472,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
                     MVMint64 result = (MVMint64)ba->u.smallint.value + (MVMint64)bb->u.smallint.value;
                     if (MVM_IS_32BIT_INT(result)) {
-                        if (result < -1 || result >= 15) {
-                            result_obj = fastcreate(tc, cur_op);
-                            bc = (MVMP6bigintBody *)((char *)result_obj + offset);
-                            bc->u.smallint.value = (MVMint32)result;
-                            bc->u.smallint.flag = MVM_BIGINT_32_FLAG;
-                        }
-                        else {
-                            result_obj = tc->instance->int_const_cache->cache[GET_UI16(cur_op, 12)][result + 1];
-                        }
+                        result_obj = fastcreate(tc, cur_op);
+                        bc = (MVMP6bigintBody *)((char *)result_obj + offset);
+                        bc->u.smallint.value = (MVMint32)result;
+                        bc->u.smallint.flag = MVM_BIGINT_32_FLAG;
                     }
                 }
                 if (!result_obj) {
@@ -6515,15 +6498,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
                     MVMint64 result = (MVMint64)ba->u.smallint.value - (MVMint64)bb->u.smallint.value;
                     if (MVM_IS_32BIT_INT(result)) {
-                        if (result < -1 || result >= 15) {
-                            result_obj = fastcreate(tc, cur_op);
-                            bc = (MVMP6bigintBody *)((char *)result_obj + offset);
-                            bc->u.smallint.value = (MVMint32)result;
-                            bc->u.smallint.flag = MVM_BIGINT_32_FLAG;
-                        }
-                        else {
-                            result_obj = tc->instance->int_const_cache->cache[GET_UI16(cur_op, 12)][result + 1];
-                        }
+                        result_obj = fastcreate(tc, cur_op);
+                        bc = (MVMP6bigintBody *)((char *)result_obj + offset);
+                        bc->u.smallint.value = (MVMint32)result;
+                        bc->u.smallint.flag = MVM_BIGINT_32_FLAG;
                     }
                 }
                 if (!result_obj) {
@@ -6546,15 +6524,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
                     MVMint64 result = (MVMint64)ba->u.smallint.value * (MVMint64)bb->u.smallint.value;
                     if (MVM_IS_32BIT_INT(result)) {
-                        if (result < -1 || result >= 15) {
-                            result_obj = fastcreate(tc, cur_op);
-                            bc = (MVMP6bigintBody *)((char *)result_obj + offset);
-                            bc->u.smallint.value = (MVMint32)result;
-                            bc->u.smallint.flag = MVM_BIGINT_32_FLAG;
-                        }
-                        else {
-                            result_obj = tc->instance->int_const_cache->cache[GET_UI16(cur_op, 12)][result + 1];
-                        }
+                        result_obj = fastcreate(tc, cur_op);
+                        bc = (MVMP6bigintBody *)((char *)result_obj + offset);
+                        bc->u.smallint.value = (MVMint32)result;
+                        bc->u.smallint.flag = MVM_BIGINT_32_FLAG;
                     }
                 }
                 if (!result_obj) {

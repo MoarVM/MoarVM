@@ -2454,25 +2454,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_sp_fastbox_i_ic:
     case MVM_OP_sp_fastbox_bi:
     case MVM_OP_sp_fastbox_bi_ic: {
-        MVMint32 use_cache = op == MVM_OP_sp_fastbox_i_ic || op == MVM_OP_sp_fastbox_bi_ic;
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 offset = ins->operands[3].lit_i16;
         MVMint16 val = ins->operands[4].reg.orig;
-        if (use_cache) {
-            MVMObject **cache = tc->instance->int_const_cache->cache[ins->operands[5].lit_i16];
-            MVMint16 dst = ins->operands[0].reg.orig;
-            | mov TMP1, WORK[val]
-            | cmp TMP1, 14
-            | jg >1
-            | cmp TMP1, -1
-            | jl >1
-            | inc TMP1
-            | mov64 TMP2, (MVMuint64)cache
-            | mov TMP2, [TMP2 + TMP1 * 8]
-            | mov WORK[dst], TMP2
-            | jmp >2
-            |1:
-        }
         emit_fastcreate(tc, compiler, jg, ins);
         | mov aword WORK[dst], RV;
         | mov TMP3, WORK[val];
@@ -2499,9 +2483,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | callp &MVM_p6bigint_store_as_mp_int;
             |4:
         }
-        if (use_cache) {
-            |2:
-        }
         break;
     }
     case MVM_OP_sp_add_I:
@@ -2512,7 +2493,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 c = ins->operands[0].reg.orig;
         MVMint16 offset = ins->operands[5].lit_i16;
         MVMint16 val_offset = offset + 4;
-        MVMObject **cache = tc->instance->int_const_cache->cache[ins->operands[6].lit_i16];
 
         /* See if they're both smallint. */
         | mov TMP1, WORK[a];
@@ -2540,17 +2520,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         }
         | jo >1
 
-        /* No overflow. See if it's in integer cache range. */
-        | cmp TMP4d, 14
-        | jg >2
-        | cmp TMP4d, -1
-        | jl >2
-        | inc TMP4d
-        | mov64 TMP2, (MVMuint64)cache
-        | mov TMP2, [TMP2 + TMP4d * 8]
-        | mov WORK[c], TMP2
-        | jmp >3
-        |2:
         | mov dword [rbp-0x30], TMP4d;
         emit_fastcreate(tc, compiler, jg, ins);
         | mov aword WORK[c], RV;
