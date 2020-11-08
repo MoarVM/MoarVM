@@ -450,9 +450,6 @@ MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
     }
 }
 
-/* concatenating with "" ensures that only literal strings are accepted as argument. */
-#define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
-
 MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag) {
     MVMObject *result;
     MVMint64 zvalue = 0;

@@ -1371,9 +1371,6 @@ MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a) {
     }
 }
 
-/* concatenating with "" ensures that only literal strings are accepted as argument. */
-#define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
-
 MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag, MVMObject *type) {
     mp_err err;
     MVMObject *result;
