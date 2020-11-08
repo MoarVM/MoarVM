@@ -545,7 +545,3 @@ MVMString * MVM_unbox_str(MVMThreadContext *tc, MVMObject *obj) {
 void MVM_box_str(MVMThreadContext *tc, MVMString *value, MVMObject *type, MVMRegister *dst) {
     dst->o = MVM_repr_box_str(tc, type, value);
 }
-
-void MVM_box_uint(MVMThreadContext *tc, MVMuint64 value, MVMObject *type, MVMRegister *dst) {
-    dst->o = MVM_repr_box_uint(tc, type, value);
-}
