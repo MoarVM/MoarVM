@@ -18,6 +18,3 @@ MVMObject* MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMin
 
 /* Size of the int to string coercion cache (we cache 0 ..^ this). */
 #define MVM_INT_TO_STR_CACHE_SIZE 64
-
-/* Objification */
-MVMString * MVM_unbox_str(MVMThreadContext *tc, MVMObject *obj);

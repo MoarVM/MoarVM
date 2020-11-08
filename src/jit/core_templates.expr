@@ -900,7 +900,7 @@
       (carg $1 ptr)) ptr_sz))
 
 (template: unbox_s
-  (call (^func &MVM_unbox_str)
+  (call (^func &MVM_repr_get_str)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
