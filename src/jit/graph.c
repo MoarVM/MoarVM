@@ -152,6 +152,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_smrt_strify: return MVM_coerce_smart_stringify;
     case MVM_OP_gethow: return MVM_6model_get_how_obj;
     case MVM_OP_box_i: return MVM_repr_box_int;
+    case MVM_OP_box_u: return MVM_repr_box_uint;
     case MVM_OP_box_s: return MVM_repr_box_str;
     case MVM_OP_box_n: return MVM_repr_box_num;
     case MVM_OP_unbox_i: return MVM_repr_get_int;
@@ -862,6 +863,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
             type_operand = ins->operands[1];
             break;
         case MVM_OP_box_i:
+        case MVM_OP_box_u:
         case MVM_OP_box_n:
         case MVM_OP_box_s:
             type_operand = ins->operands[2];
@@ -2939,7 +2941,8 @@ start:
         break;
     }
     case MVM_OP_box_s:
-    case MVM_OP_box_i: {
+    case MVM_OP_box_i:
+    case MVM_OP_box_u: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 val = ins->operands[1].reg.orig;
         MVMint16 type = ins->operands[2].reg.orig;

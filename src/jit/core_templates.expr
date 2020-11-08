@@ -892,6 +892,13 @@
       (carg $2 ptr)
       (carg $1 int)) ptr_sz))
 
+(template: box_u
+  (call (^func &MVM_repr_box_uint)
+    (arglist
+      (carg (tc) ptr)
+      (carg $2 ptr)
+      (carg $1 int)) ptr_sz))
+
 (template: box_s
   (call (^func &MVM_repr_box_str)
     (arglist
@@ -904,6 +911,14 @@
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
+
+(template: unbox_i
+  (call (^getf (^repr $1) MVMREPROps box_funcs.get_int)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $1) ptr)
+      (carg $1 ptr)
+      (carg (^body $1) ptr)) int_sz))
 
 (template: unbox_u
   (call (^getf (^repr $1) MVMREPROps box_funcs.get_uint)
