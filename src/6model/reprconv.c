@@ -652,12 +652,52 @@ void MVM_repr_set_uint(MVMThreadContext *tc, MVMObject *obj, MVMuint64 val) {
 }
 
 MVMObject * MVM_repr_box_int(MVMThreadContext *tc, MVMObject *type, MVMint64 val) {
-    MVMObject *res;
-    res = MVM_intcache_get(tc, type, val);
-    if (res == 0) {
-        res = MVM_repr_alloc_init(tc, type);
-        MVM_repr_set_int(tc, res, val);
+    if (!tc->allocate_in_gen2) {
+        int is_int = REPR(type)->ID == MVM_REPR_ID_P6int;
+        int is_bigint = REPR(type)->ID == MVM_REPR_ID_P6opaque;
+        int right_slot = -1;
+        int type_index;
+        MVMuint16 offset = 0;
+
+        for (type_index = 0; type_index < 4; type_index++) {
+            if (tc->instance->int_const_cache->types[type_index] == type) {
+                right_slot = type_index;
+                /* This might (still) be 0 if this type has not yet been passed
+                 * in to MVM_intcache_for. (ie P6Opaque when in nqp-m). */
+                offset = tc->instance->int_const_cache->offsets[right_slot];
+                break;
+            }
+        }
+        if (offset && (is_int || is_bigint)) {
+            /* This is basically fastcreate from interp.c: */
+            MVMSTable *st     = tc->instance->int_const_cache->stables[right_slot];
+            MVMuint16  size   = st->size;
+            MVMObject *res    = MVM_gc_allocate_nursery(tc, size);
+
+            res->st           = st;
+            res->header.size  = size;
+            res->header.owner = tc->thread_id;
+
+            /* followed by the "meat" of sp_fastbox_i and sp_fastbox_bi */
+            if (is_int) {
+                *((MVMint64 *)((char *)res + offset)) = val;
+            }
+            else {
+                MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)res + offset);
+                if (MVM_IS_32BIT_INT(val)) {
+                    body->u.smallint.value = (MVMint32)val;
+                    body->u.smallint.flag = MVM_BIGINT_32_FLAG;
+                }
+                else {
+                    MVM_p6bigint_store_as_mp_int(tc, body, val);
+                }
+            }
+            return res;
+        }
     }
+
+    MVMObject *res = MVM_repr_alloc_init(tc, type);
+    MVM_repr_set_int(tc, res, val);
     return res;
 }
 

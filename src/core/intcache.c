@@ -15,10 +15,10 @@ void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type) {
         }
     }
     if (right_slot != -1) {
+        MVMObject *obj;
         MVMROOT(tc, type, {
             int val;
             for (val = -1; val < 15; val++) {
-                MVMObject *obj;
                 obj = MVM_repr_alloc_init(tc, type);
                 MVM_repr_set_int(tc, obj, val);
                 tc->instance->int_const_cache->cache[type_index][val + 1] = obj;
@@ -28,6 +28,15 @@ void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type) {
             }
         });
         tc->instance->int_const_cache->types[type_index] = type;
+        tc->instance->int_const_cache->stables[type_index] = obj->st;
+        if (REPR(type)->ID == MVM_REPR_ID_P6int) {
+            tc->instance->int_const_cache->offsets[type_index] = offsetof(MVMP6int, body.value);
+        }
+        else if (REPR(type)->ID == MVM_REPR_ID_P6opaque) {
+            tc->instance->int_const_cache->offsets[type_index]
+                = MVM_p6opaque_get_bigint_offset(tc, obj->st);
+        }
+
         MVM_gc_root_add_permanent_desc(tc,
             (MVMCollectable **)&tc->instance->int_const_cache->types[type_index],
             "Boxed integer cache type");
