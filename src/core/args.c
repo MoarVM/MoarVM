@@ -248,23 +248,7 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
 } while (0)
 
 #define autobox_int(tc, target, result, dest) do { \
-    MVMObject *box, *box_type; \
-    MVMint64 result_int = result; \
-    MVMObject *autobox_temp; \
-    box_type = target->static_info->body.cu->body.hll_config->int_box_type; \
-    autobox_temp = MVM_intcache_get(tc, box_type, result_int); \
-    if (autobox_temp == NULL) { \
-        box = REPR(box_type)->allocate(tc, STABLE(box_type)); \
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&box); \
-        if (REPR(box)->initialize) \
-            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
-        REPR(box)->box_funcs.set_int(tc, STABLE(box), box, OBJECT_BODY(box), result_int); \
-        MVM_gc_root_temp_pop(tc); \
-        dest = box; \
-    } \
-    else { \
-        dest = autobox_temp; \
-    } \
+    dest = MVM_repr_box_int(tc, target->static_info->body.cu->body.hll_config->int_box_type, result); \
 } while (0)
 
 #define autobox_switch(tc, result) do { \
@@ -631,14 +615,7 @@ void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
     if (!type || IS_CONCRETE(type)) { \
         MVM_exception_throw_adhoc(tc, "Missing hll " name " box type"); \
     } \
-    box = MVM_intcache_get(tc, type, value); \
-    if (!box) { \
-        box = REPR(type)->allocate(tc, STABLE(type)); \
-        if (REPR(box)->initialize) \
-            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
-        REPR(box)->box_funcs.set_func(tc, STABLE(box), box, \
-            OBJECT_BODY(box), value); \
-    } \
+    box = MVM_repr_box_int(tc, type, value); \
     reg.o = box; \
     REPR(result)->pos_funcs.push(tc, STABLE(result), result, \
         OBJECT_BODY(result), reg, MVM_reg_obj); \
@@ -721,14 +698,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
     if (!type || IS_CONCRETE(type)) { \
         MVM_exception_throw_adhoc(tc, "Missing hll int box type"); \
     } \
-    box = MVM_intcache_get(tc, type, value); \
-    if (box == NULL) { \
-        box = REPR(type)->allocate(tc, STABLE(type)); \
-        if (REPR(box)->initialize) \
-            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box)); \
-        REPR(box)->box_funcs.set_int(tc, STABLE(box), box, \
-            OBJECT_BODY(box), value); \
-    } \
+    box = MVM_repr_box_int(tc, type, value); \
     reg.o = box; \
     REPR(result)->ass_funcs.bind_key(tc, STABLE(result), result, \
         OBJECT_BODY(result), (MVMObject *)key, reg, MVM_reg_obj); \
