@@ -222,7 +222,6 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "io/asyncsocket.h"
 #include "io/asyncsocketudp.h"
 #include "math/bigintops.h"
-#include "core/intcache.h"
 #include "jit/graph.h"
 #include "jit/label.h"
 #include "jit/expr.h"

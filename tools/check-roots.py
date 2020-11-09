@@ -448,7 +448,6 @@ allocators = [
 'MVM_hll_map',
 'MVM_hll_set_config',
 'MVM_hll_sym_get',
-'MVM_intcache_for',
 'MVM_interp_run',
 'MVM_io_eventloop_permit',
 'MVM_io_eventloop_start',

@@ -101,6 +101,8 @@ MVM_PUBLIC void MVM_repr_set_num(MVMThreadContext *tc, MVMObject *obj, MVMnum64 
 MVM_PUBLIC void MVM_repr_set_str(MVMThreadContext *tc, MVMObject *obj, MVMString *val);
 MVM_PUBLIC void MVM_repr_set_uint(MVMThreadContext *tc, MVMObject *obj, MVMuint64 val);
 
+void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type);
+
 MVM_PUBLIC MVMObject * MVM_repr_box_int(MVMThreadContext *tc, MVMObject *type, MVMint64 val);
 MVM_PUBLIC MVMObject * MVM_repr_box_num(MVMThreadContext *tc, MVMObject *type, MVMnum64 val);
 MVM_PUBLIC MVMObject * MVM_repr_box_str(MVMThreadContext *tc, MVMObject *type, MVMString *val);

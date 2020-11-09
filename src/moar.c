@@ -186,7 +186,6 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up integer constant and string cache. */
     init_mutex(instance->mutex_int_const_cache, "int constant cache");
-    instance->int_const_cache = MVM_calloc(1, sizeof(MVMIntConstCache));
     instance->int_to_str_cache = MVM_calloc(MVM_INT_TO_STR_CACHE_SIZE, sizeof(MVMString *));
 
     /* Initialize Unicode database and NFG. */
@@ -725,7 +724,6 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up integer constant and string cache. */
     uv_mutex_destroy(&instance->mutex_int_const_cache);
-    MVM_free(instance->int_const_cache);
     MVM_free(instance->int_to_str_cache);
 
     /* Clean up event loop mutex. */

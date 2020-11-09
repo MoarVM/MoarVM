@@ -651,48 +651,88 @@ void MVM_repr_set_uint(MVMThreadContext *tc, MVMObject *obj, MVMuint64 val) {
     REPR(obj)->box_funcs.set_uint(tc, STABLE(obj), obj, OBJECT_BODY(obj), val);
 }
 
+/* Not sure if we really still need a *mutex* for this. The original intcache
+ * code certainly did for *writing*, because it needed to avoid a race condition
+ * where two threads decided to allocate at the same time. But the original code
+ * didn't lock the mutex on read, which I think means a data race on some
+ * platforms (certainly not on x86 or x64_64, certainly on alpha, not sure about
+ * current non-x64_64 platforms).
+ * For now, I'm keeping it, but this might all work better with use of explicit
+ * write and read barriers. */
+
+/* We play both kinds of music, Country *and* Western... */
+MVM_STATIC_INLINE int intcache_index(MVMObject *type) {
+    MVMuint32 id = REPR(type)->ID;
+    if (id == MVM_REPR_ID_P6int)
+        return 0;
+    if (id == MVM_REPR_ID_P6opaque)
+        return 1;
+    return -1;
+}
+
+void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type) {
+    int correct_slot = intcache_index(type);
+    if (correct_slot < 0)
+        return;
+
+    struct MVMIntBoxMeta *int_box_meta = &tc->instance->int_box_meta;
+    uv_mutex_lock(&tc->instance->mutex_int_const_cache);
+    if (!int_box_meta->types[correct_slot]) {
+        MVMROOT(tc, type, {
+            MVMObject *zero = MVM_repr_alloc_init(tc, type);
+            MVMuint16 offset;
+            if (correct_slot == 0) {
+                offset = offsetof(MVMP6int, body.value);
+            } else {
+                MVM_repr_set_int(tc, zero, 0);
+                /* This *can* be zero in nqp-m. */
+                offset = MVM_p6opaque_get_bigint_offset(tc, zero->st);
+            }
+            if (offset) {
+                int_box_meta->offsets[correct_slot] = offset;
+                int_box_meta->stables[correct_slot] = zero->st;
+                /* This is our write barrier release: */
+                int_box_meta->types[correct_slot] = type;
+            }
+            /* And the GC will take care of our object. */
+        });
+    }
+    uv_mutex_unlock(&tc->instance->mutex_int_const_cache);
+}
+
 MVMObject * MVM_repr_box_int(MVMThreadContext *tc, MVMObject *type, MVMint64 val) {
     if (!tc->allocate_in_gen2) {
-        int is_int = REPR(type)->ID == MVM_REPR_ID_P6int;
-        int is_bigint = REPR(type)->ID == MVM_REPR_ID_P6opaque;
-        int right_slot = -1;
-        int type_index;
-        MVMuint16 offset = 0;
+        int correct_slot = intcache_index(type);
+        if (correct_slot >= 0) {
+            struct MVMIntBoxMeta *int_box_meta = &tc->instance->int_box_meta;
+            /* This is our read barrier acquire: */
+            if (int_box_meta->types[correct_slot] == type) {
+                /* This is basically fastcreate from interp.c: */
+                MVMSTable *st     = int_box_meta->stables[correct_slot];
+                MVMuint16  size   = st->size;
+                MVMObject *res    = MVM_gc_allocate_nursery(tc, size);
 
-        for (type_index = 0; type_index < 4; type_index++) {
-            if (tc->instance->int_const_cache->types[type_index] == type) {
-                right_slot = type_index;
-                /* This might (still) be 0 if this type has not yet been passed
-                 * in to MVM_intcache_for. (ie P6Opaque when in nqp-m). */
-                offset = tc->instance->int_const_cache->offsets[right_slot];
-                break;
-            }
-        }
-        if (offset && (is_int || is_bigint)) {
-            /* This is basically fastcreate from interp.c: */
-            MVMSTable *st     = tc->instance->int_const_cache->stables[right_slot];
-            MVMuint16  size   = st->size;
-            MVMObject *res    = MVM_gc_allocate_nursery(tc, size);
+                res->st           = st;
+                res->header.size  = size;
+                res->header.owner = tc->thread_id;
 
-            res->st           = st;
-            res->header.size  = size;
-            res->header.owner = tc->thread_id;
-
-            /* followed by the "meat" of sp_fastbox_i and sp_fastbox_bi */
-            if (is_int) {
-                *((MVMint64 *)((char *)res + offset)) = val;
-            }
-            else {
-                MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)res + offset);
-                if (MVM_IS_32BIT_INT(val)) {
-                    body->u.smallint.value = (MVMint32)val;
-                    body->u.smallint.flag = MVM_BIGINT_32_FLAG;
+                /* followed by the "meat" of sp_fastbox_i and sp_fastbox_bi */
+                MVMuint16 offset = int_box_meta->offsets[correct_slot];
+                if (correct_slot == 0) {
+                    *((MVMint64 *)((char *)res + offset)) = val;
                 }
                 else {
-                    MVM_p6bigint_store_as_mp_int(tc, body, val);
+                    MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)res + offset);
+                    if (MVM_IS_32BIT_INT(val)) {
+                        body->u.smallint.value = (MVMint32)val;
+                        body->u.smallint.flag = MVM_BIGINT_32_FLAG;
+                    }
+                    else {
+                        MVM_p6bigint_store_as_mp_int(tc, body, val);
+                    }
                 }
+                return res;
             }
-            return res;
         }
     }
 

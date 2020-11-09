@@ -110,6 +110,14 @@ struct MVMSerializationContextWeakHashEntry {
     MVMSerializationContextBody *scb;
 };
 
+/* Used in MVM_repr_box_int to fast-path common cases for boxing integers.
+ * We only have code to handle two type IDs, so we only need two slots. */
+struct MVMIntBoxMeta {
+    MVMObject *types[2];
+    MVMSTable *stables[2];
+    MVMuint16  offsets[2];
+};
+
 /* Represents a MoarVM instance. */
 struct MVMInstance {
     /************************************************************************
@@ -383,9 +391,8 @@ struct MVMInstance {
     /* int -> str cache */
     MVMString **int_to_str_cache;
 
-    /* By far the most common integers are between 0 and 8, but we cache up to 15
-     * so that it lines up properly. */
-    MVMIntConstCache    *int_const_cache;
+    /* metadata for the integer boxing fast path */
+    struct MVMIntBoxMeta int_box_meta;
     uv_mutex_t mutex_int_const_cache;
 
     /* Multi-dispatch cache addition mutex (additions are relatively
