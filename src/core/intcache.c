@@ -43,22 +43,3 @@ void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type) {
     }
     uv_mutex_unlock(&tc->instance->mutex_int_const_cache);
 }
-
-MVMObject *MVM_intcache_get(MVMThreadContext *tc, MVMObject *type, MVMint64 value) {
-    int type_index;
-    int right_slot = -1;
-
-    if (value < -1 || value >= 15)
-        return NULL;
-
-    for (type_index = 0; type_index < 4; type_index++) {
-        if (tc->instance->int_const_cache->types[type_index] == type) {
-            right_slot = type_index;
-            break;
-        }
-    }
-    if (right_slot != -1) {
-        return tc->instance->int_const_cache->cache[right_slot][value + 1];
-    }
-    return NULL;
-}

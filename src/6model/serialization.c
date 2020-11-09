@@ -1936,13 +1936,7 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
         case REFVAR_VM_INT: {
             MVMint64 value;
             value = MVM_serialization_read_int(tc, reader);
-            if (MVM_INTCACHE_RANGE_CHECK(value))
-                result = MVM_intcache_get(tc, tc->instance->boot_types.BOOTInt, value);
-            if (result == 0) {
-                result = MVM_gc_allocate_object(tc, STABLE(tc->instance->boot_types.BOOTInt));
-                MVMP6int_set_int(tc, STABLE(result), result, OBJECT_BODY(result), value);
-            }
-            return result;
+            return MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, value);
         }
         case REFVAR_VM_NUM:
             result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTNum);

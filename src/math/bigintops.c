@@ -383,12 +383,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
         MVMint64 sa = ba->u.smallint.value; \
         MVMint64 sb = bb->u.smallint.value; \
         SMALLINT_OP; \
-        result = MVM_intcache_get(tc, result_type, sc); \
-        if (result) \
-            return result; \
-        result = MVM_repr_alloc_init(tc, result_type);\
-        bc = get_bigint_body(tc, result); \
-        store_int64_result(tc, bc, sc); \
+        return MVM_repr_box_int(tc, result_type, sc); \
     } \
     return result; \
 }
