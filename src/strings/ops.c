@@ -1767,7 +1767,7 @@ char * MVM_string_encode(MVMThreadContext *tc, MVMString *s, MVMint64 start,
 MVMObject * MVM_string_encode_to_buf_config(MVMThreadContext *tc, MVMString *s, MVMString *enc_name,
         MVMObject *buf, MVMString *replacement, MVMint64 config) {
     MVMuint64 output_size;
-    MVMuint8 *encoded, *temp;
+    MVMuint8 *encoded;
     MVMArrayREPRData *buf_rd;
     MVMuint8 elem_size = 0;
 
@@ -1806,8 +1806,11 @@ MVMObject * MVM_string_encode_to_buf_config(MVMThreadContext *tc, MVMString *s, 
         memmove(((MVMArray *)buf)->body.slots.i8 + prev_elems, (MVMint8 *)encoded, output_size);
     }
     else {
-        temp = MVM_fixed_size_alloc(tc, tc->instance->fsa, output_size);
-        memcpy(temp, encoded, output_size);
+        MVMuint8 *temp = NULL;
+        if (output_size) {
+            temp = MVM_fixed_size_alloc(tc, tc->instance->fsa, output_size);
+            memcpy(temp, encoded, output_size);
+        }
         ((MVMArray *)buf)->body.slots.i8 = (MVMint8 *)temp;
         ((MVMArray *)buf)->body.start    = 0;
         ((MVMArray *)buf)->body.ssize    = output_size / elem_size;

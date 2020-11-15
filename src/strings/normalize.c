@@ -154,9 +154,11 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
     MVMint64          result_pos, result_alloc;
     MVMCodepointIter  ci;
 
-    /* Validate output array and set up result storage. */
+    /* Validate output array and set up result storage, or exit if nothing to do. */
     assert_codepoint_array(tc, out, "Normalization output must be native array of 32-bit integers");
     result_alloc = s->body.num_graphs;
+    if (result_alloc == 0)
+        return;
     result       = MVM_fixed_size_alloc(tc, tc->instance->fsa, result_alloc * sizeof(MVMCodepoint));
     result_pos   = 0;
 

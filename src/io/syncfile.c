@@ -150,7 +150,7 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
         MVM_exception_throw_adhoc(tc, "Reading from filehandle failed: %s",
             strerror(save_errno));
     }
-    if ((MVMuint64)bytes_read != bytes)
+    if (bytes_read != 0 && (MVMuint64)bytes_read != bytes)
         buf = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa, buf, bytes, bytes_read);
     *buf_out = buf;
     MVM_telemetry_interval_annotate(bytes_read, interval_id, "read this many bytes");
