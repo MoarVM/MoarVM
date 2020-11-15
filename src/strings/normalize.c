@@ -34,7 +34,7 @@ MVM_STATIC_INLINE void maybe_grow_result(MVMThreadContext *tc, MVMCodepoint **re
         while (needed >= *result_alloc)
             *result_alloc += 32;
         *result = use_fsa
-                    ? MVM_fixed_size_realloc(tc, tc->instance->fsa, *result, old_alloc * sizeof(MVMCodepoint), *result_alloc * sizeof(MVMCodepoint))
+                    ? MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa, *result, old_alloc * sizeof(MVMCodepoint), *result_alloc * sizeof(MVMCodepoint))
                     : MVM_realloc(*result, *result_alloc * sizeof(MVMCodepoint));
     }
 }
@@ -81,7 +81,7 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, const MVMObject *in,
         result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
     MVM_unicode_normalizer_cleanup(tc, &norm);
 
-    result = MVM_fixed_size_realloc(tc, tc->instance->fsa, result, result_alloc * sizeof(MVMCodepoint), result_pos * sizeof(MVMCodepoint));
+    result = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa, result, result_alloc * sizeof(MVMCodepoint), result_pos * sizeof(MVMCodepoint));
     /* Put result into array body. */
     ((MVMArray *)out)->body.slots.u32 = (MVMuint32 *) result;
     ((MVMArray *)out)->body.start     = 0;
@@ -194,7 +194,7 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
         MVM_unicode_normalizer_cleanup(tc, &norm);
     }
 
-    result = MVM_fixed_size_realloc(tc, tc->instance->fsa, result, result_alloc * sizeof(MVMCodepoint), result_pos * sizeof(MVMCodepoint));
+    result = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa, result, result_alloc * sizeof(MVMCodepoint), result_pos * sizeof(MVMCodepoint));
     /* Put result into array body. */
     ((MVMArray *)out)->body.slots.u32 = (MVMuint32 *)result;
     ((MVMArray *)out)->body.start     = 0;

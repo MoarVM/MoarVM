@@ -608,7 +608,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
         });
         if (buf->base)
-            MVM_fixed_size_free(tc, tc->instance->fsa, buf->len, buf->base);
+            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, buf->len, buf->base);
         uv_close((uv_handle_t *)handle, NULL);
         if (--si->using == 0)
             MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
@@ -624,7 +624,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
             MVM_repr_push_o(tc, arr, msg_box);
         });
         if (buf->base)
-            MVM_fixed_size_free(tc, tc->instance->fsa, buf->len, buf->base);
+            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, buf->len, buf->base);
         uv_close((uv_handle_t *)handle, NULL);
         if (--si->using == 0)
             MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));

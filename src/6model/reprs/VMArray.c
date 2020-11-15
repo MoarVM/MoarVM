@@ -104,7 +104,7 @@ static void VMArray_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVM
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMArray         *arr       = (MVMArray *) obj;
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *) obj->st->REPR_data;
-    MVM_fixed_size_free(tc, tc->instance->fsa, arr->body.ssize * repr_data->elem_size, arr->body.slots.any);
+    MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, arr->body.ssize * repr_data->elem_size, arr->body.slots.any);
 }
 
 /* Marks the representation data in an STable.*/

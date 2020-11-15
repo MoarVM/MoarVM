@@ -127,7 +127,7 @@ static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const 
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
         });
         if (buf->base)
-            MVM_fixed_size_free(tc, tc->instance->fsa, buf->len, buf->base);
+            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, buf->len, buf->base);
         uv_udp_recv_stop(handle);
         MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
     }
@@ -144,7 +144,7 @@ static void on_read(uv_udp_t *handle, ssize_t nread, const uv_buf_t *buf, const 
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
         });
         if (buf->base)
-            MVM_fixed_size_free(tc, tc->instance->fsa, buf->len, buf->base);
+            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, buf->len, buf->base);
         uv_udp_recv_stop(handle);
         MVM_io_eventloop_remove_active_work(tc, &(ri->work_idx));
     }
