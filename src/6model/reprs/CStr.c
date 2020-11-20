@@ -71,6 +71,17 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMCStr);
 }
 
+static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
+    MVMString *orig = MVM_serialization_read_str(tc, reader);
+    MVMCStrBody *body = (MVMCStrBody *)data;
+    MVM_ASSIGN_REF(tc, &(root->header), body->orig, orig);
+    body->cstr = MVM_string_utf8_encode_C_string(tc, orig);
+}
+
+static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+    MVM_serialization_write_str(tc, writer, ((MVMCStrBody *)data)->orig);
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMCStr_initialize(MVMThreadContext *tc) {
     return &CStr_this_repr;
@@ -98,8 +109,8 @@ static const MVMREPROps CStr_this_repr = {
     MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
     NULL, /* change_type */
-    NULL, /* serialize */
-    NULL, /* deserialize */
+    serialize,
+    deserialize,
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */
     deserialize_stable_size,
