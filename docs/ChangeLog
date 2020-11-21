@@ -1,3 +1,31 @@
+New in 2020.11
+
+6model:
++ [af9ebffb,ffc8a269,75177470,38a2f815,2e8b5657] Fix interning of parametrics
++ [3c5deb2f] Implement serialize/deserialize of CStr REPR
++ [a37cd763,cbb92b03,dfbdcc9d] Eliminate pointer mismatch warnings on big endian systems
++ [2a98b8f3] MVM_nativeref_{read,write}_lex_i should handle uint8, uint16, uint32
++ [608b90eb] No need to MVMROOT `root` twice in `get_attribute`
+
+Core:
++ [88722e8e] Fix zeroing of reallocated memory in MVM_recalloc
++ [1eda12a0] Use `foo(void)` instead of just `foo()` for functions that take no arguments
+
+Platform:
++ [18e6f94e] Import pthread on Windows to get a type
+
+Strings:
++ [cefec1fb] Regenerate Unicode database files for v13.0, v13.1
++ [2cac07c9] Regenerate unicode_db to fix minor comment difference
++ [4ced726f] Use MVM_{malloc,realloc,calloc,free} consistency
++ [55964708] `swap_bytes` in utf16.c needs to also swap bytes on big endian platforms
+
+Tooling/Build:
++ [f212c081] Update generation scripts for Unicode 13.0, 13.1
++ [004e4bc7] The probe for `pthread_setname_np` needs prototypes from <string.h>
++ [6a2284e6,aa83051a] Report the lines that caused coverage
++ [7167b3d1,56fca429] Remove unused, unneeded and misspelled block filter
+
 New in 2020.10
 
 6model:
