@@ -87,6 +87,19 @@ MVM_STATIC_INLINE MVMuint64 ptr_hash_64_to_64(MVMuint64 u) {
     return (MVMuint64)u;
 }
 
+#ifdef MVM_THREAD_LOCAL
+MVM_THREAD_LOCAL MVMThreadContext *MVM_running_threads_context;
+#else
+uv_key_t MVM_running_threads_context_key;
+
+static void
+make_uv_key() {
+    int result = uv_key_create(&MVM_running_threads_context_key);
+    if (result)
+        MVM_panic(1, "uv_key_create failed with code %u", result);
+}
+#endif
+
 /* Create a new instance of the VM. */
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
@@ -97,6 +110,11 @@ MVMInstance * MVM_vm_create_instance(void) {
     char *jit_expr_disable, *jit_disable, *jit_last_frame, *jit_last_bb;
     char *dynvar_log;
     int init_stat;
+
+#ifndef MVM_THREAD_LOCAL
+    static uv_once_t key_once = UV_ONCE_INIT;
+    uv_once(&key_once, make_uv_key);
+#endif
 
     /* Set up instance data structure. */
     instance = MVM_calloc(1, sizeof(MVMInstance));

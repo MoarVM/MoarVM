@@ -508,9 +508,9 @@ static void write_array_str(MVMThreadContext *tc, MVMSerializationWriter *writer
 }
 
 /* Writes a hash where each key is a MVMString and each value a variant reference. */
-static MVMThreadContext *cmp_tc;
 static int cmp_strings(const void *s1, const void *s2) {
-    return MVM_string_compare(cmp_tc, *(MVMString **)s1, *(MVMString **)s2);
+    MVMThreadContext *tc = MVM_get_running_threads_context();
+    return MVM_string_compare(tc, *(MVMString **)s1, *(MVMString **)s2);
 }
 static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *hash) {
     MVMuint32 elems = (MVMuint32)MVM_repr_elems(tc, hash);
@@ -526,7 +526,6 @@ static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *wri
         MVM_repr_shift_o(tc, iter);
         keys[i++] = MVM_iterkey_s(tc, (MVMIter *)iter);
     }
-    cmp_tc = tc;
     qsort(keys, elems, sizeof(MVMString*), cmp_strings);
     for (i = 0; i < elems; i++) {
         MVM_serialization_write_str(tc, writer, keys[i]);
