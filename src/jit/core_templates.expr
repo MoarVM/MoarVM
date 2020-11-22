@@ -885,27 +885,40 @@
 
 (template: eqaddr (flagval (eq $1 $2)))
 
-(template: box_i!
-  (callv (^func &MVM_box_int)
+(template: box_i
+  (call (^func &MVM_repr_box_int)
     (arglist
       (carg (tc) ptr)
-      (carg $1 int)
       (carg $2 ptr)
-      (carg \$0 ptr))))
+      (carg $1 int)) ptr_sz))
 
-(template: box_s!
-  (callv (^func &MVM_box_str)
+(template: box_u
+  (call (^func &MVM_repr_box_uint)
     (arglist
       (carg (tc) ptr)
-      (carg $1 ptr)
       (carg $2 ptr)
-      (carg \$0 ptr))))
+      (carg $1 int)) ptr_sz))
+
+(template: box_s
+  (call (^func &MVM_repr_box_str)
+    (arglist
+      (carg (tc) ptr)
+      (carg $2 ptr)
+      (carg $1 ptr)) ptr_sz))
 
 (template: unbox_s
-  (call (^func &MVM_unbox_str)
+  (call (^func &MVM_repr_get_str)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
+
+(template: unbox_i
+  (call (^getf (^repr $1) MVMREPROps box_funcs.get_int)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $1) ptr)
+      (carg $1 ptr)
+      (carg (^body $1) ptr)) int_sz))
 
 (template: unbox_u
   (call (^getf (^repr $1) MVMREPROps box_funcs.get_uint)

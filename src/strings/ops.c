@@ -2587,9 +2587,6 @@ MVMString * MVM_string_bitxor(MVMThreadContext *tc, MVMString *a, MVMString *b) 
 #define UPV_Pf MVM_UNICODE_PVALUE_GC_PF
 #define UPV_Po MVM_UNICODE_PVALUE_GC_PO
 
-/* concatenating with "" ensures that only literal strings are accepted as argument. */
-#define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
-
 #include "strings/unicode_prop_macros.h"
 /* Checks if the specified grapheme is in the given character class. */
 MVMint64 MVM_string_grapheme_is_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMGrapheme32 g) {
