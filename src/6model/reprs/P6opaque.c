@@ -1896,15 +1896,49 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_int_slot];
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6bigint) {
                 MVMSpeshFacts *facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
+                int have_value = 0;
+                MVMint64 value;
+
                 if ((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && IS_CONCRETE(facts->value.o)) {
-                    MVMint64 result = MVM_repr_get_int(tc, facts->value.o);
+                    /* Effectively this is the call chain for
+                     * MVM_repr_get_int(tc, facts->value.o)
+                     * inlined all the way to P6bigint.c:mp_get_int64
+                     * We have to do this because that will throw for an out of
+                     * range integer, whereas we need to handle that case here.
+                     */
+                    void * data = OBJECT_BODY(facts->value.o);
+                    data = MVM_p6opaque_real_data(tc, data);
+                    MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot]);
+
+                    if (MVM_BIGINT_IS_BIG(body)) {
+                        mp_int *i = body->u.bigint;
+                        const int bits = mp_count_bits(i);
+                        if (bits <= 63) {
+                            MVMuint64 res = mp_get_mag_ull(i);
+                            value = MP_NEG == i->sign ? -res : res;
+                            have_value = 1;
+                        }
+                        else if (bits == 64
+                                 && MP_NEG == i->sign
+                                 && mp_get_mag_ull(i) == 9223372036854775808ULL) {
+                            value = -9223372036854775807ULL - 1;
+                            have_value = 1;
+                        }
+                    }
+                    else {
+                        value = body->u.smallint.value;
+                        have_value = 1;
+                    }
+                }
+
+                if (have_value) {
                     MVMSpeshFacts *target_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[0]);
-                    MVM_spesh_graph_add_comment(tc, g, ins, "unboxed literal to value %ld", result);
+                    MVM_spesh_graph_add_comment(tc, g, ins, "unboxed literal to value %ld", value);
                     ins->info = MVM_op_get_op(MVM_OP_const_i64);
                     MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
-                    ins->operands[1].lit_i64 = result;
+                    ins->operands[1].lit_i64 = value;
                     target_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
-                    target_facts->value.i = result;
+                    target_facts->value.i = value;
                 }
                 else {
                     MVMSpeshOperand *orig_operands = ins->operands;
