@@ -307,6 +307,10 @@ MVM_STATIC_INLINE MVMThreadContext *MVM_get_running_threads_context(void) {
     return MVM_running_threads_context;
 }
 
+MVM_STATIC_INLINE void MVM_set_running_threads_context(MVMThreadContext *tc) {
+    MVM_running_threads_context = tc;
+}
+
 #else
 
 /* Fallback to an implememtation using UV's APIs (pretty much pthreads) */
@@ -314,6 +318,10 @@ extern uv_key_t MVM_running_threads_context_key;
 
 MVM_STATIC_INLINE MVMThreadContext *MVM_get_running_threads_context(void) {
     return uv_key_get(&MVM_running_threads_context_key);
+}
+
+MVM_STATIC_INLINE void MVM_set_running_threads_context(MVMThreadContext *tc) {
+    return uv_key_set(&MVM_running_threads_context_key, tc);
 }
 
 #endif

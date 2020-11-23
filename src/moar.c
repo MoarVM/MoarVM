@@ -229,6 +229,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->threads->body.tc = instance->main_thread;
     instance->threads->body.native_thread_id = MVM_platform_thread_id();
     instance->threads->body.thread_id = instance->main_thread->thread_id;
+    MVM_set_running_threads_context(instance->main_thread);
     init_mutex(instance->mutex_threads, "threads list");
 
     /* Create compiler registry */
