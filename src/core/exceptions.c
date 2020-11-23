@@ -862,11 +862,21 @@ MVM_NO_RETURN void MVM_panic_allocation_failed(size_t len) {
  * process to indicate that we've made an error */
 MVM_NO_RETURN void MVM_oops(MVMThreadContext *tc, const char *messageFormat, ...) {
     va_list args;
-    fprintf(stderr, "MoarVM oops: ");
+    fprintf(stderr, "MoarVM oops%s: ",
+            !tc ? " with NULL tc" :
+            (MVMObject *) tc->thread_obj == tc->instance->spesh_thread
+            ? " in spesh thread" :
+            (MVMObject *) tc->thread_obj == tc->instance->event_loop_thread
+            ? " in event loop thread" : "");
     va_start(args, messageFormat);
     vfprintf(stderr, messageFormat, args);
     va_end(args);
     fprintf(stderr, "\n");
+
+    /* Our caller is seriously buggy if tc is NULL */
+    if (!tc)
+        abort();
+
     MVM_dump_backtrace(tc);
     fprintf(stderr, "\n");
     exit(1);
@@ -899,6 +909,23 @@ MVM_NO_RETURN void MVM_exception_throw_adhoc_free(MVMThreadContext *tc, char **w
 MVM_NO_RETURN void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const char *messageFormat, va_list args) {
     LocatedHandler lh;
     MVMException *ex;
+    const char *special = !tc ? " with NULL tc"
+        : (MVMObject *) tc->thread_obj == tc->instance->spesh_thread ? " in spesh thread"
+        : (MVMObject *) tc->thread_obj == tc->instance->event_loop_thread ? " in event loop thread" : NULL;
+
+    if (special) {
+        fprintf(stderr, "MoarVM exception%s treated as oops: ", special);
+        vfprintf(stderr, messageFormat, args);
+        va_end(args);
+        fprintf(stderr, "\n");
+        if (!tc)
+            abort();
+
+        MVM_dump_backtrace(tc);
+        fprintf(stderr, "\n");
+        exit(1);
+    }
+
     /* The current frame will be assigned as the thrower of the exception, so
      * force it onto the heap before we begin. */
     if (tc->cur_frame)
