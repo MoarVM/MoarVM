@@ -648,10 +648,10 @@ static void panic_unhandled_cat(MVMThreadContext *tc, MVMuint32 cat) {
     }
     else {
         if (tc->nested_interpreter)
-            fprintf(stderr, "An unhandled exception occurred in a native callback.\n"
-                    "This situation is not recoverable, and the program will terminate.\n"
-                    "The stack trace below helps indicate which library needs fixing.\n"
-                    "The exception was thrown at:\n");
+            fputs("An unhandled exception occurred in a native callback.\n"
+                  "This situation is not recoverable, and the program will terminate.\n"
+                  "The stack trace below helps indicate which library needs fixing.\n"
+                  "The exception was thrown at:\n", stderr);
         else
             fprintf(stderr, "No exception handler located for %s\n", cat_name(tc, cat));
         MVM_dump_backtrace(tc);
@@ -843,11 +843,11 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
  */
 MVM_NO_RETURN void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) {
     va_list args;
-    fprintf(stderr, "MoarVM panic: ");
+    fputs("MoarVM panic: ", stderr);
     va_start(args, messageFormat);
     vfprintf(stderr, messageFormat, args);
     va_end(args);
-    fwrite("\n", 1, 1, stderr);
+    fputc('\n', stderr);
     if (crash_on_error)
         abort();
     else
@@ -871,14 +871,14 @@ MVM_NO_RETURN void MVM_oops(MVMThreadContext *tc, const char *messageFormat, ...
     va_start(args, messageFormat);
     vfprintf(stderr, messageFormat, args);
     va_end(args);
-    fprintf(stderr, "\n");
+    fputc('\n', stderr);
 
     /* Our caller is seriously buggy if tc is NULL */
     if (!tc)
         abort();
 
     MVM_dump_backtrace(tc);
-    fprintf(stderr, "\n");
+    fputc('\n', stderr);
     exit(1);
 }
 
@@ -917,12 +917,12 @@ MVM_NO_RETURN void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char 
         fprintf(stderr, "MoarVM exception%s treated as oops: ", special);
         vfprintf(stderr, messageFormat, args);
         va_end(args);
-        fprintf(stderr, "\n");
+        fputc('\n', stderr);
         if (!tc)
             abort();
 
         MVM_dump_backtrace(tc);
-        fprintf(stderr, "\n");
+        fputc('\n', stderr);
         exit(1);
     }
 
@@ -969,7 +969,7 @@ MVM_NO_RETURN void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char 
         if (crash_on_error) {
             /* Yes, abort. */
             vfprintf(stderr, messageFormat, args);
-            fwrite("\n", 1, 1, stderr);
+            fputc('\n', stderr);
             MVM_dump_backtrace(tc);
             abort();
         }
