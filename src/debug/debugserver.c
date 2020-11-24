@@ -1,5 +1,4 @@
 #include "moar.h"
-#include "platform/threads.h"
 
 #define DEBUGSERVER_MAJOR_PROTOCOL_VERSION 1
 #define DEBUGSERVER_MINOR_PROTOCOL_VERSION 2

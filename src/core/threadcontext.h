@@ -340,3 +340,36 @@ void MVM_tc_set_ex_release_mutex(MVMThreadContext *tc, uv_mutex_t *mutex);
 void MVM_tc_set_ex_release_atomic(MVMThreadContext *tc, AO_t *flag);
 void MVM_tc_release_ex_release_mutex(MVMThreadContext *tc);
 void MVM_tc_clear_ex_release_mutex(MVMThreadContext *tc);
+
+/* UV always defines this for Win32 but not Unix. Which is fine, as we can probe
+ * for it on Unix more easily than on Win32. */
+#if !defined(MVM_THREAD_LOCAL) && defined(UV_THREAD_LOCAL)
+#define MVM_THREAD_LOCAL UV_THREAD_LOCAL
+#endif
+
+#ifdef MVM_THREAD_LOCAL
+
+extern MVM_THREAD_LOCAL MVMThreadContext *MVM_running_threads_context;
+
+MVM_STATIC_INLINE MVMThreadContext *MVM_get_running_threads_context(void) {
+    return MVM_running_threads_context;
+}
+
+MVM_STATIC_INLINE void MVM_set_running_threads_context(MVMThreadContext *tc) {
+    MVM_running_threads_context = tc;
+}
+
+#else
+
+/* Fallback to an implememtation using UV's APIs (pretty much pthreads) */
+extern uv_key_t MVM_running_threads_context_key;
+
+MVM_STATIC_INLINE MVMThreadContext *MVM_get_running_threads_context(void) {
+    return uv_key_get(&MVM_running_threads_context_key);
+}
+
+MVM_STATIC_INLINE void MVM_set_running_threads_context(MVMThreadContext *tc) {
+    return uv_key_set(&MVM_running_threads_context_key, tc);
+}
+
+#endif

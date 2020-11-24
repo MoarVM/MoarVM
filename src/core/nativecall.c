@@ -2,7 +2,6 @@
 #ifndef _WIN32
 #include <dlfcn.h>
 #endif
-#include <platform/threads.h>
 #include <platform/time.h>
 
 /* Grabs a NativeCall body. */
