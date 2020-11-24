@@ -1,5 +1,4 @@
 #include "moar.h"
-#include <platform/threads.h>
 #include "platform/malloc_trim.h"
 
 /* If we have the job of doing GC for a thread, we add it to our work

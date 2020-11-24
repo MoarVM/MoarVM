@@ -1,7 +1,6 @@
 #include "platform/memmem.h"
 #include "moar.h"
 #include "platform/io.h"
-#include <platform/threads.h>
 #include "platform/random.h"
 #include "platform/time.h"
 #include "platform/mmap.h"

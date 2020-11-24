@@ -39,6 +39,9 @@
 #include <dyncall_callback.h>
 #endif
 
+/* needed in threadcontext.h */
+#include <platform/threads.h>
+
 /* forward declarations */
 #include "types.h"
 
@@ -292,36 +295,3 @@ AO_t AO_fetch_compare_and_swap_emulation(volatile AO_t *addr, AO_t old_val, AO_t
  * which the other atomic operation macros are used... */
 #define MVM_store(addr, new) AO_store_full((volatile AO_t *)(addr), (AO_t)(new))
 #define MVM_load(addr) AO_load_full((volatile AO_t *)(addr))
-
-/* UV always defines this for Win32 but not Unix. Which is fine, as we can probe
- * for it on Unix more easily than on Win32. */
-#if !defined(MVM_THREAD_LOCAL) && defined(UV_THREAD_LOCAL)
-#define MVM_THREAD_LOCAL UV_THREAD_LOCAL
-#endif
-
-#ifdef MVM_THREAD_LOCAL
-
-extern MVM_THREAD_LOCAL MVMThreadContext *MVM_running_threads_context;
-
-MVM_STATIC_INLINE MVMThreadContext *MVM_get_running_threads_context(void) {
-    return MVM_running_threads_context;
-}
-
-MVM_STATIC_INLINE void MVM_set_running_threads_context(MVMThreadContext *tc) {
-    MVM_running_threads_context = tc;
-}
-
-#else
-
-/* Fallback to an implememtation using UV's APIs (pretty much pthreads) */
-extern uv_key_t MVM_running_threads_context_key;
-
-MVM_STATIC_INLINE MVMThreadContext *MVM_get_running_threads_context(void) {
-    return uv_key_get(&MVM_running_threads_context_key);
-}
-
-MVM_STATIC_INLINE void MVM_set_running_threads_context(MVMThreadContext *tc) {
-    return uv_key_set(&MVM_running_threads_context_key, tc);
-}
-
-#endif
