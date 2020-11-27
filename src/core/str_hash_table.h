@@ -153,11 +153,11 @@ Not all the optimisations described above are in place yet. Starting with
  *
  * We include a sentinel values at the end of the metadata so that the probe
  * distance loop doesn't need a bounds check. We *had* allocated an extra byte
- * the start too, to make the pointer arithmetic work, but that isn't needed
+ * at the start too, to make the pointer arithmetic work, but that isn't needed
  * now that we use a single memory block.
  *
- * Finally, to reduce allocations keep things in the same CPU cache lines, what
- * we allocate in memory actually looks like this:
+ * Finally, to reduce allocations and keep things in the same CPU cache lines,
+ * what we allocate in memory actually looks like this:
  *
  * ---+---+---+---+---+---+---+---+---------+---+---+---+---+---+---+---+---
  * ...| G | F | E | D | C | B | A | control | a | b | c | d | e | f | g |...
