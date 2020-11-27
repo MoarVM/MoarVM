@@ -31,6 +31,20 @@ MVM_STATIC_INLINE MVMuint8 *MVM_index_hash_entries(const struct MVMIndexHashTabl
     return (MVMuint8 *) control - sizeof(struct MVMIndexHashEntry);
 }
 
+MVM_STATIC_INLINE size_t MVM_index_hash_allocated_size(MVMThreadContext *tc, MVMIndexHashTable *hashtable) {
+    struct MVMIndexHashTableControl *control = hashtable->table;
+    if (!control)
+        return 0;
+    /* This special case allocation is only implemented in MVMStrHashTable: */
+    assert (!(control->cur_items == 0 && control->max_items == 0));
+
+
+    size_t allocated_items = MVM_index_hash_allocated_items(control);
+    size_t entries_size = MVM_hash_round_size_up(sizeof(struct MVMIndexHashEntry) * allocated_items);
+    size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
+    return entries_size + sizeof(struct MVMIndexHashTableControl) + metadata_size;
+}
+
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_index_hash_demolish(MVMThreadContext *tc, MVMIndexHashTable *hashtable);

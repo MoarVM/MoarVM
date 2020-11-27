@@ -227,10 +227,7 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
 
         size += sizeof(MVMString *) * body->num_lexicals;
 
-        /* This isn't quite accurate. Should we try to be more accurate? */
-        if (MVM_index_hash_built(tc, &body->lexical_names)) {
-            size += sizeof(struct MVMIndexHashEntry) * body->num_lexicals;
-        }
+        size += MVM_index_hash_allocated_size(tc, &body->lexical_names);
 
         size += sizeof(MVMFrameHandler) * body->num_handlers;
 
