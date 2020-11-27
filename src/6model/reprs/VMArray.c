@@ -629,7 +629,7 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
 
-    /* If we don't have room at the beginning of the slots, make some room
+    /* If we don't have room at the beginning of the slots, make some
      * room for unshifting. We make room for a minimum of 8 elements, but
      * for cases where we're just continuously unshifting factor in the
      * body size too - however also apply an upper limit on that as in the
