@@ -21,6 +21,7 @@ void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type) {
                 MVMObject *obj;
                 obj = MVM_repr_alloc_init(tc, type);
                 MVM_repr_set_int(tc, obj, val);
+                MVM_6model_never_repossess(tc, obj);
                 tc->instance->int_const_cache->cache[type_index][val + 1] = obj;
                 MVM_gc_root_add_permanent_desc(tc,
                     (MVMCollectable **)&tc->instance->int_const_cache->cache[type_index][val + 1],
@@ -39,6 +40,7 @@ MVMObject *MVM_intcache_get(MVMThreadContext *tc, MVMObject *type, MVMint64 valu
     int type_index;
     int right_slot = -1;
 
+return NULL;
     if (value < -1 || value >= 15)
         return NULL;
 

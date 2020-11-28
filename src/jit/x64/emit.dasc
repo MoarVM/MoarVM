@@ -2460,7 +2460,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 offset = ins->operands[3].lit_i16;
         MVMint16 val = ins->operands[4].reg.orig;
-        if (use_cache) {
+        if (0 && use_cache) {
             MVMObject **cache = tc->instance->int_const_cache->cache[ins->operands[5].lit_i16];
             MVMint16 dst = ins->operands[0].reg.orig;
             | mov TMP1, WORK[val]
@@ -2543,6 +2543,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | jo >1
 
         /* No overflow. See if it's in integer cache range. */
+        | jmp >2
         | cmp TMP4d, 14
         | jg >2
         | cmp TMP4d, -1

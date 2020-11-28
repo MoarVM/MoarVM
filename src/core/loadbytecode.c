@@ -16,9 +16,13 @@ static void run_comp_unit(MVMThreadContext *tc, MVMCompUnit *cu) {
         tc->cur_frame->return_type              = MVM_RETURN_VOID;
         MVM_frame_special_return(tc, tc->cur_frame, run_load, NULL, cu, mark_sr_data);
 
+        MVM_frame_force_to_heap(tc, tc->cur_frame);
+        MVMStaticFrame *sf = cu->body.deserialize_frame;
+        MVM_ASSIGN_REF(tc, &(((MVMObject *)sf)->header), sf->body.outer, tc->cur_frame->static_info);
+
         /* Invoke the deserialization frame and return to the runloop. */
         MVM_frame_invoke(tc, cu->body.deserialize_frame, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS),
-            NULL, NULL, NULL, -1);
+            NULL, tc->cur_frame, NULL, -1);
     }
     else {
         /* No deserialize frame, so do load frame instead. */

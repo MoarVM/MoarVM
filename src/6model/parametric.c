@@ -97,6 +97,21 @@ void MVM_6model_parametric_parameterize(MVMThreadContext *tc, MVMObject *type, M
     /* Use an existing parameterization if we have it. */
     found = MVM_6model_parametric_try_find_parameterization(tc, st, params);
     if (found) {
+        //fprintf(stderr, "parameterization found %s from %s\n", STABLE(found)->debug_name, MVM_string_utf8_maybe_encode_C_string(tc, MVM_sc_get_description(tc, MVM_sc_get_stable_sc(tc, STABLE(found)))));
+        /*
+        found->header.sc_forward_u.sc.sc_idx = 0;
+        found->header.sc_forward_u.sc.idx = 0;
+        STABLE(found)->header.sc_forward_u.sc.sc_idx = 0;
+        STABLE(found)->header.sc_forward_u.sc.idx = 0;
+        if (STABLE(found)->WHAT) {
+            STABLE(found)->WHAT->header.sc_forward_u.sc.sc_idx = 0;
+            STABLE(found)->WHAT->header.sc_forward_u.sc.idx = 0;
+        }
+        if (STABLE(found)->HOW) {
+            STABLE(found)->HOW->header.sc_forward_u.sc.sc_idx = 0;
+            STABLE(found)->HOW->header.sc_forward_u.sc.idx = 0;
+        }
+        */
         result->o = found;
         return;
     }

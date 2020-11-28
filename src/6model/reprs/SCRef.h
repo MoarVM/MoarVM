@@ -56,6 +56,8 @@ struct MVMSerializationContextBody {
 
     /* Reentrant mutex protecting lazy deserialization of the SC. */
     MVMObject *mutex;
+
+    MVMObject *allowed_sc_deps;
 };
 
 struct MVMSerializationContext {

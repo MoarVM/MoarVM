@@ -283,6 +283,25 @@ static MVMuint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer,
 
     /* Otherwise, need to add it to our dependencies list. Ensure there's
      * space in the dependencies table; grow if not. */
+
+    MVMString *description = MVM_sc_get_description(tc, sc);
+
+    if (writer->root.sc->body->allowed_sc_deps) {
+        MVMint64 allowed_deps_elems = MVM_repr_elems(tc, writer->root.sc->body->allowed_sc_deps);
+        for (i = 0; i < allowed_deps_elems; i++) {
+            if (sc == (MVMSerializationContext*) MVM_repr_at_pos_o(tc, writer->root.sc->body->allowed_sc_deps, i)) {
+                goto FOUND;
+            }
+        }
+        fprintf(stderr, "Encountered not allowed SC %s for %s!\n", MVM_string_utf8_maybe_encode_C_string(tc, description), MVM_string_utf8_maybe_encode_C_string(tc, MVM_sc_get_description(tc, writer->root.sc)));
+        return -1;
+    }
+
+    if (0 == strcmp(MVM_string_utf8_encode_C_string(tc, MVM_sc_get_handle(tc, sc)), "197D8C2E62D4CB80350F0A4AD3DD5469BDEB62C21")) {
+        fprintf(stderr, "gotcha\n");
+    }
+
+FOUND:
     offset = num_deps * DEP_TABLE_ENTRY_SIZE;
     if (offset + DEP_TABLE_ENTRY_SIZE > writer->dependencies_table_alloc) {
         GROW_TABLE(writer->root.dependencies_table, writer->dependencies_table_alloc);
@@ -306,6 +325,16 @@ static MVMuint32 get_sc_id(MVMThreadContext *tc, MVMSerializationWriter *writer,
  * placing it onto the work list. */
 static void get_stable_ref_info(MVMThreadContext *tc, MVMSerializationWriter *writer,
                                 MVMSTable *st, MVMuint32 *sc, MVMuint32 *sc_idx) {
+
+/*
+    if (st->mode_flags & MVM_PARAMETRIC_TYPE && st->header.sc_forward_u.sc.sc_idx != writer->root.sc->body->sc_idx) {
+        st->header.sc_forward_u.sc.sc_idx = 0;
+        st->header.sc_forward_u.sc.idx = 0;
+        st->WHAT->header.sc_forward_u.sc.sc_idx = 0;
+        st->WHAT->header.sc_forward_u.sc.idx = 0;
+    }
+    */
+
     /* Add to this SC if needed. */
     if (MVM_sc_get_stable_sc(tc, st) == NULL) {
         MVM_sc_set_stable_sc(tc, st, writer->root.sc);
@@ -314,6 +343,11 @@ static void get_stable_ref_info(MVMThreadContext *tc, MVMSerializationWriter *wr
 
     /* Work out SC reference. */
     *sc     = get_sc_id(tc, writer, MVM_sc_get_stable_sc(tc, st));
+    if (*sc == -1) {
+        MVM_sc_set_stable_sc(tc, st, writer->root.sc);
+        MVM_sc_push_stable(tc, writer->root.sc, st);
+        *sc = 0;
+    }
     *sc_idx = (MVMuint32)MVM_sc_find_stable_idx(tc, MVM_sc_get_stable_sc(tc, st), st);
 }
 
@@ -444,6 +478,10 @@ void MVM_serialization_write_str(MVMThreadContext *tc, MVMSerializationWriter *w
 /* Writes the ID, index pair that identifies an entry in a Serialization
    context. */
 static void write_locate_sc_and_index(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint32 sc_id, MVMint32 idx) {
+    if (sc_id < 0)
+        return;
+    if (sc_id < 0 || sc_id > writer->root.num_dependencies)
+        MVM_oops(tc, "Invalid sc_id %d in write_locate_sc_and_index\n", sc_id);
     if (sc_id <= PACKED_SC_MAX && idx <= PACKED_SC_IDX_MAX) {
         MVMuint32 packed = (sc_id << PACKED_SC_SHIFT) | (idx & PACKED_SC_IDX_MASK);
         MVM_serialization_write_int(tc, writer, packed);
@@ -459,6 +497,14 @@ static void write_locate_sc_and_index(MVMThreadContext *tc, MVMSerializationWrit
 static void write_obj_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *ref) {
     MVMint32 sc_id, idx;
 
+    /*MVMSTable *st = ref->st;
+    if (!IS_CONCRETE(ref) && ref == st->WHAT && st->mode_flags & MVM_PARAMETRIC_TYPE && st->header.sc_forward_u.sc.sc_idx != writer->root.sc->body->sc_idx) {
+        st->header.sc_forward_u.sc.sc_idx = 0;
+        st->header.sc_forward_u.sc.idx = 0;
+        st->WHAT->header.sc_forward_u.sc.sc_idx = 0;
+        st->WHAT->header.sc_forward_u.sc.idx = 0;
+    }*/
+
     if (OBJ_IS_NULL(MVM_sc_get_obj_sc(tc, ref))) {
         /* This object doesn't belong to an SC yet, so it must be serialized as part of
          * this compilation unit. Add it to the work list. */
@@ -466,6 +512,11 @@ static void write_obj_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, 
         MVM_sc_push_object(tc, writer->root.sc, ref);
     }
     sc_id = get_sc_id(tc, writer, MVM_sc_get_obj_sc(tc, ref));
+    if (sc_id == -1) {
+        MVM_sc_set_obj_sc(tc, ref, writer->root.sc);
+        MVM_sc_push_object(tc, writer->root.sc, ref);
+        sc_id = 0;
+    }
     idx   = (MVMint32)MVM_sc_find_object_idx(tc, MVM_sc_get_obj_sc(tc, ref), ref);
     write_locate_sc_and_index(tc, writer, sc_id, idx);
 }
@@ -540,7 +591,12 @@ static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *wri
 static void write_code_ref(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *code) {
     MVMSerializationContext *sc = MVM_sc_get_obj_sc(tc, code);
     MVMint32  sc_id   = get_sc_id(tc, writer, sc);
-    MVMint32  idx     = (MVMint32)MVM_sc_find_code_idx(tc, sc, code);
+    if (sc_id == -1) {
+        MVM_sc_set_obj_sc(tc, code, writer->root.sc);
+        MVM_sc_push_object(tc, writer->root.sc, code);
+        sc_id = 0;
+    }
+    MVMint32  idx     = (MVMint32)MVM_sc_find_code_idx(tc, MVM_sc_get_obj_sc(tc, code), code);
     write_locate_sc_and_index(tc, writer, sc_id, idx);
 }
 MVM_NO_RETURN void throw_closure_serialization_error(MVMThreadContext *tc, MVMCode *closure, const char *message) MVM_NO_RETURN_ATTRIBUTE;
@@ -602,11 +658,22 @@ static MVMint32 get_serialized_context_idx(MVMThreadContext *tc, MVMSerializatio
     }
     else {
         MVMint64 i, c;
-        if (MVM_sc_get_frame_sc(tc, ctx) != writer->root.sc)
+        if (MVM_sc_get_frame_sc(tc, ctx) != writer->root.sc) { //FIXME this is just a trial
+            /* Looks like the same ctx already got used for a different compilation.
+             * Steal it and serialize into the current SC as well. */
+            if (writer->num_contexts == writer->alloc_contexts) {
+                writer->alloc_contexts += 256;
+                writer->contexts_list = MVM_realloc(writer->contexts_list,
+                    writer->alloc_contexts * sizeof(MVMFrame *));
+            }
+            writer->contexts_list[writer->num_contexts++] = ctx;
+            MVM_sc_set_frame_sc(tc, ctx, writer->root.sc);
+            return (MVMint32)writer->num_contexts;
             throw_closure_serialization_error(tc,
                 closure,
                 "reference to context outside of SC for"
             );
+        }
         c = writer->num_contexts;
         for (i = 0; i < c; i++)
             if (writer->contexts_list[i] == ctx)
@@ -651,7 +718,12 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
 
     /* Add an entry to the closures table. */
     static_sc_id = get_sc_id(tc, writer, static_code_sc);
-    static_idx   = (MVMint32)MVM_sc_find_code_idx(tc, static_code_sc, static_code_ref);
+    if (static_sc_id == -1) {
+        MVM_sc_set_obj_sc(tc, static_code_ref, writer->root.sc);
+        MVM_sc_push_object(tc, writer->root.sc, static_code_ref);
+        static_sc_id = 0;
+    }
+    static_idx   = (MVMint32)MVM_sc_find_code_idx(tc, MVM_sc_get_obj_sc(tc, static_code_ref), static_code_ref);
     write_int32(writer->root.closures_table, offset, static_sc_id);
     write_int32(writer->root.closures_table, offset + 4, static_idx);
     write_int32(writer->root.closures_table, offset + 8, context_idx);
@@ -664,8 +736,13 @@ static void serialize_closure(MVMThreadContext *tc, MVMSerializationWriter *writ
             MVM_sc_set_obj_sc(tc, code_obj, writer->root.sc);
             MVM_sc_push_object(tc, writer->root.sc, code_obj);
         }
-        write_int32(writer->root.closures_table, offset + 16,
-            get_sc_id(tc, writer, MVM_sc_get_obj_sc(tc, code_obj)));
+        MVMuint32 code_object_sc_id = get_sc_id(tc, writer, MVM_sc_get_obj_sc(tc, code_obj));
+        if (code_object_sc_id == -1) {
+            MVM_sc_set_obj_sc(tc, code_obj, writer->root.sc);
+            MVM_sc_push_object(tc, writer->root.sc, code_obj);
+            code_object_sc_id = 0;
+        }
+        write_int32(writer->root.closures_table, offset + 16, code_object_sc_id);
         write_int32(writer->root.closures_table, offset + 20,
             (MVMint32)MVM_sc_find_object_idx(tc, MVM_sc_get_obj_sc(tc, code_obj), code_obj));
     }
@@ -955,7 +1032,19 @@ static void serialize_how_lazy(MVMThreadContext *tc, MVMSerializationWriter *wri
     }
     else {
         MVMint32 sc_id = get_sc_id(tc, writer, st->HOW_sc);
-        write_locate_sc_and_index(tc, writer, sc_id, st->HOW_idx);
+        MVMROOT(tc, st, {
+        MVMObject *HOW = MVM_sc_get_object(tc, st->HOW_sc, st->HOW_idx);
+        MVM_ASSIGN_REF(tc, &(st->header), st->HOW, HOW);
+        if (sc_id == -1) {
+            MVM_sc_set_obj_sc(tc, HOW, writer->root.sc);
+            MVM_sc_push_object(tc, writer->root.sc, HOW);
+            sc_id = 0;
+            write_locate_sc_and_index(tc, writer, sc_id, MVM_sc_find_object_idx(tc, writer->root.sc, HOW));
+        }
+        else {
+            write_locate_sc_and_index(tc, writer, sc_id, st->HOW_idx);
+        }
+        });
     }
 }
 
@@ -1248,7 +1337,12 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
             "Serialization Error: closure outer is a code object not in an SC");
     }
     static_sc_id = get_sc_id(tc, writer, static_code_sc);
-    static_idx   = (MVMint32)MVM_sc_find_code_idx(tc, static_code_sc, static_code_ref);
+    if (static_sc_id == -1) {
+        MVM_sc_set_obj_sc(tc, static_code_ref, writer->root.sc);
+        MVM_sc_push_object(tc, writer->root.sc, static_code_ref);
+        static_sc_id = 0;
+    }
+    static_idx   = (MVMint32)MVM_sc_find_code_idx(tc, MVM_sc_get_obj_sc(tc, static_code_ref), static_code_ref);
 
     /* Ensure there's space in the STables table; grow if not. */
     offset = writer->root.num_contexts * CONTEXTS_TABLE_ENTRY_SIZE;
@@ -1336,15 +1430,19 @@ static void serialize_repossessions(MVMThreadContext *tc, MVMSerializationWriter
 
         /* Work out original object's SC location. */
         MVMint32 orig_sc_id = get_sc_id(tc, writer, orig_sc);
-        MVMint32 orig_idx   = (MVMint32)(is_st
-            ? MVM_sc_find_stable_idx(tc, orig_sc, writer->root.sc->body->root_stables[obj_idx])
-            : MVM_sc_find_object_idx(tc, orig_sc, writer->root.sc->body->root_objects[obj_idx]));
+        if (orig_sc_id != -1) {
+            MVMint32 orig_idx   = (MVMint32)(is_st
+                ? MVM_sc_find_stable_idx(tc, orig_sc, writer->root.sc->body->root_stables[obj_idx])
+                : MVM_sc_find_object_idx(tc, orig_sc, writer->root.sc->body->root_objects[obj_idx]));
 
-        /* Write table row. */
-        write_int32(writer->root.repos_table, offset, is_st);
-        write_int32(writer->root.repos_table, offset + 4, obj_idx);
-        write_int32(writer->root.repos_table, offset + 8, orig_sc_id);
-        write_int32(writer->root.repos_table, offset + 12, orig_idx);
+            /* Write table row. */
+            write_int32(writer->root.repos_table, offset, is_st);
+            write_int32(writer->root.repos_table, offset + 4, obj_idx);
+            write_int32(writer->root.repos_table, offset + 8, orig_sc_id);
+            write_int32(writer->root.repos_table, offset + 12, orig_idx);
+        }
+        else
+            writer->root.num_repos--;
     }
 }
 
@@ -1397,6 +1495,7 @@ MVMObject * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
 
     /* We don't sufficiently root things in here for the GC, so enforce gen2
      * allocation. */
+    assert(!tc->allocate_in_gen2);
     MVM_gc_allocate_gen2_default_set(tc);
 
     /* Set up writer with some initial settings. */
@@ -1410,6 +1509,29 @@ MVMObject * MVM_serialization_serialize(MVMThreadContext *tc, MVMSerializationCo
 
     for (i = 0; i < seed_strings; i++) {
         MVM_repr_bind_key_int(tc, writer->seen_strings, MVM_repr_at_pos_s(tc, empty_string_heap, i), i + 1);
+    }
+
+    if (sc->body->allowed_sc_deps) { /* get recursive deps */
+        i = 0;
+        MVMint64 elems;
+        while (i < (elems = MVM_repr_elems(tc, sc->body->allowed_sc_deps))) {
+            for (; i < elems; i++) {
+                MVMSerializationContext *dep = (MVMSerializationContext*)MVM_repr_at_pos_o(tc, sc->body->allowed_sc_deps, i);
+                if (dep->body->sr) {
+                    MVMint64 j;
+                    for (j = 0; j < dep->body->sr->root.num_dependencies;) {
+                        MVMSerializationContext *dep_dep = dep->body->sr->root.dependent_scs[j];
+                        MVMint64 k, cur_elems = MVM_repr_elems(tc, sc->body->allowed_sc_deps);
+                        for (k = 0; k < cur_elems; k++) /* check if we haven't seen it already */
+                            if ((MVMSerializationContext*)MVM_repr_at_pos_o(tc, sc->body->allowed_sc_deps, k) == dep_dep)
+                                goto FOUND;
+                        MVM_repr_push_o(tc, sc->body->allowed_sc_deps, (MVMObject*)dep_dep);
+                        FOUND:
+                        j++;
+                    }
+                }
+            }
+        }
     }
 
     /* Allocate initial memory space for storing serialized tables and data. */
@@ -2942,6 +3064,7 @@ MVMObject * MVM_serialization_demand_object(MVMThreadContext *tc, MVMSerializati
         MVMObject *matching = MVM_6model_parametric_try_find_parameterization(tc, STABLE(ptype), params);
         if (matching) {
             assert(type_idx == idx);
+            //fprintf(stderr, "Found matching object %s\n", STABLE(matching)->debug_name);
             MVM_sc_set_object_no_update(tc, sr->root.sc, idx, matching);
             MVM_sc_set_stable(tc, sr->root.sc, st_idx, STABLE(matching));
             MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
@@ -2997,6 +3120,7 @@ MVMSTable * MVM_serialization_demand_stable(MVMThreadContext *tc, MVMSerializati
         sr->root.sc->body->param_intern_st_lookup[idx] = intern_idx;
         if (matching) {
             assert(st_idx == idx);
+            //fprintf(stderr, "Found matching %s\n", STABLE(matching)->debug_name);
             MVM_sc_set_object_no_update(tc, sr->root.sc, type_idx, matching);
             MVM_sc_set_stable(tc, sr->root.sc, st_idx, STABLE(matching));
             MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
@@ -3155,6 +3279,7 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
         /* Get object to repossess. */
         MVMSerializationContext *orig_sc = locate_sc(tc, reader, read_int32(table_row, 8));
         MVMObject *orig_obj = MVM_sc_get_object(tc, orig_sc, read_int32(table_row, 12));
+        fprintf(stderr, "repossessing %s object %p\n", STABLE(orig_obj)->debug_name, MVM_gc_object_id(tc, orig_obj));
 
         /* If we have a reposession conflict, make a copy of the original object
          * and reference it from the conflicts list. Push the original (about to
@@ -3205,6 +3330,7 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
         /* Get STable to repossess. */
         MVMSerializationContext *orig_sc = locate_sc(tc, reader, read_int32(table_row, 8));
         MVMSTable *orig_st = MVM_sc_get_stable(tc, orig_sc, read_int32(table_row, 12));
+        fprintf(stderr, "repossessing STABLE %s\n", orig_st->debug_name);
 
         /* Make sure we don't have a reposession conflict. */
         if (MVM_sc_get_stable_sc(tc, orig_st) != orig_sc)
@@ -3303,6 +3429,8 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     /* Allocate and set up reader. */
     MVMSerializationReader *reader = MVM_calloc(1, sizeof(MVMSerializationReader));
     reader->root.sc          = sc;
+
+    (*tc->interp_cu)->body.sc = sc;
 
     /* If we've been given a NULL string heap, use that of the current
      * compilation unit. */

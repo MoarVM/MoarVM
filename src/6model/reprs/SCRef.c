@@ -60,6 +60,9 @@ static void SCRef_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGC
     MVMSerializationContextBody *sc = ((MVMSerializationContextBody **)data)[0];
     MVMuint64 i;
 
+    //if (strcmp(MVM_string_utf8_encode_C_string(tc, sc->handle), "B236B1F0C35FA99DD97C3031E2E8A87B0E00EB59") == 0)
+    //    fprintf(stderr, "Marking the SC\n");
+
     MVM_gc_worklist_add(tc, worklist, &sc->handle);
     MVM_gc_worklist_add(tc, worklist, &sc->description);
     MVM_gc_worklist_add(tc, worklist, &sc->root_codes);
@@ -105,8 +108,9 @@ static void SCRef_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGC
         MVM_gc_worklist_add(tc, worklist, &(sc->sr->root.string_comp_unit));
         MVM_gc_worklist_add(tc, worklist, &(sc->sr->codes_list));
         MVM_gc_worklist_add(tc, worklist, &(sc->sr->current_object));
-
     }
+
+    MVM_gc_worklist_add(tc, worklist, &sc->allowed_sc_deps);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -231,12 +235,30 @@ const MVMREPROps * MVMSCRef_initialize(MVMThreadContext *tc) {
     return &SCRef_this_repr;
 }
 
+static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, MVMRegister value, MVMuint16 kind) {
+    if (MVM_string_equal(tc, name, tc->instance->str_consts.allowed_sc_deps)) {
+        MVMSerializationContextBody *sc = ((MVMSerializationContextBody **)data)[0];
+        MVM_ASSIGN_REF(tc, &(root->header), sc->allowed_sc_deps, value.o);
+    }
+    else {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "No such attribute '%s' on type %s in a %s", c_name, MVM_6model_get_debug_name(tc, class_handle), MVM_6model_get_stable_debug_name(tc, st));
+    }
+}
+
 static const MVMREPROps SCRef_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
     initialize,
     copy_to,
-    MVM_REPR_DEFAULT_ATTR_FUNCS,
+    {
+        MVM_REPR_DEFAULT_GET_ATTRIBUTE,
+        bind_attribute,
+        MVM_REPR_DEFAULT_HINT_FOR,
+        MVM_REPR_DEFAULT_IS_ATTRIBUTE_INITIALIZED,
+        MVM_REPR_DEFAULT_ATTRIBUTE_AS_ATOMIC
+    },
     MVM_REPR_DEFAULT_BOX_FUNCS,
     MVM_REPR_DEFAULT_POS_FUNCS,
     MVM_REPR_DEFAULT_ASS_FUNCS,

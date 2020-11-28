@@ -3381,7 +3381,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(ctxlexpad): {
                 MVMObject *this_ctx = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(this_ctx) || REPR(this_ctx)->ID != MVM_REPR_ID_MVMContext) {
-                    MVM_exception_throw_adhoc(tc, "ctxlexpad needs an MVMContext");
+                    MVM_exception_throw_adhoc(tc, "ctxlexpad needs an MVMContext, got a %s instead", STABLE(this_ctx)->debug_name);
                 }
                 GET_REG(cur_op, 0).o = this_ctx;
                 cur_op += 4;
@@ -6278,7 +6278,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_fastbox_i_ic): {
                 MVMint64 value = GET_REG(cur_op, 8).i64;
-                if (value >= -1 && value < 15) {
+                if (0 && value >= -1 && value < 15) {
                     MVMint16 slot = GET_UI16(cur_op, 10);
                     GET_REG(cur_op, 0).o = tc->instance->int_const_cache->cache[slot][value + 1];
                 }
@@ -6292,7 +6292,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_fastbox_bi_ic): {
                 MVMint64 value = GET_REG(cur_op, 8).i64;
-                if (value >= -1 && value < 15) {
+                if (0 && value >= -1 && value < 15) {
                     MVMint16 slot = GET_UI16(cur_op, 10);
                     GET_REG(cur_op, 0).o = tc->instance->int_const_cache->cache[slot][value + 1];
                 }
@@ -6484,7 +6484,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
                     MVMint64 result = (MVMint64)ba->u.smallint.value + (MVMint64)bb->u.smallint.value;
                     if (MVM_IS_32BIT_INT(result)) {
-                        if (result < -1 || result >= 15) {
+                        if (1 || result < -1 || result >= 15) {
                             result_obj = fastcreate(tc, cur_op);
                             bc = (MVMP6bigintBody *)((char *)result_obj + offset);
                             bc->u.smallint.value = (MVMint32)result;
@@ -6515,7 +6515,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
                     MVMint64 result = (MVMint64)ba->u.smallint.value - (MVMint64)bb->u.smallint.value;
                     if (MVM_IS_32BIT_INT(result)) {
-                        if (result < -1 || result >= 15) {
+                        if (1 || result < -1 || result >= 15) {
                             result_obj = fastcreate(tc, cur_op);
                             bc = (MVMP6bigintBody *)((char *)result_obj + offset);
                             bc->u.smallint.value = (MVMint32)result;
@@ -6546,7 +6546,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
                     MVMint64 result = (MVMint64)ba->u.smallint.value * (MVMint64)bb->u.smallint.value;
                     if (MVM_IS_32BIT_INT(result)) {
-                        if (result < -1 || result >= 15) {
+                        if (1 || result < -1 || result >= 15) {
                             result_obj = fastcreate(tc, cur_op);
                             bc = (MVMP6bigintBody *)((char *)result_obj + offset);
                             bc->u.smallint.value = (MVMint32)result;

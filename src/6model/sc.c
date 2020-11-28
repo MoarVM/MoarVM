@@ -22,6 +22,7 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
                 = MVM_str_hash_lvalue_fetch_nocheck(tc, &tc->instance->sc_weakhash, handle);
             if (!entry->hash_handle.key) {
                 entry->hash_handle.key = handle;
+                //fprintf(stderr, "Created SC for %s\n", MVM_string_utf8_encode_C_string(tc, handle));
 
                 MVMSerializationContextBody *scb = MVM_calloc(1, sizeof(MVMSerializationContextBody));
                 entry->scb = scb;
@@ -41,6 +42,7 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
                 MVM_sc_add_all_scs_entry(tc, scb);
             }
             else {
+                //fprintf(stderr, "Found existing SC for %s\n", MVM_string_utf8_encode_C_string(tc, handle));
                 MVMSerializationContextBody *scb = entry->scb;
                 if (scb->sc) {
                     /* we lost a race to create it! */
@@ -98,7 +100,7 @@ MVMString * MVM_sc_get_handle(MVMThreadContext *tc, MVMSerializationContext *sc)
 
 /* Given an SC, returns its description. */
 MVMString * MVM_sc_get_description(MVMThreadContext *tc, MVMSerializationContext *sc) {
-    return sc->body->description;
+    return sc ? sc->body->description : NULL;
 }
 
 /* Given an SC, sets its description. */
@@ -212,10 +214,19 @@ MVMuint8 MVM_sc_is_object_immediately_available(MVMThreadContext *tc, MVMSeriali
 MVMObject * MVM_sc_get_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
     MVMObject **roots = sc->body->root_objects;
     MVMint64    count = sc->body->num_objects;
-    if (MVM_LIKELY(idx >= 0 && idx < count))
+    if (MVM_LIKELY(idx >= 0 && idx < count)) {
+        if (roots[idx] && !sc_working(sc)) {
+            //fprintf(stderr, "Already deserialized: %p\n", roots[idx]);
+            return roots[idx];
+        }
+        else {
+            MVM_serialization_demand_object(tc, sc, idx);
+            //fprintf(stderr, "Deserialized %p\n", obj);
+        }
         return roots[idx] && !sc_working(sc)
             ? roots[idx]
             : MVM_serialization_demand_object(tc, sc, idx);
+    }
     else {
         char *c_description = MVM_string_utf8_encode_C_string(tc, sc->body->description);
         char *waste[] = { c_description, NULL };
@@ -248,6 +259,11 @@ void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
 void MVM_sc_set_object_no_update(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *obj) {
     if (idx < 0)
         MVM_exception_throw_adhoc(tc, "Invalid (negative) object root index %"PRId64"", idx);
+    if (IS_CONCRETE(obj) && !REPR(obj)->serialize) {
+        MVM_gc_allocate_gen2_default_clear(tc);
+        MVM_exception_throw_adhoc(tc,
+            "Missing serialize REPR function for REPR %s (%s)", REPR(obj)->name, MVM_6model_get_debug_name(tc, obj));
+    }
     if ((MVMuint64)idx < sc->body->num_objects) {
         /* Just updating an existing one. */
         MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_objects[idx], obj);
@@ -367,6 +383,8 @@ void MVM_sc_disclaim(MVMThreadContext *tc, MVMSerializationContext *sc) {
         MVM_exception_throw_adhoc(tc,
             "Must provide an SCRef operand to scdisclaim");
 
+    //fprintf(stderr, "sc_disclaim for %s\n", MVM_string_utf8_encode_C_string(tc, sc->body->handle));
+
     root_objects = sc->body->root_objects;
     count        = sc->body->num_objects;
     for (i = 0; i < count; i++) {
@@ -405,7 +423,35 @@ void MVM_sc_disclaim(MVMThreadContext *tc, MVMSerializationContext *sc) {
         col                         = &obj->header;
         col->sc_forward_u.sc.sc_idx = 0;
     }
-    sc->body->root_codes = NULL;
+    MVM_repr_pos_set_elems(tc, root_codes, 0);
+
+    /* clean up repossession info as we don't own anything anymore */
+    MVM_repr_pos_set_elems(tc, sc->body->rep_indexes, 0);
+    MVM_repr_pos_set_elems(tc, sc->body->rep_scs, 0);
+
+    int type_index;
+    for (type_index = 0; type_index < 4; type_index++) {
+        if (tc->instance->int_const_cache->types[type_index] != NULL) {
+            for (i = 0; i < 16; i++) {
+                obj = tc->instance->int_const_cache->cache[type_index][i];
+                col = &obj->header;
+                if (col->sc_forward_u.sc.sc_idx == sc->body->sc_idx) {
+#ifdef MVM_USE_OVERFLOW_SERIALIZATION_INDEX
+                    if (col->flags1 & MVM_CF_SERIALZATION_INDEX_ALLOCATED) {
+                        struct MVMSerializationIndex *const sci = col->sc_forward_u.sci;
+                        col->sc_forward_u.sci = NULL;
+                        MVM_free(sci);
+                    }
+                    col->sc_forward_u.sc.sc_idx = 0;
+                    col->sc_forward_u.sc.idx = 0;
+#else
+                    col->sc_forward_u.sc.sc_idx = 0;
+                    col->sc_forward_u.sc.idx = 0;
+#endif
+                }
+            }
+        }
+    }
 }
 
 /* SC repossession barrier. */
@@ -468,6 +514,10 @@ void MVM_sc_wb_hit_obj(MVMThreadContext *tc, MVMObject *obj) {
         /* Add repossession entry. */
         MVM_repr_push_i(tc, comp_sc->body->rep_indexes, new_slot << 1);
         MVM_repr_push_o(tc, comp_sc->body->rep_scs, (MVMObject *)MVM_sc_get_obj_sc(tc, obj));
+
+        if (0 == strcmp(STABLE(obj)->debug_name, "Stash")) {
+            fprintf(stderr, "Repossessing a stash %p\n", obj);
+        }
 
         /* Update SC of the object, claiming it, and update index too. */
         MVM_sc_set_obj_sc(tc, obj, comp_sc);

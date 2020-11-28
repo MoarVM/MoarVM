@@ -230,12 +230,29 @@ const MVMREPROps * MVMContext_initialize(MVMThreadContext *tc) {
     return &MVMContext_this_repr;
 }
 
+static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint, MVMRegister *result, MVMuint16 kind) {
+    if (MVM_string_equal(tc, name, tc->instance->str_consts.comp_unit)) {
+        result->o = (MVMObject*)MVM_context_get_frame(tc, (MVMContext*)root)->static_info->body.cu;
+    }
+    else {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "No such attribute '%s' on type %s in a %s", c_name, MVM_6model_get_debug_name(tc, class_handle), MVM_6model_get_stable_debug_name(tc, st));
+    }
+}
+
 static const MVMREPROps MVMContext_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
     NULL, /* initialize */
     copy_to,
-    MVM_REPR_DEFAULT_ATTR_FUNCS,
+    {
+        get_attribute,
+        MVM_REPR_DEFAULT_BIND_ATTRIBUTE,
+        MVM_REPR_DEFAULT_HINT_FOR,
+        MVM_REPR_DEFAULT_IS_ATTRIBUTE_INITIALIZED,
+        MVM_REPR_DEFAULT_ATTRIBUTE_AS_ATOMIC
+    },
     MVM_REPR_DEFAULT_BOX_FUNCS,
     MVM_REPR_DEFAULT_POS_FUNCS,
     {

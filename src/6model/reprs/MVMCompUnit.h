@@ -145,6 +145,8 @@ struct MVMCompUnitBody {
 
     /* Was a frame in this compilation unit invoked yet? */
     MVMuint8 invoked;
+
+    MVMSerializationContext *sc;
 };
 struct MVMCompUnit {
     MVMObject common;

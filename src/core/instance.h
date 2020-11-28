@@ -91,6 +91,9 @@ struct MVMStringConsts {
     MVMString *config;
     MVMString *replacement;
     MVMString *dot;
+    MVMString *comp_unit;
+    MVMString *sc;
+    MVMString *allowed_sc_deps;
 };
 
 struct MVMEventSubscriptions {
