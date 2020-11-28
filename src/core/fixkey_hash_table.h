@@ -41,18 +41,17 @@ hash value, or because we fake it and explicitly store the hash value.)
 Not all the optimisations described above are in place yet. Starting with
 "minimum viable product", with a design that should support adding them.
 
-Also starting out by using two memory blocks, so that ASAN and valgrind can
-spot (some) problems.
-
 */
 
-struct MVMFixKeyHashTable {
-    /* strictly void *, but this makes the pointer arithmetic easier */
-    char *entries;
-    MVMuint8 *metadata;
+struct MVMFixKeyHashTableControl {
     MVMHashNumItems cur_items;
     MVMHashNumItems max_items; /* hit this and we grow */
     MVMHashNumItems official_size;
     MVMuint16 entry_size;
     MVMuint8 key_right_shift;
+    MVMuint8 probe_overflow_size;
+};
+
+struct MVMFixKeyHashTable {
+    struct MVMFixKeyHashTableControl *table;
 };

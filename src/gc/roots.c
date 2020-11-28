@@ -187,26 +187,24 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     add_collectable(tc, worklist, snapshot, tc->next_dispatcher_for, "Next dispatcher for");
 
     /* Callback cache. */
-    if (tc->native_callback_cache) {
-        MVMStrHashTable *cache = tc->native_callback_cache;
-        MVMStrHashIterator iterator = MVM_str_hash_first(tc, cache);
-        while (!MVM_str_hash_at_end(tc, cache, iterator)) {
-            struct MVMNativeCallbackCacheHead *current_cbceh
-                = MVM_str_hash_current_nocheck(tc, cache, iterator);
-            MVMint32 i;
-            MVMNativeCallback *entry = current_cbceh->head;
-            add_collectable(tc, worklist, snapshot, current_cbceh->hash_handle.key,
-                            "Native callback cache key");
-            while (entry) {
-                for (i = 0; i < entry->num_types; i++)
-                    add_collectable(tc, worklist, snapshot, entry->types[i],
-                                    "Native callback cache type");
-                add_collectable(tc, worklist, snapshot, entry->target,
-                                "Native callback cache target");
-                entry = entry->next;
-            }
-            iterator = MVM_str_hash_next_nocheck(tc, cache, iterator);
+    MVMStrHashTable *cache = &tc->native_callback_cache;
+    MVMStrHashIterator iterator = MVM_str_hash_first(tc, cache);
+    while (!MVM_str_hash_at_end(tc, cache, iterator)) {
+        struct MVMNativeCallbackCacheHead *current_cbceh
+            = MVM_str_hash_current_nocheck(tc, cache, iterator);
+        MVMint32 i;
+        MVMNativeCallback *entry = current_cbceh->head;
+        add_collectable(tc, worklist, snapshot, current_cbceh->hash_handle.key,
+                        "Native callback cache key");
+        while (entry) {
+            for (i = 0; i < entry->num_types; i++)
+                add_collectable(tc, worklist, snapshot, entry->types[i],
+                                "Native callback cache type");
+            add_collectable(tc, worklist, snapshot, entry->target,
+                            "Native callback cache target");
+            entry = entry->next;
         }
+        iterator = MVM_str_hash_next_nocheck(tc, cache, iterator);
     }
 
     /* Profiling data. */

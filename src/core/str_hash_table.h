@@ -41,9 +41,6 @@ hash value, or because we fake it and explicitly store the hash value.)
 Not all the optimisations described above are in place yet. Starting with
 "minimum viable product", with a design that should support adding them.
 
-Also starting out by using two memory blocks, so that ASAN and valgrind can
-spot (some) problems.
-
 */
 
 /* As to hash randomisation.
@@ -138,15 +135,15 @@ spot (some) problems.
  * | other stuff |    +---+---+---+---+---+---+---+---+
  * +-------------+
  *
- * whereas what actually do is "unwrap" the modulo, and allocate the worst case
- * extra array slots at the end (longest possible probe distance, starting at
- * the last "official" entry). So for an array of size 8, load factor of 0.75,
- * the longest probe distance is 5 (when all 6 entries would ideally be in the
- * last bucket), so what we actually have is this
+ * whereas what we actually do is "unwrap" the modulo, and allocate the worst
+ * case extra array slots at the end (longest possible probe distance, starting
+ * at the last "official" entry). So for an array of size 8, load factor of
+ * 0.75 the longest probe distance is 5 (when all 6 entries would ideally be in
+ * the last bucket), so what we actually have is this
  *
- * +----------+    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
- * | metadata | -> | 1 | a | b | c | d | e | f | g | h | i | j | k | l | m | 1 |
- * |          |    +---+---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ * +----------+        +---+---+---+---+---+---+---+---+---+---+---+---+---+---+
+ * | metadata | ->     | a | b | c | d | e | f | g | h | i | j | k | l | m | 1 |
+ * |          |        +---+---+---+---+---+---+---+---+---+---+---+---+---+---+
  * | (other)  |
  * |          |        +---+---+---+---+---+---+---+---+---+---+---+---+---+
  * | entries  | ->     | A | B | C | D | E | F | G | H | I | J | K | L | M |
@@ -154,14 +151,32 @@ spot (some) problems.
  *
  *                     <-- official bucket positions --><--   overflow   -->
  *
- * We include sentinel values at each end of the metadata to make iteration
- * easier.
+ * We include a sentinel values at the end of the metadata so that the probe
+ * distance loop doesn't need a bounds check. We *had* allocated an extra byte
+ * at the start too, to make the pointer arithmetic work, but that isn't needed
+ * now that we use a single memory block.
+ *
+ * Finally, to reduce allocations and keep things in the same CPU cache lines,
+ * what we allocate in memory actually looks like this:
+ *
+ * ---+---+---+---+---+---+---+---+---------+---+---+---+---+---+---+---+---
+ * ...| G | F | E | D | C | B | A | control | a | b | c | d | e | f | g |...
+ * ---+---+---+---+---+---+---+---+---------+---+---+---+---+---+---+---+---
+ *                                ^
+ *                                |
+ *                              +---+
+ * the public MVMStrHashTable   |   |
+ *                              +---+
+ *
+ * is just a pointer to the dynamically allocated structure.
+ *
+ * This layout means that a hash clone is
+ * 1) malloc
+ * 2) memcpy
+ * 3) fix up the GC invariants
  */
 
-struct MVMStrHashTable {
-    /* strictly void *, but this makes the pointer arithmetic easier */
-    char *entries;
-    MVMuint8 *metadata;
+struct MVMStrHashTableControl {
     MVMuint64 salt;
 #if HASH_DEBUG_ITER
     MVMuint64 ht_id;
@@ -174,6 +189,10 @@ struct MVMStrHashTable {
     MVMuint8 key_right_shift;
     MVMuint8 entry_size;
     MVMuint8 probe_overflow_size;
+};
+
+struct MVMStrHashTable {
+    struct MVMStrHashTableControl *table;
 };
 
 struct MVMStrHashHandle {
@@ -197,8 +216,9 @@ MVM_STATIC_INLINE int MVM_str_hash_iterator_target_deleted(MVMThreadContext *tc,
     /* Returns true if the hash entry that the iterator points to has been
      * deleted (and this is the only action on the hash since the iterator was
      * created) */
-    return iterator.serial == hashtable->serial - 1 &&
-        iterator.pos == hashtable->last_delete_at;
+    struct MVMStrHashTableControl *control = hashtable->table;
+    return control && iterator.serial == control->serial - 1 &&
+        iterator.pos == control->last_delete_at;
 }
 #endif
 
@@ -214,14 +234,17 @@ MVM_STATIC_INLINE int MVM_str_hash_at_end(MVMThreadContext *tc,
                                            MVMStrHashTable *hashtable,
                                            MVMStrHashIterator iterator) {
 #if HASH_DEBUG_ITER
-    if (iterator.owner != hashtable->ht_id) {
+    struct MVMStrHashTableControl *control = hashtable->table;
+    MVMuint64 ht_id = control ? control->ht_id : 0;
+    if (iterator.owner != ht_id) {
         MVM_oops(tc, "MVM_str_hash_at_end called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
-                 iterator.owner, hashtable->ht_id);
+                 iterator.owner, ht_id);
     }
-    if (!(iterator.serial == hashtable->serial
-          || MVM_str_hash_iterator_target_deleted(tc, hashtable, iterator))) {
+    MVMuint32 serial = control ? control->serial : 0;
+    if (iterator.serial != serial
+        || MVM_str_hash_iterator_target_deleted(tc, hashtable, iterator)) {
         MVM_oops(tc, "MVM_str_hash_at_end called with an iterator with the wrong serial number: %u != %u",
-                 iterator.serial, hashtable->serial);
+                 iterator.serial, serial);
     }
 #endif
     return iterator.pos == 0;

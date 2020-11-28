@@ -1,40 +1,60 @@
+/* These are private. We need them out here for the inline functions. Use those.
+ */
+MVM_STATIC_INLINE MVMuint32 MVM_str_hash_kompromat(const struct MVMStrHashTableControl *control) {
+    return control->official_size + control->probe_overflow_size;
+}
+MVM_STATIC_INLINE MVMuint8 *MVM_str_hash_metadata(const struct MVMStrHashTableControl *control) {
+    return (MVMuint8 *) control + sizeof(struct MVMStrHashTableControl);
+}
+MVM_STATIC_INLINE MVMuint8 *MVM_str_hash_entries(const struct MVMStrHashTableControl *control) {
+    return (MVMuint8 *) control - control->entry_size;
+}
+
+/* round up to a multiple of sizeof(long). My assumption is that this is won't
+ * cause any extra allocation, but will both be faster for memcpy/memset, and
+ * also a natural size for processing the metadata array in chunks larger than
+ * byte-by-byte. */
+MVM_STATIC_INLINE size_t MVM_hash_round_size_up(size_t wanted) {
+    return (wanted - 1 + sizeof(long)) & ~(sizeof(long) - 1);
+}
+
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
    which you allocated (heap, stack, inside another struct, wherever) */
 void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable);
 /* and then free memory if you allocated it */
 
-void MVM_str_hash_initial_allocate(MVMThreadContext *tc,
-                                   MVMStrHashTable *hashtable,
-                                   MVMuint32 entries);
+/* Call this before you use the hashtable, to initialise it. */
+void MVM_str_hash_build(MVMThreadContext *tc,
+                        MVMStrHashTable *hashtable,
+                        MVMuint32 entry_size,
+                        MVMuint32 entries);
 
-/* Call this before you use the hashtable, to initialise it.
- * Doesn't allocate memory for the hashtable struct itself - you can embed the
- * struct within a larger struct if you wish.
- */
-MVM_STATIC_INLINE void MVM_str_hash_build(MVMThreadContext *tc,
-                                          MVMStrHashTable *hashtable,
-                                          MVMuint32 entry_size,
-                                          MVMuint32 entries) {
-    if (MVM_UNLIKELY(entry_size == 0 || entry_size > 255 || entry_size & 3)) {
-        MVM_oops(tc, "Hash table entry_size %" PRIu32 " is invalid", entry_size);
-    }
-    memset(hashtable, 0, sizeof(*hashtable));
-    hashtable->entry_size = entry_size;
+MVM_STATIC_INLINE int MVM_str_hash_is_empty(MVMThreadContext *tc,
+                                            MVMStrHashTable *hashtable) {
+    struct MVMStrHashTableControl *control = hashtable->table;
+    return !control || control->cur_items == 0;
+}
+
+/* This code assumes that the destination hash is uninitialised - ie not even
+ * MVM_str_hash_build has been called upon it. */
+MVM_STATIC_INLINE void MVM_str_hash_shallow_copy(MVMThreadContext *tc,
+                                                 MVMStrHashTable *source,
+                                                 MVMStrHashTable *dest) {
+    const struct MVMStrHashTableControl *control = source->table;
+    if (!control)
+        return;
+    size_t actual_items = MVM_str_hash_kompromat(control);
+    size_t entries_size = control->entry_size * actual_items;
+    size_t metadata_size = MVM_hash_round_size_up(actual_items + 1);
+    const char *start = (const char *)control - entries_size;
+    size_t total_size
+        = entries_size + sizeof(struct MVMStrHashTableControl) + metadata_size;
+    char *target = MVM_malloc(total_size);
+    memcpy(target, start, total_size);
+    dest->table = (struct MVMStrHashTableControl *)(target + entries_size);
 #if HASH_DEBUG_ITER
-    /* Given that we can embed the hashtable structure into other structures
-     * (such as MVMHash) and those enclosing structures can be moved (GC!) we
-     * can't use the address of this structure as its ID for debugging. We
-     * could use the address of the first buckets array that we allocate, but if
-     * we grow, then that memory could well be re-used for another hashtable,
-     * and then we have two hashtables with the same ID, which rather defeats
-     * the need to have (likely to be) unique IDs, to spot iterator leakage. */
-    hashtable->ht_id = 0;
-    hashtable->serial = 0;
-    hashtable->last_delete_at = 0;
+    dest->table->ht_id = MVM_proc_rand_i(tc);
 #endif
-    if (entries) {
-        MVM_str_hash_initial_allocate(tc, hashtable, entries);
-    }
 }
 
 MVM_STATIC_INLINE MVMuint64 MVM_str_hash_code(MVMThreadContext *tc,
@@ -52,13 +72,14 @@ void *MVM_str_hash_insert_nocheck(MVMThreadContext *tc,
 MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
                                                    MVMStrHashTable *hashtable,
                                                    MVMString *key) {
-    if (MVM_UNLIKELY(hashtable->entries == NULL)) {
+    if (MVM_str_hash_is_empty(tc, hashtable)) {
         return NULL;
     }
+    struct MVMStrHashTableControl *control = hashtable->table;
     unsigned int probe_distance = 1;
-    MVMHashNumItems bucket = MVM_str_hash_code(tc, hashtable->salt, key) >> hashtable->key_right_shift;
-    char *entry_raw = hashtable->entries + bucket * hashtable->entry_size;
-    MVMuint8 *metadata = hashtable->metadata + bucket;
+    MVMHashNumItems bucket = MVM_str_hash_code(tc, control->salt, key) >> control->key_right_shift;
+    MVMuint8 *entry_raw = MVM_str_hash_entries(control) - bucket * control->entry_size;
+    MVMuint8 *metadata = MVM_str_hash_metadata(control) + bucket;
     while (1) {
         if (*metadata == probe_distance) {
             struct MVMStrHashHandle *entry = (struct MVMStrHashHandle *) entry_raw;
@@ -82,10 +103,10 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
         }
         ++probe_distance;
         ++metadata;
-        entry_raw += hashtable->entry_size;
+        entry_raw -= control->entry_size;
         assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < hashtable->metadata + hashtable->official_size + hashtable->max_items);
-        assert(metadata < hashtable->metadata + hashtable->official_size + 256);
+        assert(metadata < MVM_str_hash_metadata(control) + control->official_size + control->max_items);
+        assert(metadata < MVM_str_hash_metadata(control) + control->official_size + 256);
     }
 }
 
@@ -173,12 +194,6 @@ enum {
 
 MVMuint64 MVM_str_hash_fsck(MVMThreadContext *tc, MVMStrHashTable *hashtable, MVMuint32 mode);
 
-
-/* This is private. We need it out here for the inline functions. Use them. */
-MVM_STATIC_INLINE MVMuint32 MVM_str_hash_kompromat(MVMStrHashTable *hashtable) {
-    return hashtable->official_size + hashtable->probe_overflow_size;
-}
-
 /* iterators are stored as unsigned values, metadata index plus one.
  * This is clearly an internal implementation detail. Don't cheat.
  */
@@ -187,11 +202,12 @@ MVM_STATIC_INLINE MVMuint32 MVM_str_hash_kompromat(MVMStrHashTable *hashtable) {
 MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next_nocheck(MVMThreadContext *tc,
                                                                MVMStrHashTable *hashtable,
                                                                MVMStrHashIterator iterator) {
+    struct MVMStrHashTableControl *control = hashtable->table;
     /* Whilst this looks like it can be optimised to word at a time skip ahead.
      * (Beware of endianness) it isn't easy *yet*, because one can overrun the
      * allocated buffer, and that makes ASAN very excited. */
     while (--iterator.pos > 0) {
-        if (hashtable->metadata[iterator.pos - 1]) {
+        if (MVM_str_hash_metadata(control)[iterator.pos - 1]) {
             return iterator;
         }
     }
@@ -202,9 +218,10 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next(MVMThreadContext *tc,
                                                        MVMStrHashTable *hashtable,
                                                        MVMStrHashIterator iterator) {
 #if HASH_DEBUG_ITER
-    if (iterator.owner != hashtable->ht_id) {
+    struct MVMStrHashTableControl *control = hashtable->table;
+    if (iterator.owner != control->ht_id) {
         MVM_oops(tc, "MVM_str_hash_next called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
-                 iterator.owner, hashtable->ht_id);
+                 iterator.owner, control->ht_id);
     }
     /* "the usual case" is that the iterator serial number  matches the hash
      * serial number.
@@ -212,11 +229,11 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next(MVMThreadContext *tc,
      * last mutation on the hash was a delete, and if so record where. Hence,
      * if the hash serial has advanced by one, and the last delete was at this
      * iterator's current bucket position, that's OK too. */
-    if (!(iterator.serial == hashtable->serial
-          || (iterator.serial == hashtable->serial - 1 &&
-              iterator.pos == hashtable->last_delete_at))) {
+    if (!(iterator.serial == control->serial
+          || (iterator.serial == control->serial - 1 &&
+              iterator.pos == control->last_delete_at))) {
         MVM_oops(tc, "MVM_str_hash_next called with an iterator with the wrong serial number: %u != %u",
-                 iterator.serial, hashtable->serial);
+                 iterator.serial, control->serial);
     }
 #endif
 
@@ -229,21 +246,34 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next(MVMThreadContext *tc,
 
 MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_first(MVMThreadContext *tc,
                                                         MVMStrHashTable *hashtable) {
+    struct MVMStrHashTableControl *control = hashtable->table;
     MVMStrHashIterator iterator;
-#if HASH_DEBUG_ITER
-    iterator.owner = hashtable->ht_id;
-    iterator.serial = hashtable->serial;
-#endif
 
-    if (hashtable->cur_items == 0) {
-        /* We are already at the end. */
+    if (!control) {
+        /* This hash has not even been built yet. We return an iterator that is
+         * already "at the end" */
+#if HASH_DEBUG_ITER
+        iterator.owner = iterator.serial = 0;
+#endif
         iterator.pos = 0;
         return iterator;
     }
 
-    iterator.pos = MVM_str_hash_kompromat(hashtable);
+#if HASH_DEBUG_ITER
+    iterator.owner = control->ht_id;
+    iterator.serial = control->serial;
+#endif
 
-    if (hashtable->metadata[iterator.pos - 1]) {
+    if (control->cur_items == 0) {
+        /* The hash is empty. No need to do the work to find the "first" item
+         * when we know that there are none. Return an iterator at the end. */
+        iterator.pos = 0;
+        return iterator;
+    }
+
+    iterator.pos = MVM_str_hash_kompromat(control);
+
+    if (MVM_str_hash_metadata(control)[iterator.pos - 1]) {
         return iterator;
     }
     return MVM_str_hash_next(tc, hashtable, iterator);
@@ -251,38 +281,51 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_first(MVMThreadContext *tc,
 
 MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_start(MVMThreadContext *tc,
                                                         MVMStrHashTable *hashtable) {
+    struct MVMStrHashTableControl *control = hashtable->table;
     MVMStrHashIterator retval;
+    if (MVM_UNLIKELY(!control)) {
 #if HASH_DEBUG_ITER
-    retval.owner = hashtable->ht_id;
-    retval.serial = hashtable->serial;
+        retval.owner = retval.serial = 0;
 #endif
-    retval.pos = MVM_str_hash_kompromat(hashtable) + 1;
+        retval.pos = 1;
+        return retval;
+    }
+
+#if HASH_DEBUG_ITER
+    retval.owner = control->ht_id;
+    retval.serial = control->serial;
+#endif
+    retval.pos = MVM_str_hash_kompromat(control) + 1;
     return retval;
 }
 
 MVM_STATIC_INLINE int MVM_str_hash_at_start(MVMThreadContext *tc,
                                             MVMStrHashTable *hashtable,
                                             MVMStrHashIterator iterator) {
-#if HASH_DEBUG_ITER
-    if (iterator.owner != hashtable->ht_id) {
-        MVM_oops(tc, "MVM_str_hash_at_start called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
-                 iterator.owner, hashtable->ht_id);
+    struct MVMStrHashTableControl *control = hashtable->table;
+    if (MVM_UNLIKELY(!control)) {
+        return iterator.pos == 1;
     }
-    if (!(iterator.serial == hashtable->serial
-          || MVM_str_hash_iterator_target_deleted(tc, hashtable, iterator))) {
+#if HASH_DEBUG_ITER
+    if (iterator.owner != control->ht_id) {
+        MVM_oops(tc, "MVM_str_hash_at_start called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
+                 iterator.owner, control->ht_id);
+    }
+    if (iterator.serial != control->serial) {
         MVM_oops(tc, "MVM_str_hash_at_start called with an iterator with the wrong serial number: %u != %u",
-                 iterator.serial, hashtable->serial);
+                 iterator.serial, control->serial);
     }
 #endif
-    return iterator.pos == MVM_str_hash_kompromat(hashtable) + 1;
+    return iterator.pos == MVM_str_hash_kompromat(control) + 1;
 }
 
 /* Only call this if MVM_str_hash_at_end returns false. */
 MVM_STATIC_INLINE void *MVM_str_hash_current_nocheck(MVMThreadContext *tc,
                                                      MVMStrHashTable *hashtable,
                                                      MVMStrHashIterator iterator) {
-    assert(hashtable->metadata[iterator.pos - 1]);
-    return hashtable->entries + hashtable->entry_size * (iterator.pos - 1);
+    struct MVMStrHashTableControl *control = hashtable->table;
+    assert(MVM_str_hash_metadata(control)[iterator.pos - 1]);
+    return MVM_str_hash_entries(control) - control->entry_size * (iterator.pos - 1);
 }
 
 /* FIXME - this needs a better name: */
@@ -290,13 +333,14 @@ MVM_STATIC_INLINE void *MVM_str_hash_current(MVMThreadContext *tc,
                                              MVMStrHashTable *hashtable,
                                              MVMStrHashIterator iterator) {
 #if HASH_DEBUG_ITER
-    if (iterator.owner != hashtable->ht_id) {
+    const struct MVMStrHashTableControl *control = hashtable->table;
+    if (iterator.owner != control->ht_id) {
         MVM_oops(tc, "MVM_str_hash_current called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
-                 iterator.owner, hashtable->ht_id);
+                 iterator.owner, control->ht_id);
     }
-    if (iterator.serial != hashtable->serial) {
+    if (iterator.serial != control->serial) {
         MVM_oops(tc, "MVM_str_hash_current called with an iterator with the wrong serial number: %u != %u",
-                 iterator.serial, hashtable->serial);
+                 iterator.serial, control->serial);
     }
 #endif
 
@@ -311,11 +355,13 @@ MVM_STATIC_INLINE void *MVM_str_hash_current(MVMThreadContext *tc,
 
 MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_count(MVMThreadContext *tc,
                                                      MVMStrHashTable *hashtable) {
-    return hashtable->cur_items;
+    struct MVMStrHashTableControl *control = hashtable->table;
+    return control ? control->cur_items : 0;
 }
 
 /* If this returns 0, then you have not yet called MVM_str_hash_build */
 MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_entry_size(MVMThreadContext *tc,
                                                           MVMStrHashTable *hashtable) {
-    return hashtable->entry_size;
+    struct MVMStrHashTableControl *control = hashtable->table;
+    return control ? control->entry_size : 0;
 }

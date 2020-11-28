@@ -1508,7 +1508,7 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
     static_info = frame->static_info;
     MVMuint32 num_lexicals = static_info->body.num_lexicals;
     debug_locals = static_info->body.instrumentation
-        ? static_info->body.instrumentation->debug_locals
+        ? &static_info->body.instrumentation->debug_locals
         : NULL;
     if (num_lexicals || debug_locals) {
         MVMuint64 lexical_index = 0;
@@ -1949,7 +1949,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
             /* FIXME. What stats should we generate? Some are O(1),
              * some are O(n) (like mean probe length, and its SD) */
             cmp_write_str(ctx, "mvmhash_num_items", 17);
-            cmp_write_int(ctx, hashtable->cur_items);
+            cmp_write_int(ctx, MVM_str_hash_count(dtc, hashtable));
         }
 
         write_object_features(dtc, ctx, 0, 0, 1);

@@ -14,7 +14,7 @@ struct MVMStaticFrameBody {
     MVMuint16 *lexical_types;
 
     /* Lexicals name map. */
-    MVMIndexHashTable *lexical_names;
+    MVMIndexHashTable lexical_names;
     MVMString **lexical_names_list;
 
     /* Defaults for lexicals upon new frame creation. */
@@ -134,7 +134,7 @@ struct MVMStaticFrameInstrumentation {
     MVMFrameHandler *uninstrumented_handlers;
     MVMuint32        uninstrumented_bytecode_size;
     MVMuint32        instrumented_bytecode_size;
-    MVMStrHashTable *debug_locals;
+    MVMStrHashTable  debug_locals;
 
     MVMuint8         profiler_confprog_result;
     MVMuint8         profiler_confprog_version;

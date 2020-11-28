@@ -89,14 +89,12 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
     callback = MVM_frame_find_invokee(tc, callback, NULL);
     cuid     = ((MVMCode *)callback)->body.sf->body.cuuid;
 
-    if (!tc->native_callback_cache) {
-        tc->native_callback_cache = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-                                                         sizeof (MVMStrHashTable));
-        MVM_str_hash_build(tc, tc->native_callback_cache, sizeof(MVMNativeCallbackCacheHead), 0);
+    if (!MVM_str_hash_entry_size(tc, &tc->native_callback_cache)) {
+        MVM_str_hash_build(tc, &tc->native_callback_cache, sizeof(MVMNativeCallbackCacheHead), 0);
     }
 
     MVMNativeCallbackCacheHead *callback_data_head
-        = MVM_str_hash_lvalue_fetch(tc, tc->native_callback_cache, cuid);
+        = MVM_str_hash_lvalue_fetch(tc, &tc->native_callback_cache, cuid);
 
     if (!callback_data_head->hash_handle.key) {
         /* MVM_str_hash_lvalue_fetch created a new entry. Fill it in: */
