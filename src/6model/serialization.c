@@ -417,10 +417,12 @@ void MVM_serialization_write_str(MVMThreadContext *tc, MVMSerializationWriter *w
     MVMint32 heap_loc = add_string_to_heap(tc, writer, value);
 
     /* avoid warnings that heap_loc > STRING_HEAP_LOC_MAX is always false */
-    if (!(heap_loc >= 0 && heap_loc <= STRING_HEAP_LOC_MAX))
+    if (!(heap_loc >= 0 && heap_loc <= STRING_HEAP_LOC_MAX)) {
+        MVM_gc_allocate_gen2_default_clear(tc);
         MVM_exception_throw_adhoc(tc,
                                   "Serialization error: string offset %d can't be serialized",
                                   heap_loc);
+    }
 
     if (heap_loc <= STRING_HEAP_LOC_PACKED_MAX) {
         expand_storage_if_needed(tc, writer, 2);
@@ -554,6 +556,7 @@ MVM_NO_RETURN void throw_closure_serialization_error(MVMThreadContext *tc, MVMCo
                 (closure->body.sf)->body.name);
         char *c_file = MVM_string_utf8_encode_C_string(tc, file);
         char *waste[] = { c_name, c_file, NULL };
+        MVM_gc_allocate_gen2_default_clear(tc);
         MVM_exception_throw_adhoc_free(tc, waste,
             "Serialization Error: %s '%s' (%s:%d)",
             message, c_name, c_file, line);
@@ -794,6 +797,7 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
             break;
         }
         default:
+            MVM_gc_allocate_gen2_default_clear(tc);
             MVM_exception_throw_adhoc(tc,
                 "Serialization Error: Unimplemented discriminator %d in MVM_serialization_read_ref",
                 discrim);
@@ -905,6 +909,7 @@ static MVMObject * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     /* Sanity check. */
     if (offset != output_size) {
         MVM_free(output);
+        MVM_gc_allocate_gen2_default_clear(tc);
         MVM_exception_throw_adhoc(tc,
             "Serialization sanity check failed: offset != output_size");
     }
@@ -931,9 +936,11 @@ static MVMObject * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     /* Base 64 encode. */
     output_b64 = base64_encode(output, output_size);
     MVM_free(output);
-    if (output_b64 == NULL)
+    if (output_b64 == NULL) {
+        MVM_gc_allocate_gen2_default_clear(tc);
         MVM_exception_throw_adhoc(tc,
             "Serialization error: failed to convert to base64");
+    }
 
     /* Make a MVMString containing it. */
     result = (MVMObject *)MVM_string_ascii_decode_nt(tc, tc->instance->VMString, output_b64);
@@ -972,15 +979,19 @@ static void add_param_intern(MVMThreadContext *tc, MVMSerializationWriter *write
 
     /* Indexes in this SC of type object and STable. */
     expand_storage_if_needed(tc, writer, 12);
-    if (MVM_sc_get_obj_sc(tc, type) != writer->root.sc)
+    if (MVM_sc_get_obj_sc(tc, type) != writer->root.sc) {
+        MVM_gc_allocate_gen2_default_clear(tc);
         MVM_exception_throw_adhoc(tc,
             "Serialization error: parameterized type to intern not in current SC");
+    }
     write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset),
         MVM_sc_find_object_idx(tc, writer->root.sc, type));
     *(writer->cur_write_offset) += 4;
-    if (MVM_sc_get_stable_sc(tc, STABLE(type)) != writer->root.sc)
+    if (MVM_sc_get_stable_sc(tc, STABLE(type)) != writer->root.sc) {
+        MVM_gc_allocate_gen2_default_clear(tc);
         MVM_exception_throw_adhoc(tc,
             "Serialization error: STable of parameterized type to intern not in current SC");
+    }
     write_int32(*(writer->cur_write_buffer), *(writer->cur_write_offset),
         MVM_sc_find_stable_idx(tc, writer->root.sc, STABLE(type)));
     *(writer->cur_write_offset) += 4;
@@ -1052,6 +1063,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
        convey, and hence show buggy behaviour. And if we're bumping the
        serialisation version, then we can increase the storage size.  */
     if (st->mode_flags > 255) {
+        MVM_gc_allocate_gen2_default_clear(tc);
         MVM_exception_throw_adhoc(tc,
                                   "Serialization error: mode_flags %u out of range and can't be serialized",
                                   st->mode_flags);
@@ -1065,6 +1077,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
        NULL/not-NULL flag bits. */
     if (st->boolification_spec) {
         if (st->boolification_spec->mode >= 0xF) {
+        MVM_gc_allocate_gen2_default_clear(tc);
             MVM_exception_throw_adhoc(tc,
                                   "Serialization error: boolification spec mode %u out of range and can't be serialized",
                                       st->boolification_spec->mode);
@@ -1209,9 +1222,11 @@ static void serialize_object(MVMThreadContext *tc, MVMSerializationWriter *write
     if (IS_CONCRETE(obj)) {
         if (REPR(obj)->serialize)
             REPR(obj)->serialize(tc, STABLE(obj), OBJECT_BODY(obj), writer);
-        else
+        else {
+            MVM_gc_allocate_gen2_default_clear(tc);
             MVM_exception_throw_adhoc(tc,
                 "Missing serialize REPR function for REPR %s (%s)", REPR(obj)->name, MVM_6model_get_debug_name(tc, obj));
+        }
     }
 }
 
@@ -1227,9 +1242,11 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     /* Locate the static code ref this context points to. */
     MVMObject *static_code_ref = closure_to_static_code_ref(tc, frame->code_ref, 1);
     MVMSerializationContext *static_code_sc  = MVM_sc_get_obj_sc(tc, static_code_ref);
-    if (OBJ_IS_NULL(static_code_sc))
+    if (OBJ_IS_NULL(static_code_sc)) {
+        MVM_gc_allocate_gen2_default_clear(tc);
         MVM_exception_throw_adhoc(tc,
             "Serialization Error: closure outer is a code object not in an SC");
+    }
     static_sc_id = get_sc_id(tc, writer, static_code_sc);
     static_idx   = (MVMint32)MVM_sc_find_code_idx(tc, static_code_sc, static_code_ref);
 
@@ -1268,12 +1285,14 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
             case MVM_reg_int8:
             case MVM_reg_int16:
             case MVM_reg_int32:
+                MVM_gc_allocate_gen2_default_clear(tc);
                 MVM_exception_throw_adhoc(tc, "unsupported lexical type %s", MVM_reg_get_debug_name(tc, sf->body.lexical_types[i]));
                 break;
             case MVM_reg_int64:
                 MVM_serialization_write_int(tc, writer, frame->env[i].i64);
                 break;
             case MVM_reg_num32:
+                MVM_gc_allocate_gen2_default_clear(tc);
                 MVM_exception_throw_adhoc(tc, "unsupported lexical type %s", MVM_reg_get_debug_name(tc, sf->body.lexical_types[i]));
                 break;
             case MVM_reg_num64:
@@ -1286,6 +1305,7 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
                 MVM_serialization_write_ref(tc, writer, frame->env[i].o);
                 break;
             default:
+                MVM_gc_allocate_gen2_default_clear(tc);
                 MVM_exception_throw_adhoc(tc, "unsupported lexical type %s", MVM_reg_get_debug_name(tc, sf->body.lexical_types[i]));
                 break;
         }
@@ -2567,6 +2587,7 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
                 *(reader->cur_read_offset) = before;
                 break;
             default:
+                MVM_gc_allocate_gen2_default_clear(tc);
                 MVM_exception_throw_adhoc(tc,
                                           "Serialization Error: Unimplemented discriminator %d in inner loop in deserialize_method_cache_lazy",
                 inner_discrim);
@@ -2598,6 +2619,7 @@ static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, M
         case REFVAR_VM_HASH_STR_VAR:
             break;
         default:
+            MVM_gc_allocate_gen2_default_clear(tc);
             MVM_exception_throw_adhoc(tc,
                                       "Serialization Error: Unimplemented discriminator %d in deserialize_method_cache_lazy",
                                       discrim);

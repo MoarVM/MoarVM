@@ -161,11 +161,13 @@ MVMint64 MVM_sc_find_code_idx(MVMThreadContext *tc, MVMSerializationContext *sc,
     if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, ((MVMCode *)obj)->body.name);
         char *waste[] = { c_name, NULL };
+        MVM_gc_allocate_gen2_default_clear(tc);
         MVM_exception_throw_adhoc_free(tc, waste,
             "Code ref '%s' does not exist in serialization context",
                 c_name);
     }
     else {
+        MVM_gc_allocate_gen2_default_clear(tc);
         MVM_exception_throw_adhoc(tc,
             "Code ref '<NOT A CODE OBJECT>' does not exist in serialization context");
     }

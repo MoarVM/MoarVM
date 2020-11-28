@@ -1020,9 +1020,11 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMuint16 i, num_classes;
 
-    if (!repr_data)
+    if (!repr_data) {
+        MVM_gc_allocate_gen2_default_clear(tc);
         MVM_exception_throw_adhoc(tc,
             "Representation for %s must be composed before it can be serialized", MVM_6model_get_stable_debug_name(tc, st));
+    }
 
     MVM_serialization_write_int(tc, writer, repr_data->num_attributes);
 
