@@ -51,7 +51,13 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void MVMHash_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMHashBody     *body = (MVMHashBody *)data;
     MVMStrHashTable *hashtable = &(body->hashtable);
-    MVM_gc_worklist_presize_for(tc, worklist, 2 * MVM_str_hash_count(tc, hashtable));
+    MVMuint64            elems = MVM_str_hash_count(tc, hashtable);
+
+    /* Aren't holding anything, nothing to do. */
+    if (elems == 0)
+        return;
+
+    MVM_gc_worklist_presize_for(tc, worklist, 2 * elems);
     if (worklist->include_gen2) {
         MVMStrHashIterator iterator = MVM_str_hash_first(tc, hashtable);
         while (!MVM_str_hash_at_end(tc, hashtable, iterator)) {
