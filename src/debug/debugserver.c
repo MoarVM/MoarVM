@@ -85,6 +85,10 @@ typedef enum {
 
 typedef struct {
     MVMuint8 arg_kind;
+    /* In order to pass an existing object we have a handle to as a string (as
+     * defined by the callsite we generate) we need to differentiate between
+     * kind set to string and the .o entry being set. */
+    MVMuint8 uses_handle;
     union {
         MVMint64 i;
         MVMnum64 n;
@@ -1654,7 +1658,23 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
                 arguments_to_pass[index].n64 = argument->arguments[index].arg_u.n;
             }
             else if (argument->arguments[index].arg_kind == MVM_reg_str) {
-                /* NYI, errors out in parse_message_map already */
+                if (argument->arguments[index].uses_handle) {
+                    MVMObject *target = find_handle_target(dtc, argument->arguments[index].arg_u.o);
+                    cs->arg_flags[index] = MVM_CALLSITE_ARG_STR;
+                    arguments_to_pass[index].s = (MVMString *)target;
+                }
+                else {
+                    MVMObject *target;
+                    /* NYI, errors out in parse_message_map already */
+                    MVM_gc_allocate_gen2_default_set(dtc);
+
+                    /* TODO support for null bytes in strings */
+                    target = MVM_string_utf8_decode(dtc, vm->VMString, argument->arguments[index].arg_u.s, strlen(argument->arguments[index].arg_u.s));
+
+                    arguments_to_pass[index].s = (MVMString *)target;
+
+                    MVM_gc_allocate_gen2_default_clear(dtc);
+                }
             }
             else if (argument->arguments[index].arg_kind == MVM_reg_obj) {
                 MVMObject *target = find_handle_target(dtc, argument->arguments[index].arg_u.o);
