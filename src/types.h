@@ -290,6 +290,7 @@ typedef struct MVMDebugServerBreakpointFileTable MVMDebugServerBreakpointFileTab
 typedef struct MVMDebugServerBreakpointTable MVMDebugServerBreakpointTable;
 typedef struct MVMDebugServerHandleTable MVMDebugServerHandleTable;
 typedef struct MVMDebugServerHandleTableEntry MVMDebugServerHandleTableEntry;
+typedef struct MVMDebugServerRequestData MVMDebugServerRequestData;
 typedef struct MVMDebugServerRequestEntry MVMDebugServerRequestEntry;
 typedef struct MVMDebugServerData MVMDebugServerData;
 typedef struct MVMRunloopState MVMRunloopState;

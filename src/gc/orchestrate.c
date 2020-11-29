@@ -623,6 +623,40 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
  * Those cases can be distinguished by the gc state masked with
  * MVMSUSPENDSTATUS_MASK.
  *   */
+static int react_to_debugserver_request(MVMThreadContext *tc) {
+    if (tc->instance->debugserver->debugspam_protocol)
+        fprintf(stderr, "thread %p has received a request.\n", tc);
+
+    MVMDebugServerRequestKind kind = tc->instance->debugserver->request_data.kind;
+
+    if (kind == MVM_DebugRequest_invoke) {
+        MVMObject *invoke_target = tc->instance->debugserver->request_data.data.invoke.target;
+
+        /* Have to clear the threadcontext's "blocked" status so that invoke
+         * can work, for example to run the instruction level barrier.
+         */
+
+        if (!MVM_trycas(&tc->gc_status, MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED, MVMGCStatus_NONE)) {
+            MVM_panic(MVM_exitcode_gcorch, "could not unblock/unsuspend thread");
+        }
+
+        STABLE(invoke_target)->invoke(tc, invoke_target, tc->cur_frame->cur_args_callsite, tc->cur_frame->args);
+
+        MVM_gc_mark_thread_blocked(tc);
+    }
+    else {
+        fprintf(stderr, "this debug request kind not implemented: %d\n", kind);
+        return 0;
+    }
+
+    if (MVM_cas(&tc->instance->debugserver->request_data.status,
+                MVM_DebugRequestStatus_sender_is_waiting,
+                MVM_DebugRequestStatus_receiver_acknowledged)
+        != MVM_DebugRequestStatus_sender_is_waiting) {
+        fprintf(stderr, "could not acknowledge request?!?\n");
+    }
+    return 1;
+}
 void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from interrupt\n");
 
@@ -638,8 +672,13 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
                     fprintf(stderr, "thread %d got un-suspended\n", tc->thread_id);
                 break;
             } else {
+                if (tc->instance->debugserver && tc->instance->debugserver->request_data.target_tc == tc) {
+                    if (react_to_debugserver_request(tc)) {
+                        break;
+                    }
+                }
                 if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
-                    fprintf(stderr, "something happened, but we're still suspended.\n");
+                    fprintf(stderr, "thread %p: something happened, but we're still suspended.\n", tc);
             }
         }
         MVM_gc_mark_thread_unblocked(tc);

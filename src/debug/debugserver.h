@@ -1,3 +1,41 @@
+/* Debugserver requests:
+ *
+ * Empty
+ * -----
+ * 
+ * When the kind of request is set to empty, the debugserver is
+ * ready to initiate a new request from the client.
+ * 
+ * Invoke
+ * ------
+ * 
+ * The Debugserver requests that a thread invokes a given
+ * code object. The debugserver sets up as much as it can
+ * on its own, then notifies the thread to wake up and do
+ * the rest.
+ * 
+ * The thread will hold the ID of the request in Special Return Data,
+ * so that returning from the code or unwinding with an exception or
+ * taking a continuation can be handled properly.
+ * 
+ * Since we want the thread to function normally with respect to break
+ * points and stepping, the thread will behave essentially as if
+ * fully resumed.
+ * 
+ */
+
+typedef enum {
+    MVM_DebugRequest_empty,
+    MVM_DebugRequest_invoke,
+} MVMDebugServerRequestKind;
+
+typedef enum {
+    MVM_DebugRequestStatus_sender_is_waiting,
+    MVM_DebugRequestStatus_receiver_acknowledged,
+    MVM_DebugRequestStatus_receiver_finished,
+    MVM_DebugRequestStatus_sender_acknowledged
+} MVMDebugServerRequestStatus;
+
 struct MVMDebugServerHandleTableEntry {
     MVMuint64 id;
     MVMObject *target;
@@ -38,6 +76,31 @@ struct MVMDebugServerBreakpointTable {
     MVMuint32 files_alloc;
 };
 
+/* This struct holds all data used for communication between
+ * the Debugserver and a thread.
+ * 
+ * * Invoke a code object
+ */
+struct MVMDebugServerRequestData {
+    MVMDebugServerRequestKind kind;
+
+    /* The ID of the request taken from the network packet,
+     * to be used for responses to the client. */
+    MVMuint64 request_id;
+
+    MVMThreadContext *target_tc;
+
+    AO_t status;
+
+    union
+    {
+        struct {
+            MVMObject *target;
+        } invoke;
+        MVMObject *o;
+    } data;
+};
+
 struct MVMDebugServerData {
     /* Debug Server thread */
     uv_thread_t thread;
@@ -58,6 +121,8 @@ struct MVMDebugServerData {
     /* Condition variable to tell the worker to check thread states
      * for changes like "i just suspended" */
     uv_cond_t tell_worker;
+
+    MVMDebugServerRequestData request_data;
 
     MVMuint32 port;
     MVMuint32 thread_id;

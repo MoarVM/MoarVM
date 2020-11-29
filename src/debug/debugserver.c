@@ -1464,11 +1464,118 @@ static MVMuint64 request_find_method(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
     return 0;
 }
 
+typedef struct {
+    MVMuint64 id;
+    MVMRegister return_target;
+} DebugserverInvocationSpecialReturnData;
+
+static void debugserver_invocation_special_return(MVMThreadContext *tc, void *data_in) {
+    DebugserverInvocationSpecialReturnData *data = (DebugserverInvocationSpecialReturnData *)data_in;
+    cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
+
+    fprintf(stderr, "whoa, here is the special return! message id is %ld\n", data->id);
+
+    uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
+
+    switch (tc->cur_frame->return_type) {
+        case MVM_RETURN_VOID:
+            cmp_write_map(ctx, 4);
+            cmp_write_str(ctx, "type", 4);
+            cmp_write_int(ctx, MT_InvokeResult);
+            cmp_write_str(ctx, "id", 2);
+            cmp_write_int(ctx, data->id);
+            cmp_write_str(ctx, "crashed", 7);
+            cmp_write_false(ctx);
+            cmp_write_str(ctx, "kind", 4);
+            cmp_write_str(ctx, "void", 4);
+            break;
+        case MVM_RETURN_OBJ: {
+            char *typename = MVM_6model_get_debug_name(tc, data->return_target.o);
+            cmp_write_map(ctx, 8);
+            cmp_write_str(ctx, "type", 4);
+            cmp_write_int(ctx, MT_InvokeResult);
+            cmp_write_str(ctx, "id", 2);
+            cmp_write_int(ctx, data->id);
+            cmp_write_str(ctx, "crashed", 7);
+            cmp_write_false(ctx);
+            cmp_write_str(ctx, "kind", 4);
+            cmp_write_str(ctx, "obj", 3);
+            cmp_write_str(ctx, "handle", 6);
+            cmp_write_int(ctx, allocate_handle(tc, data->return_target.o));
+            cmp_write_str(ctx, "obj_type", 8);
+            cmp_write_str(ctx, typename, strlen(typename));
+            cmp_write_str(ctx, "concrete", 8);
+            cmp_write_bool(ctx, IS_CONCRETE(data->return_target.o));
+            cmp_write_str(ctx, "container", 9);
+            cmp_write_bool(ctx, STABLE(data->return_target.o)->container_spec == NULL ? 0 : 1);
+            break;
+        }
+        case MVM_RETURN_INT:
+            cmp_write_map(ctx, 5);
+            cmp_write_str(ctx, "type", 4);
+            cmp_write_int(ctx, MT_InvokeResult);
+            cmp_write_str(ctx, "id", 2);
+            cmp_write_int(ctx, data->id);
+            cmp_write_str(ctx, "crashed", 7);
+            cmp_write_false(ctx);
+            cmp_write_str(ctx, "kind", 4);
+            cmp_write_str(ctx, "int", 3);
+            cmp_write_str(ctx, "value", 5);
+            cmp_write_int(ctx, data->return_target.i64);
+            break;
+        case MVM_RETURN_NUM:
+            cmp_write_map(ctx, 5);
+            cmp_write_str(ctx, "type", 4);
+            cmp_write_int(ctx, MT_InvokeResult);
+            cmp_write_str(ctx, "id", 2);
+            cmp_write_int(ctx, data->id);
+            cmp_write_str(ctx, "crashed", 7);
+            cmp_write_false(ctx);
+            cmp_write_str(ctx, "kind", 4);
+            cmp_write_str(ctx, "num", 3);
+            cmp_write_str(ctx, "value", 5);
+            cmp_write_float(ctx, data->return_target.n64);
+            break;
+        case MVM_RETURN_STR: {
+            /* TODO handle strings with null bytes in them */
+            char *str_result = MVM_string_utf8_encode_C_string(tc, data->return_target.s);
+            cmp_write_map(ctx, 5);
+            cmp_write_str(ctx, "type", 4);
+            cmp_write_int(ctx, MT_InvokeResult);
+            cmp_write_str(ctx, "id", 2);
+            cmp_write_int(ctx, data->id);
+            cmp_write_str(ctx, "crashed", 7);
+            cmp_write_false(ctx);
+            cmp_write_str(ctx, "kind", 4);
+            cmp_write_str(ctx, "str", 3);
+            cmp_write_str(ctx, "value", 5);
+            cmp_write_str(ctx, str_result, strlen(str_result));
+            MVM_free(str_result);
+            break;
+        }
+        default:
+            MVM_panic(1, "Debugserver: Did not understand return type of invoked frame.");
+    }
+
+    uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
+
+    request_thread_suspends(tc, NULL, NULL, tc->thread_obj);
+    // tc->cur_frame->caller->return_type = data->orig_return_type;
+}
+
+static void debugserver_invocation_special_unwind(MVMThreadContext *tc, void *data_in) {
+    DebugserverInvocationSpecialReturnData *data = (DebugserverInvocationSpecialReturnData *)data_in;
+    fprintf(stderr, "whoa, here is the special unwind! message id is %ld\n", data->id);
+}
+
+
 static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
     MVMInstance *vm = dtc->instance;
     MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
     MVMObject *target = find_handle_target(dtc, argument->handle_id);
     MVMThreadContext *tc;
+    MVMCallsite *cs = NULL;
+    MVMRegister *arguments_to_pass = NULL;
     MVMDebugServerData *debugserver = vm->debugserver;
 
     if (!to_do) {
@@ -1519,6 +1626,84 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
         cmp_write_str(ctx, "execution not halted at a break/step point", 42);
 
         return 2;
+    }
+
+    {
+        /* Time to create a callsite from the arguments we've received */
+        MVMuint64 index;
+        cs = MVM_malloc(sizeof(MVMCallsite));
+        cs->flag_count = argument->argument_count;
+        cs->arg_count  = argument->argument_count;
+        cs->num_pos    = argument->argument_count;
+        cs->has_flattening = 0;
+        cs->is_interned = 0;
+        cs->with_invocant = NULL;
+        cs->arg_names = NULL;
+
+        cs->arg_flags = MVM_malloc(sizeof(MVMCallsiteEntry) * cs->flag_count);
+        arguments_to_pass = MVM_malloc(sizeof(MVMRegister) * cs->num_pos);
+
+        for (index = 0; index < cs->flag_count; index++)
+        {
+            if (argument->arguments[index].arg_kind == MVM_reg_int64) {
+                cs->arg_flags[index] = MVM_CALLSITE_ARG_INT;
+                arguments_to_pass[index].i64 = argument->arguments[index].arg_u.i;
+            }
+            else if (argument->arguments[index].arg_kind == MVM_reg_num64) {
+                cs->arg_flags[index] = MVM_CALLSITE_ARG_NUM;
+                arguments_to_pass[index].n64 = argument->arguments[index].arg_u.n;
+            }
+            else if (argument->arguments[index].arg_kind == MVM_reg_str) {
+                /* NYI, errors out in parse_message_map already */
+            }
+            else if (argument->arguments[index].arg_kind == MVM_reg_obj) {
+                MVMObject *target = find_handle_target(dtc, argument->arguments[index].arg_u.o);
+                cs->arg_flags[index] = MVM_CALLSITE_ARG_OBJ;
+                arguments_to_pass[index].o = target;
+            }
+        }
+
+        tc->cur_frame->return_value = NULL;
+        tc->cur_frame->return_type  = MVM_RETURN_VOID;
+
+        DebugserverInvocationSpecialReturnData *srd = MVM_calloc(sizeof(DebugserverInvocationSpecialReturnData), 1);
+
+        srd->id = argument->id;
+
+        MVM_args_setup_thunk(tc, &srd->return_target, MVM_RETURN_ALLOMORPH, cs);
+        MVM_frame_special_return(tc, tc->cur_frame,
+            debugserver_invocation_special_return,
+            debugserver_invocation_special_unwind,
+            (void *)srd, NULL);
+        /* XXX how to find out how much space there is?
+           Or maybe always point to our own arguments_to_pass and mark and delete it
+           using the special return mechanism? */
+        memcpy(tc->cur_frame->args, arguments_to_pass, sizeof(MVMRegister) * cs->flag_count);
+
+        debugserver->request_data.kind = MVM_DebugRequest_invoke;
+        debugserver->request_data.target_tc = tc;
+        debugserver->request_data.data.invoke.target = target;
+        debugserver->request_data.request_id = argument->id;
+
+        MVM_store(&debugserver->request_data.status, MVM_DebugRequestStatus_sender_is_waiting);
+
+        uv_cond_broadcast(&debugserver->tell_threads);
+
+        while (1) {
+            if (MVM_cas(&debugserver->request_data.status,
+                    MVM_DebugRequestStatus_receiver_acknowledged,
+                    MVM_DebugRequestStatus_sender_is_waiting) == MVM_DebugRequestStatus_receiver_acknowledged) {
+                if (vm->debugserver->debugspam_protocol)
+                    fprintf(stderr, "debugserver acknowledges thread's acknowledgement.\n");
+                break;
+            }
+        }
+
+        // STABLE(target)->invoke(tc, target, cs, tc->cur_frame->args);
+
+        communicate_success(dtc, ctx, argument);
+
+        return 0;
     }
 }
 
@@ -2879,9 +3064,10 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
                 MVMuint8 handle_is_set = 0;
 
                 CHECK(cmp_read_map(ctx, &map_size), "Couldn't read map inside an array for arguments");
-                CHECK(map_size >= 4, "map inside of array for arguments is too small.");
-                
-                for (map_index = 0; map_index < map_size / 2; map_index++) {
+                CHECK(map_size >= 2, "map inside of array for arguments is too small.");
+
+                for (map_index = 0; map_index < map_size; map_index++) {
+                    str_size = 15;
                     CHECK(cmp_read_str(ctx, key_str, &str_size), "Couldn't read a key string for an argument");
                     if (strncmp(key_str, "kind", 15) == 0) {
                         CHECK(kind_set == 0, "kind value duplicated for an argument");
@@ -2949,6 +3135,7 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
                     else if (strncmp(key_str, "name", 15) == 0) {
                         CHECK(0, "named arguments for invocation NYI");
                     }
+                    data->arguments[index].arg_kind = kind;
                     /* as per the specification, unknown arguments should be ignored. */
                 }
 
@@ -3119,6 +3306,13 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     break;
                 case MT_StepOut:
                     COMMUNICATE_RESULT(setup_step(tc, &ctx, &argument, MVMDebugSteppingMode_STEP_OUT, NULL));
+                    break;
+                case MT_Invoke:
+                    /* a return value of 2 means the function already sent an
+                     * error message of its own. */
+                    if (request_invoke_code(tc, &ctx, &argument) == 1) {
+                        communicate_error(tc, &ctx, &argument);
+                    }
                     break;
                 case MT_FindMethod:
                     if (request_find_method(tc, &ctx, &argument)) {
