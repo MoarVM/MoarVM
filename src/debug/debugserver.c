@@ -3073,7 +3073,7 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
                         CHECK(kind_set == 0, "kind value duplicated for an argument");
                         str_size = 15;
                         CHECK(cmp_read_str(ctx, key_str, &str_size), "Couldn't read a kind for an argument");
-                        if (strncmp(key_str, "object", 15) == 0) {
+                        if (strncmp(key_str, "obj", 15) == 0) {
                             CHECK(kind == -1 || kind == MVM_reg_obj, "kind for argument doesn't match passed value");
                             kind = MVM_reg_obj;
                             kind_set = 1;
@@ -3092,6 +3092,7 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
                             CHECK(kind == -1 || kind == MVM_reg_str, "kind for argument doesn't match passed value");
                             kind = MVM_reg_str;
                             kind_set = 1;
+                            /* TODO: allow a handle rather than literal string passed here. */
                         }
                         else {
                             CHECK(0, "unknown kind for argument in invoke");
