@@ -89,6 +89,9 @@ typedef struct {
      * defined by the callsite we generate) we need to differentiate between
      * kind set to string and the .o entry being set. */
     MVMuint8 str_uses_handle;
+    /* If a string was passed via messagepack, store the full length here
+     * (since strings are not necessarily null-terminated) */
+    MVMuint64 string_length;
     union {
         MVMint64 i;
         MVMnum64 n;
