@@ -228,6 +228,8 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
 }
 
 static void stop_point_hit(MVMThreadContext *tc) {
+    tc->debugserver_can_invoke_here = 1;
+
     while (1) {
         /* We're in total regular boring execution. Set ourselves to
          * interrupted for suspend reasons */
@@ -248,6 +250,8 @@ static void stop_point_hit(MVMThreadContext *tc) {
         }
     }
     MVM_gc_enter_from_interrupt(tc);
+
+    tc->debugserver_can_invoke_here = 0;
 }
 
 static MVMuint8 breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFileTable *file, MVMuint32 line_no) {
@@ -1463,6 +1467,7 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
     MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
     MVMObject *target = find_handle_target(dtc, argument->handle_id);
     MVMThreadContext *tc;
+    MVMDebugServerData *debugserver = vm->debugserver;
 
     if (!to_do) {
         if (dtc->instance->debugserver->debugspam_protocol)
@@ -1473,26 +1478,46 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
     tc = to_do->body.tc;
 
     if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
-        if (dtc->instance->debugserver->debugspam_protocol)
+        if (vm->debugserver->debugspam_protocol)
             fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %zu)\n", to_do->body.tc->gc_status);
         return 1;
     }
 
     if (!target) {
-        if (dtc->instance->debugserver->debugspam_protocol)
+        if (vm->debugserver->debugspam_protocol)
             fprintf(stderr, "could not retrieve object of handle %"PRId64, argument->handle_id);
         return 1;
     }
 
     if (REPR(target)->ID != MVM_REPR_ID_MVMCode) {
-        if (dtc->instance->debugserver->debugspam_protocol)
+        if (vm->debugserver->debugspam_protocol)
             fprintf(stderr, "object of handle %"PRId64" is not an MVMCode, it's a %s", argument->handle_id, REPR(target)->name);
         return 1;
     }
 
-    fprintf(stderr, "invoke requested, but not yet implemented for tc %p ...", tc);
+    if (debugserver->request_data.kind != MVM_DebugRequest_empty) {
+        if (vm->debugserver->debugspam_protocol)
+            fprintf(stderr, "can't start a debug request when another is currently active.");
+        return 1;
+    }
 
-    return 0;
+    if (!tc->debugserver_can_invoke_here) {
+        if (vm->debugserver->debugspam_protocol)
+            fprintf(stderr, "can't request an invocation unless execution is halted at a breakpoint or from stepping.");
+
+        cmp_write_map(ctx, 3);
+
+        cmp_write_str(ctx, "id", 2);
+        cmp_write_integer(ctx, argument->id);
+
+        cmp_write_str(ctx, "type", 4);
+        cmp_write_integer(ctx, MT_ErrorProcessingMessage);
+
+        cmp_write_str(ctx, "reason", 6);
+        cmp_write_str(ctx, "execution not halted at a break/step point", 42);
+
+        return 2;
+    }
 }
 
 static MVMuint64 request_object_decontainerize(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {

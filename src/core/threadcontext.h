@@ -328,6 +328,11 @@ struct MVMThreadContext {
     MVMuint32 step_mode_line_no;
     MVMuint64 step_message_id;
 
+    /* Whether the debugserver could request an invocation here.
+     * Requires the current op to be marked invokish and do the
+     * necessary things to cur_op and such. */
+    MVMuint8  debugserver_can_invoke_here;
+
     MVMuint32 cur_file_idx;
     MVMuint32 cur_line_no;
 
