@@ -1543,7 +1543,8 @@ static void debugserver_invocation_special_return(MVMThreadContext *tc, void *da
         case MVM_RETURN_STR: {
             /* TODO handle strings with null bytes in them */
             char *str_result = MVM_string_utf8_encode_C_string(tc, data->return_target.s);
-            cmp_write_map(ctx, 5);
+            MVMuint64 handle = allocate_handle(tc, data->return_target.s);
+            cmp_write_map(ctx, 6);
             cmp_write_str(ctx, "type", 4);
             cmp_write_int(ctx, MT_InvokeResult);
             cmp_write_str(ctx, "id", 2);
@@ -1554,6 +1555,8 @@ static void debugserver_invocation_special_return(MVMThreadContext *tc, void *da
             cmp_write_str(ctx, "str", 3);
             cmp_write_str(ctx, "value", 5);
             cmp_write_str(ctx, str_result, strlen(str_result));
+            cmp_write_str(ctx, "handle", 6);
+            cmp_write_int(ctx, handle);
             MVM_free(str_result);
             break;
         }
