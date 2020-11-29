@@ -3253,7 +3253,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                 cmp_write_integer(&ctx, argument.id);
 
                 cmp_write_str(&ctx, "type", 4);
-                cmp_write_integer(&ctx, 1);
+                cmp_write_integer(&ctx, MT_ErrorProcessingMessage);
 
                 cmp_write_str(&ctx, "reason", 6);
                 cmp_write_str(&ctx, argument.parse_fail_message, strlen(argument.parse_fail_message));
