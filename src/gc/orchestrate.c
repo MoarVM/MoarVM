@@ -631,6 +631,7 @@ static int react_to_debugserver_request(MVMThreadContext *tc) {
 
     if (kind == MVM_DebugRequest_invoke) {
         MVMObject *invoke_target = tc->instance->debugserver->request_data.data.invoke.target;
+        tc->instance->debugserver->request_data.data.invoke.target = NULL;
 
         /* Have to clear the threadcontext's "blocked" status so that invoke
          * can work, for example to run the instruction level barrier.
@@ -655,6 +656,8 @@ static int react_to_debugserver_request(MVMThreadContext *tc) {
         != MVM_DebugRequestStatus_sender_is_waiting) {
         fprintf(stderr, "could not acknowledge request?!?\n");
     }
+    tc->instance->debugserver->request_data.kind = MVM_DebugRequest_empty;
+
     return 1;
 }
 void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
