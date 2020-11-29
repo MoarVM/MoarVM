@@ -32,11 +32,15 @@ struct MVMArgProcContext {
 
 /* Expected return type flags. */
 typedef MVMuint8 MVMReturnType;
-#define MVM_RETURN_VOID     0
-#define MVM_RETURN_OBJ      1
-#define MVM_RETURN_INT      2
-#define MVM_RETURN_NUM      4
-#define MVM_RETURN_STR      8
+#define MVM_RETURN_VOID      0
+#define MVM_RETURN_OBJ       1
+#define MVM_RETURN_INT       2
+#define MVM_RETURN_NUM       4
+#define MVM_RETURN_STR       8
+/* When the thing returned to is "smart", like the debugserver,
+ * set not only the return value but also the type depending on
+ * which return_* op was used. */
+#define MVM_RETURN_ALLOMORPH 16
 
 /* Struct used for returning information about an argument. */
 struct MVMArgInfo {

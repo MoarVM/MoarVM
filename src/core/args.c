@@ -489,6 +489,10 @@ void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 f
             case MVM_RETURN_STR:
                 target->return_value->s = MVM_repr_get_str(tc, decont_result(tc, result));
                 break;
+            case MVM_RETURN_ALLOMORPH:
+                target->return_type = MVM_RETURN_OBJ;
+                target->return_value->o = result;
+                break;
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion from obj NYI; expects type %u", target->return_type);
         }
@@ -523,6 +527,10 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
             case MVM_RETURN_OBJ:
                 autobox_int(tc, target, result, (frameless ? tc->cur_frame : tc->cur_frame->caller)->return_value->o);
                 break;
+            case MVM_RETURN_ALLOMORPH:
+                target->return_type = MVM_RETURN_INT;
+                target->return_value->i64 = result;
+                break;
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion from int NYI; expects type %u", target->return_type);
         }
@@ -555,6 +563,10 @@ void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 fra
                 break;
             case MVM_RETURN_OBJ:
                 autobox(tc, target, result, num_box_type, 0, set_num, (frameless ? tc->cur_frame : tc->cur_frame->caller)->return_value->o);
+                break;
+            case MVM_RETURN_ALLOMORPH:
+                target->return_type = MVM_RETURN_NUM;
+                target->return_value->n64 = result;
                 break;
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion from num NYI; expects type %u", target->return_type);
@@ -590,6 +602,10 @@ void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 f
             case MVM_RETURN_OBJ:
                 autobox(tc, target, result, str_box_type, 1, set_str, (frameless ? tc->cur_frame : tc->cur_frame->caller)->return_value->o);
                 break;
+            case MVM_RETURN_ALLOMORPH:
+                target->return_type = MVM_RETURN_STR;
+                target->return_value->s = result;
+                break;
             default:
                 MVM_exception_throw_adhoc(tc, "Result return coercion from str NYI; expects type %u", target->return_type);
         }
@@ -607,8 +623,13 @@ void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless) {
             MVM_spesh_log_return_to_unlogged(tc);
         target = tc->cur_frame->caller;
     }
-    if (target && target->return_type != MVM_RETURN_VOID && tc->cur_frame != tc->thread_entry_frame)
+    if (target && target->return_type != MVM_RETURN_VOID && tc->cur_frame != tc->thread_entry_frame) {
+        if (target->return_type == MVM_RETURN_ALLOMORPH) {
+            target->return_type = MVM_RETURN_VOID;
+            return;
+        }
         MVM_exception_throw_adhoc(tc, "Void return not allowed to context requiring a return value");
+    }
 }
 
 #define box_slurpy_pos(tc, type, result, box, value, reg, box_type_obj, name, set_func) do { \
