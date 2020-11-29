@@ -68,6 +68,11 @@ static void VMArray_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVM
     MVMuint64         elems     = body->elems;
     MVMuint64         start     = body->start;
     MVMuint64         i         = 0;
+
+    /* Aren't holding anything, nothing to do. */
+    if (elems == 0)
+        return;
+
     switch (repr_data->slot_type) {
         case MVM_ARRAY_OBJ: {
             MVMObject **slots = body->slots.o;
