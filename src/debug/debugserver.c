@@ -88,7 +88,7 @@ typedef struct {
     /* In order to pass an existing object we have a handle to as a string (as
      * defined by the callsite we generate) we need to differentiate between
      * kind set to string and the .o entry being set. */
-    MVMuint8 uses_handle;
+    MVMuint8 str_uses_handle;
     union {
         MVMint64 i;
         MVMnum64 n;
@@ -1658,7 +1658,7 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
                 arguments_to_pass[index].n64 = argument->arguments[index].arg_u.n;
             }
             else if (argument->arguments[index].arg_kind == MVM_reg_str) {
-                if (argument->arguments[index].uses_handle) {
+                if (argument->arguments[index].str_uses_handle) {
                     MVMObject *target = find_handle_target(dtc, argument->arguments[index].arg_u.o);
                     cs->arg_flags[index] = MVM_CALLSITE_ARG_STR;
                     arguments_to_pass[index].s = (MVMString *)target;
@@ -1672,6 +1672,7 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
                     target = MVM_string_utf8_decode(dtc, vm->VMString, argument->arguments[index].arg_u.s, strlen(argument->arguments[index].arg_u.s));
 
                     arguments_to_pass[index].s = (MVMString *)target;
+                    cs->arg_flags[index] = MVM_CALLSITE_ARG_STR;
 
                     MVM_gc_allocate_gen2_default_clear(dtc);
                 }
@@ -3082,6 +3083,7 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
                 MVMuint8 kind_set = 0;
                 MVMint32 kind = -1;
                 MVMuint8 handle_is_set = 0;
+                MVMuint8 str_uses_handle = 0;
 
                 CHECK(cmp_read_map(ctx, &map_size), "Couldn't read map inside an array for arguments");
                 CHECK(map_size >= 2, "map inside of array for arguments is too small.");
@@ -3109,7 +3111,11 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
                             kind_set = 1;
                         }
                         else if (strncmp(key_str, "str", 15) == 0) {
-                            CHECK(kind == -1 || kind == MVM_reg_str, "kind for argument doesn't match passed value");
+                            CHECK(kind == -1 || kind == MVM_reg_str || kind == MVM_reg_obj, "kind for argument doesn't match passed value");
+                            if (handle_is_set) {
+                                str_uses_handle = 1;
+                                data->arguments[index].str_uses_handle = 1;
+                            }
                             kind = MVM_reg_str;
                             kind_set = 1;
                             /* TODO: allow a handle rather than literal string passed here. */
@@ -3121,13 +3127,18 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
                     else if (strncmp(key_str, "handle", 15) == 0) {
                         cmp_object_t object;
                         MVMuint64 result;
-                        CHECK(kind_set == 0 || kind == MVM_reg_obj, "kind for argument inappropriate for handle argument");
+                        CHECK(kind_set == 0 || kind == MVM_reg_obj || kind == MVM_reg_str, "kind for argument inappropriate for handle argument");
                         CHECK(handle_is_set == 0, "handle field duplicated in argument");
                         CHECK(cmp_read_object(ctx, &object), "Couldn't read value for a key");
                         CHECK(is_valid_int(&object, &result), "Couldn't read integer value for a handle");
                         data->arguments[index].arg_u.o = result;
                         handle_is_set = 1;
-                        kind = MVM_reg_obj;
+                        if (kind == MVM_reg_str) {
+                            str_uses_handle = 1;
+                            data->arguments[index].str_uses_handle = 1;
+                        } else {
+                            kind = MVM_reg_obj;
+                        }
                     }
                     else if (strncmp(key_str, "value", 15) == 0) {
                         CHECK(kind_set == 0 || kind != MVM_reg_obj, "kind for argument inappropriate for non-handle argument");
@@ -3147,7 +3158,16 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
                             kind = MVM_reg_num64;
                         }
                         else if (object.type == CMP_TYPE_STR32 || object.type == CMP_TYPE_STR16 || object.type == CMP_TYPE_STR8 || object.type == CMP_TYPE_FIXSTR) {
-                            CHECK(0, "passing string arguments in invoke NYI");
+                            MVMuint32 len = object.as.str_size;;
+                            char *string_target;
+                            string_target = MVM_calloc(len + 1, 1);
+
+                            CHECK(ctx->read(ctx, string_target, len), "could not read string data");
+
+                            string_target[len] = 0;
+                            data->arguments[index].arg_u.s = string_target;
+                            data->arguments[index].str_uses_handle = 0;
+                            kind = MVM_reg_str;
                         }
                         else {
                             CHECK(0, "inappropriate messagepack type for argument value");
@@ -3161,7 +3181,7 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
                 }
 
                 CHECK(kind_set, "argument map did not have a 'kind' key.");
-                CHECK(kind != MVM_reg_obj || handle_is_set, "kind is set to obj, but no handle passed");
+                CHECK(kind != MVM_reg_obj || handle_is_set || (kind == MVM_reg_str && str_uses_handle), "kind is set to obj or str+handle, but no handle passed");
             }
             data->fields_set = data->fields_set | field_to_set;
         }
