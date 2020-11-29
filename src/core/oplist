@@ -1092,4 +1092,4 @@ ctw_check        .s r(obj) int16
 
 coverage_log     .s str int32 int32 int64
 
-breakpoint       .s int32 int32
+breakpoint       .s int32 int32 :throwish :invokish

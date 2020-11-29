@@ -6686,8 +6686,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(breakpoint): {
                 MVMuint32 file_idx = GET_UI32(cur_op, 0);
                 MVMuint32 line_no  = GET_UI32(cur_op, 4);
-                MVM_debugserver_breakpoint_check(tc, file_idx, line_no);
                 cur_op += 8;
+                if (MVM_debugserver_breakpoint_check(tc, file_idx, line_no)) {
+                    /* Returning 1 from breakpoint_check means we should rewind
+                     * the cur_op so we hit the same breakpoint again after
+                     * invoked code returned, for example. */
+                    
+                }
                 goto NEXT;
             }
 #if MVM_CGOTO

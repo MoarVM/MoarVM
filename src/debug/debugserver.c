@@ -314,7 +314,7 @@ static void step_point_hit(MVMThreadContext *tc) {
     tc->step_mode_frame = NULL;
 }
 
-MVM_PUBLIC void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no) {
+MVM_PUBLIC MVMint32 MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no) {
     MVMDebugServerData *debugserver = tc->instance->debugserver;
     MVMuint8 shall_suspend = 0;
 
@@ -361,6 +361,8 @@ MVM_PUBLIC void MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32
 
     if (shall_suspend)
         stop_point_hit(tc);
+
+    return 0;
 }
 
 
@@ -1470,7 +1472,7 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
     MVMDebugServerData *debugserver = vm->debugserver;
 
     if (!to_do) {
-        if (dtc->instance->debugserver->debugspam_protocol)
+        if (vm->debugserver->debugspam_protocol)
             fprintf(stderr, "no thread found for context/code obj handle (or thread not eligible)\n");
         return 1;
     }
