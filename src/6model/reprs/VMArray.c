@@ -18,6 +18,9 @@ static void exit_single_user(MVMThreadContext *tc, MVMArrayBody *arr) {
 #endif
 }
 
+#define MVM_MAX(a,b) ((a)>(b)?(a):(b))
+#define MVM_MIN(a,b) ((a)<(b)?(a):(b))
+
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
@@ -631,12 +634,15 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
 
-    /* If we don't have room at the beginning of the slots,
-     * make some room (8 slots) for unshifting */
+    /* If we don't have room at the beginning of the slots, make some
+     * room for unshifting. We make room for a minimum of 8 elements, but
+     * for cases where we're just continuously unshifting factor in the
+     * body size too - however also apply an upper limit on that as in the
+     * push-based growth. */
     enter_single_user(tc, body);
     if (body->start < 1) {
-        MVMuint64 n = 8;
         MVMuint64 elems = body->elems;
+        MVMuint64 n = MVM_MIN(MVM_MAX(elems, 8), 8192);
 
         /* grow the array */
         set_size_internal(tc, body, elems + n, repr_data);
