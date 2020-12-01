@@ -36,14 +36,14 @@ into locals, lexicals and so forth. It may need to make its own copy of the
 original arguments if:
 
 * It wants to keep them around and present them "first class" (a bit like
-  Perl 6 does with Captures, in order to do nextsame et al.)
+  Raku does with Captures, in order to do nextsame et al.)
 * Part way through processing them, some other code needs to be run in order
   to obtain default values, build up data structures, etc.
 
 A language that doesn't need to worry about such matters will generally be
 able to avoid any of the copying. A language like NQP will be able to avoid
 it perhaps entirely, by handling default values after the initial binding.
-A language like Perl 6 will generally need to default to copying, but a
+A language like Raku will generally need to default to copying, but a
 decent optimizer should be able to whitelist routines where it's OK not to.
 Many simple built-in operators should make the cut, which will take the edge
 off the cases where compile-time inlining isn't possible.

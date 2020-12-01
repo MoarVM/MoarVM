@@ -88,7 +88,7 @@ unoptimized) path for boxing strings:
 
 It receives `val`, which is a string to box. Note that strings are garbage-
 collectable objects in MoarVM, and so may move. It then allocates a box of the
-specified type (for example, Perl 6’s `Str`), and puts the string inside of it.
+specified type (for example, Raku’s `Str`), and puts the string inside of it.
 Since MVM_repr_alloc_init allocates an object, it may trigger garbage
 collection. And that in turn may move the object pointed to by `val` – meaning
 that the `val` pointer needs updating. The `MVMROOT` macro is used in order to add

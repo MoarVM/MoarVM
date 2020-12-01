@@ -646,7 +646,7 @@ under the `class` key.
 
 ### Decontainerize Handle (34)
 
-Used to decontainerize a value in a container (such as a Perl 6 `Scalar`). The
+Used to decontainerize a value in a container (such as a Raku `Scalar`). The
 handle to the object that results is returned in a Handle Result message. If
 this is not a container type, or if an exception occurs when trying to do the
 decontainerization, an Error Processing Message response will be sent by MoarVM

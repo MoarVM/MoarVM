@@ -17,7 +17,7 @@ example, parametric roles reify the methods within them with concrete type
 parameters, so a separate HOW is required. By contrast, CoerceHOW, the
 meta-object for coercion types, can store all that is distinctive about it
 within the type's parameters. Since a given parameteriation can be queried
-for its parameters, it is possible for all Perl 6 coercion types to share
+for its parameters, it is possible for all Raku coercion types to share
 a single meta-object.
 
 ## STable extensions

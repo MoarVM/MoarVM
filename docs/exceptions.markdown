@@ -4,7 +4,7 @@ Exceptions in MoarVM need to handle a range of cases. There exist both control
 exceptions (last/next/redo) where we want to reach the handler in the most
 expedient way possible, unwinding the stack as we go, and probably just do a
 goto instruction. In these cases, we don't expect to need any kind of exception
-object. At the other end of the scale, there are Perl 6 exceptions. These want
+object. At the other end of the scale, there are Raku exceptions. These want
 to run the handler in the dynamic scope of the exception, and potentially resume
 rather than unwinding. These differences are properties of the handler rather than
 the exception; a CONTROL is interested in being run on the stack top when a "next"
