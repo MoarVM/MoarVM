@@ -171,7 +171,7 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
          MVMint64 collation_mode, MVMint64 lang_mode, MVMint64 country_mode)
 
 Op: `unicmp_s`
-[source,perl6]
+[source,raku]
 unicmp_s(str a, str b, int collation_mode, int lang_mode, int country_mode)
 
 
