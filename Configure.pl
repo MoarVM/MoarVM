@@ -513,7 +513,7 @@ if ($args{'jit'}) {
         $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
         $config{jit_platform} = 'MVM_JIT_PLATFORM_POSIX';
     } elsif ($archname =~ m/^darwin(-thread)?(-multi)?-2level/) {
-        die if (!-x '/usr/bin/arch');
+        hardfail("Missing /usr/bin/arch") if !-x '/usr/bin/arch';
         my $arch = `/usr/bin/arch`;
         chomp $arch;
         if ($arch ne 'arm64') {
