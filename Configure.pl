@@ -503,15 +503,34 @@ else {
 }
 
 
+my $archname = $Config{archname};
 if ($args{'jit'}) {
     if ($config{ptr_size} != 8) {
         print "JIT isn't supported on platforms with $config{ptr_size} byte pointers.\n";
-    } elsif ($Config{archname} =~ m/^x86_64|^amd64|^darwin(-thread)?(-multi)?-2level/) {
+    } elsif ($archname =~ m/^x86_64|^amd64/) {
         $config{jit_obj}      = '$(JIT_OBJECTS) $(JIT_ARCH_X64)';
         $config{dasm_flags}   = '-D POSIX=1';
         $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
         $config{jit_platform} = 'MVM_JIT_PLATFORM_POSIX';
-    } elsif ($Config{archname} =~ /^MSWin32-x64/) {
+    } elsif ($archname =~ m/^darwin(-thread)?(-multi)?-2level/) {
+        hardfail("Missing /usr/bin/arch") if !-x '/usr/bin/arch';
+        my $arch = `/usr/bin/arch`;
+        chomp $arch;
+        if ($arch ne 'arm64') {
+            $config{jit_obj}      = '$(JIT_OBJECTS) $(JIT_ARCH_X64)';
+            $config{dasm_flags}   = '-D POSIX=1';
+            $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
+            $config{jit_platform} = 'MVM_JIT_PLATFORM_POSIX';
+        } else {
+            print "JIT isn't supported on $Config{archname} ARM64 yet.\n";
+# future support of ARM64 JITting
+#            $config{jit_obj}      = '$(JIT_OBJECTS) $(JIT_ARCH_)';
+#            $config{dasm_flags}   = '-D POSIX=1';
+#            $config{jit_arch}     = 'MVM_JIT_ARCH_ARM64';
+#            $config{jit_platform} = 'MVM_JIT_PLATFORM_POSIX';
+        }
+
+    } elsif ($archname =~ /^MSWin32-x64/) {
         $config{jit_obj}      = '$(JIT_OBJECTS) $(JIT_ARCH_X64)';
         $config{dasm_flags}   = '-D WIN32=1';
         $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
