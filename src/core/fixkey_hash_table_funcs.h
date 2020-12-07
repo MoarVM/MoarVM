@@ -1,5 +1,26 @@
 /* These are private. We need them out here for the inline functions. Use those.
  */
+/* See comments in hash_allocate_common (and elsewhere) before changing the
+ * load factor, or FIXKEY_MIN_SIZE_BASE_2 or MVM_HASH_INITIAL_BITS_IN_METADATA,
+ * and test with assertions enabled. The current choices permit certain
+ * optimisation assumptions in parts of the code. */
+#define MVM_FIXKEY_HASH_LOAD_FACTOR 0.75
+MVM_STATIC_INLINE MVMuint32 MVM_fixkey_hash_official_size(const struct MVMFixKeyHashTableControl *control) {
+    return 1 << (MVMuint32)control->official_size_log2;
+}
+/* -1 because...
+ * probe distance of 1 is the correct bucket.
+ * hence for a value whose ideal slot is the last bucket, it's *in* the official
+ * allocation.
+ * probe distance of 2 is the first extra bucket beyond the official allocation
+ * probe distance of 255 is the 254th beyond the official allocation.
+ */
+MVM_STATIC_INLINE MVMuint32 MVM_fixkey_hash_allocated_items(const struct MVMFixKeyHashTableControl *control) {
+    return MVM_fixkey_hash_official_size(control) + control->max_probe_distance_limit - 1;
+}
+MVM_STATIC_INLINE MVMuint32 MVM_fixkey_hash_max_items(const struct MVMFixKeyHashTableControl *control) {
+    return MVM_fixkey_hash_official_size(control) * MVM_FIXKEY_HASH_LOAD_FACTOR;
+}
 MVM_STATIC_INLINE MVMuint8 *MVM_fixkey_hash_metadata(const struct MVMFixKeyHashTableControl *control) {
     return (MVMuint8 *) control + sizeof(struct MVMFixKeyHashTableControl);
 }
@@ -24,15 +45,39 @@ MVM_STATIC_INLINE int MVM_fixkey_hash_is_empty(MVMThreadContext *tc,
     return !control || control->cur_items == 0;
 }
 
-MVM_STATIC_INLINE MVMuint64 MVM_fixkey_hash_code(MVMThreadContext *tc, MVMString *key) {
-    return MVM_string_hash_code(tc, key) * UINT64_C(11400714819323198485);
-}
-
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
  * Doesn't check if the key already exists. Use with care. */
 void *MVM_fixkey_hash_insert_nocheck(MVMThreadContext *tc,
                                      MVMFixKeyHashTable *hashtable,
                                      MVMString *key);
+
+
+MVM_STATIC_INLINE struct MVM_hash_loop_state
+MVM_fixkey_hash_create_loop_state(MVMThreadContext *tc,
+                                  struct MVMFixKeyHashTableControl *control,
+                                  MVMString *key) {
+    MVMuint64 hash_val = MVM_string_hash_code(tc, key);
+    struct MVM_hash_loop_state retval;
+    retval.entry_size = sizeof(MVMString ***);
+    retval.metadata_increment = 1 << control->metadata_hash_bits;
+    retval.metadata_hash_mask = retval.metadata_increment - 1;
+    retval.probe_distance_shift = control->metadata_hash_bits;
+    retval.max_probe_distance = control->max_probe_distance;
+
+    unsigned int used_hash_bits
+        = hash_val >> (control->key_right_shift - control->metadata_hash_bits);
+    retval.probe_distance = retval.metadata_increment | (used_hash_bits & retval.metadata_hash_mask);
+    MVMHashNumItems bucket = used_hash_bits >> control->metadata_hash_bits;
+    if (!control->metadata_hash_bits) {
+        assert(retval.probe_distance == 1);
+        assert(retval.metadata_hash_mask == 0);
+        assert(bucket == used_hash_bits);
+    }
+
+    retval.entry_raw = MVM_fixkey_hash_entries(control) - bucket * retval.entry_size;
+    retval.metadata = MVM_fixkey_hash_metadata(control) + bucket;
+    return retval;
+}
 
 MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nocheck(MVMThreadContext *tc,
                                                       MVMFixKeyHashTable *hashtable,
@@ -40,14 +85,13 @@ MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nocheck(MVMThreadContext *tc,
     if (MVM_fixkey_hash_is_empty(tc, hashtable)) {
         return NULL;
     }
+
     struct MVMFixKeyHashTableControl *control = hashtable->table;
-    unsigned int probe_distance = 1;
-    MVMHashNumItems bucket = MVM_fixkey_hash_code(tc, key) >> control->key_right_shift;
-    MVMuint8 *entry_raw = MVM_fixkey_hash_entries(control) - bucket * sizeof(MVMString ***);
-    MVMuint8 *metadata = MVM_fixkey_hash_metadata(control) + bucket;
+    struct MVM_hash_loop_state ls = MVM_fixkey_hash_create_loop_state(tc, control, key);
+
     while (1) {
-        if (*metadata == probe_distance) {
-            MVMString ***entry = (MVMString ***) entry_raw;
+        if (*ls.metadata == ls.probe_distance) {
+            MVMString ***entry = (MVMString ***) ls.entry_raw;
             /* A struct, which starts with an MVMString * */
             MVMString **indirection = *entry;
             if (*indirection == key
@@ -59,21 +103,21 @@ MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nocheck(MVMThreadContext *tc,
             }
         }
         /* There's a sentinel at the end. This will terminate: */
-        if (*metadata < probe_distance) {
+        else if (*ls.metadata < ls.probe_distance) {
             /* So, if we hit 0, the bucket is empty. "Not found".
                If we hit something with a lower probe distance then...
                consider what would have happened had this key been inserted into
                the hash table - it would have stolen this slot, and the key we
-               find here now would have been displaced futher on. Hence, the key
+               find here now would have been displaced further on. Hence, the key
                we seek can't be in the hash table. */
             return NULL;
         }
-        ++probe_distance;
-        ++metadata;
-        entry_raw -= sizeof(MVMString ***);
-        assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < MVM_fixkey_hash_metadata(control) + control->official_size + control->max_items);
-        assert(metadata < MVM_fixkey_hash_metadata(control) + control->official_size + 256);
+        ls.probe_distance += ls.metadata_increment;
+        ++ls.metadata;
+        ls.entry_raw -= ls.entry_size;
+        assert(ls.probe_distance < (ls.max_probe_distance + 2) * ls.metadata_increment);
+        assert(ls.metadata < MVM_fixkey_hash_metadata(control) + MVM_fixkey_hash_official_size(control) + MVM_fixkey_hash_max_items(control));
+        assert(ls.metadata < MVM_fixkey_hash_metadata(control) + MVM_fixkey_hash_official_size(control) + 256);
     }
 }
 

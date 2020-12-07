@@ -1,19 +1,17 @@
 #include "moar.h"
 
-#define PTR_LOAD_FACTOR 0.75
-#define PTR_INITIAL_SIZE 8
+#define PTR_INITIAL_SIZE_LOG2 3
 #define PTR_INITIAL_KEY_RIGHT_SHIFT (8 * sizeof(uintptr_t) - 3)
-
-MVM_STATIC_INLINE MVMuint32 hash_true_size(const struct MVMPtrHashTableControl *control) {
-    return control->official_size + control->probe_overflow_size;
-}
 
 MVM_STATIC_INLINE void hash_demolish_internal(MVMThreadContext *tc,
                                               struct MVMPtrHashTableControl *control) {
-    size_t actual_items = hash_true_size(control);
-    size_t entries_size = sizeof(struct MVMPtrHashEntry) * actual_items;
+    size_t allocated_items = MVM_ptr_hash_allocated_items(control);
+    size_t entries_size = sizeof(struct MVMPtrHashEntry) * allocated_items;
+    size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
+    size_t total_size
+        = entries_size + sizeof(struct MVMPtrHashTableControl) + metadata_size;
     char *start = (char *)control - entries_size;
-    MVM_free(start);
+    MVM_fixed_size_free(tc, tc->instance->fsa, total_size, start);
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -30,43 +28,37 @@ void MVM_ptr_hash_demolish(MVMThreadContext *tc, MVMPtrHashTable *hashtable) {
 
 MVM_STATIC_INLINE struct MVMPtrHashTableControl *hash_allocate_common(MVMThreadContext *tc,
                                                                       MVMuint8 key_right_shift,
-                                                                      MVMuint32 official_size) {
-    MVMuint32 max_items = official_size * PTR_LOAD_FACTOR;
-    MVMuint32 overflow_size = max_items - 1;
-    /* -1 because...
-     * probe distance of 1 is the correct bucket.
-     * hence for a value whose ideal slot is the last bucket, it's *in* the
-     * official allocation.
-     * probe distance of 2 is the first extra bucket beyond the official
-     * allocation
-     * probe distance of 255 is the 254th beyond the official allocation.
-     */
-    MVMuint8 probe_overflow_size;
-    if (MVM_HASH_MAX_PROBE_DISTANCE < overflow_size) {
-        probe_overflow_size = MVM_HASH_MAX_PROBE_DISTANCE - 1;
+                                                                      MVMuint8 official_size_log2) {
+    MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
+    MVMuint32 max_items = official_size * MVM_PTR_HASH_LOAD_FACTOR;
+    MVMuint8 max_probe_distance_limit;
+    if (MVM_HASH_MAX_PROBE_DISTANCE < max_items) {
+        max_probe_distance_limit = MVM_HASH_MAX_PROBE_DISTANCE;
     } else {
-        probe_overflow_size = overflow_size;
+        max_probe_distance_limit = max_items;
     }
-    size_t actual_items = official_size + probe_overflow_size;
-    size_t entries_size = sizeof(struct MVMPtrHashEntry) * actual_items;
-    size_t metadata_size = MVM_hash_round_size_up(actual_items + 1);
+    size_t allocated_items = official_size + max_probe_distance_limit - 1;
+    size_t entries_size = sizeof(struct MVMPtrHashEntry) * allocated_items;
+    size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
     size_t total_size
         = entries_size + sizeof(struct MVMPtrHashTableControl) + metadata_size;
+    assert(total_size == MVM_hash_round_size_up(total_size));
 
     struct MVMPtrHashTableControl *control =
-        (struct MVMPtrHashTableControl *) ((char *)MVM_malloc(total_size) + entries_size);
+        (struct MVMPtrHashTableControl *) ((char *)MVM_fixed_size_alloc(tc, tc->instance->fsa, total_size) + entries_size);
 
-    control->official_size = official_size;
+    control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
     control->cur_items = 0;
-    control->probe_overflow_size = probe_overflow_size;
+    control->metadata_hash_bits = MVM_HASH_INITIAL_BITS_IN_METADATA;
+    /* ie 7: */
+    MVMuint8 initial_probe_distance = (1 << (8 - MVM_HASH_INITIAL_BITS_IN_METADATA)) - 1;
+    control->max_probe_distance = max_probe_distance_limit > initial_probe_distance ? initial_probe_distance : max_probe_distance_limit;
+    control->max_probe_distance_limit = max_probe_distance_limit;
     control->key_right_shift = key_right_shift;
 
     MVMuint8 *metadata = (MVMuint8 *)(control + 1);
     memset(metadata, 0, metadata_size);
-
-    /* A sentinel. This marks an occupied slot, at its ideal position. */
-    metadata[actual_items] = 1;
 
     return control;
 }
@@ -79,15 +71,13 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
                  key);
     }
 
-    unsigned int probe_distance = 1;
-    MVMHashNumItems bucket = MVM_ptr_hash_code(key) >> control->key_right_shift;
-    MVMuint8 *entry_raw = MVM_ptr_hash_entries(control) - bucket * sizeof(struct MVMPtrHashEntry);
-    MVMuint8 *metadata = MVM_ptr_hash_metadata(control) + bucket;
+    struct MVM_hash_loop_state ls = MVM_ptr_hash_create_loop_state(control, key);
+
     while (1) {
-        if (*metadata < probe_distance) {
+        if (*ls.metadata < ls.probe_distance) {
             /* this is our slot. occupied or not, it is our rightful place. */
 
-            if (*metadata == 0) {
+            if (*ls.metadata == 0) {
                 /* Open goal. Score! */
             } else {
                 /* make room. */
@@ -99,11 +89,11 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
                    all the following elements have probe distances in order, we
                    can maintain the invariant just as well by moving everything
                    along by one. */
-                MVMuint8 *find_me_a_gap = metadata;
-                MVMuint8 old_probe_distance = *metadata;
+                MVMuint8 *find_me_a_gap = ls.metadata;
+                MVMuint8 old_probe_distance = *ls.metadata;
                 do {
-                    MVMuint8 new_probe_distance = 1 + old_probe_distance;
-                    if (new_probe_distance == MVM_HASH_MAX_PROBE_DISTANCE) {
+                    MVMuint32 new_probe_distance = ls.metadata_increment + old_probe_distance;
+                    if (new_probe_distance >> ls.probe_distance_shift == ls.max_probe_distance) {
                         /* Optimisation from Martin Ankerl's implementation:
                            setting this to zero forces a resize on any insert,
                            *before* the actual insert, so that we never end up
@@ -116,8 +106,8 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
                     *find_me_a_gap = new_probe_distance;
                 } while (old_probe_distance);
 
-                MVMuint32 entries_to_move = find_me_a_gap - metadata;
-                size_t size_to_move = sizeof(struct MVMPtrHashEntry) * entries_to_move;
+                MVMuint32 entries_to_move = find_me_a_gap - ls.metadata;
+                size_t size_to_move = ls.entry_size * entries_to_move;
                 /* When we had entries *ascending* this was
                  * memmove(entry_raw + sizeof(struct MVMPtrHashEntry), entry_raw,
                  *         sizeof(struct MVMPtrHashEntry) * entries_to_move);
@@ -126,39 +116,140 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
                  * `entry_raw` is still a pointer to where we want to make free
                  * space, but what want to do now is move everything at it and
                  * *before* it downwards. */
-                MVMuint8 *dest = entry_raw - size_to_move;
-                memmove(dest, dest + sizeof(struct MVMPtrHashEntry), size_to_move);
+                MVMuint8 *dest = ls.entry_raw - size_to_move;
+                memmove(dest, dest + ls.entry_size, size_to_move);
             }
 
             /* The same test and optimisation as in the "make room" loop - we're
              * about to insert something at the (current) max_probe_distance, so
              * signal to the next insertion that it needs to take action first.
              */
-            if (probe_distance == MVM_HASH_MAX_PROBE_DISTANCE) {
+            if (ls.probe_distance >> ls.probe_distance_shift == control->max_probe_distance) {
                 control->max_items = 0;
             }
 
             ++control->cur_items;
 
-            *metadata = probe_distance;
-            struct MVMPtrHashEntry *entry = (struct MVMPtrHashEntry *) entry_raw;
+            *ls.metadata = ls.probe_distance;
+            struct MVMPtrHashEntry *entry = (struct MVMPtrHashEntry *) ls.entry_raw;
             entry->key = NULL;
             return entry;
         }
-
-        if (*metadata == probe_distance) {
-            struct MVMPtrHashEntry *entry = (struct MVMPtrHashEntry *) entry_raw;
+        else if (*ls.metadata == ls.probe_distance) {
+            struct MVMPtrHashEntry *entry = (struct MVMPtrHashEntry *) ls.entry_raw;
             if (entry->key == key) {
                 return entry;
             }
         }
-        ++probe_distance;
+        ls.probe_distance += ls.metadata_increment;
+        ++ls.metadata;
+        ls.entry_raw -= ls.entry_size;
+
+        /* For insert, the loop must not iterate to any probe distance greater
+         * than the (current) maximum probe distance, because it must never
+         * insert an entry at a location beyond the maximum probe distance.
+         *
+         * For fetch and delete, the loop is permitted to reach (and read) one
+         * beyond the maximum probe distance (hence +2 in the seemingly
+         * analogous assertions) - but if so, it will always read from the
+         * metadata a probe distance which is lower than the current probe
+         * distance, and hence hit "not found" and terminate the loop.
+         *
+         * This is how the loop terminates when the max probe distance is
+         * reached without needing an explicit test for it, and why we need an
+         * initialised sentinel byte at the end of the metadata. */
+
+        assert(ls.probe_distance < (ls.max_probe_distance + 1) * ls.metadata_increment);
+        assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + MVM_ptr_hash_max_items(control));
+        assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + 256);
+    }
+}
+
+static struct MVMPtrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
+                                                      struct MVMPtrHashTableControl *control) {
+    /* control->max_items may have been set to 0 to trigger a call into this
+     * function. */
+    MVMuint32 max_items = MVM_ptr_hash_max_items(control);
+    MVMuint32 max_probe_distance = control->max_probe_distance;
+    MVMuint32 max_probe_distance_limit = control->max_probe_distance_limit;
+
+    /* We can hit both the probe limit and the max items on the same insertion.
+     * In which case, upping the probe limit isn't going to save us :-)
+     * But if we hit the probe limit max (even without hitting the max items)
+     * then we don't have more space in the metadata, so we're going to have to
+     * grow anyway. */
+    if (control->cur_items < max_items
+        && max_probe_distance < max_probe_distance_limit) {
+        /* We hit the probe limit, but not the max items count. */
+        MVMuint32 new_probe_distance = 1 + 2 * max_probe_distance;
+        if (new_probe_distance > max_probe_distance_limit) {
+            new_probe_distance = max_probe_distance_limit;
+        }
+
+        MVMuint8 *metadata = MVM_ptr_hash_metadata(control);
+        MVMuint32 in_use_items = MVM_ptr_hash_official_size(control) + max_probe_distance;
+        /* not `in_use_items + 1` because because we don't need to shift the
+         * sentinel. */
+        size_t metadata_size = MVM_hash_round_size_up(in_use_items);
+        size_t loop_count = metadata_size / sizeof(unsigned long);
+        unsigned long *p = (unsigned long *) metadata;
+        /* right shift each byte by 1 bit, clearing the top bit. */
+        do {
+            /* 0x7F7F7F7F7F7F7F7F on 64 bit systems, 0x7F7F7F7F on 32 bit,
+             * but without using constants or shifts larger than 32 bits, or
+             * the preprocessor. (So the compiler checks all code everywhere.)
+             * Will break on a system with 128 bit longs. */
+            *p = (*p >> 1) & (0x7F7F7F7FUL | (0x7F7F7F7FUL << (4 * sizeof(long))));
+            ++p;
+        } while (--loop_count);
+        assert(control->metadata_hash_bits);
+        --control->metadata_hash_bits;
+
+        control->max_probe_distance = new_probe_distance;
+        /* Reset this to its proper value. */
+        control->max_items = max_items;
+        assert(control->max_items);
+        return NULL;
+    }
+
+    MVMuint32 entries_in_use = MVM_ptr_hash_official_size(control) + control->max_probe_distance - 1;
+    MVMuint8 *entry_raw_orig = MVM_ptr_hash_entries(control);
+    MVMuint8 *metadata_orig = MVM_ptr_hash_metadata(control);
+
+    struct MVMPtrHashTableControl *control_orig = control;
+
+    control = hash_allocate_common(tc,
+                                   control_orig->key_right_shift - 1,
+                                   control_orig->official_size_log2 + 1);
+
+    MVMuint8 *entry_raw = entry_raw_orig;
+    MVMuint8 *metadata = metadata_orig;
+    MVMHashNumItems bucket = 0;
+    while (bucket < entries_in_use) {
+        if (*metadata) {
+            struct MVMPtrHashEntry *old_entry = (struct MVMPtrHashEntry *) entry_raw;
+            struct MVMPtrHashEntry *new_entry =
+                hash_insert_internal(tc, control, old_entry->key);
+            assert(new_entry->key == NULL);
+            *new_entry = *old_entry;
+
+            if (!control->max_items) {
+                /* Probably we hit the probe limit.
+                 * But it's just possible that one actual "grow" wasn't enough.
+                 */
+                struct MVMPtrHashTableControl *new_control
+                    = maybe_grow_hash(tc, control);
+                if (new_control) {
+                    control = new_control;
+                }
+            }
+        }
+        ++bucket;
         ++metadata;
         entry_raw -= sizeof(struct MVMPtrHashEntry);
-        assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < MVM_ptr_hash_metadata(control) + control->official_size + control->max_items);
-        assert(metadata < MVM_ptr_hash_metadata(control) + control->official_size + 256);
     }
+    hash_demolish_internal(tc, control_orig);
+    return control;
 }
 
 struct MVMPtrHashEntry *MVM_ptr_hash_lvalue_fetch(MVMThreadContext *tc,
@@ -168,7 +259,7 @@ struct MVMPtrHashEntry *MVM_ptr_hash_lvalue_fetch(MVMThreadContext *tc,
     if (MVM_UNLIKELY(!control)) {
         control = hash_allocate_common(tc,
                                        PTR_INITIAL_KEY_RIGHT_SHIFT,
-                                       PTR_INITIAL_SIZE);
+                                       PTR_INITIAL_SIZE_LOG2);
         hashtable->table = control;
     }
     else if (MVM_UNLIKELY(control->cur_items >= control->max_items)) {
@@ -181,34 +272,14 @@ struct MVMPtrHashEntry *MVM_ptr_hash_lvalue_fetch(MVMThreadContext *tc,
             return entry;
         }
 
-        MVMuint32 true_size =  hash_true_size(control);
-        MVMuint8 *entry_raw_orig = MVM_ptr_hash_entries(control);
-        MVMuint8 *metadata_orig = MVM_ptr_hash_metadata(control);
-
-        struct MVMPtrHashTableControl *control_orig = control;
-
-        control = hash_allocate_common(tc,
-                                       control_orig->key_right_shift - 1,
-                                       control_orig->official_size * 2);
-
-        hashtable->table = control;
-
-        MVMuint8 *entry_raw = entry_raw_orig;
-        MVMuint8 *metadata = metadata_orig;
-        MVMHashNumItems bucket = 0;
-        while (bucket < true_size) {
-            if (*metadata) {
-                struct MVMPtrHashEntry *old_entry = (struct MVMPtrHashEntry *) entry_raw;
-                struct MVMPtrHashEntry *new_entry =
-                    hash_insert_internal(tc, control, old_entry->key);
-                assert(new_entry->key == NULL);
-                *new_entry = *old_entry;
-            }
-            ++bucket;
-            ++metadata;
-            entry_raw -= sizeof(struct MVMPtrHashEntry);
+        struct MVMPtrHashTableControl *new_control = maybe_grow_hash(tc, control);
+        if (new_control) {
+            /* We could unconditionally assign this, but that would mean CPU
+             * cache writes even when it was unchanged, and the address of
+             * hashtable will not be in the same cache lines as we are writing
+             * for the hash internals, so it will churn the write cache. */
+            hashtable->table = control = new_control;
         }
-        hash_demolish_internal(tc, control_orig);
     }
     return hash_insert_internal(tc, control, key);
 }
@@ -241,24 +312,27 @@ uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
     if (MVM_ptr_hash_is_empty(tc, hashtable)) {
         return 0;
     }
+
     struct MVMPtrHashTableControl *control = hashtable->table;
-    unsigned int probe_distance = 1;
-    MVMHashNumItems bucket = MVM_ptr_hash_code(key) >> control->key_right_shift;
-    MVMuint8 *entry_raw = MVM_ptr_hash_entries(control) - bucket * sizeof(struct MVMPtrHashEntry);
-    uint8_t *metadata = MVM_ptr_hash_metadata(control) + bucket;
+    struct MVM_hash_loop_state ls = MVM_ptr_hash_create_loop_state(control, key);
+
     while (1) {
-        if (*metadata == probe_distance) {
-            struct MVMPtrHashEntry *entry = (struct MVMPtrHashEntry *) entry_raw;
+        if (*ls.metadata == ls.probe_distance) {
+            struct MVMPtrHashEntry *entry = (struct MVMPtrHashEntry *) ls.entry_raw;
             if (entry->key == key) {
                 /* Target acquired. */
                 uintptr_t retval = entry->value;
 
-                uint8_t *metadata_target = metadata;
+                uint8_t *metadata_target = ls.metadata;
                 /* Look at the next slot */
                 uint8_t old_probe_distance = metadata_target[1];
-                while (old_probe_distance > 1) {
+                /* Without this, gcc seemed always to want to recalculate this
+                 * for each loop iteration. Also, expressing this only in terms
+                 * of ls.metadata_increment avoids 1 load (albeit from cache) */
+                const uint8_t can_move = 2 * ls.metadata_increment;
+                while (old_probe_distance >= can_move) {
                     /* OK, we can move this one. */
-                    *metadata_target = old_probe_distance - 1;
+                    *metadata_target = old_probe_distance - ls.metadata_increment;
                     /* Try the next one, etc */
                     ++metadata_target;
                     old_probe_distance = metadata_target[1];
@@ -266,9 +340,9 @@ uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
                 /* metadata_target now points to the metadata for the last thing
                    we did move. (possibly still our target). */
 
-                uint32_t entries_to_move = metadata_target - metadata;
+                uint32_t entries_to_move = metadata_target - ls.metadata;
                 if (entries_to_move) {
-                    size_t size_to_move = sizeof(struct MVMPtrHashEntry) * entries_to_move;
+                    size_t size_to_move = ls.entry_size * entries_to_move;
                     /* When we had entries *ascending* in memory, this was
                      * memmove(entry_raw, entry_raw + sizeof(struct MVMPtrHashEntry),
                      *         sizeof(struct MVMPtrHashEntry) * entries_to_move);
@@ -278,8 +352,8 @@ uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
                      * `entry_raw` is still a pointer to the entry that we need
                      * to ovewrite, but now we need to move everything *before*
                      * it upwards to close the gap. */
-                    memmove(entry_raw - size_to_move + sizeof(struct MVMPtrHashEntry),
-                            entry_raw - size_to_move,
+                    memmove(ls.entry_raw - size_to_move + ls.entry_size,
+                            ls.entry_raw - size_to_move,
                             size_to_move);
                 }
                 /* and this slot is now emtpy. */
@@ -291,21 +365,21 @@ uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
             }
         }
         /* There's a sentinel at the end. This will terminate: */
-        if (*metadata < probe_distance) {
+        else if (*ls.metadata < ls.probe_distance) {
             /* So, if we hit 0, the bucket is empty. "Not found".
                If we hit something with a lower probe distance then...
                consider what would have happened had this key been inserted into
                the hash table - it would have stolen this slot, and the key we
-               find here now would have been displaced futher on. Hence, the key
+               find here now would have been displaced further on. Hence, the key
                we seek can't be in the hash table. */
             /* Strange. Not in the hash. Should this be an oops? */
             return 0;
         }
-        ++probe_distance;
-        ++metadata;
-        entry_raw -= sizeof(struct MVMPtrHashEntry);
-        assert(probe_distance <= MVM_HASH_MAX_PROBE_DISTANCE);
-        assert(metadata < MVM_ptr_hash_metadata(control) + control->official_size + control->max_items);
-        assert(metadata < MVM_ptr_hash_metadata(control) + control->official_size + 256);
+        ls.probe_distance += ls.metadata_increment;
+        ++ls.metadata;
+        ls.entry_raw -= ls.entry_size;
+        assert(ls.probe_distance <= (control->max_probe_distance + 1) * ls.metadata_increment);
+        assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + MVM_ptr_hash_max_items(control));
+        assert(ls.metadata < MVM_ptr_hash_metadata(control) + MVM_ptr_hash_official_size(control) + 256);
     }
 }

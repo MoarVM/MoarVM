@@ -141,6 +141,12 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMHashAttrStore);
 }
 
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMHashBody *body = (MVMHashBody *)data;
+
+    return MVM_str_hash_allocated_size(tc, &(body->hashtable));
+}
+
 /* Initializes the representation. */
 const MVMREPROps * MVMHashAttrStore_initialize(MVMThreadContext *tc) {
     return &HashAttrStore_this_repr;
@@ -178,6 +184,6 @@ static const MVMREPROps HashAttrStore_this_repr = {
     NULL, /* spesh */
     "HashAttrStore", /* name */
     MVM_REPR_ID_HashAttrStore,
-    NULL, /* unmanaged_size */
+    unmanaged_size,
     NULL, /* describe_refs */
 };
