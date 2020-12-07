@@ -1149,8 +1149,6 @@ static void optimize_string_equality(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
     MVMSpeshFacts *b_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
     MVMuint8 was_eq = 0;
 
-    return;
-
     if (ins->info->opcode == MVM_OP_eq_s)
         was_eq = 1;
 
