@@ -843,9 +843,10 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                                         MVM_free_null(name_map->names);
                                         MVM_free_null(name_map->slots);
                                     }
+                                    MVMint16 unbox_int_slot = repr_data->unbox_int_slot;
                                     free_repr_data(repr_data);
                                     MVM_exception_throw_adhoc(tc,
-                                        "While composing %s: Duplicate box_target for native int: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), repr_data->unbox_int_slot, i);
+                                        "While composing %s: Duplicate box_target for native int: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), unbox_int_slot, i);
                                 }
                                 repr_data->unbox_int_slot = cur_slot;
                                 break;
@@ -855,9 +856,10 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                                         MVM_free_null(name_map->names);
                                         MVM_free_null(name_map->slots);
                                     }
+                                    MVMint16 unbox_num_slot = repr_data->unbox_num_slot;
                                     free_repr_data(repr_data);
                                     MVM_exception_throw_adhoc(tc,
-                                        "While composing %s: Duplicate box_target for native num: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), repr_data->unbox_num_slot, i);
+                                        "While composing %s: Duplicate box_target for native num: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), unbox_num_slot, i);
                                 }
                                 repr_data->unbox_num_slot = cur_slot;
                                 break;
@@ -867,9 +869,10 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                                         MVM_free_null(name_map->names);
                                         MVM_free_null(name_map->slots);
                                     }
+                                    MVMint16 unbox_str_slot = repr_data->unbox_str_slot;
                                     free_repr_data(repr_data);
                                     MVM_exception_throw_adhoc(tc,
-                                        "While composing %s: Duplicate box_target for native str: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), repr_data->unbox_str_slot, i);
+                                        "While composing %s: Duplicate box_target for native str: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), unbox_str_slot, i);
                                 }
                                 repr_data->unbox_str_slot = cur_slot;
                                 break;
@@ -910,9 +913,10 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                         MVM_free_null(name_map->names);
                         MVM_free_null(name_map->slots);
                     }
+                    MVMint16 pos_del_slot = repr_data->pos_del_slot;
                     free_repr_data(repr_data);
                     MVM_exception_throw_adhoc(tc,
-                        "While composing %s: Duplicate positional delegate attributes: %d and %"PRId64"", MVM_6model_get_stable_debug_name(tc, st), repr_data->pos_del_slot, cur_slot);
+                        "While composing %s: Duplicate positional delegate attributes: %d and %"PRId64"", MVM_6model_get_stable_debug_name(tc, st), pos_del_slot, cur_slot);
                 }
                 if (unboxed_type == MVM_STORAGE_SPEC_BP_NONE)
                     repr_data->pos_del_slot = cur_slot;
@@ -932,9 +936,10 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                         MVM_free_null(name_map->names);
                         MVM_free_null(name_map->slots);
                     }
+                    MVMint16 pos_del_slot = repr_data->pos_del_slot;
                     free_repr_data(repr_data);
                     MVM_exception_throw_adhoc(tc,
-                        "While composing %s: Duplicate associative delegate attributes: %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), repr_data->pos_del_slot, cur_slot);
+                        "While composing %s: Duplicate associative delegate attributes: %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), pos_del_slot, cur_slot);
                 }
                 if (unboxed_type == MVM_STORAGE_SPEC_BP_NONE)
                     repr_data->ass_del_slot = cur_slot;
@@ -1127,14 +1132,15 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             MVMuint16 repr_id = MVM_serialization_read_int(tc, reader);
             MVMuint16 slot = MVM_serialization_read_int(tc, reader);
             if (slot > repr_data->num_attributes) {
+                MVMuint16 num_attributes = repr_data->num_attributes;
                 free_repr_data(repr_data);
-                MVM_exception_throw_adhoc(tc, "Serialization error: P6opaque's unbox slot out of range (slot %d > %d attributes).", slot, repr_data->num_attributes);
+                MVM_exception_throw_adhoc(tc, "Serialization error: P6opaque's unbox slot out of range (slot %d > %d attributes).", slot, num_attributes);
             }
             if (repr_id < MVM_REPR_MAX_COUNT)
                 repr_data->unbox_slots[repr_id] = slot;
             else {
                 free_repr_data(repr_data);
-                MVM_exception_throw_adhoc(tc, "Serialization error: P6opaque's unbox slot repr id out of range.");
+                MVM_exception_throw_adhoc(tc, "Serialization error: P6opaque's unbox slot repr id out of range (repr id %d >= %d).", repr_id, MVM_REPR_MAX_COUNT);
             }
         }
     } else {
