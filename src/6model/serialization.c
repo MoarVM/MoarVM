@@ -2208,7 +2208,6 @@ static void resolve_dependencies(MVMThreadContext *tc, MVMSerializationReader *r
             else {
                 cdesc = "<unknown>";
             }
-            if (!desc) desc = handle;
             fail_deserialize(tc, waste, reader,
                 "Missing or wrong version of dependency '%s' (from '%s')",
                 cname,

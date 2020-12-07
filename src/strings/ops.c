@@ -2329,9 +2329,6 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
         while (spos_l < s->body.num_graphs)
             rbuffer[--rpos_l] = s->body.storage.blob_8[spos_l++];
 
-        spos += sgraphs - spos;
-        rpos -= sgraphs - spos;
-
         MVMROOT(tc, s, {
             res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         });
@@ -2348,9 +2345,6 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
             MVM_VECTORIZE_LOOP
             while (spos_l < s->body.num_graphs)
                 rbuffer[--rpos_l] = s->body.storage.blob_32[spos_l++];
-
-            spos += sgraphs - spos;
-            rpos -= sgraphs - spos;
         }
         else
             for (; spos < sgraphs; spos++)
