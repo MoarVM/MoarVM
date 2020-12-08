@@ -135,7 +135,7 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
     control->max_items = max_items;
     control->cur_items = 0;
     control->metadata_hash_bits = MVM_HASH_INITIAL_BITS_IN_METADATA;
-    /* ie 7: */
+    /* As MVM_HASH_INITIAL_BITS_IN_METADATA is 5, this evaluates to 7: */
     MVMuint8 initial_probe_distance = (1 << (8 - MVM_HASH_INITIAL_BITS_IN_METADATA)) - 1;
     control->max_probe_distance = max_probe_distance_limit > initial_probe_distance ? initial_probe_distance : max_probe_distance_limit;
     control->max_probe_distance_limit = max_probe_distance_limit;
