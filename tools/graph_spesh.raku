@@ -13,15 +13,15 @@
     it display the result "interactively" in a window:
 
     =code
-        perl6 graph_spesh.p6 a_nice_excerpt.txt | dot -Tsvg > helpful_graph.svg
-        perl6 graph_spesh.p6 a_nice_excerpt.txt | dot -Tpng > huge_image.png
-        perl6 graph_spesh.p6 a_nice_excerpt.txt | dot -Tx11
+        perl6 graph_spesh.raku a_nice_excerpt.txt | dot -Tsvg > helpful_graph.svg
+        perl6 graph_spesh.raku a_nice_excerpt.txt | dot -Tpng > huge_image.png
+        perl6 graph_spesh.raku a_nice_excerpt.txt | dot -Tx11
 
     The -T flag for dot selects the output format. Using K<-Tx11> will open a
     window in which you can pan and zoom around in.
 
     If you get an error that MAST::Ops could not be found, please run
-    C<tools/update_ops.p6> to generate that module.
+    C<tools/update_ops.raku> to generate that module.
 
 =end pod
 
