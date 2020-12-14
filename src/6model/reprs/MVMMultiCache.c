@@ -238,18 +238,39 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
 
         /* Chase until we reach an arg we don't match. */
         while (cur_node > 0) {
-            MVMuint64 arg_match = tree[cur_node].action.arg_match;
-            MVMuint64 arg_idx   = arg_match & MVM_MULTICACHE_ARG_IDX_FILTER;
+            MVMuint64    arg_match = tree[cur_node].action.arg_match;
+            MVMuint64    arg_idx   = arg_match & MVM_MULTICACHE_ARG_IDX_FILTER;
+            MVMuint64    type_id   = arg_match & MVM_MULTICACHE_TYPE_ID_FILTER;
+            MVMRegister  arg       = apc->args[arg_idx];
+            MVMSTable   *st        = STABLE(arg.o);
+            MVMuint64    is_rw     = 0;
             tweak_node = cur_node;
-            if ((match_flags[arg_idx] | arg_idx) == arg_match) {
-                matched_args++;
-                unmatched_arg = 0;
-                cur_node = tree[cur_node].match;
+            if (st->container_spec && IS_CONCRETE(arg.o)) {
+                MVMContainerSpec const *contspec = st->container_spec;
+                if (!contspec->fetch_never_invokes)
+                    goto DONE;
+                if (REPR(arg.o)->ID != MVM_REPR_ID_NativeRef) {
+                    is_rw = contspec->can_store(tc, arg.o);
+                    contspec->fetch(tc, arg.o, &arg);
+                }
+                else {
+                    is_rw = 1;
+                }
             }
-            else {
-                unmatched_arg = 1;
-                cur_node = tree[cur_node].no_match;
+            if (STABLE(arg.o)->type_cache_id == type_id) {
+                MVMuint32 need_concrete = (arg_match & MVM_MULTICACHE_ARG_CONC_FILTER) ? 1 : 0;
+                if (IS_CONCRETE(arg.o) == need_concrete) {
+                    MVMuint32 need_rw = (arg_match & MVM_MULTICACHE_ARG_RW_FILTER) ? 1 : 0;
+                    if (need_rw == is_rw) {
+                        matched_args++;
+                        unmatched_arg = 0;
+                        cur_node = tree[cur_node].match;
+                        continue;
+                    }
+                }
             }
+            unmatched_arg = 1;
+            cur_node = tree[cur_node].no_match;
         }
 
         /* If we found a candidate, something inconsistent, as we
