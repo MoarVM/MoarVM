@@ -3,7 +3,7 @@ struct shiftjis_offset {
     MVMuint16 location;
     MVMuint16 offset;
 };
-/* Start code generated from ./tools/generate_encoding_codetables.p6 */
+/* Start code generated from ./tools/generate_encoding_codetables.raku */
 #define SHIFTJIS_OFFSET_VALUES_ELEMS 21
 #define SHIFTJIS_INDEX_TO_CP_CODEPOINTS_ELEMS 7350
 #define SHIFTJIS_MAX_INDEX 11103

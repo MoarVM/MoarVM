@@ -1,4 +1,4 @@
-/* This file is generated from src/core/oplist by tools/update_ops.p6. */
+/* This file is generated from src/core/oplist by tools/update_ops.raku. */
 
 static const void * const LABELS[] = {
     &&OP_no_op,
