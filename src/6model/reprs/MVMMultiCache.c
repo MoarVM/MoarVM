@@ -204,13 +204,10 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
         }
     }
 
-    /* Oobtain the cache addition lock, and then do another lookup to ensure
-     * nobody beat us to making this entry. */
+    /* Obtain the cache addition lock. */
     uv_mutex_lock(&(tc->instance->mutex_multi_cache_add));
-    if (MVM_multi_cache_find(tc, cache_obj, capture))
-        goto DONE;
 
-    /* We're now udner the insertion lock and know nobody else can tweak the
+    /* We're now under the insertion lock and know nobody else can tweak the
      * cache. First, see if there's even a current version and search tree. */
     have_head = 0;
     have_tree = 0;
@@ -273,11 +270,11 @@ MVMObject * MVM_multi_cache_add(MVMThreadContext *tc, MVMObject *cache_obj, MVMO
             cur_node = tree[cur_node].no_match;
         }
 
-        /* If we found a candidate, something inconsistent, as we
-         * checked for non-entry above. */
+        /* If we found a candidate, someone else beat us to adding the candidate
+           before we obtained the lock or the arguments got changed behind our
+           back so that they now match */
         if (cur_node != 0)
-            MVM_panic(1, "Corrupt multi dispatch cache: cur_node != 0, re-check == %p",
-                MVM_multi_cache_find(tc, cache_obj, capture));
+            goto DONE;
     }
 
     /* Now calculate the new size we'll need to allocate. */
