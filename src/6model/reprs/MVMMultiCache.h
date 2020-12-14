@@ -44,7 +44,7 @@ struct MVMMultiCacheNode {
 /* Body of a multi-dispatch cache. */
 struct MVMMultiCacheBody {
     /* Pointer to the an array of nodes, which we can initially index
-     * into using a hahsed calsite. Replaced in whole whenever there is
+     * into using a hashed callsite. Replaced in whole whenever there is
      * a change. */
     MVMMultiCacheNode *node_hash_head;
 
