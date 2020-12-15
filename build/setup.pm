@@ -20,12 +20,6 @@ my %TP_SHA = (
     src  => [ '3rdparty/sha1' ],
 );
 
-my %TP_TOM = (
-    name => 'tommath',
-    path => '3rdparty/libtommath',
-    src  => [ '3rdparty/libtommath' ],
-);
-
 my %TP_GMP = (
     name => 'gmp',
     path => '3rdparty/gmp',
@@ -76,7 +70,6 @@ my %TP_UV = (
 
 our %THIRDPARTY = (
     lao => { %TP_LAO },
-    tom => { %TP_TOM },
     gmp => { %TP_GMP },
     sha => { %TP_SHA },
     dc  => { %TP_DC },
