@@ -24,10 +24,10 @@ Unofficial summary of the intended application of the Artistic License 2.0:
 
 - dynasm     MIT
 - dyncall    MIT
-- libtommath Public Domain
 - libuv      MIT,BSD,ISC
 - msinttypes MIT
 - sha1       Public Domain
 - tinymt     MIT
 - freebsd    MIT
 - mimalloc   MIT
+- gmp        LGPLv3,GPLv2

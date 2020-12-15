@@ -43,7 +43,7 @@ GetOptions(\%args, qw(
     debug:s optimize:s coverage
     os=s shell=s toolchain=s compiler=s
     ar=s cc=s ld=s make=s has-sha has-libuv
-    static has-libtommath has-libatomic_ops
+    static has-libatomic_ops
     has-gmp enable-gmp-fat
     has-dyncall has-libffi pkgconfig=s
     build=s host=s big-endian jit! enable-jit
@@ -91,7 +91,7 @@ if ( $args{relocatable} && ($^O eq 'aix' || $^O eq 'openbsd') ) {
     ".\n    Leave off the --relocatable flag to do a non-relocatable build.");
 }
 
-for (qw(coverage static big-endian has-libtommath has-gmp has-sha has-libuv
+for (qw(coverage static big-endian has-gmp has-sha has-libuv
         has-libatomic_ops has-mimalloc asan ubsan tsan valgrind dtrace show-vec)) {
     $args{$_} = 0 unless defined $args{$_};
 }
@@ -320,25 +320,6 @@ else {
     push @hllincludes, 'libatomic_ops';
 }
 
-if ($args{'has-libtommath'}) {
-    $defaults{-thirdparty}->{tom} = undef;
-    unshift @{$config{usrlibs}}, 'tommath';
-    if (not $config{crossconf}) {
-        if (index($config{cincludes}, '-I/usr/local/include') == -1) {
-            $config{cincludes} = join(' ', $config{cincludes}, '-I/usr/local/include');
-        }
-        if (index($config{lincludes}, '-L/usr/local/lib') == -1) {
-            $config{lincludes} = join(' ', $config{lincludes}, '-L/usr/local/lib');
-        }
-    }
-}
-else {
-    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
-    $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/libtommath\"\n"
-                        . "\t\$(CP) 3rdparty/libtommath/*.h \"\$(DESTDIR)\$(PREFIX)/include/libtommath\"\n";
-    push @hllincludes, 'libtommath';
-}
-
 $config{gmpconf} = '--enable-shared=no --with-pic';
 if ($args{'has-gmp'}) {
     warn "Option --enable-gmp-fat is only useful without --has-gmp"
@@ -360,6 +341,7 @@ else {
     $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/gmp';
     $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/gmp\"\n"
                         . "\t\$(CP) 3rdparty/gmp/*.h \"\$(DESTDIR)\$(PREFIX)/include/gmp\"\n";
+    push @hllincludes, 'gmp';
 }
 
 if ($args{'has-libffi'}) {
@@ -1147,7 +1129,7 @@ __END__
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
                    [--debug] [--optimize]
                    [--static] [--prefix <path>] [--relocatable]
-                   [--has-libtommath] [--has-gmp] [--has-sha]
+                   [--has-gmp] [--has-sha]
                    [--has-libuv] [--has-libatomic_ops]
                    [--asan] [--ubsan] [--tsan] [--no-jit]
                    [--telemeh] [--git-cache-dir <path>]
@@ -1341,8 +1323,6 @@ Install NQP libraries in the supplied path.  The default is
 =item --make-install
 
 Build and install MoarVM in addition to configuring it.
-
-=item --has-libtommath
 
 =item --has-gmp
 
