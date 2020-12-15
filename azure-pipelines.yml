@@ -215,8 +215,17 @@ stages:
             perl Configure.pl --prefix=../$(INSTALL_DIR) $(MOAR_OPTIONS)
             make -j2 install
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'
-          condition: and(succeeded(), ne( variables['Agent.OS'], 'Windows_NT' ))
+          condition: and(succeeded(), and(ne( variables['Agent.OS'], 'Windows_NT' ), ne( variables['Agent.OS'], 'Darwin' )))
           displayName: Build MoarVM
+        - script: |
+            /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+            brew install automake
+            autoreconf -i
+            perl Configure.pl --prefix=../install $(MOAR_OPTIONS)
+            make install
+          workingDirectory: '$(Pipeline.Workspace)/MoarVM'
+          condition: eq( variables['Agent.OS'], 'Darwin' )
+          displayName: Build MoarVM (Mac)
         - pwsh: |
             ${{ variables.PWSH_DEV }}
             perl Configure.pl --prefix=..\$(INSTALL_DIR) $(MOAR_OPTIONS)
