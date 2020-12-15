@@ -114,7 +114,7 @@ static const MVMREPROps MVMMultiCache_this_repr = {
 static void dump_cache(MVMThreadContext *tc, MVMMultiCacheBody *cache) {
     MVMint32 num_nodes = cache->cache_memory_size / sizeof(MVMMultiCacheNode);
     MVMint32 i;
-    printf("Multi cache at %p (%d nodes, %d results)\n",
+    printf("Multi cache at %p (%d nodes, %zd results)\n",
         cache, num_nodes, cache->num_results);
     for (i = 0; i < num_nodes; i++)
         printf(" - %p -> (Y: %d, N: %d)\n",
