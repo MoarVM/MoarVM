@@ -7,9 +7,6 @@
 [submodule "3rdparty/dynasm"]
 	path = 3rdparty/dynasm
 	url = https://github.com/MoarVM/dynasm.git
-[submodule "3rdparty/libtommath"]
-	path = 3rdparty/libtommath
-	url = https://github.com/MoarVM/libtommath
 [submodule "3rdparty/cmp"]
 	path = 3rdparty/cmp
 	url = https://github.com/MoarVM/cmp.git
