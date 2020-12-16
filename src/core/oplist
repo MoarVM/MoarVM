@@ -480,7 +480,7 @@ ctx                 w(obj) :pure :noinline
 ctxouter            w(obj) r(obj) :pure
 ctxcaller           w(obj) r(obj) :pure
 ctxlexpad           w(obj) r(obj) :pure
-curcode             w(obj) :pure :noinline
+curcode             w(obj) :pure
 callercode          w(obj) :pure :noinline
 add_I               w(obj) r(obj) r(obj) r(obj) :pure
 sub_I               w(obj) r(obj) r(obj) r(obj) :pure
