@@ -454,6 +454,17 @@ static void resize_handlers_table(MVMThreadContext *tc, MVMSpeshGraph *inliner, 
     }
 }
 
+static void rewrite_curcode(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                 MVMSpeshIns *ins, MVMuint16 num_locals, MVMSpeshOperand code_ref_reg) {
+    MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+    new_operands[0] = ins->operands[0];
+    new_operands[0].reg.orig += num_locals;
+    new_operands[1] = code_ref_reg;
+    ins->info = MVM_op_get_op(MVM_OP_set);
+    ins->operands = new_operands;
+    MVM_spesh_usages_add_by_reg(tc, g, code_ref_reg, ins);
+}
+
 /* Rewrites a lexical lookup to an outer to be done via. a register holding
  * the outer coderef. */
 static void rewrite_outer_lookup(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -612,6 +623,9 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             if (opcode == MVM_SSA_PHI) {
                 for (i = 0; i < ins->info->num_operands; i++)
                     ins->operands[i].reg.orig += inliner->num_locals;
+            }
+            else if (opcode == MVM_OP_curcode) {
+                rewrite_curcode(tc, inliner, ins, inliner->num_locals, code_ref_reg);
             }
             else if (opcode == MVM_OP_sp_getlex_o && ins->operands[1].lex.outers > 0) {
                 rewrite_outer_lookup(tc, inliner, ins, inliner->num_locals,
