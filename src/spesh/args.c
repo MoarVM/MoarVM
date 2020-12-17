@@ -237,7 +237,7 @@ static void slurp_named_arg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
 
     insert_getarg_and_box(tc, g, bb, hash_ins, flags, arg_idx, value_temp);
 
-    /* Insert key fetching instruciton; we just store the string in a spesh
+    /* Insert key fetching instruction; we just store the string in a spesh
      * slot. */
     key_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     key_ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
@@ -275,7 +275,7 @@ static void slurp_positional_arg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 
     insert_getarg_and_box(tc, g, bb, array_ins, flags, pos_idx, value_temp);
 
-    /* Insert index setting instruciton */
+    /* Insert index setting instruction */
     index_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     index_ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
     index_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
