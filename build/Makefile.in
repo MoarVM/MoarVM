@@ -619,7 +619,7 @@ moar@exe@: $(MAIN_OBJECTS) @moar@
 
 libuv: @uvlib@
 
-$(MAIN_OBJECTS) $(OBJECTS): 3rdparty/gmp/libgmp.a $(HEADERS)
+$(MAIN_OBJECTS) $(OBJECTS): @gmplib@ $(HEADERS)
 
 tracing:
 	$(MSG) enable tracing dispatch
