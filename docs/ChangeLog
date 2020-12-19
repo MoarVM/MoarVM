@@ -1,3 +1,46 @@
+New in 2020.12
+
+6model:
++ [ce0cbf58,372e4341,ed15b258,1e98d73b,93aae582,93a1ba85,04063d19,
+   d65501b2,1b2867fb,1f695ac6,5048630d,d8ecb325,1dd5b3c7,c544ca9f,
+   897d2e98,3833c31e,9c527362,3ab21b9e,b3fa6df2]
+   Hash allocation as a single memory block
++ [730596d0,62828269,bd6b0b32,6fac5ab2,eb33fb55,c7811142,99aab70e,
+   2b20583f,52a516f6,358e7fd5,491e8dcd,46634be8,b432533e,2913e0ac,
+   30fbd9ab,00f29c72,7d6107e6,a024f543,37c2d2d6,7caffe8a,2e208823,
+   ffb2031b,fecfad19,d9dccf25]
+   Store some hash bits in the low bits of the hashtable metadata byte, with the
+   probe distance in the high bits, and the split between the two updated dynamically
++ [bed0a49f] Early exit gc_mark for VMArray+MVMHash if able
++ [9fbcdb4d] P6opaque's `spesh` must handle P6bigint values inline, as some are too big
++ [4cfde6ed,ac941c0d,8d68b18f] Eliminate static race condition
++ [5a21247e] Improve performance of repeated `unshift` calls
++ [b8653cae] Turn gen2 default allocation off on (de)serialization failures
+
+Core:
++ [5f1712cb,741e6acd,868de8cc,9b9de0ab,60b47f62,175525ce,c2f3e04b,01c0950d]
+  Replace `MVM_box_{int,num,str,uint}` and `MVM_unbox_str` with calls to
+  `MVM_repr_box_{int,num,str,uint}` and `MVM_repr_get_str`
++ [490ee80d] Make curcode OP inlinable
++ [998ea76a]  Calling `MVM_exception_throw_adhoc` in the spesh worker should be an oops
++ [fa9b6659] Use simpler stdio calls in exceptions.c where possible
++ [ec507862] Add `MVM_set_running_threads_context`
++ [0c3a38fa] Move `MVM_{set,get}_running_threads_context` to threadcontext.h
++ [34e06864] Simplify and inline `MVM_nativecall_find_thread_context`
+
+Documentation:
++ [ae5f7ad4] Update some docs to Raku era
+
+JIT:
++ [fbd386a0,7bdfb38b] On Apple Silicon with arch arm64, do not attempt to JIT
++ [3838247e] Add word and byte-sized return value macros to the lego JIT
+
+Math:
++ [70cefcff] Minimally exact bigint/bigint => num conversion, including rounding
+
+Strings:
++ [a6118ff2] New debug helper: `MVM_dump_string`
+
 New in 2020.11
 
 6model:
