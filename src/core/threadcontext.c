@@ -52,7 +52,7 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
             }
             MVM_free(tc->temp_bigints[i]);
             MVM_tc_destroy(tc);
-            MVM_exception_throw_adhoc(tc, "Error creating a temporary big integer: %s", mp_error_to_string(err));
+            MVM_exception_throw_adhoc(parent, "Error creating a temporary big integer: %s", mp_error_to_string(err));
         }
     }
 

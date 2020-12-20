@@ -934,8 +934,8 @@ static void send_thread_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data
         if (threadname != NULL && strlen(threadname)) {
             cmp_write_str(ctx, "name", 4);
             cmp_write_str(ctx, threadname, strlen(threadname));
-            MVM_free(threadname);
         }
+        MVM_free(threadname);
 
         cur_thread = cur_thread->body.next;
     }

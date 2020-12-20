@@ -1001,8 +1001,10 @@ void string_heap_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollect
         i++;
     }
 
-    if (result_buffer_insert_pos == result_buffer)
+    if (result_buffer_insert_pos == result_buffer) {
+        MVM_free(result_buffer_insert_pos);
         return;
+    }
 
     size_position = ftell(fh);
     fwrite(&typename, sizeof(char), 8, fh);
@@ -1012,6 +1014,7 @@ void string_heap_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollect
     cstream = ZSTD_createCStream();
 
     if (ZSTD_isError(return_value = ZSTD_initCStream(cstream, ZSTD_COMPRESSION_VALUE))) {
+        MVM_free(result_buffer);
         MVM_panic(1, "ZSTD compression error in heap snapshot: %s", ZSTD_getErrorName(return_value));
     }
 
@@ -1033,6 +1036,8 @@ void string_heap_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollect
         return_value = ZSTD_compressStream(cstream, &outbuf, &inbuf);
 
         if (ZSTD_isError(return_value)) {
+            MVM_free(outbuf.dst);
+            MVM_free(result_buffer);
             MVM_panic(1, "Error compressing heap snapshot data: %s", ZSTD_getErrorName(return_value));
         }
 
@@ -1059,6 +1064,8 @@ void string_heap_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollect
 
 
     if (ZSTD_isError(return_value)) {
+        MVM_free(outbuf.dst);
+        MVM_free(result_buffer);
         MVM_panic(1, "Error compressing heap snapshot data: %s", ZSTD_getErrorName(return_value));
     }
 
@@ -1757,6 +1764,7 @@ static void filemeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCol
     fwrite(&size, sizeof(MVMuint64), 1, fh);
 
     fputs(metadata, fh);
+    MVM_free(metadata);
     fputc(0, fh);
 
     end_position = ftell(fh);
@@ -1808,6 +1816,7 @@ static void snapmeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCol
     fwrite(&size, sizeof(MVMuint64), 1, fh);
 
     fputs(metadata, fh);
+    MVM_free(metadata);
     fputc(0, fh);
 
     end_position = ftell(fh);

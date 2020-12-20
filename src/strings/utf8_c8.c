@@ -426,7 +426,6 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
         return 0;
-    last_accept_pos = ds->bytes_head_pos;
 
     /* If we're asked for zero chars, also done. */
     if (stopper_chars && *stopper_chars == 0)
