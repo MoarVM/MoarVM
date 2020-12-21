@@ -3843,9 +3843,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(getlexouter): {
-                GET_REG(cur_op, 0).o = MVM_frame_find_lexical_by_name_outer(tc,
-                    GET_REG(cur_op, 2).s);
+                MVMString *name = GET_REG(cur_op, 2).s;
+                MVMRegister *r  = &GET_REG(cur_op, 0);
                 cur_op += 4;
+                MVM_frame_find_lexical_by_name_outer(tc, name, r);
                 goto NEXT;
             }
             OP(getlexrel): {

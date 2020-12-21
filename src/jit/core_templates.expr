@@ -1981,11 +1981,12 @@
     (arglist
       (carg (tc) ptr)) ptr_sz))
 
-(template: getlexouter
-  (call (^func &MVM_frame_find_lexical_by_name_outer)
+(template: getlexouter!
+  (callv (^func &MVM_frame_find_lexical_by_name_outer)
     (arglist
       (carg (tc) ptr)
-      (carg $1   ptr)) ptr_sz))
+      (carg $1   ptr)
+      (carg \$0  ptr))))
 
 (template: getlexcaller
   (let: (($res (call (^func &MVM_frame_find_lexical_by_name_rel_caller)

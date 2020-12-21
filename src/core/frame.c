@@ -1390,13 +1390,14 @@ MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *
 }
 
 /* Finds a lexical in the outer frame, throwing if it's not there. */
-MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name) {
+void MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name, MVMRegister *result) {
     MVMRegister *r;
     MVMROOT(tc, name, {
         r = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer);
     });
-    if (MVM_LIKELY(r != NULL))
-        return r->o;
+    if (MVM_LIKELY(r != NULL)) {
+        *result = *r;
+    }
     else {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
