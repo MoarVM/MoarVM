@@ -145,6 +145,9 @@ struct MVMCompUnitBody {
 
     /* Was a frame in this compilation unit invoked yet? */
     MVMuint8 invoked;
+
+    /* HLL fallback code ref for resolving lexicals by name. */
+    MVMObject *lexical_resolver;
 };
 struct MVMCompUnit {
     MVMObject common;

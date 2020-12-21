@@ -63,6 +63,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     /* Add various other referenced strings, etc. */
     MVM_gc_worklist_add(tc, worklist, &body->hll_name);
     MVM_gc_worklist_add(tc, worklist, &body->filename);
+
+    MVM_gc_worklist_add(tc, worklist, &body->lexical_resolver);
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -128,6 +130,27 @@ static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *
 /* Compose the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
     /* Nothing to do for this REPR. */
+}
+
+static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
+         void *data, MVMObject *class_handle, MVMString *name, MVMint64 hint,
+         MVMRegister value_reg, MVMuint16 kind) {
+    MVMCompUnitBody *body = (MVMCompUnitBody *)data;
+
+    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+    if (strcmp(c_name, "lexical_resolver") != 0) {
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(
+            tc,
+            waste,
+            "MVMCompUnit: no such attribute '%s' on type %s when trying to bind a value",
+            c_name,
+            MVM_6model_get_debug_name(tc, class_handle)
+        );
+    }
+    MVM_free(c_name);
+
+    body->lexical_resolver = value_reg.o;
 }
 
 /* Calculates the non-GC-managed memory we hold on to. */
@@ -221,7 +244,13 @@ static const MVMREPROps MVMCompUnit_this_repr = {
     MVM_gc_allocate_object,
     initialize,
     copy_to,
-    MVM_REPR_DEFAULT_ATTR_FUNCS,
+    {
+        MVM_REPR_DEFAULT_GET_ATTRIBUTE,
+        bind_attribute,
+        MVM_REPR_DEFAULT_HINT_FOR,
+        MVM_REPR_DEFAULT_IS_ATTRIBUTE_INITIALIZED,
+        MVM_REPR_DEFAULT_ATTRIBUTE_AS_ATOMIC
+    },
     MVM_REPR_DEFAULT_BOX_FUNCS,
     MVM_REPR_DEFAULT_POS_FUNCS,
     MVM_REPR_DEFAULT_ASS_FUNCS,
