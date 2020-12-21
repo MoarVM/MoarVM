@@ -2969,6 +2969,10 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             /* Use non-logging variant. */
             ins->info = MVM_op_get_op(MVM_OP_sp_getlex_no);
             break;
+        case MVM_OP_getlex_nfbo:
+            /* Use non-logging variant. */
+            ins->info = MVM_op_get_op(MVM_OP_sp_getlex_nfbo);
+            break;
         case MVM_OP_getlexstatic_o:
             optimize_getlex_known(tc, g, bb, ins);
             break;

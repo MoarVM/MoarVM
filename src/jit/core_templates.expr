@@ -87,6 +87,30 @@
            (carg \$0 ptr)
            (carg (^reg_obj) int))))
 
+(template: getlex_nfbo!
+    (callv (^func &MVM_frame_find_lexical_by_name_fallback)
+         (arglist
+           (carg (tc) ptr)
+           (carg (^cu_string $1) ptr)
+           (carg \$0 ptr)
+           (carg (^reg_obj) int))))
+
+(template: sp_getlex_no!
+    (callv (^func &MVM_frame_find_lexical_by_name)
+         (arglist
+           (carg (tc) ptr)
+           (carg (^cu_string $1) ptr)
+           (carg \$0 ptr)
+           (carg (^reg_obj) int))))
+
+(template: sp_getlex_nfbo!
+    (callv (^func &MVM_frame_find_lexical_by_name_fallback)
+         (arglist
+           (carg (tc) ptr)
+           (carg (^cu_string $1) ptr)
+           (carg \$0 ptr)
+           (carg (^reg_obj) int))))
+
 (template: bindlex_ni
   (callv (^func &MVM_frame_bind_lexical_by_name)
     (arglist
@@ -1983,6 +2007,13 @@
 
 (template: getlexouter!
   (callv (^func &MVM_frame_find_lexical_by_name_outer)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg \$0  ptr))))
+
+(template: getlexouterfb!
+  (callv (^func &MVM_frame_find_lexical_by_name_outer_fallback)
     (arglist
       (carg (tc) ptr)
       (carg $1   ptr)

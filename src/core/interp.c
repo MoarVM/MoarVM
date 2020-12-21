@@ -5721,6 +5721,71 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(getlex_nfbi): {
+                MVMuint32 name = GET_UI32(cur_op, 2);
+                MVMRegister *r  = &GET_REG(cur_op, 0);
+                cur_op += 6;
+                MVM_frame_find_lexical_by_name_fallback(tc,
+                    MVM_cu_string(tc, cu, name), r, MVM_reg_int64);
+                goto NEXT;
+            }
+            OP(getlex_nfbn): {
+                MVMuint32 name = GET_UI32(cur_op, 2);
+                MVMRegister *r  = &GET_REG(cur_op, 0);
+                cur_op += 6;
+                MVM_frame_find_lexical_by_name_fallback(tc,
+                    MVM_cu_string(tc, cu, name), r, MVM_reg_num64);
+                goto NEXT;
+            }
+            OP(getlex_nfbs): {
+                MVMuint32 name = GET_UI32(cur_op, 2);
+                MVMRegister *r  = &GET_REG(cur_op, 0);
+                cur_op += 6;
+                MVM_frame_find_lexical_by_name_fallback(tc,
+                    MVM_cu_string(tc, cu, name), r, MVM_reg_str);
+                goto NEXT;
+            }
+            OP(getlex_nfbo): {
+                MVMuint32 name = GET_UI32(cur_op, 2);
+                MVMRegister *r  = &GET_REG(cur_op, 0);
+                cur_op += 6;
+                MVM_frame_find_lexical_by_name_fallback(tc,
+                    MVM_cu_string(tc, cu, name), r, MVM_reg_obj);
+                /*
+                if (MVM_spesh_log_is_logging(tc))
+                    MVM_spesh_log_type(tc, GET_REG(cur_op, 0).o);
+                    */
+                goto NEXT;
+            }
+            OP(getlexouterfb): {
+                MVMString *name = GET_REG(cur_op, 2).s;
+                MVMRegister *r  = &GET_REG(cur_op, 0);
+                cur_op += 4;
+                MVM_frame_find_lexical_by_name_outer_fallback(tc, name, r);
+                goto NEXT;
+            }
+            OP(getlexstaticfb_o): {
+                MVMString *name = GET_REG(cur_op, 2).s;
+                MVMRegister *r  = &GET_REG(cur_op, 0);
+                cur_op += 4;
+                MVM_frame_find_lexical_by_name_fallback(tc, name, r, MVM_reg_obj);
+                /*
+                if (MVM_spesh_log_is_logging(tc))
+                    MVM_spesh_log_static(tc, GET_REG(cur_op, 0).o);
+                    */
+                goto NEXT;
+            }
+            OP(getlexperinvtypefb_o): {
+                MVMString *name = GET_REG(cur_op, 2).s;
+                MVMRegister *r  = &GET_REG(cur_op, 0);
+                cur_op += 4;
+                MVM_frame_find_lexical_by_name_fallback(tc, name, r, MVM_reg_obj);
+                /*
+                if (MVM_spesh_log_is_logging(tc))
+                    MVM_spesh_log_type(tc, GET_REG(cur_op, 0).o);
+                */
+                goto NEXT;
+            }
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
@@ -5886,6 +5951,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMRegister *r = &GET_REG(cur_op, 0);
                 cur_op += 6;
                 MVM_frame_find_lexical_by_name(tc,
+                    MVM_cu_string(tc, cu, name), r, MVM_reg_obj);
+                goto NEXT;
+            }
+            OP(sp_getlex_nfbo): {
+                MVMuint32 name = GET_UI32(cur_op, 2);
+                MVMRegister *r = &GET_REG(cur_op, 0);
+                cur_op += 6;
+                MVM_frame_find_lexical_by_name_fallback(tc,
                     MVM_cu_string(tc, cu, name), r, MVM_reg_obj);
                 goto NEXT;
             }

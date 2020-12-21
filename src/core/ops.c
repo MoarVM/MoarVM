@@ -11552,6 +11552,104 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
+        MVM_OP_getlex_nfbi,
+        "getlex_nfbi",
+        2,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_str }
+    },
+    {
+        MVM_OP_getlex_nfbn,
+        "getlex_nfbn",
+        2,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_str }
+    },
+    {
+        MVM_OP_getlex_nfbs,
+        "getlex_nfbs",
+        2,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_str }
+    },
+    {
+        MVM_OP_getlex_nfbo,
+        "getlex_nfbo",
+        2,
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str }
+    },
+    {
+        MVM_OP_getlexouterfb,
+        "getlexouterfb",
+        2,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_getlexstaticfb_o,
+        "getlexstaticfb_o",
+        2,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
+        MVM_OP_getlexperinvtypefb_o,
+        "getlexperinvtypefb_o",
+        2,
+        1,
+        0,
+        1,
+        1,
+        1,
+        1,
+        0,
+        1,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+    },
+    {
         MVM_OP_sp_guard,
         "sp_guard",
         4,
@@ -11757,6 +11855,20 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         1,
         0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str }
+    },
+    {
+        MVM_OP_sp_getlex_nfbo,
+        "sp_getlex_nfbo",
+        2,
+        1,
+        0,
+        1,
+        0,
+        1,
+        1,
         0,
         0,
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str }
@@ -12911,9 +13023,9 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 922;
+static const unsigned short MVM_op_counts = 930;
 
-static const MVMuint16 last_op_allowed = 824;
+static const MVMuint16 last_op_allowed = 831;
 
 static const MVMuint8 MVM_op_allowed_in_confprog[] = {
     0xD1, 0x1, 0x80, 0x3,
@@ -12941,7 +13053,7 @@ static const MVMuint8 MVM_op_allowed_in_confprog[] = {
     0x0, 0x0, 0x0, 0x0,
     0x0, 0x0, 0x0, 0x0,
     0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x8,};
+    0x0, 0x0, 0x8, 0x0,};
 
 MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) {
     if (op >= MVM_op_counts)
@@ -12956,7 +13068,7 @@ MVM_PUBLIC MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op) {
 }
 
 MVM_PUBLIC const char *MVM_op_get_mark(unsigned short op) {
-    if (op > 825 && op < MVM_OP_EXT_BASE) {
+    if (op > 832 && op < MVM_OP_EXT_BASE) {
         return ".s";
     } else if (op == 23) {
         return ".j";

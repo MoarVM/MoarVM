@@ -609,6 +609,17 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | callp &MVM_frame_find_lexical_by_name;
         break;
     }
+    case MVM_OP_getlex_nfbo:
+    case MVM_OP_sp_getlex_nfbo: {
+        MVMint16  dst = ins->operands[0].reg.orig;
+        MVMuint32 idx = ins->operands[1].lit_str_idx;
+        | mov ARG1, TC;
+        | get_string ARG2, idx;
+        | lea ARG3, WORK[dst]; // destination register
+        | mov ARG4, MVM_reg_obj;
+        | callp &MVM_frame_find_lexical_by_name_fallback;
+        break;
+    }
     case MVM_OP_bindlex:
     case MVM_OP_sp_bindlex_os:
     case MVM_OP_sp_bindlex_in: {

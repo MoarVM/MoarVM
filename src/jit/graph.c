@@ -168,6 +168,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_getdynlex: return MVM_frame_getdynlex;
     case MVM_OP_binddynlex: return MVM_frame_binddynlex;
     case MVM_OP_getlexouter: return MVM_frame_find_lexical_by_name_outer;
+    case MVM_OP_getlexouterfb: return MVM_frame_find_lexical_by_name_outer_fallback;
     case MVM_OP_getlexcaller: return MVM_frame_find_lexical_by_name_rel_caller;
     case MVM_OP_findmeth: case MVM_OP_findmeth_s: return MVM_6model_find_method;
     case MVM_OP_tryfindmeth: case MVM_OP_tryfindmeth_s: return MVM_6model_find_method;
@@ -1847,7 +1848,9 @@ start:
     case MVM_OP_sp_getlexvia_ins:
     case MVM_OP_getlexreldyn:
     case MVM_OP_getlex_no:
+    case MVM_OP_getlex_nfbo:
     case MVM_OP_sp_getlex_no:
+    case MVM_OP_sp_getlex_nfbo:
     case MVM_OP_bindlex:
     case MVM_OP_sp_bindlex_os:
     case MVM_OP_sp_bindlex_in:
@@ -2233,7 +2236,8 @@ start:
                           4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
-    case MVM_OP_getlexouter: {
+    case MVM_OP_getlexouter:
+    case MVM_OP_getlexouterfb: {
         MVMint16 dst  = ins->operands[0].reg.orig;
         MVMint16 name = ins->operands[1].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },

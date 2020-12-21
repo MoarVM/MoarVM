@@ -885,6 +885,13 @@ freemem             w(int64) :pure
 totalmem            w(int64) :pure
 nextdispatcherfor   r(obj) r(obj)
 takenextdispatcher  w(obj) :noinline
+getlex_nfbi           w(int64) str :pure :noinline :invokish :maycausedeopt
+getlex_nfbn           w(num64) str :pure :noinline :invokish :maycausedeopt
+getlex_nfbs           w(str) str :pure :noinline :invokish :maycausedeopt
+getlex_nfbo           w(obj) str :pure :deoptonepoint :logged :noinline :invokish :maycausedeopt
+getlexouterfb         w(obj) r(str) :pure :noinline :useshll :invokish :maycausedeopt
+getlexstaticfb_o      w(obj) r(str) :pure :noinline :logged :specializable :invokish :maycausedeopt
+getlexperinvtypefb_o  w(obj) r(str) :pure :noinline :logged :specializable :invokish :maycausedeopt
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
@@ -929,6 +936,7 @@ sp_decont        .s w(obj) r(obj) :pure :invokish :maycausedeopt
 sp_getlex_o      .s w(obj) rl(obj) :pure
 sp_getlex_ins    .s w(`1) rl(`1) :pure
 sp_getlex_no     .s w(obj) str :pure :noinline
+sp_getlex_nfbo   .s w(obj) str :pure :noinline :invokish :maycausedeopt
 
 # Specialized forms of bindlex, avoiding the need to check for register type
 # (`_in` has no write batter, `_os` has the barrier).
