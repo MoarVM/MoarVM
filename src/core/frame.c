@@ -1319,10 +1319,9 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
 }
 
 /* Looks up the address of the lexical with the specified name and the
- * specified type. Non-existing object lexicals produce NULL, expected
- * (for better or worse) by various things. Otherwise, an error is thrown
- * if it does not exist. Incorrect type always throws. */
-int MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMRegister *result, MVMuint16 type) {
+ * specified type. An error is thrown if it does not exist. Incorrect
+ * type always throws. */
+void MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMRegister *result, MVMuint16 type) {
     MVMFrame *cur_frame = tc->cur_frame;
     while (cur_frame != NULL) {
         if (cur_frame->static_info->body.num_lexicals) {
@@ -1333,7 +1332,7 @@ int MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMReg
                     if (type == MVM_reg_obj && !found->o)
                         MVM_frame_vivify_lexical(tc, cur_frame, idx);
                     *result = *found;
-                    return 1;
+                    return;
                 }
                 else {
                     char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -1346,13 +1345,11 @@ int MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMReg
         }
         cur_frame = cur_frame->outer;
     }
-    if (MVM_UNLIKELY(type != MVM_reg_obj)) {
-        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-        char *waste[] = { c_name, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
-            c_name);
-    }
-    return 0;
+
+    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+    char *waste[] = { c_name, NULL };
+    MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
+        c_name);
 }
 
 /* Binds the specified value to the given lexical, finding it along the static

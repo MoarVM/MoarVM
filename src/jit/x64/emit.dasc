@@ -607,11 +607,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | lea ARG3, WORK[dst]; // destination register
         | mov ARG4, MVM_reg_obj;
         | callp &MVM_frame_find_lexical_by_name;
-        | test RV, RV;
-        | jnz >1;
-        | get_vmnull RV;
-        | mov WORK[dst], RV;
-        |1:
         break;
     }
     case MVM_OP_bindlex:
@@ -2092,11 +2087,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | lea ARG3, WORK[dst]; // destination register
         | mov ARG4, MVM_reg_obj;
         | callp &MVM_frame_find_lexical_by_name;
-        | test RV, RV;
-        | jnz >1;
-        | get_vmnull RV;
-        | mov WORK[dst], RV;
-        |1:
         break;
     }
     case MVM_OP_paramnamesused:

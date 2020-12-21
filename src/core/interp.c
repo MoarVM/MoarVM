@@ -441,16 +441,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(getlex_no): {
-                int found = MVM_frame_find_lexical_by_name(tc,
+                MVM_frame_find_lexical_by_name(tc,
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)),
                     &GET_REG(cur_op, 0), MVM_reg_obj);
-                if (found) {
-                    if (MVM_spesh_log_is_logging(tc))
-                        MVM_spesh_log_type(tc, GET_REG(cur_op, 0).o);
-                }
-                else {
-                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
-                }
+                if (MVM_spesh_log_is_logging(tc))
+                    MVM_spesh_log_type(tc, GET_REG(cur_op, 0).o);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -4302,28 +4297,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 12;
                 goto NEXT;
             OP(getlexstatic_o): {
-                int found = MVM_frame_find_lexical_by_name(tc,
+                MVM_frame_find_lexical_by_name(tc,
                     GET_REG(cur_op, 2).s, &GET_REG(cur_op, 0), MVM_reg_obj);
-                if (found) {
-                    if (MVM_spesh_log_is_logging(tc))
-                        MVM_spesh_log_static(tc, GET_REG(cur_op, 0).o);
-                }
-                else {
-                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
-                }
+                if (MVM_spesh_log_is_logging(tc))
+                    MVM_spesh_log_static(tc, GET_REG(cur_op, 0).o);
                 cur_op += 4;
                 goto NEXT;
             }
             OP(getlexperinvtype_o): {
-                int found = MVM_frame_find_lexical_by_name(tc,
+                MVM_frame_find_lexical_by_name(tc,
                     GET_REG(cur_op, 2).s, &GET_REG(cur_op, 0), MVM_reg_obj);
-                if (found) {
-                    if (MVM_spesh_log_is_logging(tc))
-                        MVM_spesh_log_type(tc, GET_REG(cur_op, 0).o);
-                }
-                else {
-                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
-                }
+                if (MVM_spesh_log_is_logging(tc))
+                    MVM_spesh_log_type(tc, GET_REG(cur_op, 0).o);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -5887,11 +5872,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_getlex_no): {
-                int found = MVM_frame_find_lexical_by_name(tc,
+                MVM_frame_find_lexical_by_name(tc,
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)),
                     &GET_REG(cur_op, 0), MVM_reg_obj);
-                if (!found)
-                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
                 cur_op += 6;
                 goto NEXT;
             }
