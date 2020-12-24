@@ -1318,28 +1318,48 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
     }
 }
 
+
+MVM_PUBLIC MVMObject * MVM_frame_get_lexical_resolver(MVMThreadContext *tc) {
+    MVMFrame *cur_frame = tc->cur_frame;
+    MVMObject *resolver = NULL;
+    while (!resolver && cur_frame) {
+        resolver = cur_frame->static_info->body.cu->body.lexical_resolver;
+        cur_frame = cur_frame->caller;
+    }
+    return resolver;
+}
+
 /* Looks up the address of the lexical with the specified name and the
  * specified type. If it doesn't exist, we look for a lexical resolver
  * in the comp unit and if available, call that. If not, we give up and
  * an error is thrown if it does not exist. Incorrect type always throws. */
 typedef struct {
     MVMRegister *result;
+    MVMString *name;
 } GetlexReturnData;
 static void finish_getlex(MVMThreadContext *tc, void *sr_data) {
     GetlexReturnData *rd = (GetlexReturnData *)sr_data;
+    if (MVM_is_null(tc, rd->result->o)) {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, rd->name);
+        char *waste[] = { c_name, NULL };
+        MVM_free(rd);
+        MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s' in finish_getlex", c_name);
+    }
     MVM_free(rd);
 }
 static void mark_getlex_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
     GetlexReturnData *rd = (GetlexReturnData *)frame->extra->special_return_data;
+    MVM_gc_worklist_add(tc, worklist, &rd->name);
 }
 static void call_lexical_resolver(MVMThreadContext *tc, MVMObject *resolver, MVMRegister *result, MVMString *name) {
     /* Call resolver to produce a value if we couldn't find one so far */
     MVMObject *code = MVM_frame_find_invokee(tc, resolver, NULL);
     GetlexReturnData *rd  = MVM_malloc(sizeof(GetlexReturnData));
     rd->result = result;
+    rd->name   = name;
     MVM_frame_special_return(tc, tc->cur_frame, finish_getlex, NULL, rd, mark_getlex_sr_data);
     MVM_args_setup_thunk(tc, result, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_STR));
-    tc->cur_frame->args[0].o = tc->instance->VMNull;
+    tc->cur_frame->args[0].o = result->o;
     tc->cur_frame->args[1].s = name;
     STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_STR), tc->cur_frame->args);
 }
@@ -1368,8 +1388,9 @@ void MVM_frame_find_lexical_by_name_fallback(MVMThreadContext *tc, MVMString *na
         cur_frame = cur_frame->outer;
     }
 
-    MVMObject *resolver = tc->cur_frame->static_info->body.cu->body.lexical_resolver;
+    MVMObject *resolver = MVM_frame_get_lexical_resolver(tc);
     if (resolver) {
+        result->o = tc->instance->VMNull;
         call_lexical_resolver(tc, resolver, result, name);
     }
     else {
@@ -1412,6 +1433,50 @@ void MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMRe
 
 /* Binds the specified value to the given lexical, finding it along the static
  * chain. */
+MVM_PUBLIC void MVM_frame_bind_lexical_by_name_fallback(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMRegister value) {
+    MVMFrame *cur_frame = tc->cur_frame;
+    while (cur_frame != NULL) {
+        if (cur_frame->static_info->body.num_lexicals) {
+            MVMuint32 idx = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
+            if (idx != MVM_INDEX_HASH_NOT_FOUND) {
+                if (cur_frame->static_info->body.lexical_types[idx] == type) {
+                    if (type == MVM_reg_obj || type == MVM_reg_str) {
+                        MVM_ASSIGN_REF(tc, &(cur_frame->header),
+                            cur_frame->env[idx].o, value.o);
+                    }
+                    else {
+                        cur_frame->env[idx] = value;
+                    }
+                    return;
+                }
+                else {
+                    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+                    char *waste[] = { c_name, NULL };
+                    MVM_exception_throw_adhoc_free(tc, waste,
+                        "Lexical with name '%s' has wrong type",
+                            c_name);
+                }
+            }
+        }
+        cur_frame = cur_frame->outer;
+    }
+    MVMObject *resolver = MVM_frame_get_lexical_resolver(tc);
+    if (resolver) {
+        if (type != MVM_reg_obj)
+            MVM_panic(1, "Fallback NYI for binding non-obj lexicals by name");
+        MVMObject *code = MVM_frame_find_invokee(tc, resolver, NULL);
+        MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_STR));
+        tc->cur_frame->args[0] = value;
+        tc->cur_frame->args[1].s = name;
+        STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_STR), tc->cur_frame->args);
+    }
+    else {
+        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s' trying to bind with fallback",
+            c_name);
+    }
+}
 MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMRegister value) {
     MVMFrame *cur_frame = tc->cur_frame;
     while (cur_frame != NULL) {
@@ -1457,8 +1522,9 @@ void MVM_frame_find_lexical_by_name_outer_fallback(MVMThreadContext *tc, MVMStri
         *result = *r;
     }
     else {
-        MVMObject *resolver = tc->cur_frame->static_info->body.cu->body.lexical_resolver;
+        MVMObject *resolver = MVM_frame_get_lexical_resolver(tc);
         if (resolver) {
+            result->o = tc->instance->VMNull;
             call_lexical_resolver(tc, resolver, result, name);
         }
         else {
@@ -1736,12 +1802,31 @@ MVMObject * MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpesh
                 MVM_exception_throw_adhoc(tc, "invalid register type in getdynlex: %d", type);
         }
     }
-    return result ? result : tc->instance->VMNull;
+    return result;
 }
-MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
+void MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame, MVMRegister *result) {
     MVMSpeshFrameWalker fw;
-    MVM_spesh_frame_walker_init(tc, &fw, cur_frame, 0);
-    return MVM_frame_getdynlex_with_frame_walker(tc, &fw, name);
+    MVMObject *value;
+    MVMROOT(tc, name, {
+        MVM_spesh_frame_walker_init(tc, &fw, cur_frame, 0);
+        value = MVM_frame_getdynlex_with_frame_walker(tc, &fw, name);
+    });
+    if (value) {
+        result->o = value;
+    }
+    else {
+        MVMObject *resolver = MVM_frame_get_lexical_resolver(tc);
+        if (resolver) {
+            result->o = tc->instance->VMNull;
+            MVMObject *code = MVM_frame_find_invokee(tc, resolver, NULL);
+            MVM_args_setup_thunk(tc, result, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_STR));
+            tc->cur_frame->args[0].o = tc->instance->VMNull;
+            tc->cur_frame->args[1].s = name;
+            STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_STR), tc->cur_frame->args);
+        }
+        else
+            result->o = tc->instance->VMNull;
+    }
 }
 
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame) {

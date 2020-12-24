@@ -834,7 +834,12 @@ BEGIN {
     2085,
     2087,
     2089,
-    2091);
+    2091,
+    2093,
+    2095,
+    2097,
+    2099,
+    2101);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1666,7 +1671,12 @@ BEGIN {
     2,
     2,
     2,
-    2);
+    2,
+    2,
+    2,
+    2,
+    2,
+    1);
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
     18,
@@ -3759,7 +3769,16 @@ BEGIN {
     66,
     57,
     66,
-    57);
+    57,
+    56,
+    33,
+    56,
+    49,
+    56,
+    57,
+    56,
+    65,
+    66);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
     'const_i16', 2,
@@ -4591,7 +4610,12 @@ BEGIN {
     'getlex_nfbo', 828,
     'getlexouterfb', 829,
     'getlexstaticfb_o', 830,
-    'getlexperinvtypefb_o', 831);
+    'getlexperinvtypefb_o', 831,
+    'bindlex_nfbi', 832,
+    'bindlex_nfbn', 833,
+    'bindlex_nfbs', 834,
+    'bindlex_nfbo', 835,
+    'getlexicalresolver', 836);
     MAST::Ops.WHO<@names> := nqp::list_s('no_op',
     'const_i8',
     'const_i16',
@@ -5423,7 +5447,12 @@ BEGIN {
     'getlex_nfbo',
     'getlexouterfb',
     'getlexstaticfb_o',
-    'getlexperinvtypefb_o');
+    'getlexperinvtypefb_o',
+    'bindlex_nfbi',
+    'bindlex_nfbn',
+    'bindlex_nfbs',
+    'bindlex_nfbo',
+    'getlexicalresolver');
     MAST::Ops.WHO<%generators> := nqp::hash('no_op', sub () {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
@@ -11693,5 +11722,39 @@ BEGIN {
         nqp::writeuint($bytecode, $elems, 831, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+    },
+    'bindlex_nfbi', sub (str $op0, $op1) {
+        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, 832, 5);
+        my uint $index0 := $frame.add-string($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 9);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index1, 5);
+    },
+    'bindlex_nfbn', sub (str $op0, $op1) {
+        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, 833, 5);
+        my uint $index0 := $frame.add-string($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 9);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index1, 5);
+    },
+    'bindlex_nfbs', sub (str $op0, $op1) {
+        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, 834, 5);
+        my uint $index0 := $frame.add-string($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 9);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index1, 5);
+    },
+    'bindlex_nfbo', sub (str $op0, $op1) {
+        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, 835, 5);
+        my uint $index0 := $frame.add-string($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 9);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index1, 5);
+    },
+    'getlexicalresolver', sub ($op0) {
+        my $bytecode := $*MAST_FRAME.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, 836, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     });
 }

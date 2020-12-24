@@ -480,9 +480,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (MVM_UNLIKELY(tc->cur_frame->caller == 0)) {
                     MVM_exception_throw_adhoc(tc, "cannot call getdynlex without a caller frame");
                 }
-                GET_REG(cur_op, 0).o = MVM_frame_getdynlex(tc, GET_REG(cur_op, 2).s,
-                        tc->cur_frame->caller);
+                MVMRegister *result = &GET_REG(cur_op, 0);
+                MVMString *name = GET_REG(cur_op, 2).s;
                 cur_op += 4;
+                MVM_frame_getdynlex(tc, name, tc->cur_frame->caller, result);
                 goto NEXT;
             }
             OP(binddynlex): {
@@ -5775,6 +5776,48 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (MVM_spesh_log_is_logging(tc))
                     MVM_spesh_log_type(tc, GET_REG(cur_op, 0).o);
                 */
+                goto NEXT;
+            }
+            OP(bindlex_nfbi): {
+                MVMuint32 name = GET_UI32(cur_op, 0);
+                MVMRegister value = GET_REG(cur_op, 4);
+                cur_op += 6;
+                MVM_frame_bind_lexical_by_name_fallback(tc,
+                    MVM_cu_string(tc, cu, name),
+                    MVM_reg_int64, value);
+                goto NEXT;
+            }
+            OP(bindlex_nfbn): {
+                MVMuint32 name = GET_UI32(cur_op, 0);
+                MVMRegister value = GET_REG(cur_op, 4);
+                cur_op += 6;
+                MVM_frame_bind_lexical_by_name_fallback(tc,
+                    MVM_cu_string(tc, cu, name),
+                    MVM_reg_num64, value);
+                goto NEXT;
+            }
+            OP(bindlex_nfbs): {
+                MVMuint32 name = GET_UI32(cur_op, 0);
+                MVMRegister value = GET_REG(cur_op, 4);
+                cur_op += 6;
+                MVM_frame_bind_lexical_by_name_fallback(tc,
+                    MVM_cu_string(tc, cu, name),
+                    MVM_reg_str, value);
+                goto NEXT;
+            }
+            OP(bindlex_nfbo): {
+                MVMuint32 name = GET_UI32(cur_op, 0);
+                MVMRegister value = GET_REG(cur_op, 4);
+                cur_op += 6;
+                MVM_frame_bind_lexical_by_name_fallback(tc,
+                    MVM_cu_string(tc, cu, name),
+                    MVM_reg_obj, value);
+                goto NEXT;
+            }
+            OP(getlexicalresolver): {
+                MVMObject *resolver = MVM_frame_get_lexical_resolver(tc);
+                GET_REG(cur_op, 0).o = resolver ? resolver : tc->instance->VMNull;
+                cur_op += 2;
                 goto NEXT;
             }
             OP(sp_guard): {

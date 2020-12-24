@@ -103,7 +103,7 @@ bindlex_ns          str r(str) :noinline
 bindlex_no          str r(obj) :noinline
 getlex_ng           w(obj) r(str) :pure :noinline :useshll
 bindlex_ng          r(str) r(obj) :noinline :useshll
-getdynlex           w(obj) r(str) :pure :noinline :useshll
+getdynlex           w(obj) r(str) :pure :noinline :useshll :invokish :maycausedeopt
 binddynlex          r(str) r(obj) :noinline
 setlexvalue         r(obj) str r(obj) int16
 lexprimspec         w(int64) r(obj) r(str) :pure
@@ -892,6 +892,11 @@ getlex_nfbo           w(obj) str :pure :deoptonepoint :logged :noinline :invokis
 getlexouterfb         w(obj) r(str) :pure :noinline :useshll :invokish :maycausedeopt
 getlexstaticfb_o      w(obj) r(str) :pure :noinline :logged :specializable :invokish :maycausedeopt
 getlexperinvtypefb_o  w(obj) r(str) :pure :noinline :logged :specializable :invokish :maycausedeopt
+bindlex_nfbi        str r(int64) :noinline :invokish :maycausedeopt
+bindlex_nfbn        str r(num64) :noinline :invokish :maycausedeopt
+bindlex_nfbs        str r(str) :noinline :invokish :maycausedeopt
+bindlex_nfbo        str r(obj) :noinline :invokish :maycausedeopt
+getlexicalresolver  w(obj) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
