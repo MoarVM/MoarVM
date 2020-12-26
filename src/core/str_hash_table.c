@@ -550,6 +550,83 @@ void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
                 /* and this slot is now emtpy. */
                 *metadata_target = 0;
                 --control->cur_items;
+                if (control->max_items == 0
+                    && control->cur_items < control->max_probe_distance) {
+                    /* So this is a fun corner case...
+                     *
+                     * Rakudo code often creates empty hashes, so we have a
+                     * space optimisation to (not) allocate "8" (ie 13) slots
+                     * initially. Instead we only allocate a control structure.
+                     * However most of the metadata in that is stored log base 2
+                     * (another size optimisation) hence *it* can't store zero.
+                     * So we mark this case by setting both
+                     * control->cur_items == 0 && control->max_items == 0
+                     * `max_items` zero triggers immediate allocation on any
+                     * insert ("no questions asked") and `cur_items` zero is the
+                     * true state. See commit 7d6107e65ddedece
+                     *
+                     * The assumption of that commit was that it was impossible
+                     * for the control structure to be in that (zero,zero) state
+                     * as soon as any insert happened, because after that
+                     * max_items would only be set to zero if an insert flagged
+                     * up that the `max_probe_distance` might overflow on the
+                     * *next* insert (ie trigger that immediate allocation),
+                     * and if there are items allocated, then (obviously)
+                     * `cur_items` isn't zero.
+                     *
+                     * What I missed was that a sequence of inserts followed by
+                     * a sequence of deletes can reach (zero,zero).
+                     * If the *last* insert hits the `max_probe_distance` limit,
+                     * then it sets `max_items` to zero so that the next insert
+                     * will allocate.
+                     *
+                     * But what if there is no next insert?
+                     *
+                     * Then nothing resets the `max_items`, and it remains as
+                     * zero.
+                     *
+                     * And if the only write actions that happen on the hash
+                     * after this are to delete each entry in turn, then
+                     * eventually `cur_items` reaches zero too (accurately), and
+                     * then the "special state" flags are accidentally recreated
+                     * but not with the "special state" memory layout.
+                     *
+                     * (And with enough debugging enabled the assignment to
+                     *  `control->last_delete_at` just below fails an assertion
+                     *  in `MVM_str_hash_metadata`)
+                     *
+                     * So clearly we need to unwind the "immediate allocation"
+                     * flag.
+                     *
+                     * We certainly can't do it on *any* delete
+                     *
+                     * We can't actually do it on *any* delete that drops a
+                     * probe distance below the limit because (this one is
+                     * subtle) worst case it's possible for
+                     * a) a hash to be in the state where several entries have
+                     *    probe distances one below the threshold
+                     * b) a *single* insert causes 2+ of these to move up
+                     *    (the "make room" code in insert)
+                     *    (or 1 to move up, *and* the new insert to be at the
+                     *     the trigger distance)
+                     *    which sets the flag
+                     * c) but the immediately subsequent deletion causes only
+                     *    *one* of these to drop back below the max.
+                     *
+                     * The really conservative approach would only be to reset
+                     * if the hash is about to hit zero items.
+                     *
+                     * But I believe that the earliest we can be *sure* that no
+                     * chain is longer than the limit is when the *total*
+                     * entries in the hash are less than that limit.  Because
+                     * (of course), the worst case is that they are all in a row
+                     * contesting the same ideal bucket, and the highest probe
+                     * distance has to be less than the limit.
+                     *
+                     * So here we are: */
+                    MVMuint32 official_size = 1 << (MVMuint32)control->official_size_log2;
+                    control->max_items = official_size * MVM_STR_HASH_LOAD_FACTOR;
+                }
 
 #if HASH_DEBUG_ITER
                 ++control->serial;

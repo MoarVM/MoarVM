@@ -360,6 +360,15 @@ uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
                 *metadata_target = 0;
                 --control->cur_items;
 
+                if (control->max_items == 0
+                    && control->cur_items < control->max_probe_distance) {
+                    /* Unlike MVMStrHashTable, resetting this here is merely an
+                     * optimisation (to avoid a doubling), as we don't have a
+                     * "control structure only" special case allocation. */
+                    MVMuint32 official_size = 1 << (MVMuint32)control->official_size_log2;
+                    control->max_items = official_size * MVM_PTR_HASH_LOAD_FACTOR;
+                }
+
                 /* Job's a good 'un. */
                 return retval;
             }
