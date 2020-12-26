@@ -377,7 +377,7 @@ be worth it.
  * metadata now  00001001 00001000 00010100 00011101 00100111 00100010
  *                   1  1     1  0     2  4     3  5     4  7     4  2
  *
- * which we can do word-at-a-type with a suitable mask (0x7f7f7f7f7f7f7f7f)
+ * which we can do word-at-a-time with a suitable mask (0x7f7f7f7f7f7f7f7f)
  * and without re-ordering *anything*.
  *
  * Note for tuning this
