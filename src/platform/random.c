@@ -71,8 +71,7 @@
     #include <unistd.h>
     MVMint32 MVM_getrandom_urandom (MVMThreadContext *tc, void *out, size_t size) {
         int fd = MVM_platform_open("/dev/urandom", O_RDONLY);
-        ssize_t num_read = 0;
-        if (fd < 0 || (num_read = read(fd, out, size) <= 0)) {
+        if (fd < 0 || read(fd, out, size) <= 0) {
             if (fd) close(fd);
             /* If using /dev/urandom fails (maybe we're in a chroot), on BSD's
              * use arc4random, which is likely seeded from the system's random

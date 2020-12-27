@@ -49,7 +49,7 @@ GetOptions(\%args, qw(
     build=s host=s big-endian jit! enable-jit
     prefix=s bindir=s libdir=s mastdir=s
     relocatable make-install asan ubsan tsan
-    valgrind telemeh show-autovect git-cache-dir=s
+    valgrind telemeh dtrace show-autovect git-cache-dir=s
     show-autovect-failed:s),
 
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
@@ -93,7 +93,7 @@ if ( $args{relocatable} && ($^O eq 'aix' || $^O eq 'openbsd') ) {
 }
 
 for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
-        has-libatomic_ops asan ubsan tsan valgrind show-vec)) {
+        has-libatomic_ops asan ubsan tsan valgrind dtrace show-vec)) {
     $args{$_} = 0 unless defined $args{$_};
 }
 
@@ -426,6 +426,7 @@ push @cflags, '-fsanitize=thread' if $args{tsan};
 push @cflags, '-DWSL_BASH_ON_WIN' if wsl_bash_on_win();
 push @cflags, '-DDEBUG_HELPERS' if $args{debug};
 push @cflags, '-DMVM_VALGRIND_SUPPORT' if $args{valgrind};
+push @cflags, '-DMVM_DTRACE_SUPPORT' if $args{dtrace};
 push @cflags, '-DHAVE_TELEMEH' if $args{telemeh};
 push @cflags, '-DWORDS_BIGENDIAN' if $config{be}; # 3rdparty/sha1 needs it and it isnt set on mips;
 push @cflags, '-DMVM_HEAPSNAPSHOT_FORMAT=' . $config{heapsnapformat};
@@ -489,26 +490,47 @@ print "OK\n\n";
 if ($config{crossconf}) {
     build::auto::detect_cross(\%config, \%defaults);
     build::probe::static_inline_cross(\%config, \%defaults);
+    build::probe::thread_local_cross(\%config, \%defaults);
     build::probe::unaligned_access_cross(\%config, \%defaults);
     build::probe::ptr_size_cross(\%config, \%defaults);
 }
 else {
     build::auto::detect_native(\%config, \%defaults);
     build::probe::static_inline_native(\%config, \%defaults);
+    build::probe::thread_local_native(\%config, \%defaults);
     build::probe::unaligned_access(\%config, \%defaults);
     build::probe::ptr_size_native(\%config, \%defaults);
 }
 
 
+my $archname = $Config{archname};
 if ($args{'jit'}) {
     if ($config{ptr_size} != 8) {
         print "JIT isn't supported on platforms with $config{ptr_size} byte pointers.\n";
-    } elsif ($Config{archname} =~ m/^x86_64|^amd64|^darwin(-thread)?(-multi)?-2level/) {
+    } elsif ($archname =~ m/^x86_64|^amd64/) {
         $config{jit_obj}      = '$(JIT_OBJECTS) $(JIT_ARCH_X64)';
         $config{dasm_flags}   = '-D POSIX=1';
         $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
         $config{jit_platform} = 'MVM_JIT_PLATFORM_POSIX';
-    } elsif ($Config{archname} =~ /^MSWin32-x64/) {
+    } elsif ($archname =~ m/^darwin(-thread)?(-multi)?-2level/) {
+        hardfail("Missing /usr/bin/arch") if !-x '/usr/bin/arch';
+        my $arch = `/usr/bin/arch`;
+        chomp $arch;
+        if ($arch ne 'arm64') {
+            $config{jit_obj}      = '$(JIT_OBJECTS) $(JIT_ARCH_X64)';
+            $config{dasm_flags}   = '-D POSIX=1';
+            $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
+            $config{jit_platform} = 'MVM_JIT_PLATFORM_POSIX';
+        } else {
+            print "JIT isn't supported on $Config{archname} ARM64 yet.\n";
+# future support of ARM64 JITting
+#            $config{jit_obj}      = '$(JIT_OBJECTS) $(JIT_ARCH_)';
+#            $config{dasm_flags}   = '-D POSIX=1';
+#            $config{jit_arch}     = 'MVM_JIT_ARCH_ARM64';
+#            $config{jit_platform} = 'MVM_JIT_PLATFORM_POSIX';
+        }
+
+    } elsif ($archname =~ /^MSWin32-x64/) {
         $config{jit_obj}      = '$(JIT_OBJECTS) $(JIT_ARCH_X64)';
         $config{dasm_flags}   = '-D WIN32=1';
         $config{jit_arch}     = 'MVM_JIT_ARCH_X64';
@@ -534,6 +556,7 @@ if ($config{cc} eq 'cl') {
 build::probe::C_type_bool(\%config, \%defaults);
 build::probe::computed_goto(\%config, \%defaults);
 build::probe::pthread_yield(\%config, \%defaults);
+build::probe::pthread_setname_np(\%config, \%defaults);
 build::probe::check_fn_malloc_trim(\%config, \%defaults);
 if ($^O eq 'aix') {
     build::probe::numbits(\%config, \%defaults);
@@ -1078,6 +1101,10 @@ A full list of options is displayed if you set C<TSAN_OPTIONS> to C<help=1>.
 =item --valgrind
 
 Include Valgrind Client Requests for moarvm's own memory allocators.
+
+=item --dtrace
+
+Include DTrace trace points in various places.
 
 =item --ld <ld>
 

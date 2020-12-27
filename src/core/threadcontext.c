@@ -45,8 +45,14 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
         tc->temp_bigints[i] = MVM_malloc(sizeof(mp_int));
         mp_err err;
         if ((err = mp_init(tc->temp_bigints[i])) != MP_OKAY) {
+            MVMint32 j;
+            for (j = 0; j < i; j++) {
+                mp_clear(tc->temp_bigints[j]);
+                MVM_free(tc->temp_bigints[j]);
+            }
             MVM_free(tc->temp_bigints[i]);
-            MVM_exception_throw_adhoc(tc, "Error creating a temporary big integer: %s", mp_error_to_string(err));
+            MVM_tc_destroy(tc);
+            MVM_exception_throw_adhoc(parent, "Error creating a temporary big integer: %s", mp_error_to_string(err));
         }
     }
 
@@ -75,6 +81,10 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
  * that is true should this be called. */
 void MVM_tc_destroy(MVMThreadContext *tc) {
     MVMint32 i;
+
+    /* Free the native callback cache. Needs the fixed size allocator. */
+    /* (currently not. but might if MVMStrHash moves internally to the FSA.) */
+    MVM_str_hash_demolish(tc, &tc->native_callback_cache);
 
     /* Free specialization state. */
     MVM_spesh_sim_stack_destroy(tc, tc->spesh_sim_stack);

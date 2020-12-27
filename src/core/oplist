@@ -480,7 +480,7 @@ ctx                 w(obj) :pure :noinline
 ctxouter            w(obj) r(obj) :pure
 ctxcaller           w(obj) r(obj) :pure
 ctxlexpad           w(obj) r(obj) :pure
-curcode             w(obj) :pure :noinline
+curcode             w(obj) :pure
 callercode          w(obj) :pure :noinline
 add_I               w(obj) r(obj) r(obj) r(obj) :pure
 sub_I               w(obj) r(obj) r(obj) r(obj) :pure
@@ -506,7 +506,7 @@ pow_I               w(obj) r(obj) r(obj) r(obj) r(obj) :pure
 gcd_I               w(obj) r(obj) r(obj) r(obj) :pure
 lcm_I               w(obj) r(obj) r(obj) r(obj) :pure
 expmod_I            w(obj) r(obj) r(obj) r(obj) r(obj) :pure
-isprime_I           w(int64) r(obj) r(int64) :pure
+isprime_I           w(int64) r(obj) :pure
 rand_I              w(obj) r(obj) r(obj)
 coerce_In           w(num64) r(obj) :pure
 coerce_Is           w(str) r(obj) :pure
@@ -721,7 +721,7 @@ eqatim_s            w(int64) r(str) r(str) r(int64) :pure
 ordbaseat           w(int64) r(str) r(int64) :pure
 neverrepossess      r(obj)
 scdisclaim          r(obj)
-DEPRECATED_31       w(obj)
+setthreadname       r(str)
 atpos2d_i           w(int64) r(obj) r(int64) r(int64) :pure :specializable
 atpos2d_n           w(num64) r(obj) r(int64) r(int64) :pure :specializable
 atpos2d_s           w(str) r(obj) r(int64) r(int64) :pure :specializable
@@ -884,7 +884,7 @@ uname               w(obj) :pure
 freemem             w(int64) :pure
 totalmem            w(int64) :pure
 nextdispatcherfor   r(obj) r(obj)
-takenextdispatcher  w(obj)
+takenextdispatcher  w(obj) :noinline
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
@@ -1039,6 +1039,9 @@ sp_getwvalfrom        .s w(obj) sslot int64 :pure
 
 # Enter the JIT
 sp_jit_enter     .s w(obj)
+
+# boolification of numeric values
+sp_istrue_n           .s w(int64) r(num64) :pure
 
 # we boolify iter objects all the time, but we have no op for it. until now!
 sp_boolify_iter       .s w(int64) r(obj) :pure

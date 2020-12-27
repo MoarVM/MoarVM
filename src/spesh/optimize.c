@@ -190,6 +190,8 @@ static void optimize_method_lookup(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
             meth_facts->value.o = meth;
 
             if (MVM_spesh_debug_enabled(tc)) {
+                /* Fetch name again as it may have been moved by GC in MVM_spesh_try_find_method */
+                name = MVM_spesh_get_string(tc, g, ins->operands[2]);
                 char *name_cstr = MVM_string_utf8_encode_C_string(tc, name);
                 MVM_spesh_graph_add_comment(tc, g, ins, "method lookup of '%s' on a %s",
                         name_cstr, MVM_6model_get_debug_name(tc, obj_facts->type));
@@ -482,6 +484,7 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
                 break;
             case MVM_OP_ifnonnull:
                 truthvalue = REPR(flag_facts->value.o)->ID != MVM_REPR_ID_MVMNull;
+                break;
             default:
                 return;
         }
@@ -540,6 +543,55 @@ static void optimize_not_i(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *
         MVM_spesh_facts_depend(tc, g, dest_facts, src_facts);
     }
 }
+
+static void optimize_bitwise_int_math(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
+    MVMSpeshFacts *lhs_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+    MVMSpeshFacts *rhs_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
+    if ((lhs_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && (rhs_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)) {
+        MVMint64 lhs_v = lhs_facts->value.i;
+        MVMint64 rhs_v = rhs_facts->value.i;
+        MVMint64 result_v;
+        const char *opname = ins->info->name;
+
+        switch (ins->info->opcode) {
+            case MVM_OP_band_i:
+                result_v = lhs_v & rhs_v;
+                break;
+            case MVM_OP_bor_i:
+                result_v = lhs_v | rhs_v;
+                break;
+            case MVM_OP_bxor_i:
+                result_v = lhs_v ^ rhs_v;
+                break;
+            default:
+                MVM_spesh_graph_add_comment(tc, g, ins, "not the right opcode for some reason lol %s %d", opname, ins->info->opcode);
+                return;
+        }
+
+        /* Turn the op into a constant and set result facts. */
+        MVMSpeshFacts *dest_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+        dest_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+        dest_facts->value.i = result_v;
+        ins->info = MVM_op_get_op(MVM_OP_const_i64);
+        ins->operands[1].lit_i64 = result_v;
+
+        /* This op no longer uses the source values. */
+        MVM_spesh_usages_delete(tc, g, lhs_facts, ins);
+        MVM_spesh_usages_delete(tc, g, rhs_facts, ins);
+
+        /* Need to depend on the source facts. */
+        MVM_spesh_use_facts(tc, g, lhs_facts);
+        MVM_spesh_use_facts(tc, g, rhs_facts);
+        MVM_spesh_facts_depend(tc, g, dest_facts, lhs_facts);
+        MVM_spesh_facts_depend(tc, g, dest_facts, rhs_facts);
+
+        MVM_spesh_graph_add_comment(tc, g, ins, "optimized math from an %s op.", opname);
+    }
+    else {
+        MVM_spesh_graph_add_comment(tc, g, ins, "looked at this but no luck. flags: %d and %d", lhs_facts->flags, rhs_facts->flags);
+    }
+}
+
 
 /* objprimspec can be done at spesh-time if we know the type of something.
  * Another thing is, that if we rely on the type being known, we'll be assured
@@ -925,6 +977,14 @@ static void optimize_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     }
 }
 
+/* If we have a const_i and a coerce_iu or coerce_ui, we can emit a const_i instead. */
+static void optimize_signedness_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    // fooled you! these coerces are actually
+    // equivalent to "set" in implementation.
+    ins->info = MVM_op_get_op(MVM_OP_set);
+    copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+}
+
 /* If we know the type of a significant operand, we might try to specialize by
  * representation. */
 static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -1089,8 +1149,6 @@ static void optimize_string_equality(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
     MVMSpeshFacts *b_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
     MVMuint8 was_eq = 0;
 
-    return;
-
     if (ins->info->opcode == MVM_OP_eq_s)
         was_eq = 1;
 
@@ -1219,12 +1277,25 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
             /* And now defer another bit of optimization */
             optimize_isconcrete(tc, g, ins);
             break;
-            /* We need to change the register type for our result for this,
-             * means we need to insert a temporarary and a coerce:
-        case MVM_BOOL_MODE_UNBOX_NUM:
-             op_info = MVM_op_get_op(MVM_OP_unbox_i);
-             break;
-            */
+        case MVM_BOOL_MODE_UNBOX_NUM: {
+            /* Unbox it into a temporary number register. */
+            MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_num64);
+            MVMSpeshIns *unbox_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+            unbox_ins->info = MVM_op_get_op(MVM_OP_unbox_n);
+            unbox_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+            unbox_ins->operands[0] = temp;
+            unbox_ins->operands[1] = ins->operands[1];
+            MVM_spesh_get_facts(tc, g, unbox_ins->operands[0])->writer = unbox_ins;
+            MVM_spesh_usages_add_by_reg(tc, g, unbox_ins->operands[1], unbox_ins);
+            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+            MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, unbox_ins);
+
+            /* Tweak the original instruction to test this. */
+            ins->info = MVM_op_get_op(MVM_OP_sp_istrue_n);
+            ins->operands[1] = temp;
+            MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
+            break;
+        }
         default:
             return;
         }
@@ -1889,7 +1960,11 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         else if (IS_CONCRETE(code) && STABLE(code)->invocation_spec) {
             /* What kind of invocation will it be? */
             MVMInvocationSpec *is = STABLE(code)->invocation_spec;
-            if (!MVM_is_null(tc, is->md_class_handle)) {
+            if (is->invocation_handler && IS_CONCRETE(is->invocation_handler)) {
+                /* Can't do anything with an invocation handler. */
+                return;
+            }
+            else if (!MVM_is_null(tc, is->md_class_handle)) {
                 /* Multi-dispatch. Check if this is a dispatch where we can
                  * use the cache directly. */
                 MVMRegister dest;
@@ -2659,6 +2734,11 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_not_i:
             optimize_not_i(tc, g, ins, bb);
             break;
+        case MVM_OP_band_i:
+        case MVM_OP_bor_i:
+        case MVM_OP_bxor_i:
+            optimize_bitwise_int_math(tc, g, ins, bb);
+            break;
         case MVM_OP_prepargs:
             arg_info.cs = g->sf->body.cu->body.callsites[ins->operands[0].callsite_idx];
             arg_info.prepargs_ins = ins;
@@ -2686,6 +2766,10 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             }
             break;
         }
+        case MVM_OP_coerce_ui:
+        case MVM_OP_coerce_iu:
+            optimize_signedness_coerce(tc, g, bb, ins);
+            break;
         case MVM_OP_coerce_in:
             optimize_coerce(tc, g, bb, ins);
             break;
@@ -3056,6 +3140,10 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
                 writer->operands[0] = new_target;
                 new_target_facts->writer = writer;
                 new_target_facts->dead_writer = 0;
+                new_target_facts->flags = source_facts->flags;
+                new_target_facts->value = source_facts->value;
+                new_target_facts->type = source_facts->type;
+                new_target_facts->decont_type = source_facts->decont_type;
                 return;
             }
         }
@@ -3087,6 +3175,8 @@ static void try_eliminate_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB
             }
         }
     }
+
+    copy_facts(tc, g, ins->operands[0], ins->operands[1]);
 }
 
 /* Find box_* that are used by a matching unbox_*. This can happen in part due
@@ -3188,6 +3278,15 @@ static void post_inline_visit_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
                 if (ins->prev && ins->prev->info->opcode == ins->info->opcode &&
                         ins->operands[0].reg.orig == ins->prev->operands[0].reg.orig)
                     MVM_spesh_manipulate_delete_ins(tc, g, bb, ins->prev);
+                break;
+            case MVM_OP_coerce_ui:
+            case MVM_OP_coerce_iu:
+                optimize_signedness_coerce(tc, g, bb, ins);
+                break;
+            case MVM_OP_band_i:
+            case MVM_OP_bor_i:
+            case MVM_OP_bxor_i:
+                optimize_bitwise_int_math(tc, g, ins, bb);
                 break;
             case MVM_OP_prof_allocated:
                 optimize_prof_allocated(tc, g, bb, ins);

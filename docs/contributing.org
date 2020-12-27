@@ -10,8 +10,8 @@ MoarVM is a fairly small community. We communicate primarily on the
 We use IRC bots to keep up to date with new commits that are
 published; but those don't always work well, unfortunately.
 
-The [[https://p6weekly.wordpress.com/][perl6 weekly]] newsletter publishes progress in MoarVM, and there's
-also the =/r/perl6= subreddit.
+The [[https://rakudoweekly.blog/][Rakudo Weekly News]] newsletter publishes progress in MoarVM, and there's
+also the =/r/rakulang= subreddit.
 
 Apparently you can connect to freenode via discord, but the author of
 this text wouldn't know how.
@@ -96,14 +96,14 @@ Better testing:
 
 Pass the =--debug --optimize=0= flags to =Configure.pl= to get a build
 that is usable in a debugger. Note that the default wrapper scripts
-=nqp= and =perl6= are *not* suitable for debugging because they =exec=
-just after starting. You can use the =perl6-gdb-m= wrapper instead; or
+=nqp= and =raku= are *not* suitable for debugging because they =exec=
+just after starting. You can use the =raku-gdb-m= wrapper instead; or
 insert =gdb= or =lldb= into an explicit command line yourself. (The
 author of this document typically writes =gdb= scripts).
 
 *NB*: there are recently developed runner programs in C, which are
 equivalent to the old runner scripts, that don't have the same
-problem - you can start this as =perl6-mc=.
+problem - you can start this as =raku-mc=.
 
 * Workflow
 

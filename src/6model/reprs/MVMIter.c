@@ -105,12 +105,30 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
             }
             return;
         case MVM_ITER_MODE_HASH:
+            ; /* Sigh, C99 won't let me put a declaration here. */
+            MVMStrHashTable *hashtable = &(((MVMHash *)target)->body.hashtable);
+#if HASH_DEBUG_ITER
+            struct MVMStrHashTableControl *control = hashtable->table;
+            MVMuint64 ht_id = control ? control->ht_id : 0;
+            if (body->hash_state.curr.owner != ht_id) {
+                MVM_oops(tc, "MVMIter shift called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
+                         body->hash_state.curr.owner, ht_id);
+            }
+            /* OK, to implement "delete at current iterator position" we need
+             * to cheat somewhat. */
+            if (MVM_str_hash_iterator_target_deleted(tc, hashtable, body->hash_state.curr)) {
+                /* The only action taken on the hash was to delete at the
+                 * current iterator. In which case, the "next" iterator is
+                 * valid (but has already been advanced beyond pos, so we
+                 * can't perform this test on it). So "fix up" its state to pass
+                 * muster with the HASH_DEBUG_ITER sanity tests. */
+                body->hash_state.next.serial = control->serial;
+            }
+#endif
             body->hash_state.curr = body->hash_state.next;
-            if (!body->hash_state.curr)
+            if (MVM_str_hash_at_end(tc, hashtable, body->hash_state.curr))
                 MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
-            body->hash_state.next = HASH_ITER_NEXT_ITEM(tc,
-                &(body->hash_state.next->hash_handle),
-                &(body->hash_state.bucket_state));
+            body->hash_state.next = MVM_str_hash_next_nocheck(tc, hashtable, body->hash_state.curr);
             value->o = root;
             return;
         default:
@@ -221,13 +239,9 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
             iterator = (MVMIter *)MVM_repr_alloc_init(tc,
                 MVM_hll_current(tc)->hash_iterator_type);
             iterator->body.mode = MVM_ITER_MODE_HASH;
-            iterator->body.hash_state.bucket_state = 0;
-            iterator->body.hash_state.curr         = NULL;
-            iterator->body.hash_state.next         = HASH_ITER_FIRST_ITEM(
-                ((MVMHash *)target)->body.hash_head
-                    ? ((MVMHash *)target)->body.hash_head->hash_handle.tbl
-                    : NULL,
-                &(iterator->body.hash_state.bucket_state));
+            MVMStrHashTable *hashtable = &(((MVMHash *)target)->body.hashtable);
+            iterator->body.hash_state.curr = MVM_str_hash_start(tc, hashtable);
+            iterator->body.hash_state.next = MVM_str_hash_first(tc, hashtable);
             MVM_ASSIGN_REF(tc, &(iterator->common.header), iterator->body.target, target);
         }
         else if (REPR(target)->ID == MVM_REPR_ID_MVMContext) {
@@ -249,10 +263,10 @@ MVMint64 MVM_iter_istrue(MVMThreadContext *tc, MVMIter *iter) {
         case MVM_ITER_MODE_ARRAY_INT:
         case MVM_ITER_MODE_ARRAY_NUM:
         case MVM_ITER_MODE_ARRAY_STR:
-            return iter->body.array_state.index + 1 < iter->body.array_state.limit ? 1 : 0;
+            return MVM_iter_istrue_array(tc, iter);
             break;
         case MVM_ITER_MODE_HASH:
-            return iter->body.hash_state.next != NULL ? 1 : 0;
+            return MVM_iter_istrue_hash(tc, iter);
             break;
         default:
             MVM_exception_throw_adhoc(tc, "Invalid iteration mode used");
@@ -263,9 +277,24 @@ MVMString * MVM_iterkey_s(MVMThreadContext *tc, MVMIter *iterator) {
     if (REPR(iterator)->ID != MVM_REPR_ID_MVMIter
             || iterator->body.mode != MVM_ITER_MODE_HASH)
         MVM_exception_throw_adhoc(tc, "This is not a hash iterator, it's a %s (%s)", REPR(iterator)->name, MVM_6model_get_debug_name(tc, (MVMObject *)iterator));
-    if (!iterator->body.hash_state.curr)
+
+    MVMStrHashTable *hashtable = &(((MVMHash *)iterator->body.target)->body.hashtable);
+
+#if HASH_DEBUG_ITER
+    struct MVMStrHashTableControl *control = hashtable->table;
+    MVMuint64 ht_id = control ? control->ht_id : 0;
+    if (iterator->body.hash_state.next.owner != ht_id) {
+        MVM_oops(tc, "MVM_itereky_s called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
+                 iterator->body.hash_state.next.owner, ht_id);
+    }
+#endif
+
+    if (MVM_str_hash_at_end(tc, hashtable, iterator->body.hash_state.curr)
+        || MVM_str_hash_at_start(tc, hashtable, iterator->body.hash_state.curr))
         MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
-    return MVM_HASH_KEY(iterator->body.hash_state.curr);
+
+    struct MVMHashEntry *entry = MVM_str_hash_current_nocheck(tc, hashtable, iterator->body.hash_state.curr);
+    return entry->hash_handle.key;
 }
 
 MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator) {
@@ -282,9 +311,22 @@ MVMObject * MVM_iterval(MVMThreadContext *tc, MVMIter *iterator) {
         REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &result, MVM_reg_obj);
     }
     else if (iterator->body.mode == MVM_ITER_MODE_HASH) {
-        if (!iterator->body.hash_state.curr)
+        MVMStrHashTable *hashtable = &(((MVMHash *)iterator->body.target)->body.hashtable);
+
+#if HASH_DEBUG_ITER
+        struct MVMStrHashTableControl *control = hashtable->table;
+        MVMuint64 ht_id = control ? control->ht_id : 0;
+        if (iterator->body.hash_state.next.owner != ht_id) {
+        MVM_oops(tc, "MVM_iterval called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
+                 iterator->body.hash_state.next.owner, ht_id);
+        }
+#endif
+
+        if (MVM_str_hash_at_end(tc, hashtable, iterator->body.hash_state.curr)
+            || MVM_str_hash_at_start(tc, hashtable, iterator->body.hash_state.curr))
             MVM_exception_throw_adhoc(tc, "You have not advanced to the first item of the hash iterator, or have gone past the end");
-        result.o = iterator->body.hash_state.curr->value;
+        struct MVMHashEntry *entry = MVM_str_hash_current_nocheck(tc, hashtable, iterator->body.hash_state.curr);
+        result.o = entry->value;
         if (!result.o)
             result.o = tc->instance->VMNull;
     }

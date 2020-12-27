@@ -33,17 +33,23 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         if (ss->boxed_primitive == MVM_STORAGE_SPEC_BP_INT) {
             if (ss->bits == 8 || ss->bits == 16 || ss->bits == 32 || ss->bits == 64)
                 repr_data->elem_size = ss->bits / 8;
-            else
+            else {
+                MVM_free(repr_data);
+                st->REPR_data = NULL;
                 MVM_exception_throw_adhoc(tc,
                     "CArray representation can only have 8, 16, 32 or 64 bit integer elements");
+            }
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_NUMERIC;
         }
         else if (ss->boxed_primitive == MVM_STORAGE_SPEC_BP_NUM) {
             if (ss->bits == 32 || ss->bits == 64)
                 repr_data->elem_size = ss->bits / 8;
-            else
+            else {
+                MVM_free(repr_data);
+                st->REPR_data = NULL;
                 MVM_exception_throw_adhoc(tc,
                     "CArray representation can only have 32 or 64 bit floating point elements");
+            }
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_NUMERIC;
         }
         else if (ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR) {
@@ -71,6 +77,8 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             repr_data->elem_size = sizeof(void *);
         }
         else {
+            MVM_free(repr_data);
+            st->REPR_data = NULL;
             MVM_exception_throw_adhoc(tc,
                 "CArray representation only handles attributes of type:\n"
                 "  (u)int8, (u)int16, (u)int32, (u)int64, (u)long, (u)longlong, num32, num64, (s)size_t, bool, Str\n"
@@ -436,6 +444,21 @@ static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
         "Don't know how many elements a C array returned from a library");
 }
 
+static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
+    MVMCArrayREPRData *repr_data = (MVMCArrayREPRData *)st->REPR_data;
+    MVMCArrayBody     *body      = (MVMCArrayBody *)data;
+    MVMuint64 result = 0;
+
+    /* The allocated (or just-pointed-at) memory block */
+    result += body->allocated * repr_data->elem_size;
+
+    /* The array we hold wrapper objects in */
+    if (body->child_objs)
+        result += body->allocated * sizeof(MVMObject *);
+
+    return result;
+}
+
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     st->size = sizeof(MVMCArray);
 }
@@ -519,6 +542,6 @@ static const MVMREPROps CArray_this_repr = {
     NULL, /* spesh */
     "CArray", /* name */
     MVM_REPR_ID_MVMCArray,
-    NULL, /* unmanaged_size */
+    unmanaged_size, /* unmanaged_size */
     NULL, /* describe_refs */
 };

@@ -26,9 +26,12 @@ MVMFixedSizeAlloc * MVM_fixed_size_create(MVMThreadContext *tc) {
 #endif
     MVMFixedSizeAlloc *al = MVM_malloc(sizeof(MVMFixedSizeAlloc));
     al->size_classes = MVM_calloc(MVM_FSA_BINS, sizeof(MVMFixedSizeAllocSizeClass));
-    if ((init_stat = uv_mutex_init(&(al->complex_alloc_mutex))) < 0)
+    if ((init_stat = uv_mutex_init(&(al->complex_alloc_mutex))) < 0) {
+        MVM_free(al->size_classes);
+        MVM_free(al);
         MVM_exception_throw_adhoc(tc, "Failed to initialize mutex: %s",
             uv_strerror(init_stat));
+    }
     al->freelist_spin = 0;
     al->free_at_next_safepoint_overflows = NULL;
 
@@ -174,6 +177,12 @@ static void * alloc_from_global(MVMThreadContext *tc, MVMFixedSizeAlloc *al, MVM
     return alloc_slow_path(tc, al, bin);
 }
 void * MVM_fixed_size_alloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t bytes) {
+    /* This doesn't work with the current code, and it implies the caller is
+     * mighty confused. Hence it's better to flag this up than revise the rest
+     * of this code to hide the real problem. */
+    if (!bytes)
+        MVM_oops(tc, "MVM_fixed_size_alloc request for 0 bytes");
+
 #if FSA_SIZE_DEBUG
     MVMFixedSizeAllocDebug *dbg = MVM_malloc(bytes + sizeof(MVMuint64));
     dbg->alloc_size = bytes;

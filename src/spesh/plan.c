@@ -220,6 +220,9 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
                 break;
             }
         }
+
+        /* Clean up allocated memory. */
+        MVM_free(tuples_used);
     }
 
     /* If we get here, and found no specializations to produce, we can add

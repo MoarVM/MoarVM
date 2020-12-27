@@ -261,7 +261,7 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
                 MVMuint16 *local_types = frame_has_inlines ? maybe_candidate->local_types : frame->body.local_types;
                 operand_size = 2;
                 a("loc_%u_%s", GET_REG(cur_op, 0),
-                    get_typename(local_types[GET_REG(cur_op, 0)]));
+                    local_types ? get_typename(local_types[GET_REG(cur_op, 0)]) : "unknown");
             }
             else if (op_rw == MVM_operand_read_lex || op_rw == MVM_operand_write_lex) {
                 /* lexical operand */
@@ -280,9 +280,15 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
                 /* inefficient, I know. should use a hash. */
                 for (m = 0; m < cu->body.num_frames; m++) {
                     if (get_frame(tc, cu, m) == applicable_frame) {
-                        char *lexname = frame_lexicals ? frame_lexicals[m][idx] : "lex??";
-                        a("lex_Frame_%u_%s_%s", m, lexname,
-                            get_typename(applicable_frame->body.lexical_types[idx]));
+                        if (frame_lexicals) {
+                            char *lexname = frame_lexicals[m][idx];
+                            a("lex_Frame_%u_%s_%s", m, lexname,
+                                get_typename(applicable_frame->body.lexical_types[idx]));
+                        }
+                        else {
+                            a("lex_Frame_%u_lex%d_%s", m, idx,
+                                get_typename(applicable_frame->body.lexical_types[idx]));
+                        }
                     }
                 }
             }
@@ -366,7 +372,6 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 i, j, k;
     char *o = MVM_calloc(s, sizeof(char));
     char ***frame_lexicals = MVM_malloc(sizeof(char **) * cu->body.num_frames);
-    MVMString *name = MVM_string_utf8_decode(tc, tc->instance->VMString, "", 0);
 
     a("\nMoarVM dump of binary compilation unit:\n\n");
 
@@ -420,21 +425,24 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 
     for (k = 0; k < cu->body.num_frames; k++) {
         MVMStaticFrame *frame = get_frame(tc, cu, k);
-        MVMLexicalRegistry *current;
-        char **lexicals;
 
         if (!frame->body.fully_deserialized) {
             MVM_bytecode_finish_frame(tc, cu, frame, 1);
         }
 
-        lexicals = (char **)MVM_malloc(sizeof(char *) * frame->body.num_lexicals);
-        frame_lexicals[k] = lexicals;
+        MVMuint32 num_lexicals = frame->body.num_lexicals;
+        if (num_lexicals) {
+            MVMString **lexical_names_list = frame->body.lexical_names_list;
 
-        HASH_ITER(tc, hash_handle, frame->body.lexical_names, current, {
-            name->body.storage.blob_32 = (MVMint32 *)current->hash_handle.key;
-            name->body.num_graphs      = (MVMuint32)current->hash_handle.keylen / sizeof(MVMGrapheme32);
-            lexicals[current->value]   = MVM_string_utf8_encode_C_string(tc, name);
-        });
+            char **lexicals = (char **)MVM_malloc(sizeof(char *) * num_lexicals);
+            for (j = 0; j < num_lexicals; j++) {
+                lexicals[j]   = MVM_string_utf8_encode_C_string(tc, lexical_names_list[j]);
+            }
+            frame_lexicals[k] = lexicals;
+        }
+        else {
+            frame_lexicals[k] = NULL;
+        }
     }
     for (k = 0; k < cu->body.num_frames; k++) {
         MVMStaticFrame *frame = get_frame(tc, cu, k);

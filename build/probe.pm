@@ -227,6 +227,132 @@ sub static_inline_cross {
     $config->{static_inline} = 'static';
 }
 
+sub thread_local_cross {
+    my ($config) = @_;
+    $config->{has_thread_local} = 0;
+    $config->{thread_local} = "";
+}
+
+sub thread_local_native {
+    my ($config) = @_;
+
+    # We don't need to probe for this on Win32, as UV sets it for us
+    if ($^O eq 'MSWin32') {
+        $config->{has_thread_local} = 0;
+        $config->{thread_local} = "";
+        return;
+    }
+
+    my $restore = _to_probe_dir();
+
+    print ::dots('    probing if your compiler offers thread local storage');
+    my $file = 'thread_local.c';
+    _spew($file, <<'EOT');
+#include <stdio.h>
+#include <stdlib.h>
+#include <pthread.h>
+
+static int plus_one = 1;
+static int minus_one = -1;
+
+THREAD_LOCAL int *minion;
+
+int callback (const void *a, const void *b) {
+    int val_a = *minion * *(const int *)a;
+    int val_b = *minion * *(const int *)b;
+    return val_a < val_b ? -1 : val_a > val_b;
+}
+
+#define SIZE 8
+
+void *thread_function(void *arg) {
+    /* thread local variables should start zeroed in each thread. */
+    if (minion != NULL) {
+        fprintf(stderr, "__thread variable started with %p, should be NULL\n",
+                minion);
+        exit(2);
+    }
+    minion = &minus_one;
+
+    int array[SIZE];
+    unsigned int i;
+    for (i = 0; i < SIZE; ++i) {
+        /* "Hash randomisation" - this array isn't in sorted order: */
+        array[i ^ 5] = i * i;
+    }
+
+    qsort(array, SIZE, sizeof(int), callback);
+
+    int bad = 0;
+    for (i = 0; i < SIZE; ++i) {
+        int want = (SIZE - 1 - i) * (SIZE - 1 - i);
+        int have = array[i];
+        if (want != have) {
+            ++bad;
+            fprintf(stderr, "array[%u] - want %i, have %i\n", i, want, have);
+        }
+    }
+    if (bad)
+        exit(3);
+
+    return NULL;
+}
+
+int main(int argc, char **argv) {
+    if (minion != NULL) {
+        fprintf(stderr, "__thread variable started with %p, should be NULL\n",
+                minion);
+        exit(4);
+    }
+
+    minion = &plus_one;
+
+    pthread_t tid;
+    int result = pthread_create(&tid, NULL, thread_function, NULL);
+    if (result) {
+        fprintf(stderr, "pthread_create failed (%d)\n", result);
+        exit(5);
+    }
+
+    result = pthread_join(tid, NULL);
+    if (result) {
+        fprintf(stderr, "pthread_join failed (%d)\n", result);
+        exit(6);
+    }
+
+    if (minion == NULL) {
+        fprintf(stderr, "__thread variable should not be NULL\n");
+        exit(7);
+    }
+    if (!(minion == &plus_one && *minion == 1)) {
+        fprintf(stderr, "__thread variable should be %d @ %p, not %d @ %p\n",
+                1, &plus_one, *minion, minion);
+        exit(8);
+    }
+
+    return 0;
+}
+EOT
+
+    my @try = qw(_Thread_local __thread);
+
+    my $t_l;
+    while ($t_l = shift @try) {
+        next unless compile($config, 'thread_local', ["THREAD_LOCAL=$t_l"]);
+        last if !system "./thread_local";
+    }
+
+    if ($t_l) {
+        print "$t_l\n";
+        $config->{has_thread_local} = 1;
+        $config->{thread_local} = $t_l;
+    } else {
+        print "it doesn't, so falling back to UV's API\n";
+        $config->{has_thread_local} = 0;
+        $config->{thread_local} = "";
+    }
+}
+
 sub specific_werror {
     my ($config) = @_;
     my $restore = _to_probe_dir();
@@ -481,6 +607,37 @@ EOT
     my $has_pthread_yield = compile($config, 'try') && system('./try') == 0;
     print $has_pthread_yield ? "YES\n": "NO\n";
     $config->{has_pthread_yield} = $has_pthread_yield || 0
+}
+
+sub pthread_setname_np {
+    my ($config) = @_;
+    my $restore = _to_probe_dir();
+    _spew('try.c', <<'EOT');
+#define _GNU_SOURCE
+#include <stdlib.h>
+#include <pthread.h>
+#include <unistd.h>
+#include <string.h>
+
+int main(int argc, char **argv) {
+    char name_target[20];
+    pthread_setname_np(pthread_self(), "testthread");
+    if (pthread_getname_np(pthread_self(), name_target, 20) == 0) {
+        if (strncmp(name_target, "testthread", strlen("testthread")) == 0) {
+            return EXIT_SUCCESS;
+        }
+        else {
+            return EXIT_FAILURE;
+        }
+    }
+    return EXIT_FAILURE;
+}
+EOT
+
+    print ::dots('    probing pthread_setname_np support (optional)');
+    my $has_pthread_setname_np = compile($config, 'try') && system('./try') == 0;
+    print $has_pthread_setname_np ? "YES\n": "NO\n";
+    $config->{has_pthread_setname_np} = $has_pthread_setname_np || 0
 }
 
 sub numbits {

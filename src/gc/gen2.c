@@ -110,7 +110,7 @@ void * MVM_gc_gen2_allocate(MVMGen2Allocator *al, MVMuint32 size) {
 void * MVM_gc_gen2_allocate_zeroed(MVMGen2Allocator *al, MVMuint32 size) {
     void *a = MVM_gc_gen2_allocate(al, size);
     memset(a, 0, size);
-    ((MVMCollectable *)a)->flags = MVM_CF_SECOND_GEN;
+    ((MVMCollectable *)a)->flags2 = MVM_CF_SECOND_GEN;
     return a;
 }
 

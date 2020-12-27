@@ -1,8 +1,7 @@
 struct MVMDLLRegistry {
+    MVMString *hash_key;
     DLLib *lib;
-    MVMString *name;
     AO_t refcount;
-    UT_hash_handle hash_handle;
 };
 
 int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path);

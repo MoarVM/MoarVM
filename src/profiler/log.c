@@ -63,7 +63,7 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
         MVMuint32 i;
         if (ptd->current_call)
             for (i = 0; i < ptd->current_call->num_succ; i++)
-                if (ptd->current_call->succ[i]->sf == sf)
+                if (ptd->staticframe_array[ptd->current_call->succ[i]->sf_idx] == sf)
                     pcn = ptd->current_call->succ[i];
 
         if (MVM_UNLIKELY(!ptd->current_call)) {
@@ -75,7 +75,7 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
              * root call_graph node needs to be created. */
             if (has_confprogs && !ptd->call_graph) {
                 debugprint(DEBUG_LVL(PROFILER_RESULTS), tc, "initialized initial call graph node\n");
-                ptd->call_graph = MVM_calloc(sizeof(MVMProfileCallNode), 1);
+                ptd->call_graph = MVM_calloc(1, sizeof(MVMProfileCallNode));
             }
             /* In that case, we've got to check if the SF in question is
              * desired as an entry point */
@@ -145,10 +145,19 @@ void MVM_profile_log_enter(MVMThreadContext *tc, MVMStaticFrame *sf, MVMuint64 m
         /* If we didn't find a call graph node, then create one and add it to the
          * graph. */
         if (!pcn) {
+            MVMuint32 search;
             if (was_entered_via_confprog)
                 ptd->current_call = ptd->call_graph;
             pcn = make_new_pcn(ptd, current_hrtime);
-            pcn->sf = sf;
+            for (search = 0; search < MVM_VECTOR_ELEMS(ptd->staticframe_array); search++) {
+                if (ptd->staticframe_array[search] == sf) {
+                    break;
+                }
+            }
+            if (search == MVM_VECTOR_ELEMS(ptd->staticframe_array)) {
+                MVM_VECTOR_PUSH(ptd->staticframe_array, sf);
+            }
+            pcn->sf_idx = search;
         }
 
         /* Increment entry counts. */
@@ -197,7 +206,7 @@ void MVM_profile_log_enter_native(MVMThreadContext *tc, MVMObject *nativecallsit
     callbody = MVM_nativecall_get_nc_body(tc, nativecallsite);
     if (ptd->current_call)
         for (i = 0; i < ptd->current_call->num_succ; i++)
-            if (ptd->current_call->succ[i]->sf == NULL)
+            if (ptd->staticframe_array[ptd->current_call->succ[i]->sf_idx] == NULL)
                 if (strcmp(callbody->sym_name,
                            ptd->current_call->succ[i]->native_target_name) == 0) {
                     pcn = ptd->current_call->succ[i];
@@ -267,7 +276,7 @@ void MVM_profile_log_unwind(MVMThreadContext *tc) {
             return;
         lpcn = pcn;
         log_exit(tc, 1);
-    } while (lpcn->sf != tc->cur_frame->static_info);
+    } while (ptd->staticframe_array[lpcn->sf_idx] != tc->cur_frame->static_info);
 }
 
 /* Called when we take a continuation. Leaves the static frames from the point
@@ -294,13 +303,13 @@ MVMProfileContinuationData * MVM_profile_log_continuation_control(MVMThreadConte
                 sfs        = MVM_realloc(sfs, alloc_sfs * sizeof(MVMStaticFrame *));
                 modes      = MVM_realloc(modes, alloc_sfs * sizeof(MVMuint64));
             }
-            sfs[num_sfs]   = pcn->sf;
+            sfs[num_sfs]   = ptd->staticframe_array[pcn->sf_idx];
             modes[num_sfs] = pcn->entry_mode;
             num_sfs++;
 
             lpcn = pcn;
             log_exit(tc, 1);
-        } while (lpcn->sf != cur_frame->static_info);
+        } while (ptd->staticframe_array[lpcn->sf_idx] != cur_frame->static_info);
 
         last_frame = cur_frame;
         cur_frame = cur_frame->caller;
@@ -344,7 +353,7 @@ void log_one_allocation(MVMThreadContext *tc, MVMObject *obj, MVMProfileCallNode
 
     /* See if there's an existing node to update. */
     for (i = 0; i < pcn->num_alloc; i++) {
-        if (pcn->alloc[i].type == what) {
+        if (tc->prof_data->type_array[pcn->alloc[i].type_idx] == what) {
             if (allocation_target == 0)
                 pcn->alloc[i].allocations_interp++;
             else if (allocation_target == 1)
@@ -359,11 +368,33 @@ void log_one_allocation(MVMThreadContext *tc, MVMObject *obj, MVMProfileCallNode
 
     /* No entry; create one. */
     if (pcn->num_alloc == pcn->alloc_alloc) {
-        pcn->alloc_alloc += 8;
-        pcn->alloc = MVM_realloc(pcn->alloc,
-            pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
+        size_t old_alloc = pcn->alloc_alloc;
+        if (pcn->alloc_alloc == 0) {
+            pcn->alloc_alloc++;
+            pcn->alloc = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                    pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
+        }
+        else {
+            pcn->alloc_alloc *= 2;
+            pcn->alloc = MVM_fixed_size_realloc(tc, tc->instance->fsa,
+                    pcn->alloc,
+                    old_alloc * sizeof(MVMProfileAllocationCount),
+                    pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
+        }
     }
-    pcn->alloc[pcn->num_alloc].type        = what;
+    {
+        MVMuint32 search;
+        for (search = 0; search < MVM_VECTOR_ELEMS(tc->prof_data->type_array); search++) {
+            if (tc->prof_data->type_array[search] == what) {
+                break;
+            }
+        }
+        if (search == MVM_VECTOR_ELEMS(tc->prof_data->type_array)) {
+            MVM_VECTOR_PUSH(tc->prof_data->type_array, what);
+        }
+        pcn->alloc[pcn->num_alloc].type_idx    = search;
+    }
+
     pcn->alloc[pcn->num_alloc].allocations_interp = allocation_target == 0;
     pcn->alloc[pcn->num_alloc].allocations_spesh  = allocation_target == 1;
     pcn->alloc[pcn->num_alloc].allocations_jit    = allocation_target == 2;
@@ -403,14 +434,14 @@ void MVM_profiler_log_gc_deallocate(MVMThreadContext *tc, MVMObject *object) {
 
         MVMuint8 dealloc_target = 0;
 
-        if (what->header.flags & MVM_CF_FORWARDER_VALID)
+        if (what->header.flags2 & MVM_CF_FORWARDER_VALID)
             what = (MVMObject *)what->header.sc_forward_u.forwarder;
 
         MVM_ASSERT_NOT_FROMSPACE(tc, what);
 
-        if (item->flags & MVM_CF_SECOND_GEN)
+        if (item->flags2 & MVM_CF_SECOND_GEN)
             dealloc_target = 2;
-        else if (item->flags & MVM_CF_NURSERY_SEEN)
+        else if (item->flags2 & MVM_CF_NURSERY_SEEN)
             dealloc_target = 1;
 
         /* See if there's an existing node to update. */
@@ -428,9 +459,19 @@ void MVM_profiler_log_gc_deallocate(MVMThreadContext *tc, MVMObject *object) {
 
         /* No entry; create one. */
         if (pgc->num_dealloc == pgc->alloc_dealloc) {
-            pgc->alloc_dealloc += 8;
-            pgc->deallocs = MVM_realloc(pgc->deallocs,
-                pgc->alloc_dealloc * sizeof(MVMProfileDeallocationCount));
+            size_t old_alloc = pgc->alloc_dealloc;
+            if (pgc->alloc_dealloc == 0) {
+                pgc->alloc_dealloc++;
+                pgc->deallocs = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                        pgc->alloc_dealloc * sizeof(MVMProfileDeallocationCount));
+            }
+            else {
+                pgc->alloc_dealloc *= 2;
+                pgc->deallocs = MVM_fixed_size_realloc(tc, tc->instance->fsa,
+                        pgc->deallocs,
+                        old_alloc * sizeof(MVMProfileDeallocationCount),
+                        pgc->alloc_dealloc * sizeof(MVMProfileDeallocationCount));
+            }
         }
         pgc->deallocs[pgc->num_dealloc].type                   = what;
         pgc->deallocs[pgc->num_dealloc].deallocs_nursery_fresh = dealloc_target == 0;

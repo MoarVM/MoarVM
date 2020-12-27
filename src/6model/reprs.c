@@ -179,36 +179,31 @@ GCC_DIAG_ON(return-type)
 
 /* Registers a representation. */
 static void register_repr(MVMThreadContext *tc, const MVMREPROps *repr, MVMString *name) {
-    MVMReprRegistry *entry;
+    /* register_core_repr calls us with name NULL. MVM_string_ascii_decode_nt
+     * returns a concrete MVMString, will always pass the
+     * MVM_str_hash_key_is_valid check.
+     * Our other caller has already validated name. */
 
     if (!name)
         name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString,
                 repr->name);
 
-    /* Fill a registry entry. */
-    entry = MVM_malloc(sizeof(MVMReprRegistry));
-    entry->name = name;
-    entry->repr = repr;
-
     /* Enter into registry. */
-    tc->instance->repr_list[repr->ID] = entry;
-    MVM_HASH_BIND(tc, tc->instance->repr_hash, name, entry);
+    tc->instance->repr_vtables[repr->ID] = repr;
+    tc->instance->repr_names[repr->ID] = name;
+    MVM_index_hash_insert_nocheck(tc, &tc->instance->repr_hash, tc->instance->repr_names, repr->ID);
 
-    /* Name and hash key should become a permanent GC root. */
-    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name, "REPR name");
-    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key,
-        "REPR registry hash key");
+    /* Name should become a permanent GC root. */
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&tc->instance->repr_names[repr->ID], "REPR name");
 }
 
 int MVM_repr_register_dynamic_repr(MVMThreadContext *tc, MVMREPROps *repr) {
-    MVMReprRegistry *entry;
-    MVMString *name;
+    MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, repr->name);
 
     uv_mutex_lock(&tc->instance->mutex_repr_registry);
 
-    name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, repr->name);
-    MVM_HASH_GET(tc, tc->instance->repr_hash, name, entry);
-    if (entry) {
+    MVMuint32 idx = MVM_index_hash_fetch_nocheck(tc, &tc->instance->repr_hash, tc->instance->repr_names, name);
+    if (idx != MVM_INDEX_HASH_NOT_FOUND) {
         uv_mutex_unlock(&tc->instance->mutex_repr_registry);
         return 0;
     }
@@ -227,15 +222,25 @@ int MVM_repr_register_dynamic_repr(MVMThreadContext *tc, MVMREPROps *repr) {
     return 1;
 }
 
-#define register_core_repr(name) \
-    register_repr(tc, MVM##name##_initialize(tc), NULL)
+/* Core representations contain their IDs in their MVMREPROps. assert that they
+ * are the order is consistent. */
+
+#define register_core_repr(name) {                              \
+        const MVMREPROps *repr = MVM##name##_initialize(tc);    \
+        assert(repr->ID == tc->instance->num_reprs);            \
+        register_repr(tc, repr, NULL);                          \
+        tc->instance->num_reprs++;                              \
+    }
 
 /* Initializes the representations registry, building up all of the various
  * representations. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc) {
-    tc->instance->repr_list = MVM_malloc(
-            MVM_REPR_MAX_COUNT * sizeof *tc->instance->repr_list);
+    tc->instance->repr_vtables = MVM_malloc(
+            MVM_REPR_MAX_COUNT * sizeof *tc->instance->repr_vtables);
+    tc->instance->repr_names = MVM_malloc(
+            MVM_REPR_MAX_COUNT * sizeof *tc->instance->repr_names);
 
+    tc->instance->num_reprs = 0;
     /* Add all core representations. */
     register_core_repr(String);
     register_core_repr(Array);
@@ -255,6 +260,7 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(Iter);
     register_core_repr(Context);
     register_core_repr(SCRef);
+    register_core_repr(SpeshLog);
     register_core_repr(CallCapture);
     register_core_repr(P6bigint);
     register_core_repr(NFA);
@@ -269,44 +275,42 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(CStr);
     register_core_repr(CArray);
     register_core_repr(CStruct);
-    register_core_repr(CUnion);
     register_core_repr(ReentrantMutex);
     register_core_repr(ConditionVariable);
     register_core_repr(Semaphore);
     register_core_repr(ConcBlockingQueue);
     register_core_repr(AsyncTask);
     register_core_repr(Null);
-    register_core_repr(CPPStruct);
     register_core_repr(NativeRef);
+    register_core_repr(CUnion);
     register_core_repr(MultiDimArray);
+    register_core_repr(CPPStruct);
     register_core_repr(Decoder);
-    register_core_repr(SpeshLog);
     register_core_repr(StaticFrameSpesh);
     register_core_repr(SpeshPluginState);
 
-    tc->instance->num_reprs = MVM_REPR_CORE_COUNT;
-}
-
-static MVMReprRegistry * find_repr_by_name(MVMThreadContext *tc,
-        MVMString *name) {
-    MVMReprRegistry *entry;
-
-    MVM_HASH_GET(tc, tc->instance->repr_hash, name, entry)
-
-    if (entry == NULL) {
-        char *c_name = MVM_string_ascii_encode_any(tc, name);
-        char *waste[] = { c_name, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste, "Lookup by name of unknown REPR: %s",
-            c_name);
-    }
-
-    return entry;
+    assert(tc->instance->num_reprs == MVM_REPR_CORE_COUNT);
 }
 
 /* Get a representation's ID from its name. Note that the IDs may change so
  * it's best not to store references to them in e.g. the bytecode stream. */
 MVMuint32 MVM_repr_name_to_id(MVMThreadContext *tc, MVMString *name) {
-    return find_repr_by_name(tc, name)->repr->ID;
+    if (!MVM_str_hash_key_is_valid(tc, name)) {
+        MVM_str_hash_key_throw_invalid(tc, name);
+    }
+
+    uv_mutex_lock(&tc->instance->mutex_repr_registry);
+    MVMuint32 idx = MVM_index_hash_fetch_nocheck(tc, &tc->instance->repr_hash, tc->instance->repr_names, name);
+    if (idx == MVM_INDEX_HASH_NOT_FOUND) {
+        char *c_name = MVM_string_ascii_encode_any(tc, name);
+        char *waste[] = { c_name, NULL };
+        uv_mutex_unlock(&tc->instance->mutex_repr_registry);
+        MVM_exception_throw_adhoc_free(tc, waste, "Lookup by name of unknown REPR: %s",
+                                       c_name);
+    }
+    uv_mutex_unlock(&tc->instance->mutex_repr_registry);
+
+    return idx;
 }
 
 /* Gets a representation by ID. */
@@ -314,10 +318,11 @@ const MVMREPROps * MVM_repr_get_by_id(MVMThreadContext *tc, MVMuint32 id) {
     if (id >= tc->instance->num_reprs)
         MVM_exception_throw_adhoc(tc, "REPR lookup by invalid ID %" PRIu32, id);
 
-    return tc->instance->repr_list[id]->repr;
+    return tc->instance->repr_vtables[id];
 }
 
 /* Gets a representation by name. */
 const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name) {
-    return find_repr_by_name(tc, name)->repr;
+    MVMuint32 id = MVM_repr_name_to_id(tc, name);
+    return tc->instance->repr_vtables[id];
 }

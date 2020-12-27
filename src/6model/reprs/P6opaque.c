@@ -21,6 +21,13 @@ MVM_STATIC_INLINE void set_obj_at_offset(MVMThreadContext *tc, MVMObject *root, 
     MVM_ASSIGN_REF(tc, &(root->header), *((MVMObject **)location), value);
 }
 
+/* Helper for aligning sizes */
+MVM_STATIC_INLINE void align_to(MVMuint64 *size, MVMuint32 align) {
+    if (*size % align) {
+        *size += align - *size % align;
+    }
+}
+
 /* Helper for finding a slot number. */
 static MVMint64 try_get_slot(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_data, MVMObject *class_key, MVMString *name) {
     if (repr_data->name_to_index_mapping) {
@@ -200,6 +207,30 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     MVM_free(repr_data->gc_cleanup_slots);
 
     MVM_free(st->REPR_data);
+}
+
+/* Frees the representation data.*/
+static void free_repr_data(MVMP6opaqueREPRData *repr_data) {
+    if (repr_data->name_to_index_mapping) {
+        MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
+        while (cur_map_entry->class_key != NULL) {
+            MVM_free(cur_map_entry->names);
+            MVM_free(cur_map_entry->slots);
+            cur_map_entry++;
+        }
+        MVM_free(repr_data->name_to_index_mapping);
+    }
+
+    MVM_free(repr_data->attribute_offsets);
+    MVM_free(repr_data->flattened_stables);
+    MVM_free(repr_data->auto_viv_values);
+    MVM_free(repr_data->unbox_slots);
+    MVM_free(repr_data->gc_obj_mark_offsets);
+    MVM_free(repr_data->initialize_slots);
+    MVM_free(repr_data->gc_mark_slots);
+    MVM_free(repr_data->gc_cleanup_slots);
+
+    MVM_free(repr_data);
 }
 
 /* Helper for complaining about attribute access errors. */
@@ -631,7 +662,7 @@ static void mk_storage_spec(MVMThreadContext *tc, MVMP6opaqueREPRData * repr_dat
 }
 
 /* Compose the representation. */
-static MVMuint16 * allocate_unbox_slots() {
+static MVMuint16 * allocate_unbox_slots(void) {
     MVMuint16 *slots = MVM_malloc(MVM_REPR_MAX_COUNT * sizeof(MVMuint16));
     MVMuint16 i;
     for (i = 0; i < MVM_REPR_MAX_COUNT; i++)
@@ -640,9 +671,10 @@ static MVMuint16 * allocate_unbox_slots() {
 }
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     MVMint64   mro_pos, mro_count, num_parents, total_attrs, num_attrs,
-               cur_slot, cur_type, cur_alloc_addr, cur_obj_attr,
+               cur_slot, cur_type, cur_obj_attr,
                cur_init_slot, cur_mark_slot, cur_cleanup_slot,
                unboxed_type, i;
+    MVMuint64  cur_alloc_addr;
     MVMObject *info;
     MVMP6opaqueREPRData *repr_data;
 
@@ -659,13 +691,13 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
     if (st->REPR_data)
         MVM_exception_throw_adhoc(tc, "Type %s is already composed", MVM_6model_get_stable_debug_name(tc, st));
 
-    /* Allocate the representation data. */
-    repr_data = (MVMP6opaqueREPRData *)MVM_calloc(1, sizeof(MVMP6opaqueREPRData));
-
     /* Find attribute information. */
     info = MVM_repr_at_key_o(tc, info_hash, str_attribute);
     if (MVM_is_null(tc, info))
         MVM_exception_throw_adhoc(tc, "P6opaque: missing attribute protocol in compose of %s", MVM_6model_get_stable_debug_name(tc, st));
+
+    /* Allocate the representation data. */
+    repr_data = (MVMP6opaqueREPRData *)MVM_calloc(1, sizeof(MVMP6opaqueREPRData));
 
     /* In this first pass, we'll loop over the MRO entries, looking for
      * if there is any multiple inheritance and counting the number of
@@ -753,8 +785,14 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             MVMuint32 align;
 
             /* Ensure we have a name. */
-            if (MVM_is_null(tc, name_obj))
+            if (MVM_is_null(tc, name_obj)) {
+                if (num_attrs) {
+                    MVM_free_null(name_map->names);
+                    MVM_free_null(name_map->slots);
+                }
+                free_repr_data(repr_data);
                 MVM_exception_throw_adhoc(tc, "P6opaque: %s missing attribute name for attribute %"PRId64, MVM_6model_get_stable_debug_name(tc, st), i);
+            }
 
             if (REPR(name_obj)->ID == MVM_REPR_ID_MVMString) {
                 MVM_ASSIGN_REF(tc, &(st->header), name_map->names[i], (MVMString *)name_obj);
@@ -800,21 +838,42 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                         /* If it boxes a primitive, note that. */
                         switch (unboxed_type) {
                             case MVM_STORAGE_SPEC_BP_INT:
-                                if (repr_data->unbox_int_slot >= 0)
+                                if (repr_data->unbox_int_slot >= 0) {
+                                    if (num_attrs) {
+                                        MVM_free_null(name_map->names);
+                                        MVM_free_null(name_map->slots);
+                                    }
+                                    MVMint16 unbox_int_slot = repr_data->unbox_int_slot;
+                                    free_repr_data(repr_data);
                                     MVM_exception_throw_adhoc(tc,
-                                        "While composing %s: Duplicate box_target for native int: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), repr_data->unbox_int_slot, i);
+                                        "While composing %s: Duplicate box_target for native int: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), unbox_int_slot, i);
+                                }
                                 repr_data->unbox_int_slot = cur_slot;
                                 break;
                             case MVM_STORAGE_SPEC_BP_NUM:
-                                if (repr_data->unbox_num_slot >= 0)
+                                if (repr_data->unbox_num_slot >= 0) {
+                                    if (num_attrs) {
+                                        MVM_free_null(name_map->names);
+                                        MVM_free_null(name_map->slots);
+                                    }
+                                    MVMint16 unbox_num_slot = repr_data->unbox_num_slot;
+                                    free_repr_data(repr_data);
                                     MVM_exception_throw_adhoc(tc,
-                                        "While composing %s: Duplicate box_target for native num: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), repr_data->unbox_num_slot, i);
+                                        "While composing %s: Duplicate box_target for native num: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), unbox_num_slot, i);
+                                }
                                 repr_data->unbox_num_slot = cur_slot;
                                 break;
                             case MVM_STORAGE_SPEC_BP_STR:
-                                if (repr_data->unbox_str_slot >= 0)
+                                if (repr_data->unbox_str_slot >= 0) {
+                                    if (num_attrs) {
+                                        MVM_free_null(name_map->names);
+                                        MVM_free_null(name_map->slots);
+                                    }
+                                    MVMint16 unbox_str_slot = repr_data->unbox_str_slot;
+                                    free_repr_data(repr_data);
                                     MVM_exception_throw_adhoc(tc,
-                                        "While composing %s: Duplicate box_target for native str: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), repr_data->unbox_str_slot, i);
+                                        "While composing %s: Duplicate box_target for native str: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), unbox_str_slot, i);
+                                }
                                 repr_data->unbox_str_slot = cur_slot;
                                 break;
                             default:
@@ -833,9 +892,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             /* C structure needs careful alignment. If cur_alloc_addr is not
              * aligned to align bytes (cur_alloc_addr % align), make sure it is
              * before we add the next element. */
-            if (cur_alloc_addr % align) {
-                cur_alloc_addr += align - cur_alloc_addr % align;
-            }
+            align_to(&cur_alloc_addr, align);
 
             /* Attribute will live at the current position in the object. */
             repr_data->attribute_offsets[cur_slot] = cur_alloc_addr;
@@ -851,27 +908,57 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
             /* Is it a positional or associative delegate? */
             if (MVM_repr_exists_key(tc, attr_info, str_pos_del)) {
-                if (repr_data->pos_del_slot != -1)
+                if (repr_data->pos_del_slot != -1) {
+                    if (num_attrs) {
+                        MVM_free_null(name_map->names);
+                        MVM_free_null(name_map->slots);
+                    }
+                    MVMint16 pos_del_slot = repr_data->pos_del_slot;
+                    free_repr_data(repr_data);
                     MVM_exception_throw_adhoc(tc,
-                        "While composing %s: Duplicate positional delegate attributes: %d and %"PRId64"", MVM_6model_get_stable_debug_name(tc, st), repr_data->pos_del_slot, cur_slot);
+                        "While composing %s: Duplicate positional delegate attributes: %d and %"PRId64"", MVM_6model_get_stable_debug_name(tc, st), pos_del_slot, cur_slot);
+                }
                 if (unboxed_type == MVM_STORAGE_SPEC_BP_NONE)
                     repr_data->pos_del_slot = cur_slot;
-                else
+                else {
+                    if (num_attrs) {
+                        MVM_free_null(name_map->names);
+                        MVM_free_null(name_map->slots);
+                    }
+                    free_repr_data(repr_data);
                     MVM_exception_throw_adhoc(tc,
                         "While composing %s: Positional delegate attribute must be a reference type", MVM_6model_get_stable_debug_name(tc, st));
+                }
             }
             if (MVM_repr_exists_key(tc, attr_info, str_ass_del)) {
-                if (repr_data->ass_del_slot != -1)
+                if (repr_data->ass_del_slot != -1) {
+                    if (num_attrs) {
+                        MVM_free_null(name_map->names);
+                        MVM_free_null(name_map->slots);
+                    }
+                    MVMint16 pos_del_slot = repr_data->pos_del_slot;
+                    free_repr_data(repr_data);
                     MVM_exception_throw_adhoc(tc,
-                        "While composing %s: Duplicate associative delegate attributes: %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), repr_data->pos_del_slot, cur_slot);
+                        "While composing %s: Duplicate associative delegate attributes: %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), pos_del_slot, cur_slot);
+                }
                 if (unboxed_type == MVM_STORAGE_SPEC_BP_NONE)
                     repr_data->ass_del_slot = cur_slot;
-                else
+                else {
+                    if (num_attrs) {
+                        MVM_free_null(name_map->names);
+                        MVM_free_null(name_map->slots);
+                    }
+                    free_repr_data(repr_data);
                     MVM_exception_throw_adhoc(tc,
                         "While composing %s: Associative delegate attribute must be a reference type", MVM_6model_get_stable_debug_name(tc, st));
+                }
             }
 
-            /* Add the required space for this type. */
+            /* Add the required space for this type.
+             *
+             * Note: This is the only place in this function where cur_alloc_addr can
+             * become unaligned.
+             */
             cur_alloc_addr += bits / 8;
 
             /* Increment slot count. */
@@ -882,8 +969,11 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
         cur_type++;
     }
 
+    align_to(&cur_alloc_addr, ALIGNOF(void *));
+
     /* Add allocated amount for body to have total object size. */
     st->size = sizeof(MVMP6opaque) + (cur_alloc_addr - sizeof(MVMP6opaqueBody));
+    MVM_ASSERT_ALIGNED(st->size, ALIGNOF(void *));
 
     /* Add sentinels/counts. */
     repr_data->gc_obj_mark_offsets_count = cur_obj_attr;
@@ -903,7 +993,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     /* To calculate size, we need number of attributes and to know about
      * anything flattend in. */
     MVMint64  num_attributes = MVM_serialization_read_int(tc, reader);
-    MVMuint32 cur_offset = sizeof(MVMP6opaque);
+    MVMuint64 cur_offset = sizeof(MVMP6opaque);
     MVMint64  i;
     for (i = 0; i < num_attributes; i++) {
         if (MVM_serialization_read_int(tc, reader)) {
@@ -911,20 +1001,23 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
             const MVMStorageSpec *ss = st->REPR->get_storage_spec(tc, st);
             if (ss->inlineable) {
                 /* TODO: Review if/when we get sub-byte things. */
-                if (cur_offset % ss->align) {
-                    cur_offset += ss->align - cur_offset % ss->align;
-                }
+                align_to(&cur_offset, (MVMuint32)ss->align);
                 cur_offset += ss->bits / 8;
             }
-            else
+            else {
+                align_to(&cur_offset, ALIGNOF(MVMObject *));
                 cur_offset += sizeof(MVMObject *);
+            }
         }
         else {
+            align_to(&cur_offset, ALIGNOF(MVMObject *));
             cur_offset += sizeof(MVMObject *);
         }
     }
 
+    align_to(&cur_offset, ALIGNOF(void *));
     st->size = cur_offset;
+    MVM_ASSERT_ALIGNED(st->size, ALIGNOF(void *));
 }
 
 /* Serializes the REPR data. */
@@ -932,9 +1025,11 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMuint16 i, num_classes;
 
-    if (!repr_data)
+    if (!repr_data) {
+        MVM_gc_allocate_gen2_default_clear(tc);
         MVM_exception_throw_adhoc(tc,
             "Representation for %s must be composed before it can be serialized", MVM_6model_get_stable_debug_name(tc, st));
+    }
 
     MVM_serialization_write_int(tc, writer, repr_data->num_attributes);
 
@@ -1000,10 +1095,11 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 
 /* Deserializes representation data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMuint16 i, j, num_classes, cur_offset;
+    MVMuint16 i, j, num_classes;
+    MVMuint64 cur_offset;
     MVMint16 cur_initialize_slot, cur_gc_mark_slot, cur_gc_cleanup_slot;
 
-    MVMP6opaqueREPRData *repr_data = MVM_malloc(sizeof(MVMP6opaqueREPRData));
+    MVMP6opaqueREPRData *repr_data = MVM_calloc(1, sizeof(MVMP6opaqueREPRData));
 
     repr_data->num_attributes = (MVMuint16)MVM_serialization_read_int(tc, reader);
 
@@ -1035,12 +1131,17 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
         for (i = 0; i < repr_data->num_attributes; i++) {
             MVMuint16 repr_id = MVM_serialization_read_int(tc, reader);
             MVMuint16 slot = MVM_serialization_read_int(tc, reader);
-            if (slot > repr_data->num_attributes)
-                MVM_exception_throw_adhoc(tc, "Serialization error: P6opaque's unbox slot out of range (slot %d > %d attributes).", slot, repr_data->num_attributes);
+            if (slot > repr_data->num_attributes) {
+                MVMuint16 num_attributes = repr_data->num_attributes;
+                free_repr_data(repr_data);
+                MVM_exception_throw_adhoc(tc, "Serialization error: P6opaque's unbox slot out of range (slot %d > %d attributes).", slot, num_attributes);
+            }
             if (repr_id < MVM_REPR_MAX_COUNT)
                 repr_data->unbox_slots[repr_id] = slot;
-            else
-                MVM_exception_throw_adhoc(tc, "Serialization error: P6opaque's unbox slot repr id out of range.");
+            else {
+                free_repr_data(repr_data);
+                MVM_exception_throw_adhoc(tc, "Serialization error: P6opaque's unbox slot repr id out of range (repr id %d >= %d).", repr_id, MVM_REPR_MAX_COUNT);
+            }
         }
     } else {
         repr_data->unbox_slots = NULL;
@@ -1087,6 +1188,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     cur_gc_cleanup_slot = 0;
     for (i = 0; i < repr_data->num_attributes; i++) {
         if (repr_data->flattened_stables[i] == NULL) {
+            align_to(&cur_offset, ALIGNOF(MVMObject *));
             /* Store position. */
             repr_data->attribute_offsets[i] = cur_offset;
 
@@ -1110,12 +1212,11 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
                 repr_data->gc_cleanup_slots[cur_gc_cleanup_slot++] = i;
 
             if (spec->align == 0) {
+                free_repr_data(repr_data);
                 MVM_exception_throw_adhoc(tc, "Serialization error: Storage Spec of P6opaque must not have align set to 0.");
             }
 
-            if (cur_offset % spec->align) {
-                cur_offset += spec->align - cur_offset % spec->align;
-            }
+            align_to(&cur_offset, spec->align);
 
             repr_data->attribute_offsets[i] = cur_offset;
 
@@ -1123,6 +1224,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
             cur_offset += spec->bits / 8;
         }
     }
+    assert(cur_offset <= st->size + sizeof(MVMP6opaqueBody) - sizeof(MVMP6opaque));
     repr_data->initialize_slots[cur_initialize_slot] = -1;
     repr_data->gc_mark_slots[cur_gc_mark_slot] = -1;
     repr_data->gc_cleanup_slots[cur_gc_cleanup_slot] = -1;
@@ -1696,6 +1798,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 !(st->mode_flags & MVM_FINALIZE_TYPE)) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_int_slot];
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6bigint) {
+                MVMSpeshFacts *value_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+
                 /* Turn into a sp_fastbox_bi[_ic] instruction. */
                 MVMint32 int_cache_type_idx = MVM_intcache_type_index(tc, st->WHAT);
                 MVMSpeshFacts *tgt_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
@@ -1712,11 +1816,15 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 ins->operands[4] = orig_operands[1];
                 ins->operands[5].lit_i16 = (MVMint16)int_cache_type_idx;
                 MVM_spesh_usages_delete_by_reg(tc, g, orig_operands[2], ins);
-                tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
+                tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_KNOWN_BOX_SRC;
                 tgt_facts->type = st->WHAT;
 
                 MVM_spesh_graph_add_comment(tc, g, ins, "box_i into a %s",
                         MVM_6model_get_stable_debug_name(tc, st));
+
+                if (value_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                    MVM_spesh_graph_add_comment(tc, g, ins, "could have made literal");
+                }
             }
         }
         break;
@@ -1739,7 +1847,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 MVM_spesh_graph_add_comment(tc, g, fastcreate, "box_n into a %s",
                         MVM_6model_get_stable_debug_name(tc, st));
 
-                tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
+                tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_KNOWN_BOX_SRC;
                 tgt_facts->type = st->WHAT;
 
                 /* Change instruction to a bind. */
@@ -1757,6 +1865,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 !(st->mode_flags & MVM_FINALIZE_TYPE)) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_str_slot];
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6str) {
+                MVMSpeshFacts *value_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+
                 /* Prepend a fastcreate instruction. */
                 MVMSpeshIns *fastcreate = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
                 MVMSpeshFacts *tgt_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
@@ -1771,7 +1881,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 MVM_spesh_graph_add_comment(tc, g, fastcreate, "box_s into a %s",
                         MVM_6model_get_stable_debug_name(tc, st));
 
-                tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
+                tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_KNOWN_BOX_SRC;
                 tgt_facts->type = st->WHAT;
 
                 /* Change instruction to a bind. */
@@ -1781,6 +1891,10 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 ins->operands[1].lit_i16 = sizeof(MVMObject) +
                     repr_data->attribute_offsets[repr_data->unbox_str_slot];
                 MVM_spesh_usages_add_by_reg(tc, g, ins->operands[0], ins);
+
+                if (value_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                    MVM_spesh_graph_add_comment(tc, g, ins, "would have known literal value");
+                }
             }
         }
         break;
@@ -1789,12 +1903,61 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         if (repr_data->unbox_int_slot >= 0) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_int_slot];
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6bigint) {
-                MVMSpeshOperand *orig_operands = ins->operands;
-                ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_bi);
-                ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-                ins->operands[0] = orig_operands[0];
-                ins->operands[1] = orig_operands[1];
-                ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_int_slot];
+                MVMSpeshFacts *facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
+                int have_value = 0;
+                MVMint64 value;
+
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && IS_CONCRETE(facts->value.o)) {
+                    /* Effectively this is the call chain for
+                     * MVM_repr_get_int(tc, facts->value.o)
+                     * inlined all the way to P6bigint.c:mp_get_int64
+                     * We have to do this because that will throw for an out of
+                     * range integer, whereas we need to handle that case here.
+                     */
+                    void * data = OBJECT_BODY(facts->value.o);
+                    data = MVM_p6opaque_real_data(tc, data);
+                    MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot]);
+
+                    if (MVM_BIGINT_IS_BIG(body)) {
+                        mp_int *i = body->u.bigint;
+                        const int bits = mp_count_bits(i);
+                        if (bits <= 63) {
+                            MVMuint64 res = mp_get_mag_ull(i);
+                            value = MP_NEG == i->sign ? -res : res;
+                            have_value = 1;
+                        }
+                        else if (bits == 64
+                                 && MP_NEG == i->sign
+                                 && mp_get_mag_ull(i) == 9223372036854775808ULL) {
+                            value = -9223372036854775807ULL - 1;
+                            have_value = 1;
+                        }
+                    }
+                    else {
+                        value = body->u.smallint.value;
+                        have_value = 1;
+                    }
+                }
+
+                if (have_value) {
+                    MVMSpeshFacts *target_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[0]);
+                    MVM_spesh_graph_add_comment(tc, g, ins, "unboxed literal to value %ld", value);
+                    ins->info = MVM_op_get_op(MVM_OP_const_i64);
+                    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+                    ins->operands[1].lit_i64 = value;
+                    target_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+                    target_facts->value.i = value;
+                }
+                else {
+                    MVMSpeshOperand *orig_operands = ins->operands;
+                    MVM_spesh_graph_add_comment(tc, g, ins, "%s a %s",
+                        ins->info->name, MVM_6model_get_stable_debug_name(tc, st));
+                    ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_bi);
+                    ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                    ins->operands[0] = orig_operands[0];
+                    ins->operands[1] = orig_operands[1];
+                    ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_int_slot];
+                }
             }
         }
         break;
@@ -1803,12 +1966,27 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         if (repr_data->unbox_num_slot >= 0) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_num_slot];
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6num) {
-                MVMSpeshOperand *orig_operands = ins->operands;
-                ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_n);
-                ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-                ins->operands[0] = orig_operands[0];
-                ins->operands[1] = orig_operands[1];
-                ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_num_slot];
+                MVMSpeshFacts *facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && IS_CONCRETE(facts->value.o)) {
+                    MVMnum64 result = MVM_repr_get_num(tc, facts->value.o);
+                    MVMSpeshFacts *target_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[0]);
+                    MVM_spesh_graph_add_comment(tc, g, ins, "unboxed literal to value %f", result);
+                    ins->info = MVM_op_get_op(MVM_OP_const_n64);
+                    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+                    ins->operands[1].lit_n64 = result;
+                    target_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+                    target_facts->value.n = result;
+                }
+                else {
+                    MVMSpeshOperand *orig_operands = ins->operands;
+                    ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_n);
+                    MVM_spesh_graph_add_comment(tc, g, ins, "%s a %s",
+                        ins->info->name, MVM_6model_get_stable_debug_name(tc, st));
+                    ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                    ins->operands[0] = orig_operands[0];
+                    ins->operands[1] = orig_operands[1];
+                    ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_num_slot];
+                }
             }
         }
         break;
@@ -1817,12 +1995,27 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         if (repr_data->unbox_str_slot >= 0) {
             MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_str_slot];
             if (embedded_st->REPR->ID == MVM_REPR_ID_P6str) {
-                MVMSpeshOperand *orig_operands = ins->operands;
-                ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_s);
-                ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-                ins->operands[0] = orig_operands[0];
-                ins->operands[1] = orig_operands[1];
-                ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_str_slot];
+                MVMSpeshFacts *facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && IS_CONCRETE(facts->value.o)) {
+                    MVMString *result = MVM_repr_get_str(tc, facts->value.o);
+                    MVMSpeshFacts *target_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[0]);
+                    MVM_spesh_graph_add_comment(tc, g, ins, "unboxed literal string", result);
+                    ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+                    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+                    ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)result);
+                    target_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+                    target_facts->value.s = result;
+                }
+                else {
+                    MVMSpeshOperand *orig_operands = ins->operands;
+                    MVM_spesh_graph_add_comment(tc, g, ins, "%s a %s",
+                        ins->info->name, MVM_6model_get_stable_debug_name(tc, st));
+                    ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_s);
+                    ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                    ins->operands[0] = orig_operands[0];
+                    ins->operands[1] = orig_operands[1];
+                    ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_str_slot];
+                }
             }
         }
         break;
@@ -1942,9 +2135,11 @@ MVMuint32 MVM_p6opaque_offset_to_attr_idx(MVMThreadContext *tc, MVMObject *type,
 #ifdef DEBUG_HELPERS
 /* This is meant to be called in a debugging session and not used anywhere else.
  * Please don't delete. */
+MVM_VECTOR_DECL(MVMObject*, dump_p6opaque_seen);
 static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)STABLE(obj)->REPR_data;
     MVMP6opaqueBody *data = MVM_p6opaque_real_data(tc, OBJECT_BODY(obj));
+    MVM_VECTOR_PUSH(dump_p6opaque_seen, obj);
     if (repr_data) {
         MVMint16 const num_attributes = repr_data->num_attributes;
         MVMint16 cur_attribute = 0;
@@ -1977,14 +2172,36 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
                             MVMObject *value = get_obj_at_offset(data, offset);
                             if (value != NULL && REPR(value)->ID == MVM_REPR_ID_P6opaque) {
                                 fprintf(stderr, "=");
-                                dump_p6opaque(tc, value, 1);
+                                size_t i = 0;
+                                int recurse = 1;
+                                for (; i < MVM_VECTOR_ELEMS(dump_p6opaque_seen); i++)
+                                    if (dump_p6opaque_seen[i] == value)
+                                        recurse = 0;
+                                if (recurse)
+                                    dump_p6opaque(tc, value, 1);
+                                else
+                                    fprintf(stderr, "<already seen>");
+                            }
+                            if (value != NULL && REPR(value)->ID == MVM_REPR_ID_MVMCode) {
+                                MVMCode *code = (MVMCode*)value;
+                                MVMStaticFrame *sf = code->body.sf;
+                                fprintf(
+                                    stderr,
+                                    "=%p %s (%s/cuuid %s)",
+                                    code,
+                                    code->body.name ? MVM_string_utf8_maybe_encode_C_string(tc, code->body.name) : "<null>",
+                                    sf->body.name   ? MVM_string_utf8_maybe_encode_C_string(tc, sf->body.name)   : "<null>",
+                                    sf->body.cuuid  ? MVM_string_utf8_maybe_encode_C_string(tc, sf->body.cuuid)  : "<null>"
+                                );
                             }
                         }
                         else {
                             if (attr_st->REPR->ID == MVM_REPR_ID_P6str) {
-                                char * const str = MVM_string_utf8_encode_C_string(tc, (MVMString *)get_obj_at_offset(data, offset));
-                                fprintf(stderr, "='%s'", str);
-                                MVM_free(str);
+                                MVMString *str = (MVMString *)get_obj_at_offset(data, offset);
+                                char * const c_str = str ? MVM_string_utf8_encode_C_string(tc, str) : "<null>";
+                                fprintf(stderr, "='%s'", c_str);
+                                if (str)
+                                    MVM_free(c_str);
                             }
                             else if (attr_st->REPR->ID == MVM_REPR_ID_P6int) {
                                 MVMint64 val = attr_st->REPR->box_funcs.get_int(tc, attr_st, obj, (char *)data + offset);
@@ -2013,6 +2230,8 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
 }
 
 void MVM_dump_p6opaque(MVMThreadContext *tc, MVMObject *obj) {
+    MVM_VECTOR_INIT(dump_p6opaque_seen, 8);
     dump_p6opaque(tc, obj, 0);
+    MVM_VECTOR_DESTROY(dump_p6opaque_seen);
 }
 #endif

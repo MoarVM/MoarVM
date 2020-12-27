@@ -8,12 +8,12 @@
  * run - even a nursery only one - since somewhere it has references
  * to a nursery object. */
 void MVM_gc_write_barrier_hit(MVMThreadContext *tc, MVMCollectable *update_root) {
-    if (!(update_root->flags & MVM_CF_IN_GEN2_ROOT_LIST))
+    if (!(update_root->flags2 & MVM_CF_IN_GEN2_ROOT_LIST))
         MVM_gc_root_gen2_add(tc, update_root);
 }
 void MVM_gc_write_barrier_hit_by(MVMThreadContext *tc, MVMCollectable *update_root,
                                  MVMCollectable *referenced) {
-    if (!(update_root->flags & MVM_CF_IN_GEN2_ROOT_LIST))
+    if (!(update_root->flags2 & MVM_CF_IN_GEN2_ROOT_LIST))
         MVM_gc_root_gen2_add(tc, update_root);
-    referenced->flags |= MVM_CF_REF_FROM_GEN2;
+    referenced->flags2 |= MVM_CF_REF_FROM_GEN2;
 }

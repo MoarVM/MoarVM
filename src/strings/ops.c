@@ -280,9 +280,11 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
                 );
                 break;
             }
-            default:
+            default: {
+                MVM_free(result->body.storage.blob_8);
                 MVM_exception_throw_adhoc(tc,
                     "Internal error, string corruption in iterate_gi_into_string\n");
+            }
             }
             result_pos += to_copy;
             if (result_graphs <= result_pos || !MVM_string_gi_has_more_strands_rep(tc, gi)) {
@@ -322,9 +324,11 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
                     );
                     break;
                 }
-                default:
+                default: {
+                    MVM_free(result->body.storage.blob_32);
                     MVM_exception_throw_adhoc(tc,
                         "Internal error, string corruption in iterate_gi_into_string\n");
+                }
             }
             result_pos += to_copy;
             if (result_graphs <= result_pos || !MVM_string_gi_has_more_strands_rep(tc, gi)) {
@@ -810,7 +814,7 @@ static MVMString * string_from_strand_at_index(MVMThreadContext *tc, MVMString *
     return MVM_string_substring(tc, ss->blob_string, ss->start, ss->end - ss->start);
 }
 
-static MVMuint16 final_strand_match_with_repetition_count(MVMThreadContext *tc, MVMString *a, MVMString *b) {
+static MVMuint32 final_strand_match_with_repetition_count(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     if (a->body.storage_type == MVM_STRING_STRAND) {
         MVMStringStrand *sa = &(a->body.storage.strands[a->body.num_strands - 1]);
         /* If the final strand of a eq b, we'll just increment the final strand of a's repetitions. */
@@ -847,7 +851,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     int lost_strands          = 0;
     int is_concat_stable      = 0;
     int index_ss_b;
-    MVMuint16 matching_repetition_count;
+    MVMuint32 matching_repetition_count;
     MVM_string_check_arg(tc, a, "concatenate");
     MVM_string_check_arg(tc, b, "concatenate");
 
@@ -1242,10 +1246,10 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
         if (H_offset < 0)
             H_offset = 0; /* XXX I think this is the right behavior here */
     }
-    /* If the offset is greater or equal to the number of Haystack graphemes
-     * return 0. Since size of graphemes could change under casefolding, we
+    /* If the offset is greater to the number of Haystack graphemes return 0.
+     * Since size of graphemes could change under casefolding, we
      * can't assume too much. If optimizing this be careful */
-    if (H_graphs <= H_offset)
+    if (H_graphs < H_offset)
         return 0;
     MVMROOT(tc, Haystack, {
         needle_fc = ignorecase ? MVM_string_fc(tc, needle) : needle;
@@ -1785,8 +1789,6 @@ MVMObject * MVM_string_encode_to_buf_config(MVMThreadContext *tc, MVMString *s, 
     }
     if (!elem_size)
         MVM_exception_throw_adhoc(tc, "encode requires a native int array");
-    if (((MVMArray *)buf)->body.slots.any)
-        MVM_exception_throw_adhoc(tc, "encode requires an empty array");
 
     /* At least find_encoding may allocate on first call, so root just
      * in case. */
@@ -1797,10 +1799,19 @@ MVMObject * MVM_string_encode_to_buf_config(MVMThreadContext *tc, MVMString *s, 
     });
 
     /* Stash the encoded data in the VMArray. */
-    ((MVMArray *)buf)->body.slots.i8 = (MVMint8 *)encoded;
-    ((MVMArray *)buf)->body.start    = 0;
-    ((MVMArray *)buf)->body.ssize    = output_size / elem_size;
-    ((MVMArray *)buf)->body.elems    = output_size / elem_size;
+    if (((MVMArray *)buf)->body.slots.any) {
+        MVMuint32 prev_elems = ((MVMArray *)buf)->body.elems;
+        MVM_repr_pos_set_elems(tc, buf, ((MVMArray *)buf)->body.elems + output_size / elem_size);
+        memmove(((MVMArray *)buf)->body.slots.i8 + prev_elems, (MVMint8 *)encoded, output_size);
+        MVM_free(encoded);
+    }
+    else {
+        ((MVMArray *)buf)->body.slots.i8 = (MVMint8 *)encoded;
+        ((MVMArray *)buf)->body.start    = 0;
+        ((MVMArray *)buf)->body.ssize    = output_size / elem_size;
+        ((MVMArray *)buf)->body.elems    = output_size / elem_size;
+    }
+
     return buf;
 }
 MVMObject * MVM_string_encode_to_buf(MVMThreadContext *tc, MVMString *s, MVMString *enc_name,
@@ -2060,7 +2071,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     }
     result->body.num_graphs = total_graphs;
 
-    MVMROOT(tc, result, {
+    MVMROOT2(tc, result, separator, {
     /* If the separator and pieces are all strands, and there are
      * on average at least 16 graphemes in each of the strands. */
     if (all_strands && total_strands <  MVM_STRING_MAX_STRANDS
@@ -2318,9 +2329,6 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
         while (spos_l < s->body.num_graphs)
             rbuffer[--rpos_l] = s->body.storage.blob_8[spos_l++];
 
-        spos += sgraphs - spos;
-        rpos -= sgraphs - spos;
-
         MVMROOT(tc, s, {
             res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         });
@@ -2337,9 +2345,6 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
             MVM_VECTORIZE_LOOP
             while (spos_l < s->body.num_graphs)
                 rbuffer[--rpos_l] = s->body.storage.blob_32[spos_l++];
-
-            spos += sgraphs - spos;
-            rpos -= sgraphs - spos;
         }
         else
             for (; spos < sgraphs; spos++)
@@ -2575,9 +2580,6 @@ MVMString * MVM_string_bitxor(MVMThreadContext *tc, MVMString *a, MVMString *b) 
 #define UPV_Pi MVM_UNICODE_PVALUE_GC_PI
 #define UPV_Pf MVM_UNICODE_PVALUE_GC_PF
 #define UPV_Po MVM_UNICODE_PVALUE_GC_PO
-
-/* concatenating with "" ensures that only literal strings are accepted as argument. */
-#define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
 
 #include "strings/unicode_prop_macros.h"
 /* Checks if the specified grapheme is in the given character class. */
@@ -2835,7 +2837,9 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp) {
     MVMGrapheme32 g;
 
     if (cp < 0)
-        MVM_exception_throw_adhoc(tc, "chr codepoint (%"PRId64") cannot be negative", cp);
+        MVM_exception_throw_adhoc(tc, "chr codepoint %"PRId64" cannot be negative", cp);
+    if (cp > 0x10FFFF)
+        MVM_exception_throw_adhoc(tc, "chr codepoint %"PRId64" (0x%"PRIX64") is out of bounds", cp, cp);
     /* If the codepoint decomposes we may need to normalize it.
      * The first cp that decomposes is U+0340, but to be on the safe side
      * for now we go with the first significant character which at the time
@@ -2871,8 +2875,7 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp) {
 }
 
 /* Takes a string and computes a hash code for it, storing it in the hash code
- * cache field of the string. Hashing code is derived from the Jenkins hash
- * implementation in uthash.h. */
+ * cache field of the string. */
 typedef union {
     MVMuint32 graphs[2];
     MVMuint64 u64;
@@ -2883,7 +2886,7 @@ typedef union {
  * If this isn't set, MVM_MAYBE_TO_LITTLE_ENDIAN_32 does nothing (the default).
  * This would mainly be useful for debugging or if there were some other reason
  * someone cared that hashes were identical on different endian platforms */
-void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
+MVMuint64 MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
 #if defined(MVM_HASH_FORCE_LITTLE_ENDIAN)
     const MVMuint64 key[2] = {
         MVM_MAYBE_TO_LITTLE_ENDIAN_64(tc->instance->hashSecrets[0]),
@@ -2941,5 +2944,5 @@ void MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
             break;
         }
     }
-    s->body.cached_hash_code = hash;
+    return s->body.cached_hash_code = hash;
 }

@@ -79,6 +79,7 @@ be made, they should be numbered as 2041.01.1, 2041.01.2, etc.
 
 16. Commit release to moarvm.org repo and check moarvm.org after 5-10 minutes and
     make sure download works.
+
          cd ../moarvm.org
          git add MoarVM-2018.04.tar.gz MoarVM-2018.tar.gz.asc
          git commit -m "Commit release 2018.08"

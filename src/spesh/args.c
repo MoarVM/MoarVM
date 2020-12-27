@@ -237,7 +237,7 @@ static void slurp_named_arg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
 
     insert_getarg_and_box(tc, g, bb, hash_ins, flags, arg_idx, value_temp);
 
-    /* Insert key fetching instruciton; we just store the string in a spesh
+    /* Insert key fetching instruction; we just store the string in a spesh
      * slot. */
     key_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     key_ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
@@ -275,7 +275,7 @@ static void slurp_positional_arg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 
     insert_getarg_and_box(tc, g, bb, array_ins, flags, pos_idx, value_temp);
 
-    /* Insert index setting instruciton */
+    /* Insert index setting instruction */
     index_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     index_ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
     index_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
@@ -520,6 +520,117 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
             }
         }
 
+        /* Check the argument types of named arguments is something we know how
+         * to handle. */
+        for (i = 0; i < num_named; i++) {
+            /* Get the flag of the passed arg, if any. */
+            MVMString *arg_name       = MVM_spesh_get_string(tc, g, named_ins[i]->operands[1]);
+            MVMint32   cur_idx        = 0;
+            MVMint32   cur_named      = 0;
+            MVMuint8   found_flag     = 0;
+            MVMint32   found_flag_idx = -1;
+            MVMint32   found_idx      = -1;
+            MVMint32   j;
+            for (j = 0; j < cs_flags; j++) {
+                if (cs->arg_flags[j] & MVM_CALLSITE_ARG_NAMED) {
+                    if (MVM_string_equal(tc, arg_name, cs->arg_names[cur_named])) {
+                        /* Found it. */
+                        found_flag_idx = j;
+                        found_flag = cs->arg_flags[j] & MVM_CALLSITE_ARG_MASK;
+                        found_idx  = cur_idx;
+                        break;
+                    }
+                    cur_idx += 2;
+                    cur_named++;
+                }
+                else {
+                    cur_idx++;
+                }
+            }
+
+            /* Now go by op. */
+            switch (named_ins[i]->info->opcode) {
+            case MVM_OP_param_rn_i:
+                if (found_idx == -1) {
+                    MVM_spesh_graph_add_comment(tc, g, named_ins[i],
+                            "bailed argument spesh: required named argument not found!");
+                    goto cleanup;
+                }
+                if (!(found_flag & MVM_CALLSITE_ARG_INT)
+                        && !(found_flag & MVM_CALLSITE_ARG_OBJ
+                            && prim_spec(tc, type_tuple, found_flag_idx) == MVM_STORAGE_SPEC_BP_INT)) {
+                    MVM_spesh_graph_add_comment(tc, g, named_ins[i],
+                            "bailed argument spesh: unhandled coercion");
+                    goto cleanup;
+                }
+                break;
+            case MVM_OP_param_rn_n:
+                if (found_idx == -1) {
+                    MVM_spesh_graph_add_comment(tc, g, named_ins[i],
+                            "bailed argument spesh: required named argument not found!");
+                    goto cleanup;
+                }
+                if (!(found_flag & MVM_CALLSITE_ARG_NUM)
+                        && !(found_flag & MVM_CALLSITE_ARG_OBJ
+                            && prim_spec(tc, type_tuple, found_flag_idx) == MVM_STORAGE_SPEC_BP_NUM)) {
+                    MVM_spesh_graph_add_comment(tc, g, named_ins[i],
+                            "bailed argument spesh: unhandled coercion");
+                    goto cleanup;
+                }
+                break;
+            case MVM_OP_param_rn_s:
+                if (found_idx == -1) {
+                    MVM_spesh_graph_add_comment(tc, g, named_ins[i],
+                            "bailed argument spesh: required named argument not found!");
+                    goto cleanup;
+                }
+                if (!(found_flag & MVM_CALLSITE_ARG_STR)
+                        && !(found_flag & MVM_CALLSITE_ARG_OBJ
+                            && prim_spec(tc, type_tuple, found_flag_idx) == MVM_STORAGE_SPEC_BP_STR)) {
+                    MVM_spesh_graph_add_comment(tc, g, named_ins[i],
+                            "bailed argument spesh: unhandled coercion");
+                    goto cleanup;
+                }
+                break;
+            case MVM_OP_param_rn_o:
+                if (found_idx == -1) {
+                    MVM_spesh_graph_add_comment(tc, g, named_ins[i],
+                            "bailed argument spesh: required named argument not found!");
+                    goto cleanup;
+                }
+                break;
+            case MVM_OP_param_on_i:
+                if (found_idx != -1 && !(found_flag & MVM_CALLSITE_ARG_INT)
+                        && !(found_flag & MVM_CALLSITE_ARG_OBJ
+                            && prim_spec(tc, type_tuple, found_flag_idx) == MVM_STORAGE_SPEC_BP_INT)) {
+                    MVM_spesh_graph_add_comment(tc, g, named_ins[i],
+                            "bailed argument spesh: unhandled coercion");
+                    goto cleanup;
+                }
+                break;
+            case MVM_OP_param_on_n:
+                if (found_idx != -1 && !(found_flag & MVM_CALLSITE_ARG_NUM)
+                        && !(found_flag & MVM_CALLSITE_ARG_OBJ
+                            && prim_spec(tc, type_tuple, found_flag_idx) == MVM_STORAGE_SPEC_BP_NUM)) {
+                    MVM_spesh_graph_add_comment(tc, g, named_ins[i],
+                            "bailed argument spesh: unhandled coercion");
+                    goto cleanup;
+                }
+                break;
+            case MVM_OP_param_on_s:
+                if (found_idx != -1 && !(found_flag & MVM_CALLSITE_ARG_STR)
+                        && !(found_flag & MVM_CALLSITE_ARG_OBJ
+                            && prim_spec(tc, type_tuple, found_flag_idx) == MVM_STORAGE_SPEC_BP_STR)) {
+                    MVM_spesh_graph_add_comment(tc, g, named_ins[i],
+                            "bailed argument spesh: unhandled coercion");
+                    goto cleanup;
+                }
+                break;
+            default:
+                break;
+            }
+        }
+
         /* We can optimize. Toss checkarity. */
         MVM_spesh_manipulate_delete_ins(tc, g, checkarity_bb, checkarity_ins);
 
@@ -671,10 +782,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
             /* Now go by instruction. */
             switch (named_ins[i]->info->opcode) {
             case MVM_OP_param_rn_i:
-                if (found_idx == -1) {
-                    MVM_spesh_graph_add_comment(tc, g, named_ins[i], "bailed argument spesh: required named argument not found!");
-                    goto cleanup;
-                }
                 if (found_flag & MVM_CALLSITE_ARG_INT) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
@@ -689,10 +796,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 named_used++;
                 break;
             case MVM_OP_param_rn_n:
-                if (found_idx == -1) {
-                    MVM_spesh_graph_add_comment(tc, g, named_ins[i], "bailed argument spesh: required named argument not found!");
-                    goto cleanup;
-                }
                 if (found_flag & MVM_CALLSITE_ARG_NUM) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_n);
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
@@ -707,10 +810,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 named_used++;
                 break;
             case MVM_OP_param_rn_s:
-                if (found_idx == -1) {
-                    MVM_spesh_graph_add_comment(tc, g, named_ins[i], "bailed argument spesh: required named argument not found!");
-                    goto cleanup;
-                }
                 if (found_flag & MVM_CALLSITE_ARG_STR) {
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_s);
                     named_ins[i]->operands[1].lit_i16 = found_idx + 1;
@@ -725,10 +824,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 named_used++;
                 break;
             case MVM_OP_param_rn_o:
-                if (found_idx == -1) {
-                    MVM_spesh_graph_add_comment(tc, g, named_ins[i], "bailed argument spesh: required named argument not found!");
-                    goto cleanup;
-                }
                 if (found_flag & MVM_CALLSITE_ARG_OBJ) {
                     MVMuint16 arg_idx = found_idx + 1;
                     named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_o);

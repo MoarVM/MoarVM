@@ -1,3 +1,340 @@
+New in 2020.12
+
+6model:
++ [ce0cbf58,372e4341,ed15b258,1e98d73b,93aae582,93a1ba85,04063d19,
+   d65501b2,1b2867fb,1f695ac6,5048630d,d8ecb325,1dd5b3c7,c544ca9f,
+   897d2e98,3833c31e,9c527362,3ab21b9e,b3fa6df2]
+   Hash allocation as a single memory block
++ [730596d0,62828269,bd6b0b32,6fac5ab2,eb33fb55,c7811142,99aab70e,
+   2b20583f,52a516f6,358e7fd5,491e8dcd,46634be8,b432533e,2913e0ac,
+   30fbd9ab,00f29c72,7d6107e6,a024f543,37c2d2d6,7caffe8a,2e208823,
+   ffb2031b,fecfad19,d9dccf25]
+   Store some hash bits in the low bits of the hashtable metadata byte, with the
+   probe distance in the high bits, and the split between the two updated dynamically
++ [bed0a49f] Early exit gc_mark for VMArray+MVMHash if able
++ [9fbcdb4d] P6opaque's `spesh` must handle P6bigint values inline, as some are too big
++ [4cfde6ed,ac941c0d,8d68b18f] Eliminate static race condition
++ [5a21247e] Improve performance of repeated `unshift` calls
++ [b8653cae] Turn gen2 default allocation off on (de)serialization failures
+
+Core:
++ [5f1712cb,741e6acd,868de8cc,9b9de0ab,60b47f62,175525ce,c2f3e04b,01c0950d]
+  Replace `MVM_box_{int,num,str,uint}` and `MVM_unbox_str` with calls to
+  `MVM_repr_box_{int,num,str,uint}` and `MVM_repr_get_str`
++ [490ee80d] Make curcode OP inlinable
++ [998ea76a]  Calling `MVM_exception_throw_adhoc` in the spesh worker should be an oops
++ [fa9b6659] Use simpler stdio calls in exceptions.c where possible
++ [ec507862] Add `MVM_set_running_threads_context`
++ [0c3a38fa] Move `MVM_{set,get}_running_threads_context` to threadcontext.h
++ [34e06864] Simplify and inline `MVM_nativecall_find_thread_context`
+
+Documentation:
++ [ae5f7ad4] Update some docs to Raku era
+
+JIT:
++ [fbd386a0,7bdfb38b] On Apple Silicon with arch arm64, do not attempt to JIT
++ [3838247e] Add word and byte-sized return value macros to the lego JIT
+
+Math:
++ [70cefcff] Minimally exact bigint/bigint => num conversion, including rounding
+
+Strings:
++ [a6118ff2] New debug helper: `MVM_dump_string`
+
+New in 2020.11
+
+6model:
++ [af9ebffb,ffc8a269,75177470,38a2f815,2e8b5657] Fix interning of parametrics
++ [3c5deb2f] Implement serialize/deserialize of CStr REPR
++ [a37cd763,cbb92b03,dfbdcc9d] Eliminate pointer mismatch warnings on big endian systems
++ [2a98b8f3] MVM_nativeref_{read,write}_lex_i should handle uint8, uint16, uint32
++ [608b90eb] No need to MVMROOT `root` twice in `get_attribute`
+
+Core:
++ [88722e8e] Fix zeroing of reallocated memory in MVM_recalloc
++ [1eda12a0] Use `foo(void)` instead of just `foo()` for functions that take no arguments
+
+Platform:
++ [18e6f94e] Import pthread on Windows to get a type
+
+Strings:
++ [cefec1fb] Regenerate Unicode database files for v13.0, v13.1
++ [2cac07c9] Regenerate unicode_db to fix minor comment difference
++ [4ced726f] Use MVM_{malloc,realloc,calloc,free} consistency
++ [55964708] `swap_bytes` in utf16.c needs to also swap bytes on big endian platforms
+
+Tooling/Build:
++ [f212c081] Update generation scripts for Unicode 13.0, 13.1
++ [004e4bc7] The probe for `pthread_setname_np` needs prototypes from <string.h>
++ [6a2284e6,aa83051a] Report the lines that caused coverage
++ [7167b3d1,56fca429] Remove unused, unneeded and misspelled block filter
+
+New in 2020.10
+
+6model:
++ [fb992950] Add MVM_str_hash_iterator_target_deleted() for HASH_DEBUG_ITER
+
+Core:
++ [df77d3cf] Simplify and optimize isprime_I
++ [8852896d] A more complete fix for the hash max probe distance bug
++ [a27c7882] Make lookup table in MVP_round_up_log_base2() based on uint8_t
++ [0015fd05] Re-instate meaningful hash iterator debugging inside HASH_DEBUG_ITER
++ [60070970] oops if MVM_fixed_size_alloc() is called for a size of 0 bytes
+
+Debug Server:
++ [3c3a24bf] Fix two *printf size warnings reported on ILP32 platforms
+
+IO:
++ [95d21703] Minor optimization of MVM_file_isexecutable on Windows
++ [882dbf04] Add a function to fix up the STD IO handles
+
+Strings:
+
++ [a989f7b5] `char` can be unsigned. Rewrite the "is it ASCII?" test to handle this too
+
+Tooling/Build:
+
++ [dc50eddd] For the pthread_setname_np probe, use an auto char array instead of malloc
++ [4f5787d3] Create a unicode.c with #include directives instead of generating it with cat
+
+New in 2020.09
+
+6model:
++ [497748f7] Split `flags` in struct MVMCollectable into `flags1` and `flags2`
++ [effc5549] P6int: make set_int and get_int globally available
++ [a526f424] Remove tiny indirection from MVMHash_at_key/bind_key
++ [9c6bb7ab] Deserialization: rely on MVMHash being the known repr
++ [f029d3c7] Deserialization: use P6int repr being known in read_ref
++ [88efde45] Deserialization: rely on P6str REPR being known
++ [b37770a7] Deserialization: rely on known REPR in read_array_var/int/str
++ [9caec0fc] Deserialization: rely on knowledge of owned_objects REPR
++ [2dfe1c53] Introduce MVMP6str_get_str and MVMP6str_set_str
++ [429bd31f] Introduce MVM_VMArray_bind_pos
++ [f01930b5] Introduce MVM_VMArray_push
++ [1fdfdf59] Fix endless recursion and segfault in dump_p6opaque
++ [124fe2be] copy_to should call MVM_gc_write_barrier with the *new* key's address
+
+Core:
++ [381e3d69] MVMObjectId.gen2_add is now uintptr_t, instead of an actual pointer
++ [50d3311c] Better specialize boolification of boxed Num
+
+Debug Server:
+
++ [fc9dd762] Reorder alloc/free of `c_key_name` in the debug server
+
+IO:
++ [b243d017] Fix MVM_file_isexecutable() when being root
++ [96d32a1a] Don't duplicate file existence checks
+
+Libraries:
++ [29ce8171] Update libuv to version 1.39.0
+
+Other:
++ [b74b94d5,c61c18a2,2c294cbf,215854f8,040e9d63,2a271e16,aba462b2,
+   3043135c,0418b7af,9b423954,54899926,c3df90ea,07c7b4fe,5e146efb,
+   14d11334,2bf3a4e2,cff7a0cd,1aacf8f4,4af853d7,0f0d2103,ebd07472,
+   9d0f1b32,1b20ca88,2181d48d,e6e5cc90,41175efc,1413f9ce,2cce7319,
+   1ea0e520,04843cb1,a02c8e70,d85f38d8,d359a605,9f83de80,58193f0a,
+   d9c31aef,5660597a,e81219d4,be2f129c,b13d3de8,b08f8d45,f03ba463,
+   287d41eb,bac1ae1c,df72ab3d,d35c6e39,b0dac61c,ba847c25,754490c7,
+   390f30d4,a644e33f,2c7f96c2,282ea895,ac6c5be0,976a070c,0ac64285,
+   8a9586ee,8e24dc61,46d60c7b,3cf44324,6c4ba42f,e541297e,fbfc8a0f,
+   ef6a37b,e3ad7ced,590bac47,322c2e0b,25c70bfe] Introduce new hash implementation based on Robin Hood Hash
++ [8a3857,489ab696,63665640,004ce49c] make moar --dump use memmem to find "MOARVM\r\n" string
+
+Platform:
++ [87ad486f,07721999] Fix MoarVM building on Sparc 64
+
+Profiler:
++ [6441fa6b] Return `MVMHeapSnapshotSeen *` from seen in heapsnapshot.c
+
+Tooling/Build:
++ [c3941772] Add 'macroify_mallocs.p6' script
+
+New in 2020.08
+
+Core:
++ [c0ed9e32] Make extop marks reachable again in MVM_op_get_mark
+
+Debug Server:
++ [b78b523d][2a9f0f06] Implement `FindMethod` op and add a `name` field for it
++ [7a2881a8] Implement simplest case of `decont` op
++ [f6f12f5a] Fix compiler warnings
+
+GC:
++ [da237717] Move MVM_malloc_trim call after MVM_gc_collect_free_gen2_unmarked call
+
+Strings:
++ [393ae579] Fix case insensitive string matching with an empty string
+
+Tooling/Build:
++ [6d5a3b02] Make `Configure.pl` executable again
++ [1f182b48] Add new `Configure.pl` flag `--dtrace` which allows to put DTrace points in the code
+
+New in 2020.07
+
+6model:
++ [32ce5f97] Constant-fold spesh-time-known unbox/decont_n/s
+
+Core:
++ [44504309,8e75378f,1d52655e,d564695f] Introduce the setthreadname op
+
+Debug Server:
++ [707f6ce7,12780324] Debugserver Protocol 1.2: add thread "name" field
+
+GC:
++ [06d8cdd1] Fix compiler warning in GC debug code
+
+JIT:
++ [19374884] Add JIT templates for return_(i|n|s)
+
+Other:
++ [a4cb0c51,2a3290df,183becd2,0a0a9ba9,953bac6c] Give io loop thread and spesh thread a name
+
+Spesh:
++ [9a9ca434] Propagate facts in set elimination in one more case
++ [af5b89b6] Give known type flag when turning return to box in inline
+
+Unicode:
++ [e5d597d1] Eliminate $annotate_anyway, which is no longer used
++ [1d00a2b5] Don't add placeholders such as "<control>" to the Unicode names lookup hash
++ [07dbc19a] Don't change the name to NULL (occasionally, if it starts with '<')
++ [0369f512] Unwrap the generated codepoint_names to one entry per line
++ [cfe6ed8f] Consistent whitespace for the initialiser for codepoint_bitfield_indexes
++ [23dfde97] Fix building on older compilers by explicitly stating gnu99 usage
++ [67c8413f] Fix ucd2c.pl script error propagation
+
+Tooling/Build:
++ [0c651c23] Fix downloading of Unicode data
+
+New in 2020.06
+
+6model:
++ [e4ff69495] Setup inlined CStruct assigned during construction
++ [57c8bb84e] Fix CStruct handling of inlined attributes
++ [55ee90b17][a5061624d] Add MVM_HASH_(BIND|GET)_FREE macros
++ [3149bbb4f] find_repr_by_name now holds mutex_repr_registry when reading repr_hash
++ [c70587551] Where possible, iterate over lexical_names_list instead of lexical_names
++ [290f518af] Free REPR data before throws and where appropriate, set `st->REPR_data` to NULL
++ [7a799da87] Copy lexical_names_list when copying a StaticFrame
++ [2922f3d1a] mutex_container_registry is held while reading from container_registry
++ [3fe584876] Use correct encoding for deserializing strings
++ [4d0da364d] Wrap all access to lexical_names with MVM_get_lexical_by_name
++ [3658e4cd1] Don't make a lookup hash for lexical names for frames with few lexicals
+
+Core:
++ [de8955822] Fix segfault in bytecode dumper when local_types is NULL
++ [72f720788] Move check (return value+exit handler) earlier
++ [c1c25e33f] Remove the unused `tc` parameter of cleanup_all
++ [17969cfb5] Remove redundant if when reading bytecode
++ [396c90039] Don't obliterate lib_name in exception text of NativeCall
++ [9e12424fb] Show index of outer lexials in bytecode dump instead of ??
++ [520c35124] Allow for explicitly marking the mainline_frame in the bytecode
++ [5d98d8eb6] Remove name assignment in struct MVMDLLRegistry
+
+GC:
++ [1a46b0ae7] Possibly fix MVM_panic from entering GC during spesh
+
+IO:
++ [ee8f3af70] Always handle proc exec arguments verbatim on Windows
++ [780271899] Fix reading closed dir handles on Windows
++ [157387214] Fix closing a dir never read from on Windows
+
+JIT:
++ [7f33af885] JIT atpos/bindpos for known i64 array
++ [680a8cc72] Remove prof_enter JIT template
++ [9b60b37ca] JIT getcurhllsym and gethllsym
+
+Libraries:
++ [6ab7dab5f] Backport a change in libtommath to fix build on x86 Windows
++ [a4b195936] Update libuv to version 1.38.0
+
+Other:
++ [8eb552323] Fix some possible double frees
++ [565e55ce1] Fix the order of some MVM_calloc arguments
++ [3f6e6582e] Convert MVM_free+NULL to MVM_free_null
++ [f47e6ee5a][6cf18281d][c1c25e33f][8cd9ca87c][e736c1fb8]
+  Free memory that had been allocated before a throw
++ [aeec50e0a] Simplify counting of lexical_names
++ [1bad1eff6] Simplify some MVM_string_ascii_encode calls
++ [9c758d5eb] Fix duplication of lists when MAST::Frames get written to bytecode multiple times
++ [a7f988940] Add methods WHICH and raku to MAST::Frame for easier debugging
++ [995c70ca8] Allow for MAST::CompUnit to share its lists with an outer compilation
++ [6c7ee4e8f] Add a method for clearing a cached index on a MAST::Frame
++ [c177e85cc] Remove two unused variables
+
+Profiler:
++ [a48790029] Use FSA for alloc and dealloc counts
++ [2041902da] Remove a major source of space waste from alloc counts growth
++ [269d307a8] Add a layer of indirection between call graph and types/sf
++ [03c9154e8] Remove commented out profiler code
+
+Spesh:
++ [9b60b37ca][af1475ec1] Spesh getcurhllsym and gethllsym
++ [12c7a44a8] Simplify MVMLexicalRegistry code
+
+Tooling/Build:
++ [fc7922e5e][42a2424ba][eacb89a27][631008c61][932f5c208][b8506d45a]
+  [ac94564c7][a99ab1e4f][852576e7d] Add an AzureCI test setup
++ [bc904b8bd][0257ecac4][0dc625f18]
+  Add a new GCC plugin to find cases where an MVM_exception_throw_adhoc is possibly missing a free
++ [20a2a9114] Introduce UV_BSD to avoid duplication in Makefile
++ [06f041fb0][eafa7b39185a29f50271120b105d7087709f75f7] Fix build an FreeBSD
++ [fc092556b] Fix broken builds on older versions of GCC
+
+New in 2020.05
+
++ [c59514234] Use the FSA for ConcBlockingQueue
++ [9294cbfcf] Use memcpy instead of strncpy
++ [bbb0cdbed,f03b23c63,12d572bb5,5863b0235] Fix some compiler warnings
++ [60a1a287e] Document cases where we know that no GC issues can appear
++ [070d0e66a] No longer MVMROOT MVMCompUnits as they are always allocated in gen2
++ [49ac793da,ad70770e1,e9baae8dc,a95e5ac32,845e8a3f1,a5e1fdd99,
+   651dc59de,8a7e56d9c,51ab0cb2f,c48e40b5b,62dc6c7f7,a39b63c99,
+   9b011b033,603831672,fd2742286,833339332,f9ca5cb05,f3cdc7575,
+   863e4104f,c2cf2f25b,7c7867c67,dae0220b0,142257b16,c93aa0098]
+   Fix numerous very rare but possible GC bugs
++ [4fbd2d0e2,57e798527,d4637c1a0,755309975,1fd9efae4,00def9fd9,
+   3ecce8be8,20c4a4a24,24e9082dc,899fff969,8edc0b506]
+   Add a proof of concept of a GCC plugin for detecting GC invariant violations
++ [ab089e947] Align offsets in P6opaque.c
++ 233609b52f] Fix some Clang compiler warnings in the profiler
++ [dcbdb571a] Fix SEGV in MVM_spesh_plugin_guard_list_mark
++ [bb27aeb11] Don't null-terminate string when stringifying int
++ [6546027a1] Improve handling of errors in native callbacks
++ [bceb3398a] Use smaller buffer for native int to str coercion
++ [ca6534d20] Fix deadlock when trying to report an unsupported NativeCall return type
++ [1aa555fe1] Fix segfault caused by freed comp unit strings when profiling
++ [dbed72d76,b6bba6945,54ca9090f] Improve memory usage of utf8-c8 encoding
++ [1c392b4e4,3758e9a82,5c9510c32] Make profiling more stable, resolving potential panics
++ [4dc99b55d] Add more ops to be profiled for allocations
++ [6975a6595] Fix bogus test
++ [e7fee00d1] Include system headers after headers local to MoarVM in the Makefile
++ [ec53e4dfc] Give MVMSpeshAnn an "order" field to improve diagnostic output
++ [05c290522,0ce4cbe94] Let encode take a preallocated buffer
++ [1bd5f19e0] Fix a tiny mistake in containers implementation
++ [6baf0de4a] Add a value_desc_cont container descriptor, which brings the needs of Rakudo's Scalar into the VM
++ [4fb85a017] Add missing break statement
++ [3438ad2a4,19a7154cf] Fix lego JIT implementation of takenextdispatcher
++ [24f663cf5] Free malloced data before leaving the function
++ [21fa394a8] Remove remnants of the old mast compiler to fix memory leak
++ [035eae193] Fix interned callsites getting leaked when fixing up inlines
++ [768e6c2f3] Fix invalid reads when freeing native callback cache
++ 282989882d] Fix a leak in JIT compiler
++ [92f1935d7] Fix potential segfault when failing to compile JIT code
++ [ada1cadaa] Fix a leak in the spesh thread
++ [ae71ac80d] Fix NativeCall leaking sym_name on cleanup
++ [c82ff9d73] Destroy vectors that were previously init'ed
++ [09b88efb0] Free some memory calloc'ed when making spesh plans
++ [48da6b291] Implement calculation of unmanaged size for CArray
++ [edb6f8726] Free compunits loaded from bytecode upon dealloc
++ [15e94eecb] Bounds check codepoint passed to chr
++ [a6bc2a2a6] Add missing args spesh coercion validation
++ [f2a52cf5d] Make OSR work in frames from invokewithcapture
++ [162b68b6b,b77aa1622] JIT nextdispatcherfor
++ [f47f53110] Update libuv to version 1.35.0
++ [9a706ba08,12a447318] Improve update-submodules.pl
+
 New in 2020.02.1
 
 + [0596b8bad] Fix compiling with musl

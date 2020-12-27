@@ -310,7 +310,7 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
                     lh.frame = f;
                     return lh;
                 }
-                f = f->caller;
+                f = MVM_LIKELY(f != tc->thread_entry_frame) ? f->caller : NULL;
             }
             return lh;
         case MVM_EX_THROW_LEXOTIC:
@@ -318,7 +318,7 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
                 lh = search_for_handler_from(tc, f, MVM_EX_THROW_LEX, cat, payload);
                 if (lh.frame != NULL)
                     return lh;
-                f = f->caller;
+                f = MVM_LIKELY(f != tc->thread_entry_frame) ? f->caller : NULL;
             }
             return lh;
         default:
@@ -573,7 +573,8 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
 
         /* row will contain "sub" and "annotations" */
         row = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-        MVM_repr_bind_key_o(tc, row, k_sub, cur_frame->code_ref);
+        MVM_repr_bind_key_o(tc, row, k_sub,
+            cur_frame->code_ref ? cur_frame->code_ref : tc->instance->VMNull);
         MVM_repr_bind_key_o(tc, row, k_anno, annotations);
 
         MVM_repr_push_o(tc, arr, row);
@@ -603,20 +604,21 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
 
     MVMROOT(tc, ex, {
         arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-    });
-    cur_frame = ex->body.origin;
 
-    MVMROOT2(tc, arr, cur_frame, {
-        MVMuint32 count = 0;
-        while (cur_frame != NULL) {
-            char *line = MVM_exception_backtrace_line(tc, cur_frame, count++,
-                ex->body.throw_address);
-            MVMString *line_str = MVM_string_utf8_decode(tc, tc->instance->VMString, line, strlen(line));
-            MVMObject *line_obj = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, line_str);
-            MVM_repr_push_o(tc, arr, line_obj);
-            cur_frame = cur_frame->caller;
-            MVM_free(line);
-        }
+        cur_frame = ex->body.origin;
+
+        MVMROOT2(tc, arr, cur_frame, {
+            MVMuint32 count = 0;
+            while (cur_frame != NULL) {
+                char *line = MVM_exception_backtrace_line(tc, cur_frame, count++,
+                    ex->body.throw_address);
+                MVMString *line_str = MVM_string_utf8_decode(tc, tc->instance->VMString, line, strlen(line));
+                MVMObject *line_obj = MVM_repr_box_str(tc, tc->instance->boot_types.BOOTStr, line_str);
+                MVM_repr_push_o(tc, arr, line_obj);
+                cur_frame = cur_frame->caller;
+                MVM_free(line);
+            }
+        });
     });
 
     return arr;
@@ -645,7 +647,13 @@ static void panic_unhandled_cat(MVMThreadContext *tc, MVMuint32 cat) {
             cat_name(tc, cat));
     }
     else {
-        fprintf(stderr, "No exception handler located for %s\n", cat_name(tc, cat));
+        if (tc->nested_interpreter)
+            fputs("An unhandled exception occurred in a native callback.\n"
+                  "This situation is not recoverable, and the program will terminate.\n"
+                  "The stack trace below helps indicate which library needs fixing.\n"
+                  "The exception was thrown at:\n", stderr);
+        else
+            fprintf(stderr, "No exception handler located for %s\n", cat_name(tc, cat));
         MVM_dump_backtrace(tc);
         if (crash_on_error)
             abort();
@@ -659,7 +667,9 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
     char *backtrace;
 
     /* If a debug session is running, notify the client. */
-    MVM_debugserver_notify_unhandled_exception(tc, ex);
+    MVMROOT(tc, ex, {
+        MVM_debugserver_notify_unhandled_exception(tc, ex);
+    });
 
     /* If it's a control exception, try promoting it to a catch one; use
      * the category name. */
@@ -833,11 +843,11 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
  */
 MVM_NO_RETURN void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) {
     va_list args;
-    fprintf(stderr, "MoarVM panic: ");
+    fputs("MoarVM panic: ", stderr);
     va_start(args, messageFormat);
     vfprintf(stderr, messageFormat, args);
     va_end(args);
-    fwrite("\n", 1, 1, stderr);
+    fputc('\n', stderr);
     if (crash_on_error)
         abort();
     else
@@ -852,13 +862,23 @@ MVM_NO_RETURN void MVM_panic_allocation_failed(size_t len) {
  * process to indicate that we've made an error */
 MVM_NO_RETURN void MVM_oops(MVMThreadContext *tc, const char *messageFormat, ...) {
     va_list args;
-    fprintf(stderr, "MoarVM oops: ");
+    fprintf(stderr, "MoarVM oops%s: ",
+            !tc ? " with NULL tc" :
+            (MVMObject *) tc->thread_obj == tc->instance->spesh_thread
+            ? " in spesh thread" :
+            (MVMObject *) tc->thread_obj == tc->instance->event_loop_thread
+            ? " in event loop thread" : "");
     va_start(args, messageFormat);
     vfprintf(stderr, messageFormat, args);
     va_end(args);
-    fprintf(stderr, "\n");
+    fputc('\n', stderr);
+
+    /* Our caller is seriously buggy if tc is NULL */
+    if (!tc)
+        abort();
+
     MVM_dump_backtrace(tc);
-    fprintf(stderr, "\n");
+    fputc('\n', stderr);
     exit(1);
 }
 
@@ -889,6 +909,23 @@ MVM_NO_RETURN void MVM_exception_throw_adhoc_free(MVMThreadContext *tc, char **w
 MVM_NO_RETURN void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const char *messageFormat, va_list args) {
     LocatedHandler lh;
     MVMException *ex;
+    const char *special = !tc ? " with NULL tc"
+        : (MVMObject *) tc->thread_obj == tc->instance->spesh_thread ? " in spesh thread"
+        : (MVMObject *) tc->thread_obj == tc->instance->event_loop_thread ? " in event loop thread" : NULL;
+
+    if (special) {
+        fprintf(stderr, "MoarVM exception%s treated as oops: ", special);
+        vfprintf(stderr, messageFormat, args);
+        va_end(args);
+        fputc('\n', stderr);
+        if (!tc)
+            abort();
+
+        MVM_dump_backtrace(tc);
+        fputc('\n', stderr);
+        exit(1);
+    }
+
     /* The current frame will be assigned as the thrower of the exception, so
      * force it onto the heap before we begin. */
     if (tc->cur_frame)
@@ -932,7 +969,7 @@ MVM_NO_RETURN void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char 
         if (crash_on_error) {
             /* Yes, abort. */
             vfprintf(stderr, messageFormat, args);
-            fwrite("\n", 1, 1, stderr);
+            fputc('\n', stderr);
             MVM_dump_backtrace(tc);
             abort();
         }

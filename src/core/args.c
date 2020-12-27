@@ -852,6 +852,8 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
             MVMStorageSpec  lss   = REPR(list)->pos_funcs.get_elem_storage_spec(tc, STABLE(list));
 
             if ((MVMint64)new_arg_pos + count > 0xFFFF) {
+                MVM_free(new_arg_flags);
+                MVM_free(new_args);
                 MVM_exception_throw_adhoc(tc, "Too many arguments (%"PRId64") in flattening array, only %"PRId32" allowed.", (MVMint64)new_arg_pos + count, 0xFFFF);
             }
 
@@ -910,10 +912,12 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 
             if (arg_info.arg.o && REPR(arg_info.arg.o)->ID == MVM_REPR_ID_MVMHash) {
                 MVMHashBody *body = &((MVMHash *)arg_info.arg.o)->body;
-                MVMHashEntry *current;
+                MVMStrHashTable *hashtable = &(body->hashtable);
 
-                HASH_ITER_FAST(tc, hash_handle, body->hash_head, current, {
-                    MVMString *arg_name = MVM_HASH_KEY(current);
+                MVMStrHashIterator iterator = MVM_str_hash_first(tc, hashtable);
+                while (!MVM_str_hash_at_end(tc, hashtable, iterator)) {
+                    MVMHashEntry *current = MVM_str_hash_current_nocheck(tc, hashtable, iterator);
+                    MVMString *arg_name = current->hash_handle.key;
                     if (!seen_name(tc, arg_name, new_args, new_num_pos, new_arg_pos)) {
                         if (new_arg_pos + 1 >= new_args_size) {
                             new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
@@ -926,9 +930,12 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
                         (new_args + new_arg_pos++)->o = current->value;
                         new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
                     }
-                });
+                    iterator = MVM_str_hash_next_nocheck(tc, hashtable, iterator);
+                }
             }
             else if (arg_info.arg.o) {
+                MVM_free(new_arg_flags);
+                MVM_free(new_args);
                 MVM_exception_throw_adhoc(tc, "flattening of other hash reprs NYI.");
             }
         }

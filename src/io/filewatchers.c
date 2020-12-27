@@ -53,8 +53,7 @@ static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, 
         /* Error; need to notify. */
         MVMROOT(tc, async_task, {
             MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-            MVMAsyncTask *t   = (MVMAsyncTask *)async_task;
-            MVM_repr_push_o(tc, arr, t->body.schedulee);
+            MVM_repr_push_o(tc, arr, ((MVMAsyncTask *)async_task)->body.schedulee);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             MVMROOT(tc, arr, {
@@ -64,7 +63,7 @@ static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, 
                     tc->instance->boot_types.BOOTStr, msg_str);
                 MVM_repr_push_o(tc, arr, msg_box);
             });
-            MVM_repr_push_o(tc, t->body.queue, arr);
+            MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
         });
     }
 }
@@ -99,12 +98,16 @@ MVMObject * MVM_io_file_watch(MVMThreadContext *tc, MVMObject *queue,
     char *c_path = MVM_string_utf8_c8_encode_C_string(tc, path);
 
     /* Validate REPRs. */
-    if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
+    if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue) {
+        MVM_free(c_path);
         MVM_exception_throw_adhoc(tc,
             "file watch target queue must have ConcBlockingQueue REPR");
-    if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
+    }
+    if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask) {
+        MVM_free(c_path);
         MVM_exception_throw_adhoc(tc,
             "file watch result type must have REPR AsyncTask");
+    }
 
     /* Create async task handle. */
     MVMROOT2(tc, queue, schedulee, {

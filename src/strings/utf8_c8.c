@@ -125,13 +125,6 @@ static MVMuint32 utf8_encode(MVMuint8 *bp, MVMCodepoint cp) {
 
 #define UTF8_MAXINC (32 * 1024 * 1024)
 
-static void ensure_buffer(MVMGrapheme32 **buffer, MVMint32 *bufsize, MVMint32 needed) {
-    while (needed >= *bufsize)
-        *buffer = MVM_realloc(*buffer, sizeof(MVMGrapheme32) * (
-            *bufsize >= UTF8_MAXINC ? (*bufsize += UTF8_MAXINC) : (*bufsize *= 2)
-        ));
-}
-
 static const MVMuint8 hex_chars[] = { '0', '1', '2', '3', '4', '5', '6', '7',
                                       '8', '9', 'A', 'B', 'C', 'D', 'E', 'F' };
 static MVMGrapheme32 synthetic_for(MVMThreadContext *tc, MVMuint8 invalid) {
@@ -433,7 +426,6 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
     /* If there's no buffers, we're done. */
     if (!ds->bytes_head)
         return 0;
-    last_accept_pos = ds->bytes_head_pos;
 
     /* If we're asked for zero chars, also done. */
     if (stopper_chars && *stopper_chars == 0)
@@ -453,8 +445,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
         state.orig_codes_pos = saved[0];
         state.orig_codes_unnormalized = 0;
         memcpy(state.orig_codes, saved + 1, saved[0] * sizeof(MVMCodepoint));
-        MVM_free(ds->decoder_state);
-        ds->decoder_state = NULL;
+        MVM_free_null(ds->decoder_state);
     }
     else {
         state.orig_codes = NULL;
@@ -467,7 +458,7 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
     reached_stopper = 0;
     while (cur_bytes && !reached_stopper) {
         /* Set up decode state for this buffer. */
-        MVMuint32 bytes = cur_bytes->length;
+        const MVMuint32 bytes = cur_bytes->length;
         /* Space for graphemes we have + 1 grapheme we receive from last buffer */
         state.result = MVM_malloc((bytes + 1) * sizeof(MVMGrapheme32));
         state.orig_codes = MVM_realloc(state.orig_codes,
@@ -562,8 +553,12 @@ MVMuint32 MVM_string_utf8_c8_decodestream(MVMThreadContext *tc, MVMDecodeStream 
 
         /* Attach what we successfully parsed as a result buffer, and trim away
          * what we chewed through. */
-        if (state.result_pos)
+        if (state.result_pos) {
+            /* Release memory we didn't use */
+            if ((bytes + 1) > state.result_pos)
+                state.result = MVM_realloc(state.result,sizeof(MVMGrapheme32) * state.result_pos);
             MVM_string_decodestream_add_chars(tc, ds, state.result, state.result_pos);
+        }
         else
             MVM_free(state.result);
         result_graphs += state.result_pos;

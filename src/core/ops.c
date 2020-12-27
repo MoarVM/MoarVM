@@ -5931,7 +5931,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        1,
+        0,
         0,
         0,
         0,
@@ -6290,7 +6290,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_isprime_I,
         "isprime_I",
-        3,
+        2,
         1,
         0,
         0,
@@ -6299,7 +6299,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
         MVM_OP_rand_I,
@@ -9284,8 +9284,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_DEPRECATED_31,
-        "DEPRECATED_31",
+        MVM_OP_setthreadname,
+        "setthreadname",
         1,
         0,
         0,
@@ -9295,7 +9295,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_obj }
+        { MVM_operand_read_reg | MVM_operand_str }
     },
     {
         MVM_OP_atpos2d_i,
@@ -11545,7 +11545,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        0,
+        1,
         0,
         0,
         0,
@@ -12616,6 +12616,20 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
+        MVM_OP_sp_istrue_n,
+        "sp_istrue_n",
+        2,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_num64 }
+    },
+    {
         MVM_OP_sp_boolify_iter,
         "sp_boolify_iter",
         2,
@@ -12897,7 +12911,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 921;
+static const unsigned short MVM_op_counts = 922;
 
 static const MVMuint16 last_op_allowed = 824;
 
@@ -12942,7 +12956,7 @@ MVM_PUBLIC MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op) {
 }
 
 MVM_PUBLIC const char *MVM_op_get_mark(unsigned short op) {
-    if (op > 825) {
+    if (op > 825 && op < MVM_OP_EXT_BASE) {
         return ".s";
     } else if (op == 23) {
         return ".j";

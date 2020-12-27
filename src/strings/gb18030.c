@@ -50,21 +50,19 @@ MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *res
     MVMuint8 *gb18030 = (MVMuint8*)gb18030_char;
     size_t i, result_graphs;
 
-    MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
-
-    result->body.storage_type = MVM_STRING_GRAPHEME_32;
-    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
+    MVMString *result;
+    MVMGrapheme32 *buffer = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
 
     result_graphs = 0;
 
     for (i = 0; i < bytes; i++) {
         if (gb18030[i] <= 127) {
             if (gb18030[i] == '\r' && i + 1 < bytes && gb18030[i + 1] == '\n') {
-                result->body.storage.blob_32[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
+                buffer[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
                 i++;
             }
             else {
-                result->body.storage.blob_32[result_graphs++] = gb18030[i];
+                buffer[result_graphs++] = gb18030[i];
             }
         }
         else {
@@ -75,7 +73,7 @@ MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *res
                 if (gb18030_valid_check_len2(byte1, byte2)) {
                     MVMGrapheme32 index = gb18030_index_to_cp_len2(byte1, byte2);
                     if (index != GB18030_NULL) {
-                        result->body.storage.blob_32[result_graphs++] = index;
+                        buffer[result_graphs++] = index;
                         i++;
                         continue;
                     }
@@ -90,19 +88,23 @@ MVMString * MVM_string_gb18030_decode(MVMThreadContext *tc, const MVMObject *res
                 if (gb18030_valid_check_len4(byte1, byte2, byte3, byte4)) {
                     MVMGrapheme32 index = gb18030_index_to_cp_len4(byte1, byte2, byte3, byte4);
                     if (index != GB18030_NULL) {
-                        result->body.storage.blob_32[result_graphs++] = index;
+                        buffer[result_graphs++] = index;
                         i += 3;
                         continue;
                     }
                 }
             }
             
-            MVM_exception_throw_adhoc(tc, 
-            "Error decoding gb18030 string: invalid gb18030 format. Last byte seen was 0x%hhX\n", 
-            (MVMuint8)gb18030[i]);
+            MVM_free(buffer);
+            MVM_exception_throw_adhoc(tc,
+                "Error decoding gb18030 string: invalid gb18030 format. Last byte seen was 0x%hhX\n",
+                (MVMuint8)gb18030[i]);
         }
     }
 
+    result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
+    result->body.storage.blob_32 = buffer;
+    result->body.storage_type = MVM_STRING_GRAPHEME_32;
     result->body.num_graphs = result_graphs;
 
     return result;
@@ -170,6 +172,7 @@ MVMuint32 MVM_string_gb18030_decodestream(MVMThreadContext *tc, MVMDecodeStream 
                         graph = gb18030_index_to_cp_len4(len4_byte1, len4_byte2, len4_byte3, len4_byte4);
                         is_len4 = 0;
                     } else {
+                        MVM_free(buffer);
                         MVM_exception_throw_adhoc(tc, 
                          "Error decoding gb18030 string: invalid gb18030 format. Last four bytes seen was 0x%x, 0x%x, 0x%x, 0x%x\n", 
                          len4_byte1, len4_byte2, len4_byte3, len4_byte4);
@@ -207,6 +210,7 @@ MVMuint32 MVM_string_gb18030_decodestream(MVMThreadContext *tc, MVMDecodeStream 
                     }
                     graph = gb18030_index_to_cp_len2(last_codepoint, codepoint);
                     if (graph == GB18030_NULL) {
+                        MVM_free(buffer);
                         MVM_exception_throw_adhoc(tc, 
                         "Error decoding gb18030 string: invalid gb18030 format. Last two bytes seen was 0x%x, 0x%x\n", 
                         last_codepoint, codepoint);

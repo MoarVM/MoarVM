@@ -204,7 +204,7 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
         const MVMObject *result_type, char *windows125X_c, size_t num_bytes,
         MVMString *replacement, MVMint64 config) {
     MVMuint8 *bytes = (MVMuint8 *)windows125X_c;
-    MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
+    MVMString *result;
     size_t pos = 0, result_graphs;
     MVMStringIndex repl_length = replacement ? MVM_string_graphs(tc, replacement) : 0;
     MVMuint8 Shift_JIS_lead = 0x00;
@@ -217,9 +217,8 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
     int last_was_cr         = 0;
     MVMStringIndex result_size = num_bytes;
 
-    result->body.storage_type    = MVM_STRING_GRAPHEME_32;
     /* TODO allocate less? */
-    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * result_size);
+    MVMGrapheme32 *buffer = MVM_malloc(sizeof(MVMGrapheme32) * result_size);
 
     result_graphs = 0;
     while (pos < num_bytes || repl_pos) {
@@ -260,6 +259,7 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
                     if (1 < repl_length) repl_pos++;
                 }
                 else {
+                    MVM_free(buffer);
                     /* Throw if it's unmapped */
                     MVM_exception_throw_adhoc(tc,
                         "Error decoding shiftjis string: could not decode byte 0x%hhX",
@@ -272,6 +272,7 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
                 continue;
             }
             else {
+                MVM_free(buffer);
                 MVM_exception_throw_adhoc(tc, "shiftjis decoder encountered an internal error.\n");
             }
         }
@@ -291,19 +292,21 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
         }
         if (result_graphs == result_size) {
             result_size += repl_length;
-            result->body.storage.blob_32 = MVM_realloc(result->body.storage.blob_32,
-                result_size * sizeof(MVMGrapheme32));
+            buffer = MVM_realloc(buffer, result_size * sizeof(MVMGrapheme32));
         }
-        result->body.storage.blob_32[result_graphs++] = graph;
+        buffer[result_graphs++] = graph;
     }
     /* If we end up with Shift_JIS_lead still set, that means we're missing a byte
      * that should have followed it. */
     if (Shift_JIS_lead != 0x00) {
+        MVM_free(buffer);
         MVM_exception_throw_adhoc(tc, "Error, ended decode of shiftjis expecting another byte. "
             "Last byte seen was 0x%hhX\n", Shift_JIS_lead);
     }
-    result->body.storage.blob_32 = MVM_realloc(result->body.storage.blob_32,
+    result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
+    result->body.storage.blob_32 = MVM_realloc(buffer,
         result_graphs * sizeof(MVMGrapheme32));
+    result->body.storage_type = MVM_STRING_GRAPHEME_32;
     result->body.num_graphs = result_graphs;
 
     return result;
@@ -397,6 +400,7 @@ MVMuint32 MVM_string_shiftjis_decodestream(MVMThreadContext *tc, MVMDecodeStream
                     continue;
                 }
                 else {
+                    MVM_free(buffer);
                     MVM_exception_throw_adhoc(tc, "shiftjis decoder encountered an internal error. This bug should be reported.\n");
                 }
             }

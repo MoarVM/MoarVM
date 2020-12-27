@@ -210,6 +210,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
         }
         buf = (char *)MVM_malloc(len);
         if ((err = mp_to_decimal(i, buf, len)) != MP_OKAY) {
+            MVM_free(buf);
             MVM_exception_throw_adhoc(tc, "Error converting a big integer to a string: %s", mp_error_to_string(err));
         }
 
@@ -242,15 +243,17 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         body->u.smallint.value = MVM_serialization_read_int(tc, reader);
     } else {  /* big int */
         mp_err err;
-        char *buf = MVM_string_ascii_encode(tc, MVM_serialization_read_str(tc, reader), NULL, 0);
+        char *buf = MVM_string_ascii_encode_any(tc, MVM_serialization_read_str(tc, reader));
         body->u.bigint = MVM_malloc(sizeof(mp_int));
         if ((err = mp_init(body->u.bigint)) != MP_OKAY) {
             MVM_free(body->u.bigint);
+            MVM_free(buf);
             MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err));
         }
         if ((err = mp_read_radix(body->u.bigint, buf, 10)) != MP_OKAY) {
             mp_clear(body->u.bigint);
             MVM_free(body->u.bigint);
+            MVM_free(buf);
             MVM_exception_throw_adhoc(tc, "Error converting a string to a big integer: %s", mp_error_to_string(err));
         }
         MVM_free(buf);

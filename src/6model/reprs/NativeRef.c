@@ -274,37 +274,33 @@ MVMObject * MVM_nativeref_lex_s(MVMThreadContext *tc, MVMuint16 outers, MVMuint1
 static MVMObject * lexref_by_name(MVMThreadContext *tc, MVMObject *type, MVMString *name, MVMint16 kind) {
     MVMFrame *cur_frame = tc->cur_frame;
     while (cur_frame != NULL) {
-        MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
-        if (lexical_names) {
-            MVMLexicalRegistry *entry;
-            MVM_HASH_GET(tc, lexical_names, name, entry)
-            if (entry) {
-                MVMint16 lex_kind = cur_frame->static_info->body.lexical_types[entry->value];
-                if (lex_kind == kind) {
-                    return lex_ref(tc, type, cur_frame, entry->value, kind);
+        MVMuint32 idx = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
+        if (idx != MVM_INDEX_HASH_NOT_FOUND) {
+            MVMint16 lex_kind = cur_frame->static_info->body.lexical_types[idx];
+            if (lex_kind == kind) {
+                return lex_ref(tc, type, cur_frame, idx, kind);
+            }
+            /* If kind == LEXREF_ANY_INT we will allow any of the native int
+             * types so we don't need functions for every single type. */
+            else if (kind == LEXREF_ANY_INT) {
+                switch (lex_kind) {
+                case MVM_reg_int8:
+                case MVM_reg_int16:
+                case MVM_reg_int32:
+                case MVM_reg_int64:
+                case MVM_reg_uint8:
+                case MVM_reg_uint16:
+                case MVM_reg_uint32:
+                case MVM_reg_uint64:
+                    return lex_ref(tc, type, cur_frame, idx, lex_kind);
                 }
-                /* If kind == LEXREF_ANY_INT we will allow any of the native int
-                 * types so we don't need functions for every single type. */
-                else if (kind == LEXREF_ANY_INT) {
-                    switch (lex_kind) {
-                        case MVM_reg_int8:
-                        case MVM_reg_int16:
-                        case MVM_reg_int32:
-                        case MVM_reg_int64:
-                        case MVM_reg_uint8:
-                        case MVM_reg_uint16:
-                        case MVM_reg_uint32:
-                        case MVM_reg_uint64:
-                            return lex_ref(tc, type, cur_frame, entry->value, lex_kind);
-                    }
-                }
-                {
-                    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-                    char *waste[] = { c_name, NULL };
-                    MVM_exception_throw_adhoc_free(tc, waste,
-                        "Lexical with name '%s' has wrong type. real type %i wanted type %i",
-                            c_name, cur_frame->static_info->body.lexical_types[entry->value], kind);
-                }
+            }
+            {
+                char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+                char *waste[] = { c_name, NULL };
+                MVM_exception_throw_adhoc_free(tc, waste,
+                    "Lexical with name '%s' has wrong type. real type %i wanted type %i",
+                        c_name, cur_frame->static_info->body.lexical_types[idx], kind);
             }
         }
         cur_frame = cur_frame->outer;
@@ -445,6 +441,14 @@ MVMint64 MVM_nativeref_read_lex_i(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     MVMRegister *var = &(ref->body.u.lex.frame->env[ref->body.u.lex.env_idx]);
     switch (ref->body.u.lex.type) {
+        case MVM_reg_uint8:
+            return var->u8;
+        case MVM_reg_uint16:
+            return var->u16;
+        case MVM_reg_uint32:
+            return var->u32;
+        case MVM_reg_uint64:
+            return var->u64;
         case MVM_reg_int8:
             return var->i8;
         case MVM_reg_int16:
@@ -514,6 +518,18 @@ void MVM_nativeref_write_lex_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint6
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     MVMRegister *var = &(ref->body.u.lex.frame->env[ref->body.u.lex.env_idx]);
     switch (ref->body.u.lex.type) {
+        case MVM_reg_uint8:
+            var->u8 = (MVMuint8)value;
+            break;
+        case MVM_reg_uint16:
+            var->u16 = (MVMuint16)value;
+            break;
+        case MVM_reg_uint32:
+            var->u32 = (MVMuint32)value;
+            break;
+        case MVM_reg_uint64:
+            var->u64 = (MVMuint64)value;
+            break;
         case MVM_reg_int8:
             var->i8 = (MVMint8)value;
             break;

@@ -654,3 +654,16 @@ void MVM_string_utf8_throw_encoding_exception (MVMThreadContext *tc, MVMCodepoin
             cp, cp);
     }
 }
+
+#ifdef DEBUG_HELPERS
+void MVM_dump_string(MVMThreadContext *tc, MVMString *s) {
+    char *encoded = MVM_string_utf8_maybe_encode_C_string(tc, s);
+    if (encoded) {
+        fprintf(stderr, "%s\n", encoded);
+        MVM_free(encoded);
+    }
+    else {
+        fprintf(stderr, "<null>\n");
+    }
+}
+#endif

@@ -1,5 +1,4 @@
 #include "moar.h"
-#include <platform/threads.h>
 
 //~ ffi_type * MVM_nativecall_get_ffi_type(MVMThreadContext *tc, MVMuint64 type_id, void **values, MVMuint64 offset) {
 ffi_type * MVM_nativecall_get_ffi_type(MVMThreadContext *tc, MVMuint64 type_id) {
@@ -73,7 +72,6 @@ ffi_abi MVM_nativecall_get_calling_convention(MVMThreadContext *tc, MVMString *n
 //~ static char callback_handler(DCCallback *cb, DCArgs *args, DCValue *result, MVMNativeCallback *data);
 static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void *data);
 static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMObject *sig_info) {
-    MVMNativeCallbackCacheHead *callback_data_head = NULL;
     MVMNativeCallback **callback_data_handle;
     MVMString          *cuid;
 
@@ -83,13 +81,18 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
     /* Try to locate existing cached callback info. */
     callback = MVM_frame_find_invokee(tc, callback, NULL);
     cuid     = ((MVMCode *)callback)->body.sf->body.cuuid;
-    MVM_HASH_GET(tc, tc->native_callback_cache, cuid, callback_data_head);
 
-    if (!callback_data_head) {
-        callback_data_head = MVM_malloc(sizeof(MVMNativeCallbackCacheHead));
+    if (!MVM_str_hash_entry_size(tc, &tc->native_callback_cache)) {
+        MVM_str_hash_build(tc, &tc->native_callback_cache, sizeof(MVMNativeCallbackCacheHead), 0);
+    }
+
+    MVMNativeCallbackCacheHead *callback_data_head
+        = MVM_str_hash_lvalue_fetch(tc, &tc->native_callback_cache, cuid);
+
+    if (!callback_data_head->hash_handle.key) {
+        /* MVM_str_hash_lvalue_fetch created a new entry. Fill it in: */
+        callback_data_head->hash_handle.key = cuid;
         callback_data_head->head = NULL;
-
-        MVM_HASH_BIND(tc, tc->native_callback_cache, cuid, callback_data_head);
     }
 
     callback_data_handle = &(callback_data_head->head);
@@ -689,6 +692,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     handle_ret(tc, unsigned long long, ffi_arg, MVM_nativecall_make_int);
                     break;
                 default:
+                    MVM_gc_mark_thread_unblocked(tc);
                     MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled libffi return type");
             }

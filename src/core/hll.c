@@ -3,17 +3,21 @@
 MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
     MVMHLLConfig *entry;
 
+    if (!MVM_str_hash_key_is_valid(tc, name)) {
+        MVM_str_hash_key_throw_invalid(tc, name);
+    }
+
     uv_mutex_lock(&tc->instance->mutex_hllconfigs);
 
     if (tc->instance->hll_compilee_depth) {
-        MVM_HASH_GET(tc, tc->instance->compilee_hll_configs, name, entry);
+        entry = MVM_fixkey_hash_lvalue_fetch_nocheck(tc, &tc->instance->compilee_hll_configs, name);
     }
     else {
-        MVM_HASH_GET(tc, tc->instance->compiler_hll_configs, name, entry);
+        entry = MVM_fixkey_hash_lvalue_fetch_nocheck(tc, &tc->instance->compiler_hll_configs, name);
     }
 
-    if (!entry) {
-        entry = MVM_calloc(1, sizeof(MVMHLLConfig));
+    if (!entry->name) {
+        memset(entry, 0, sizeof(*entry));
         entry->name = name;
         entry->int_box_type = tc->instance->boot_types.BOOTInt;
         entry->num_box_type = tc->instance->boot_types.BOOTNum;
@@ -25,12 +29,6 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         entry->foreign_type_int = tc->instance->boot_types.BOOTInt;
         entry->foreign_type_num = tc->instance->boot_types.BOOTNum;
         entry->foreign_type_str = tc->instance->boot_types.BOOTStr;
-        if (tc->instance->hll_compilee_depth) {
-            MVM_HASH_BIND(tc, tc->instance->compilee_hll_configs, name, entry);
-        }
-        else {
-            MVM_HASH_BIND(tc, tc->instance->compiler_hll_configs, name, entry);
-        }
         entry->max_inline_size = MVM_SPESH_DEFAULT_MAX_INLINE_SIZE;
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->int_box_type, "HLL int_box_type");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->num_box_type, "HLL num_box_type");
@@ -65,7 +63,6 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->str_multidim_ref, "HLL str_multidim_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->spesh_plugins, "HLL spesh plugins");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name, "HLL name");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_handle.key, "HLL hash key");
     }
 
     uv_mutex_unlock(&tc->instance->mutex_hllconfigs);
@@ -152,9 +149,9 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             check_config_key_reftype(tc, config_hash, "str_multidim_ref", str_multidim_ref,
                 config, MVM_STORAGE_SPEC_BP_STR, MVM_NATIVEREF_MULTIDIM);
             set_max_inline_size(tc, config_hash, config);
-        });
 
-    MVM_intcache_for(tc, config->int_box_type);
+            MVM_intcache_for(tc, config->int_box_type);
+        });
 
     return config_hash;
 }

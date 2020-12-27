@@ -5,10 +5,8 @@ MVMString * MVM_string_gb2312_decode(MVMThreadContext *tc, const MVMObject *resu
     MVMuint8 *gb2312 = (MVMuint8*)gb2312_char;
     size_t i, result_graphs;
 
-    MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
-
-    result->body.storage_type = MVM_STRING_GRAPHEME_32;
-    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
+    MVMString *result;
+    MVMGrapheme32 *buffer = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
 
     result_graphs = 0;
 
@@ -16,11 +14,11 @@ MVMString * MVM_string_gb2312_decode(MVMThreadContext *tc, const MVMObject *resu
         if (gb2312[i] <= 127) {
             /* Ascii character */
             if (gb2312[i] == '\r' && i + 1 < bytes && gb2312[i + 1] == '\n') {
-                result->body.storage.blob_32[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
+                buffer[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
                 i++;
             }
             else {
-                result->body.storage.blob_32[result_graphs++] = gb2312[i];
+                buffer[result_graphs++] = gb2312[i];
             }
         }
         else {
@@ -30,21 +28,26 @@ MVMString * MVM_string_gb2312_decode(MVMThreadContext *tc, const MVMObject *resu
                 MVMuint16 codepoint = (MVMuint16)byte1 * 256 + byte2;
                 MVMGrapheme32 index = gb2312_index_to_cp(codepoint);
                 if (index != GB2312_NULL) {
-                    result->body.storage.blob_32[result_graphs++] = index;
+                    buffer[result_graphs++] = index;
                     i++;
                 }
                 else {
+                    MVM_free(buffer);
                     MVM_exception_throw_adhoc(tc, "Error decoding gb2312 string: could not decode codepoint 0x%x", codepoint);
                 }
             }
             else {
+                MVM_free(buffer);
                 MVM_exception_throw_adhoc(tc, 
-                "Error decoding gb2312 string: invalid gb2312 format (two bytes for a gb2312 character). Last byte seen was 0x%hhX\n", 
-                (MVMuint8)gb2312[i]);
+                    "Error decoding gb2312 string: invalid gb2312 format (two bytes for a gb2312 character). Last byte seen was 0x%hhX\n", 
+                    (MVMuint8)gb2312[i]);
             }
         }
     }
 
+    result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
+    result->body.storage.blob_32 = buffer;
+    result->body.storage_type = MVM_STRING_GRAPHEME_32;
     result->body.num_graphs = result_graphs;
 
     return result;
@@ -128,13 +131,15 @@ MVMuint32 MVM_string_gb2312_decodestream(MVMThreadContext *tc, MVMDecodeStream *
             int handler_rtrn = gb2312_decode_handler(tc, last_was_first_byte, codepoint, last_codepoint, &graph);
 
             if (handler_rtrn == GB2312_DECODE_FORMAT_EXCEPTION) {
+                MVM_free(buffer);
                 MVM_exception_throw_adhoc(tc, 
-                "Error decoding gb2312 string: invalid gb2312 format (two bytes for a gb2312 character). Last byte seen was 0x%x\n", 
-                last_codepoint);
+                    "Error decoding gb2312 string: invalid gb2312 format (two bytes for a gb2312 character). Last byte seen was 0x%x\n", 
+                    last_codepoint);
             }
             else if (handler_rtrn == GB2312_DECODE_CODEPOINT_EXCEPTION) {
+                MVM_free(buffer);
                 MVM_exception_throw_adhoc(tc, "Error decoding gb2312 string: could not decode codepoint 0x%x", 
-                last_codepoint * 256 + codepoint);
+                    last_codepoint * 256 + codepoint);
             }
             else if (handler_rtrn == GB2312_DECODE_CONTINUE) {
                 last_codepoint = codepoint;

@@ -550,10 +550,10 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         if (MVM_UNLIKELY(nfadeb)) {
             if (offset < eos) {
                 MVMGrapheme32 cp = MVM_string_get_grapheme_at_nocheck(tc, target, offset);
-                fprintf(stderr,"%c with %ds target %lx offset %"PRId64"\n",cp,(int)numcur, (long)target, offset);
+                fprintf(stderr,"%c with %"PRId64"s target %"PRIXPTR" offset %"PRId64"\n", cp, numcur, (uintptr_t)target, offset);
             }
             else {
-                fprintf(stderr,"EOS with %ds\n",(int)numcur);
+                fprintf(stderr,"EOS with %"PRId64"s\n", numcur);
             }
         }
         while (numcur) {

@@ -181,7 +181,7 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     }
 
     /* Create code segment */
-    code = MVM_malloc(sizeof(MVMJitCode));
+    code = MVM_calloc(1, sizeof(MVMJitCode));
 
     code->func_ptr   = (void (*)(MVMThreadContext*,MVMCompUnit*,void*)) memory;
     code->size       = codesize;
@@ -249,7 +249,8 @@ MVMJitCode* MVM_jit_code_copy(MVMThreadContext *tc, MVMJitCode * const code) {
 }
 
 void MVM_jit_code_destroy(MVMThreadContext *tc, MVMJitCode *code) {
-    if (AO_fetch_and_sub1(&code->ref_cnt) > 0)
+    /* fetch_and_sub1 returns previous value, so check if there's only 1 reference */
+    if (AO_fetch_and_sub1(&code->ref_cnt) > 1)
         return;
     MVM_platform_free_pages(code->func_ptr, code->size);
     MVM_free(code->labels);

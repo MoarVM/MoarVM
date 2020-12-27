@@ -7,9 +7,11 @@ static const MVMREPROps ReentrantMutex_this_repr;
 static void initialize_mutex(MVMThreadContext *tc, MVMReentrantMutexBody *rm) {
     int init_stat;
     rm->mutex = MVM_malloc(sizeof(uv_mutex_t));
-    if ((init_stat = uv_mutex_init(rm->mutex)) < 0)
+    if ((init_stat = uv_mutex_init(rm->mutex)) < 0) {
+        MVM_free(rm->mutex);
         MVM_exception_throw_adhoc(tc, "Failed to initialize mutex: %s",
             uv_strerror(init_stat));
+    }
 }
 
 /* Creates a new type object of this representation, and associates it with
@@ -125,6 +127,11 @@ void MVM_reentrantmutex_lock_checked(MVMThreadContext *tc, MVMObject *lock) {
 }
 void MVM_reentrantmutex_lock(MVMThreadContext *tc, MVMReentrantMutex *rm) {
     /*unsigned int interval_id;*/
+
+    /* Atomic access must be aligned, otherwise the lock will not work. */
+    MVM_ASSERT_ALIGNED(&rm->body.holder_id, ALIGNOF(AO_t));
+    MVM_ASSERT_ALIGNED(&rm->body.lock_count, ALIGNOF(AO_t));
+
     if (MVM_load(&rm->body.holder_id) == tc->thread_id) {
         /* We already hold the lock; bump the count. */
         MVM_incr(&rm->body.lock_count);

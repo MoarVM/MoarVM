@@ -150,7 +150,7 @@ static MVMuint32 add_nodes_for_typed_argument(MVMThreadContext *tc,
     else {
         /* Do the partitioning. */
         MVM_VECTOR_DECL(TypeCandidates, by_type);
-        MVMuint32 i, j, update_node, derived_only;
+        MVMuint32 i, j, update_node = 0, derived_only;
         MVMint32 derived_idx, additional_update_node;
         MVM_VECTOR_INIT(by_type, num_valid_candidates);
         for (i = 0; i < num_valid_candidates; i++) {
@@ -285,6 +285,8 @@ static MVMuint32 add_nodes_for_typed_argument(MVMThreadContext *tc,
         }
         
         /* Clean up. */
+        for (i = 0; i < MVM_VECTOR_ELEMS(by_type); i++)
+            MVM_VECTOR_DESTROY(by_type[i].cand_idxs);
         MVM_VECTOR_DESTROY(by_type);
     }
 
@@ -298,7 +300,7 @@ static void add_nodes_for_callsite(MVMThreadContext *tc, MVMSpeshArgGuard *tree,
     /* If we have a certain specialization, then add a node for it. If we fail
      * at any point in finding a typed guard, we'll fall back to looking at
      * this instead. And if there's no typed guards, we'll just use this. */
-    MVMint32 end_node = cc.certain_idx >= 0
+    MVMuint32 end_node = cc.certain_idx >= 0
         ? add_result_node(tc, tree, cc.certain_idx)
         : 0;
 

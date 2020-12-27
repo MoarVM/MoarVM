@@ -76,7 +76,7 @@ static MVMuint64 get_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
     }
 }
 
-static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
+void MVMP6int_set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
     MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
     switch (repr_data->bits) {
         case 64: ((MVMP6intBody *)data)->value.i64 = value; break;
@@ -86,7 +86,7 @@ static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     }
 }
 
-static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
+MVMint64 MVMP6int_get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMP6intREPRData *repr_data = (MVMP6intREPRData *)st->REPR_data;
     switch (repr_data->bits) {
         case 64: return ((MVMP6intBody *)data)->value.i64;
@@ -183,8 +183,11 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->is_unsigned = MVM_serialization_read_int(tc, reader);
 
     if (repr_data->bits !=  1 && repr_data->bits !=  2 && repr_data->bits !=  4 && repr_data->bits != 8
-     && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64)
-        MVM_exception_throw_adhoc(tc, "MVMP6int: Unsupported int size (%dbit)", repr_data->bits);
+     && repr_data->bits != 16 && repr_data->bits != 32 && repr_data->bits != 64) {
+        MVMint16 bits = repr_data->bits;
+        MVM_free(repr_data);
+        MVM_exception_throw_adhoc(tc, "MVMP6int: Unsupported int size (%dbit)", bits);
+    }
 
     mk_storage_spec(tc, repr_data->bits, repr_data->is_unsigned, &repr_data->storage_spec);
 
@@ -192,11 +195,11 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
 }
 
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
-    set_int(tc, st, root, data, MVM_serialization_read_int(tc, reader));
+    MVMP6int_set_int(tc, st, root, data, MVM_serialization_read_int(tc, reader));
 }
 
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
-    MVM_serialization_write_int(tc, writer, get_int(tc, st, NULL, data));
+    MVM_serialization_write_int(tc, writer, MVMP6int_get_int(tc, st, NULL, data));
 }
 
 static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
@@ -260,13 +263,13 @@ const MVMREPROps * MVMP6int_initialize(MVMThreadContext *tc) {
 
 static const MVMREPROps P6int_this_repr = {
     type_object_for,
-    MVM_gc_allocate_object,
+    MVM_gc_allocate_object, /* serialization.c relies on this and the next line */
     NULL, /* initialize */
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
     {
-        set_int,
-        get_int,
+        MVMP6int_set_int,
+        MVMP6int_get_int,
         MVM_REPR_DEFAULT_SET_NUM,
         MVM_REPR_DEFAULT_GET_NUM,
         MVM_REPR_DEFAULT_SET_STR,

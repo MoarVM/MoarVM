@@ -218,7 +218,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
     const MVMOpInfo *info;
     MVMuint8 *prev_op_bc_ptr = state->bc_pointer;
 
-    junkprint(stderr, "validate op at %x\n", state->bc_pointer - state->bytecode_root);
+    junkprint(stderr, "validate op at %lx\n", state->bc_pointer - state->bytecode_root);
 
     if (!MVM_op_is_allowed_in_confprog(opcode)) {
         /*MVMuint16 op;*/
@@ -227,13 +227,20 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                 /*junkprint(stderr, "op %s (%d) is allowed\n", MVM_op_get_op(op)->name, op);*/
             /*}*/
         /*}*/
+        /* Sigh, so, pointer differences are ptrdiff_t, and (at least on some 32
+         * bit platforms) that's `int`,
+         * (even though on those platforms sizeof(int) == sizeof(long))
+         * and so compilers warn about format string mismatch.
+         * And sigh again, it's not until C11 that we get %tx to specify the
+         * size as that of ptrdiff_t, so we can't rely on on that here.
+         * So cast to unsigned long. */
         MVM_exception_throw_adhoc(tc, "Invalid opcode detected in confprog: %d (%s) at position 0x%lx",
-                opcode, MVM_op_get_op(opcode)->name, state->bc_pointer - state->bytecode_root);
+                opcode, MVM_op_get_op(opcode)->name, (unsigned long) (state->bc_pointer - state->bytecode_root));
     }
     info = MVM_op_get_op(opcode);
     if (!info)
         MVM_exception_throw_adhoc(tc, "Invalid opcode detected in confprog: %d  at position 0x%lx",
-                opcode, state->bc_pointer - state->bytecode_root);
+                opcode, (unsigned long) (state->bc_pointer - state->bytecode_root));
 
     state->prev_op = state->cur_op;
     state->cur_op = info;
@@ -290,7 +297,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                     break;
 
                 default:
-                    MVM_exception_throw_adhoc(tc, "STRUCT_SELECT string length %ld (index %d) NYI or something", string_length, string_idx);
+                    MVM_exception_throw_adhoc(tc, "STRUCT_SELECT string length %"PRIu64" (index %d) NYI or something", string_length, string_idx);
             }
 
             /* Now do a rewrite of const_s into const_i64_16 and noop */
@@ -358,7 +365,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                     }
                 }
                 else {
-                    MVM_exception_throw_adhoc(tc, "STRUCT_SELECT is MVMStaticFrame, no field with length %ld (string heap index %d) implemented", string_length, string_idx);
+                    MVM_exception_throw_adhoc(tc, "STRUCT_SELECT is MVMStaticFrame, no field with length %"PRIu64" (string heap index %d) implemented", string_length, string_idx);
                 }
             }
             else if (selected_struct_source == StructSel_MVMCompUnit) {
@@ -370,7 +377,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
                         *hintptr = offsetof(MVMCompUnit, body.hll_name);
                     }
                     else {
-                        MVM_exception_throw_adhoc(tc, "STRUCT_SELECT is MVMCompUnit, no field with length %ld (string heap index %d) implemented", string_length, string_idx);
+                        MVM_exception_throw_adhoc(tc, "STRUCT_SELECT is MVMCompUnit, no field with length %"PRIu64" (string heap index %d) implemented", string_length, string_idx);
                     }
                 }
             }
@@ -396,7 +403,7 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
         new_info = MVM_op_get_op(new_opcode);
         if (!new_info)
             MVM_exception_throw_adhoc(tc, "Invalid opcode detected in confprog: %d  at position 0x%lx",
-                    opcode, state->bc_pointer - state->bytecode_root);
+                    opcode, (unsigned long) (state->bc_pointer - state->bytecode_root));
 
         state->prev_op = state->cur_op;
         state->cur_op = new_info;
@@ -485,12 +492,12 @@ MVMint16 stats_position_for_value(MVMThreadContext *tc, MVMuint8 entrypoint, MVM
         case MVM_PROGRAM_ENTRYPOINT_PROFILER_DYNAMIC:
             if (return_value == 0 || return_value == 1)
                 return MVM_CONFPROG_SF_RESULT_ALWAYS + 1 + return_value;
-            MVM_exception_throw_adhoc(tc, "Can't get stats for out-of-bounds value %ld for dynamic profiler entrypoint", return_value);
+            MVM_exception_throw_adhoc(tc, "Can't get stats for out-of-bounds value %"PRIu64" for dynamic profiler entrypoint", return_value);
             return -1;
         case MVM_PROGRAM_ENTRYPOINT_HEAPSNAPSHOT:
             if (return_value <= 2)
                 return MVM_CONFPROG_SF_RESULT_ALWAYS + 1 + 1 + 1 + return_value;
-            MVM_exception_throw_adhoc(tc, "Can't get stats for out-of-bounds value %ld for heapsnapshot entrypoint", return_value);
+            MVM_exception_throw_adhoc(tc, "Can't get stats for out-of-bounds value %"PRIu64" for heapsnapshot entrypoint", return_value);
             return -1;
         default:
             if (tc)
@@ -525,12 +532,12 @@ void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *
         junkprint(stderr, "got a bytecode array with %d (%x) entries\n", bytecode_size, bytecode_size);
 
         if (bytecode_size % 2 == 1) {
-            MVM_exception_throw_adhoc(tc, "installconfprog expected bytecode array to be a multiple of 2 bytes big (got a %ld)",
+            MVM_exception_throw_adhoc(tc, "installconfprog expected bytecode array to be a multiple of 2 bytes big (got a %"PRIu64")",
                     bytecode_size);
         }
 
         if (bytecode_size > 4096) {
-            MVM_exception_throw_adhoc(tc, "confprog too big. maximum 4096, this one has %ld", bytecode_size);
+            MVM_exception_throw_adhoc(tc, "confprog too big. maximum 4096, this one has %"PRIu64"", bytecode_size);
         }
 
         array_contents = ((MVMArray *)bytecode)->body.slots.u8;
@@ -572,7 +579,7 @@ void MVM_confprog_install(MVMThreadContext *tc, MVMObject *bytecode, MVMObject *
         }
     }
 
-    confprog = MVM_calloc(sizeof(MVMConfigurationProgram), 1);
+    confprog = MVM_calloc(1, sizeof(MVMConfigurationProgram));
 
     confprog->debugging_level = debug_level;
 
@@ -1032,7 +1039,7 @@ finish_main_loop:
                 }
                 break;
         }
-        debugprint(DEBUG_LVL(BARE), tc, "confprog result value: %lld (%s)\n", result, resultname);
+        debugprint(DEBUG_LVL(BARE), tc, "confprog result value: %"PRIi64" (%s)\n", result, resultname);
     }
 
     return result;

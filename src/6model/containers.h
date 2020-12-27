@@ -44,6 +44,10 @@ struct MVMContainerSpec {
     /* Deserializes the container data, if any. */
     void (*deserialize) (MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader);
 
+    /* Called when the whole of the REPR data has been deserialized (so the
+     * offsets of attributes could be queried, for example). */
+    void (*post_deserialize) (MVMThreadContext *tc, MVMSTable *st);
+
     /* Returns a non-zero value if we can store to the container. */
     MVMint32 (*can_store) (MVMThreadContext *tc, MVMObject *cont);
 
@@ -71,13 +75,11 @@ struct MVMContainerConfigurer {
 };
 
 /* Container registry is a hash mapping names of container configurations
- * to function tables. */
+ * to function tables. As it's global (accessed with a mutex held) its entries
+ * can't inline the struct returned to the caller. Hence the indirection: */
 struct MVMContainerRegistry {
-    MVMString              *name;
+    struct MVMStrHashHandle hash_handle;
     const MVMContainerConfigurer *configurer;
-
-    /* Inline handle to the hash in which this is stored. */
-    UT_hash_handle hash_handle;
 };
 
 MVM_PUBLIC void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name, const MVMContainerConfigurer *configurer);

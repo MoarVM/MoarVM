@@ -14,6 +14,10 @@ $Data::Dumper::Maxdepth = 1;
 # Download allkeys.txt from http://www.unicode.org/Public/UCA/latest/
 # and place into a folder named UCA under the UNIDATA directory.
 
+my $have_rakudo = `rakudo -e 'say "Hello world"'`;
+die "You need rakudo in your path to run this script\n"
+    unless $have_rakudo =~ /\AHello world/;
+
 my $DEBUG = $ENV{UCD2CDEBUG} // 0;
 
 binmode STDOUT, ':encoding(UTF-8)';
@@ -121,7 +125,12 @@ sub main {
     #BidiMirroring();
     goto skip_most if $SKIP_MOST_MODE;
     binary_props('extracted/DerivedBinaryProperties');
-    binary_props("emoji-$highest_emoji_version/emoji-data");
+    if (-e "emoji-$highest_emoji_version/emoji-data") {
+        binary_props("emoji-$highest_emoji_version/emoji-data") # v12.1 and earlier
+    }
+    else {
+        binary_props("emoji/emoji-data"); # v13.0 and later
+    }
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 3);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1);
     # sub Jamo sets names properly. Though at the moment Jamo_Short_Name likely
@@ -654,24 +663,21 @@ sub add_extent {
 }
 # Used in emit_codepoints_and_planes to push the codepoints name onto bitfield_index_lines
 sub ecap_push_name_line {
-    my ($name_lines, $name, $point, $bitfield_index_lines, $bytes, $index, $annotate_anyway) = @_;
+    my ($name_lines, $name, $point, $bitfield_index_lines, $index) = @_;
+    my $bytes;
     if (!defined $name) {
-        push @$bitfield_index_lines,
-            ($annotate_anyway
-                ? "/*$$index*/$point->{bitfield_index}/*$point->{code_str} */"
-                : "0"
-            );
+        push @$bitfield_index_lines, "0";
         push @$name_lines, "NULL";
     }
     else {
-        $$bytes += length($point->{name}) + 1; # length + 1 for the NULL
+        $bytes = length($point->{name}) + 1; # length + 1 for the NULL
         push @$bitfield_index_lines, "/*$$index*/$point->{bitfield_index}/* $point->{code_str} */";
         push @$name_lines, "/*$$index*/\"$point->{name}\"/* $point->{code_str} */";
     }
-    $$bytes += 2; # hopefully these are compacted since they are trivially aligned being two bytes
-    $$bytes += 8; # 8 for the pointer
-    $$index++;
-    return;
+    ++$$index;
+    $bytes += 2; # hopefully these are compacted since they are trivially aligned being two bytes
+    $bytes += 8; # 8 for the pointer
+    return $bytes;
 }
 sub emit_codepoints_and_planes {
     my ($first_point) = @_;
@@ -722,17 +728,10 @@ sub emit_codepoints_and_planes {
                 $toadd = $point;
                 $span_length = 0;
             }
-            my $usually = 1;  # occasionally change NULL to the name to cut name search time
             for (; 1 < $span_length; $span_length--) {
                 # catch up to last code
                 $last_point = $last_point->{next_point};
-                 # occasionally change NULL to the name to cut name search time
-                if ($last_point->{name} =~ / ^ [<] /x && $usually++ % 25) {
-                    ecap_push_name_line(\@name_lines, undef, $last_point, \@bitfield_index_lines, \$bytes, \$index, 1);
-                }
-                else {
-                    ecap_push_name_line(\@name_lines, $last_point->{name}, $last_point, \@bitfield_index_lines, \$bytes, \$index);
-                }
+                $bytes += ecap_push_name_line(\@name_lines, $last_point->{name}, $last_point, \@bitfield_index_lines, \$index);
             }
             $span_length = 0;
         }
@@ -747,7 +746,7 @@ sub emit_codepoints_and_planes {
             $toadd = $point;
         }
         for (; $last_code < $point->{code} - 1; $last_code++) {
-            ecap_push_name_line(\@name_lines, undef, $point, \@bitfield_index_lines, \$bytes, \$index);
+            $bytes += ecap_push_name_line(\@name_lines, undef, $point, \@bitfield_index_lines, \$index);
         }
 
         croak "$last_code  " . Dumper($point) unless $last_code == $point->{code} - 1;
@@ -759,7 +758,7 @@ sub emit_codepoints_and_planes {
         }
         $toadd = undef;
         # a normal codepoint that we don't want to compress
-        ecap_push_name_line(\@name_lines, $point->{name}, $point, \@bitfield_index_lines, \$bytes, \$index);
+        $bytes += ecap_push_name_line(\@name_lines, $point->{name}, $point, \@bitfield_index_lines, \$index);
         $last_code = $point->{code};
         $point->{main_index} = $index;
         $last_point = $point;
@@ -770,7 +769,7 @@ sub emit_codepoints_and_planes {
     # jnthn: Would it still use the same amount of memory to combine these tables? XXX
     $DB_SECTIONS->{BBB_codepoint_names} =
         "static const char *codepoint_names[$index] = {\n    ".
-            stack_lines(\@name_lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS).
+            stack_lines(\@name_lines, ",", ",\n    ", 0, 0).
             "\n};";
     $DB_SECTIONS->{BBB_codepoint_bitfield_indexes} =
         "static const MVMuint16 codepoint_bitfield_indexes[$index] = {\n    ".
@@ -1156,14 +1155,16 @@ sub emit_names_hash_builder {
     Okay not to be threadsafe since its value is deterministic
         and I don't care about the tiny potential for a memory leak
         in the event of a race condition. */
-static MVMUnicodeNameRegistry *codepoints_by_name = NULL;
+
+ /* static, so will be 0 initialised. */
+static MVMUniHashTable codepoints_by_name;
+
 static void generate_codepoints_by_name(MVMThreadContext *tc) {
     MVMint32 extent_index = 0;
     MVMint32 codepoint = 0;
     MVMint32 codepoint_table_index = 0;
     MVMint16 i = num_unicode_namealias_keypairs - 1;
 
-    MVMUnicodeNameRegistry *entry;
     for (; extent_index < MVM_NUM_UNICODE_EXTENTS; extent_index++) {
         MVMint32 length;
         codepoint = codepoint_extents[extent_index][0];
@@ -1178,11 +1179,11 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
                 for (; extent_span_index < length
                     && codepoint_table_index < MVM_CODEPOINT_NAMES_COUNT; extent_span_index++) {
                     const char *name = codepoint_names[codepoint_table_index];
-                    if (name) {
-                        MVMUnicodeNameRegistry *entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-                        entry->name = (char *)name;
-                        entry->codepoint = codepoint;
-                        HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, name, strlen(name), entry);
+                    /* We want to skip various placeholder names that are duplicated:
+                     * <control> <CJK UNIFIED IDEOGRAPH> <CJK COMPATIBILITY IDEOGRAPH>
+                     * <surrogate> <TANGUT IDEOGRAPH> <private-use> */
+                    if (name && *name != '<') {
+                        MVM_uni_hash_insert(tc, &codepoints_by_name, name, codepoint);
                     }
                     codepoint++;
                     codepoint_table_index++;
@@ -1198,11 +1199,8 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
             /* Fate Span */
             case $FATE_SPAN: {
                 const char *name = codepoint_names[codepoint_table_index];
-                if (name) {
-                    MVMUnicodeNameRegistry *entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-                    entry->name = (char *)name;
-                    entry->codepoint = codepoint;
-                    HASH_ADD_KEYPTR(hash_handle, codepoints_by_name, name, strlen(name), entry);
+                if (name && *name != '<') {
+                    MVM_uni_hash_insert(tc, &codepoints_by_name, name, codepoint);
                 }
                 codepoint += length;
                 codepoint_table_index++;
@@ -1211,11 +1209,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
         }
     }
     for (; i >= 0; i--) {
-        entry = MVM_malloc(sizeof(MVMUnicodeNameRegistry));
-        entry->name = uni_namealias_pairs[i].name;
-        entry->codepoint =  uni_namealias_pairs[i].codepoint;
-        HASH_ADD_KEYPTR(hash_handle, codepoints_by_name,  uni_namealias_pairs[i].name,  uni_namealias_pairs[i].strlen, entry);
-
+        MVM_uni_hash_insert(tc, &codepoints_by_name, uni_namealias_pairs[i].name, uni_namealias_pairs[i].codepoint);
     }
 
 }
@@ -1591,7 +1585,7 @@ sub emit_unicode_property_value_keypairs {
             $done{"$propname$_"} ||= push @lines, $lines{$propname}->{$_};
         }
     }
-    my $out = "\nstatic MVMUnicodeNameRegistry **unicode_property_values_hashes;\n" .
+    my $out = "\nstatic MVMUniHashTable *unicode_property_values_hashes;\n" .
     "static const MVMUnicodeNamedValue unicode_property_value_keypairs[" . scalar(@lines) . "] = {\n" .
     "    " . stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS) . "\n" .
     "};";
@@ -1768,10 +1762,7 @@ sub read_file {
     my $fname = shift;
     open my $FILE, '<', $fname or croak "Couldn't open file '$fname': $!";
     binmode $FILE, ':encoding(UTF-8)';
-    my @lines = ();
-    while( <$FILE> ) {
-        push @lines, $_;
-    }
+    my @lines = <$FILE>;
     close $FILE;
     return \@lines;
 }
@@ -1780,6 +1771,9 @@ sub write_file {
     my ($fname, $contents) = @_;
     open my $FILE, '>', $fname or croak "Couldn't open file '$fname': $!";
     binmode $FILE, ':encoding(UTF-8)';
+    # Ensure generated files always end with a newline.
+    $contents .= "\n"
+        unless $contents =~ /\n\z/;
     print $FILE trim_trailing($contents);
     close $FILE;
     return;
@@ -1863,6 +1857,9 @@ sub UnicodeData {
             $ideograph_start = $point;
             $point->{name}   =~ s/, First//;
         }
+        elsif ($name =~ / First/) {
+          die "Looks like support for a new thing needs to be added: $name"
+        }
         elsif ($ideograph_start) {
             $point->{name} = $ideograph_start->{name};
             my $current    = $ideograph_start;
@@ -1882,11 +1879,15 @@ sub UnicodeData {
              || $point->{name} eq '<CJK Ideograph Extension C>'
              || $point->{name} eq '<CJK Ideograph Extension D>'
              || $point->{name} eq '<CJK Ideograph Extension E>'
-             || $point->{name} eq '<CJK Ideograph Extension F>')
+             || $point->{name} eq '<CJK Ideograph Extension F>'
+             || $point->{name} eq '<CJK Ideograph Extension G>')
             {
                 $point->{name} = '<CJK UNIFIED IDEOGRAPH>'
             }
             elsif ($point->{name} eq '<Tangut Ideograph>') {
+                $point->{name} = '<TANGUT IDEOGRAPH>';
+            }
+            elsif ($point->{name} eq '<Tangut Ideograph Supplement>') {
                 $point->{name} = '<TANGUT IDEOGRAPH>';
             }
             elsif ($point->{name} eq '<Hangul Syllable>') {
@@ -1905,6 +1906,21 @@ sub UnicodeData {
                 die unless $gencat eq 'Cs';
                 $point->{name} = '<surrogate>';
             }
+            my $instructions_line_no = __LINE__;
+            my $instructions_1 = <<~'END';
+              Don't add anything here *unless*
+              Unicode has added a new "Name Derevation Rule Prefix String".
+              Extensions to *existing* prefixes should be normalized from their
+              format in the data file to the correct prefix string.
+              For example: if a new CJK Unified Ideograph extension is added
+              <CJK Ideograph Extension X> **AND** the "Name Derivation Rule Prefix Strings"
+              END
+            my $instructions_2 = <<~'END';
+              the table in the unicode ch04 documentation specifies the codepoint
+              in question results in prefix is CJK UNIFIED IDEOGRAPH then you can
+              modify the normalizing code above to change <CJK Ideograph Extension X>
+              into <CJK UNIFIED IDEOGRAPH>, which is already whitelisted
+              END
             if ($point->{name} eq '<HANGUL SYLLABLE>'
              || $point->{name} eq '<control>'
              || $point->{name} eq '<CJK UNIFIED IDEOGRAPH>'
@@ -1913,10 +1929,18 @@ sub UnicodeData {
              || $point->{name} eq '<TANGUT IDEOGRAPH>') {
             }
             else {
-                die "$point->{name} encountered. Make sure to check https://www.unicode.org/versions/Unicode10.0.0/ch04.pdf for Name Derivation Rule Prefix Strings\n" .
-                "Also you will likely have to make a change to MVM_unicode_get_name() and add a test to nqp";
-                say $code_str;
-                exit;
+                die <<~"END";
+                $point->{name} encountered. code_str: '$code_str'
+                ##############################
+                IMPORTANT: READ BELOW
+                Make sure to check
+                https://www.unicode.org/versions/latest/bookmarks.html
+                and click the link for Table 4-8. Name Derivation Rule Prefix Strings,
+                using this table as a reference along with
+                $instructions_2
+                Read more about this on comment line $instructions_line_no
+                You will likely have to make a change to MVM_unicode_get_name() and add a test to nqp
+                END
             }
         }
         if ($point->{name} =~ /^CJK COMPATIBILITY IDEOGRAPH-([A-F0-9]+)$/) {
@@ -2096,7 +2120,9 @@ sub Jamo {
         }
     }
     my $hs = join ',', @hangul_syllables;
-    my $out = `perl6 -e 'my \@cps = $hs; for \@cps -> \$cp { \$cp.chr.NFD.list.join(",").say };'`;
+    my $out = `rakudo -e 'my \@cps = $hs; for \@cps -> \$cp { \$cp.chr.NFD.list.join(",").say };'`;
+    die "Problem running rakudo to process Hangul syllables: \$? was $?"
+        if $?;
     my @out_lines = split "\n", $out;
     my $i = 0;
     for my $line (@out_lines) {

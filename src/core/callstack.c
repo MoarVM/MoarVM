@@ -2,7 +2,7 @@
 
 /* Allocates a new call stack region, not incorporated into the regions double
  * linked list yet. */
-static MVMCallStackRegion * create_region() {
+static MVMCallStackRegion * create_region(void) {
     MVMCallStackRegion *region = MVM_malloc(MVM_CALLSTACK_REGION_SIZE);
     region->prev = region->next = NULL;
     region->alloc = (char *)region + sizeof(MVMCallStackRegion);

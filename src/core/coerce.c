@@ -184,7 +184,6 @@ static char * u64toa_naive_worker(uint64_t value, char* buffer) {
         *buffer++ = *--p;
     } while (p != temp);
 
-    *buffer = '\0';
     return buffer;
 }
 static size_t i64toa_naive(int64_t value, char* buffer) {
@@ -201,7 +200,7 @@ static size_t u64toa_naive(uint64_t value, char* buffer) {
     return u64toa_naive_worker(value, buffer) - buffer;
 }
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
-    char buffer[64];
+    char buffer[20];
     int len;
     /* See if we can hit the cache. */
     int cache = 0 <= i && i < MVM_INT_TO_STR_CACHE_SIZE;
@@ -227,7 +226,7 @@ MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
 }
 
 MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
-    char buffer[64];
+    char buffer[20];
     int len;
     /* See if we can hit the cache. */
     int cache = i < MVM_INT_TO_STR_CACHE_SIZE;
@@ -326,7 +325,7 @@ void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegiste
 }
 
 MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *s) {
-    char     *enc = MVM_string_ascii_encode(tc, s, NULL, 0);
+    char     *enc = MVM_string_ascii_encode_any(tc, s);
     MVMint64  i   = strtoll(enc, NULL, 10);
     MVM_free(enc);
     return i;
@@ -451,9 +450,6 @@ MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
     }
 }
 
-/* concatenating with "" ensures that only literal strings are accepted as argument. */
-#define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
-
 MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag) {
     MVMObject *result;
     MVMint64 zvalue = 0;
@@ -525,59 +521,4 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
     });
 
     return result;
-}
-
-
-void MVM_box_int(MVMThreadContext *tc, MVMint64 value, MVMObject *type,
-             MVMRegister * dst) {
-    MVMObject *box = MVM_intcache_get(tc, type, value);
-    if (box == 0) {
-        box = REPR(type)->allocate(tc, STABLE(type));
-        if (REPR(box)->initialize)
-            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-        REPR(box)->box_funcs.set_int(tc, STABLE(box), box,
-                                     OBJECT_BODY(box), value);
-    }
-    dst->o = box;
-}
-
-void MVM_box_num(MVMThreadContext *tc, MVMnum64 value, MVMObject *type,
-                 MVMRegister * dst) {
-    MVMObject *box = REPR(type)->allocate(tc, STABLE(type));
-    if (REPR(box)->initialize)
-        REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-    REPR(box)->box_funcs.set_num(tc, STABLE(box), box,
-                                 OBJECT_BODY(box), value);
-    dst->o = box;
-
-}
-
-MVMString * MVM_unbox_str(MVMThreadContext *tc, MVMObject *obj) {
-    if (!IS_CONCRETE(obj))
-        MVM_exception_throw_adhoc(tc, "Cannot unbox a type object (%s) to a str.",
-            MVM_6model_get_debug_name(tc, obj));
-    return REPR(obj)->box_funcs.get_str(tc,
-        STABLE(obj), obj, OBJECT_BODY(obj));
-}
-
-void MVM_box_str(MVMThreadContext *tc, MVMString *value, MVMObject *type,
-                 MVMRegister *dst) {
-    MVMObject *box;
-    MVMROOT(tc, value, {
-        box = REPR(type)->allocate(tc, STABLE(type));
-        if (REPR(box)->initialize)
-            REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-        REPR(box)->box_funcs.set_str(tc, STABLE(box), box,
-                                     OBJECT_BODY(box), value);
-        dst->o = box;
-    });
-}
-
-void MVM_box_uint(MVMThreadContext *tc, MVMuint64 value, MVMObject *type,
-             MVMRegister * dst) {
-    MVMObject *box = REPR(type)->allocate(tc, STABLE(type));
-    if (REPR(box)->initialize)
-        REPR(box)->initialize(tc, STABLE(box), box, OBJECT_BODY(box));
-    REPR(box)->box_funcs.set_uint(tc, STABLE(box), box, OBJECT_BODY(box), value);
-    dst->o = box;
 }

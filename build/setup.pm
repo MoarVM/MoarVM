@@ -283,7 +283,7 @@ our %COMPILERS = (
         ld => undef,
         as => 'as',
 
-        ccmiscflags  => '-Wextra -Wall -Wno-unused-parameter -Wno-unused-function -Wno-missing-braces -Werror=pointer-arith',
+        ccmiscflags  => '-std=gnu99 -Wextra -Wall -Wno-unused-parameter -Wno-unused-function -Wno-missing-braces -Werror=pointer-arith',
         ccwarnflags  => '',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
@@ -547,7 +547,7 @@ our %OS_DRAGONFLY = (
     syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
 
     -thirdparty => {
-        uv => { %TP_UVDUMMY, objects => '$(UV_FREEBSD)' },
+        uv => { %TP_UVDUMMY, objects => '$(UV_DRAGONFLYBSD)' },
     },
 );
 

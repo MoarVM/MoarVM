@@ -89,6 +89,12 @@ not understand. For message types that it does not recognize, it must send a
 message of type "not recognized" (format defined below); the connection should
 be left intact by MoarVM, and the client can decide how to proceed.
 
+### Changes
+
+#### Version 1.2
+
+Added a "name" field to threads in Thread List Response (12)
+
 ## Security considerations
 
 Any client connected to the debug protocol will be able to perform remote code
@@ -253,6 +259,8 @@ array of objects, with one entry per running threads, providing information
 about that thread. It also contains an indication of whether the threads was
 suspended, and the number of locks it is currently holding.
 
+The name field was added in version 1.2
+
     {
         "type": 12,
         "id": $id,
@@ -262,14 +270,16 @@ suspended, and the number of locks it is currently holding.
                 "native_id": 1010,
                 "app_lifetime": false,
                 "suspended": true,
-                "num_locks": 1
+                "num_locks": 1,
+                "name": "AffinityWorker",
             },
             {
                 "thread": 3,
                 "native_id": 1020,
                 "app_lifetime": true,
                 "suspended": false,
-                "num_locks": 0
+                "num_locks": 0,
+                "name": "Supervisor",
             }
         ]
     }
@@ -636,7 +646,7 @@ under the `class` key.
 
 ### Decontainerize Handle (34)
 
-Used to decontainerize a value in a container (such as a Perl 6 `Scalar`). The
+Used to decontainerize a value in a container (such as a Raku `Scalar`). The
 handle to the object that results is returned in a Handle Result message. If
 this is not a container type, or if an exception occurs when trying to do the
 decontainerization, an Error Processing Message response will be sent by MoarVM
@@ -670,7 +680,8 @@ operation.
         "type": 35,
         "id": $id,
         "thread": 1,
-        "handle": 1234
+        "handle": 1234,
+        "name": "frobify",
     }
 
 ### Invoke (36)

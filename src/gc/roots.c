@@ -65,8 +65,6 @@ void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
 /* Adds anything that is a root thanks to being referenced by instance,
  * but that isn't permanent. */
 void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
-    MVMSerializationContextBody *current;
-    MVMLoadedCompUnitName       *current_lcun;
     MVMString                  **int_to_str_cache;
     MVMuint32                    i;
 
@@ -103,24 +101,31 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 
     /* okay, so this makes the weak hash slightly less weak.. for certain
      * keys of it anyway... */
-    HASH_ITER_FAST(tc, hash_handle, tc->instance->sc_weakhash, current, {
+    MVMStrHashTable *const weakhash = &tc->instance->sc_weakhash;
+    MVMStrHashIterator iterator = MVM_str_hash_first(tc, weakhash);
+    while (!MVM_str_hash_at_end(tc, weakhash, iterator)) {
+        struct MVMSerializationContextWeakHashEntry *current
+            = MVM_str_hash_current_nocheck(tc, weakhash, iterator);
         /* mark the string handle pointer iff it hasn't yet been resolved */
         add_collectable(tc, worklist, snapshot, current->hash_handle.key,
             "SC weakhash hash key");
-        if (!current->sc)
-            add_collectable(tc, worklist, snapshot, current->handle,
+        if (!current->scb->sc)
+            add_collectable(tc, worklist, snapshot, current->scb->handle,
                 "SC weakhash unresolved handle");
-        else if (!current->claimed)
-            add_collectable(tc, worklist, snapshot, current->sc,
+        else if (!current->scb->claimed)
+            add_collectable(tc, worklist, snapshot, current->scb->sc,
                 "SC weakhash unclaimed SC");
-    });
+        iterator = MVM_str_hash_next_nocheck(tc, weakhash, iterator);
+    }
 
-    HASH_ITER_FAST(tc, hash_handle, tc->instance->loaded_compunits, current_lcun, {
-        add_collectable(tc, worklist, snapshot, current_lcun->hash_handle.key,
-            "Loaded compilation unit hash key");
-        add_collectable(tc, worklist, snapshot, current_lcun->filename,
-            "Loaded compilation unit filename");
-    });
+    MVMStrHashTable *const containers = &tc->instance->container_registry;
+    iterator = MVM_str_hash_first(tc, containers);
+    while (!MVM_str_hash_at_end(tc, containers, iterator)) {
+        MVMContainerRegistry *registry = MVM_str_hash_current_nocheck(tc, containers, iterator);
+        add_collectable(tc, worklist, snapshot, registry->hash_handle.key,
+                        "Container configuration hash key");
+        iterator = MVM_str_hash_next_nocheck(tc, containers, iterator);
+    }
 
     add_collectable(tc, worklist, snapshot, tc->instance->cached_backend_config,
         "Cached backend configuration hash");
@@ -148,8 +153,6 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
 /* Adds anything that is a root thanks to being referenced by a thread,
  * context, but that isn't permanent. */
 void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
-    MVMNativeCallbackCacheHead *current_cbceh;
-
     /* Any active exception handlers and payload. */
     MVMActiveHandler *cur_ah = tc->active_handlers;
     while (cur_ah != NULL) {
@@ -184,28 +187,29 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     add_collectable(tc, worklist, snapshot, tc->next_dispatcher_for, "Next dispatcher for");
 
     /* Callback cache. */
-    HASH_ITER_FAST(tc, hash_handle, tc->native_callback_cache, current_cbceh, {
+    MVMStrHashTable *cache = &tc->native_callback_cache;
+    MVMStrHashIterator iterator = MVM_str_hash_first(tc, cache);
+    while (!MVM_str_hash_at_end(tc, cache, iterator)) {
+        struct MVMNativeCallbackCacheHead *current_cbceh
+            = MVM_str_hash_current_nocheck(tc, cache, iterator);
         MVMint32 i;
         MVMNativeCallback *entry = current_cbceh->head;
         add_collectable(tc, worklist, snapshot, current_cbceh->hash_handle.key,
-            "Native callback cache key");
+                        "Native callback cache key");
         while (entry) {
             for (i = 0; i < entry->num_types; i++)
                 add_collectable(tc, worklist, snapshot, entry->types[i],
-                    "Native callback cache type");
+                                "Native callback cache type");
             add_collectable(tc, worklist, snapshot, entry->target,
-                "Native callback cache target");
+                            "Native callback cache target");
             entry = entry->next;
         }
-    });
+        iterator = MVM_str_hash_next_nocheck(tc, cache, iterator);
+    }
 
     /* Profiling data. */
     if (worklist)
         MVM_profile_instrumented_mark_data(tc, worklist);
-
-    /* Serialized string heap, if any. */
-    add_collectable(tc, worklist, snapshot, tc->serialized_string_heap,
-        "Serialized string heap");
 
     /* Specialization log, stack simulation, and plugin state. */
     add_collectable(tc, worklist, snapshot, tc->spesh_log, "Specialization log");
@@ -219,7 +223,8 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
         else
             MVM_spesh_graph_describe(tc, tc->spesh_active_graph, snapshot);
     }
-    MVM_spesh_plugin_guard_list_mark(tc, tc->plugin_guards, tc->num_plugin_guards, worklist);
+    if (worklist)
+        MVM_spesh_plugin_guard_list_mark(tc, tc->plugin_guards, tc->num_plugin_guards, worklist);
     if (tc->temp_plugin_guards)
         MVM_spesh_plugin_guard_list_mark(tc, tc->temp_plugin_guards, tc->temp_num_plugin_guards, worklist);
     add_collectable(tc, worklist, snapshot, tc->plugin_guard_args,
@@ -274,7 +279,7 @@ void MVM_gc_root_temp_pop_all(MVMThreadContext *tc) {
  * do it on every stack push). */
 static MVMuint32 is_stack_frame(MVMThreadContext *tc, MVMCollectable **c) {
     MVMCollectable *maybe_frame = *c;
-    return maybe_frame && maybe_frame->flags == 0 && maybe_frame->owner == 0;
+    return maybe_frame && maybe_frame->flags1 == 0 && maybe_frame->owner == 0;
 }
 void MVM_gc_root_add_temps_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     MVMuint32         i, num_roots;
@@ -299,7 +304,7 @@ void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable *c) {
     /* Ensure the collectable is not null. */
     if (c == NULL)
         MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null collectable address as an inter-generational root");
-    assert(!(c->flags & MVM_CF_FORWARDER_VALID));
+    assert(!(c->flags2 & MVM_CF_FORWARDER_VALID));
 
     /* Allocate extra gen2 aggregate space if needed. */
     if (tc->num_gen2roots == tc->alloc_gen2roots) {
@@ -313,7 +318,7 @@ void MVM_gc_root_gen2_add(MVMThreadContext *tc, MVMCollectable *c) {
     tc->num_gen2roots++;
 
     /* Flag it as added, so we don't add it multiple times. */
-    c->flags |= MVM_CF_IN_GEN2_ROOT_LIST;
+    c->flags2 |= MVM_CF_IN_GEN2_ROOT_LIST;
 }
 
 /* Adds the set of thread-local inter-generational roots to a GC worklist. As
@@ -340,13 +345,13 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
         /* Put things it references into the worklist; since the worklist will
          * be set not to include gen2 things, only nursery things will make it
          * in. */
-        assert(!(gen2roots[i]->flags & MVM_CF_FORWARDER_VALID));
+        assert(!(gen2roots[i]->flags2 & MVM_CF_FORWARDER_VALID));
         MVM_gc_mark_collectable(tc, worklist, gen2roots[i]);
 
         /* If we added any nursery objects, or if we are a frame with ->work
          * area, keep in this list. */
         if (worklist->items != items_before_mark ||
-                (gen2roots[i]->flags & MVM_CF_FRAME && ((MVMFrame *)gen2roots[i])->work)) {
+                (gen2roots[i]->flags1 & MVM_CF_FRAME && ((MVMFrame *)gen2roots[i])->work)) {
             gen2roots[insert_pos] = gen2roots[i];
             insert_pos++;
         }
@@ -355,7 +360,7 @@ void MVM_gc_root_add_gen2s_to_worklist(MVMThreadContext *tc, MVMGCWorklist *work
          * thread may also clear this flag if it also had the entry in its
          * inter-gen list, so be careful to clear it, not just toggle. */
         else {
-            gen2roots[i]->flags &= ~MVM_CF_IN_GEN2_ROOT_LIST;
+            gen2roots[i]->flags2 &= ~MVM_CF_IN_GEN2_ROOT_LIST;
         }
     }
 
@@ -381,14 +386,14 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc) {
     MVMuint32        cur_survivor;
 
     /* Find the first collected object. */
-    while (i < num_roots && gen2roots[i]->flags & MVM_CF_GEN2_LIVE)
+    while (i < num_roots && gen2roots[i]->flags2 & MVM_CF_GEN2_LIVE)
         i++;
     cur_survivor = i;
 
     /* Slide others back so the alive ones are at the start of the list. */
     while (i < num_roots) {
-        if (gen2roots[i]->flags & MVM_CF_GEN2_LIVE) {
-            assert(!(gen2roots[i]->flags & MVM_CF_FORWARDER_VALID));
+        if (gen2roots[i]->flags2 & MVM_CF_GEN2_LIVE) {
+            assert(!(gen2roots[i]->flags2 & MVM_CF_FORWARDER_VALID));
             gen2roots[cur_survivor++] = gen2roots[i];
         }
         i++;

@@ -1,5 +1,4 @@
 #include "moar.h"
-#include <platform/threads.h>
 
 /* Temporary structure for passing data to thread start. */
 typedef struct {
@@ -76,6 +75,11 @@ static void start_thread(void *data) {
     /* Stash thread ID. */
     tc->thread_obj->body.native_thread_id = MVM_platform_thread_id();
 
+    /* Store this thread's thread context pointer, so that we can retrieve it
+     * in places where we can't pass it in to, such as the callback function
+     * used by qsort. */
+    MVM_set_running_threads_context(tc);
+
     /* Create a spesh log for this thread, unless it's just going to run C
      * code (and thus it's a VM internal worker). */
     if (REPR(tc->thread_obj->body.invokee)->ID != MVM_REPR_ID_MVMCFunction)
@@ -84,7 +88,7 @@ static void start_thread(void *data) {
     MVM_debugserver_notify_thread_creation(tc);
 
     /* Enter the interpreter, to run code. */
-    MVM_interp_run(tc, thread_initial_invoke, ts);
+    MVM_interp_run(tc, thread_initial_invoke, ts, NULL);
 
     MVM_debugserver_notify_thread_destruction(tc);
 
@@ -122,7 +126,9 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
             MVM_profile_log_thread_created(tc, child_tc);
         }
 
-        /* Mark thread as GC blocked until the thread actually starts. */
+        /* Mark thread as GC blocked until the thread actually starts.
+         * Contrary to other callsites, MVM_gc_mark_thread_blocked cannot enter
+         * the GC here, as child_tc is not yet in the instance's threads list. */
         MVM_gc_mark_thread_blocked(child_tc);
 
         /* Create thread state, to pass to the thread start callback. */
@@ -342,3 +348,25 @@ void MVM_thread_join_foreground(MVMThreadContext *tc) {
     }
 }
 
+void MVM_thread_set_self_name(MVMThreadContext *tc, MVMString *name) {
+    #if MVM_HAS_PTHREAD_SETNAME_NP
+    MVMuint64 name_length = MVM_string_graphs(tc, name);
+    MVMint16 acceptable_length = name_length > 15 ? 15 : name_length;
+    MVMuint8 success = 0;
+    MVMROOT(tc, name, {
+    while (acceptable_length > 0 && !success) {
+            MVMString *substring = MVM_string_substring(tc, name, 0, acceptable_length);
+            char *c_name = MVM_string_utf8_c8_encode_C_string(tc, substring);
+            /* pthread man page says names are allowed to be 15 bytes long... */
+            if (strlen(c_name) > 0 && pthread_setname_np(pthread_self(), c_name) == 0) {
+                success = 1;
+            }
+            if (strlen(c_name) == 0) {
+                acceptable_length = -1;
+            }
+            MVM_free(c_name);
+            acceptable_length--;
+        }
+    });
+    #endif
+}

@@ -320,8 +320,10 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadConte
      * the args specialization). */
     ig = MVM_spesh_graph_create(tc, target_sf, 0, 1);
     MVM_spesh_args_from_callinfo(tc, ig, call_info, type_tuple);
-    MVM_spesh_facts_discover(tc, ig, NULL, 0);
-    MVM_spesh_optimize(tc, ig, NULL);
+    MVMROOT(tc, target_sf, {
+        MVM_spesh_facts_discover(tc, ig, NULL, 0);
+        MVM_spesh_optimize(tc, ig, NULL);
+    });
 
     /* See if it's inlineable; clean up if not. */
     if (is_graph_inlineable(tc, inliner, target_sf, invoke_ins, ig, no_inline_reason, no_inline_info)) {
@@ -450,6 +452,17 @@ static void resize_handlers_table(MVMThreadContext *tc, MVMSpeshGraph *inliner, 
         inliner->handlers = MVM_realloc(inliner->handlers,
             new_handler_count * sizeof(MVMFrameHandler));
     }
+}
+
+static void rewrite_curcode(MVMThreadContext *tc, MVMSpeshGraph *g,
+                                 MVMSpeshIns *ins, MVMuint16 num_locals, MVMSpeshOperand code_ref_reg) {
+    MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+    new_operands[0] = ins->operands[0];
+    new_operands[0].reg.orig += num_locals;
+    new_operands[1] = code_ref_reg;
+    ins->info = MVM_op_get_op(MVM_OP_set);
+    ins->operands = new_operands;
+    MVM_spesh_usages_add_by_reg(tc, g, code_ref_reg, ins);
 }
 
 /* Rewrites a lexical lookup to an outer to be done via. a register holding
@@ -611,6 +624,9 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 for (i = 0; i < ins->info->num_operands; i++)
                     ins->operands[i].reg.orig += inliner->num_locals;
             }
+            else if (opcode == MVM_OP_curcode) {
+                rewrite_curcode(tc, inliner, ins, inliner->num_locals, code_ref_reg);
+            }
             else if (opcode == MVM_OP_sp_getlex_o && ins->operands[1].lex.outers > 0) {
                 rewrite_outer_lookup(tc, inliner, ins, inliner->num_locals,
                     MVM_OP_sp_getlexvia_o, code_ref_reg);
@@ -643,6 +659,14 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 /* If the inlining code doesn't set a dispatcher, takedispatcher
                  * in the inlinee can be assumed to always return null. */
                 if (!inliner->sets_dispatcher && !inlinee->sets_dispatcher) {
+                    ins->info = MVM_op_get_op(MVM_OP_null);
+                    ins->operands[0].reg.orig += inliner->num_locals;
+                }
+            }
+            else if (opcode == MVM_OP_takenextdispatcher) {
+                /* If the inlining code doesn't set a next dispatcher, takenextdispatcher
+                 * in the inlinee can be assumed to always return null. */
+                if (!inliner->sets_nextdispatcher && !inlinee->sets_nextdispatcher) {
                     ins->info = MVM_op_get_op(MVM_OP_null);
                     ins->operands[0].reg.orig += inliner->num_locals;
                 }
@@ -1014,6 +1038,7 @@ static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *re
                    MVMSpeshIns *return_ins, MVMSpeshOperand target,
                    MVMuint16 box_type_op, MVMuint16 box_op) {
     MVMSpeshOperand type_temp     = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+    MVMSpeshFacts *target_facts;
 
     /* Create and insert boxing instruction after current return instruction. */
     MVMSpeshOperand ver_target = MVM_spesh_manipulate_new_version(tc, g, target.reg.orig);
@@ -1025,7 +1050,12 @@ static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *re
     box_operands[1]               = return_ins->operands[0];
     box_operands[2]               = type_temp;
     MVM_spesh_manipulate_insert_ins(tc, return_bb, return_ins, box_ins);
-    MVM_spesh_get_facts(tc, g, ver_target)->writer = box_ins;
+    target_facts = MVM_spesh_get_facts(tc, g, ver_target);
+    target_facts->writer = box_ins;
+    target_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_KNOWN_BOX_SRC;
+    target_facts->type = box_op == MVM_OP_box_i ? g->sf->body.cu->body.hll_config->int_box_type :
+                         box_op == MVM_OP_box_n ? g->sf->body.cu->body.hll_config->num_box_type :
+                                                  g->sf->body.cu->body.hll_config->str_box_type;
     MVM_spesh_usages_add_by_reg(tc, g, box_operands[1], box_ins);
     MVM_spesh_usages_add_by_reg(tc, g, box_operands[2], box_ins);
 

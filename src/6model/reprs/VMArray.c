@@ -18,6 +18,9 @@ static void exit_single_user(MVMThreadContext *tc, MVMArrayBody *arr) {
 #endif
 }
 
+#define MVM_MAX(a,b) ((a)>(b)?(a):(b))
+#define MVM_MIN(a,b) ((a)<(b)?(a):(b))
+
 /* Creates a new type object of this representation, and associates it with
  * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
@@ -68,6 +71,11 @@ static void VMArray_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVM
     MVMuint64         elems     = body->elems;
     MVMuint64         start     = body->start;
     MVMuint64         i         = 0;
+
+    /* Aren't holding anything, nothing to do. */
+    if (elems == 0)
+        return;
+
     switch (repr_data->slot_type) {
         case MVM_ARRAY_OBJ: {
             MVMObject **slots = body->slots.o;
@@ -135,7 +143,7 @@ static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *
     return &storage_spec;
 }
 
-static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
+void MVM_VMArray_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMuint64        real_index;
@@ -253,9 +261,6 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type, got '%s'", MVM_reg_get_debug_name(tc, repr_data->slot_type));
     }
-}
-void MVM_VMArray_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister *value, MVMuint16 kind) {
-    at_pos(tc, st, root, data, index, value, kind);
 }
 
 static MVMuint64 zero_slots(MVMThreadContext *tc, MVMArrayBody *body,
@@ -376,7 +381,7 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
     body->elems = n;
 }
 
-static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
+void MVM_VMArray_bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 index, MVMRegister value, MVMuint16 kind) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMuint64        real_index;
@@ -474,7 +479,7 @@ static void set_elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     exit_single_user(tc, body);
 }
 
-static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
+void MVM_VMArray_push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister value, MVMuint16 kind) {
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     enter_single_user(tc, body);
@@ -629,12 +634,15 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
 
-    /* If we don't have room at the beginning of the slots,
-     * make some room (8 slots) for unshifting */
+    /* If we don't have room at the beginning of the slots, make some
+     * room for unshifting. We make room for a minimum of 8 elements, but
+     * for cases where we're just continuously unshifting factor in the
+     * body size too - however also apply an upper limit on that as in the
+     * push-based growth. */
     enter_single_user(tc, body);
     if (body->start < 1) {
-        MVMuint64 n = 8;
         MVMuint64 elems = body->elems;
+        MVMuint64 n = MVM_MIN(MVM_MAX(elems, 8), 8192);
 
         /* grow the array */
         set_size_internal(tc, body, elems + n, repr_data);
@@ -810,7 +818,7 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
     if (elems > 0) {
         MVMint64  i;
         MVMuint16 kind;
-        MVMuint8 d_needs_barrier = dest->header.flags & MVM_CF_SECOND_GEN;
+        MVMuint8 d_needs_barrier = dest->header.flags2 & MVM_CF_SECOND_GEN;
         if (s_repr_data && d_repr_data
                 && s_repr_data->slot_type == d_repr_data->slot_type
                 && s_repr_data->elem_size == d_repr_data->elem_size
@@ -854,7 +862,7 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
             for (i = 0; i < elems; i++) {
                 MVMRegister to_copy;
                 REPR(src)->pos_funcs.at_pos(tc, STABLE(src), src, s_body, s_offset + i, &to_copy, kind);
-                bind_pos(tc, STABLE(dest), dest, d_body, d_offset + i, to_copy, kind);
+                MVM_VMArray_bind_pos(tc, STABLE(dest), dest, d_body, d_offset + i, to_copy, kind);
             }
         }
     }
@@ -1007,13 +1015,13 @@ static void asplice(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 static void at_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister *result, MVMuint16 kind) {
     if (num_indices != 1)
         MVM_exception_throw_adhoc(tc, "A dynamic array can only be indexed with a single dimension");
-    at_pos(tc, st, root, data, indices[0], result, kind);
+    MVM_VMArray_at_pos(tc, st, root, data, indices[0], result, kind);
 }
 
 static void bind_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 num_indices, MVMint64 *indices, MVMRegister value, MVMuint16 kind) {
     if (num_indices != 1)
         MVM_exception_throw_adhoc(tc, "A dynamic array can only be indexed with a single dimension");
-    bind_pos(tc, st, root, data, indices[0], value, kind);
+    MVM_VMArray_bind_pos(tc, st, root, data, indices[0], value, kind);
 }
 
 static void dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 *num_dimensions, MVMint64 **dimensions) {
@@ -1427,18 +1435,92 @@ const MVMREPROps * MVMArray_initialize(MVMThreadContext *tc) {
     return &VMArray_this_repr;
 }
 
+/* devirtualized versions of bind_pos */
+
+static void vmarray_bind_pos_int64(MVMThreadContext *tc, MVMSTable *st, void *data, MVMint64 index, MVMRegister value) {
+    MVMArrayBody     *body      = (MVMArrayBody *)data;
+    MVMuint64        real_index;
+
+    /* Handle negative indexes and resizing if needed. */
+    enter_single_user(tc, body);
+    if (index < 0) {
+        index += body->elems;
+        if (index < 0)
+            MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
+    }
+    else if ((MVMuint64)index >= body->elems) {
+        MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
+        set_size_internal(tc, body, (MVMuint64)index + 1, repr_data);
+    }
+
+    real_index = (MVMuint64)index;
+
+    body->slots.i64[body->start + real_index] = value.i64;
+
+    exit_single_user(tc, body);
+}
+
+/* devirtualized versions of at_pos */
+
+static void vmarray_at_pos_int64(MVMThreadContext *tc, MVMSTable *st, void *data, MVMint64 index, MVMRegister *value) {
+    MVMArrayBody     *body      = (MVMArrayBody *)data;
+    MVMuint64        real_index;
+
+    /* Handle negative indexes. */
+    if (index < 0) {
+        index += body->elems;
+        if (index < 0)
+            MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
+    }
+
+    real_index = (MVMuint64)index;
+
+    if (real_index >= body->elems)
+        value->i64 = 0;
+    else
+        value->i64 = (MVMint64)body->slots.i64[body->start + real_index];
+}
+
+/* devirtualization dispatch function for the JIT to use */
+
+void *MVM_VMArray_find_fast_impl_for_jit(MVMThreadContext *tc, MVMSTable *st, MVMint16 op, MVMuint16 kind) {
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
+
+    switch (op) {
+        case MVM_OP_atpos_i:
+            if (kind != MVM_reg_int64) {
+                return NULL;
+            }
+            if (repr_data->slot_type == MVM_ARRAY_I64) {
+                return vmarray_at_pos_int64;
+            }
+            break;
+        case MVM_OP_bindpos_i:
+            if (kind != MVM_reg_int64) {
+                return NULL;
+            }
+            if (repr_data->slot_type == MVM_ARRAY_I64) {
+                return vmarray_bind_pos_int64;
+            }
+            break;
+        default:
+            return NULL;
+    }
+    return NULL;
+}
+
 static const MVMREPROps VMArray_this_repr = {
     type_object_for,
-    MVM_gc_allocate_object,
+    MVM_gc_allocate_object, /* serialization.c relies on this and the next line */
     NULL, /* initialize */
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,
     MVM_REPR_DEFAULT_BOX_FUNCS,
     {
-        at_pos,
-        bind_pos,
+        MVM_VMArray_at_pos,
+        MVM_VMArray_bind_pos,
         set_elems,
-        push,
+        MVM_VMArray_push,
         pop,
         unshift,
         shift,

@@ -25,8 +25,11 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
     MVMCompUnit        *cu                = static_frame_body->cu;
 
     /* Ensure the frame is fully deserialized. */
-    if (!static_frame_body->fully_deserialized)
-        MVM_bytecode_finish_frame(tc, cu, static_frame, 0);
+    if (!static_frame_body->fully_deserialized) {
+        MVMROOT(tc, static_frame, {
+            MVM_bytecode_finish_frame(tc, cu, static_frame, 0);
+        });
+    }
 
     /* If we never invoked this compilation unit before, and we have spesh
      * enabled, we might either have no spesh log or a nearly full one. This
@@ -39,10 +42,8 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
 
     /* Take compilation unit lock, to make sure we don't race to do the
      * frame preparation/verification work. */
-    MVMROOT(tc, cu, {
     MVMROOT(tc, static_frame, {
         MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
-    });
     });
 
     if (static_frame->body.instrumentation_level == 0) {
@@ -52,7 +53,9 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
             (static_frame_body->num_locals + static_frame_body->cu->body.max_callsite_size);
 
         /* Validate the bytecode. */
-        MVM_validate_static_frame(tc, static_frame);
+        MVMROOT(tc, static_frame, {
+            MVM_validate_static_frame(tc, static_frame);
+        });
 
         /* Compute work area initial state that we can memcpy into place each
          * time. */
@@ -78,7 +81,7 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
          * also because then it can be ssigned into the gen2 static frame
          * without causing it to become an inter-gen root. */
         MVM_gc_allocate_gen2_default_set(tc);
-        MVM_ASSIGN_REF(tc, &(static_frame->common.header), static_frame_body->spesh,
+        MVM_ASSIGN_REF(tc, &(static_frame->common.header), static_frame_body->spesh, /* no GC error */
             MVM_repr_alloc_init(tc, tc->instance->StaticFrameSpesh));
         MVM_gc_allocate_gen2_default_clear(tc);
 
@@ -96,7 +99,7 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
  * profiling. */
 static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
     MVMCompUnit *cu = static_frame->body.cu;
-    MVMROOT2(tc, static_frame, cu, {
+    MVMROOT(tc, static_frame, {
         /* Obtain mutex, so we don't end up with instrumentation races. */
         MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
 
@@ -278,7 +281,8 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
 
         /* Ensure collectable header flags and owner are zeroed, which means we'll
          * never try to mark or root the frame. */
-        frame->header.flags = 0;
+        frame->header.flags1 = 0;
+        frame->header.flags2 = 0;
         frame->header.owner = 0;
 
         /* Current arguments callsite must be NULL as it's used in GC. Extra must
@@ -471,7 +475,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         }
         else if (static_frame->body.outer) {
             /* Auto-close, and cache it in the static frame. */
-            MVMROOT2(tc, static_frame, code_ref, {
+            MVMROOT3(tc, static_frame, code_ref, static_code, {
                 MVM_frame_force_to_heap(tc, tc->cur_frame);
                 outer = autoclose(tc, static_frame->body.outer);
                 MVM_ASSIGN_REF(tc, &(static_code->common.header),
@@ -645,6 +649,7 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     MVMROOT4(tc, new_cur_frame, update_caller, cur_to_promote, result, {
         while (cur_to_promote) {
             /* Allocate a heap frame. */
+            /* frame is safe from the GC as we wouldn't be here if it wasn't on the stack */
             MVMFrame *promoted = MVM_gc_allocate_frame(tc);
 
             /* Bump heap promotion counter, to encourage allocating this kind
@@ -749,9 +754,10 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *tc, MVMThreadCon
     MVMFrame *update_caller = NULL;
     MVMFrame *result = NULL;
     MVM_CHECK_CALLER_CHAIN(tc, cur_to_promote);
-    MVMROOT3(tc, new_cur_frame, update_caller, result, {
+    MVMROOT4(tc, new_cur_frame, update_caller, cur_to_promote, result, {
         while (cur_to_promote) {
             /* Allocate a heap frame. */
+            /* frame is safe from the GC as we wouldn't be here if it wasn't on the stack */
             MVMFrame *promoted = MVM_gc_allocate_frame(tc);
 
             /* Bump heap promotion counter, to encourage allocating this kind
@@ -1084,6 +1090,9 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
             MVMObject    *handler;
             MVMCallsite *two_args_callsite;
 
+            if (return_value)
+                MVM_exception_throw_adhoc(tc, "return_value + exit_handler case NYI");
+
             /* Force the frame onto the heap, since we'll reference it from the
              * unwind data. */
             MVMROOT3(tc, frame, cur_frame, return_value, {
@@ -1108,8 +1117,6 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                 ud->abs_addr = abs_addr;
                 ud->rel_addr = rel_addr;
                 ud->jit_return_label = jit_return_label;
-                if (return_value)
-                    MVM_exception_throw_adhoc(tc, "return_value + exit_handler case NYI");
                 MVM_frame_special_return(tc, cur_frame, continue_unwind, NULL, ud,
                     mark_unwind_data);
             }
@@ -1283,7 +1290,7 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
             if (sc == NULL)
                 MVM_exception_throw_adhoc(tc,
                     "SC not yet resolved; lookup failed");
-            MVMROOT(tc, f, {
+            MVMROOT2(tc, f, effective_sf, {
                 resolved = MVM_sc_get_object(tc, sc, objid);
             });
             MVM_ASSIGN_REF(tc, &(effective_sf->common.header),
@@ -1318,16 +1325,13 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
 MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type) {
     MVMFrame *cur_frame = tc->cur_frame;
     while (cur_frame != NULL) {
-        MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
-        if (lexical_names) {
-            /* Indexes were formerly stored off-by-one to avoid semi-predicate issue. */
-            MVMLexicalRegistry *entry;
-            MVM_HASH_GET(tc, lexical_names, name, entry)
-            if (entry) {
-                if (MVM_LIKELY(cur_frame->static_info->body.lexical_types[entry->value] == type)) {
-                    MVMRegister *result = &cur_frame->env[entry->value];
+        if (cur_frame->static_info->body.num_lexicals) {
+            MVMuint32 idx = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
+            if (idx != MVM_INDEX_HASH_NOT_FOUND) {
+                if (MVM_LIKELY(cur_frame->static_info->body.lexical_types[idx] == type)) {
+                    MVMRegister *result = &cur_frame->env[idx];
                     if (type == MVM_reg_obj && !result->o)
-                        MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
+                        MVM_frame_vivify_lexical(tc, cur_frame, idx);
                     return result;
                 }
                 else {
@@ -1355,18 +1359,16 @@ MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *na
 MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMRegister value) {
     MVMFrame *cur_frame = tc->cur_frame;
     while (cur_frame != NULL) {
-        MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
-        if (lexical_names) {
-            MVMLexicalRegistry *entry;
-            MVM_HASH_GET(tc, lexical_names, name, entry)
-            if (entry) {
-                if (cur_frame->static_info->body.lexical_types[entry->value] == type) {
+        if (cur_frame->static_info->body.num_lexicals) {
+            MVMuint32 idx = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
+            if (idx != MVM_INDEX_HASH_NOT_FOUND) {
+                if (cur_frame->static_info->body.lexical_types[idx] == type) {
                     if (type == MVM_reg_obj || type == MVM_reg_str) {
                         MVM_ASSIGN_REF(tc, &(cur_frame->header),
-                            cur_frame->env[entry->value].o, value.o);
+                            cur_frame->env[idx].o, value.o);
                     }
                     else {
-                        cur_frame->env[entry->value] = value;
+                        cur_frame->env[idx] = value;
                     }
                     return;
                 }
@@ -1391,7 +1393,10 @@ MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *
 
 /* Finds a lexical in the outer frame, throwing if it's not there. */
 MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name) {
-    MVMRegister *r = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer);
+    MVMRegister *r;
+    MVMROOT(tc, name, {
+        r = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer);
+    });
     if (MVM_LIKELY(r != NULL))
         return r->o;
     else {
@@ -1406,16 +1411,13 @@ MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString
  * the specified frame. Only works if it's an object lexical.  */
 MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
     while (cur_frame != NULL) {
-        MVMLexicalRegistry *lexical_names = cur_frame->static_info->body.lexical_names;
-        if (lexical_names) {
-            /* Indexes were formerly stored off-by-one to avoid semi-predicate issue. */
-            MVMLexicalRegistry *entry;
-            MVM_HASH_GET(tc, lexical_names, name, entry)
-            if (entry) {
-                if (cur_frame->static_info->body.lexical_types[entry->value] == MVM_reg_obj) {
-                    MVMRegister *result = &cur_frame->env[entry->value];
+        if (cur_frame->static_info->body.num_lexicals) {
+            MVMuint32 idx = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
+            if (idx != MVM_INDEX_HASH_NOT_FOUND) {
+                if (cur_frame->static_info->body.lexical_types[idx] == MVM_reg_obj) {
+                    MVMRegister *result = &cur_frame->env[idx];
                     if (!result->o)
-                        MVM_frame_vivify_lexical(tc, cur_frame, entry->value);
+                        MVM_frame_vivify_lexical(tc, cur_frame, idx);
                     return result;
                 }
                 else {
@@ -1436,12 +1438,14 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
  * that is done depends on the frame walker setup. */
 MVMRegister * MVM_frame_lexical_lookup_using_frame_walker(MVMThreadContext *tc,
         MVMSpeshFrameWalker *fw, MVMString *name) {
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(name));
     while (MVM_spesh_frame_walker_next(tc, fw)) {
         MVMRegister *found;
         MVMuint16 found_kind;
         if (MVM_spesh_frame_walker_get_lex(tc, fw, name, &found, &found_kind, 1, NULL)) {
             MVM_spesh_frame_walker_cleanup(tc, fw);
             if (found_kind == MVM_reg_obj) {
+                MVM_gc_root_temp_pop(tc);
                 return found;
             }
             else {
@@ -1454,6 +1458,7 @@ MVMRegister * MVM_frame_lexical_lookup_using_frame_walker(MVMThreadContext *tc,
         }
     }
     MVM_spesh_frame_walker_cleanup(tc, fw);
+    MVM_gc_root_temp_pop(tc);
     return NULL;
 }
 
@@ -1522,6 +1527,7 @@ MVMRegister * MVM_frame_find_dynamic_using_frame_walker(MVMThreadContext *tc,
     /* Traverse with the frame walker. */
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&initial_frame);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&last_real_frame);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&name);
     while (MVM_spesh_frame_walker_next(tc, fw)) {
         MVMRegister *result;
 
@@ -1546,7 +1552,7 @@ MVMRegister * MVM_frame_find_dynamic_using_frame_walker(MVMThreadContext *tc,
                         tc->instance->dynvar_log_lasttime = uv_hrtime();
                     }
                     *found_frame = last_real_frame;
-                    MVM_gc_root_temp_pop_n(tc, 2);
+                    MVM_gc_root_temp_pop_n(tc, 3);
                     MVM_spesh_frame_walker_cleanup(tc, fw);
                     return result;
                 }
@@ -1574,14 +1580,14 @@ MVMRegister * MVM_frame_find_dynamic_using_frame_walker(MVMThreadContext *tc,
                 MVM_free(c_name);
                 tc->instance->dynvar_log_lasttime = uv_hrtime();
             }
-            MVM_gc_root_temp_pop_n(tc, 2);
+            MVM_gc_root_temp_pop_n(tc, 3);
             MVM_spesh_frame_walker_cleanup(tc, fw);
             return result;
         }
     }
 
     /* Not found. */
-    MVM_gc_root_temp_pop_n(tc, 2);
+    MVM_gc_root_temp_pop_n(tc, 3);
     MVM_spesh_frame_walker_cleanup(tc, fw);
     if (dlog) {
         fprintf(dlog, "N %s %d %d %d %d %"PRIu64" %"PRIu64" %"PRIu64"\n", c_name, fcost, icost, ecost, xcost, last_time, start_time, uv_hrtime());
@@ -1663,7 +1669,10 @@ MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame 
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame) {
     MVMuint16 type;
     MVMFrame *found_frame;
-    MVMRegister *lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 0, &found_frame);
+    MVMRegister *lex_reg;
+    MVMROOT2(tc, name, value, {
+        lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 0, &found_frame);
+    });
     if (!lex_reg) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
@@ -1694,12 +1703,10 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
 /* Returns the storage unit for the lexical in the specified frame. Does not
  * try to vivify anything - gets exactly what is there. */
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
-    MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
-    if (MVM_LIKELY(lexical_names != NULL)) {
-        MVMLexicalRegistry *entry;
-        MVM_HASH_GET(tc, lexical_names, name, entry)
-        if (entry)
-            return &f->env[entry->value];
+    if (MVM_LIKELY(f->static_info->body.num_lexicals != 0)) {
+        MVMuint32 idx = MVM_get_lexical_by_name(tc, f->static_info, name);
+        if (idx != MVM_INDEX_HASH_NOT_FOUND)
+            return &f->env[idx];
     }
     {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -1711,14 +1718,12 @@ MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *na
 
 /* Returns the storage unit for the lexical in the specified frame. */
 MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name, MVMuint16 type) {
-    MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
-    if (lexical_names) {
-        MVMLexicalRegistry *entry;
-        MVM_HASH_GET(tc, lexical_names, name, entry)
-        if (entry && f->static_info->body.lexical_types[entry->value] == type) {
-            MVMRegister *result = &f->env[entry->value];
+    if (f->static_info->body.num_lexicals) {
+        MVMuint32 idx = MVM_get_lexical_by_name(tc, f->static_info, name);
+        if (idx != MVM_INDEX_HASH_NOT_FOUND && f->static_info->body.lexical_types[idx] == type) {
+            MVMRegister *result = &f->env[idx];
             if (type == MVM_reg_obj && !result->o)
-                MVM_frame_vivify_lexical(tc, f, entry->value);
+                MVM_frame_vivify_lexical(tc, f, idx);
             return result;
         }
     }
@@ -1759,13 +1764,11 @@ MVMuint16 MVM_frame_translate_to_primspec(MVMThreadContext *tc, MVMuint16 kind) 
 
 /* Returns the primitive type specification for a lexical. */
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name) {
-    MVMLexicalRegistry *lexical_names = f->static_info->body.lexical_names;
-    if (lexical_names) {
-        MVMLexicalRegistry *entry;
-        MVM_HASH_GET(tc, lexical_names, name, entry)
-        if (entry)
+    if (f->static_info->body.num_lexicals) {
+        MVMuint32 idx = MVM_get_lexical_by_name(tc, f->static_info, name);
+        if (idx != MVM_INDEX_HASH_NOT_FOUND)
             return MVM_frame_translate_to_primspec(tc,
-                    f->static_info->body.lexical_types[entry->value]);
+                    f->static_info->body.lexical_types[idx]);
     }
     {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);

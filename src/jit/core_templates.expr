@@ -137,6 +137,42 @@
       (carg $1   ptr)
       (carg (^caller) ptr))))
 
+(template: return_i
+  (dov
+    (callv (^func &MVM_args_set_result_int)
+      (arglist
+        (carg (tc) ptr)
+        (carg $0 int)
+        (carg (^zero) int)))
+    (callv (^func &MVM_frame_try_return)
+      (arglist
+        (carg (tc) ptr)))
+    (^exit)))
+
+(template: return_n
+  (dov
+    (callv (^func &MVM_args_set_result_num)
+      (arglist
+        (carg (tc) ptr)
+        (carg $0 num)
+        (carg (^zero) int)))
+    (callv (^func &MVM_frame_try_return)
+      (arglist
+        (carg (tc) ptr)))
+    (^exit)))
+
+(template: return_s
+  (dov
+    (callv (^func &MVM_args_set_result_str)
+      (arglist
+        (carg (tc) ptr)
+        (carg $0 ptr)
+        (carg (^zero) int)))
+    (callv (^func &MVM_frame_try_return)
+      (arglist
+        (carg (tc) ptr)))
+    (^exit)))
+
 (template: return_o
   (dov
     (callv (^func &MVM_args_set_result_obj)
@@ -845,33 +881,44 @@
     $1))
 
 (template: reprname
-  (^getf
-    (load (idx (^get_instance_field repr_list) (^repr_id $1) ptr_sz) ptr_sz)
-    MVMReprRegistry name))
+  (load (idx (^get_instance_field repr_names) (^repr_id $1) ptr_sz) ptr_sz))
 
 (template: eqaddr (flagval (eq $1 $2)))
 
-(template: box_i!
-  (callv (^func &MVM_box_int)
+(template: box_i
+  (call (^func &MVM_repr_box_int)
     (arglist
       (carg (tc) ptr)
-      (carg $1 int)
       (carg $2 ptr)
-      (carg \$0 ptr))))
+      (carg $1 int)) ptr_sz))
 
-(template: box_s!
-  (callv (^func &MVM_box_str)
+(template: box_u
+  (call (^func &MVM_repr_box_uint)
     (arglist
       (carg (tc) ptr)
-      (carg $1 ptr)
       (carg $2 ptr)
-      (carg \$0 ptr))))
+      (carg $1 int)) ptr_sz))
+
+(template: box_s
+  (call (^func &MVM_repr_box_str)
+    (arglist
+      (carg (tc) ptr)
+      (carg $2 ptr)
+      (carg $1 ptr)) ptr_sz))
 
 (template: unbox_s
-  (call (^func &MVM_unbox_str)
+  (call (^func &MVM_repr_get_str)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
+
+(template: unbox_i
+  (call (^getf (^repr $1) MVMREPROps box_funcs.get_int)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $1) ptr)
+      (carg $1 ptr)
+      (carg (^body $1) ptr)) int_sz))
 
 (template: unbox_u
   (call (^getf (^repr $1) MVMREPROps box_funcs.get_uint)
@@ -1434,14 +1481,6 @@
 (template: hllhash
   (^getf (^hllconfig) MVMHLLConfig slurpy_hash_type))
 
-(template: getcurhllsym
-  (let: (($hllname (^getf (cu) MVMCompUnit body.hll_name)))
-    (call (^func &MVM_hll_sym_get)
-      (arglist
-        (carg (tc)     ptr)
-        (carg $hllname ptr)
-        (carg $1       ptr)) ptr_sz)))
-
 (template: gethllsym
   (call (^func &MVM_hll_sym_get)
     (arglist
@@ -1803,8 +1842,7 @@
   (call (^func &MVM_bigint_is_prime)
     (arglist
       (carg (tc) ptr)
-      (carg $1   ptr)
-      (carg $2   int)) int_sz))
+      (carg $1   ptr)) int_sz))
 
 (template: rand_I
   (call (^func &MVM_bigint_rand)
@@ -2809,13 +2847,6 @@
       (carg (tc) ptr)
       (carg (^spesh_slot_value $1) ptr)
       (carg $2 int)) ptr_sz))
-
-(template: prof_enter
-  (callv (^func MVM_profile_log_enter)
-    (arglist
-      (carg (tc) ptr)
-      (carg (^getf (^frame) MVMFrame static_info) ptr)
-      (carg (const (&QUOTE MVM_PROFILE_ENTER_NORMAL) int_sz) int))))
 
 (template: prof_enterspesh
   (callv (^func MVM_profile_log_enter)

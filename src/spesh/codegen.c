@@ -380,8 +380,8 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
     /* Fixup labels we were too early for. */
     for (i = 0; i < ws->num_fixups; i++)
-        *((MVMuint32 *)(ws->bytecode + ws->fixup_locations[i])) =
-            ws->bb_offsets[ws->fixup_bbs[i]->idx];
+        memcpy((ws->bytecode + ws->fixup_locations[i]),
+               ws->bb_offsets + ws->fixup_bbs[i]->idx, sizeof(MVMuint32));
 
     /* Ensure all handlers that are reachable got fixed up. */
     for (i = 0; i < g->num_handlers; i++) {

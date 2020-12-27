@@ -664,7 +664,7 @@ void MVM_string_decode_stream_sep_default(MVMThreadContext *tc, MVMDecodeStreamS
 void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec,
                                                MVMString **seps, MVMint32 num_seps) {
     MVMGraphemeIter gi;
-    MVMint32 i, graph_length, graph_pos;
+    MVMint32 i, graph_length, graph_pos, *sep_lengths;
 
     if (num_seps > 0xFFF)
         MVM_exception_throw_adhoc(tc, "Too many line separators (%"PRId32"), max allowed is 4095", num_seps);
@@ -674,15 +674,18 @@ void MVM_string_decode_stream_sep_from_strings(MVMThreadContext *tc, MVMDecodeSt
     MVM_free(sep_spec->final_graphemes);
 
     sep_spec->num_seps = num_seps;
-    sep_spec->sep_lengths = MVM_malloc(num_seps * sizeof(MVMint32));
+    sep_lengths = MVM_malloc(num_seps * sizeof(MVMint32));
     graph_length = 0;
     for (i = 0; i < num_seps; i++) {
         MVMuint32 num_graphs = MVM_string_graphs(tc, seps[i]);
-        if (num_graphs > 0xFFFF)
+        if (num_graphs > 0xFFFF) {
+            MVM_free(sep_lengths);
             MVM_exception_throw_adhoc(tc, "Line separator (%"PRIu32") too long, max allowed is 65535", num_graphs);
-        sep_spec->sep_lengths[i] = num_graphs;
+        }
+        sep_lengths[i] = num_graphs;
         graph_length += num_graphs;
     }
+    sep_spec->sep_lengths = sep_lengths;
 
     sep_spec->sep_graphemes = MVM_malloc(graph_length * sizeof(MVMGrapheme32));
     graph_pos = 0;

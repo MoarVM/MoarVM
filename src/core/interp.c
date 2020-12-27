@@ -37,9 +37,18 @@ MVM_STATIC_INLINE MVMuint16 check_lex(MVMThreadContext *tc, MVMFrame *f, MVMuint
 #endif
 #define GET_I16(pc, idx)    *((MVMint16 *)(pc + idx))
 #define GET_UI16(pc, idx)   *((MVMuint16 *)(pc + idx))
-#define GET_I32(pc, idx)    *((MVMint32 *)(pc + idx))
-#define GET_UI32(pc, idx)   *((MVMuint32 *)(pc + idx))
-#define GET_N32(pc, idx)    *((MVMnum32 *)(pc + idx))
+
+MVM_STATIC_INLINE MVMint32 GET_I32(const MVMuint8 *pc, MVMint32 idx) {
+    MVMint32 retval;
+    memcpy(&retval, pc + idx, sizeof(retval));
+    return retval;
+}
+
+MVM_STATIC_INLINE MVMuint32 GET_UI32(const MVMuint8 *pc, MVMint32 idx) {
+    MVMuint32 retval;
+    memcpy(&retval, pc + idx, sizeof(retval));
+    return retval;
+}
 
 #define NEXT_OP (op = *(MVMuint16 *)(cur_op), cur_op += 2, op)
 
@@ -113,7 +122,7 @@ static MVMuint64 switch_endian(MVMuint64 val, unsigned char size) {
 }
 
 /* This is the interpreter run loop. We have one of these per thread. */
-void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data) {
+void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data, MVMRunloopState *outer_runloop) {
 #if MVM_CGOTO
 #include "oplabels.h"
 #endif
@@ -496,12 +505,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVMuint8 found = 0;
                     if (!sf->body.fully_deserialized)
                         MVM_bytecode_finish_frame(tc, sf->body.cu, sf, 0);
-                    if (sf->body.lexical_names) {
-                        MVMLexicalRegistry *entry;
-                        MVM_HASH_GET(tc, sf->body.lexical_names, name, entry);
-                        if (entry && sf->body.lexical_types[entry->value] == MVM_reg_obj) {
-                            MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[entry->value].o, val);
-                            sf->body.static_env_flags[entry->value] = (MVMuint8)flag;
+                    if (sf->body.num_lexicals) {
+                        MVMuint32 idx = MVM_get_lexical_by_name(tc, sf, name);
+                        if (idx != MVM_INDEX_HASH_NOT_FOUND
+                            && sf->body.lexical_types[idx] == MVM_reg_obj) {
+                            MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[idx].o, val);
+                            sf->body.static_env_flags[idx] = (MVMuint8)flag;
                             found = 1;
                         }
                     }
@@ -1505,6 +1514,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     tc->cur_frame->return_type = MVM_RETURN_OBJ;
                     cur_op += 6;
                     tc->cur_frame->return_address = cur_op;
+                    tc->cur_frame->cur_args_callsite = NULL;
                     MVMROOT(tc, cobj, {
                         STABLE(code)->invoke(tc, code, cc->body.apc->callsite,
                             cc->body.apc->args);
@@ -1953,7 +1963,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(reprname): {
                 const MVMREPROps *repr = REPR(GET_REG(cur_op, 2).o);
-                GET_REG(cur_op, 0).s = tc->instance->repr_list[repr->ID]->name;
+                GET_REG(cur_op, 0).s = tc->instance->repr_names[repr->ID];
                 cur_op += 4;
                 goto NEXT;
             }
@@ -2164,19 +2174,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(box_i): {
-                MVM_box_int(tc, GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).o,
-                            &GET_REG(cur_op, 0));
+                GET_REG(cur_op, 0).o = MVM_repr_box_int(tc, GET_REG(cur_op, 4).o, GET_REG(cur_op, 2).i64);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(box_n): {
-                MVM_box_num(tc, GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).o,
-                            &GET_REG(cur_op, 0));
+                GET_REG(cur_op, 0).o = MVM_repr_box_num(tc, GET_REG(cur_op, 4).o, GET_REG(cur_op, 2).n64);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(box_s): {
-                 MVM_box_str(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).o, &GET_REG(cur_op, 0));
+                 GET_REG(cur_op, 0).o = MVM_repr_box_str(tc, GET_REG(cur_op, 4).o, GET_REG(cur_op, 2).s);
                  cur_op += 6;
                  goto NEXT;
             }
@@ -2199,7 +2207,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(unbox_s):
-                GET_REG(cur_op, 0).s = MVM_unbox_str(tc, GET_REG(cur_op, 2).o);
+                GET_REG(cur_op, 0).s = MVM_repr_get_str(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(atpos_i): {
@@ -3306,7 +3314,19 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 CHECK_CONC(maybe_cu);
                 if (REPR(maybe_cu)->ID == MVM_REPR_ID_MVMCompUnit) {
                     MVMCompUnit *cu = (MVMCompUnit *)maybe_cu;
-                    GET_REG(cur_op, 0).o = cu->body.coderefs[0];
+                    if (cu->body.mainline_frame) {
+                        MVMObject *coderef;
+                        for (MVMuint32 i = 0; i < cu->body.num_frames; i++) {
+                            if (((MVMCode*)cu->body.coderefs[i])->body.sf == cu->body.mainline_frame) {
+                                coderef = cu->body.coderefs[i];
+                                break;
+                            }
+                        }
+                        GET_REG(cur_op, 0).o = coderef ? coderef : cu->body.coderefs[0];
+                    }
+                    else {
+                        GET_REG(cur_op, 0).o = cu->body.coderefs[0];
+                    }
                 }
                 else {
                     MVM_exception_throw_adhoc(tc, "compunitmainline requires an MVMCompUnit");
@@ -3516,9 +3536,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(isprime_I): {
                 MVMObject *a = GET_REG(cur_op, 2).o;
-                MVMint64 b = GET_REG(cur_op, 4).i64;
-                GET_REG(cur_op, 0).i64 = MVM_bigint_is_prime(tc, a, b);
-                cur_op += 6;
+                GET_REG(cur_op, 0).i64 = MVM_bigint_is_prime(tc, a);
+                cur_op += 4;
                 goto NEXT;
             }
             OP(rand_I): {
@@ -3797,8 +3816,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMString *sym = GET_REG(cur_op, 4).s;
                 MVMObject *obj = MVM_dll_find_symbol(tc, lib, sym);
                 if (MVM_is_null(tc, obj)) {
-                    char *lib_cstr = MVM_string_utf8_encode_C_string(tc, lib);
-                    char *sym_cstr = MVM_string_utf8_encode_C_string(tc, sym);
+                    /* lib and sym may have become outdated, access registers directly instead */
+                    char *lib_cstr = MVM_string_utf8_encode_C_string(tc, GET_REG(cur_op, 2).s);
+                    char *sym_cstr = MVM_string_utf8_encode_C_string(tc, GET_REG(cur_op, 4).s);
                     char *waste[] = { lib_cstr, sym_cstr, NULL };
                     MVM_exception_throw_adhoc_free(tc, waste,
                         "symbol (%s) not found in DLL (%s)", sym_cstr, lib_cstr);
@@ -4695,6 +4715,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_sc_disclaim(tc, (MVMSerializationContext *)GET_REG(cur_op, 0).o);
                 cur_op += 2;
                 goto NEXT;
+            OP(setthreadname):
+                MVM_thread_set_self_name(tc, GET_REG(cur_op, 0).s); 
+                cur_op += 2;
+                goto NEXT;
             OP(atpos2d_i):
                 GET_REG(cur_op, 0).i64 = MVM_repr_at_pos_2d_i(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
@@ -4940,8 +4964,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             OP(box_u): {
-                MVM_box_uint(tc, GET_REG(cur_op, 2).u64, GET_REG(cur_op, 4).o,
-                            &GET_REG(cur_op, 0));
+                GET_REG(cur_op, 0).o = MVM_repr_box_uint(tc, GET_REG(cur_op, 4).o, GET_REG(cur_op, 2).u64);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -6405,6 +6428,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
                 goto NEXT;
             }
+            OP(sp_istrue_n):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).n64 ? 1 : 0;
+                cur_op += 4;
+                goto NEXT;
             OP(sp_boolify_iter): {
                 GET_REG(cur_op, 0).i64 = MVM_iter_istrue(tc, (MVMIter*)GET_REG(cur_op, 2).o);
                 cur_op += 4;
@@ -6413,7 +6440,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_boolify_iter_arr): {
                 MVMIter *iter = (MVMIter *)GET_REG(cur_op, 2).o;
 
-                GET_REG(cur_op, 0).i64 = iter->body.array_state.index + 1 < iter->body.array_state.limit ? 1 : 0;
+                GET_REG(cur_op, 0).i64 = MVM_iter_istrue_array(tc, iter);
 
                 cur_op += 4;
                 goto NEXT;
@@ -6421,7 +6448,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_boolify_iter_hash): {
                 MVMIter *iter = (MVMIter *)GET_REG(cur_op, 2).o;
 
-                GET_REG(cur_op, 0).i64 = iter->body.hash_state.next != NULL ? 1 : 0;
+                GET_REG(cur_op, 0).i64 = MVM_iter_istrue_hash(tc, iter);
 
                 cur_op += 4;
                 goto NEXT;
@@ -6634,8 +6661,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The spawn op was removed in MoarVM 2017.07.");
             OP(DEPRECATED_30):
                 MVM_exception_throw_adhoc(tc, "The shell op was removed in MoarVM 2017.07.");
-            OP(DEPRECATED_31):
-                MVM_exception_throw_adhoc(tc, "The syncpipe op was removed in MoarVM 2017.07.");
             OP(DEPRECATED_32):
                 MVM_exception_throw_adhoc(tc, "The close_fhi op was removed in MoarVM 2017.07.");
             OP(DEPRECATED_33):
@@ -6690,7 +6715,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
     return_label:
     /* Need to clear these pointer pointers since they may be rooted
      * by some GC procedure. */
-    if (!tc->nested_interpreter) {
+    if (tc->nested_interpreter) {
+        *outer_runloop->interp_cur_op = cur_op;
+        *outer_runloop->interp_bytecode_start = bytecode_start;
+        *outer_runloop->interp_reg_base = reg_base;
+        *outer_runloop->interp_cu = cu;
+    }
+    else {
         tc->interp_cur_op         = NULL;
         tc->interp_bytecode_start = NULL;
         tc->interp_reg_base       = NULL;
@@ -6704,6 +6735,7 @@ void MVM_interp_run_nested(MVMThreadContext *tc, void (*initial_invoke)(MVMThrea
     MVMFrame *backup_thread_entry_frame     = tc->thread_entry_frame;
     void **backup_jit_return_address        = tc->jit_return_address;
     tc->jit_return_address                  = NULL;
+    MVMRunloopState outer_runloop = {tc->interp_cur_op, tc->interp_bytecode_start, tc->interp_reg_base, tc->interp_cu};
     MVMROOT2(tc, backup_cur_frame, backup_thread_entry_frame, {
         MVMuint32 backup_mark                   = MVM_gc_root_temp_mark(tc);
         jmp_buf backup_interp_jump;
@@ -6715,23 +6747,11 @@ void MVM_interp_run_nested(MVMThreadContext *tc, void (*initial_invoke)(MVMThrea
         tc->cur_frame->return_address = *tc->interp_cur_op;
 
         tc->nested_interpreter++;
-
-        MVMuint8 **backup_interp_cur_op = tc->interp_cur_op;
-        MVMuint8 **backup_interp_bytecode_start = tc->interp_bytecode_start;
-        MVMRegister **backup_interp_reg_base = tc->interp_reg_base;
-        MVMCompUnit **backup_interp_cu = tc->interp_cu;
-
-        MVM_interp_run(tc, initial_invoke, invoke_data);
-
-        *backup_interp_cur_op = *tc->interp_cur_op;
-        *backup_interp_bytecode_start = *tc->interp_bytecode_start;
-        *backup_interp_reg_base = *tc->interp_reg_base;
-        *backup_interp_cu = *tc->interp_cu;
-        tc->interp_cur_op = backup_interp_cur_op;
-        tc->interp_bytecode_start = backup_interp_bytecode_start;
-        tc->interp_reg_base = backup_interp_reg_base;
-        tc->interp_cu = backup_interp_cu;
-
+        MVM_interp_run(tc, initial_invoke, invoke_data, &outer_runloop);
+        tc->interp_cur_op = outer_runloop.interp_cur_op;
+        tc->interp_bytecode_start = outer_runloop.interp_bytecode_start;
+        tc->interp_reg_base = outer_runloop.interp_reg_base;
+        tc->interp_cu = outer_runloop.interp_cu;
         tc->nested_interpreter--;
 
         tc->cur_frame             = backup_cur_frame;

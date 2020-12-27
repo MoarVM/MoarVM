@@ -1,8 +1,9 @@
+#include "platform/memmem.h"
 #include "moar.h"
 #include "platform/io.h"
-#include <platform/threads.h>
 #include "platform/random.h"
 #include "platform/time.h"
+#include "platform/mmap.h"
 #if defined(_MSC_VER)
 #define snprintf _snprintf
 #endif
@@ -72,6 +73,32 @@ static FILE *fopen_perhaps_with_pid(char *env_var, char *path, const char *mode)
     exit(1);
 }
 
+MVM_STATIC_INLINE MVMuint64 ptr_hash_64_to_64(MVMuint64 u) {
+    /* Thomas Wong's hash from
+     * https://web.archive.org/web/20120211151329/http://www.concentric.net/~Ttwang/tech/inthash.htm */
+    u = (~u) + (u << 21);
+    u =   u  ^ (u >> 24);
+    u =  (u  + (u <<  3)) + (u << 8);
+    u =   u  ^ (u >> 14);
+    u =  (u  + (u <<  2)) + (u << 4);
+    u =   u  ^ (u >> 28);
+    u =   u  + (u << 31);
+    return (MVMuint64)u;
+}
+
+#ifdef MVM_THREAD_LOCAL
+MVM_THREAD_LOCAL MVMThreadContext *MVM_running_threads_context;
+#else
+uv_key_t MVM_running_threads_context_key;
+
+static void
+make_uv_key() {
+    int result = uv_key_create(&MVM_running_threads_context_key);
+    if (result)
+        MVM_panic(1, "uv_key_create failed with code %u", result);
+}
+#endif
+
 /* Create a new instance of the VM. */
 MVMInstance * MVM_vm_create_instance(void) {
     MVMInstance *instance;
@@ -82,6 +109,11 @@ MVMInstance * MVM_vm_create_instance(void) {
     char *jit_expr_disable, *jit_disable, *jit_last_frame, *jit_last_bb;
     char *dynvar_log;
     int init_stat;
+
+#ifndef MVM_THREAD_LOCAL
+    static uv_once_t key_once = UV_ONCE_INIT;
+    uv_once(&key_once, make_uv_key);
+#endif
 
     /* Set up instance data structure. */
     instance = MVM_calloc(1, sizeof(MVMInstance));
@@ -130,30 +162,40 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Set up REPR registry mutex. */
     init_mutex(instance->mutex_repr_registry, "REPR registry");
+    MVM_index_hash_build(instance->main_thread, &instance->repr_hash, MVM_REPR_CORE_COUNT);
 
     /* Set up HLL config mutex. */
     init_mutex(instance->mutex_hllconfigs, "hll configs");
+    MVM_fixkey_hash_build(instance->main_thread, &instance->compiler_hll_configs, sizeof(MVMHLLConfig));
+    MVM_fixkey_hash_build(instance->main_thread, &instance->compilee_hll_configs, sizeof(MVMHLLConfig));
 
     /* Set up DLL registry mutex. */
     init_mutex(instance->mutex_dll_registry, "REPR registry");
+    MVM_fixkey_hash_build(instance->main_thread, &instance->dll_registry, sizeof(struct MVMDLLRegistry));
 
     /* Set up extension registry mutex. */
     init_mutex(instance->mutex_ext_registry, "extension registry");
+    MVM_fixkey_hash_build(instance->main_thread, &instance->ext_registry, sizeof(struct MVMExtRegistry));
 
     /* Set up extension op registry mutex. */
     init_mutex(instance->mutex_extop_registry, "extension op registry");
+    MVM_fixkey_hash_build(instance->main_thread, &instance->extop_registry, sizeof(MVMExtOpRegistry));
 
     /* Set up SC registry mutex. */
     init_mutex(instance->mutex_sc_registry, "sc registry");
+    MVM_str_hash_build(instance->main_thread, &instance->sc_weakhash, sizeof(struct MVMSerializationContextWeakHashEntry), 0);
 
     /* Set up loaded compunits hash mutex. */
     init_mutex(instance->mutex_loaded_compunits, "loaded compunits");
+    MVM_fixkey_hash_build(instance->main_thread, &instance->loaded_compunits, sizeof(MVMString *));
 
     /* Set up container registry mutex. */
     init_mutex(instance->mutex_container_registry, "container registry");
+    MVM_str_hash_build(instance->main_thread, &instance->container_registry, sizeof(MVMContainerRegistry), 0);
 
     /* Set up persistent object ID hash mutex. */
     init_mutex(instance->mutex_object_ids, "object ID hash");
+    MVM_ptr_hash_build(instance->main_thread, &instance->object_ids);
 
     /* Allocate all things during following setup steps directly in gen2, as
      * they will have program lifetime. */
@@ -186,6 +228,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->threads->body.tc = instance->main_thread;
     instance->threads->body.native_thread_id = MVM_platform_thread_id();
     instance->threads->body.thread_id = instance->main_thread->thread_id;
+    MVM_set_running_threads_context(instance->main_thread);
     init_mutex(instance->mutex_threads, "threads list");
 
     /* Create compiler registry */
@@ -437,7 +480,7 @@ static void run_deserialization_frame(MVMThreadContext *tc, MVMCompUnit *cu) {
     if (cu->body.deserialize_frame) {
         MVMint8 spesh_enabled_orig = tc->instance->spesh_enabled;
         tc->instance->spesh_enabled = 0;
-        MVM_interp_run(tc, toplevel_initial_invoke, cu->body.deserialize_frame);
+        MVM_interp_run(tc, toplevel_initial_invoke, cu->body.deserialize_frame, NULL);
         tc->instance->spesh_enabled = spesh_enabled_orig;
     }
 }
@@ -448,19 +491,17 @@ void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
     MVMThreadContext *tc = instance->main_thread;
     MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
 
-    MVMROOT(tc, cu, {
-        /* The call to MVM_string_utf8_decode() may allocate, invalidating the
-           location cu->body.filename */
-        MVMString *const str = MVM_string_utf8_c8_decode(tc, instance->VMString, filename, strlen(filename));
-        cu->body.filename = str;
-        MVM_gc_write_barrier_hit(tc, (MVMCollectable *)cu);
+    /* The call to MVM_string_utf8_decode() may allocate, invalidating the
+       location cu->body.filename */
+    MVMString *const str = MVM_string_utf8_c8_decode(tc, instance->VMString, filename, strlen(filename));
+    cu->body.filename = str;
+    MVM_gc_write_barrier_hit(tc, (MVMCollectable *)cu);
 
-        /* Run the deserialization frame, if any. */
-        run_deserialization_frame(tc, cu);
-    });
+    /* Run the deserialization frame, if any. */
+    run_deserialization_frame(tc, cu);
 
     /* Run the entry-point frame. */
-    MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame);
+    MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame, NULL);
 }
 
 /* Loads bytecode from memory and runs it. */
@@ -470,17 +511,55 @@ void MVM_vm_run_bytecode(MVMInstance *instance, MVMuint8 *bytes, MVMuint32 size)
     MVMCompUnit      *cu = MVM_cu_from_bytes(tc, bytes, size);
 
     /* Run the deserialization frame, if any. */
-    MVMROOT(tc, cu, { run_deserialization_frame(tc, cu); });
+    run_deserialization_frame(tc, cu);
 
     /* Run the entry-point frame. */
-    MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame);
+    MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame, NULL);
 }
 
 /* Loads bytecode from the specified file name and dumps it. */
 void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
     /* Map the compilation unit into memory and dissect it. */
     MVMThreadContext *tc = instance->main_thread;
-    MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
+    void        *block       = NULL;
+    void        *handle      = NULL;
+    uv_file      fd;
+    MVMuint64    size;
+    uv_fs_t req;
+
+    /* Ensure the file exists, and get its size. */
+    if (uv_fs_stat(NULL, &req, filename, NULL) < 0) {
+        MVM_exception_throw_adhoc(tc, "While looking for '%s': %s", filename, uv_strerror(req.result));
+    }
+
+    size = req.statbuf.st_size;
+    /* Map the bytecode file into memory. */
+    if ((fd = uv_fs_open(NULL, &req, filename, O_RDONLY, 0, NULL)) < 0) {
+        MVM_exception_throw_adhoc(tc, "While trying to open '%s': %s", filename, uv_strerror(req.result));
+    }
+
+    block = MVM_platform_map_file(fd, &handle, (size_t)size, 0);
+
+    if (block == NULL) {
+#if defined(_WIN32)
+        MVM_exception_throw_adhoc(tc, "Could not map file '%s' into memory: %d", filename, GetLastError());
+#else
+        MVM_exception_throw_adhoc(tc, "Could not map file '%s' into memory: %s", filename, strerror(errno));
+#endif
+    }
+
+    /* Look for MOARVM magic string from the start of the file. */
+    char *needle = "MOARVM\r\n";
+
+    void *bytecode_start = MVM_memmem(block, size, (void *)needle, strlen(needle));
+
+    if (bytecode_start == NULL) {
+        MVM_exception_throw_adhoc(tc, "Could not find moarvm bytecode header anywhere in %s", filename);
+    }
+
+    size_t offset = (intptr_t)bytecode_start - (intptr_t)block;
+
+    MVMCompUnit      *cu = MVM_cu_map_from_file_handle(tc, fd, offset);
     char *dump = MVM_bytecode_dump(tc, cu);
     size_t dumplen = strlen(dump);
     size_t position = 0;
@@ -562,14 +641,18 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_spesh_worker_join(instance->main_thread);
     MVM_io_eventloop_destroy(instance->main_thread);
 
+    /* Run the normal GC one more time to actually collect the spesh thread */
+    MVM_gc_enter_from_allocator(instance->main_thread);
+
     /* Run the GC global destruction phase. After this,
      * no 6model object pointers should be accessed. */
     MVM_gc_global_destruction(instance->main_thread);
 
     /* Cleanup REPR registry */
     uv_mutex_destroy(&instance->mutex_repr_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMReprRegistry, instance->repr_hash);
-    MVM_free(instance->repr_list);
+    MVM_index_hash_demolish(instance->main_thread, &instance->repr_hash);
+    MVM_free(instance->repr_names);
+    MVM_free(instance->repr_vtables);
 
     /* Clean up GC related resources. */
     uv_mutex_destroy(&instance->mutex_permroots);
@@ -587,34 +670,33 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Hash of HLLConfig. */
     uv_mutex_destroy(&instance->mutex_hllconfigs);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMHLLConfig, instance->compiler_hll_configs);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMHLLConfig, instance->compilee_hll_configs);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->compiler_hll_configs);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->compilee_hll_configs);
 
     /* Clean up Hash of DLLs. */
     uv_mutex_destroy(&instance->mutex_dll_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMDLLRegistry, instance->dll_registry);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->dll_registry);
 
     /* Clean up Hash of extensions. */
     uv_mutex_destroy(&instance->mutex_ext_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMExtRegistry, instance->ext_registry);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->ext_registry);
 
     /* Clean up Hash of extension ops. */
     uv_mutex_destroy(&instance->mutex_extop_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMExtOpRegistry, instance->extop_registry);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->extop_registry);
 
     /* Clean up Hash of all known serialization contexts; all SCs list is in
      * FSA space and so cleaned up with that. */
     uv_mutex_destroy(&instance->mutex_sc_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMSerializationContextBody, instance->sc_weakhash);
+    MVM_str_hash_demolish(instance->main_thread, &instance->sc_weakhash);
 
     /* Clean up Hash of filenames of compunits loaded from disk. */
     uv_mutex_destroy(&instance->mutex_loaded_compunits);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMLoadedCompUnitName, instance->loaded_compunits);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->loaded_compunits);
 
     /* Clean up Container registry. */
     uv_mutex_destroy(&instance->mutex_container_registry);
-    MVM_HASH_DESTROY(instance->main_thread, hash_handle, MVMContainerRegistry, instance->container_registry);
-
+    MVM_str_hash_demolish(instance->main_thread, &instance->container_registry);
     /* Clean up Hash of compiler objects keyed by name. */
     uv_mutex_destroy(&instance->mutex_compiler_registry);
 
@@ -754,7 +836,7 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
         if (MVM_repr_exists_key(tc, config, startup_time)) {
             /* Value is ignored, it will just be overwritten. */
             MVMObject *value = NULL; 
-            MVMROOT2(tc, gcevent, speshoverviewevent, {
+            MVMROOT3(tc, gcevent, speshoverviewevent, startup_time, {
                     value = MVM_repr_box_num(tc, tc->instance->boot_types.BOOTNum, tc->instance->subscriptions.vm_startup_now);
             });
 
@@ -788,3 +870,12 @@ void MVM_vm_set_lib_path(MVMInstance *instance, int count, const char **lib_path
 int MVM_exepath(char* buffer, size_t* size) {
     return uv_exepath(buffer, size);
 }
+
+#ifdef _WIN32
+int MVM_set_std_handles_to_nul() {
+    if (!MVM_set_std_handle_to_nul(stdin,  0, 1, STD_INPUT_HANDLE))  return 0;
+    if (!MVM_set_std_handle_to_nul(stdout, 1, 0, STD_OUTPUT_HANDLE)) return 0;
+    if (!MVM_set_std_handle_to_nul(stderr, 2, 0, STD_ERROR_HANDLE))  return 0;
+    return 1;
+}
+#endif

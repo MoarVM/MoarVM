@@ -231,28 +231,22 @@ MVMuint32 MVM_spesh_frame_walker_get_lex(MVMThreadContext *tc, MVMSpeshFrameWalk
     MVMFrame *cur_frame;
     MVMStaticFrame *sf;
     MVMuint32 base_index;
-    MVMLexicalRegistry *lexical_names;
     find_lex_info(tc, fw, &cur_frame, &sf, &base_index);
-    lexical_names = sf->body.lexical_names;
-    if (lexical_names) {
-        /* Indexes were formerly stored off-by-one to avoid semi-predicate issue. */
-        MVMLexicalRegistry *entry;
-        MVM_HASH_GET(tc, lexical_names, name, entry)
-        if (entry) {
-            MVMint32 index = base_index + entry->value;
-            MVMRegister *result = &cur_frame->env[index];
-            MVMuint16 kind = sf->body.lexical_types[entry->value];
-            *found_out = result;
-            *found_kind_out = kind;
-            if (vivify && kind == MVM_reg_obj && !result->o) {
-                MVMROOT(tc, cur_frame, {
+    MVMuint32 idx = MVM_get_lexical_by_name(tc, sf, name);
+    if (idx != MVM_INDEX_HASH_NOT_FOUND) {
+        MVMint32 index = base_index + idx;
+        MVMRegister *result = &cur_frame->env[index];
+        MVMuint16 kind = sf->body.lexical_types[idx];
+        *found_out = result;
+        *found_kind_out = kind;
+        if (vivify && kind == MVM_reg_obj && !result->o) {
+            MVMROOT(tc, cur_frame, {
                     MVM_frame_vivify_lexical(tc, cur_frame, index);
                 });
-            }
-            if (found_frame)
-                *found_frame = cur_frame;
-            return 1;
         }
+        if (found_frame)
+            *found_frame = cur_frame;
+        return 1;
     }
     return 0;
 }
@@ -338,83 +332,83 @@ MVMObject * MVM_spesh_frame_walker_get_lexicals_hash(MVMThreadContext *tc, MVMSp
     MVMObject *ctx_hash = MVM_repr_alloc_init(tc, hll->slurpy_hash_type);
     find_lex_info(tc, fw, &frame, &sf, &base_index);
     MVMROOT3(tc, ctx_hash, frame, sf, {
-        MVMLexicalRegistry **lexreg = sf->body.lexical_names_list;
+        MVMString **lexnames = sf->body.lexical_names_list;
         MVMuint32 i;
         for (i = 0; i < sf->body.num_lexicals; i++) {
             MVMuint16 type = sf->body.lexical_types[i];
-            MVMuint32 idx = base_index + lexreg[i]->value;
+            MVMuint32 idx = base_index + i;
             switch (type) {
                 case MVM_reg_obj: {
                     MVMObject *obj = frame->env[idx].o;
                     if (!obj)
                         obj = MVM_frame_vivify_lexical(tc, frame, idx);
-                    MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, obj);
+                    MVM_repr_bind_key_o(tc, ctx_hash, lexnames[i], obj);
                     break;
                 }
                 case MVM_reg_str: {
                     MVMObject *bs = MVM_repr_box_str(tc, hll->str_box_type,
                         frame->env[idx].s);
-                    MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bs);
+                    MVM_repr_bind_key_o(tc, ctx_hash, lexnames[i], bs);
                     break;
                 }
                 case MVM_reg_int8: {
                     MVMObject *bi = MVM_repr_box_int(tc, hll->int_box_type,
                         frame->env[idx].i8);
-                    MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
+                    MVM_repr_bind_key_o(tc, ctx_hash, lexnames[i], bi);
                     break;
                 }
                 case MVM_reg_uint8: {
                     MVMObject *bi = MVM_repr_box_int(tc, hll->int_box_type,
                         frame->env[idx].u8);
-                    MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
+                    MVM_repr_bind_key_o(tc, ctx_hash, lexnames[i], bi);
                     break;
                 }
                 case MVM_reg_int16: {
                     MVMObject *bi = MVM_repr_box_int(tc, hll->int_box_type,
                         frame->env[idx].i16);
-                    MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
+                    MVM_repr_bind_key_o(tc, ctx_hash, lexnames[i], bi);
                     break;
                 }
                 case MVM_reg_uint16: {
                     MVMObject *bi = MVM_repr_box_int(tc, hll->int_box_type,
                         frame->env[idx].u16);
-                    MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
+                    MVM_repr_bind_key_o(tc, ctx_hash, lexnames[i], bi);
                     break;
                 }
                 case MVM_reg_int32: {
                     MVMObject *bi = MVM_repr_box_int(tc, hll->int_box_type,
                         frame->env[idx].i32);
-                    MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
+                    MVM_repr_bind_key_o(tc, ctx_hash, lexnames[i], bi);
                     break;
                 }
                 case MVM_reg_uint32: {
                     MVMObject *bi = MVM_repr_box_int(tc, hll->int_box_type,
                         frame->env[idx].u32);
-                    MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
+                    MVM_repr_bind_key_o(tc, ctx_hash, lexnames[i], bi);
                     break;
                 }
                 case MVM_reg_int64: {
                     MVMObject *bi = MVM_repr_box_int(tc, hll->int_box_type,
                         frame->env[idx].i64);
-                    MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
+                    MVM_repr_bind_key_o(tc, ctx_hash, lexnames[i], bi);
                     break;
                 }
                 case MVM_reg_uint64: {
                     MVMObject *bi = MVM_repr_box_int(tc, hll->int_box_type,
                         frame->env[idx].u64);
-                    MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bi);
+                    MVM_repr_bind_key_o(tc, ctx_hash, lexnames[i], bi);
                     break;
                 }
                 case MVM_reg_num32: {
                     MVMObject *bn = MVM_repr_box_num(tc, hll->num_box_type,
                         frame->env[idx].n32);
-                    MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bn);
+                    MVM_repr_bind_key_o(tc, ctx_hash, lexnames[i], bn);
                     break;
                 }
                 case MVM_reg_num64: {
                     MVMObject *bn = MVM_repr_box_num(tc, hll->num_box_type,
                         frame->env[idx].n64);
-                    MVM_repr_bind_key_o(tc, ctx_hash, lexreg[i]->key, bn);
+                    MVM_repr_bind_key_o(tc, ctx_hash, lexnames[i], bn);
                     break;
                 }
                 default:
@@ -434,15 +428,10 @@ MVMint64 MVM_spesh_frame_walker_get_lexical_primspec(MVMThreadContext *tc,
     MVMFrame *cur_frame;
     MVMStaticFrame *sf;
     MVMuint32 base_index;
-    MVMLexicalRegistry *lexical_names;
     find_lex_info(tc, fw, &cur_frame, &sf, &base_index);
-    lexical_names = sf->body.lexical_names;
-    if (lexical_names) {
-        MVMLexicalRegistry *entry;
-        MVM_HASH_GET(tc, lexical_names, name, entry)
-        if (entry)
-            return MVM_frame_translate_to_primspec(tc, sf->body.lexical_types[entry->value]);
-    }
+    MVMuint32 idx = MVM_get_lexical_by_name(tc, sf, name);
+    if (idx != MVM_INDEX_HASH_NOT_FOUND)
+        return MVM_frame_translate_to_primspec(tc, sf->body.lexical_types[idx]);
     return -1;
 }
 
@@ -464,10 +453,8 @@ MVMuint64 MVM_spesh_frame_walker_get_lexical_count(MVMThreadContext *tc, MVMSpes
     MVMFrame *cur_frame;
     MVMStaticFrame *sf;
     MVMuint32 base_index;
-    MVMLexicalRegistry *lexical_names;
     find_lex_info(tc, fw, &cur_frame, &sf, &base_index);
-    lexical_names = sf->body.lexical_names;
-    return lexical_names ? (MVMuint64)HASH_CNT(hash_handle, lexical_names) : 0;
+    return sf->body.num_lexicals;
 }
 
 /* Cleans up the spesh frame walker after use. */

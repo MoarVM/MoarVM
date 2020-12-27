@@ -77,8 +77,7 @@ static void read_one_packet(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
     } while(r == -1 && errno == EINTR);
     MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.read_one_packet");
     if (MVM_IS_SOCKET_ERROR(r) || r == 0) {
-        MVM_free(data->last_packet);
-        data->last_packet = NULL;
+        MVM_free_null(data->last_packet);
         if (r != 0)
             throw_error(tc, r, "receive data from socket");
     }
@@ -108,8 +107,7 @@ MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
             *buf = MVM_malloc(bytes);
             memcpy(*buf, data->last_packet + data->last_packet_start, bytes);
             if (bytes == last_remaining) {
-                MVM_free(data->last_packet);
-                data->last_packet = NULL;
+                MVM_free_null(data->last_packet);
             }
             else {
                 data->last_packet_start += bytes;
@@ -141,8 +139,7 @@ MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
         memcpy(*buf + last_available, data->last_packet, bytes - last_available);
         if (bytes == available) {
             /* We used all of the just-read packet. */
-            MVM_free(data->last_packet);
-            data->last_packet = NULL;
+            MVM_free_null(data->last_packet);
         }
         else {
             /* Still something left in the just-read packet for next time. */
@@ -298,8 +295,10 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc,
     int error;
 
     memset(&hints, 0, sizeof(hints));
-    hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV;
-    if (passive) hints.ai_flags |= AI_PASSIVE;
+    /* XXX: This shouldn't be treating addresses meant for active sockets like
+     *      those for passive ones. */
+    hints.ai_flags = AI_ADDRCONFIG | AI_NUMERICSERV | AI_PASSIVE;
+    /* if (passive) hints.ai_flags |= AI_PASSIVE; */
 
     switch (family) {
         case MVM_SOCKET_FAMILY_UNSPEC:
@@ -337,6 +336,7 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc,
 #endif
         }
         default:
+            MVM_free(host_cstr);
             MVM_exception_throw_adhoc(tc, "Unsupported socket family: %"PRIu16"", family);
             break;
     }
@@ -352,12 +352,16 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc,
             hints.ai_socktype = SOCK_DGRAM;
             break;
         case MVM_SOCKET_TYPE_RAW:
+            MVM_free(host_cstr);
             MVM_exception_throw_adhoc(tc, "Support for raw sockets NYI");
         case MVM_SOCKET_TYPE_RDM:
+            MVM_free(host_cstr);
             MVM_exception_throw_adhoc(tc, "Support for RDM sockets NYI");
         case MVM_SOCKET_TYPE_SEQPACKET:
+            MVM_free(host_cstr);
             MVM_exception_throw_adhoc(tc, "Support for seqpacket sockets NYI");
         default:
+            MVM_free(host_cstr);
             MVM_exception_throw_adhoc(tc, "Unsupported socket type: %"PRIi64"", type);
     }
 
@@ -372,6 +376,7 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc,
             hints.ai_protocol = IPPROTO_UDP;
             break;
         default:
+            MVM_free(host_cstr);
             MVM_exception_throw_adhoc(tc, "Unsupported socket protocol: %"PRIi64"", protocol);
     }
 

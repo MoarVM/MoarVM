@@ -2,7 +2,6 @@
 #ifndef _WIN32
 #include <dlfcn.h>
 #endif
-#include <platform/threads.h>
 #include <platform/time.h>
 
 /* Grabs a NativeCall body. */
@@ -641,24 +640,23 @@ void MVM_nativecall_setup(MVMThreadContext *tc, MVMNativeCallBody *body, unsigne
 
     if (!lib_handle) {
         char *waste[] = { body->lib_name, NULL };
-        MVM_free(body->sym_name);
+        MVM_free_null(body->sym_name);
         body->lib_name = NULL;
-        body->sym_name = NULL;
         if (interval_id)
             MVM_telemetry_interval_stop(tc, interval_id, "error building native call");
-        MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate native library '%s': %s", body->lib_name, dlerror());
+        MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate native library '%s': %s", waste[0], dlerror());
     }
 
     if (!body->entry_point) {
         body->entry_point = MVM_nativecall_find_sym(lib_handle, body->sym_name);
         if (!body->entry_point) {
             char *waste[] = { body->sym_name, body->lib_name, NULL };
-            body->lib_name = NULL;
             body->sym_name = NULL;
+            body->lib_name = NULL;
             if (interval_id)
                 MVM_telemetry_interval_stop(tc, interval_id, "error building native call");
             MVM_exception_throw_adhoc_free(tc, waste, "Cannot locate symbol '%s' in native library '%s'",
-                body->sym_name, body->lib_name);
+                waste[0], waste[1]);
         }
     }
 
@@ -1148,42 +1146,6 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
                 MVM_nativecall_refresh(tc, body->child_objs[slot]);
         }
     }
-}
-
-/* Locate the thread that a callback should be run on. */
-MVMThreadContext * MVM_nativecall_find_thread_context(MVMInstance *instance) {
-    MVMint64 wanted_thread_id = MVM_platform_thread_id();
-    MVMThreadContext *tc = NULL;
-    while (1) {
-        uv_mutex_lock(&(instance->mutex_threads));
-        if (instance->in_gc) {
-            /* VM is in GC; free lock since the GC will acquire it again to
-             * clear the in_gc flag, and sleep a bit until it's safe to read
-             * the threads list. */
-            uv_mutex_unlock(&(instance->mutex_threads));
-            MVM_platform_sleep(0.0001);
-        }
-        else {
-            /* Not in GC. If a GC starts while we are reading this, then we
-             * are holding mutex_threads, and the GC will block on it before
-             * it gets to a stage where it can move things. */
-            MVMThread *thread = instance->threads;
-            while (thread) {
-                if (thread->body.native_thread_id == wanted_thread_id) {
-                    tc = thread->body.tc;
-                    if (tc)
-                        break;
-                }
-                thread = thread->body.next;
-            }
-            if (!tc)
-                MVM_panic(1, "native callback ran on thread (%"PRId64") unknown to MoarVM",
-                    wanted_thread_id);
-            uv_mutex_unlock(&(instance->mutex_threads));
-            break;
-        }
-    }
-    return tc;
 }
 
 typedef struct ResolverData {

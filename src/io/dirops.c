@@ -230,6 +230,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
              * relative paths are always limited to a total of MAX_PATH characters.
              * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
             if (!GetFullPathNameW(wname, 4096, abs_dirname, &lpp_part)) {
+                MVM_free(data);
                 MVM_free(wname);
                 MVM_exception_throw_adhoc(tc, "Directory path is wrong: %d", GetLastError());
             }
@@ -260,6 +261,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
         MVM_free(dir_name);
 
         if (!dir_handle) {
+            MVM_free(data);
             MVM_exception_throw_adhoc(tc, "Failed to open dir: %s", strerror(opendir_error));
         }
 
@@ -293,7 +295,10 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
     WIN32_FIND_DATAW ffd;
     char *dir_str;
 
-    if (data->dir_handle == INVALID_HANDLE_VALUE) {
+    if (!data->dir_handle) {
+        MVM_exception_throw_adhoc(tc, "Cannot read a closed dir handle.");
+    }
+    else if (data->dir_handle == INVALID_HANDLE_VALUE) {
         HANDLE hFind = FindFirstFileW(data->dir_name, &ffd);
 
         if (hFind == INVALID_HANDLE_VALUE) {
@@ -344,12 +349,13 @@ void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
 
 #ifdef _WIN32
     if (data->dir_name) {
-        MVM_free(data->dir_name);
-        data->dir_name = NULL;
+        MVM_free_null(data->dir_name);
     }
 
-    if (!FindClose(data->dir_handle))
-        MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %d", GetLastError());
+    if (data->dir_handle != INVALID_HANDLE_VALUE) {
+        if (!FindClose(data->dir_handle))
+            MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %d", GetLastError());
+    }
     data->dir_handle = NULL;
 #else
     if (closedir(data->dir_handle) == -1)

@@ -240,7 +240,7 @@ void MVM_unicode_normalizer_translate_newlines(MVMThreadContext *tc, MVMNormaliz
 
 /* Cleanup an MVMNormalization once we're done normalizing. */
 void MVM_unicode_normalizer_cleanup(MVMThreadContext *tc, MVMNormalizer *n) {
-    free(n->buffer);
+    MVM_free(n->buffer);
 }
 
 /* Adds a codepoint into the buffer, making sure there's space. */

@@ -72,14 +72,17 @@ static void at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
     MVMSpeshFrameWalker fw;
     MVMRegister *found;
     MVMuint16 found_kind;
+    MVM_gc_root_temp_push(tc, (MVMCollectable**)&name);
     if (!setup_frame_walker(tc, &fw, body) || !MVM_spesh_frame_walker_get_lex(tc, &fw,
             name, &found, &found_kind, 1, NULL)) {
+        MVM_gc_root_temp_pop(tc);
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste,
             "Lexical with name '%s' does not exist in this frame",
             c_name);
     }
+    MVM_gc_root_temp_pop(tc);
     MVM_spesh_frame_walker_cleanup(tc, &fw);
 
     if (found_kind != kind) {

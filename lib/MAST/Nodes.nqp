@@ -56,8 +56,7 @@ class MAST::Bytecode is repr('VMArray') is array_type(uint8) {
         nqp::create(self)
     }
     method write_s(str $s) {
-        my @subbuf := nqp::encode($s, 'utf8', nqp::create(self));
-        self.write_buf(@subbuf);
+        nqp::encode($s, 'utf8', self);
     }
     method write_double(num $n) {
         nqp::writenum(self, nqp::elems(self), $n, 13);
@@ -194,6 +193,9 @@ class MAST::CompUnit is MAST::Node {
     # The HLL name.
     has str $!hll;
 
+    # The unit's mainline frame.
+    has $!mainline_frame;
+
     # The frame for the main entry point, if any.
     has $!main_frame;
 
@@ -226,14 +228,22 @@ class MAST::CompUnit is MAST::Node {
 
     has $!writer;
 
-    method BUILD(:$writer) {
-        $!writer := $writer;
-        @!frames := nqp::list;
-        @!sc_handles := nqp::list;
-        %!sc_lookup  := nqp::hash;
-        @!extop_sigs := nqp::list;
-        %!extop_idx  := nqp::hash;
-        @!extop_names := nqp::list;
+    method BUILD(
+        :$writer,
+        :@frames      = nqp::list,
+        :@sc_handles  = nqp::list,
+        :%sc_lookup   = nqp::hash,
+        :@extop_sigs  = nqp::list,
+        :@extop_names = nqp::list,
+        :%extop_idx   = nqp::hash,
+    ) {
+        $!writer      := $writer;
+        @!frames      := @frames;
+        @!sc_handles  := @sc_handles;
+        %!sc_lookup   := %sc_lookup;
+        @!extop_sigs  := @extop_sigs;
+        @!extop_names := @extop_names;
+        %!extop_idx   := %extop_idx;
     }
 
     method writer() {
@@ -254,6 +264,12 @@ class MAST::CompUnit is MAST::Node {
         nqp::defined($hll)
             ?? ($!hll := $hll)
             !! $!hll
+    }
+
+    method mainline_frame($frame?) {
+        nqp::defined($frame)
+            ?? ($!mainline_frame := $frame)
+            !! $!mainline_frame
     }
 
     method main_frame($frame?) {
@@ -758,6 +774,14 @@ class MAST::Frame is MAST::Node {
     has @!buffer-stack;
     has @!child-label-fixups;
 
+    method WHICH() {
+        "MAST::Frame|$!cuuid|$!name"
+    }
+
+    method raku() {
+        "MAST::Frame.new(:cuuid($!cuuid), :name<$!name>)"
+    }
+
     class SubBuffer {
         has $!bytecode;
         has int32 $!annotations-offset;
@@ -899,7 +923,6 @@ class MAST::Frame is MAST::Node {
         $!outer              := MAST::Node;
         %!lexical_map        := nqp::hash();
         %!debug_map          := nqp::hash();
-        @!debug_map_idxs     := nqp::list_i();
         @!static_lex_values  := nqp::list_i();
         $!writer             := $writer;
         $!compunit           := $compunit;
@@ -915,7 +938,6 @@ class MAST::Frame is MAST::Node {
         %!labels             := nqp::hash;
         @!labels             := nqp::list;
         %!label-fixups       := nqp::hash;
-        @!lexical_names_idxs := nqp::list_i;
         @!buffer-stack       := nqp::list;
         @!child-label-fixups := nqp::list_i;
         nqp::setelems($!bytecode, $initial_bytecode_size);
@@ -926,6 +948,8 @@ class MAST::Frame is MAST::Node {
     }
 
     method prepare() {
+        @!lexical_names_idxs := nqp::list_i;
+        @!debug_map_idxs     := nqp::list_i();
         for @!lexical_names {
             nqp::push_i(@!lexical_names_idxs, self.add-string($_));
         }
@@ -933,6 +957,11 @@ class MAST::Frame is MAST::Node {
             nqp::push_i(@!debug_map_idxs, %!debug_map{$_}.index);
             nqp::push_i(@!debug_map_idxs, self.add-string($_));
         }
+    }
+
+    method clear_index() {
+        $!frame_idx := -1;
+        $!flags := nqp::bitand_i($!flags, nqp::bitneg_i($FRAME_FLAG_HAS_INDEX));
     }
 
     method set_index(int $idx) {

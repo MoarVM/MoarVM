@@ -3,12 +3,12 @@
 #include "tinymt64.h"
 #include <math.h>
 
-#ifndef MANTISSA_BITS_IN_DOUBLE
 #define MANTISSA_BITS_IN_DOUBLE 53
-#endif
-#ifndef MAX_BIGINT_BITS_IN_DOUBLE
-#define MAX_BIGINT_BITS_IN_DOUBLE 1023
-#endif
+#define EXPONENT_SHIFT 52
+#define EXPONENT_MIN -1022
+#define EXPONENT_MAX 1023
+#define EXPONENT_BIAS 1023
+#define EXPONENT_ZERO 0
 
 #ifndef MAX
     #define MAX(x,y) ((x)>(y)?(x):(y))
@@ -26,49 +26,6 @@ MVM_STATIC_INLINE void adjust_nursery(MVMThreadContext *tc, MVMP6bigintBody *bod
             tc->nursery_alloc_limit = (char *)(tc->nursery_alloc_limit) - adjustment;
         }
     }
-}
-
-/*
- *  Convert to double, assumes IEEE-754 conforming double. Taken from
- *  https://github.com/czurnieden/libtommath/blob/master/bn_mp_get_double.c
- *  and slightly modified to fit MoarVM's setup.
- */
-static const int MVM_mp_get_double_digits_needed
-= ((MANTISSA_BITS_IN_DOUBLE + MP_DIGIT_BIT) / MP_DIGIT_BIT) + 1;
-static const double MVM_mp_get_double_multiplier = (double)(MP_MASK + 1);
-
-static MVMnum64 MVM_mp_get_double_shift(mp_int *a, int shift) {
-    MVMnum64 d;
-    int i, limit, final_shift;
-    d = 0.0;
-
-    mp_clamp(a);
-    i = a->used;
-    limit = (i <= MVM_mp_get_double_digits_needed)
-        ? 0 : i - MVM_mp_get_double_digits_needed;
-
-    while (i-- > limit) {
-        d += a->dp[i];
-        d *= MVM_mp_get_double_multiplier;
-    }
-
-    if (a->sign == MP_NEG)
-        d *= -1.0;
-    final_shift = i * MP_DIGIT_BIT - shift;
-    if (final_shift < 0) {
-        while (final_shift < -1023) {
-            d *= pow(2.0, -1023);
-            final_shift += 1023;
-        }
-    }
-    else {
-        while (final_shift > 1023) {
-            d *= pow(2.0, 1023);
-            final_shift -= 1023;
-        }
-    }
-    d *= pow(2.0, final_shift);
-    return d;
 }
 
 /* Returns the body of a P6bigint, containing the bigint/smallint union, for
@@ -1065,6 +1022,7 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
             is_malloced = 1;
         }
         if ((err = mp_to_radix(i, buf, len, NULL, base)) != MP_OKAY) {
+            if (is_malloced) MVM_free(buf);
             MVM_exception_throw_adhoc(tc, "Error getting the string representation of a big integer: %s", mp_error_to_string(err));
         }
         result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
@@ -1101,6 +1059,7 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
                 is_malloced = 1;
             }
             if ((err = mp_to_radix(&i, buf, len, NULL, base)) != MP_OKAY) {
+                if (is_malloced) MVM_free(buf);
                 mp_clear(&i);
                 MVM_exception_throw_adhoc(tc, "Error getting the string representation of a big integer: %s", mp_error_to_string(err));
             }
@@ -1141,46 +1100,297 @@ MVMObject *MVM_bigint_from_num(MVMThreadContext *tc, MVMObject *result_type, MVM
     return result;
 }
 
+/* Implementation based on the approach described in
+ * https://www.exploringbinary.com/correct-decimal-to-floating-point-using-big-integers/
+ * but uses `mp_count_bits` to determine the needed scaling within a factor of 2
+ * instead of the suggestion on that page of multiplying by two, which implies
+ * trial divisions.
+ *
+ * This might look horrible and long, but it only has one truly expensive
+ * operation (the big integer division). The other big integer operations are
+ * powers of two, and internally simple loops with bitshifts or even O(1).
+ * Most of the rest is bit manipulations on 64 bit integers.
+ *
+ * The code that this replaced also had big integer division, and scaled up the
+ * numerator by 2**64. This code scales up by 2**54 worst case. It should be
+ * slightly faster, as well as being as accurate as possible for all the awkward
+ * cases.
+ */
+
+static MVMnum64 bigint_div_num(MVMThreadContext *tc, const mp_int *numerator, const mp_int *denominator) {
+    int negative = numerator->sign != denominator->sign;
+
+    if (mp_iszero(denominator)) {
+        /* Comments in the caller imply that the NaN case is unreachable.
+         * However, I'd prefer to leave it in place, as that way this code can
+         * be extracted and independently tested for all corner cases.
+         * (With decimal strings expressed as $numerator / 10 ** $denominator
+         * it is bit-for-bit identical with David M. Gay's strtod, including
+         * values that overflow, underflow, generate subnormals and negative
+         * zero. That laundry list means we just need 0 / 0 => NaN to catch 'em
+         * all.) */
+        if (mp_iszero(numerator))
+            return MVM_NUM_NAN;
+        return negative ? -MVM_NUM_NEGINF : MVM_NUM_POSINF;
+    }
+    if (mp_iszero(numerator))
+        return 0.0;
+
+    int floor_log2_num = mp_count_bits(numerator) - 1;
+    int floor_log2_den = mp_count_bits(denominator) - 1;
+    int exponent = floor_log2_num - floor_log2_den - 1;
+    int in_range = MANTISSA_BITS_IN_DOUBLE - exponent - 1;
+
+    const mp_int *numerator_scaled;
+    const mp_int *denominator_scaled;
+
+    mp_err err;
+    mp_int temp;
+    mp_int quotient;
+    mp_int remainder;
+    mp_int *scaled = in_range ? &temp : NULL;
+
+    err = mp_init_multi(&quotient, &remainder, scaled, NULL);
+    if (err != MP_OKAY)
+        MVM_exception_throw_adhoc(tc,
+                                  "Failed to initialize bigint for division results");
+
+    if (!in_range) {
+        numerator_scaled = numerator;
+        denominator_scaled = denominator;
+    }
+    else {
+        /* We need to multiply by 2**|in_range| */
+        int exponent = abs(in_range);
+
+        if (in_range > 0) {
+            err = mp_mul_2d(numerator, exponent, scaled);
+            if (err != MP_OKAY) {
+                mp_clear_multi(&quotient, &remainder, scaled, NULL);
+                MVM_exception_throw_adhoc(tc,
+                                          "Failed to scale numerator before division");
+            }
+
+            numerator_scaled = scaled;
+            denominator_scaled = denominator;
+        }
+        else {
+            err = mp_mul_2d(denominator, exponent, scaled);
+            if (err != MP_OKAY) {
+                mp_clear_multi(&quotient, &remainder, scaled, NULL);
+                MVM_exception_throw_adhoc(tc,
+                                          "Failed to scale denominator before division");
+            }
+
+            numerator_scaled = numerator;
+            denominator_scaled = scaled;
+        }
+    }
+
+    /* Should not be possible to hit divide-by-zero here. */
+    err = mp_div(numerator_scaled, denominator_scaled, &quotient, &remainder);
+    if (err != MP_OKAY) {
+        mp_clear_multi(&quotient, &remainder, scaled, NULL);
+        MVM_exception_throw_adhoc(tc, "Failed to perform bigint division");
+    }
+
+    assert(mp_count_bits(&quotient) <= MANTISSA_BITS_IN_DOUBLE + 2);
+
+    uint64_t mantissa = mp_get_mag_u64(&quotient);
+    assert(mantissa < UINT64_C(1) << (MANTISSA_BITS_IN_DOUBLE + 1));
+    assert(mantissa >= UINT64_C(1) << (MANTISSA_BITS_IN_DOUBLE - 1));
+
+    int carry = 0;
+    if (mantissa & UINT64_C(1) << MANTISSA_BITS_IN_DOUBLE) {
+        /* Not in range - must be a factor of two too large.
+         * This happens because we only have the floor of the base 2 log of each
+         * value for the division, so we can end up picking a value one too
+         * large for `exponent`, meaning that we don't successfully normalise
+         * `quotient` into the correct range. */
+        carry = mantissa & 1;
+        mantissa >>= 1;
+        ++exponent;
+        if (exponent >= EXPONENT_MIN) {
+            if (carry) {
+                if (mp_iszero(&remainder)) {
+                    /* The remainder is exactly midway between the two possible
+                     * values. For this case, IEEE says round to even. */
+                    if (mantissa & 1) {
+                        /* Round up to even. */
+                        ++mantissa;
+                    }
+                    /* else round down to even, which is implicit in the shift,
+                     * as it discarded the lowest bit. */
+                }
+                else {
+                    /* IEEE says round up. */
+                    ++mantissa;
+                }
+            }
+            /* And then to add to the fun, rounding can push us up even further.
+             */
+            if (mantissa == UINT64_C(1) << MANTISSA_BITS_IN_DOUBLE) {
+                mantissa >>= 1;
+                ++exponent;
+            }
+            /* else round down. Which the right shift already did for us thanks
+             * to truncation. */
+        }
+        /* else the value is subnormal. */
+    }
+    else if (exponent >= EXPONENT_MIN) {
+        /* In range already. */
+        err = mp_mul_2(&remainder, &remainder);
+        if (err != MP_OKAY) {
+            mp_clear_multi(&quotient, &remainder, scaled, NULL);
+            MVM_exception_throw_adhoc(tc, "Failed to double remainder in bigint division");
+        }
+        mp_ord cmp = mp_cmp_mag(&remainder, denominator_scaled);
+        if (cmp != MP_LT) {
+            if (cmp == MP_GT) {
+                ++mantissa;
+                /* Round up. */
+            }
+            else {
+                /* The remainder is exactly midway between the two possible
+                 * values. For this case, IEEE says round to even. */
+                if (mantissa & 1) {
+                    /* round up to even. */
+                    ++mantissa;
+                }
+                /* else round down to even. */
+            }
+            if (mantissa == UINT64_C(1) << MANTISSA_BITS_IN_DOUBLE) {
+                /* As before, "even further."
+                 * Writing this comment after the comment below about "not
+                 * specifically tested", I realise that the design of the
+                 * floating point bit patterns in memory means that one could
+                 * actually perform this rounding after packing mantissa and
+                 * exponent together, for all 3 cases, because the LSB of the
+                 * exponent is immediately above the Most Significant (Stored)
+                 * Bit of the mantissa. So
+                 * 1) subnormal rounds up to lowest normal
+                 *    (subnormal's exponent is 0x000; smallest normal is 0x001)
+                 * 2) 0x(1)fffffffffffffp123 to 0x(1)0000000000000p124
+                 * 3) largest possible finite value rounds up to infinity -
+                 *    the exponent of Inf is one more than highest float, and
+                 *    the bit representation is 0.
+                 * I don't think that this code would be any clearer if I did
+                 * that, but I can see why it would help hardware design.
+                 */
+                mantissa >>= 1;
+                ++exponent;
+            }
+        }
+        /* else round down. */
+    }
+    /* else the value is subnormal */
+
+    if (exponent < EXPONENT_MIN) {
+        /* Subnormals.
+         * Subnormals are numbers too. */
+
+        unsigned int shift_by = EXPONENT_MIN - exponent;
+        if (shift_by > MANTISSA_BITS_IN_DOUBLE) {
+            /* Really really small - the result rounds to zero. */
+            mantissa = 0;
+        }
+        else {
+            /* OK, so the corner case of the corner cases is where we were a
+             * factor of two too large (above), and when we correct *that* it
+             * turns out that actually we're subnormal.
+             * In which case, what we thought was the "carry" bit (the bit we
+             * shifted off the over-large mantissa, because it really should be
+             * the MSB of the remainder), is actually *not* the true MSB of the
+             * remainder, but one of the others.
+             * Which, it turns out, isn't *that* complex, because all that
+             * matters about all the "other" bits is whether they are all zero.
+             * (If carry is 0, then we always round down. If carry is 1, we need
+             * to check this the "other" bits - if they are all zero we are
+             * exactly halfway, and so round-to-even applies.) */
+            assert(shift_by > 0);
+            unsigned int shift_up = shift_by - 1;
+            MVMuint64 actual_carry_bit_pos = UINT64_C(1) << shift_up;
+
+            /* "smushed up" - `rest` is a 64 bit boolean.
+             * `actual_carry_bit_pos - 1` will be 0 if exponent is 52. That's
+             * fine. */
+            MVMuint64 rest = carry | (mantissa & (actual_carry_bit_pos - 1));
+            int actual_carry = (mantissa & actual_carry_bit_pos) ? 1 : 0;
+
+            mantissa >>= shift_by;
+            if (actual_carry) {
+                if (rest || !mp_iszero(&remainder)) {
+                    /* IEEE says round up. */
+                    ++mantissa;
+                }
+                else {
+                    /* midway, so round to even. */
+                    if (mantissa & 1) {
+                        ++mantissa;
+                    }
+                }
+            }
+        }
+        /* Not specifically tested - I think that there is also a corner case
+         * sort of implicitly handled here. If the mantissa is *just* subnormal
+         * - ie 0x0FFFFFFFFFFFFF.....
+         * - ie would be 0x0.fffffffffffffp-1022 (if truncated)
+         * and then it turns out that the '....' causes the mantissa to round up
+         * then I think that mantissa here is now actually
+         * 0x100000000000000
+         * and the bitwise or below means that that 1 bit set at bit 53 actually
+         * "leaks" into the lowest bit of exponent, causing the value to
+         * (correctly) become 0x1.0000000000000p-10222
+         */
+        exponent = EXPONENT_ZERO;
+    }
+    else {
+        /* The ^ clears the always-set 53rd bit. */
+        assert(mantissa & UINT64_C(1) << (MANTISSA_BITS_IN_DOUBLE - 1));
+        mantissa ^= UINT64_C(1) << (MANTISSA_BITS_IN_DOUBLE - 1);
+        exponent += EXPONENT_BIAS;
+    }
+
+    mp_clear_multi(&quotient, &remainder, scaled, NULL);
+
+    if (exponent > EXPONENT_MAX + EXPONENT_BIAS)
+        return negative ? -MVM_NUM_NEGINF : MVM_NUM_POSINF;
+
+    union double_or_uint64 {
+        MVMuint64 u;
+        double d;
+    } result;
+
+    result.u = (negative ? UINT64_C(0x8000000000000000) : 0)
+        | (((MVMuint64) exponent) << EXPONENT_SHIFT)
+        | mantissa;
+
+    /* This code assumes that the floating point endianness always matches the
+     * integer endianness, which is not something that IEEE requires.
+     * It isn't true on certain obscure platforms (eg very old ARM with
+     * softfloat) but we already don't support those because we won't even be
+     * able to correctly deserialised the floating point constants stored in the
+     * stage 0 bootstrap files. So don't worry about that here, until someone
+     * submits a working patch for the deserialisation code. */
+    return result.d;
+}
+
 MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
     MVMP6bigintBody *ba = get_bigint_body(tc, a);
     MVMP6bigintBody *bb = get_bigint_body(tc, b);
     MVMnum64 c;
 
     if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) {
+        /* To get here at least one bigint must be big, meaning we can't have
+         * 0/0 and hence the NaN case. */
         mp_int *ia = force_bigint(tc, ba, 0);
         mp_int *ib = force_bigint(tc, bb, 1);
 
+        mp_clamp(ia);
         mp_clamp(ib);
-        if (ib->used == 0) { /* zero-denominator special case */
-            if (ia->sign == MP_NEG)
-                c = MVM_NUM_NEGINF;
-            else
-                c = MVM_NUM_POSINF;
-            /*
-             * we won't have NaN case here, since the branch requires at
-             * least one bigint to be big
-             */
-        }
-        else {
-            mp_int scaled;
-            int bbits = mp_count_bits(ib)+64;
 
-            if (mp_init(&scaled) != MP_OKAY)
-                MVM_exception_throw_adhoc(tc,
-                    "Failed to initialize bigint for scaled divident");
-            if (mp_mul_2d(ia, bbits, &scaled) != MP_OKAY) {
-                mp_clear(&scaled);
-                MVM_exception_throw_adhoc(tc, "Failed to scale divident");
-            }
-            // simply re-use &scaled for result
-            if (mp_div(&scaled, ib, &scaled, NULL) != MP_OKAY) {
-                mp_clear(&scaled);
-                MVM_exception_throw_adhoc(tc,
-                    "Failed to perform bigint division");
-            }
-            c = MVM_mp_get_double_shift(&scaled, bbits);
-            mp_clear(&scaled);
-        }
+        c = bigint_div_num(tc, ia, ib);
     } else {
         c = (double)ba->u.smallint.value / (double)bb->u.smallint.value;
     }
@@ -1305,33 +1515,69 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
     return result;
 }
 
-MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a, MVMint64 rounds) {
-    /* mp_prime_is_prime returns True for 1, and I think
-     * it's worth special-casing this particular number :-)
-     */
-    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+/* Forišek and Jančina, "Fast Primality Testing for Integers That Fit into a Machine Word", 2015
+ *  FJ32_256 code slightly modifed to work in MoarVM
+ */
+static uint16_t bases[]={15591,2018,166,7429,8064,16045,10503,4399,1949,1295,2776,3620,560,3128,5212,
+2657,2300,2021,4652,1471,9336,4018,2398,20462,10277,8028,2213,6219,620,3763,4852,5012,3185,
+1333,6227,5298,1074,2391,5113,7061,803,1269,3875,422,751,580,4729,10239,746,2951,556,2206,
+3778,481,1522,3476,481,2487,3266,5633,488,3373,6441,3344,17,15105,1490,4154,2036,1882,1813,
+467,3307,14042,6371,658,1005,903,737,1887,7447,1888,2848,1784,7559,3400,951,13969,4304,177,41,
+19875,3110,13221,8726,571,7043,6943,1199,352,6435,165,1169,3315,978,233,3003,2562,2994,10587,
+10030,2377,1902,5354,4447,1555,263,27027,2283,305,669,1912,601,6186,429,1930,14873,1784,1661,
+524,3577,236,2360,6146,2850,55637,1753,4178,8466,222,2579,2743,2031,2226,2276,374,2132,813,
+23788,1610,4422,5159,1725,3597,3366,14336,579,165,1375,10018,12616,9816,1371,536,1867,10864,
+857,2206,5788,434,8085,17618,727,3639,1595,4944,2129,2029,8195,8344,6232,9183,8126,1870,3296,
+7455,8947,25017,541,19115,368,566,5674,411,522,1027,8215,2050,6544,10049,614,774,2333,3007,
+35201,4706,1152,1785,1028,1540,3743,493,4474,2521,26845,8354,864,18915,5465,2447,42,4511,
+1660,166,1249,6259,2553,304,272,7286,73,6554,899,2816,5197,13330,7054,2818,3199,811,922,350,
+7514,4452,3449,2663,4708,418,1621,1171,3471,88,11345,412,1559,194};
 
-    if (MVM_BIGINT_IS_BIG(ba) || ba->u.smallint.value != 1) {
-        mp_int *ia = force_bigint(tc, ba, 0);
-        if (mp_cmp_d(ia, 1) == MP_EQ || ia->sign == MP_NEG) {
-            return 0;
-        }
-        else {
-            mp_err err;
-            mp_bool result;
-            if ((err = mp_prime_is_prime(ia, rounds, &result)) != MP_OKAY)
-                MVM_exception_throw_adhoc(tc, "Error checking primality of a big integer: %s", mp_error_to_string(err));
-            return result;
-        }
-    } else {
-        /* we only reach this if we have a smallint that's equal to 1.
-         * which we define as not-prime. */
-        return 0;
+static MVMint64 is_SPRP(uint32_t n, uint32_t a) {
+    uint32_t d = n-1, s = 0;
+    while ((d&1)==0) ++s, d>>=1;
+    uint64_t cur = 1, pw = d;
+    while (pw) {
+        if (pw & 1) cur = (cur*a) % n;
+        a = ((uint64_t)a*a) % n;
+        pw >>= 1;
     }
+    if (cur == 1) return 1;
+    for (uint32_t r=0; r<s; r++) {
+        if (cur == n-1) return 1;
+        cur = (cur*cur) % n;
+    }
+    return 0;
 }
 
-/* concatenating with "" ensures that only literal strings are accepted as argument. */
-#define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
+MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a) {
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+    if (MVM_BIGINT_IS_BIG(ba)) {
+        mp_int *ia = ba->u.bigint;
+        mp_err err;
+        mp_bool result;
+
+        if (ia->sign == MP_NEG) {
+            return 0;
+        }
+
+        if ((err = mp_prime_is_prime(ia, 40, &result)) != MP_OKAY)
+            MVM_exception_throw_adhoc(tc, "Error checking primality of a big integer: %s", mp_error_to_string(err));
+
+        return result;
+    }
+    else {
+        MVMuint32 x = ba->u.smallint.value;
+        if (x==2 || x==3 || x==5 || x==7) return 1;
+        if (x%2==0 || x%3==0 || x%5==0 || x%7==0) return 0;
+        if (x<121) return (x>1);
+        uint64_t h = x;
+        h = ((h >> 16) ^ h) * 0x45d9f3b;
+        h = ((h >> 16) ^ h) * 0x45d9f3b;
+        h = ((h >> 16) ^ h) & 255;
+        return is_SPRP(x,bases[h]);
+    }
+}
 
 MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag, MVMObject *type) {
     mp_err err;

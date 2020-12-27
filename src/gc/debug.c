@@ -26,7 +26,7 @@ void MVM_gc_debug_find_region(MVMThreadContext *tc, void *ptr) {
                 MVMint32 bin;
                 for (bin = 0; bin < MVM_GEN2_BINS; bin++) {
                     MVMGen2SizeClass *szc = &(gen2->size_classes[bin]);
-                    MVMint32 page;
+                    MVMuint32 page;
                     for (page = 0; page < szc->num_pages; page++) {
                         char *page_start = szc->pages[page];
                         size_t page_size = MVM_GEN2_PAGE_ITEMS * ((bin + 1) << MVM_GEN2_BIN_BITS);

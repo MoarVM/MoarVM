@@ -167,8 +167,7 @@ static void read_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_t
         /* Error; need to notify. */
         MVMROOT(tc, async_task, {
             MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-            MVMAsyncTask *t   = (MVMAsyncTask *)async_task;
-            MVM_repr_push_o(tc, arr, t->body.schedulee);
+            MVM_repr_push_o(tc, arr, ((MVMAsyncTask *)async_task)->body.schedulee);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
             MVMROOT(tc, arr, {
@@ -178,7 +177,7 @@ static void read_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_t
                     tc->instance->boot_types.BOOTStr, msg_str);
                 MVM_repr_push_o(tc, arr, msg_box);
             });
-            MVM_repr_push_o(tc, t->body.queue, arr);
+            MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
         });
     }
 }
@@ -312,15 +311,16 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     wi->req->data     = data;
     handle_data       = (MVMIOAsyncUDPSocketData *)wi->handle->body.data;
 
-    if (uv_is_closing((uv_handle_t *)handle_data->handle))
+    if (uv_is_closing((uv_handle_t *)handle_data->handle)) {
+        MVM_free(wi->req);
         MVM_exception_throw_adhoc(tc, "cannot write to a closed socket");
+    }
 
     if ((r = uv_udp_send(wi->req, handle_data->handle, &(wi->buf), 1, wi->dest_addr, on_write)) < 0) {
         /* Error; need to notify. */
         MVMROOT(tc, async_task, {
             MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-            MVMAsyncTask *t   = (MVMAsyncTask *)async_task;
-            MVM_repr_push_o(tc, arr, t->body.schedulee);
+            MVM_repr_push_o(tc, arr, ((MVMAsyncTask *)async_task)->body.schedulee);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
             MVMROOT(tc, arr, {
                 MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
@@ -329,12 +329,11 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                     tc->instance->boot_types.BOOTStr, msg_str);
                 MVM_repr_push_o(tc, arr, msg_box);
             });
-            MVM_repr_push_o(tc, t->body.queue, arr);
+            MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
         });
 
         /* Cleanup handle. */
-        MVM_free(wi->req);
-        wi->req = NULL;
+        MVM_free_null(wi->req);
         MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
     }
 }

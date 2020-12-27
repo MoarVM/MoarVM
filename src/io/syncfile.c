@@ -252,8 +252,7 @@ static MVMint64 closefh(MVMThreadContext *tc, MVMOSHandle *h) {
     if (data->fd != -1) {
         int r;
         flush_output_buffer(tc, data);
-        MVM_free(data->output_buffer);
-        data->output_buffer = NULL;
+        MVM_free_null(data->output_buffer);
         r = close(data->fd);
         data->fd = -1;
         if (r == -1)

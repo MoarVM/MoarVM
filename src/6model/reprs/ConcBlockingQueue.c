@@ -20,7 +20,7 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMConcBlockingQueue *cbq = (MVMConcBlockingQueue*)root;
-    MVMConcBlockingQueueBody *body = MVM_calloc(1, sizeof(MVMConcBlockingQueueBody));
+    MVMConcBlockingQueueBody *body = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMConcBlockingQueueBody));
     /* Initialize locks. */
     int init_stat;
 
@@ -35,7 +35,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
             uv_strerror(init_stat));
 
     /* Head and tail point to a null node. */
-    body->tail = body->head = MVM_calloc(1, sizeof(MVMConcBlockingQueueNode));
+    body->tail = body->head = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMConcBlockingQueueNode));
     cbq->body = body;
 }
 
@@ -71,7 +71,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMConcBlockingQueueNode *cur = body->head;
     while (cur) {
         MVMConcBlockingQueueNode *next = cur->next;
-        MVM_free(cur);
+        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMConcBlockingQueueNode), cur);
         cur = next;
     }
     body->head = body->tail = NULL;
@@ -82,7 +82,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     uv_cond_destroy(&body->head_cond);
 
     /* Clean up body */
-    MVM_free(body);
+    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMConcBlockingQueueBody), body);
 }
 
 static const MVMStorageSpec storage_spec = {
@@ -152,7 +152,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
         MVM_exception_throw_adhoc(tc,
             "Cannot store a null value in a concurrent blocking queue");
 
-    add = MVM_calloc(1, sizeof(MVMConcBlockingQueueNode));
+    add = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMConcBlockingQueueNode));
 
     interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.push");
     MVMROOT2(tc, root, to_add, {
@@ -196,7 +196,7 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
 
     interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.unshift");
 
-    add = MVM_calloc(1, sizeof(MVMConcBlockingQueueNode));
+    add = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMConcBlockingQueueNode));
 
     /* We'll need to hold both the head and the tail lock, in case head == tail
      * and push would update tail->next - without the tail lock, this could
@@ -248,7 +248,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     });
 
     taken = body->head->next;
-    MVM_free(body->head);
+    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMConcBlockingQueueNode), body->head);
     body->head = taken;
     MVM_barrier();
     value->o = taken->value;
@@ -333,12 +333,12 @@ MVMObject * MVM_concblockingqueue_jit_poll(MVMThreadContext *tc, MVMObject *queu
 MVMObject * MVM_concblockingqueue_poll(MVMThreadContext *tc, MVMConcBlockingQueue *queue) {
     MVMConcBlockingQueue *cbq = (MVMConcBlockingQueue *)queue;
     MVMConcBlockingQueueBody *body = cbq->body;
-     MVMConcBlockingQueueNode *taken;
+    MVMConcBlockingQueueNode *taken;
     MVMObject *result = tc->instance->VMNull;
     unsigned int interval_id;
 
     interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.poll");
-    MVMROOT(tc, cbq, {
+    MVMROOT(tc, cbq, { /* No need to root result as VMNull is always in gen2 */
         MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&body->head_lock);
         MVM_gc_mark_thread_unblocked(tc);
@@ -346,7 +346,7 @@ MVMObject * MVM_concblockingqueue_poll(MVMThreadContext *tc, MVMConcBlockingQueu
 
     if (MVM_load(&body->elems) > 0) {
         taken = body->head->next;
-        MVM_free(body->head);
+        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMConcBlockingQueueNode), body->head);
         body->head = taken;
         MVM_barrier();
         result = taken->value;

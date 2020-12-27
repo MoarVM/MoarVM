@@ -18,9 +18,7 @@ MVMCompUnit * MVM_cu_from_bytes(MVMThreadContext *tc, MVMuint8 *bytes, MVMuint32
     MVM_gc_allocate_gen2_default_clear(tc);
 
     /* Process the input. */
-    MVMROOT(tc, cu, {
-        MVM_bytecode_unpack(tc, cu);
-    });
+    MVM_bytecode_unpack(tc, cu);
 
     /* Resolve HLL config. It may contain nursery pointers, so fire write
      * barrier on it. */
@@ -116,7 +114,7 @@ MVMuint16 MVM_cu_callsite_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMCallsite
         MVMCallsite **new_callsites = MVM_fixed_size_alloc(tc, tc->instance->fsa, new_size);
         memcpy(new_callsites, cu->body.callsites, orig_size);
         idx = cu->body.num_callsites;
-        new_callsites[idx] = MVM_callsite_copy(tc, cs);
+        new_callsites[idx] = cs->is_interned ? cs : MVM_callsite_copy(tc, cs);
         if (cu->body.callsites)
             MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, orig_size,
                 cu->body.callsites);

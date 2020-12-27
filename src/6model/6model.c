@@ -475,7 +475,7 @@ MVMuint64 MVM_6model_next_type_cache_id(MVMThreadContext *tc) {
  * instances, marks the individual ojbect as never repossessable. */
 void MVM_6model_never_repossess(MVMThreadContext *tc, MVMObject *obj) {
     if (IS_CONCRETE(obj))
-        obj->header.flags |= MVM_CF_NEVER_REPOSSESS;
+        obj->header.flags1 |= MVM_CF_NEVER_REPOSSESS;
     else
         obj->st->mode_flags |= MVM_NEVER_REPOSSESS_TYPE;
 }

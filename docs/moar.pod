@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-moar - a runtime for Perl 6
+moar - a runtime for Raku
 
 =head1 SYNOPSIS
 

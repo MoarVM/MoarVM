@@ -83,10 +83,8 @@ struct MVMNativeCallback {
  * closures are taken and need to be differentiated.
  */
 struct MVMNativeCallbackCacheHead {
+    struct MVMStrHashHandle hash_handle;
     MVMNativeCallback *head;
-
-    /* The uthash hash handle inline struct. */
-    UT_hash_handle hash_handle;
 };
 
 /* Functions for working with native callsites. */
@@ -137,7 +135,19 @@ void * MVM_nativecall_unmarshal_cpointer(MVMThreadContext *tc, MVMObject *value,
 void * MVM_nativecall_unmarshal_carray(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind);
 void * MVM_nativecall_unmarshal_vmarray(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind);
 void * MVM_nativecall_unmarshal_cunion(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind);
-MVMThreadContext * MVM_nativecall_find_thread_context(MVMInstance *instance);
+
+/* Locate the thread that a callback should be run on. */
+MVM_STATIC_INLINE MVMThreadContext * MVM_nativecall_find_thread_context(MVMInstance *instance) {
+    MVMThreadContext *tc = MVM_get_running_threads_context();
+
+    if (!tc)
+        MVM_panic(1, "native callback ran on thread (%"PRId64") unknown to MoarVM",
+                  MVM_platform_thread_id());
+
+    return tc;
+}
+
+
 MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
     MVMThreadContext   *tc,
     MVMSpeshGraph      *sg,

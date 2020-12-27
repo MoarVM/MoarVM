@@ -3,26 +3,30 @@
 /* Decodes the specified number of bytes of ASCII into an NFG string, creating
  * a result of the specified type. The type must have the MVMString REPR. */
 MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, const MVMObject *result_type, const char *ascii, size_t bytes) {
-    MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
+    MVMString *result;
+    MVMGrapheme32 *buffer = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
     size_t i, result_graphs;
-
-    result->body.storage_type    = MVM_STRING_GRAPHEME_32;
-    result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
 
     result_graphs = 0;
     for (i = 0; i < bytes; i++) {
         if (ascii[i] == '\r' && i + 1 < bytes && ascii[i + 1] == '\n') {
-            result->body.storage.blob_32[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
+            buffer[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
             i++;
         }
-        else if (ascii[i] >= 0) {
-            result->body.storage.blob_32[result_graphs++] = ascii[i];
+        /* `ascii[i] < 0` is always false on platforms where char is unsigned.
+         * This expression works whatever plain char is. */
+        else if ((ascii[i] & 0x80) == 0) {
+            buffer[result_graphs++] = ascii[i];
         }
         else {
+            MVM_free(buffer);
             MVM_exception_throw_adhoc(tc,
                 "Will not decode invalid ASCII (code point (%"PRId32") < 0 found)", ascii[i]);
         }
     }
+    result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
+    result->body.storage.blob_32 = buffer;
+    result->body.storage_type = MVM_STRING_GRAPHEME_32;
     result->body.num_graphs = result_graphs;
 
     return result;
@@ -70,9 +74,11 @@ MVMuint32 MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDecodeStream *d
         while (pos < cur_bytes->length) {
             MVMCodepoint codepoint = bytes[pos++];
             MVMGrapheme32 graph;
-            if (codepoint > 127)
+            if (codepoint > 127) {
+                MVM_free(buffer);
                 MVM_exception_throw_adhoc(tc,
                     "Will not decode invalid ASCII (code point (%"PRId32") > 127 found)", codepoint);
+            }
             if (last_was_cr) {
                 if (codepoint == '\n') {
                     graph = MVM_unicode_normalizer_translated_crlf(tc, &(ds->norm));
