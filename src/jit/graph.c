@@ -336,7 +336,9 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_pow_I: return MVM_bigint_pow;
     case MVM_OP_rand_I: return MVM_bigint_rand;
     case MVM_OP_abs_n: return fabs;
+#ifndef MVM_HAS_SUBSTANDARD_POW
     case MVM_OP_pow_n: return pow;
+#endif
     case MVM_OP_time_n: return MVM_proc_time_n;
     case MVM_OP_randscale_n: return MVM_proc_randscale_n;
     case MVM_OP_isnanorinf: return MVM_num_isnanorinf;
@@ -3511,7 +3513,9 @@ start:
                           MVM_JIT_RV_NUM, dst);
         break;
     }
+#ifndef MVM_HAS_SUBSTANDARD_POW
     case MVM_OP_pow_n:
+#endif
     case MVM_OP_atan2_n: {
         MVMint16 dst   = ins->operands[0].reg.orig;
         MVMint16 a     = ins->operands[1].reg.orig;

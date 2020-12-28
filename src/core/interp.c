@@ -800,10 +800,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = fabs(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
                 goto NEXT;
-            OP(pow_n):
-                GET_REG(cur_op, 0).n64 = pow(GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).n64);
+            OP(pow_n): {
+                MVMnum64 x = GET_REG(cur_op, 2).n64;
+                MVMnum64 y = GET_REG(cur_op, 4).n64;
+                GET_REG(cur_op, 0).n64 =
+#ifdef MVM_HAS_SUBSTANDARD_POW
+                    y == 0.0 || x == 1.0 ? 1.0 :
+#endif
+                    pow(x, y);
                 cur_op += 6;
                 goto NEXT;
+            }
             OP(ceil_n):
                 GET_REG(cur_op, 0).n64 = ceil(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
