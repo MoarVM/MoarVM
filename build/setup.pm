@@ -10,7 +10,7 @@ my $devnull = devnull();
 our %TP_LAO = (
     name  => 'atomic_ops',
     path  => '3rdparty/libatomicops/src',
-    rule  => 'cd 3rdparty/libatomicops && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure @crossconf@ && cd src && $(MAKE) && cd ..',
+    rule  => 'cd 3rdparty/libatomicops && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' MAKE=\'$(MAKE)\' ./configure @crossconf@ && cd src && $(MAKE) && cd ..',
     clean => 'cd 3rdparty/libatomicops/src && $(MAKE) distclean',
 );
 
