@@ -61,6 +61,10 @@ typedef struct siphash siphash;
 #  include <libkern/OSByteOrder.h>
 #  define MVM_TO_LITTLE_ENDIAN_64(x) OSSwapLittleToHostInt64(x)
 #  define MVM_TO_LITTLE_ENDIAN_32(x) OSSwapLittleToHostInt32(x)
+#elif defined(__sun)
+#  include <sys/byteorder.h>
+#  define MVM_TO_LITTLE_ENDIAN_64(x) LE_64(x)
+#  define MVM_TO_LITTLE_ENDIAN_32(x) LE_32(x)
 #else
     /* See: http://sourceforge.net/p/predef/wiki/Endianness/ */
 #      if defined(__FreeBSD__) || defined(__NetBSD__) || defined(__OpenBSD__)

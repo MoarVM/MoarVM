@@ -353,6 +353,122 @@ EOT
     }
 }
 
+sub substandard_pow_cross {
+    my ($config) = @_;
+    $config->{has_substandard_pow} = 0;
+}
+
+sub substandard_pow {
+    my ($config) = @_;
+    my $restore = _to_probe_dir();
+    print ::dots('    probing if your pow() handles NaN and Inf corner cases');
+    my $file = 'try.c';
+    _spew($file, <<'EOT');
+#include <math.h>
+#include <stdio.h>
+
+int main(int argc, char **argv) {
+    /* Hopefully these games defeat the optimiser, such that we call the runtime
+     * library pow, instead of having the C compiler optimiser constant fold it.
+     * Without this (for me on Solaris with gcc)
+     * pow(1.0, NaN) will be constant folded always
+     * pow(1.0, Inf) will be constant folded if optimisation is enabled
+     */
+    double one = argv[0][0] != '\0';
+    double zero = one - 1.0;
+    double nan = sqrt(-1);
+    if (nan == nan) {
+#ifdef CHATTY
+        fprintf(stderr, "Can't generate NaN - get %g\n", nan);
+#endif
+        return 1;
+    }
+    double inf = pow(10.0, pow(10.0, 100));
+    if (inf != 2.0 * inf) {
+#ifdef CHATTY
+        fprintf(stderr, "Can't generate Inf - get %g\n", inf);
+#endif
+        return 2;
+    }
+    double neg_inf = -inf;
+    if (! (neg_inf < 0.0)) {
+#ifdef CHATTY
+        fprintf(stderr, "Can't generate -Inf - get %g\n", inf);
+#endif
+        return 3;
+    }
+    if (neg_inf != 2.0 * neg_inf) {
+#ifdef CHATTY
+        fprintf(stderr, "Can't generate -Inf - get %g\n", inf);
+#endif
+        return 4;
+    }
+
+    /* Solaris is documented not to be conformant with SUSv3 (which I think
+     * is POSIX 2001) unless
+     * "the application was compiled with the c99 compiler driver"
+     * which as best I can tell gcc doesn't, even with -std=c99 */
+    double got = pow(one, nan);
+    if (got != one) {
+#ifdef CHATTY
+        fprintf(stderr, "1.0, NaN: pow(%g, %g) is %g, not 1.0\n", one, nan, got);
+#endif
+        return 5;
+    }
+    got = pow(one, inf);
+    if (got != one) {
+#ifdef CHATTY
+        fprintf(stderr, "1.0, Inf: pow(%g, %g) is %g, not 1.0\n", one, inf, got);
+#endif
+        return 6;
+    }
+    got = pow(one, neg_inf);
+    if (got != one) {
+#ifdef CHATTY
+        fprintf(stderr, "1.0, -Inf: pow(%g, %g) is %g, not 1.0\n", one, neg_inf, got);
+#endif
+        return 7;
+    }
+
+    /* However, Solaris does state that unconditionally:
+     *     For any value of x (including NaN), if y is +0, 1.0 is returned.
+     * (without repeating that caveat about the c99 compiler driver)
+     * and yet behaviour of gcc and *Solaris* studio is consistent in returning
+     * NaN for pow(NaN, 0.0). Oracle studio seems to default to c99.
+     */
+    got = pow(nan, zero);
+    if (got != one) {
+#ifdef CHATTY
+        fprintf(stderr, "NaN, 0.0: pow(%g, %g) is %g, not 1.0\n", nan, zero, got);
+#endif
+        return 8;
+    }
+    /* Not seen either of these fail anywhere, but let's test anyway: */
+    got = pow(inf, zero);
+    if (got != one) {
+#ifdef CHATTY
+        fprintf(stderr, "Inf, 0.0: pow(%g, %g) is %g, not 1.0\n", inf, zero, got);
+#endif
+        return 9;
+    }
+    got = pow(neg_inf, zero);
+    if (got != one) {
+#ifdef CHATTY
+        fprintf(stderr, "-Inf, 0.0: pow(%g, %g) is %g, not 1.0\n", neg_inf, zero, got);
+#endif
+        return 10;
+    }
+
+    return 0;
+}
+EOT
+
+    my $pow_good = compile($config, 'try') && system('./try') == 0;
+    print $pow_good ? "YES\n": "NO\n";
+    $config->{has_substandard_pow} = $pow_good ? 0 : 1;
+}
+
+
 sub specific_werror {
     my ($config) = @_;
     my $restore = _to_probe_dir();

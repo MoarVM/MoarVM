@@ -65,6 +65,9 @@
 
 #define MVM_PTR_SIZE @ptr_size@
 
+#if @has_substandard_pow@
+#define MVM_HAS_SUBSTANDARD_POW
+#endif
 
 #if @havebooltype@
 #define MVM_BOOL @booltype@
