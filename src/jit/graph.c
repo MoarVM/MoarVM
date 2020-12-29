@@ -321,7 +321,9 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_radix: return MVM_radix;
     case MVM_OP_radix_I: return MVM_bigint_radix;
     case MVM_OP_sqrt_n: return sqrt;
+#ifndef MVM_HAS_SUBSTANDARD_LOG
     case MVM_OP_log_n: return log;
+#endif
     case MVM_OP_exp_n: return exp;
     case MVM_OP_sin_n: return sin;
     case MVM_OP_cos_n: return cos;
@@ -3501,7 +3503,9 @@ start:
     case MVM_OP_ceil_n:
     case MVM_OP_floor_n:
     case MVM_OP_sqrt_n:
+#ifndef MVM_HAS_SUBSTANDARD_LOG
     case MVM_OP_log_n:
+#endif
     case MVM_OP_exp_n:
     case MVM_OP_sin_n:
     case MVM_OP_cos_n:

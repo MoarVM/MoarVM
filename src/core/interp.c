@@ -863,10 +863,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = sqrt(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
                 goto NEXT;
-            OP(log_n):
-                GET_REG(cur_op, 0).n64 = log(GET_REG(cur_op, 2).n64);
+            OP(log_n): {
+                MVMnum64 x = GET_REG(cur_op, 2).n64;
+                GET_REG(cur_op, 0).n64 =
+#ifdef MVM_HAS_SUBSTANDARD_LOG
+                    x < 0 ? MVM_num_nan(tc) :
+#endif
+                    log(x);
                 cur_op += 4;
                 goto NEXT;
+            }
             OP(exp_n):
                 GET_REG(cur_op, 0).n64 = exp(GET_REG(cur_op, 2).n64);
                 cur_op += 4;

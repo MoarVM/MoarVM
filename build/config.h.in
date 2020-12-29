@@ -69,6 +69,14 @@
 #define MVM_HAS_SUBSTANDARD_POW
 #endif
 
+#if @has_substandard_log@
+#define MVM_HAS_SUBSTANDARD_LOG
+#endif
+
+#if @has_substandard_log10@
+#define MVM_HAS_SUBSTANDARD_LOG10
+#endif
+
 #if @has_booltype@
 #define MVM_BOOL @booltype@
 #endif

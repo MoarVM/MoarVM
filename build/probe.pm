@@ -500,6 +500,63 @@ int main(int argc, char **argv) {
 EOT
 }
 
+sub substandard_log {
+    my ($config) = @_;
+
+    if ($config->{crossconf}) {
+        # A guess, but so far only pre-C99 Solaris has failed this:
+        $config->{has_substandard_log} = 0;
+        $config->{has_substandard_log10} = 0;
+        return;
+    }
+
+    for my $fn (qw(log log10)) {
+        simple_compile_probe(config => $config,
+                             probing => "if your $fn() returns NaN for negative values",
+                             invert => 1,
+                             key => "has_substandard_$fn",
+                             code => <<"EOT");
+#include <math.h>
+#include <stdio.h>
+
+int main(int argc, char **argv) {
+    /* Hopefully these games defeat the optimiser, such that we call the runtime
+     * library function, instead of having the C compiler optimiser constant
+     * fold it. */
+    double minus_something = 32 - argv[0][0];
+    double neg_inf = minus_something * pow(10.0, pow(10.0, 100));
+    if (! (neg_inf < 0.0)) {
+        fprintf(stderr, "Can't generate -Inf - get %g\\n", neg_inf);
+        return 1;
+    }
+    if (neg_inf != 2.0 * neg_inf) {
+        fprintf(stderr, "Can't generate -Inf - get %g\\n", neg_inf);
+        return 2;
+    }
+
+    double got = $fn(neg_inf);
+    if (got == got) {
+#ifdef CHATTY
+        fprintf(stderr, "-Inf: $fn(%g) is %g, not NaN\\n", neg_inf, got);
+#else
+        return 3;
+#endif
+    }
+
+    got = $fn(minus_something);
+    if (got == got) {
+#ifdef CHATTY
+        fprintf(stderr, "minus something: $fn(%g) is %g, not NaN\\n", minus_something, got);
+#else
+        return 4;
+#endif
+    }
+
+    return 0;
+}
+EOT
+    }
+}
 
 sub specific_werror {
     my ($config) = @_;
