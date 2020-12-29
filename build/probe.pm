@@ -90,6 +90,36 @@ sub simple_compile_probe {
     return;
 }
 
+sub compile_probe_first_of {
+    my %args = @_;
+    my ($config, $probing, $code, $key, $fallback) = @args{qw(config probing code key fallback)};
+    my @options = @{$args{options}};
+
+    my $restore = _to_probe_dir();
+    _spew('try.c', $code);
+
+    print ::dots('    probing ' . $probing);
+
+    my $candidate;
+    while ($candidate = shift @options) {
+        next unless compile($config, 'try', ["PROBE_MACRO=$candidate"]);
+        # If cross compiling we have to assume that the first thing that
+        # compiles is workable :-(
+        last if $config->{crossconf};
+        last if !system "./try";
+    }
+
+    if (defined $candidate) {
+        print "$candidate\n";
+        $config->{"has_$key"} = 1;
+        $config->{$key} = $candidate;
+    } else {
+        print "$fallback\n";
+        $config->{"has_$key"} = 0;
+        $config->{$key} = "";
+    }
+}
+
 sub compiler_usability {
     my ($config) = @_;
     my $restore  = _to_probe_dir();
@@ -260,11 +290,12 @@ sub thread_local {
         return;
     }
 
-    my $restore = _to_probe_dir();
-
-    print ::dots('    probing if your compiler offers thread local storage');
-    my $file = 'thread_local.c';
-    _spew($file, <<'EOT');
+    return compile_probe_first_of(config => $config,
+                                  probing => 'if your compiler offers thread local storage',
+                                  fallback => "it doesn't, so falling back to UV's API",
+                                  options => [qw(_Thread_local __thread)],
+                                  key => 'thread_local',
+                                  code => <<'EOT');
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -272,7 +303,7 @@ sub thread_local {
 static int plus_one = 1;
 static int minus_one = -1;
 
-THREAD_LOCAL int *minion;
+PROBE_MACRO int *minion;
 
 int callback (const void *a, const void *b) {
     int val_a = *minion * *(const int *)a;
@@ -350,24 +381,6 @@ int main(int argc, char **argv) {
     return 0;
 }
 EOT
-
-    my @try = qw(_Thread_local __thread);
-
-    my $t_l;
-    while ($t_l = shift @try) {
-        next unless compile($config, 'thread_local', ["THREAD_LOCAL=$t_l"]);
-        last if !system "./thread_local";
-    }
-
-    if ($t_l) {
-        print "$t_l\n";
-        $config->{has_thread_local} = 1;
-        $config->{thread_local} = $t_l;
-    } else {
-        print "it doesn't, so falling back to UV's API\n";
-        $config->{has_thread_local} = 0;
-        $config->{thread_local} = "";
-    }
 }
 
 sub substandard_pow {
@@ -681,30 +694,22 @@ EOT
 
 sub C_type_bool {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
-    my $template = <<'EOT';
+    return compile_probe_first_of(config => $config,
+                                  probing => 'C type support for booleans',
+                                  fallback => '(none found)',
+                                  options => [qw(_Bool bool)],
+                                  key => 'booltype',
+                                  code => <<'EOT');
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
 int main(int argc, char **argv) {
-    %s foo = false;
+    PROBE_MACRO foo = false;
     foo    = true;
     return foo ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 EOT
-
-    print ::dots('    probing C type support for: _Bool, bool');
-    my %have;
-    for my $type (qw(_Bool bool)) {
-        _spew('try.c', sprintf $template, $type);
-        $have{$type}   = compile($config, 'try');
-        $have{$type} &&= !system './try' unless $config->{crossconf};
-        delete $have{$type} unless $have{$type}
-    }
-    print %have ? "YES: " . join(',', sort keys %have) . "\n": "NO: none\n";
-    $config->{has_booltype} = %have ? 1 : 0;
-    $config->{booltype}     = (sort keys %have)[0] || 0;
 }
 
 sub pthread_yield {
