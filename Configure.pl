@@ -578,16 +578,15 @@ if ($config{cc} eq 'cl') {
                         . "\t\$(CP) 3rdparty/msinttypes/*.h \"\$(DESTDIR)\$(PREFIX)/include/msinttypes\"\n";
 }
 
+if ($^O eq 'aix' && $config{ptr_size} == 4) {
+    $config{ldflags} = join(',', $config{ldflags}, '-bmaxdata:0x80000000');
+}
+
 build::probe::C_type_bool(\%config, \%defaults);
 build::probe::computed_goto(\%config, \%defaults);
 build::probe::pthread_yield(\%config, \%defaults);
 build::probe::pthread_setname_np(\%config, \%defaults);
 build::probe::check_fn_malloc_trim(\%config, \%defaults);
-if ($^O eq 'aix') {
-    build::probe::numbits(\%config, \%defaults);
-    $config{ldflags} = join(',', $config{ldflags}, '-bmaxdata:0x80000000')
-        if $config{arch_bits} == 32;
-}
 build::probe::rdtscp(\%config, \%defaults);
 
 my $order = $config{be} ? 'big endian' : 'little endian';

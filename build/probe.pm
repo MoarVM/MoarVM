@@ -756,39 +756,6 @@ EOT
     $config->{has_pthread_setname_np} = $has_pthread_setname_np || 0
 }
 
-sub numbits {
-    my ($config) = @_;
-    my $restore = _to_probe_dir();
-    _spew('numbits.c', <<'EOT');
-#include <stdint.h>
-
-int main(int argc, char **argv) {
-#if UINTPTR_MAX == 0xffffffff
-return 32;
-/* 32-bit */
-#elif UINTPTR_MAX == 0xffffffffffffffff
-/* 64-bit */
-return 64;
-#else
-/* unknown */
-return -1;
-#endif
-}
-EOT
-
-    print ::dots('    probing number of bits');
-    my $print_result;
-    my $num_bits = 0;
-    if(compile($config, 'numbits')) {
-        $num_bits = $print_result = system('./numbits') >> 8;
-    }
-    if (!defined $print_result || $print_result == -1) {
-        $print_result = 'UNKNOWN';
-    }
-    print $print_result . "\n";
-    $config->{arch_bits} = $num_bits;
-}
-
 sub rdtscp {
     my ($config) = @_;
     my $restore = _to_probe_dir();
