@@ -75,7 +75,8 @@ sub _spew {
 
 sub simple_compile_probe {
     my %args = @_;
-    my ($config, $probing, $code, $key) = @args{qw(config probing code key)};
+    my ($config, $probing, $code, $key, $invert)
+        = @args{qw(config probing code key invert)};
 
     my $restore = _to_probe_dir();
     _spew('try.c', $code);
@@ -86,7 +87,9 @@ sub simple_compile_probe {
         $good &&= !system './try';
     }
     print $good ? "YES\n": "NO\n";
-    $config->{$key} = $good || 0;
+    $good = !$good
+        if $invert;
+    $config->{$key} = $good ? 1 : 0;
     return;
 }
 
@@ -392,10 +395,11 @@ sub substandard_pow {
         return;
     }
 
-    my $restore = _to_probe_dir();
-    print ::dots('    probing if your pow() handles NaN and Inf corner cases');
-    my $file = 'try.c';
-    _spew($file, <<'EOT');
+    return simple_compile_probe(config => $config,
+                                probing => 'if your pow() handles NaN and Inf corner cases',
+                                invert => 1,
+                                key => 'has_substandard_pow',
+                                code => <<'EOT');
 #include <math.h>
 #include <stdio.h>
 
@@ -494,10 +498,6 @@ int main(int argc, char **argv) {
     return 0;
 }
 EOT
-
-    my $pow_good = compile($config, 'try') && system('./try') == 0;
-    print $pow_good ? "YES\n": "NO\n";
-    $config->{has_substandard_pow} = $pow_good ? 0 : 1;
 }
 
 
