@@ -429,13 +429,13 @@ int main(int argc, char **argv) {
     double neg_inf = -inf;
     if (! (neg_inf < 0.0)) {
 #ifdef CHATTY
-        fprintf(stderr, "Can't generate -Inf - get %g\n", inf);
+        fprintf(stderr, "Can't generate -Inf - get %g\n", neg_inf);
 #endif
         return 3;
     }
     if (neg_inf != 2.0 * neg_inf) {
 #ifdef CHATTY
-        fprintf(stderr, "Can't generate -Inf - get %g\n", inf);
+        fprintf(stderr, "Can't generate -Inf - get %g\n", neg_inf);
 #endif
         return 4;
     }
