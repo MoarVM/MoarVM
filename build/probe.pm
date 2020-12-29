@@ -73,6 +73,23 @@ sub _spew {
         or die "Can't close $filename: $!";
 }
 
+sub simple_compile_probe {
+    my %args = @_;
+    my ($config, $probing, $code, $key) = @args{qw(config probing code key)};
+
+    my $restore = _to_probe_dir();
+    _spew('try.c', $code);
+
+    print ::dots('    probing ' . $probing);
+    my $good = compile($config, 'try');
+    unless ($config->{crossconf}) {
+        $good &&= !system './try';
+    }
+    print $good ? "YES\n": "NO\n";
+    $config->{$key} = $good || 0;
+    return;
+}
+
 sub compiler_usability {
     my ($config) = @_;
     my $restore  = _to_probe_dir();
@@ -622,8 +639,10 @@ EOT
 
 sub computed_goto {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
-    _spew('try.c', <<'EOT');
+    return simple_compile_probe(config => $config,
+                                probing => 'computed goto support',
+                                key => 'cancgoto',
+                                code => <<'EOT');
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -639,22 +658,18 @@ int main(int argc, char **argv) {
         return EXIT_SUCCESS;
 }
 EOT
-
-    print ::dots('    probing computed goto support');
-    my $can_cgoto = compile($config, 'try');
-    unless ($config->{crossconf}) {
-        $can_cgoto  &&= !system './try';
-    }
-    print $can_cgoto ? "YES\n": "NO\n";
-    $config->{cancgoto} = $can_cgoto || 0
 }
 
 sub check_fn_malloc_trim {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
+    # Seems that this was written with a plan to be generic, but so far nothing
+    # else has wanted it.
     my $includes = '#include <malloc.h>';
     my $function = 'malloc_trim(0)';
-    _spew('try.c', <<"EOT");
+    return simple_compile_probe(config => $config,
+                                probing => 'existance of optional malloc_trim()',
+                                key => 'has_fn_malloc_trim',
+                                code => <<"EOT");
 $includes
 
 int main(int argc, char **argv) {
@@ -662,14 +677,6 @@ int main(int argc, char **argv) {
     return 0;
 }
 EOT
-
-    print ::dots('    probing existance of optional malloc_trim()');
-    my $can = compile($config, 'try');
-    unless ($config->{crossconf}) {
-        $can  &&= !system './try';
-    }
-    print $can ? "YES\n": "NO\n";
-    $config->{has_fn_malloc_trim} = $can || 0
 }
 
 sub C_type_bool {
@@ -702,8 +709,10 @@ EOT
 
 sub pthread_yield {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
-    _spew('try.c', <<'EOT');
+    return simple_compile_probe(config => $config,
+                                probing => 'pthread_yield support',
+                                key => 'has_pthread_yield',
+                                code => <<'EOT');
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -718,17 +727,14 @@ int main(int argc, char **argv) {
 #endif
 }
 EOT
-
-    print ::dots('    probing pthread_yield support');
-    my $has_pthread_yield = compile($config, 'try') && system('./try') == 0;
-    print $has_pthread_yield ? "YES\n": "NO\n";
-    $config->{has_pthread_yield} = $has_pthread_yield || 0
 }
 
 sub pthread_setname_np {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
-    _spew('try.c', <<'EOT');
+    return simple_compile_probe(config => $config,
+                                probing => 'pthread_setname_np support (optional)',
+                                key => 'has_pthread_setname_np',
+                                code => <<'EOT');
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <pthread.h>
@@ -749,17 +755,14 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
 }
 EOT
-
-    print ::dots('    probing pthread_setname_np support (optional)');
-    my $has_pthread_setname_np = compile($config, 'try') && system('./try') == 0;
-    print $has_pthread_setname_np ? "YES\n": "NO\n";
-    $config->{has_pthread_setname_np} = $has_pthread_setname_np || 0
 }
 
 sub rdtscp {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
-    _spew('try.c', <<'EOT');
+    return simple_compile_probe(config => $config,
+                                probing => 'support of rdtscp intrinsic',
+                                key => 'canrdtscp',
+                                code => <<'EOT');
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -779,14 +782,6 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
 }
 EOT
-
-    print ::dots('    probing support of rdtscp intrinsic');
-    my $can_rdtscp = compile($config, 'try');
-    unless ($config->{crossconf}) {
-        $can_rdtscp  &&= !system './try';
-    }
-    print $can_rdtscp ? "YES\n": "NO\n";
-    $config->{canrdtscp} = $can_rdtscp || 0
 }
 
 '00';
