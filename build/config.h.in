@@ -69,8 +69,12 @@
 #define MVM_HAS_SUBSTANDARD_POW
 #endif
 
-#if @havebooltype@
+#if @has_booltype@
 #define MVM_BOOL @booltype@
+#endif
+
+#if @has_rdtscp@
+#define MVM_HAS_RDTSCP
 #endif
 
 /* Should we translate \n to \r\n on output? */

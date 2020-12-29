@@ -703,7 +703,7 @@ EOT
         delete $have{$type} unless $have{$type}
     }
     print %have ? "YES: " . join(',', sort keys %have) . "\n": "NO: none\n";
-    $config->{havebooltype} = %have ? 1 : 0;
+    $config->{has_booltype} = %have ? 1 : 0;
     $config->{booltype}     = (sort keys %have)[0] || 0;
 }
 
@@ -761,7 +761,7 @@ sub rdtscp {
     my ($config) = @_;
     return simple_compile_probe(config => $config,
                                 probing => 'support of rdtscp intrinsic',
-                                key => 'canrdtscp',
+                                key => 'has_rdtscp',
                                 code => <<'EOT');
 #include <stdio.h>
 #include <stdlib.h>

@@ -6,7 +6,7 @@
 #include <time.h>
 #include <string.h>
 
-#if MVM_RDTSCP
+#ifdef MVM_HAS_RDTSCP
 # ifdef _WIN32
 #  include <intrin.h>
 # else
