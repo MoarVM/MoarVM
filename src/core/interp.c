@@ -822,18 +822,30 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = sin(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
                 goto NEXT;
-            OP(asin_n):
-                GET_REG(cur_op, 0).n64 = asin(GET_REG(cur_op, 2).n64);
+            OP(asin_n): {
+                MVMnum64 x = GET_REG(cur_op, 2).n64;
+                GET_REG(cur_op, 0).n64 =
+#ifdef MVM_HAS_SUBSTANDARD_ASIN
+                    (x < -1.0 || x > 1.0) ? MVM_num_nan(tc) :
+#endif
+                    asin(x);
                 cur_op += 4;
                 goto NEXT;
+            }
             OP(cos_n):
                 GET_REG(cur_op, 0).n64 = cos(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
                 goto NEXT;
-            OP(acos_n):
-                GET_REG(cur_op, 0).n64 = acos(GET_REG(cur_op, 2).n64);
+            OP(acos_n): {
+                MVMnum64 x = GET_REG(cur_op, 2).n64;
+                GET_REG(cur_op, 0).n64 =
+#ifdef MVM_HAS_SUBSTANDARD_ACOS
+                    (x < -1.0 || x > 1.0) ? MVM_num_nan(tc) :
+#endif
+                    acos(x);
                 cur_op += 4;
                 goto NEXT;
+            }
             OP(tan_n):
                 GET_REG(cur_op, 0).n64 = tan(GET_REG(cur_op, 2).n64);
                 cur_op += 4;

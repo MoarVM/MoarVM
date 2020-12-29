@@ -526,6 +526,7 @@ build::probe::static_inline(\%config, \%defaults);
 build::probe::thread_local(\%config, \%defaults);
 build::probe::substandard_pow(\%config, \%defaults);
 build::probe::substandard_log(\%config, \%defaults);
+build::probe::substandard_trig(\%config, \%defaults);
 build::probe::unaligned_access(\%config, \%defaults);
 build::probe::ptr_size(\%config, \%defaults);
 
