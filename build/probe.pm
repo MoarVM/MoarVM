@@ -506,7 +506,6 @@ sub specific_werror {
     my $restore = _to_probe_dir();
 
     if ($config->{cc} ne 'gcc') {
-        $config->{can_err_decl_after_stmt} = 1;
         return;
     }
 
