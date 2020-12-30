@@ -988,17 +988,22 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObje
         MVM_exception_throw_adhoc(tc,
             "spawnprocasync target queue must have ConcBlockingQueue REPR");
 
-    /* Encode arguments, taking first as program name. */
+    /* Encode program name and arguments. */
     arg_size = MVM_repr_elems(tc, argv);
     if (arg_size < 1)
         MVM_exception_throw_adhoc(tc, "spawnprocasync must have first arg for program");
-    args = MVM_malloc((arg_size + 1) * sizeof(char *));
-    for (i = 0; i < arg_size; i++) {
+
+    REPR(argv)->pos_funcs.at_pos(tc, STABLE(argv), argv, OBJECT_BODY(argv), 0, &reg, MVM_reg_obj);
+    prog = MVM_string_utf8_c8_encode_C_string(tc, MVM_repr_get_str(tc, reg.o));
+
+    /* Arguments start with the program to execute which is not part of the args, thus the -1 and
+     * iteration starting at 1. We need a trailing NULL byte, thus the +1. */
+    args = MVM_malloc((arg_size - 1 + 1) * sizeof(char *));
+    for (i = 1; i < arg_size; i++) {
         REPR(argv)->pos_funcs.at_pos(tc, STABLE(argv), argv, OBJECT_BODY(argv), i, &reg, MVM_reg_obj);
-        args[i] = MVM_string_utf8_c8_encode_C_string(tc, MVM_repr_get_str(tc, reg.o));
+        args[i - 1] = MVM_string_utf8_c8_encode_C_string(tc, MVM_repr_get_str(tc, reg.o));
     }
-    args[arg_size] = NULL;
-    prog = args[0];
+    args[arg_size - 1] = NULL;
 
     /* Encode CWD. */
     _cwd = MVM_string_utf8_c8_encode_C_string(tc, cwd);
