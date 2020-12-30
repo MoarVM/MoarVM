@@ -495,6 +495,114 @@ int main(int argc, char **argv) {
         return 10;
     }
 
+    double neg_zero = one / neg_inf;
+    if (neg_zero != 0.0) {
+        fprintf(stderr, "Can't generate -0.0 - get %g\n", neg_zero);
+        return 11;
+    }
+    if (1.0 / neg_zero != neg_inf) {
+        fprintf(stderr, "Can't generate -0.0 - get %g\n", neg_zero);
+        return 12;
+    }
+
+    /* Negative odd integers preserve sign */
+    got = pow(zero, -3.0);
+    if (!(got > 0)) {
+#ifdef CHATTY
+        fprintf(stderr, "0.0, -3.0: pow(%g, -3.0) is %g, not +Inf\n", zero, got);
+#else
+        return 13;
+#endif
+    }
+    if (got != 2 * got) {
+#ifdef CHATTY
+        fprintf(stderr, "0.0, -3.0: pow(%g, -3.0) is %g, not +Inf\n", zero, got);
+#else
+        return 14;
+#endif
+    }
+
+    got = pow(neg_zero, -3.0);
+    if (!(got < 0)) {
+#ifdef CHATTY
+        fprintf(stderr, "-0.0, -3.0: pow(%g, -3.0) is %g, not -Inf\n", neg_zero, got);
+#else
+        return 15;
+#endif
+    }
+    if (got != 2 * got) {
+#ifdef CHATTY
+        fprintf(stderr, "-0.0, -3.0: pow(%g, -3.0) is %g, not -Inf\n", neg_zero, got);
+#else
+        return 16;
+#endif
+    }
+
+    /* Everything else is positive infinity. */
+    got = pow(zero, -2.0);
+    if (!(got > 0)) {
+#ifdef CHATTY
+        fprintf(stderr, "0.0, -2.0: pow(%g, -2.0) is %g, not +Inf\n", zero, got);
+#else
+        return 17;
+#endif
+    }
+    if (got != 2 * got) {
+#ifdef CHATTY
+        fprintf(stderr, "0.0, -2.0: pow(%g, -2.0) is %g, not +Inf\n", zero, got);
+#else
+        return 18;
+#endif
+    }
+
+    got = pow(neg_zero, -2.0);
+    if (!(got > 0)) {
+#ifdef CHATTY
+        fprintf(stderr, "-0.0, -2.0: pow(%g, -2.0) is %g, not +Inf\n", neg_zero, got);
+#else
+        return 19;
+#endif
+    }
+    if (got != 2 * got) {
+#ifdef CHATTY
+        fprintf(stderr, "-0.0, -2.0: pow(%g, -2.0) is %g, not +Inf\n", neg_zero, got);
+#else
+        return 20;
+#endif
+    }
+
+    got = pow(zero, -2.78);
+    if (!(got > 0)) {
+#ifdef CHATTY
+        fprintf(stderr, "0.0, -2.78: pow(%g, -2.78) is %g, not +Inf\n", zero, got);
+#else
+        return 21;
+#endif
+    }
+    if (got != 2 * got) {
+#ifdef CHATTY
+        fprintf(stderr, "0.0, -2.78: pow(%g, -2.78) is %g, not +Inf\n", zero, got);
+#else
+        return 22;
+#endif
+    }
+
+    got = pow(neg_zero, -2.78);
+    if (!(got > 0)) {
+#ifdef CHATTY
+        fprintf(stderr, "-0.0, -2.78: pow(%g, -2.78) is %g, not +Inf\n", neg_zero, got);
+#else
+        return 23;
+#endif
+    }
+    if (got != 2 * got) {
+#ifdef CHATTY
+        fprintf(stderr, "-0.0, -2.78: pow(%g, -2.78) is %g, not +Inf\n", neg_zero, got);
+#else
+        return 24;
+#endif
+    }
+
     return 0;
 }
 EOT
