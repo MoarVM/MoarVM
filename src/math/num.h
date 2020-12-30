@@ -4,6 +4,7 @@
 #ifdef _WIN32
 #include <float.h>
 #endif
+#include <math.h>
 
 #if defined(INFINITY) && !defined(_AIX)
 static const MVMnum64 MVM_NUM_POSINF =  INFINITY;
@@ -28,9 +29,26 @@ static const MVMnum64 MVM_NUM_NAN = 0.0 / 0.0;
 #  endif
 #endif
 
-MVMint64 MVM_num_isnanorinf(MVMThreadContext *tc, MVMnum64 n);
-MVMnum64 MVM_num_posinf(MVMThreadContext *tc);
-MVMnum64 MVM_num_neginf(MVMThreadContext *tc);
-MVMnum64 MVM_num_nan(MVMThreadContext *tc);
+/* Ideally we would add a probe for `fpclassify` (which is part of C99) and
+ * use that if present, with this approach as a fallback.
+ * Likely `fpclassify` will use integer instructions to look at the exponent
+ * bits of the floating point value, which tend to be both smaller and play
+ * more nicely with the dispatch logic of modern CPUs. */
+
+MVM_STATIC_INLINE MVMint64 MVM_num_isnanorinf(MVMThreadContext *tc, MVMnum64 n) {
+    return n == MVM_NUM_POSINF || n == MVM_NUM_NEGINF || n != n;
+}
+
+MVM_STATIC_INLINE MVMnum64 MVM_num_posinf(MVMThreadContext *tc) {
+    return MVM_NUM_POSINF;
+}
+
+MVM_STATIC_INLINE MVMnum64 MVM_num_neginf(MVMThreadContext *tc) {
+    return MVM_NUM_NEGINF;
+}
+
+MVM_STATIC_INLINE MVMnum64 MVM_num_nan(MVMThreadContext *tc) {
+    return MVM_NUM_NAN;
+}
 
 #endif

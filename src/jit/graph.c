@@ -1,5 +1,4 @@
 #include "moar.h"
-#include "math.h"
 
 #include "platform/sys.h"
 #include "platform/time.h"

@@ -1,5 +1,4 @@
 #include "moar.h"
-#include <math.h>
 
 /* We put a ' ' into the current code point buffer when we reach the end of the string,
  *  as it's something that can be harmlessly added to the end of a number */

@@ -1,7 +1,5 @@
 #include "moar.h"
 
-#include <math.h>
-
 /* This file contains the "confprog" validator and interpreter.
  *
  * It is there to allow users to give specific behaviour to a few internal
