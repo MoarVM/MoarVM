@@ -649,6 +649,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_gc_global_destruction(instance->main_thread);
 
     MVM_ptr_hash_demolish(instance->main_thread, &instance->object_ids);
+    MVM_sc_all_scs_destroy(instance->main_thread);
 
     /* Cleanup REPR registry */
     uv_mutex_destroy(&instance->mutex_repr_registry);
