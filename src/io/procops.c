@@ -1150,13 +1150,49 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
     return clargs;
 }
 
-/* Gets resource usage statistics, so far as they are portably available (see
- * libuv docs) and puts them into an integer array. */
+/* Gets resource usage statistics, so far as they are portably available and
+ * puts them into an integer array.
+ *
+ * The libuv docs at http://docs.libuv.org/en/v1.x/misc.html#c.uv_rusage_t
+ * are not particularly helpful at being clear about what is supported:
+ *     Members marked with (X) are unsupported on Windows. See getrusage(2) for
+ *     supported fields on Unix
+ *
+ * 7 of the 16 are not supported on Linux
+ * 4 of the 16 are not supported on Solaris
+ *
+ * Note also that libuv returns the raw value for maxrss - it makes no attempt
+ * to normalise maxrss to kilobytes on platforms where it is reported in some
+ * other unit. Nor does it attempt to emulate maxrss on Solaris, even though it
+ * provides a separate API that can get that value. */
+
 void MVM_proc_getrusage(MVMThreadContext *tc, MVMObject *result) {
     uv_rusage_t usage;
     int r;
     if ((r = uv_getrusage(&usage)) > 0)
         MVM_exception_throw_adhoc(tc, "Unable to getrusage: %s", uv_strerror(r));
+#if defined(__sun)
+    /* As the Solaris man page so helpfully says:
+     *
+     * ru_maxrss      The maximum resident set size.  Size is given  in  pages
+     *                (the  size of a page, in bytes, is given by the getpage-
+     *                size(3C) function). See the NOTES section of this page.
+     *
+     * ...
+     *
+     * NOTES
+     * The  ru_maxrss,  ru_ixrss, ru_idrss, and ru_isrss members of the rusage
+     * structure are set to 0 in this implementation.
+     *
+     * So self consistent.
+     */
+
+    size_t rss;
+    if ((r = uv_resident_set_memory(&rss)))
+        MVM_exception_throw_adhoc(tc, "Unable to maxrss: %s", uv_strerror(r));
+    usage.ru_maxrss = rss / 1024;
+#endif
+
     if (REPR(result)->ID != MVM_REPR_ID_VMArray || !IS_CONCRETE(result) ||
             ((MVMArrayREPRData *)STABLE(result)->REPR_data)->slot_type != MVM_ARRAY_I64) {
         MVM_exception_throw_adhoc(tc, "getrusage needs a concrete 64bit int array.");
