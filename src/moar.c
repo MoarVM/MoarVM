@@ -648,6 +648,8 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
      * no 6model object pointers should be accessed. */
     MVM_gc_global_destruction(instance->main_thread);
 
+    MVM_ptr_hash_demolish(instance->main_thread, &instance->object_ids);
+
     /* Cleanup REPR registry */
     uv_mutex_destroy(&instance->mutex_repr_registry);
     MVM_index_hash_demolish(instance->main_thread, &instance->repr_hash);
