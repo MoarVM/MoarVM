@@ -302,5 +302,5 @@ void MVM_index_hash_insert_nocheck(MVMThreadContext *tc,
             hashtable->table = control = new_control;
         }
     }
-    return hash_insert_internal(tc, control, list, idx);
+    hash_insert_internal(tc, control, list, idx);
 }

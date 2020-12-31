@@ -369,7 +369,7 @@ MVM_STATIC_INLINE MVMThreadContext *MVM_get_running_threads_context(void) {
 }
 
 MVM_STATIC_INLINE void MVM_set_running_threads_context(MVMThreadContext *tc) {
-    return uv_key_set(&MVM_running_threads_context_key, tc);
+    uv_key_set(&MVM_running_threads_context_key, tc);
 }
 
 #endif
