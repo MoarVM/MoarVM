@@ -18,10 +18,10 @@ contain the third party libraries needed to successfully build MoarVM.
 [![Build Status](https://travis-ci.org/MoarVM/MoarVM.svg?branch=master)](https://travis-ci.org/MoarVM/MoarVM)
 [![Build Status](https://ci.appveyor.com/api/projects/status/github/timo/moarvm-5bpx6?svg=true)](https://ci.appveyor.com/project/timo/moarvm-5bpx6/branch/master)
 
-Building the VM itself takes just:
+Building and installing the VM itself takes just:
 
     perl Configure.pl
-    make
+    make install
 
 (Or `nmake`/`gmake` on Windows). Currently it is known to build on Windows
 with MSVC and gcc, and with `gcc` and `clang` on Linux & MacOS X.  We're
@@ -39,6 +39,8 @@ tarball and use the Configure.pl script in it like so:
 
 Alternatively, the same Configure.pl script in NQP is able to clone, build
 and install a copy of MoarVM on its own if you supply the `--gen-moar` flag.
+
+> Please bear in mind that this will be the prefix to the `/bin`, `/lib` and other directories where the `moar` executable and other files are going to be installed, so you'll have to use `/usr` if you want `moar` to be copied to `/usr/bin`.
 
 ## Building a Rakudo with MoarVM
 
