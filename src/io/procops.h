@@ -13,8 +13,8 @@
 #define MVM_PIPE_MERGED_OUT_ERR 512
 
 MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc);
-MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObject *args,
-         MVMString *cwd, MVMObject *env, MVMObject *callbacks);
+MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMString *prog,
+         MVMObject *args, MVMString *cwd, MVMObject *env, MVMObject *callbacks);
 void MVM_proc_kill_async(MVMThreadContext *tc, MVMObject *handle, MVMint64 signal);
 MVMint64 MVM_proc_getpid(MVMThreadContext *tc);
 MVMint64 MVM_proc_getppid(MVMThreadContext *tc);
