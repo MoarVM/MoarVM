@@ -265,11 +265,38 @@ TERM
     },
 );
 
+my %TC_MINGW32 = (
+    %TC_GNU,
+
+    make => 'gmake',
+
+    dll   => '%s.dll',
+    ldimp => '-l%s.dll',
+
+    libdir                   => '@bindir@',
+    ccshared                 => '',
+    ldshared                 => '-shared -Wl,--out-implib,lib$(notdir $@).a',
+    moarshared_norelocatable => '',
+    moarshared_relocatable   => '',
+    ldrpath                  => '',
+    ldrpath_relocatable      => '',
+    sharedlib                => 'lib@moardll@.a',
+
+    -thirdparty => {
+        dc => {
+            %TP_DC,
+            rule  => 'cd 3rdparty/dyncall && ./configure.bat /target-x86 /tool-gcc && $(MAKE) -f Makefile.embedded mingw32',
+            clean => $TC_MSVC{-thirdparty}->{dc}->{clean},
+        },
+    },
+);
+
 our %TOOLCHAINS = (
     posix => { %TC_POSIX },
     gnu   => { %TC_GNU },
     bsd   => { %TC_BSD },
     msvc  => { %TC_MSVC },
+    mingw32 => { %TC_MINGW32 },
 );
 
 # compiler configuration
@@ -440,35 +467,18 @@ my %OS_WIN32 = (
     },
 );
 
+# FIXME - This 'defs' is in the "wrong" place, as currently we assume that
+# 'defs' needs to be in the OS. Hence a phony OS just to hack this in.
+# Our current system also only permits *one* OS-specific override, even though
+# what we need might vary by compiler, meaning that realistically we can't
+# really support more than one compiler per OS.  The proper fix feels like we
+# ought to nest OS, toolchain and compiler in some order, to permit 'defs' and
+# similar to alternate and stack/merge.
+
 my %OS_MINGW32 = (
     %OS_WIN32,
 
-    make => 'gmake',
     defs => [ @{$OS_WIN32{defs}}, qw( _WIN32_WINNT=0x0600 ) ],
-
-    dll   => '%s.dll',
-    ldimp => '-l%s.dll',
-
-    libdir                   => '@bindir@',
-    ccshared                 => '',
-    ldshared                 => '-shared -Wl,--out-implib,lib$(notdir $@).a',
-    moarshared_norelocatable => '',
-    moarshared_relocatable   => '',
-    ldrpath                  => '',
-    ldrpath_relocatable      => '',
-    sharedlib                => 'lib@moardll@.a',
-
-    translate_newline_output => 1,
-
-    -thirdparty => {
-        %{$OS_WIN32{-thirdparty}},
-
-        dc => {
-            %TP_DC,
-            rule  => 'cd 3rdparty/dyncall && ./configure.bat /target-x86 /tool-gcc && $(MAKE) -f Makefile.embedded mingw32',
-            clean => $TC_MSVC{-thirdparty}->{dc}->{clean},
-        },
-    },
 );
 
 my %OS_POSIX = (
@@ -599,7 +609,7 @@ our %SYSTEMS = (
     solaris     => [ qw( posix posix gcc ),   { %OS_SOLARIS } ],
     win32       => [ qw( win32 msvc  cl ),    { %OS_WIN32 } ],
     cygwin      => [ qw( posix gnu   gcc ),   { %OS_WIN32 } ],
-    mingw32     => [ qw( win32 gnu   gcc ),   { %OS_MINGW32 } ],
+    mingw32     => [ qw( win32 mingw32 gcc ), { %OS_MINGW32 } ],
 );
 
 42;
