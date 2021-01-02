@@ -312,12 +312,14 @@ our %COMPILERS = (
 
         cc => 'icc',
         ld => undef,
+        as => 'as',
 
         ccmiscflags  => '-Werror=declaration-after-statement -Werror=pointer-arith -wd858 -fp-model precise -fp-model source',
         ccwarnflags  => '',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
         ccinstflags  => '-pg',
+        ccjitflags   => '',
 
         ldmiscflags  => '',
         ldoptiflags  => undef,
