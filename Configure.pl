@@ -41,7 +41,7 @@ my @args = @ARGV;
 
 GetOptions(\%args, qw(
     help|?
-    debug:s optimize:s instrument! coverage
+    debug:s optimize:s coverage
     os=s shell=s toolchain=s compiler=s
     ar=s cc=s ld=s make=s has-sha has-libuv
     static has-libtommath has-libatomic_ops
@@ -92,7 +92,7 @@ if ( $args{relocatable} && ($^O eq 'aix' || $^O eq 'openbsd') ) {
     ".\n    Leave off the --relocatable flag to do a non-relocatable build.");
 }
 
-for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
+for (qw(coverage static big-endian has-libtommath has-sha has-libuv
         has-libatomic_ops asan ubsan tsan valgrind dtrace show-vec)) {
     $args{$_} = 0 unless defined $args{$_};
 }
@@ -397,7 +397,6 @@ my @cflags;
 push @cflags, $config{ccmiscflags};
 push @cflags, $config{ccoptiflags}  if $args{optimize};
 push @cflags, $config{ccdebugflags} if $args{debug};
-push @cflags, $config{ccinstflags}  if $args{instrument};
 push @cflags, $config{cc_covflags}  if $args{coverage};
 push @cflags, $config{ccwarnflags};
 push @cflags, $config{ccdefflags};
@@ -438,7 +437,6 @@ $config{cflags} = join ' ', uniq(@cflags);
 my @ldflags = ($config{ldmiscflags});
 push @ldflags, $config{ldoptiflags}  if $args{optimize};
 push @ldflags, $config{lddebugflags} if $args{debug};
-push @ldflags, $config{ldinstflags}  if $args{instrument};
 push @ldflags, $config{ld_covflags}  if $args{coverage};
 if (not $args{static} and $config{prefix} ne '/usr') {
     push @ldflags, $config{ldrpath_relocatable} if  $args{relocatable};
@@ -990,7 +988,7 @@ __END__
     ./Configure.pl [--os <os>] [--shell <shell>]
                    [--toolchain <toolchain>] [--compiler <compiler>]
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
-                   [--debug] [--optimize] [--instrument]
+                   [--debug] [--optimize]
                    [--static] [--prefix <path>] [--relocatable]
                    [--has-libtommath] [--has-sha] [--has-libuv]
                    [--has-libatomic_ops]
@@ -999,7 +997,7 @@ __END__
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
-                   [--debug] [--optimize] [--instrument]
+                   [--debug] [--optimize]
                    [--static] [--prefix <path>] [--relocatable]
                    [--big-endian] [--make-install]
 
@@ -1032,13 +1030,6 @@ default.
 
 Toggle optimization and debug flags during compile and link. If nothing
 is specified the default is to optimize.
-
-=item --instrument
-
-=item --no-instrument
-
-Toggle extra instrumentation flags during compile and link; for example,
-turns on Address Sanitizer when compiling with C<clang>.  Defaults to off.
 
 =item --os <os>
 

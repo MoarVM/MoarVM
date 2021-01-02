@@ -287,13 +287,11 @@ our %COMPILERS = (
         ccwarnflags  => '',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
-        ccinstflags  => '-pg',
         ccjitflags   => '',
 
         ldmiscflags  => '',
         ldoptiflags  => undef,
         lddebugflags => undef,
-        ldinstflags  => undef,
 
         noreturnspecifier => '',
         noreturnattribute => '__attribute__((noreturn))',
@@ -318,13 +316,11 @@ our %COMPILERS = (
         ccwarnflags  => '',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
-        ccinstflags  => '-pg',
         ccjitflags   => '',
 
         ldmiscflags  => '',
         ldoptiflags  => undef,
         lddebugflags => undef,
-        ldinstflags  => undef,
 
         noreturnspecifier => '',
         noreturnattribute => '__attribute__((noreturn))',
@@ -346,14 +342,12 @@ our %COMPILERS = (
         ccwarnflags  => '-Wno-logical-op-parentheses',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
-        ccinstflags  => '-fsanitize=address',
         cc_covflags => '-fprofile-instr-generate -fcoverage-mapping',
         ccjitflags   => '',
 
         ldmiscflags  => '',
         ldoptiflags  => undef,
         lddebugflags => undef,
-        ldinstflags  => undef,
         ld_covflags => '-fprofile-instr-generate -fcoverage-mapping',
 
         noreturnspecifier => '',
@@ -377,13 +371,11 @@ our %COMPILERS = (
         ccwarnflags  => '',
         ccoptiflags  => '/Ox /GL /DNDEBUG',
         ccdebugflags => '/Zi',
-        ccinstflags  => '',
         ccjitflags   => '',
 
         ldmiscflags  => '/nologo',
         ldoptiflags  => '/LTCG',
         lddebugflags => '/debug /pdb:$@.pdb',
-        ldinstflags  => '/Profile',
 
         noreturnspecifier => '__declspec(noreturn)',
         noreturnattribute => '',
@@ -406,13 +398,11 @@ our %COMPILERS = (
         ccwarnflags  => '',
         ccoptiflags  => '-O -DNDEBUG',
         ccdebugflags => '-g',
-        ccinstflags  => '',
         ccjitflags   => '',
 
         ldmiscflags  => '',
         ldoptiflags  => undef,
         lddebugflags => undef,
-        ldinstflags  => undef,
 
         noreturnspecifier => '',
         noreturnattribute => '',
