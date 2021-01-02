@@ -7,65 +7,65 @@ my $devnull = devnull();
 
 # 3rdparty library configuration
 
-our %TP_LAO = (
+my %TP_LAO = (
     name  => 'atomic_ops',
     path  => '3rdparty/libatomicops/src',
     rule  => 'cd 3rdparty/libatomicops && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' MAKE=\'$(MAKE)\' ./configure @crossconf@ && cd src && $(MAKE) && cd ..',
     clean => 'cd 3rdparty/libatomicops/src && $(MAKE) distclean',
 );
 
-our %TP_SHA = (
+my %TP_SHA = (
     name => 'sha1',
     path => '3rdparty/sha1',
     src  => [ '3rdparty/sha1' ],
 );
 
-our %TP_TOM = (
+my %TP_TOM = (
     name => 'tommath',
     path => '3rdparty/libtommath',
     src  => [ '3rdparty/libtommath' ],
 );
 
-our %TP_MT = (
+my %TP_MT = (
     name => 'tinymt',
     path => '3rdparty/tinymt',
     src  => [ '3rdparty/tinymt' ],
 );
 
-our %TP_DC = (
+my %TP_DC = (
     name  => 'dyncall_s',
     path  => '3rdparty/dyncall/dyncall',
     rule  => 'cd 3rdparty/dyncall &&  ./configure && CC=\'$(CC)\' CFLAGS=\'-fPIC\' $(MAKE) -f Makefile ',
     clean => 'cd 3rdparty/dyncall && $(MAKE) -f Makefile clean',
 );
 
-our %TP_DCB = (
+my %TP_DCB = (
     name  => 'dyncallback_s',
     path  => '3rdparty/dyncall/dyncallback',
     dummy => 1, # created as part of dyncall build
 );
 
-our %TP_DL = (
+my %TP_DL = (
     name  => 'dynload_s',
     path  => '3rdparty/dyncall/dynload',
     dummy => 1, # created as part of dyncall build
 );
 
-our %TP_CMP = (
+my %TP_CMP = (
     name => 'cmp',
     path => '3rdparty/cmp',
     src  => [ '3rdparty/cmp' ],
     clean => 'cd 3rdparty/cmp && $(RM) libcmp.a && $(RM) cmp.lib && $(RM) cmp.obj && $(MAKE) clean'
 );
 
-our %TP_UVDUMMY = (
+my %TP_UVDUMMY = (
     name => 'uv',
     path => '3rdparty/libuv',
     # no default rule
     # building libuv is always OS-specific
 );
 
-our %TP_UV = (
+my %TP_UV = (
     %TP_UVDUMMY,
     rule  => '$(AR) $(ARFLAGS) @arout@$@ $(UV_OBJECTS)',
     clean => '$(RM) @uvlib@ $(UV_OBJECTS)',
@@ -107,7 +107,7 @@ our %SHELLS = (
 # toolchain configuration
 # selected by C<--toolchain>
 
-our %TC_POSIX = (
+my %TC_POSIX = (
     -compiler => 'cc',
 
     make => 'make',
@@ -161,7 +161,7 @@ our %TC_POSIX = (
     -auxfiles => [],
 );
 
-our %TC_GNU = (
+my %TC_GNU = (
     %TC_POSIX,
 
     -compiler => 'gcc',
@@ -180,7 +180,7 @@ TERM
     dlllocal  => '__attribute__ ((visibility ("hidden")))',
 );
 
-our %TC_BSD = (
+my %TC_BSD = (
     %TC_POSIX,
 
     mknoisy => <<'TERM',
@@ -193,7 +193,7 @@ NOERR = 2> @nul@
 TERM
 );
 
-our %TC_MSVC = (
+my %TC_MSVC = (
     -compiler => 'cl',
 
     make => 'nmake',
@@ -417,7 +417,7 @@ our %COMPILERS = (
 # OS configuration
 # selected by C<--os> or taken from C<$^O>
 
-our %OS_WIN32 = (
+my %OS_WIN32 = (
     exe      => '.exe',
     defs     => [ qw( WIN32 AO_ASSUME_WINDOWS98 ) ],
     syslibs  => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi userenv user32 ) ],
@@ -440,7 +440,7 @@ our %OS_WIN32 = (
     },
 );
 
-our %OS_MINGW32 = (
+my %OS_MINGW32 = (
     %OS_WIN32,
 
     make => 'gmake',
@@ -471,13 +471,13 @@ our %OS_MINGW32 = (
     },
 );
 
-our %OS_POSIX = (
+my %OS_POSIX = (
     defs     => [ qw( _REENTRANT _FILE_OFFSET_BITS=64 ) ],
     syslibs  => [ qw( m pthread ) ],
     platform => '$(PLATFORM_POSIX)',
 );
 
-our %OS_AIX = (
+my %OS_AIX = (
     %OS_POSIX,
 
     defs                => [ qw( _ALL_SOURCE _XOPEN_SOURCE=500 _LINUX_SOURCE_COMPAT ) ],
@@ -491,7 +491,7 @@ our %OS_AIX = (
     },
 );
 
-our %OS_LINUX = (
+my %OS_LINUX = (
     %OS_POSIX,
 
     syslibs => [ @{$OS_POSIX{syslibs}}, qw( rt dl ) ],
@@ -501,7 +501,7 @@ our %OS_LINUX = (
     },
 );
 
-our %OS_OPENBSD = (
+my %OS_OPENBSD = (
     %OS_POSIX,
 
     syslibs     => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
@@ -511,7 +511,7 @@ our %OS_OPENBSD = (
     },
 );
 
-our %OS_NETBSD = (
+my %OS_NETBSD = (
     %OS_POSIX,
 
     syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
@@ -521,7 +521,7 @@ our %OS_NETBSD = (
     },
 );
 
-our %OS_FREEBSD = (
+my %OS_FREEBSD = (
     %OS_POSIX,
 
     cc => (qx!cc -v 2>&1 >$devnull! !~ 'clang') ? 'gcc' : 'clang',
@@ -533,7 +533,7 @@ our %OS_FREEBSD = (
     },
 );
 
-our %OS_DRAGONFLY = (
+my %OS_DRAGONFLY = (
     %OS_POSIX,
 
     syslibs => [ @{$OS_POSIX{syslibs}}, qw( kvm ) ],
@@ -543,13 +543,13 @@ our %OS_DRAGONFLY = (
     },
 );
 
-our %OS_GNUKFREEBSD = (
+my %OS_GNUKFREEBSD = (
     %OS_FREEBSD,
 
     syslibs => [ @{$OS_FREEBSD{syslibs}}, qw( rt dl ) ],
 );
 
-our %OS_SOLARIS = (
+my %OS_SOLARIS = (
     %OS_POSIX,
 
     defs     => [ qw( _XOPEN_SOURCE=500 _XOPEN_SOURCE_EXTENDED=1  __EXTENSIONS__=1 _POSIX_PTHREAD_SEMANTICS _REENTRANT ) ],
@@ -565,7 +565,7 @@ our %OS_SOLARIS = (
     },
 );
 
-our %OS_DARWIN = (
+my %OS_DARWIN = (
     %OS_POSIX,
 
     defs     => [ qw( _DARWIN_USE_64_BIT_INODE=1 ) ],
