@@ -967,6 +967,12 @@ static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
                 MVM_free(si->args[i++]);
             MVM_free_null(si->args);
         }
+        if (si->pipe_stdout) {
+            MVM_free_null(si->pipe_stdout);
+        }
+        if (si->pipe_stderr) {
+            MVM_free_null(si->pipe_stderr);
+        }
         MVM_free(si);
     }
 }
