@@ -944,6 +944,9 @@ static void spawn_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *workl
 static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data) {
         SpawnInfo *si = (SpawnInfo *)data;
+        if (si->prog) {
+            MVM_free_null(si->prog);
+        }
         if (si->cwd) {
             MVM_free_null(si->cwd);
         }
