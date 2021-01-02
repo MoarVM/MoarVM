@@ -398,7 +398,7 @@ push @cflags, $config{ccmiscflags};
 push @cflags, $config{ccoptiflags}  if $args{optimize};
 push @cflags, $config{ccdebugflags} if $args{debug};
 push @cflags, $config{ccinstflags}  if $args{instrument};
-push @cflags, $config{ld_covflags}  if $args{coverage};
+push @cflags, $config{cc_covflags}  if $args{coverage};
 push @cflags, $config{ccwarnflags};
 push @cflags, $config{ccdefflags};
 push @cflags, $config{ccshared}     unless $args{static};
