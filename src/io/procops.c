@@ -359,6 +359,11 @@ static void proc_async_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *
         MVM_gc_worklist_add(tc, worklist, &(apd->async_task));
 }
 
+static void proc_async_gc_free(MVMThreadContext *tc, MVMObject *root, void *data) {
+    if (data)
+        MVM_free(data);
+}
+
 /* Does an asynchronous close (since it must run on the event loop). */
 static void close_cb(uv_handle_t *handle) {
     MVM_free(handle);
@@ -457,7 +462,7 @@ static const MVMIOOps proc_op_table = {
     NULL,
     NULL,
     proc_async_gc_mark,
-    NULL
+    proc_async_gc_free
 };
 
 static void spawn_async_close(uv_handle_t *handle) {
