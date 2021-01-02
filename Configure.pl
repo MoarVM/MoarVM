@@ -709,8 +709,20 @@ sub setup_native {
     print dots("Configuring native build environment");
     print "\n";
 
-    $os = build::probe::win32_compiler_toolchain(\%config, \%defaults)
-        if $os eq 'MSWin32';
+    if ($os eq 'MSWin32') {
+        my $has_nmake = 0 == system('nmake /? >NUL 2>&1');
+        my $has_cl    = `cl 2>&1` =~ /Microsoft Corporation/;
+        my $has_gmake = 0 == system('gmake --version >NUL 2>&1');
+        my $has_gcc   = 0 == system('gcc --version >NUL 2>&1');
+        if ($has_nmake && $has_cl) {
+            $os = 'win32';
+        }
+        elsif ($has_gmake && $has_gcc) {
+            $os = 'mingw32';
+        } else {
+            $os = "";
+        }
+    }
 
     if (!exists $::SYSTEMS{$os}) {
         softfail("unknown OS '$os'");
