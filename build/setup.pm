@@ -193,6 +193,21 @@ NOERR = 2> @nul@
 TERM
 );
 
+my %TC_DARWIN = (
+    %TC_GNU,
+
+    -compiler => 'clang',
+
+    dll => 'lib%s.dylib',
+
+    sharedlib                => 'libmoar.dylib',
+    ccshared                 => '',
+    ldshared                 => '-dynamiclib',
+    moarshared_norelocatable => '-install_name "@prefix@/lib/libmoar.dylib"',
+    moarshared_relocatable   => '-install_name @rpath/libmoar.dylib',
+    ldrpath_relocatable      => '-Wl,-rpath,@executable_path/../lib',
+);
+
 my %TC_MSVC = (
     -compiler => 'cl',
 
@@ -311,6 +326,7 @@ our %TOOLCHAINS = (
     posix => { %TC_POSIX },
     gnu   => { %TC_GNU },
     bsd   => { %TC_BSD },
+    darwin => { %TC_DARWIN },
     msvc  => { %TC_MSVC },
     mingw32 => { %TC_MINGW32 },
     cygwin => { %TC_CYGWIN },
@@ -595,15 +611,6 @@ my %OS_DARWIN = (
     syslibs  => [],
     usrlibs  => [ qw( pthread ) ],
 
-    dll => 'lib%s.dylib',
-
-    sharedlib                => 'libmoar.dylib',
-    ccshared                 => '',
-    ldshared                 => '-dynamiclib',
-    moarshared_norelocatable => '-install_name "@prefix@/lib/libmoar.dylib"',
-    moarshared_relocatable   => '-install_name @rpath/libmoar.dylib',
-    ldrpath_relocatable      => '-Wl,-rpath,@executable_path/../lib',
-
     -thirdparty => {
         uv => { %TP_UVDUMMY, objects => '$(UV_DARWIN)' },
     },
@@ -613,7 +620,7 @@ our %SYSTEMS = (
     posix       => [ qw( posix posix cc ),    { %OS_POSIX } ],
     linux       => [ qw( posix gnu   gcc ),   { %OS_LINUX } ],
     aix         => [ qw( posix gnu   gcc ),   { %OS_AIX } ],
-    darwin      => [ qw( posix gnu   clang ), { %OS_DARWIN } ],
+    darwin      => [ qw( posix darwin clang ), { %OS_DARWIN } ],
     openbsd     => [ qw( posix bsd   clang ),   { %OS_OPENBSD} ],
     netbsd      => [ qw( posix bsd   gcc ),   { %OS_NETBSD } ],
     dragonfly   => [ qw( posix bsd   gcc ),   { %OS_DRAGONFLY } ],
