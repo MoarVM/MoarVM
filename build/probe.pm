@@ -128,8 +128,17 @@ EOT
     print "YES\n";
 }
 
-sub static_inline_native {
+sub static_inline {
     my ($config) = @_;
+    if ($config->{crossconf}) {
+        # FIXME. Needs testing, but might be robust enough to do what the native
+        # code does, but just skip the system() to run the executable. Although
+        # this might get confused by link time optimisations that only fail at
+        # run time, which the system test does detect.
+        $config->{static_inline} = 'static';
+        return;
+    }
+
     my $restore = _to_probe_dir();
     _spew('try.c', <<'EOT');
 #include <stdlib.h>
@@ -218,23 +227,14 @@ EOCP
     $config->{static_inline} = $s_i;
 }
 
-sub static_inline_cross {
+sub thread_local {
     my ($config) = @_;
-    # FIXME. Needs testing, but might be robust enough to do what the native
-    # code does, but just skip the system() to run the executable. Although this
-    # might get confused by link time optimisations that only fail at run time,
-    # which the system test does detect.
-    $config->{static_inline} = 'static';
-}
 
-sub thread_local_cross {
-    my ($config) = @_;
-    $config->{has_thread_local} = 0;
-    $config->{thread_local} = "";
-}
-
-sub thread_local_native {
-    my ($config) = @_;
+    if ($config->{crossconf}) {
+        $config->{has_thread_local} = 0;
+        $config->{thread_local} = "";
+        return;
+    }
 
     # We don't need to probe for this on Win32, as UV sets it for us
     if ($^O eq 'MSWin32') {
@@ -353,13 +353,15 @@ EOT
     }
 }
 
-sub substandard_pow_cross {
-    my ($config) = @_;
-    $config->{has_substandard_pow} = 0;
-}
-
 sub substandard_pow {
     my ($config) = @_;
+
+    if ($config->{crossconf}) {
+        # A guess, but so far only pre-C99 Solaris has failed this:
+        $config->{has_substandard_pow} = 0;
+        return;
+    }
+
     my $restore = _to_probe_dir();
     print ::dots('    probing if your pow() handles NaN and Inf corner cases');
     my $file = 'try.c';
@@ -527,7 +529,9 @@ sub _gen_unaligned_access {
 sub unaligned_access {
     my ($config) = @_;
 
-    if ($^O eq 'MSWin32') {
+    if ($config->{crossconf}) {
+        _gen_unaligned_access($config, '');
+    } elsif ($^O eq 'MSWin32') {
         # Needs FIXME for Windows on ARM, but not sure how to detect that
         _gen_unaligned_access($config, 'all');
     } else {
@@ -581,13 +585,17 @@ sub unaligned_access {
     }
 }
 
-sub unaligned_access_cross {
+# It would be good to find a robust way to do this without needing to *run* the
+# compiled code. At which point we could also use it for the native build.
+sub ptr_size {
     my ($config) = @_;
-    _gen_unaligned_access($config, '');
-}
 
-sub ptr_size_native {
-    my ($config) = @_;
+    if ($config->{crossconf}) {
+        warn "Guessing :-(";
+        $config->{ptr_size} = 4;
+        return;
+    }
+
     my $restore = _to_probe_dir();
     _spew('try.c', <<'EOT');
 #include <stdio.h>
@@ -610,14 +618,6 @@ EOT
         unless $size =~ /\A[0-9]+\z/;
     print "$size\n";
     $config->{ptr_size} = $size;
-}
-
-# It would be good to find a robust way to do this without needing to *run* the
-# compiled code. At which point we could also use it for the native build.
-sub ptr_size_cross {
-    my ($config) = @_;
-    warn "Guessing :-(";
-    $config->{ptr_size} = 4;
 }
 
 sub computed_goto {
