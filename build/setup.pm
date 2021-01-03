@@ -250,6 +250,10 @@ TERM
 
     staticlib => '',
 
+    dllimport => '__declspec(dllimport)',
+    dllexport => '__declspec(dllexport)',
+    dlllocal  => '',
+
     -auxfiles => [ qw( @name@.ilk @name@.pdb @moardll@.lib @moardll@.exp vc100.pdb ) ],
 
     -thirdparty => {
@@ -282,6 +286,10 @@ my %TC_MINGW32 = (
     ldrpath_relocatable      => '',
     sharedlib                => 'lib@moardll@.a',
 
+    dllimport => '__declspec(dllimport)',
+    dllexport => '__declspec(dllexport)',
+    dlllocal  => '',
+
     -thirdparty => {
         dc => {
             %TP_DC,
@@ -291,12 +299,21 @@ my %TC_MINGW32 = (
     },
 );
 
+my %TC_CYGWIN = (
+    %TC_GNU,
+
+    dllimport => '__declspec(dllimport)',
+    dllexport => '__declspec(dllexport)',
+    dlllocal  => '',
+);
+
 our %TOOLCHAINS = (
     posix => { %TC_POSIX },
     gnu   => { %TC_GNU },
     bsd   => { %TC_BSD },
     msvc  => { %TC_MSVC },
     mingw32 => { %TC_MINGW32 },
+    cygwin => { %TC_CYGWIN },
 );
 
 # compiler configuration
@@ -449,10 +466,6 @@ my %OS_WIN32 = (
     defs     => [ qw( WIN32 AO_ASSUME_WINDOWS98 ) ],
     syslibs  => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi userenv user32 ) ],
     platform => '$(PLATFORM_WIN32)',
-
-    dllimport => '__declspec(dllimport)',
-    dllexport => '__declspec(dllexport)',
-    dlllocal  => '',
 
     translate_newline_output => 1,
 
@@ -608,7 +621,7 @@ our %SYSTEMS = (
     gnukfreebsd => [ qw( posix gnu   gcc ),   { %OS_GNUKFREEBSD } ],
     solaris     => [ qw( posix posix gcc ),   { %OS_SOLARIS } ],
     win32       => [ qw( win32 msvc  cl ),    { %OS_WIN32 } ],
-    cygwin      => [ qw( posix gnu   gcc ),   { %OS_WIN32 } ],
+    cygwin      => [ qw( posix cygwin gcc ),  { %OS_WIN32 } ],
     mingw32     => [ qw( win32 mingw32 gcc ), { %OS_MINGW32 } ],
 );
 
