@@ -1,7 +1,7 @@
 #include "moar.h"
 
 #define DEBUGSERVER_MAJOR_PROTOCOL_VERSION 1
-#define DEBUGSERVER_MINOR_PROTOCOL_VERSION 2
+#define DEBUGSERVER_MINOR_PROTOCOL_VERSION 3
 
 #define bool int
 #define true TRUE
@@ -1479,8 +1479,6 @@ typedef struct {
 static void debugserver_invocation_special_return(MVMThreadContext *tc, void *data_in) {
     DebugserverInvocationSpecialReturnData *data = (DebugserverInvocationSpecialReturnData *)data_in;
     cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
-
-    fprintf(stderr, "whoa, here is the special return! message id is %ld\n", data->id);
 
     uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
 

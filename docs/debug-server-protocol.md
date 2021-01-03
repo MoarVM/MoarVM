@@ -91,6 +91,11 @@ be left intact by MoarVM, and the client can decide how to proceed.
 
 ### Changes
 
+#### Version 1.3
+
+ * Change second "type" key in Invoke Result (37) to "obj_type".
+ * Add HLL Symbol Request (48) and HLL Symbol Response (49) message types.
+
 #### Version 1.2
 
 Added a "name" field to threads in Thread List Response (12)
@@ -726,7 +731,7 @@ will point to the exception object instead. Object result example:
         "crashed": false,
         "kind": "obj",
         "handle": 1234,
-        "type": "Int",
+        "obj_type": "Int",
         "concrete": true,
         "container": false
     }
@@ -749,7 +754,7 @@ Exception result:
         "crashed": true,
         "kind": "obj",
         "handle": 1234,
-        "type": "X::AdHoc",
+        "obj_type": "X::AdHoc",
         "concrete": true,
         "container": false
     }
