@@ -1573,7 +1573,7 @@ static void debugserver_invocation_special_return(MVMThreadContext *tc, void *da
 
 static void debugserver_invocation_special_unwind(MVMThreadContext *tc, void *data_in) {
     DebugserverInvocationSpecialReturnData *data = (DebugserverInvocationSpecialReturnData *)data_in;
-    fprintf(stderr, "whoa, here is the special unwind! message id is %ld\n", data->id);
+    MVM_panic(1, "Debugserver: Handling exceptions thrown in invoked code NYI.");
 }
 
 
