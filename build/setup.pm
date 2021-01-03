@@ -200,7 +200,6 @@ my %TC_DARWIN = (
 
     dll => 'lib%s.dylib',
 
-    sharedlib                => 'libmoar.dylib',
     ccshared                 => '',
     ldshared                 => '-dynamiclib',
     moarshared_norelocatable => '-install_name "@prefix@/lib/libmoar.dylib"',
