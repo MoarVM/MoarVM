@@ -189,6 +189,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(body->local_types);
     MVM_free(body->lexical_types);
     MVM_free(body->lexical_names_list);
+    MVM_free(body->instrumentation);
     MVM_index_hash_demolish(tc, &body->lexical_names);
 }
 
