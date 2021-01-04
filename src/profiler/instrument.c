@@ -342,6 +342,8 @@ void MVM_profile_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
         if (!sf->body.instrumentation)
             add_instrumentation(tc, sf);
         sf->body.bytecode      = sf->body.instrumentation->instrumented_bytecode;
+        if (sf->body.handlers)
+            MVM_free(sf->body.handlers);
         sf->body.handlers      = sf->body.instrumentation->instrumented_handlers;
         sf->body.bytecode_size = sf->body.instrumentation->instrumented_bytecode_size;
 
