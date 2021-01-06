@@ -488,6 +488,10 @@ static void save_or_free_sim_stack(MVMThreadContext *tc, MVMSpeshSimStack *sims,
     if (first_survivor >= 0) {
         /* Move survivors to the start. */
         if (first_survivor > 0) {
+            for (i = 0; i < (MVMuint32)first_survivor; i++) {
+                MVM_free(sims->frames[i].offset_logs);
+                MVM_free(sims->frames[i].call_type_info);
+            }
             sims->used -= first_survivor;
             memmove(sims->frames, sims->frames + first_survivor,
                 sims->used * sizeof(MVMSpeshSimStackFrame));
