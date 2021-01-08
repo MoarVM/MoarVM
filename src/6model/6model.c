@@ -61,6 +61,9 @@ static void die_over_missing_method(MVMThreadContext *tc, MVMObject *obj, MVMStr
             c_name, MVM_6model_get_debug_name(tc, obj));
     }
 }
+static void find_method_unwind(MVMThreadContext *tc, void *sr_data) {
+    MVM_free(sr_data);
+}
 static void late_bound_find_method_return(MVMThreadContext *tc, void *sr_data) {
     FindMethodSRData *fm = (FindMethodSRData *)sr_data;
     if (MVM_is_null(tc, fm->res->o) || !IS_CONCRETE(fm->res->o)) {
@@ -157,7 +160,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
         fm->res  = res;
         fm->throw_if_not_found = throw_if_not_found;
         MVM_frame_special_return(tc, tc->cur_frame, late_bound_find_method_return,
-            NULL, fm, mark_find_method_sr_data);
+            find_method_unwind, fm, mark_find_method_sr_data);
     }
     tc->cur_frame->args[0].o = HOW;
     tc->cur_frame->args[1].o = obj;
