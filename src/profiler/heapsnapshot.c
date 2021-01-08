@@ -890,8 +890,23 @@ void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection 
     }
 
     {
-        char namebuf[8] = {0};
-        memcpy(namebuf, name, 8);
+        char namebuf[8];
+        /* Yes, this is a lot of boiler plate to silence a bogus warning :(
+         * Unfortunately, this is a real edge case. Using memcpy would lead to
+         * a buffer overflow if name is shorter than 8 bytes. The compiler
+         * warning aside, strncpy seems like exactly the right tool for the job
+         * as we want at most 8 bytes and don't care for any trailing \0, but
+         * are OK with zero padding at the end. */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunknown-warning-option"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+        strncpy(namebuf, name, 8);
+#pragma GCC diagnostic pop
+#pragma clang diagnostic pop
+#pragma GCC diagnostic pop
         fwrite(namebuf, 8, 1, fh);
     }
 
