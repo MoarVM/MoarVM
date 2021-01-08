@@ -370,8 +370,13 @@ static void set_static_frame_index(MVMThreadContext *tc, MVMHeapSnapshotState *s
        heap by MVM_cu_string, it will have been allocated in gen2 directly, but not
        marked as live for this gc run. Do it here to prevent it from getting freed
        after taking this heap snapshot, while it's actually still referenced from the
-       comp unit's strings list */
-    if (file_name && file_name->common.header.flags2 & MVM_CF_SECOND_GEN)
+       comp unit's strings list. But only do so if we're actually collecting gen2
+       in this run. Otherwise the flag may still be set during global destruction. */
+    if (
+        tc->instance->gc_full_collect
+        && file_name
+        && file_name->common.header.flags2 & MVM_CF_SECOND_GEN
+    )
         file_name->common.header.flags2 |= MVM_CF_GEN2_LIVE;
 
     MVMuint64 file_idx = get_vm_string_index(tc, ss, file_name);
