@@ -798,9 +798,20 @@ static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
 static void destroy_current_heap_snapshot(MVMThreadContext *tc) {
     MVMHeapSnapshotCollection *col = tc->instance->heap_snapshots;
 
+    MVM_free(col->snapshot->stats->type_counts);
+    MVM_free(col->snapshot->stats->type_size_sum);
+    MVM_free(col->snapshot->stats->sf_counts);
+    MVM_free(col->snapshot->stats->sf_size_sum);
+    MVM_free(col->snapshot->stats);
     MVM_free(col->snapshot->collectables);
     MVM_free(col->snapshot->references);
     MVM_free_null(col->snapshot);
+}
+
+static void destroy_toc(MVMHeapDumpTableOfContents *toc) {
+    MVM_free(toc->toc_words);
+    MVM_free(toc->toc_positions);
+    MVM_free(toc);
 }
 
 /* Frees all memory associated with the heap snapshot. */
@@ -818,9 +829,9 @@ static void destroy_heap_snapshot_collection(MVMThreadContext *tc) {
     MVM_free(col->static_frames);
 
 #if MVM_HEAPSNAPSHOT_FORMAT == 3
-    MVM_free(col->toplevel_toc);
+    destroy_toc(col->toplevel_toc);
     if (col->second_level_toc)
-        MVM_free(col->second_level_toc);
+        destroy_toc(col->second_level_toc);
 #elif MVM_HEAPSNAPSHOT_FORMAT == 2
     MVM_free(col->index->snapshot_sizes);
     MVM_free(col->index);
