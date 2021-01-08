@@ -332,6 +332,10 @@ static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *w
     MVM_gc_worklist_add(tc, worklist, &atd->type);
 }
 
+static void free_sr_data(MVMThreadContext *tc, void *sr_data) {
+    MVM_free(sr_data);
+}
+
 void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res) {
     MVMObject **cache;
     MVMSTable  *st;
@@ -390,7 +394,7 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
                 atd->obj = obj;
                 atd->type = type;
                 atd->res = res;
-                MVM_frame_special_return(tc, tc->cur_frame, accepts_type_sr, NULL,
+                MVM_frame_special_return(tc, tc->cur_frame, accepts_type_sr, free_sr_data,
                     atd, mark_sr_data);
             }
             STABLE(code)->invoke(tc, code, typecheck_callsite, tc->cur_frame->args);
