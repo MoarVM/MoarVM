@@ -26,6 +26,9 @@ MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, MVMString *str) {
  * next instruction before this is called. */
 static void boolify_return(MVMThreadContext *tc, void *sr_data);
 static void flip_return(MVMThreadContext *tc, void *sr_data);
+static void free_boolify_return_data(MVMThreadContext *tc, void *sr_data) {
+    MVM_free(sr_data);
+}
 void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg,
         MVMuint8 *true_addr, MVMuint8 *false_addr, MVMuint8 flip) {
     MVMint64 result = 0;
@@ -53,7 +56,7 @@ void MVM_coerce_istrue(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_re
                     data->true_addr  = true_addr;
                     data->false_addr = false_addr;
                     data->flip       = flip;
-                    MVM_frame_special_return(tc, tc->cur_frame, boolify_return, NULL, data, NULL);
+                    MVM_frame_special_return(tc, tc->cur_frame, boolify_return, free_boolify_return_data, data, NULL);
                     MVM_args_setup_thunk(tc, &data->res_reg, MVM_RETURN_INT, inv_arg_callsite);
                     tc->cur_frame->args[0].o = obj;
                     STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
