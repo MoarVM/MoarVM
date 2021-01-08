@@ -84,6 +84,9 @@ static void mark_parameterize_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVM
     MVM_gc_worklist_add(tc, worklist, &(prd->parametric_type));
     MVM_gc_worklist_add(tc, worklist, &(prd->parameters));
 }
+static void free_parameterize_sr_data(MVMThreadContext *tc, void *sr_data) {
+    MVM_free(sr_data);
+}
 void MVM_6model_parametric_parameterize(MVMThreadContext *tc, MVMObject *type, MVMObject *params,
                                         MVMRegister *result) {
     ParameterizeReturnData *prd;
@@ -107,7 +110,7 @@ void MVM_6model_parametric_parameterize(MVMThreadContext *tc, MVMObject *type, M
     prd->parametric_type                    = type;
     prd->parameters                         = params;
     prd->result                             = result;
-    MVM_frame_special_return(tc, tc->cur_frame, finish_parameterizing, NULL,
+    MVM_frame_special_return(tc, tc->cur_frame, finish_parameterizing, free_parameterize_sr_data,
         prd, mark_parameterize_sr_data);
     MVM_args_setup_thunk(tc, result, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_TWO_OBJ));
     tc->cur_frame->args[0].o = st->WHAT;
