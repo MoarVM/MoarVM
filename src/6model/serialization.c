@@ -1768,7 +1768,7 @@ char * MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader 
         }
         else
             fail_deserialize(tc, NULL, reader,
-                "Cannot read a C string with length %"PRIi64".",
+                "Deserialized C string with out-of-range length (%"PRIi64")",
                 string_len);
     }
     if (len)
