@@ -1739,8 +1739,8 @@ MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationRea
 
 /* Reading function for arrays. */
 void * MVM_serialization_read_array(MVMThreadContext *tc, MVMSerializationReader *reader, size_t *size) {
-    size_t  array_size = MVM_serialization_read_int(tc, reader);
-    void   *array      = NULL;
+    MVMint64  array_size = MVM_serialization_read_int(tc, reader);
+    void     *array      = NULL;
     if (array_size) {
         const MVMuint8 *read_at = (MVMuint8 *)*(reader->cur_read_buffer) + *(reader->cur_read_offset);
         assert_can_read(tc, reader, array_size);
@@ -1755,8 +1755,8 @@ void * MVM_serialization_read_array(MVMThreadContext *tc, MVMSerializationReader
 
 /* Reading function for null-terminated char array strings. */
 char * MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader *reader, size_t *len) {
-    size_t  string_len = MVM_serialization_read_int(tc, reader);
-    char   *string     = NULL;
+    MVMint64  string_len = MVM_serialization_read_int(tc, reader);
+    char     *string     = NULL;
     if (string_len) {
         if (string_len < SIZE_MAX) {
             const MVMuint8 *read_at = (MVMuint8 *)*(reader->cur_read_buffer) + *(reader->cur_read_offset);
@@ -1768,7 +1768,7 @@ char * MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader 
         }
         else
             fail_deserialize(tc, NULL, reader,
-                "Cannot read a C string with length %zu.",
+                "Cannot read a C string with length %"PRIi64".",
                 string_len);
     }
     if (len)
