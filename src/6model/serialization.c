@@ -1739,15 +1739,23 @@ MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationRea
 
 /* Reading function for arrays. */
 void * MVM_serialization_read_array(MVMThreadContext *tc, MVMSerializationReader *reader, size_t *size) {
-    MVMint64  array_size = MVM_serialization_read_int(tc, reader);
-    void     *array      = NULL;
-    if (array_size) {
+    MVMint64  array_size;
+    void     *array;
+
+    if (!(array_size = MVM_serialization_read_int(tc, reader)))
+        array = NULL;
+    else if (array_size < 0 || array_size > SIZE_MAX)
+        fail_deserialize(tc, NULL, reader,
+            "Deserialized array with out-of-range size (%"PRIi64")",
+            array_size);
+    else {
         const MVMuint8 *read_at = (MVMuint8 *)*(reader->cur_read_buffer) + *(reader->cur_read_offset);
         assert_can_read(tc, reader, array_size);
         array = MVM_malloc(array_size);
         memcpy(array, read_at, array_size);
         *(reader->cur_read_offset) += array_size;
     }
+
     if (size)
         *size = array_size;
     return array;
@@ -1755,22 +1763,24 @@ void * MVM_serialization_read_array(MVMThreadContext *tc, MVMSerializationReader
 
 /* Reading function for null-terminated char array strings. */
 char * MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader *reader, size_t *len) {
-    MVMint64  string_len = MVM_serialization_read_int(tc, reader);
-    char     *string     = NULL;
-    if (string_len) {
-        if (string_len < SIZE_MAX) {
-            const MVMuint8 *read_at = (MVMuint8 *)*(reader->cur_read_buffer) + *(reader->cur_read_offset);
-            assert_can_read(tc, reader, string_len);
-            string = MVM_malloc(string_len + 1);
-            memcpy(string, read_at, string_len);
-            string[string_len] = '\0';
-            *(reader->cur_read_offset) += string_len;
-        }
-        else
-            fail_deserialize(tc, NULL, reader,
-                "Deserialized C string with out-of-range length (%"PRIi64")",
-                string_len);
+    MVMint64  string_len;
+    char     *string;
+
+    if (!(string_len = MVM_serialization_read_int(tc, reader)))
+        string = NULL;
+    else if (string_len < 0 || string_len >= SIZE_MAX)
+        fail_deserialize(tc, NULL, reader,
+            "Deserialized C string with out-of-range length (%"PRIi64")",
+            string_len);
+    else {
+        const MVMuint8 *read_at = (MVMuint8 *)*(reader->cur_read_buffer) + *(reader->cur_read_offset);
+        assert_can_read(tc, reader, string_len);
+        string = MVM_malloc(string_len + 1);
+        memcpy(string, read_at, string_len);
+        string[string_len] = '\0';
+        *(reader->cur_read_offset) += string_len;
     }
+
     if (len)
         *len = string_len;
     return string;
