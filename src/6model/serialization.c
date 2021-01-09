@@ -326,20 +326,19 @@ static void expand_storage_if_needed(MVMThreadContext *tc, MVMSerializationWrite
     }
 }
 
-/* Writing function for arrays. */
-void MVM_serialization_write_array(MVMThreadContext *tc,
-        MVMSerializationWriter *writer, const void *array, size_t size) {
+/* Writing function for pointers. */
+void MVM_serialization_write_ptr(MVMThreadContext *tc, MVMSerializationWriter *writer, const void *ptr, size_t size) {
     MVM_serialization_write_int(tc, writer, size);
     if (size) {
         expand_storage_if_needed(tc, writer, size);
-        memcpy(*(writer->cur_write_buffer) + *(writer->cur_write_offset), array, size);
+        memcpy(*(writer->cur_write_buffer) + *(writer->cur_write_offset), ptr, size);
         *(writer->cur_write_offset) += size;
     }
 }
 
 /* Writing function for null-terminated char array strings. */
-void MVM_serialization_write_cstr(MVMThreadContext *tc, MVMSerializationWriter *writer, const char *string) {
-    MVM_serialization_write_array(tc, writer, string, string ? strlen(string) : 0);
+void MVM_serialization_write_cstr(MVMThreadContext *tc, MVMSerializationWriter *writer, const char *cstr) {
+    MVM_serialization_write_ptr(tc, writer, cstr, cstr ? strlen(cstr) : 0);
 }
 
 /* Writing function for variable sized integers. Writes out a 64 bit value
@@ -1737,53 +1736,53 @@ MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationRea
     return read_string_from_heap(tc, reader, offset);
 }
 
-/* Reading function for arrays. */
-void * MVM_serialization_read_array(MVMThreadContext *tc, MVMSerializationReader *reader, size_t *size) {
-    MVMint64  array_size;
-    void     *array;
+/* Reading function for pointers. */
+void * MVM_serialization_read_ptr(MVMThreadContext *tc, MVMSerializationReader *reader, size_t *size) {
+    MVMint64  ptr_size;
+    void     *ptr;
 
-    if (!(array_size = MVM_serialization_read_int(tc, reader)))
-        array = NULL;
-    else if (array_size < 0 || array_size > SIZE_MAX)
+    if (!(ptr_size = MVM_serialization_read_int(tc, reader)))
+        ptr = NULL;
+    else if (ptr_size < 0 || ptr_size > SIZE_MAX)
         fail_deserialize(tc, NULL, reader,
-            "Deserialized array with out-of-range size (%"PRIi64")",
-            array_size);
+            "Deserialized pointer with out-of-range size (%"PRIi64")",
+            ptr_size);
     else {
         const MVMuint8 *read_at = (MVMuint8 *)*(reader->cur_read_buffer) + *(reader->cur_read_offset);
-        assert_can_read(tc, reader, array_size);
-        array = MVM_malloc(array_size);
-        memcpy(array, read_at, array_size);
-        *(reader->cur_read_offset) += array_size;
+        assert_can_read(tc, reader, ptr_size);
+        ptr = MVM_malloc(ptr_size);
+        memcpy(ptr, read_at, ptr_size);
+        *(reader->cur_read_offset) += ptr_size;
     }
 
     if (size)
-        *size = array_size;
-    return array;
+        *size = ptr_size;
+    return ptr;
 }
 
 /* Reading function for null-terminated char array strings. */
 char * MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader *reader, size_t *len) {
-    MVMint64  string_len;
-    char     *string;
+    MVMint64  cstr_len;
+    char     *cstr;
 
-    if (!(string_len = MVM_serialization_read_int(tc, reader)))
-        string = NULL;
-    else if (string_len < 0 || string_len >= SIZE_MAX)
+    if (!(cstr_len = MVM_serialization_read_int(tc, reader)))
+        cstr = NULL;
+    else if (cstr_len < 0 || cstr_len >= SIZE_MAX)
         fail_deserialize(tc, NULL, reader,
             "Deserialized C string with out-of-range length (%"PRIi64")",
-            string_len);
+            cstr_len);
     else {
         const MVMuint8 *read_at = (MVMuint8 *)*(reader->cur_read_buffer) + *(reader->cur_read_offset);
-        assert_can_read(tc, reader, string_len);
-        string = MVM_malloc(string_len + 1);
-        memcpy(string, read_at, string_len);
-        string[string_len] = '\0';
-        *(reader->cur_read_offset) += string_len;
+        assert_can_read(tc, reader, cstr_len);
+        cstr = MVM_malloc(cstr_len + 1);
+        memcpy(cstr, read_at, cstr_len);
+        cstr[cstr_len] = '\0';
+        *(reader->cur_read_offset) += cstr_len;
     }
 
     if (len)
-        *len = string_len;
-    return string;
+        *len = cstr_len;
+    return cstr;
 }
 
 /* The SC id,idx pair is used in various ways, but common to them all is to
