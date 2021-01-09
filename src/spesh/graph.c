@@ -1488,6 +1488,8 @@ void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g) {
         MVM_free(g->local_types);
     if (g->lexical_types &&  (!g->cand || g->cand->lexical_types != g->lexical_types))
         MVM_free(g->lexical_types);
+    if (!g->cand)
+        MVM_spesh_pea_destroy_deopt_info(tc, &(g->deopt_pea));
 
     /* Handlers can come directly from static frame, from spesh candidate, and
      * from malloc/realloc. We only free it in the last case */
