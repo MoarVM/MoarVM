@@ -339,7 +339,7 @@ void MVM_serialization_write_array(MVMThreadContext *tc,
 
 /* Writing function for null-terminated char array strings. */
 void MVM_serialization_write_cstr(MVMThreadContext *tc, MVMSerializationWriter *writer, const char *string) {
-    MVM_serialization_write_array(tc, writer, string, string && strlen(string));
+    MVM_serialization_write_array(tc, writer, string, string ? strlen(string) : 0);
 }
 
 /* Writing function for variable sized integers. Writes out a 64 bit value
