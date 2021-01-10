@@ -1,4 +1,4 @@
-/* This file is generated from src/core/oplist by tools/update_ops.p6. */
+/* This file is generated from src/core/oplist by tools/update_ops.raku. */
 
 /* Op name defines. */
 #define MVM_OP_no_op 0

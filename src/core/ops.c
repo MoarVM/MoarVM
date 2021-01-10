@@ -1,5 +1,5 @@
 #include "moar.h"
-/* This file is generated from src/core/oplist by tools/update_ops.p6. */
+/* This file is generated from src/core/oplist by tools/update_ops.raku. */
 static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_no_op,

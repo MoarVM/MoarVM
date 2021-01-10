@@ -205,7 +205,7 @@ sub MAIN($file = "src/core/oplist") {
 
     # Generate header file.
     my $hf = open("src/core/ops.h", :w);
-    $hf.say("/* This file is generated from $file by tools/update_ops.p6. */");
+    $hf.say("/* This file is generated from $file by tools/update_ops.raku. */");
     $hf.say("");
     $hf.say(opcode_defines(@ops));
     $hf.say("#define MVM_OP_EXT_BASE $EXT_BASE");
@@ -220,7 +220,7 @@ sub MAIN($file = "src/core/oplist") {
     my $cf = open("src/core/ops.c", :w);
     $cf.say(qq:to/CORE_OPS/);
         #include "moar.h"
-        /* This file is generated from $file by tools/update_ops.p6. */
+        /* This file is generated from $file by tools/update_ops.raku. */
         { opcode_details(@ops) }
         MVM_PUBLIC const MVMOpInfo * MVM_op_get_op(unsigned short op) \{
             if (op >= MVM_op_counts)
@@ -243,7 +243,7 @@ sub MAIN($file = "src/core/oplist") {
 
     # Generate cgoto labels header.
     my $lf = open('src/core/oplabels.h', :w);
-    $lf.say("/* This file is generated from $file by tools/update_ops.p6. */");
+    $lf.say("/* This file is generated from $file by tools/update_ops.raku. */");
     $lf.say("");
     $lf.say(op_labels(@ops));
     $lf.close;
@@ -252,16 +252,16 @@ sub MAIN($file = "src/core/oplist") {
 
     # Generate NQP Ops file.
     my $nf = open("lib/MAST/Ops.nqp", :w);
-    $nf.say("# This file is generated from $file by tools/update_ops.p6.");
+    $nf.say("# This file is generated from $file by tools/update_ops.raku.");
     $nf.say("");
     $nf.say(%op_constants<NQP>);
     $nf.close;
 
-    # Generate a p6 Ops file into the tools directory
+    # Generate a Raku Ops file into the tools directory
     my $pf = open("tools/lib/MAST/Ops.pm", :w);
-    $pf.say("# This file is generated from $file by tools/update_ops.p6.");
+    $pf.say("# This file is generated from $file by tools/update_ops.raku.");
     $pf.say("");
-    $pf.say(%op_constants<P6>);
+    $pf.say(%op_constants<Raku>);
     $pf.close;
 
     say "Wrote src/core/ops.h, src/core/ops.c, src/core/oplabels.h, tools/lib/MAST/Ops.pm, and lib/MAST/Ops.nqp";
@@ -374,7 +374,7 @@ BEGIN {
     MAST::Ops.WHO<%generators> := nqp::hash('~
         join(",\n    ", @ops.map({ "'$_.name()', $_.generator()" }))~');
 }',
-        P6 => '
+        Raku => '
 unit module MAST::Ops;
 our %flags is export = ('~
     join(",\n    ", $value_map.pairs.sort(*.value).map({ $_.perl }) )~');

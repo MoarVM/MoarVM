@@ -248,7 +248,7 @@ sub format-collation-Str ($a) {
     }
     $out;
 }
-my @composed-arrays = "/* This file generated from tools/Generate-Collation-Data.p6 */";
+my @composed-arrays = "/* This file generated from tools/Generate-Collation-Data.raku */";
 sub make-struct (@names, @types, @collation-list-for-packing, $struct-name) {
     use lib 'lib';
     use BitfieldPacking;
@@ -311,8 +311,8 @@ spurt $out-file, @composed-arrays.join("\n");
 print qq:to/END/;
 Done writing $out-file.
 {'=' x 70}
-MAKE SURE TO RUN `perl6 CollationTestGen.p6 --folder=MoarVM/UNIDATA/UCA/CollationTest --test-only --should-test ` to ensure there are ~74 failures only!
+MAKE SURE TO RUN `perl6 CollationTestGen.raku --folder=MoarVM/UNIDATA/UCA/CollationTest --test-only --should-test ` to ensure there are ~74 failures only!
 
-Then paste those failures (if they're ok into CollationTestGen.p6 in the \%todo variable.
+Then paste those failures (if they're ok into CollationTestGen.raku in the \%todo variable.
 {'=' x 70}
 END

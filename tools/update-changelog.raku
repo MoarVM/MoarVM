@@ -136,7 +136,7 @@ sub get-folder-name (Str:D $str) {
 }
 use Test;
 is get-folder-name("src/strings/foo.c"), "src/strings";
-is get-folder-name("tools/update-changelog.p6"), "tools";
+is get-folder-name("tools/update-changelog.raku"), "tools";
 is get-folder-name("src/moar.c"), "src/moar.c";
 done-testing;
 my $remove-weight = 0.5;

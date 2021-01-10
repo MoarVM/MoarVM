@@ -6,13 +6,13 @@ multi sub MAIN() {
     say q:to/USAGE/;
         This tool can be used as followed:
 
-            spesh_diff.p6 output_from_mvm.txt
+            spesh_diff.raku output_from_mvm.txt
 
-            spesh_diff.p6 --matcher="'foobar'" output.txt
+            spesh_diff.raku --matcher="'foobar'" output.txt
 
-            spesh_diff.p6 --matcher="/^ to $/" output.txt
+            spesh_diff.raku --matcher="/^ to $/" output.txt
 
-            spesh_diff.p6 --matcher="diff => / '+' .*? 'nyi' /" output.txt
+            spesh_diff.raku --matcher="diff => / '+' .*? 'nyi' /" output.txt
 
 
         This tool takes the output MoarVM generates to a file when you call it

@@ -92,7 +92,7 @@ sub add_emoji_sequences {
     while (my $file = readdir $UNIDATA_DIR) {
         push @versions, $file if -d "$directory/$file" && $file =~ s/ ^ emoji- //x;
     }
-    croak "Couldn't find any emoji folders. Please run UCD-download.p6 again"
+    croak "Couldn't find any emoji folders. Please run UCD-download.raku again"
         if !@versions;
     my $highest_emoji_version = get_highest_version(\@versions);
     say "Highest emoji version found is $highest_emoji_version";
@@ -1367,7 +1367,7 @@ sub add_unicode_sequence {
         # uppercase.
         $name = uc $name;
         # Emoji sequences have commas in some and these cannot be included
-        # since they seperate seperate named items in ISO notation that P6 uses
+        # since they seperate seperate named items in ISO notation that Raku uses
         $name =~ s/,//xg;
         $named_sequences->{$name}->{'type'} = $type;
         # Only push if we haven't seen this already
@@ -2167,13 +2167,13 @@ sub collation {
         $line_no++;
         my ($code, $temp);
         my $weights = {};
-        # implicit weights are handled in ./tools/Generate-Collation-Data.p6
+        # implicit weights are handled in ./tools/Generate-Collation-Data.raku
         return if $line =~ s/ ^ \@implicitweights \s+ //xms;
         return if $line =~ / ^ \s* [#@] /x or $line =~ / ^ \s* $ /x; # Blank/comment lines
         ($code, $temp) = split / [;#]+ /x, $line;
         $code = trim $code;
         my @codes = split ' ', $code;
-        # We support collation for multiple codepoints in ./tools/Generate-Collation-Data.p6
+        # We support collation for multiple codepoints in ./tools/Generate-Collation-Data.raku
         if (1 < @codes) {
             # For now set MVM_COLLATION_QC = 0 for these cp
             apply_to_range($codes[0], sub {
