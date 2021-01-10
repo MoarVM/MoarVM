@@ -1,3 +1,5 @@
+#define MVM_TYPES_INCLUDED
+
 /* struct and union types are forward-declared for convenience */
 
 typedef struct MVMActiveHandler MVMActiveHandler;
