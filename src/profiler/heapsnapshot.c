@@ -370,8 +370,13 @@ static void set_static_frame_index(MVMThreadContext *tc, MVMHeapSnapshotState *s
        heap by MVM_cu_string, it will have been allocated in gen2 directly, but not
        marked as live for this gc run. Do it here to prevent it from getting freed
        after taking this heap snapshot, while it's actually still referenced from the
-       comp unit's strings list */
-    if (file_name && file_name->common.header.flags2 & MVM_CF_SECOND_GEN)
+       comp unit's strings list. But only do so if we're actually collecting gen2
+       in this run. Otherwise the flag may still be set during global destruction. */
+    if (
+        tc->instance->gc_full_collect
+        && file_name
+        && file_name->common.header.flags2 & MVM_CF_SECOND_GEN
+    )
         file_name->common.header.flags2 |= MVM_CF_GEN2_LIVE;
 
     MVMuint64 file_idx = get_vm_string_index(tc, ss, file_name);
@@ -798,9 +803,20 @@ static void record_snapshot(MVMThreadContext *tc, MVMHeapSnapshotCollection *col
 static void destroy_current_heap_snapshot(MVMThreadContext *tc) {
     MVMHeapSnapshotCollection *col = tc->instance->heap_snapshots;
 
+    MVM_free(col->snapshot->stats->type_counts);
+    MVM_free(col->snapshot->stats->type_size_sum);
+    MVM_free(col->snapshot->stats->sf_counts);
+    MVM_free(col->snapshot->stats->sf_size_sum);
+    MVM_free(col->snapshot->stats);
     MVM_free(col->snapshot->collectables);
     MVM_free(col->snapshot->references);
     MVM_free_null(col->snapshot);
+}
+
+static void destroy_toc(MVMHeapDumpTableOfContents *toc) {
+    MVM_free(toc->toc_words);
+    MVM_free(toc->toc_positions);
+    MVM_free(toc);
 }
 
 /* Frees all memory associated with the heap snapshot. */
@@ -818,9 +834,9 @@ static void destroy_heap_snapshot_collection(MVMThreadContext *tc) {
     MVM_free(col->static_frames);
 
 #if MVM_HEAPSNAPSHOT_FORMAT == 3
-    MVM_free(col->toplevel_toc);
+    destroy_toc(col->toplevel_toc);
     if (col->second_level_toc)
-        MVM_free(col->second_level_toc);
+        destroy_toc(col->second_level_toc);
 #elif MVM_HEAPSNAPSHOT_FORMAT == 2
     MVM_free(col->index->snapshot_sizes);
     MVM_free(col->index);
@@ -890,8 +906,23 @@ void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection 
     }
 
     {
-        char namebuf[8] = {0};
-        memcpy(namebuf, name, 8);
+        char namebuf[8];
+        /* Yes, this is a lot of boiler plate to silence a bogus warning :(
+         * Unfortunately, this is a real edge case. Using memcpy would lead to
+         * a buffer overflow if name is shorter than 8 bytes. The compiler
+         * warning aside, strncpy seems like exactly the right tool for the job
+         * as we want at most 8 bytes and don't care for any trailing \0, but
+         * are OK with zero padding at the end. */
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wunknown-pragmas"
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunknown-warning-option"
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-truncation"
+        strncpy(namebuf, name, 8);
+#pragma GCC diagnostic pop
+#pragma clang diagnostic pop
+#pragma GCC diagnostic pop
         fwrite(namebuf, 8, 1, fh);
     }
 

@@ -342,6 +342,8 @@ void MVM_profile_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
         if (!sf->body.instrumentation)
             add_instrumentation(tc, sf);
         sf->body.bytecode      = sf->body.instrumentation->instrumented_bytecode;
+        if (sf->body.handlers)
+            MVM_free(sf->body.handlers);
         sf->body.handlers      = sf->body.instrumentation->instrumented_handlers;
         sf->body.bytecode_size = sf->body.instrumentation->instrumented_bytecode_size;
 
@@ -934,6 +936,55 @@ void MVM_profile_instrumented_mark_data(MVMThreadContext *tc, MVMGCWorklist *wor
         MVM_gc_worklist_add(tc, worklist, &(tc->prof_data->collected_data));
 
         mark_gc_entries(tc, tc->prof_data, worklist);
+    }
+}
+
+static void MVM_profile_free_nodes(MVMThreadContext *tc, MVMProfileCallNode *node, MVMProfileCallNode ***seen, size_t *seen_num, size_t *seen_alloc) {
+    for (MVMuint32 i = 0; i < node->num_succ; i++) {
+        int found = 0;
+        for (size_t j = 0; j < *seen_num; j++)
+            if (node->succ[i] == (*seen)[j]) {
+                found = 1;
+                break;
+            }
+        if (!found) {
+            MVM_VECTOR_PUSH(*seen, node->succ[i]);
+            MVM_profile_free_nodes(tc, node->succ[i], seen, seen_num, seen_alloc);
+        }
+    }
+    MVM_free(node->succ);
+    MVM_free(node);
+}
+
+void MVM_profile_free_node(MVMThreadContext *tc, MVMProfileCallNode *node) {
+    MVM_VECTOR_DECL(MVMProfileCallNode*, nodes);
+    MVM_VECTOR_INIT(nodes, 0);
+
+    MVM_profile_free_nodes(tc, node, &nodes, &nodes_num, &nodes_alloc);
+
+    MVM_VECTOR_DESTROY(nodes);
+}
+
+void MVM_profile_instrumented_free_data(MVMThreadContext *tc) {
+    if (tc->prof_data) {
+        MVMProfileThreadData *ptd = tc->prof_data;
+        MVMProfileCallNode *node = ptd->call_graph;
+
+        if (node)
+            MVM_profile_free_node(tc, node);
+
+        MVM_VECTOR_DESTROY(ptd->staticframe_array);
+        MVM_VECTOR_DESTROY(ptd->type_array);
+        for (MVMuint32 i = 0; i < ptd->num_gcs; i++)
+            MVM_fixed_size_free(
+                tc,
+                tc->instance->fsa,
+                ptd->gcs[i].alloc_dealloc * sizeof(MVMProfileDeallocationCount),
+                ptd->gcs[i].deallocs
+            );
+        MVM_free(ptd->gcs);
+        MVM_free(ptd);
+        tc->prof_data = NULL;
     }
 }
 

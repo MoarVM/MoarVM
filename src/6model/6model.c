@@ -61,6 +61,9 @@ static void die_over_missing_method(MVMThreadContext *tc, MVMObject *obj, MVMStr
             c_name, MVM_6model_get_debug_name(tc, obj));
     }
 }
+static void find_method_unwind(MVMThreadContext *tc, void *sr_data) {
+    MVM_free(sr_data);
+}
 static void late_bound_find_method_return(MVMThreadContext *tc, void *sr_data) {
     FindMethodSRData *fm = (FindMethodSRData *)sr_data;
     if (MVM_is_null(tc, fm->res->o) || !IS_CONCRETE(fm->res->o)) {
@@ -157,7 +160,7 @@ void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *nam
         fm->res  = res;
         fm->throw_if_not_found = throw_if_not_found;
         MVM_frame_special_return(tc, tc->cur_frame, late_bound_find_method_return,
-            NULL, fm, mark_find_method_sr_data);
+            find_method_unwind, fm, mark_find_method_sr_data);
     }
     tc->cur_frame->args[0].o = HOW;
     tc->cur_frame->args[1].o = obj;
@@ -329,6 +332,10 @@ static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *w
     MVM_gc_worklist_add(tc, worklist, &atd->type);
 }
 
+static void free_sr_data(MVMThreadContext *tc, void *sr_data) {
+    MVM_free(sr_data);
+}
+
 void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res) {
     MVMObject **cache;
     MVMSTable  *st;
@@ -387,7 +394,7 @@ void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MV
                 atd->obj = obj;
                 atd->type = type;
                 atd->res = res;
-                MVM_frame_special_return(tc, tc->cur_frame, accepts_type_sr, NULL,
+                MVM_frame_special_return(tc, tc->cur_frame, accepts_type_sr, free_sr_data,
                     atd, mark_sr_data);
             }
             STABLE(code)->invoke(tc, code, typecheck_callsite, tc->cur_frame->args);

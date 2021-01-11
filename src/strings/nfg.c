@@ -471,11 +471,24 @@ void MVM_nfg_init(MVMThreadContext *tc) {
     cache_crlf(tc);
 }
 
+static void nfg_trie_node_destroy(MVMThreadContext *tc, MVMNFGTrieNode *node) {
+    MVMint32 i = 0;
+    for(; i < node->num_entries; i++) {
+        nfg_trie_node_destroy(tc, node->next_codes[i].node);
+    }
+    if (node->next_codes)
+        MVM_fixed_size_free(tc, tc->instance->fsa, node->num_entries * sizeof(MVMNFGTrieNodeEntry), node->next_codes);
+    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMNFGTrieNode), node);
+}
+
 /* Free all memory allocated to hold synthetic graphemes. These are global
  * to a VM instance. */
 void MVM_nfg_destroy(MVMThreadContext *tc) {
     MVMNFGState *nfg = tc->instance->nfg;
     MVMuint32 i;
+
+    if (nfg->grapheme_lookup)
+        nfg_trie_node_destroy(tc, nfg->grapheme_lookup);
 
     /* Free all synthetics. */
     if (nfg->synthetics) {

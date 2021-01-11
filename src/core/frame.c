@@ -1076,6 +1076,9 @@ static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
     MVM_free(sr_data);
     MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL, jit_return_label);
 }
+static void free_unwind_data(MVMThreadContext *tc, void *sr_data) {
+    MVM_free(sr_data);
+}
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
                          MVMuint32 rel_addr, MVMObject *return_value, void *jit_return_label) {
     while (tc->cur_frame != frame) {
@@ -1117,7 +1120,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                 ud->abs_addr = abs_addr;
                 ud->rel_addr = rel_addr;
                 ud->jit_return_label = jit_return_label;
-                MVM_frame_special_return(tc, cur_frame, continue_unwind, NULL, ud,
+                MVM_frame_special_return(tc, cur_frame, continue_unwind, free_unwind_data, ud,
                     mark_unwind_data);
             }
             cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;

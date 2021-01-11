@@ -912,6 +912,7 @@ MVMint64 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name
         generate_property_codes_by_names_aliases(tc);
     }
     struct MVMUniHashEntry *result = MVM_uni_hash_fetch(tc, &property_codes_by_names_aliases, cname);
+    MVM_free(cname);
     return result ? result->value : 0;
 }
 

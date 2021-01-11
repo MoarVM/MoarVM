@@ -3,6 +3,8 @@
 /* This representation's function pointer table. */
 static const MVMREPROps CPPStruct_this_repr;
 
+static void free_repr_data(MVMCPPStructREPRData *repr_data);
+
 /* Locates all of the attributes. Puts them onto a flattened, ordered
  * list of attributes (populating the passed flat_list). Also builds
  * the index mapping for doing named lookups. Note index is not related
@@ -153,6 +155,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMSTable *st,
 
             if (num_dimensions > 1) {
                 MVM_gc_allocate_gen2_default_clear(tc);
+                free_repr_data(repr_data);
                 MVM_exception_throw_adhoc(tc,
                     "Only one dimensions supported in CPPStruct attribute");
             }
@@ -208,6 +211,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMSTable *st,
                         MVMCArrayREPRData *carray_repr_data = (MVMCArrayREPRData *)STABLE(type)->REPR_data;
                         if (!carray_repr_data) {
                             MVM_gc_allocate_gen2_default_clear(tc);
+                            free_repr_data(repr_data);
                             MVM_exception_throw_adhoc(tc,
                                 "CPPStruct: can't inline a CArray attribute before its type's definition");
                         }
@@ -240,6 +244,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMSTable *st,
                         MVMCStructREPRData *cstruct_repr_data = (MVMCStructREPRData *)STABLE(type)->REPR_data;
                         if (!cstruct_repr_data) {
                             MVM_gc_allocate_gen2_default_clear(tc);
+                            free_repr_data(repr_data);
                             MVM_exception_throw_adhoc(tc,
                                 "CPPStruct: can't inline a CStruct attribute before its type's definition");
                         }
@@ -257,6 +262,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMSTable *st,
                         MVMCPPStructREPRData *cppstruct_repr_data = (MVMCPPStructREPRData *)STABLE(type)->REPR_data;
                         if (!cppstruct_repr_data) {
                             MVM_gc_allocate_gen2_default_clear(tc);
+                            free_repr_data(repr_data);
                             MVM_exception_throw_adhoc(tc,
                                 "CPPStruct: can't inline a CPPStruct attribute before its type's definition");
                         }
@@ -274,6 +280,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMSTable *st,
                         MVMCUnionREPRData *cunion_repr_data = (MVMCUnionREPRData *)STABLE(type)->REPR_data;
                         if (!cunion_repr_data) {
                             MVM_gc_allocate_gen2_default_clear(tc);
+                            free_repr_data(repr_data);
                             MVM_exception_throw_adhoc(tc,
                                 "CPPStruct: can't inline a CUnion attribute before its type's definition");
                         }
@@ -290,6 +297,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMSTable *st,
                 }
                 else {
                     MVM_gc_allocate_gen2_default_clear(tc);
+                    free_repr_data(repr_data);
                     MVM_exception_throw_adhoc(tc,
                         "CPPStruct representation only handles attributes of type:\n"
                         "  (u)int8, (u)int16, (u)int32, (u)int64, (u)long, (u)longlong, num32, num64, (s)size_t, bool, Str\n"
@@ -298,13 +306,15 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMSTable *st,
             }
             else {
                 MVM_gc_allocate_gen2_default_clear(tc);
+                free_repr_data(repr_data);
                 MVM_exception_throw_adhoc(tc,
                     "CPPStruct representation requires the types of all attributes to be specified");
             }
 
             if (bits % 8) {
                 MVM_gc_allocate_gen2_default_clear(tc);
-                 MVM_exception_throw_adhoc(tc,
+                free_repr_data(repr_data);
+                MVM_exception_throw_adhoc(tc,
                     "CPPStruct only supports native types that are a multiple of 8 bits wide (was passed: %"PRId32")", bits);
             }
 
@@ -379,8 +389,8 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 /* Composes the representation. */
 static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *repr_info) {
     /* Compute allocation strategy. */
-    MVMCPPStructREPRData *repr_data = MVM_calloc(1, sizeof(MVMCPPStructREPRData));
     MVMObject *attr_info = MVM_repr_at_key_o(tc, repr_info, tc->instance->str_consts.attribute);
+    MVMCPPStructREPRData *repr_data = MVM_calloc(1, sizeof(MVMCPPStructREPRData));
     MVM_gc_allocate_gen2_default_set(tc);
     compute_allocation_strategy(tc, st, attr_info, repr_data);
     MVM_gc_allocate_gen2_default_clear(tc);
@@ -698,10 +708,7 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
     }
 }
 
-/* Free representation data. */
-static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
-    MVMCPPStructREPRData *repr_data = (MVMCPPStructREPRData *)st->REPR_data;
-
+static void free_repr_data(MVMCPPStructREPRData *repr_data) {
     /* May not have survived to composition. */
     if (repr_data == NULL)
         return;
@@ -715,7 +722,13 @@ static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
         MVM_free(repr_data->initialize_slots);
     }
 
-    MVM_free(st->REPR_data);
+    MVM_free(repr_data);
+}
+
+/* Free representation data. */
+static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
+    MVMCPPStructREPRData *repr_data = (MVMCPPStructREPRData *)st->REPR_data;
+    free_repr_data(repr_data);
 }
 
 /* This is called to do any cleanup of resources when an object gets

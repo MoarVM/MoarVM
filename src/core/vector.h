@@ -36,9 +36,9 @@
 
 #define MVM_VECTOR_GROW(x, size) do {\
         size_t _s = (size); \
-        x = MVM_realloc(x, _s*sizeof(*x));   \
-        memset(x + (x ## _alloc), 0, (_s - (x ## _alloc)) * sizeof(*x)); \
-        x ## _alloc = _s; \
+        (x) = MVM_realloc(x, _s*sizeof(*x));   \
+        memset((x) + (x ## _alloc), 0, (_s - (x ## _alloc)) * sizeof(*(x))); \
+        (x ## _alloc) = _s; \
     } while (0)
 
 
@@ -56,7 +56,7 @@
 
 #define MVM_VECTOR_PUSH(x, value) do { \
         MVM_VECTOR_ENSURE_SPACE(x, 1); \
-        x[x ## _num++] = (value); \
+        (x)[(x ## _num)++] = (value); \
     } while(0)
 
 #define MVM_VECTOR_POP(x) \
@@ -66,20 +66,20 @@
 #define MVM_VECTOR_APPEND(x, ar, len) do { \
         size_t _l = (len); \
         MVM_VECTOR_ENSURE_SPACE(x, _l); \
-        memcpy(MVM_VECTOR_TOP(x), ar, _l * sizeof(x[0])); \
-        x ## _num += _l; \
+        memcpy(MVM_VECTOR_TOP(x), ar, _l * sizeof((x)[0])); \
+        (x ## _num) += _l; \
     } while(0)
 
 #define MVM_VECTOR_SPLICE(x, ofs, len, out) do { \
         size_t _l = (len), _o = (ofs); \
         void * buf = (out); \
-        if (buf != NULL) { memcpy(buf, (x) + _o, _l * sizeof(x[0])); } \
-        memmove((x) + _o, (x) + _o + _l, ((x ## _num) - _l - _o) * sizeof(x[0])); \
-        x ## _num -= _l; \
+        if (buf != NULL) { memcpy(buf, (x) + _o, _l * sizeof((x)[0])); } \
+        memmove((x) + _o, (x) + _o + _l, ((x ## _num) - _l - _o) * sizeof((x)[0])); \
+        (x ## _num) -= _l; \
     } while (0)
 
 #define MVM_VECTOR_ASSIGN(a, b) do { \
-        a = b; \
-        a ## _alloc = b ## _alloc; \
-        a ## _num = b ## _num; \
+        (a) = (b); \
+        (a ## _alloc) = (b ## _alloc); \
+        (a ## _num) = (b ## _num); \
     } while (0)

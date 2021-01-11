@@ -91,6 +91,15 @@ void MVM_sc_add_all_scs_entry(MVMThreadContext *tc, MVMSerializationContextBody 
     tc->instance->all_scs_next_idx++;
 }
 
+void MVM_sc_all_scs_destroy(MVMThreadContext *tc) {
+    MVM_fixed_size_free(
+        tc,
+        tc->instance->fsa,
+        tc->instance->all_scs_alloc * sizeof(MVMSerializationContextBody *),
+        tc->instance->all_scs
+    );
+}
+
 /* Given an SC, returns its unique handle. */
 MVMString * MVM_sc_get_handle(MVMThreadContext *tc, MVMSerializationContext *sc) {
     return sc->body->handle;

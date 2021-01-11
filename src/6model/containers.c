@@ -384,6 +384,8 @@ static const MVMContainerSpec value_desc_cont_spec = {
 };
 
 static void value_desc_cont_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
+    if (st->container_data)
+        value_desc_cont_gc_free_data(tc, st);
     MVMValueDescContainer *data = MVM_calloc(1, sizeof(MVMValueDescContainer));
     st->container_data = data;
     st->container_spec = &value_desc_cont_spec;

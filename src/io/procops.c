@@ -359,6 +359,11 @@ static void proc_async_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *
         MVM_gc_worklist_add(tc, worklist, &(apd->async_task));
 }
 
+static void proc_async_gc_free(MVMThreadContext *tc, MVMObject *root, void *data) {
+    if (data)
+        MVM_free(data);
+}
+
 /* Does an asynchronous close (since it must run on the event loop). */
 static void close_cb(uv_handle_t *handle) {
     MVM_free(handle);
@@ -457,7 +462,7 @@ static const MVMIOOps proc_op_table = {
     NULL,
     NULL,
     proc_async_gc_mark,
-    NULL
+    proc_async_gc_free
 };
 
 static void spawn_async_close(uv_handle_t *handle) {
@@ -944,6 +949,9 @@ static void spawn_gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *workl
 static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data) {
         SpawnInfo *si = (SpawnInfo *)data;
+        if (si->prog) {
+            MVM_free_null(si->prog);
+        }
         if (si->cwd) {
             MVM_free_null(si->cwd);
         }
@@ -958,6 +966,12 @@ static void spawn_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
             while (si->args[i])
                 MVM_free(si->args[i++]);
             MVM_free_null(si->args);
+        }
+        if (si->pipe_stdout) {
+            MVM_free_null(si->pipe_stdout);
+        }
+        if (si->pipe_stderr) {
+            MVM_free_null(si->pipe_stderr);
         }
         MVM_free(si);
     }

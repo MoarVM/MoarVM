@@ -1,6 +1,7 @@
 /* SC manipulation functions. */
 MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle);
 void MVM_sc_add_all_scs_entry(MVMThreadContext *tc, MVMSerializationContextBody *scb);
+void MVM_sc_all_scs_destroy(MVMThreadContext *tc);
 MVMString * MVM_sc_get_handle(MVMThreadContext *tc, MVMSerializationContext *sc);
 MVMString * MVM_sc_get_description(MVMThreadContext *tc, MVMSerializationContext *sc);
 void MVM_sc_set_description(MVMThreadContext *tc, MVMSerializationContext *sc, MVMString *desc);
