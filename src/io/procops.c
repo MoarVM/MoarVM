@@ -987,12 +987,13 @@ static const MVMAsyncTaskOps spawn_op_table = {
 };
 
 /* Spawn a process asynchronously. */
-MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObject *argv,
-                                 MVMString *cwd, MVMObject *env, MVMObject *callbacks) {
+MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMString *prog,
+                                 MVMObject *argv, MVMString *cwd, MVMObject *env,
+                                 MVMObject *callbacks) {
     MVMAsyncTask  *task;
     MVMOSHandle   *handle;
     SpawnInfo     *si;
-    char          *prog, *_cwd, **_env, **args;
+    char          *_prog, *_cwd, **_env, **args;
     MVMuint64      size, arg_size, i;
     MVMIter       *iter;
     MVMRegister    reg;
@@ -1007,17 +1008,15 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObje
     if (arg_size < 1)
         MVM_exception_throw_adhoc(tc, "spawnprocasync must have first arg for program");
 
-    REPR(argv)->pos_funcs.at_pos(tc, STABLE(argv), argv, OBJECT_BODY(argv), 0, &reg, MVM_reg_obj);
-    prog = MVM_string_utf8_c8_encode_C_string(tc, MVM_repr_get_str(tc, reg.o));
+    _prog = MVM_string_utf8_c8_encode_C_string(tc, prog);
 
-    /* Arguments start with the program to execute which is not part of the args, thus the -1 and
-     * iteration starting at 1. We need a trailing NULL byte, thus the +1. */
-    args = MVM_malloc((arg_size - 1 + 1) * sizeof(char *));
-    for (i = 1; i < arg_size; i++) {
+    /* We need a trailing NULL byte, thus the +1. */
+    args = MVM_malloc((arg_size + 1) * sizeof(char *));
+    for (i = 0; i < arg_size; i++) {
         REPR(argv)->pos_funcs.at_pos(tc, STABLE(argv), argv, OBJECT_BODY(argv), i, &reg, MVM_reg_obj);
-        args[i - 1] = MVM_string_utf8_c8_encode_C_string(tc, MVM_repr_get_str(tc, reg.o));
+        args[i] = MVM_string_utf8_c8_encode_C_string(tc, MVM_repr_get_str(tc, reg.o));
     }
-    args[arg_size - 1] = NULL;
+    args[arg_size] = NULL;
 
     /* Encode CWD. */
     _cwd = MVM_string_utf8_c8_encode_C_string(tc, cwd);
@@ -1044,7 +1043,7 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMObje
         MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
         task->body.ops  = &spawn_op_table;
         si              = MVM_calloc(1, sizeof(SpawnInfo));
-        si->prog        = prog;
+        si->prog        = _prog;
         si->cwd         = _cwd;
         si->env         = _env;
         si->args        = args;
