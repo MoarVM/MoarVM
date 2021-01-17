@@ -1051,47 +1051,52 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
         for (i = 0; i < repr_data->num_attributes; i++) {
             MVMint32  kind = repr_data->attribute_locations[i] & MVM_CSTRUCT_ATTR_MASK;
             MVMint32  slot = repr_data->attribute_locations[i] >> MVM_CSTRUCT_ATTR_SHIFT;
-            void *cptr   = NULL; /* Address of the struct member holding the pointer in the C storage. */
+            void **cptr  = NULL; /* Address of the struct member holding the pointer in the C storage. */
             void *objptr = NULL; /* The pointer in the object representing the C object. */
 
             if (kind == MVM_CSTRUCT_ATTR_IN_STRUCT || !body->child_objs[slot])
                 continue;
-
-            cptr = (void *)(storage + (uintptr_t)repr_data->struct_offsets[i]);
-            if (IS_CONCRETE(body->child_objs[slot])) {
-                switch (kind) {
-                    case MVM_CSTRUCT_ATTR_CARRAY:
-                        objptr = ((MVMCArrayBody *)OBJECT_BODY(body->child_objs[slot]))->storage;
-                        break;
-                    case MVM_CSTRUCT_ATTR_CPTR:
-                        objptr = ((MVMCPointerBody *)OBJECT_BODY(body->child_objs[slot]))->ptr;
-                        break;
-                    case MVM_CSTRUCT_ATTR_CSTRUCT:
-                        objptr = (MVMCStructBody *)OBJECT_BODY(body->child_objs[slot]);
-                        break;
-                    case MVM_CSTRUCT_ATTR_CPPSTRUCT:
-                        objptr = (MVMCPPStructBody *)OBJECT_BODY(body->child_objs[slot]);
-                        break;
-                    case MVM_CSTRUCT_ATTR_CUNION:
-                        objptr = (MVMCUnionBody *)OBJECT_BODY(body->child_objs[slot]);
-                        break;
-                    case MVM_CSTRUCT_ATTR_STRING:
-                        objptr = NULL;
-                        break;
-                    default:
-                        MVM_exception_throw_adhoc(tc,
-                            "Fatal error: bad kind (%d) in CStruct write barrier",
-                            kind);
-                }
+            if (repr_data->attribute_locations[i] & MVM_CSTRUCT_ATTR_INLINED) {
+                MVM_nativecall_refresh(tc, body->child_objs[slot]);
             }
             else {
-                objptr = NULL;
-            }
+                cptr = (void **)(storage + (uintptr_t)repr_data->struct_offsets[i]);
+                if (IS_CONCRETE(body->child_objs[slot])) {
+                    switch (kind) {
+                        case MVM_CSTRUCT_ATTR_CARRAY:
+                            objptr = ((MVMCArrayBody *)OBJECT_BODY(body->child_objs[slot]))->storage;
+                            break;
+                        case MVM_CSTRUCT_ATTR_CPTR:
+                            objptr = ((MVMCPointerBody *)OBJECT_BODY(body->child_objs[slot]))->ptr;
+                            break;
+                        case MVM_CSTRUCT_ATTR_CSTRUCT:
+                            objptr = ((MVMCStructBody *)OBJECT_BODY(body->child_objs[slot]))->cstruct;
+                            break;
+                        case MVM_CSTRUCT_ATTR_CPPSTRUCT:
+                            objptr = ((MVMCPPStructBody *)OBJECT_BODY(body->child_objs[slot]))->cppstruct;
+                            break;
+                        case MVM_CSTRUCT_ATTR_CUNION:
+                            objptr = ((MVMCUnionBody *)OBJECT_BODY(body->child_objs[slot]))->cunion;
+                            break;
+                        case MVM_CSTRUCT_ATTR_STRING:
+                            objptr = NULL;
+                            break;
+                        default:
+                            MVM_exception_throw_adhoc(tc,
+                                "Fatal error: bad kind (%d) in CStruct write barrier",
+                                kind);
+                    }
+                }
+                else {
+                    objptr = NULL;
+                }
 
-            if (objptr != cptr)
-                body->child_objs[slot] = NULL;
-            else
-                MVM_nativecall_refresh(tc, body->child_objs[slot]);
+                if (objptr != *cptr) {
+                    body->child_objs[slot] = NULL;
+                }
+                else
+                    MVM_nativecall_refresh(tc, body->child_objs[slot]);
+            }
         }
     }
     else if (REPR(cthingy)->ID == MVM_REPR_ID_MVMCPPStruct) {
