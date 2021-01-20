@@ -903,7 +903,9 @@ static void write_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     }
 
     /* resize the array if necessary*/
-    if (elems < offset + count)
+    size_t elem_size = repr_data->elem_size;
+    /* No need to account for start, set_size_internal will take care of that */
+    if (elems * elem_size < offset * elem_size + count)
         set_size_internal(tc, body, offset + count, repr_data);
 
     memcpy(body->slots.u8 + (start + offset) * repr_data->elem_size, from, count);
@@ -914,8 +916,9 @@ MVMint64 read_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMint64 start = body->start;
     MVMint64 result = 0;
+    size_t elem_size = repr_data->elem_size;
 
-    if (offset < 0 || start + body->elems < offset + count) {
+    if (offset < 0 || (start + body->elems) * elem_size < offset * elem_size + count) {
         MVM_exception_throw_adhoc(tc, "MVMArray: read_buf out of bounds offset %"PRIi64" start %"PRIi64" elems %"PRIu64" count %"PRIu64, offset, start, body->elems, count);
     }
 
