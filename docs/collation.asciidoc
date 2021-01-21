@@ -85,7 +85,7 @@ We iterate by codepoint and put this into a ring buffer. The ring buffers hold t
 number of codepoints which comprise the longest sequence of codepoints which
 map to its own collation keys in the Unicode Collation Algorithm. As of Unicode
 9.0 this number was 3. In case future versions contain longer series of codepoints,
-`Generate-Collation-Data.p6` updates this number when generating the C data.
+`Generate-Collation-Data.raku` updates this number when generating the C data.
 
 The iteration into the ringbuffer stops as soon as a non-matching codepoint, is
 found. Whether the two codepoints are Less/More/Same compared to each other
