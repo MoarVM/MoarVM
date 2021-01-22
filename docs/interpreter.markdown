@@ -6,7 +6,7 @@ For the core and primitive operations, that is done through a switch that
 is inlined directly inside of the interpreter.
 
 The list of ops is held in src/core/oplist. This is processed by the
-tools/update_ops_h.p6 tool to generate src/core/ops.h and ops.c, which
+tools/update_ops_h.raku tool to generate src/core/ops.h and ops.c, which
 contain all of the metadata about the operations and operation banks.
 
 ## Nested Runloops - Just Say No

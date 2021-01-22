@@ -9,7 +9,7 @@
 # automatically.
 
 # Add templates where you wish and then once you are done run
-# tools/sort-expr-templates-by-oplist-order.p6 to sort it in the same order as
+# tools/sort-expr-templates-by-oplist-order.raku to sort it in the same order as
 # the oplist.
 
 (template: const_i16 (copy $1))

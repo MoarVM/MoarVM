@@ -1,7 +1,7 @@
 # This is the authoritative list of MoarVM instructions.
 #
 # Changes to this file need to be followed by a call to
-# tools/update_ops.p6 to update various auto-generated files.
+# tools/update_ops.raku to update various auto-generated files.
 #
 # IMPORTANT NOTE: MoarVM is meant to be able to read bytecode files
 # from some number of versions back. This means that new ops should,
