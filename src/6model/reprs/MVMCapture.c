@@ -234,14 +234,20 @@ MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture_obj, M
     MVMCallsite *new_callsite = MVM_callsite_drop_positional(tc, capture->body.callsite, idx);
 
     /* Form a new arguments buffer, dropping the specified argument. */
-    MVMRegister *new_args = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+    MVMRegister *new_args;
+    if (new_callsite->flag_count) {
+        new_args = MVM_fixed_size_alloc(tc, tc->instance->fsa,
             new_callsite->flag_count * sizeof(MVMRegister));
-    MVMuint32 from, to = 0;
-    for (from = 0; from < capture->body.callsite->flag_count; from++) {
-        if (from != idx) {
-            new_args[to] = capture->body.args[from];
-            to++;
+        MVMuint32 from, to = 0;
+        for (from = 0; from < capture->body.callsite->flag_count; from++) {
+            if (from != idx) {
+                new_args[to] = capture->body.args[from];
+                to++;
+            }
         }
+    }
+    else {
+        new_args = NULL;
     }
 
     /* Form new capture object. */
