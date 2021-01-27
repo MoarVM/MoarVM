@@ -35,6 +35,8 @@ MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 ap
         /* Add one, since MVM_incr returns original. */
     thread->body.tc = child_tc;
 
+    //fprintf(stderr, "Created thread %d %p, tc %p\n", child_tc->thread_id, thread, child_tc);
+
     MVM_telemetry_interval_stop(child_tc, interval_id, "i'm the newly spawned thread.");
 
     /* Also make a copy of the thread ID in the thread object itself, so it
@@ -87,8 +89,12 @@ static void start_thread(void *data) {
 
     MVM_debugserver_notify_thread_creation(tc);
 
+    //fprintf(stderr, "Started thread %d %p %p\n", tc->thread_id, tc->thread_obj, tc);
+
     /* Enter the interpreter, to run code. */
     MVM_interp_run(tc, thread_initial_invoke, ts, NULL);
+
+    //fprintf(stderr, "Exiting thread %d %p %p\n", tc->thread_id, tc->thread_obj, tc);
 
     MVM_debugserver_notify_thread_destruction(tc);
 
@@ -195,6 +201,7 @@ static int try_join(MVMThreadContext *tc, MVMThread *thread) {
         /* the target already ended */
         status = 0;
     }
+    //fprintf(stderr, "Joined thread %d %p %p with status %d\n", tc->thread_id, tc->thread_obj, tc, status);
     MVM_gc_mark_thread_unblocked(tc);
     MVM_gc_root_temp_pop(tc);
 
@@ -327,6 +334,7 @@ void MVM_thread_dump(MVMThreadContext *tc) {
 /* Goes through all non-app-lifetime threads and joins them. */
 void MVM_thread_join_foreground(MVMThreadContext *tc) {
     MVMint64 work = 1;
+    //fprintf(stderr, "joining foreground threads\n");
     while (work) {
         MVMThread *cur_thread = tc->instance->threads;
         work = 0;
@@ -334,6 +342,56 @@ void MVM_thread_join_foreground(MVMThreadContext *tc) {
             if (cur_thread->body.tc != tc->instance->main_thread) {
                 if (!cur_thread->body.app_lifetime) {
                     if (MVM_load(&cur_thread->body.stage) < MVM_thread_stage_exited) {
+                        /* Join may trigger GC and invalidate cur_thread, so we
+                        * just set work to 1 and do another trip around the main
+                        * loop. */
+                        try_join(tc, cur_thread);
+                        work = 1;
+                        break;
+                    }
+                }
+            }
+            cur_thread = cur_thread->body.next;
+        }
+    }
+}
+void MVM_thread_join_background(MVMThreadContext *tc) {
+    MVMint64 work = 1;
+    //fprintf(stderr, "joining background threads\n");
+    while (work) {
+        MVMThread *cur_thread = tc->instance->threads;
+        work = 0;
+        while (cur_thread) {
+            if (cur_thread->body.tc != tc->instance->main_thread && (MVMObject*)cur_thread != tc->instance->event_loop_thread) {
+                if (cur_thread->body.app_lifetime) {
+                    if (MVM_load(&cur_thread->body.stage) < MVM_thread_stage_exited) {
+                        //fprintf(stderr, "Checking thread %p %d\n", cur_thread->body.tc, cur_thread->body.tc->thread_id);
+                        MVMObject *blocking_queue = cur_thread->body.tc->blocking_queue;
+                        if (blocking_queue) {
+                            //fprintf(stderr, "    blocking on queue %p\n", cur_thread->body.tc->blocking_queue);
+                            MVM_concblockingqueue_finish(cur_thread->body.tc, blocking_queue);
+                        }
+                        GC_SYNC_POINT(tc); // A thread may be waiting for GC, so give it a chance to proceed
+                        work = 1;
+                    }
+                }
+            }
+            cur_thread = cur_thread->body.next;
+        }
+    }
+    work = 1;
+    while (work) {
+        MVMThread *cur_thread = tc->instance->threads;
+        work = 0;
+        while (cur_thread) {
+            //fprintf(stderr, "Checking thread %d %p %p\n", cur_thread->body.tc->thread_id, cur_thread, cur_thread->body.tc);
+            if (cur_thread->body.tc != tc->instance->main_thread && (MVMObject*)cur_thread != tc->instance->event_loop_thread) {
+                //fprintf(stderr, "    worker thread\n");
+                if (cur_thread->body.app_lifetime) {
+                    //fprintf(stderr, "    app_lifetime\n");
+                    //fprintf(stderr, "    status %zd\n", MVM_load(&cur_thread->body.stage));
+                    if (MVM_load(&cur_thread->body.stage) < MVM_thread_stage_exited) {
+                        //fprintf(stderr, "Joining thread %p %d\n", cur_thread->body.tc, cur_thread->body.tc->thread_id);
                         /* Join may trigger GC and invalidate cur_thread, so we
                         * just set work to 1 and do another trip around the main
                         * loop. */

@@ -62,12 +62,22 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
     return total;
 }
 
+void MVM_concblockingqueue_finish(MVMThreadContext *tc, MVMObject *obj) {
+    MVMConcBlockingQueue *cbq = (MVMConcBlockingQueue *)obj;
+    MVMConcBlockingQueueBody *body = cbq->body;
+    body->ended = 1;
+    uv_mutex_lock(&body->head_lock);
+    uv_cond_signal(&body->head_cond);
+    uv_mutex_unlock(&body->head_lock);
+}
+
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMConcBlockingQueue *cbq = (MVMConcBlockingQueue *)obj;
 
     /* First, free all the nodes. */
     MVMConcBlockingQueueBody *body = cbq->body;
+
     MVMConcBlockingQueueNode *cur = body->head;
     while (cur) {
         MVMConcBlockingQueueNode *next = cur->next;
@@ -235,17 +245,28 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
         MVM_exception_throw_adhoc(tc, "Can only shift objects from a ConcBlockingQueue");
 
     interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.shift");
-    MVMROOT(tc, root, {
+    MVM_gc_root_temp_push(tc, (MVMCollectable**)&root);
+    //MVMROOT(tc, root, {
         MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&body->head_lock);
         MVM_gc_mark_thread_unblocked(tc);
 
-        while (MVM_load(&body->elems) == 0) {
+        while (!MVM_load(&body->ended) && MVM_load(&body->elems) == 0) {
                 MVM_gc_mark_thread_blocked(tc);
+                tc->blocking_queue = (MVMObject*)root;
                 uv_cond_wait(&body->head_cond, &body->head_lock);
+                tc->blocking_queue = NULL;
                 MVM_gc_mark_thread_unblocked(tc);
         }
-    });
+    //});
+    MVM_gc_root_temp_pop(tc);
+
+    if (body->ended) {
+        value->o = tc->instance->VMNull;
+        uv_cond_signal(&body->head_cond);
+        uv_mutex_unlock(&body->head_lock);
+        return;
+    }
 
     taken = body->head->next;
     MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMConcBlockingQueueNode), body->head);

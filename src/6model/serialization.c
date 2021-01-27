@@ -2876,6 +2876,9 @@ static void deserialize_object(MVMThreadContext *tc, MVMSerializationReader *rea
 
 /* Worklist manipulation functions. */
 static void worklist_add_index(MVMThreadContext *tc, MVMDeserializeWorklist *wl, MVMuint32 index) {
+    for (MVMuint32 i = 0; i < wl->num_indexes; i++)
+        if (wl->indexes[i] == index)
+            return; // Already there, no need to add again
     if (wl->num_indexes == wl->alloc_indexes) {
         if (wl->alloc_indexes)
             wl->alloc_indexes *= 2;
@@ -2883,6 +2886,7 @@ static void worklist_add_index(MVMThreadContext *tc, MVMDeserializeWorklist *wl,
             wl->alloc_indexes = 128;
         wl->indexes = MVM_realloc(wl->indexes, wl->alloc_indexes * sizeof(MVMuint32));
     }
+    //fprintf(stderr, "Adding index %u at %u\n", index, wl->num_indexes);
     wl->indexes[wl->num_indexes] = index;
     wl->num_indexes++;
 }
@@ -2891,6 +2895,7 @@ static MVMuint32 worklist_has_work(MVMThreadContext *tc, MVMDeserializeWorklist 
 }
 static MVMuint32 worklist_take_index(MVMThreadContext *tc, MVMDeserializeWorklist *wl) {
     wl->num_indexes--;
+    //fprintf(stderr, "Taking index %u from %u\n", wl->indexes[wl->num_indexes], wl->num_indexes);
     return wl->indexes[wl->num_indexes];
 }
 

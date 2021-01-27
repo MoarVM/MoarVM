@@ -312,8 +312,7 @@ int wmain(int argc, wchar_t *wargv[])
 #endif
 
     if (full_cleanup) {
-        MVM_vm_destroy_instance(instance);
-        return EXIT_SUCCESS;
+        return MVM_vm_destroy_instance(instance);
     }
     else {
         MVM_vm_exit(instance);

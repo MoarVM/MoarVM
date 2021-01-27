@@ -359,7 +359,6 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
     case MVM_EX_ACTION_INVOKE: {
         /* Create active handler record. */
-        MVMActiveHandler *ah = MVM_malloc(sizeof(MVMActiveHandler));
         MVMFrame *cur_frame = tc->cur_frame;
         MVMFrame *pres_frame;
         MVMObject *handler_code;
@@ -385,6 +384,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         handler_code = MVM_frame_find_invokee(tc, lh.frame->work[lh.handler->block_reg].o, NULL);
 
         /* Install active handler record. */
+        MVMActiveHandler *ah = MVM_malloc(sizeof(MVMActiveHandler));
         ah->frame           = lh.frame;
         ah->handler         = lh.handler;
         ah->jit_handler     = lh.jit_handler;

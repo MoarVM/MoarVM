@@ -3789,9 +3789,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(exit): {
-                MVMint64 exit_code = GET_REG(cur_op, 0).i64;
+                tc->instance->exit_code = GET_REG(cur_op, 0).i64;
                 MVM_io_flush_standard_handles(tc);
-                exit(exit_code);
+                goto return_label;
             }
             OP(cwd):
                 GET_REG(cur_op, 0).s = MVM_dir_cwd(tc);

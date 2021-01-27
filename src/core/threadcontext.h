@@ -337,6 +337,9 @@ struct MVMThreadContext {
     MVMuint32 cur_line_no;
 
     int nested_interpreter;
+
+    /* Queue that we block on, used for freeing app-lifetime threads */
+    MVMObject *blocking_queue;
 };
 
 MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance);

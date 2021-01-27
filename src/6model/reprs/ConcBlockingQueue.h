@@ -22,6 +22,8 @@ struct MVMConcBlockingQueueBody {
     uv_mutex_t  head_lock;
     uv_mutex_t  tail_lock;
     uv_cond_t   head_cond;
+
+    MVMuint8 ended;
 };
 
 struct MVMConcBlockingQueue {
@@ -38,3 +40,5 @@ MVMObject * MVM_concblockingqueue_poll(MVMThreadContext *tc, MVMConcBlockingQueu
 
 /* Purely for the convenience of the jit */
 MVMObject * MVM_concblockingqueue_jit_poll(MVMThreadContext *tc, MVMObject *queue);
+
+void MVM_concblockingqueue_finish(MVMThreadContext *tc, MVMObject *queue);

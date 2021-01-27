@@ -42,8 +42,12 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     /* The ThreadContext has already been destroyed by the GC. */
     MVMReentrantMutex *rm = (MVMReentrantMutex *)obj;
-    if (rm->body.lock_count)
-        MVM_panic(1, "Tried to garbage-collect a locked mutex");
+    if (rm->body.lock_count) {
+        if (tc->instance->exit_code) // non-zero exit code means nqp::exit was called
+            uv_mutex_unlock(rm->body.mutex);
+        else
+            MVM_panic(1, "Tried to garbage-collect a locked mutex");
+    }
     uv_mutex_destroy(rm->body.mutex);
     MVM_free(rm->body.mutex);
 }

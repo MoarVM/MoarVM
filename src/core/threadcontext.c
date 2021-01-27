@@ -82,6 +82,10 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
 void MVM_tc_destroy(MVMThreadContext *tc) {
     MVMint32 i;
 
+    //fprintf(stderr, "tc_destroy %d %p %p\n", tc->thread_id, tc->thread_obj, tc);
+
+    MVM_profile_instrumented_free_data(tc);
+
     /* If an exception handler calls nqp::exit, we don't unwind the stack and
      * exception handlers aren't cleaned up yet */
     while (tc->active_handlers) {
@@ -92,7 +96,7 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
 
     /* Free the native callback cache. Needs the fixed size allocator. */
     /* (currently not. but might if MVMStrHash moves internally to the FSA.) */
-    MVM_str_hash_demolish(tc, &tc->native_callback_cache);
+    MVM_nativecall_callback_cache_destroy(tc);
 
     /* Free specialization state. */
     MVM_spesh_sim_stack_destroy(tc, tc->spesh_sim_stack);

@@ -186,6 +186,8 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     add_collectable(tc, worklist, snapshot, tc->next_dispatcher, "Next dispatcher");
     add_collectable(tc, worklist, snapshot, tc->next_dispatcher_for, "Next dispatcher for");
 
+    add_collectable(tc, worklist, snapshot, tc->blocking_queue, "Blocking queue");
+
     /* Callback cache. */
     MVMStrHashTable *cache = &tc->native_callback_cache;
     MVMStrHashIterator iterator = MVM_str_hash_first(tc, cache);

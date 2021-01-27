@@ -598,7 +598,7 @@ void MVM_vm_exit(MVMInstance *instance) {
     }
 
     /* And, we're done. */
-    exit(0);
+    exit(instance->exit_code);
 }
 
 static void cleanup_callsite_interns(MVMInstance *instance) {
@@ -630,25 +630,32 @@ static void cleanup_callsite_interns(MVMInstance *instance) {
 /* Destroys a VM instance. This must be called only from the main thread. It
  * should clear up all resources and free all memory; in practice, it falls
  * short of this goal at the moment. */
-void MVM_vm_destroy_instance(MVMInstance *instance) {
-
+int MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Join any foreground threads and flush standard handles. */
     MVM_thread_join_foreground(instance->main_thread);
-    MVM_io_flush_standard_handles(instance->main_thread);
 
     /* Stop system threads */
     MVM_spesh_worker_stop(instance->main_thread);
     MVM_spesh_worker_join(instance->main_thread);
-    MVM_io_eventloop_destroy(instance->main_thread);
+    MVM_thread_join_background(instance->main_thread);
 
-    /* Run the normal GC one more time to actually collect the spesh thread */
+    MVM_io_flush_standard_handles(instance->main_thread);
+
+    if (instance->event_loop_thread) {
+        MVM_io_eventloop_stop(instance->main_thread);
+        MVM_io_eventloop_join(instance->main_thread);
+        instance->event_loop_thread = NULL;
+    }
+
+    /* Run the normal GC one more time to actually collect threads and any open file handles */
     MVM_gc_enter_from_allocator(instance->main_thread);
-
-    MVM_profile_instrumented_free_data(instance->main_thread);
+    /* And once more because collecting a thread actually takes 2 runs */
+    MVM_gc_enter_from_allocator(instance->main_thread);
 
     /* Run the GC global destruction phase. After this,
      * no 6model object pointers should be accessed. */
     MVM_gc_global_destruction(instance->main_thread);
+    MVM_io_eventloop_destroy(instance->main_thread);
 
     MVM_ptr_hash_demolish(instance->main_thread, &instance->object_ids);
     MVM_sc_all_scs_destroy(instance->main_thread);
@@ -714,10 +721,6 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up parameterization addition mutex. */
     uv_mutex_destroy(&instance->mutex_parameterization_add);
 
-    /* Clean up interned callsites */
-    uv_mutex_destroy(&instance->mutex_callsite_interns);
-    cleanup_callsite_interns(instance);
-
     /* Release this interpreter's hold on Unicode database */
     MVM_unicode_release(instance->main_thread);
 
@@ -758,13 +761,21 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_tc_destroy(instance->main_thread);
     uv_mutex_destroy(&instance->mutex_threads);
 
+    /* Clean up interned callsites */
+    uv_mutex_destroy(&instance->mutex_callsite_interns);
+    cleanup_callsite_interns(instance);
+
     /* Clean up fixed size allocator */
     MVM_fixed_size_destroy(instance->fsa);
 
     uv_mutex_destroy(&instance->subscriptions.mutex_event_subscription);
 
+    int exit_code = instance->exit_code;
+
     /* Clear up VM instance memory. */
     MVM_free(instance);
+
+    return exit_code;
 }
 
 void MVM_vm_set_clargs(MVMInstance *instance, int argc, char **argv) {

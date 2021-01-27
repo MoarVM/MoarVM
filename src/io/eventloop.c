@@ -261,7 +261,9 @@ void MVM_io_eventloop_remove_active_work(MVMThreadContext *tc, int *work_idx_to_
     }
 }
 
-
+void event_loop_wakeup_onclose(uv_handle_t* handle) {
+    uv_stop(((MVMThreadContext*)handle->data)->instance->event_loop);
+}
 
 /* Send the stop signal - no synchronization required */
 void MVM_io_eventloop_stop(MVMThreadContext *tc) {
@@ -269,8 +271,23 @@ void MVM_io_eventloop_stop(MVMThreadContext *tc) {
     if (!instance->event_loop_thread)
         return;
     /* Stop the loop */
-    uv_stop(instance->event_loop);
+    MVMuint64 elems = MVM_repr_elems(tc, tc->instance->event_loop_active);
+    for (MVMuint64 i = 0; i < elems; i++) {
+        MVMObject *task_obj = MVM_repr_at_pos_o(tc, tc->instance->event_loop_active, i);
+        if (!MVM_is_null(tc, task_obj)) {
+            MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
+            MVM_ASSERT_NOT_FROMSPACE(tc, task);
+            if (task->body.state == MVM_ASYNC_TASK_STATE_SETUP) {
+                MVMROOT(tc, task, {
+                    if (task->body.ops->cancel)
+                        task->body.ops->cancel(tc, tc->instance->event_loop, task_obj, task->body.data);
+                });
+            }
+            task->body.state = MVM_ASYNC_TASK_STATE_CANCELLED;
+        }
+    }
     uv_async_send(instance->event_loop_wakeup);
+    uv_close((uv_handle_t*)instance->event_loop_wakeup, event_loop_wakeup_onclose);
 }
 
 /* Wait for exit (again, no synchronizaiton required) */
@@ -284,21 +301,26 @@ void MVM_io_eventloop_join(MVMThreadContext *tc) {
 /* Clean up used resources. Synchronization required - other threads might modify them as well */
 void MVM_io_eventloop_destroy(MVMThreadContext *tc) {
     MVMInstance *instance = tc->instance;
+    /*
     MVM_gc_mark_thread_blocked(tc);
-    uv_mutex_lock(&instance->mutex_event_loop);
     MVM_gc_mark_thread_unblocked(tc);
+    */
+    uv_mutex_lock(&instance->mutex_event_loop);
 
+/*
     if (instance->event_loop_thread) {
         MVM_io_eventloop_stop(tc);
         MVM_io_eventloop_join(tc);
         instance->event_loop_thread = NULL;
     }
+    */
 
     if (instance->event_loop) {
-        uv_close((uv_handle_t*)instance->event_loop_wakeup, NULL);
-
         /* Not sure we can always do this */
-        uv_loop_close(instance->event_loop);
+        if (uv_loop_close(instance->event_loop)) {
+            fprintf(stderr, "Failed to close the event loop\n");
+            abort();
+        }
        
         MVM_free_null(instance->event_loop_wakeup);
         MVM_free_null(instance->event_loop);

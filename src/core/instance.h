@@ -541,4 +541,6 @@ struct MVMInstance {
      ************************************************************************/
 
     MVMEventSubscriptions subscriptions;
+
+    int exit_code;
 };

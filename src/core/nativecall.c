@@ -1198,3 +1198,24 @@ void MVM_nativecall_invoke_jit(MVMThreadContext *tc, MVMObject *site) {
     MVMJitCode * const jitcode = body->jitcode;
     jitcode->func_ptr(tc, *tc->interp_cu, jitcode->labels[0]);
 }
+
+void MVM_nativecall_callback_cache_destroy(MVMThreadContext *tc) {
+    MVMStrHashTable *cache = &tc->native_callback_cache;
+    MVMStrHashIterator iterator = MVM_str_hash_first(tc, cache);
+    while (!MVM_str_hash_at_end(tc, cache, iterator)) {
+        MVMNativeCallbackCacheHead *callback_data_head = MVM_str_hash_current_nocheck(tc, cache, iterator);
+        MVMNativeCallback *entry = callback_data_head->head;
+        while (entry) {
+            MVM_free(entry->typeinfos);
+            MVM_free(entry->types);
+            if (!entry->cs->is_interned)
+                MVM_callsite_destroy(entry->cs);
+
+            MVMNativeCallback *next = entry->next;
+            MVM_free(entry);
+            entry = next;
+        }
+        iterator = MVM_str_hash_next_nocheck(tc, cache, iterator);
+    }
+    MVM_str_hash_demolish(tc, cache);
+}
