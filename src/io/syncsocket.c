@@ -94,7 +94,6 @@ MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
 
     /* If at EOF, nothing more to do. */
     if (data->eof) {
-        *buf = NULL;
         return 0;
     }
 
@@ -104,7 +103,8 @@ MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
         if (bytes <= last_remaining) {
             /* There's enough, and it's sufficient for the request. Extract it
              * and return, discarding the last packet buffer if we drain it. */
-            *buf = MVM_malloc(bytes);
+             if (!*buf)
+                *buf = MVM_malloc(bytes);
             memcpy(*buf, data->last_packet + data->last_packet_start, bytes);
             if (bytes == last_remaining) {
                 MVM_free_null(data->last_packet);
@@ -134,7 +134,8 @@ MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
         MVMuint32 available = last_available + data->last_packet_end;
         if (bytes > available)
             bytes = available;
-        *buf = MVM_malloc(bytes);
+        if (!*buf)
+            *buf = MVM_malloc(bytes);
         memcpy(*buf, use_last_packet + use_last_packet_start, last_available);
         memcpy(*buf + last_available, data->last_packet, bytes - last_available);
         if (bytes == available) {
@@ -151,13 +152,20 @@ MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
         /* Only data from the just-read packet. */
         if (bytes >= data->last_packet_end) {
             /* We need all of it, so no copying needed, just hand it back. */
-            *buf = data->last_packet;
             bytes = data->last_packet_end;
+            if (*buf) {
+                memcpy(*buf, data->last_packet, bytes);
+                MVM_free(data->last_packet);
+            }
+            else {
+                *buf = data->last_packet;
+            }
             data->last_packet = NULL;
         }
         else {
             /* Only need some of it. */
-            *buf = MVM_malloc(bytes);
+            if (!*buf)
+                *buf = MVM_malloc(bytes);
             memcpy(*buf, data->last_packet, bytes);
             data->last_packet_start += bytes;
         }
@@ -166,14 +174,14 @@ MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
         /* Nothing read this time, so at the end. Drain previous packet data
          * and mark EOF. */
         bytes = use_last_packet_end - use_last_packet_start;
-        *buf = MVM_malloc(bytes);
+        if (!*buf)
+            *buf = MVM_malloc(bytes);
         memcpy(*buf, use_last_packet + use_last_packet_start, bytes);
         data->eof = 1;
         MVM_free(use_last_packet);
     }
     else {
         /* Nothing to hand back; at EOF. */
-        *buf = NULL;
         bytes = 0;
         data->eof = 1;
     }

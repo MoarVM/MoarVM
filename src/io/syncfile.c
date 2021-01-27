@@ -128,7 +128,11 @@ static MVMint64 mvm_tell(MVMThreadContext *tc, MVMOSHandle *h) {
  * the number actually read. */
 static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out, MVMuint64 bytes) {
     MVMIOFileData *data = (MVMIOFileData *)h->body.data;
-    char *buf = MVM_malloc(bytes);
+    char *buf;
+    if (*buf_out)
+        buf = *buf_out;
+    else
+        buf = MVM_malloc(bytes);
     unsigned int interval_id = MVM_telemetry_interval_start(tc, "syncfile.read_to_buffer");
     MVMint32 bytes_read;
 #ifdef _WIN32
@@ -146,7 +150,8 @@ static MVMint64 read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf_out,
     } while(bytes_read == -1 && errno == EINTR);
     if (bytes_read  == -1) {
         int save_errno = errno;
-        MVM_free(buf);
+        if (!*buf_out)
+            MVM_free(buf);
         MVM_exception_throw_adhoc(tc, "Reading from filehandle failed: %s",
             strerror(save_errno));
     }

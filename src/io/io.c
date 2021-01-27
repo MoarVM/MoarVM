@@ -104,7 +104,6 @@ MVMint64 MVM_io_tell(MVMThreadContext *tc, MVMObject *oshandle) {
 void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *result, MVMint64 length) {
     MVMOSHandle *handle = verify_is_handle(tc, oshandle, "read bytes");
     MVMuint64 bytes_read;
-    char *buf;
 
     /* Ensure the target is in the correct form. */
     if (!IS_CONCRETE(result) || REPR(result)->ID != MVM_REPR_ID_VMArray)
@@ -116,21 +115,31 @@ void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
     if (length < 1)
         MVM_exception_throw_adhoc(tc, "Out of range: attempted to read %"PRId64" bytes from filehandle", length);
 
-    if (handle->body.ops->sync_readable) {
-        MVMROOT2(tc, handle, result, {
-            uv_mutex_t *mutex = acquire_mutex(tc, handle);
-            bytes_read = handle->body.ops->sync_readable->read_bytes(tc, handle, &buf, length);
-            release_mutex(tc, mutex);
-        });
-    }
-    else
+    if (!handle->body.ops->sync_readable)
         MVM_exception_throw_adhoc(tc, "Cannot read characters from this kind of handle");
+
+    char *buf = NULL;
+    if (((MVMArray *)result)->body.ssize >= (MVMuint64)length) {
+        buf = (char*)((MVMArray *)result)->body.slots.i8; // Re-use existing buffer
+    }
+    else {
+        MVM_free_null(((MVMArray *)result)->body.slots.i8);
+        ((MVMArray *)result)->body.ssize = 0;
+        ((MVMArray *)result)->body.elems = 0;
+    }
+
+    MVMROOT2(tc, handle, result, {
+        uv_mutex_t *mutex = acquire_mutex(tc, handle);
+        bytes_read = handle->body.ops->sync_readable->read_bytes(tc, handle, &buf, length);
+        release_mutex(tc, mutex);
+    });
 
     /* Stash the data in the VMArray. */
     ((MVMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
     ((MVMArray *)result)->body.start    = 0;
-    ((MVMArray *)result)->body.ssize    = bytes_read;
-    ((MVMArray *)result)->body.elems    = bytes_read;
+    if (!((MVMArray *)result)->body.ssize)
+        ((MVMArray *)result)->body.ssize = bytes_read;
+    ((MVMArray *)result)->body.elems     = bytes_read;
 }
 
 void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *buffer) {
