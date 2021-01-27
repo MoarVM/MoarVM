@@ -112,11 +112,17 @@ MVMObject * MVM_capture_from_args(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* Put callsite arguments into a flat buffer. */
     MVMCallsite *callsite = arg_info.callsite;
-    MVMRegister *args = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            callsite->flag_count * sizeof(MVMRegister));
-    MVMuint16 i;
-    for (i = 0; i < callsite->flag_count; i++)
-        args[i] = arg_info.source[arg_info.map[i]];
+    MVMRegister *args;
+    if (callsite->flag_count) {
+        args = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                callsite->flag_count * sizeof(MVMRegister));
+        MVMuint16 i;
+        for (i = 0; i < callsite->flag_count; i++)
+            args[i] = arg_info.source[arg_info.map[i]];
+    }
+    else {
+        args = NULL;
+    }
 
     /* Form capture object. */
     ((MVMCapture *)capture)->body.callsite = callsite->is_interned
