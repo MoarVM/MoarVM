@@ -404,11 +404,15 @@ static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *recor
     }
 }
 void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp,
-        MVMObject *capture, MVMDispInlineCacheEntry **ic_entry_ptr,
+        MVMArgs arg_info, MVMDispInlineCacheEntry **ic_entry_ptr,
         MVMDispInlineCacheEntry *ic_entry, MVMStaticFrame *update_sf) {
     /* Push a dispatch recording frame onto the callstack; this is how we'll
      * keep track of the current recording state. */
     MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
+    MVMObject *capture;
+    MVMROOT(tc, update_sf, {
+        capture = MVM_capture_from_args(tc, arg_info);
+    });
     record->rec.initial_capture.capture = capture;
     record->rec.initial_capture.transformation = MVMDispProgramRecordingInitial;
     record->rec.resume_kind = MVMDispProgramRecordingResumeNone;
