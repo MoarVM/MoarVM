@@ -65,16 +65,13 @@ static void dispatch_initial(MVMThreadContext *tc,
     /* Resolve the dispatcher. */
     MVMDispDefinition *disp = MVM_disp_registry_find(tc, id);
 
-    /* Form argument capture object for dispatcher to process. */
-    MVMArgs capture_arg_info = {
+    /* Form argument info and run the dispatcher. */
+    MVMArgs arg_info = {
         .callsite = callsite,
         .source = tc->cur_frame->work,
         .map = arg_indices
     };
-    MVMObject *capture = MVM_capture_from_args(tc, capture_arg_info);
-
-    /* Run the dispatcher. */
-    MVM_disp_program_run_dispatch(tc, disp, capture, entry_ptr, seen,
+    MVM_disp_program_run_dispatch(tc, disp, arg_info, entry_ptr, seen,
             tc->cur_frame->static_info);
 }
 
@@ -84,13 +81,10 @@ static void dispatch_initial_flattening(MVMThreadContext *tc,
     /* Resolve the dispatcher. */
     MVMDispDefinition *disp = MVM_disp_registry_find(tc, id);
 
-    /* Perform flattening of arguments, then form a capture. */
+    /* Perform flattening of arguments, then runthe dispatcher. */
     MVMCallStackFlattening *record = MVM_args_perform_flattening(tc, cs,
             tc->cur_frame->work, arg_indices);
-    MVMObject *capture = MVM_capture_from_args(tc, record->arg_info);
-
-    /* Run the dispatcher. */
-    MVM_disp_program_run_dispatch(tc, disp, capture, entry_ptr, seen,
+    MVM_disp_program_run_dispatch(tc, disp, record->arg_info, entry_ptr, seen,
             tc->cur_frame->static_info);
 }
 
@@ -146,8 +140,7 @@ static void dispatch_monomorphic_flattening(MVMThreadContext *tc,
     /* If we get here, then either the callsite didn't match or the dispatch
      * program didn't match, so we need to run the dispatch callback again. */
     MVMDispDefinition *disp = MVM_disp_registry_find(tc, id);
-    MVMObject *capture = MVM_capture_from_args(tc, flat_record->arg_info);
-    MVM_disp_program_run_dispatch(tc, disp, capture, entry_ptr, seen,
+    MVM_disp_program_run_dispatch(tc, disp, flat_record->arg_info, entry_ptr, seen,
             tc->cur_frame->static_info);
 }
 
@@ -210,8 +203,7 @@ static void dispatch_polymorphic_flattening(MVMThreadContext *tc,
      * matched, so we need to run the dispatch callback again. */
     MVM_callstack_unwind_dispatch_run(tc);
     MVMDispDefinition *disp = MVM_disp_registry_find(tc, id);
-    MVMObject *capture = MVM_capture_from_args(tc, flat_record->arg_info);
-    MVM_disp_program_run_dispatch(tc, disp, capture, entry_ptr, seen,
+    MVM_disp_program_run_dispatch(tc, disp, flat_record->arg_info, entry_ptr, seen,
             tc->cur_frame->static_info);
 }
 
