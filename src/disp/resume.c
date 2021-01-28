@@ -1,19 +1,23 @@
 #include "moar.h"
 
 /* Looks down the callstack to find the dispatch that we are resuming, starting
- * from the indicated start point. */
+ * from the indicated start point. If found, populates the struct pointed to by
+ * the data parameter and returns a non-zero value. */
 MVMuint32 find_internal(MVMThreadContext *tc, MVMCallStackRecord *start,
-        MVMDispProgram **found_disp_program, MVMCallStackRecord **found_record) {
+        MVMDispResumptionData *data) {
     MVMCallStackIterator iter;
     MVM_callstack_iter_dispatch_init(tc, &iter, start);
     while (MVM_callstack_iter_move_next(tc, &iter)) {
         MVMCallStackRecord *cur = MVM_callstack_iter_current(tc, &iter);
+        // TODO this for now assumes there's only a single resumable dispatch;
+        // that shall need to change
         switch (cur->kind) {
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED: {
                 MVMCallStackDispatchRecord *dr = (MVMCallStackDispatchRecord *)cur;
                 if (dr->produced_dp && dr->produced_dp->num_resumptions) {
-                    *found_disp_program = dr->produced_dp;
-                    *found_record = cur;
+                    data->dp = dr->produced_dp;
+                    data->initial_arg_info = &(dr->arg_info);
+                    data->resumption = &(data->dp->resumptions[0]);
                     return 1;
                 }
                 break;
@@ -21,8 +25,9 @@ MVMuint32 find_internal(MVMThreadContext *tc, MVMCallStackRecord *start,
             case MVM_CALLSTACK_RECORD_DISPATCH_RUN: {
                 MVMCallStackDispatchRun *dr = (MVMCallStackDispatchRun *)cur;
                 if (dr->chosen_dp && dr->chosen_dp->num_resumptions) {
-                    *found_disp_program = dr->chosen_dp;
-                    *found_record = cur;
+                    data->dp = dr->chosen_dp;
+                    data->initial_arg_info = &(dr->arg_info);
+                    data->resumption = &(data->dp->resumptions[0]);
                     return 1;
                 }
             }
@@ -32,28 +37,6 @@ MVMuint32 find_internal(MVMThreadContext *tc, MVMCallStackRecord *start,
 }
 
 /* Looks down the callstack to find the dispatch that we are resuming. */
-MVMuint32 MVM_disp_resume_find_topmost(MVMThreadContext *tc, MVMDispProgram **found_disp_program,
-        MVMCallStackRecord **found_record) {
-    return find_internal(tc, tc->stack_top, found_disp_program, found_record);
-}
-
-/* Given a callstack record, obtain a Capture object that has the resume init
- * arguments. */
-MVMObject * MVM_disp_resume_init_capture(MVMThreadContext *tc, MVMCallStackRecord *record,
-                                         MVMuint32 resumption_idx) {
-    switch (record->kind) {
-        case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED: {
-            MVMCallStackDispatchRecord *dr = (MVMCallStackDispatchRecord *)record;
-            MVMDispProgram *dp = dr->produced_dp;
-            MVMDispProgramResumption *res = &(dp->resumptions[resumption_idx]);
-            if (res->init_values) {
-                MVM_oops(tc, "complex case of resume init state NYI");
-            }
-            else {
-                return dr->rec.initial_capture.capture;
-            }
-        }
-        default:
-            MVM_oops(tc, "resume init capture run case NYI");
-    }
+MVMuint32 MVM_disp_resume_find_topmost(MVMThreadContext *tc, MVMDispResumptionData *data) {
+    return find_internal(tc, tc->stack_top, data);
 }

@@ -153,6 +153,9 @@ struct MVMCallStackDispatchRecord {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
 
+    /* The initial arguments to the dispatch. */
+    MVMArgs arg_info;
+
     /* The current recording state. Keeps track of the captures
      * derived and guards established. */
     MVMDispProgramRecording rec;
