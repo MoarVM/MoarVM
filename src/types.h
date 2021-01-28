@@ -328,6 +328,7 @@ typedef union MVMDispProgramConstant MVMDispProgramConstant;
 typedef struct MVMDispProgramOp MVMDispProgramOp;
 typedef struct MVMDispProgramResumption MVMDispProgramResumption;
 typedef struct MVMDispProgramResumptionInitValue MVMDispProgramResumptionInitValue;
+typedef struct MVMDispResumptionData MVMDispResumptionData;
 typedef struct MVMDispSysCall MVMDispSysCall;
 typedef struct MVMDispSysCallHashEntry MVMDispSysCallHashEntry;
 typedef struct MVMTracked MVMTracked;
