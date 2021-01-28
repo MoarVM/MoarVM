@@ -111,6 +111,7 @@ MVMCallStackDispatchRun * MVM_callstack_allocate_dispatch_run(MVMThreadContext *
     MVMCallStackDispatchRun *record = (MVMCallStackDispatchRun *)tc->stack_top;
     record->temps = (MVMRegister *)((char *)record + sizeof(MVMCallStackDispatchRun));
     record->num_temps = num_temps;
+    record->chosen_dp = NULL;
     return record;
 }
 
