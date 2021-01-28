@@ -136,6 +136,25 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
     for (i = 0; i < dp->num_ops; i++) {
         MVMDispProgramOp *op = &(dp->ops[i]);
         switch (op->code) {
+            /* Resumption related opcodes. */
+            case MVMDispOpcodeResumeTopmost: {
+                char *c_str = MVM_string_utf8_encode_C_string(tc,
+                       op->resume.disp->id);
+                fprintf(stderr, "    Resume topmost dispatch if it is %s\n", c_str);
+                free(c_str);
+                break;
+            }
+            case MVMDispOpcodeResumeCaller: {
+                char *c_str = MVM_string_utf8_encode_C_string(tc,
+                       op->resume.disp->id);
+                fprintf(stderr, "    Resume caller dispatch if it is %s\n", c_str);
+                free(c_str);
+                break;
+            }
+            case MVMDispOpcodeGuardResumeInitCallsite:
+                fprintf(stderr, "    Check resume init state callsite is %d\n",
+                        op->resume_init_callsite.callsite_idx);
+                break;
             /* Opcodes that guard on values in argument slots */
             case MVMDispOpcodeGuardArgType:
                 fprintf(stderr, "    Guard arg %d (type=%s)\n",
@@ -895,8 +914,6 @@ MVMObject * MVM_disp_program_record_get_resume_init_args(MVMThreadContext *tc) {
         MVM_exception_throw_adhoc(tc,
             "Can only use dispatcher-get-resume-init-args in a resume callback");
 
-    /* TODO Make sure that we insert guards on the resumption here? */
-
     /* Hand back the capture, which was created at entry. */
     return record->rec.initial_resume_capture.capture;
 }
@@ -931,8 +948,8 @@ void MVM_disp_program_record_resume(MVMThreadContext *tc, MVMObject *capture) {
     /* Record the kind of dispatch resumption we're doing, and then delegate to
      * the appropriate `resume` dispatcher callback. */
     record->rec.resume_kind = MVMDispProgramRecordingResumeTopmost;
+    record->rec.resumption = resume_data.resumption;
     record->outcome.kind = MVM_DISP_OUTCOME_RESUME;
-    record->outcome.resume_dp = resume_data.dp;
     record->outcome.resume_capture = capture;
 }
 
@@ -1536,8 +1553,7 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
     /* Dump the recording if we're debugging. */
     dump_recording(tc, record);
 
-    /* Go through the values and compile the guards associated with them,
-     * along with any loads. */
+    /* Initialize compilation state for dispatch program. */
     compile_state cs;
     cs.rec = &(record->rec);
     MVM_VECTOR_INIT(cs.ops, 8);
@@ -1545,6 +1561,27 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
     MVM_VECTOR_INIT(cs.constants, 4);
     MVM_VECTOR_INIT(cs.value_temps, 4);
     cs.args_buffer_temps = 0;
+
+    /* If this is a resumption, then place resume-related instructions at the
+     * start of the dispatch program. */
+    if (record->rec.resume_kind != MVMDispProgramRecordingResumeNone) {
+        /* Initialize resume state and check it's the correct dispatcher. */
+        MVMDispProgramOp op;
+        op.code = record->rec.resume_kind == MVMDispProgramRecordingResumeTopmost
+            ? MVMDispOpcodeResumeTopmost
+            : MVMDispOpcodeResumeCaller;
+        op.resume.disp = record->rec.resumption->disp;
+        MVM_VECTOR_PUSH(cs.ops, op);
+
+        /* Check the callsite of the initialization state is the correct one. */
+        op.code = MVMDispOpcodeGuardResumeInitCallsite;
+        op.resume_init_callsite.callsite_idx = add_program_constant_callsite(tc, &cs,
+                ((MVMCapture *)record->rec.initial_resume_capture.capture)->body.callsite);
+        MVM_VECTOR_PUSH(cs.ops, op);
+    }
+
+    /* Go through the values and compile the guards associated with them,
+     * along with any loads. */
     MVMuint32 i;
     for (i = 0; i < MVM_VECTOR_ELEMS(record->rec.values); i++) {
         MVMDispProgramRecordingValue *v = &(record->rec.values[i]);
@@ -1687,9 +1724,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
                 MVM_exception_throw_adhoc(tc, "Dispatch callback failed to delegate to a dispatcher");
             return 0;
         case MVM_DISP_OUTCOME_RESUME: {
-            // TODO handle multiple resume points in one dispatch
-            MVMDispDefinition *resume_disp = record->outcome.resume_dp->resumptions[0].disp;
-            run_resume(tc, record, resume_disp,
+            run_resume(tc, record, record->rec.resumption->disp,
                     record->outcome.resume_capture, thunked);
             return 0;
         }
@@ -1746,6 +1781,19 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
     for (i = 0; i < dp->num_ops; i++) {
         MVMDispProgramOp *op = &(dp->ops[i]);
         switch (op->code) {
+            /* Resumption related ops. */
+            case MVMDispOpcodeResumeTopmost:
+                if (!MVM_disp_resume_find_topmost(tc, &(record->resumption_data)))
+                    goto rejection;
+                if (record->resumption_data.resumption->disp != op->resume.disp)
+                    goto rejection;
+                break;
+            case MVMDispOpcodeGuardResumeInitCallsite: {
+                MVMCallsite *expected = dp->constants[op->resume_init_callsite.callsite_idx].cs;
+                if (record->resumption_data.resumption->init_callsite != expected)
+                    goto rejection;
+                break;
+            }
             /* Argument guard ops. */
             case MVMDispOpcodeGuardArgType: {
                 GET_ARG;
