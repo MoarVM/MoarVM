@@ -77,7 +77,6 @@ struct MVMDispProgramOutcome {
         };
         /* A dispatch resumption. */
         struct {
-            MVMDispProgram *resume_dp;
             MVMObject *resume_capture;
         };
     };
@@ -186,6 +185,9 @@ struct MVMDispProgramRecording {
     /* The kind of resume dispatch we're doing, if any. */
     MVMDispProgramRecordingResumeKind resume_kind;
 
+    /* Details of the dispatch we're resuming, if any. */
+    MVMDispProgramResumption *resumption;
+
     /* If we're doing a resume, the resume initialization state capture. */
     MVMDispProgramRecordingCapture initial_resume_capture;
 
@@ -250,6 +252,14 @@ union MVMDispProgramConstant {
 
 /* Opcodes we may execute in a dispatch program. */
 typedef enum {
+    /* Resume the topmost dispatch, so long as it is for the appropriate
+     * dispatcher. */
+    MVMDispOpcodeResumeTopmost,
+    /* Same, except we're looking do the caller for the dispatcher to
+     * resume. */
+    MVMDispOpcodeResumeCaller,
+    /* Assert that the resumption callsite is as expected. */
+    MVMDispOpcodeGuardResumeInitCallsite,
     /* Guard that the type of an incoming argument is as expected. */
     MVMDispOpcodeGuardArgType,
     /* Guard that the type of an incoming argument is as expected and also
@@ -362,6 +372,14 @@ struct MVMDispProgramOp {
 
     /* Operands. */
     union {
+        struct {
+            /* The dispatcher we're resuming. */
+            MVMDispDefinition *disp;
+        } resume;
+        struct {
+            /* The callsite of the resumption initialization state. */
+            MVMuint32 callsite_idx;
+        } resume_init_callsite;
         struct {
             /* The argument index in the incoming capture. */
             MVMuint16 arg_idx;

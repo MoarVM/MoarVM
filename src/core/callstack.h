@@ -209,6 +209,10 @@ struct MVMCallStackDispatchRun {
      * length). */
     MVMRegister *temps;
 
+    /* If we are running a resumption of an existing dispatch, this is the
+     * resumption data. */
+    MVMDispResumptionData resumption_data;
+
     /* The dispatch program that was chosen (used to know how to mark the
      * temporaries, if needed). */
     MVMDispProgram *chosen_dp;
