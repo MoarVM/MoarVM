@@ -12,3 +12,5 @@ struct MVMDispResumptionData {
 };
 
 MVMuint32 MVM_disp_resume_find_topmost(MVMThreadContext *tc, MVMDispResumptionData *data);
+MVMRegister MVM_disp_resume_get_init_arg(MVMThreadContext *tc, MVMDispResumptionData *data,
+        MVMuint32 arg_idx);
