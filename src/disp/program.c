@@ -409,6 +409,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     /* Push a dispatch recording frame onto the callstack; this is how we'll
      * keep track of the current recording state. */
     MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
+    record->arg_info = arg_info;
     MVMObject *capture;
     MVMROOT(tc, update_sf, {
         capture = MVM_capture_from_args(tc, arg_info);
@@ -913,19 +914,16 @@ void MVM_disp_program_record_resume(MVMThreadContext *tc, MVMObject *capture) {
     ensure_resume_ok(tc, record);
     ensure_known_capture(tc, record, capture);
 
-    /* Find the dispatch record we're going to be resuming. */
-    MVMDispProgram *resume_dp;
-    MVMCallStackRecord *resume_record;
-    if (!MVM_disp_resume_find_topmost(tc, &resume_dp, &resume_record))
+    /* Resolve the dispatch that we're going to be resuming. */
+    MVMDispResumptionData resume_data;
+    if (!MVM_disp_resume_find_topmost(tc, &resume_data))
         MVM_exception_throw_adhoc(tc, "No resumable dispatch in dynamic scope");
 
     /* Set up the resume initial capture record. */
     MVMROOT(tc, capture, {
-        /* XXX Need to pick the correct the correct resumption, not just the
-         * top one */
         record->rec.initial_resume_capture.transformation = MVMDispProgramRecordingResumeInitial;
-        record->rec.initial_resume_capture.capture = MVM_disp_resume_init_capture(tc,
-                resume_record, 0);
+        record->rec.initial_resume_capture.capture = MVM_capture_from_args(tc,
+                *(resume_data.initial_arg_info));
         MVM_VECTOR_INIT(record->rec.initial_resume_capture.captures, 4);
     });
     record->rec.initial_resume_capture.transformation = MVMDispProgramRecordingResumeInitial;
@@ -934,7 +932,7 @@ void MVM_disp_program_record_resume(MVMThreadContext *tc, MVMObject *capture) {
      * the appropriate `resume` dispatcher callback. */
     record->rec.resume_kind = MVMDispProgramRecordingResumeTopmost;
     record->outcome.kind = MVM_DISP_OUTCOME_RESUME;
-    record->outcome.resume_dp = resume_dp;
+    record->outcome.resume_dp = resume_data.dp;
     record->outcome.resume_capture = capture;
 }
 
