@@ -89,6 +89,8 @@ struct MVMDispProgramOutcome {
 typedef enum {
     /* A value from the initial capture. */
     MVMDispProgramRecordingCaptureValue,
+    /* A value from the resume initialization state capture. */
+    MVMDispProgramRecordingResumeInitCaptureValue,
     /* A literal constant value. */
     MVMDispProgramRecordingLiteralValue,
     /* A read of an attribute from a dependent value. */
@@ -139,6 +141,7 @@ struct MVMDispProgramRecordingValue {
 /* A derived capture. */
 typedef enum {
     MVMDispProgramRecordingInitial,
+    MVMDispProgramRecordingResumeInitial,
     MVMDispProgramRecordingDrop,
     MVMDispProgramRecordingInsert
 } MVMDispProgramRecordingTransformation;
@@ -182,6 +185,9 @@ struct MVMDispProgramRecording {
 
     /* The kind of resume dispatch we're doing, if any. */
     MVMDispProgramRecordingResumeKind resume_kind;
+
+    /* If we're doing a resume, the resume initialization state capture. */
+    MVMDispProgramRecordingCapture initial_resume_capture;
 
     /* The values that we have encountered while recording, and maybe added
      * guards against. */
@@ -300,6 +306,8 @@ typedef enum {
     MVMDispOpcodeGuardTempNotLiteralObj,
     /* Load a capture value into a temporary. */
     MVMDispOpcodeLoadCaptureValue,
+    /* Load an resumption initialization state value into a temporary. */
+    MVMDispOpcodeLoadResumeInitValue,
     /* Load a constant object or string into a temporary. */
     MVMDispOpcodeLoadConstantObjOrStr,
     /* Load a constant int into a temporary. */
@@ -407,6 +415,34 @@ struct MVMDispProgramOp {
 struct MVMDispProgramResumption {
     /* The dispatcher that we can resume. */
     MVMDispDefinition *disp;
+
+    /* The callsite of the resume init state. */
+    MVMCallsite *init_callsite;
+
+    /* Where the arguments come from (array matching size of init_callsite
+     * that specifies where each value comes from), or NULL if it is
+     * precisely identical to the initial arguments of the call. */
+    MVMDispProgramResumptionInitValue *init_values;
+};
+
+/* The source of a value in the resumption initialization state. */
+typedef enum {
+    /* An argument from the initial arguments the call was given. */
+    MVM_DISP_RESUME_INIT_ARG,
+    /* A constant object or string. */
+    MVM_DISP_RESUME_INIT_CONSTANT_OBJ,
+    /* A constant integer. */
+    MVM_DISP_RESUME_INIT_CONSTANT_INT,
+    /* A constant number. */
+    MVM_DISP_RESUME_INIT_CONSTANT_NUM,
+} MVMDispProgramResumptionInitSource;
+
+/* Where a value that is used to resume a dispatch originates from. */
+struct MVMDispProgramResumptionInitValue {
+    /* The source of the resumption initialization value. */
+    MVMuint32 source;
+    /* The index (either argument index or constant table index). */
+    MVMuint32 index;
 };
 
 /* Functions called during the recording. */
