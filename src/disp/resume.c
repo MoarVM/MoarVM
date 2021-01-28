@@ -40,3 +40,17 @@ MVMuint32 find_internal(MVMThreadContext *tc, MVMCallStackRecord *start,
 MVMuint32 MVM_disp_resume_find_topmost(MVMThreadContext *tc, MVMDispResumptionData *data) {
     return find_internal(tc, tc->stack_top, data);
 }
+
+/* Get the resume initialization state argument at the specified index. */
+MVMRegister MVM_disp_resume_get_init_arg(MVMThreadContext *tc, MVMDispResumptionData *data,
+                                         MVMuint32 arg_idx) {
+    MVMDispProgramResumption *resumption = data->resumption;
+    if (resumption->init_values) {
+        MVM_oops(tc, "complex case of getting resume init args NYI");
+    }
+    else {
+        /* Simple case where they are the initial arguments to the dispatch. */
+        MVMArgs *args = data->initial_arg_info;
+        return args->source[args->map[arg_idx]];
+    }
+}

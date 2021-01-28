@@ -1926,6 +1926,10 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
             case MVMDispOpcodeLoadCaptureValue:
                 record->temps[op->load.temp] = args->source[args->map[op->load.idx]];
                 break;
+            case MVMDispOpcodeLoadResumeInitValue:
+                record->temps[op->load.temp] = MVM_disp_resume_get_init_arg(tc,
+                        &(record->resumption_data), op->load.idx);
+                break;
             case MVMDispOpcodeLoadConstantObjOrStr:
                 record->temps[op->load.temp].o = (MVMObject *)dp->gc_constants[op->load.idx];
                 break;
