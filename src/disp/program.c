@@ -108,13 +108,13 @@ static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *rec
     fprintf(stderr, "  Outcome:\n");
     switch (record->outcome.kind) {
         case MVM_DISP_OUTCOME_VALUE:
-            printf("    Value %d\n", record->rec.outcome_value);
+            fprintf(stderr, "    Value %d\n", record->rec.outcome_value);
             break;
         case MVM_DISP_OUTCOME_BYTECODE:
-            printf("    Run bytecode of value %d\n", record->rec.outcome_value);
+            fprintf(stderr, "    Run bytecode of value %d\n", record->rec.outcome_value);
             break;
         case MVM_DISP_OUTCOME_CFUNCTION:
-            printf("    Run C function of value %d\n", record->rec.outcome_value);
+            fprintf(stderr, "    Run C function of value %d\n", record->rec.outcome_value);
             break;
         default:
             printf("    Unknown\n");
