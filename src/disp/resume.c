@@ -54,3 +54,34 @@ MVMRegister MVM_disp_resume_get_init_arg(MVMThreadContext *tc, MVMDispResumption
         return args->source[args->map[arg_idx]];
     }
 }
+
+/* Mark the resumption state. */
+void MVM_disp_resume_mark_resumption_state(MVMThreadContext *tc, MVMDispResumptionState *res_state,
+        MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
+    /* Ensure it's valid (if top level is, stack will be). */
+    if (!res_state->disp)
+        return;
+
+    /* Mark the state along the linked list. */
+    MVMDispResumptionState *current = res_state;
+    while (current) {
+        if (worklist)
+            MVM_gc_worklist_add(tc, worklist, &(current->state));
+        else
+            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
+                (MVMCollectable *)current->state, "Dispatch resumption state");
+        current = current->next;
+    }
+}
+
+/* Free any memory associated with a linked list of resumption states. */
+void MVM_disp_resume_destroy_resumption_state(MVMThreadContext *tc,
+        MVMDispResumptionState *res_state) {
+    /* First entry lives on the stack, so don't consider it. */
+    MVMDispResumptionState *current = res_state->next;
+    while (current) {
+        MVMDispResumptionState *next = current->next;
+        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMDispResumptionState), current);
+        current = next;
+    }
+}

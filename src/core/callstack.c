@@ -100,7 +100,9 @@ MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc) 
 MVMCallStackDispatchRecord * MVM_callstack_allocate_dispatch_record(MVMThreadContext *tc) {
     tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_DISPATCH_RECORD,
             sizeof(MVMCallStackDispatchRecord));
-    return (MVMCallStackDispatchRecord *)tc->stack_top;
+    MVMCallStackDispatchRecord *record = (MVMCallStackDispatchRecord *)tc->stack_top;
+    record->resumption_state.disp = NULL;
+    return record;
 }
 
 /* Allocates a dispatch run record on the callstack. */
@@ -112,6 +114,7 @@ MVMCallStackDispatchRun * MVM_callstack_allocate_dispatch_run(MVMThreadContext *
     record->temps = (MVMRegister *)((char *)record + sizeof(MVMCallStackDispatchRun));
     record->num_temps = num_temps;
     record->chosen_dp = NULL;
+    record->resumption_state.disp = NULL;
     return record;
 }
 
@@ -366,12 +369,27 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                 break;
             case MVM_CALLSTACK_RECORD_START:
             case MVM_CALLSTACK_RECORD_FLATTENING:
-            case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED:
-            case MVM_CALLSTACK_RECORD_DISPATCH_RUN:
                 /* No cleanup to do, just move to next record. */
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
                 break;
+            case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED: {
+                MVMCallStackDispatchRecord *disp_record =
+                    (MVMCallStackDispatchRecord *)tc->stack_top;
+                if (disp_record->resumption_state.disp)
+                    MVM_disp_resume_destroy_resumption_state(tc, &(disp_record->resumption_state));
+                tc->stack_current_region->alloc = (char *)tc->stack_top;
+                tc->stack_top = tc->stack_top->prev;
+                break;
+            }
+            case MVM_CALLSTACK_RECORD_DISPATCH_RUN: {
+                MVMCallStackDispatchRun *disp_run = (MVMCallStackDispatchRun *)tc->stack_top;
+                if (disp_run->resumption_state.disp)
+                    MVM_disp_resume_destroy_resumption_state(tc, &(disp_run->resumption_state));
+                tc->stack_current_region->alloc = (char *)tc->stack_top;
+                tc->stack_top = tc->stack_top->prev;
+                break;
+            }
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
                 if (!exceptional) {
                     handle_end_of_dispatch_record(tc, thunked);
@@ -458,6 +476,8 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                         "Dispatch recording current capture");
                 add_collectable(tc, worklist, snapshot, disp_record->update_sf,
                         "Dispatch recording static frame root");
+                MVM_disp_resume_mark_resumption_state(tc, &(disp_record->resumption_state),
+                        worklist, snapshot);
                 break;
             }
             case MVM_CALLSTACK_RECORD_DISPATCH_RUN: {
@@ -467,6 +487,8 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                     MVM_disp_program_mark_run_temps(tc, dp,
                             disp_run->temp_mark_callsite, disp_run->temps,
                             worklist);
+                MVM_disp_resume_mark_resumption_state(tc, &(disp_run->resumption_state),
+                        worklist, snapshot);
                 break;
             }
             case MVM_CALLSTACK_RECORD_FLATTENING: {

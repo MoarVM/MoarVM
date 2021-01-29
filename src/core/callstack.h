@@ -185,6 +185,12 @@ struct MVMCallStackDispatchRecord {
 
     /* The produced dispatch program. */
     MVMDispProgram *produced_dp;
+
+    /* If this dispatch gets resumed, this will hold the dispatch state (the
+     * "moving part" that tracks, for example, where we are in a deferral
+     * walk through the MRO). We null out the definition at record creation;
+     * if that is null, the rest of this is to be considered invalid. */
+    MVMDispResumptionState resumption_state;
 };
 
 /* A dispatch record frame is turned into this once the dispatch has already
@@ -212,6 +218,12 @@ struct MVMCallStackDispatchRun {
     /* If we are running a resumption of an existing dispatch, this is the
      * resumption data. */
     MVMDispResumptionData resumption_data;
+
+    /* If this dispatch gets resumed, this will hold the dispatch state (the
+     * "moving part" that tracks, for example, where we are in a deferral
+     * walk through the MRO). We null out the definition at record creation;
+     * if that is null, the rest of this is to be considered invalid. */
+    MVMDispResumptionState resumption_state;
 
     /* The dispatch program that was chosen (used to know how to mark the
      * temporaries, if needed). */
