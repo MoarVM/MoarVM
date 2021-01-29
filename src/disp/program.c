@@ -918,6 +918,32 @@ MVMObject * MVM_disp_program_record_get_resume_init_args(MVMThreadContext *tc) {
     return record->rec.initial_resume_capture.capture;
 }
 
+/* Set the resume state for the current dispatch resumption. (Resume state is
+ * the stateful part that changes as the dispatch progresses. We can only set
+ * it in the resumption handler, not in the initial dispatch; that's what the
+ * resume init args are for). */
+void MVM_disp_program_record_set_resume_state(MVMThreadContext *tc, MVMObject *new_state) {
+    /* Make sure we're in a dispatcher and that we're in a resume. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    if (record->rec.resume_kind == MVMDispProgramRecordingResumeNone)
+        MVM_exception_throw_adhoc(tc,
+            "Can only use dispatcher-set-resume-state in a resume callback");
+
+    MVM_oops(tc, "setting resume state NYI");
+}
+
+/* Get the resume state for the current dispatch resumption; returns a VMNull
+ * if there is not yet any state set. */
+MVMObject * MVM_disp_program_record_get_resume_state(MVMThreadContext *tc) {
+    /* Make sure we're in a dispatcher and that we're in a resume. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    if (record->rec.resume_kind == MVMDispProgramRecordingResumeNone)
+        MVM_exception_throw_adhoc(tc,
+            "Can only use dispatcher-get-resume-state in a resume callback");
+
+    MVM_oops(tc, "getting resume state NYI");
+}
+
 /* Ensure we're in a state where running the resume dispatcher is OK. */
 static void ensure_resume_ok(MVMThreadContext *tc, MVMCallStackDispatchRecord *record) {
     if (record->rec.resume_kind != MVMDispProgramRecordingResumeNone)
