@@ -188,6 +188,13 @@ struct MVMDispProgramRecording {
     /* Details of the dispatch we're resuming, if any. */
     MVMDispProgramResumption *resumption;
 
+    /* Pointer to where the mutable resume state lives. */
+    MVMObject **resume_state_ptr;
+
+    /* The index of the value in the dispatch program that corresponds to the
+     * new dispatch state; -1 if there isn't any. */
+    MVMint32 new_resume_state_value;
+
     /* If we're doing a resume, the resume initialization state capture. */
     MVMDispProgramRecordingCapture initial_resume_capture;
 
@@ -260,6 +267,8 @@ typedef enum {
     MVMDispOpcodeResumeCaller,
     /* Assert that the resumption callsite is as expected. */
     MVMDispOpcodeGuardResumeInitCallsite,
+    /* Update the dispatch resume state to the specified temporary. */
+    MVMDispOpcodeUpdateResumeState,
     /* Guard that the type of an incoming argument is as expected. */
     MVMDispOpcodeGuardArgType,
     /* Guard that the type of an incoming argument is as expected and also
