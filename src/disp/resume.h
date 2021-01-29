@@ -10,6 +10,9 @@ struct MVMDispResumptionData {
 
     /* The particular resumption that we are resuming here. */
     MVMDispProgramResumption *resumption;
+
+    /* The place where the resumption state to read/write lives. */
+    MVMObject **state_ptr;
 };
 
 /* Dispatch resumption state. This is held in the record of the dispatch that
