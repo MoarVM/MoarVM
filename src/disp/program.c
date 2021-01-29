@@ -1138,6 +1138,10 @@ static MVMuint32 get_temp_holding_value(MVMThreadContext *tc, compile_state *cs,
             op.code = MVMDispOpcodeLoadCaptureValue;
             op.load.idx = v->capture.index;
             break;
+        case MVMDispProgramRecordingResumeInitCaptureValue:
+            op.code = MVMDispOpcodeLoadResumeInitValue;
+            op.load.idx = v->capture.index;
+            break;
         case MVMDispProgramRecordingLiteralValue:
             switch (v->literal.kind) {
                 case MVM_CALLSITE_ARG_OBJ:
@@ -1295,14 +1299,10 @@ static void emit_capture_guards(MVMThreadContext *tc, compile_state *cs,
             MVM_oops(tc, "Unexpected callsite arg type in emit_capture_guards");
     }
 }
-static void emit_attribute_guards(MVMThreadContext *tc, compile_state *cs,
-        MVMDispProgramRecordingValue *v, MVMuint32 value_index) {
-    /* Ensure the attribute is loaded. */
-    MVMuint32 temp = get_temp_holding_value(tc, cs, value_index);
-    MVMRegister value = ((MVMTracked *)v->tracked)->body.value;
-
-    /* Now go by the kind of attribute. */
-    switch (v->attribute.kind) {
+static void emit_loaded_value_guards(MVMThreadContext *tc, compile_state *cs,
+        MVMDispProgramRecordingValue *v, MVMuint32 temp, MVMRegister value,
+        MVMCallsiteFlags kind) {
+    switch (kind) {
         case MVM_CALLSITE_ARG_OBJ:
             if (v->guard_literal) {
                 /* If we're guarding that it's a literal, we can disregard
@@ -1375,8 +1375,24 @@ static void emit_attribute_guards(MVMThreadContext *tc, compile_state *cs,
             }
             break;
         default:
-            MVM_oops(tc, "Unexpected callsite arg type in emit_capture_guards");
+            MVM_oops(tc, "Unexpected callsite arg type in emit_loaded_value_guards");
     }
+}
+static void emit_resume_init_capture_guards(MVMThreadContext *tc, compile_state *cs,
+        MVMDispProgramRecordingValue *v, MVMuint32 value_index) {
+    MVMuint32 temp = get_temp_holding_value(tc, cs, value_index);
+    MVMRegister value = ((MVMTracked *)v->tracked)->body.value;
+    MVMuint32 index = v->capture.index;
+    MVMCallsiteFlags cs_flag = cs->rec->resumption->init_callsite->arg_flags[index];
+    if ((cs_flag & MVM_CALLSITE_ARG_LITERAL) && !(cs_flag & MVM_CALLSITE_ARG_OBJ))
+        return;
+    emit_loaded_value_guards(tc, cs, v, temp, value, cs_flag);
+}
+static void emit_attribute_guards(MVMThreadContext *tc, compile_state *cs,
+        MVMDispProgramRecordingValue *v, MVMuint32 value_index) {
+    MVMuint32 temp = get_temp_holding_value(tc, cs, value_index);
+    MVMRegister value = ((MVMTracked *)v->tracked)->body.value;
+    emit_loaded_value_guards(tc, cs, v, temp, value, v->attribute.kind);
 }
 static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         compile_state *cs, MVMuint32 callsite_idx) {
@@ -1587,6 +1603,9 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
         MVMDispProgramRecordingValue *v = &(record->rec.values[i]);
         if (v->source == MVMDispProgramRecordingCaptureValue) {
             emit_capture_guards(tc, &cs, v);
+        }
+        else if (v->source == MVMDispProgramRecordingResumeInitCaptureValue) {
+            emit_resume_init_capture_guards(tc, &cs, v, i);
         }
         else if (v->source == MVMDispProgramRecordingAttributeValue) {
             emit_attribute_guards(tc, &cs, v, i);
