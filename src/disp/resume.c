@@ -1,35 +1,71 @@
 #include "moar.h"
 
+static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *data,
+        MVMDispProgram *dp, MVMArgs *arg_info, MVMDispResumptionState *state) {
+    /* Did the dispatch program set up any static resumptions? */
+    if (dp->num_resumptions > 0) {
+        /* Yes; do we have dispatch state for them already? */
+        if (!state->disp) {
+            /* No state; set it up. */
+            MVMint32 i;
+            MVMDispResumptionState *prev = NULL;
+            for (i = dp->num_resumptions - 1; i >= 0; i--) {
+                /* For the innermost (or only) one, we write into the record.
+                 * For more, we need to allocate. */
+                MVMDispResumptionState *target = prev
+                    ? MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMDispResumptionState))
+                    : state;
+                target->disp = dp->resumptions[i].disp;
+                target->state = tc->instance->VMNull;
+                target->next = NULL;
+                if (prev)
+                    prev->next = target;
+                prev = target;
+            }
+
+            /* We take the innermost dispatcher. */
+            data->dp = dp;
+            data->initial_arg_info = arg_info;
+            data->resumption = &(data->dp->resumptions[dp->num_resumptions - 1]);
+            data->state_ptr = &(state->state);
+            return 1;
+        }
+        else {
+            /* Already have state record set up. */
+            // TODO Stacked resumable dispatchers need handling here
+            data->dp = dp;
+            data->initial_arg_info = arg_info;
+            data->resumption = &(data->dp->resumptions[dp->num_resumptions - 1]);
+            data->state_ptr = &(state->state);
+            return 1;
+        }
+    }
+    return 0;
+}
+
 /* Looks down the callstack to find the dispatch that we are resuming, starting
  * from the indicated start point. If found, populates the struct pointed to by
  * the data parameter and returns a non-zero value. */
-MVMuint32 find_internal(MVMThreadContext *tc, MVMCallStackRecord *start,
+static MVMuint32 find_internal(MVMThreadContext *tc, MVMCallStackRecord *start,
         MVMDispResumptionData *data) {
     MVMCallStackIterator iter;
     MVM_callstack_iter_dispatch_init(tc, &iter, start);
     while (MVM_callstack_iter_move_next(tc, &iter)) {
         MVMCallStackRecord *cur = MVM_callstack_iter_current(tc, &iter);
-        // TODO this for now assumes there's only a single resumable dispatch;
-        // that shall need to change
         switch (cur->kind) {
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED: {
                 MVMCallStackDispatchRecord *dr = (MVMCallStackDispatchRecord *)cur;
-                if (dr->produced_dp && dr->produced_dp->num_resumptions) {
-                    data->dp = dr->produced_dp;
-                    data->initial_arg_info = &(dr->arg_info);
-                    data->resumption = &(data->dp->resumptions[0]);
+                if (dr->produced_dp && setup_resumption(tc, data, dr->produced_dp,
+                            &(dr->arg_info), &(dr->resumption_state)))
                     return 1;
-                }
                 break;
             }
             case MVM_CALLSTACK_RECORD_DISPATCH_RUN: {
                 MVMCallStackDispatchRun *dr = (MVMCallStackDispatchRun *)cur;
-                if (dr->chosen_dp && dr->chosen_dp->num_resumptions) {
-                    data->dp = dr->chosen_dp;
-                    data->initial_arg_info = &(dr->arg_info);
-                    data->resumption = &(data->dp->resumptions[0]);
+                if (dr->chosen_dp && setup_resumption(tc, data, dr->chosen_dp,
+                            &(dr->arg_info), &(dr->resumption_state)))
                     return 1;
-                }
+                break;
             }
         }
     }
