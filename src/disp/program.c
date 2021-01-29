@@ -94,6 +94,8 @@ static void dump_recording_values(MVMThreadContext *tc, MVMDispProgramRecording 
             else if (v->guard_concreteness)
                 fprintf(stderr, "      Guard concreteness\n");
         }
+        if ((MVMint32)i == rec->new_resume_state_value)
+            fprintf(stderr, "      Used as new resume state\n");
     }
 };
 static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *record) {
@@ -154,6 +156,10 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
             case MVMDispOpcodeGuardResumeInitCallsite:
                 fprintf(stderr, "    Check resume init state callsite is %d\n",
                         op->resume_init_callsite.callsite_idx);
+                break;
+            case MVMDispOpcodeUpdateResumeState:
+                fprintf(stderr, "    Update resume state to temp %d\n",
+                        op->res_value.temp);
                 break;
             /* Opcodes that guard on values in argument slots */
             case MVMDispOpcodeGuardArgType:
@@ -929,7 +935,14 @@ void MVM_disp_program_record_set_resume_state(MVMThreadContext *tc, MVMObject *n
         MVM_exception_throw_adhoc(tc,
             "Can only use dispatcher-set-resume-state in a resume callback");
 
-    MVM_oops(tc, "setting resume state NYI");
+    /* Add a dispatch program constant entry for the updated resume state,
+     * and stash the index. */
+    MVMRegister value = { .o = new_state };
+    record->rec.new_resume_state_value = value_index_constant(tc, &(record->rec),
+            MVM_CALLSITE_ARG_OBJ, value);
+
+    /* Write the real resume state . */
+    *(record->rec.resume_state_ptr) = new_state;
 }
 
 /* Get the resume state for the current dispatch resumption; returns a VMNull
@@ -940,8 +953,7 @@ MVMObject * MVM_disp_program_record_get_resume_state(MVMThreadContext *tc) {
     if (record->rec.resume_kind == MVMDispProgramRecordingResumeNone)
         MVM_exception_throw_adhoc(tc,
             "Can only use dispatcher-get-resume-state in a resume callback");
-
-    MVM_oops(tc, "getting resume state NYI");
+    return *(record->rec.resume_state_ptr);
 }
 
 /* Ensure we're in a state where running the resume dispatcher is OK. */
@@ -975,6 +987,8 @@ void MVM_disp_program_record_resume(MVMThreadContext *tc, MVMObject *capture) {
      * the appropriate `resume` dispatcher callback. */
     record->rec.resume_kind = MVMDispProgramRecordingResumeTopmost;
     record->rec.resumption = resume_data.resumption;
+    record->rec.resume_state_ptr = resume_data.state_ptr;
+    record->rec.new_resume_state_value = -1;
     record->outcome.kind = MVM_DISP_OUTCOME_RESUME;
     record->outcome.resume_capture = capture;
 }
@@ -1606,7 +1620,8 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
 
     /* If this is a resumption, then place resume-related instructions at the
      * start of the dispatch program. */
-    if (record->rec.resume_kind != MVMDispProgramRecordingResumeNone) {
+    MVMuint32 is_resume = record->rec.resume_kind != MVMDispProgramRecordingResumeNone;
+    if (is_resume) {
         /* Initialize resume state and check it's the correct dispatcher. */
         MVMDispProgramOp op;
         op.code = record->rec.resume_kind == MVMDispProgramRecordingResumeTopmost
@@ -1636,6 +1651,15 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
         else if (v->source == MVMDispProgramRecordingAttributeValue) {
             emit_attribute_guards(tc, &cs, v, i);
         }
+    }
+
+    /* Emit any update to the resume state. */
+    if (is_resume && record->rec.new_resume_state_value >= 0) {
+        MVMuint32 temp = get_temp_holding_value(tc, &cs, record->rec.new_resume_state_value);
+        MVMDispProgramOp op;
+        op.code = MVMDispOpcodeUpdateResumeState;
+        op.res_value.temp = temp;
+        MVM_VECTOR_PUSH(cs.ops, op);
     }
 
     /* Emit required ops to deliver the dispatch outcome. */
@@ -1839,6 +1863,9 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                     goto rejection;
                 break;
             }
+            case MVMDispOpcodeUpdateResumeState:
+                *(record->resumption_data.state_ptr) = record->temps[op->res_value.temp].o;
+                break;
             /* Argument guard ops. */
             case MVMDispOpcodeGuardArgType: {
                 GET_ARG;
