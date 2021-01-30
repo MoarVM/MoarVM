@@ -924,16 +924,29 @@ MVMObject * MVM_disp_program_record_get_resume_init_args(MVMThreadContext *tc) {
     return record->rec.initial_resume_capture.capture;
 }
 
-/* Set the resume state for the current dispatch resumption. (Resume state is
- * the stateful part that changes as the dispatch progresses. We can only set
- * it in the resumption handler, not in the initial dispatch; that's what the
- * resume init args are for). */
-void MVM_disp_program_record_set_resume_state(MVMThreadContext *tc, MVMObject *new_state) {
+/* Set the resume state for the current dispatch resumption to a some already
+ * tracked value. (Resume state is the stateful part that changes as the
+ * dispatch progresses. We can only set it in the resumption handler, not in
+ * the initial dispatch; that's what the resume init args are for). */
+void MVM_disp_program_record_set_resume_state(MVMThreadContext *tc, MVMObject *tracked) {
     /* Make sure we're in a dispatcher and that we're in a resume. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
     if (record->rec.resume_kind == MVMDispProgramRecordingResumeNone)
         MVM_exception_throw_adhoc(tc,
             "Can only use dispatcher-set-resume-state in a resume callback");
+
+    MVM_panic(tc, "NYI");
+}
+
+/* Set the resume state to a literal object (which will become a dispatch
+ * program constant). This allows caching of calculations - for example, method
+ * deferral could calculate a linked list of methods to defer through. */
+void MVM_disp_program_record_set_resume_state_literal(MVMThreadContext *tc, MVMObject *new_state) {
+    /* Make sure we're in a dispatcher and that we're in a resume. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    if (record->rec.resume_kind == MVMDispProgramRecordingResumeNone)
+        MVM_exception_throw_adhoc(tc,
+            "Can only use dispatcher-set-resume-state-literal in a resume callback");
 
     /* Add a dispatch program constant entry for the updated resume state,
      * and stash the index. */
@@ -954,6 +967,19 @@ MVMObject * MVM_disp_program_record_get_resume_state(MVMThreadContext *tc) {
         MVM_exception_throw_adhoc(tc,
             "Can only use dispatcher-get-resume-state in a resume callback");
     return *(record->rec.resume_state_ptr);
+}
+
+/* Start tracking the resume state for the current dispatch resumption. This
+ * allows guarding against it, or updating it in some simple calculated way
+ * (for example, by getting an attribute of it). */
+MVMObject * MVM_disp_program_record_track_resume_state(MVMThreadContext *tc) {
+    /* Make sure we're in a dispatcher and that we're in a resume. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    if (record->rec.resume_kind == MVMDispProgramRecordingResumeNone)
+        MVM_exception_throw_adhoc(tc,
+            "Can only use dispatcher-get-resume-state in a resume callback");
+
+    MVM_panic(tc, "NYI");
 }
 
 /* Ensure we're in a state where running the resume dispatcher is OK. */
