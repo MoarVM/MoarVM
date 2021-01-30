@@ -952,14 +952,26 @@ MVMObject * MVM_disp_program_record_get_resume_init_args(MVMThreadContext *tc) {
  * tracked value. (Resume state is the stateful part that changes as the
  * dispatch progresses. We can only set it in the resumption handler, not in
  * the initial dispatch; that's what the resume init args are for). */
-void MVM_disp_program_record_set_resume_state(MVMThreadContext *tc, MVMObject *tracked) {
+void MVM_disp_program_record_set_resume_state(MVMThreadContext *tc, MVMObject *tracked_obj) {
     /* Make sure we're in a dispatcher and that we're in a resume. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
     if (record->rec.resume_kind == MVMDispProgramRecordingResumeNone)
         MVM_exception_throw_adhoc(tc,
             "Can only use dispatcher-set-resume-state in a resume callback");
 
-    MVM_panic(tc, "NYI");
+    /* Find the index of the tracked value, and also make sure that it is an
+     * object type. */
+    MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked_obj);
+    MVMTracked *tracked = (MVMTracked *)tracked_obj;
+    if (tracked->body.kind != MVM_CALLSITE_ARG_OBJ)
+        MVM_exception_throw_adhoc(tc,
+            "Can only set an object state with dispatcher-set-resume-state");
+
+    /* Register it for the sake of the dispatch program. */
+    record->rec.new_resume_state_value = value_index;
+
+    /* Write the real resume state for the sake of the recording. */
+    *(record->rec.resume_state_ptr) = tracked->body.value.o;
 }
 
 /* Set the resume state to a literal object (which will become a dispatch
@@ -978,7 +990,7 @@ void MVM_disp_program_record_set_resume_state_literal(MVMThreadContext *tc, MVMO
     record->rec.new_resume_state_value = value_index_constant(tc, &(record->rec),
             MVM_CALLSITE_ARG_OBJ, value);
 
-    /* Write the real resume state . */
+    /* Write the real resume state. */
     *(record->rec.resume_state_ptr) = new_state;
 }
 
