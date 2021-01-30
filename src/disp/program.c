@@ -80,6 +80,9 @@ static void dump_recording_values(MVMThreadContext *tc, MVMDispProgramRecording 
                 fprintf(stderr, "    %d Attribute value from offset %d of value %d \n", i,
                         v->attribute.offset, v->attribute.from_value);
                 break;
+            case MVMDispProgramRecordingResumeStateValue:
+                fprintf(stderr, "    %d Resume state\n", i);
+                break;
             default:
                 fprintf(stderr, "    %d Unknown\n", i);
         }
@@ -275,6 +278,9 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
             case MVMDispOpcodeLoadResumeInitValue:
                 fprintf(stderr, "    Load resume init state argument %d into temporary %d\n",
                         op->load.idx, op->load.temp);
+                break;
+            case MVMDispOpcodeLoadResumeState:
+                fprintf(stderr, "    Load resume state into temporary %d\n", op->load.temp);
                 break;
             case MVMDispOpcodeLoadConstantObjOrStr:
                 fprintf(stderr, "    Load collectable constant at index %d into temporary %d\n",
@@ -618,6 +624,24 @@ static MVMuint32 value_index_attribute(MVMThreadContext *tc, MVMDispProgramRecor
     new_value.attribute.from_value = from_value;
     new_value.attribute.offset = offset;
     new_value.attribute.kind = kind;
+    MVM_VECTOR_PUSH(rec->values, new_value);
+    return MVM_VECTOR_ELEMS(rec->values) - 1;
+}
+
+/* Ensures we have a values used entry for the resume state. */
+static MVMuint32 value_index_resume_state(MVMThreadContext *tc, MVMDispProgramRecording *rec) {
+    /* Look for an existing such value. */
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++) {
+        MVMDispProgramRecordingValue *v = &(rec->values[i]);
+        if (v->source == MVMDispProgramRecordingResumeStateValue)
+            return i;
+    }
+
+    /* Otherwise, we need to create the value entry. */
+    MVMDispProgramRecordingValue new_value;
+    memset(&new_value, 0, sizeof(MVMDispProgramRecordingValue));
+    new_value.source = MVMDispProgramRecordingResumeStateValue;
     MVM_VECTOR_PUSH(rec->values, new_value);
     return MVM_VECTOR_ELEMS(rec->values) - 1;
 }
@@ -979,7 +1003,15 @@ MVMObject * MVM_disp_program_record_track_resume_state(MVMThreadContext *tc) {
         MVM_exception_throw_adhoc(tc,
             "Can only use dispatcher-get-resume-state in a resume callback");
 
-    MVM_panic(tc, "NYI");
+    /* Ensure we have a value index for the resume state, and create a tracking
+     * wrapper if needed. */
+    MVMuint32 value_index = value_index_resume_state(tc, &(record->rec));
+    if (!record->rec.values[value_index].tracked) {
+        MVMRegister value = { .o = *(record->rec.resume_state_ptr) };
+        record->rec.values[value_index].tracked = MVM_tracked_create(tc,
+                value, MVM_CALLSITE_ARG_OBJ);
+    }
+    return record->rec.values[value_index].tracked;
 }
 
 /* Ensure we're in a state where running the resume dispatcher is OK. */
@@ -1261,6 +1293,9 @@ static MVMuint32 get_temp_holding_value(MVMThreadContext *tc, compile_state *cs,
             op.load.idx = v->attribute.offset;
             break;
         }
+        case MVMDispProgramRecordingResumeStateValue:
+            op.code = MVMDispOpcodeLoadResumeState;
+            break;
         default:
             MVM_oops(tc, "Did not yet implement temporary loading for this value source");
     }
@@ -1459,6 +1494,12 @@ static void emit_attribute_guards(MVMThreadContext *tc, compile_state *cs,
     MVMuint32 temp = get_temp_holding_value(tc, cs, value_index);
     MVMRegister value = ((MVMTracked *)v->tracked)->body.value;
     emit_loaded_value_guards(tc, cs, v, temp, value, v->attribute.kind);
+}
+static void emit_resume_state_guards(MVMThreadContext *tc, compile_state *cs,
+        MVMDispProgramRecordingValue *v, MVMuint32 value_index) {
+    MVMuint32 temp = get_temp_holding_value(tc, cs, value_index);
+    MVMRegister value = ((MVMTracked *)v->tracked)->body.value;
+    emit_loaded_value_guards(tc, cs, v, temp, value, MVM_CALLSITE_ARG_OBJ);
 }
 static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         compile_state *cs, MVMuint32 callsite_idx) {
@@ -1676,6 +1717,9 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
         }
         else if (v->source == MVMDispProgramRecordingAttributeValue) {
             emit_attribute_guards(tc, &cs, v, i);
+        }
+        else if (v->source == MVMDispProgramRecordingResumeStateValue) {
+            emit_resume_state_guards(tc, &cs, v, i);
         }
     }
 
@@ -2027,6 +2071,9 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
             case MVMDispOpcodeLoadResumeInitValue:
                 record->temps[op->load.temp] = MVM_disp_resume_get_init_arg(tc,
                         &(record->resumption_data), op->load.idx);
+                break;
+            case MVMDispOpcodeLoadResumeState:
+                record->temps[op->load.temp].o = *(record->resumption_data.state_ptr);
                 break;
             case MVMDispOpcodeLoadConstantObjOrStr:
                 record->temps[op->load.temp].o = (MVMObject *)dp->gc_constants[op->load.idx];
