@@ -93,7 +93,9 @@ typedef enum {
     /* A literal constant value. */
     MVMDispProgramRecordingLiteralValue,
     /* A read of an attribute from a dependent value. */
-    MVMDispProgramRecordingAttributeValue
+    MVMDispProgramRecordingAttributeValue,
+    /* The resume state for this dispatcher. */
+    MVMDispProgramRecordingResumeStateValue
 } MVMDispProgramRecordingValueSource;
 struct MVMDispProgramRecordingValue {
     /* The source of the value, which determines which part of the union below
@@ -327,6 +329,8 @@ typedef enum {
     MVMDispOpcodeLoadCaptureValue,
     /* Load an resumption initialization state value into a temporary. */
     MVMDispOpcodeLoadResumeInitValue,
+    /* Load the resumption state into a temporary. */
+    MVMDispOpcodeLoadResumeState,
     /* Load a constant object or string into a temporary. */
     MVMDispOpcodeLoadConstantObjOrStr,
     /* Load a constant int into a temporary. */
