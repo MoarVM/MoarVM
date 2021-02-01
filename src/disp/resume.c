@@ -77,6 +77,17 @@ MVMuint32 MVM_disp_resume_find_topmost(MVMThreadContext *tc, MVMDispResumptionDa
     return find_internal(tc, tc->stack_top, data);
 }
 
+/* Skip to our caller, and then find the current dispatch. */
+MVMuint32 MVM_disp_resume_find_caller(MVMThreadContext *tc, MVMDispResumptionData *data) {
+    MVMCallStackIterator iter;
+    MVM_callstack_iter_frame_init(tc, &iter, tc->stack_top);
+    if (!MVM_callstack_iter_move_next(tc, &iter)) // Current frame
+        return 0;
+    if (!MVM_callstack_iter_move_next(tc, &iter)) // Caller frame
+        return 0;
+    return find_internal(tc, MVM_callstack_iter_current(tc, &iter), data);
+}
+
 /* Get the resume initialization state argument at the specified index. */
 MVMRegister MVM_disp_resume_get_init_arg(MVMThreadContext *tc, MVMDispResumptionData *data,
                                          MVMuint32 arg_idx) {
