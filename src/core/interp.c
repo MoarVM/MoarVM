@@ -7,8 +7,8 @@
 #if MVM_GC_DEBUG >= 2
 MVM_STATIC_INLINE MVMuint16 check_reg(MVMThreadContext *tc, MVMRegister *reg_base, MVMuint16 idx) {
     MVMFrame *f = tc->cur_frame;
-    MVMuint16 kind = f->spesh_cand && f->spesh_cand->local_types
-        ? f->spesh_cand->local_types[idx]
+    MVMuint16 kind = f->spesh_cand && f->spesh_cand->body.local_types
+        ? f->spesh_cand->body.local_types[idx]
         : f->static_info->body.local_types[idx];
     if (kind == MVM_reg_obj || kind == MVM_reg_str)
         MVM_ASSERT_NOT_FROMSPACE(tc, reg_base[idx].o);
@@ -24,8 +24,8 @@ MVM_STATIC_INLINE MVMuint16 check_reg(MVMThreadContext *tc, MVMRegister *reg_bas
 #endif
 #if MVM_GC_DEBUG >= 2
 MVM_STATIC_INLINE MVMuint16 check_lex(MVMThreadContext *tc, MVMFrame *f, MVMuint16 idx) {
-    MVMuint16 kind = f->spesh_cand && f->spesh_cand->lexical_types
-        ? f->spesh_cand->lexical_types[idx]
+    MVMuint16 kind = f->spesh_cand && f->spesh_cand->body.lexical_types
+        ? f->spesh_cand->body.lexical_types[idx]
         : f->static_info->body.lexical_types[idx];
     if (kind == MVM_reg_obj || kind == MVM_reg_str)
         MVM_ASSERT_NOT_FROMSPACE(tc, f->env[idx].o);
@@ -379,8 +379,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     f = f->outer;
                     outers--;
                 }
-                lexical_types = f->spesh_cand && f->spesh_cand->lexical_types
-                    ? f->spesh_cand->lexical_types
+                lexical_types = f->spesh_cand && f->spesh_cand->body.lexical_types
+                    ? f->spesh_cand->body.lexical_types
                     : f->static_info->body.lexical_types;
                 if (lexical_types[idx] == MVM_reg_obj) {
                     MVMRegister found = GET_LEX(cur_op, 2, f);
@@ -400,8 +400,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindlex): {
                 MVMFrame *f = tc->cur_frame;
                 MVMuint16 outers = GET_UI16(cur_op, 2);
-                MVMuint16 kind = f->spesh_cand && f->spesh_cand->local_types
-                    ? f->spesh_cand->local_types[GET_UI16(cur_op, 4)]
+                MVMuint16 kind = f->spesh_cand && f->spesh_cand->body.local_types
+                    ? f->spesh_cand->body.local_types[GET_UI16(cur_op, 4)]
                     : f->static_info->body.local_types[GET_UI16(cur_op, 4)];
                 while (outers) {
                     if (!f->outer)
@@ -6422,7 +6422,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_jit_enter): {
-                MVMJitCode *jc = tc->cur_frame->spesh_cand->jitcode;
+                MVMJitCode *jc = tc->cur_frame->spesh_cand->body.jitcode;
                 if (MVM_UNLIKELY(jc == NULL)) {
                     MVM_exception_throw_adhoc(tc, "Try to enter NULL jitcode");
                 }

@@ -2,7 +2,7 @@
 MVM_STATIC_INLINE MVMuint8 * MVM_frame_effective_bytecode(MVMFrame *f) {
     MVMSpeshCandidate *spesh_cand = f->spesh_cand;
     if (spesh_cand)
-        return spesh_cand->jitcode ? spesh_cand->jitcode->bytecode : spesh_cand->bytecode;
+        return spesh_cand->body.jitcode ? spesh_cand->body.jitcode->bytecode : spesh_cand->body.bytecode;
     return f->static_info->body.bytecode;
 }
 

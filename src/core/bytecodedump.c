@@ -73,8 +73,8 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
 
     /* mostly stolen from validation.c */
     MVMStaticFrame *static_frame = frame;
-    MVMuint32 bytecode_size = maybe_candidate ? maybe_candidate->bytecode_size : static_frame->body.bytecode_size;
-    MVMuint8 *bytecode_start = maybe_candidate ? maybe_candidate->bytecode : static_frame->body.bytecode;
+    MVMuint32 bytecode_size = maybe_candidate ? maybe_candidate->body.bytecode_size : static_frame->body.bytecode_size;
+    MVMuint8 *bytecode_start = maybe_candidate ? maybe_candidate->body.bytecode : static_frame->body.bytecode;
     MVMuint8 *bytecode_end = bytecode_start + bytecode_size;
     /* current position in the bytestream */
     MVMuint8 *cur_op = bytecode_start;
@@ -257,8 +257,8 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
             }
             else if (op_rw == MVM_operand_read_reg || op_rw == MVM_operand_write_reg) {
                 /* register operand */
-                MVMuint8 frame_has_inlines = maybe_candidate && maybe_candidate->num_inlines ? 1 : 0;
-                MVMuint16 *local_types = frame_has_inlines ? maybe_candidate->local_types : frame->body.local_types;
+                MVMuint8 frame_has_inlines = maybe_candidate && maybe_candidate->body.num_inlines ? 1 : 0;
+                MVMuint16 *local_types = frame_has_inlines ? maybe_candidate->body.local_types : frame->body.local_types;
                 operand_size = 2;
                 a("loc_%u_%s", GET_REG(cur_op, 0),
                     local_types ? get_typename(local_types[GET_REG(cur_op, 0)]) : "unknown");
@@ -536,7 +536,7 @@ void MVM_dump_bytecode(MVMThreadContext *tc) {
         /*MVMuint8 found = 0;*/
         /*for (spesh_cand_idx = 0; spesh_cand_idx < sf->body.num_spesh_candidates; spesh_cand_idx++) {*/
             /*MVMSpeshCandidate *cand = sf->body.spesh_candidates[spesh_cand_idx];*/
-            /*if (cand->bytecode == effective_bytecode) {*/
+            /*if (cand->body.bytecode == effective_bytecode) {*/
                 /*MVM_dump_bytecode_of(tc, tc->cur_frame, cand);*/
                 /*found = 1;*/
             /*}*/
@@ -564,7 +564,7 @@ void MVM_dump_bytecode_stackframe(MVMThreadContext *tc, MVMint32 depth) {
         MVMStaticFrameSpesh *spesh = sf->body.spesh;
         for (spesh_cand_idx = 0; spesh_cand_idx < spesh->body.num_spesh_candidates; spesh_cand_idx++) {
             MVMSpeshCandidate *cand = spesh->body.spesh_candidates[spesh_cand_idx];
-            if (cand->bytecode == effective_bytecode) {
+            if (cand->body.bytecode == effective_bytecode) {
                 MVM_dump_bytecode_of(tc, frame, cand);
             }
         }

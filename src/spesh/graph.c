@@ -1330,29 +1330,29 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     /* Create top-level graph object. */
     MVMSpeshGraph *g     = MVM_calloc(1, sizeof(MVMSpeshGraph));
     g->sf                = sf;
-    g->bytecode          = cand->bytecode;
-    g->bytecode_size     = cand->bytecode_size;
-    g->handlers          = cand->handlers;
-    g->num_handlers      = cand->num_handlers;
-    g->num_locals        = cand->num_locals;
-    g->num_lexicals      = cand->num_lexicals;
-    g->inlines           = cand->inlines;
-    g->num_inlines       = cand->num_inlines;
-    g->deopt_addrs       = cand->deopts;
-    g->num_deopt_addrs   = cand->num_deopts;
-    g->alloc_deopt_addrs = cand->num_deopts;
-    g->deopt_named_used_bit_field = cand->deopt_named_used_bit_field;
-    g->deopt_pea         = cand->deopt_pea;
-    g->local_types       = cand->local_types;
-    g->lexical_types     = cand->lexical_types;
-    g->num_spesh_slots   = cand->num_spesh_slots;
-    g->alloc_spesh_slots = cand->num_spesh_slots;
+    g->bytecode          = cand->body.bytecode;
+    g->bytecode_size     = cand->body.bytecode_size;
+    g->handlers          = cand->body.handlers;
+    g->num_handlers      = cand->body.num_handlers;
+    g->num_locals        = cand->body.num_locals;
+    g->num_lexicals      = cand->body.num_lexicals;
+    g->inlines           = cand->body.inlines;
+    g->num_inlines       = cand->body.num_inlines;
+    g->deopt_addrs       = cand->body.deopts;
+    g->num_deopt_addrs   = cand->body.num_deopts;
+    g->alloc_deopt_addrs = cand->body.num_deopts;
+    g->deopt_named_used_bit_field = cand->body.deopt_named_used_bit_field;
+    g->deopt_pea         = cand->body.deopt_pea;
+    g->local_types       = cand->body.local_types;
+    g->lexical_types     = cand->body.lexical_types;
+    g->num_spesh_slots   = cand->body.num_spesh_slots;
+    g->alloc_spesh_slots = cand->body.num_spesh_slots;
     g->phi_infos         = MVM_spesh_alloc(tc, g, MVMPhiNodeCacheSize * sizeof(MVMOpInfo));
     g->cand              = cand;
 
     g->spesh_slots       = MVM_malloc(g->alloc_spesh_slots * sizeof(MVMCollectable *));
 
-    memcpy(g->spesh_slots, cand->spesh_slots, sizeof(MVMCollectable *) * g->num_spesh_slots);
+    memcpy(g->spesh_slots, cand->body.spesh_slots, sizeof(MVMCollectable *) * g->num_spesh_slots);
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (sf->body.instrumentation_level == 0) {
@@ -1361,7 +1361,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     }
 
     /* Build the CFG out of the static frame, and transform it to SSA. */
-    build_cfg(tc, g, sf, cand->deopts, cand->num_deopts, cand->deopt_usage_info,
+    build_cfg(tc, g, sf, cand->body.deopts, cand->body.num_deopts, cand->body.deopt_usage_info,
             deopt_usage_ins_out);
     if (!cfg_only) {
         MVM_spesh_eliminate_dead_bbs(tc, g, 0);
@@ -1433,6 +1433,10 @@ void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist 
     /* Mark inlines. */
     for (i = 0; i < g->num_inlines; i++)
         MVM_gc_worklist_add(tc, worklist, &(g->inlines[i].sf));
+
+    /* Mark spesh candidate. */
+    if (g->cand)
+        MVM_gc_worklist_add(tc, worklist, &(g->cand));
 }
 
 /* Describes GCables for a heap snapshot. */
@@ -1478,15 +1482,15 @@ void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* If there is a candidate that we either generated or that this graph was
      * generated from, it has ownership of the malloc'd memory. If not, then we
      * need to clean up */
-    if (g->spesh_slots && (!g->cand || g->cand->spesh_slots != g->spesh_slots))
+    if (g->spesh_slots && (!g->cand || g->cand->body.spesh_slots != g->spesh_slots))
         MVM_free(g->spesh_slots);
-    if (g->deopt_addrs && (!g->cand || g->cand->deopts != g->deopt_addrs))
+    if (g->deopt_addrs && (!g->cand || g->cand->body.deopts != g->deopt_addrs))
         MVM_free(g->deopt_addrs);
-    if (g->inlines && (!g->cand || g->cand->inlines != g->inlines))
+    if (g->inlines && (!g->cand || g->cand->body.inlines != g->inlines))
         MVM_free(g->inlines);
-    if (g->local_types &&  (!g->cand || g->cand->local_types != g->local_types))
+    if (g->local_types &&  (!g->cand || g->cand->body.local_types != g->local_types))
         MVM_free(g->local_types);
-    if (g->lexical_types &&  (!g->cand || g->cand->lexical_types != g->lexical_types))
+    if (g->lexical_types &&  (!g->cand || g->cand->body.lexical_types != g->lexical_types))
         MVM_free(g->lexical_types);
     if (!g->cand)
         MVM_spesh_pea_destroy_deopt_info(tc, &(g->deopt_pea));
@@ -1494,7 +1498,7 @@ void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g) {
     /* Handlers can come directly from static frame, from spesh candidate, and
      * from malloc/realloc. We only free it in the last case */
     if (g->handlers && g->handlers != g->sf->body.handlers &&
-        (!g->cand || g->cand->handlers != g->handlers))
+        (!g->cand || g->cand->body.handlers != g->handlers))
         MVM_free(g->handlers);
 
     /* Free the graph itself. */

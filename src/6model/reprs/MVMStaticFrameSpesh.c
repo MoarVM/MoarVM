@@ -28,20 +28,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_spesh_stats_gc_mark(tc, body->spesh_stats, worklist);
     MVM_spesh_arg_guard_gc_mark(tc, body->spesh_arg_guard, worklist);
     if (body->num_spesh_candidates) {
-        MVMuint32 i, j;
+        MVMuint32 i;
         for (i = 0; i < body->num_spesh_candidates; i++) {
-            if (body->spesh_candidates[i]->type_tuple) {
-                for (j = 0; j < body->spesh_candidates[i]->cs->flag_count; j++) {
-                    MVM_gc_worklist_add(tc, worklist,
-                        &body->spesh_candidates[i]->type_tuple[j].type);
-                    MVM_gc_worklist_add(tc, worklist,
-                        &body->spesh_candidates[i]->type_tuple[j].decont_type);
-                }
-            }
-            for (j = 0; j < body->spesh_candidates[i]->num_spesh_slots; j++)
-                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]->spesh_slots[j]);
-            for (j = 0; j < body->spesh_candidates[i]->num_inlines; j++)
-                MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]->inlines[j].sf);
+            MVM_gc_worklist_add(tc, worklist, &body->spesh_candidates[i]);
         }
     }
     MVM_gc_worklist_add(tc, worklist, &body->plugin_state);
@@ -50,16 +39,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMStaticFrameSpesh *sfs = (MVMStaticFrameSpesh *)obj;
-    MVMuint32 i;
     MVM_spesh_stats_destroy(tc, sfs->body.spesh_stats);
     MVM_free(sfs->body.spesh_stats);
     MVM_spesh_arg_guard_destroy(tc, sfs->body.spesh_arg_guard, 0);
-    for (i = 0; i < sfs->body.num_spesh_candidates; i++)
-        MVM_spesh_candidate_destroy(tc, sfs->body.spesh_candidates[i]);
-    if (sfs->body.spesh_candidates)
-        MVM_fixed_size_free(tc, tc->instance->fsa,
-            sfs->body.num_spesh_candidates * sizeof(MVMSpeshCandidate *),
-            sfs->body.spesh_candidates);
 }
 
 static const MVMStorageSpec storage_spec = {
@@ -87,67 +69,10 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMStaticFrameSpesh);
 }
 
-/* Calculates the non-GC-managed memory we hold on to. */
-static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
-    MVMStaticFrameSpeshBody *body = (MVMStaticFrameSpeshBody *)data;
-    MVMuint64 size = 0;
-    MVMuint32 spesh_idx;
-    for (spesh_idx = 0; spesh_idx < body->num_spesh_candidates; spesh_idx++) {
-        MVMSpeshCandidate *cand = body->spesh_candidates[spesh_idx];
-
-        size += cand->bytecode_size;
-
-        size += sizeof(MVMFrameHandler) * cand->num_handlers;
-
-        size += sizeof(MVMCollectable *) * cand->num_spesh_slots;
-
-        size += sizeof(MVMint32) * cand->num_deopts;
-
-        size += sizeof(MVMSpeshInline) * cand->num_inlines;
-
-        size += sizeof(MVMuint16) * (cand->num_locals + cand->num_lexicals);
-
-        /* XXX probably don't need to measure the bytecode size here,
-         * as it's probably just a pointer to the same bytecode we have in
-         * the static frame anyway. */
-
-        /* Dive into the jit code */
-        if (cand->jitcode) {
-            MVMJitCode *code = cand->jitcode;
-
-            size += sizeof(MVMJitCode);
-
-            size += sizeof(void *) * code->num_labels;
-
-            size += sizeof(MVMJitDeopt) * code->num_deopts;
-            size += sizeof(MVMJitInline) * code->num_inlines;
-            size += sizeof(MVMJitHandler) * code->num_handlers;
-            if (code->local_types)
-                size += sizeof(MVMuint16) * code->num_locals;
-        }
-    }
-    return size;
-}
-
 static void describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
     MVMStaticFrameSpeshBody *body = (MVMStaticFrameSpeshBody *)data;
 
     MVM_spesh_stats_gc_describe(tc, ss, body->spesh_stats);
-    MVM_spesh_arg_guard_gc_describe(tc, ss, body->spesh_arg_guard);
-
-    if (body->num_spesh_candidates) {
-        MVMuint32 i, j;
-        for (i = 0; i < body->num_spesh_candidates; i++) {
-            for (j = 0; j < body->spesh_candidates[i]->num_spesh_slots; j++)
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->spesh_candidates[i]->spesh_slots[j],
-                    "Spesh slot entry");
-            for (j = 0; j < body->spesh_candidates[i]->num_inlines; j++)
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)body->spesh_candidates[i]->inlines[j].sf,
-                    "Spesh inlined static frame");
-        }
-    }
 }
 
 /* Initializes the representation. */
@@ -181,6 +106,6 @@ static const MVMREPROps StaticFrameSpesh_this_repr = {
     NULL, /* spesh */
     "MVMStaticFrameSpesh", /* name */
     MVM_REPR_ID_MVMStaticFrameSpesh,
-    unmanaged_size,
+    NULL, /* unmanaged_size */
     describe_refs
 };

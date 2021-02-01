@@ -414,6 +414,7 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
     MVM_gc_worklist_add(tc, worklist, &cur_frame->outer);
     MVM_gc_worklist_add(tc, worklist, &cur_frame->code_ref);
     MVM_gc_worklist_add(tc, worklist, &cur_frame->static_info);
+    MVM_gc_worklist_add(tc, worklist, &cur_frame->spesh_cand);
 
     /* Mark frame extras if needed. */
     if (cur_frame->extra) {
@@ -448,13 +449,13 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
         /* Scan locals. */
 
         MVMSpeshCandidate *spesh_cand = frame->spesh_cand;
-        MVMJitCode *jitcode = spesh_cand ? spesh_cand->jitcode : NULL;
+        MVMJitCode *jitcode = spesh_cand ? spesh_cand->body.jitcode : NULL;
         if (jitcode && jitcode->local_types) {
             type_map = jitcode->local_types;
             count    = jitcode->num_locals;
-        } else if (frame->spesh_cand && frame->spesh_cand->local_types) {
-            type_map = frame->spesh_cand->local_types;
-            count    = frame->spesh_cand->num_locals;
+        } else if (spesh_cand && spesh_cand->body.local_types) {
+            type_map = spesh_cand->body.local_types;
+            count    = spesh_cand->body.num_locals;
         }
         else {
             type_map = frame->static_info->body.local_types;
@@ -503,9 +504,9 @@ static void scan_lexicals(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFram
     if (frame->env) {
         MVMuint16  i, count;
         MVMuint16 *type_map;
-        if (frame->spesh_cand && frame->spesh_cand->lexical_types) {
-            type_map = frame->spesh_cand->lexical_types;
-            count    = frame->spesh_cand->num_lexicals;
+        if (frame->spesh_cand && frame->spesh_cand->body.lexical_types) {
+            type_map = frame->spesh_cand->body.lexical_types;
+            count    = frame->spesh_cand->body.num_lexicals;
         }
         else {
             type_map = frame->static_info->body.lexical_types;

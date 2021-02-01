@@ -643,6 +643,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     create_stub_boot_type(tc, MVM_REPR_ID_MVMSpeshLog, SpeshLog, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMStaticFrameSpesh, StaticFrameSpesh, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
     create_stub_boot_type(tc, MVM_REPR_ID_MVMSpeshPluginState, SpeshPluginState, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
+    create_stub_boot_type(tc, MVM_REPR_ID_MVMSpeshCandidate, SpeshCandidate, 0, MVM_BOOL_MODE_NOT_TYPE_OBJECT);
 
     /* Bootstrap the KnowHOW type, giving it a meta-object. */
     bootstrap_KnowHOW(tc);
@@ -679,6 +680,7 @@ void MVM_6model_bootstrap(MVMThreadContext *tc) {
     meta_objectifier(tc, SpeshLog, "SpeshLog");
     meta_objectifier(tc, StaticFrameSpesh, "StaticFrameSpesh");
     meta_objectifier(tc, SpeshPluginState, "SpeshPluginState");
+    meta_objectifier(tc, SpeshCandidate, "SpeshCandidate");
 
     /* Create the KnowHOWAttribute type. */
     create_KnowHOWAttribute(tc);

@@ -58,6 +58,7 @@ sixmodel_types = [
 'struct MVMString *',
 'struct MVMThread *',
 'struct MVMUninstantiable *',
+'struct MVMSpeshCandidate *',
 ]
 
 gen2_allocated_types = [

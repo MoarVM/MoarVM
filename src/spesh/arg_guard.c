@@ -156,7 +156,7 @@ static MVMuint32 add_nodes_for_typed_argument(MVMThreadContext *tc,
         for (i = 0; i < num_valid_candidates; i++) {
             /* See if we already have a type for this. */
             MVMint32 found = -1;
-            MVMSpeshStatsType type_info = candidates[valid_candidates[i]]->type_tuple[type_index];
+            MVMSpeshStatsType type_info = candidates[valid_candidates[i]]->body.type_tuple[type_index];
             MVMObject *search_type = consider_decont_type
                 ? type_info.decont_type
                 : type_info.type;
@@ -330,12 +330,12 @@ void MVM_spesh_arg_guard_regenerate(MVMThreadContext *tc, MVMSpeshArgGuard **gua
         /* Skip discarded candidates. */
         MVMSpeshCandidate *cand = candidates[i];
         MVMint32 found = -1;
-        if (cand->discarded)
+        if (cand->body.discarded)
             continue;
 
         /* See if we already have a candidate for this. */
         for (j = 0; j < MVM_VECTOR_ELEMS(by_callsite); j++) {
-            if (by_callsite[j].cs == cand->cs) {
+            if (by_callsite[j].cs == cand->body.cs) {
                 found = j;
                 break;
             }
@@ -345,7 +345,7 @@ void MVM_spesh_arg_guard_regenerate(MVMThreadContext *tc, MVMSpeshArgGuard **gua
         if (found == -1) {
             /* Create the entry. */
             CallsiteCandidates cc;
-            cc.cs = cand->cs;
+            cc.cs = cand->body.cs;
             cc.certain_idx = -1;
             MVM_VECTOR_INIT(cc.typed_idxs, num_spesh_candidates);
             found = MVM_VECTOR_ELEMS(by_callsite);
@@ -356,9 +356,9 @@ void MVM_spesh_arg_guard_regenerate(MVMThreadContext *tc, MVMSpeshArgGuard **gua
         }
 
         /* Add this specialization to it. */
-        if (cand->type_tuple) {
+        if (cand->body.type_tuple) {
             MVM_VECTOR_PUSH(by_callsite[found].typed_idxs, i);
-            tree_size += max_typed_nodes(cand->cs, cand->type_tuple);
+            tree_size += max_typed_nodes(cand->body.cs, cand->body.type_tuple);
         }
         else {
             by_callsite[found].certain_idx = i;

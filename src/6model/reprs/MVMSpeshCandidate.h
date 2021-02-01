@@ -1,10 +1,10 @@
 /* A specialization candidate. */
-struct MVMSpeshCandidate {
+struct MVMSpeshCandidateBody {
     /* The callsite that this specialization is for. */
     MVMCallsite *cs;
 
-    /* The type type that this specialization is for, or NULL if it's a
-     * certian specialization. */
+    /* The type tuple that this specialization is for, or NULL if it's a
+     * certain specialization. */
     MVMSpeshStatsType *type_tuple;
 
     /* Has the candidated been discarded? */
@@ -77,7 +77,14 @@ struct MVMSpeshCandidate {
     MVMint32 *deopt_usage_info;
 };
 
+struct MVMSpeshCandidate {
+    MVMObject common;
+    MVMSpeshCandidateBody body;
+};
+
+/* Function for REPR setup. */
+const MVMREPROps * MVMSpeshCandidate_initialize(MVMThreadContext *tc);
+
 /* Functions for creating and clearing up specializations. */
 void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p);
-void MVM_spesh_candidate_destroy(MVMThreadContext *tc, MVMSpeshCandidate *candidate);
 void MVM_spesh_candidate_discard_existing(MVMThreadContext *tc, MVMStaticFrame *sf);

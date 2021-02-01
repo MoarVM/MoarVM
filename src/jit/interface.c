@@ -48,7 +48,7 @@ void MVM_jit_code_set_current_position(MVMThreadContext *tc, MVMJitCode *code, M
 
 void MVM_jit_code_trampoline(MVMThreadContext *tc) {
     if (tc->jit_return_address != NULL) {
-        MVMJitCode *code  = tc->cur_frame->spesh_cand->jitcode;
+        MVMJitCode *code  = tc->cur_frame->spesh_cand->body.jitcode;
         void *reentry_label = *tc->jit_return_address;
         assert_within_region(tc, code, reentry_label);
         /* Store our current position */

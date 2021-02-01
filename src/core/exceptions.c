@@ -10,7 +10,7 @@ static int crash_on_error = 0;
 /* Function for getting effective (specialized or not) frame handlers. */
 MVM_STATIC_INLINE MVMFrameHandler * MVM_frame_effective_handlers(MVMFrame *f) {
     MVMSpeshCandidate *spesh_cand = f->spesh_cand;
-    return spesh_cand ? spesh_cand->handlers : f->static_info->body.handlers;
+    return spesh_cand ? spesh_cand->body.handlers : f->static_info->body.handlers;
 }
 
 /* Maps ID of exception category to its name. */
@@ -100,10 +100,10 @@ static MVMint32 search_frame_handlers_dyn(MVMThreadContext *tc, MVMFrame *f,
                                           MVMuint32 cat, MVMObject *payload,
                                           LocatedHandler *lh) {
     MVMuint32  i;
-    if (f->spesh_cand && f->spesh_cand->jitcode && f->jit_entry_label) {
-        MVMJitCode *jitcode = f->spesh_cand->jitcode;
+    if (f->spesh_cand && f->spesh_cand->body.jitcode && f->jit_entry_label) {
+        MVMJitCode *jitcode = f->spesh_cand->body.jitcode;
         void *current_position = MVM_jit_code_get_current_position(tc, jitcode, f);
-        MVMJitHandler    *jhs = f->spesh_cand->jitcode->handlers;
+        MVMJitHandler    *jhs = f->spesh_cand->body.jitcode->handlers;
         MVMFrameHandler  *fhs = MVM_frame_effective_handlers(f);
         for (i = MVM_jit_code_get_active_handlers(tc, jitcode, current_position, 0);
              i < jitcode->num_handlers;
@@ -117,7 +117,7 @@ static MVMint32 search_frame_handlers_dyn(MVMThreadContext *tc, MVMFrame *f,
         }
     } else {
         MVMuint32 num_handlers = f->spesh_cand
-            ? f->spesh_cand->num_handlers
+            ? f->spesh_cand->body.num_handlers
             : f->static_info->body.num_handlers;
         MVMuint32 pc;
         if (f == tc->cur_frame)
@@ -175,8 +175,8 @@ static MVMint32 search_frame_handlers_lex(MVMThreadContext *tc, MVMFrame *f,
     MVMuint32 i;
     MVMuint32 skipping = *skip_first_inlinee;
     MVMFrameHandler *fhs = MVM_frame_effective_handlers(f);
-    if (f->spesh_cand && f->spesh_cand->jitcode && f->jit_entry_label) {
-        MVMJitCode *jitcode = f->spesh_cand->jitcode;
+    if (f->spesh_cand && f->spesh_cand->body.jitcode && f->jit_entry_label) {
+        MVMJitCode *jitcode = f->spesh_cand->body.jitcode;
         void *current_position = MVM_jit_code_get_current_position(tc, jitcode, f);
         MVMJitHandler    *jhs = jitcode->handlers;
         for (i = MVM_jit_code_get_active_handlers(tc, jitcode, current_position, 0);
@@ -191,7 +191,7 @@ static MVMint32 search_frame_handlers_lex(MVMThreadContext *tc, MVMFrame *f,
                     *skip_first_inlinee = 0;
                 }
                 else {
-                    MVMuint16 cr_reg = f->spesh_cand->inlines[fh->inlinee].code_ref_reg;
+                    MVMuint16 cr_reg = f->spesh_cand->body.inlines[fh->inlinee].code_ref_reg;
                     MVMFrame *inline_outer = ((MVMCode *)f->work[cr_reg].o)->body.outer;
                     if (inline_outer == f) {
                         skip_all_inlinees = 1;
@@ -215,7 +215,7 @@ static MVMint32 search_frame_handlers_lex(MVMThreadContext *tc, MVMFrame *f,
     }
     else {
         MVMuint32 num_handlers = f->spesh_cand
-            ? f->spesh_cand->num_handlers
+            ? f->spesh_cand->body.num_handlers
             : f->static_info->body.num_handlers;
         MVMuint32 pc;
         if (f == tc->cur_frame)
@@ -233,7 +233,7 @@ static MVMint32 search_frame_handlers_lex(MVMThreadContext *tc, MVMFrame *f,
                         *skip_first_inlinee = 0;
                     }
                     else {
-                        MVMuint16 cr_reg = f->spesh_cand->inlines[fh->inlinee].code_ref_reg;
+                        MVMuint16 cr_reg = f->spesh_cand->body.inlines[fh->inlinee].code_ref_reg;
                         MVMFrame *inline_outer = ((MVMCode *)f->work[cr_reg].o)->body.outer;
                         if (inline_outer == f) {
                             skip_all_inlinees = 1;
@@ -348,8 +348,8 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
     case MVM_EX_ACTION_GOTO:
         if (lh.jit_handler) {
-            void **labels = lh.frame->spesh_cand->jitcode->labels;
-            MVMuint8  *pc = lh.frame->spesh_cand->jitcode->bytecode;
+            void **labels = lh.frame->spesh_cand->body.jitcode->labels;
+            MVMuint8  *pc = lh.frame->spesh_cand->body.jitcode->bytecode;
             MVM_frame_unwind_to(tc, lh.frame, pc, 0, NULL, labels[lh.jit_handler->goto_label]);
         } else {
             MVM_frame_unwind_to(tc, lh.frame, NULL, lh.handler->goto_offset, NULL, NULL);
@@ -428,9 +428,9 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     frame       = ah->frame;
     exception   = (MVMException *)ah->ex_obj;
     if (ah->jit_handler) {
-        void **labels = frame->spesh_cand->jitcode->labels;
+        void **labels = frame->spesh_cand->body.jitcode->labels;
         jit_return_label = labels[ah->jit_handler->goto_label];
-        abs_address = frame->spesh_cand->jitcode->bytecode;
+        abs_address = frame->spesh_cand->body.jitcode->bytecode;
         goto_offset = 0;
     }
     else {
@@ -762,7 +762,7 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
         ex->body.resume_addr = *tc->interp_cur_op;
         /* Ensure that we store label where the JIT should return, if any */
         if (tc->jit_return_address != NULL) {
-            ex->body.jit_resume_label = MVM_jit_code_get_current_position(tc, tc->cur_frame->spesh_cand->jitcode, tc->cur_frame);
+            ex->body.jit_resume_label = MVM_jit_code_get_current_position(tc, tc->cur_frame->spesh_cand->body.jitcode, tc->cur_frame);
         }
     }
     lh = search_for_handler_from(tc, tc->cur_frame, mode, ex->body.category, ex->body.payload);
