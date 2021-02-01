@@ -1033,49 +1033,46 @@ static void ensure_resume_ok(MVMThreadContext *tc, MVMCallStackDispatchRecord *r
 }
 
 /* Record the resumption of a dispatch. */
-void MVM_disp_program_record_resume(MVMThreadContext *tc, MVMObject *capture) {
+void record_resume(MVMThreadContext *tc, MVMObject *capture, MVMDispResumptionData *resume_data,
+        MVMDispProgramRecordingResumeKind resume_kind) {
     /* Make sure we're in a dispatcher and that we didn't already call resume. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
     ensure_resume_ok(tc, record);
     ensure_known_capture(tc, record, capture);
 
-    /* Resolve the dispatch that we're going to be resuming. */
-    MVMDispResumptionData resume_data;
-    if (!MVM_disp_resume_find_topmost(tc, &resume_data))
-        MVM_exception_throw_adhoc(tc, "No resumable dispatch in dynamic scope");
-
     /* Set up the resume initial capture record. */
     MVMROOT(tc, capture, {
         record->rec.initial_resume_capture.transformation = MVMDispProgramRecordingResumeInitial;
         record->rec.initial_resume_capture.capture = MVM_capture_from_args(tc,
-                *(resume_data.initial_arg_info));
+                *(resume_data->initial_arg_info));
         MVM_VECTOR_INIT(record->rec.initial_resume_capture.captures, 4);
     });
     record->rec.initial_resume_capture.transformation = MVMDispProgramRecordingResumeInitial;
 
     /* Record the kind of dispatch resumption we're doing, and then delegate to
      * the appropriate `resume` dispatcher callback. */
-    record->rec.resume_kind = MVMDispProgramRecordingResumeTopmost;
-    record->rec.resumption = resume_data.resumption;
-    record->rec.resume_state_ptr = resume_data.state_ptr;
+    record->rec.resume_kind = resume_kind;
+    record->rec.resumption = resume_data->resumption;
+    record->rec.resume_state_ptr = resume_data->state_ptr;
     record->rec.new_resume_state_value = -1;
     record->outcome.kind = MVM_DISP_OUTCOME_RESUME;
     record->outcome.resume_capture = capture;
 }
 
+/* Record the resumption of the topmost dispatch. */
+void MVM_disp_program_record_resume(MVMThreadContext *tc, MVMObject *capture) {
+    MVMDispResumptionData resume_data;
+    if (!MVM_disp_resume_find_topmost(tc, &resume_data))
+        MVM_exception_throw_adhoc(tc, "No resumable dispatch in dynamic scope");
+    record_resume(tc, capture, &resume_data, MVMDispProgramRecordingResumeTopmost);
+}
+
 /* Record the resumption of a dispatch found relative to our caller. */
 void MVM_disp_program_record_resume_caller(MVMThreadContext *tc, MVMObject *capture) {
-    /* Make sure we're in a dispatcher and that we didn't already call resume. */
-    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    ensure_resume_ok(tc, record);
-    ensure_known_capture(tc, record, capture);
-
-    /* Find the dispatch record we're going to be resuming. */
-
-    /* Record the kind of dispatch resumption we're doing, and then delegate to
-     * the appropriate `resume` dispatcher callback. */
-    record->rec.resume_kind = MVMDispProgramRecordingResumeCaller;
-    MVM_panic(1, "record resume caller nyi");
+    MVMDispResumptionData resume_data;
+    if (!MVM_disp_resume_find_caller(tc, &resume_data))
+        MVM_exception_throw_adhoc(tc, "No resumable dispatch in caller's dynamic scope");
+    record_resume(tc, capture, &resume_data, MVMDispProgramRecordingResumeCaller);
 }
 
 /* Record a delegation from one dispatcher to another. */
@@ -1935,6 +1932,12 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
             /* Resumption related ops. */
             case MVMDispOpcodeResumeTopmost:
                 if (!MVM_disp_resume_find_topmost(tc, &(record->resumption_data)))
+                    goto rejection;
+                if (record->resumption_data.resumption->disp != op->resume.disp)
+                    goto rejection;
+                break;
+            case MVMDispOpcodeResumeCaller:
+                if (!MVM_disp_resume_find_caller(tc, &(record->resumption_data)))
                     goto rejection;
                 if (record->resumption_data.resumption->disp != op->resume.disp)
                     goto rejection;
