@@ -1544,7 +1544,7 @@ static void debugserver_invocation_special_return(MVMThreadContext *tc, void *da
         case MVM_RETURN_STR: {
             /* TODO handle strings with null bytes in them */
             char *str_result = MVM_string_utf8_encode_C_string(tc, data->return_target.s);
-            MVMuint64 handle = allocate_handle(tc, data->return_target.s);
+            MVMuint64 handle = allocate_handle(tc, (MVMObject *)data->return_target.s);
             cmp_write_map(ctx, 6);
             cmp_write_str(ctx, "type", 4);
             cmp_write_int(ctx, MT_InvokeResult);
@@ -1572,7 +1572,7 @@ static void debugserver_invocation_special_return(MVMThreadContext *tc, void *da
 }
 
 static void debugserver_invocation_special_unwind(MVMThreadContext *tc, void *data_in) {
-    DebugserverInvocationSpecialReturnData *data = (DebugserverInvocationSpecialReturnData *)data_in;
+    // DebugserverInvocationSpecialReturnData *data = (DebugserverInvocationSpecialReturnData *)data_in;
     MVM_panic(1, "Debugserver: Handling exceptions thrown in invoked code NYI.");
 }
 
@@ -1668,14 +1668,14 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
                     arguments_to_pass[index].s = (MVMString *)target;
                 }
                 else {
-                    MVMObject *target;
+                    MVMString *target;
                     /* NYI, errors out in parse_message_map already */
                     MVM_gc_allocate_gen2_default_set(dtc);
 
                     /* TODO support for null bytes in strings */
                     target = MVM_string_utf8_decode(dtc, vm->VMString, argument->arguments[index].arg_u.s, strlen(argument->arguments[index].arg_u.s));
 
-                    arguments_to_pass[index].s = (MVMString *)target;
+                    arguments_to_pass[index].s = target;
                     cs->arg_flags[index] = MVM_CALLSITE_ARG_STR;
 
                     MVM_gc_allocate_gen2_default_clear(dtc);
