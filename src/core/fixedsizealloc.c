@@ -13,7 +13,7 @@
 #define FSA_SIZE_DEBUG 0
 #if FSA_SIZE_DEBUG
 typedef struct {
-    MVMuint64 alloc_size;
+    size_t alloc_size;
     void *memory;
 } MVMFixedSizeAllocDebug;
 #endif
@@ -294,15 +294,15 @@ void MVM_fixed_size_free(MVMThreadContext *tc, MVMFixedSizeAlloc *al, size_t byt
 #ifdef MVM_VALGRIND_SUPPORT
         if (RUNNING_ON_VALGRIND) {
             char command[128];
-            snprintf(&command, 128, "check_memory defined %p %d", dbg, bytes + 8);
+            snprintf(command, 128, "check_memory defined %p %zu", dbg, bytes + 8);
             VALGRIND_MONITOR_COMMAND(command);
-            VALGRIND_PRINTF_BACKTRACE("Fixed size allocator: wrong size in free: expected %lu, got %lu", dbg->alloc_size, bytes);
+            VALGRIND_PRINTF_BACKTRACE("Fixed size allocator: wrong size in free: expected %zu, got %zu", dbg->alloc_size, bytes);
         }
         else {
-            MVM_panic(1, "Fixed size allocator: wrong size in free: expected %lu, got %lu", dbg->alloc_size, bytes);
+            MVM_panic(1, "Fixed size allocator: wrong size in free: expected %zu, got %zu", dbg->alloc_size, bytes);
         }
 #else
-        MVM_panic(1, "Fixed size allocator: wrong size in free: expected %lu, got %lu", dbg->alloc_size, bytes);
+        MVM_panic(1, "Fixed size allocator: wrong size in free: expected %zu, got %zu", dbg->alloc_size, bytes);
 #endif
     }
     MVM_free(dbg);
@@ -341,16 +341,16 @@ void MVM_fixed_size_free_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAlloc *a
     if (dbg->alloc_size != bytes) {
 #ifdef MVM_VALGRIND_SUPPORT
         if (RUNNING_ON_VALGRIND) {
-            char command[128]; snprintf(&command, 128, "check_memory defined %p %lu", dbg, bytes + 8); VALGRIND_MONITOR_COMMAND(command);
-            VALGRIND_PRINTF_BACKTRACE("Fixed size allocator: wrong size in free: expected %lu, got %lu", dbg->alloc_size, bytes);
+            char command[128]; snprintf(command, 128, "check_memory defined %p %zu", dbg, bytes + 8); VALGRIND_MONITOR_COMMAND(command);
+            VALGRIND_PRINTF_BACKTRACE("Fixed size allocator: wrong size in free: expected %zu, got %zu", dbg->alloc_size, bytes);
         }
         else {
-            MVM_panic(1, "Fixed size allocator: wrong size in free: expected %lu, got %lu", dbg->alloc_size, bytes);
+            MVM_panic(1, "Fixed size allocator: wrong size in free: expected %zu, got %zu", dbg->alloc_size, bytes);
         }
 #else
-        MVM_panic(1, "Fixed size allocator: wrong size in free: expected %lu, got %lu", dbg->alloc_size, bytes);
+        MVM_panic(1, "Fixed size allocator: wrong size in free: expected %zu, got %zu", dbg->alloc_size, bytes);
 #endif
-        MVM_panic(1, "Fixed size allocator: wrong size in free: expected %lu, got %lu", dbg->alloc_size, bytes);
+        MVM_panic(1, "Fixed size allocator: wrong size in free: expected %zu, got %zu", dbg->alloc_size, bytes);
     }
     add_to_overflows_safepoint_free_list(tc, al, dbg);
 #else
