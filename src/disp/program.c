@@ -369,7 +369,7 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                 fprintf(stderr, "      Initialization arguments:\n");
                 MVMuint32 j;
                 for (j = 0; j < res->init_callsite->flag_count; j++) {
-                    MVMDispProgramResumptionInitValue iv = res->init_values[i];
+                    MVMDispProgramResumptionInitValue iv = res->init_values[j];
                     switch (iv.source) {
                         case MVM_DISP_RESUME_INIT_ARG:
                             fprintf(stderr, "        Initial argument %d\n", iv.index);
