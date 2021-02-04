@@ -200,6 +200,10 @@ struct MVMDispProgramRecording {
     /* If we're doing a resume, the resume initialization state capture. */
     MVMDispProgramRecordingCapture initial_resume_capture;
 
+    /* Temporary storage for a resume init state capture, if it has to be
+     * formed. */
+    MVMRegister *initial_resume_args;
+
     /* The values that we have encountered while recording, and maybe added
      * guards against. */
     MVM_VECTOR_DECL(MVMDispProgramRecordingValue, values);
@@ -471,9 +475,9 @@ typedef enum {
 /* Where a value that is used to resume a dispatch originates from. */
 struct MVMDispProgramResumptionInitValue {
     /* The source of the resumption initialization value. */
-    MVMuint32 source;
+    MVMuint16 source;
     /* The index (either argument index or constant table index). */
-    MVMuint32 index;
+    MVMuint16 index;
 };
 
 /* Functions called during the recording. */

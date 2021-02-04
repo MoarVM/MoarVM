@@ -93,7 +93,27 @@ MVMRegister MVM_disp_resume_get_init_arg(MVMThreadContext *tc, MVMDispResumption
                                          MVMuint32 arg_idx) {
     MVMDispProgramResumption *resumption = data->resumption;
     if (resumption->init_values) {
-        MVM_oops(tc, "complex case of getting resume init args NYI");
+        MVMDispProgramResumptionInitValue *value = &(resumption->init_values[arg_idx]);
+        MVMRegister result;
+        switch (value->source) {
+            case MVM_DISP_RESUME_INIT_ARG: {
+                MVMArgs *args = data->initial_arg_info;
+                result = args->source[args->map[value->index]];
+                break;
+            }
+            case MVM_DISP_RESUME_INIT_CONSTANT_OBJ:
+                result.o = (MVMObject *)data->dp->gc_constants[value->index];
+                break;
+            case MVM_DISP_RESUME_INIT_CONSTANT_INT:
+                result.i64 = data->dp->constants[value->index].i64;
+                break;
+            case MVM_DISP_RESUME_INIT_CONSTANT_NUM:
+                result.n64 = data->dp->constants[value->index].n64;
+                break;
+            default:
+                MVM_oops(tc, "unknown resume init arg source");
+        }
+        return result;
     }
     else {
         /* Simple case where they are the initial arguments to the dispatch. */
