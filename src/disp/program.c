@@ -679,7 +679,7 @@ MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *c
     MVMuint32 real_index = index;
     MVMint32 found_value_index = -1;
     MVMuint32 is_resume_init_capture = 0;
-    for (i = MVM_VECTOR_ELEMS(p.path) - 1; i >= 0; i--) {
+    for (i = MVM_VECTOR_ELEMS(p.path) - 1; i >= 0 && found_value_index < 0; i--) {
         switch (p.path[i]->transformation) {
             case MVMDispProgramRecordingInsert:
                 /* It's an insert. Was the insert at the index we are dealing
@@ -1629,7 +1629,7 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
             MVMuint32 real_index = i;
             MVMint32 found_value_index = -1;
             MVMuint32 from_resume_init_capture = 0;
-            for (j = MVM_VECTOR_ELEMS(p.path) - 1; j >= 0; j--) {
+            for (j = MVM_VECTOR_ELEMS(p.path) - 1; j >= 0 && found_value_index < 0; j--) {
                 switch (p.path[j]->transformation) {
                     case MVMDispProgramRecordingInsert:
                         if (p.path[j]->index == real_index) {
