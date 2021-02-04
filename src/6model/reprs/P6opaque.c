@@ -2116,7 +2116,9 @@ size_t MVM_p6opaque_attr_offset(MVMThreadContext *tc, MVMObject *type,
 void MVM_p6opaque_attr_offset_and_arg_type(MVMThreadContext *tc, MVMObject *type,
         MVMObject *class_handle, MVMString *name, size_t *offset_out, MVMCallsiteFlags *type_out) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)type->st->REPR_data;
-    size_t slot = try_get_slot(tc, repr_data, class_handle, name);
+    MVMint64 slot = try_get_slot(tc, repr_data, class_handle, name);
+    if (slot < 0)
+        no_such_attribute(tc, "get a value", class_handle, name, type->st);
     *offset_out = repr_data->attribute_offsets[slot];
     MVMSTable *flattened = repr_data->flattened_stables[slot];
     if (flattened == NULL) {
