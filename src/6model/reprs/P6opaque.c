@@ -1948,7 +1948,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                     target_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
                     target_facts->value.i = value;
                 }
-                else {
+                else if (facts->flags & MVM_SPESH_FACT_CONCRETE) {
                     MVMSpeshOperand *orig_operands = ins->operands;
                     MVM_spesh_graph_add_comment(tc, g, ins, "%s a %s",
                         ins->info->name, MVM_6model_get_stable_debug_name(tc, st));
@@ -1977,11 +1977,11 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                     target_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
                     target_facts->value.n = result;
                 }
-                else {
+                else if (facts->flags & MVM_SPESH_FACT_CONCRETE) {
                     MVMSpeshOperand *orig_operands = ins->operands;
-                    ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_n);
                     MVM_spesh_graph_add_comment(tc, g, ins, "%s a %s",
                         ins->info->name, MVM_6model_get_stable_debug_name(tc, st));
+                    ins->info = MVM_op_get_op(MVM_OP_sp_p6oget_n);
                     ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
                     ins->operands[0] = orig_operands[0];
                     ins->operands[1] = orig_operands[1];
@@ -2006,7 +2006,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                     target_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
                     target_facts->value.s = result;
                 }
-                else {
+                else if (facts->flags & MVM_SPESH_FACT_CONCRETE) {
                     MVMSpeshOperand *orig_operands = ins->operands;
                     MVM_spesh_graph_add_comment(tc, g, ins, "%s a %s",
                         ins->info->name, MVM_6model_get_stable_debug_name(tc, st));

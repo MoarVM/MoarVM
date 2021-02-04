@@ -1278,6 +1278,8 @@ static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
             optimize_isconcrete(tc, g, ins);
             break;
         case MVM_BOOL_MODE_UNBOX_NUM: {
+            if (!guaranteed_concrete)
+                return;
             /* Unbox it into a temporary number register. */
             MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_num64);
             MVMSpeshIns *unbox_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
