@@ -1196,5 +1196,7 @@ void MVM_nativecall_invoke_jit(MVMThreadContext *tc, MVMObject *site) {
     }
 
     MVMJitCode * const jitcode = body->jitcode;
+    assert(jitcode);
+    assert(jitcode->func_ptr);
     jitcode->func_ptr(tc, *tc->interp_cu, jitcode->labels[0]);
 }

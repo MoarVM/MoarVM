@@ -529,6 +529,11 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
 
             body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
             nc_jg = MVM_nativecall_jit_graph_for_caller_code(tc, iter->graph, body, restype, dst, arg_ins);
+            /* Check the entry_point after we've used it to generate the code to avoid a race
+             * condition where the check turned out fine, but entry_point got overwritten before we
+             * got to use it for generating the code. */
+            if (!body->entry_point)
+                return 0;
             if (nc_jg == NULL)
                 return 0;
 
