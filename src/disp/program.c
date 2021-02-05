@@ -1441,7 +1441,7 @@ static void emit_capture_guards(MVMThreadContext *tc, compile_state *cs,
 static void emit_loaded_value_guards(MVMThreadContext *tc, compile_state *cs,
         MVMDispProgramRecordingValue *v, MVMuint32 temp, MVMRegister value,
         MVMCallsiteFlags kind) {
-    switch (kind) {
+    switch (kind & MVM_CALLSITE_ARG_TYPE_MASK) {
         case MVM_CALLSITE_ARG_OBJ:
             if (v->guard_literal) {
                 /* If we're guarding that it's a literal, we can disregard
