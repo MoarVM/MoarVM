@@ -2356,8 +2356,17 @@ void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecordi
             MVM_gc_worklist_add(tc, worklist, &(value->not_literal_guards[i]));
     }
     mark_recording_capture(tc, &(rec->initial_capture), worklist);
-    if (rec->resume_kind != MVMDispProgramRecordingResumeNone)
+    if (rec->resume_kind != MVMDispProgramRecordingResumeNone) {
         mark_recording_capture(tc, &(rec->initial_resume_capture), worklist);
+        if (rec->initial_resume_args) {
+            MVMCallsite *init_callsite = ((MVMCapture *)rec->initial_resume_capture.capture)->body.callsite;
+            for (MVMuint16 i = 0; i < init_callsite->flag_count; i++) {
+                MVMCallsiteFlags flag = init_callsite->arg_flags[i] & MVM_CALLSITE_ARG_TYPE_MASK;
+                if (flag == MVM_CALLSITE_ARG_OBJ || flag == MVM_CALLSITE_ARG_STR)
+                    MVM_gc_worklist_add(tc, worklist, &(rec->initial_resume_args[i].o));
+            }
+        }
+    }
     for (i = 0; i < MVM_VECTOR_ELEMS(rec->resume_inits); i++) {
         MVM_gc_worklist_add(tc, worklist, &(rec->resume_inits[i].capture));
     }
