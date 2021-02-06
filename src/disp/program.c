@@ -2353,7 +2353,7 @@ void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecordi
         }
         MVM_gc_worklist_add(tc, worklist, &(value->tracked));
         for (j = 0; j < MVM_VECTOR_ELEMS(value->not_literal_guards); j++)
-            MVM_gc_worklist_add(tc, worklist, &(value->not_literal_guards[i]));
+            MVM_gc_worklist_add(tc, worklist, &(value->not_literal_guards[j]));
     }
     mark_recording_capture(tc, &(rec->initial_capture), worklist);
     if (rec->resume_kind != MVMDispProgramRecordingResumeNone) {
