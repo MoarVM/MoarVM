@@ -443,11 +443,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
      * keep track of the current recording state. */
     MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
     record->arg_info = arg_info;
-    MVMObject *capture;
-    MVMROOT(tc, update_sf, {
-        capture = MVM_capture_from_args(tc, arg_info);
-    });
-    record->rec.initial_capture.capture = capture;
+    record->rec.initial_capture.capture = NULL; /* In case we mark during setup */
     record->rec.initial_capture.transformation = MVMDispProgramRecordingInitial;
     record->rec.resume_kind = MVMDispProgramRecordingResumeNone;
     MVM_VECTOR_INIT(record->rec.initial_capture.captures, 8);
@@ -457,6 +453,11 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     record->ic_entry_ptr = ic_entry_ptr;
     record->ic_entry = ic_entry;
     record->update_sf = update_sf;
+    MVMObject *capture;
+    MVMROOT(tc, update_sf, {
+        capture = MVM_capture_from_args(tc, arg_info);
+    });
+    record->rec.initial_capture.capture = capture;
     run_dispatch(tc, record, disp, capture, NULL);
 }
 
