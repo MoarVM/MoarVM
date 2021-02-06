@@ -443,6 +443,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
      * keep track of the current recording state. */
     MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
     record->arg_info = arg_info;
+    record->current_capture.o = NULL;
     record->rec.initial_capture.capture = NULL; /* In case we mark during setup */
     record->rec.initial_capture.transformation = MVMDispProgramRecordingInitial;
     record->rec.resume_kind = MVMDispProgramRecordingResumeNone;
