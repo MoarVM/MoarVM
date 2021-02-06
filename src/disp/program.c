@@ -2405,6 +2405,15 @@ void MVM_disp_program_destroy(MVMThreadContext *tc, MVMDispProgram *dp) {
     MVM_free(dp->constants);
     MVM_free(dp->gc_constants);
     MVM_free(dp->ops);
+    for (MVMuint32 i = 0; i < dp->num_resumptions; i++) {
+        MVMDispProgramResumption *resumption = &(dp->resumptions[i]);
+        if (resumption->init_values) {
+            MVMuint16 arg_count = resumption->init_callsite->flag_count;
+            MVM_fixed_size_free(tc, tc->instance->fsa,
+                arg_count * sizeof(MVMDispProgramResumptionInitValue),
+                resumption->init_values);
+        }
+    }
     MVM_free(dp->resumptions);
     MVM_free(dp);
 }
