@@ -1529,7 +1529,8 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     }
 
     /* Try to find a specialization. */
-    MVMSpeshArgGuard *ag = target_sf->body.spesh->body.spesh_arg_guard;
+    MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards = target_sf->body.spesh->body.spesh_cands_and_arg_guards;
+    MVMSpeshArgGuard *ag = cands_and_arg_guards ? cands_and_arg_guards->spesh_arg_guard : NULL;
     MVMint16 spesh_cand = MVM_spesh_arg_guard_run_types(tc, ag, cs, stable_type_tuple);
    if (spesh_cand >= 0) {
        /* Found a candidate. Stack up any required guards. */
@@ -1550,7 +1551,7 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         /* Inicidentally, the rewrite_callercode function in inline.c also
          * relies on "no nested inlines" */
         MVMSpeshGraph *inline_graph = bb->inlined ? NULL : MVM_spesh_inline_try_get_graph(tc, g,
-            target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
+            target_sf, cands_and_arg_guards->spesh_candidates[spesh_cand],
             ins, &no_inline_reason, &effective_size, &no_inline_info);
         if (tc->instance->spesh_inline_log && bb->inlined)
             no_inline_reason = "refused to inline into an already inlined bb";
@@ -1564,7 +1565,7 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
             MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, coderef_reg);
             MVM_spesh_inline(tc, g, cs, args, bb, ins, inline_graph, target_sf,
                 coderef_reg, resume_init,
-                (MVMuint16)target_sf->body.spesh->body.spesh_candidates[spesh_cand]->body.bytecode_size);
+                (MVMuint16)cands_and_arg_guards->spesh_candidates[spesh_cand]->body.bytecode_size);
             optimize_bb(tc, g, optimize_from_bb, NULL);
 
             /* In debug mode, annotate what we inlined. */

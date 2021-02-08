@@ -202,6 +202,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVMSpeshCandidate *candidate;
     MVMSpeshCandidate **new_candidate_list;
     MVMStaticFrameSpesh *spesh;
+    MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards;
+    MVMSpeshCandidatesAndArgGuards *new_cands_and_arg_guards;
     MVMuint64 start_time = 0, spesh_time = 0, jit_time = 0, end_time;
 
     /* If we've reached our specialization limit, don't continue. */
@@ -349,14 +351,19 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     /* Create a new candidate list and copy any existing ones. Free memory
      * using the safepoint mechanism. */
     spesh = p->sf->body.spesh;
+    cands_and_arg_guards = spesh->body.spesh_cands_and_arg_guards;
+    new_cands_and_arg_guards = MVM_malloc(sizeof(MVMSpeshCandidatesAndArgGuards));
     new_candidate_list = MVM_malloc((spesh->body.num_spesh_candidates + 1) * sizeof(MVMSpeshCandidate *));
     if (spesh->body.num_spesh_candidates) {
         size_t orig_size = spesh->body.num_spesh_candidates * sizeof(MVMSpeshCandidate *);
-        memcpy(new_candidate_list, spesh->body.spesh_candidates, orig_size);
-        MVM_free_at_safepoint(tc, spesh->body.spesh_candidates);
+        memcpy(new_candidate_list, cands_and_arg_guards->spesh_candidates, orig_size);
+        MVM_free_at_safepoint(tc, cands_and_arg_guards->spesh_candidates);
+        MVM_spesh_arg_guard_destroy(tc, cands_and_arg_guards->spesh_arg_guard, 1);
+        MVM_free_at_safepoint(tc, cands_and_arg_guards);
     }
     MVM_ASSIGN_REF(tc, &(spesh->common.header), new_candidate_list[spesh->body.num_spesh_candidates], candidate);
-    spesh->body.spesh_candidates = new_candidate_list;
+    new_cands_and_arg_guards->spesh_candidates = new_candidate_list;
+    spesh->body.spesh_cands_and_arg_guards = new_cands_and_arg_guards;
 
     /* Regenerate the guards, and bump the candidate count only after they
      * are installed. This means there is a period when we can read, in
@@ -367,8 +374,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
      * of candidates to see if there's one for it to try and jump in to,
      * and if the guards aren't in place first will see there is not, and
      * not bother checking again. */
-    MVM_spesh_arg_guard_regenerate(tc, &(spesh->body.spesh_arg_guard),
-        spesh->body.spesh_candidates, spesh->body.num_spesh_candidates + 1);
+    MVM_spesh_arg_guard_regenerate(tc, &(new_cands_and_arg_guards->spesh_arg_guard),
+        new_cands_and_arg_guards->spesh_candidates, spesh->body.num_spesh_candidates + 1);
     if (spesh->common.header.flags2 & MVM_CF_SECOND_GEN)
         MVM_gc_write_barrier_hit(tc, (MVMCollectable *)spesh);
     MVM_barrier();
@@ -377,7 +384,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     /* If we're logging, dump the updated arg guards also. */
     if (MVM_spesh_debug_enabled(tc)) {
         char *guard_dump = MVM_spesh_dump_arg_guard(tc, p->sf,
-                p->sf->body.spesh->body.spesh_arg_guard);
+                p->sf->body.spesh->body.spesh_cands_and_arg_guards->spesh_arg_guard);
         MVM_spesh_debug_printf(tc, "%s========\n\n", guard_dump);
         fflush(tc->instance->spesh_log_fh);
         MVM_free(guard_dump);
@@ -393,10 +400,11 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 void MVM_spesh_candidate_discard_existing(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMStaticFrameSpesh *spesh = sf->body.spesh;
     if (spesh) {
+        MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards = spesh->body.spesh_cands_and_arg_guards;
         MVMuint32 num_candidates = spesh->body.num_spesh_candidates;
         MVMuint32 i;
         for (i = 0; i < num_candidates; i++)
-            spesh->body.spesh_candidates[i]->body.discarded = 1;
+            cands_and_arg_guards->spesh_candidates[i]->body.discarded = 1;
         MVM_spesh_arg_guard_discard(tc, sf);
     }
 }

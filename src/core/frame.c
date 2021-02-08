@@ -456,6 +456,7 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
     /* Did we get given a specialization? */
     MVMStaticFrame *static_frame = code->body.sf;
     MVMStaticFrameSpesh *spesh;
+    MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards;
     if (spesh_cand < 0) {
         /* No. In that case it's possible we never even invoked this frame
          * before, or never at the current instrumentation level; check and
@@ -468,14 +469,17 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
 
         /* Run the specialization argument guard to see if we can use one. */
         spesh = static_frame->body.spesh;
-        spesh_cand = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
-            args, NULL);
+        cands_and_arg_guards = spesh->body.spesh_cands_and_arg_guards;
+        if (cands_and_arg_guards)
+            spesh_cand = MVM_spesh_arg_guard_run(tc, cands_and_arg_guards->spesh_arg_guard,
+                args, NULL);
     }
     else {
         spesh = static_frame->body.spesh;
+        cands_and_arg_guards = spesh->body.spesh_cands_and_arg_guards;
 #if MVM_SPESH_CHECK_PRESELECTION
         MVMint32 certain = -1;
-        MVMint32 correct = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
+        MVMint32 correct = MVM_spesh_arg_guard_run(tc, cands_and_arg_guards->spesh_arg_guard,
             args, &certain);
         if (spesh_cand != correct && spesh_cand != certain) {
             fprintf(stderr, "Inconsistent spesh preselection of '%s' (%s): got %d, not %d\n",
@@ -522,7 +526,7 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
     MVMFrame *frame;
     MVMuint8 *chosen_bytecode;
     if (spesh_cand >= 0) {
-        MVMSpeshCandidate *chosen_cand = spesh->body.spesh_candidates[spesh_cand];
+        MVMSpeshCandidate *chosen_cand = cands_and_arg_guards->spesh_candidates[spesh_cand];
         if (static_frame->body.allocate_on_heap) {
             MVMROOT4(tc, static_frame, code, outer, chosen_cand, {
                 frame = allocate_specialized_frame(tc, static_frame, chosen_cand, 1);
