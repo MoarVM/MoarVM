@@ -400,6 +400,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     MVMFrame *frame;
     MVMuint8 *chosen_bytecode;
     MVMStaticFrameSpesh *spesh;
+    MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards;
 
     /* If the frame was never invoked before, or never before at the current
      * instrumentation level, we need to trigger the instrumentation level
@@ -489,13 +490,14 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
     /* See if any specializations apply. */
     spesh = static_frame->body.spesh;
-    if (spesh_cand < 0)
-        spesh_cand = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
+    cands_and_arg_guards = spesh->body.spesh_cands_and_arg_guards;
+    if (spesh_cand < 0 && cands_and_arg_guards)
+        spesh_cand = MVM_spesh_arg_guard_run(tc, cands_and_arg_guards->spesh_arg_guard,
             callsite, args, NULL);
 #if MVM_SPESH_CHECK_PRESELECTION
     else {
         MVMint32 certain = -1;
-        MVMint32 correct = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
+        MVMint32 correct = MVM_spesh_arg_guard_run(tc, cands_and_arg_guards->spesh_arg_guard,
             callsite, args, &certain);
         if (spesh_cand != correct && spesh_cand != certain) {
             fprintf(stderr, "Inconsistent spesh preselection of '%s' (%s): got %d, not %d\n",
@@ -506,8 +508,8 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         }
     }
 #endif
-    if (spesh_cand >= 0) {
-        MVMSpeshCandidate *chosen_cand = spesh->body.spesh_candidates[spesh_cand];
+    if (spesh_cand >= 0 && spesh_cand < (MVMint32)spesh->body.num_spesh_candidates && cands_and_arg_guards) {
+        MVMSpeshCandidate *chosen_cand = cands_and_arg_guards->spesh_candidates[spesh_cand];
         if (static_frame->body.allocate_on_heap) {
             MVMROOT4(tc, static_frame, code_ref, outer, chosen_cand, {
                 frame = allocate_frame(tc, static_frame, chosen_cand, 1);

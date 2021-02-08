@@ -4,11 +4,12 @@
 MVMint32 have_existing_specialization(MVMThreadContext *tc, MVMStaticFrame *sf,
         MVMCallsite *cs, MVMSpeshStatsType *type_tuple) {
     MVMStaticFrameSpesh *sfs = sf->body.spesh;
+    MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards = sfs->body.spesh_cands_and_arg_guards;
     MVMuint32 i;
     for (i = 0; i < sfs->body.num_spesh_candidates; i++) {
-        if (sfs->body.spesh_candidates[i]->body.cs == cs) {
+        if (cands_and_arg_guards->spesh_candidates[i]->body.cs == cs) {
             /* Callsite matches. Is it a matching certain specialization? */
-            MVMSpeshStatsType *cand_type_tuple = sfs->body.spesh_candidates[i]->body.type_tuple;
+            MVMSpeshStatsType *cand_type_tuple = cands_and_arg_guards->spesh_candidates[i]->body.type_tuple;
             if (type_tuple == NULL && cand_type_tuple == NULL) {
                 /* Yes, so we're done. */
                 return 1;

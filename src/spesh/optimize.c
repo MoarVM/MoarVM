@@ -1557,7 +1557,8 @@ static void optimize_getlex_per_invocant(MVMThreadContext *tc, MVMSpeshGraph *g,
 static MVMint32 try_find_spesh_candidate(MVMThreadContext *tc, MVMStaticFrame *sf,
                                          MVMSpeshCallInfo *arg_info,
                                          MVMSpeshStatsType *type_tuple) {
-    MVMSpeshArgGuard *ag = sf->body.spesh->body.spesh_arg_guard;
+    MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards = sf->body.spesh->body.spesh_cands_and_arg_guards;
+    MVMSpeshArgGuard *ag = cands_and_arg_guards ? cands_and_arg_guards->spesh_arg_guard : NULL;
     return type_tuple
         ? MVM_spesh_arg_guard_run_types(tc, ag, arg_info->cs, type_tuple)
         : MVM_spesh_arg_guard_run_callinfo(tc, ag, arg_info);
@@ -2073,8 +2074,9 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             char *no_inline_reason = NULL;
             const MVMOpInfo *no_inline_info = NULL;
             MVMuint32 effective_size;
+            MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards = target_sf->body.spesh->body.spesh_cands_and_arg_guards;
             MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
-                target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
+                target_sf, cands_and_arg_guards->spesh_candidates[spesh_cand],
                 ins, &no_inline_reason, &effective_size, &no_inline_info);
             log_inline(tc, g, target_sf, inline_graph, effective_size, no_inline_reason, 0, no_inline_info);
             if (inline_graph) {
@@ -2088,7 +2090,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                         code_ref_reg, prepargs_deopt_idx,
-                        (MVMuint16)target_sf->body.spesh->body.spesh_candidates[spesh_cand]->body.bytecode_size);
+                        (MVMuint16)cands_and_arg_guards->spesh_candidates[spesh_cand]->body.bytecode_size);
                 optimize_bb(tc, g, optimize_from_bb, NULL);
 
                 if (MVM_spesh_debug_enabled(tc)) {
