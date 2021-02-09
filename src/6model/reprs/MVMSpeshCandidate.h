@@ -31,6 +31,9 @@ struct MVMSpeshCandidateBody {
     /* Deoptimization mappings. */
     MVMint32 *deopts;
 
+    /* Count of times an optimization was deopted. */
+    MVMuint32 deopt_count;
+
     /* Bit field of named args used to put in place during deopt, since we
      * typically don't update the array in specialized code. */
     MVMuint64 deopt_named_used_bit_field;
@@ -88,3 +91,4 @@ const MVMREPROps * MVMSpeshCandidate_initialize(MVMThreadContext *tc);
 /* Functions for creating and clearing up specializations. */
 void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p);
 void MVM_spesh_candidate_discard_existing(MVMThreadContext *tc, MVMStaticFrame *sf);
+void MVM_spesh_candidate_discard_one(MVMThreadContext *tc, MVMStaticFrame *sf, MVMSpeshCandidate *cand);

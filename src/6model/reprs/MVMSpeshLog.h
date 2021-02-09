@@ -25,6 +25,8 @@ typedef enum {
     /* Return from a logged callframe to an unlogged one, needed to keep
      * the spesh simulation stack in sync. */
     MVM_SPESH_LOG_RETURN_TO_UNLOGGED,
+    /* Deopt information (static frame, spesh candidate). */
+    MVM_SPESH_LOG_DEOPT,
 } MVMSpeshLogEntryKind;
 
 /* Flags on types. */
@@ -84,6 +86,12 @@ struct MVMSpeshLogEntry {
             MVMuint32 bytecode_offset;
             MVMuint16 guard_index;
         } plugin;
+
+        /* Deopt (DEOPT). */
+        struct {
+            MVMStaticFrame *sf;
+            MVMSpeshCandidate *spesh_cand;
+        } deopt;
     };
 };
 

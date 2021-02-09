@@ -640,6 +640,10 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                     sim_stack_pop(tc, sims, sf_updated);
                 break;
             }
+            case MVM_SPESH_LOG_DEOPT: {
+                e->deopt.spesh_cand->body.deopt_count++;
+                break;
+            }
         }
     }
     save_or_free_sim_stack(tc, sims, log_from_tc, sf_updated);

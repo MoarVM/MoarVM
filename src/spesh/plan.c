@@ -31,7 +31,7 @@ MVMint32 have_existing_specialization(MVMThreadContext *tc, MVMStaticFrame *sf,
 void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind kind,
                  MVMStaticFrame *sf, MVMSpeshStatsByCallsite *cs_stats,
                  MVMSpeshStatsType *type_tuple, MVMSpeshStatsByType **type_stats,
-                 MVMuint32 num_type_stats) {
+                 MVMuint32 num_type_stats, MVMSpeshCandidate *cand) {
     MVMSpeshPlanned *p;
     if (kind != MVM_SPESH_PLANNED_REMOVE_OPT && (sf->body.bytecode_size > MVM_SPESH_MAX_BYTECODE_SIZE ||
         have_existing_specialization(tc, sf, cs_stats->cs, type_tuple))) {
@@ -214,7 +214,7 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
                     MVM_VECTOR_ELEMS(evidence) == 1
                         ? MVM_SPESH_PLANNED_OBSERVED_TYPES
                         : MVM_SPESH_PLANNED_DERIVED_TYPES,
-                    sf, by_cs, chosen_tuple, evidence, MVM_VECTOR_ELEMS(evidence));
+                    sf, by_cs, chosen_tuple, evidence, MVM_VECTOR_ELEMS(evidence), NULL);
                 specializations++;
 
                 /* Clean up and we're done. */
@@ -235,7 +235,18 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
     /* If we get here, and found no specializations to produce, we can add
      * a certain specializaiton instead. */
     if (!specializations)
-        add_planned(tc, plan, MVM_SPESH_PLANNED_CERTAIN, sf, by_cs, NULL, NULL, 0);
+        add_planned(tc, plan, MVM_SPESH_PLANNED_CERTAIN, sf, by_cs, NULL, NULL, 0, NULL);
+}
+
+/* Look for the candidate to remove in the static frame. */
+static void plan_for_deopt(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf) {
+    MVMSpeshCandidatesAndArgGuards *scag = sf->body.spesh->body.spesh_cands_and_arg_guards;
+    for(unsigned int i = 0; i < sf->body.spesh->body.num_spesh_candidates; i++) {
+        MVMSpeshCandidate *cand = scag->spesh_candidates[i];
+        if (cand->body.deopt_count > 100) {
+            add_planned(tc, plan, MVM_SPESH_PLANNED_REMOVE_OPT, sf, NULL, NULL, NULL, 0, cand);
+        }
+    }
 }
 
 /* Considers the statistics of a given static frame and plans specializtions
@@ -324,6 +335,7 @@ MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_fr
     for (i = 0; i < updated; i++) {
         MVMObject *sf = MVM_repr_at_pos_o(tc, updated_static_frames, i);
         plan_for_sf(tc, plan, (MVMStaticFrame *)sf, in_certain_specialization, in_observed_specialization, in_osr_specialization);
+        plan_for_deopt(tc, plan, (MVMStaticFrame *)sf);
     }
     twiddle_stack_depths(tc, plan->planned, plan->num_planned);
     sort_plan(tc, plan->planned, plan->num_planned);

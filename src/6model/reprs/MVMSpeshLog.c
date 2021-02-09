@@ -55,6 +55,10 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
             case MVM_SPESH_LOG_INVOKE:
                 MVM_gc_worklist_add(tc, worklist, &(log->entries[i].invoke.sf));
                 break;
+            case MVM_SPESH_LOG_DEOPT:
+                MVM_gc_worklist_add(tc, worklist, &(log->entries[i].deopt.sf));
+                MVM_gc_worklist_add(tc, worklist, &(log->entries[i].deopt.spesh_cand));
+                break;
         }
     }
 }
@@ -70,6 +74,8 @@ static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMST
     MVMuint64 cache_5 = 0;
     MVMuint64 cache_6 = 0;
     MVMuint64 cache_7 = 0;
+    MVMuint64 cache_8 = 0;
+    MVMuint64 cache_9 = 0;
 
     if (!body->entries)
         return;
@@ -102,6 +108,12 @@ static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMST
             case MVM_SPESH_LOG_INVOKE:
                 MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
                     (MVMCollectable *)body->entries[i].invoke.sf, "Invoked staticframe entry", &cache_7);
+                break;
+            case MVM_SPESH_LOG_DEOPT:
+                MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                    (MVMCollectable *)body->entries[i].deopt.sf, "Deopt staticframe entry", &cache_8);
+                MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                    (MVMCollectable *)body->entries[i].deopt.spesh_cand, "Deopt spesh candidate entry", &cache_9);
                 break;
         }
     }
