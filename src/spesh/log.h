@@ -50,3 +50,4 @@ void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMObject *value);
 void MVM_spesh_log_return_to_unlogged(MVMThreadContext *tc);
 void MVM_spesh_log_dispatch_resolution_for_correlation_id(MVMThreadContext *tc,
         MVMint32 cid, MVMuint32 bytecode_offset, MVMuint16 result_index);
+void MVM_spesh_log_deopt(MVMThreadContext *tc, MVMStaticFrame *sf, MVMSpeshCandidate *spesh_cand);

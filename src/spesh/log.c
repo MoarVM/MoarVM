@@ -144,6 +144,20 @@ void MVM_spesh_log_osr(MVMThreadContext *tc) {
     commit_entry(tc, sl);
 }
 
+/* Log a deopt occured. */
+void MVM_spesh_log_deopt(MVMThreadContext *tc, MVMStaticFrame *sf, MVMSpeshCandidate *spesh_cand) {
+    MVMSpeshLog *sl = tc->spesh_log;
+    if (sl && spesh_cand) {
+        MVMint32 cid = tc->cur_frame->spesh_correlation_id;
+        MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+        entry->kind = MVM_SPESH_LOG_DEOPT;
+        entry->id = cid;
+        MVM_ASSIGN_REF(tc, &(sl->common.header), entry->deopt.sf, sf);
+        MVM_ASSIGN_REF(tc, &(sl->common.header), entry->deopt.spesh_cand, spesh_cand);
+        commit_entry(tc, sl);
+    }
+}
+
 /* Log a type. */
 void MVM_spesh_log_type(MVMThreadContext *tc, MVMObject *value) {
     MVMSpeshLog *sl = tc->spesh_log;

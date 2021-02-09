@@ -880,6 +880,9 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         case MVM_SPESH_PLANNED_DERIVED_TYPES:
             append(&ds, "Derived type");
             break;
+        case MVM_SPESH_PLANNED_REMOVE_OPT:
+            append(&ds, "Deopt");
+            break;
     }
     append(&ds, " specialization of '");
     append_str(tc, &ds, p->sf->body.name);
@@ -938,6 +941,11 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
             MVMCallsite *cs = p->type_info.cs_stats->cs;
             append(&ds, "It was planned for the type tuple:\n");
             dump_stats_type_tuple(tc, &ds, cs, p->type_info.type_tuple, "    ");
+            break;
+        }
+        case MVM_SPESH_PLANNED_REMOVE_OPT: {
+            appendf(&ds, "Removing a spesh candidate because it was deopted too many times (%u)\n",
+                p->deopt_info.spesh_cand->body.deopt_count);
             break;
         }
     }

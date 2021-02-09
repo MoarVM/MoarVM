@@ -23,6 +23,8 @@ typedef enum {
     MVM_SPESH_LOG_RETURN_TO_UNLOGGED,
     /* Dispatch program resolution result. */
     MVM_SPESH_LOG_DISPATCH_RESOLUTION,
+    /* Deopt information (static frame, spesh candidate). */
+    MVM_SPESH_LOG_DEOPT,
 } MVMSpeshLogEntryKind;
 
 /* Flags on types. */
@@ -75,6 +77,12 @@ struct MVMSpeshLogEntry {
             MVMuint32 bytecode_offset;
             MVMuint16 result_index;
         } dispatch;
+
+        /* Deopt (DEOPT). */
+        struct {
+            MVMStaticFrame *sf;
+            MVMSpeshCandidate *spesh_cand;
+        } deopt;
     };
 };
 

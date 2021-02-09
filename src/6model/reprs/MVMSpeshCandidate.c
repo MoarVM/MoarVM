@@ -408,3 +408,61 @@ void MVM_spesh_candidate_discard_existing(MVMThreadContext *tc, MVMStaticFrame *
         MVM_spesh_arg_guard_discard(tc, sf);
     }
 }
+
+/* Discards one candidates. */
+void MVM_spesh_candidate_discard_one(MVMThreadContext *tc, MVMStaticFrame *sf, MVMSpeshCandidate *cand) {
+    MVMStaticFrameSpesh *spesh = sf->body.spesh;
+    MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards = spesh->body.spesh_cands_and_arg_guards;
+    MVMSpeshCandidatesAndArgGuards *new_cands_and_arg_guards = NULL;
+    MVMSpeshCandidate **new_cands;
+    MVMuint32 i, found = 0, new_num = spesh->body.num_spesh_candidates - 1;
+
+    /* Find the index of the given candidate. */
+    for (i = 0; i < spesh->body.num_spesh_candidates; i++) {
+        MVMSpeshCandidate *sc = cands_and_arg_guards->spesh_candidates[i];
+        if (sc == cand) {
+            cand->body.discarded = 1;
+            found = 1;
+            spesh->body.num_spesh_candidates--;
+            MVM_barrier();
+            break;
+        }
+    }
+
+    if (!found) {
+        MVM_oops(tc, "Tried to remove a spesh candidate (%p) that couldn't be found in the static frame", cand);
+        return;
+    }
+
+    /* Copy the existing candidates, minus the one to remove, and regenerate the arg guards.
+     * If there's only one it and the arg guards just get removed. */
+    if (new_num > 0) {
+        new_cands_and_arg_guards = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMSpeshCandidatesAndArgGuards));
+        new_cands                = MVM_fixed_size_alloc(       tc, tc->instance->fsa, new_num * sizeof(MVMSpeshCandidate *));
+
+        if (i == 0) { // Removing the head, so just copy the rest
+            memcpy(new_cands, &cands_and_arg_guards->spesh_candidates[1], new_num * sizeof(MVMSpeshCandidate *));
+        }
+        else if (i == new_num) { // Removing the tail, so just copy up to it
+            memcpy(new_cands, cands_and_arg_guards->spesh_candidates, new_num * sizeof(MVMSpeshCandidate *));
+        }
+        else { // Removing something in the middle, so need to copy up to and then after it
+            memcpy(new_cands, cands_and_arg_guards->spesh_candidates, i * sizeof(MVMSpeshCandidate *));
+            memcpy(&new_cands[i], &cands_and_arg_guards->spesh_candidates[i + 1], (new_num - i) * sizeof(MVMSpeshCandidate *));
+        }
+
+        new_cands_and_arg_guards->spesh_candidates = new_cands;
+
+        MVM_spesh_arg_guard_regenerate(tc, &(new_cands_and_arg_guards->spesh_arg_guard),
+            new_cands_and_arg_guards->spesh_candidates, new_num);
+    }
+
+    MVM_barrier();
+    spesh->body.spesh_cands_and_arg_guards = new_cands_and_arg_guards;
+
+    MVM_spesh_arg_guard_destroy(tc, cands_and_arg_guards->spesh_arg_guard, 1);
+    MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, (new_num + 1) * sizeof(MVMSpeshCandidate *),
+        cands_and_arg_guards->spesh_candidates);
+    MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(MVMSpeshCandidatesAndArgGuards),
+        cands_and_arg_guards);
+}
