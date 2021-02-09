@@ -1142,8 +1142,8 @@ static void optimize_getlex_per_invocant(MVMThreadContext *tc, MVMSpeshGraph *g,
     }
     if (ann) {
         MVMuint32 i;
-        for (i = 0; i < p->num_type_stats; i++) {
-            MVMSpeshStatsByType *ts = p->type_stats[i];
+        for (i = 0; i < p->type_info.num_type_stats; i++) {
+            MVMSpeshStatsByType *ts = p->type_info.type_stats[i];
             MVMuint32 j;
             for (j = 0; j < ts->num_by_offset; j++) {
                 if (ts->by_offset[j].bytecode_offset == ann->data.bytecode_offset) {
@@ -1223,8 +1223,8 @@ static MVMSpeshStatsType * find_invokee_type_tuple(MVMThreadContext *tc,
     size_t tt_size = expect_cs->flag_count * sizeof(MVMSpeshStatsType);
 
     /* Now look for the best type tuple. */
-    for (i = 0; i < p->num_type_stats; i++) {
-        MVMSpeshStatsByType *ts = p->type_stats[i];
+    for (i = 0; i < p->type_info.num_type_stats; i++) {
+        MVMSpeshStatsByType *ts = p->type_info.type_stats[i];
         MVMuint32 j;
         for (j = 0; j < ts->num_by_offset; j++) {
             if (ts->by_offset[j].bytecode_offset == bytecode_offset) {
@@ -1273,8 +1273,8 @@ static MVMStaticFrame * find_runbytecode_static_frame(MVMThreadContext *tc, MVMS
     /* Now look for a stable invokee. */
     if (!p)
         return NULL;
-    for (i = 0; i < p->num_type_stats; i++) {
-        MVMSpeshStatsByType *ts = p->type_stats[i];
+    for (i = 0; i < p->type_info.num_type_stats; i++) {
+        MVMSpeshStatsByType *ts = p->type_info.type_stats[i];
         MVMuint32 j;
         for (j = 0; j < ts->num_by_offset; j++) {
             if (ts->by_offset[j].bytecode_offset == cache_offset) {

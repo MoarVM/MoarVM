@@ -33,8 +33,8 @@ static void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlanne
                         MVMSpeshStatsType *type_tuple, MVMSpeshStatsByType **type_stats,
                         MVMuint32 num_type_stats) {
     MVMSpeshPlanned *p;
-    if (sf->body.bytecode_size > MVM_SPESH_MAX_BYTECODE_SIZE ||
-        have_existing_specialization(tc, sf, cs_stats->cs, type_tuple)) {
+    if (kind != MVM_SPESH_PLANNED_REMOVE_OPT && (sf->body.bytecode_size > MVM_SPESH_MAX_BYTECODE_SIZE ||
+        have_existing_specialization(tc, sf, cs_stats->cs, type_tuple))) {
         /* Clean up allocated memory.
          * NB - the only caller is plan_for_cs, which means that we could do the
          * allocations in here, except that we need the type tuple for the
@@ -51,19 +51,25 @@ static void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlanne
     p = &(plan->planned[plan->num_planned++]);
     p->kind = kind;
     p->sf = sf;
-    p->cs_stats = cs_stats;
-    p->type_tuple = type_tuple;
-    p->type_stats = type_stats;
-    p->num_type_stats = num_type_stats;
-    if (num_type_stats) {
-        MVMuint32 i;
-        p->max_depth = type_stats[0]->max_depth;
-        for (i = 1; i < num_type_stats; i++)
-            if (type_stats[i]->max_depth > p->max_depth)
-                p->max_depth = type_stats[i]->max_depth;
+    if (kind == MVM_SPESH_PLANNED_REMOVE_OPT) {
+        p->max_depth = UINT32_MAX;
+        p->deopt_info.spesh_cand = cand;
     }
     else {
-        p->max_depth = cs_stats->max_depth;
+        p->type_info.cs_stats = cs_stats;
+        p->type_info.type_tuple = type_tuple;
+        p->type_info.type_stats = type_stats;
+        p->type_info.num_type_stats = num_type_stats;
+        if (num_type_stats) {
+            MVMuint32 i;
+            p->max_depth = type_stats[0]->max_depth;
+            for (i = 1; i < num_type_stats; i++)
+                if (type_stats[i]->max_depth > p->max_depth)
+                    p->max_depth = type_stats[i]->max_depth;
+        }
+        else {
+            p->max_depth = cs_stats->max_depth;
+        }
     }
 }
 
@@ -238,7 +244,7 @@ static void plan_for_sf(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
         MVMuint64 *in_certain_specialization, MVMuint64 *in_observed_specialization, MVMuint64 *in_osr_specialization) {
     MVMSpeshStats *ss = sf->body.spesh->body.spesh_stats;
     MVMuint32 threshold = MVM_spesh_threshold(tc, sf);
-    if (ss->hits >= threshold || ss->osr_hits >= MVM_SPESH_PLAN_SF_MIN_OSR) {
+    if (ss && (ss->hits >= threshold || ss->osr_hits >= MVM_SPESH_PLAN_SF_MIN_OSR)) {
         /* The frame is hot enough; look through its callsites to see if any
          * of those are. */
         MVMuint32 i;
@@ -261,9 +267,11 @@ static void twiddle_stack_depths(MVMThreadContext *tc, MVMSpeshPlanned *planned,
     for (i = 0; i < num_planned; i++) {
         /* For each planned specialization, look for its calls. */
         MVMSpeshPlanned *p = &(planned[i]);
+        if (p->kind == MVM_SPESH_PLANNED_REMOVE_OPT)
+            continue;
         MVMuint32 j;
-        for (j = 0; j < p->num_type_stats; j++) {
-            MVMSpeshStatsByType *sbt = p->type_stats[j];
+        for (j = 0; j < p->type_info.num_type_stats; j++) {
+            MVMSpeshStatsByType *sbt = p->type_info.type_stats[j];
             MVMuint32 k;
             for (k = 0; k < sbt->num_by_offset; k++) {
                 MVMSpeshStatsByOffset *sbo = &(sbt->by_offset[k]);
@@ -333,13 +341,16 @@ void MVM_spesh_plan_gc_mark(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMGCWorkl
     for (i = 0; i < plan->num_planned; i++) {
         MVMSpeshPlanned *p = &(plan->planned[i]);
         MVM_gc_worklist_add(tc, worklist, &(p->sf));
-        if (p->type_tuple) {
-            MVMCallsite *cs = p->cs_stats->cs;
+        if (p->kind == MVM_SPESH_PLANNED_REMOVE_OPT) {
+            MVM_gc_worklist_add(tc, worklist, &(p->deopt_info.spesh_cand));
+        }
+        else if (p->type_info.type_tuple) {
+            MVMCallsite *cs = p->type_info.cs_stats->cs;
             MVMuint32 j;
             for (j = 0; j < cs->flag_count; j++) {
                 if (cs->arg_flags[j] & MVM_CALLSITE_ARG_OBJ) {
-                    MVM_gc_worklist_add(tc, worklist, &(p->type_tuple[j].type));
-                    MVM_gc_worklist_add(tc, worklist, &(p->type_tuple[j].decont_type));
+                    MVM_gc_worklist_add(tc, worklist, &(p->type_info.type_tuple[j].type));
+                    MVM_gc_worklist_add(tc, worklist, &(p->type_info.type_tuple[j].decont_type));
                 }
             }
         }
@@ -351,21 +362,26 @@ void MVM_spesh_plan_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *ss, 
     MVMuint64 cache_1 = 0;
     MVMuint64 cache_2 = 0;
     MVMuint64 cache_3 = 0;
+    MVMuint64 cache_4 = 0;
     if (!plan)
         return;
     for (i = 0; i < plan->num_planned; i++) {
         MVMSpeshPlanned *p = &(plan->planned[i]);
         MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
             (MVMCollectable*)(p->sf), "staticframe", &cache_1);
-        if (p->type_tuple) {
-            MVMCallsite *cs = p->cs_stats->cs;
+        if (p->kind == MVM_SPESH_PLANNED_REMOVE_OPT) {
+            MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                (MVMCollectable*)(p->deopt_info.spesh_cand), "spesh candidate", &cache_4);
+        }
+        else if (p->type_info.type_tuple) {
+            MVMCallsite *cs = p->type_info.cs_stats->cs;
             MVMuint32 j;
             for (j = 0; j < cs->flag_count; j++) {
                 if (cs->arg_flags[j] & MVM_CALLSITE_ARG_OBJ) {
                     MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
-                        (MVMCollectable*)(p->type_tuple[j].type), "argument type", &cache_2);
+                        (MVMCollectable*)(p->type_info.type_tuple[j].type), "argument type", &cache_2);
                     MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
-                        (MVMCollectable*)(p->type_tuple[j].decont_type), "argument decont type", &cache_3);
+                        (MVMCollectable*)(p->type_info.type_tuple[j].decont_type), "argument decont type", &cache_3);
                 }
             }
         }
@@ -376,8 +392,10 @@ void MVM_spesh_plan_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *ss, 
 void MVM_spesh_plan_destroy(MVMThreadContext *tc, MVMSpeshPlan *plan) {
     MVMuint32 i;
     for (i = 0; i < plan->num_planned; i++) {
-        MVM_free(plan->planned[i].type_stats);
-        MVM_free(plan->planned[i].type_tuple);
+        if (plan->planned[i].kind != MVM_SPESH_PLANNED_REMOVE_OPT) {
+            MVM_free(plan->planned[i].type_info.type_stats);
+            MVM_free(plan->planned[i].type_info.type_tuple);
+        }
     }
     MVM_free(plan->planned);
     MVM_free(plan);
