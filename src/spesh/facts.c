@@ -286,8 +286,8 @@ static void log_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
     MVMuint32 agg_type_object = 0;
     MVMuint32 agg_concrete = 0;
     MVMuint32 i;
-    for (i = 0; i < p->num_type_stats; i++) {
-        MVMSpeshStatsByType *ts = p->type_stats[i];
+    for (i = 0; i < p->type_info.num_type_stats; i++) {
+        MVMSpeshStatsByType *ts = p->type_info.type_stats[i];
         MVMuint32 j;
         for (j = 0; j < ts->num_by_offset; j++) {
             if (ts->by_offset[j].bytecode_offset == logged_ann->data.bytecode_offset) {

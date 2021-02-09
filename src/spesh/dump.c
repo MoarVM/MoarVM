@@ -860,9 +860,9 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     append(&ds, ")\n\n");
 
     /* Dump the callsite of the specialization. */
-    if (p->cs_stats->cs) {
+    if (p->kind != MVM_SPESH_PLANNED_REMOVE_OPT && p->type_info.cs_stats->cs) {
         append(&ds, "The specialization is for the callsite:\n");
-        dump_callsite(tc, &ds, p->cs_stats->cs);
+        dump_callsite(tc, &ds, p->type_info.cs_stats->cs);
     }
     else {
         append(&ds, "The specialization is for when there is no interned callsite.\n");
@@ -871,43 +871,43 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     /* Dump reasoning. */
     switch (p->kind) {
         case MVM_SPESH_PLANNED_CERTAIN:
-            if (p->cs_stats->hits >= MVM_spesh_threshold(tc, p->sf))
+            if (p->type_info.cs_stats->hits >= MVM_spesh_threshold(tc, p->sf))
                 appendf(&ds,
                     "It was planned due to the callsite receiving %u hits.\n",
-                    p->cs_stats->hits);
-            else if (p->cs_stats->osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR)
+                    p->type_info.cs_stats->hits);
+            else if (p->type_info.cs_stats->osr_hits >= MVM_SPESH_PLAN_CS_MIN_OSR)
                 appendf(&ds,
                     "It was planned due to the callsite receiving %u OSR hits.\n",
-                    p->cs_stats->osr_hits);
+                    p->type_info.cs_stats->osr_hits);
             else
                 append(&ds, "It was planned for unknown reasons.\n");
             if (!p->sf->body.specializable)
                 append(&ds, "The body contains no specializable instructions.\n");
             break;
         case MVM_SPESH_PLANNED_OBSERVED_TYPES: {
-            MVMCallsite *cs = p->cs_stats->cs;
-            MVMuint32 hit_percent = p->cs_stats->hits
-               ? (100 * p->type_stats[0]->hits) / p->cs_stats->hits
+            MVMCallsite *cs = p->type_info.cs_stats->cs;
+            MVMuint32 hit_percent = p->type_info.cs_stats->hits
+               ? (100 * p->type_info.type_stats[0]->hits) / p->type_info.cs_stats->hits
                : 0;
-            MVMuint32 osr_hit_percent = p->cs_stats->osr_hits
-               ? (100 * p->type_stats[0]->osr_hits) / p->cs_stats->osr_hits
+            MVMuint32 osr_hit_percent = p->type_info.cs_stats->osr_hits
+               ? (100 * p->type_info.type_stats[0]->osr_hits) / p->type_info.cs_stats->osr_hits
                : 0;
             append(&ds, "It was planned for the type tuple:\n");
-            dump_stats_type_tuple(tc, &ds, cs, p->type_tuple, "    ");
+            dump_stats_type_tuple(tc, &ds, cs, p->type_info.type_tuple, "    ");
             if (osr_hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT_OSR)
                 appendf(&ds, "Which received %u OSR hits (%u%% of the %u callsite OSR hits).\n",
-                    p->type_stats[0]->osr_hits, osr_hit_percent, p->cs_stats->osr_hits);
+                    p->type_info.type_stats[0]->osr_hits, osr_hit_percent, p->type_info.cs_stats->osr_hits);
             else if (hit_percent >= MVM_SPESH_PLAN_TT_OBS_PERCENT)
                 appendf(&ds, "Which received %u hits (%u%% of the %u callsite hits).\n",
-                    p->type_stats[0]->hits, hit_percent, p->cs_stats->hits);
+                    p->type_info.type_stats[0]->hits, hit_percent, p->type_info.cs_stats->hits);
             else
                 append(&ds, "For unknown reasons.\n");
             break;
         }
         case MVM_SPESH_PLANNED_DERIVED_TYPES: {
-            MVMCallsite *cs = p->cs_stats->cs;
+            MVMCallsite *cs = p->type_info.cs_stats->cs;
             append(&ds, "It was planned for the type tuple:\n");
-            dump_stats_type_tuple(tc, &ds, cs, p->type_tuple, "    ");
+            dump_stats_type_tuple(tc, &ds, cs, p->type_info.type_tuple, "    ");
             break;
         }
     }

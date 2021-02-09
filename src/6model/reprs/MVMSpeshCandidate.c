@@ -244,8 +244,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     spesh_gc_point(tc);
 
     /* Perform the optimization and, if we're logging, dump out the result. */
-    if (p->cs_stats->cs)
-        MVM_spesh_args(tc, sg, p->cs_stats->cs, p->type_tuple);
+    if (p->type_info.cs_stats->cs)
+        MVM_spesh_args(tc, sg, p->type_info.cs_stats->cs, p->type_info.type_tuple);
     spesh_gc_point(tc);
     MVM_spesh_facts_discover(tc, sg, p, 0);
     spesh_gc_point(tc);
@@ -271,9 +271,9 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     tc->in_spesh = 1;
 #endif
 
-    candidate->body.cs            = p->cs_stats->cs;
-    candidate->body.type_tuple    = p->type_tuple
-        ? MVM_spesh_plan_copy_type_tuple(tc, candidate->body.cs, p->type_tuple)
+    candidate->body.cs            = p->type_info.cs_stats->cs;
+    candidate->body.type_tuple    = p->type_info.type_tuple
+        ? MVM_spesh_plan_copy_type_tuple(tc, candidate->body.cs, p->type_info.type_tuple)
         : NULL;
     candidate->body.bytecode      = sc->bytecode;
     candidate->body.bytecode_size = sc->bytecode_size;

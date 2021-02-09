@@ -1534,8 +1534,8 @@ static void optimize_getlex_per_invocant(MVMThreadContext *tc, MVMSpeshGraph *g,
     }
     if (ann) {
         MVMuint32 i;
-        for (i = 0; i < p->num_type_stats; i++) {
-            MVMSpeshStatsByType *ts = p->type_stats[i];
+        for (i = 0; i < p->type_info.num_type_stats; i++) {
+            MVMSpeshStatsByType *ts = p->type_info.type_stats[i];
             MVMuint32 j;
             for (j = 0; j < ts->num_by_offset; j++) {
                 if (ts->by_offset[j].bytecode_offset == ann->data.bytecode_offset) {
@@ -1609,8 +1609,8 @@ static MVMSpeshStatsType * find_invokee_type_tuple(MVMThreadContext *tc, MVMSpes
         return NULL;
 
     /* Now look for the best type tuple. */
-    for (i = 0; i < p->num_type_stats; i++) {
-        MVMSpeshStatsByType *ts = p->type_stats[i];
+    for (i = 0; i < p->type_info.num_type_stats; i++) {
+        MVMSpeshStatsByType *ts = p->type_info.type_stats[i];
         MVMuint32 j;
         for (j = 0; j < ts->num_by_offset; j++) {
             if (ts->by_offset[j].bytecode_offset == invoke_offset) {
@@ -1808,8 +1808,8 @@ MVMStaticFrame * find_invokee_static_frame(MVMThreadContext *tc, MVMSpeshPlanned
         return NULL;
 
     /* Now look for a stable invokee. */
-    for (i = 0; i < p->num_type_stats; i++) {
-        MVMSpeshStatsByType *ts = p->type_stats[i];
+    for (i = 0; i < p->type_info.num_type_stats; i++) {
+        MVMSpeshStatsByType *ts = p->type_info.type_stats[i];
         MVMuint32 j;
         for (j = 0; j < ts->num_by_offset; j++) {
             if (ts->by_offset[j].bytecode_offset == invoke_offset) {
@@ -2216,8 +2216,8 @@ static void optimize_plugin(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
     if (logged_ann) {
         MVMuint32 agg_guard_index_count = 0;
         MVMuint32 i;
-        for (i = 0; i < p->num_type_stats; i++) {
-            MVMSpeshStatsByType *ts = p->type_stats[i];
+        for (i = 0; i < p->type_info.num_type_stats; i++) {
+            MVMSpeshStatsByType *ts = p->type_info.type_stats[i];
             MVMuint32 j;
             for (j = 0; j < ts->num_by_offset; j++) {
                 if (ts->by_offset[j].bytecode_offset == logged_ann->data.bytecode_offset) {
