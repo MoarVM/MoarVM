@@ -1093,7 +1093,7 @@ void record_resume(MVMThreadContext *tc, MVMObject *capture, MVMDispResumptionDa
 /* Record the resumption of the topmost dispatch. */
 void MVM_disp_program_record_resume(MVMThreadContext *tc, MVMObject *capture) {
     MVMDispResumptionData resume_data;
-    if (!MVM_disp_resume_find_topmost(tc, &resume_data))
+    if (!MVM_disp_resume_find_topmost(tc, &resume_data, 0))
         MVM_exception_throw_adhoc(tc, "No resumable dispatch in dynamic scope");
     record_resume(tc, capture, &resume_data, MVMDispProgramRecordingResumeTopmost);
 }
@@ -1101,7 +1101,7 @@ void MVM_disp_program_record_resume(MVMThreadContext *tc, MVMObject *capture) {
 /* Record the resumption of a dispatch found relative to our caller. */
 void MVM_disp_program_record_resume_caller(MVMThreadContext *tc, MVMObject *capture) {
     MVMDispResumptionData resume_data;
-    if (!MVM_disp_resume_find_caller(tc, &resume_data))
+    if (!MVM_disp_resume_find_caller(tc, &resume_data, 0))
         MVM_exception_throw_adhoc(tc, "No resumable dispatch in caller's dynamic scope");
     record_resume(tc, capture, &resume_data, MVMDispProgramRecordingResumeCaller);
 }
@@ -2067,13 +2067,13 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
         switch (op->code) {
             /* Resumption related ops. */
             case MVMDispOpcodeResumeTopmost:
-                if (!MVM_disp_resume_find_topmost(tc, &(record->resumption_data)))
+                if (!MVM_disp_resume_find_topmost(tc, &(record->resumption_data), 0))
                     goto rejection;
                 if (record->resumption_data.resumption->disp != op->resume.disp)
                     goto rejection;
                 break;
             case MVMDispOpcodeResumeCaller:
-                if (!MVM_disp_resume_find_caller(tc, &(record->resumption_data)))
+                if (!MVM_disp_resume_find_caller(tc, &(record->resumption_data), 0))
                     goto rejection;
                 if (record->resumption_data.resumption->disp != op->resume.disp)
                     goto rejection;
