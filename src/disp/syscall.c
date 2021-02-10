@@ -341,6 +341,23 @@ static MVMDispSysCall dispatcher_track_resume_state = {
     .expected_concrete = { },
 };
 
+/* dispatcher-next-resumption */
+static void dispatcher_next_resumption_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMint32 have_next_resumption = MVM_disp_program_record_next_resumption(tc);
+    MVM_args_set_result_int(tc, have_next_resumption, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_next_resumption = {
+    .c_name = "dispatcher-next-resumption",
+    .implementation = dispatcher_next_resumption_impl,
+    .min_args = 0,
+    .max_args = 0,
+    .expected_kinds = { },
+    .expected_reprs = { },
+    .expected_concrete = { },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -376,6 +393,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_set_resume_state_literal);
     add_to_hash(tc, &dispatcher_get_resume_state);
     add_to_hash(tc, &dispatcher_track_resume_state);
+    add_to_hash(tc, &dispatcher_next_resumption);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 

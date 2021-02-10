@@ -1123,6 +1123,20 @@ void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatche
     record->outcome.delegate_capture = capture;
 }
 
+/* Record a delegation to the next resumption in this dispatch, assuming that
+ * there is one. */
+MVMint32 MVM_disp_program_record_next_resumption(MVMThreadContext *tc) {
+    /* Make sure we're in a dispatcher and that we're in a resume. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    if (record->rec.resume_kind == MVMDispProgramRecordingResumeNone)
+        MVM_exception_throw_adhoc(tc,
+            "Can only use dispatcher-next-resumption in a resume callback");
+
+    // TODO implement moving on to the next resumption if we have one
+
+    return 0;
+}
+
 /* Record a program terminator that is a constant object value. */
 void MVM_disp_program_record_result_constant(MVMThreadContext *tc, MVMCallsiteFlags kind,
         MVMRegister value) {
