@@ -13,6 +13,11 @@ struct MVMDispResumptionData {
 
     /* The place where the resumption state to read/write lives. */
     MVMObject **state_ptr;
+
+    /* How many exhausted dispatch resumptions we've passed over before we got
+     * to this one. Involved when there are multiple resumable dispatchers in
+     * a single overall dispatch. */
+    MVMuint32 exhausted;
 };
 
 /* Dispatch resumption state. This is held in the record of the dispatch that
@@ -30,8 +35,10 @@ struct MVMDispResumptionState {
     MVMDispResumptionState *next;
 };
 
-MVMuint32 MVM_disp_resume_find_topmost(MVMThreadContext *tc, MVMDispResumptionData *data);
-MVMuint32 MVM_disp_resume_find_caller(MVMThreadContext *tc, MVMDispResumptionData *data);
+MVMuint32 MVM_disp_resume_find_topmost(MVMThreadContext *tc, MVMDispResumptionData *data,
+        MVMuint32 exhausted);
+MVMuint32 MVM_disp_resume_find_caller(MVMThreadContext *tc, MVMDispResumptionData *data,
+        MVMuint32 exhausted);
 MVMRegister MVM_disp_resume_get_init_arg(MVMThreadContext *tc, MVMDispResumptionData *data,
         MVMuint32 arg_idx);
 void MVM_disp_resume_mark_resumption_state(MVMThreadContext *tc, MVMDispResumptionState *res_state,

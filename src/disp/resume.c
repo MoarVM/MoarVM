@@ -1,9 +1,18 @@
 #include "moar.h"
 
+static void finish_resumption_data(MVMThreadContext *tc, MVMDispResumptionData *data,
+        MVMDispResumptionState *state, MVMuint32 offset) {
+    data->resumption = &(data->dp->resumptions[offset]);
+    for (MVMuint32 i = 0; i < offset; i++)
+        state = state->next;
+    data->state_ptr = &(state->state);
+}
 static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *data,
-        MVMDispProgram *dp, MVMArgs *arg_info, MVMDispResumptionState *state) {
-    /* Did the dispatch program set up any static resumptions? */
-    if (dp->num_resumptions > 0) {
+        MVMDispProgram *dp, MVMArgs *arg_info, MVMDispResumptionState *state,
+        MVMuint32 exhausted) {
+    /* Did the dispatch program set up any static resumptions, and are there at
+     * least as many as we've already passed? */
+    if (dp->num_resumptions > exhausted) {
         /* Yes; do we have dispatch state for them already? */
         if (!state->disp) {
             /* No state; set it up. */
@@ -22,20 +31,17 @@ static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *d
                 prev = target;
             }
 
-            /* We take the innermost dispatcher. */
+            /* Set up the resumption data for the requested dispatcher. */
             data->dp = dp;
             data->initial_arg_info = arg_info;
-            data->resumption = &(data->dp->resumptions[0]);
-            data->state_ptr = &(state->state);
+            finish_resumption_data(tc, data, state, exhausted);
             return 1;
         }
         else {
             /* Already have state record set up. */
-            // TODO Stacked resumable dispatchers need handling here
             data->dp = dp;
             data->initial_arg_info = arg_info;
-            data->resumption = &(data->dp->resumptions[0]);
-            data->state_ptr = &(state->state);
+            finish_resumption_data(tc, data, state, exhausted);
             return 1;
         }
     }
@@ -46,7 +52,7 @@ static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *d
  * from the indicated start point. If found, populates the struct pointed to by
  * the data parameter and returns a non-zero value. */
 static MVMuint32 find_internal(MVMThreadContext *tc, MVMCallStackRecord *start,
-        MVMDispResumptionData *data) {
+        MVMDispResumptionData *data, MVMuint32 exhausted) {
     MVMCallStackIterator iter;
     MVM_callstack_iter_dispatch_init(tc, &iter, start);
     while (MVM_callstack_iter_move_next(tc, &iter)) {
@@ -55,14 +61,14 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMCallStackRecord *start,
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED: {
                 MVMCallStackDispatchRecord *dr = (MVMCallStackDispatchRecord *)cur;
                 if (dr->produced_dp && setup_resumption(tc, data, dr->produced_dp,
-                            &(dr->arg_info), &(dr->resumption_state)))
+                            &(dr->arg_info), &(dr->resumption_state), exhausted))
                     return 1;
                 break;
             }
             case MVM_CALLSTACK_RECORD_DISPATCH_RUN: {
                 MVMCallStackDispatchRun *dr = (MVMCallStackDispatchRun *)cur;
                 if (dr->chosen_dp && setup_resumption(tc, data, dr->chosen_dp,
-                            &(dr->arg_info), &(dr->resumption_state)))
+                            &(dr->arg_info), &(dr->resumption_state), exhausted))
                     return 1;
                 break;
             }
@@ -72,19 +78,21 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMCallStackRecord *start,
 }
 
 /* Looks down the callstack to find the dispatch that we are resuming. */
-MVMuint32 MVM_disp_resume_find_topmost(MVMThreadContext *tc, MVMDispResumptionData *data) {
-    return find_internal(tc, tc->stack_top, data);
+MVMuint32 MVM_disp_resume_find_topmost(MVMThreadContext *tc, MVMDispResumptionData *data,
+                                       MVMuint32 exhausted) {
+    return find_internal(tc, tc->stack_top, data, exhausted);
 }
 
 /* Skip to our caller, and then find the current dispatch. */
-MVMuint32 MVM_disp_resume_find_caller(MVMThreadContext *tc, MVMDispResumptionData *data) {
+MVMuint32 MVM_disp_resume_find_caller(MVMThreadContext *tc, MVMDispResumptionData *data,
+                                      MVMuint32 exhausted) {
     MVMCallStackIterator iter;
     MVM_callstack_iter_frame_init(tc, &iter, tc->stack_top);
     if (!MVM_callstack_iter_move_next(tc, &iter)) // Current frame
         return 0;
     if (!MVM_callstack_iter_move_next(tc, &iter)) // Caller frame
         return 0;
-    return find_internal(tc, MVM_callstack_iter_current(tc, &iter), data);
+    return find_internal(tc, MVM_callstack_iter_current(tc, &iter), data, exhausted);
 }
 
 /* Get the resume initialization state argument at the specified index. */
