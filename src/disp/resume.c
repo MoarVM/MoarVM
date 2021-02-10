@@ -7,9 +7,8 @@ static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *d
         /* Yes; do we have dispatch state for them already? */
         if (!state->disp) {
             /* No state; set it up. */
-            MVMint32 i;
             MVMDispResumptionState *prev = NULL;
-            for (i = dp->num_resumptions - 1; i >= 0; i--) {
+            for (MVMuint32 i = 0; i < dp->num_resumptions; i++) {
                 /* For the innermost (or only) one, we write into the record.
                  * For more, we need to allocate. */
                 MVMDispResumptionState *target = prev
@@ -26,7 +25,7 @@ static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *d
             /* We take the innermost dispatcher. */
             data->dp = dp;
             data->initial_arg_info = arg_info;
-            data->resumption = &(data->dp->resumptions[dp->num_resumptions - 1]);
+            data->resumption = &(data->dp->resumptions[0]);
             data->state_ptr = &(state->state);
             return 1;
         }
@@ -35,7 +34,7 @@ static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *d
             // TODO Stacked resumable dispatchers need handling here
             data->dp = dp;
             data->initial_arg_info = arg_info;
-            data->resumption = &(data->dp->resumptions[dp->num_resumptions - 1]);
+            data->resumption = &(data->dp->resumptions[0]);
             data->state_ptr = &(state->state);
             return 1;
         }
