@@ -314,6 +314,11 @@ typedef enum {
     MVMDispOpcodeResumeCaller,
     /* Assert that the resumption callsite is as expected. */
     MVMDispOpcodeGuardResumeInitCallsite,
+    /* Assert that there is no further resumptions beyond those already
+     * considered in the topmost dispatch. */
+    MVMDispOpcodeGuardNoResumptionTopmost,
+    /* Same, except we're looking to the caller. */
+    MVMDispOpcodeGuardNoResumptionCaller,
     /* Update the dispatch resume state to the specified temporary. */
     MVMDispOpcodeUpdateResumeState,
     /* Guard that the type of an incoming argument is as expected. */
