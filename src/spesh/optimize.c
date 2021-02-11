@@ -2067,16 +2067,16 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
 
     /* See if we can point the call at a particular specialization. */
     if (target_sf->body.instrumentation_level == tc->instance->instrumentation_level) {
-        MVMint32 spesh_cand = try_find_spesh_candidate(tc, target_sf, arg_info,
+        MVMint32 spesh_cand_index = try_find_spesh_candidate(tc, target_sf, arg_info,
             stable_type_tuple);
-        if (spesh_cand >= 0) {
+        if (spesh_cand_index >= 0) {
             /* Yes. Will we be able to inline? */
             char *no_inline_reason = NULL;
             const MVMOpInfo *no_inline_info = NULL;
             MVMuint32 effective_size;
-            MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards = target_sf->body.spesh->body.spesh_cands_and_arg_guards;
+            MVMSpeshCandidate *spesh_cand = target_sf->body.spesh->body.spesh_cands_and_arg_guards->spesh_candidates[spesh_cand_index];
             MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
-                target_sf, cands_and_arg_guards->spesh_candidates[spesh_cand],
+                target_sf, spesh_cand,
                 ins, &no_inline_reason, &effective_size, &no_inline_info);
             log_inline(tc, g, target_sf, inline_graph, effective_size, no_inline_reason, 0, no_inline_info);
             if (inline_graph) {
@@ -2090,7 +2090,7 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
                 MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
                         code_ref_reg, prepargs_deopt_idx,
-                        (MVMuint16)cands_and_arg_guards->spesh_candidates[spesh_cand]->body.bytecode_size);
+                        (MVMuint16)spesh_cand->body.bytecode_size);
                 optimize_bb(tc, g, optimize_from_bb, NULL);
 
                 if (MVM_spesh_debug_enabled(tc)) {
@@ -2111,16 +2111,17 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             else {
                 /* Can't inline, so just identify candidate. */
                 MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                MVMuint16 spesh_cand_slot = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)spesh_cand);
                 if (ins->info->opcode == MVM_OP_invoke_v) {
                     new_operands[0]         = ins->operands[0];
-                    new_operands[1].lit_i16 = spesh_cand;
+                    new_operands[1].lit_i16 = spesh_cand_slot;
                     ins->operands           = new_operands;
                     ins->info               = MVM_op_get_op(MVM_OP_sp_fastinvoke_v);
                 }
                 else {
                     new_operands[0]         = ins->operands[0];
                     new_operands[1]         = ins->operands[1];
-                    new_operands[2].lit_i16 = spesh_cand;
+                    new_operands[2].lit_i16 = spesh_cand_slot;
                     ins->operands           = new_operands;
                     switch (ins->info->opcode) {
                     case MVM_OP_invoke_i:

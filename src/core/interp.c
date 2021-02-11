@@ -5939,7 +5939,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_fastinvoke_v): {
                 MVMCode     *code       = (MVMCode *)GET_REG(cur_op, 0).o;
                 MVMRegister *args       = tc->cur_frame->args;
-                MVMint32     spesh_cand = GET_UI16(cur_op, 2);
+                MVMSpeshCandidate *spesh_cand = (MVMSpeshCandidate *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 2)];
                 tc->cur_frame->return_value = NULL;
                 tc->cur_frame->return_type  = MVM_RETURN_VOID;
                 cur_op += 4;
@@ -5951,7 +5951,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_fastinvoke_i): {
                 MVMCode     *code       = (MVMCode *)GET_REG(cur_op, 2).o;
                 MVMRegister *args       = tc->cur_frame->args;
-                MVMint32     spesh_cand = GET_UI16(cur_op, 4);
+                MVMSpeshCandidate *spesh_cand = (MVMSpeshCandidate *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                 tc->cur_frame->return_type  = MVM_RETURN_INT;
                 cur_op += 6;
@@ -5963,7 +5963,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_fastinvoke_n): {
                 MVMCode     *code       = (MVMCode *)GET_REG(cur_op, 2).o;
                 MVMRegister *args       = tc->cur_frame->args;
-                MVMint32     spesh_cand = GET_UI16(cur_op, 4);
+                MVMSpeshCandidate *spesh_cand = (MVMSpeshCandidate *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                 tc->cur_frame->return_type  = MVM_RETURN_NUM;
                 cur_op += 6;
@@ -5975,7 +5975,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_fastinvoke_s): {
                 MVMCode     *code       = (MVMCode *)GET_REG(cur_op, 2).o;
                 MVMRegister *args       = tc->cur_frame->args;
-                MVMint32     spesh_cand = GET_UI16(cur_op, 4);
+                MVMSpeshCandidate *spesh_cand = (MVMSpeshCandidate *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                 tc->cur_frame->return_type  = MVM_RETURN_STR;
                 cur_op += 6;
@@ -5987,7 +5987,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_fastinvoke_o): {
                 MVMCode     *code       = (MVMCode *)GET_REG(cur_op, 2).o;
                 MVMRegister *args       = tc->cur_frame->args;
-                MVMint32     spesh_cand = GET_UI16(cur_op, 4);
+                MVMSpeshCandidate *spesh_cand = (MVMSpeshCandidate *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                 tc->cur_frame->return_type  = MVM_RETURN_OBJ;
                 cur_op += 6;
