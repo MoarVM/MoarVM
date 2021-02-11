@@ -171,6 +171,12 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                 fprintf(stderr, "    Check resume init state callsite is %d\n",
                         op->resume_init_callsite.callsite_idx);
                 break;
+            case MVMDispOpcodeGuardNoResumptionTopmost:
+                fprintf(stderr, "    Guard there is no further resumption in topmost dispatch\n");
+                break;
+            case MVMDispOpcodeGuardNoResumptionCaller:
+                fprintf(stderr, "    Guard there is no further resumption in caller dispatch\n");
+                break;
             case MVMDispOpcodeUpdateResumeState:
                 fprintf(stderr, "    Update resume state to temp %d\n",
                         op->res_value.temp);
@@ -1915,13 +1921,14 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
      * relate to each of them. */
     MVMuint32 is_resume = record->rec.resume_kind != MVMDispProgramRecordingResumeNone;
     if (is_resume) {
-        /* We always start with the innermost resumption. */
-        MVMDispProgramOp op;
-        op.code = MVMDispOpcodeStartResumption;
-        MVM_VECTOR_PUSH(cs.ops, op);
-
-        /* Now go through the resumptions. */
+        /* Go through the resumptions. */
         for (MVMuint32 i = 0; i < MVM_VECTOR_ELEMS(record->rec.resumptions); i++) {
+            /* Emit op to start the resumption or to move to the next one,
+             * depending. */
+            MVMDispProgramOp op;
+            op.code = i == 0 ? MVMDispOpcodeStartResumption : MVMDispOpcodeNextResumption;
+            MVM_VECTOR_PUSH(cs.ops, op);
+
             /* Emit instruction that asserts we have the correct kind of dispatcher
              * at the current resumption nesting depth. */
             MVMDispProgramRecordingResumption *rec_res = &(record->rec.resumptions[i]);
@@ -1949,6 +1956,16 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
                 MVMDispProgramOp op;
                 op.code = MVMDispOpcodeUpdateResumeState;
                 op.res_value.temp = temp;
+                MVM_VECTOR_PUSH(cs.ops, op);
+            }
+
+            /* If we expect there to be no further resumption, emit the op to
+             * assert that. */
+            if (rec_res->no_next_resumption) {
+                MVMDispProgramOp op;
+                op.code = record->rec.resume_kind == MVMDispProgramRecordingResumeTopmost
+                    ? MVMDispOpcodeGuardNoResumptionTopmost
+                    : MVMDispOpcodeGuardNoResumptionCaller;
                 MVM_VECTOR_PUSH(cs.ops, op);
             }
         }
@@ -2172,6 +2189,12 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                     goto rejection;
                 break;
             }
+            case MVMDispOpcodeGuardNoResumptionTopmost:
+                if (MVM_disp_resume_find_topmost(tc, &(record->resumption_data), record->resumption_level))
+                    goto rejection;
+            case MVMDispOpcodeGuardNoResumptionCaller:
+                if (MVM_disp_resume_find_caller(tc, &(record->resumption_data), record->resumption_level))
+                    goto rejection;
             case MVMDispOpcodeUpdateResumeState:
                 *(record->resumption_data.state_ptr) = record->temps[op->res_value.temp].o;
                 break;
