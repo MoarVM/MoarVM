@@ -54,8 +54,8 @@ static void dump_recording_values(MVMThreadContext *tc, MVMDispProgramRecording 
                 fprintf(stderr, "    %d Initial argument %d\n", i, v->capture.index);
                 break;
             case MVMDispProgramRecordingResumeInitCaptureValue:
-                fprintf(stderr, "    %d Resume initialization argument %d\n", i,
-                        v->capture.index);
+                fprintf(stderr, "    %d Resume initialization argument %d from resumption %d\n", i,
+                        v->resume_capture.index, v->resume_capture.resumption_level);
                 break;
             case MVMDispProgramRecordingLiteralValue:
                 switch (v->literal.kind) {
@@ -605,11 +605,12 @@ static MVMuint32 value_index_capture(MVMThreadContext *tc, MVMDispProgramRecordi
 static MVMuint32 value_index_resume_capture(MVMThreadContext *tc, MVMDispProgramRecording *rec,
         MVMuint32 index) {
     /* Look for an existing such value. */
+    MVMuint32 level = MVM_VECTOR_ELEMS(rec->resumptions) - 1;
     MVMuint32 i;
     for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++) {
         MVMDispProgramRecordingValue *v = &(rec->values[i]);
         if (v->source == MVMDispProgramRecordingResumeInitCaptureValue &&
-                v->capture.index == index)
+                v->resume_capture.index == index && v->resume_capture.resumption_level == level)
             return i;
     }
 
@@ -617,7 +618,8 @@ static MVMuint32 value_index_resume_capture(MVMThreadContext *tc, MVMDispProgram
     MVMDispProgramRecordingValue new_value;
     memset(&new_value, 0, sizeof(MVMDispProgramRecordingValue));
     new_value.source = MVMDispProgramRecordingResumeInitCaptureValue;
-    new_value.capture.index = index;
+    new_value.resume_capture.index = index;
+    new_value.resume_capture.resumption_level = level;
     MVM_VECTOR_PUSH(rec->values, new_value);
     return MVM_VECTOR_ELEMS(rec->values) - 1;
 }
@@ -1344,7 +1346,7 @@ static MVMuint32 get_temp_holding_value(MVMThreadContext *tc, compile_state *cs,
             break;
         case MVMDispProgramRecordingResumeInitCaptureValue:
             op.code = MVMDispOpcodeLoadResumeInitValue;
-            op.load.idx = v->capture.index;
+            op.load.idx = v->resume_capture.index;
             break;
         case MVMDispProgramRecordingLiteralValue:
             switch (v->literal.kind) {
