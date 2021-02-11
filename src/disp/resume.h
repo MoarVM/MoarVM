@@ -13,11 +13,6 @@ struct MVMDispResumptionData {
 
     /* The place where the resumption state to read/write lives. */
     MVMObject **state_ptr;
-
-    /* How many exhausted dispatch resumptions we've passed over before we got
-     * to this one. Involved when there are multiple resumable dispatchers in
-     * a single overall dispatch. */
-    MVMuint32 exhausted;
 };
 
 /* Dispatch resumption state. This is held in the record of the dispatch that

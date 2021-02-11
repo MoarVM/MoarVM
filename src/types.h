@@ -323,6 +323,7 @@ typedef struct MVMDispProgramRecording MVMDispProgramRecording;
 typedef struct MVMDispProgramRecordingValue MVMDispProgramRecordingValue;
 typedef struct MVMDispProgramRecordingCapture MVMDispProgramRecordingCapture;
 typedef struct MVMDispProgramRecordingResumeInit MVMDispProgramRecordingResumeInit;
+typedef struct MVMDispProgramRecordingResumption MVMDispProgramRecordingResumption;
 typedef struct MVMDispProgram MVMDispProgram;
 typedef union MVMDispProgramConstant MVMDispProgramConstant;
 typedef struct MVMDispProgramOp MVMDispProgramOp;
