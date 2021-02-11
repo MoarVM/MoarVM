@@ -35,6 +35,9 @@ typedef enum {
      * dispatcher. */
     MVM_DISP_OUTCOME_RESUME,
 
+    /* Indicates we are going to fall back on the next, outer, resumption. */
+    MVM_DISP_OUTCOME_NEXT_RESUMPTION,
+
     /* Return a value (produced by the dispatch program). */
     MVM_DISP_OUTCOME_VALUE,
 
