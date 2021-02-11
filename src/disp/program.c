@@ -1101,7 +1101,25 @@ MVMObject * resume_init_capture(MVMThreadContext *tc, MVMDispResumptionData *res
     };
 }
 
-/* Record the resumption of a dispatch. */
+/* Set up another level fo dispatch resumption in the resumptions list. Used
+ * for both the initial resume and falling back on the next resumption. */
+void push_resumption(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
+        MVMDispResumptionData *resume_data) {
+    MVMDispProgramRecordingResumption rec_resumption;
+    rec_resumption.initial_resume_capture.transformation = MVMDispProgramRecordingResumeInitial;
+    rec_resumption.initial_resume_capture.capture = resume_init_capture(tc, resume_data,
+            &rec_resumption);
+    MVM_VECTOR_INIT(rec_resumption.initial_resume_capture.captures, 4);
+    rec_resumption.initial_resume_capture.transformation = MVMDispProgramRecordingResumeInitial;
+    rec_resumption.resumption = resume_data->resumption;
+    rec_resumption.resume_state_ptr = resume_data->state_ptr;
+    rec_resumption.new_resume_state_value = -1;
+    rec_resumption.num_values = 0;
+    rec_resumption.no_next_resumption = 0;
+    MVM_VECTOR_PUSH(record->rec.resumptions, rec_resumption);
+}
+
+/* Record the initial resumption of a dispatch. */
 void record_resume(MVMThreadContext *tc, MVMObject *capture, MVMDispResumptionData *resume_data,
         MVMDispProgramRecordingResumeKind resume_kind) {
     /* Make sure we're in a dispatcher and that we didn't already call resume. */
@@ -1112,20 +1130,9 @@ void record_resume(MVMThreadContext *tc, MVMObject *capture, MVMDispResumptionDa
     /* Set up the resumptions list and populate the initial entry (list as we
      * may fall back to resumptions of enclosing dispatchers). */
     MVM_VECTOR_INIT(record->rec.resumptions, 1);
-    MVMDispProgramRecordingResumption rec_resumption;
     MVMROOT(tc, capture, {
-        rec_resumption.initial_resume_capture.transformation = MVMDispProgramRecordingResumeInitial;
-        rec_resumption.initial_resume_capture.capture = resume_init_capture(tc, resume_data,
-                &rec_resumption);
-        MVM_VECTOR_INIT(rec_resumption.initial_resume_capture.captures, 4);
+        push_resumption(tc, record, resume_data);
     });
-    rec_resumption.initial_resume_capture.transformation = MVMDispProgramRecordingResumeInitial;
-    rec_resumption.resumption = resume_data->resumption;
-    rec_resumption.resume_state_ptr = resume_data->state_ptr;
-    rec_resumption.new_resume_state_value = -1;
-    rec_resumption.num_values = 0;
-    rec_resumption.no_next_resumption = 0;
-    MVM_VECTOR_PUSH(record->rec.resumptions, rec_resumption);
 
     /* Record the kind of dispatch resumption we're doing, and then delegate to
      * the appropriate `resume` dispatcher callback. */
@@ -1194,7 +1201,13 @@ MVMint32 MVM_disp_program_record_next_resumption(MVMThreadContext *tc) {
         return 0;
     }
 
-    MVM_oops(tc, "dispatcher-next-resumption NYI");
+    /* Record the dispatch action is to continue with the next resumption and
+     * return a true value. (For certainty, we shall re-resolve the next
+     * resumption when we actually process the outcome, since it's likely
+     * possible for userspace code to do something terrible and invalidate
+     * the held state.) */
+    record->outcome.kind = MVM_DISP_OUTCOME_NEXT_RESUMPTION;
+    return 1;
 }
 
 /* Record a program terminator that is a constant object value. */
@@ -1879,8 +1892,8 @@ static void produce_resumption_init_values(MVMThreadContext *tc, compile_state *
     MVM_VECTOR_DESTROY(p.path);
 }
 static void emit_value_guards(MVMThreadContext *tc, compile_state *cs,
-        MVMDispProgramRecordingResumption *rec_res, MVMuint32 from, MVMuint32 to) {
-    for (MVMuint32 i = from; i <= to; i++) {
+        MVMDispProgramRecordingResumption *rec_res, MVMuint32 from_inc, MVMuint32 to_exc) {
+    for (MVMuint32 i = from_inc; i < to_exc; i++) {
         MVMDispProgramRecordingValue *v = &(cs->rec->values[i]);
         if (v->source == MVMDispProgramRecordingCaptureValue) {
             emit_capture_guards(tc, cs, v);
@@ -1921,7 +1934,12 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
      * relate to each of them. */
     MVMuint32 is_resume = record->rec.resume_kind != MVMDispProgramRecordingResumeNone;
     if (is_resume) {
+        /* Ensure the final number of values used in the final resumption is
+         * correct. */
+        get_current_resumption(tc, record)->num_values = MVM_VECTOR_ELEMS(record->rec.values);
+
         /* Go through the resumptions. */
+        MVMuint32 start_value = 0;
         for (MVMuint32 i = 0; i < MVM_VECTOR_ELEMS(record->rec.resumptions); i++) {
             /* Emit op to start the resumption or to move to the next one,
              * depending. */
@@ -1944,11 +1962,10 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
                     ((MVMCapture *)rec_res->initial_resume_capture.capture)->body.callsite);
             MVM_VECTOR_PUSH(cs.ops, op);
 
-            /* Emit the value guards for this resume. */
-            // TODO
-            if (i != 0)
-                MVM_oops(tc, "NYI multi-level resume dispatch program");
-            emit_value_guards(tc, &cs, rec_res, 0, MVM_VECTOR_ELEMS(record->rec.values) - 1);
+            /* Emit the value guards for this resume, and set the number of
+             * values we've emitted as the start for the next iteration. */
+            emit_value_guards(tc, &cs, rec_res, start_value, rec_res->num_values);
+            start_value = rec_res->num_values;
 
             /* Emit any update to the resume state. */
             if (rec_res->new_resume_state_value >= 0) {
@@ -1972,7 +1989,7 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
     }
     else {
         /* It's not a resume, so we want to emit all of the values guards. */
-        emit_value_guards(tc, &cs, NULL, 0, MVM_VECTOR_ELEMS(record->rec.values) - 1);
+        emit_value_guards(tc, &cs, NULL, 0, MVM_VECTOR_ELEMS(record->rec.values));
     }
 
     /* Emit required ops to deliver the dispatch outcome. */
@@ -2109,6 +2126,25 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             MVMDispProgramRecordingResumption *rec_resumption = get_current_resumption(tc, record);
             run_resume(tc, record, rec_resumption->resumption->disp,
                     record->outcome.resume_capture, thunked);
+            return 0;
+        }
+        case MVM_DISP_OUTCOME_NEXT_RESUMPTION: {
+            /* Find dispatch to resume and set up a resumption record for it. Then
+             * run the resume callback. The capture is the same as the initial one
+             * for this dispatch. */
+            MVMDispResumptionData resume_data;
+            MVMuint32 found = record->rec.resume_kind == MVMDispProgramRecordingResumeTopmost
+                ? MVM_disp_resume_find_topmost(tc, &resume_data,
+                    MVM_VECTOR_ELEMS(record->rec.resumptions))
+                : MVM_disp_resume_find_caller(tc, &resume_data,
+                    MVM_VECTOR_ELEMS(record->rec.resumptions));
+            if (!found)
+                MVM_exception_throw_adhoc(tc,
+                    "Call stack inconsistency detected when moving to the next dispatch resumption");
+            get_current_resumption(tc, record)->num_values = MVM_VECTOR_ELEMS(record->rec.values);
+            push_resumption(tc, record, &resume_data);
+            run_resume(tc, record, resume_data.resumption->disp,
+                    record->rec.initial_capture.capture, thunked);
             return 0;
         }
         case MVM_DISP_OUTCOME_VALUE: {
@@ -2521,6 +2557,7 @@ void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *
     switch (outcome->kind) {
         case MVM_DISP_OUTCOME_FAILED:
         case MVM_DISP_OUTCOME_CFUNCTION:
+        case MVM_DISP_OUTCOME_NEXT_RESUMPTION:
             /* Nothing to mark for these. */
             break;
         case MVM_DISP_OUTCOME_EXPECT_DELEGATE:
