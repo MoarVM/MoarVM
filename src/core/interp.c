@@ -6525,7 +6525,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_runbytecode_v): {
                 MVMCode *code = (MVMCode *)GET_REG(cur_op, 0).o;
-                MVMint16 spesh_cand = GET_I16(cur_op, 10);
+                MVMint16 idx = GET_I16(cur_op, 10);
+                MVMSpeshCandidate *spesh_cand = idx >= 0 ? (MVMSpeshCandidate *)tc->cur_frame->effective_spesh_slots[idx] : NULL;
                 MVMArgs args = {
                     .callsite = (MVMCallsite *)GET_UI64(cur_op, 2),
                     .source = reg_base,
@@ -6539,7 +6540,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_runbytecode_i): {
                 MVMCode *code = (MVMCode *)GET_REG(cur_op, 2).o;
-                MVMint16 spesh_cand = GET_I16(cur_op, 12);
+                MVMint16 idx = GET_I16(cur_op, 12);
+                MVMSpeshCandidate *spesh_cand = idx >= 0 ? (MVMSpeshCandidate *)tc->cur_frame->effective_spesh_slots[idx] : NULL;
                 MVMArgs args = {
                     .callsite = (MVMCallsite *)GET_UI64(cur_op, 4),
                     .source = reg_base,
@@ -6569,7 +6571,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_runbytecode_n): {
                 MVMCode *code = (MVMCode *)GET_REG(cur_op, 2).o;
-                MVMint16 spesh_cand = GET_I16(cur_op, 12);
+                MVMint16 idx = GET_I16(cur_op, 12);
+                MVMSpeshCandidate *spesh_cand = idx >= 0 ? (MVMSpeshCandidate *)tc->cur_frame->effective_spesh_slots[idx] : NULL;
                 MVMArgs args = {
                     .callsite = (MVMCallsite *)GET_UI64(cur_op, 4),
                     .source = reg_base,
@@ -6584,7 +6587,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_runbytecode_s): {
                 MVMCode *code = (MVMCode *)GET_REG(cur_op, 2).o;
-                MVMint16 spesh_cand = GET_I16(cur_op, 12);
+                MVMint16 idx = GET_I16(cur_op, 12);
+                MVMSpeshCandidate *spesh_cand = idx >= 0 ? (MVMSpeshCandidate *)tc->cur_frame->effective_spesh_slots[idx] : NULL;
                 MVMArgs args = {
                     .callsite = (MVMCallsite *)GET_UI64(cur_op, 4),
                     .source = reg_base,
@@ -6599,7 +6603,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_runbytecode_o): {
                 MVMCode *code = (MVMCode *)GET_REG(cur_op, 2).o;
-                MVMint16 spesh_cand = GET_I16(cur_op, 12);
+                MVMint16 idx = GET_I16(cur_op, 12);
+                MVMSpeshCandidate *spesh_cand = idx >= 0 ? (MVMSpeshCandidate *)tc->cur_frame->effective_spesh_slots[idx] : NULL;
                 MVMArgs args = {
                     .callsite = (MVMCallsite *)GET_UI64(cur_op, 4),
                     .source = reg_base,

@@ -1080,14 +1080,14 @@ sp_bool_I        .s w(int64) r(obj) int16 :pure
 # Run bytecode. This is what a dispatch op with a bytecode terminal
 # specializes as. The r(obj) register is the bytecode handle. The
 # uint64 is a pointer to the MVMCallsite (they never move and we know
-# they are interned). The int16 is the spesh candidate if one was
-# preselected, or -1 if none wsa.
-sp_runbytecode_v .s r(obj) uint64 int16 :maycausedeopt :invokish
-sp_runbytecode_i .s w(int64) r(obj) uint64 int16 :maycausedeopt :invokish
-sp_runbytecode_u .s w(uint64) r(obj) uint64 int16 :maycausedeopt :invokish
-sp_runbytecode_n .s w(num64) r(obj) uint64 int16 :maycausedeopt :invokish
-sp_runbytecode_s .s w(str) r(obj) uint64 int16 :maycausedeopt :invokish
-sp_runbytecode_o .s w(obj) r(obj) uint64 int16 :maycausedeopt :invokish
+# they are interned). The slot is the spesh candidate if one was
+# preselected, or NULL if none was.
+sp_runbytecode_v .s r(obj) uint64 sslot :maycausedeopt :invokish
+sp_runbytecode_i .s w(int64) r(obj) uint64 sslot :maycausedeopt :invokish
+sp_runbytecode_u .s w(uint64) r(obj) uint64 sslot :maycausedeopt :invokish
+sp_runbytecode_n .s w(num64) r(obj) uint64 sslot :maycausedeopt :invokish
+sp_runbytecode_s .s w(str) r(obj) uint64 sslot :maycausedeopt :invokish
+sp_runbytecode_o .s w(obj) r(obj) uint64 sslot :maycausedeopt :invokish
 
 # Run a C function. The r(obj) register is the MVMCFunction to invoke. The
 # uint64 is a pointer to the MVMCallsite (they never move and we know

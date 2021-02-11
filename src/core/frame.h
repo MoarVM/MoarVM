@@ -136,7 +136,7 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *tc, MVMThreadCon
 
 MVMRegister * MVM_frame_initial_work(MVMThreadContext *tc, MVMuint16 *local_types,
                                      MVMuint16 num_locals);
-void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMint32 spesh_cand);
+void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMSpeshCandidate *spesh_cand);
 MVM_PUBLIC void MVM_frame_dispatch_zero_args(MVMThreadContext *tc, MVMCode *code);
 void MVM_frame_dispatch_from_c(MVMThreadContext *tc, MVMCode *code,
         MVMCallStackArgsFromC *args_record, MVMRegister *return_value,

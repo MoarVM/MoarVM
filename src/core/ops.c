@@ -14879,7 +14879,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_int16 }
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_spesh_slot }
     },
     {
         MVM_OP_sp_runbytecode_i,
@@ -14895,7 +14895,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_int16 }
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_spesh_slot }
     },
     {
         MVM_OP_sp_runbytecode_u,
@@ -14911,7 +14911,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_uint64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_int16 }
+        { MVM_operand_write_reg | MVM_operand_uint64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_spesh_slot }
     },
     {
         MVM_OP_sp_runbytecode_n,
@@ -14927,7 +14927,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_int16 }
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_spesh_slot }
     },
     {
         MVM_OP_sp_runbytecode_s,
@@ -14943,7 +14943,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_int16 }
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_spesh_slot }
     },
     {
         MVM_OP_sp_runbytecode_o,
@@ -14959,7 +14959,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_int16 }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_spesh_slot }
     },
     {
         MVM_OP_sp_runcfunc_v,
