@@ -225,6 +225,10 @@ struct MVMCallStackDispatchRun {
      * if that is null, the rest of this is to be considered invalid. */
     MVMDispResumptionState resumption_state;
 
+    /* The resumption nesting level, for when we have multiple resumable
+     * dispatchers working within a single dispatch. */
+    MVMuint32 resumption_level;
+
     /* The dispatch program that was chosen (used to know how to mark the
      * temporaries, if needed). */
     MVMDispProgram *chosen_dp;
