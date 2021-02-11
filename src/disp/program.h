@@ -109,6 +109,12 @@ struct MVMDispProgramRecordingValue {
             MVMuint32 index;
         } capture;
         struct {
+            /* The index within the resume initialization arguments capture. */
+            MVMuint32 index;
+            /* The nesting level of the resume initialization. */
+            MVMuint32 resumption_level;
+        } resume_capture;
+        struct {
             /* The literal value and its kind. */
             MVMRegister value;
             MVMCallsiteFlags kind;
