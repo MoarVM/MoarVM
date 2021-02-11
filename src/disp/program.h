@@ -121,6 +121,10 @@ struct MVMDispProgramRecordingValue {
             /* The kind of value we'll read. */
             MVMCallsiteFlags kind;
         } attribute;
+        struct {
+            /* The index of the resumption that this is the state of. */
+            MVMuint32 index;
+        } resumption;
     };
 
     /* The tracking object, if any. */
@@ -163,7 +167,7 @@ struct MVMDispProgramRecordingCapture {
     MVM_VECTOR_DECL(MVMDispProgramRecordingCapture, captures);
 };
 
-/* Resume initialization arguments. */
+/* Resume initialization arguments set up for future resumptions. */
 struct MVMDispProgramRecordingResumeInit {
     /* The resumable dispatcher that, upon resumption, wants these args to
      * figure out how to resume. */
@@ -171,6 +175,44 @@ struct MVMDispProgramRecordingResumeInit {
 
     /* The capture (which must appear in the capture tree). */
     MVMObject *capture;
+};
+
+/* When we are recording a dispatch program for a resumption of an existing
+ * dispatch, we need to keep some state about that. However, a resumption may
+ * be exhausted of candidates and then defer to another resumption that is a
+ * part of the same dispatch (for example, in Raku, method dispatch to a
+ * wrapped method will resume through the wrappers, then back to walking
+ * the MRO). Thus we need to keep a list of the dispatch resumptions we go
+ * through in the recording, so we can account for this in the dispatch
+ * program. */
+struct MVMDispProgramRecordingResumption {
+    /* Details of the dispatcher we're resuming. */
+    MVMDispProgramResumption *resumption;
+
+    /* The resume initialization state capture. */
+    MVMDispProgramRecordingCapture initial_resume_capture;
+
+    /* Temporary storage for a resume init state capture, if it has to be
+     * formed. */
+    MVMRegister *initial_resume_args;
+
+    /* Pointer to where the mutable resume state lives for the dispatcher. */
+    MVMObject **resume_state_ptr;
+
+    /* The index of the value in the dispatch program that corresponds to the
+     * new dispatch state; -1 if there isn't any. */
+    MVMint32 new_resume_state_value;
+
+    /* The total number of dispatch values read at the end of this resumption
+     * (before we defer to a next resumption). This is used so we can emit the
+     * guards grouped by the resumption, so we only are considering a single
+     * active resumption at a time. */
+    MVMuint32 num_values;
+
+    /* Did the resumption look for a further resumption to take place and not
+     * find one? Used so we can produce a guard against that in the dispatch
+     * program, so it won't falsely match. */
+    MVMuint32 no_next_resumption;
 };
 
 /* Recording state of a dispatch program, updated as we move through the record
@@ -184,31 +226,19 @@ struct MVMDispProgramRecording {
     /* The initial argument capture, top of the tree of captures. */
     MVMDispProgramRecordingCapture initial_capture;
 
-    /* The kind of resume dispatch we're doing, if any. */
+    /* The kind of resume we're doing, if any. */
     MVMDispProgramRecordingResumeKind resume_kind;
 
-    /* Details of the dispatch we're resuming, if any. */
-    MVMDispProgramResumption *resumption;
-
-    /* Pointer to where the mutable resume state lives. */
-    MVMObject **resume_state_ptr;
-
-    /* The index of the value in the dispatch program that corresponds to the
-     * new dispatch state; -1 if there isn't any. */
-    MVMint32 new_resume_state_value;
-
-    /* If we're doing a resume, the resume initialization state capture. */
-    MVMDispProgramRecordingCapture initial_resume_capture;
-
-    /* Temporary storage for a resume init state capture, if it has to be
-     * formed. */
-    MVMRegister *initial_resume_args;
+    /* If we are doing a resume, the list of resumable dispatches we have
+     * worked through  */
+    MVM_VECTOR_DECL(MVMDispProgramRecordingResumption, resumptions);
 
     /* The values that we have encountered while recording, and maybe added
      * guards against. */
     MVM_VECTOR_DECL(MVMDispProgramRecordingValue, values);
 
-    /* Any resume init args that we have saved. */
+    /* Any resume init args that we have saved (for new resumable dispatches
+     * we set up). */
     MVM_VECTOR_DECL(MVMDispProgramRecordingResumeInit, resume_inits);
 
     /* The index of the value that is the outcome of the dispatch. For a value
@@ -265,10 +295,15 @@ union MVMDispProgramConstant {
 
 /* Opcodes we may execute in a dispatch program. */
 typedef enum {
-    /* Resume the topmost dispatch, so long as it is for the appropriate
-     * dispatcher. */
+    /* Initialize a resume dispatch, meaning we're starting out considering
+     * the innermost resumption. */
+    MVMDispOpcodeStartResumption,
+    /* Increment the resumption nesting level. */
+    MVMDispOpcodeNextResumption,
+    /* Resume the topmost dispatch, taking the resumption at the current
+     * nesting lvel, so long as it is for the appropriate dispatcher. */
     MVMDispOpcodeResumeTopmost,
-    /* Same, except we're looking do the caller for the dispatcher to
+    /* Same, except we're looking to the caller for the dispatcher to
      * resume. */
     MVMDispOpcodeResumeCaller,
     /* Assert that the resumption callsite is as expected. */
