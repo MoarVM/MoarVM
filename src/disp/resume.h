@@ -4,9 +4,13 @@ struct MVMDispResumptionData {
     /* The dispatch program that is being resumed. */
     MVMDispProgram *dp;
 
-    /* The initial arguments to the dispatch (that is, the root one, not
-     * the resumption). */
+    /* The initial arguments to the dispatch that set up the resumption. */
     MVMArgs *initial_arg_info;
+
+    /* The temporaries of the dispatch program that set up the resumption,
+     * which we may need to find some resume initialization arguments in the
+     * situation where a resumption sets up a further resumable dispatch. */
+    MVMRegister *temps;
 
     /* The particular resumption that we are resuming here. */
     MVMDispProgramResumption *resumption;

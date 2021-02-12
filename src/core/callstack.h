@@ -186,6 +186,11 @@ struct MVMCallStackDispatchRecord {
     /* The produced dispatch program. */
     MVMDispProgram *produced_dp;
 
+    /* Temporaries as the dispatch program would write them, but only for the
+     * case where they are used for making resume init state available. NULL
+     * otherwise. */
+    MVMRegister *temps;
+
     /* If this dispatch gets resumed, this will hold the dispatch state (the
      * "moving part" that tracks, for example, where we are in a deferral
      * walk through the MRO). We null out the definition at record creation;
