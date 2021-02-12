@@ -9,7 +9,7 @@ static void finish_resumption_data(MVMThreadContext *tc, MVMDispResumptionData *
 }
 static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *data,
         MVMDispProgram *dp, MVMArgs *arg_info, MVMDispResumptionState *state,
-        MVMuint32 exhausted) {
+        MVMRegister *temps, MVMuint32 exhausted) {
     /* Did the dispatch program set up any static resumptions, and are there at
      * least as many as we've already passed? */
     if (dp->num_resumptions > exhausted) {
@@ -34,6 +34,7 @@ static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *d
             /* Set up the resumption data for the requested dispatcher. */
             data->dp = dp;
             data->initial_arg_info = arg_info;
+            data->temps = temps;
             finish_resumption_data(tc, data, state, exhausted);
             return 1;
         }
@@ -41,6 +42,7 @@ static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *d
             /* Already have state record set up. */
             data->dp = dp;
             data->initial_arg_info = arg_info;
+            data->temps = temps;
             finish_resumption_data(tc, data, state, exhausted);
             return 1;
         }
@@ -61,14 +63,14 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMCallStackRecord *start,
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED: {
                 MVMCallStackDispatchRecord *dr = (MVMCallStackDispatchRecord *)cur;
                 if (dr->produced_dp && setup_resumption(tc, data, dr->produced_dp,
-                            &(dr->arg_info), &(dr->resumption_state), exhausted))
+                            &(dr->arg_info), &(dr->resumption_state), dr->temps, exhausted))
                     return 1;
                 break;
             }
             case MVM_CALLSTACK_RECORD_DISPATCH_RUN: {
                 MVMCallStackDispatchRun *dr = (MVMCallStackDispatchRun *)cur;
                 if (dr->chosen_dp && setup_resumption(tc, data, dr->chosen_dp,
-                            &(dr->arg_info), &(dr->resumption_state), exhausted))
+                            &(dr->arg_info), &(dr->resumption_state), dr->temps, exhausted))
                     return 1;
                 break;
             }
@@ -116,6 +118,9 @@ MVMRegister MVM_disp_resume_get_init_arg(MVMThreadContext *tc, MVMDispResumption
                 break;
             case MVM_DISP_RESUME_INIT_CONSTANT_NUM:
                 result.n64 = data->dp->constants[value->index].n64;
+                break;
+            case MVM_DISP_RESUME_INIT_TEMP:
+                result = data->temps[value->index];
                 break;
             default:
                 MVM_oops(tc, "unknown resume init arg source");

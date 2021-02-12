@@ -101,6 +101,7 @@ MVMCallStackDispatchRecord * MVM_callstack_allocate_dispatch_record(MVMThreadCon
     tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_DISPATCH_RECORD,
             sizeof(MVMCallStackDispatchRecord));
     MVMCallStackDispatchRecord *record = (MVMCallStackDispatchRecord *)tc->stack_top;
+    record->temps = NULL;
     record->resumption_state.disp = NULL;
     return record;
 }
@@ -478,12 +479,15 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                         "Dispatch recording static frame root");
                 MVM_disp_resume_mark_resumption_state(tc, &(disp_record->resumption_state),
                         worklist, snapshot);
+                if (disp_record->produced_dp && disp_record->temps)
+                    MVM_disp_program_mark_record_temps(tc, disp_record->produced_dp,
+                            disp_record->temps, worklist);
                 break;
             }
             case MVM_CALLSTACK_RECORD_DISPATCH_RUN: {
                 MVMCallStackDispatchRun *disp_run = (MVMCallStackDispatchRun *)record;
                 MVMDispProgram *dp = disp_run->chosen_dp;
-                if (dp && dp->num_temporaries != dp->first_args_temporary)
+                if (dp)
                     MVM_disp_program_mark_run_temps(tc, dp,
                             disp_run->temp_mark_callsite, disp_run->temps,
                             worklist);
