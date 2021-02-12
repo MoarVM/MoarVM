@@ -218,6 +218,10 @@ struct MVMDispProgramRecordingResumption {
      * active resumption at a time. */
     MVMuint32 num_values;
 
+    /* The total number of new resumption initialization arguments set up at
+     * the end of this resumption. */
+    MVMuint32 num_resume_inits;
+
     /* Did the resumption look for a further resumption to take place and not
      * find one? Used so we can produce a guard against that in the dispatch
      * program, so it won't falsely match. */
@@ -519,13 +523,17 @@ typedef enum {
     MVM_DISP_RESUME_INIT_CONSTANT_INT,
     /* A constant number. */
     MVM_DISP_RESUME_INIT_CONSTANT_NUM,
+    /* A value stored in a temporary created by the evaluation of this
+     * dispatch program. */
+    MVM_DISP_RESUME_INIT_TEMP
 } MVMDispProgramResumptionInitSource;
 
 /* Where a value that is used to resume a dispatch originates from. */
 struct MVMDispProgramResumptionInitValue {
     /* The source of the resumption initialization value. */
     MVMuint16 source;
-    /* The index (either argument index or constant table index). */
+    /* The index (either argument index, constant table index, or temporary
+     * index). */
     MVMuint16 index;
 };
 
@@ -578,6 +586,8 @@ void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecordi
         MVMGCWorklist *worklist);
 void MVM_disp_program_mark_run_temps(MVMThreadContext *tc, MVMDispProgram *dp,
         MVMCallsite *cs, MVMRegister *temps, MVMGCWorklist *worklist);
+void MVM_disp_program_mark_record_temps(MVMThreadContext *tc, MVMDispProgram *dp,
+        MVMRegister *temps, MVMGCWorklist *worklist);
 void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *outcome,
         MVMGCWorklist *worklist);
 void MVM_disp_program_destroy(MVMThreadContext *tc, MVMDispProgram *dp);
