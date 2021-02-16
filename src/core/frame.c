@@ -458,6 +458,13 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMSp
     MVMStaticFrameSpesh *spesh;
     MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards;
     MVMint32 chosen_spesh_cand_index = -1;
+
+    /* If we've been passed a spesh candidate that's planned to be removed (because it's
+     * been deopted too many times), but hasn't yet, don't use it. */
+    if (spesh_cand && spesh_cand->body.discarded) {
+        spesh_cand = NULL;
+    }
+
     if (spesh_cand == NULL) {
         /* No. In that case it's possible we never even invoked this frame
          * before, or never at the current instrumentation level; check and
