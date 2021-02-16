@@ -492,6 +492,13 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* See if any specializations apply. */
     spesh = static_frame->body.spesh;
     cands_and_arg_guards = spesh->body.spesh_cands_and_arg_guards;
+
+    /* If we've been passed a spesh candidate that's planned to be removed (because it's
+     * been deopted too many times), but hasn't yet, don't use it. */
+    if (spesh_cand && spesh_cand->body.discarded) {
+        spesh_cand = NULL;
+    }
+
     if (spesh_cand == NULL && cands_and_arg_guards)
        chosen_spesh_cand_index = MVM_spesh_arg_guard_run(tc, cands_and_arg_guards->spesh_arg_guard,
             callsite, args, NULL);
