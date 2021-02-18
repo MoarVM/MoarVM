@@ -2143,9 +2143,8 @@ static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
                 if (MVM_spesh_debug_enabled(tc)) {
                     char *cuuid_cstr = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
                     char *name_cstr  = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
-                    MVM_spesh_graph_add_comment(tc, g, ins, "could not inline '%s' (%s) candidate %ld: %s",
+                    MVM_spesh_graph_add_comment(tc, g, ins, "could not inline '%s' (%s) candidate: %s",
                         name_cstr, cuuid_cstr,
-                        spesh_cand,
                         no_inline_reason);
                     if (no_inline_info)
                         MVM_spesh_graph_add_comment(tc, g, ins, "inline-preventing instruction: %s",
