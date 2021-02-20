@@ -122,7 +122,8 @@ static void read_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_t
 
     /* Start reading the stream. */
     handle_data->handle->data = data;
-    if ((r = uv_read_start(handle_data->handle, on_alloc, on_read)) < 0) {
+    r = uv_read_start(handle_data->handle, on_alloc, on_read);
+    if (r < 0 && r != UV_EALREADY) {
         /* Error; need to notify. */
         MVMROOT(tc, async_task, {
             MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
