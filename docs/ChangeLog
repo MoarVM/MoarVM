@@ -1,3 +1,61 @@
+New in 2021.02
+
+6model:
++ [c6d2d355] Convert MVMSpeshCandidate to a REPR
++ [73a57f5e,1eefabe8,7d2975f0,d0de715d,7659b297,f7a61baa,4bb775c9,
+   a65653f9,e0dec840]
+  Fix 7 memory leaks
++ [8978904a] Fix segfault caused by mis-spesh of unbox of Num type objects
++ [f19e0e9f,8f4f53f8,92a4c537] Fix "Corrupt multi dispatch cache" panic in concurrent code
++ [110af6d1] Fix some use-after-frees of REPR data
++ [eda9326e] Remove some dead assignments
++ [79d0e374] Fix size calculation of VMArray's (read|write)_buf when elem_size > 1
+
+Core:
++ [c7eeda70] Avoid segfaults caused by repossessed native call sites
++ [6cfd5415,dbffbf36,d60a7492,0241b991,682af068] Fix 4 memory leaks
++ [02fc135f] Fix type mismatch in struct used for FSA_DEBUG
++ [3cc9a40c] Fix a use-after-free of an MVMThreadContext
++ [b8663f53] Fix a potential bug when all elements are individually deleted from a hash
++ [532d9187] Cleanup two redundant returns
+
+Debug Server:
++ [659332b8,cebdc038,cebdc038,cebdc038,d99512ad,f0831919,e42b6614,
+   76204fa9,7c7c019a,7bcbb079,531f78b8,38dad45e,14708e98]
+   Implement Invoke message
++ [1d288650] Fix compile warnings
++ [b83552f2] Add new `HLL Symbol` Request and Response message types
+
+Documentation:
++ [aa3f015b] Clarify installation instructions
++ [c452e3f5] Use modern Raku extensions for scripts
+
+IO:
++ [1a1f5248,1a915a4b,5bc5c88c] Fix 3 memory leaks
++ [22f1038a,f7b4e490] Change `procspawnasync` to explicitly take the program name
+
+GC:
++ [823ec8ca] Fix compiler warning when `GC_DEBUG` is set to 3
+
+Libraries:
++ [cf60e095] Update libuv to version 1.41.0
+
+Spesh:
++ [22ecf439,7af946e3] Fix 2 memory leaks
++ [909d39a2] Let spesh optimize string equality
+
+Strings:
++ [566a643e,77a66ab6] Fix 1 memory leak
+
+Tooling/Build:
++ [21844ff4,60deb0ba,f0b09b3e,5e031c91] Get MoarVM building on Solaris
++ [36065af4] Update tooling scripts to use new Raku extensions
+
+Profiler:
++ [1c1a9ce8,ee94a3f0,36a7c09c,d6c7962c] Fix 2 memory leaks
++ [7a87acc0] Fix potential buffer overflow
++ [e8d63661] Fix some more memory leaks
+
 New in 2020.12
 
 6model:
