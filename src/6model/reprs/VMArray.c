@@ -812,8 +812,7 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
     MVMArrayBody     *d_body      = (MVMArrayBody *)OBJECT_BODY(dest);
     MVMArrayREPRData *s_repr_data = REPR(src)->ID == MVM_REPR_ID_VMArray
                                     ? (MVMArrayREPRData *)STABLE(src)->REPR_data  : NULL;
-    MVMArrayREPRData *d_repr_data = REPR(src)->ID == MVM_REPR_ID_VMArray
-                                    ? (MVMArrayREPRData *)STABLE(dest)->REPR_data : NULL;
+    MVMArrayREPRData *d_repr_data = (MVMArrayREPRData *)STABLE(dest)->REPR_data;
 
     if (elems > 0) {
         MVMint64  i;
@@ -833,7 +832,7 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
             );
         }
         else {
-            switch (s_repr_data->slot_type) {
+            switch (d_repr_data->slot_type) {
                 case MVM_ARRAY_OBJ:
                     kind = MVM_reg_obj;
                     break;
