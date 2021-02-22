@@ -233,7 +233,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         MVM_free(c_name);
         MVM_free(c_cuid);
         MVM_free(before);
-        fflush(tc->instance->spesh_log_fh);
+        MVM_spesh_debug_flush(tc);
         start_time = uv_hrtime();
     }
 
@@ -327,7 +327,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         }
         MVM_spesh_debug_printf(tc, "\n========\n\n");
         MVM_free(after);
-        fflush(tc->instance->spesh_log_fh);
+        MVM_spesh_debug_flush(tc);
     }
 
     /* Calculate work environment taking JIT spill area into account. */
@@ -381,7 +381,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         char *guard_dump = MVM_spesh_dump_arg_guard(tc, p->sf,
                 p->sf->body.spesh->body.spesh_cands_and_arg_guards->spesh_arg_guard);
         MVM_spesh_debug_printf(tc, "%s========\n\n", guard_dump);
-        fflush(tc->instance->spesh_log_fh);
+        MVM_spesh_debug_flush(tc);
         MVM_free(guard_dump);
     }
 
