@@ -870,8 +870,7 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
 static void aslice(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *data, MVMObject *dest, MVMint64 start, MVMint64 end) {
     MVMArrayBody     *s_body      = (MVMArrayBody *)data;
     MVMArrayBody     *d_body      = (MVMArrayBody *)OBJECT_BODY(dest);
-    MVMArrayREPRData *d_repr_data = REPR(dest)->ID == MVM_REPR_ID_VMArray
-                                      ? STABLE(dest)->REPR_data : NULL;
+    MVMArrayREPRData *d_repr_data = STABLE(dest)->REPR_data;
 
     MVMint64 total_elems = REPR(src)->elems(tc, st, src, s_body);
     MVMint64 elems;
@@ -883,10 +882,7 @@ static void aslice(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *da
     }
 
     elems = end - start + 1;
-    if (d_repr_data) {
-        set_size_internal(tc, d_body, elems, d_repr_data);
-    }
-
+    set_size_internal(tc, d_body, elems, d_repr_data);
     copy_elements(tc, src, dest, start, 0, elems);
 }
 
