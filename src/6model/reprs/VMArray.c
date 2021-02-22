@@ -818,7 +818,7 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
         MVMint64  i;
         MVMuint16 kind;
         MVMuint8 d_needs_barrier = dest->header.flags2 & MVM_CF_SECOND_GEN;
-        if (s_repr_data && d_repr_data
+        if (s_repr_data
                 && s_repr_data->slot_type == d_repr_data->slot_type
                 && s_repr_data->elem_size == d_repr_data->elem_size
                 && (d_repr_data->slot_type != MVM_ARRAY_OBJ || !d_needs_barrier)
