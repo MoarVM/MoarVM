@@ -683,7 +683,7 @@ static MVMObject * dump_thread_data(MVMThreadContext *tc, ProfDumpStrs *pds,
 
     ProfTcPdsStruct tcpds;
 
-    tcpds.tc = tc;
+    tcpds.tc = othertc;
     tcpds.pds = pds;
     tcpds.types_array = types_data;
 
