@@ -29,11 +29,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
     MVM_spesh_stats_gc_mark(tc, body->spesh_stats, worklist);
     if (cands_and_arg_guards) {
         MVM_spesh_arg_guard_gc_mark(tc, cands_and_arg_guards->spesh_arg_guard, worklist);
-        if (body->num_spesh_candidates) {
-            MVMuint32 i;
-            for (i = 0; i < body->num_spesh_candidates; i++) {
-                MVM_gc_worklist_add(tc, worklist, &cands_and_arg_guards->spesh_candidates[i]);
-            }
+        for (MVMuint32 i = 0; i < body->num_spesh_candidates; i++) {
+            MVM_gc_worklist_add(tc, worklist, &cands_and_arg_guards->spesh_candidates[i]);
         }
     }
     MVM_gc_worklist_add(tc, worklist, &body->plugin_state);
@@ -45,10 +42,12 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards = sfs->body.spesh_cands_and_arg_guards;
     MVM_spesh_stats_destroy(tc, sfs->body.spesh_stats);
     MVM_free(sfs->body.spesh_stats);
-    if (cands_and_arg_guards && cands_and_arg_guards->spesh_arg_guard)
-        MVM_spesh_arg_guard_destroy(tc, cands_and_arg_guards->spesh_arg_guard, 1);
-    if (cands_and_arg_guards)
+    if (cands_and_arg_guards) {
+        MVM_spesh_arg_guard_destroy(tc, cands_and_arg_guards->spesh_arg_guard, 0);
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sfs->body.num_spesh_candidates * sizeof(MVMSpeshCandidate *), cands_and_arg_guards->spesh_candidates);
         MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(MVMSpeshCandidatesAndArgGuards), cands_and_arg_guards);
+        sfs->body.spesh_cands_and_arg_guards = NULL;
+    }
 }
 
 static const MVMStorageSpec storage_spec = {
