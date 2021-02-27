@@ -766,6 +766,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up event loop mutex. */
     uv_mutex_destroy(&instance->mutex_event_loop);
 
+    MVM_fixed_size_safepoint(instance->main_thread, instance->fsa);
     /* Destroy main thread contexts and thread list mutex. */
     MVM_tc_destroy(instance->main_thread);
     uv_mutex_destroy(&instance->mutex_threads);
