@@ -641,6 +641,15 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                 break;
             }
             case MVM_SPESH_LOG_DEOPT: {
+                MVMSpeshStats *ss = stats_for(tc, e->entry.sf);
+                if (ss->last_update == 0)
+                    newly_seen++;
+                else
+                    updated++;
+                if (ss->last_update != tc->instance->spesh_stats_version) {
+                    ss->last_update = tc->instance->spesh_stats_version;
+                    MVM_repr_push_o(tc, sf_updated, (MVMObject *)e->entry.sf);
+                }
                 e->deopt.spesh_cand->body.deopt_count++;
                 break;
             }
