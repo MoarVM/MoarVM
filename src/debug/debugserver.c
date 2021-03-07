@@ -8,20 +8,7 @@
 #define false FALSE
 
 #include "cmp.h"
-
-#ifdef _WIN32
-    #include <winsock2.h>
-    #include <ws2tcpip.h>
-    typedef SOCKET Socket;
-    #define sa_family_t unsigned int
-#else
-    #include "unistd.h"
-    #include <sys/socket.h>
-    #include <sys/un.h>
-
-    typedef int Socket;
-    #define closesocket close
-#endif
+#include "platform/socket.h"
 
 typedef enum {
     MT_MessageTypeNotUnderstood,
@@ -471,7 +458,7 @@ static MVMuint16 big_endian_16(MVMuint16 number) {
 #endif
 }
 
-static void send_greeting(Socket *sock) {
+static void send_greeting(MVMSocket *sock) {
     char buffer[24] = "MOARVM-REMOTE-DEBUG\0";
     MVMuint16 version = big_endian_16(DEBUGSERVER_MAJOR_PROTOCOL_VERSION);
     MVMuint16 *verptr = (MVMuint16 *)(&buffer[strlen("MOARVM-REMOTE-DEBUG") + 1]);
@@ -485,7 +472,7 @@ static void send_greeting(Socket *sock) {
     send(*sock, buffer, 24, 0);
 }
 
-static int receive_greeting(Socket *sock) {
+static int receive_greeting(MVMSocket *sock) {
     const char *expected = "MOARVM-REMOTE-CLIENT-OK";
     char buffer[24];
     int received = 0;
@@ -2705,7 +2692,7 @@ static bool socket_reader(cmp_ctx_t *ctx, void *data, size_t limit) {
     if (debugspam_network)
         fprintf(stderr, "asked to read %zu bytes\n", limit);
     while (total_read < limit) {
-        if ((read = recv(*((Socket*)ctx->buf), data, limit, 0)) == -1) {
+        if ((read = recv(*((MVMSocket*)ctx->buf), data, limit, 0)) == -1) {
             if (debugspam_network)
                 fprintf(stderr, "minus one\n");
             return 0;
@@ -2737,7 +2724,7 @@ static size_t socket_writer(cmp_ctx_t *ctx, const void *data, size_t limit) {
     if (debugspam_network)
         fprintf(stderr, "asked to send %3zu bytes: ", limit);
     while (total_sent < limit) {
-        if ((sent = send(*(Socket*)ctx->buf, data, limit, 0)) == -1) {
+        if ((sent = send(*(MVMSocket*)ctx->buf, data, limit, 0)) == -1) {
             if (debugspam_network)
                 fprintf(stderr, "but couldn't (socket disconnected?)\n");
             return 0;
@@ -3203,7 +3190,7 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
 
 static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
     int continue_running = 1;
-    Socket listensocket;
+    MVMSocket listensocket;
     MVMInstance *vm = tc->instance;
     MVMuint64 port = vm->debugserver->port;
 
@@ -3260,7 +3247,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
     }
 
     while(continue_running) {
-        Socket clientsocket;
+        MVMSocket clientsocket;
         cmp_ctx_t ctx;
 
         MVM_gc_mark_thread_blocked(tc);
@@ -3272,7 +3259,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
         if (!receive_greeting(&clientsocket)) {
             if (tc->instance->debugserver->debugspam_protocol)
                 fprintf(stderr, "Debugserver: did not receive greeting properly\n");
-            close(clientsocket);
+            MVM_platform_close_socket(clientsocket);
             continue;
         }
 
@@ -3302,7 +3289,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
 
                 cmp_write_str(&ctx, "reason", 6);
                 cmp_write_str(&ctx, argument.parse_fail_message, strlen(argument.parse_fail_message));
-                close(clientsocket);
+                MVM_platform_close_socket(clientsocket);
                 uv_mutex_unlock(&vm->debugserver->mutex_network_send);
                 break;
             }

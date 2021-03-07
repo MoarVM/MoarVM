@@ -1,21 +1,5 @@
 #include "moar.h"
-
-#ifdef _WIN32
-    #include <winsock2.h>
-    #include <ws2tcpip.h>
-    #include <io.h>
-
-    typedef SOCKET Socket;
-    #define sa_family_t unsigned int
-    #define isatty _isatty
-#else
-    #include "unistd.h"
-    #include <sys/socket.h>
-    #include <sys/un.h>
-
-    typedef int Socket;
-    #define closesocket close
-#endif
+#include "platform/socket.h"
 
 #if defined(_MSC_VER)
 #define snprintf _snprintf
@@ -50,7 +34,7 @@ MVM_NO_RETURN static void throw_error(MVMThreadContext *tc, int r, char *operati
  /* Data that we keep for a socket-based handle. */
 typedef struct {
     /* The socket handle (file descriptor on POSIX, SOCKET on Windows). */
-    Socket handle;
+    MVMSocket handle;
 
     /* Buffer of the last received packet of data, and start/end pointers
      * into the data. */
@@ -225,7 +209,7 @@ MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
 
 static MVMint64 do_close(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
     if (data->handle) {
-        closesocket(data->handle);
+        MVM_platform_close_socket(data->handle);
         data->handle = 0;
     }
     return 0;
@@ -246,7 +230,7 @@ static size_t get_struct_size_for_family(sa_family_t family) {
             return sizeof(struct sockaddr_in6);
         case AF_INET:
             return sizeof(struct sockaddr_in);
-#ifndef _WIN32
+#ifdef MVM_HAS_PF_UNIX
         case AF_UNIX:
             return sizeof(struct sockaddr_un);
 #endif
@@ -311,20 +295,14 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc,
             hints.ai_family = AF_INET6;
             break;
         case MVM_SOCKET_FAMILY_UNIX: {
-#if defined(_WIN32) || !defined(AF_UNIX)
-            /* TODO: UNIX socket support exists in newer versions of Windows.
-             *       See if it's good enough for us to use. */
-            MVM_free(host_cstr);
-            MVM_exception_throw_adhoc(tc, "UNIX sockets are not supported by MoarVM on this platform");
-#else
-            static const size_t MAX_SUN_LEN = sizeof(((struct sockaddr_un *)NULL)->sun_path);
-            size_t              sun_len     = strnlen(host_cstr, MAX_SUN_LEN);
+#ifdef MVM_HAS_PF_UNIX
+            size_t sun_len = strnlen(host_cstr, MVM_SUN_PATH_SIZE);
 
-            if (sun_len >= MAX_SUN_LEN) {
+            if (sun_len >= MVM_SUN_PATH_SIZE) {
                 char *waste[] = { host_cstr, NULL };
                 MVM_exception_throw_adhoc_free(
                     tc, waste, "Socket path '%s' is too long (max length supported by this platform is %zu characters)",
-                    host_cstr, MAX_SUN_LEN - 1
+                    host_cstr, MVM_SUN_PATH_SIZE - 1
                 );
             } else {
                 struct sockaddr_un *result_un = MVM_malloc(sizeof(struct sockaddr_un));
@@ -333,6 +311,9 @@ struct sockaddr * MVM_io_resolve_host_name(MVMThreadContext *tc,
                 MVM_free(host_cstr);
                 return (struct sockaddr *)result_un;
             }
+#else
+            MVM_free(host_cstr);
+            MVM_exception_throw_adhoc(tc, "UNIX sockets are not supported by MoarVM on this platform");
 #endif
         }
         default:
@@ -413,7 +394,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
         struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family, MVM_SOCKET_TYPE_STREAM, MVM_SOCKET_PROTOCOL_ANY, 0);
         int r;
 
-        Socket s = socket(dest->sa_family , SOCK_STREAM , 0);
+        MVMSocket s = socket(dest->sa_family , SOCK_STREAM , 0);
         if (MVM_IS_SOCKET_ERROR(s)) {
             MVM_free(dest);
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
@@ -445,7 +426,7 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family, MVM_SOCKET_TYPE_STREAM, MVM_SOCKET_PROTOCOL_ANY, 1);
         int r;
 
-        Socket s = socket(dest->sa_family , SOCK_STREAM , 0);
+        MVMSocket s = socket(dest->sa_family , SOCK_STREAM , 0);
         if (MVM_IS_SOCKET_ERROR(s)) {
             MVM_free(dest);
             throw_error(tc, s, "create socket");
@@ -507,7 +488,7 @@ MVMint64 socket_getport(MVMThreadContext *tc, MVMOSHandle *h) {
 
 static MVMint64 socket_is_tty(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
-    return (MVMint64)isatty(data->handle);
+    return (MVMint64)MVM_platform_isatty(data->handle);
 }
 
 static MVMint64 socket_handle(MVMThreadContext *tc, MVMOSHandle *h) {
@@ -550,7 +531,7 @@ static const MVMIOOps op_table = {
 
 static MVMObject * socket_accept(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
-    Socket s;
+    MVMSocket            s;
 
     unsigned int interval_id = MVM_telemetry_interval_start(tc, "syncsocket accept");
     do {

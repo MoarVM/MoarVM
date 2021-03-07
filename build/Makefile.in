@@ -433,6 +433,7 @@ HEADERS = src/moar.h \
           src/platform/malloc_trim.h \
           src/platform/random.h \
           src/platform/fork.h \
+          src/platform/socket.h \
           src/jit/graph.h \
           src/jit/label.h \
           src/jit/expr.h \
