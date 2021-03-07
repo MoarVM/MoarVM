@@ -326,21 +326,19 @@ static void expand_storage_if_needed(MVMThreadContext *tc, MVMSerializationWrite
     }
 }
 
-/* Writing function for null-terminated char array strings */
-void MVM_serialization_write_cstr(MVMThreadContext *tc, MVMSerializationWriter *writer, char *string) {
-    size_t len;
-    if (string)
-        len = strlen(string);
-    else
-        len = 0;
-    if (len) {
-        MVM_serialization_write_int(tc, writer, len);
-        expand_storage_if_needed(tc, writer, len);
-        memcpy(*(writer->cur_write_buffer) + *(writer->cur_write_offset), string, len);
-        *(writer->cur_write_offset) += len;
-    } else {
-        MVM_serialization_write_int(tc, writer, 0);
+/* Writing function for pointers. */
+void MVM_serialization_write_ptr(MVMThreadContext *tc, MVMSerializationWriter *writer, const void *ptr, size_t size) {
+    MVM_serialization_write_int(tc, writer, size);
+    if (size) {
+        expand_storage_if_needed(tc, writer, size);
+        memcpy(*(writer->cur_write_buffer) + *(writer->cur_write_offset), ptr, size);
+        *(writer->cur_write_offset) += size;
     }
+}
+
+/* Writing function for null-terminated char array strings. */
+void MVM_serialization_write_cstr(MVMThreadContext *tc, MVMSerializationWriter *writer, const char *cstr) {
+    MVM_serialization_write_ptr(tc, writer, cstr, cstr ? strlen(cstr) : 0);
 }
 
 /* Writing function for variable sized integers. Writes out a 64 bit value
@@ -1738,23 +1736,53 @@ MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationRea
     return read_string_from_heap(tc, reader, offset);
 }
 
-/* Reading function for null-terminated char array strings */
-char *MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMint64 len = MVM_serialization_read_int(tc, reader);
-    char *strbuf = 0;
-    if (len > 0) {
-        const MVMuint8 *read_at = (MVMuint8 *) *(reader->cur_read_buffer) + *(reader->cur_read_offset);
-        assert_can_read(tc, reader, len);
-        strbuf = MVM_malloc(len + 1);
-        if (strbuf == 0)
-            fail_deserialize(tc, NULL, reader, "Cannot read a c string: malloc failed.");
-        memcpy(strbuf, read_at, len);
-        strbuf[len] = 0;
-        *(reader->cur_read_offset) += len;
-    } else if (len < 0) {
-        fail_deserialize(tc, NULL, reader, "Cannot read a c string with negative length %"PRIi64".", len);
+/* Reading function for pointers. */
+void * MVM_serialization_read_ptr(MVMThreadContext *tc, MVMSerializationReader *reader, size_t *size) {
+    MVMint64  ptr_size;
+    void     *ptr;
+
+    if (!(ptr_size = MVM_serialization_read_int(tc, reader)))
+        ptr = NULL;
+    else if (ptr_size < 0 || ptr_size > SIZE_MAX)
+        fail_deserialize(tc, NULL, reader,
+            "Deserialized pointer with out-of-range size (%"PRIi64")",
+            ptr_size);
+    else {
+        const MVMuint8 *read_at = (MVMuint8 *)*(reader->cur_read_buffer) + *(reader->cur_read_offset);
+        assert_can_read(tc, reader, ptr_size);
+        ptr = MVM_malloc(ptr_size);
+        memcpy(ptr, read_at, ptr_size);
+        *(reader->cur_read_offset) += ptr_size;
     }
-    return strbuf;
+
+    if (size)
+        *size = ptr_size;
+    return ptr;
+}
+
+/* Reading function for null-terminated char array strings. */
+char * MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader *reader, size_t *len) {
+    MVMint64  cstr_len;
+    char     *cstr;
+
+    if (!(cstr_len = MVM_serialization_read_int(tc, reader)))
+        cstr = NULL;
+    else if (cstr_len < 0 || cstr_len >= SIZE_MAX)
+        fail_deserialize(tc, NULL, reader,
+            "Deserialized C string with out-of-range length (%"PRIi64")",
+            cstr_len);
+    else {
+        const MVMuint8 *read_at = (MVMuint8 *)*(reader->cur_read_buffer) + *(reader->cur_read_offset);
+        assert_can_read(tc, reader, cstr_len);
+        cstr = MVM_malloc(cstr_len + 1);
+        memcpy(cstr, read_at, cstr_len);
+        cstr[cstr_len] = '\0';
+        *(reader->cur_read_offset) += cstr_len;
+    }
+
+    if (len)
+        *len = cstr_len;
+    return cstr;
 }
 
 /* The SC id,idx pair is used in various ways, but common to them all is to
@@ -2814,7 +2842,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     }
 
     if (reader->root.version >= 18) {
-        st->debug_name = MVM_serialization_read_cstr(tc, reader);
+        st->debug_name = MVM_serialization_read_cstr(tc, reader, NULL);
     } else {
         st->debug_name = NULL;
     }
