@@ -111,12 +111,12 @@
 #define MVM_OP_tan_n 107
 #define MVM_OP_atan_n 108
 #define MVM_OP_atan2_n 109
-#define MVM_OP_sec_n 110
-#define MVM_OP_asec_n 111
+#define MVM_OP_DEPRECATED_35 110
+#define MVM_OP_DEPRECATED_36 111
 #define MVM_OP_sinh_n 112
 #define MVM_OP_cosh_n 113
 #define MVM_OP_tanh_n 114
-#define MVM_OP_sech_n 115
+#define MVM_OP_DEPRECATED_37 115
 #define MVM_OP_sqrt_n 116
 #define MVM_OP_log_n 117
 #define MVM_OP_exp_n 118

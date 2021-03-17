@@ -3843,12 +3843,12 @@ BEGIN {
     'tan_n', 107,
     'atan_n', 108,
     'atan2_n', 109,
-    'sec_n', 110,
-    'asec_n', 111,
+    'DEPRECATED_35', 110,
+    'DEPRECATED_36', 111,
     'sinh_n', 112,
     'cosh_n', 113,
     'tanh_n', 114,
-    'sech_n', 115,
+    'DEPRECATED_37', 115,
     'sqrt_n', 116,
     'log_n', 117,
     'exp_n', 118,
@@ -4668,12 +4668,12 @@ BEGIN {
     'tan_n',
     'atan_n',
     'atan2_n',
-    'sec_n',
-    'asec_n',
+    'DEPRECATED_35',
+    'DEPRECATED_36',
     'sinh_n',
     'cosh_n',
     'tanh_n',
-    'sech_n',
+    'DEPRECATED_37',
     'sqrt_n',
     'log_n',
     'exp_n',
@@ -6194,14 +6194,14 @@ BEGIN {
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'sec_n', sub ($op0, $op1) {
+    'DEPRECATED_35', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 110, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'asec_n', sub ($op0, $op1) {
+    'DEPRECATED_36', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 111, 5);
@@ -6229,7 +6229,7 @@ BEGIN {
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'sech_n', sub ($op0, $op1) {
+    'DEPRECATED_37', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 115, 5);
