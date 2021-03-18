@@ -109,6 +109,20 @@ struct MVMSerializationContextWeakHashEntry {
     struct MVMStrHashHandle hash_handle;
     MVMSerializationContextBody *scb;
 };
+/* Seems that we only ever have (at most) two types that we want to cache, and
+ * always the same two types. At which point, it becomes easier if we always use
+ * the same index for each, as that then permits other space optimisations. */
+
+enum {
+    MVM_INTCACHE_P6INT_INDEX = 0,
+    MVM_INTCACHE_P6BIGINT_INDEX,
+    MVM_INTCACHE_MAX
+};
+
+struct MVMIntConstCache {
+    MVMObject *types[MVM_INTCACHE_MAX];
+    MVMObject *cache[MVM_INTCACHE_MAX][16];
+};
 
 /* Represents a MoarVM instance. */
 struct MVMInstance {
@@ -385,8 +399,8 @@ struct MVMInstance {
 
     /* By far the most common integers are between 0 and 8, but we cache up to 15
      * so that it lines up properly. */
-    MVMIntConstCache    *int_const_cache;
     uv_mutex_t mutex_int_const_cache;
+    MVMIntConstCache    int_const_cache;
 
     /* Multi-dispatch cache addition mutex (additions are relatively
      * rare, so little motivation to have it more fine-grained). */

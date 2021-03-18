@@ -6273,9 +6273,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_fastbox_i_ic): {
                 MVMint64 value = GET_REG(cur_op, 8).i64;
-                if (value >= -1 && value < 15) {
+                if (MVM_INTCACHE_RANGE_CHECK(value)) {
                     MVMint16 slot = GET_UI16(cur_op, 10);
-                    GET_REG(cur_op, 0).o = tc->instance->int_const_cache->cache[slot][value + 1];
+                    GET_REG(cur_op, 0).o = tc->instance->int_const_cache.cache[slot][value + MVM_INTCACHE_ZERO_OFFSET];
                 }
                 else {
                     MVMObject *obj = fastcreate(tc, cur_op);
@@ -6287,9 +6287,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_fastbox_bi_ic): {
                 MVMint64 value = GET_REG(cur_op, 8).i64;
-                if (value >= -1 && value < 15) {
+                if (MVM_INTCACHE_RANGE_CHECK(value)) {
                     MVMint16 slot = GET_UI16(cur_op, 10);
-                    GET_REG(cur_op, 0).o = tc->instance->int_const_cache->cache[slot][value + 1];
+                    GET_REG(cur_op, 0).o = tc->instance->int_const_cache.cache[slot][value + MVM_INTCACHE_ZERO_OFFSET];
                 }
                 else {
                     MVMObject *obj = fastcreate(tc, cur_op);
@@ -6479,14 +6479,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
                     MVMint64 result = (MVMint64)ba->u.smallint.value + (MVMint64)bb->u.smallint.value;
                     if (MVM_IS_32BIT_INT(result)) {
-                        if (result < -1 || result >= 15) {
+                        if (MVM_INTCACHE_RANGE_CHECK(result)) {
+                            result_obj = tc->instance->int_const_cache.cache[GET_UI16(cur_op, 12)][result + MVM_INTCACHE_ZERO_OFFSET];
+                        }
+                        else {
                             result_obj = fastcreate(tc, cur_op);
                             bc = (MVMP6bigintBody *)((char *)result_obj + offset);
                             bc->u.smallint.value = (MVMint32)result;
                             bc->u.smallint.flag = MVM_BIGINT_32_FLAG;
-                        }
-                        else {
-                            result_obj = tc->instance->int_const_cache->cache[GET_UI16(cur_op, 12)][result + 1];
                         }
                     }
                 }
@@ -6510,14 +6510,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
                     MVMint64 result = (MVMint64)ba->u.smallint.value - (MVMint64)bb->u.smallint.value;
                     if (MVM_IS_32BIT_INT(result)) {
-                        if (result < -1 || result >= 15) {
+                        if (MVM_INTCACHE_RANGE_CHECK(result)) {
+                            result_obj = tc->instance->int_const_cache.cache[GET_UI16(cur_op, 12)][result + MVM_INTCACHE_ZERO_OFFSET];
+                        }
+                        else {
                             result_obj = fastcreate(tc, cur_op);
                             bc = (MVMP6bigintBody *)((char *)result_obj + offset);
                             bc->u.smallint.value = (MVMint32)result;
                             bc->u.smallint.flag = MVM_BIGINT_32_FLAG;
-                        }
-                        else {
-                            result_obj = tc->instance->int_const_cache->cache[GET_UI16(cur_op, 12)][result + 1];
                         }
                     }
                 }
@@ -6541,14 +6541,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
                     MVMint64 result = (MVMint64)ba->u.smallint.value * (MVMint64)bb->u.smallint.value;
                     if (MVM_IS_32BIT_INT(result)) {
-                        if (result < -1 || result >= 15) {
+                        if (MVM_INTCACHE_RANGE_CHECK(result)) {
+                            result_obj = tc->instance->int_const_cache.cache[GET_UI16(cur_op, 12)][result + MVM_INTCACHE_ZERO_OFFSET];
+                        }
+                        else {
                             result_obj = fastcreate(tc, cur_op);
                             bc = (MVMP6bigintBody *)((char *)result_obj + offset);
                             bc->u.smallint.value = (MVMint32)result;
                             bc->u.smallint.flag = MVM_BIGINT_32_FLAG;
-                        }
-                        else {
-                            result_obj = tc->instance->int_const_cache->cache[GET_UI16(cur_op, 12)][result + 1];
                         }
                     }
                 }
