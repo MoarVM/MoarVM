@@ -392,6 +392,20 @@ static void emit_fastcreate(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     | mov dword OBJECT:RV->header.owner, TMP1d; // does this even work?
 }
 
+static void emit_fastcreate_from_intcache(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+                                          int type_index) {
+    MVMuint16 size = tc->instance->int_const_cache.sizes[type_index];
+    MVMSTable *stable = tc->instance->int_const_cache.stables[type_index];
+    | mov ARG1, TC;
+    | mov ARG2, size;
+    | callp &MVM_gc_allocate_nursery;
+    | mov64 TMP1, (MVMuint64)stable;
+    | mov aword OBJECT:RV->st, TMP1;  // st is 64 bit (pointer)
+    | mov word OBJECT:RV->header.size, size; // object size is 16 bit
+    | mov TMP1d, dword TC->thread_id;  // thread id is 32 bit
+    | mov dword OBJECT:RV->header.owner, TMP1d; // does this even work?
+}
+
 /* compile per instruction, can't really do any better yet */
 void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                             MVMJitPrimitive * prim) {
@@ -2509,12 +2523,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_sp_add_I:
     case MVM_OP_sp_sub_I:
     case MVM_OP_sp_mul_I: {
-        MVMint16 a = ins->operands[3].reg.orig;
-        MVMint16 b = ins->operands[4].reg.orig;
+        MVMint16 a = ins->operands[1].reg.orig;
+        MVMint16 b = ins->operands[2].reg.orig;
         MVMint16 c = ins->operands[0].reg.orig;
-        MVMint16 offset = ins->operands[5].lit_i16;
+        MVMint16 offset = tc->instance->int_const_cache.offsets[MVM_INTCACHE_P6BIGINT_INDEX];
         MVMint16 val_offset = offset + 4;
-        MVMObject **cache = tc->instance->int_const_cache.cache[ins->operands[6].lit_i16];
+        MVMObject **cache = tc->instance->int_const_cache.cache[MVM_INTCACHE_P6BIGINT_INDEX];
 
         /* See if they're both smallint. */
         | mov TMP1, WORK[a];
@@ -2554,7 +2568,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | jmp >3
         |2:
         | mov dword [rbp-0x30], TMP4d;
-        emit_fastcreate(tc, compiler, jg, ins);
+        emit_fastcreate_from_intcache(tc, compiler, jg, MVM_INTCACHE_P6BIGINT_INDEX);
         | mov aword WORK[c], RV;
         | mov TMP4d, dword [rbp-0x30];
         | mov dword [RV + offset], MVM_BIGINT_32_FLAG
@@ -2566,7 +2580,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
          * before storing the result value, in case they're aimed at the
          * same register. */
         |1:
-        emit_fastcreate(tc, compiler, jg, ins);
+        emit_fastcreate_from_intcache(tc, compiler, jg, MVM_INTCACHE_P6BIGINT_INDEX);
         | mov ARG1, TC;
         | mov ARG2, WORK[a];
         | add ARG2, offset

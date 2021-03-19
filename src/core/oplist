@@ -1054,14 +1054,14 @@ sp_cas_o              .s w(obj) r(obj) r(obj) r(obj) :invokish :maycausedeopt
 sp_atomicload_o       .s w(obj) r(obj)
 sp_atomicstore_o      .s r(obj) r(obj) :invokish :maycausedeopt
 
-# Lowered big integer operations, where inputs and output type are consistent.
-# They start with the same operands as a fastcreate, which will be used if the
-# result can not be served from the cache. The second index is the offset of
-# the bigint structure within the body of the object. The third index is the
-# index into the box type cache, for objects that are in range.
-sp_add_I         .s w(obj) int16 sslot r(obj) r(obj) int16 int16 :pure
-sp_sub_I         .s w(obj) int16 sslot r(obj) r(obj) int16 int16 :pure
-sp_mul_I         .s w(obj) int16 sslot r(obj) r(obj) int16 int16 :pure
+# Lowered big integer operations, where inputs and output type are consistent
+# and the output type is in MVMIntConstCache. They no longer use fastcreate
+# directly, as the parameters that fastcreate would need are found from
+# MVMIntConstCache (ie stored once per process, instead of once per op)
+# The object from MVMIntConstCache is used, for results that in range.
+sp_add_I         .s w(obj) r(obj) r(obj) :pure
+sp_sub_I         .s w(obj) r(obj) r(obj) :pure
+sp_mul_I         .s w(obj) r(obj) r(obj) :pure
 
 sp_bool_I        .s w(int64) r(obj) int16 :pure
 

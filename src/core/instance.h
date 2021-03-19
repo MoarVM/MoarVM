@@ -122,6 +122,9 @@ enum {
 struct MVMIntConstCache {
     MVMObject *types[MVM_INTCACHE_MAX];
     MVMObject *cache[MVM_INTCACHE_MAX][16];
+    MVMSTable *stables[MVM_INTCACHE_MAX];
+    MVMuint16  sizes[MVM_INTCACHE_MAX];
+    MVMuint16  offsets[MVM_INTCACHE_MAX];
 };
 
 /* Represents a MoarVM instance. */

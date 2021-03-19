@@ -21,23 +21,65 @@ void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type) {
         return;
     }
 
+    /* This order is all rather twisted. We don't want to *write* anything to
+     * memory unless offset is non-zero. And we can only figure that out after
+     * we've created an object. So we use the cached object for -1 for that.
+     * Which means that we then need to twist the loop for (-1 .. 15) around,
+     * as we enter it with an object already.
+     * And *while* we do that we need to root the type object, just in case,
+     * because we can't perma-root it "yet". */
     MVMROOT(tc, type, {
-        int val;
-        for (val = -1; val < 15; val++) {
-            MVMObject *obj;
-            obj = MVM_repr_alloc_init(tc, type);
-            MVM_repr_set_int(tc, obj, val);
-            tc->instance->int_const_cache.cache[type_index][val + 1] = obj;
+        int val = -1;
+        MVMObject *obj = MVM_repr_alloc_init(tc, type);
+        MVM_repr_set_int(tc, obj, val);
+
+        MVMuint16 offset;
+        if (type_index == MVM_INTCACHE_P6INT_INDEX) {
+            offset = offsetof(MVMP6int, body.value);
+        } else {
+            /* This *can* be zero in nqp-m.
+             * If so, we don't want to set up the cache, as we can't use it
+             * fully. It seems daft adding defensive code (complication)
+             * elsewhere for something which only matters during bootstrapping.
+             */
+            offset = MVM_p6opaque_get_bigint_offset(tc, obj->st);
+        }
+
+        /* effectively here, !offset is an early return. But we can't return
+         * early as we have to unwind the MVMROOT and unlock the mutex. */
+        if (offset) {
+            tc->instance->int_const_cache.stables[type_index] = obj->st;
+            /* Yes, clearly we don't *need* to store this given the line above,
+             * but doing so saves a pointer indirection (and potential cache
+             * miss) in some places, and on 64 bit architectures, alignment
+             * means that effectively we can store it for free, in what would
+             * have been padding. */
+            tc->instance->int_const_cache.sizes[type_index] = obj->st->size;
+            tc->instance->int_const_cache.offsets[type_index] = offset;
+
+            while (1) {
+                tc->instance->int_const_cache.cache[type_index][val + 1] = obj;
+                MVM_gc_root_add_permanent_desc(tc,
+                    (MVMCollectable **)&tc->instance->int_const_cache.cache[type_index][val + 1],
+                    "Boxed integer cache entry");
+
+                if (++val >= 15) {
+                    break;
+                }
+
+                obj = MVM_repr_alloc_init(tc, type);
+                MVM_repr_set_int(tc, obj, val);
+            }
+
+            /* And we are good. (And we "publish" that the cache is valid by
+             * setting this pointer non-NULL.) */
+
+            tc->instance->int_const_cache.types[type_index] = type;
             MVM_gc_root_add_permanent_desc(tc,
-                (MVMCollectable **)&tc->instance->int_const_cache.cache[type_index][val + 1],
-                "Boxed integer cache entry");
+                (MVMCollectable **)&tc->instance->int_const_cache.types[type_index],
+                "Boxed integer cache type");
         }
     });
-
-    tc->instance->int_const_cache.types[type_index] = type;
-    MVM_gc_root_add_permanent_desc(tc,
-        (MVMCollectable **)&tc->instance->int_const_cache.types[type_index],
-        "Boxed integer cache type");
 
     uv_mutex_unlock(&tc->instance->mutex_int_const_cache);
 }
