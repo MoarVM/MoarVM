@@ -652,12 +652,59 @@ void MVM_repr_set_uint(MVMThreadContext *tc, MVMObject *obj, MVMuint64 val) {
 }
 
 MVMObject * MVM_repr_box_int(MVMThreadContext *tc, MVMObject *type, MVMint64 val) {
-    MVMObject *res;
-    res = MVM_intcache_get(tc, type, val);
-    if (res == 0) {
-        res = MVM_repr_alloc_init(tc, type);
-        MVM_repr_set_int(tc, res, val);
+    if (tc->allocate_in_gen2) {
+        MVMObject *res = MVM_intcache_get(tc, type, val);
+        if (res) {
+            return res;
+        }
     }
+    else {
+        /* Effectively we inline MVM_intcache_get here, as we need to re-order
+         * parts of it, and we will do this first (slightly) expensive call
+         * even for "out of range" integers, as we can still do useful stuff. */
+        int type_index = MVM_intcache_possible_type_index(type);
+        if (type_index >= 0 && tc->instance->int_const_cache.types[type_index] == type) {
+            /* It's a type we know about. */
+            if (MVM_INTCACHE_RANGE_CHECK(val)) {
+                /* Even better, it's a singleton in the cache. So return it. */
+                return tc->instance->int_const_cache.cache[type_index][val + MVM_INTCACHE_ZERO_OFFSET];
+
+            }
+
+            /* This is basically fastcreate_from_intcache from interp.c: */
+            MVMuint16 size = tc->instance->int_const_cache.sizes[type_index];
+            MVMObject *res = MVM_gc_allocate_nursery(tc, size);
+
+            res->header.size  = size;
+            res->header.owner = tc->thread_id;
+            /* Look this up *after* that allocate as that allocate might cause
+             * it to move. With this order we avoid MVM_ROOT. */
+            res->st           = tc->instance->int_const_cache.stables[type_index];
+
+            MVMuint16 offset  = tc->instance->int_const_cache.offsets[type_index];
+            /* followed by the "meat" of sp_fastbox_i and sp_fastbox_bi */
+            if (type_index == MVM_INTCACHE_P6INT_INDEX) {
+                *((MVMint64 *)((char *)res + offset)) = val;
+            }
+            else if (MVM_LIKELY(type_index == MVM_INTCACHE_P6BIGINT_INDEX)) {
+                MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)res + offset);
+                if (MVM_IS_32BIT_INT(val)) {
+                    body->u.smallint.value = (MVMint32)val;
+                    body->u.smallint.flag = MVM_BIGINT_32_FLAG;
+                }
+                else {
+                    MVM_p6bigint_store_as_mp_int(tc, body, val);
+                }
+            }
+            else {
+                MVM_oops(tc, "Unknown intcache type %d in MVM_repr_box_int", type_index);
+            }
+            return res;
+        }
+    }
+
+    MVMObject *res = MVM_repr_alloc_init(tc, type);
+    MVM_repr_set_int(tc, res, val);
     return res;
 }
 
