@@ -1,3 +1,18 @@
+New in 2021.03
+
+6model:
++ [776d2ff2,f745dda5,1ae3d8e5,37e15bbf,d441bfdf,2cc6df5f,f24507d2]
+  Improve serialization of C types
+
+IO:
++ [cdbdec1a.0ff77ecd,63b213cb] Introduce `platform/socket.h`
+
+Tooling/Build:
++ [23a7fb96] Avoid Azure CI failures on re-builds
+
+Profiler:
++ [e316dc34] Fix confused profiler output in multi-threaded apps
+
 New in 2021.02
 
 6model:
