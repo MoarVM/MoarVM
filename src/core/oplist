@@ -644,7 +644,7 @@ ctxouterskipthunks  w(obj) r(obj) :noinline
 ctxcallerskipthunks w(obj) r(obj) :noinline
 timer               w(obj) r(obj) r(obj) r(int64) r(int64) r(obj)
 cancel              r(obj)
-signal              w(obj) r(obj) r(obj) r(int64) r(obj)
+signal              w(obj) r(obj) r(obj) r(obj) r(obj) r(int64) r(obj)
 watchfile           w(obj) r(obj) r(obj) r(str) r(obj)
 asyncconnect        w(obj) r(obj) r(obj) r(str) r(int64) r(obj)
 asynclisten         w(obj) r(obj) r(obj) r(str) r(int64) r(int64) r(obj)

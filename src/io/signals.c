@@ -15,6 +15,8 @@ typedef struct {
     uv_signal_t       handle;
     MVMThreadContext *tc;
     int               work_idx;
+    MVMObject        *setup_notify_queue;
+    MVMObject        *setup_notify_schedulee;
 } SignalInfo;
 
 /* Signal callback; dispatches schedulee to the queue. */
@@ -40,6 +42,15 @@ static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, 
     si->tc          = tc;
     si->handle.data = si;
     uv_signal_start(&si->handle, signal_cb, si->signum);
+
+    if (si->setup_notify_queue && si->setup_notify_schedulee) {
+        MVMObject *arr;
+        MVMROOT(tc, async_task, {
+            arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+        });
+        MVM_repr_push_o(tc, arr, si->setup_notify_schedulee);
+        MVM_repr_push_o(tc, si->setup_notify_queue, arr);
+    }
 }
 
 static void free_on_close_cb(uv_handle_t *handle) {
@@ -56,18 +67,24 @@ static void cancel(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task,
     }
 }
 
-/* Frees data associated with a timer async task. */
+static void gc_mark(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
+    SignalInfo *si = (SignalInfo *)data;
+    MVM_gc_worklist_add(tc, worklist, &si->setup_notify_queue);
+    MVM_gc_worklist_add(tc, worklist, &si->setup_notify_schedulee);
+}
+
+/* Frees data associated with a signal async task. */
 static void gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data)
         MVM_free(data);
 }
 
-/* Operations table for async timer task. */
+/* Operations table for async signal task. */
 static const MVMAsyncTaskOps op_table = {
     setup,
     NULL,
     cancel,
-    NULL,
+    gc_mark,
     gc_free
 };
 
@@ -294,9 +311,13 @@ MVMObject * MVM_io_get_signals(MVMThreadContext *tc) {
 }
 
 /* Register a new signal handler. */
-MVMObject * MVM_io_signal_handle(MVMThreadContext *tc, MVMObject *queue,
-                                 MVMObject *schedulee, MVMint64 signal,
-                                 MVMObject *async_type) {
+MVMObject * MVM_io_signal_handle(
+    MVMThreadContext *tc,
+    MVMObject *setup_notify_queue, MVMObject *setup_notify_schedulee,
+    MVMObject *queue, MVMObject *schedulee,
+    MVMint64 signal,
+    MVMObject *async_type
+) {
     MVMAsyncTask *task;
     SignalInfo   *signal_info;
     MVMInstance  * const instance = tc->instance;
@@ -315,6 +336,9 @@ MVMObject * MVM_io_signal_handle(MVMThreadContext *tc, MVMObject *queue,
     if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
         MVM_exception_throw_adhoc(tc,
             "signal target queue must have ConcBlockingQueue REPR");
+    if (setup_notify_queue && REPR(setup_notify_queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
+        MVM_exception_throw_adhoc(tc,
+            "signal setup notify queue must have ConcBlockingQueue REPR");
     if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
         MVM_exception_throw_adhoc(tc,
             "signal result type must have REPR AsyncTask");
@@ -328,6 +352,8 @@ MVMObject * MVM_io_signal_handle(MVMThreadContext *tc, MVMObject *queue,
     task->body.ops      = &op_table;
     signal_info         = MVM_malloc(sizeof(SignalInfo));
     signal_info->signum = signal;
+    signal_info->setup_notify_queue = setup_notify_queue;
+    signal_info->setup_notify_schedulee = setup_notify_schedulee;
     task->body.data     = signal_info;
 
     /* Hand the task off to the event loop. */
