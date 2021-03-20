@@ -143,7 +143,7 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
 #endif
 
     /* Logging for insight */
-    if (MVM_jit_bytecode_dump_enabled(tc))
+    if (MVM_jit_bytecode_dump_enabled(tc) && code)
         MVM_jit_dump_bytecode(tc, code);
 
     return code;
