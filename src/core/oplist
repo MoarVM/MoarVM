@@ -166,12 +166,12 @@ acos_n              w(num64) r(num64) :pure
 tan_n               w(num64) r(num64) :pure
 atan_n              w(num64) r(num64) :pure
 atan2_n             w(num64) r(num64) r(num64) :pure
-sec_n               w(num64) r(num64) :pure
-asec_n              w(num64) r(num64) :pure
+DEPRECATED_35       w(num64) r(num64) :pure
+DEPRECATED_36       w(num64) r(num64) :pure
 sinh_n              w(num64) r(num64) :pure
 cosh_n              w(num64) r(num64) :pure
 tanh_n              w(num64) r(num64) :pure
-sech_n              w(num64) r(num64) :pure
+DEPRECATED_37       w(num64) r(num64) :pure
 sqrt_n              w(num64) r(num64) :pure
 log_n               w(num64) r(num64) :pure :confprog
 exp_n               w(num64) r(num64) :pure

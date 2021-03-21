@@ -848,14 +848,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 4).n64);
                 cur_op += 6;
                 goto NEXT;
-            OP(sec_n): /* XXX TODO) handle edge cases */
-                GET_REG(cur_op, 0).n64 = 1.0 / cos(GET_REG(cur_op, 2).n64);
-                cur_op += 4;
-                goto NEXT;
-            OP(asec_n): /* XXX TODO) handle edge cases */
-                GET_REG(cur_op, 0).n64 = acos(1.0 / GET_REG(cur_op, 2).n64);
-                cur_op += 4;
-                goto NEXT;
             OP(sinh_n):
                 GET_REG(cur_op, 0).n64 = sinh(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
@@ -866,10 +858,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(tanh_n):
                 GET_REG(cur_op, 0).n64 = tanh(GET_REG(cur_op, 2).n64);
-                cur_op += 4;
-                goto NEXT;
-            OP(sech_n): /* XXX TODO) handle edge cases */
-                GET_REG(cur_op, 0).n64 = 1.0 / cosh(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
                 goto NEXT;
             OP(sqrt_n):
@@ -6674,6 +6662,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The newlexotic op was removed in MoarVM 2017.08.");
             OP(DEPRECATED_34):
                 MVM_exception_throw_adhoc(tc, "The lexoticresult op was removed in MoarVM 2017.08.");
+            OP(DEPRECATED_35):
+                MVM_exception_throw_adhoc(tc, "The sec_n op was removed in MoarVM 2021.04.");
+            OP(DEPRECATED_36):
+                MVM_exception_throw_adhoc(tc, "The asec_n op was removed in MoarVM 2021.04.");
+            OP(DEPRECATED_37):
+                MVM_exception_throw_adhoc(tc, "The sech_n op was removed in MoarVM 2021.04.");
             OP(coverage_log): {
                 MVMString *filename = MVM_cu_string(tc, cu, GET_UI32(cur_op, 0));
                 MVMuint32 lineno    = GET_UI32(cur_op, 4);

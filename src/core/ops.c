@@ -1542,8 +1542,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
-        MVM_OP_sec_n,
-        "sec_n",
+        MVM_OP_DEPRECATED_35,
+        "DEPRECATED_35",
         2,
         1,
         0,
@@ -1556,8 +1556,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
-        MVM_OP_asec_n,
-        "asec_n",
+        MVM_OP_DEPRECATED_36,
+        "DEPRECATED_36",
         2,
         1,
         0,
@@ -1612,8 +1612,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
-        MVM_OP_sech_n,
-        "sech_n",
+        MVM_OP_DEPRECATED_37,
+        "DEPRECATED_37",
         2,
         1,
         0,
