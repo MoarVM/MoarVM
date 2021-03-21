@@ -6300,14 +6300,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_fastbox_bi_ic): {
-                MVMint64 value = GET_REG(cur_op, 8).i64;
+                MVMint64 value = GET_REG(cur_op, 2).i64;
                 if (MVM_INTCACHE_RANGE_CHECK(value)) {
-                    MVMint16 slot = GET_UI16(cur_op, 10);
-                    GET_REG(cur_op, 0).o = tc->instance->int_const_cache.cache[slot][value + MVM_INTCACHE_ZERO_OFFSET];
+                    GET_REG(cur_op, 0).o = tc->instance->int_const_cache.cache[MVM_INTCACHE_P6BIGINT_INDEX][value + MVM_INTCACHE_ZERO_OFFSET];
                 }
                 else {
-                    MVMObject *obj = fastcreate(tc, cur_op);
-                    MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)obj + GET_UI16(cur_op, 6));
+                    MVMuint16 offset = tc->instance->int_const_cache.offsets[MVM_INTCACHE_P6BIGINT_INDEX];
+                    MVMObject *obj = fastcreate_from_intcache(tc, MVM_INTCACHE_P6BIGINT_INDEX);
+                    MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)obj + offset);
                     if (MVM_IS_32BIT_INT(value)) {
                         body->u.smallint.value = (MVMint32)value;
                         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
@@ -6317,7 +6317,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     GET_REG(cur_op, 0).o = obj;
                 }
-                cur_op += 12;
+                cur_op += 4;
                 goto NEXT;
             }
             OP(sp_deref_get_i64): {

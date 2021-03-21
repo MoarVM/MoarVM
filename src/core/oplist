@@ -1022,8 +1022,7 @@ sp_fastbox_bi    .s w(obj) int16 sslot int16 r(int64) :pure
 # bytecode. They do a lookup in the integer cache before performing a box
 # operation.
 sp_fastbox_i_ic  .s w(obj) r(int64) :pure
-# TODO next:
-sp_fastbox_bi_ic .s w(obj) int16 sslot int16 r(int64) int16 :pure
+sp_fastbox_bi_ic .s w(obj) r(int64) :pure
 
 # Follow a pointer at an offset to an object and get/store a value there.
 sp_deref_get_i64      .s w(int64) r(obj) int16 :pure
