@@ -2467,7 +2467,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         break;
     }
     case MVM_OP_sp_fastbox_i:
-    case MVM_OP_sp_fastbox_i_ic:
     case MVM_OP_sp_fastbox_bi:
     case MVM_OP_sp_fastbox_bi_ic: {
         MVMint32 use_cache = op == MVM_OP_sp_fastbox_i_ic || op == MVM_OP_sp_fastbox_bi_ic;
@@ -2518,6 +2517,54 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         if (use_cache) {
             |2:
         }
+        break;
+    }
+    case MVM_OP_sp_fastbox_i_ic: {
+        MVMint16 type_index = op == MVM_OP_sp_fastbox_i_ic
+            ? MVM_INTCACHE_P6INT_INDEX : MVM_INTCACHE_P6BIGINT_INDEX;
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 offset = tc->instance->int_const_cache.offsets[type_index];
+        MVMObject **cache = tc->instance->int_const_cache.cache[type_index];
+        MVMint16 val = ins->operands[1].reg.orig;
+        | mov TMP1, WORK[val]
+        | cmp TMP1, 14
+        | jg >1
+        | cmp TMP1, -1
+        | jl >1
+        | inc TMP1
+        | mov64 TMP2, (MVMuint64)cache
+        | mov TMP2, [TMP2 + TMP1 * 8]
+        | mov WORK[dst], TMP2
+        | jmp >2
+        /* Not a singleton in the cache: */
+        |1:
+        emit_fastcreate_from_intcache(tc, compiler, jg, type_index);
+        | mov aword WORK[dst], RV;
+        | mov TMP3, WORK[val];
+        if (op == MVM_OP_sp_fastbox_i_ic) {
+            /* Normal integer */
+            | mov qword [RV+offset], TMP3;
+        }
+        else {
+            /* Big integer; if it's in smallint range we poke it in directly,
+             * and if not we do a function call to create a bigint. */
+            MVMuint16 val_offset = offset + 4;
+            | cmp TMP3, qword 2147483647LL
+            | jg >3
+            | cmp TMP3, qword -2147483648LL
+            | jl >3
+            | mov dword [RV+offset], MVM_BIGINT_32_FLAG
+            | mov dword [RV+val_offset], TMP3d
+            | jmp >4
+            |3:
+            | mov ARG1, TC
+            | mov ARG2, RV
+            | add ARG2, offset
+            | mov ARG3, TMP3
+            | callp &MVM_p6bigint_store_as_mp_int;
+            |4:
+        }
+        |2:
         break;
     }
     case MVM_OP_sp_add_I:
