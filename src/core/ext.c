@@ -52,8 +52,12 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
 int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
         MVMExtOpFunc func, MVMuint8 num_operands, MVMuint8 operands[],
         MVMExtOpSpesh *spesh, MVMExtOpFactDiscover *discover, MVMuint32 flags) {
+    /* This MVMString ends up being permarooted, so if we create it in gen2 we
+     * save some GC work */
+    MVM_gc_allocate_gen2_default_set(tc);
     MVMString *name = MVM_string_ascii_decode_nt(
             tc, tc->instance->VMString, cname);
+    MVM_gc_allocate_gen2_default_clear(tc);
 
     uv_mutex_lock(&tc->instance->mutex_extop_registry);
 
