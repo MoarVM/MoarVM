@@ -150,7 +150,13 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
                 config, MVM_STORAGE_SPEC_BP_STR, MVM_NATIVEREF_MULTIDIM);
             set_max_inline_size(tc, config_hash, config);
 
+            /* Without this the integer objects are allocated in the nursery,
+             * which just makes work for the GC moving them around twice.
+             * The other call to MVM_intcache_for is from MVM_6model_bootstrap,
+             * which runs with MVM_gc_allocate_gen2_default_set. */
+            MVM_gc_allocate_gen2_default_set(tc);
             MVM_intcache_for(tc, config->int_box_type);
+            MVM_gc_allocate_gen2_default_clear(tc);
         });
 
     return config_hash;
