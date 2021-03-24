@@ -326,21 +326,6 @@ static void expand_storage_if_needed(MVMThreadContext *tc, MVMSerializationWrite
     }
 }
 
-/* Writing function for pointers. */
-void MVM_serialization_write_ptr(MVMThreadContext *tc, MVMSerializationWriter *writer, const void *ptr, size_t size) {
-    MVM_serialization_write_int(tc, writer, size);
-    if (size) {
-        expand_storage_if_needed(tc, writer, size);
-        memcpy(*(writer->cur_write_buffer) + *(writer->cur_write_offset), ptr, size);
-        *(writer->cur_write_offset) += size;
-    }
-}
-
-/* Writing function for null-terminated char array strings. */
-void MVM_serialization_write_cstr(MVMThreadContext *tc, MVMSerializationWriter *writer, const char *cstr) {
-    MVM_serialization_write_ptr(tc, writer, cstr, cstr ? strlen(cstr) : 0);
-}
-
 /* Writing function for variable sized integers. Writes out a 64 bit value
    using between 1 and 9 bytes. */
 void MVM_serialization_write_int(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMint64 value) {
@@ -437,6 +422,29 @@ void MVM_serialization_write_str(MVMThreadContext *tc, MVMSerializationWriter *w
                      heap_loc & STRING_HEAP_LOC_PACKED_LOW_MASK);
         *(writer->cur_write_offset) += 2;
     }
+}
+
+/* Writing function for pointers. */
+void MVM_serialization_write_ptr(MVMThreadContext *tc, MVMSerializationWriter *writer, const void *ptr, size_t size) {
+    if (size > INT32_MAX) {
+        MVM_gc_allocate_gen2_default_clear(tc);
+        MVM_exception_throw_adhoc(tc,
+            "Serialization error: pointer with size %zu too large to be serialized",
+            size);
+    }
+    else {
+        MVM_serialization_write_int(tc, writer, size);
+        if (size) {
+            expand_storage_if_needed(tc, writer, size);
+            memcpy(*(writer->cur_write_buffer) + *(writer->cur_write_offset), ptr, size);
+            *(writer->cur_write_offset) += size;
+        }
+    }
+}
+
+/* Writing function for null-terminated char array strings. */
+void MVM_serialization_write_cstr(MVMThreadContext *tc, MVMSerializationWriter *writer, const char *cstr) {
+    MVM_serialization_write_ptr(tc, writer, cstr, cstr ? strlen(cstr) : 0);
 }
 
 /* Writes the ID, index pair that identifies an entry in a Serialization
@@ -1743,7 +1751,7 @@ void * MVM_serialization_read_ptr(MVMThreadContext *tc, MVMSerializationReader *
 
     if (!(ptr_size = MVM_serialization_read_int(tc, reader)))
         ptr = NULL;
-    else if (ptr_size < 0 || ptr_size > SIZE_MAX)
+    else if (ptr_size < 0 || ptr_size > INT32_MAX)
         fail_deserialize(tc, NULL, reader,
             "Deserialized pointer with out-of-range size (%"PRIi64")",
             ptr_size);
@@ -1767,7 +1775,7 @@ char * MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader 
 
     if (!(cstr_len = MVM_serialization_read_int(tc, reader)))
         cstr = NULL;
-    else if (cstr_len < 0 || cstr_len >= SIZE_MAX)
+    else if (cstr_len < 0 || cstr_len >= INT32_MAX)
         fail_deserialize(tc, NULL, reader,
             "Deserialized C string with out-of-range length (%"PRIi64")",
             cstr_len);
