@@ -562,11 +562,11 @@ chdir               r(str)
 srand               r(int64)
 rand_i              w(int64) :confprog
 rand_n              w(num64) :confprog
-time_i              w(int64) :pure :confprog
+DEPRECATED_38       w(int64) :pure :confprog
 sleep               r(num64)
 newthread           w(obj) r(obj) r(int64)
 threadjoin          r(obj)
-time_n              w(num64) :pure :confprog
+DEPRECATED_39       w(num64) :pure :confprog
 exit                r(int64) :confprog
 DEPRECATED_30       w(int64) r(str) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 cwd                 w(str) :pure :confprog
@@ -885,6 +885,7 @@ freemem             w(int64) :pure
 totalmem            w(int64) :pure
 nextdispatcherfor   r(obj) r(obj)
 takenextdispatcher  w(obj) :noinline
+time                w(uint64) :pure :confprog
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

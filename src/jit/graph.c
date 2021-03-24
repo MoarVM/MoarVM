@@ -339,7 +339,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
 #ifndef MVM_HAS_SUBSTANDARD_POW
     case MVM_OP_pow_n: return pow;
 #endif
-    case MVM_OP_time_n: return MVM_proc_time_n;
+    case MVM_OP_time: return MVM_proc_time;
     case MVM_OP_randscale_n: return MVM_proc_randscale_n;
     case MVM_OP_isnanorinf: return MVM_num_isnanorinf;
     case MVM_OP_nativecallcast: return MVM_nativecall_cast;
@@ -3531,11 +3531,11 @@ start:
                           MVM_JIT_RV_NUM, dst);
         break;
     }
-    case MVM_OP_time_n: {
+    case MVM_OP_time: {
         MVMint16 dst   = ins->operands[0].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 1, args,
-                          MVM_JIT_RV_NUM, dst);
+                          MVM_JIT_RV_INT, dst);
         break;
     }
     case MVM_OP_randscale_n: {

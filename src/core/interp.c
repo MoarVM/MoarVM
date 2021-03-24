@@ -3752,10 +3752,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = MVM_proc_rand_n(tc);
                 cur_op += 2;
                 goto NEXT;
-            OP(time_i):
-                GET_REG(cur_op, 0).i64 = MVM_proc_time_i(tc);
-                cur_op += 2;
-                goto NEXT;
             OP(sleep): {
                 MVM_gc_mark_thread_blocked(tc);
                 MVM_platform_sleep(GET_REG(cur_op, 0).n64);
@@ -3770,10 +3766,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(threadjoin):
                 MVM_thread_join(tc, GET_REG(cur_op, 0).o);
-                cur_op += 2;
-                goto NEXT;
-            OP(time_n):
-                GET_REG(cur_op, 0).n64 = MVM_proc_time_n(tc);
                 cur_op += 2;
                 goto NEXT;
             OP(exit): {
@@ -5721,6 +5713,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
+            OP(time):
+                GET_REG(cur_op, 0).u64 = MVM_proc_time(tc);
+                cur_op += 2;
+                goto NEXT;
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
@@ -6669,6 +6665,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The asec_n op was removed in MoarVM 2021.04.");
             OP(DEPRECATED_37):
                 MVM_exception_throw_adhoc(tc, "The sech_n op was removed in MoarVM 2021.04.");
+            OP(DEPRECATED_38):
+                MVM_exception_throw_adhoc(tc, "The time_i op was removed in MoarVM 2021.04.");
+            OP(DEPRECATED_39):
+                MVM_exception_throw_adhoc(tc, "The time_n op was removed in MoarVM 2021.04.");
             OP(coverage_log): {
                 MVMString *filename = MVM_cu_string(tc, cu, GET_UI32(cur_op, 0));
                 MVMuint32 lineno    = GET_UI32(cur_op, 4);
