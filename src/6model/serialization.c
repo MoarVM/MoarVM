@@ -2750,11 +2750,17 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     deserialize_method_cache_lazy(tc, st, reader);
 
     /* Type check cache. */
-    st->type_check_cache_length = MVM_serialization_read_int(tc, reader);
-    if (st->type_check_cache_length > 0) {
-        st->type_check_cache = (MVMObject **)MVM_malloc(st->type_check_cache_length * sizeof(MVMObject *));
-        for (i = 0; i < st->type_check_cache_length; i++)
+    MVMuint16 type_check_cache_length = MVM_serialization_read_int(tc, reader);
+    st->type_check_cache_length = 0;
+    if (type_check_cache_length > 0) {
+        st->type_check_cache = (MVMObject **)MVM_malloc(type_check_cache_length * sizeof(MVMObject *));
+        for (i = 0; i < type_check_cache_length; i++) {
             MVM_ASSIGN_REF(tc, &(st->header), st->type_check_cache[i], MVM_serialization_read_ref(tc, reader));
+            /* deserializing an object may trigger GC, so make sure a gc_mark
+             * of the half-deserialized stable only sees the already
+             * deserialized objects */
+            st->type_check_cache_length = i + 1;
+        }
     }
 
     /* Mode flags. */
@@ -2771,9 +2777,13 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     *(reader->cur_read_offset) += 1;
     mode = flags & 0xF;
     if (mode != 0xF) {
-        st->boolification_spec = (MVMBoolificationSpec *)MVM_malloc(sizeof(MVMBoolificationSpec));
-        st->boolification_spec->mode = mode;
-        MVM_ASSIGN_REF(tc, &(st->header), st->boolification_spec->method, MVM_serialization_read_ref(tc, reader));
+        MVMBoolificationSpec *boolification_spec = (MVMBoolificationSpec *)MVM_malloc(sizeof(MVMBoolificationSpec));
+        boolification_spec->mode = mode;
+        MVM_ASSIGN_REF(tc, &(st->header), boolification_spec->method, MVM_serialization_read_ref(tc, reader));
+        /* Deserializing an object may trigger GC, so make sure a gc_mark of
+         * the half-deserialized STable doesn't see the boolification_spec
+         * until the method is actually there */
+        st->boolification_spec = boolification_spec;
     }
 
     /* Container spec. */
@@ -2792,16 +2802,20 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Invocation spec. */
     if (flags & STABLE_HAS_INVOCATION_SPEC) {
-        st->invocation_spec = (MVMInvocationSpec *)MVM_calloc(1, sizeof(MVMInvocationSpec));
-        MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->class_handle, MVM_serialization_read_ref(tc, reader));
-        MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->attr_name, MVM_serialization_read_str(tc, reader));
-        st->invocation_spec->hint = MVM_serialization_read_int(tc, reader);
-        MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->invocation_handler, MVM_serialization_read_ref(tc, reader));
-        MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_class_handle, MVM_serialization_read_ref(tc, reader));
-        MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_cache_attr_name, MVM_serialization_read_str(tc, reader));
-        st->invocation_spec->md_cache_hint = MVM_serialization_read_int(tc, reader);
-        MVM_ASSIGN_REF(tc, &(st->header), st->invocation_spec->md_valid_attr_name, MVM_serialization_read_str(tc, reader));
-        st->invocation_spec->md_valid_hint = MVM_serialization_read_int(tc, reader);
+        MVMInvocationSpec *invocation_spec = (MVMInvocationSpec *)MVM_calloc(1, sizeof(MVMInvocationSpec));
+        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->class_handle, MVM_serialization_read_ref(tc, reader));
+        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->attr_name, MVM_serialization_read_str(tc, reader));
+        invocation_spec->hint = MVM_serialization_read_int(tc, reader);
+        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->invocation_handler, MVM_serialization_read_ref(tc, reader));
+        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->md_class_handle, MVM_serialization_read_ref(tc, reader));
+        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->md_cache_attr_name, MVM_serialization_read_str(tc, reader));
+        invocation_spec->md_cache_hint = MVM_serialization_read_int(tc, reader);
+        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->md_valid_attr_name, MVM_serialization_read_str(tc, reader));
+        invocation_spec->md_valid_hint = MVM_serialization_read_int(tc, reader);
+        /* Deserializing an object may trigger GC, so make sure a gc_mark of
+         * the half-deserialized STable doesn't see the invocation_spec
+         * until the methods are actually there */
+        st->invocation_spec = invocation_spec;
     }
 
     /* HLL owner. */
