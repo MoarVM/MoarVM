@@ -344,7 +344,7 @@ MVMObject * MVM_io_signal_handle(
             "signal result type must have REPR AsyncTask");
 
     /* Create async task handle. */
-    MVMROOT2(tc, queue, schedulee, {
+    MVMROOT4(tc, queue, schedulee, setup_notify_queue, setup_notify_schedulee, {
         task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
     });
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
