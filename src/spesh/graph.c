@@ -600,10 +600,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                 while (ann) {
                     switch (ann->type) {
                         case MVM_SPESH_ANN_FH_START:
-                            if (!is_catch_handler(tc, g, ann->data.frame_handler_index)) {
-                                active_handlers[ann->data.frame_handler_index] = 1;
-                                num_active_handlers++;
-                            }
+                            active_handlers[ann->data.frame_handler_index] = 1;
+                            num_active_handlers++;
                             break;
                         case MVM_SPESH_ANN_FH_END:
                             has_end = 1;
@@ -616,10 +614,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     while (ann) {
                         switch (ann->type) {
                             case MVM_SPESH_ANN_FH_END:
-                                if (!is_catch_handler(tc, g, ann->data.frame_handler_index)) {
-                                    active_handlers[ann->data.frame_handler_index] = 0;
-                                    num_active_handlers--;
-                                }
+                                active_handlers[ann->data.frame_handler_index] = 0;
+                                num_active_handlers--;
                                 break;
                         }
                         ann = ann->next;
