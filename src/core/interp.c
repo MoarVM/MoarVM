@@ -3184,10 +3184,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(getobjsc):
-                GET_REG(cur_op, 0).o = (MVMObject *)MVM_sc_get_obj_sc(tc, GET_REG(cur_op, 2).o);
+            OP(getobjsc): {
+                MVMObject *sc = (MVMObject *)MVM_sc_get_obj_sc(tc, GET_REG(cur_op, 2).o);
+                GET_REG(cur_op, 0).o = sc ? sc : tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;
+            }
             OP(serialize): {
                 MVMObject *sc = GET_REG(cur_op, 2).o;
                 MVMObject *obj = GET_REG(cur_op, 4).o;
