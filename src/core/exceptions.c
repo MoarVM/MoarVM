@@ -523,6 +523,10 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
         cur_frame = ((MVMException *)ex_obj)->body.origin;
         throw_address = ((MVMException *)ex_obj)->body.throw_address;
     }
+    else if (ex_obj == tc->instance->VMNull) {
+        cur_frame = tc->cur_frame;
+        throw_address = *tc->interp_cur_op;
+    }
     else {
         MVM_exception_throw_adhoc(tc, "Op 'backtrace' needs an exception object");
     }
