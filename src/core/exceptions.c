@@ -514,6 +514,7 @@ char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame,
 /* Returns a list of hashes containing file, line, sub and annotations. */
 MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
     MVMFrame *cur_frame;
+    MVMSpeshFrameWalker fw;
     MVMObject *arr = NULL, *annotations = NULL, *row = NULL, *value = NULL;
     MVMuint32 count = 0;
     MVMString *k_file = NULL, *k_line = NULL, *k_sub = NULL, *k_anno = NULL;
@@ -548,46 +549,51 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
 
     arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
 
-    while (cur_frame != NULL) {
-        MVMuint8             *cur_op = count ? cur_frame->return_address : throw_address;
-        MVMuint32             offset = cur_op - MVM_frame_effective_bytecode(cur_frame);
-        MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body,
-                                            offset > 0 ? offset - 1 : 0);
-        MVMuint32             fshi   = annot ? (MVMint32)annot->filename_string_heap_index : -1;
-        char            *line_number = MVM_malloc(16);
-        MVMString      *filename_str;
-        snprintf(line_number, 16, "%d", annot ? annot->line_number : 1);
+    if (cur_frame) {
+        MVM_spesh_frame_walker_init(tc, &fw, cur_frame, 0);
+        MVM_spesh_frame_walker_next(tc, &fw); // Go to first inline
 
-        /* annotations hash will contain "file" and "line" */
-        annotations = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+        do {
+            cur_frame = MVM_spesh_frame_walker_current_frame(tc, &fw);
+            MVMuint8             *cur_op = count ? cur_frame->return_address : throw_address;
+            MVMuint32             offset = cur_op - MVM_frame_effective_bytecode(cur_frame);
+            MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body,
+                                                offset > 0 ? offset - 1 : 0);
+            MVMuint32             fshi   = annot ? (MVMint32)annot->filename_string_heap_index : -1;
+            char            *line_number = MVM_malloc(16);
+            MVMString      *filename_str;
+            snprintf(line_number, 16, "%d", annot ? annot->line_number : 1);
 
-        /* file */
-        filename_str = annot && fshi < cur_frame->static_info->body.cu->body.num_strings
-             ? MVM_cu_string(tc, cur_frame->static_info->body.cu, fshi)
-             : cur_frame->static_info->body.cu->body.filename;
-        value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
-            filename_str ? filename_str : tc->instance->str_consts.empty);
-        MVM_repr_bind_key_o(tc, annotations, k_file, value);
+            /* annotations hash will contain "file" and "line" */
+            annotations = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
 
-        /* line */
-        value = (MVMObject *)MVM_string_ascii_decode_nt(tc, tc->instance->VMString, line_number);
-        value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, (MVMString *)value);
-        MVM_repr_bind_key_o(tc, annotations, k_line, value);
-        MVM_free(line_number);
+            /* file */
+            filename_str = annot && fshi < cur_frame->static_info->body.cu->body.num_strings
+                 ? MVM_cu_string(tc, cur_frame->static_info->body.cu, fshi)
+                 : cur_frame->static_info->body.cu->body.filename;
+            value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type,
+                filename_str ? filename_str : tc->instance->str_consts.empty);
+            MVM_repr_bind_key_o(tc, annotations, k_file, value);
 
-        /* row will contain "sub" and "annotations" */
-        row = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-        MVM_repr_bind_key_o(tc, row, k_sub,
-            cur_frame->code_ref ? cur_frame->code_ref : tc->instance->VMNull);
-        MVM_repr_bind_key_o(tc, row, k_anno, annotations);
+            /* line */
+            value = (MVMObject *)MVM_string_ascii_decode_nt(tc, tc->instance->VMString, line_number);
+            value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, (MVMString *)value);
+            MVM_repr_bind_key_o(tc, annotations, k_line, value);
+            MVM_free(line_number);
 
-        MVM_repr_push_o(tc, arr, row);
-        MVM_free(annot);
+            /* row will contain "sub" and "annotations" */
+            row = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
+            MVM_repr_bind_key_o(tc, row, k_sub,
+                cur_frame->code_ref ? cur_frame->code_ref : tc->instance->VMNull);
+            MVM_repr_bind_key_o(tc, row, k_anno, annotations);
 
-        cur_frame = cur_frame->caller;
-        while (cur_frame && cur_frame->static_info->body.is_thunk)
-            cur_frame = cur_frame->caller;
-        count++;
+            MVM_repr_push_o(tc, arr, row);
+            MVM_free(annot);
+
+            count++;
+        } while (MVM_spesh_frame_walker_move_caller_skip_thunks(tc, &fw));
+
+        MVM_spesh_frame_walker_cleanup(tc, &fw);
     }
 
     MVM_gc_root_temp_pop_n(tc, 9);
