@@ -102,7 +102,7 @@ struct MVMEventSubscriptions {
     MVMObject *SpeshOverviewEvent;
 
     MVMuint64 vm_startup_hrtime;
-    MVMnum64  vm_startup_now;
+    MVMuint64 vm_startup_now;
 };
 
 struct MVMSerializationContextWeakHashEntry {

@@ -122,7 +122,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->main_thread = MVM_tc_create(NULL, instance);
 
     instance->subscriptions.vm_startup_hrtime = uv_hrtime();
-    instance->subscriptions.vm_startup_now = MVM_proc_time_n(instance->main_thread);
+    instance->subscriptions.vm_startup_now = MVM_proc_time(instance->main_thread);
 
 #if MVM_HASH_RANDOMIZE
     /* Get the 128-bit hashSecret */

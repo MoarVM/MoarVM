@@ -856,8 +856,8 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 else
                     cur_op += 6;
                 goto NEXT;
-            OP(time_i):
-                GET_REG(cur_op, 0).i64 = MVM_proc_time_i(tc);
+            OP(time):
+                GET_REG(cur_op, 0).u64 = MVM_proc_time(tc);
                 cur_op += 2;
                 goto NEXT;
             OP(exit): {
@@ -995,7 +995,7 @@ finish_main_loop:
     stats_slot = stats_position_for_value(NULL, entrypoint, result);
 
     if (stats_slot != -1) {
-        MVM_store(&prog->last_return_time[stats_slot], (AO_t)MVM_proc_time_n(tc));
+        MVM_store(&prog->last_return_time[stats_slot], (AO_t)MVM_proc_time(tc));
         MVM_incr(&prog->return_counts[stats_slot]);
     }
 

@@ -1112,14 +1112,9 @@ void MVM_proc_seed(MVMThreadContext *tc, MVMint64 seed) {
     tinymt64_init(tc->rand_state, (MVMuint64)seed);
 }
 
-/* gets the system time since the epoch truncated to integral seconds */
-MVMint64 MVM_proc_time_i(MVMThreadContext *tc) {
-    return (MVMint64)(MVM_platform_now() / 1000000000);
-}
-
-/* gets the system time since the epoch as floating point seconds */
-MVMnum64 MVM_proc_time_n(MVMThreadContext *tc) {
-    return (MVMnum64)MVM_platform_now() / 1000000000.0;
+/* gets the system time since the epoch in nanoseconds */
+MVMuint64 MVM_proc_time(MVMThreadContext *tc) {
+    return MVM_platform_now();
 }
 
 MVMString * MVM_executable_name(MVMThreadContext *tc) {
