@@ -263,7 +263,11 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     tc->in_spesh = 0;
 #endif
 
+    /* Allocate the candidate. If we end up with it in gen2, then make sure it
+     * goes in the remembered set incase it ends up pointing to nursery objects. */
     candidate = (MVMSpeshCandidate *)MVM_repr_alloc_init(tc, tc->instance->SpeshCandidate);
+    if (candidate->common.header.flags2 & MVM_CF_SECOND_GEN)
+        MVM_gc_write_barrier_hit(tc, (MVMCollectable *)candidate);
 
     /* Clear active graph; beyond this point, no more GC syncs. */
     tc->spesh_active_graph = NULL;
