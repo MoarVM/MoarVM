@@ -721,6 +721,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Release this interpreter's hold on Unicode database */
     MVM_unicode_release(instance->main_thread);
 
+    /* Clean up Unicode property codes hashes. */
+    MVM_unicode_property_codes_hashes_demolish(instance->main_thread);
+
     /* Clean up spesh mutexes and close any log. */
     uv_mutex_destroy(&instance->mutex_spesh_install);
     uv_cond_destroy(&instance->cond_spesh_sync);

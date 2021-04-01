@@ -13,3 +13,4 @@ MVMCodepoint MVM_unicode_find_primary_composite(MVMThreadContext *tc, MVMCodepoi
 
 void MVM_unicode_init(MVMThreadContext *tc);
 void MVM_unicode_release(MVMThreadContext *tc);
+void MVM_unicode_property_codes_hashes_demolish(MVMThreadContext *tc);

@@ -905,6 +905,11 @@ static void generate_property_codes_by_seq_names(MVMThreadContext *tc) {
     }
 }
 
+void MVM_unicode_property_codes_hashes_demolish(MVMThreadContext *tc) {
+    MVM_uni_hash_demolish(tc, &property_codes_by_names_aliases);
+    MVM_uni_hash_demolish(tc, &property_codes_by_seq_names);
+}
+
 MVMint64 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 size;
     char *cname = MVM_string_ascii_encode(tc, name, &size, 0);
