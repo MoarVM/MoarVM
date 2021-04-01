@@ -12,4 +12,3 @@ MVMCodepoint MVM_unicode_find_primary_composite(MVMThreadContext *tc, MVMCodepoi
 #define MVM_unicode_case_change_type_fold  3
 
 void MVM_unicode_init(MVMThreadContext *tc);
-void MVM_unicode_release(MVMThreadContext *tc);

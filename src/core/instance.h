@@ -405,6 +405,12 @@ struct MVMInstance {
     /* Normal Form Grapheme state (synthetics table, lookup, etc.). */
     MVMNFGState *nfg;
 
+    /* Unicode hashes. */
+    MVMUniHashTable property_codes_by_names_aliases;
+    MVMUniHashTable property_codes_by_seq_names;
+    MVMUniHashTable codepoints_by_name;
+    MVMUniHashTable *unicode_property_values_hashes;
+
     /************************************************************************
      * Type objects for built-in types and special values
      ************************************************************************/
