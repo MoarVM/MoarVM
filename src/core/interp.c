@@ -3184,10 +3184,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(getobjsc):
-                GET_REG(cur_op, 0).o = (MVMObject *)MVM_sc_get_obj_sc(tc, GET_REG(cur_op, 2).o);
+            OP(getobjsc): {
+                MVMObject *sc = (MVMObject *)MVM_sc_get_obj_sc(tc, GET_REG(cur_op, 2).o);
+                GET_REG(cur_op, 0).o = sc ? sc : tc->instance->VMNull;
                 cur_op += 4;
                 goto NEXT;
+            }
             OP(serialize): {
                 MVMObject *sc = GET_REG(cur_op, 2).o;
                 MVMObject *obj = GET_REG(cur_op, 4).o;
@@ -5509,12 +5511,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_spesh_plugin_addguard_notobj(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            OP(hllbool):
-                GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).i64
+            OP(hllbool): {
+                MVMObject *bool_value = GET_REG(cur_op, 2).i64
                     ? cu->body.hll_config->true_value
                     : cu->body.hll_config->false_value;
+                if (!bool_value)
+                    MVM_exception_throw_adhoc(tc, "Trying to hllbool a value, but current language doesn't have HLL bools");
+                GET_REG(cur_op, 0).o = bool_value;
                 cur_op += 4;
                 goto NEXT;
+            }
             OP(hllboolfor): {
                 MVMString   *hll     = GET_REG(cur_op, 4).s;
                 MVMHLLConfig *config = MVM_hll_get_config_for(tc, hll);
