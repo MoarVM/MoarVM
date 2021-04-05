@@ -590,8 +590,13 @@ void MVM_vm_exit(MVMInstance *instance) {
     MVM_io_flush_standard_handles(instance->main_thread);
 
     /* Close any spesh or jit log. */
-    if (instance->spesh_log_fh)
+    if (instance->spesh_log_fh) {
+        /* Need to properly shut down spesh, otherwise we may segfault trying
+         * to write to a closed file handle before we exit completely */
+        MVM_spesh_worker_stop(instance->main_thread);
+        MVM_spesh_worker_join(instance->main_thread);
         fclose(instance->spesh_log_fh);
+    }
     if (instance->dynvar_log_fh) {
         fprintf(instance->dynvar_log_fh, "- x 0 0 0 0 %"PRId64" %"PRIu64" %"PRIu64"\n", instance->dynvar_log_lasttime, uv_hrtime(), uv_hrtime());
         fclose(instance->dynvar_log_fh);
