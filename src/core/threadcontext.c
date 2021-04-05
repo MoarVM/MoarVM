@@ -87,7 +87,7 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     while (tc->active_handlers) {
         MVMActiveHandler *ah = tc->active_handlers;
         tc->active_handlers = ah->next_handler;
-        MVM_free(ah);
+        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMActiveHandler), ah);
     }
 
     /* Free the native callback cache. Needs the fixed size allocator. */

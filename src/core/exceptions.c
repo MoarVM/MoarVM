@@ -359,7 +359,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
     case MVM_EX_ACTION_INVOKE: {
         /* Create active handler record. */
-        MVMActiveHandler *ah = MVM_malloc(sizeof(MVMActiveHandler));
+        MVMActiveHandler *ah = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMActiveHandler));
         MVMFrame *cur_frame = tc->cur_frame;
         MVMFrame *pres_frame;
         MVMObject *handler_code;
@@ -440,7 +440,7 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     }
     /* Clean up. */
     tc->active_handlers = ah->next_handler;
-    MVM_free(ah);
+    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMActiveHandler), ah);
 
     /* Do the unwinding as needed. */
     if (exception && exception->body.return_after_unwind) {
@@ -462,7 +462,7 @@ static void cleanup_active_handler(MVMThreadContext *tc, void *sr_data) {
 
     /* Clean up. */
     tc->active_handlers = ah->next_handler;
-    MVM_free(ah);
+    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMActiveHandler), ah);
 }
 
 char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame,
@@ -560,9 +560,9 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
             MVMBytecodeAnnotation *annot = MVM_bytecode_resolve_annotation(tc, &cur_frame->static_info->body,
                                                 offset > 0 ? offset - 1 : 0);
             MVMuint32             fshi   = annot ? (MVMint32)annot->filename_string_heap_index : -1;
-            char            *line_number = MVM_malloc(16);
+            char         line_number[11] = {0}; // 11 == 10 (max # of decimal digits in an MVMuint32) + 1 (NULL terminator)
             MVMString      *filename_str;
-            snprintf(line_number, 16, "%d", annot ? annot->line_number : 1);
+            snprintf(line_number, 11, "%d", annot ? annot->line_number : 1);
 
             /* annotations hash will contain "file" and "line" */
             annotations = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
@@ -579,7 +579,6 @@ MVMObject * MVM_exception_backtrace(MVMThreadContext *tc, MVMObject *ex_obj) {
             value = (MVMObject *)MVM_string_ascii_decode_nt(tc, tc->instance->VMString, line_number);
             value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, (MVMString *)value);
             MVM_repr_bind_key_o(tc, annotations, k_line, value);
-            MVM_free(line_number);
 
             /* row will contain "sub" and "annotations" */
             row = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
@@ -839,7 +838,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     /* Clear the current active handler. */
     ah = tc->active_handlers;
     tc->active_handlers = ah->next_handler;
-    MVM_free(ah);
+    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMActiveHandler), ah);
 
     /* Unwind to the thrower of the exception; set PC and jit entry label. */
     MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL, ex->body.jit_resume_label);
