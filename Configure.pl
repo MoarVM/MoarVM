@@ -217,7 +217,7 @@ if ($config{cc} eq 'gcc' && !$config{can_specific_werror}) {
 
 # Disable RETGUARD on OpenBSD, since it breaks the legojit.
 if ($^O eq 'openbsd' && $args{jit} && $config{cc} eq 'clang') {
-	$config{ccmiscflags} .= ' -fno-ret-protector';
+    $config{ccmiscflags} .= ' -fno-ret-protector';
 }
 
 # Set the remaining ldmiscflags. Do this after probing for gcc -Werror probe to not miss that change for the linker.
@@ -836,6 +836,9 @@ sub configure {
         unless (exists $config{$key}) {
             return (undef, "unknown configuration key '$key'\n    known keys: " .
                 join(', ', sort keys %config));
+        }
+        if($key eq 'prefix' && $template =~ /^my \$ldopts/) {
+            $config{$key} =~ s/\+/\\\+/g;
         }
 
         $template =~ s/@\Q$key\E@/$config{$key}/;
