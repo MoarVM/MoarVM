@@ -837,11 +837,19 @@ sub configure {
             return (undef, "unknown configuration key '$key'\n    known keys: " .
                 join(', ', sort keys %config));
         }
-        if($key eq 'prefix' && $template =~ /^my \$ldopts/) {
-            $config{$key} =~ s/\+/\\\+/g;
+
+        my $val = $config{$key};
+        if ($template =~ /'[^']*@\Q$key\E[^']*'/) {
+            # escape \ and '
+            $val =~ s/\\/\\\\/g;
+            $val =~ s/\'/\\\'/g;
+        } elsif ($template =~ /"[^"]*@\Q$key\E[^"]*"/) {
+            # escape \ and "
+            $val =~ s/\\/\\\\/g;
+            $val =~ s/\"/\\\"/g;
         }
 
-        $template =~ s/@\Q$key\E@/$config{$key}/;
+        $template =~ s/@\Q$key\E@/$val/;
     }
 
     return $template;
