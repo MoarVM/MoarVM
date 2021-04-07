@@ -674,10 +674,10 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
 /* Looks up a codepoint by name. Lazily constructs a hash. */
 MVMGrapheme32 MVM_unicode_lookup_by_name(MVMThreadContext *tc, MVMString *name) {
     char *cname = MVM_string_utf8_encode_C_string(tc, name);
-    if (MVM_uni_hash_is_empty(tc, &codepoints_by_name)) {
+    if (MVM_uni_hash_is_empty(tc, &tc->instance->codepoints_by_name)) {
         generate_codepoints_by_name(tc);
     }
-    struct MVMUniHashEntry *result = MVM_uni_hash_fetch(tc, &codepoints_by_name, cname);
+    struct MVMUniHashEntry *result = MVM_uni_hash_fetch(tc, &tc->instance->codepoints_by_name, cname);
     if (!result) {
         #define prefixes_len 7
         const char *prefixes[prefixes_len] = {
@@ -877,17 +877,13 @@ MVMuint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint codepoi
     return 0;
 }
 
-/* XXX make all the statics members of the global MVM instance instead? */
-static MVMUniHashTable property_codes_by_names_aliases;
-static MVMUniHashTable property_codes_by_seq_names;
-
 static void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_property_keypairs;
 
-    MVM_uni_hash_build(tc, &property_codes_by_names_aliases, num_names);
+    MVM_uni_hash_build(tc, &tc->instance->property_codes_by_names_aliases, num_names);
 
     while (num_names--) {
-        MVM_uni_hash_insert(tc, &property_codes_by_names_aliases,
+        MVM_uni_hash_insert(tc, &tc->instance->property_codes_by_names_aliases,
                             unicode_property_keypairs[num_names].name,
                             unicode_property_keypairs[num_names].value);
 
@@ -896,10 +892,10 @@ static void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
 static void generate_property_codes_by_seq_names(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_seq_keypairs;
 
-    MVM_uni_hash_build(tc, &property_codes_by_seq_names, num_names);
+    MVM_uni_hash_build(tc, &tc->instance->property_codes_by_seq_names, num_names);
 
     while (num_names--) {
-        MVM_uni_hash_insert(tc, &property_codes_by_seq_names,
+        MVM_uni_hash_insert(tc, &tc->instance->property_codes_by_seq_names,
                             uni_seq_pairs[num_names].name,
                             uni_seq_pairs[num_names].value);
     }
@@ -908,15 +904,15 @@ static void generate_property_codes_by_seq_names(MVMThreadContext *tc) {
 MVMint64 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 size;
     char *cname = MVM_string_ascii_encode(tc, name, &size, 0);
-    if (MVM_uni_hash_is_empty(tc, &property_codes_by_names_aliases)) {
+    if (MVM_uni_hash_is_empty(tc, &tc->instance->property_codes_by_names_aliases)) {
         generate_property_codes_by_names_aliases(tc);
     }
-    struct MVMUniHashEntry *result = MVM_uni_hash_fetch(tc, &property_codes_by_names_aliases, cname);
+    struct MVMUniHashEntry *result = MVM_uni_hash_fetch(tc, &tc->instance->property_codes_by_names_aliases, cname);
     MVM_free(cname);
     return result ? result->value : 0;
 }
 
-static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
+void MVM_unicode_init(MVMThreadContext *tc) {
     /* A bit of a hack - we're relying on the implementation detail that zeroes
      * is a valid start state for the hash. */
     MVMUniHashTable *hash_array = MVM_calloc(MVM_NUM_PROPERTY_CODES, sizeof(MVMUniHashTable));
@@ -942,7 +938,7 @@ static void generate_unicode_property_values_hashes(MVMThreadContext *tc) {
             }
         }
     }
-    unicode_property_values_hashes = hash_array;
+    tc->instance->unicode_property_values_hashes = hash_array;
 }
 MVMint32 unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, const char *cname, MVMuint64 cname_length) {
     char *out_str = NULL;
@@ -955,7 +951,7 @@ MVMint32 unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 pro
     snprintf(out_str, out_str_length, "%"PRIi64"-%s", property_code, cname);
 
     struct MVMUniHashEntry *result = MVM_uni_hash_fetch(tc,
-                                                        &unicode_property_values_hashes[property_code],
+                                                        &tc->instance->unicode_property_values_hashes[property_code],
                                                         out_str);
     return result ? result->value : 0;
 }
@@ -994,44 +990,6 @@ MVMCodepoint MVM_unicode_find_primary_composite(MVMThreadContext *tc, MVMCodepoi
     return 0;
 }
 
-static uv_mutex_t property_hash_count_mutex;
-static int property_hash_count = 0;
-static uv_once_t property_hash_count_guard = UV_ONCE_INIT;
-
-static void setup_property_mutex(void)
-{
-    uv_mutex_init(&property_hash_count_mutex);
-}
-
-void MVM_unicode_init(MVMThreadContext *tc)
-{
-    uv_once(&property_hash_count_guard, setup_property_mutex);
-
-    uv_mutex_lock(&property_hash_count_mutex);
-    if (property_hash_count == 0) {
-        generate_unicode_property_values_hashes(tc);
-    }
-    property_hash_count++;
-    uv_mutex_unlock(&property_hash_count_mutex);
-}
-
-void MVM_unicode_release(MVMThreadContext *tc)
-{
-    uv_mutex_lock(&property_hash_count_mutex);
-    property_hash_count--;
-    if (property_hash_count == 0) {
-        int i;
-
-        for (i = 0; i < MVM_NUM_PROPERTY_CODES; i++) {
-            MVM_uni_hash_demolish(tc, &unicode_property_values_hashes[i]);
-        }
-
-        MVM_free(unicode_property_values_hashes);
-
-        unicode_property_values_hashes = NULL;
-    }
-    uv_mutex_unlock(&property_hash_count_mutex);
-}
 /* Looks up a codepoint sequence or codepoint by name (case insensitive).
  First tries to look it up by codepoint with MVM_unicode_lookup_by_name and if
  not found as a named codepoint, lazily constructs a hash of the codepoint
@@ -1048,11 +1006,11 @@ MVMString * MVM_unicode_string_from_name(MVMThreadContext *tc, MVMString *name) 
     else {
         const MVMint32 *uni_seq = NULL;
         char *cname = MVM_string_utf8_encode_C_string(tc, name_uc);
-        if (MVM_uni_hash_is_empty(tc, &property_codes_by_seq_names)) {
+        if (MVM_uni_hash_is_empty(tc, &tc->instance->property_codes_by_seq_names)) {
             generate_property_codes_by_seq_names(tc);
         }
         struct MVMUniHashEntry *result = MVM_uni_hash_fetch(tc,
-                                                            &property_codes_by_seq_names,
+                                                            &tc->instance->property_codes_by_seq_names,
                                                             cname);
         MVM_free(cname);
         /* If we can't find a result return an empty string */

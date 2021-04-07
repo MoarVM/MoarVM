@@ -1151,14 +1151,6 @@ sub emit_names_hash_builder {
     {0x10FFFE,0}
 };
 
-/* Lazily constructed hashtable of Unicode names to codepoints.
-    Okay not to be threadsafe since its value is deterministic
-        and I don't care about the tiny potential for a memory leak
-        in the event of a race condition. */
-
- /* static, so will be 0 initialised. */
-static MVMUniHashTable codepoints_by_name;
-
 static void generate_codepoints_by_name(MVMThreadContext *tc) {
     MVMint32 extent_index = 0;
     MVMint32 codepoint = 0;
@@ -1183,7 +1175,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
                      * <control> <CJK UNIFIED IDEOGRAPH> <CJK COMPATIBILITY IDEOGRAPH>
                      * <surrogate> <TANGUT IDEOGRAPH> <private-use> */
                     if (name && *name != '<') {
-                        MVM_uni_hash_insert(tc, &codepoints_by_name, name, codepoint);
+                        MVM_uni_hash_insert(tc, &tc->instance->codepoints_by_name, name, codepoint);
                     }
                     codepoint++;
                     codepoint_table_index++;
@@ -1200,7 +1192,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
             case $FATE_SPAN: {
                 const char *name = codepoint_names[codepoint_table_index];
                 if (name && *name != '<') {
-                    MVM_uni_hash_insert(tc, &codepoints_by_name, name, codepoint);
+                    MVM_uni_hash_insert(tc, &tc->instance->codepoints_by_name, name, codepoint);
                 }
                 codepoint += length;
                 codepoint_table_index++;
@@ -1209,7 +1201,7 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
         }
     }
     for (; i >= 0; i--) {
-        MVM_uni_hash_insert(tc, &codepoints_by_name, uni_namealias_pairs[i].name, uni_namealias_pairs[i].codepoint);
+        MVM_uni_hash_insert(tc, &tc->instance->codepoints_by_name, uni_namealias_pairs[i].name, uni_namealias_pairs[i].codepoint);
     }
 
 }
@@ -1585,7 +1577,7 @@ sub emit_unicode_property_value_keypairs {
             $done{"$propname$_"} ||= push @lines, $lines{$propname}->{$_};
         }
     }
-    my $out = "\nstatic MVMUniHashTable *unicode_property_values_hashes;\n" .
+    my $out = "\n" .
     "static const MVMUnicodeNamedValue unicode_property_value_keypairs[" . scalar(@lines) . "] = {\n" .
     "    " . stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS) . "\n" .
     "};";

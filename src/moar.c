@@ -718,8 +718,15 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_mutex_destroy(&instance->mutex_callsite_interns);
     cleanup_callsite_interns(instance);
 
-    /* Release this interpreter's hold on Unicode database */
-    MVM_unicode_release(instance->main_thread);
+    /* Clean up Unicode hashes. */
+    for (int i = 0; i < MVM_NUM_PROPERTY_CODES; i++) {
+        MVM_uni_hash_demolish(instance->main_thread, &instance->unicode_property_values_hashes[i]);
+    }
+    MVM_free_null(instance->unicode_property_values_hashes);
+
+    MVM_uni_hash_demolish(instance->main_thread, &instance->property_codes_by_names_aliases);
+    MVM_uni_hash_demolish(instance->main_thread, &instance->property_codes_by_seq_names);
+    MVM_uni_hash_demolish(instance->main_thread, &instance->codepoints_by_name);
 
     /* Clean up spesh mutexes and close any log. */
     uv_mutex_destroy(&instance->mutex_spesh_install);
