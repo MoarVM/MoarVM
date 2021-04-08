@@ -812,14 +812,13 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
     MVMArrayBody     *d_body      = (MVMArrayBody *)OBJECT_BODY(dest);
     MVMArrayREPRData *s_repr_data = REPR(src)->ID == MVM_REPR_ID_VMArray
                                     ? (MVMArrayREPRData *)STABLE(src)->REPR_data  : NULL;
-    MVMArrayREPRData *d_repr_data = REPR(src)->ID == MVM_REPR_ID_VMArray
-                                    ? (MVMArrayREPRData *)STABLE(dest)->REPR_data : NULL;
+    MVMArrayREPRData *d_repr_data = (MVMArrayREPRData *)STABLE(dest)->REPR_data;
 
     if (elems > 0) {
         MVMint64  i;
         MVMuint16 kind;
         MVMuint8 d_needs_barrier = dest->header.flags2 & MVM_CF_SECOND_GEN;
-        if (s_repr_data && d_repr_data
+        if (s_repr_data
                 && s_repr_data->slot_type == d_repr_data->slot_type
                 && s_repr_data->elem_size == d_repr_data->elem_size
                 && (d_repr_data->slot_type != MVM_ARRAY_OBJ || !d_needs_barrier)
@@ -833,7 +832,7 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
             );
         }
         else {
-            switch (s_repr_data->slot_type) {
+            switch (d_repr_data->slot_type) {
                 case MVM_ARRAY_OBJ:
                     kind = MVM_reg_obj;
                     break;
@@ -871,8 +870,7 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
 static void aslice(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *data, MVMObject *dest, MVMint64 start, MVMint64 end) {
     MVMArrayBody     *s_body      = (MVMArrayBody *)data;
     MVMArrayBody     *d_body      = (MVMArrayBody *)OBJECT_BODY(dest);
-    MVMArrayREPRData *d_repr_data = REPR(dest)->ID == MVM_REPR_ID_VMArray
-                                      ? STABLE(dest)->REPR_data : NULL;
+    MVMArrayREPRData *d_repr_data = STABLE(dest)->REPR_data;
 
     MVMint64 total_elems = REPR(src)->elems(tc, st, src, s_body);
     MVMint64 elems;
@@ -884,10 +882,7 @@ static void aslice(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *da
     }
 
     elems = end - start + 1;
-    if (d_repr_data) {
-        set_size_internal(tc, d_body, elems, d_repr_data);
-    }
-
+    set_size_internal(tc, d_body, elems, d_repr_data);
     copy_elements(tc, src, dest, start, 0, elems);
 }
 
