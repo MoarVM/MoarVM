@@ -638,18 +638,20 @@
       (carg $1 int)) ptr_sz))
 
 (template: ordfirst
-  (call (^func &MVM_string_ord_at)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg (^zero) int)) int_sz))
+  (scast
+    (call (^func &MVM_string_ord_at)
+      (arglist
+        (carg (tc) ptr)
+        (carg $1 ptr)
+        (carg (^zero) int)) int_sz) int_sz 4))
 
 (template: ordat
-  (call (^func &MVM_string_ord_at)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $2 int)) int_sz))
+  (scast
+    (call (^func &MVM_string_ord_at)
+      (arglist
+        (carg (tc) ptr)
+        (carg $1 ptr)
+        (carg $2 int)) int_sz) int_sz 4))
 
 (template: rindexfrom
   (call (^func &MVM_string_index_from_end)

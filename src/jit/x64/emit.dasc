@@ -2311,6 +2311,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         } else {
             | callp &MVM_string_ord_at;
         }
+        | cdqe;
         | mov qword WORK[dst], RV;
         break;
     }
