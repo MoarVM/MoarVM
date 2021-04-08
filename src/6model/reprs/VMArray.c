@@ -892,6 +892,10 @@ static void write_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     MVMuint64 start = body->start;
     MVMuint64 elems = body->elems;
 
+    /* Throw on invalid slot type */
+    if (repr_data->slot_type < MVM_ARRAY_I64) {
+        MVM_exception_throw_adhoc(tc, "MVMArray: write_buf requires an integer type");
+    }
     /* Throw on negative offset. */
     if (offset < 0) {
         MVM_exception_throw_adhoc(tc, "MVMArray: Index out of bounds");
@@ -912,6 +916,11 @@ MVMint64 read_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     MVMint64 start = body->start;
     MVMint64 result = 0;
     size_t elem_size = repr_data->elem_size;
+
+    /* Throw on invalid slot type */
+    if (repr_data->slot_type < MVM_ARRAY_I64) {
+        MVM_exception_throw_adhoc(tc, "MVMArray: read_buf requires an integer type");
+    }
 
     if (offset < 0 || (start + body->elems) * elem_size < offset * elem_size + count) {
         MVM_exception_throw_adhoc(tc, "MVMArray: read_buf out of bounds offset %"PRIi64" start %"PRIi64" elems %"PRIu64" count %"PRIu64, offset, start, body->elems, count);
