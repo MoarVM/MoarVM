@@ -56,7 +56,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         size_t  mem_size     = dest_body->ssize * repr_data->elem_size;
         size_t  start_pos    = src_body->start * repr_data->elem_size;
         char   *copy_start   = ((char *)src_body->slots.any) + start_pos;
-        dest_body->slots.any = MVM_malloc(mem_size);
+        dest_body->slots.any = MVM_fixed_size_alloc(tc, tc->instance->fsa, mem_size);
         memcpy(dest_body->slots.any, copy_start, mem_size);
     }
     else {
@@ -110,8 +110,10 @@ static void VMArray_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVM
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
-    MVMArray *arr = (MVMArray *)obj;
-    MVM_free(arr->body.slots.any);
+    MVMArray         *arr       = (MVMArray *) obj;
+    MVMArrayREPRData *repr_data = (MVMArrayREPRData *) obj->st->REPR_data;
+    if (arr->body.ssize)
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, arr->body.ssize * repr_data->elem_size, arr->body.slots.any);
 }
 
 /* Marks the representation data in an STable.*/
@@ -312,6 +314,7 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
     MVMuint64   elems = body->elems;
     MVMuint64   start = body->start;
     MVMuint64   ssize = body->ssize;
+    MVMuint64   osize = body->ssize;
     void       *slots = body->slots.any;
 
     if (n == elems)
@@ -369,8 +372,8 @@ static void set_size_internal(MVMThreadContext *tc, MVMArrayBody *body, MVMuint6
 
     /* now allocate the new slot buffer */
     slots = (slots)
-            ? MVM_realloc(slots, ssize * repr_data->elem_size)
-            : MVM_malloc(ssize * repr_data->elem_size);
+            ? MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa, slots, osize * repr_data->elem_size, ssize * repr_data->elem_size)
+            : MVM_fixed_size_alloc(tc, tc->instance->fsa, ssize * repr_data->elem_size);
 
     /* fill out any unused slots with NULL pointers or zero values */
     body->slots.any = slots;
@@ -1267,7 +1270,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     body->elems = MVM_serialization_read_int(tc, reader);
     body->ssize = body->elems;
     if (body->ssize)
-        body->slots.any = MVM_malloc(body->ssize * repr_data->elem_size);
+        body->slots.any = MVM_fixed_size_alloc(tc, tc->instance->fsa, body->ssize * repr_data->elem_size);
 
     for (i = 0; i < body->elems; i++) {
         switch (repr_data->slot_type) {

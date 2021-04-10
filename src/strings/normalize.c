@@ -28,11 +28,14 @@ static void assert_codepoint_array(MVMThreadContext *tc, const MVMObject *arr, c
     }
     MVM_exception_throw_adhoc(tc, "%s", error);
 }
-MVM_STATIC_INLINE void maybe_grow_result(MVMCodepoint **result, MVMint64 *result_alloc, MVMint64 needed) {
+MVM_STATIC_INLINE void maybe_grow_result(MVMThreadContext *tc, MVMCodepoint **result, MVMint64 *result_alloc, MVMint64 needed, MVMint32 use_fsa) {
+    MVMint64 old_alloc = *result_alloc;
     if (needed >= *result_alloc) {
         while (needed >= *result_alloc)
             *result_alloc += 32;
-        *result = MVM_realloc(*result, *result_alloc * sizeof(MVMCodepoint));
+        *result = use_fsa
+                    ? MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa, *result, old_alloc * sizeof(MVMCodepoint), *result_alloc * sizeof(MVMCodepoint))
+                    : MVM_realloc(*result, *result_alloc * sizeof(MVMCodepoint));
     }
 }
 void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, const MVMObject *in, MVMObject *out, MVMNormalization form) {
@@ -54,7 +57,7 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, const MVMObject *in,
 
     /* Guess output size based on input size. */
     result_alloc = input_codes;
-    result       = MVM_malloc(result_alloc * sizeof(MVMCodepoint));
+    result       = MVM_fixed_size_alloc(tc, tc->instance->fsa, result_alloc * sizeof(MVMCodepoint));
 
     /* Perform normalization. */
     MVM_unicode_normalizer_init(tc, &norm, form);
@@ -64,7 +67,7 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, const MVMObject *in,
         MVMCodepoint cp;
         ready = MVM_unicode_normalizer_process_codepoint(tc, &norm, input[input_pos], &cp);
         if (ready) {
-            maybe_grow_result(&result, &result_alloc, result_pos + ready);
+            maybe_grow_result(tc, &result, &result_alloc, result_pos + ready, 1);
             result[result_pos++] = cp;
             while (--ready > 0)
                 result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
@@ -73,15 +76,17 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, const MVMObject *in,
     }
     MVM_unicode_normalizer_eof(tc, &norm);
     ready = MVM_unicode_normalizer_available(tc, &norm);
-    maybe_grow_result(&result, &result_alloc, result_pos + ready);
+    maybe_grow_result(tc, &result, &result_alloc, result_pos + ready, 1);
     while (ready--)
         result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
     MVM_unicode_normalizer_cleanup(tc, &norm);
 
+    result = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa, result, result_alloc * sizeof(MVMCodepoint), result_pos * sizeof(MVMCodepoint));
     /* Put result into array body. */
     ((MVMArray *)out)->body.slots.u32 = (MVMuint32 *) result;
     ((MVMArray *)out)->body.start     = 0;
     ((MVMArray *)out)->body.elems     = result_pos;
+    ((MVMArray *)out)->body.ssize     = result_pos;
 }
 MVMString * MVM_unicode_codepoints_c_array_to_nfg_string(MVMThreadContext *tc, MVMCodepoint * cp_v, MVMint64 cp_count) {
     MVMNormalizer  norm;
@@ -105,7 +110,7 @@ MVMString * MVM_unicode_codepoints_c_array_to_nfg_string(MVMThreadContext *tc, M
         MVMGrapheme32 g;
         ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, cp_v[input_pos], &g);
         if (ready) {
-            maybe_grow_result(&result, &result_alloc, result_pos + ready);
+            maybe_grow_result(tc, &result, &result_alloc, result_pos + ready, 0);
             result[result_pos++] = g;
             while (--ready > 0)
                 result[result_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
@@ -114,7 +119,7 @@ MVMString * MVM_unicode_codepoints_c_array_to_nfg_string(MVMThreadContext *tc, M
     }
     MVM_unicode_normalizer_eof(tc, &norm);
     ready = MVM_unicode_normalizer_available(tc, &norm);
-    maybe_grow_result(&result, &result_alloc, result_pos + ready);
+    maybe_grow_result(tc, &result, &result_alloc, result_pos + ready, 0);
     while (ready--)
         result[result_pos++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
     MVM_unicode_normalizer_cleanup(tc, &norm);
@@ -149,10 +154,12 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
     MVMint64          result_pos, result_alloc;
     MVMCodepointIter  ci;
 
-    /* Validate output array and set up result storage. */
+    /* Validate output array and set up result storage, or exit if nothing to do. */
     assert_codepoint_array(tc, out, "Normalization output must be native array of 32-bit integers");
     result_alloc = s->body.num_graphs;
-    result       = MVM_malloc(result_alloc * sizeof(MVMCodepoint));
+    if (result_alloc == 0)
+        return;
+    result       = MVM_fixed_size_alloc(tc, tc->instance->fsa, result_alloc * sizeof(MVMCodepoint));
     result_pos   = 0;
 
     /* Create codepoint iterator. */
@@ -161,7 +168,7 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
     /* If we want NFC, just iterate, since NFG is constructed out of NFC. */
     if (form == MVM_NORMALIZE_NFC) {
         while (MVM_string_ci_has_more(tc, &ci)) {
-            maybe_grow_result(&result, &result_alloc, result_pos + 1);
+            maybe_grow_result(tc, &result, &result_alloc, result_pos + 1, 1);
             result[result_pos++] = MVM_string_ci_get_codepoint(tc, &ci);
         }
     }
@@ -175,7 +182,7 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
             MVMCodepoint cp;
             ready = MVM_unicode_normalizer_process_codepoint(tc, &norm, MVM_string_ci_get_codepoint(tc, &ci), &cp);
             if (ready) {
-                maybe_grow_result(&result, &result_alloc, result_pos + ready);
+                maybe_grow_result(tc, &result, &result_alloc, result_pos + ready, 1);
                 result[result_pos++] = cp;
                 while (--ready > 0)
                     result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
@@ -183,16 +190,18 @@ void MVM_unicode_string_to_codepoints(MVMThreadContext *tc, MVMString *s, MVMNor
         }
         MVM_unicode_normalizer_eof(tc, &norm);
         ready = MVM_unicode_normalizer_available(tc, &norm);
-        maybe_grow_result(&result, &result_alloc, result_pos + ready);
+        maybe_grow_result(tc, &result, &result_alloc, result_pos + ready, 1);
         while (ready--)
             result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
         MVM_unicode_normalizer_cleanup(tc, &norm);
     }
 
+    result = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa, result, result_alloc * sizeof(MVMCodepoint), result_pos * sizeof(MVMCodepoint));
     /* Put result into array body. */
     ((MVMArray *)out)->body.slots.u32 = (MVMuint32 *)result;
     ((MVMArray *)out)->body.start     = 0;
     ((MVMArray *)out)->body.elems     = result_pos;
+    ((MVMArray *)out)->body.ssize     = result_pos;
 }
 
 /* Initialize the MVMNormalizer pointed to to perform the specified kind of

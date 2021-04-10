@@ -1,6 +1,7 @@
 #include "platform/memmem.h"
 #include "platform/memmem32.h"
 #include "moar.h"
+
 #define MVM_DEBUG_STRANDS 0
 #define MVM_string_KMP_max_pattern_length 8192
 /* Max value possible for MVMuint32 MVMStringBody.num_graphs */
@@ -1803,14 +1804,20 @@ MVMObject * MVM_string_encode_to_buf_config(MVMThreadContext *tc, MVMString *s, 
         MVMuint32 prev_elems = ((MVMArray *)buf)->body.elems;
         MVM_repr_pos_set_elems(tc, buf, ((MVMArray *)buf)->body.elems + output_size / elem_size);
         memmove(((MVMArray *)buf)->body.slots.i8 + prev_elems, (MVMint8 *)encoded, output_size);
-        MVM_free(encoded);
     }
     else {
-        ((MVMArray *)buf)->body.slots.i8 = (MVMint8 *)encoded;
+        MVMuint8 *temp = NULL;
+        if (output_size) {
+            temp = MVM_fixed_size_alloc(tc, tc->instance->fsa, output_size);
+            memcpy(temp, encoded, output_size);
+        }
+        ((MVMArray *)buf)->body.slots.i8 = (MVMint8 *)temp;
         ((MVMArray *)buf)->body.start    = 0;
         ((MVMArray *)buf)->body.ssize    = output_size / elem_size;
         ((MVMArray *)buf)->body.elems    = output_size / elem_size;
     }
+
+    MVM_free(encoded);
 
     return buf;
 }
@@ -2066,7 +2073,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
         return pieces[0];
     /* We now know the total eventual number of graphemes. */
     if (total_graphs == 0) {
-        MVM_fixed_size_free(tc, tc->instance->fsa, bytes, pieces);
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, bytes, pieces);
         return tc->instance->str_consts.empty;
     }
     result->body.num_graphs = total_graphs;
@@ -2144,7 +2151,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
         }
     }
 
-    MVM_fixed_size_free(tc, tc->instance->fsa, bytes, pieces);
+    MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, bytes, pieces);
     STRAND_CHECK(tc, result);
     /* if concat is stable and NFG_CHECK on, run a NFG_CHECK on it since it
      * should be properly constructed now */
