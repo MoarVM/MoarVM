@@ -213,7 +213,7 @@ static const void * const LABELS[] = {
     &&OP_repeat_s,
     &&OP_substr_s,
     &&OP_index_s,
-    &&OP_graphs_s,
+    &&OP_DEPRECATED_40,
     &&OP_codes_s,
     &&OP_getcp_s,
     &&OP_indexcp_s,

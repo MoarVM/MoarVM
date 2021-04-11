@@ -213,7 +213,7 @@
 #define MVM_OP_repeat_s 209
 #define MVM_OP_substr_s 210
 #define MVM_OP_index_s 211
-#define MVM_OP_graphs_s 212
+#define MVM_OP_DEPRECATED_40 212
 #define MVM_OP_codes_s 213
 #define MVM_OP_getcp_s 214
 #define MVM_OP_indexcp_s 215

@@ -3950,7 +3950,7 @@ BEGIN {
     'repeat_s', 209,
     'substr_s', 210,
     'index_s', 211,
-    'graphs_s', 212,
+    'DEPRECATED_40', 212,
     'codes_s', 213,
     'getcp_s', 214,
     'indexcp_s', 215,
@@ -4776,7 +4776,7 @@ BEGIN {
     'repeat_s',
     'substr_s',
     'index_s',
-    'graphs_s',
+    'DEPRECATED_40',
     'codes_s',
     'getcp_s',
     'indexcp_s',
@@ -6938,7 +6938,7 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'graphs_s', sub ($op0, $op1) {
+    'DEPRECATED_40', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 212, 5);

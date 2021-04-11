@@ -268,8 +268,7 @@ concat_s            w(str) r(str) r(str) :pure :confprog
 repeat_s            w(str) r(str) r(int64) :pure :confprog
 substr_s            w(str) r(str) r(int64) r(int64) :pure :confprog
 index_s             w(int64) r(str) r(str) r(int64) :pure :confprog
-# graphs_s will be DEPRECATED!
-graphs_s            w(int64) r(str) :pure
+DEPRECATED_40       w(int64) r(str) :pure
 codes_s             w(int64) r(str) :pure :confprog
 getcp_s             w(int64) r(str) r(int64) :pure :confprog
 indexcp_s           w(int64) r(str) r(int64) :pure :confprog

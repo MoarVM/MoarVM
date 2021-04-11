@@ -529,13 +529,6 @@
       (carg $2 ptr)
       (carg $3 int)) int_sz))
 
-(template: graphs_s
-  (call (^func &MVM_string_graphs)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)) int_sz))
-
-
 (template: codes_s
   (call (^func &MVM_string_codes)
     (arglist

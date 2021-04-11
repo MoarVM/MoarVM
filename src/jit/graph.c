@@ -279,7 +279,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_eqatic_s: return MVM_string_equal_at_ignore_case;
     case MVM_OP_eqatim_s: return MVM_string_equal_at_ignore_mark;
     case MVM_OP_eqaticim_s: return MVM_string_equal_at_ignore_case_ignore_mark;
-    case MVM_OP_chars: case MVM_OP_graphs_s: return MVM_string_graphs;
+    case MVM_OP_chars: return MVM_string_graphs;
     case MVM_OP_chr: return MVM_string_chr;
     case MVM_OP_codes_s: return MVM_string_codes;
     case MVM_OP_getcp_s: return MVM_string_get_grapheme_at;
@@ -3092,7 +3092,6 @@ start:
         break;
     }
     case MVM_OP_chars:
-    case MVM_OP_graphs_s:
     case MVM_OP_codes_s:
     case MVM_OP_flip: {
         MVMint16 src = ins->operands[1].reg.orig;
