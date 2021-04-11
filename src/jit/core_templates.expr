@@ -589,10 +589,11 @@
       (carg $2 ptr)) ptr_sz))
 
 (template: getcpbyname
-  (call (^func &MVM_unicode_lookup_by_name)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)) int_sz))
+  (scast
+    (call (^func &MVM_unicode_lookup_by_name)
+      (arglist
+        (carg (tc) ptr)
+        (carg $1 ptr)) int_sz) int_sz 4))
 
 (template: unipropcode
   (call (^func &MVM_unicode_name_to_property_code)
@@ -2341,11 +2342,12 @@
       (carg $3 int)) int_sz))
 
 (template: ordbaseat
-  (call (^func &MVM_string_ord_basechar_at)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $2 int)) int_sz))
+  (scast
+    (call (^func &MVM_string_ord_basechar_at)
+      (arglist
+        (carg (tc) ptr)
+        (carg $1 ptr)
+        (carg $2 int)) int_sz) int_sz 4))
 
 (template: isrwcont
   (if
