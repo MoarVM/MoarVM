@@ -255,25 +255,14 @@ MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
 }
 
 MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
-    if (n == MVM_num_posinf(tc)) {
-        return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Inf");
-    }
-    else if (n == MVM_num_neginf(tc)) {
-        return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "-Inf");
-    }
-    else if (n != n) {
-        return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "NaN");
-    }
+    char buf[64];
+    int len = dtoa_grisu3(n, buf, sizeof(buf));
+    if (len < 0)
+        MVM_exception_throw_adhoc(tc, "Could not stringify number (%f)", n);
     else {
-        char buf[64];
-        if (dtoa_grisu3(n, buf, 64) < 0)
-            MVM_exception_throw_adhoc(tc, "Could not stringify number (%f)", n);
-        else {
-            MVMStringIndex len = strlen(buf);
-            MVMGrapheme8 *blob = MVM_malloc(len);
-            memcpy(blob, buf, len);
-            return MVM_string_ascii_from_buf_nocheck(tc, blob, len);
-        }
+        MVMGrapheme8 *blob = MVM_malloc(len);
+        memcpy(blob, buf, len);
+        return MVM_string_ascii_from_buf_nocheck(tc, blob, len);
     }
 }
 
