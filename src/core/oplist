@@ -893,6 +893,7 @@ atposref_u          w(obj) r(obj) r(int64) :pure :useshll
 iscont_u            w(int64) r(obj) :pure :specializable :confprog
 assign_u            r(obj) r(uint64) :invokish :maycausedeopt :specializable :deoptallpoint
 captureposarg_u     w(uint64) r(obj) r(int64) :pure
+pow2_I               w(obj) r(obj) r(obj) r(obj) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

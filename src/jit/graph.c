@@ -347,6 +347,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_ceil_n: return ceil;
     case MVM_OP_floor_n: return floor;
     case MVM_OP_pow_I: return MVM_bigint_pow;
+    case MVM_OP_pow2_I: return MVM_bigint_pow2;
     case MVM_OP_rand_I: return MVM_bigint_rand;
     case MVM_OP_rand_i: return MVM_proc_rand_i;
     case MVM_OP_rand_n: return MVM_proc_rand_n;
@@ -3238,6 +3239,19 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                                  { MVM_JIT_REG_VAL, { type_n } },
                                  { MVM_JIT_REG_VAL, { type_I } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args,
+                         MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_pow2_I: {
+        MVMint16 src_a  = ins->operands[1].reg.orig;
+        MVMint16 src_b  = ins->operands[2].reg.orig;
+        MVMint16 type_I = ins->operands[3].reg.orig;
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { src_a } },
+                                 { MVM_JIT_REG_VAL, { src_b } },
+                                 { MVM_JIT_REG_VAL, { type_I } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args,
                          MVM_JIT_RV_PTR, dst);
         break;
     }

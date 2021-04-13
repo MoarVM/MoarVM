@@ -672,6 +672,57 @@ MVMObject * MVM_bigint_pow(MVMThreadContext *tc, MVMObject *a, MVMObject *b,
     return r;
 }
 
+MVMObject * MVM_bigint_pow2(MVMThreadContext *tc, MVMObject *a, MVMObject *b, MVMObject *int_type) {
+    MVMP6bigintBody *ba = get_bigint_body(tc, a);
+    MVMP6bigintBody *bb = get_bigint_body(tc, b);
+    MVMObject       *r  = NULL;
+
+    mp_int *base        = force_bigint(tc, ba, 0);
+    mp_int *exponent    = force_bigint(tc, bb, 1);
+
+    if (exponent->sign != MP_ZPOS) {
+        MVM_exception_throw_adhoc(tc, "pow_I expects only positive exponents");
+    }
+    else {
+        mp_digit exponent_d = mp_get_u32(exponent);
+        if ((MP_GT == mp_cmp_d(exponent, exponent_d))) {
+            if (mp_iszero(base)) {
+                r = MVM_repr_box_int(tc, int_type, 0);
+            }
+            else if (mp_get_i32(base) == 1 || mp_get_i32(base) == -1) {
+                r = MVM_repr_box_int(tc, int_type, MP_ZPOS == base->sign || mp_iseven(exponent) ? 1 : -1);
+            }
+            else {
+                r = int_type->st->WHAT;
+            }
+        }
+        else {
+            mp_err err;
+            mp_int *ic = MVM_malloc(sizeof(mp_int));
+            MVMP6bigintBody *resbody;
+            if ((err = mp_init(ic)) != MP_OKAY) {
+                MVM_free(ic);
+                MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
+            }
+            MVM_gc_mark_thread_blocked(tc);
+            if ((err = mp_expt_u32(base, exponent_d, ic)) != MP_OKAY) {
+                MVM_gc_mark_thread_unblocked(tc);
+                mp_clear(ic);
+                MVM_free(ic);
+                MVM_exception_throw_adhoc(tc, "Error in mp_expt_u32: %s", mp_error_to_string(err));
+            }
+            else {
+                MVM_gc_mark_thread_unblocked(tc);
+                r = MVM_repr_alloc_init(tc, int_type);
+                resbody = get_bigint_body(tc, r);
+                store_bigint_result(resbody, ic);
+                adjust_nursery(tc, resbody);
+            }
+        }
+    }
+    return r;
+}
+
 MVMObject *MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMint64 n) {
     MVMP6bigintBody *ba;
     MVMP6bigintBody *bb;

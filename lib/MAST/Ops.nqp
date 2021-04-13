@@ -840,7 +840,8 @@ BEGIN {
     2120,
     2123,
     2125,
-    2127);
+    2127,
+    2130);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1678,7 +1679,8 @@ BEGIN {
     3,
     2,
     2,
-    3);
+    3,
+    4);
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
     18,
@@ -3808,7 +3810,11 @@ BEGIN {
     161,
     162,
     65,
-    33);
+    33,
+    66,
+    65,
+    65,
+    65);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
     'const_i16', 2,
@@ -4581,7 +4587,8 @@ BEGIN {
     'atposref_u', 834,
     'iscont_u', 835,
     'assign_u', 836,
-    'captureposarg_u', 837);
+    'captureposarg_u', 837,
+    'pow2_I', 838);
     MAST::Ops.WHO<@names> := nqp::list_s('no_op',
     'const_i8',
     'const_i16',
@@ -5354,7 +5361,8 @@ BEGIN {
     'atposref_u',
     'iscont_u',
     'assign_u',
-    'captureposarg_u');
+    'captureposarg_u',
+    'pow2_I');
     MAST::Ops.WHO<%generators> := nqp::hash('no_op', sub ($frame) {
         my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
@@ -11228,5 +11236,14 @@ BEGIN {
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+    },
+    'pow2_I', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, 838, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+        my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     });
 }

@@ -2048,6 +2048,14 @@
       (carg $3   ptr)
       (carg $4   ptr)) ptr_sz))
 
+(template: pow2_I
+  (call (^func &MVM_bigint_pow2)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)
+      (carg $3   ptr)) ptr_sz))
+
 (template: gcd_I
   (call (^func &MVM_bigint_gcd)
     (arglist
