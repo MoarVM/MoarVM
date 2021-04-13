@@ -332,6 +332,9 @@ static int i_to_str(int val, char *str)
         return (int)(s - begin);
 }
 
+/* The original code ensured that the string in dst was NUL terminated. As our
+ * only caller uses the returned length, we don't need to do this, so I have
+ * removed the code that did this, as it won't be optimised away. */
 int dtoa_grisu3(double v, char *dst, int size) {
         int d_exp, len, success, i, decimal_pos;
         double_memory u64;
@@ -340,7 +343,7 @@ int dtoa_grisu3(double v, char *dst, int size) {
 
         // Prehandle NaNs
         if ((u64.u << 1) > ULL(0xFFE0000000000000)) {
-            *s2++ = 'N'; *s2++ = 'a'; *s2++ = 'N'; *s2 = '\0';
+            *s2++ = 'N'; *s2++ = 'a'; *s2++ = 'N';
             return (int)(s2 - dst);
         }
         // Prehandle negative values.
@@ -349,12 +352,12 @@ int dtoa_grisu3(double v, char *dst, int size) {
         }
         // Prehandle zero.
         if (!u64.u) {
-            *s2++ = '0'; *s2 = '\0';
+            *s2++ = '0';
             return (int)(s2 - dst);
         }
         // Prehandle infinity.
         if (u64.u == D64_EXP_MASK) {
-            *s2++ = 'I'; *s2++ = 'n'; *s2++ = 'f'; *s2 = '\0';
+            *s2++ = 'I'; *s2++ = 'n'; *s2++ = 'f';
             return (int)(s2 - dst);
         }
 
@@ -409,6 +412,5 @@ int dtoa_grisu3(double v, char *dst, int size) {
             len += i_to_str(d_exp, s2+len);
         }
 
-        s2[len] = '\0'; // grisu3 doesn't null terminate, so ensure termination.
         return (int)(s2+len-dst);
 }
