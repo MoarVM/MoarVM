@@ -587,6 +587,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(config, "config");
     string_creator(replacement, "replacement");
     string_creator(dot, ".");
+    string_creator(boot_resume, "boot-resume");
 }
 
 /* Drives the overall bootstrap process. */

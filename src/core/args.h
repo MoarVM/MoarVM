@@ -147,7 +147,7 @@ MVM_PUBLIC void MVM_args_setup_thunk(MVMThreadContext *tc, MVMRegister *return_v
     MVMCallsite *callsite);
 
 /* Custom bind failure handling. */
-void MVM_args_bind_failed(MVMThreadContext *tc);
+void MVM_args_bind_failed(MVMThreadContext *tc, MVMDispInlineCacheEntry **ice_ptr);
 
 /* Result setting frame constants. */
 #define MVM_RETURN_CALLER_FRAME     0
