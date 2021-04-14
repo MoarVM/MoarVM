@@ -162,6 +162,18 @@ MVMCallStackFlattening * MVM_callstack_allocate_flattening(MVMThreadContext *tc,
     return record;
 }
 
+/* Allocate a callstack record for indicating that a bind failure in the
+ * next frame on the stack should be handled via dispatch resumption. */
+MVMCallStackBindFailure * MVM_callstack_allocate_bind_failure(MVMThreadContext *tc,
+        MVMint64 flag) {
+    tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_BIND_FAILURE,
+            sizeof(MVMCallStackBindFailure));
+    MVMCallStackBindFailure *record = (MVMCallStackBindFailure *)tc->stack_top;
+    record->state = MVM_BIND_FAILURE_FRESH;
+    record->flag.i64 = flag;
+    return record;
+}
+
 /* Creates a new region for a continuation. By a continuation boundary starting
  * a new region, we are able to take the continuation by slicing off the entire
  * region from the regions linked list. The continuation tags always go at the
@@ -331,6 +343,16 @@ static void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
         tc->cur_frame = NULL;
     }
 }
+static void handle_bind_failure(MVMThreadContext *tc, MVMCallStackBindFailure *failure_record) {
+    failure_record->state = MVM_BIND_FAILURE_EXHAUSTED;
+    MVMDispInlineCacheEntry **ice_ptr = failure_record->ice_ptr;
+    MVMDispInlineCacheEntry *ice = *ice_ptr;
+    MVMString *id = tc->instance->str_consts.boot_resume;
+    MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INT);
+    MVMuint16 *args = MVM_args_identity_map(tc, callsite);
+    ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args, &(failure_record->flag),
+            failure_record->sf, 0);
+}
 MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional, MVMuint32 *thunked) {
     do {
         /* Ensure region and stack top are in a consistent state. */
@@ -404,6 +426,19 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                     tc->stack_top = tc->stack_top->prev;
                 }
                 break;
+            case MVM_CALLSTACK_RECORD_BIND_FAILURE: {
+                MVMCallStackBindFailure *failure_record =
+                    (MVMCallStackBindFailure *)tc->stack_top;
+                if (failure_record->state == MVM_BIND_FAILURE_FAILED) {
+                    handle_bind_failure(tc, failure_record);
+                    *thunked = 1;
+                }
+                else {
+                    tc->stack_current_region->alloc = (char *)tc->stack_top;
+                    tc->stack_top = tc->stack_top->prev;
+                }
+                break;
+            }
             default:
                 MVM_panic(1, "Unknown call stack record type in unwind");
         }
@@ -507,6 +542,14 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                                 "Flattened callstack entry register value");
                     }
                 }
+                break;
+            }
+            case MVM_CALLSTACK_RECORD_BIND_FAILURE: {
+                MVMCallStackBindFailure *failure_record =
+                    (MVMCallStackBindFailure *)record;
+                if (failure_record->state == MVM_BIND_FAILURE_FAILED)
+                    add_collectable(tc, worklist, snapshot, failure_record->sf,
+                            "Bind failure static frame");
                 break;
             }
             default:

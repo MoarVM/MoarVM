@@ -93,6 +93,7 @@ struct MVMStringConsts {
     MVMString *config;
     MVMString *replacement;
     MVMString *dot;
+    MVMString *boot_resume;
 };
 
 struct MVMEventSubscriptions {
