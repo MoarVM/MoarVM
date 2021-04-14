@@ -31,6 +31,7 @@ typedef struct MVMCallStackContinuationTag MVMCallStackContinuationTag;
 typedef struct MVMCallStackFlattening MVMCallStackFlattening;
 typedef struct MVMCallStackDispatchRecord MVMCallStackDispatchRecord;
 typedef struct MVMCallStackDispatchRun MVMCallStackDispatchRun;
+typedef struct MVMCallStackBindFailure MVMCallStackBindFailure;
 typedef struct MVMCallStackRegion MVMCallStackRegion;
 typedef struct MVMCallStackIterator MVMCallStackIterator;
 typedef struct MVMCFunction MVMCFunction;

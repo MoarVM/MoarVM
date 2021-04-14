@@ -379,6 +379,24 @@ static MVMDispSysCall dispatcher_next_resumption = {
     .expected_concrete = { },
 };
 
+/* dispatcher-resume-on-bind-failure */
+static void dispatcher_resume_on_bind_failure_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMint64 flag = MVM_args_get_required_pos_int(tc, &arg_ctx, 0);
+    MVM_disp_program_record_resume_on_bind_failure(tc, flag);
+    MVM_args_set_result_int(tc, flag, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_resume_on_bind_failure = {
+    .c_name = "dispatcher-resume-on-bind-failure",
+    .implementation = dispatcher_resume_on_bind_failure_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_INT },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 0 },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -416,6 +434,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_get_resume_state);
     add_to_hash(tc, &dispatcher_track_resume_state);
     add_to_hash(tc, &dispatcher_next_resumption);
+    add_to_hash(tc, &dispatcher_resume_on_bind_failure);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 

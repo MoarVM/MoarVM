@@ -48,11 +48,13 @@ static MVMObject * getlexstatic_resolved(MVMThreadContext *tc,
 
 static void dispatch_initial(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
-        MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices, MVMuint32 bytecode_offset);
+        MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices,
+        MVMRegister *source, MVMStaticFrame *sf, MVMuint32 bytecode_offset);
 
 static void dispatch_initial_flattening(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
-        MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices, MVMuint32 bytecode_offset);
+        MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices,
+        MVMRegister *source, MVMStaticFrame *sf, MVMuint32 bytecode_offset);
 
 static MVMDispInlineCacheEntry unlinked_dispatch = { .run_dispatch = dispatch_initial };
 
@@ -61,47 +63,49 @@ static MVMDispInlineCacheEntry unlinked_dispatch_flattening =
 
 static void dispatch_initial(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
-        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
+        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices,
+        MVMRegister *source, MVMStaticFrame *sf, MVMuint32 bytecode_offset) {
     /* Resolve the dispatcher. */
     MVMDispDefinition *disp = MVM_disp_registry_find(tc, id);
 
     /* Form argument info and run the dispatcher. */
     MVMArgs arg_info = {
         .callsite = callsite,
-        .source = tc->cur_frame->work,
+        .source = source,
         .map = arg_indices
     };
-    MVM_disp_program_run_dispatch(tc, disp, arg_info, entry_ptr, seen,
-            tc->cur_frame->static_info);
+    MVM_disp_program_run_dispatch(tc, disp, arg_info, entry_ptr, seen, sf);
 }
 
 static void dispatch_initial_flattening(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
-        MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
+        MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices,
+        MVMRegister *source, MVMStaticFrame *sf, MVMuint32 bytecode_offset) {
     /* Resolve the dispatcher. */
     MVMDispDefinition *disp = MVM_disp_registry_find(tc, id);
 
-    /* Perform flattening of arguments, then runthe dispatcher. */
+    /* Perform flattening of arguments, then run the dispatcher. */
     MVMCallStackFlattening *record = MVM_args_perform_flattening(tc, cs,
-            tc->cur_frame->work, arg_indices);
-    MVM_disp_program_run_dispatch(tc, disp, record->arg_info, entry_ptr, seen,
-            tc->cur_frame->static_info);
+            source, arg_indices);
+    MVM_disp_program_run_dispatch(tc, disp, record->arg_info, entry_ptr, seen, sf);
 }
 
 static void dispatch_monomorphic(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
-        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
+        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices,
+        MVMRegister *source, MVMStaticFrame *sf, MVMuint32 bytecode_offset) {
     MVMDispProgram *dp = ((MVMDispInlineCacheEntryMonomorphicDispatch *)seen)->dp;
     MVMCallStackDispatchRun *record = MVM_callstack_allocate_dispatch_run(tc,
             dp->num_temporaries);
     record->arg_info.callsite = callsite;
-    record->arg_info.source = tc->cur_frame->work;
+    record->arg_info.source = source;
     record->arg_info.map = arg_indices;
     if (!MVM_disp_program_run(tc, dp, record)) {
         /* Dispatch program failed. Remove this record and then record a new
          * dispatch program. */
         MVM_callstack_unwind_dispatch_run(tc);
-        dispatch_initial(tc, entry_ptr, seen, id, callsite, arg_indices, bytecode_offset);
+        dispatch_initial(tc, entry_ptr, seen, id, callsite, arg_indices, source, sf,
+                bytecode_offset);
     }
     else {
         if (MVM_spesh_log_is_logging(tc))
@@ -111,10 +115,11 @@ static void dispatch_monomorphic(MVMThreadContext *tc,
 
 static void dispatch_monomorphic_flattening(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
-        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
+        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices,
+        MVMRegister *source, MVMStaticFrame *sf, MVMuint32 bytecode_offset) {
     /* First, perform flattening of the arguments. */
     MVMCallStackFlattening *flat_record = MVM_args_perform_flattening(tc, callsite,
-            tc->cur_frame->work, arg_indices);
+            source, arg_indices);
 
     /* In the best case, the resulting callsite matches, so we're maybe
      * really monomorphic. */
@@ -141,19 +146,20 @@ static void dispatch_monomorphic_flattening(MVMThreadContext *tc,
      * program didn't match, so we need to run the dispatch callback again. */
     MVMDispDefinition *disp = MVM_disp_registry_find(tc, id);
     MVM_disp_program_run_dispatch(tc, disp, flat_record->arg_info, entry_ptr, seen,
-            tc->cur_frame->static_info);
+            sf);
 }
 
 static void dispatch_polymorphic(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
-        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
+        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices,
+        MVMRegister *source, MVMStaticFrame *sf, MVMuint32 bytecode_offset) {
     /* Set up dispatch run record. */
     MVMDispInlineCacheEntryPolymorphicDispatch *entry =
             (MVMDispInlineCacheEntryPolymorphicDispatch *)seen;
     MVMCallStackDispatchRun *record = MVM_callstack_allocate_dispatch_run(tc,
             entry->max_temporaries);
     record->arg_info.callsite = callsite;
-    record->arg_info.source = tc->cur_frame->work;
+    record->arg_info.source = source;
     record->arg_info.map = arg_indices;
 
     /* Go through the dispatch programs, taking the first one that works. */
@@ -169,15 +175,17 @@ static void dispatch_polymorphic(MVMThreadContext *tc,
     /* If we reach here, then no program matched; run the dispatch program
      * for another go at it. */
     MVM_callstack_unwind_dispatch_run(tc);
-    dispatch_initial(tc, entry_ptr, seen, id, callsite, arg_indices, bytecode_offset);
+    dispatch_initial(tc, entry_ptr, seen, id, callsite, arg_indices, source, sf,
+            bytecode_offset);
 }
 
 static void dispatch_polymorphic_flattening(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
-        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices, MVMuint32 bytecode_offset) {
+        MVMString *id, MVMCallsite *callsite, MVMuint16 *arg_indices,
+        MVMRegister *source, MVMStaticFrame *sf, MVMuint32 bytecode_offset) {
     /* First, perform flattening of the arguments. */
     MVMCallStackFlattening *flat_record = MVM_args_perform_flattening(tc, callsite,
-            tc->cur_frame->work, arg_indices);
+            source, arg_indices);
 
     /* Set up dispatch run record. */
     MVMDispInlineCacheEntryPolymorphicDispatchFlattening *entry =
@@ -204,7 +212,7 @@ static void dispatch_polymorphic_flattening(MVMThreadContext *tc,
     MVM_callstack_unwind_dispatch_run(tc);
     MVMDispDefinition *disp = MVM_disp_registry_find(tc, id);
     MVM_disp_program_run_dispatch(tc, disp, flat_record->arg_info, entry_ptr, seen,
-            tc->cur_frame->static_info);
+            sf);
 }
 
 /* Transition a callsite such that it incorporates a newly record dispatch
@@ -492,6 +500,14 @@ void MVM_disp_inline_cache_setup(MVMThreadContext *tc, MVMStaticFrame *sf) {
                         : &unlinked_dispatch;
                     break;
                 }
+                case MVM_OP_assertparamcheck:
+                    /* When we have a dispatch resumption due to a bind failure
+                     * we need the inline cache to hang around somewhere, and
+                     * since this is typically because we're going to the next
+                     * multi candidate upon failure, it'll likely me lightly
+                     * morphic on the assertparamcheck op itself. */
+                    entries[slot] = &unlinked_dispatch;
+                    break;
                 default:
                     MVM_oops(tc, "Unimplemented case of inline cache unlinked state");
             }
