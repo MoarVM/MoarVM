@@ -116,6 +116,9 @@ static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *rec
     fprintf(stderr, "  Values:\n");
     dump_recording_values(tc, &(record->rec));
     fprintf(stderr, "  Outcome:\n");
+    if (record->rec.map_bind_failure_to_resumption)
+        fprintf(stderr, "    Bind failure mapped to resumption with flag %"PRIi64"\n",
+                record->rec.bind_failure_resumption_flag);
     switch (record->outcome.kind) {
         case MVM_DISP_OUTCOME_VALUE:
             fprintf(stderr, "    Value %d\n", record->rec.outcome_value);
@@ -351,6 +354,10 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                 break;
 
             /* Opcodes that handle invocation results. */
+            case MVMDispOpcodeBindFailureToResumption:
+                fprintf(stderr, "    Map bind failure to resumption with flag %"PRIi64"\n",
+                        op->bind_failure_to_resumption.flag);
+                break;
             case MVMDispOpcodeUseArgsTail:
                 fprintf(stderr, "    Skip first %d args of incoming capture; callsite from %d\n",
                         op->use_arg_tail.skip_args, op->use_arg_tail.callsite_idx);
@@ -417,13 +424,14 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
 #endif
 
 /* Run a dispatch callback, which will record a dispatch program. */
-static MVMFrame * find_calling_frame(MVMCallStackRecord *prev) {
-    /* Typically, we'll have the frame right off, but if there was flattening,
-     * we need to skip that frame between the two. */
-    while (prev->kind == MVM_CALLSTACK_RECORD_FLATTENING ||
-            prev->kind == MVM_CALLSTACK_RECORD_START_REGION)
-        prev = prev->prev;
-    return MVM_callstack_record_to_frame(prev);
+static MVMFrame * find_calling_frame(MVMThreadContext *tc, MVMCallStackRecord *prev) {
+    /* Typically, we'll have the frame right off, but if there was flattening
+     * or bind failure, we'll need to skip some. */
+    MVMCallStackIterator iter;
+    MVM_callstack_iter_frame_init(tc, &iter, prev);
+    if (!MVM_callstack_iter_move_next(tc, &iter))
+        MVM_oops(tc, "Cannot find calling frame during dispatch resumption recording");
+    return MVM_callstack_iter_current_frame(tc, &iter);
 }
 static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         MVMDispDefinition *disp, MVMObject *capture, MVMuint32 *thunked) {
@@ -445,7 +453,7 @@ static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *recor
         record->outcome.kind = MVM_DISP_OUTCOME_EXPECT_DELEGATE;
         record->outcome.delegate_disp = NULL;
         record->outcome.delegate_capture = NULL;
-        tc->cur_frame = find_calling_frame(tc->stack_top->prev);
+        tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
         MVM_frame_dispatch(tc, (MVMCode *)dispatch, dispatch_args, -1);
         if (thunked)
             *thunked = 1;
@@ -469,6 +477,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     MVM_VECTOR_INIT(record->rec.values, 16);
     MVM_VECTOR_INIT(record->rec.resume_inits, 4);
     record->rec.outcome_capture = NULL;
+    record->rec.map_bind_failure_to_resumption = 0;
     record->ic_entry_ptr = ic_entry_ptr;
     record->ic_entry = ic_entry;
     record->update_sf = update_sf;
@@ -496,7 +505,7 @@ static void run_resume(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         record->outcome.kind = MVM_DISP_OUTCOME_EXPECT_DELEGATE;
         record->outcome.delegate_disp = NULL;
         record->outcome.delegate_capture = NULL;
-        tc->cur_frame = find_calling_frame(tc->stack_top->prev);
+        tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
         MVM_frame_dispatch(tc, (MVMCode *)resume, resume_args, -1);
         if (thunked)
             *thunked = 1;
@@ -1212,6 +1221,15 @@ MVMint32 MVM_disp_program_record_next_resumption(MVMThreadContext *tc) {
      * the held state.) */
     record->outcome.kind = MVM_DISP_OUTCOME_NEXT_RESUMPTION;
     return 1;
+}
+
+/* Record that if this dispatch program invokes something, and it fails to
+ * bind, we want that to map to a dispatch resumption, not to an invocation
+ * of the bind failure handler. */
+void MVM_disp_program_record_resume_on_bind_failure(MVMThreadContext *tc, MVMuint64 flag) {
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    record->rec.map_bind_failure_to_resumption = 1;
+    record->rec.bind_failure_resumption_flag = flag;
 }
 
 /* Record a program terminator that is a constant object value. */
@@ -2069,6 +2087,18 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
         emit_resume_inits(tc, &cs, record, NULL, dp, 0, dp->num_resumptions);
     }
 
+    /* If we need to map bind failures into a resume, emit the op that will
+     * create the special frame to do that. This can only be used if we have
+     * a bytecode invocation outcome. */
+    if (record->rec.map_bind_failure_to_resumption) {
+        if (record->outcome.kind != MVM_DISP_OUTCOME_BYTECODE)
+            MVM_oops(tc, "Can only use dispatcher-resume-on-bind-failure with a bytecode result");
+        MVMDispProgramOp op;
+        op.code = MVMDispOpcodeBindFailureToResumption;
+        op.bind_failure_to_resumption.flag = record->rec.bind_failure_resumption_flag;
+        MVM_VECTOR_PUSH(cs.ops, op);
+    }
+
     /* Emit required ops to deliver the dispatch outcome. */
     switch (record->outcome.kind) {
         case MVM_DISP_OUTCOME_VALUE: {
@@ -2210,7 +2240,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
         }
         case MVM_DISP_OUTCOME_VALUE: {
             process_recording(tc, record);
-            MVMFrame *caller = find_calling_frame(record->common.prev);
+            MVMFrame *caller = find_calling_frame(tc, record->common.prev);
             switch (record->outcome.result_kind) {
                 case MVM_reg_obj:
                     MVM_args_set_dispatch_result_obj(tc, caller, record->outcome.result_value.o);
@@ -2229,20 +2259,25 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             }
             return 1;
         }
-        case MVM_DISP_OUTCOME_BYTECODE:
+        case MVM_DISP_OUTCOME_BYTECODE: {
+            MVMuint32 should_add_bind_failure = record->rec.map_bind_failure_to_resumption;
+            MVMint64 bind_failure_resumption_flag = record->rec.bind_failure_resumption_flag;
             process_recording(tc, record);
             MVM_disp_program_recording_destroy(tc, &(record->rec));
             record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
-            tc->cur_frame = find_calling_frame(tc->stack_top->prev);
+            tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
+            if (should_add_bind_failure)
+                MVM_callstack_allocate_bind_failure(tc, bind_failure_resumption_flag);
             MVM_frame_dispatch(tc, record->outcome.code, record->outcome.args, -1);
             if (thunked)
                 *thunked = 1;
             return 0;
+        }
         case MVM_DISP_OUTCOME_CFUNCTION:
             process_recording(tc, record);
             MVM_disp_program_recording_destroy(tc, &(record->rec));
             record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
-            tc->cur_frame = find_calling_frame(tc->stack_top->prev);
+            tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
             record->outcome.c_func(tc, record->outcome.args);
             return 1;
         default:
@@ -2490,6 +2525,11 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 MVM_callstack_unwind_dispatch_run(tc);
                 break;
             }
+
+            /* Bind failure to resumption callstack record. */
+            case MVMDispOpcodeBindFailureToResumption:
+                MVM_callstack_allocate_bind_failure(tc, op->bind_failure_to_resumption.flag);
+                break;
 
             /* Args preparation for invocation result. */
             case MVMDispOpcodeUseArgsTail:

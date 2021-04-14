@@ -243,6 +243,32 @@ struct MVMCallStackDispatchRun {
     MVMCallsite *temp_mark_callsite;
 };
 
+/* This record appears on the callstack before a frame, and indicates that,
+ * should the frame have a bind failure, we wish to enact a dispatch
+ * resumption. */
+#define MVM_CALLSTACK_RECORD_BIND_FAILURE       11
+typedef enum {
+    MVM_BIND_FAILURE_FRESH,      /* Record created in this state */
+    MVM_BIND_FAILURE_FAILED,     /* If there's a bind failure it is set to this... */
+    MVM_BIND_FAILURE_EXHAUSTED   /* ...but is only effective for one call, so ends up here */
+} MVMBindFailureState;
+struct MVMCallStackBindFailure {
+    /* Commonalities of all records. */
+    MVMCallStackRecord common;
+
+    /* The current state of the bind failure record. */
+    MVMBindFailureState state;
+
+    /* The flag to pass if we do resume upon a bind failure. */
+    MVMRegister flag;
+
+    /* If we do fail, this is the inline cache entry pointer we hang the
+     * resumption dispatch program off, along with the static frame it
+     * lives in (needed for memory management). */
+    MVMDispInlineCacheEntry **ice_ptr;
+    MVMStaticFrame *sf;
+};
+
 /* Functions for working with the call stack. */
 void MVM_callstack_init(MVMThreadContext *tc);
 MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc);
@@ -252,6 +278,8 @@ MVMCallStackDispatchRun * MVM_callstack_allocate_dispatch_run(MVMThreadContext *
         MVMuint32 num_temps);
 MVMCallStackFlattening * MVM_callstack_allocate_flattening(MVMThreadContext *tc,
         MVMuint16 num_args, MVMuint16 num_pos);
+MVMCallStackBindFailure * MVM_callstack_allocate_bind_failure(MVMThreadContext *tc,
+        MVMint64 flag);
 void MVM_callstack_new_continuation_region(MVMThreadContext *tc, MVMObject *tag);
 MVMCallStackRegion * MVM_callstack_continuation_slice(MVMThreadContext *tc, MVMObject *tag,
         MVMActiveHandler **active_handlers);

@@ -614,7 +614,7 @@ continuationcontrol w(obj) r(int64) r(obj) r(obj) :invokish :maycausedeopt
 continuationinvoke  w(obj) r(obj) r(obj) :invokish :maycausedeopt
 randscale_n         w(num64) r(num64)
 uniisblock          w(int64) r(str) r(int64) r(str) :pure
-assertparamcheck    r(int64) :noinline :invokish :maycausedeopt
+assertparamcheck    r(int64) :noinline :invokish :maycausedeopt :cache
 hintfor             w(int64) r(obj) r(str)
 paramnamesused      :noinline
 getuniname          w(str) r(int64) :pure

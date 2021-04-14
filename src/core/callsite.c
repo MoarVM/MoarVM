@@ -7,6 +7,9 @@ static MVMCallsite   zero_arity_callsite = { NULL, 0, 0, 0, 0, 0, 0, 0 };
 static MVMCallsiteEntry obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
 static MVMCallsite     obj_callsite = { obj_arg_flags, 1, 1, 1, 0, 0, 0, 0 };
 
+static MVMCallsiteEntry int_arg_flags[] = { MVM_CALLSITE_ARG_INT };
+static MVMCallsite     int_callsite = { int_arg_flags, 1, 1, 1, 0, 0, 0, 0 };
+
 static MVMCallsiteEntry obj_obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                                 MVM_CALLSITE_ARG_OBJ };
 static MVMCallsite    obj_obj_callsite = { obj_obj_arg_flags, 2, 2, 2, 0, 0, NULL, NULL };
@@ -52,6 +55,8 @@ void MVM_callsite_initialize_common(MVMThreadContext *tc) {
     MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &obj_callsite;
     MVM_callsite_intern(tc, &ptr, 0, 1);
+    ptr = &int_callsite;
+    MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &obj_obj_callsite;
     MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &obj_int_callsite;
@@ -75,6 +80,8 @@ MVM_PUBLIC MVMCallsite * MVM_callsite_get_common(MVMThreadContext *tc, MVMCommon
             return &zero_arity_callsite;
         case MVM_CALLSITE_ID_OBJ:
             return &obj_callsite;
+        case MVM_CALLSITE_ID_INT:
+            return &int_callsite;
         case MVM_CALLSITE_ID_OBJ_OBJ:
             return &obj_obj_callsite;
         case MVM_CALLSITE_ID_OBJ_INT:
