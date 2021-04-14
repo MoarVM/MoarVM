@@ -2607,7 +2607,7 @@ static void mark_resumption_temps(MVMThreadContext *tc, MVMDispProgram *dp,
         MVMDispProgramResumptionInitValue *init_values = dp->resumptions[i].init_values;
         if (init_values) {
             MVMCallsite *cs = dp->resumptions[i].init_callsite;
-            for (MVMuint32 j = 0; j < cs->flag_count; i++) {
+            for (MVMuint32 j = 0; j < cs->flag_count; j++) {
                 if (init_values[j].source == MVM_DISP_RESUME_INIT_TEMP) {
                     MVMCallsiteFlags flag = cs->arg_flags[j] & MVM_CALLSITE_ARG_TYPE_MASK;
                     if (flag == MVM_CALLSITE_ARG_OBJ || flag == MVM_CALLSITE_ARG_STR)
