@@ -3058,12 +3058,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 if (obj && IS_CONCRETE(obj) && STABLE(obj)->container_spec) {
                     STABLE(obj)->container_spec->fetch(tc, obj, r);
+                    if (MVM_spesh_log_is_logging(tc))
+                        MVM_spesh_log_decont(tc, prev_op, r->o);
                 }
                 else {
                     r->o = obj;
                 }
-                if (MVM_spesh_log_is_logging(tc))
-                    MVM_spesh_log_decont(tc, prev_op, r->o);
                 goto NEXT;
             }
             OP(setcontspec): {
