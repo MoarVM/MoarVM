@@ -3194,8 +3194,8 @@ static void try_eliminate_one_box_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, 
         MVM_spesh_usages_delete_by_reg(tc, g, unbox_ins->operands[1], unbox_ins);
 
         /* Use the unboxed version instead, rewriting to a set. */
-        unbox_ins->info = MVM_op_get_op(MVM_OP_set);
         unbox_ins->operands[1] = box_ins->operands[1];
+        MVM_spesh_turn_into_set(tc, g, unbox_ins);
         MVM_spesh_usages_add_by_reg(tc, g, unbox_ins->operands[1], unbox_ins);
     }
 }
