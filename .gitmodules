@@ -16,3 +16,6 @@
 [submodule "3rdparty/libatomicops"]
 	path = 3rdparty/libatomicops
 	url = https://github.com/MoarVM/libatomic_ops
+[submodule "3rdparty/ryu"]
+	path = 3rdparty/ryu
+	url = https://github.com/ulfjack/ryu
