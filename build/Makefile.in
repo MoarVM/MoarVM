@@ -288,7 +288,6 @@ HEADERS = src/moar.h \
           src/core/loadbytecode.h \
           src/core/bitmap.h \
           src/math/num.h \
-          src/math/grisu.h \
           src/core/coerce.h \
           src/core/dll.h \
           src/core/ext.h \
