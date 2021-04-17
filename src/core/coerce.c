@@ -255,14 +255,16 @@ MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
 }
 
 MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
-    if (n == MVM_num_posinf(tc)) {
-        return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Inf");
-    }
-    else if (n == MVM_num_neginf(tc)) {
-        return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "-Inf");
-    }
-    else if (n != n) {
-        return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "NaN");
+    if (MVM_UNLIKELY(MVM_num_isnanorinf(tc, n))) {
+        if (n == MVM_num_posinf(tc)) {
+            return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Inf");
+        }
+        else if (n == MVM_num_neginf(tc)) {
+            return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "-Inf");
+        }
+        else {
+            return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "NaN");
+        }
     }
 
     char buf[64];
