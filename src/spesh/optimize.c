@@ -3341,8 +3341,9 @@ static void post_inline_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB 
 static void eliminate_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMint32 i;
     for (i = 0; i < g->num_log_guards; i++)
-        if (!g->log_guards[i].used)
-            g->log_guards[i].ins->info = MVM_op_get_op(MVM_OP_set);
+        if (!g->log_guards[i].used) {
+            MVM_spesh_turn_into_set(tc, g, g->log_guards[i].ins);
+        }
 }
 
 /* Sometimes - almost always due to other optmimizations having done their
