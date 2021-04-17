@@ -680,11 +680,13 @@ MVMObject * MVM_bigint_pow2(MVMThreadContext *tc, MVMObject *a, MVMObject *b, MV
     mp_int *base        = force_bigint(tc, ba, 0);
     mp_int *exponent    = force_bigint(tc, bb, 1);
 
-    if (exponent->sign != MP_ZPOS) {
-        MVM_exception_throw_adhoc(tc, "pow_I expects only positive exponents");
-    }
-    else {
-        mp_digit exponent_d = mp_get_u32(exponent);
+    //if (exponent->sign != MP_ZPOS) {
+    //    MVM_exception_throw_adhoc(tc, "pow_I expects only positive exponents");
+    //}
+    //else {
+        MVMint32 exponent_d = mp_get_i32(exponent);
+        if (exponent_d < 0)
+            exponent_d = -exponent_d;
         if ((MP_GT == mp_cmp_d(exponent, exponent_d))) {
             if (mp_iszero(base)) {
                 r = MVM_repr_box_int(tc, int_type, 0);
@@ -719,7 +721,7 @@ MVMObject * MVM_bigint_pow2(MVMThreadContext *tc, MVMObject *a, MVMObject *b, MV
                 adjust_nursery(tc, resbody);
             }
         }
-    }
+   // }
     return r;
 }
 
