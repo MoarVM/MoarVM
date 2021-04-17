@@ -886,6 +886,7 @@ totalmem            w(int64) :pure
 nextdispatcherfor   r(obj) r(obj)
 takenextdispatcher  w(obj) :noinline
 time                w(uint64) :pure :confprog
+pow2_I               w(obj) r(obj) r(obj) r(obj) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
