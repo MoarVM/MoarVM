@@ -153,6 +153,7 @@ static MVMint32 already_succs(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *
 #define MVM_CFG_BB_JUMPLIST 4
 static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf,
                       MVMint32 *existing_deopts, MVMint32 num_existing_deopts,
+                      MVMint32 *existing_deopt_synths, MVMint32 num_existing_deopt_synths,
                       MVMint32 *deopt_usage_info, MVMSpeshIns ***deopt_usage_ins_out) {
     MVMSpeshBB  *cur_bb, *prev_bb;
     MVMSpeshIns *last_ins;
@@ -723,6 +724,21 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                 deopt_ann->next           = deopt_ins->annotations;
                 deopt_ann->type           = MVM_SPESH_ANN_DEOPT_INLINE;
                 deopt_ann->data.deopt_idx = i;
+                deopt_ins->annotations    = deopt_ann;
+            }
+        }
+    }
+    if (existing_deopt_synths) {
+        for (i = 0; i < num_existing_deopt_synths; i ++) {
+            if (existing_deopt_synths[2 * i + 1] >= 0) {
+                MVMSpeshIns *post_ins     = ins_flat[byte_to_ins_flags[existing_deopt_synths[2 * i + 1]] >> 3];
+                MVMSpeshIns *deopt_ins    = post_ins->prev ? post_ins->prev :
+                    MVM_spesh_graph_linear_prev(tc, g,
+                        ins_to_bb[byte_to_ins_flags[existing_deopt_synths[2 * i + 1]] >> 3])->last_ins;
+                MVMSpeshAnn *deopt_ann    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+                deopt_ann->next           = deopt_ins->annotations;
+                deopt_ann->type           = MVM_SPESH_ANN_DEOPT_SYNTH;
+                deopt_ann->data.deopt_idx = existing_deopt_synths[2 * i];
                 deopt_ins->annotations    = deopt_ann;
             }
         }
@@ -1306,7 +1322,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
     }
 
     /* Build the CFG out of the static frame, and transform it to SSA. */
-    build_cfg(tc, g, sf, NULL, 0, NULL, NULL);
+    build_cfg(tc, g, sf, NULL, 0, NULL, 0, NULL, NULL);
     if (insert_object_nulls)
         insert_object_null_instructions(tc, g);
     if (!cfg_only) {
@@ -1357,8 +1373,9 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     }
 
     /* Build the CFG out of the static frame, and transform it to SSA. */
-    build_cfg(tc, g, sf, cand->body.deopts, cand->body.num_deopts, cand->body.deopt_usage_info,
-            deopt_usage_ins_out);
+    build_cfg(tc, g, sf, cand->body.deopts, cand->body.num_deopts,
+            cand->body.deopt_synths, cand->body.num_deopt_synths,
+            cand->body.deopt_usage_info, deopt_usage_ins_out);
     if (!cfg_only) {
         MVM_spesh_eliminate_dead_bbs(tc, g, 0);
         add_predecessors(tc, g);
