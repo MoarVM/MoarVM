@@ -49,55 +49,73 @@ stages:
            MOAR_OPTIONS: '--relocatable'
 
          Lin_MVM:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
          Lin_MVM_reloc:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            RELOCATABLE: 'yes'
            RAKUDO_OPTIONS: '--relocatable'
            NQP_OPTIONS: '--backends=moar --relocatable'
            MOAR_OPTIONS: '--relocatable'
 
          MVM_gcc_njit:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-jit --cc=gcc'
          MVM_gcc:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=gcc'
          MVM_clang_njit:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-jit --cc=clang'
          MVM_clang:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang'
          MVM_gcc_njit_libffi:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --no-jit --cc=gcc'
          MVM_gcc_libffi:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --cc=gcc'
          MVM_clang_njit_libffi:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --no-jit --cc=clang'
          MVM_clang_libffi:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --cc=clang'
          MVM_coverage:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--compiler=clang --coverage --optimize=0 --debug=3 --cc=clang'
            COVERAGE: 1
            USE_CLANG_LATEST: 1
+
+         MVM_Ub_18_gcc:
+           IMAGE_NAME: 'ubuntu-18.04'
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--cc=gcc'
+         MVM_Ub_18_clang:
+           IMAGE_NAME: 'ubuntu-18.04'
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--cc=clang'
+
+         MVM_Ub_16_gcc:
+           IMAGE_NAME: 'ubuntu-16.04'
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--cc=gcc'
+         MVM_Ub_16_clang:
+           IMAGE_NAME: 'ubuntu-16.04'
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--cc=clang'
 
       pool:
         vmImage: $(IMAGE_NAME)
