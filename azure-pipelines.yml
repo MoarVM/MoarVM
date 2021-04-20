@@ -151,13 +151,14 @@ stages:
         # Build MoarVM
         - script: |
             perl Configure.pl --prefix=../install $(MOAR_OPTIONS)
-            make install
+            make -j2 install
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'
           condition: and(succeeded(), ne( variables['Agent.OS'], 'Windows_NT' ))
           displayName: Build MoarVM
         - pwsh: |
             ${{ variables.PWSH_DEV }}
             perl Configure.pl --prefix=..\install $(MOAR_OPTIONS)
+            set CL=/MP
             nmake install
           failOnStderr: false
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'
@@ -207,45 +208,45 @@ stages:
           displayName: Move installation (Windows)
 
         # Test NQP
-        - script: prove -j0 -r -e ../install/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
+        - script: prove -j2 -r -e ../install/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
           workingDirectory: '$(Pipeline.Workspace)/nqp'
           condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), ne( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test NQP
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            prove -j0 -r -e ..\install\bin\nqp t\nqp t\hll t\qregex t\p5regex t\qast t\moar t\serialization t\nativecall t\concurrency
+            prove -j2 -r -e ..\install\bin\nqp t\nqp t\hll t\qregex t\p5regex t\qast t\moar t\serialization t\nativecall t\concurrency
           workingDirectory: '$(Pipeline.Workspace)/nqp'
           condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), eq( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test NQP (Windows)
-        - script: prove -j0 -r -e ../install-moved/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
+        - script: prove -j2 -r -e ../install-moved/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
           workingDirectory: '$(Pipeline.Workspace)/nqp'
           condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), ne( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test NQP (relocated)
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            prove -j0 -r -e ..\install-moved\bin\nqp t\nqp t\hll t\qregex t\p5regex t\qast t\moar t\serialization t\nativecall t\concurrency
+            prove -j2 -r -e ..\install-moved\bin\nqp t\nqp t\hll t\qregex t\p5regex t\qast t\moar t\serialization t\nativecall t\concurrency
           workingDirectory: '$(Pipeline.Workspace)/nqp'
           condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), eq( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test NQP (relocated, Windows)
 
         # Test Rakudo
-        - script: prove -e ../install/bin/raku -vlr t
+        - script: prove -j2 -e ../install/bin/raku -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
           condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), ne( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test Rakudo
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            prove -e ..\install\bin\raku -vlr t
+            prove -j2 -e ..\install\bin\raku -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
           condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), eq( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test Rakudo (Windows)
-        - script: prove -e ../install-moved/bin/raku -vlr t
+        - script: prove -j2 -e ../install-moved/bin/raku -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
           condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), ne( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test Rakudo (relocated)
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            prove -e ..\install-moved\bin\raku -vlr t
+            prove -j2 -e ..\install-moved\bin\raku -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
           condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), eq( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test Rakudo (relocated, Windows)
