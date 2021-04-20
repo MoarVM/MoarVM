@@ -229,23 +229,23 @@ stages:
           displayName: Test NQP (relocated, Windows)
 
         # Test Rakudo
-        - script: prove -e ../install/bin/perl6 -vlr t
+        - script: prove -e ../install/bin/raku -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
           condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), ne( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test Rakudo
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            prove -e ..\install\bin\perl6 -vlr t
+            prove -e ..\install\bin\raku -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
           condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), eq( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test Rakudo (Windows)
-        - script: prove -e ../install-moved/bin/perl6 -vlr t
+        - script: prove -e ../install-moved/bin/raku -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
           condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), ne( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test Rakudo (relocated)
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            prove -e ..\install-moved\bin\perl6 -vlr t
+            prove -e ..\install-moved\bin\raku -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
           condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), eq( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test Rakudo (relocated, Windows)
