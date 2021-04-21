@@ -135,9 +135,9 @@ stages:
           displayName: "Shorten PATH on Windows"
           condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
-        - script: sudo apt-get install libzstd-dev
+        - script: sudo apt-get install libzstd-dev valgrind
           condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
-          displayName: Install libzstd-dev
+          displayName: Install libzstd-dev and valgrind
 
         - checkout: self
           path: selfrepo
@@ -262,3 +262,10 @@ stages:
 #            ./html-cover.sh 2
 #          condition: and(succeeded(), eq( variables['COVERAGE'], 'yes' ))
 #          displayName: Create coverage report
+
+        - script: |
+            valgrind --leak-check=full ../install/bin/raku --full-cleanup -e '' 2>valgrind.log
+            cat valgrind.log
+            ../install/bin/raku -ne 'BEGIN my @lost; @lost.push($0) if /"lost: " (\d+)/; END exit @lost.elems != 3 || all(@lost) != 0' valgrind.log
+          condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), ne( variables['COVERAGE'], 'yes' ), eq( variables['Agent.OS'], 'Linux' ))
+          displayName: Check for memory leaks
