@@ -493,7 +493,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
     /* If the frame was never invoked before, or never before at the current
      * instrumentation level, we need to trigger the instrumentation level
      * barrier. */
-    if (static_frame->body.instrumentation_level != tc->instance->instrumentation_level) {
+    if (MVM_UNLIKELY(static_frame->body.instrumentation_level != tc->instance->instrumentation_level)) {
         MVMROOT3(tc, static_frame, code_ref, outer, {
             instrumentation_level_barrier(tc, static_frame);
         });
@@ -637,7 +637,7 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
      * instrumentation level, we need to trigger the instrumentation level
      * barrier. */
     MVMStaticFrame *static_frame = code->body.sf;
-    if (static_frame->body.instrumentation_level != tc->instance->instrumentation_level) {
+    if (MVM_UNLIKELY(static_frame->body.instrumentation_level != tc->instance->instrumentation_level)) {
         MVMROOT2(tc, static_frame, code, {
             instrumentation_level_barrier(tc, static_frame);
         });
