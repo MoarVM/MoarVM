@@ -4123,11 +4123,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(assertparamcheck): {
                 MVMint64 ok = GET_REG(cur_op, 0).i64;
-                cur_op += 2;
                 if (!ok) {
                     MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
                             cur_op, bytecode_start, tc->cur_frame);
+                    cur_op += 2;
                     MVM_args_bind_failed(tc, ice_ptr);
+                }
+                else {
+                    cur_op += 2;
                 }
                 goto NEXT;
             }
