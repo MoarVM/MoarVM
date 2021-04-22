@@ -40,6 +40,15 @@ void MVM_args_destroy_identity_map(MVMThreadContext *tc) {
 
 /* Perform flattening of arguments as provided, and return the resulting
  * callstack record. */
+static MVMint32 callsite_name_index(MVMThreadContext *tc, MVMCallStackFlattening *record,
+        MVMuint16 names_so_far, MVMString *search_name) {
+    MVMCallsite *cs = &(record->produced_cs);
+    MVMuint16 i;
+    for (i = 0; i < names_so_far; i++)
+        if (MVM_string_equal(tc, cs->arg_names[i], search_name))
+            return cs->num_pos + i;
+    return -1;
+}
 MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCallsite *cs,
         MVMRegister *source, MVMuint16 *map) {
     /* Go through the callsite and find the flattening things, counting up the
@@ -149,26 +158,47 @@ MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCa
                 if (j++ < limit) { /* Drop silently, we don't want to throw here. */
                     MVMHashEntry *current = MVM_str_hash_current_nocheck(tc, hashtable, iterator);
                     MVMString *arg_name = current->hash_handle.key;
-                    // TODO dedupe
-                    record->produced_cs.arg_flags[cur_new_arg] =
-                            MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
-                    record->arg_info.source[cur_new_arg].o = current->value;
-                    cur_new_arg++;
-                    record->produced_cs.arg_names[cur_new_name] = arg_name;
-                    cur_new_name++;
+                    MVMint32 already_index = callsite_name_index(tc, record, cur_new_name,
+                            arg_name);
+                    if (already_index < 0) {
+                        /* Didn't see this name yet, so add to callsite and args. */
+                        record->produced_cs.arg_flags[cur_new_arg] =
+                                MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
+                        record->arg_info.source[cur_new_arg].o = current->value;
+                        cur_new_arg++;
+                        record->produced_cs.arg_names[cur_new_name] = arg_name;
+                        cur_new_name++;
+                    }
+                    else {
+                        /* New value for an existing name; replace the value and
+                         * ensure correct type flag. */
+                        record->produced_cs.arg_flags[already_index] =
+                                MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
+                        record->arg_info.source[already_index].o = current->value;
+                    }
                 }
                 iterator = MVM_str_hash_next(tc, hashtable, iterator);
             }
         }
         else if (flag & MVM_CALLSITE_ARG_NAMED) {
             /* Named arg. */
-            // TODO dedupe
-            record->produced_cs.arg_flags[cur_new_arg] = cs->arg_flags[i];
-            record->arg_info.source[cur_new_arg] = source[map[i]];
-            cur_new_arg++;
-            record->produced_cs.arg_names[cur_new_name] = cs->arg_names[cur_orig_name];
-            cur_orig_name++;
-            cur_new_name++;
+            MVMint32 already_index = callsite_name_index(tc, record, cur_new_name,
+                    cs->arg_names[cur_orig_name]);
+            if (already_index < 0) {
+                /* New name, so add to new callsite and args. */
+                record->produced_cs.arg_flags[cur_new_arg] = cs->arg_flags[i];
+                record->arg_info.source[cur_new_arg] = source[map[i]];
+                cur_new_arg++;
+                record->produced_cs.arg_names[cur_new_name] = cs->arg_names[cur_orig_name];
+                cur_orig_name++;
+                cur_new_name++;
+            }
+            else {
+                /* New value for an existing name; replace the value and
+                 * ensure correct type flag. */
+                record->produced_cs.arg_flags[already_index] = cs->arg_flags[i];
+                record->arg_info.source[already_index] = source[map[i]];
+            }
         }
         else {
             /* Positional arg. */
@@ -176,6 +206,12 @@ MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCa
             record->arg_info.source[cur_new_arg] = source[map[i]];
             cur_new_arg++;
         }
+    }
+
+    /* Fix up the callsite if we didn't get as many args as expected (which
+     * can happen if we de-dupe named arguments). */
+    if (cur_new_arg != num_args) {
+        record->arg_info.callsite->flag_count = cur_new_arg;
     }
 
     /* See if we can intern it, but don't force that to happen at this point.
