@@ -40,10 +40,14 @@ struct MVMStaticFrameBody {
 
     /* Does the frame contain specializable instructions? */
     MVMuint8 specializable;
+
     /* Zero if the frame was never invoked. Above zero is the instrumentation
      * level the VM was atlast time the frame was invoked. See MVMInstance for
      * the VM instance wide field for this. */
     MVMuint32 instrumentation_level;
+
+    /* Has the frame's bytecode been validated? */
+    MVMuint8 validated;
 
     /* Specialization-related information. Attached when a frame is first
      * verified. Held in a separate object rather than the MVMStaticFrame

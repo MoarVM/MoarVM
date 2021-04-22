@@ -759,4 +759,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
 
     /* Validation successful. Clear up instruction offsets. */
     MVM_free(val->labels);
+
+    /* Mark frame validated. */
+    static_frame->body.validated = 1;
 }
