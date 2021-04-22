@@ -49,55 +49,72 @@ stages:
            MOAR_OPTIONS: '--relocatable'
 
          Lin_MVM:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
          Lin_MVM_reloc:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            RELOCATABLE: 'yes'
            RAKUDO_OPTIONS: '--relocatable'
            NQP_OPTIONS: '--backends=moar --relocatable'
            MOAR_OPTIONS: '--relocatable'
 
          MVM_gcc_njit:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-jit --cc=gcc'
          MVM_gcc:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=gcc'
          MVM_clang_njit:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-jit --cc=clang'
          MVM_clang:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang'
          MVM_gcc_njit_libffi:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --no-jit --cc=gcc'
          MVM_gcc_libffi:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --cc=gcc'
          MVM_clang_njit_libffi:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --no-jit --cc=clang'
          MVM_clang_libffi:
-           IMAGE_NAME: 'ubuntu-18.04'
+           IMAGE_NAME: 'ubuntu-20.04'
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --cc=clang'
-         MVM_coverage:
+#         MVM_coverage:
+#           IMAGE_NAME: 'ubuntu-20.04'
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--compiler=clang --coverage --optimize=0 --debug=3 --cc=clang'
+#           COVERAGE: 'yes'
+
+         MVM_Ub_18_gcc:
            IMAGE_NAME: 'ubuntu-18.04'
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--compiler=clang --coverage --optimize=0 --debug=3 --cc=clang'
-           COVERAGE: 1
-           USE_CLANG_LATEST: 1
+           MOAR_OPTIONS: '--cc=gcc'
+         MVM_Ub_18_clang:
+           IMAGE_NAME: 'ubuntu-18.04'
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--cc=clang'
+
+         MVM_Ub_16_gcc:
+           IMAGE_NAME: 'ubuntu-16.04'
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--cc=gcc'
+         MVM_Ub_16_clang:
+           IMAGE_NAME: 'ubuntu-16.04'
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--cc=clang'
 
       pool:
         vmImage: $(IMAGE_NAME)
@@ -118,9 +135,9 @@ stages:
           displayName: "Shorten PATH on Windows"
           condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
-        - script: sudo apt-get install libzstd-dev
+        - script: sudo apt-get install libzstd-dev valgrind
           condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
-          displayName: Install libzstd-dev
+          displayName: Install libzstd-dev and valgrind
 
         - checkout: self
           path: selfrepo
@@ -133,13 +150,14 @@ stages:
         # Build MoarVM
         - script: |
             perl Configure.pl --prefix=../install $(MOAR_OPTIONS)
-            make install
+            make -j2 install
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'
           condition: and(succeeded(), ne( variables['Agent.OS'], 'Windows_NT' ))
           displayName: Build MoarVM
         - pwsh: |
             ${{ variables.PWSH_DEV }}
             perl Configure.pl --prefix=..\install $(MOAR_OPTIONS)
+            set CL=/MP
             nmake install
           failOnStderr: false
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'
@@ -189,45 +207,45 @@ stages:
           displayName: Move installation (Windows)
 
         # Test NQP
-        - script: prove -j0 -r -e ../install/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
+        - script: prove -j2 -r -e ../install/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
           workingDirectory: '$(Pipeline.Workspace)/nqp'
           condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), ne( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test NQP
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            prove -j0 -r -e ..\install\bin\nqp t\nqp t\hll t\qregex t\p5regex t\qast t\moar t\serialization t\nativecall t\concurrency
+            prove -j2 -r -e ..\install\bin\nqp t\nqp t\hll t\qregex t\p5regex t\qast t\moar t\serialization t\nativecall t\concurrency
           workingDirectory: '$(Pipeline.Workspace)/nqp'
           condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), eq( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test NQP (Windows)
-        - script: prove -j0 -r -e ../install-moved/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
+        - script: prove -j2 -r -e ../install-moved/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
           workingDirectory: '$(Pipeline.Workspace)/nqp'
           condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), ne( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test NQP (relocated)
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            prove -j0 -r -e ..\install-moved\bin\nqp t\nqp t\hll t\qregex t\p5regex t\qast t\moar t\serialization t\nativecall t\concurrency
+            prove -j2 -r -e ..\install-moved\bin\nqp t\nqp t\hll t\qregex t\p5regex t\qast t\moar t\serialization t\nativecall t\concurrency
           workingDirectory: '$(Pipeline.Workspace)/nqp'
           condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), eq( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test NQP (relocated, Windows)
 
         # Test Rakudo
-        - script: prove -e ../install/bin/perl6 -vlr t
+        - script: prove -j2 -e ../install/bin/raku -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
           condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), ne( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test Rakudo
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            prove -e ..\install\bin\perl6 -vlr t
+            prove -j2 -e ..\install\bin\raku -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
           condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), eq( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test Rakudo (Windows)
-        - script: prove -e ../install-moved/bin/perl6 -vlr t
+        - script: prove -j2 -e ../install-moved/bin/raku -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
           condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), ne( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test Rakudo (relocated)
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            prove -e ..\install-moved\bin\perl6 -vlr t
+            prove -j2 -e ..\install-moved\bin\raku -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
           condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), eq( variables['Agent.OS'], 'Windows_NT' ) )
           displayName: Test Rakudo (relocated, Windows)
@@ -236,10 +254,18 @@ stages:
           condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ))
           displayName: Publish build artifact
 
+#        - script: |
+#            git clone --depth 1 'https://github.com/samcv/MoarVM-cover.git' &&
+#            cp -v MoarVM-cover/html-cover.sh . &&
+#            cp -v MoarVM-cover/nqp-profile ../nqp/ &&
+#            cp -v MoarVM-cover/merge-profraw.sh ../nqp/ &&
+#            ./html-cover.sh 2
+#          condition: and(succeeded(), eq( variables['COVERAGE'], 'yes' ))
+#          displayName: Create coverage report
+
         - script: |
-            git clone --depth 1 'https://github.com/samcv/MoarVM-cover.git' &&
-            cp -v MoarVM-cover/html-cover.sh . &&
-            cp -v MoarVM-cover/nqp-profile ../nqp/ &&
-            cp -v MoarVM-cover/merge-profraw.sh ../nqp/ &&
-            ./html-cover.sh 2
-          condition: and(succeeded(), eq( variables['COVERAGE'], 'yes' ))
+            valgrind --leak-check=full ../install/bin/raku --full-cleanup -e '' 2>valgrind.log
+            cat valgrind.log
+            ../install/bin/raku -ne 'BEGIN my @lost; @lost.push($0) if /"lost: " (\d+)/; END exit @lost.elems != 3 || all(@lost) != 0' valgrind.log
+          condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), ne( variables['COVERAGE'], 'yes' ), eq( variables['Agent.OS'], 'Linux' ))
+          displayName: Check for memory leaks
