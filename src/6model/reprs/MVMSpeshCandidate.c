@@ -74,6 +74,7 @@ void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     if (candidate->body.jitcode)
         MVM_jit_code_destroy(tc, candidate->body.jitcode);
     MVM_free(candidate->body.deopt_usage_info);
+    MVM_free(candidate->body.deopt_synths);
 }
 
 static const MVMStorageSpec storage_spec = {
@@ -112,6 +113,8 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
     size += sizeof(MVMCollectable *) * body->num_spesh_slots;
 
     size += sizeof(MVMint32) * body->num_deopts;
+
+    size += sizeof(MVMint32) * body->num_deopt_synths * 2; /* 2 values per entry */
 
     size += sizeof(MVMSpeshInline) * body->num_inlines;
 
@@ -277,6 +280,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     candidate->body.bytecode_size = sc->bytecode_size;
     candidate->body.handlers      = sc->handlers;
     candidate->body.deopt_usage_info = sc->deopt_usage_info;
+    candidate->body.deopt_synths  = sc->deopt_synths;
+    candidate->body.num_deopt_synths = sc->num_deopt_synths;
     candidate->body.num_handlers  = sg->num_handlers;
     candidate->body.num_deopts    = sg->num_deopt_addrs;
     candidate->body.deopts        = sg->deopt_addrs;

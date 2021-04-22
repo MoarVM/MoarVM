@@ -75,6 +75,9 @@ struct MVMSpeshCandidateBody {
      *  There is a trailing -1 bytecode offset to mark the end of the data.
      */
     MVMint32 *deopt_usage_info;
+
+    MVMint32 *deopt_synths;
+    MVMint32 num_deopt_synths;
 };
 
 struct MVMSpeshCandidate {

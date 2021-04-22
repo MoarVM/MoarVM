@@ -602,6 +602,7 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 case MVM_SPESH_ANN_DEOPT_ONE_INS:
                 case MVM_SPESH_ANN_DEOPT_ALL_INS:
                 case MVM_SPESH_ANN_DEOPT_INLINE:
+                case MVM_SPESH_ANN_DEOPT_SYNTH:
                 case MVM_SPESH_ANN_DEOPT_OSR:
                     ann->data.deopt_idx += inliner->num_deopt_addrs;
                     tweak_guard_deopt_idx(ins, ann);

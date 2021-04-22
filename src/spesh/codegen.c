@@ -31,6 +31,8 @@ typedef struct {
      * inline from this bytecode in the future. */
     MVM_VECTOR_DECL(MVMint32, deopt_usage_info);
 
+    MVM_VECTOR_DECL(MVMint32, deopt_synth_addrs);
+
     /* Working deopt users state (so we can allocate it once and re-use it). */
     AllDeoptUsers all_deopt_users;
 } SpeshWriterState;
@@ -130,6 +132,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
             case MVM_SPESH_ANN_DEOPT_ONE_INS:
             case MVM_SPESH_ANN_DEOPT_ALL_INS:
             case MVM_SPESH_ANN_DEOPT_INLINE:
+            case MVM_SPESH_ANN_DEOPT_SYNTH:
                 has_deopts = 1;
                 break;
             case MVM_SPESH_ANN_INLINE_START:
@@ -303,6 +306,10 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
             ann = ins->annotations;
             while (ann) {
                 switch (ann->type) {
+                case MVM_SPESH_ANN_DEOPT_SYNTH:
+                    MVM_VECTOR_PUSH(ws->deopt_synth_addrs, ann->data.deopt_idx);
+                    MVM_VECTOR_PUSH(ws->deopt_synth_addrs, ws->bytecode_pos);
+                    break;
                 case MVM_SPESH_ANN_DEOPT_ONE_INS:
                 case MVM_SPESH_ANN_DEOPT_ALL_INS:
                 case MVM_SPESH_ANN_DEOPT_INLINE:
@@ -343,6 +350,7 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVM_VECTOR_INIT(ws->deopt_usage_info, 0);
     MVM_VECTOR_INIT(ws->all_deopt_users.idxs, 0);
     MVM_VECTOR_INIT(ws->all_deopt_users.seen_phis, 0);
+    MVM_VECTOR_INIT(ws->deopt_synth_addrs, 0);
 
     /* Create copy of handlers, and -1 all offsets so we can catch missing
      * updates. */
@@ -429,6 +437,8 @@ MVMSpeshCode * MVM_spesh_codegen(MVMThreadContext *tc, MVMSpeshGraph *g) {
     res->bytecode_size    = ws->bytecode_pos;
     res->handlers         = ws->handlers;
     res->deopt_usage_info = ws->deopt_usage_info;
+    res->deopt_synths     = ws->deopt_synth_addrs;
+    res->num_deopt_synths = ws->deopt_synth_addrs_num / 2; /* 2 values per entry */
 
     /* Cleanup. */
     MVM_free(ws->bb_offsets);
