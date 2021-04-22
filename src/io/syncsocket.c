@@ -190,7 +190,7 @@ MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVM
     while (bytes > 0) {
         int r;
         do {
-            r = send(data->handle, buf, (int)bytes, 0);
+            r = send(data->handle, buf, bytes > 0x40000000 ? 0x40000000 : bytes, 0);
         } while(r == -1 && errno == EINTR);
         if (MVM_IS_SOCKET_ERROR(r)) {
             MVM_gc_mark_thread_unblocked(tc);
