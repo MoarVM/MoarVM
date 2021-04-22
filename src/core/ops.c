@@ -2970,8 +2970,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_graphs_s,
-        "graphs_s",
+        MVM_OP_DEPRECATED_40,
+        "DEPRECATED_40",
         2,
         1,
         0,
