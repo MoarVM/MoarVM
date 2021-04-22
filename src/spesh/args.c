@@ -22,12 +22,6 @@ static void add_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 slot,
 
     /* Add any decontainerized type info. */
     if (type_tuple_entry.decont_type) {
-        g->facts[orig][i].decont_type  = type_tuple_entry.decont_type;
-        g->facts[orig][i].flags       |= MVM_SPESH_FACT_KNOWN_DECONT_TYPE;
-        if (type_tuple_entry.decont_type_concrete)
-            g->facts[orig][i].flags |= MVM_SPESH_FACT_DECONT_CONCRETE;
-        else
-            g->facts[orig][i].flags |= MVM_SPESH_FACT_DECONT_TYPEOBJ;
         if (type_tuple_entry.rw_cont)
             g->facts[orig][i].flags |= MVM_SPESH_FACT_RW_CONT;
     }
