@@ -124,7 +124,9 @@ static MVMuint64 switch_endian(MVMuint64 val, unsigned char size) {
 MVMDispInlineCacheEntry ** MVM_disp_inline_cache_get(MVMuint8 *cur_op,
         MVMuint8 *bytecode_start, MVMFrame *f) {
     MVMDispInlineCache *cache = &(f->static_info->body.inline_cache);
+    assert(cache->entries != NULL);
     MVMuint32 slot = ((cur_op - bytecode_start) - 2) >> cache->bit_shift;
+    assert(slot < cache->num_entries);
     return &(cache->entries[slot]);
 }
 
