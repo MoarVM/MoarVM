@@ -1340,7 +1340,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
     g->phi_infos     = MVM_spesh_alloc(tc, g, MVMPhiNodeCacheSize * sizeof(MVMOpInfo));
 
     /* Ensure the frame is validated, since we'll rely on this. */
-    if (sf->body.instrumentation_level == 0) {
+    if (!sf->body.validated) {
         MVM_spesh_graph_destroy(tc, g);
         MVM_oops(tc, "Spesh: cannot build CFG from unvalidated frame");
     }
@@ -1391,7 +1391,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     memcpy(g->spesh_slots, cand->body.spesh_slots, sizeof(MVMCollectable *) * g->num_spesh_slots);
 
     /* Ensure the frame is validated, since we'll rely on this. */
-    if (sf->body.instrumentation_level == 0) {
+    if (!sf->body.validated) {
         MVM_spesh_graph_destroy(tc, g);
         MVM_oops(tc, "Spesh: cannot build CFG from unvalidated frame");
     }
