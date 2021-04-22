@@ -373,6 +373,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
      * not bother checking again. */
     MVM_spesh_arg_guard_regenerate(tc, &(spesh->body.spesh_arg_guard),
         spesh->body.spesh_candidates, spesh->body.num_spesh_candidates + 1);
+    if (spesh->common.header.flags2 & MVM_CF_SECOND_GEN)
+        MVM_gc_write_barrier_hit(tc, (MVMCollectable *)spesh);
     MVM_barrier();
     spesh->body.num_spesh_candidates++;
 
