@@ -19,7 +19,8 @@ MVMRegister * MVM_frame_initial_work(MVMThreadContext *tc, MVMuint16 *local_type
 
 /* Takes a static frame and does various one-off calculations about what
  * space it shall need. Also triggers bytecode verification of the frame's
- * bytecode. */
+ * bytecode. Assumes we are holding the CU's deserialize frame mutex (at
+ * the time of writing, this is only called from instrumentation_level_barrier). */
 static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
     MVMStaticFrameBody *static_frame_body = &static_frame->body;
     MVMCompUnit        *cu                = static_frame_body->cu;
@@ -40,57 +41,43 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
             MVM_spesh_log_new_compunit(tc);
     }
 
-    /* Take compilation unit lock, to make sure we don't race to do the
-     * frame preparation/verification work. */
+    /* Work size is number of locals/registers plus size of the maximum
+     * call site argument list. */
+    static_frame_body->work_size = sizeof(MVMRegister) *
+        (static_frame_body->num_locals + static_frame_body->cu->body.max_callsite_size);
+
+    /* Validate the bytecode. */
     MVMROOT(tc, static_frame, {
-        MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
+        MVM_validate_static_frame(tc, static_frame);
     });
 
-    if (static_frame->body.instrumentation_level == 0) {
-        /* Work size is number of locals/registers plus size of the maximum
-        * call site argument list. */
-        static_frame_body->work_size = sizeof(MVMRegister) *
-            (static_frame_body->num_locals + static_frame_body->cu->body.max_callsite_size);
+    /* Compute work area initial state that we can memcpy into place each
+     * time. */
+    if (static_frame_body->num_locals)
+        static_frame_body->work_initial = MVM_frame_initial_work(tc,
+            static_frame_body->local_types,
+            static_frame_body->num_locals);
 
-        /* Validate the bytecode. */
-        MVMROOT(tc, static_frame, {
-            MVM_validate_static_frame(tc, static_frame);
-        });
-
-        /* Compute work area initial state that we can memcpy into place each
-         * time. */
-        if (static_frame_body->num_locals)
-            static_frame_body->work_initial = MVM_frame_initial_work(tc,
-                static_frame_body->local_types,
-                static_frame_body->num_locals);
-
-        /* Check if we have any state var lexicals. */
-        if (static_frame_body->static_env_flags) {
-            MVMuint8 *flags  = static_frame_body->static_env_flags;
-            MVMint64  numlex = static_frame_body->num_lexicals;
-            MVMint64  i;
-            for (i = 0; i < numlex; i++)
-                if (flags[i] == 2) {
-                    static_frame_body->has_state_vars = 1;
-                    break;
-                }
-        }
-
-        /* Allocate the frame's spesh data structure; do it in gen2, both for
-         * the sake of not triggering GC here to avoid a deadlock risk, but
-         * also because then it can be ssigned into the gen2 static frame
-         * without causing it to become an inter-gen root. */
-        MVM_gc_allocate_gen2_default_set(tc);
-        MVM_ASSIGN_REF(tc, &(static_frame->common.header), static_frame_body->spesh, /* no GC error */
-            MVM_repr_alloc_init(tc, tc->instance->StaticFrameSpesh));
-        MVM_gc_allocate_gen2_default_clear(tc);
-
-        /* We now have at least instrumentation level 1. */
-        static_frame->body.instrumentation_level = 1;
+    /* Check if we have any state var lexicals. */
+    if (static_frame_body->static_env_flags) {
+        MVMuint8 *flags  = static_frame_body->static_env_flags;
+        MVMint64  numlex = static_frame_body->num_lexicals;
+        MVMint64  i;
+        for (i = 0; i < numlex; i++)
+            if (flags[i] == 2) {
+                static_frame_body->has_state_vars = 1;
+                break;
+            }
     }
 
-    /* Unlock, now we're finished. */
-    MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
+    /* Allocate the frame's spesh data structure; do it in gen2, both for
+     * the sake of not triggering GC here to avoid a deadlock risk, but
+     * also because then it can be assigned into the gen2 static frame
+     * without causing it to become an inter-gen root. */
+    MVM_gc_allocate_gen2_default_set(tc);
+    MVM_ASSIGN_REF(tc, &(static_frame->common.header), static_frame_body->spesh, /* no GC error */
+        MVM_repr_alloc_init(tc, tc->instance->StaticFrameSpesh));
+    MVM_gc_allocate_gen2_default_clear(tc);
 }
 
 /* When we don't match the current instrumentation level, we hit this. It may
@@ -99,16 +86,16 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
  * profiling. */
 static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
     MVMCompUnit *cu = static_frame->body.cu;
-    MVMROOT(tc, static_frame, {
+    MVMROOT2(tc, static_frame, cu, {
         /* Obtain mutex, so we don't end up with instrumentation races. */
         MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
 
-        /* Prepare and verify if needed. */
-        if (static_frame->body.instrumentation_level == 0)
-            prepare_and_verify_static_frame(tc, static_frame);
-
         /* Re-check instrumentation level in case of races. */
         if (static_frame->body.instrumentation_level != tc->instance->instrumentation_level) {
+            /* Prepare and verify if needed. */
+            if (static_frame->body.instrumentation_level == 0)
+                prepare_and_verify_static_frame(tc, static_frame);
+
             /* Add profiling instrumentation if needed. */
             if (tc->instance->profiling)
                 MVM_profile_instrument(tc, static_frame);
@@ -124,12 +111,13 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
                  * again at some point, a solution for this problem must be found. */
                 MVM_profile_ensure_uninstrumented(tc, static_frame);
 
+            /* Set up inline cache for the frame. */
+            MVM_disp_inline_cache_setup(tc, static_frame);
+
             /* Mark frame as being at the current instrumentation level. */
+            MVM_barrier();
             static_frame->body.instrumentation_level = tc->instance->instrumentation_level;
         }
-
-        /* Set up inline cache for the frame. */
-        MVM_disp_inline_cache_setup(tc, static_frame);
 
         /* Release the lock. */
         MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
