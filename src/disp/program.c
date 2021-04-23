@@ -140,9 +140,9 @@ static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *rec
 #if DUMP_PROGRAMS
 static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
     if (dp->first_args_temporary == dp->num_temporaries)
-        fprintf(stderr, "Dispatch program (%d temporaries)\n", dp->num_temporaries);
+        fprintf(stderr, "Dispatch program %p (%d temporaries)\n", dp, dp->num_temporaries);
     else
-        fprintf(stderr, "Dispatch program (%d temporaries, args from %d)\n",
+        fprintf(stderr, "Dispatch program %p (%d temporaries, args from %d)\n", dp,
                 dp->num_temporaries, dp->first_args_temporary);
     MVMuint32 i;
     fprintf(stderr, "  Ops:\n");
