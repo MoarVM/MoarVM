@@ -6095,7 +6095,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 12 + 2 * callsite->flag_count;
                 tc->cur_frame->return_address = cur_op;
                 ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args, tc->cur_frame->work,
-                        tc->cur_frame->static_info, -1);
+                        sf, -1);
                 goto NEXT;
             }
             OP(sp_dispatch_i): {
@@ -6112,7 +6112,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 14 + 2 * callsite->flag_count;
                 tc->cur_frame->return_address = cur_op;
                 ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args, tc->cur_frame->work,
-                        tc->cur_frame->static_info, -1);
+                        sf, -1);
                 goto NEXT;
             }
             OP(sp_dispatch_n): {
@@ -6129,7 +6129,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 14 + 2 * callsite->flag_count;
                 tc->cur_frame->return_address = cur_op;
                 ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args, tc->cur_frame->work,
-                        tc->cur_frame->static_info, -1);
+                        sf, -1);
                 goto NEXT;
             }
             OP(sp_dispatch_s): {
@@ -6146,7 +6146,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 14 + 2 * callsite->flag_count;
                 tc->cur_frame->return_address = cur_op;
                 ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args, tc->cur_frame->work,
-                        tc->cur_frame->static_info, -1);
+                        sf, -1);
                 goto NEXT;
             }
             OP(sp_dispatch_o): {
@@ -6163,7 +6163,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 14 + 2 * callsite->flag_count;
                 tc->cur_frame->return_address = cur_op;
                 ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args, tc->cur_frame->work,
-                        tc->cur_frame->static_info, -1);
+                        sf, -1);
                 goto NEXT;
             }
             OP(sp_getarg_o):
