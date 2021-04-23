@@ -123,6 +123,29 @@ static void add_attribute(MVMThreadContext *tc, MVMArgs arg_info) {
     MVM_args_set_result_obj(tc, attr, MVM_RETURN_CURRENT_FRAME);
 }
 
+/* Finds a method. */
+static void find_method(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMObject *self, *method, *method_table;
+    MVMString *name;
+
+    /* Get arguments. */
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVM_args_checkarity(tc, &arg_ctx, 3, 3);
+    self = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    name = MVM_args_get_required_pos_str(tc, &arg_ctx, 2);
+    MVM_args_proc_cleanup(tc, &arg_ctx);
+    if (!self || !IS_CONCRETE(self) || REPR(self)->ID != MVM_REPR_ID_KnowHOWREPR)
+        MVM_exception_throw_adhoc(tc, "KnowHOW methods must be called on object instance with REPR KnowHOWREPR");
+
+    /* Look it up in the method table. */
+    method_table = ((MVMKnowHOWREPR *)self)->body.methods;
+    method = MVM_repr_at_key_o(tc, method_table, name);
+
+    /* Return added method as result. */
+    MVM_args_set_result_obj(tc, method, MVM_RETURN_CURRENT_FRAME);
+}
+
 /* Composes the meta-object. */
 static void compose(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *self, *type_obj, *method_table, *attributes, *BOOTArray, *BOOTHash,
@@ -287,6 +310,7 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
     add_knowhow_how_method(tc, knowhow_how, "new_type", new_type);
     add_knowhow_how_method(tc, knowhow_how, "add_method", add_method);
     add_knowhow_how_method(tc, knowhow_how, "add_attribute", add_attribute);
+    add_knowhow_how_method(tc, knowhow_how, "find_method", find_method);
     add_knowhow_how_method(tc, knowhow_how, "compose", compose);
     add_knowhow_how_method(tc, knowhow_how, "attributes", attributes);
     add_knowhow_how_method(tc, knowhow_how, "methods", methods);
