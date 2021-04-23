@@ -465,6 +465,21 @@ static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *recor
 void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp,
         MVMArgs arg_info, MVMDispInlineCacheEntry **ic_entry_ptr,
         MVMDispInlineCacheEntry *ic_entry, MVMStaticFrame *update_sf) {
+#if MVM_GC_DEBUG
+    {
+        MVMuint32 i;
+        MVMuint32 found = 0;
+        for (i = 0; i < update_sf->body.inline_cache.num_entries; i++) {
+            if (ic_entry_ptr == update_sf->body.inline_cache.entries + i) {
+                found = 1;
+                break;
+            }
+        }
+        if (!found)
+            MVM_panic(1, "Incorrect static frame root used for barriering inline cache");
+    }
+#endif
+
     /* Push a dispatch recording frame onto the callstack; this is how we'll
      * keep track of the current recording state. */
     MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
@@ -1355,6 +1370,7 @@ static MVMuint32 add_program_constant_callsite(MVMThreadContext *tc, compile_sta
 }
 static MVMuint32 add_program_gc_constant(MVMThreadContext *tc, compile_state *cs,
         MVMCollectable *value) {
+    MVM_ASSERT_NOT_FROMSPACE(tc, value);
     MVMuint32 i;
     for (i = 0; i < MVM_VECTOR_ELEMS(cs->gc_constants); i++)
         if (cs->gc_constants[i] == value)
