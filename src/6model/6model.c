@@ -262,7 +262,12 @@ void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name
             tc->instance->str_consts.find_method);
     });
 
-    if (MVM_is_null(tc, find_method)) {
+    /* TODO In the case it's a C function, that means we have a KnowHOW, and
+     * should thus have found what we need via the method cache. Since the late
+     * bound return mechanism doesn't work for these, don't call it. (The new
+     * dispatch work should eventually eliminate the nqp::can op anyway, and
+     * thus this workaround.) */
+    if (MVM_is_null(tc, find_method) || REPR(find_method)->ID == MVM_REPR_ID_MVMCFunction) {
         /* This'll count as a "no"... */
         res->i64 = 0;
         return;
