@@ -789,11 +789,22 @@ void MVM_spesh_stats_destroy(MVMThreadContext *tc, MVMSpeshStats *ss) {
 void MVM_spesh_sim_stack_gc_mark(MVMThreadContext *tc, MVMSpeshSimStack *sims,
                                  MVMGCWorklist *worklist) {
     MVMuint32 n = sims ? sims->used : 0;
-    MVMuint32 i;
+    MVMuint32 i, j;
     for (i = 0; i < n; i++) {
         MVMSpeshSimStackFrame *simf = &(sims->frames[i]);
         MVM_gc_worklist_add(tc, worklist, &(simf->sf));
         MVM_gc_worklist_add(tc, worklist, &(simf->last_invoke_sf));
+        if (simf->arg_types) {
+            MVMCallsite *cs = simf->ss->by_callsite[simf->callsite_idx].cs;
+            if (cs) {
+                for (j = 0; j < cs->flag_count; j++) {
+                    if (cs->arg_flags[j] & MVM_CALLSITE_ARG_OBJ) {
+                        MVM_gc_worklist_add(tc, worklist, &(simf->arg_types[j].type));
+                        MVM_gc_worklist_add(tc, worklist, &(simf->arg_types[j].decont_type));
+                    }
+                }
+            }
+        }
     }
 }
 
