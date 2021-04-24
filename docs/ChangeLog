@@ -1,3 +1,47 @@
+New in 2021.04
+
+6model:
++ [79027bdd] Fix inlines missing synthetic deopt points
++ [fd9f4bda,6670a64d] Constrain C pointer serialization to sizes <= INT32_MAX
++ [96d05ecc] Fix possible GC upset caused by half-deserialized STables
++ [63a69af5] Use the FSA for `MVMActiveHandler`s
++ [1de34262,c66b9e2,a6238bc] Fix a segfauult in `VMArray`'s `copy_elems`
++ [726447d7] Fix a segfault on trying to use an untyped array with buffer write functions
+
+Core:
++ [c10426a5] Remove `nqp::time_i` and `nqp::time_n` in favor of `nqp:time` which just return integer nanoseconds since the epoch
++ [53312b9f] Deprecate now unused `graphs_s` operator
++ [fe39d19f] Eliminate the `sec_n`, `asec_n` and `sech_h` operators, which are no longer used
++ [7da73d21] Set "allocate in gen2" in 2 last locations that create objects persisting for the lifetime of the interpreter
++ [a90b4ec0,16fe88f] Add a `setup_notify` handler and queue to `nqp::signal` to avoid race conditions when setting up a signal handler
++ [f7564376] Fix `getobjsc` returning `NULL` when the object has no SC
++ [572ec70c] Prohibit `hllbool` when the HLL doesn't have special booleans
++ [36237011] No longer require an exception as argument of `nqp::backtrace`, making creating `Failure` objects
+  faster and avoiding the inconsistencies caused by inlining
++ [5bba90a0] Fixing generated backtraces missing inlined frames
++ [9b5d14c0] Save a `malloc+free` per frame when creating a `Backtrace` object
++ [41f420ed] Fix a memory leak related to Unicode hashes
++ [08525be5] Make `smrt_intify` specializable like other smrt_* operators
++ [b553aba6] Remove double-MVMROOT of result in `MVM_args_set_result_obj`
+
+Documentation:
++ [8a5e05b0] Update README
+
+JIT:
++ [d923f504] Only call `MVM_jit_bytecode_dump_enabled` if code is non-NULL
++ [3a62bdf7] Fix JITed `ordfirst`/`ordat`/`ordbaseat` returning 4294967295 instead of -1
++ [dba4b528]  Fix expr JITed `ordbaseat` and `getcpbyname` returning 4294967295 instead of -1
+
+Spesh:
++ [298298aa] Fix spesh removing not-really-dead code
++ [0fa35556] Fix possible segfault on exit when using spesh log
+
+Tooling/Build:
++ [8c6322dc] Disable Travis and AppVeyor as CI, they have been superseded by AzureCI
++ [71dcb28a,8c979fd,7c39762,5fad749,e3decf0] Update Azure CI GNU/Linux versions,
+  add old versions, speed up testing, disable not working coverage job and add a task to test `--full-cleanup` option
++ [2eda6f86,f9a964d] Fix when building to a directory which includes a '+' in its file name
+
 New in 2021.03
 
 6model:
