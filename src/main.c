@@ -3,6 +3,9 @@
 #include <string.h>
 #include <moar.h>
 #include "platform/io.h"
+#ifdef TRACY_ENABLE
+#include "TracyC.h"
+#endif
 
 #if MVM_TRACING
 #  define TRACING_OPT "[--tracing] "
@@ -277,6 +280,9 @@ int wmain(int argc, wchar_t *wargv[])
         return EXIT_FAILURE;
     }
 
+#ifdef TRACY_ENABLE
+    TracyCZone(ctx_a, 1);
+#endif
     instance   = MVM_vm_create_instance();
     input_file = argv[argi++];
 
@@ -311,6 +317,9 @@ int wmain(int argc, wchar_t *wargv[])
     }
 #endif
 
+#ifdef TRACY_ENABLE
+    TracyCZoneEnd(ctx_a);
+#endif
     if (full_cleanup) {
         MVM_vm_destroy_instance(instance);
         return EXIT_SUCCESS;

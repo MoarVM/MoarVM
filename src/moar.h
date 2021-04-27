@@ -242,6 +242,9 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "profiler/configuration.h"
 #include "instrument/crossthreadwrite.h"
 #include "instrument/line_coverage.h"
+#ifdef TRACY_ENABLE
+#include "TracyC.h"
+#endif
 
 MVMObject *MVM_backend_config(MVMThreadContext *tc);
 

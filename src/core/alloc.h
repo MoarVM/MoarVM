@@ -1,5 +1,12 @@
+#ifdef TRACY_ENABLE
+#include "TracyC.h"
+#endif
 MVM_STATIC_INLINE void * MVM_malloc(size_t size) {
     void *ptr = malloc(size);
+
+#ifdef TRACY_ENABLE
+    TracyCAlloc(ptr, size);
+#endif
 
     if (!ptr)
         MVM_panic_allocation_failed(size);
@@ -10,6 +17,10 @@ MVM_STATIC_INLINE void * MVM_malloc(size_t size) {
 MVM_STATIC_INLINE void * MVM_calloc(size_t num, size_t size) {
     void *ptr = calloc(num, size);
 
+#ifdef TRACY_ENABLE
+    TracyCAlloc(ptr, num * size);
+#endif
+
     if (!ptr)
         MVM_panic_allocation_failed(num * size);
 
@@ -19,6 +30,13 @@ MVM_STATIC_INLINE void * MVM_calloc(size_t num, size_t size) {
 MVM_STATIC_INLINE void * MVM_realloc(void *p, size_t size) {
     void *ptr = realloc(p, size);
 
+#ifdef TRACY_ENABLE
+    if (p != ptr) {
+        TracyCFree(p);
+    }
+    TracyCAlloc(ptr, size);
+#endif
+
     if (!ptr && size > 0)
         MVM_panic_allocation_failed(size);
 
@@ -27,6 +45,13 @@ MVM_STATIC_INLINE void * MVM_realloc(void *p, size_t size) {
 
 MVM_STATIC_INLINE void * MVM_recalloc(void *p, size_t old_size, size_t size) {
     void *ptr = realloc(p, size);
+
+#ifdef TRACY_ENABLE
+    if (p != ptr) {
+        TracyCFree(p);
+    }
+    TracyCAlloc(ptr, size);
+#endif
 
     if (size > 0) {
         if (!ptr)
@@ -40,6 +65,9 @@ MVM_STATIC_INLINE void * MVM_recalloc(void *p, size_t old_size, size_t size) {
 }
 
 MVM_STATIC_INLINE void MVM_free(void *p) {
+#ifdef TRACY_ENABLE
+    TracyCFree(p);
+#endif
     free(p);
 }
 
