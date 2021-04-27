@@ -19,6 +19,22 @@ Getopt::Long::GetOptions('git-cache-dir=s' => \$git_cache_dir);
 
 print 'Updating submodules .................................... ';
 
+# This git --version parsing logic adapted from the perl5 commit
+# 962ff9139336a4a2 which I wrote almost 10 years ago, and seems to have been
+# reliable and trouble free ever since:
+
+my $version_string = exec_with_output('git', '--version') // "";
+unless ($version_string =~ /\Agit version (\d+\.\d+\.\d+)(.*)/) {
+    print "\n===SORRY=== ERROR: `git --version` failed to return a parseable version string\n";
+    print "The program's output was: $version_string\n";
+}
+
+# CentOS 7 (and presumably similar vintage RedHat) ships 1.8.3
+# 1.8.4 and later have the --depth flag.
+# However, --quiet wasn't quiet with --depth, until commit 62af4bdd423f5f39,
+# which is in 2.32.0
+my $git_new_enough = eval "v$1 ge v2.32.0";
+
 exec_and_check('git', 'submodule', 'sync', '--quiet', 'Submodule sync failed for an unknown reason.');
 exec_and_check('git', 'submodule', '--quiet', 'init', 'Submodule init failed for an unknown reason.');
 
@@ -57,6 +73,12 @@ if ($git_cache_dir) {
         exec_and_check('git', 'submodule', '--quiet', 'update', '--reference', $modrefdir, $smodpath, 'Git submodule update failed.');
     }
 }
+elsif ($git_new_enough) {
+    # This saves about 38M.
+    # If you need the history, run `git submodule foreach git fetch --unshallow`
+    exec_and_check('git', 'submodule', '--quiet', 'update', '--depth', '1',
+                   'Git submodule update with --depth 1 failed.');
+}
 else {
     exec_and_check('git', 'submodule', '--quiet', 'update', 'Git submodule update failed.');
 }
@@ -83,8 +105,7 @@ sub exec_and_check {
     my $out = exec_with_output(@command);
     if ($? >> 8 != 0) {
         print "\n===SORRY=== ERROR: $msg\n";
-        print "The programs output was: $out\n";
+        print "The program's output was: $out\n";
         exit 1;
     }
 }
-

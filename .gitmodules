@@ -20,3 +20,13 @@
 	path = 3rdparty/ryu
 	url = https://github.com/MoarVM/ryu
 	ignore = untracked
+
+# adding `shallow = true` to each submodule would save about 12M on a
+# git clone --recursive
+#
+# however, adding it tickles a bug in git not fixed until 2.32.0 in that with
+# `shallow = true` here, `git submodule --quiet update` *isn't* "--quiet". If
+# `shallow = true` is found here, then the `--quiet` flag is not passed down
+# from `git submodule` to `git fetch` because `git submodule` takes a different
+# code path from the default case. *Even though* the submodule fetch it invokes
+# isn't shallow!
