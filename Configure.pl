@@ -49,8 +49,8 @@ GetOptions(\%args, qw(
     build=s host=s big-endian jit! enable-jit
     prefix=s bindir=s libdir=s mastdir=s
     relocatable make-install asan ubsan tsan
-    valgrind telemeh dtrace show-autovect git-cache-dir=s
-    show-autovect-failed:s),
+    valgrind telemeh dtrace show-autovect
+    tracy git-cache-dir=s show-autovect-failed:s),
 
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 },
@@ -93,7 +93,7 @@ if ( $args{relocatable} && ($^O eq 'aix' || $^O eq 'openbsd') ) {
 }
 
 for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
-        has-libatomic_ops asan ubsan tsan valgrind dtrace show-vec)) {
+        has-libatomic_ops asan ubsan tsan valgrind dtrace show-vec tracy)) {
     $args{$_} = 0 unless defined $args{$_};
 }
 
@@ -257,6 +257,11 @@ $config{cincludes} = '' unless defined $config{cincludes};
 $config{moar_cincludes} = '' unless defined $config{moar_cincludes};
 $config{lincludes} = '' unless defined $config{lincludes};
 $config{install}   = '' unless defined $config{install};
+
+if ($args{'tracy'}) {
+    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/tracy'
+}
+
 if ($args{'has-libuv'}) {
     $defaults{-thirdparty}->{uv} = undef;
     unshift @{$config{usrlibs}}, 'uv';
@@ -383,6 +388,7 @@ $config{ldlibs} = ' -lasan ' . $config{ldlibs} if $args{asan} && $^O ne 'darwin'
 $config{ldlibs} = ' -lubsan ' . $config{ldlibs} if $args{ubsan} and $^O ne 'darwin';
 $config{ldlibs} = ' -ltsan ' . $config{ldlibs} if $args{tsan} and $^O ne 'darwin';
 $config{ldlibs} = $config{ldlibs} . ' -lzstd ' if $config{heapsnapformat} == 3;
+$config{ldlibs} = $config{ldlibs} . ' -lstdc++ ' if $args{tracy};
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
 
@@ -430,6 +436,7 @@ push @cflags, '-DMVM_DTRACE_SUPPORT' if $args{dtrace};
 push @cflags, '-DHAVE_TELEMEH' if $args{telemeh};
 push @cflags, '-DWORDS_BIGENDIAN' if $config{be}; # 3rdparty/sha1 needs it and it isnt set on mips;
 push @cflags, '-DMVM_HEAPSNAPSHOT_FORMAT=' . $config{heapsnapformat};
+push @cflags, '-DTRACY_ENABLE' if $args{tracy};
 push @cflags, $ENV{CFLAGS} if $ENV{CFLAGS};
 push @cflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
 $config{cflags} = join ' ', uniq(@cflags);
