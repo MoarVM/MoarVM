@@ -73,8 +73,8 @@ if ($git_cache_dir) {
 elsif ($git_new_enough) {
     # This saves about 38M.
     # If you need the history, run `git submodule foreach git fetch --unshallow`
-    exec_and_check('git', 'submodule', '--quiet', 'update', '--depth', '1',
-                   'Git submodule update with --depth 1 failed.');
+    exec_and_check('git', 'submodule', '--quiet', 'update', '--depth', '5',
+                   'Git submodule update with --depth 5 failed.');
 }
 else {
     exec_and_check('git', 'submodule', '--quiet', 'update', 'Git submodule update failed.');
