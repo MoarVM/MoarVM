@@ -74,13 +74,13 @@ static void perform_write(MVMThreadContext *tc, MVMIOFileData *data, char *buf, 
     while (bytes > 0) {
         int r;
         do {
-            r = write(data->fd, buf, (int)bytes);
+            r = write(data->fd, buf, bytes > 0x40000000 ? 0x40000000 : bytes);
         } while (r == -1 && errno == EINTR);
         if (r == -1) {
             int save_errno = errno;
             MVM_gc_mark_thread_unblocked(tc);
-            MVM_exception_throw_adhoc(tc, "Failed to write bytes to filehandle: %s",
-                strerror(save_errno));
+            MVM_exception_throw_adhoc(tc, "Failed to write %"PRId64" bytes to filehandle: %s",
+                bytes, strerror(save_errno));
         }
         bytes_written += r;
         buf += r;
