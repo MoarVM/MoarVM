@@ -150,7 +150,9 @@ stages:
           displayName: "Shorten PATH on Windows"
           condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
-        - script: sudo apt-get install libzstd-dev valgrind
+        - script: |
+            sudo apt-get update
+            sudo apt-get install libzstd-dev valgrind
           condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
           displayName: Install libzstd-dev and valgrind
 
