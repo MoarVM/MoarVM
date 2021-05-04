@@ -11,7 +11,6 @@ use File::Spec;
 
 use lib '.';
 use build::setup;
-use build::auto;
 use build::probe;
 
 # This allows us to run on ancient perls.
@@ -485,11 +484,42 @@ $config{auxclean} = @auxfiles ? '$(RM) ' . join ' ', @auxfiles : '@:';
 
 print "OK\n\n";
 
-if ($config{crossconf}) {
-    build::auto::detect_cross(\%config, \%defaults);
-}
-else {
-    build::auto::detect_native(\%config, \%defaults);
+unless ($config{crossconf}) {
+    # detect x64 on Windows so we can build the correct dyncall version
+    if ($config{cc} eq 'cl') {
+        print dots('    auto-detecting x64 toolchain');
+        my $msg = `cl 2>&1`;
+        if (defined $msg) {
+            if ($msg =~ /x64/) {
+                print "YES\n";
+                $defaults{-thirdparty}->{dc}->{rule} =
+                    'cd 3rdparty/dyncall && configure.bat /target-x64 && $(MAKE) -f Nmakefile';
+            }
+            else { print "NO\n" }
+        }
+        else {
+            softfail("could not run 'cl'");
+            print dots('    assuming x86'), "OK\n";
+        }
+    }
+    elsif ($defaults{os} eq 'mingw32' && $defaults{-toolchain} eq 'gnu') {
+        print dots('    auto-detecting x64 toolchain');
+        my $cc = $config{cc};
+        my $msg = `$cc -dumpmachine 2>&1`;
+        if (defined $msg) {
+            if ($msg =~ /x86_64/) {
+                print "YES\n";
+
+                $defaults{-thirdparty}->{dc}->{rule} =
+                    'cd 3rdparty/dyncall && ./configure.bat /target-x64 /tool-gcc && $(MAKE) COMPILE.C=$$(COMPILE.c) -f Makefile.embedded mingw32';
+            }
+            else { print "NO\n" }
+        }
+        else {
+            softfail("could not run 'cl'");
+            print dots('    assuming x86'), "OK\n";
+        }
+    }
 }
 
 build::probe::static_inline(\%config, \%defaults);
