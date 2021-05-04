@@ -8,13 +8,16 @@ variables:
   # Turn this Powershell console into a developer powershell console.
   # https://intellitect.com/enter-vsdevshell-powershell/
   PWSH_DEV: |
-    $installPath = &"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationpath
-    $devShell    = &"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -find **\Microsoft.VisualStudio.DevShell.dll
-    Import-Module $devShell
-    Enter-VsDevShell -VsInstallPath $installPath -SkipAutomaticLocation -DevCmdArguments "-arch=amd64"
+    if ($env:Agent_OS -eq 'Windows_NT') {
+      $installPath = &"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -property installationpath
+      $devShell    = &"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe" -latest -find **\Microsoft.VisualStudio.DevShell.dll
+      Import-Module $devShell
+      Enter-VsDevShell -VsInstallPath $installPath -SkipAutomaticLocation -DevCmdArguments "-arch=amd64"
+    }
   RAKUDO_CHECKOUT_TYPE: master
   NQP_CHECKOUT_TYPE: master
   MOAR_CHECKOUT_TYPE: "rev-$(Build.SourceVersion)-selfrepo"
+  INSTALL_DIR: install
 
 stages:
 - stage: Test
@@ -119,15 +122,18 @@ stages:
            MOAR_OPTIONS: '--cc=gcc'
          MVM_Ub_18_clang:
            IMAGE_NAME: 'ubuntu-18.04'
+           RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang'
 
          MVM_Ub_16_gcc:
            IMAGE_NAME: 'ubuntu-16.04'
+           RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=gcc'
          MVM_Ub_16_clang:
            IMAGE_NAME: 'ubuntu-16.04'
+           RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang'
 
@@ -166,14 +172,14 @@ stages:
 
         # Build MoarVM
         - script: |
-            perl Configure.pl --prefix=../install $(MOAR_OPTIONS)
+            perl Configure.pl --prefix=../$(INSTALL_DIR) $(MOAR_OPTIONS)
             make -j2 install
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'
           condition: and(succeeded(), ne( variables['Agent.OS'], 'Windows_NT' ))
           displayName: Build MoarVM
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            perl Configure.pl --prefix=..\install $(MOAR_OPTIONS)
+            perl Configure.pl --prefix=..\$(INSTALL_DIR) $(MOAR_OPTIONS)
             gmake -j2 install
           failOnStderr: false
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'
@@ -181,7 +187,7 @@ stages:
           displayName: Build MoarVM (Windows, MinGW)
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            perl Configure.pl --prefix=..\install $(MOAR_OPTIONS)
+            perl Configure.pl --prefix=..\$(INSTALL_DIR) $(MOAR_OPTIONS)
             set CL=/MP
             nmake install
           failOnStderr: false
@@ -190,88 +196,45 @@ stages:
           displayName: Build MoarVM (Windows, MSVC)
 
         # Build NQP
-        - script: |
-            perl Configure.pl --prefix=../install $(NQP_OPTIONS) --make-install
-          workingDirectory: '$(Pipeline.Workspace)/nqp'
-          condition: and(succeeded(), ne( variables['Agent.OS'], 'Windows_NT' ))
-          displayName: Build NQP
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            perl Configure.pl --prefix=..\install $(NQP_OPTIONS) --make-install
-          failOnStderr: false
+            perl Configure.pl --prefix=../$(INSTALL_DIR) $(NQP_OPTIONS) --make-install
           workingDirectory: '$(Pipeline.Workspace)/nqp'
-          condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
-          displayName: Build NQP (Windows)
+          condition: succeeded()
+          displayName: Build NQP
 
         # Build Rakudo
-        - script: |
-            perl Configure.pl --prefix=../install $(RAKUDO_OPTIONS) --make-install
-          workingDirectory: '$(Pipeline.Workspace)/rakudo'
-          condition: and(succeeded(), ne( variables['Agent.OS'], 'Windows_NT' ))
-          displayName: Build Rakudo
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            perl Configure.pl --prefix=..\install $(RAKUDO_OPTIONS) --make-install
-          failOnStderr: false
+            perl Configure.pl --prefix=../$(INSTALL_DIR) $(RAKUDO_OPTIONS) --make-install
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
-          condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
-          displayName: Build Rakudo (Windows)
+          condition: succeeded()
+          displayName: Build Rakudo
 
         # TODO: Should use "install moved" instead of "install-moved". But `prove` currently fails with an executable path that contains a space.
-        - script: mv install install-moved
+        - pwsh: |
+            mv $(INSTALL_DIR) $(INSTALL_DIR)-moved
+            echo "##vso[task.setvariable variable=INSTALL_DIR]$(INSTALL_DIR)-moved"
           workingDirectory: $(Pipeline.Workspace)
-          condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), ne( variables['Agent.OS'], 'Windows_NT' ) )
+          condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ) )
           displayName: Move installation
-        - pwsh: mv install install-moved
-          workingDirectory: $(Pipeline.Workspace)
-          condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), eq( variables['Agent.OS'], 'Windows_NT' ) )
-          displayName: Move installation (Windows)
 
         # Test NQP
-        - script: prove -j2 -r -e ../install/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
+        - script: prove -j2 -r -e ../$(INSTALL_DIR)/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
           workingDirectory: '$(Pipeline.Workspace)/nqp'
-          condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), ne( variables['Agent.OS'], 'Windows_NT' ) )
+          condition: succeeded()
           displayName: Test NQP
-        - pwsh: |
-            ${{ variables.PWSH_DEV }}
-            prove -j2 -r -e ..\install\bin\nqp t\nqp t\hll t\qregex t\p5regex t\qast t\moar t\serialization t\nativecall t\concurrency
-          workingDirectory: '$(Pipeline.Workspace)/nqp'
-          condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), eq( variables['Agent.OS'], 'Windows_NT' ) )
-          displayName: Test NQP (Windows)
-        - script: prove -j2 -r -e ../install-moved/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
-          workingDirectory: '$(Pipeline.Workspace)/nqp'
-          condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), ne( variables['Agent.OS'], 'Windows_NT' ) )
-          displayName: Test NQP (relocated)
-        - pwsh: |
-            ${{ variables.PWSH_DEV }}
-            prove -j2 -r -e ..\install-moved\bin\nqp t\nqp t\hll t\qregex t\p5regex t\qast t\moar t\serialization t\nativecall t\concurrency
-          workingDirectory: '$(Pipeline.Workspace)/nqp'
-          condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), eq( variables['Agent.OS'], 'Windows_NT' ) )
-          displayName: Test NQP (relocated, Windows)
 
         # Test Rakudo
-        - script: prove -j2 -e ../install/bin/raku -vlr t
+        - pwsh: |
+            ${{ variables.PWSH_DEV }}
+            $install_path = Resolve-Path ../$(INSTALL_DIR)/bin/
+            prove -j2 -e "$($install_path.Path)raku" -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
-          condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), ne( variables['Agent.OS'], 'Windows_NT' ) )
+          condition: succeeded()
           displayName: Test Rakudo
-        - pwsh: |
-            ${{ variables.PWSH_DEV }}
-            prove -j2 -e ..\install\bin\raku -vlr t
-          workingDirectory: '$(Pipeline.Workspace)/rakudo'
-          condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), eq( variables['Agent.OS'], 'Windows_NT' ) )
-          displayName: Test Rakudo (Windows)
-        - script: prove -j2 -e ../install-moved/bin/raku -vlr t
-          workingDirectory: '$(Pipeline.Workspace)/rakudo'
-          condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), ne( variables['Agent.OS'], 'Windows_NT' ) )
-          displayName: Test Rakudo (relocated)
-        - pwsh: |
-            ${{ variables.PWSH_DEV }}
-            prove -j2 -e ..\install-moved\bin\raku -vlr t
-          workingDirectory: '$(Pipeline.Workspace)/rakudo'
-          condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ), eq( variables['Agent.OS'], 'Windows_NT' ) )
-          displayName: Test Rakudo (relocated, Windows)
 
-        - publish: $(Pipeline.Workspace)/install-moved
+        - publish: $(Pipeline.Workspace)/$(INSTALL_DIR)
           condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ))
           displayName: Publish build artifact
 
@@ -285,8 +248,8 @@ stages:
 #          displayName: Create coverage report
 
         - script: |
-            valgrind --leak-check=full ../install/bin/raku --full-cleanup -e '' 2>valgrind.log
+            valgrind --leak-check=full ../$(INSTALL_DIR)/bin/raku --full-cleanup -e '' 2>valgrind.log
             cat valgrind.log
-            ../install/bin/raku -ne 'BEGIN my @lost; @lost.push($0) if /"lost: " (\d+)/; END exit @lost.elems != 3 || all(@lost) != 0' valgrind.log
-          condition: and(succeeded(), ne( variables['RELOCATABLE'], 'yes' ), ne( variables['COVERAGE'], 'yes' ), eq( variables['Agent.OS'], 'Linux' ))
+            ../$(INSTALL_DIR)/bin/raku -ne 'BEGIN my @lost; @lost.push($0) if /"lost: " (\d+)/; END exit @lost.elems != 3 || all(@lost) != 0' valgrind.log
+          condition: and(succeeded(), ne( variables['COVERAGE'], 'yes' ), eq( variables['Agent.OS'], 'Linux' ))
           displayName: Check for memory leaks
