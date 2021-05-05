@@ -41,7 +41,7 @@ my @args = @ARGV;
 
 GetOptions(\%args, qw(
     help|?
-    debug:s optimize:s instrument! coverage
+    debug:s optimize:s coverage
     os=s shell=s toolchain=s compiler=s
     ar=s cc=s ld=s make=s has-sha has-libuv
     static has-libtommath has-libatomic_ops
@@ -92,7 +92,7 @@ if ( $args{relocatable} && ($^O eq 'aix' || $^O eq 'openbsd') ) {
     ".\n    Leave off the --relocatable flag to do a non-relocatable build.");
 }
 
-for (qw(coverage instrument static big-endian has-libtommath has-sha has-libuv
+for (qw(coverage static big-endian has-libtommath has-sha has-libuv
         has-libatomic_ops asan ubsan tsan valgrind dtrace show-vec)) {
     $args{$_} = 0 unless defined $args{$_};
 }
@@ -397,8 +397,7 @@ my @cflags;
 push @cflags, $config{ccmiscflags};
 push @cflags, $config{ccoptiflags}  if $args{optimize};
 push @cflags, $config{ccdebugflags} if $args{debug};
-push @cflags, $config{ccinstflags}  if $args{instrument};
-push @cflags, $config{ld_covflags}  if $args{coverage};
+push @cflags, $config{cc_covflags}  if $args{coverage};
 push @cflags, $config{ccwarnflags};
 push @cflags, $config{ccdefflags};
 push @cflags, $config{ccshared}     unless $args{static};
@@ -438,7 +437,6 @@ $config{cflags} = join ' ', uniq(@cflags);
 my @ldflags = ($config{ldmiscflags});
 push @ldflags, $config{ldoptiflags}  if $args{optimize};
 push @ldflags, $config{lddebugflags} if $args{debug};
-push @ldflags, $config{ldinstflags}  if $args{instrument};
 push @ldflags, $config{ld_covflags}  if $args{coverage};
 if (not $args{static} and $config{prefix} ne '/usr') {
     push @ldflags, $config{ldrpath_relocatable} if  $args{relocatable};
@@ -489,21 +487,16 @@ print "OK\n\n";
 
 if ($config{crossconf}) {
     build::auto::detect_cross(\%config, \%defaults);
-    build::probe::static_inline_cross(\%config, \%defaults);
-    build::probe::thread_local_cross(\%config, \%defaults);
-    build::probe::substandard_pow_cross(\%config, \%defaults);
-    build::probe::unaligned_access_cross(\%config, \%defaults);
-    build::probe::ptr_size_cross(\%config, \%defaults);
 }
 else {
     build::auto::detect_native(\%config, \%defaults);
-    build::probe::static_inline_native(\%config, \%defaults);
-    build::probe::thread_local_native(\%config, \%defaults);
-    build::probe::substandard_pow(\%config, \%defaults);
-    build::probe::unaligned_access(\%config, \%defaults);
-    build::probe::ptr_size_native(\%config, \%defaults);
 }
 
+build::probe::static_inline(\%config, \%defaults);
+build::probe::thread_local(\%config, \%defaults);
+build::probe::substandard_pow(\%config, \%defaults);
+build::probe::unaligned_access(\%config, \%defaults);
+build::probe::ptr_size(\%config, \%defaults);
 
 my $archname = $Config{archname};
 if ($args{'jit'}) {
@@ -711,8 +704,20 @@ sub setup_native {
     print dots("Configuring native build environment");
     print "\n";
 
-    $os = build::probe::win32_compiler_toolchain(\%config, \%defaults)
-        if $os eq 'MSWin32';
+    if ($os eq 'MSWin32') {
+        my $has_nmake = 0 == system('nmake /? >NUL 2>&1');
+        my $has_cl    = `cl 2>&1` =~ /Microsoft Corporation/;
+        my $has_gmake = 0 == system('gmake --version >NUL 2>&1');
+        my $has_gcc   = 0 == system('gcc --version >NUL 2>&1');
+        if ($has_nmake && $has_cl) {
+            $os = 'win32';
+        }
+        elsif ($has_gmake && $has_gcc) {
+            $os = 'mingw32';
+        } else {
+            $os = "";
+        }
+    }
 
     if (!exists $::SYSTEMS{$os}) {
         softfail("unknown OS '$os'");
@@ -990,7 +995,7 @@ __END__
     ./Configure.pl [--os <os>] [--shell <shell>]
                    [--toolchain <toolchain>] [--compiler <compiler>]
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
-                   [--debug] [--optimize] [--instrument]
+                   [--debug] [--optimize]
                    [--static] [--prefix <path>] [--relocatable]
                    [--has-libtommath] [--has-sha] [--has-libuv]
                    [--has-libatomic_ops]
@@ -999,7 +1004,7 @@ __END__
 
     ./Configure.pl --build <build-triple> --host <host-triple>
                    [--ar <ar>] [--cc <cc>] [--ld <ld>] [--make <make>]
-                   [--debug] [--optimize] [--instrument]
+                   [--debug] [--optimize]
                    [--static] [--prefix <path>] [--relocatable]
                    [--big-endian] [--make-install]
 
@@ -1032,13 +1037,6 @@ default.
 
 Toggle optimization and debug flags during compile and link. If nothing
 is specified the default is to optimize.
-
-=item --instrument
-
-=item --no-instrument
-
-Toggle extra instrumentation flags during compile and link; for example,
-turns on Address Sanitizer when compiling with C<clang>.  Defaults to off.
 
 =item --os <os>
 
