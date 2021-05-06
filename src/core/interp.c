@@ -802,11 +802,41 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(pow_n): {
                 MVMnum64 x = GET_REG(cur_op, 2).n64;
                 MVMnum64 y = GET_REG(cur_op, 4).n64;
-                GET_REG(cur_op, 0).n64 =
 #ifdef MVM_HAS_SUBSTANDARD_POW
-                    y == 0.0 || x == 1.0 ? 1.0 :
+                if (y == 0.0 || x == 1.0) {
+                    GET_REG(cur_op, 0).n64 = 1.0;
+                }
+                else if (x == 0.0 && y < 0.0) {
+                    /* If x is +0 or -0, and y is an odd integer less than 0, a
+                     * pole error occurs and HUGE_VAL, HUGE_VALF, or HUGE_VALL,
+                     * is returned, with the same sign as x.
+                     *
+                     * If x is +0 or -0, and y is less than 0 and not an odd
+                     * integer, a pole error occurs and +HUGE_VAL, +HUGE_VALF,
+                     * or +HUGE_VALL, is returned.
+                     *
+                     *
+                     * Which, you can rearrange to
+                     * if and only if "y is a negative odd integer and x is -0"
+                     * then it's -Inf
+                     * else it's always +Inf
+                     */
+                    if (MVM_num_isnegzero(tc, x)
+                        && fmod(y, 2.0) == -1.0) {
+                        GET_REG(cur_op, 0).n64 = MVM_num_neginf(tc);
+                    }
+                    else {
+                        GET_REG(cur_op, 0).n64 = MVM_num_posinf(tc);
+                    }
+                }
+                /* There are more corner cases, but these (so far) are all that
+                 * I have found that (some targetable) systems get wrong. */
+                else {
+                    GET_REG(cur_op, 0).n64 = pow(x, y);
+                }
+#else
+                GET_REG(cur_op, 0).n64 = pow(x, y);
 #endif
-                    pow(x, y);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -822,18 +852,30 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = sin(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
                 goto NEXT;
-            OP(asin_n):
-                GET_REG(cur_op, 0).n64 = asin(GET_REG(cur_op, 2).n64);
+            OP(asin_n): {
+                MVMnum64 x = GET_REG(cur_op, 2).n64;
+                GET_REG(cur_op, 0).n64 =
+#ifdef MVM_HAS_SUBSTANDARD_ASIN
+                    (x < -1.0 || x > 1.0) ? MVM_num_nan(tc) :
+#endif
+                    asin(x);
                 cur_op += 4;
                 goto NEXT;
+            }
             OP(cos_n):
                 GET_REG(cur_op, 0).n64 = cos(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
                 goto NEXT;
-            OP(acos_n):
-                GET_REG(cur_op, 0).n64 = acos(GET_REG(cur_op, 2).n64);
+            OP(acos_n): {
+                MVMnum64 x = GET_REG(cur_op, 2).n64;
+                GET_REG(cur_op, 0).n64 =
+#ifdef MVM_HAS_SUBSTANDARD_ACOS
+                    (x < -1.0 || x > 1.0) ? MVM_num_nan(tc) :
+#endif
+                    acos(x);
                 cur_op += 4;
                 goto NEXT;
+            }
             OP(tan_n):
                 GET_REG(cur_op, 0).n64 = tan(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
@@ -863,10 +905,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = sqrt(GET_REG(cur_op, 2).n64);
                 cur_op += 4;
                 goto NEXT;
-            OP(log_n):
-                GET_REG(cur_op, 0).n64 = log(GET_REG(cur_op, 2).n64);
+            OP(log_n): {
+                MVMnum64 x = GET_REG(cur_op, 2).n64;
+                GET_REG(cur_op, 0).n64 =
+#ifdef MVM_HAS_SUBSTANDARD_LOG
+                    x < 0 ? MVM_num_nan(tc) :
+#endif
+                    log(x);
                 cur_op += 4;
                 goto NEXT;
+            }
             OP(exp_n):
                 GET_REG(cur_op, 0).n64 = exp(GET_REG(cur_op, 2).n64);
                 cur_op += 4;

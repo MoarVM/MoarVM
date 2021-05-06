@@ -73,6 +73,56 @@ sub _spew {
         or die "Can't close $filename: $!";
 }
 
+sub simple_compile_probe {
+    my %args = @_;
+    my ($config, $probing, $code, $key, $invert)
+        = @args{qw(config probing code key invert)};
+
+    my $restore = _to_probe_dir();
+    _spew('try.c', $code);
+
+    print ::dots('    probing ' . $probing);
+    my $good = compile($config, 'try');
+    unless ($config->{crossconf}) {
+        $good &&= !system './try';
+    }
+    print $good ? "YES\n": "NO\n";
+    $good = !$good
+        if $invert;
+    $config->{$key} = $good ? 1 : 0;
+    return;
+}
+
+sub compile_probe_first_of {
+    my %args = @_;
+    my ($config, $probing, $code, $key, $fallback) = @args{qw(config probing code key fallback)};
+    my @options = @{$args{options}};
+
+    my $restore = _to_probe_dir();
+    _spew('try.c', $code);
+
+    print ::dots('    probing ' . $probing);
+
+    my $candidate;
+    while ($candidate = shift @options) {
+        next unless compile($config, 'try', ["PROBE_MACRO=$candidate"]);
+        # If cross compiling we have to assume that the first thing that
+        # compiles is workable :-(
+        last if $config->{crossconf};
+        last if !system "./try";
+    }
+
+    if (defined $candidate) {
+        print "$candidate\n";
+        $config->{"has_$key"} = 1;
+        $config->{$key} = $candidate;
+    } else {
+        print "$fallback\n";
+        $config->{"has_$key"} = 0;
+        $config->{$key} = "";
+    }
+}
+
 sub compiler_usability {
     my ($config) = @_;
     my $restore  = _to_probe_dir();
@@ -243,11 +293,12 @@ sub thread_local {
         return;
     }
 
-    my $restore = _to_probe_dir();
-
-    print ::dots('    probing if your compiler offers thread local storage');
-    my $file = 'thread_local.c';
-    _spew($file, <<'EOT');
+    return compile_probe_first_of(config => $config,
+                                  probing => 'if your compiler offers thread local storage',
+                                  fallback => "it doesn't, so falling back to UV's API",
+                                  options => [qw(_Thread_local __thread)],
+                                  key => 'thread_local',
+                                  code => <<'EOT');
 #include <stdio.h>
 #include <stdlib.h>
 #include <pthread.h>
@@ -255,7 +306,7 @@ sub thread_local {
 static int plus_one = 1;
 static int minus_one = -1;
 
-THREAD_LOCAL int *minion;
+PROBE_MACRO int *minion;
 
 int callback (const void *a, const void *b) {
     int val_a = *minion * *(const int *)a;
@@ -333,24 +384,6 @@ int main(int argc, char **argv) {
     return 0;
 }
 EOT
-
-    my @try = qw(_Thread_local __thread);
-
-    my $t_l;
-    while ($t_l = shift @try) {
-        next unless compile($config, 'thread_local', ["THREAD_LOCAL=$t_l"]);
-        last if !system "./thread_local";
-    }
-
-    if ($t_l) {
-        print "$t_l\n";
-        $config->{has_thread_local} = 1;
-        $config->{thread_local} = $t_l;
-    } else {
-        print "it doesn't, so falling back to UV's API\n";
-        $config->{has_thread_local} = 0;
-        $config->{thread_local} = "";
-    }
 }
 
 sub substandard_pow {
@@ -362,10 +395,11 @@ sub substandard_pow {
         return;
     }
 
-    my $restore = _to_probe_dir();
-    print ::dots('    probing if your pow() handles NaN and Inf corner cases');
-    my $file = 'try.c';
-    _spew($file, <<'EOT');
+    return simple_compile_probe(config => $config,
+                                probing => 'if your pow() handles NaN and Inf corner cases',
+                                invert => 1,
+                                key => 'has_substandard_pow',
+                                code => <<'EOT');
 #include <math.h>
 #include <stdio.h>
 
@@ -395,13 +429,13 @@ int main(int argc, char **argv) {
     double neg_inf = -inf;
     if (! (neg_inf < 0.0)) {
 #ifdef CHATTY
-        fprintf(stderr, "Can't generate -Inf - get %g\n", inf);
+        fprintf(stderr, "Can't generate -Inf - get %g\n", neg_inf);
 #endif
         return 3;
     }
     if (neg_inf != 2.0 * neg_inf) {
 #ifdef CHATTY
-        fprintf(stderr, "Can't generate -Inf - get %g\n", inf);
+        fprintf(stderr, "Can't generate -Inf - get %g\n", neg_inf);
 #endif
         return 4;
     }
@@ -461,22 +495,262 @@ int main(int argc, char **argv) {
         return 10;
     }
 
+    double neg_zero = one / neg_inf;
+    if (neg_zero != 0.0) {
+        fprintf(stderr, "Can't generate -0.0 - get %g\n", neg_zero);
+        return 11;
+    }
+    if (1.0 / neg_zero != neg_inf) {
+        fprintf(stderr, "Can't generate -0.0 - get %g\n", neg_zero);
+        return 12;
+    }
+
+    /* Negative odd integers preserve sign */
+    got = pow(zero, -3.0);
+    if (!(got > 0)) {
+#ifdef CHATTY
+        fprintf(stderr, "0.0, -3.0: pow(%g, -3.0) is %g, not +Inf\n", zero, got);
+#else
+        return 13;
+#endif
+    }
+    if (got != 2 * got) {
+#ifdef CHATTY
+        fprintf(stderr, "0.0, -3.0: pow(%g, -3.0) is %g, not +Inf\n", zero, got);
+#else
+        return 14;
+#endif
+    }
+
+    got = pow(neg_zero, -3.0);
+    if (!(got < 0)) {
+#ifdef CHATTY
+        fprintf(stderr, "-0.0, -3.0: pow(%g, -3.0) is %g, not -Inf\n", neg_zero, got);
+#else
+        return 15;
+#endif
+    }
+    if (got != 2 * got) {
+#ifdef CHATTY
+        fprintf(stderr, "-0.0, -3.0: pow(%g, -3.0) is %g, not -Inf\n", neg_zero, got);
+#else
+        return 16;
+#endif
+    }
+
+    /* Everything else is positive infinity. */
+    got = pow(zero, -2.0);
+    if (!(got > 0)) {
+#ifdef CHATTY
+        fprintf(stderr, "0.0, -2.0: pow(%g, -2.0) is %g, not +Inf\n", zero, got);
+#else
+        return 17;
+#endif
+    }
+    if (got != 2 * got) {
+#ifdef CHATTY
+        fprintf(stderr, "0.0, -2.0: pow(%g, -2.0) is %g, not +Inf\n", zero, got);
+#else
+        return 18;
+#endif
+    }
+
+    got = pow(neg_zero, -2.0);
+    if (!(got > 0)) {
+#ifdef CHATTY
+        fprintf(stderr, "-0.0, -2.0: pow(%g, -2.0) is %g, not +Inf\n", neg_zero, got);
+#else
+        return 19;
+#endif
+    }
+    if (got != 2 * got) {
+#ifdef CHATTY
+        fprintf(stderr, "-0.0, -2.0: pow(%g, -2.0) is %g, not +Inf\n", neg_zero, got);
+#else
+        return 20;
+#endif
+    }
+
+    got = pow(zero, -2.78);
+    if (!(got > 0)) {
+#ifdef CHATTY
+        fprintf(stderr, "0.0, -2.78: pow(%g, -2.78) is %g, not +Inf\n", zero, got);
+#else
+        return 21;
+#endif
+    }
+    if (got != 2 * got) {
+#ifdef CHATTY
+        fprintf(stderr, "0.0, -2.78: pow(%g, -2.78) is %g, not +Inf\n", zero, got);
+#else
+        return 22;
+#endif
+    }
+
+    got = pow(neg_zero, -2.78);
+    if (!(got > 0)) {
+#ifdef CHATTY
+        fprintf(stderr, "-0.0, -2.78: pow(%g, -2.78) is %g, not +Inf\n", neg_zero, got);
+#else
+        return 23;
+#endif
+    }
+    if (got != 2 * got) {
+#ifdef CHATTY
+        fprintf(stderr, "-0.0, -2.78: pow(%g, -2.78) is %g, not +Inf\n", neg_zero, got);
+#else
+        return 24;
+#endif
+    }
+
     return 0;
 }
 EOT
-
-    my $pow_good = compile($config, 'try') && system('./try') == 0;
-    print $pow_good ? "YES\n": "NO\n";
-    $config->{has_substandard_pow} = $pow_good ? 0 : 1;
 }
 
+sub substandard_log {
+    my ($config) = @_;
+
+    if ($config->{crossconf}) {
+        # A guess, but so far only pre-C99 Solaris has failed this:
+        $config->{has_substandard_log} = 0;
+        $config->{has_substandard_log10} = 0;
+        return;
+    }
+
+    for my $fn (qw(log log10)) {
+        simple_compile_probe(config => $config,
+                             probing => "if your $fn() returns NaN for negative values",
+                             invert => 1,
+                             key => "has_substandard_$fn",
+                             code => <<"EOT");
+#include <math.h>
+#include <stdio.h>
+
+int main(int argc, char **argv) {
+    /* Hopefully these games defeat the optimiser, such that we call the runtime
+     * library function, instead of having the C compiler optimiser constant
+     * fold it. */
+    double minus_something = 32 - argv[0][0];
+    double neg_inf = minus_something * pow(10.0, pow(10.0, 100));
+    if (! (neg_inf < 0.0)) {
+        fprintf(stderr, "Can't generate -Inf - get %g\\n", neg_inf);
+        return 1;
+    }
+    if (neg_inf != 2.0 * neg_inf) {
+        fprintf(stderr, "Can't generate -Inf - get %g\\n", neg_inf);
+        return 2;
+    }
+
+    double got = $fn(neg_inf);
+    if (got == got) {
+#ifdef CHATTY
+        fprintf(stderr, "-Inf: $fn(%g) is %g, not NaN\\n", neg_inf, got);
+#else
+        return 3;
+#endif
+    }
+
+    got = $fn(minus_something);
+    if (got == got) {
+#ifdef CHATTY
+        fprintf(stderr, "minus something: $fn(%g) is %g, not NaN\\n", minus_something, got);
+#else
+        return 4;
+#endif
+    }
+
+    return 0;
+}
+EOT
+    }
+}
+
+sub substandard_trig {
+    my ($config) = @_;
+
+    if ($config->{crossconf}) {
+        # A guess, but so far only pre-C99 Solaris has failed this:
+        $config->{has_substandard_asin} = 0;
+        $config->{has_substandard_acos} = 0;
+        return;
+    }
+
+    for my $fn (qw(asin acos)) {
+        simple_compile_probe(config => $config,
+                             probing => "if your $fn() returns NaN for negative values",
+                             invert => 1,
+                             key => "has_substandard_$fn",
+                             code => <<"EOT");
+#include <math.h>
+#include <stdio.h>
+
+int main(int argc, char **argv) {
+    /* Hopefully these games defeat the optimiser, such that we call the runtime
+     * library function, instead of having the C compiler optimiser constant
+     * fold it. */
+    double more_than_one = argv[0][0] - 32;
+    double inf = more_than_one * pow(10.0, pow(10.0, 100));
+    double less_than_one = -more_than_one;
+    double neg_inf = less_than_one * inf;
+    if (inf != 2.0 * inf) {
+        fprintf(stderr, "Can't generate Inf - get %g\\n", inf);
+        return 1;
+    }
+    if (! (neg_inf < 0.0)) {
+        fprintf(stderr, "Can't generate -Inf - get %g\\n", neg_inf);
+        return 2;
+    }
+    if (neg_inf != 2.0 * neg_inf) {
+        fprintf(stderr, "Can't generate -Inf - get %g\\n", neg_inf);
+        return 3;
+    }
+
+    double got = $fn(more_than_one);
+    if (got == got) {
+#ifdef CHATTY
+        fprintf(stderr, "more_than_one: $fn(%g) is %g, not NaN\\n", more_than_one, got);
+#else
+        return 4;
+#endif
+    }
+    got = $fn(inf);
+    if (got == got) {
+#ifdef CHATTY
+        fprintf(stderr, "Inf: $fn(%g) is %g, not NaN\\n", inf, got);
+#else
+        return 5;
+#endif
+    }
+
+    got = $fn(less_than_one);
+    if (got == got) {
+#ifdef CHATTY
+        fprintf(stderr, "less_than_one: $fn(%g) is %g, not NaN\\n", less_than_one, got);
+#else
+        return 6;
+#endif
+    }
+    got = $fn(neg_inf);
+    if (got == got) {
+#ifdef CHATTY
+        fprintf(stderr, "-Inf: $fn(%g) is %g, not NaN\\n", neg_inf, got);
+#else
+        return 7;
+#endif
+    }
+
+    return 0;
+}
+EOT
+    }
+}
 
 sub specific_werror {
     my ($config) = @_;
     my $restore = _to_probe_dir();
 
     if ($config->{cc} ne 'gcc') {
-        $config->{can_err_decl_after_stmt} = 1;
         return;
     }
 
@@ -622,8 +896,10 @@ EOT
 
 sub computed_goto {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
-    _spew('try.c', <<'EOT');
+    return simple_compile_probe(config => $config,
+                                probing => 'computed goto support',
+                                key => 'cancgoto',
+                                code => <<'EOT');
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -639,22 +915,18 @@ int main(int argc, char **argv) {
         return EXIT_SUCCESS;
 }
 EOT
-
-    print ::dots('    probing computed goto support');
-    my $can_cgoto = compile($config, 'try');
-    unless ($config->{crossconf}) {
-        $can_cgoto  &&= !system './try';
-    }
-    print $can_cgoto ? "YES\n": "NO\n";
-    $config->{cancgoto} = $can_cgoto || 0
 }
 
 sub check_fn_malloc_trim {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
+    # Seems that this was written with a plan to be generic, but so far nothing
+    # else has wanted it.
     my $includes = '#include <malloc.h>';
     my $function = 'malloc_trim(0)';
-    _spew('try.c', <<"EOT");
+    return simple_compile_probe(config => $config,
+                                probing => 'existance of optional malloc_trim()',
+                                key => 'has_fn_malloc_trim',
+                                code => <<"EOT");
 $includes
 
 int main(int argc, char **argv) {
@@ -662,48 +934,34 @@ int main(int argc, char **argv) {
     return 0;
 }
 EOT
-
-    print ::dots('    probing existance of optional malloc_trim()');
-    my $can = compile($config, 'try');
-    unless ($config->{crossconf}) {
-        $can  &&= !system './try';
-    }
-    print $can ? "YES\n": "NO\n";
-    $config->{has_fn_malloc_trim} = $can || 0
 }
 
 sub C_type_bool {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
-    my $template = <<'EOT';
+    return compile_probe_first_of(config => $config,
+                                  probing => 'C type support for booleans',
+                                  fallback => '(none found)',
+                                  options => [qw(_Bool bool)],
+                                  key => 'booltype',
+                                  code => <<'EOT');
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
 
 int main(int argc, char **argv) {
-    %s foo = false;
+    PROBE_MACRO foo = false;
     foo    = true;
     return foo ? EXIT_SUCCESS : EXIT_FAILURE;
 }
 EOT
-
-    print ::dots('    probing C type support for: _Bool, bool');
-    my %have;
-    for my $type (qw(_Bool bool)) {
-        _spew('try.c', sprintf $template, $type);
-        $have{$type}   = compile($config, 'try');
-        $have{$type} &&= !system './try' unless $config->{crossconf};
-        delete $have{$type} unless $have{$type}
-    }
-    print %have ? "YES: " . join(',', sort keys %have) . "\n": "NO: none\n";
-    $config->{havebooltype} = %have ? 1 : 0;
-    $config->{booltype}     = (sort keys %have)[0] || 0;
 }
 
 sub pthread_yield {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
-    _spew('try.c', <<'EOT');
+    return simple_compile_probe(config => $config,
+                                probing => 'pthread_yield support',
+                                key => 'has_pthread_yield',
+                                code => <<'EOT');
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
@@ -718,17 +976,14 @@ int main(int argc, char **argv) {
 #endif
 }
 EOT
-
-    print ::dots('    probing pthread_yield support');
-    my $has_pthread_yield = compile($config, 'try') && system('./try') == 0;
-    print $has_pthread_yield ? "YES\n": "NO\n";
-    $config->{has_pthread_yield} = $has_pthread_yield || 0
 }
 
 sub pthread_setname_np {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
-    _spew('try.c', <<'EOT');
+    return simple_compile_probe(config => $config,
+                                probing => 'pthread_setname_np support (optional)',
+                                key => 'has_pthread_setname_np',
+                                code => <<'EOT');
 #define _GNU_SOURCE
 #include <stdlib.h>
 #include <pthread.h>
@@ -749,50 +1004,14 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
 }
 EOT
-
-    print ::dots('    probing pthread_setname_np support (optional)');
-    my $has_pthread_setname_np = compile($config, 'try') && system('./try') == 0;
-    print $has_pthread_setname_np ? "YES\n": "NO\n";
-    $config->{has_pthread_setname_np} = $has_pthread_setname_np || 0
-}
-
-sub numbits {
-    my ($config) = @_;
-    my $restore = _to_probe_dir();
-    _spew('numbits.c', <<'EOT');
-#include <stdint.h>
-
-int main(int argc, char **argv) {
-#if UINTPTR_MAX == 0xffffffff
-return 32;
-/* 32-bit */
-#elif UINTPTR_MAX == 0xffffffffffffffff
-/* 64-bit */
-return 64;
-#else
-/* unknown */
-return -1;
-#endif
-}
-EOT
-
-    print ::dots('    probing number of bits');
-    my $print_result;
-    my $num_bits = 0;
-    if(compile($config, 'numbits')) {
-        $num_bits = $print_result = system('./numbits') >> 8;
-    }
-    if (!defined $print_result || $print_result == -1) {
-        $print_result = 'UNKNOWN';
-    }
-    print $print_result . "\n";
-    $config->{arch_bits} = $num_bits;
 }
 
 sub rdtscp {
     my ($config) = @_;
-    my $restore = _to_probe_dir();
-    _spew('try.c', <<'EOT');
+    return simple_compile_probe(config => $config,
+                                probing => 'support of rdtscp intrinsic',
+                                key => 'has_rdtscp',
+                                code => <<'EOT');
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -812,14 +1031,6 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
 }
 EOT
-
-    print ::dots('    probing support of rdtscp intrinsic');
-    my $can_rdtscp = compile($config, 'try');
-    unless ($config->{crossconf}) {
-        $can_rdtscp  &&= !system './try';
-    }
-    print $can_rdtscp ? "YES\n": "NO\n";
-    $config->{canrdtscp} = $can_rdtscp || 0
 }
 
 '00';

@@ -51,4 +51,8 @@ MVM_STATIC_INLINE MVMnum64 MVM_num_nan(MVMThreadContext *tc) {
     return MVM_NUM_NAN;
 }
 
+MVM_STATIC_INLINE MVMnum64 MVM_num_isnegzero(MVMThreadContext *tc, MVMnum64 n) {
+    return n == 0 && 1.0 / n == MVM_NUM_NEGINF;
+}
+
 #endif

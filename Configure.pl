@@ -11,7 +11,6 @@ use File::Spec;
 
 use lib '.';
 use build::setup;
-use build::auto;
 use build::probe;
 
 # This allows us to run on ancient perls.
@@ -485,16 +484,49 @@ $config{auxclean} = @auxfiles ? '$(RM) ' . join ' ', @auxfiles : '@:';
 
 print "OK\n\n";
 
-if ($config{crossconf}) {
-    build::auto::detect_cross(\%config, \%defaults);
-}
-else {
-    build::auto::detect_native(\%config, \%defaults);
+unless ($config{crossconf}) {
+    # detect x64 on Windows so we can build the correct dyncall version
+    if ($config{cc} eq 'cl') {
+        print dots('    auto-detecting x64 toolchain');
+        my $msg = `cl 2>&1`;
+        if (defined $msg) {
+            if ($msg =~ /x64/) {
+                print "YES\n";
+                $defaults{-thirdparty}->{dc}->{rule} =
+                    'cd 3rdparty/dyncall && configure.bat /target-x64 && $(MAKE) -f Nmakefile';
+            }
+            else { print "NO\n" }
+        }
+        else {
+            softfail("could not run 'cl'");
+            print dots('    assuming x86'), "OK\n";
+        }
+    }
+    elsif ($defaults{os} eq 'mingw32' && $defaults{-toolchain} eq 'gnu') {
+        print dots('    auto-detecting x64 toolchain');
+        my $cc = $config{cc};
+        my $msg = `$cc -dumpmachine 2>&1`;
+        if (defined $msg) {
+            if ($msg =~ /x86_64/) {
+                print "YES\n";
+
+                $defaults{-thirdparty}->{dc}->{rule} =
+                    'cd 3rdparty/dyncall && ./configure.bat /target-x64 /tool-gcc && $(MAKE) COMPILE.C=$$(COMPILE.c) -f Makefile.embedded mingw32';
+            }
+            else { print "NO\n" }
+        }
+        else {
+            softfail("could not run 'cl'");
+            print dots('    assuming x86'), "OK\n";
+        }
+    }
 }
 
 build::probe::static_inline(\%config, \%defaults);
 build::probe::thread_local(\%config, \%defaults);
 build::probe::substandard_pow(\%config, \%defaults);
+build::probe::substandard_log(\%config, \%defaults);
+build::probe::substandard_trig(\%config, \%defaults);
 build::probe::unaligned_access(\%config, \%defaults);
 build::probe::ptr_size(\%config, \%defaults);
 
@@ -548,16 +580,15 @@ if ($config{cc} eq 'cl') {
                         . "\t\$(CP) 3rdparty/msinttypes/*.h \"\$(DESTDIR)\$(PREFIX)/include/msinttypes\"\n";
 }
 
+if ($^O eq 'aix' && $config{ptr_size} == 4) {
+    $config{ldflags} = join(',', $config{ldflags}, '-bmaxdata:0x80000000');
+}
+
 build::probe::C_type_bool(\%config, \%defaults);
 build::probe::computed_goto(\%config, \%defaults);
 build::probe::pthread_yield(\%config, \%defaults);
 build::probe::pthread_setname_np(\%config, \%defaults);
 build::probe::check_fn_malloc_trim(\%config, \%defaults);
-if ($^O eq 'aix') {
-    build::probe::numbits(\%config, \%defaults);
-    $config{ldflags} = join(',', $config{ldflags}, '-bmaxdata:0x80000000')
-        if $config{arch_bits} == 32;
-}
 build::probe::rdtscp(\%config, \%defaults);
 
 my $order = $config{be} ? 'big endian' : 'little endian';

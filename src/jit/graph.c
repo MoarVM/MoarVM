@@ -321,13 +321,19 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_radix: return MVM_radix;
     case MVM_OP_radix_I: return MVM_bigint_radix;
     case MVM_OP_sqrt_n: return sqrt;
+#ifndef MVM_HAS_SUBSTANDARD_LOG
     case MVM_OP_log_n: return log;
+#endif
     case MVM_OP_exp_n: return exp;
     case MVM_OP_sin_n: return sin;
     case MVM_OP_cos_n: return cos;
     case MVM_OP_tan_n: return tan;
+#ifndef MVM_HAS_SUBSTANDARD_ASIN
     case MVM_OP_asin_n: return asin;
+#endif
+#ifndef MVM_HAS_SUBSTANDARD_ACOS
     case MVM_OP_acos_n: return acos;
+#endif
     case MVM_OP_atan_n: return atan;
     case MVM_OP_atan2_n: return atan2;
     case MVM_OP_ceil_n: return ceil;
@@ -3501,13 +3507,19 @@ start:
     case MVM_OP_ceil_n:
     case MVM_OP_floor_n:
     case MVM_OP_sqrt_n:
+#ifndef MVM_HAS_SUBSTANDARD_LOG
     case MVM_OP_log_n:
+#endif
     case MVM_OP_exp_n:
     case MVM_OP_sin_n:
     case MVM_OP_cos_n:
     case MVM_OP_tan_n:
+#ifndef MVM_HAS_SUBSTANDARD_ASIN
     case MVM_OP_asin_n:
+#endif
+#ifndef MVM_HAS_SUBSTANDARD_ACOS
     case MVM_OP_acos_n:
+#endif
     case MVM_OP_atan_n: {
         MVMint16 dst   = ins->operands[0].reg.orig;
         MVMint16 src   = ins->operands[1].reg.orig;
