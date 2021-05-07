@@ -30,7 +30,7 @@ static const MVMnum64 MVM_NUM_NAN = 0.0 / 0.0;
 #endif
 
 MVM_STATIC_INLINE MVMint64 MVM_num_isnanorinf(MVMThreadContext *tc, MVMnum64 n) {
-#ifdef MVM_HAS_ISINF_AND_ISNAN
+#if defined(MVM_HAS_ISINF) && defined(MVM_HAS_ISNAN)
     return isinf(n) || isnan(n);
 #else
     return n == MVM_NUM_POSINF || n == MVM_NUM_NEGINF || n != n;

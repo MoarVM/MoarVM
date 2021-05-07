@@ -93,8 +93,12 @@
 #define MVM_HAS_RDTSCP
 #endif
 
-#if @has_isinf_and_isnan@
-#define MVM_HAS_ISINF_AND_ISNAN
+#if @has_isinf@
+#define MVM_HAS_ISINF
+#endif
+
+#if @has_isnan@
+#define MVM_HAS_ISNAN
 #endif
 
 /* Should we translate \n to \r\n on output? */
