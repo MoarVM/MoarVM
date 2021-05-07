@@ -386,6 +386,76 @@ int main(int argc, char **argv) {
 EOT
 }
 
+my $floating_point_main = <<'EOT';
+#include <math.h>
+#include <stdio.h>
+
+int main(int argc, char **argv) {
+    /* Hopefully these games defeat the optimiser, such that we call the runtime
+     * library pow, instead of having the C compiler optimiser constant fold it.
+     * Without this (for me on Solaris with gcc)
+     * pow(1.0, NaN) will be constant folded always
+     * pow(1.0, Inf) will be constant folded if optimisation is enabled
+     */
+    double zero = argv[0][0] == '\0';
+    double one = zero + 1.0;
+    double nan = sqrt(-1);
+    double int_less_than_minus_one = 34 - argv[0][0];
+    double int_more_than_one = argv[0][0] - 30;
+    double inf = int_more_than_one * pow(10.0, pow(10.0, 100));
+    double neg_inf = int_less_than_minus_one * pow(10.0, pow(10.0, 100));
+    double neg_zero = one / neg_inf;
+
+    if (zero) {
+#ifdef CHATTY
+        fprintf(stderr, "Can't generate zero - get %g\n", zero);
+#endif
+        return 1;
+    }
+
+    if (nan == nan) {
+#ifdef CHATTY
+        fprintf(stderr, "Can't generate NaN - get %g\n", nan);
+#endif
+        return 2;
+    }
+
+    if (! (inf > 0.0)) {
+#ifdef CHATTY
+        fprintf(stderr, "Can't generate Inf - get %g\n", inf);
+#endif
+        return 3;
+    }
+    if (inf != 2.0 * inf) {
+#ifdef CHATTY
+        fprintf(stderr, "Can't generate Inf - get %g\n", inf);
+#endif
+        return 4;
+    }
+
+    if (! (neg_inf < 0.0)) {
+#ifdef CHATTY
+        fprintf(stderr, "Can't generate -Inf - get %g\n", neg_inf);
+#endif
+        return 5;
+    }
+    if (neg_inf != 2.0 * neg_inf) {
+#ifdef CHATTY
+        fprintf(stderr, "Can't generate -Inf - get %g\n", neg_inf);
+#endif
+        return 6;
+    }
+
+    if (neg_zero != 0.0) {
+        fprintf(stderr, "Can't generate -0.0 - get %g\n", neg_zero);
+        return 7;
+    }
+    if (1.0 / neg_zero != neg_inf) {
+        fprintf(stderr, "Can't generate -0.0 - get %g\n", neg_zero);
+        return 8;
+    }
+EOT
+
 sub substandard_pow {
     my ($config) = @_;
 
@@ -399,47 +469,7 @@ sub substandard_pow {
                                 probing => 'if your pow() handles NaN and Inf corner cases',
                                 invert => 1,
                                 key => 'has_substandard_pow',
-                                code => <<'EOT');
-#include <math.h>
-#include <stdio.h>
-
-int main(int argc, char **argv) {
-    /* Hopefully these games defeat the optimiser, such that we call the runtime
-     * library pow, instead of having the C compiler optimiser constant fold it.
-     * Without this (for me on Solaris with gcc)
-     * pow(1.0, NaN) will be constant folded always
-     * pow(1.0, Inf) will be constant folded if optimisation is enabled
-     */
-    double one = argv[0][0] != '\0';
-    double zero = one - 1.0;
-    double nan = sqrt(-1);
-    if (nan == nan) {
-#ifdef CHATTY
-        fprintf(stderr, "Can't generate NaN - get %g\n", nan);
-#endif
-        return 1;
-    }
-    double inf = pow(10.0, pow(10.0, 100));
-    if (inf != 2.0 * inf) {
-#ifdef CHATTY
-        fprintf(stderr, "Can't generate Inf - get %g\n", inf);
-#endif
-        return 2;
-    }
-    double neg_inf = -inf;
-    if (! (neg_inf < 0.0)) {
-#ifdef CHATTY
-        fprintf(stderr, "Can't generate -Inf - get %g\n", neg_inf);
-#endif
-        return 3;
-    }
-    if (neg_inf != 2.0 * neg_inf) {
-#ifdef CHATTY
-        fprintf(stderr, "Can't generate -Inf - get %g\n", neg_inf);
-#endif
-        return 4;
-    }
-
+                                code => $floating_point_main . <<'EOT');
     /* Solaris is documented not to be conformant with SUSv3 (which I think
      * is POSIX 2001) unless
      * "the application was compiled with the c99 compiler driver"
@@ -449,21 +479,21 @@ int main(int argc, char **argv) {
 #ifdef CHATTY
         fprintf(stderr, "1.0, NaN: pow(%g, %g) is %g, not 1.0\n", one, nan, got);
 #endif
-        return 5;
+        return 11;
     }
     got = pow(one, inf);
     if (got != one) {
 #ifdef CHATTY
         fprintf(stderr, "1.0, Inf: pow(%g, %g) is %g, not 1.0\n", one, inf, got);
 #endif
-        return 6;
+        return 12;
     }
     got = pow(one, neg_inf);
     if (got != one) {
 #ifdef CHATTY
         fprintf(stderr, "1.0, -Inf: pow(%g, %g) is %g, not 1.0\n", one, neg_inf, got);
 #endif
-        return 7;
+        return 13;
     }
 
     /* However, Solaris does state that unconditionally:
@@ -477,7 +507,7 @@ int main(int argc, char **argv) {
 #ifdef CHATTY
         fprintf(stderr, "NaN, 0.0: pow(%g, %g) is %g, not 1.0\n", nan, zero, got);
 #endif
-        return 8;
+        return 14;
     }
     /* Not seen either of these fail anywhere, but let's test anyway: */
     got = pow(inf, zero);
@@ -485,24 +515,14 @@ int main(int argc, char **argv) {
 #ifdef CHATTY
         fprintf(stderr, "Inf, 0.0: pow(%g, %g) is %g, not 1.0\n", inf, zero, got);
 #endif
-        return 9;
+        return 15;
     }
     got = pow(neg_inf, zero);
     if (got != one) {
 #ifdef CHATTY
         fprintf(stderr, "-Inf, 0.0: pow(%g, %g) is %g, not 1.0\n", neg_inf, zero, got);
 #endif
-        return 10;
-    }
-
-    double neg_zero = one / neg_inf;
-    if (neg_zero != 0.0) {
-        fprintf(stderr, "Can't generate -0.0 - get %g\n", neg_zero);
-        return 11;
-    }
-    if (1.0 / neg_zero != neg_inf) {
-        fprintf(stderr, "Can't generate -0.0 - get %g\n", neg_zero);
-        return 12;
+        return 16;
     }
 
     /* Negative odd integers preserve sign */
@@ -511,14 +531,14 @@ int main(int argc, char **argv) {
 #ifdef CHATTY
         fprintf(stderr, "0.0, -3.0: pow(%g, -3.0) is %g, not +Inf\n", zero, got);
 #else
-        return 13;
+        return 17;
 #endif
     }
     if (got != 2 * got) {
 #ifdef CHATTY
         fprintf(stderr, "0.0, -3.0: pow(%g, -3.0) is %g, not +Inf\n", zero, got);
 #else
-        return 14;
+        return 18;
 #endif
     }
 
@@ -527,14 +547,14 @@ int main(int argc, char **argv) {
 #ifdef CHATTY
         fprintf(stderr, "-0.0, -3.0: pow(%g, -3.0) is %g, not -Inf\n", neg_zero, got);
 #else
-        return 15;
+        return 19;
 #endif
     }
     if (got != 2 * got) {
 #ifdef CHATTY
         fprintf(stderr, "-0.0, -3.0: pow(%g, -3.0) is %g, not -Inf\n", neg_zero, got);
 #else
-        return 16;
+        return 20;
 #endif
     }
 
@@ -544,14 +564,14 @@ int main(int argc, char **argv) {
 #ifdef CHATTY
         fprintf(stderr, "0.0, -2.0: pow(%g, -2.0) is %g, not +Inf\n", zero, got);
 #else
-        return 17;
+        return 21;
 #endif
     }
     if (got != 2 * got) {
 #ifdef CHATTY
         fprintf(stderr, "0.0, -2.0: pow(%g, -2.0) is %g, not +Inf\n", zero, got);
 #else
-        return 18;
+        return 21;
 #endif
     }
 
@@ -560,14 +580,14 @@ int main(int argc, char **argv) {
 #ifdef CHATTY
         fprintf(stderr, "-0.0, -2.0: pow(%g, -2.0) is %g, not +Inf\n", neg_zero, got);
 #else
-        return 19;
+        return 22;
 #endif
     }
     if (got != 2 * got) {
 #ifdef CHATTY
         fprintf(stderr, "-0.0, -2.0: pow(%g, -2.0) is %g, not +Inf\n", neg_zero, got);
 #else
-        return 20;
+        return 23;
 #endif
     }
 
@@ -576,14 +596,14 @@ int main(int argc, char **argv) {
 #ifdef CHATTY
         fprintf(stderr, "0.0, -2.78: pow(%g, -2.78) is %g, not +Inf\n", zero, got);
 #else
-        return 21;
+        return 24;
 #endif
     }
     if (got != 2 * got) {
 #ifdef CHATTY
         fprintf(stderr, "0.0, -2.78: pow(%g, -2.78) is %g, not +Inf\n", zero, got);
 #else
-        return 22;
+        return 25;
 #endif
     }
 
@@ -592,14 +612,14 @@ int main(int argc, char **argv) {
 #ifdef CHATTY
         fprintf(stderr, "-0.0, -2.78: pow(%g, -2.78) is %g, not +Inf\n", neg_zero, got);
 #else
-        return 23;
+        return 26;
 #endif
     }
     if (got != 2 * got) {
 #ifdef CHATTY
         fprintf(stderr, "-0.0, -2.78: pow(%g, -2.78) is %g, not +Inf\n", neg_zero, got);
 #else
-        return 24;
+        return 27;
 #endif
     }
 
@@ -623,40 +643,22 @@ sub substandard_log {
                              probing => "if your $fn() returns NaN for negative values",
                              invert => 1,
                              key => "has_substandard_$fn",
-                             code => <<"EOT");
-#include <math.h>
-#include <stdio.h>
-
-int main(int argc, char **argv) {
-    /* Hopefully these games defeat the optimiser, such that we call the runtime
-     * library function, instead of having the C compiler optimiser constant
-     * fold it. */
-    double minus_something = 32 - argv[0][0];
-    double neg_inf = minus_something * pow(10.0, pow(10.0, 100));
-    if (! (neg_inf < 0.0)) {
-        fprintf(stderr, "Can't generate -Inf - get %g\\n", neg_inf);
-        return 1;
-    }
-    if (neg_inf != 2.0 * neg_inf) {
-        fprintf(stderr, "Can't generate -Inf - get %g\\n", neg_inf);
-        return 2;
-    }
-
+                             code => $floating_point_main . <<"EOT");
     double got = $fn(neg_inf);
     if (got == got) {
 #ifdef CHATTY
         fprintf(stderr, "-Inf: $fn(%g) is %g, not NaN\\n", neg_inf, got);
 #else
-        return 3;
+        return 11;
 #endif
     }
 
-    got = $fn(minus_something);
+    got = $fn(int_less_than_minus_one);
     if (got == got) {
 #ifdef CHATTY
-        fprintf(stderr, "minus something: $fn(%g) is %g, not NaN\\n", minus_something, got);
+        fprintf(stderr, "minus something: $fn(%g) is %g, not NaN\\n", int_less_than_minus_one, got);
 #else
-        return 4;
+        return 12;
 #endif
     }
 
@@ -681,37 +683,14 @@ sub substandard_trig {
                              probing => "if your $fn() returns NaN for negative values",
                              invert => 1,
                              key => "has_substandard_$fn",
-                             code => <<"EOT");
-#include <math.h>
-#include <stdio.h>
+                             code => $floating_point_main . <<"EOT");
 
-int main(int argc, char **argv) {
-    /* Hopefully these games defeat the optimiser, such that we call the runtime
-     * library function, instead of having the C compiler optimiser constant
-     * fold it. */
-    double more_than_one = argv[0][0] - 32;
-    double inf = more_than_one * pow(10.0, pow(10.0, 100));
-    double less_than_one = -more_than_one;
-    double neg_inf = less_than_one * inf;
-    if (inf != 2.0 * inf) {
-        fprintf(stderr, "Can't generate Inf - get %g\\n", inf);
-        return 1;
-    }
-    if (! (neg_inf < 0.0)) {
-        fprintf(stderr, "Can't generate -Inf - get %g\\n", neg_inf);
-        return 2;
-    }
-    if (neg_inf != 2.0 * neg_inf) {
-        fprintf(stderr, "Can't generate -Inf - get %g\\n", neg_inf);
-        return 3;
-    }
-
-    double got = $fn(more_than_one);
+    double got = $fn(int_more_than_one);
     if (got == got) {
 #ifdef CHATTY
-        fprintf(stderr, "more_than_one: $fn(%g) is %g, not NaN\\n", more_than_one, got);
+        fprintf(stderr, "int_more_than_one: $fn(%g) is %g, not NaN\\n", int_more_than_one, got);
 #else
-        return 4;
+        return 11;
 #endif
     }
     got = $fn(inf);
@@ -719,16 +698,16 @@ int main(int argc, char **argv) {
 #ifdef CHATTY
         fprintf(stderr, "Inf: $fn(%g) is %g, not NaN\\n", inf, got);
 #else
-        return 5;
+        return 12;
 #endif
     }
 
-    got = $fn(less_than_one);
+    got = $fn(int_less_than_minus_one);
     if (got == got) {
 #ifdef CHATTY
-        fprintf(stderr, "less_than_one: $fn(%g) is %g, not NaN\\n", less_than_one, got);
+        fprintf(stderr, "int_less_than_minus_one: $fn(%g) is %g, not NaN\\n", int_less_than_minus_one, got);
 #else
-        return 6;
+        return 13;
 #endif
     }
     got = $fn(neg_inf);
@@ -736,7 +715,7 @@ int main(int argc, char **argv) {
 #ifdef CHATTY
         fprintf(stderr, "-Inf: $fn(%g) is %g, not NaN\\n", neg_inf, got);
 #else
-        return 7;
+        return 14;
 #endif
     }
 
