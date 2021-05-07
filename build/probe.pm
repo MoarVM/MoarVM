@@ -386,6 +386,9 @@ int main(int argc, char **argv) {
 EOT
 }
 
+my @floating_point_vals = qw(zero one nan inf neg_inf neg_zero
+                             int_less_than_minus_one int_more_than_one);
+
 my $floating_point_main = <<'EOT';
 #include <math.h>
 #include <stdio.h>
@@ -723,6 +726,60 @@ sub substandard_trig {
 }
 EOT
     }
+}
+
+sub has_isinf_and_isnan {
+    my ($config) = @_;
+
+    if ($config->{crossconf}) {
+        # A guess
+        $config->{has_isinf_and_isnan} = 0;
+        return;
+    }
+
+    my $code = $floating_point_main;
+    my $exit = 11;
+
+    for my $val (@floating_point_vals) {
+        my $should_be_nan = $val eq 'nan' ? 1 : 0;
+        my $should_be_inf = ($val eq 'inf' || $val eq 'neg_inf') ? 1 : 0;
+
+        $code .= <<"EOT";
+    {
+        int wasnan = isnan($val);
+        int wasinf = isinf($val);
+
+        if (!!wasnan != !!$should_be_nan) {
+#ifdef CHATTY
+            fprintf(stderr, "isnan($val): Have %c, Want %c\\n",
+                     wasnan ? 'T' : 'f', !!$should_be_nan ? 'T' : 'f');
+#else
+            return $exit;
+#endif
+        }
+
+        if (!!wasinf != !!$should_be_inf) {
+#ifdef CHATTY
+            fprintf(stderr, "isinf($val): Have %c, Want %c\\n",
+                     wasinf ? 'T' : 'f', !!$should_be_inf ? 'T' : 'f');
+#else
+            return $exit + 1;
+#endif
+        }
+    }
+EOT
+        $exit += 2;
+    }
+
+    $code .= <<"EOT";
+        return 0;
+}
+EOT
+
+    return simple_compile_probe(config => $config,
+                                probing => 'if you have isinf and isnan',
+                                key => 'has_isinf_and_isnan',
+                                code => $code);
 }
 
 sub specific_werror {

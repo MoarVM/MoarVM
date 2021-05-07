@@ -29,14 +29,12 @@ static const MVMnum64 MVM_NUM_NAN = 0.0 / 0.0;
 #  endif
 #endif
 
-/* Ideally we would add a probe for `fpclassify` (which is part of C99) and
- * use that if present, with this approach as a fallback.
- * Likely `fpclassify` will use integer instructions to look at the exponent
- * bits of the floating point value, which tend to be both smaller and play
- * more nicely with the dispatch logic of modern CPUs. */
-
 MVM_STATIC_INLINE MVMint64 MVM_num_isnanorinf(MVMThreadContext *tc, MVMnum64 n) {
+#ifdef MVM_HAS_ISINF_AND_ISNAN
+    return isinf(n) || isnan(n);
+#else
     return n == MVM_NUM_POSINF || n == MVM_NUM_NEGINF || n != n;
+#endif
 }
 
 MVM_STATIC_INLINE MVMnum64 MVM_num_posinf(MVMThreadContext *tc) {
