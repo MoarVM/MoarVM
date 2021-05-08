@@ -50,7 +50,11 @@ MVM_STATIC_INLINE MVMnum64 MVM_num_nan(MVMThreadContext *tc) {
 }
 
 MVM_STATIC_INLINE MVMnum64 MVM_num_isnegzero(MVMThreadContext *tc, MVMnum64 n) {
+#ifdef MVM_HAS_SIGNBIT
+    return n == 0 && signbit(n);
+#else
     return n == 0 && 1.0 / n == MVM_NUM_NEGINF;
+#endif
 }
 
 #endif

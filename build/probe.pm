@@ -387,7 +387,8 @@ EOT
 }
 
 my @floating_point_vals = qw(zero one nan inf neg_inf neg_zero
-                             int_less_than_minus_one int_more_than_one);
+                             int_less_than_minus_one int_more_than_one
+                             roughly_ten roughly_minus_ten);
 
 my $floating_point_main = <<'EOT';
 #include <math.h>
@@ -402,12 +403,14 @@ int main(int argc, char **argv) {
      */
     double zero = argv[0][0] == '\0';
     double one = zero + 1.0;
-    double nan = sqrt(-1);
     double int_less_than_minus_one = 34 - argv[0][0];
     double int_more_than_one = argv[0][0] - 30;
     double inf = int_more_than_one * pow(10.0, pow(10.0, 100));
     double neg_inf = int_less_than_minus_one * pow(10.0, pow(10.0, 100));
     double neg_zero = one / neg_inf;
+    double roughly_ten = atan2(zero, -one) * atan2(zero, -one);
+    double roughly_minus_ten = -roughly_ten;
+    double nan = sqrt(roughly_minus_ten);
 
     if (zero) {
 #ifdef CHATTY
@@ -734,6 +737,7 @@ sub has_isinf_and_isnan {
     my @probes = (
         [ isnan => 'nan' ],
         [ isinf => qw(inf neg_inf) ],
+        [ signbit => qw(neg_inf neg_zero int_less_than_minus_one roughly_minus_ten)],
     );
 
     if ($config->{crossconf}) {
@@ -754,6 +758,11 @@ sub has_isinf_and_isnan {
         my $exit = 11;
 
         for my $val (@floating_point_vals) {
+            # NaNs can actually have sign bits, so the sign bit might/might not
+            # be set, and we can't know (and shouldn't care):
+            next
+                if $func eq 'signbit' && $val eq 'nan';
+
             my $want = $true{$val} ? 'T' : 'f';
 
             $code .= <<"EOT";
