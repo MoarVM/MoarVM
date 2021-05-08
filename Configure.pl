@@ -364,7 +364,9 @@ else {
                         . "\t\$(CP) 3rdparty/dyncall/dyncallback/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n";
 }
 
-if ($config{pkgconfig_works} && has_native_library('libzstd')) {
+# The ZSTD_CStream API is only exposed starting at version 1.0.0
+# Ubuntu 16.04 packages version 0.5.1, so an "exists" check is not good enough.
+if ($config{pkgconfig_works} && has_native_library('libzstd', '1.0.0')) {
     setup_native_library('libzstd');
     $config{heapsnapformat} = 3;
 }
@@ -1007,14 +1009,11 @@ sub setup_native_library {
 }
 
 sub has_native_library {
-    my $library = shift;
-    my $result_exists = `$config{pkgconfig} --exists $library`;
-    if ($? == 0) {
-        return 1;
+    my ($library, $version) = @_;
+    if (defined $version) {
+        return !system "$config{pkgconfig} --atleast-version=$version $library";
     }
-    else {
-        return 0;
-    }
+    return !system "$config{pkgconfig} --exists $library"
 }
 
 __END__
