@@ -97,6 +97,11 @@ void MVM_spesh_copy_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshOperan
     copy_facts(tc, g, to, from);
 }
 
+static void MVM_spesh_turn_into_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    ins->info = MVM_op_get_op(MVM_OP_set);
+    copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+}
+
 /* Adds a value into a spesh slot and returns its index.
  * If a spesh slot already holds this value, return that instead. */
 MVMint16 MVM_spesh_add_spesh_slot_try_reuse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCollectable *c) {
@@ -620,9 +625,8 @@ static void optimize_hllize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns 
         MVMObject *type = obj_facts->type;
         if (STABLE(type)->hll_owner == g->sf->body.cu->body.hll_config ||
                 (type != tc->instance->VMNull && !STABLE(type)->hll_role)) {
-            ins->info = MVM_op_get_op(MVM_OP_set);
             MVM_spesh_use_facts(tc, g, obj_facts);
-            copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+            MVM_spesh_turn_into_set(tc, g, ins);
         }
     }
 }
@@ -635,9 +639,8 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
             ((obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
             !obj_facts->type->st->container_spec)) {
         /* Know that we don't need to decont. */
-        ins->info = MVM_op_get_op(MVM_OP_set);
+        MVM_spesh_turn_into_set(tc, g, ins);
         MVM_spesh_use_facts(tc, g, obj_facts);
-        copy_facts(tc, g, ins->operands[0], ins->operands[1]);
         MVM_spesh_manipulate_remove_handler_successors(tc, bb);
     }
     else {
@@ -905,7 +908,8 @@ static void optimize_guard(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
         }
     }
     if (turn_into_set) {
-        ins->info = MVM_op_get_op(MVM_OP_set);
+        MVM_spesh_turn_into_set(tc, g, ins);
+        MVM_spesh_use_facts(tc, g, facts);
     }
 }
 
@@ -981,8 +985,7 @@ static void optimize_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
 static void optimize_signedness_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     // fooled you! these coerces are actually
     // equivalent to "set" in implementation.
-    ins->info = MVM_op_get_op(MVM_OP_set);
-    copy_facts(tc, g, ins->operands[0], ins->operands[1]);
+    MVM_spesh_turn_into_set(tc, g, ins);
 }
 
 /* If we know the type of a significant operand, we might try to specialize by
@@ -3191,8 +3194,8 @@ static void try_eliminate_one_box_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, 
         MVM_spesh_usages_delete_by_reg(tc, g, unbox_ins->operands[1], unbox_ins);
 
         /* Use the unboxed version instead, rewriting to a set. */
-        unbox_ins->info = MVM_op_get_op(MVM_OP_set);
         unbox_ins->operands[1] = box_ins->operands[1];
+        MVM_spesh_turn_into_set(tc, g, unbox_ins);
         MVM_spesh_usages_add_by_reg(tc, g, unbox_ins->operands[1], unbox_ins);
     }
 }
@@ -3338,8 +3341,9 @@ static void post_inline_pass(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB 
 static void eliminate_unused_log_guards(MVMThreadContext *tc, MVMSpeshGraph *g) {
     MVMint32 i;
     for (i = 0; i < g->num_log_guards; i++)
-        if (!g->log_guards[i].used)
-            g->log_guards[i].ins->info = MVM_op_get_op(MVM_OP_set);
+        if (!g->log_guards[i].used) {
+            MVM_spesh_turn_into_set(tc, g, g->log_guards[i].ins);
+        }
 }
 
 /* Sometimes - almost always due to other optmimizations having done their
