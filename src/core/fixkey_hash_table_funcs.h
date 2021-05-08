@@ -25,7 +25,7 @@ MVM_STATIC_INLINE MVMuint8 *MVM_fixkey_hash_metadata(const struct MVMFixKeyHashT
     return (MVMuint8 *) control + sizeof(struct MVMFixKeyHashTableControl);
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_fixkey_hash_entries(const struct MVMFixKeyHashTableControl *control) {
-    return (MVMuint8 *) control - control->entry_size;
+    return (MVMuint8 *) control - sizeof(MVMString ***);
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -58,7 +58,7 @@ MVM_fixkey_hash_create_loop_state(MVMThreadContext *tc,
                                   MVMString *key) {
     MVMuint64 hash_val = MVM_string_hash_code(tc, key);
     struct MVM_hash_loop_state retval;
-    retval.entry_size = control->entry_size;
+    retval.entry_size = sizeof(MVMString ***);
     retval.metadata_increment = 1 << control->metadata_hash_bits;
     retval.metadata_hash_mask = retval.metadata_increment - 1;
     retval.probe_distance_shift = control->metadata_hash_bits;

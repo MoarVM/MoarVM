@@ -10,7 +10,7 @@ MVM_STATIC_INLINE MVMuint32 calc_entries_in_use(const struct MVMFixKeyHashTableC
 void hash_demolish_internal(MVMThreadContext *tc,
                             struct MVMFixKeyHashTableControl *control) {
     size_t allocated_items = MVM_fixkey_hash_allocated_items(control);
-    size_t entries_size = control->entry_size * allocated_items;
+    size_t entries_size = sizeof(MVMString ***) * allocated_items;
     size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
     size_t total_size
         = entries_size + sizeof(struct MVMFixKeyHashTableControl) + metadata_size;
@@ -36,7 +36,7 @@ void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtabl
         }
         ++bucket;
         ++metadata;
-        entry_raw -= control->entry_size;
+        entry_raw -= sizeof(MVMString ***);
     }
 
     hash_demolish_internal(tc, control);
@@ -58,7 +58,7 @@ MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThre
         max_probe_distance_limit = max_items;
     }
     size_t allocated_items = official_size + max_probe_distance_limit - 1;
-    size_t entries_size = entry_size * allocated_items;
+    size_t entries_size = sizeof(MVMString ***) * allocated_items;
     size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
     size_t total_size
         = entries_size + sizeof(struct MVMFixKeyHashTableControl) + metadata_size;
@@ -140,8 +140,8 @@ MVM_STATIC_INLINE MVMString ***hash_insert_internal(MVMThreadContext *tc,
                 MVMuint32 entries_to_move = find_me_a_gap - ls.metadata;
                 size_t size_to_move = ls.entry_size * entries_to_move;
                 /* When we had entries *ascending* this was
-                 * memmove(entry_raw + ls.entry_size, entry_raw,
-                 *         ls.entry_size * entries_to_move);
+                 * memmove(entry_raw + sizeof(MVMString ***), entry_raw,
+                 *         sizeof(MVMString ***) * entries_to_move);
                  * because we point to the *start* of the block of memory we
                  * want to move, and we want to move it one "entry" forwards.
                  * `entry_raw` is still a pointer to where we want to make free
@@ -256,12 +256,11 @@ static struct MVMFixKeyHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
     MVMuint32 entries_in_use = calc_entries_in_use(control);
     MVMuint8 *entry_raw_orig = MVM_fixkey_hash_entries(control);
     MVMuint8 *metadata_orig = MVM_fixkey_hash_metadata(control);
-    MVMuint8 entry_size = control->entry_size;
 
     struct MVMFixKeyHashTableControl *control_orig = control;
 
     control = hash_allocate_common(tc,
-                                   entry_size,
+                                   control_orig->entry_size,
                                    control_orig->key_right_shift - 1,
                                    control_orig->official_size_log2 + 1);
 
@@ -299,7 +298,7 @@ static struct MVMFixKeyHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
         }
         ++bucket;
         ++metadata;
-        entry_raw -= entry_size;
+        entry_raw -= sizeof(MVMString ***);
     }
     hash_demolish_internal(tc, control_orig);
     return control;
@@ -421,7 +420,7 @@ MVMuint64 MVM_fixkey_hash_fsck(MVMThreadContext *tc, MVMFixKeyHashTable *hashtab
         }
         ++bucket;
         ++metadata;
-        entry_raw -= control->entry_size;
+        entry_raw -= sizeof(MVMString ***);
     }
     if (*metadata != 1) {
         ++errors;
