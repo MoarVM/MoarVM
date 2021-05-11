@@ -323,6 +323,10 @@ MVM_STATIC_INLINE struct MVMStrHashHandle *hash_insert_internal(MVMThreadContext
 static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
                                                       struct MVMStrHashTableControl *control) {
     if (MVM_UNLIKELY(control->cur_items == 0 && control->max_items == 0)) {
+        /* This is the case where we had initially allocated just a control
+         * structure, and now we find that we need to allocate some memory for
+         * the first entry. Which implies that we've had no insertions or
+         * deletions prior to this, hence our debugging state must be (0, 0) */
         struct MVMStrHashTableControl *control_orig = control;
         control = hash_allocate_common(tc,
                                        control_orig->entry_size,
@@ -330,6 +334,10 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
                                        STR_MIN_SIZE_BASE_2);
 #if HASH_DEBUG_ITER
         control->ht_id = control_orig->ht_id;
+        assert(control_orig->serial == 0);
+        assert(control_orig->last_delete_at == 0);
+        control->serial = 0;
+        control->last_delete_at = 0;
 #endif
         MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(*control_orig), control_orig);
         return control;
