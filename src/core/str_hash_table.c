@@ -40,7 +40,7 @@ MVM_STATIC_INLINE void hash_demolish_internal(MVMThreadContext *tc,
 
     size_t total_size
         = entries_size + sizeof(struct MVMStrHashTableControl) + metadata_size;
-    MVM_fixed_size_free(tc, tc->instance->fsa, total_size, start);
+    MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, total_size, start);
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -141,6 +141,7 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
     control->max_probe_distance_limit = max_probe_distance_limit;
     control->key_right_shift = key_right_shift;
     control->entry_size = entry_size;
+    control->stale = 0;
 
     MVMuint8 *metadata = (MVMuint8 *)(control + 1);
     memset(metadata, 0, metadata_size);
@@ -328,6 +329,8 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
          * the first entry. Which implies that we've had no insertions or
          * deletions prior to this, hence our debugging state must be (0, 0) */
         struct MVMStrHashTableControl *control_orig = control;
+
+        control_orig->stale = 1;
         control = hash_allocate_common(tc,
                                        control_orig->entry_size,
                                        (8 * sizeof(MVMuint64) - STR_MIN_SIZE_BASE_2),
@@ -339,7 +342,7 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
         control->serial = 0;
         control->last_delete_at = 0;
 #endif
-        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(*control_orig), control_orig);
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(*control_orig), control_orig);
         return control;
     }
 
@@ -395,6 +398,7 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
 
     struct MVMStrHashTableControl *control_orig = control;
 
+    control_orig->stale = 1;
     control = hash_allocate_common(tc,
                                    entry_size,
                                    control_orig->key_right_shift - 1,

@@ -439,6 +439,13 @@ struct MVMStrHashTableControl {
      * to cache it as we have the space. */
     MVMuint8 max_probe_distance_limit;
     MVMuint8 metadata_hash_bits;
+    /* This is set to 0 when the control structure is allocated. When the hash
+     * expands (and needs a new larger allocation) this is set to 1 in the
+     * soon-to-be-freed memory, and the memory is scheduled to be released at
+     * the next safe point. This way avoid C-level use-after-free if threads
+     * attempt to mutate the same hash concurrently, and hopefully can spot at
+     * least some cases and fault them, often enough for bugs to be noticed. */
+    volatile MVMuint8 stale;
 };
 
 struct MVMStrHashTable {
