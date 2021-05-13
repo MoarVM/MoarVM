@@ -49,6 +49,10 @@ void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable) {
     struct MVMStrHashTableControl *control = hashtable->table;
     if (!control)
         return;
+    if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_demolish called with a stale hashtable pointer");
+    }
+
     hash_demolish_internal(tc, control);
     hashtable->table = NULL;
 }
@@ -462,6 +466,9 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
     if (MVM_UNLIKELY(!control)) {
         MVM_oops(tc, "Attempting insert on MVM_str_hash without first calling MVM_str_hash_build");
     }
+    else if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_lvalue_fetch_nocheck called with a stale hashtable pointer");
+    }
     else if (MVM_UNLIKELY(control->cur_items >= control->max_items)) {
         /* We should avoid growing the hash if we don't need to.
          * It's expensive, and for hashes with iterators, growing the hash
@@ -469,6 +476,9 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
          * need to create a key. */
         struct MVMStrHashHandle *entry = MVM_str_hash_fetch_nocheck(tc, hashtable, key);
         if (entry) {
+            if (MVM_UNLIKELY(control->stale)) {
+                MVM_oops(tc, "MVM_str_hash_lvalue_fetch_nocheck called with a hashtable pointer that turned stale");
+            }
             return entry;
         }
 
@@ -482,7 +492,11 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
         }
     }
 
-    return hash_insert_internal(tc, control, key);
+    void *result = hash_insert_internal(tc, control, key);
+    if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_lvalue_fetch_nocheck called with a hashtable pointer that turned stale");
+    }
+    return result;
 }
 
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
@@ -509,11 +523,15 @@ void *MVM_str_hash_insert_nocheck(MVMThreadContext *tc,
 void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
                                  MVMStrHashTable *hashtable,
                                  MVMString *key) {
+    struct MVMStrHashTableControl *control = hashtable->table;
+
+    if (MVM_UNLIKELY(control && control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_delete_nocheck called with a stale hashtable pointer");
+    }
     if (MVM_str_hash_is_empty(tc, hashtable)) {
         return;
     }
 
-    struct MVMStrHashTableControl *control = hashtable->table;
     struct MVM_hash_loop_state ls = MVM_str_hash_create_loop_state(tc, control, key);
 
     while (1) {
@@ -649,6 +667,10 @@ void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
                 control->last_delete_at = 1 + ls.metadata - MVM_str_hash_metadata(control);
 #endif
 
+                if (MVM_UNLIKELY(control->stale)) {
+                    MVM_oops(tc, "MVM_str_hash_delete_nocheck called with a hashtable pointer that turned stale");
+                }
+
                 /* Job's a good 'un. */
                 return;
             }
@@ -661,6 +683,11 @@ void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
                the hash table - it would have stolen this slot, and the key we
                find here now would have been displaced further on. Hence, the key
                we seek can't be in the hash table. */
+
+            if (MVM_UNLIKELY(control->stale)) {
+                MVM_oops(tc, "MVM_str_hash_delete_nocheck called with a hashtable pointer that turned stale");
+            }
+
             return;
         }
         ls.probe_distance += ls.metadata_increment;
