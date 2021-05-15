@@ -484,11 +484,16 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
 
         struct MVMStrHashTableControl *new_control = maybe_grow_hash(tc, control);
         if (new_control) {
-            /* We could unconditionally assign this, but that would mean CPU
-             * cache writes even when it was unchanged, and the address of
-             * hashtable will not be in the same cache lines as we are writing
-             * for the hash internals, so it will churn the write cache. */
-            hashtable->table = control = new_control;
+            if (!MVM_trycas(&(hashtable->table), control, new_control)) {
+                /* Oh erk, a second thread has just executed this code on this
+                 * hashtable, allocated a new control structure, and both it and
+                 * us have passed the old control structure back to the FSA.
+                 * So we have a double free pending at the next safe point, and
+                 * who knows what else is racing uncontrolled on this hash.
+                 * Bad programmer, no cookie. */
+                MVM_oops(tc, "MVM_str_hash_lvalue_fetch_nocheck called concurrently on the same hash");
+            }
+            control = new_control;
         }
     }
 
