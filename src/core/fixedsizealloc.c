@@ -58,6 +58,13 @@ void MVM_fixed_size_create_thread(MVMThreadContext *tc) {
 void MVM_fixed_size_destroy(MVMFixedSizeAlloc *al) {
     int bin_no;
 
+    /* Free anything on the overflow lists. */
+    MVMFixedSizeAllocSafepointFreeListEntry *cur = al->free_at_next_safepoint_overflows;
+    while (cur) {
+        MVM_free(cur->to_free);
+        cur = cur->next;
+    }
+
     for (bin_no = 0; bin_no < MVM_FSA_BINS; bin_no++) {
         int page_no;
         int num_pages = al->size_classes[bin_no].num_pages;
