@@ -529,6 +529,7 @@ build::probe::thread_local(\%config, \%defaults);
 build::probe::substandard_pow(\%config, \%defaults);
 build::probe::substandard_log(\%config, \%defaults);
 build::probe::substandard_trig(\%config, \%defaults);
+build::probe::has_isinf_and_isnan(\%config, \%defaults);
 build::probe::unaligned_access(\%config, \%defaults);
 build::probe::ptr_size(\%config, \%defaults);
 
