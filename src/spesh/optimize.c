@@ -1083,7 +1083,7 @@ static void optimize_smart_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
                 else if (is_numify)
                     new_ins->info = MVM_op_get_op(register_type == MVM_reg_num64 ? MVM_OP_set       : MVM_OP_coerce_in);
                 else if (is_intify)
-                    new_ins->info = MVM_op_get_op(register_type == MVM_reg_num64 ? MVM_OP_coerce_in : MVM_OP_set);
+                    new_ins->info = MVM_op_get_op(register_type == MVM_reg_num64 ? MVM_OP_coerce_ni : MVM_OP_set);
 
                 new_ins->operands = operands;
                 operands[0] = ins->operands[0];
