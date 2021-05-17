@@ -260,6 +260,6 @@ stages:
         - script: |
             valgrind --leak-check=full ../$(INSTALL_DIR)/bin/raku --full-cleanup -e '' 2>valgrind.log
             cat valgrind.log
-            ../$(INSTALL_DIR)/bin/raku -ne 'BEGIN my @lost; @lost.push($0) if /"lost: " (\d+)/; END exit @lost.elems != 3 || all(@lost) != 0' valgrind.log
+            grep 'in use at exit: 0 bytes in 0 blocks' valgrind.log
           condition: and(succeeded(), eq( variables['CHECK_LEAKS'], 'yes' ), ne( variables['COVERAGE'], 'yes' ), eq( variables['Agent.OS'], 'Linux' ))
           displayName: Check for memory leaks
