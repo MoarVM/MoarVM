@@ -170,7 +170,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVM_fixkey_hash_build(instance->main_thread, &instance->compilee_hll_configs, sizeof(MVMHLLConfig));
 
     /* Set up DLL registry mutex. */
-    init_mutex(instance->mutex_dll_registry, "REPR registry");
+    init_mutex(instance->mutex_dll_registry, "DLL registry");
     MVM_fixkey_hash_build(instance->main_thread, &instance->dll_registry, sizeof(struct MVMDLLRegistry));
 
     /* Set up extension registry mutex. */
@@ -632,6 +632,11 @@ static void cleanup_callsite_interns(MVMInstance *instance) {
     MVM_free(instance->callsite_interns);
 }
 
+static void free_lib(MVMThreadContext *tc, void *entry_v, void *arg) {
+    struct MVMDLLRegistry *entry = entry_v;
+    MVM_nativecall_free_lib(entry->lib);
+}
+
 /* Destroys a VM instance. This must be called only from the main thread. It
  * should clear up all resources and free all memory; in practice, it falls
  * short of this goal at the moment. */
@@ -685,6 +690,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Hash of DLLs. */
     uv_mutex_destroy(&instance->mutex_dll_registry);
+    MVM_fixkey_hash_foreach(instance->main_thread, &instance->dll_registry, free_lib, NULL);
     MVM_fixkey_hash_demolish(instance->main_thread, &instance->dll_registry);
 
     /* Clean up Hash of extensions. */
