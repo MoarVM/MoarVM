@@ -56,53 +56,63 @@ stages:
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
+           CHECK_LEAKS: 'yes'
          Lin_MVM_reloc:
            IMAGE_NAME: 'ubuntu-20.04'
            RELOCATABLE: 'yes'
            RAKUDO_OPTIONS: '--relocatable'
            NQP_OPTIONS: '--backends=moar --relocatable'
            MOAR_OPTIONS: '--relocatable'
+           CHECK_LEAKS: 'yes'
 
          MVM_gcc_njit:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-jit --cc=gcc'
+           CHECK_LEAKS: 'yes'
          MVM_gcc:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=gcc'
+           CHECK_LEAKS: 'yes'
          MVM_clang_njit:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-jit --cc=clang'
+           CHECK_LEAKS: 'yes'
          MVM_clang:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang'
+           CHECK_LEAKS: 'yes'
          MVM_gcc_njit_libffi:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --no-jit --cc=gcc'
+           CHECK_LEAKS: 'yes'
          MVM_gcc_libffi:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --cc=gcc'
+           CHECK_LEAKS: 'yes'
          MVM_clang_njit_libffi:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --no-jit --cc=clang'
+           CHECK_LEAKS: 'yes'
          MVM_clang_libffi:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --cc=clang'
+           CHECK_LEAKS: 'yes'
          MVM_gcc_mingw:
            IMAGE_NAME: 'windows-2019'
            RAKUDO_OPTIONS: ''
@@ -251,5 +261,5 @@ stages:
             valgrind --leak-check=full ../$(INSTALL_DIR)/bin/raku --full-cleanup -e '' 2>valgrind.log
             cat valgrind.log
             ../$(INSTALL_DIR)/bin/raku -ne 'BEGIN my @lost; @lost.push($0) if /"lost: " (\d+)/; END exit @lost.elems != 3 || all(@lost) != 0' valgrind.log
-          condition: and(succeeded(), ne( variables['COVERAGE'], 'yes' ), eq( variables['Agent.OS'], 'Linux' ))
+          condition: and(succeeded(), eq( variables['CHECK_LEAKS'], 'yes' ), ne( variables['COVERAGE'], 'yes' ), eq( variables['Agent.OS'], 'Linux' ))
           displayName: Check for memory leaks
