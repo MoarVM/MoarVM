@@ -131,3 +131,9 @@ MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nocheck(MVMThreadContext *tc,
 void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
                                            MVMFixKeyHashTable *hashtable,
                                            MVMString *key);
+
+/* Executes the given callback function on each element of the hashtable.
+ * Passes the callback (tc, entry, arg) */
+void MVM_fixkey_hash_foreach(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable,
+                             void (*callback)(MVMThreadContext *, void *, void *),
+                             void *arg);
