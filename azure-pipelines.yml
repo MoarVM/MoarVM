@@ -55,63 +55,63 @@ stages:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: ''
+           MOAR_OPTIONS: '--debug=3'
            CHECK_LEAKS: 'yes'
          Lin_MVM_reloc:
            IMAGE_NAME: 'ubuntu-20.04'
            RELOCATABLE: 'yes'
            RAKUDO_OPTIONS: '--relocatable'
            NQP_OPTIONS: '--backends=moar --relocatable'
-           MOAR_OPTIONS: '--relocatable'
+           MOAR_OPTIONS: '--relocatable --debug=3'
            CHECK_LEAKS: 'yes'
 
          MVM_gcc_njit:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--no-jit --cc=gcc'
+           MOAR_OPTIONS: '--no-jit --cc=gcc --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_gcc:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc'
+           MOAR_OPTIONS: '--cc=gcc --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_clang_njit:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--no-jit --cc=clang'
+           MOAR_OPTIONS: '--no-jit --cc=clang --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_clang:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang'
+           MOAR_OPTIONS: '--cc=clang --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_gcc_njit_libffi:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--has-libffi --no-jit --cc=gcc'
+           MOAR_OPTIONS: '--has-libffi --no-jit --cc=gcc --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_gcc_libffi:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--has-libffi --cc=gcc'
+           MOAR_OPTIONS: '--has-libffi --cc=gcc --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_clang_njit_libffi:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--has-libffi --no-jit --cc=clang'
+           MOAR_OPTIONS: '--has-libffi --no-jit --cc=clang --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_clang_libffi:
            IMAGE_NAME: 'ubuntu-20.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--has-libffi --cc=clang'
+           MOAR_OPTIONS: '--has-libffi --cc=clang --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_gcc_mingw:
            IMAGE_NAME: 'windows-2019'
@@ -129,23 +129,23 @@ stages:
            IMAGE_NAME: 'ubuntu-18.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc'
+           MOAR_OPTIONS: '--cc=gcc --debug=3'
          MVM_Ub_18_clang:
            IMAGE_NAME: 'ubuntu-18.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang'
+           MOAR_OPTIONS: '--cc=clang --debug=3'
 
          MVM_Ub_16_gcc:
            IMAGE_NAME: 'ubuntu-16.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc'
+           MOAR_OPTIONS: '--cc=gcc --debug=3'
          MVM_Ub_16_clang:
            IMAGE_NAME: 'ubuntu-16.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang'
+           MOAR_OPTIONS: '--cc=clang --debug=3'
 
       pool:
         vmImage: $(IMAGE_NAME)
@@ -210,16 +210,28 @@ stages:
             ${{ variables.PWSH_DEV }}
             perl Configure.pl --prefix=../$(INSTALL_DIR) $(NQP_OPTIONS) --make-install
           workingDirectory: '$(Pipeline.Workspace)/nqp'
-          condition: succeeded()
+          condition: and(succeeded(), ne( variables['Agent.OS'], 'Linux' ) )
           displayName: Build NQP
+        - script: |
+            export SEGFAULT_SIGNALS="all"
+            catchsegv perl Configure.pl --prefix=../$(INSTALL_DIR) $(NQP_OPTIONS) --make-install
+          workingDirectory: '$(Pipeline.Workspace)/nqp'
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ) )
+          displayName: Build NQP (Linux)
 
         # Build Rakudo
         - pwsh: |
             ${{ variables.PWSH_DEV }}
             perl Configure.pl --prefix=../$(INSTALL_DIR) $(RAKUDO_OPTIONS) --make-install
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
-          condition: succeeded()
+          condition: and(succeeded(), ne( variables['Agent.OS'], 'Linux' ) )
           displayName: Build Rakudo
+        - script: |
+            export SEGFAULT_SIGNALS="all"
+            catchsegv perl Configure.pl --prefix=../$(INSTALL_DIR) $(RAKUDO_OPTIONS) --make-install
+          workingDirectory: '$(Pipeline.Workspace)/rakudo'
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ) )
+          displayName: Build Rakudo (Linux)
 
         # TODO: Should use "install moved" instead of "install-moved". But `prove` currently fails with an executable path that contains a space.
         - pwsh: |
@@ -232,8 +244,14 @@ stages:
         # Test NQP
         - script: prove -j2 -r -e ../$(INSTALL_DIR)/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
           workingDirectory: '$(Pipeline.Workspace)/nqp'
-          condition: succeeded()
+          condition: and(succeeded(), ne( variables['Agent.OS'], 'Linux' ) )
           displayName: Test NQP
+        - script: |
+            export SEGFAULT_SIGNALS="all"
+            catchsegv prove -j2 -r -e ../$(INSTALL_DIR)/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
+          workingDirectory: '$(Pipeline.Workspace)/nqp'
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ) )
+          displayName: Test NQP (Linux)
 
         # Test Rakudo
         - pwsh: |
@@ -241,8 +259,14 @@ stages:
             $install_path = Resolve-Path ../$(INSTALL_DIR)/bin/
             prove -j2 -e "$($install_path.Path)raku" -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
-          condition: succeeded()
+          condition: and(succeeded(), ne( variables['Agent.OS'], 'Linux' ) )
           displayName: Test Rakudo
+        - script: |
+            export SEGFAULT_SIGNALS="all"
+            catchsegv prove -j2 -e ../$(INSTALL_DIR)/bin/raku -vlr t
+          workingDirectory: '$(Pipeline.Workspace)/rakudo'
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ) )
+          displayName: Test Rakudo (Linux)
 
         - publish: $(Pipeline.Workspace)/$(INSTALL_DIR)
           condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ))
