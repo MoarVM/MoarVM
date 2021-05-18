@@ -3,10 +3,6 @@
 #define FIXKEY_INITIAL_SIZE_LOG2 3
 #define FIXKEY_INITIAL_KEY_RIGHT_SHIFT (8 * sizeof(MVMuint64) - 3)
 
-MVM_STATIC_INLINE MVMuint32 calc_entries_in_use(const struct MVMFixKeyHashTableControl *control) {
-    return MVM_fixkey_hash_official_size(control) + control->max_probe_distance - 1;
-}
-
 void hash_demolish_internal(MVMThreadContext *tc,
                             struct MVMFixKeyHashTableControl *control) {
     size_t allocated_items = MVM_fixkey_hash_allocated_items(control);
@@ -25,7 +21,7 @@ void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtabl
     if (!control)
         return;
 
-    MVMuint32 entries_in_use = calc_entries_in_use(control);
+    MVMuint32 entries_in_use = MVM_fixkey_hash_kompromat(control);
     MVMuint8 *entry_raw = MVM_fixkey_hash_entries(control);
     MVMuint8 *metadata = MVM_fixkey_hash_metadata(control);
     MVMuint32 bucket = 0;
@@ -253,7 +249,7 @@ static struct MVMFixKeyHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
         return NULL;
     }
 
-    MVMuint32 entries_in_use = calc_entries_in_use(control);
+    MVMuint32 entries_in_use = MVM_fixkey_hash_kompromat(control);
     MVMuint8 *entry_raw_orig = MVM_fixkey_hash_entries(control);
     MVMuint8 *metadata_orig = MVM_fixkey_hash_metadata(control);
 
@@ -361,29 +357,6 @@ void *MVM_fixkey_hash_insert_nocheck(MVMThreadContext *tc,
     return new_entry;
 }
 
-void MVM_fixkey_hash_foreach(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable,
-                             void (*callback)(MVMThreadContext *, void *, void *),
-                             void *arg) {
-    struct MVMFixKeyHashTableControl *control = hashtable->table;
-    if (!control)
-        return;
-
-    MVMuint32 entries_in_use = calc_entries_in_use(control);
-    MVMuint8 *entry_raw = MVM_fixkey_hash_entries(control);
-    MVMuint8 *metadata = MVM_fixkey_hash_metadata(control);
-    MVMuint32 bucket = 0;
-    while (bucket < entries_in_use) {
-        if (*metadata) {
-            MVMString ***indirection = (MVMString ***) entry_raw;
-            assert(indirection);
-            callback(tc, *indirection, arg);
-        }
-        ++bucket;
-        ++metadata;
-        entry_raw -= sizeof(MVMString ***);
-    }
-}
-
 /* This is not part of the public API, and subject to change at any point.
    (possibly in ways that are actually incompatible but won't generate compiler
    warnings.) */
@@ -398,7 +371,7 @@ MVMuint64 MVM_fixkey_hash_fsck(MVMThreadContext *tc, MVMFixKeyHashTable *hashtab
         return 0;
     }
 
-    MVMuint32 entries_in_use = calc_entries_in_use(control);
+    MVMuint32 entries_in_use = MVM_fixkey_hash_kompromat(control);
     MVMuint8 *entry_raw = MVM_fixkey_hash_entries(control);
     MVMuint8 *metadata = MVM_fixkey_hash_metadata(control);
     MVMuint32 bucket = 0;

@@ -8,6 +8,9 @@
 MVM_STATIC_INLINE MVMuint32 MVM_fixkey_hash_official_size(const struct MVMFixKeyHashTableControl *control) {
     return 1 << (MVMuint32)control->official_size_log2;
 }
+MVM_STATIC_INLINE MVMuint32 MVM_fixkey_hash_max_items(const struct MVMFixKeyHashTableControl *control) {
+    return MVM_fixkey_hash_official_size(control) * MVM_FIXKEY_HASH_LOAD_FACTOR;
+}
 /* -1 because...
  * probe distance of 1 is the correct bucket.
  * hence for a value whose ideal slot is the last bucket, it's *in* the official
@@ -18,8 +21,8 @@ MVM_STATIC_INLINE MVMuint32 MVM_fixkey_hash_official_size(const struct MVMFixKey
 MVM_STATIC_INLINE MVMuint32 MVM_fixkey_hash_allocated_items(const struct MVMFixKeyHashTableControl *control) {
     return MVM_fixkey_hash_official_size(control) + control->max_probe_distance_limit - 1;
 }
-MVM_STATIC_INLINE MVMuint32 MVM_fixkey_hash_max_items(const struct MVMFixKeyHashTableControl *control) {
-    return MVM_fixkey_hash_official_size(control) * MVM_FIXKEY_HASH_LOAD_FACTOR;
+MVM_STATIC_INLINE MVMuint32 MVM_fixkey_hash_kompromat(const struct MVMFixKeyHashTableControl *control) {
+    return MVM_fixkey_hash_official_size(control) + control->max_probe_distance - 1;
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_fixkey_hash_metadata(const struct MVMFixKeyHashTableControl *control) {
     return (MVMuint8 *) control + sizeof(struct MVMFixKeyHashTableControl);
@@ -133,7 +136,28 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
                                            MVMString *key);
 
 /* Executes the given callback function on each element of the hashtable.
- * Passes the callback (tc, entry, arg) */
-void MVM_fixkey_hash_foreach(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable,
-                             void (*callback)(MVMThreadContext *, void *, void *),
-                             void *arg);
+ * Passes the callback (tc, entry, arg)
+ * By declaring this inline, the optimiser may be able to inline the callback,
+ * and hence eliminate the indirect function call. */
+MVM_STATIC_INLINE void MVM_fixkey_hash_foreach(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable,
+                                               void (*callback)(MVMThreadContext *, void *, void *),
+                                               void *arg) {
+    struct MVMFixKeyHashTableControl *control = hashtable->table;
+    if (!control)
+        return;
+
+    MVMuint32 entries_in_use = MVM_fixkey_hash_kompromat(control);
+    MVMuint8 *entry_raw = MVM_fixkey_hash_entries(control);
+    MVMuint8 *metadata = MVM_fixkey_hash_metadata(control);
+    MVMuint32 bucket = 0;
+    while (bucket < entries_in_use) {
+        if (*metadata) {
+            MVMString ***indirection = (MVMString ***) entry_raw;
+            assert(indirection);
+            callback(tc, *indirection, arg);
+        }
+        ++bucket;
+        ++metadata;
+        entry_raw -= sizeof(MVMString ***);
+    }
+}
