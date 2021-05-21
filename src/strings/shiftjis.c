@@ -350,7 +350,7 @@ MVMuint32 MVM_string_shiftjis_decodestream(MVMThreadContext *tc, MVMDecodeStream
         MVMuint8 *bytes = (MVMuint8 *)cur_bytes->bytes;
         while (pos < cur_bytes->length || repl_pos) {
             MVMGrapheme32 graph;
-            MVMCodepoint codepoint;
+            MVMCodepoint codepoint = 0;
             MVMuint8 byte;
             int graph_is_set = 0;
             int handler_rtrn = 0;
