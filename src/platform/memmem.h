@@ -12,7 +12,9 @@ void *memmem(const void *h0, size_t k, const void *n0, size_t l);
 #else
 /* On systems that use glibc, you must define _GNU_SOURCE before including string.h
  * to get access to memmem. */
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <string.h>
 #endif
 

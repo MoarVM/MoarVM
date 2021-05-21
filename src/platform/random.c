@@ -16,7 +16,9 @@
     #if defined(SYS_getrandom)
     /* With glibc you are supposed to declare _GNU_SOURCE to use the
      * syscall function */
-        #define _GNU_SOURCE
+        #ifndef _GNU_SOURCE
+            #define _GNU_SOURCE
+        #endif
         #define GRND_NONBLOCK 0x01
         #include <unistd.h>
         #define MVM_random_use_getrandom_syscall 1
