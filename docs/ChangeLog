@@ -1,3 +1,40 @@
+New in 2021.05
+
+Core:
++ [a75a206a] Always log the type coming out of an `nqp::decont`
++ [5ba30ed8] `MVM_fixed_size_destroy` needs to free the safepoint overflow list
++ [961a1985,00eb44c7,c37ad91b] Free loaded libs during full cleanup
++ [bf5fa9bc] Make `MVM_fixkey_hash_foreach` static inline
+
+IO:
++ [8f4cb5d8] Do not downcast `bytes` argument to `write()`/`send()` calls
+
+Libraries:
++ [5ee04f0f] Ensure the version of libzstd is at least 1.0.0
+
+Math:
++ [24420774] Convert MVM_num_{isnanorinf,posinf,neginf,nan} to inline functions
++ [179f5e50,31daadba,86e1289e,d6029122,31b13731] Implement `MVM_num_isnanorinf` using `isinf` and `isnan` if we find them
+
+Platform:
++ [69f8b227,366c0e25,32c4c2d8,2c171255,b9860db6,cb01a109,4dcfda9a,da172e92,0e3fd6c3,6d449962]
+  Cleanup the build system probes
++ [47e192b8,fa1eaacb,3073a3f9,44bd160e,3b8050f7,db6cca0e,9a70c3b6,54ab1516,29a421ec,e740b881,8611c7bf,d0a38131]
+  Refactor the C compiler probe code and add a probe for `log()` for negative values
+
+Spesh:
++ [c8c1b4f2] Fix spesh missing writes to containers
++ [14d9dd56] Fix missing `gc_mark` of `simstackframe`'s `arg_types`
++ [e1d546ab,dc1f710bd5dafd9fb40ff431a8d86e646fa018a1,543258ab10120c1cefcec86cda62b408f740c164] Propagate spesh facts after guard elimination
++ [a1cfecd6] Fix getting garbage numbers after spesh optimized away `smart_intify`
+
+Tooling/Build:
++ [9f82a46b] Add a test configuration for MinGW on Windows
++ [19db00f7] Update CI package index before installing packages
++ [5ab2a1d2] Remove unnecessary Windows-specific jobs from CI
++ [87cd6f5d] Only check for leaks on Ubuntu >=20.04 
++ [67f5dddb] Run NQP/Rakudo under catchsegv in GNU/Linux CI jobs
+
 New in 2021.04
 
 6model:
