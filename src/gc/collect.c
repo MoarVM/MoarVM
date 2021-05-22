@@ -223,6 +223,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
                     GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : already visited handle %p to forwarder %p\n", item_ptr, item->sc_forward_u.forwarder);
                 }
             }
+            MVM_barrier();
             *item_ptr = item->sc_forward_u.forwarder;
             continue;
         } else {
@@ -335,6 +336,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
             }
             *item_ptr = new_addr;
             item->sc_forward_u.forwarder = new_addr;
+            MVM_barrier();
             /* Set the flag on the copy of item *in fromspace* to mark that the
                forwarder pointer is valid. */
             item->flags2 |= MVM_CF_FORWARDER_VALID;
