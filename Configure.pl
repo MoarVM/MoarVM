@@ -431,7 +431,7 @@ push @cflags, '-DMVM_HEAPSNAPSHOT_FORMAT=' . $config{heapsnapformat};
 push @cflags, $ENV{CFLAGS} if $ENV{CFLAGS};
 push @cflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
 
-push @cflags, '-D_GNU_SOURCE'; # mainly for libuv
+push @cflags, '-D_GNU_SOURCE' unless $args{'has-libuv'}; # quells warnings with gcc and libuv
 
 $config{cflags} = join ' ', uniq(@cflags);
 
