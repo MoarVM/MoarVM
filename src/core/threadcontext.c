@@ -113,6 +113,9 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
         MVM_free(tc->temp_bigints[i]);
     }
 
+    /* Clean up gmp rand state. */
+    gmp_randclear(tc->gmp_rand_state);
+
     /* Free the thread context itself. */
     memset(tc, 0xfe, sizeof(MVMThreadContext));
     MVM_free(tc);
