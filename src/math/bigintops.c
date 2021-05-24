@@ -1,6 +1,7 @@
 #include "moar.h"
 #include "platform/random.h"
 #include "tinymt64.h"
+#include "ctype.h"
 
 #define MANTISSA_BITS_IN_DOUBLE 53
 #define EXPONENT_SHIFT 52
