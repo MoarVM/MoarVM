@@ -1,11 +1,15 @@
 /* -*-C-*- */
 #include "moar.h"
 #include "jit/internal.h"
+#ifndef _MSC_VER
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+#endif
 #include "dasm_x86.h"
+#ifndef _MSC_VER
 #pragma GCC diagnostic pop
 #pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
 
 #ifdef _MSC_VER
 #pragma warning( disable : 4129 )

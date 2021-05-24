@@ -913,16 +913,20 @@ void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection 
          * warning aside, strncpy seems like exactly the right tool for the job
          * as we want at most 8 bytes and don't care for any trailing \0, but
          * are OK with zero padding at the end. */
+#ifndef _MSC_VER
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wunknown-pragmas"
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wunknown-warning-option"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
         strncpy(namebuf, name, 8);
+#ifndef _MSC_VER
 #pragma GCC diagnostic pop
 #pragma clang diagnostic pop
 #pragma GCC diagnostic pop
+#endif
         fwrite(namebuf, 8, 1, fh);
     }
 
