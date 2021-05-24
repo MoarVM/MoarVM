@@ -230,7 +230,7 @@ if ($args{'has-sha'}) {
 }
 else { $config{shaincludedir} = '3rdparty/sha1' }
 
-# After upgrading from libuv from 0.11.18 to 0.11.29 we see very weird erros
+# After upgrading from libuv from 0.11.18 to 0.11.29 we see very weird errors
 # when the old libuv files are still around. Running a `make realclean` in
 # case we spot an old file and the Makefile is already there.
 if (-e '3rdparty/libuv/src/unix/threadpool' . $defaults{obj}
@@ -432,6 +432,9 @@ push @cflags, '-DWORDS_BIGENDIAN' if $config{be}; # 3rdparty/sha1 needs it and i
 push @cflags, '-DMVM_HEAPSNAPSHOT_FORMAT=' . $config{heapsnapformat};
 push @cflags, $ENV{CFLAGS} if $ENV{CFLAGS};
 push @cflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
+
+push @cflags, '-D_GNU_SOURCE' unless $args{'has-libuv'}; # quells warnings with gcc and libuv
+
 $config{cflags} = join ' ', uniq(@cflags);
 
 # generate LDFLAGS
