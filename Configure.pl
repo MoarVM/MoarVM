@@ -433,7 +433,15 @@ push @cflags, '-DMVM_HEAPSNAPSHOT_FORMAT=' . $config{heapsnapformat};
 push @cflags, $ENV{CFLAGS} if $ENV{CFLAGS};
 push @cflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
 
-push @cflags, '-D_GNU_SOURCE' unless $args{'has-libuv'}; # quells warnings with gcc and libuv
+# Define _GNU_SOURCE for libuv to quell warnings with gcc.
+# According to the libuv developers, they define _GNU_SOURCE for
+# Linux use. Our code was showing warnings from libuv
+# because we did not. Adding -D_GNU_SOURCE conditionally
+# to our build then resulted in redefinition warnings in
+# our code for three of our files that already have that definition.
+# The fix was to bracket those definitions with
+# #ifdef _GNU_SOURCE/#endif.
+push @cflags, '-D_GNU_SOURCE' unless $args{'has-libuv'};
 
 $config{cflags} = join ' ', uniq(@cflags);
 
