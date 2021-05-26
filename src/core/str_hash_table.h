@@ -439,6 +439,13 @@ struct MVMStrHashTableControl {
      * to cache it as we have the space. */
     MVMuint8 max_probe_distance_limit;
     MVMuint8 metadata_hash_bits;
+    /* This is set to 0 when the control structure is allocated. When the hash
+     * expands (and needs a new larger allocation) this is set to 1 in the
+     * soon-to-be-freed memory, and the memory is scheduled to be released at
+     * the next safe point. This way avoid C-level use-after-free if threads
+     * attempt to mutate the same hash concurrently, and hopefully can spot at
+     * least some cases and fault them, often enough for bugs to be noticed. */
+    volatile MVMuint8 stale;
 };
 
 struct MVMStrHashTable {
@@ -467,6 +474,9 @@ MVM_STATIC_INLINE int MVM_str_hash_iterator_target_deleted(MVMThreadContext *tc,
      * deleted (and this is the only action on the hash since the iterator was
      * created) */
     struct MVMStrHashTableControl *control = hashtable->table;
+    if (MVM_UNLIKELY(control && control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_iterator_target_deleted called with a stale hashtable pointer");
+    }
     return control && iterator.serial == control->serial - 1 &&
         iterator.pos == control->last_delete_at;
 }
@@ -483,6 +493,9 @@ MVM_STATIC_INLINE int MVM_str_hash_iterator_target_deleted(MVMThreadContext *tc,
 MVM_STATIC_INLINE int MVM_str_hash_at_end(MVMThreadContext *tc,
                                            MVMStrHashTable *hashtable,
                                            MVMStrHashIterator iterator) {
+    if (MVM_UNLIKELY(hashtable->table && hashtable->table->stale)) {
+        MVM_oops(tc, "MVM_str_hash_at_end called with a stale hashtable pointer");
+    }
 #if HASH_DEBUG_ITER
     struct MVMStrHashTableControl *control = hashtable->table;
     MVMuint64 ht_id = control ? control->ht_id : 0;

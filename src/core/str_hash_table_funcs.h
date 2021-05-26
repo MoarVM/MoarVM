@@ -49,6 +49,10 @@ MVM_STATIC_INLINE size_t MVM_str_hash_allocated_size(MVMThreadContext *tc, MVMSt
     struct MVMStrHashTableControl *control = hashtable->table;
     if (!control)
         return 0;
+    if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_allocated_size called with a stale hashtable pointer");
+    }
+
     if (control->cur_items == 0 && control->max_items == 0)
         return sizeof(*control);
 
@@ -72,6 +76,9 @@ void MVM_str_hash_build(MVMThreadContext *tc,
 MVM_STATIC_INLINE int MVM_str_hash_is_empty(MVMThreadContext *tc,
                                             MVMStrHashTable *hashtable) {
     struct MVMStrHashTableControl *control = hashtable->table;
+    if (MVM_UNLIKELY(control && control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_is_empty called with a stale hashtable pointer");
+    }
     return !control || control->cur_items == 0;
 }
 
@@ -83,6 +90,9 @@ MVM_STATIC_INLINE void MVM_str_hash_shallow_copy(MVMThreadContext *tc,
     const struct MVMStrHashTableControl *control = source->table;
     if (!control)
         return;
+    if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_shallow_copy called with a stale hashtable pointer");
+    }
     if (control->cur_items == 0 && control->max_items == 0) {
         struct MVMStrHashTableControl *empty = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(*empty));
         memcpy(empty, control, sizeof(*empty));
@@ -101,6 +111,9 @@ MVM_STATIC_INLINE void MVM_str_hash_shallow_copy(MVMThreadContext *tc,
 #if HASH_DEBUG_ITER
     dest->table->ht_id = MVM_proc_rand_i(tc);
 #endif
+    if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_shallow_copy called with hashtable pointer that turned stale");
+    }
 }
 
 MVM_STATIC_INLINE MVMuint64 MVM_str_hash_code(MVMThreadContext *tc,
@@ -166,11 +179,16 @@ MVM_str_hash_create_loop_state(MVMThreadContext *tc,
 MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
                                                    MVMStrHashTable *hashtable,
                                                    MVMString *key) {
+    struct MVMStrHashTableControl *control = hashtable->table;
+
+    if (MVM_UNLIKELY(control && control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_fetch_nocheck called with a stale hashtable pointer");
+    }
+
     if (MVM_str_hash_is_empty(tc, hashtable)) {
         return NULL;
     }
 
-    struct MVMStrHashTableControl *control = hashtable->table;
     struct MVM_hash_loop_state ls = MVM_str_hash_create_loop_state(tc, control, key);
 
     /* Comments in str_hash_table.h describe the various invariants.
@@ -259,6 +277,9 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
                     && MVM_string_substrings_equal_nocheck(tc, key, 0,
                                                            MVM_string_graphs_nocheck(tc, key),
                                                            entry->key, 0))) {
+                if (MVM_UNLIKELY(control->stale)) {
+                    MVM_oops(tc, "MVM_str_hash_fetch_nocheck called with a hashtable pointer that turned stale");
+                }
                 return entry;
             }
         }
@@ -270,6 +291,10 @@ MVM_STATIC_INLINE void *MVM_str_hash_fetch_nocheck(MVMThreadContext *tc,
                the hash table - it would have stolen this slot, and the key we
                find here now would have been displaced further on. Hence, the key
                we seek can't be in the hash table. */
+            if (MVM_UNLIKELY(control->stale)) {
+                MVM_oops(tc, "MVM_str_hash_fetch_nocheck called with a hashtable pointer that turned stale");
+            }
+
             return NULL;
         }
         /* This is actually the "body" of the lookup loop. gcc on 32 bit arm
@@ -382,6 +407,10 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_next_nocheck(MVMThreadContext 
                                                                MVMStrHashTable *hashtable,
                                                                MVMStrHashIterator iterator) {
     struct MVMStrHashTableControl *control = hashtable->table;
+    if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_iterator_next_nocheck called with a stale hashtable pointer");
+    }
+
     /* Whilst this looks like it can be optimised to word at a time skip ahead.
      * (Beware of endianness) it isn't easy *yet*, because one can overrun the
      * allocated buffer, and that makes ASAN very excited. */
@@ -438,6 +467,10 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_first(MVMThreadContext *tc,
         return iterator;
     }
 
+    if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_iterator_first called with a stale hashtable pointer");
+    }
+
 #if HASH_DEBUG_ITER
     iterator.owner = control->ht_id;
     iterator.serial = control->serial;
@@ -470,6 +503,10 @@ MVM_STATIC_INLINE MVMStrHashIterator MVM_str_hash_start(MVMThreadContext *tc,
         return retval;
     }
 
+    if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_start called with a stale hashtable pointer");
+    }
+
 #if HASH_DEBUG_ITER
     retval.owner = control->ht_id;
     retval.serial = control->serial;
@@ -485,6 +522,11 @@ MVM_STATIC_INLINE int MVM_str_hash_at_start(MVMThreadContext *tc,
     if (MVM_UNLIKELY(!control)) {
         return iterator.pos == 1;
     }
+
+    if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_at_start called with a stale hashtable pointer");
+    }
+
 #if HASH_DEBUG_ITER
     if (iterator.owner != control->ht_id) {
         MVM_oops(tc, "MVM_str_hash_at_start called with an iterator from a different hash table: %016" PRIx64 " != %016" PRIx64,
@@ -503,6 +545,11 @@ MVM_STATIC_INLINE void *MVM_str_hash_current_nocheck(MVMThreadContext *tc,
                                                      MVMStrHashTable *hashtable,
                                                      MVMStrHashIterator iterator) {
     struct MVMStrHashTableControl *control = hashtable->table;
+
+    if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_current_nocheck called with a stale hashtable pointer");
+    }
+
     assert(MVM_str_hash_metadata(control)[iterator.pos - 1]);
     return MVM_str_hash_entries(control) - control->entry_size * (iterator.pos - 1);
 }
@@ -535,6 +582,11 @@ MVM_STATIC_INLINE void *MVM_str_hash_current(MVMThreadContext *tc,
 MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_count(MVMThreadContext *tc,
                                                      MVMStrHashTable *hashtable) {
     struct MVMStrHashTableControl *control = hashtable->table;
+
+    if (MVM_UNLIKELY(control && control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_count called with a stale hashtable pointer");
+    }
+
     return control ? control->cur_items : 0;
 }
 
@@ -542,5 +594,10 @@ MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_count(MVMThreadContext *tc,
 MVM_STATIC_INLINE MVMHashNumItems MVM_str_hash_entry_size(MVMThreadContext *tc,
                                                           MVMStrHashTable *hashtable) {
     struct MVMStrHashTableControl *control = hashtable->table;
+
+    if (MVM_UNLIKELY(control && control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_entry_size called with a stale hashtable pointer");
+    }
+
     return control ? control->entry_size : 0;
 }

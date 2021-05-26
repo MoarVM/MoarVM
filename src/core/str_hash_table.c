@@ -40,7 +40,7 @@ MVM_STATIC_INLINE void hash_demolish_internal(MVMThreadContext *tc,
 
     size_t total_size
         = entries_size + sizeof(struct MVMStrHashTableControl) + metadata_size;
-    MVM_fixed_size_free(tc, tc->instance->fsa, total_size, start);
+    MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, total_size, start);
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -49,6 +49,10 @@ void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable) {
     struct MVMStrHashTableControl *control = hashtable->table;
     if (!control)
         return;
+    if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_demolish called with a stale hashtable pointer");
+    }
+
     hash_demolish_internal(tc, control);
     hashtable->table = NULL;
 }
@@ -141,6 +145,7 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
     control->max_probe_distance_limit = max_probe_distance_limit;
     control->key_right_shift = key_right_shift;
     control->entry_size = entry_size;
+    control->stale = 0;
 
     MVMuint8 *metadata = (MVMuint8 *)(control + 1);
     memset(metadata, 0, metadata_size);
@@ -328,6 +333,8 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
          * the first entry. Which implies that we've had no insertions or
          * deletions prior to this, hence our debugging state must be (0, 0) */
         struct MVMStrHashTableControl *control_orig = control;
+
+        control_orig->stale = 1;
         control = hash_allocate_common(tc,
                                        control_orig->entry_size,
                                        (8 * sizeof(MVMuint64) - STR_MIN_SIZE_BASE_2),
@@ -339,7 +346,7 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
         control->serial = 0;
         control->last_delete_at = 0;
 #endif
-        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(*control_orig), control_orig);
+        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(*control_orig), control_orig);
         return control;
     }
 
@@ -395,6 +402,7 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
 
     struct MVMStrHashTableControl *control_orig = control;
 
+    control_orig->stale = 1;
     control = hash_allocate_common(tc,
                                    entry_size,
                                    control_orig->key_right_shift - 1,
@@ -458,6 +466,9 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
     if (MVM_UNLIKELY(!control)) {
         MVM_oops(tc, "Attempting insert on MVM_str_hash without first calling MVM_str_hash_build");
     }
+    else if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_lvalue_fetch_nocheck called with a stale hashtable pointer");
+    }
     else if (MVM_UNLIKELY(control->cur_items >= control->max_items)) {
         /* We should avoid growing the hash if we don't need to.
          * It's expensive, and for hashes with iterators, growing the hash
@@ -465,20 +476,32 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
          * need to create a key. */
         struct MVMStrHashHandle *entry = MVM_str_hash_fetch_nocheck(tc, hashtable, key);
         if (entry) {
+            if (MVM_UNLIKELY(control->stale)) {
+                MVM_oops(tc, "MVM_str_hash_lvalue_fetch_nocheck called with a hashtable pointer that turned stale");
+            }
             return entry;
         }
 
         struct MVMStrHashTableControl *new_control = maybe_grow_hash(tc, control);
         if (new_control) {
-            /* We could unconditionally assign this, but that would mean CPU
-             * cache writes even when it was unchanged, and the address of
-             * hashtable will not be in the same cache lines as we are writing
-             * for the hash internals, so it will churn the write cache. */
-            hashtable->table = control = new_control;
+            if (!MVM_trycas(&(hashtable->table), control, new_control)) {
+                /* Oh erk, a second thread has just executed this code on this
+                 * hashtable, allocated a new control structure, and both it and
+                 * us have passed the old control structure back to the FSA.
+                 * So we have a double free pending at the next safe point, and
+                 * who knows what else is racing uncontrolled on this hash.
+                 * Bad programmer, no cookie. */
+                MVM_oops(tc, "MVM_str_hash_lvalue_fetch_nocheck called concurrently on the same hash");
+            }
+            control = new_control;
         }
     }
 
-    return hash_insert_internal(tc, control, key);
+    void *result = hash_insert_internal(tc, control, key);
+    if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_lvalue_fetch_nocheck called with a hashtable pointer that turned stale");
+    }
+    return result;
 }
 
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
@@ -505,11 +528,15 @@ void *MVM_str_hash_insert_nocheck(MVMThreadContext *tc,
 void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
                                  MVMStrHashTable *hashtable,
                                  MVMString *key) {
+    struct MVMStrHashTableControl *control = hashtable->table;
+
+    if (MVM_UNLIKELY(control && control->stale)) {
+        MVM_oops(tc, "MVM_str_hash_delete_nocheck called with a stale hashtable pointer");
+    }
     if (MVM_str_hash_is_empty(tc, hashtable)) {
         return;
     }
 
-    struct MVMStrHashTableControl *control = hashtable->table;
     struct MVM_hash_loop_state ls = MVM_str_hash_create_loop_state(tc, control, key);
 
     while (1) {
@@ -645,6 +672,10 @@ void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
                 control->last_delete_at = 1 + ls.metadata - MVM_str_hash_metadata(control);
 #endif
 
+                if (MVM_UNLIKELY(control->stale)) {
+                    MVM_oops(tc, "MVM_str_hash_delete_nocheck called with a hashtable pointer that turned stale");
+                }
+
                 /* Job's a good 'un. */
                 return;
             }
@@ -657,6 +688,11 @@ void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
                the hash table - it would have stolen this slot, and the key we
                find here now would have been displaced further on. Hence, the key
                we seek can't be in the hash table. */
+
+            if (MVM_UNLIKELY(control->stale)) {
+                MVM_oops(tc, "MVM_str_hash_delete_nocheck called with a hashtable pointer that turned stale");
+            }
+
             return;
         }
         ls.probe_distance += ls.metadata_increment;
