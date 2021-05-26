@@ -221,25 +221,40 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
     MVMGrapheme32 *buffer = MVM_malloc(sizeof(MVMGrapheme32) * result_size);
 
     result_graphs = 0;
-    while (pos < num_bytes || repl_pos) {
+    int start_repl = 0;
+    while (pos < num_bytes || start_repl) {
         MVMGrapheme32 graph;
         MVMGrapheme32 codepoint;
         MVMuint8 byte;
-        int graph_is_set = 0;
-        if (repl_pos) {
+        if (start_repl) {
+            /* Except for the case of the previous grapheme being \r and the replacement
+             * starting with \n, we shouldn't get any normalization or codepoints combining
+             * to make graphemes */
             graph = MVM_string_get_grapheme_at_nocheck(tc, replacement, repl_pos++);
-            graph_is_set = 1;
-            if (repl_length <= repl_pos) repl_pos = 0;
+            if (last_was_cr) {
+                if (graph == '\n') {
+                    graph = MVM_nfg_crlf_grapheme(tc);
+                }
+                else {
+                    graph = '\r';
+                    repl_pos--;
+                }
+                last_was_cr = 0;
+            }
+            if (repl_length <= repl_pos) {
+                repl_pos   = 0;
+                start_repl = 0;
+            }
         }
-        else if (is_prepended) {
-            byte = prepended;
-            is_prepended = 0;
-        }
+        /* Main path. There was no replacement */
         else {
-            byte = bytes[pos++];
-        }
-        /* graph_is_set will be 0 unless we just grabbed a replacement grapheme */
-        if (!graph_is_set) {
+            if (is_prepended) {
+                byte = prepended;
+                is_prepended = 0;
+            }
+            else {
+                byte = bytes[pos++];
+            }
             int handler_rtrn = decoder_handler(tc, &Shift_JIS_lead, byte, &codepoint);
             if (handler_rtrn == DECODE_CODEPOINT) {
                 graph = codepoint;
@@ -252,11 +267,8 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
                  * a replacement is used. */
                 Shift_JIS_lead = 0x00;
                 if (replacement) {
-                    graph = MVM_string_get_grapheme_at_nocheck(tc, replacement, repl_pos);
-                    /* If the replacement is more than one grapheme we need
-                     * to set repl_pos++ so we will grab the next grapheme on
-                     * the next loop */
-                    if (1 < repl_length) repl_pos++;
+                    start_repl = 1;
+                    continue;
                 }
                 else {
                     MVM_free(buffer);
@@ -286,7 +298,10 @@ MVMString * MVM_string_shiftjis_decode(MVMThreadContext *tc,
             }
             last_was_cr = 0;
         }
-        else if (graph == '\r') {
+        /* Only follow this path if we aren't in a replacement
+         * Any replacement will already be NFG, and if we had a \r
+         * in the replacement, this will cause a loop */
+        else if (graph == '\r' && !start_repl) {
             last_was_cr = 1;
             continue;
         }
@@ -325,6 +340,7 @@ MVMuint32 MVM_string_shiftjis_decodestream(MVMThreadContext *tc, MVMDecodeStream
     MVMuint32 reached_stopper;
     MVMStringIndex repl_length = ds->replacement ? MVM_string_graphs(tc, ds->replacement) : 0;
     MVMStringIndex repl_pos = 0;
+    int start_repl = 0;
     MVMuint8 Shift_JIS_lead = 0x00;
     MVMuint8 prepended = 0;
     int is_prepended = 0;
@@ -348,26 +364,40 @@ MVMuint32 MVM_string_shiftjis_decodestream(MVMThreadContext *tc, MVMDecodeStream
         /* Process this buffer. */
         MVMint32  pos = cur_bytes == ds->bytes_head ? ds->bytes_head_pos : 0;
         MVMuint8 *bytes = (MVMuint8 *)cur_bytes->bytes;
-        while (pos < cur_bytes->length || repl_pos) {
+        while (pos < cur_bytes->length || start_repl) {
             MVMGrapheme32 graph;
             MVMCodepoint codepoint;
             MVMuint8 byte;
-            int graph_is_set = 0;
             int handler_rtrn = 0;
-            if (repl_pos) {
+            if (start_repl) {
+                /* Except for the case of the previous grapheme being \r and the replacement
+                 * starting with \n, we shouldn't get any normalization or codepoints combining
+                 * to make graphemes */
                 graph = MVM_string_get_grapheme_at_nocheck(tc, ds->replacement, repl_pos++);
-                graph_is_set = 1;
-                if (repl_length <= repl_pos) repl_pos = 0;
+                if (last_was_cr) {
+                    if (graph == '\n') {
+                        graph = MVM_nfg_crlf_grapheme(tc);
+                    }
+                    else {
+                        graph = '\r';
+                        repl_pos--;
+                    }
+                    last_was_cr = 0;
+                }
+                if (repl_length <= repl_pos) {
+                    repl_pos   = 0;
+                    start_repl = 0;
+                }
             }
-            else if (is_prepended) {
-                byte = prepended;
-                is_prepended = 0;
-            }
+            /* Main path. There was no replacement */
             else {
-                byte = bytes[pos++];
-            }
-            /* graph_is_set will be 0 unless we just grabbed a replacement grapheme */
-            if (!graph_is_set) {
+                if (is_prepended) {
+                    byte = prepended;
+                    is_prepended = 0;
+                }
+                else {
+                    byte = bytes[pos++];
+                }
                 handler_rtrn = decoder_handler(tc, &Shift_JIS_lead, byte, &codepoint);
                 if (handler_rtrn == DECODE_CODEPOINT) {
                     graph = codepoint;
@@ -380,11 +410,8 @@ MVMuint32 MVM_string_shiftjis_decodestream(MVMThreadContext *tc, MVMDecodeStream
                      * a replacement is used. */
                     Shift_JIS_lead = 0x00;
                     if (ds->replacement) {
-                        graph = MVM_string_get_grapheme_at_nocheck(tc, ds->replacement, repl_pos);
-                        /* If the replacement is more than one grapheme we need
-                         * to set repl_pos++ so we will grab the next grapheme on
-                         * the next loop */
-                        if (1 < repl_length) repl_pos++;
+                        start_repl = 1;
+                        continue;
                     }
                     else {
                         /* Throw if it's unmapped */
@@ -414,7 +441,10 @@ MVMuint32 MVM_string_shiftjis_decodestream(MVMThreadContext *tc, MVMDecodeStream
                 }
                 last_was_cr = 0;
             }
-            else if (graph == '\r') {
+            /* Only follow this path if we aren't in a replacement
+             * Any replacement will already be NFG, and if we had a \r
+             * in the replacement, this will cause a loop */
+            else if (graph == '\r' && !start_repl) {
                 last_was_cr = 1;
                 continue;
             }
