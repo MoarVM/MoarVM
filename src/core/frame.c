@@ -882,7 +882,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         /* Preserve the extras if the frame has been used in a ctx operation
          * and marked with caller info. */
         if (!(e->caller_deopt_idx || e->caller_jit_position)) {
-            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
+            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
             returner->extra = NULL;
         }
     }
