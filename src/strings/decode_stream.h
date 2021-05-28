@@ -93,21 +93,43 @@ struct MVMDecodeStreamSeparators {
  * demand the actual encodings themselves work out (multi-grapheme separators
  * are handled in the decode stream logic itself). */
 MVM_STATIC_INLINE MVMint32 MVM_string_decode_stream_maybe_sep(MVMThreadContext *tc, MVMDecodeStreamSeparators *sep_spec, MVMGrapheme32 g) {
-#ifdef _GNU_SOURCE
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+/* Take care of each Linux compilers' warnings to be ignored.  Note both
+   compilers define '__GNUC__', so macro '__clang__' needs to be tested first to
+   disambiguate the two.
+*/
+#if defined(__clang__)
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wuninitialized"
+#elif defined(__GNUC__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
     if (sep_spec && g <= sep_spec->max_final_grapheme) {
-#ifdef _GNU_SOURCE
-#pragma GCC diagnostic pop
+/* Each compiler had one push, so each requires one pop. */
+#if defined(__clang__)
+    #pragma clang diagnostic pop
+#elif defined(__GNUC__)
+    #pragma GCC diagnostic pop
 #endif
         MVMint32 i;
         for (i = 0; i < sep_spec->num_seps; i++)
-#ifdef _GNU_SOURCE
-#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+/* Take care of each Linux compilers' warnings to be ignored.  Note both
+   compilers define '__GNUC__', so macro '__clang__' needs to be tested first to
+   disambiguate the two.
+*/
+#if defined(__clang__)
+    #pragma clang diagnostic push
+    #pragma clang diagnostic ignored "-Wuninitialized"
+#elif defined(__GNUC__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
             if (sep_spec->final_graphemes[i] == g)
-#ifdef _GNU_SOURCE
-#pragma GCC diagnostic pop
+/* Each compiler had one push, so each requires one pop. */
+#if defined(__clang__)
+    #pragma clang diagnostic pop
+#elif defined(__GNUC__)
+    #pragma GCC diagnostic pop
 #endif
                 return 1;
     }
