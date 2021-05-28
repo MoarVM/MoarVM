@@ -113,3 +113,7 @@ While it is common to have toolchains installed from third party repositories in
 If you _want_ to use a GNU toolchain, and you get an error telling you to see this file, simply supply the `--toolchain=gnu` flag and this package will configure and build with a GNU toolchain.
 
 **Please note:** If you use mixed Xcode and non-Xcode tools, you are likely to run into trouble. As such, this configuration is unsupported.
+
+### You need different code for `gcc` versus `clang`
+
+Note both compilers define macro `__GNUC__`, so macro `__clang__` needs to be tested first to disambiguate the two.
