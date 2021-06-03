@@ -394,7 +394,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
         struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family, MVM_SOCKET_TYPE_STREAM, MVM_SOCKET_PROTOCOL_ANY, 0);
         int r;
 
-        MVMSocket s = socket(dest->sa_family , SOCK_STREAM , 0);
+        MVMSocket s = data->handle = socket(dest->sa_family , SOCK_STREAM , 0);
         if (MVM_IS_SOCKET_ERROR(s)) {
             MVM_free(dest);
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
@@ -411,8 +411,6 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
             throw_error(tc, s, "connect socket");
         }
-
-        data->handle = s;
     }
     else {
         MVM_telemetry_interval_stop(tc, interval_id, "syncsocket didn't connect");
@@ -426,7 +424,7 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         struct sockaddr *dest = MVM_io_resolve_host_name(tc, host, port, family, MVM_SOCKET_TYPE_STREAM, MVM_SOCKET_PROTOCOL_ANY, 1);
         int r;
 
-        MVMSocket s = socket(dest->sa_family , SOCK_STREAM , 0);
+        MVMSocket s = data->handle = socket(dest->sa_family , SOCK_STREAM , 0);
         if (MVM_IS_SOCKET_ERROR(s)) {
             MVM_free(dest);
             throw_error(tc, s, "create socket");
@@ -453,8 +451,6 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
         r = listen(s, (int)backlog);
         if (MVM_IS_SOCKET_ERROR(r))
             throw_error(tc, s, "start listening on socket");
-
-        data->handle = s;
     }
     else {
         MVM_exception_throw_adhoc(tc, "Socket is already bound or connected");
