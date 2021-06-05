@@ -2283,6 +2283,7 @@ static void stub_stable(MVMThreadContext *tc, MVMSerializationReader *reader, MV
 
     /* Set the STable's SC. */
     MVM_sc_set_stable_sc(tc, st, reader->root.sc);
+    MVM_sc_set_idx_in_sc((MVMCollectable*) st, i);
 
     /* Set STable read position, and set current read buffer to the
      * location of the REPR data. */
@@ -2356,6 +2357,7 @@ static void stub_object(MVMThreadContext *tc, MVMSerializationReader *reader, MV
 
     /* Set the object's SC. */
     MVM_sc_set_obj_sc(tc, obj, reader->root.sc);
+    MVM_sc_set_idx_in_sc((MVMCollectable*)obj, i);
 }
 
 /* Deserializes a context. */
