@@ -544,6 +544,9 @@ struct MVMInstance {
      * service type attacks. */
     MVMuint64 hashSecrets[2];
 
+    /* Backup of hash secrets for moving out of the way while precompiling */
+    MVMuint64 hashSecretsBackup[2];
+
     /************************************************************************
      * VM Event subscription
      ************************************************************************/

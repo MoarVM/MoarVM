@@ -3293,6 +3293,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         tc->compiling_scs = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
                     });
                 }
+                tc->instance->hashSecretsBackup[0] = tc->instance->hashSecrets[0];
+                tc->instance->hashSecretsBackup[1] = tc->instance->hashSecrets[1];
+                tc->instance->hashSecrets[0] = 0;
+                tc->instance->hashSecrets[1] = 0;
                 MVM_repr_unshift_o(tc, tc->compiling_scs, sc);
                 cur_op += 2;
                 goto NEXT;
@@ -3302,6 +3306,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (MVM_is_null(tc, scs) || MVM_repr_elems(tc, scs) == 0)
                     MVM_exception_throw_adhoc(tc, "No current compiling SC");
                 GET_REG(cur_op, 0).o = MVM_repr_shift_o(tc, tc->compiling_scs);
+		if (MVM_repr_elems(tc, tc->compiling_scs) == 0) {
+                    tc->instance->hashSecrets[0] = tc->instance->hashSecretsBackup[0];
+                    tc->instance->hashSecrets[1] = tc->instance->hashSecretsBackup[1];
+		}
                 cur_op += 2;
                 goto NEXT;
             }
