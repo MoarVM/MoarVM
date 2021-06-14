@@ -6,8 +6,20 @@
 
 /* Get a native int64 from an mpz_t. */
 static MVMint64 mp_get_int64(MVMThreadContext *tc, mpz_t * a) {
+#ifdef _MSC_VER
+    if (mpz_size(*a) < 2) {
+        MVMuint64 ui = mpz_getlimbn(*a, 0);
+        int negative = mpz_sgn(*a) == -1;
+        if ((negative && ui > 9223372036854775808L) || (!negative && ui > 9223372036854775807L)) {
+            MVM_exception_throw_adhoc(tc, "Cannot unbox %lu bit wide bigint into native integer", mpz_sizeinbase(*a, 2));
+        }
+        else {
+            return negative ? -ui : ui;
+        }
+#else
     if (mpz_fits_slong_p(*a)) {
         return mpz_get_si(*a);
+#endif
     }
     else {
         MVM_exception_throw_adhoc(tc, "Cannot unbox %lu bit wide bigint into native integer", mpz_sizeinbase(*a, 2));
@@ -20,8 +32,13 @@ MVMint64 MVM_p6bigint_get_int64(MVMThreadContext *tc, MVMP6bigintBody *body) {
 
 /* Get a native uint64 from an mpz_t. */
 static MVMuint64 mp_get_uint64(MVMThreadContext *tc, mpz_t * a) {
+#ifdef _MSC_VER
+    if (mpz_size(*a) < 2) {
+        return mpz_getlimbn(*a, 0);
+#else
     if (mpz_fits_ulong_p(*a)) {
         return mpz_get_ui(*a);
+#endif
     }
     else {
         MVM_exception_throw_adhoc(tc, "Cannot unbox %lu bit wide bigint into native integer", mpz_sizeinbase(*a, 2));
@@ -67,7 +84,14 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
 void MVM_p6bigint_store_as_mpz_t(MVMThreadContext *tc, MVMP6bigintBody *body, MVMint64 value) {
     mpz_t *i = MVM_malloc(sizeof(mpz_t));
+#ifdef _MSC_VER
+    mpz_init(*i);
+    mp_limb_t *l = mpz_limbs_write(*i, 1L);
+    l[0] = value;
+    mpz_limbs_finish(*i, value < 0 ? -1L : 1L);
+#else
     mpz_init_set_si(*i, value);
+#endif
     body->u.bigint = i;
 }
 
@@ -100,7 +124,14 @@ static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
     }
     else {
         mpz_t *i = MVM_malloc(sizeof(mpz_t));
+#ifdef _MSC_VER
+        mpz_init(*i);
+        mp_limb_t *l = mpz_limbs_write(*i, 1L);
+        l[0] = value;
+        mpz_limbs_finish(*i, 1L);
+#else
         mpz_init_set_ui(*i, value);
+#endif
         body->u.bigint = i;
     }
 }
