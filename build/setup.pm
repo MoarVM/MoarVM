@@ -493,6 +493,13 @@ my %OS_WIN32 = (
             %TP_UVDUMMY,
             src => [ qw( 3rdparty/libuv/src 3rdparty/libuv/src/win ) ],
         },
+
+        gmp => {
+           name => 'gmp',
+           path => '3rdparty/gmp',
+           rule => 'cd 3rdparty/gmp/SMP && msbuild libgmp.vcxproj -p:Configuration=ReleaseDll -p:Platform=x64 -p:OutDir=..\output\ && cd ..\output && $(CP) lib/x64/* ../ && $(CP) include/*.h ../ && $(CP) bin/x64/*.dll ../',
+           clean => 'cd 3rdparty/gmp && $(MAKE) clean && $(RM) libgmp.a fat.h',
+        },
     },
 );
 
