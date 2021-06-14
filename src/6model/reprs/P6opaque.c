@@ -1983,7 +1983,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
 #ifdef _MSC_VER
                         MVMuint64 ui = mpz_getlimbn(*i, 0);
                         int negative = mpz_sgn(*i) == -1;
-                        if ((negative && ui <= 9223372036854775808L) || (!negative && ui <= 9223372036854775807L)) {
+                        if ((negative && ui <= 9223372036854775808LLU) || (!negative && ui <= 9223372036854775807LLU)) {
                             value = negative ? -ui : ui;
 #else
                         if (mpz_fits_slong_p(*i)) {
