@@ -191,6 +191,13 @@ stages:
           displayName: "Shorten PATH on Windows"
           condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
+        - pwsh: |
+            (New-Object Net.WebClient).DownloadFile('https://github.com/ShiftMediaProject/VSYASM/releases/download/0.6/VSYASM.zip', "$pwd\yasm.zip")
+            Add-Type -A 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory("$pwd\yasm.zip", "$pwd\TempYASMUnpack")
+            &".\TempYASMUnpack\install_script.bat"
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ), not(contains( variables['MOAR_OPTIONS'], 'mingw32' )))
+          displayName: Install YASM (Windows, MSVC)
+
         - script: |
             sudo apt-get update
             sudo apt-get install libzstd-dev valgrind
