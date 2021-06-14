@@ -1980,8 +1980,15 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
 
                     if (MVM_BIGINT_IS_BIG(body)) {
                         mpz_t *i = body->u.bigint;
+#ifdef _MSC_VER
+                        MVMuint64 ui = mpz_getlimbn(*i, 0);
+                        int negative = mpz_sgn(*i) == -1;
+                        if ((negative && ui <= 9223372036854775808L) || (!negative && ui <= 9223372036854775807L)) {
+                            value = negative ? -ui : ui;
+#else
                         if (mpz_fits_slong_p(*i)) {
                             value = mpz_get_si(*i);
+#endif
                             have_value = 1;
                         }
                     }
