@@ -89,7 +89,14 @@ static void store_int64_result(MVMThreadContext *tc, MVMP6bigintBody *body, MVMi
     }
     else {
         mpz_t *i = MVM_malloc(sizeof(mpz_t));
+#ifdef _MSC_VER
+        mpz_init(*i);
+        mp_limb_t *l = mpz_limbs_write(*i, 1L);
+        l[0] = result;
+        mpz_limbs_finish(*i, result < 0 ? -1L : 1L);
+#else
         mpz_init_set_si(*i, result);
+#endif
         body->u.bigint = i;
     }
 }
@@ -763,8 +770,11 @@ static MVMnum64 bigint_div_num(MVMThreadContext *tc, const mpz_t *numerator, con
     mpz_tdiv_qr(quotient, remainder, *numerator_scaled, *denominator_scaled);
 
     assert(mpz_sizeinbase(quotient, 2) <= MANTISSA_BITS_IN_DOUBLE + 2);
-
+#ifdef _MSC_VER
+    uint64_t mantissa = mpz_getlimbn(quotient, 0);
+#else
     uint64_t mantissa = mpz_get_ui(quotient);
+#endif
     assert(mantissa < UINT64_C(1) << (MANTISSA_BITS_IN_DOUBLE + 1));
     assert(mantissa >= UINT64_C(1) << (MANTISSA_BITS_IN_DOUBLE - 1));
 
