@@ -10,7 +10,7 @@ static MVMint64 mp_get_int64(MVMThreadContext *tc, mpz_t * a) {
     if (mpz_size(*a) < 2) {
         MVMuint64 ui = mpz_getlimbn(*a, 0);
         int negative = mpz_sgn(*a) == -1;
-        if ((negative && ui > 9223372036854775808L) || (!negative && ui > 9223372036854775807L)) {
+        if ((negative && ui > 9223372036854775808LLU) || (!negative && ui > 9223372036854775807LLU)) {
             MVM_exception_throw_adhoc(tc, "Cannot unbox %lu bit wide bigint into native integer", mpz_sizeinbase(*a, 2));
         }
         else {
