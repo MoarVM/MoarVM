@@ -222,6 +222,8 @@ if ($^O eq 'openbsd' && $args{jit} && $config{cc} eq 'clang') {
 # Set the remaining ldmiscflags. Do this after probing for gcc -Werror probe to not miss that change for the linker.
 $config{ldmiscflags}  = $config{ccmiscflags} unless defined $config{ldmiscflags};
 
+# Include paths that NQP/Rakudo are going to need in their build.
+my @hllincludes = qw( moar );
 
 if ($args{'has-sha'}) {
     $config{shaincludedir} = '/usr/include/sha';
@@ -268,6 +270,7 @@ else {
                         . "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/libuv/uv\"\n"
                         . "\t\$(CP) 3rdparty/libuv/include/*.h \"\$(DESTDIR)\$(PREFIX)/include/libuv\"\n"
                         . "\t\$(CP) 3rdparty/libuv/include/uv/*.h \"\$(DESTDIR)\$(PREFIX)/include/libuv/uv\"\n";
+    push @hllincludes, 'libuv';
 }
 
 if ($args{'has-libatomic_ops'}) {
@@ -297,6 +300,7 @@ else {
                         . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/loadstore/*.h \"$lao/atomic_ops/sysdeps/loadstore\"\n"
                         . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/msftc/*.h \"$lao/atomic_ops/sysdeps/msftc\"\n"
                         . "\t\$(CP) 3rdparty/libatomicops/src/atomic_ops/sysdeps/sunc/*.h \"$lao/atomic_ops/sysdeps/sunc\"\n";
+    push @hllincludes, 'libatomic_ops';
 }
 
 if ($args{'has-libtommath'}) {
@@ -315,6 +319,7 @@ else {
     $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libtommath';
     $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/libtommath\"\n"
                         . "\t\$(CP) 3rdparty/libtommath/*.h \"\$(DESTDIR)\$(PREFIX)/include/libtommath\"\n";
+    push @hllincludes, 'libtommath';
 }
 
 if ($args{'has-libffi'}) {
@@ -362,6 +367,7 @@ else {
                         . "\t\$(CP) 3rdparty/dyncall/dynload/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n"
                         . "\t\$(CP) 3rdparty/dyncall/dyncall/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n"
                         . "\t\$(CP) 3rdparty/dyncall/dyncallback/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n";
+    push @hllincludes, 'dyncall';
 }
 
 # The ZSTD_CStream API is only exposed starting at version 1.0.0
@@ -592,6 +598,7 @@ unless (defined $config{jit_obj}) {
 if ($config{cc} eq 'cl') {
     $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/msinttypes\"\n"
                         . "\t\$(CP) 3rdparty/msinttypes/*.h \"\$(DESTDIR)\$(PREFIX)/include/msinttypes\"\n";
+    push @hllincludes, 'msinttypes';
 }
 
 if ($^O eq 'aix' && $config{ptr_size} == 4) {
@@ -685,6 +692,10 @@ $config{thirdpartylibs} = join ' ', @thirdpartylibs;
 my $thirdpartylibs = join "\n" . ' ' x 12, sort @thirdpartylibs;
 
 print "OK\n";
+
+# the parser for config values used in the NQP/Rakudo build doesn't understand arrays,
+# so just join into a single string
+$config{hllincludes} = join " ", @hllincludes;
 
 write_backend_config();
 
