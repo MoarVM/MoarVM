@@ -9,7 +9,7 @@ Core:
 
 Tooling/Build:
 + [9b7ab7c4] Put include paths needed for HLL builds in config
-+ [91b1ccf6,bb767ece,192ea6bb] Define _GNU_SOURCE for GNU builds
++ [91b1ccf6,bb767ece,192ea6bb] Define `_GNU_SOURCE` for GNU builds
 + [12cbafce] Disable GCC pragmas when using MSVC
 + [4751ca6d] Add note about macro confusion between gcc and clang
 
