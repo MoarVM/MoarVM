@@ -1,3 +1,18 @@
+New in 2021.06
+
+6model:
++ [0d63ddad] Set `sc.idx` during deserialization to avoid costly lookup later
+
+Core:
++ [5ba30ed8,ae024a49,d8a16dfd,77756158] Try to trap concurrent hash accesses
++ [c53c0cdb] Fix a case of heap-use-after-free rarely affecting `t/spec/S17-promise/nonblocking-await.t`
+
+Tooling/Build:
++ [9b7ab7c4] Put include paths needed for HLL builds in config
++ [91b1ccf6,bb767ece,192ea6bb] Define _GNU_SOURCE for GNU builds
++ [12cbafce] Disable GCC pragmas when using MSVC
++ [4751ca6d] Add note about macro confusion between gcc and clang
+
 New in 2021.05
 
 Core:
