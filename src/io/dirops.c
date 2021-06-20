@@ -44,15 +44,11 @@ static int mkdir_p(MVMThreadContext *tc, char *pathname, MVMint64 mode) {
             ch = *p;
             *p  = '\0';
 #ifdef _WIN32
-            if (CreateDirectoryW(pathname, NULL)) {
-                created = 1;
-            }
+            created = CreateDirectoryW(pathname, NULL);
 #else
-            if (uv_fs_stat(NULL, &req, pathname, NULL) <= 0) {
-                if (mkdir(pathname, mode) != -1) {
-                    created = 1;
-                }
-            }
+            created = (uv_fs_stat(NULL, &req, pathname, NULL) == 0
+                       && S_ISDIR(req.statbuf.st_mode)
+                       || mkdir(pathname, mode) == 0);
 #endif
             if (!(*p = ch)) break;
         }
@@ -102,7 +98,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
     MVM_free(wpathname);
 #else
 
-    if (mkdir_p(tc, pathname, mode) == -1 && errno != EEXIST) {
+    if (mkdir_p(tc, pathname, mode) == -1) {
         int mkdir_error = errno;
         MVM_free(pathname);
         MVM_exception_throw_adhoc(tc, "Failed to mkdir: %s", strerror(mkdir_error));
