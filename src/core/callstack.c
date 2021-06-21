@@ -152,6 +152,7 @@ MVMCallStackFlattening * MVM_callstack_allocate_flattening(MVMThreadContext *tc,
     record->produced_cs.is_interned = 0;
     record->produced_cs.has_flattening = 0;
     record->produced_cs.arg_names = (MVMString **)((char *)record + record_size + flags_size);
+    record->produced_cs.with_invocant = NULL;
 
     /* Set up arg info. */
     record->arg_info.callsite = &(record->produced_cs);
