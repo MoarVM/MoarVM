@@ -594,13 +594,6 @@ unless (defined $config{jit_obj}) {
     $config{dasm_flags}   = '';
 }
 
-
-if ($config{cc} eq 'cl') {
-    $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/msinttypes\"\n"
-                        . "\t\$(CP) 3rdparty/msinttypes/*.h \"\$(DESTDIR)\$(PREFIX)/include/msinttypes\"\n";
-    push @hllincludes, 'msinttypes';
-}
-
 if ($^O eq 'aix' && $config{ptr_size} == 4) {
     $config{ldflags} = join(',', $config{ldflags}, '-bmaxdata:0x80000000');
 }
