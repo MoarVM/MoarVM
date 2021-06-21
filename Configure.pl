@@ -340,6 +340,7 @@ else {
     $config{gmpconf} .= ' --enable-fat' if $args{'enable-gmp-fat'};
     $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/gmp';
     $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/gmp\"\n"
+                        . "\t\$(CP) 3rdparty/gmp/output/bin/x64/gmp.dll \"\$(DESTDIR)\$(PREFIX)/bin\"\n"
                         . "\t\$(CP) 3rdparty/gmp/output/include/*.h \"\$(DESTDIR)\$(PREFIX)/include/gmp\"\n";
     push @hllincludes, 'gmp';
 }
