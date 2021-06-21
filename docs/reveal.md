@@ -94,12 +94,11 @@ So far, MoarVM has:
   to go in the opposite direction. This saves us from producing text, only to
   parse it to produce bytecode.
 
-* **IO and other platform stuff** provided by the Apache Portable Runtime, big
-  integer support provided by libtommath, and re-use of existing atomic ops
-  and hash implementations. We will likely replace the APR with libuv in the
-  future. The general principle is to re-use things that we're unlikely to
-  be able to recreate ourselves to the same level of quality or on an
-  acceptable time scale, enabling us to focus on the core domain.
+* **IO and other platform stuff** provided by the libuv, big integer
+  support provided by gmp, and re-use of existing atomic ops implementations.
+  The general principle is to re-use things that we're unlikely to be able to
+  recreate ourselves to the same level of quality or on an acceptable time
+  scale, enabling us to focus on the core domain.
 
 ## What does this mean for the Rakudo on JVM work?
 

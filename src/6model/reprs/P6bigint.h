@@ -1,4 +1,4 @@
-#include "tommath.h"
+#include "gmp.h"
 
 #define MVM_BIGINT_32_FLAG      0xFFFFFFFF
 #define MVM_BIGINT_IS_BIG(body) ((body)->u.smallint.flag != 0xFFFFFFFF)
@@ -22,8 +22,8 @@ struct MVMP6bigintBody {
 #endif
         } smallint;
 
-        /* Pointer to a libtommath big integer. */
-        mp_int *bigint;
+        /* Pointer to a gmp big integer. */
+        mpz_t *bigint;
     } u;
 };
 struct MVMP6bigint {
@@ -35,4 +35,4 @@ struct MVMP6bigint {
 const MVMREPROps * MVMP6bigint_initialize(MVMThreadContext *tc);
 
 MVMint64 MVM_p6bigint_get_int64(MVMThreadContext *tc, MVMP6bigintBody *body);
-void MVM_p6bigint_store_as_mp_int(MVMThreadContext *tc, MVMP6bigintBody *body, MVMint64 value);
+void MVM_p6bigint_store_as_mpz_t(MVMThreadContext *tc, MVMP6bigintBody *body, MVMint64 value);

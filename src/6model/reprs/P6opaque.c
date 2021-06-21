@@ -1919,17 +1919,16 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                     MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot]);
 
                     if (MVM_BIGINT_IS_BIG(body)) {
-                        mp_int *i = body->u.bigint;
-                        const int bits = mp_count_bits(i);
-                        if (bits <= 63) {
-                            MVMuint64 res = mp_get_mag_ull(i);
-                            value = MP_NEG == i->sign ? -res : res;
-                            have_value = 1;
-                        }
-                        else if (bits == 64
-                                 && MP_NEG == i->sign
-                                 && mp_get_mag_ull(i) == 9223372036854775808ULL) {
-                            value = -9223372036854775807ULL - 1;
+                        mpz_t *i = body->u.bigint;
+#ifdef _MSC_VER
+                        MVMuint64 ui = mpz_getlimbn(*i, 0);
+                        int negative = mpz_sgn(*i) == -1;
+                        if ((negative && ui <= 9223372036854775808LLU) || (!negative && ui <= 9223372036854775807LLU)) {
+                            value = negative ? -ui : ui;
+#else
+                        if (mpz_fits_slong_p(*i)) {
+                            value = mpz_get_si(*i);
+#endif
                             have_value = 1;
                         }
                     }
