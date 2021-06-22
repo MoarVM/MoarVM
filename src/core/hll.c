@@ -61,6 +61,8 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->int_multidim_ref, "HLL int_multidim_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->num_multidim_ref, "HLL num_multidim_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->str_multidim_ref, "HLL str_multidim_ref");
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->call_dispatcher, "HLL call dispatcher name");
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->method_call_dispatcher, "HLL method call dispatcher name");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name, "HLL name");
     }
 
@@ -81,6 +83,11 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_nativeref_ensure(tc, val, wantprim, wantkind, name); \
         (config)->member = val; \
     }\
+} while (0)
+#define check_config_key_str(tc, hash, name, member, config) do { \
+    MVMString *key = MVM_string_utf8_decode((tc), (tc)->instance->VMString, (name), strlen((name))); \
+    MVMObject *val = MVM_repr_at_key_o((tc), (hash), key); \
+    if (!MVM_is_null(tc, val)) (config)->member = MVM_repr_get_str(tc, val); \
 } while (0)
 void set_max_inline_size(MVMThreadContext *tc, MVMObject *config_hash, MVMHLLConfig *config) {
     MVMROOT(tc, config_hash, {
@@ -147,6 +154,9 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
                 config, MVM_STORAGE_SPEC_BP_NUM, MVM_NATIVEREF_MULTIDIM);
             check_config_key_reftype(tc, config_hash, "str_multidim_ref", str_multidim_ref,
                 config, MVM_STORAGE_SPEC_BP_STR, MVM_NATIVEREF_MULTIDIM);
+            check_config_key_str(tc, config_hash, "call_dispatcher", call_dispatcher, config);
+            check_config_key_str(tc, config_hash, "method_call_dispatcher",
+                method_call_dispatcher, config);
             set_max_inline_size(tc, config_hash, config);
 
             /* Without this the integer objects are allocated in the nursery,
