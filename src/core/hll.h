@@ -64,6 +64,12 @@ struct MVMHLLConfig {
     MVMObject *true_value;
     MVMObject *false_value;
 
+    /* The language's call dispatcher and method call dispatcher names. Used
+     * by the lang-call and lang-method-call built-in dispatchers to resolve
+     * dispatches. */
+    MVMString *call_dispatcher;
+    MVMString *method_call_dispatcher;
+
     /* The maximum code size that we'll inline. */
     MVMuint32 max_inline_size;
 };
