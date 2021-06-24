@@ -64,7 +64,7 @@ static void boot_code_constant(MVMThreadContext *tc, MVMArgs arg_info) {
             MVM_disp_program_record_code_constant(tc, (MVMCode *)code, args_capture);
         }
         else if (REPR(code)->ID == MVM_REPR_ID_MVMCFunction && IS_CONCRETE(code)) {
-            MVM_panic(1, "invoke c function result nyi");
+            MVM_disp_program_record_c_code_constant(tc, (MVMCFunction *)code, args_capture);
         }
         else {
             MVM_exception_throw_adhoc(tc,
