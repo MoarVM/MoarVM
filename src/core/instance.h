@@ -94,6 +94,8 @@ struct MVMStringConsts {
     MVMString *replacement;
     MVMString *dot;
     MVMString *boot_resume;
+    MVMString *boot_code;
+    MVMString *lang_call;
 };
 
 struct MVMEventSubscriptions {

@@ -251,3 +251,142 @@ static void boot_resume_caller(MVMThreadContext *tc, MVMArgs arg_info) {
 MVMObject * MVM_disp_boot_resume_caller_dispatch(MVMThreadContext *tc) {
     return wrap(tc, boot_resume_caller);
 }
+
+/* The lang-call dispatcher first looks at if we have a VM-level code handle
+ * or C function handle, and if so invokes it. Otherwise, it looks at the
+ * HLL of the type of the object it finds, resolves the dispatcher of that
+ * HLL, and then delegates to it. If there is no dispatcher found for the
+ * HLL in question, an exception is thrown. It expects the first argument in
+ * the capture to be the target of the invocation and the rest to be the
+ * arguments. Establishes a type guard on the callee. */
+static void lang_call(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVM_args_checkarity(tc, &arg_ctx, 1, 1);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+
+    /* Obtain and guard on the first argument of the capture, which is the
+     * thing to invoke. */
+    MVMObject *invokee = MVM_capture_arg_pos_o(tc, capture, 0);
+    MVMObject *tracked_invokee;
+    MVMROOT(tc, capture, {
+         tracked_invokee = MVM_disp_program_record_track_arg(tc, capture, 0);
+    });
+    MVM_disp_program_record_guard_type(tc, tracked_invokee);
+
+    /* If it's a VM code object or a VM function, we'll delegate to the
+     * boot code dispatcher. */
+    MVMString *delegate;
+    if (REPR(invokee)->ID == MVM_REPR_ID_MVMCode ||
+            REPR(invokee)->ID == MVM_REPR_ID_MVMCFunction) {
+        if (!IS_CONCRETE(invokee))
+            MVM_exception_throw_adhoc(tc, "lang-code code handle must be concrete");
+        MVM_disp_program_record_guard_concreteness(tc, tracked_invokee);
+        delegate = tc->instance->str_consts.boot_code;
+    }
+
+    /* Otherwise go on langauge and delegate to its registered disaptcher. */
+    else {
+        MVMHLLConfig *hll = STABLE(invokee)->hll_owner;
+        if (!hll)
+            MVM_exception_throw_adhoc(tc,
+                    "lang-call cannot invoke object of type '%s' belonging to no language",
+                    STABLE(invokee)->debug_name);
+        delegate = hll->call_dispatcher;
+        if (!delegate) {
+            char *lang_name = MVM_string_utf8_encode_C_string(tc, hll->name);
+            char *waste[] = { lang_name, NULL };
+            MVM_exception_throw_adhoc_free(tc, waste,
+                    "No language call dispatcher registered for %s",
+                    lang_name);
+        }
+    }
+
+    MVM_disp_program_record_delegate(tc, delegate, capture);
+}
+
+/* Gets the MVMCFunction object wrapping the language-sensitive call dispatcher. */
+MVMObject * MVM_disp_lang_call_dispatch(MVMThreadContext *tc) {
+    return wrap(tc, lang_call);
+}
+
+/* The lang-meth-call dispatcher looks at the language of the type of the
+ * invocant, which should be in the first argument of the capture. If
+ * there is one, it delegates to the registered method dispatcher for that
+ * language, establishing a type guard on the invocant. If not, then the
+ * type must have a metaclass that is a KnowHOW, and the method will be
+ * resolved using the method table, with guards being established on both
+ * the invocant and the name (which must be the second argument). There
+ * will then be a delegation to the lang-call dispatcher to take care of
+ * the invocation. The arguments (including the invocant, possibly simply
+ * repeated or possibly in a container) should follow the method name. If
+ * there is neither a language set on the invocant and it does not have a
+ * KnowHOW metaclass, an exception will be thrown. */
+static void lang_meth_call(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVM_args_checkarity(tc, &arg_ctx, 1, 1);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+
+    /* Obtain and guard on the first argument of the capture, which is the
+     * invocant of the method call. */
+    MVMObject *invocant = MVM_capture_arg_pos_o(tc, capture, 0);
+    MVMObject *tracked_invocant;
+    MVMROOT(tc, capture, {
+         tracked_invocant = MVM_disp_program_record_track_arg(tc, capture, 0);
+    });
+    MVM_disp_program_record_guard_type(tc, tracked_invocant);
+
+    /* If the invocant has an associated HLL and method dispatcher, delegate there. */
+    MVMHLLConfig *hll = STABLE(invocant)->hll_owner;
+    if (hll && hll->method_call_dispatcher) {
+        MVM_disp_program_record_delegate(tc, hll->method_call_dispatcher, capture);
+        return;
+    }
+
+    /* Otherwise if it's a KnowHOW, then look in its method table (this is how
+     * method dispatch bottoms out in the VM). */
+    MVMObject *HOW = MVM_6model_get_how(tc, STABLE(invocant));
+    if (REPR(HOW)->ID == MVM_REPR_ID_KnowHOWREPR && IS_CONCRETE(HOW)) {
+        MVMObject *methods = ((MVMKnowHOWREPR *)HOW)->body.methods;
+        MVMString *method_name = MVM_capture_arg_pos_s(tc, capture, 1);
+        MVMObject *method = MVM_repr_at_key_o(tc, methods, method_name);
+        if (IS_CONCRETE(method)) {
+            MVMROOT2(tc, capture, method, {
+                /* Method found. Guard on the name. */
+                MVMObject *tracked_name = MVM_disp_program_record_track_arg(tc, capture, 1);
+                MVM_disp_program_record_guard_literal(tc, tracked_name);
+
+                /* Drop leading invocant and name. */
+                MVMObject *args_capture = MVM_disp_program_record_capture_drop_arg(tc,
+                        MVM_disp_program_record_capture_drop_arg(tc, capture, 0), 0);
+
+                /* Insert resolved method. */
+                MVMRegister method_reg = { .o = method };
+                MVMObject *del_capture = MVM_disp_program_record_capture_insert_constant_arg(tc,
+                        args_capture, 0, MVM_CALLSITE_ARG_OBJ, method_reg);
+                MVM_disp_program_record_delegate(tc, tc->instance->str_consts.lang_call,
+                        del_capture);
+            });
+        }
+        else {
+            char *c_name = MVM_string_utf8_encode_C_string(tc, method_name);
+            char *waste[] = { c_name, NULL };
+            MVM_exception_throw_adhoc_free(tc, waste,
+                    "Cannot find method '%s' on object of type %s",
+                    c_name, STABLE(invocant)->debug_name);
+        }
+        return;
+    }
+
+    /* Otherwise, error. */
+    MVM_exception_throw_adhoc(tc,
+            "lang-meth-call cannot work out how to dispatch on type '%s'",
+            STABLE(invocant)->debug_name);
+}
+
+/* Gets the MVMCFunction object wrapping the language-sensitive method call
+ * dispatcher. */
+MVMObject * MVM_disp_lang_meth_call_dispatch(MVMThreadContext *tc) {
+    return wrap(tc, lang_meth_call);
+}
