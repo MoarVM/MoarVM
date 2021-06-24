@@ -9,7 +9,7 @@ static MVMObject * wrap(MVMThreadContext *tc, void (*func) (MVMThreadContext *, 
 }
 
 /* The boot-constant dispatcher takes the first position argument of the
- * incoming argument catpure and treats it as a constant that should always
+ * incoming argument capture and treats it as a constant that should always
  * be produced as the result of the dispatch (modulo established guards). */
 static void boot_constant(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMArgProcContext arg_ctx;
@@ -46,7 +46,7 @@ MVMObject * MVM_disp_boot_value_dispatch(MVMThreadContext *tc) {
 }
 
 /* The boot-code-constant dispatcher takes the first positional argument of
- * the incoming argument catpure, which should be either an MVMCode or an
+ * the incoming argument capture, which should be either an MVMCode or an
  * MVMCFunction. It invokes it with the rest of the args. The provided
  * code object is considered a constant. */
 static void boot_code_constant(MVMThreadContext *tc, MVMArgs arg_info) {
@@ -81,7 +81,7 @@ MVMObject * MVM_disp_boot_code_constant_dispatch(MVMThreadContext *tc) {
 }
 
 /* The boot-code dispatcher takes the first positional argument of the
- * incoming argument catpure, which should be either an MVMCode or an
+ * incoming argument capture, which should be either an MVMCode or an
  * MVMCFunction. It establishes a type and concreteness guard on it,
  * then invokes it with the rest of the args. */
 static void boot_code(MVMThreadContext *tc, MVMArgs arg_info) {
