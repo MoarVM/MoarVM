@@ -1327,6 +1327,38 @@ void MVM_disp_program_record_c_code_constant(MVMThreadContext *tc, MVMCFunction 
     record->outcome.args.source = ((MVMCapture *)capture)->body.args;
 }
 
+/* Record a program terminator that invokes bytecode from a tracked value (for
+ * example, from a capture or attribute read). Guards are established against
+ * the tracked value for both type and concreteness as a side-effect. */
+void MVM_disp_program_record_tracked_code(MVMThreadContext *tc, MVMObject *tracked,
+        MVMObject *capture) {
+    /* Look up the tracked value. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    MVMuint32 code_index = find_tracked_value_index(tc, &(record->rec), tracked);
+
+    /* Ensure it is a concrete MVMCode object and establish guards. */
+    if (((MVMTracked *)tracked)->body.kind != MVM_CALLSITE_ARG_OBJ)
+        MVM_exception_throw_adhoc(tc, "Can only record tracked code result with an object");
+    MVMObject *code = ((MVMTracked *)tracked)->body.value.o;
+    if (REPR(code)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(code))
+        MVM_exception_throw_adhoc(tc, "Can only record tracked code result with concrete MVMCode");
+    MVM_disp_program_record_guard_type(tc, tracked);
+    MVM_disp_program_record_guard_concreteness(tc, tracked);
+
+    /* Record the index of the tracked value along with the capture. */
+    ensure_known_capture(tc, record, capture);
+    record->rec.outcome_value = code_index;
+    record->rec.outcome_capture = capture;
+
+    /* Set up the invoke outcome. */
+    MVMCallsite *callsite = ((MVMCapture *)capture)->body.callsite;
+    record->outcome.kind = MVM_DISP_OUTCOME_BYTECODE;
+    record->outcome.code = (MVMCode *)code;
+    record->outcome.args.callsite = callsite;
+    record->outcome.args.map = MVM_args_identity_map(tc, callsite);
+    record->outcome.args.source = ((MVMCapture *)capture)->body.args;
+}
+
 /* Process a recorded program. */
 typedef struct {
     MVMuint32 temp_idx;
