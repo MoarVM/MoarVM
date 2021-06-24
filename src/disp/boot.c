@@ -45,8 +45,8 @@ MVMObject * MVM_disp_boot_value_dispatch(MVMThreadContext *tc) {
     return wrap(tc, boot_value);
 }
 
-/* The boot-code dispatcher takes the first positional argument of the
- * incoming argument catpure, which should be either an MVMCode or an
+/* The boot-code-constant dispatcher takes the first positional argument of
+ * the incoming argument catpure, which should be either an MVMCode or an
  * MVMCFunction. It invokes it with the rest of the args. The provided
  * code object is considered a constant. */
 static void boot_code_constant(MVMThreadContext *tc, MVMArgs arg_info) {
