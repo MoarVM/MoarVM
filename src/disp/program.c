@@ -446,6 +446,8 @@ static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *recor
     MVMObject *dispatch = disp->dispatch;
     if (REPR(dispatch)->ID == MVM_REPR_ID_MVMCFunction) {
         record->outcome.kind = MVM_DISP_OUTCOME_FAILED;
+        record->outcome.delegate_disp = NULL;
+        record->outcome.delegate_capture = NULL;
         ((MVMCFunction *)dispatch)->body.func(tc, dispatch_args);
         MVM_callstack_unwind_dispatch_record(tc, thunked);
     }
@@ -1198,6 +1200,7 @@ void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatche
      * capture is one we know about. Then stash the info. */
     MVMDispDefinition *disp = MVM_disp_registry_find(tc, dispatcher_id);
     ensure_known_capture(tc, record, capture);
+    record->outcome.kind = MVM_DISP_OUTCOME_EXPECT_DELEGATE;
     record->outcome.delegate_disp = disp;
     record->outcome.delegate_capture = capture;
 }
