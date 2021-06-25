@@ -689,19 +689,31 @@ MVMint64 MVM_args_has_named(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMStr
     return 0;
 }
 void MVM_args_assert_nameds_used(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    if (ctx->version != MVM_ARGS_LEGACY)
-        MVM_panic(1, "Cannot handle new callsite format in MVM_args_assert_nameds_used");
     MVMuint16 size = ctx->named_used_size;
     MVMuint16 i;
-    if (size > 64) {
-        for (i = 0; i < size; i++)
-            if (!ctx->named_used.byte_array[i])
-                MVM_args_throw_named_unused_error(tc, ctx->legacy.args[ctx->legacy.num_pos + 2 * i].s);
+    if (ctx->version == MVM_ARGS_LEGACY) {
+        if (size > 64) {
+            for (i = 0; i < size; i++)
+                if (!ctx->named_used.byte_array[i])
+                    MVM_args_throw_named_unused_error(tc, ctx->legacy.args[ctx->legacy.num_pos + 2 * i].s);
+        }
+        else {
+            for (i = 0; i < size; i++)
+                if (!(ctx->named_used.bit_field & ((MVMuint64)1 << i)))
+                    MVM_args_throw_named_unused_error(tc, ctx->legacy.args[ctx->legacy.num_pos + 2 * i].s);
+        }
     }
     else {
-        for (i = 0; i < size; i++)
-            if (!(ctx->named_used.bit_field & ((MVMuint64)1 << i)))
-                MVM_args_throw_named_unused_error(tc, ctx->legacy.args[ctx->legacy.num_pos + 2 * i].s);
+        if (size > 64) {
+            for (i = 0; i < size; i++)
+                if (!ctx->named_used.byte_array[i])
+                    MVM_args_throw_named_unused_error(tc, ctx->arg_info.callsite->arg_names[i]);
+        }
+        else {
+            for (i = 0; i < size; i++)
+                if (!(ctx->named_used.bit_field & ((MVMuint64)1 << i)))
+                    MVM_args_throw_named_unused_error(tc, ctx->arg_info.callsite->arg_names[i]);
+        }
     }
 }
 
