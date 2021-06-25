@@ -156,6 +156,10 @@ struct MVMCallStackDispatchRecord {
     /* The initial arguments to the dispatch. */
     MVMArgs arg_info;
 
+    /* What was the original expected return type? Used because we set it to
+     * void during the running of dispatch callbacks. */
+    MVMReturnType orig_return_type;
+
     /* The current recording state. Keeps track of the captures
      * derived and guards established. */
     MVMDispProgramRecording rec;

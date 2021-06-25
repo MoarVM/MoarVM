@@ -503,6 +503,13 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
         capture = MVM_capture_from_args(tc, arg_info);
     });
     record->rec.initial_capture.capture = capture;
+
+    /* The dispatchers should not return anything; stash away the original
+     * return type so we can reinstate it when we are done recording. */
+    record->orig_return_type = tc->cur_frame->return_type;
+    tc->cur_frame->return_type = MVM_RETURN_VOID;
+
+    /* Run the dispatcher. */
     run_dispatch(tc, record, disp, capture, NULL);
 }
 
@@ -2324,6 +2331,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
         case MVM_DISP_OUTCOME_VALUE: {
             process_recording(tc, record);
             MVMFrame *caller = find_calling_frame(tc, record->common.prev);
+            caller->return_type = record->orig_return_type;
             switch (record->outcome.result_kind) {
                 case MVM_reg_obj:
                     MVM_args_set_dispatch_result_obj(tc, caller, record->outcome.result_value.o);
@@ -2349,6 +2357,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             MVM_disp_program_recording_destroy(tc, &(record->rec));
             record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
             tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
+            tc->cur_frame->return_type = record->orig_return_type;
             if (should_add_bind_failure)
                 MVM_callstack_allocate_bind_failure(tc, bind_failure_resumption_flag);
             MVM_frame_dispatch(tc, record->outcome.code, record->outcome.args, -1);
@@ -2361,6 +2370,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             MVM_disp_program_recording_destroy(tc, &(record->rec));
             record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
             tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
+            tc->cur_frame->return_type = record->orig_return_type;
             record->outcome.c_func(tc, record->outcome.args);
             return 1;
         default:
