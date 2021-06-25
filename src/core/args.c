@@ -314,11 +314,18 @@ MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ct
 
 /* Copy a callsite unless it is interned. */
 MVMCallsite * MVM_args_copy_uninterned_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    if (ctx->version != MVM_ARGS_LEGACY)
-        MVM_panic(1, "Cannot handle new callsite format in MVM_args_copy_uninterned_callsite");
-    return ctx->legacy.callsite->is_interned && !ctx->legacy.arg_flags
-        ? ctx->legacy.callsite
-        : MVM_args_copy_callsite(tc, ctx);
+    if (ctx->version == MVM_ARGS_LEGACY) {
+        MVMCallsite *cs = ctx->legacy.callsite;
+        return cs->is_interned && !ctx->legacy.arg_flags
+            ? cs
+            : MVM_args_copy_callsite(tc, ctx);
+    }
+    else {
+        MVMCallsite *cs = ctx->arg_info.callsite;
+        return cs->is_interned
+            ? cs
+            : MVM_args_copy_callsite(tc, ctx);
+    }
 }
 
 MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
@@ -332,16 +339,31 @@ MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
 
 MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
     MVMObject *cc_obj;
-    if (frame->params.version != MVM_ARGS_LEGACY)
-        MVM_panic(1, "Cannot handle new callsite format in MVM_args_save_capture");
     MVMROOT(tc, frame, {
         MVMCallCapture *cc = (MVMCallCapture *)
             (cc_obj = MVM_repr_alloc_init(tc, tc->instance->CallCapture));
 
         /* Copy the arguments. */
-        MVMuint32 arg_size = frame->params.legacy.arg_count * sizeof(MVMRegister);
-        MVMRegister *args = MVM_malloc(arg_size);
-        memcpy(args, frame->params.legacy.args, arg_size);
+        MVMRegister *args;
+        if (frame->params.version == MVM_ARGS_LEGACY) {
+            MVMuint32 arg_size = frame->params.legacy.arg_count * sizeof(MVMRegister);
+            args = MVM_malloc(arg_size);
+            memcpy(args, frame->params.legacy.args, arg_size);
+        }
+        else {
+            MVMCallsite *cs = frame->params.arg_info.callsite;
+            MVMuint32 num_named = cs->flag_count - cs->num_pos;
+            MVMuint32 arg_size = (cs->num_pos + 2 * num_named) * sizeof(MVMRegister);
+            args = MVM_malloc(arg_size);
+            MVMuint32 insert_pos = 0;
+            MVMuint32 cur_named = 0;
+            MVMuint32 i;
+            for (i = 0; i < cs->flag_count; i++) {
+                if (cs->arg_flags[i] & MVM_CALLSITE_ARG_NAMED)
+                    args[insert_pos++].s = cs->arg_names[cur_named++];
+                args[insert_pos++] = frame->params.arg_info.source[frame->params.arg_info.map[i]];
+            }
+        }
 
         /* Set up the call capture, copying the callsite. */
         cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
