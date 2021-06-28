@@ -3006,12 +3006,14 @@ MVMObject * MVM_serialization_demand_object(MVMThreadContext *tc, MVMSerializati
     MVM_gc_allocate_gen2_default_set(tc);
 
     /* Stub the object. */
-    stub_object(tc, sr, idx);
+    MVMROOT(tc, sc, {
+        stub_object(tc, sr, idx);
 
-    /* Add to worklist and process as needed. */
-    worklist_add_index(tc, &(sr->wl_objects), idx);
-    if (sr->working == 1)
-        work_loop(tc, sr);
+        /* Add to worklist and process as needed. */
+        worklist_add_index(tc, &(sr->wl_objects), idx);
+        if (sr->working == 1)
+                work_loop(tc, sr);
+    });
 
     /* Clear up. */
     MVM_gc_allocate_gen2_default_clear(tc);
@@ -3061,12 +3063,14 @@ MVMSTable * MVM_serialization_demand_stable(MVMThreadContext *tc, MVMSerializati
     MVM_gc_allocate_gen2_default_set(tc);
 
     /* Stub the STable. */
-    stub_stable(tc, sr, idx);
+    MVMROOT(tc, sc, {
+        stub_stable(tc, sr, idx);
 
-    /* Add to worklist and process as needed. */
-    worklist_add_index(tc, &(sr->wl_stables), idx);
-    if (sr->working == 1)
-        work_loop(tc, sr);
+        /* Add to worklist and process as needed. */
+        worklist_add_index(tc, &(sr->wl_stables), idx);
+        if (sr->working == 1)
+            work_loop(tc, sr);
+    });
 
     /* Clear up. */
     MVM_gc_allocate_gen2_default_clear(tc);
@@ -3095,12 +3099,14 @@ MVMObject * MVM_serialization_demand_code(MVMThreadContext *tc, MVMSerialization
     sr->working++;
     MVM_gc_allocate_gen2_default_set(tc);
 
-    /* Deserialize the code object. */
-    deserialize_closure(tc, sr, idx - sr->num_static_codes);
+    MVMROOT(tc, sc, {
+        /* Deserialize the code object. */
+        deserialize_closure(tc, sr, idx - sr->num_static_codes);
 
-    /* Add to worklist and process as needed. */
-    if (sr->working == 1)
-        work_loop(tc, sr);
+        /* Add to worklist and process as needed. */
+        if (sr->working == 1)
+            work_loop(tc, sr);
+    });
 
     /* Clear up. */
     MVM_gc_allocate_gen2_default_clear(tc);
