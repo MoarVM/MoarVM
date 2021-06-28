@@ -657,26 +657,59 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
  * updated in a while, clears them out. */
 void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames) {
     MVMint64 elems = MVM_repr_elems(tc, check_frames);
-    MVMint64 insert_pos = 0;
-    MVMint64 i;
-    for (i = 0; i < elems; i++) {
-        MVMStaticFrame *sf = (MVMStaticFrame *)MVM_repr_at_pos_o(tc, check_frames, i);
-        MVMStaticFrameSpesh *spesh = sf->body.spesh;
-        MVMSpeshStats *ss = spesh->body.spesh_stats;
-        if (!ss) {
-            /* No stats; already destroyed, don't keep this frame under
-             * consideration. */
+    MVMROOT(tc, check_frames, {
+        MVMint64 insert_pos = 0;
+        MVMint64 i;
+        for (i = 0; i < elems; i++) {
+            MVMStaticFrame *sf = (MVMStaticFrame *)MVM_repr_at_pos_o(tc, check_frames, i);
+            MVMROOT(tc, sf, {
+                MVMStaticFrameSpesh *spesh = sf->body.spesh;
+                MVMSpeshStats *ss = spesh->body.spesh_stats;
+                if (!ss) {
+                    /* No stats; already destroyed, don't keep this frame under
+                     * consideration. */
+                }
+                else if (tc->instance->spesh_stats_version - ss->last_update > MVM_SPESH_STATS_MAX_AGE) {
+                    MVM_gc_mark_thread_blocked(tc);
+                    uv_mutex_lock(&tc->instance->mutex_threads);
+                    MVM_gc_mark_thread_unblocked(tc);
+
+                    MVMThread *current = tc->instance->threads;
+                    int found = 0;
+                    while (current && !found) {
+                        MVMThreadContext *cur_tc = current->body.tc;
+                        if (cur_tc) {
+                            MVMSpeshSimStack *sims = cur_tc->spesh_sim_stack;
+                            if (sims) {
+                                for (MVMuint32 j = 0; j < sims->used; j++) {
+                                    MVMSpeshSimStackFrame *simf = &sims->frames[j];
+                                    if (simf->ss == ss) {
+                                        found = 1;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        current = current->body.next;
+                    }
+
+                    uv_mutex_unlock(&tc->instance->mutex_threads);
+
+                    if (!found) {
+                        MVM_spesh_stats_destroy(tc, ss);
+                        MVM_free_null(spesh->body.spesh_stats);
+                    }
+                    else {
+                        MVM_repr_bind_pos_o(tc, check_frames, insert_pos++, (MVMObject *)sf);
+                    }
+                }
+                else {
+                    MVM_repr_bind_pos_o(tc, check_frames, insert_pos++, (MVMObject *)sf);
+                }
+            });
         }
-        else if (tc->instance->spesh_stats_version - ss->last_update > MVM_SPESH_STATS_MAX_AGE) {
-            MVM_spesh_stats_destroy(tc, ss);
-            MVM_free(spesh->body.spesh_stats);
-            spesh->body.spesh_stats = NULL;
-        }
-        else {
-            MVM_repr_bind_pos_o(tc, check_frames, insert_pos++, (MVMObject *)sf);
-        }
-    }
-    MVM_repr_pos_set_elems(tc, check_frames, insert_pos);
+        MVM_repr_pos_set_elems(tc, check_frames, insert_pos);
+    });
 }
 
 void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorklist *worklist) {
