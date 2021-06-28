@@ -3169,8 +3169,10 @@ void MVM_serialization_finish_deserialize_method_cache(MVMThreadContext *tc, MVM
 
             /* Deserialize what we need. */
             cache = MVM_serialization_read_ref(tc, sr);
-            if (sr->working == 1)
-                work_loop(tc, sr);
+            MVMROOT3(tc, st, sc, cache, { /* Keep cache from getting freed prematurely */
+                if (sr->working == 1)
+                    work_loop(tc, sr);
+            });
             MVM_ASSIGN_REF(tc, &(st->header), st->method_cache, cache);
 
             /* Clear up. */
