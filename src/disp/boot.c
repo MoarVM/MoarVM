@@ -267,7 +267,6 @@ static void lang_call(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* Obtain and guard on the first argument of the capture, which is the
      * thing to invoke. */
-    MVMObject *invokee = MVM_capture_arg_pos_o(tc, capture, 0);
     MVMObject *tracked_invokee;
     MVMROOT(tc, capture, {
          tracked_invokee = MVM_disp_program_record_track_arg(tc, capture, 0);
@@ -276,6 +275,7 @@ static void lang_call(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* If it's a VM code object or a VM function, we'll delegate to the
      * boot code dispatcher. */
+    MVMObject *invokee = MVM_capture_arg_pos_o(tc, capture, 0);
     MVMString *delegate;
     if (REPR(invokee)->ID == MVM_REPR_ID_MVMCode ||
             REPR(invokee)->ID == MVM_REPR_ID_MVMCFunction) {
@@ -330,7 +330,6 @@ static void lang_meth_call(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* Obtain and guard on the first argument of the capture, which is the
      * invocant of the method call. */
-    MVMObject *invocant = MVM_capture_arg_pos_o(tc, capture, 0);
     MVMObject *tracked_invocant;
     MVMROOT(tc, capture, {
          tracked_invocant = MVM_disp_program_record_track_arg(tc, capture, 0);
@@ -338,6 +337,7 @@ static void lang_meth_call(MVMThreadContext *tc, MVMArgs arg_info) {
     MVM_disp_program_record_guard_type(tc, tracked_invocant);
 
     /* If the invocant has an associated HLL and method dispatcher, delegate there. */
+    MVMObject *invocant = MVM_capture_arg_pos_o(tc, capture, 0);
     MVMHLLConfig *hll = STABLE(invocant)->hll_owner;
     if (hll && hll->method_call_dispatcher) {
         MVM_disp_program_record_delegate(tc, hll->method_call_dispatcher, capture);
