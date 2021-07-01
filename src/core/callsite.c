@@ -117,7 +117,7 @@ static MVMint32 callsites_equal(MVMThreadContext *tc, MVMCallsite *cs1, MVMCalls
 
 /* GC marks a callsite (really, just its named args). */
 void MVM_callsite_mark(MVMThreadContext *tc, MVMCallsite *cs, MVMGCWorklist *worklist) {
-    MVMuint32 num_names = cs->flag_count - cs->num_pos;
+    MVMuint32 num_names = MVM_callsite_num_nameds(tc, cs);
     MVMuint32 i;
     for (i = 0; i < num_names; i++)
         MVM_gc_worklist_add(tc, worklist, &(cs->arg_names[i]));
@@ -141,9 +141,9 @@ void MVM_callsite_destroy(MVMCallsite *cs) {
 }
 
 /* Copies the named args of one callsite into another. */
-void copy_nameds(MVMCallsite *to, const MVMCallsite *from) {
+void copy_nameds(MVMThreadContext *tc, MVMCallsite *to, const MVMCallsite *from) {
     if (from->arg_names) {
-        MVMuint32 num_names = from->flag_count - from->num_pos;
+        MVMuint32 num_names = MVM_callsite_num_nameds(tc, from);
         size_t memory_area = num_names * sizeof(MVMString *);
         to->arg_names = MVM_malloc(memory_area);
         memcpy(to->arg_names, from->arg_names, memory_area);
@@ -162,7 +162,7 @@ MVMCallsite * MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
         memcpy(copy->arg_flags, cs->arg_flags, cs->flag_count);
     }
 
-    copy_nameds(copy, cs);
+    copy_nameds(tc, copy, cs);
 
     copy->with_invocant = cs->with_invocant
         ? MVM_callsite_copy(tc, cs->with_invocant)
@@ -346,7 +346,7 @@ MVMCallsite * MVM_callsite_drop_positional(MVMThreadContext *tc, MVMCallsite *cs
             to++;
         }
     }
-    copy_nameds(new_callsite, cs);
+    copy_nameds(tc, new_callsite, cs);
 
     /* Try to intern it, and return the result (which may be the interned
      * version that already existed, or may newly intern this). */
@@ -381,7 +381,7 @@ MVMCallsite * MVM_callsite_insert_positional(MVMThreadContext *tc, MVMCallsite *
     }
     if (from == idx)
         new_callsite->arg_flags[to] = flag;
-    copy_nameds(new_callsite, cs);
+    copy_nameds(tc, new_callsite, cs);
 
     /* Try to intern it, and return the result (which may be the interned
      * version that already existed, or may newly intern this). */
