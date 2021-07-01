@@ -315,9 +315,9 @@ void MVM_callsite_cleanup_interns(MVMInstance *instance) {
     MVMCallsiteInterns *interns = instance->callsite_interns;
     MVMuint32 i;
     for (i = 0; i < interns->max_arity; i++) {
-        MVMuint32 callsite_count = instance->callsite_interns->num_by_arity[i];
+        MVMuint32 callsite_count = interns->num_by_arity[i];
         if (callsite_count) {
-            MVMCallsite **callsites = instance->callsite_interns->by_arity[i];
+            MVMCallsite **callsites = interns->by_arity[i];
             MVMuint32 j;
             for (j = 0; j < callsite_count; j++) {
                 MVMCallsite *callsite = callsites[j];
