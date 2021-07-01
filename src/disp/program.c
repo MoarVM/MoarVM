@@ -482,6 +482,12 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     }
 #endif
 
+    /* Form an argument capture. */
+    MVMObject *capture;
+    MVMROOT(tc, update_sf, {
+        capture = MVM_capture_from_args(tc, arg_info);
+    });
+
     /* Push a dispatch recording frame onto the callstack; this is how we'll
      * keep track of the current recording state. */
     MVMCallStackDispatchRecord *record = MVM_callstack_allocate_dispatch_record(tc);
@@ -498,10 +504,6 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     record->ic_entry_ptr = ic_entry_ptr;
     record->ic_entry = ic_entry;
     record->update_sf = update_sf;
-    MVMObject *capture;
-    MVMROOT(tc, update_sf, {
-        capture = MVM_capture_from_args(tc, arg_info);
-    });
     record->rec.initial_capture.capture = capture;
 
     /* The dispatchers should not return anything; stash away the original
