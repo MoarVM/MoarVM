@@ -286,6 +286,19 @@ MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr,
     uv_mutex_unlock(&tc->instance->mutex_callsite_interns);
 }
 
+/* GC marks all of the interned callsites (they may reference strings). */
+void MVM_callsite_mark_interns(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+    MVMCallsiteInterns *interns = tc->instance->callsite_interns;
+    MVMuint32 i;
+    for (i = 0; i < interns->max_arity; i++) {
+        MVMuint32 callsite_count = interns->num_by_arity[i];
+        MVMCallsite **callsites = interns->by_arity[i];
+        MVMuint32 j;
+        for (j = 0; j < callsite_count; j++)
+            MVM_callsite_mark(tc, callsites[j], worklist);
+    }
+}
+
 /* Free the memory associated with interned callsites. */
 static int is_common(MVMCallsite *cs) {
     return cs == &zero_arity_callsite   ||
