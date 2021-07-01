@@ -346,7 +346,10 @@ static void lang_meth_call(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* Otherwise if it's a KnowHOW, then look in its method table (this is how
      * method dispatch bottoms out in the VM). */
-    MVMObject *HOW = MVM_6model_get_how(tc, STABLE(invocant));
+    MVMObject *HOW;
+    MVMROOT2(tc, capture, invocant, {
+        HOW = MVM_6model_get_how(tc, STABLE(invocant));
+    });
     if (REPR(HOW)->ID == MVM_REPR_ID_KnowHOWREPR && IS_CONCRETE(HOW)) {
         MVMObject *methods = ((MVMKnowHOWREPR *)HOW)->body.methods;
         MVMString *method_name = MVM_capture_arg_pos_s(tc, capture, 1);
