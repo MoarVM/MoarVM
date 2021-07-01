@@ -100,7 +100,11 @@ static void dispatch_monomorphic(MVMThreadContext *tc,
     record->arg_info.callsite = callsite;
     record->arg_info.source = source;
     record->arg_info.map = arg_indices;
-    if (!MVM_disp_program_run(tc, dp, record)) {
+    MVMint64 outcome;
+    MVMROOT2(tc, id, sf, {
+        outcome = MVM_disp_program_run(tc, dp, record);
+    });
+    if (!outcome) {
         /* Dispatch program failed. Remove this record and then record a new
          * dispatch program. */
         MVM_callstack_unwind_dispatch_run(tc);
@@ -130,7 +134,11 @@ static void dispatch_monomorphic_flattening(MVMThreadContext *tc,
         MVMCallStackDispatchRun *record = MVM_callstack_allocate_dispatch_run(tc,
                 dp->num_temporaries);
         record->arg_info = flat_record->arg_info;
-        if (MVM_disp_program_run(tc, dp, record)) {
+        MVMint64 outcome;
+        MVMROOT2(tc, id, sf, {
+            outcome = MVM_disp_program_run(tc, dp, record);
+        });
+        if (outcome) {
             /* It matches, so we're ready to continue. */
             if (MVM_spesh_log_is_logging(tc))
                 MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, 0);
@@ -165,7 +173,11 @@ static void dispatch_polymorphic(MVMThreadContext *tc,
     /* Go through the dispatch programs, taking the first one that works. */
     MVMuint32 i;
     for (i = 0; i < entry->num_dps; i++) {
-        if (MVM_disp_program_run(tc, entry->dps[i], record)) {
+        MVMint64 outcome;
+        MVMROOT2(tc, id, sf, {
+            outcome = MVM_disp_program_run(tc, entry->dps[i], record);
+        });
+        if (outcome) {
             if (MVM_spesh_log_is_logging(tc))
                 MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, i);
             return;
@@ -199,7 +211,11 @@ static void dispatch_polymorphic_flattening(MVMThreadContext *tc,
     MVMuint32 i;
     for (i = 0; i < entry->num_dps; i++) {
         if (flat_record->arg_info.callsite == entry->flattened_css[i]) {
-            if (MVM_disp_program_run(tc, entry->dps[i], record)) {
+            MVMint64 outcome;
+            MVMROOT2(tc, id, sf, {
+                outcome = MVM_disp_program_run(tc, entry->dps[i], record);
+            });
+            if (outcome) {
                 if (MVM_spesh_log_is_logging(tc))
                     MVM_spesh_log_dispatch_resolution(tc, bytecode_offset, i);
                 return;
