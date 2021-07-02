@@ -465,6 +465,15 @@ void MVM_callstack_unwind_dispatch_run(MVMThreadContext *tc) {
     unwind_region_start_or_flattening(tc);
 }
 
+/* Unwind a dispatch run frame because the dispatch program failed to match.
+ * This differs from the case where we unwind it on a successful result, as
+ * we want to leave any flattened arguments in place. */
+void MVM_callstack_unwind_failed_dispatch_run(MVMThreadContext *tc) {
+    assert(tc->stack_top->kind == MVM_CALLSTACK_RECORD_DISPATCH_RUN);
+    tc->stack_current_region->alloc = (char *)tc->stack_top;
+    tc->stack_top = tc->stack_top->prev;
+}
+
 /* Walk the linked list of records and mark each of them. */
 #define add_collectable(tc, worklist, snapshot, col, desc) \
     do { \
