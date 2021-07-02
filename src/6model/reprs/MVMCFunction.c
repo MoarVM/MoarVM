@@ -33,6 +33,8 @@ static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite
     if (IS_CONCRETE(invokee)) {
         MVMArgs arg_info;
         MVM_gc_allocate_gen2_default_set(tc);
+        if (tc->cur_frame)
+            tc->cur_frame->cur_args_callsite = NULL;
         adapt_legacy_args(tc, &callsite, &args);
         arg_info.callsite = callsite;
         arg_info.source = args;
