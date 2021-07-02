@@ -107,7 +107,7 @@ static void dispatch_monomorphic(MVMThreadContext *tc,
     if (!outcome) {
         /* Dispatch program failed. Remove this record and then record a new
          * dispatch program. */
-        MVM_callstack_unwind_dispatch_run(tc);
+        MVM_callstack_unwind_failed_dispatch_run(tc);
         dispatch_initial(tc, entry_ptr, seen, id, callsite, arg_indices, source, sf,
                 bytecode_offset);
     }
@@ -146,7 +146,7 @@ static void dispatch_monomorphic_flattening(MVMThreadContext *tc,
         }
         else {
             /* Dispatch program failed. Remove this record. */
-            MVM_callstack_unwind_dispatch_run(tc);
+            MVM_callstack_unwind_failed_dispatch_run(tc);
         }
     }
 
@@ -186,7 +186,7 @@ static void dispatch_polymorphic(MVMThreadContext *tc,
 
     /* If we reach here, then no program matched; run the dispatch program
      * for another go at it. */
-    MVM_callstack_unwind_dispatch_run(tc);
+    MVM_callstack_unwind_failed_dispatch_run(tc);
     dispatch_initial(tc, entry_ptr, seen, id, callsite, arg_indices, source, sf,
             bytecode_offset);
 }
@@ -225,7 +225,7 @@ static void dispatch_polymorphic_flattening(MVMThreadContext *tc,
 
     /* If we get here, then none of the callsite/dispatch program pairings
      * matched, so we need to run the dispatch callback again. */
-    MVM_callstack_unwind_dispatch_run(tc);
+    MVM_callstack_unwind_failed_dispatch_run(tc);
     MVMDispDefinition *disp = MVM_disp_registry_find(tc, id);
     MVM_disp_program_run_dispatch(tc, disp, flat_record->arg_info, entry_ptr, seen,
             sf);
