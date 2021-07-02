@@ -290,7 +290,7 @@ MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr,
 void MVM_callsite_mark_interns(MVMThreadContext *tc, MVMGCWorklist *worklist) {
     MVMCallsiteInterns *interns = tc->instance->callsite_interns;
     MVMuint32 i;
-    for (i = 0; i < interns->max_arity; i++) {
+    for (i = 0; i <= interns->max_arity; i++) {
         MVMuint32 callsite_count = interns->num_by_arity[i];
         MVMCallsite **callsites = interns->by_arity[i];
         MVMuint32 j;
@@ -314,7 +314,7 @@ static int is_common(MVMCallsite *cs) {
 void MVM_callsite_cleanup_interns(MVMInstance *instance) {
     MVMCallsiteInterns *interns = instance->callsite_interns;
     MVMuint32 i;
-    for (i = 0; i < interns->max_arity; i++) {
+    for (i = 0; i <= interns->max_arity; i++) {
         MVMuint32 callsite_count = interns->num_by_arity[i];
         if (callsite_count) {
             MVMCallsite **callsites = interns->by_arity[i];
