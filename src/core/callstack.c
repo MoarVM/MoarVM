@@ -302,10 +302,12 @@ static int is_bytecode_frame(MVMuint8 kind) {
             return 0;
     }
 }
-static void unwind_region_start(MVMThreadContext *tc) {
-    if (tc->stack_top->kind == MVM_CALLSTACK_RECORD_START_REGION) {
+static void unwind_region_start_or_flattening(MVMThreadContext *tc) {
+    while (tc->stack_top->kind == MVM_CALLSTACK_RECORD_START_REGION ||
+            tc->stack_top->kind == MVM_CALLSTACK_RECORD_FLATTENING) {
         tc->stack_current_region->alloc = (char *)tc->stack_top;
-        tc->stack_current_region = tc->stack_current_region->prev;
+        if (tc->stack_top->kind == MVM_CALLSTACK_RECORD_START_REGION)
+            tc->stack_current_region = tc->stack_current_region->prev;
         tc->stack_top = tc->stack_top->prev;
     }
 }
@@ -322,7 +324,7 @@ static void handle_end_of_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunk
         MVM_disp_program_recording_destroy(tc, &(disp_record->rec));
         tc->stack_current_region->alloc = (char *)tc->stack_top;
         tc->stack_top = tc->stack_top->prev;
-        unwind_region_start(tc);
+        unwind_region_start_or_flattening(tc);
     }
 }
 static void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
@@ -460,7 +462,7 @@ void MVM_callstack_unwind_dispatch_run(MVMThreadContext *tc) {
     assert(tc->stack_top->kind == MVM_CALLSTACK_RECORD_DISPATCH_RUN);
     tc->stack_current_region->alloc = (char *)tc->stack_top;
     tc->stack_top = tc->stack_top->prev;
-    unwind_region_start(tc);
+    unwind_region_start_or_flattening(tc);
 }
 
 /* Walk the linked list of records and mark each of them. */
