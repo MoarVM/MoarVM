@@ -429,7 +429,7 @@ MVMuint32 MVM_string_shiftjis_decodestream(MVMThreadContext *tc, MVMDecodeStream
             last_accept_bytes = cur_bytes;
             last_accept_pos   = pos;
             total++;
-            if (MVM_string_decode_stream_maybe_sep(tc, seps, codepoint)) {
+            if (handler_rtrn == DECODE_CODEPOINT && MVM_string_decode_stream_maybe_sep(tc, seps, codepoint)) { 
                 reached_stopper = 1;
                 goto done;
             }
