@@ -907,24 +907,18 @@ void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection 
 
     {
         char namebuf[8];
-        /* Yes, this is a lot of boiler plate to silence a bogus warning :(
+        /* Yes, this is a lot of boiler plate to silence a bogus gcc warning (but not clang) :(
          * Unfortunately, this is a real edge case. Using memcpy would lead to
-         * a buffer overflow if name is shorter than 8 bytes. The compiler
+         * a buffer overflow if name is shorter than 8 bytes. The gcc compiler
          * warning aside, strncpy seems like exactly the right tool for the job
          * as we want at most 8 bytes and don't care for any trailing \0, but
          * are OK with zero padding at the end. */
-#ifndef _MSC_VER
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wunknown-pragmas"
-#pragma clang diagnostic push
-#pragma clang diagnostic ignored "-Wunknown-warning-option"
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wstringop-truncation"
 #endif
         strncpy(namebuf, name, 8);
-#ifndef _MSC_VER
-#pragma GCC diagnostic pop
-#pragma clang diagnostic pop
+#if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
         fwrite(namebuf, 8, 1, fh);
@@ -1013,8 +1007,8 @@ void string_heap_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollect
     char typename[8] = "strings\0";
     MVMuint64 size = 0;
 
-    MVMuint64 size_position = 0; 
-    MVMuint64 end_position = 0; 
+    MVMuint64 size_position = 0;
+    MVMuint64 end_position = 0;
 
     while (i < col->num_strings) {
         char *str = col->strings[i];
@@ -1680,7 +1674,7 @@ void collectables_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollec
 
     entry->collectables_size += s->num_collectables * i + 4 + sizeof(MVMuint64) * 2;
 
-    
+
 #if DUMP_EVERYTHING_RAW
     gzFile kind_fh, tofi_fh, collsize_fh, unmansize_fh, refstart_fh, refcount_fh;
     kind_fh = open_coll_file(col, "kind");
