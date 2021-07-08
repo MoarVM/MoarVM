@@ -14,11 +14,11 @@ static int MVM_bithacks_is_pow2z(MVMuint64 value)
 
 static MVMuint64 MVM_bithacks_next_greater_pow2(MVMuint64 value)
 {
-    enum { BITS = 64 };
-    int exp;
-
-    for(exp = 0; (1 << exp) < BITS; exp++)
-        value |= value >> (1 << exp);
-
+    value |= value >> 1;
+    value |= value >> 2;
+    value |= value >> 4;
+    value |= value >> 8;
+    value |= value >> 16;
+    value |= value >> 32;
     return value + 1;
 }
