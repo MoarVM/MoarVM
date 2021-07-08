@@ -14,12 +14,14 @@ static void dump_recording_capture(MVMThreadContext *tc,
     indent_str[indent] = '\0';
     switch (capture->transformation) {
         case MVMDispProgramRecordingInitial:
-            fprintf(stderr, "%sInitial (%d args)\n", indent_str,
-                    ((MVMCapture *)capture->capture)->body.callsite->flag_count);
+            fprintf(stderr, "%sInitial (%d args, %d pos)\n", indent_str,
+                    ((MVMCapture *)capture->capture)->body.callsite->flag_count,
+                    ((MVMCapture *)capture->capture)->body.callsite->num_pos);
             break;
         case MVMDispProgramRecordingResumeInitial:
-            fprintf(stderr, "%sInitial Resume State (%d args)\n", indent_str,
-                    ((MVMCapture *)capture->capture)->body.callsite->flag_count);
+            fprintf(stderr, "%sInitial Resume State (%d args, %d pos)\n", indent_str,
+                    ((MVMCapture *)capture->capture)->body.callsite->flag_count,
+                    ((MVMCapture *)capture->capture)->body.callsite->num_pos);
             break;
         case MVMDispProgramRecordingDrop:
             fprintf(stderr, "%sDrop argument %d\n", indent_str, capture->index);
