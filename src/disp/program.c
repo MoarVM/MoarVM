@@ -1926,7 +1926,8 @@ static void add_temp_to_fake(MVMThreadContext *tc, compile_state *cs,
         MVMuint32 init_arg_idx) {
     MVMRegister value;
     MVMCallsiteFlags unused;
-    MVM_capture_arg_pos(tc, rec_res->initial_resume_capture.capture, init_arg_idx, &value, &unused);
+    MVM_capture_arg_by_flag_index(tc, rec_res->initial_resume_capture.capture, init_arg_idx,
+            &value, &unused);
     fake_temp fake = { .temp_idx = temp_idx, .value = value };
     MVM_VECTOR_PUSH(cs->fake_temps, fake);
 }
