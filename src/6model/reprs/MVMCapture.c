@@ -225,6 +225,18 @@ MVMint64 MVM_capture_has_named_arg(MVMThreadContext *tc, MVMObject *capture_obj,
     return 0;
 }
 
+/* Obtain an argument by its flag index (that is, positional arguments have
+ * their positions, and then names are according the order that the names
+ * appear in in the callsite's argument name list). */
+void MVM_capture_arg_by_flag_index(MVMThreadContext *tc, MVMObject *capture_obj,
+        MVMuint32 idx, MVMRegister *arg_out, MVMCallsiteFlags *arg_type_out) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    if (idx >= capture->body.callsite->flag_count)
+        MVM_exception_throw_adhoc(tc, "Capture argument flag index out of range");
+    *arg_out = capture->body.args[idx];
+    *arg_type_out = capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK;
+}
+
 /* Produce a new capture by taking the current one and dropping the specified
  * positional argument from it. */
 MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
