@@ -28,6 +28,8 @@ MVMString * MVM_capture_arg_pos_s(MVMThreadContext *tc, MVMObject *capture, MVMu
 MVMint64 MVM_capture_arg_pos_i(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx);
 MVMnum64 MVM_capture_arg_pos_n(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx);
 MVMint64 MVM_capture_has_named_arg(MVMThreadContext *tc, MVMObject *capture, MVMString *name);
+void MVM_capture_arg_by_flag_index(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx,
+        MVMRegister *arg_out, MVMCallsiteFlags *arg_type_out);
 
 /* Operations for deriving a new MVMCapture from an existing one. */
 MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx);
