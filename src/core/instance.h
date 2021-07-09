@@ -281,9 +281,13 @@ struct MVMInstance {
     MVMStrHashTable syscalls;
 
     /* Identity mapping for arguments (argument 0 is at position 0, argument
-     * 1 is at position 1, etc.) */
+     * 1 is at position 1, etc.) Allocated at startup with an initial number
+     * of elements; if it ever is not enough we allocate one to the maximum
+     * number of arguments. We cannot free the smaller one until termination
+     * as it may still be referenced. */
     MVMuint16 *identity_arg_map;
-    MVMuint32 identity_arg_map_alloc;
+    MVMuint16 *small_identity_arg_map;
+    MVMuint16 identity_arg_map_alloc;
 
     /************************************************************************
      * Specializer (dynamic optimization)
