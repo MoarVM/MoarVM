@@ -611,9 +611,18 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(config, "config");
     string_creator(replacement, "replacement");
     string_creator(dot, ".");
-    string_creator(boot_resume, "boot-resume");
     string_creator(boot_code, "boot-code");
+    string_creator(boot_constant, "boot-constant");
+    string_creator(boot_resume, "boot-resume");
+    string_creator(boot_syscall, "boot-syscall");
     string_creator(lang_call, "lang-call");
+    string_creator(boolify_bigint, "boolify-bigint");
+    string_creator(boolify_boxed_int, "boolify-boxed-int");
+    string_creator(boolify_boxed_num, "boolify-boxed-num");
+    string_creator(boolify_boxed_str, "boolify-boxed-str");
+    string_creator(boolify_boxed_str_with_zero_false, "boolify-boxed-str-with-zero-false");
+    string_creator(boolify_iter, "boolify-iter");
+    string_creator(boolify_using_elems, "boolify-using-elems");
 }
 
 /* Drives the overall bootstrap process. */

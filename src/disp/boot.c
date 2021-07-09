@@ -393,3 +393,93 @@ static void lang_meth_call(MVMThreadContext *tc, MVMArgs arg_info) {
 MVMObject * MVM_disp_lang_meth_call_dispatch(MVMThreadContext *tc) {
     return wrap(tc, lang_meth_call);
 }
+
+/* The boot-boolify dispatcher looks at the boolification protocol setting
+ * configured on the target object and uses it to decide what to do. */
+static void boot_boolify(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVM_args_checkarity(tc, &arg_ctx, 1, 1);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+
+    /* Always guard on the type of the object being tested. */
+    MVMObject *tracked_object;
+    MVMROOT(tc, capture, {
+         tracked_object = MVM_disp_program_record_track_arg(tc, capture, 0);
+    });
+    MVM_disp_program_record_guard_type(tc, tracked_object);
+
+    /* Now go on the boolification protocol value of the object. */
+    MVMObject *object = MVM_capture_arg_pos_o(tc, capture, 0);
+    MVMBoolificationSpec *bs = object->st->boolification_spec;
+    MVMString *syscall = NULL;
+    switch (bs ? bs->mode : MVM_BOOL_MODE_NOT_TYPE_OBJECT) {
+        case MVM_BOOL_MODE_CALL_METHOD: {
+            /* Insert the method to call and delegate to the lang-call
+             * dispatcher. */
+            MVMRegister callee_reg = { .o = bs->method };
+            MVMObject *del_capture = MVM_disp_program_record_capture_insert_constant_arg(tc,
+                capture, 0, MVM_CALLSITE_ARG_OBJ, callee_reg);
+            MVM_disp_program_record_delegate(tc, tc->instance->str_consts.lang_call,
+                del_capture);
+            return;
+        }
+        case MVM_BOOL_MODE_UNBOX_INT:
+            syscall = tc->instance->str_consts.boolify_boxed_int;
+            break;
+        case MVM_BOOL_MODE_UNBOX_NUM:
+            syscall = tc->instance->str_consts.boolify_boxed_num;
+            break;
+        case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY:
+            syscall = tc->instance->str_consts.boolify_boxed_str;
+            break;
+        case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY_OR_ZERO:
+            syscall = tc->instance->str_consts.boolify_boxed_str_with_zero_false;
+            break;
+        case MVM_BOOL_MODE_NOT_TYPE_OBJECT: {
+            MVM_disp_program_record_guard_concreteness(tc, tracked_object);
+            MVMRegister result = { .i64 = IS_CONCRETE(object) };
+            MVMObject *del_capture = MVM_disp_program_record_capture_insert_constant_arg(tc,
+                    capture, 0, MVM_CALLSITE_ARG_INT, result);
+            MVM_disp_program_record_delegate(tc, tc->instance->str_consts.boot_constant,
+                    del_capture);
+            return;
+        }
+        case MVM_BOOL_MODE_BIGINT:
+            syscall = tc->instance->str_consts.boolify_bigint;
+            break;
+        case MVM_BOOL_MODE_ITER:
+            syscall = tc->instance->str_consts.boolify_iter;
+            break;
+        case MVM_BOOL_MODE_HAS_ELEMS:
+            syscall = tc->instance->str_consts.boolify_using_elems;
+            break;
+        default:
+            printf("%d\n", bs ? bs->mode : MVM_BOOL_MODE_NOT_TYPE_OBJECT);
+            MVM_exception_throw_adhoc(tc, "Invalid boolification spec mode used");
+    }
+
+    /* If we get here, we're delegating to a syscall if the object is concrete
+     * or producing 0 if it's not. */
+    MVM_disp_program_record_guard_concreteness(tc, tracked_object);
+    if (IS_CONCRETE(object)) {
+        assert(syscall);
+        MVMRegister callname = { .s = syscall };
+        MVMObject *del_capture = MVM_disp_program_record_capture_insert_constant_arg(tc,
+                capture, 0, MVM_CALLSITE_ARG_STR, callname);
+        MVM_disp_program_record_delegate(tc, tc->instance->str_consts.boot_syscall,
+                del_capture);
+    }
+    else {
+        MVMRegister result = { .i64 = 0 };
+        MVMObject *del_capture = MVM_disp_program_record_capture_insert_constant_arg(tc,
+                capture, 0, MVM_CALLSITE_ARG_INT, result);
+        MVM_disp_program_record_delegate(tc, tc->instance->str_consts.boot_constant,
+                del_capture);
+    }
+}
+
+/* Gets the MVMCFunction object wrapping the boolification dispatcher. */
+MVMObject * MVM_disp_boot_boolify_dispatch(MVMThreadContext *tc) {
+    return wrap(tc, boot_boolify);
+}
