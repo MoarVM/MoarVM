@@ -18,6 +18,9 @@ struct MVMArgs {
 #define MVM_ARGS_LEGACY     1
 #define MVM_ARGS_DISPATCH   2
 
+#define MVM_ARGS_SMALL_IDENTITY_MAP_SIZE    256
+#define MVM_ARGS_LIMIT                      0xFFFF
+
 /* Argument processing context. */
 struct MVMArgProcContext {
     /* Temporary version flag while we're migrating to new dispatch/calling

@@ -14,10 +14,10 @@ MVM_STATIC_INLINE void mark_named_used(MVMArgProcContext *ctx, MVMuint32 idx) {
 }
 
 /* An identity map is just an array { 0, 1, 2, ... }. */
-static MVMuint16 * create_identity_map(MVMThreadContext *tc, MVMuint16 size) {
+static MVMuint16 * create_identity_map(MVMThreadContext *tc, MVMuint32 size) {
     MVMuint16 *map = MVM_fixed_size_alloc(tc, tc->instance->fsa,
             size * sizeof(MVMuint16));
-    MVMuint16 i;
+    MVMuint32 i;
     for (i = 0; i < size; i++)
         map[i] = i;
     return map;
@@ -26,16 +26,21 @@ static MVMuint16 * create_identity_map(MVMThreadContext *tc, MVMuint16 size) {
 /* Set up an initial identity map, big enough assuming nobody passes a
  * really large number of arguments. */
 void MVM_args_setup_identity_map(MVMThreadContext *tc) {
-    tc->instance->identity_arg_map_alloc = 256;
+    tc->instance->identity_arg_map_alloc = MVM_ARGS_SMALL_IDENTITY_MAP_SIZE;
     tc->instance->identity_arg_map = create_identity_map(tc,
             tc->instance->identity_arg_map_alloc);
+    tc->instance->small_identity_arg_map = tc->instance->identity_arg_map;
 }
 
-/* Free memory associated with the identity map. */
+/* Free memory associated with the identity map(s). */
 void MVM_args_destroy_identity_map(MVMThreadContext *tc) {
     MVM_fixed_size_free(tc, tc->instance->fsa,
             tc->instance->identity_arg_map_alloc * sizeof(MVMuint16),
             tc->instance->identity_arg_map);
+    if (tc->instance->identity_arg_map != tc->instance->small_identity_arg_map)
+        MVM_fixed_size_free(tc, tc->instance->fsa,
+                MVM_ARGS_SMALL_IDENTITY_MAP_SIZE * sizeof(MVMuint16),
+                tc->instance->small_identity_arg_map);
 }
 
 /* Perform flattening of arguments as provided, and return the resulting
@@ -69,10 +74,10 @@ MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCa
                 MVM_exception_throw_adhoc(tc,
                         "Argument flattening array must be a concrete VMArray");
             MVMint64 elems = REPR(list)->elems(tc, STABLE(list), list, OBJECT_BODY(list));
-            if (elems > 0xFFFF)
+            if (elems > MVM_ARGS_LIMIT)
                 MVM_exception_throw_adhoc(tc,
                         "Flattened array has %"PRId64" elements, but argument lists are limited to %"PRId32"",
-                        elems, 0xFFFF);
+                        elems, MVM_ARGS_LIMIT);
             flatten_counts[i] = (MVMuint16)elems;
             num_pos += (MVMuint16)elems;
             num_args += (MVMuint16)elems;
@@ -84,10 +89,10 @@ MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCa
                 MVM_exception_throw_adhoc(tc,
                         "Argument flattening hash must be a concrete VMHash");
             MVMint64 elems = REPR(hash)->elems(tc, STABLE(hash), hash, OBJECT_BODY(hash));
-            if (elems > 0xFFFF)
+            if (elems > MVM_ARGS_LIMIT)
                 MVM_exception_throw_adhoc(tc,
                         "Flattened hash has %"PRId64" elements, but argument lists are limited to %"PRId32"",
-                        elems, 0xFFFF);
+                        elems, MVM_ARGS_LIMIT);
             flatten_counts[i] = (MVMuint16)elems;
             num_args += (MVMuint16)elems;
         }
@@ -103,10 +108,10 @@ MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCa
     }
 
     /* Ensure we're in range. */
-    if (num_args > 0xFFFF)
+    if (num_args > MVM_ARGS_LIMIT)
         MVM_exception_throw_adhoc(tc,
                 "Flattening produced %"PRId32" values, but argument lists are limited to %"PRId32"",
-                num_args, 0xFFFF);
+                num_args, MVM_ARGS_LIMIT);
 
     /* Now populate the flattening record with the arguments. */
     MVMCallStackFlattening *record = MVM_callstack_allocate_flattening(tc, num_args, num_pos);
@@ -222,16 +227,15 @@ MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCa
     return record;
 }
 
-/* Grows the identity map to a new size. */
+/* Grows the identity map to a full size one if we overflow the small one. */
 void MVM_args_grow_identity_map(MVMThreadContext *tc, MVMCallsite *callsite) {
     uv_mutex_lock(&tc->instance->mutex_callsite_interns);
-    if (callsite->flag_count > tc->instance->identity_arg_map_alloc) {
-        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
-            tc->instance->identity_arg_map_alloc * sizeof(MVMuint16),
-            tc->instance->identity_arg_map);
-        tc->instance->identity_arg_map = create_identity_map(tc, callsite->flag_count);
+    assert(callsite->flag_count <= MVM_ARGS_LIMIT);
+    MVMuint32 full_size = MVM_ARGS_LIMIT + 1;
+    if (tc->instance->identity_arg_map_alloc != full_size) { // Double-check under lock
+        tc->instance->identity_arg_map = create_identity_map(tc, full_size);
         MVM_barrier();
-        tc->instance->identity_arg_map_alloc = callsite->flag_count;
+        tc->instance->identity_arg_map_alloc = full_size;
     }
     uv_mutex_unlock(&tc->instance->mutex_callsite_interns);
 }
@@ -382,7 +386,7 @@ static void arity_fail(MVMThreadContext *tc, MVMuint16 got, MVMuint16 min, MVMui
     if (min == max)
         MVM_exception_throw_adhoc(tc, "%s positionals passed; expected %d argument%s but got %d",
             problem, min, (min == 1 ? "" : "s"), got);
-    else if (max == 0xFFFF)
+    else if (max == MVM_ARGS_LIMIT)
         MVM_exception_throw_adhoc(tc, "%s positionals passed; expected at least %d arguments but got only %d",
             problem, min, got);
     else
@@ -1324,10 +1328,10 @@ static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
             MVMint64        count = REPR(list)->elems(tc, STABLE(list), list, OBJECT_BODY(list));
             MVMStorageSpec  lss   = REPR(list)->pos_funcs.get_elem_storage_spec(tc, STABLE(list));
 
-            if ((MVMint64)new_arg_pos + count > 0xFFFF) {
+            if ((MVMint64)new_arg_pos + count > MVM_ARGS_LIMIT) {
                 MVM_free(new_arg_flags);
                 MVM_free(new_args);
-                MVM_exception_throw_adhoc(tc, "Too many arguments (%"PRId64") in flattening array, only %"PRId32" allowed.", (MVMint64)new_arg_pos + count, 0xFFFF);
+                MVM_exception_throw_adhoc(tc, "Too many arguments (%"PRId64") in flattening array, only %"PRId32" allowed.", (MVMint64)new_arg_pos + count, MVM_ARGS_LIMIT);
             }
 
             for (i = 0; i < count; i++) {
