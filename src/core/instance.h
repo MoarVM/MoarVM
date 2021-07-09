@@ -287,7 +287,7 @@ struct MVMInstance {
      * as it may still be referenced. */
     MVMuint16 *identity_arg_map;
     MVMuint16 *small_identity_arg_map;
-    MVMuint16 identity_arg_map_alloc;
+    MVMuint32 identity_arg_map_alloc;
 
     /************************************************************************
      * Specializer (dynamic optimization)
