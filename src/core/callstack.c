@@ -34,6 +34,25 @@ static void next_region(MVMThreadContext *tc) {
     tc->stack_current_region = region->next;
 }
 
+/* Gets the name of the callstack record type. */
+char * record_name(MVMuint8 kind) {
+    switch (kind) {
+        case MVM_CALLSTACK_RECORD_START: return "start";
+        case MVM_CALLSTACK_RECORD_START_REGION: return "start region";
+        case MVM_CALLSTACK_RECORD_FRAME: return "frame";
+        case MVM_CALLSTACK_RECORD_HEAP_FRAME: return "heap frame";
+        case MVM_CALLSTACK_RECORD_PROMOTED_FRAME: return "promoted frame";
+        case MVM_CALLSTACK_RECORD_DEOPT_FRAME: return "deopt frame";
+        case MVM_CALLSTACK_RECORD_CONTINUATION_TAG: return "continuation tag";
+        case MVM_CALLSTACK_RECORD_FLATTENING: return "flattening";
+        case MVM_CALLSTACK_RECORD_DISPATCH_RECORD: return "dispatch recording";
+        case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED: return "dispatch recorded";
+        case MVM_CALLSTACK_RECORD_DISPATCH_RUN: return "dispatch run";
+        case MVM_CALLSTACK_RECORD_BIND_FAILURE: return "bind failure";
+        default: return "unknown";
+    }
+}
+
 /* Allocates a record, placing it in the current call stack region if possible
  * but moving to the next one if not. Sets its previous record to the current
  * stack top, but does not itself update the stack top. */
@@ -42,8 +61,8 @@ static MVMCallStackRecord * allocate_record(MVMThreadContext *tc, MVMuint8 kind,
     if ((region->alloc_limit - region->alloc) < (ptrdiff_t)size) {
         size_t real_limit = MVM_CALLSTACK_REGION_SIZE - sizeof(MVMCallStackContinuationTag);
         if (size > real_limit)
-            MVM_oops(tc, "Oversize callstack record requested (wanted %zu, maximum %zu)",
-                    size, real_limit);
+            MVM_oops(tc, "Oversize callstack %s record requested (wanted %zu, maximum %zu)",
+                    record_name(kind), size, real_limit);
         next_region(tc);
         tc->stack_top = allocate_record_unchecked(tc, MVM_CALLSTACK_RECORD_START_REGION,
                 sizeof(MVMCallStackRegionStart));
