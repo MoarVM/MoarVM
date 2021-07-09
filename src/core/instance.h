@@ -93,9 +93,18 @@ struct MVMStringConsts {
     MVMString *config;
     MVMString *replacement;
     MVMString *dot;
-    MVMString *boot_resume;
     MVMString *boot_code;
+    MVMString *boot_constant;
+    MVMString *boot_resume;
+    MVMString *boot_syscall;
     MVMString *lang_call;
+    MVMString *boolify_bigint;
+    MVMString *boolify_boxed_int;
+    MVMString *boolify_boxed_num;
+    MVMString *boolify_boxed_str;
+    MVMString *boolify_boxed_str_with_zero_false;
+    MVMString *boolify_iter;
+    MVMString *boolify_using_elems;
 };
 
 struct MVMEventSubscriptions {
