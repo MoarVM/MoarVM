@@ -397,6 +397,139 @@ static MVMDispSysCall dispatcher_resume_on_bind_failure = {
     .expected_concrete = { 0 },
 };
 
+/* boolify-bigint */
+static void boolify_bigint_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVM_args_set_result_int(tc, MVM_bigint_bool(tc, obj), MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall boolify_bigint = {
+    .c_name = "boolify-bigint",
+    .implementation = boolify_bigint_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
+/* boolify-boxed-int */
+static void boolify_boxed_int_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMint64 unboxed = REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+    MVM_args_set_result_int(tc, unboxed != 0, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall boolify_boxed_int = {
+    .c_name = "boolify-boxed-int",
+    .implementation = boolify_boxed_int_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
+/* boolify-boxed-num */
+static void boolify_boxed_num_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMnum64 unboxed = REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+    MVM_args_set_result_int(tc, unboxed != 0.0, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall boolify_boxed_num = {
+    .c_name = "boolify-boxed-num",
+    .implementation = boolify_boxed_num_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
+/* boolify-boxed-str */
+static void boolify_boxed_str_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMString *unboxed = REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+    MVM_args_set_result_int(tc, MVM_coerce_istrue_s(tc, unboxed), MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall boolify_boxed_str = {
+    .c_name = "boolify-boxed-str",
+    .implementation = boolify_boxed_str_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
+/* boolify-boxed-str-with-zero-false */
+static void boolify_boxed_str_with_zero_false_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMString *str = REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
+    MVMint64 result;
+    if (str == NULL || !IS_CONCRETE(str)) {
+        result = 0;
+    }
+    else {
+        MVMint64 chars = MVM_string_graphs_nocheck(tc, str);
+        result = chars == 0 ||
+                (chars == 1 && MVM_string_get_grapheme_at_nocheck(tc, str, 0) == 48)
+                ? 0 : 1;
+    }
+    MVM_args_set_result_int(tc, result, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall boolify_boxed_str_with_zero_false = {
+    .c_name = "boolify-boxed-str-with-zero-false",
+    .implementation = boolify_boxed_str_with_zero_false_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
+/* boolify-iter */
+static void boolify_iter_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVM_args_set_result_int(tc, MVM_iter_istrue(tc, (MVMIter *)obj), MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall boolify_iter = {
+    .c_name = "boolify-iter",
+    .implementation = boolify_iter_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMIter },
+    .expected_concrete = { 1 },
+};
+
+/* boolify-using-elems */
+static void boolify_using_elems_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVM_args_set_result_int(tc, MVM_repr_elems(tc, obj) != 0, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall boolify_using_elems = {
+    .c_name = "boolify-using-elems",
+    .implementation = boolify_using_elems_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -435,6 +568,13 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_track_resume_state);
     add_to_hash(tc, &dispatcher_next_resumption);
     add_to_hash(tc, &dispatcher_resume_on_bind_failure);
+    add_to_hash(tc, &boolify_bigint);
+    add_to_hash(tc, &boolify_boxed_int);
+    add_to_hash(tc, &boolify_boxed_num);
+    add_to_hash(tc, &boolify_boxed_str);
+    add_to_hash(tc, &boolify_boxed_str_with_zero_false);
+    add_to_hash(tc, &boolify_iter);
+    add_to_hash(tc, &boolify_using_elems);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
