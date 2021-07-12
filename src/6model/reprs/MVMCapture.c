@@ -140,6 +140,17 @@ static MVMCapture * validate_capture(MVMThreadContext *tc, MVMObject *capture) {
     return (MVMCapture *)capture;
 }
 
+/* Extract an MVMArgs structure from the capture. One must ensure the capture
+ * lives for the entire lifetime of the MVMArgs that are populated. */
+MVMArgs MVM_capture_to_args(MVMThreadContext *tc, MVMObject *capture_obj) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    MVMArgs args;
+    args.callsite = capture->body.callsite;
+    args.source = capture->body.args;
+    args.map = MVM_args_identity_map(tc, args.callsite);
+    return args;
+}
+
 /* Get the number of positional arguments that the capture has. */
 MVMint64 MVM_capture_num_pos_args(MVMThreadContext *tc, MVMObject *capture_obj) {
     MVMCapture *capture = validate_capture(tc, capture_obj);
