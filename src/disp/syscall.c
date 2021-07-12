@@ -530,6 +530,62 @@ static MVMDispSysCall boolify_using_elems = {
     .expected_concrete = { 1 },
 };
 
+/* capture-pos-args */
+static void capture_pos_args_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    /* Obtain the capture we are passed. */
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+
+    /* Set up an args processing context and use the standard slurpy args
+     * handler to extract all positionals. */
+    MVMROOT(tc, capture, {
+        MVMArgs capture_args = MVM_capture_to_args(tc, capture);
+        MVMArgProcContext capture_ctx;
+        MVM_args_proc_setup(tc, &capture_ctx, capture_args);
+        MVMObject *result = MVM_args_slurpy_positional(tc, &capture_ctx, 0);
+        MVM_args_proc_cleanup(tc, &capture_ctx);
+        MVM_args_set_result_obj(tc, result, MVM_RETURN_CURRENT_FRAME);
+    });
+}
+static MVMDispSysCall capture_pos_args = {
+    .c_name = "capture-pos-args",
+    .implementation = capture_pos_args_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMCapture },
+    .expected_concrete = { 1 },
+};
+
+/* capture-named-args */
+static void capture_named_args_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    /* Obtain the capture we are passed. */
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+
+    /* Set up an args processing context and use the standard slurpy args
+     * handler to extract all nameds */
+    MVMROOT(tc, capture, {
+        MVMArgs capture_args = MVM_capture_to_args(tc, capture);
+        MVMArgProcContext capture_ctx;
+        MVM_args_proc_setup(tc, &capture_ctx, capture_args);
+        MVMObject *result = MVM_args_slurpy_named(tc, &capture_ctx);
+        MVM_args_proc_cleanup(tc, &capture_ctx);
+        MVM_args_set_result_obj(tc, result, MVM_RETURN_CURRENT_FRAME);
+    });
+}
+static MVMDispSysCall capture_named_args = {
+    .c_name = "capture-named-args",
+    .implementation = capture_named_args_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMCapture },
+    .expected_concrete = { 1 },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -575,6 +631,8 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &boolify_boxed_str_with_zero_false);
     add_to_hash(tc, &boolify_iter);
     add_to_hash(tc, &boolify_using_elems);
+    add_to_hash(tc, &capture_pos_args);
+    add_to_hash(tc, &capture_named_args);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
