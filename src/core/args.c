@@ -1075,7 +1075,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
         REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&box);
 
-    find_pos_arg(&(tc->cur_frame->params), pos, arg_info);
+    find_pos_arg(ctx, pos, arg_info);
     pos++;
     while (arg_info.exists) {
 
@@ -1107,7 +1107,7 @@ MVMObject * MVM_args_slurpy_positional(MVMThreadContext *tc, MVMArgProcContext *
                 MVM_exception_throw_adhoc(tc, "Arg flag is empty in slurpy_positional");
         }
 
-        find_pos_arg(&(tc->cur_frame->params), pos, arg_info);
+        find_pos_arg(ctx, pos, arg_info);
         pos++;
         if (pos == 1) break; /* overflow?! */
     }
