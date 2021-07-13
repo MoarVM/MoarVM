@@ -586,6 +586,44 @@ static MVMDispSysCall capture_named_args = {
     .expected_concrete = { 1 },
 };
 
+/* coerce-boxed-int-to-str */
+static void coerce_boxed_int_to_str_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMString *result = MVM_coerce_i_s(tc,
+        REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
+    MVM_args_set_result_str(tc, result, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall coerce_boxed_int_to_str = {
+    .c_name = "coerce-boxed-int-to-str",
+    .implementation = coerce_boxed_int_to_str_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
+/* coerce-boxed-num-to-str */
+static void coerce_boxed_num_to_str_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMString *result = MVM_coerce_n_s(tc,
+        REPR(obj)->box_funcs.get_num(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
+    MVM_args_set_result_str(tc, result, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall coerce_boxed_num_to_str = {
+    .c_name = "coerce-boxed-num-to-str",
+    .implementation = coerce_boxed_num_to_str_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -633,6 +671,8 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &boolify_using_elems);
     add_to_hash(tc, &capture_pos_args);
     add_to_hash(tc, &capture_named_args);
+    add_to_hash(tc, &coerce_boxed_int_to_str);
+    add_to_hash(tc, &coerce_boxed_num_to_str);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
