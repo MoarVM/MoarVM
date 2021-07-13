@@ -236,6 +236,13 @@ MVMint64 MVM_capture_has_named_arg(MVMThreadContext *tc, MVMObject *capture_obj,
     return 0;
 }
 
+/* Checks if the capture has nameds at all. */
+MVMint64 MVM_capture_has_nameds(MVMThreadContext *tc, MVMObject *capture_obj) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    MVMCallsite *cs = capture->body.callsite;
+    return cs->flag_count != cs->num_pos;
+}
+
 /* Obtain an argument by its flag index (that is, positional arguments have
  * their positions, and then names are according the order that the names
  * appear in in the callsite's argument name list). */
