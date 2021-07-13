@@ -357,7 +357,8 @@ MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
         else {
             MVMCallsite *cs = frame->params.arg_info.callsite;
             MVMuint32 num_named = cs->flag_count - cs->num_pos;
-            MVMuint32 arg_size = (cs->num_pos + 2 * num_named) * sizeof(MVMRegister);
+            cs->arg_count = cs->num_pos + 2 * num_named; /* Not reliably set under new calling conventions */
+            MVMuint32 arg_size = cs->arg_count * sizeof(MVMRegister);
             args = MVM_malloc(arg_size);
             MVMuint32 insert_pos = 0;
             MVMuint32 cur_named = 0;
