@@ -187,8 +187,13 @@ struct MVMCallStackDispatchRecord {
      * inter-gen GC invariant). */
     MVMStaticFrame *update_sf;
 
-    /* The produced dispatch program. */
+    /* The produced dispatch program. Only set if it resumable and so we may
+     * need to refer to it; NULL otherwise. */
     MVMDispProgram *produced_dp;
+
+    /* If there is a produced dispatch program here, was it installed? If not,
+     * we need to clear it up as we unwind this frame.  */
+    MVMuint8 produced_dp_installed;
 
     /* Temporaries as the dispatch program would write them, but only for the
      * case where they are used for making resume init state available. NULL

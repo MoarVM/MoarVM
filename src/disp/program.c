@@ -503,10 +503,11 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     MVM_VECTOR_INIT(record->rec.resume_inits, 4);
     record->rec.outcome_capture = NULL;
     record->rec.map_bind_failure_to_resumption = 0;
+    record->rec.initial_capture.capture = capture;
     record->ic_entry_ptr = ic_entry_ptr;
     record->ic_entry = ic_entry;
     record->update_sf = update_sf;
-    record->rec.initial_capture.capture = capture;
+    record->produced_dp = NULL;
 
     /* The dispatchers should not return anything; stash away the original
      * return type so we can reinstate it when we are done recording. */
@@ -2278,15 +2279,12 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
      * resumptions. */
     if (dp->num_resumptions > 0) {
         record->produced_dp = dp;
-        // TODO handle marking and cleanup in the non-successful case
-        if (!installed)
-            MVM_panic(1, "NYI case of race building resumable dispatch program");
+        record->produced_dp_installed = installed;
     }
 
     /* If there's no resumptions and the transition failed, can destory the
      * dispatch program immediately. */
     else {
-        record->produced_dp = NULL;
         if (!installed)
             MVM_disp_program_destroy(tc, dp);
     }
