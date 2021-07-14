@@ -195,7 +195,6 @@ MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCa
                 record->arg_info.source[cur_new_arg] = source[map[i]];
                 cur_new_arg++;
                 record->produced_cs.arg_names[cur_new_name] = cs->arg_names[cur_orig_name];
-                cur_orig_name++;
                 cur_new_name++;
             }
             else {
@@ -204,6 +203,7 @@ MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCa
                 record->produced_cs.arg_flags[already_index] = cs->arg_flags[i];
                 record->arg_info.source[already_index] = source[map[i]];
             }
+            cur_orig_name++;
         }
         else {
             /* Positional arg. */
