@@ -564,6 +564,8 @@ static void on_connect(uv_connect_t* req, int status) {
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
         });
+        uv_close((uv_handle_t*)ci->socket, free_on_close_cb);
+        ci->socket = NULL;
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
     MVM_free(req);
