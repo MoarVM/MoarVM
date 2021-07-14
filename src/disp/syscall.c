@@ -586,6 +586,25 @@ static MVMDispSysCall capture_named_args = {
     .expected_concrete = { 1 },
 };
 
+/* capture-names-list */
+static void capture_names_list_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    /* Obtain the capture we are passed. */
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMObject *names = MVM_capture_get_names_list(tc, capture);
+    MVM_args_set_result_obj(tc, names, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall capture_names_list = {
+    .c_name = "capture-names-list",
+    .implementation = capture_names_list_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMCapture },
+    .expected_concrete = { 1 },
+};
+
 /* coerce-boxed-int-to-str */
 static void coerce_boxed_int_to_str_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMArgProcContext arg_ctx;
@@ -671,6 +690,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &boolify_using_elems);
     add_to_hash(tc, &capture_pos_args);
     add_to_hash(tc, &capture_named_args);
+    add_to_hash(tc, &capture_names_list);
     add_to_hash(tc, &coerce_boxed_int_to_str);
     add_to_hash(tc, &coerce_boxed_num_to_str);
     MVM_gc_allocate_gen2_default_clear(tc);
