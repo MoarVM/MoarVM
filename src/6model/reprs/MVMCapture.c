@@ -243,6 +243,20 @@ MVMint64 MVM_capture_has_nameds(MVMThreadContext *tc, MVMObject *capture_obj) {
     return cs->flag_count != cs->num_pos;
 }
 
+/* Gets a string array of the nameds that the capture has. Evaluates to a type
+ * object if there are no nameds. */
+MVMObject * MVM_capture_get_names_list(MVMThreadContext *tc, MVMObject *capture_obj) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    MVMCallsite *cs = capture->body.callsite;
+    MVMuint16 num_nameds = cs->flag_count - cs->num_pos;
+    if (num_nameds == 0)
+        return tc->instance->boot_types.BOOTStrArray;
+    MVMObject *result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStrArray);
+    for (MVMuint16 i = 0; i < num_nameds; i++)
+        MVM_repr_bind_pos_s(tc, result, i, cs->arg_names[i]);
+    return result;
+}
+
 /* Obtain an argument by its flag index (that is, positional arguments have
  * their positions, and then names are according the order that the names
  * appear in in the callsite's argument name list). */
