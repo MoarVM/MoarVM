@@ -418,7 +418,7 @@ MVMuint64 MVM_fixkey_hash_fsck(MVMThreadContext *tc, MVMFixKeyHashTable *hashtab
         ++metadata;
         entry_raw -= sizeof(MVMString ***);
     }
-    if (*metadata != 1) {
+    if (*metadata != 0) {
         ++errors;
         if (display) {
             fprintf(stderr, "%s    %02x!\n", prefix_hashes, *metadata);

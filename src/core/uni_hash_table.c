@@ -373,10 +373,8 @@ static MVMuint64 uni_hash_fsck_internal(struct MVMUniHashTableControl *control, 
             if (offset < 1) {
                 wrong_order = '<';
             } else if (offset > control->max_probe_distance) {
-                ++errors;
                 wrong_order = '>';
             } else if (offset > prev_offset + 1) {
-                ++errors;
                 wrong_order = '!';
             } else {
                 wrong_order = ' ';
@@ -395,7 +393,7 @@ static MVMuint64 uni_hash_fsck_internal(struct MVMUniHashTableControl *control, 
         ++metadata;
         entry_raw -= sizeof(struct MVMUniHashEntry);
     }
-    if (*metadata != 1) {
+    if (*metadata != 0) {
         ++errors;
         if (display) {
             fprintf(stderr, "%s    %02x!\n", prefix_hashes, *metadata);

@@ -796,10 +796,8 @@ static MVMuint64 hash_fsck_internal(MVMThreadContext *tc, struct MVMStrHashTable
                 if (offset < 1) {
                     wrong_order = '<';
                 } else if (offset > control->max_probe_distance) {
-                    ++errors;
                     wrong_order = '>';
                 } else if (offset > prev_offset + 1) {
-                    ++errors;
                     wrong_order = '!';
                 } else {
                     wrong_order = ' ';
@@ -859,7 +857,7 @@ static MVMuint64 hash_fsck_internal(MVMThreadContext *tc, struct MVMStrHashTable
         ++metadata;
         entry_raw -= control->entry_size;
     }
-    if (*metadata != 1) {
+    if (*metadata != 0) {
         ++errors;
         if (display) {
             fprintf(stderr, "%s    %02x!\n", prefix_hashes, *metadata);
