@@ -288,32 +288,34 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 
 /* Make a copy of the callsite. */
 MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    MVMCallsite      *res   = MVM_calloc(1, sizeof(MVMCallsite));
-    MVMCallsiteEntry *flags = NULL;
-    MVMCallsiteEntry *src_flags;
-    MVMint32 fsize;
+    if (ctx->version == MVM_ARGS_LEGACY) {
+        MVMCallsite      *res   = MVM_calloc(1, sizeof(MVMCallsite));
+        MVMCallsiteEntry *flags = NULL;
+        MVMCallsiteEntry *src_flags;
+        MVMint32 fsize;
 
-    if (ctx->version != MVM_ARGS_LEGACY)
-        MVM_panic(1, "Cannot handle new callsite format in MVM_args_copy_callsite");
+        if (ctx->legacy.arg_flags) {
+            fsize = ctx->legacy.flag_count;
+            src_flags = ctx->legacy.arg_flags;
+        }
+        else {
+            fsize = ctx->legacy.callsite->flag_count;
+            src_flags = ctx->legacy.callsite->arg_flags;
+        }
 
-    if (ctx->legacy.arg_flags) {
-        fsize = ctx->legacy.flag_count;
-        src_flags = ctx->legacy.arg_flags;
+        if (fsize) {
+            flags = MVM_malloc(fsize * sizeof(MVMCallsiteEntry));
+            memcpy(flags, src_flags, fsize * sizeof(MVMCallsiteEntry));
+        }
+        res->flag_count = fsize;
+        res->arg_flags = flags;
+        res->arg_count = ctx->legacy.arg_count;
+        res->num_pos   = ctx->legacy.num_pos;
+        return res;
     }
     else {
-        fsize = ctx->legacy.callsite->flag_count;
-        src_flags = ctx->legacy.callsite->arg_flags;
+        return MVM_callsite_copy(tc, ctx->arg_info.callsite);
     }
-
-    if (fsize) {
-        flags = MVM_malloc(fsize * sizeof(MVMCallsiteEntry));
-        memcpy(flags, src_flags, fsize * sizeof(MVMCallsiteEntry));
-    }
-    res->flag_count = fsize;
-    res->arg_flags = flags;
-    res->arg_count = ctx->legacy.arg_count;
-    res->num_pos   = ctx->legacy.num_pos;
-    return res;
 }
 
 /* Copy a callsite unless it is interned. */
