@@ -109,7 +109,14 @@ static void dump_recording_values(MVMThreadContext *tc, MVMDispProgramRecording 
 };
 static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *record) {
     MVMuint32 is_resume = record->rec.resume_kind != MVMDispProgramRecordingResumeNone;
+
     fprintf(stderr, "Dispatch recording%s\n", is_resume ? " (resume)" : "");
+
+    char *backtrace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0,
+		    *(tc->interp_cur_op));
+    fprintf(stderr, "%s\n", backtrace_line);
+    MVM_free(backtrace_line);
+
     fprintf(stderr, "  Captures:\n");
     dump_recording_capture(tc, &(record->rec.initial_capture), 4, &(record->rec));
     if (is_resume)
@@ -146,6 +153,12 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
     else
         fprintf(stderr, "Dispatch program %p (%d temporaries, args from %d)\n", dp,
                 dp->num_temporaries, dp->first_args_temporary);
+
+    char *backtrace_line = MVM_exception_backtrace_line(tc, tc->cur_frame, 0,
+		    *(tc->interp_cur_op));
+    fprintf(stderr, "%s\n", backtrace_line);
+    MVM_free(backtrace_line);
+
     MVMuint32 i;
     fprintf(stderr, "  Ops:\n");
     for (i = 0; i < dp->num_ops; i++) {
