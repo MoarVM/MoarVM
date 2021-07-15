@@ -605,6 +605,63 @@ static MVMDispSysCall capture_names_list = {
     .expected_concrete = { 1 },
 };
 
+/* can-unbox-to-int */
+static void can_unbox_to_int_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    const MVMStorageSpec *ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+    MVMint64 result = ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT;
+    MVM_args_set_result_int(tc, result, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall can_unbox_to_int = {
+    .c_name = "can-unbox-to-int",
+    .implementation = can_unbox_to_int_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
+/* can-unbox-to-num */
+static void can_unbox_to_num_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    const MVMStorageSpec *ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+    MVMint64 result = ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM;
+    MVM_args_set_result_int(tc, result, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall can_unbox_to_num = {
+    .c_name = "can-unbox-to-num",
+    .implementation = can_unbox_to_num_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
+/* can-unbox-to-str */
+static void can_unbox_to_str_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    const MVMStorageSpec *ss = REPR(obj)->get_storage_spec(tc, STABLE(obj));
+    MVMint64 result = ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_STR;
+    MVM_args_set_result_int(tc, result, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall can_unbox_to_str = {
+    .c_name = "can-unbox-to-str",
+    .implementation = can_unbox_to_str_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
 /* coerce-boxed-int-to-str */
 static void coerce_boxed_int_to_str_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMArgProcContext arg_ctx;
@@ -691,6 +748,9 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &capture_pos_args);
     add_to_hash(tc, &capture_named_args);
     add_to_hash(tc, &capture_names_list);
+    add_to_hash(tc, &can_unbox_to_int);
+    add_to_hash(tc, &can_unbox_to_num);
+    add_to_hash(tc, &can_unbox_to_str);
     add_to_hash(tc, &coerce_boxed_int_to_str);
     add_to_hash(tc, &coerce_boxed_num_to_str);
     MVM_gc_allocate_gen2_default_clear(tc);
