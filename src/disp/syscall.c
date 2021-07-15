@@ -700,6 +700,61 @@ static MVMDispSysCall coerce_boxed_num_to_str = {
     .expected_concrete = { 1 },
 };
 
+/* coerce-boxed-str-to-int */
+static void coerce_boxed_str_to_int_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMint64 result = MVM_coerce_s_i(tc,
+        REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj)));
+    MVM_args_set_result_int(tc, result, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall coerce_boxed_str_to_int = {
+    .c_name = "coerce-boxed-str-to-int",
+    .implementation = coerce_boxed_str_to_int_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
+/* coerce-boxed-num-to-int */
+static void coerce_boxed_num_to_int_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMint64 result = (MVMint64)REPR(obj)->box_funcs.get_num(tc, STABLE(obj),
+            obj, OBJECT_BODY(obj));
+    MVM_args_set_result_int(tc, result, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall coerce_boxed_num_to_int = {
+    .c_name = "coerce-boxed-num-to-int",
+    .implementation = coerce_boxed_num_to_int_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
+/* elems */
+static void elems_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVM_args_set_result_int(tc, MVM_repr_elems(tc, obj), MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall elems = {
+    .c_name = "elems",
+    .implementation = elems_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -753,6 +808,9 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &can_unbox_to_str);
     add_to_hash(tc, &coerce_boxed_int_to_str);
     add_to_hash(tc, &coerce_boxed_num_to_str);
+    add_to_hash(tc, &coerce_boxed_str_to_int);
+    add_to_hash(tc, &coerce_boxed_num_to_int);
+    add_to_hash(tc, &elems);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
