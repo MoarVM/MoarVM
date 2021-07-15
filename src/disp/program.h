@@ -599,14 +599,16 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
         MVMCallStackDispatchRun *disp_run);
 
 /* Memory management of dispatch programs. */
-void MVM_disp_program_mark(MVMThreadContext *tc, MVMDispProgram *dp, MVMGCWorklist *worklist);
+void MVM_disp_program_mark(MVMThreadContext *tc, MVMDispProgram *dp, MVMGCWorklist *worklist,
+        MVMHeapSnapshotState *snapshot);
 void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecording *rec,
-        MVMGCWorklist *worklist);
+        MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot);
 void MVM_disp_program_mark_run_temps(MVMThreadContext *tc, MVMDispProgram *dp,
-        MVMCallsite *cs, MVMRegister *temps, MVMGCWorklist *worklist);
+        MVMCallsite *cs, MVMRegister *temps, MVMGCWorklist *worklist,
+        MVMHeapSnapshotState *snapshot);
 void MVM_disp_program_mark_record_temps(MVMThreadContext *tc, MVMDispProgram *dp,
-        MVMRegister *temps, MVMGCWorklist *worklist);
+        MVMRegister *temps, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot);
 void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *outcome,
-        MVMGCWorklist *worklist);
+        MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot);
 void MVM_disp_program_destroy(MVMThreadContext *tc, MVMDispProgram *dp);
 void MVM_disp_program_recording_destroy(MVMThreadContext *tc, MVMDispProgramRecording *rec);

@@ -2690,23 +2690,36 @@ rejection:
     return 0;
 }
 
+#define add_collectable(tc, worklist, snapshot, col, desc) \
+    do { \
+        if (worklist) { \
+            MVM_gc_worklist_add(tc, worklist, &(col)); \
+        } \
+        else { \
+            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot, \
+                (MVMCollectable *)col, desc); \
+        } \
+    } while (0)
+
 /* GC mark a dispatch program's GC constants. */
-void MVM_disp_program_mark(MVMThreadContext *tc, MVMDispProgram *dp, MVMGCWorklist *worklist) {
+void MVM_disp_program_mark(MVMThreadContext *tc, MVMDispProgram *dp, MVMGCWorklist *worklist,
+        MVMHeapSnapshotState *snapshot) {
     MVMuint32 i;
     for (i = 0; i < dp->num_gc_constants; i++)
-        MVM_gc_worklist_add(tc, worklist, &(dp->gc_constants[i]));
+        add_collectable(tc, worklist, snapshot, dp->gc_constants[i],
+                "Dispatch program GC constant");
 }
 
 /* Mark the recording state of a dispatch program. */
 static void mark_recording_capture(MVMThreadContext *tc, MVMDispProgramRecordingCapture *cap,
-        MVMGCWorklist *worklist) {
-    MVM_gc_worklist_add(tc, worklist, &(cap->capture));
+        MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
+    add_collectable(tc, worklist, snapshot, cap->capture, "Dispatch recording capture");
     MVMuint32 i;
     for (i = 0; i < MVM_VECTOR_ELEMS(cap->captures); i++)
-        mark_recording_capture(tc, &(cap->captures[i]), worklist);
+        mark_recording_capture(tc, &(cap->captures[i]), worklist, snapshot);
 }
 void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecording *rec,
-        MVMGCWorklist *worklist) {
+        MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     MVMuint32 i, j;
     for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++) {
         MVMDispProgramRecordingValue *value = &(rec->values[i]);
@@ -2720,40 +2733,47 @@ void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecordi
             case MVMDispProgramRecordingLiteralValue:
                 if (value->literal.kind == MVM_CALLSITE_ARG_OBJ ||
                         value->literal.kind == MVM_CALLSITE_ARG_STR)
-                    MVM_gc_worklist_add(tc, worklist, &(value->literal.value.o));
+                    add_collectable(tc, worklist, snapshot, value->literal.value.o,
+                            "Dispatch recording value");
                 break;
             default:
                 MVM_panic(1, "Unknown dispatch program value kind to GC mark");
                 break;
         }
-        MVM_gc_worklist_add(tc, worklist, &(value->tracked));
+        add_collectable(tc, worklist, snapshot, value->tracked,
+                "Dispatch recording tracked value");
         for (j = 0; j < MVM_VECTOR_ELEMS(value->not_literal_guards); j++)
-            MVM_gc_worklist_add(tc, worklist, &(value->not_literal_guards[j]));
+            add_collectable(tc, worklist, snapshot, value->not_literal_guards[j],
+                    "Dispatch recording literal non-match guard");
     }
-    mark_recording_capture(tc, &(rec->initial_capture), worklist);
+    mark_recording_capture(tc, &(rec->initial_capture), worklist, snapshot);
     if (rec->resume_kind != MVMDispProgramRecordingResumeNone) {
         for (MVMuint32 i = 0; i < MVM_VECTOR_ELEMS(rec->resumptions); i++) {
             MVMDispProgramRecordingResumption *resumption = &(rec->resumptions[i]);
-            mark_recording_capture(tc, &(resumption->initial_resume_capture), worklist);
+            mark_recording_capture(tc, &(resumption->initial_resume_capture), worklist, snapshot);
             if (resumption->initial_resume_args) {
                 MVMCallsite *init_callsite = ((MVMCapture *)resumption->initial_resume_capture.capture)->body.callsite;
                 for (MVMuint16 j = 0; j < init_callsite->flag_count; j++) {
                     MVMCallsiteFlags flag = init_callsite->arg_flags[j] & MVM_CALLSITE_ARG_TYPE_MASK;
                     if (flag == MVM_CALLSITE_ARG_OBJ || flag == MVM_CALLSITE_ARG_STR)
-                        MVM_gc_worklist_add(tc, worklist, &(resumption->initial_resume_args[j].o));
+                        add_collectable(tc, worklist, snapshot,
+                                resumption->initial_resume_args[j].o,
+                                "Dispatch recording initial resume argument");
                 }
             }
         }
     }
     for (i = 0; i < MVM_VECTOR_ELEMS(rec->resume_inits); i++) {
-        MVM_gc_worklist_add(tc, worklist, &(rec->resume_inits[i].capture));
+        add_collectable(tc, worklist, snapshot, rec->resume_inits[i].capture,
+                "Dispatch recording resume initialization capture");
     }
-    MVM_gc_worklist_add(tc, worklist, &(rec->outcome_capture));
+    add_collectable(tc, worklist, snapshot, rec->outcome_capture,
+            "Dispatch recording outcome capture");
 }
 
 /* Mark the temporaries of a running dispatch program. */
 static void mark_resumption_temps(MVMThreadContext *tc, MVMDispProgram *dp,
-        MVMRegister *temps, MVMGCWorklist *worklist) {
+        MVMRegister *temps, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     for (MVMuint32 i = 0; i < dp->num_resumptions; i++) {
         MVMDispProgramResumptionInitValue *init_values = dp->resumptions[i].init_values;
         if (init_values) {
@@ -2762,35 +2782,38 @@ static void mark_resumption_temps(MVMThreadContext *tc, MVMDispProgram *dp,
                 if (init_values[j].source == MVM_DISP_RESUME_INIT_TEMP) {
                     MVMCallsiteFlags flag = cs->arg_flags[j] & MVM_CALLSITE_ARG_TYPE_MASK;
                     if (flag == MVM_CALLSITE_ARG_OBJ || flag == MVM_CALLSITE_ARG_STR)
-                        MVM_gc_worklist_add(tc, worklist, &(temps[init_values[j].index]));
+                        add_collectable(tc, worklist, snapshot, temps[init_values[j].index].o,
+                                "Dispatch program temporary (resumption initialization)");
                 }
             }
         }
     }
 }
 void MVM_disp_program_mark_run_temps(MVMThreadContext *tc, MVMDispProgram *dp,
-        MVMCallsite *cs, MVMRegister *temps, MVMGCWorklist *worklist) {
+        MVMCallsite *cs, MVMRegister *temps, MVMGCWorklist *worklist,
+        MVMHeapSnapshotState *snapshot) {
     if (dp->num_temporaries != dp->first_args_temporary) {
         /* Some of the temporaries form the result argument capture. */
         for (MVMuint32 i = 0; i < cs->flag_count; i++) {
             if (cs->arg_flags[i] & (MVM_CALLSITE_ARG_OBJ | MVM_CALLSITE_ARG_STR)) {
                 MVMuint32 temp_idx = dp->first_args_temporary + i;
-                MVM_gc_worklist_add(tc, worklist, &(temps[temp_idx]));
+                add_collectable(tc, worklist, snapshot, temps[temp_idx].o,
+                        "Dispatch program temporary (arg)");
             }
         }
     }
-    mark_resumption_temps(tc, dp, temps, worklist);
+    mark_resumption_temps(tc, dp, temps, worklist, snapshot);
 }
 
 /* Mark the temporaries of a recorded dispatch program. */
 void MVM_disp_program_mark_record_temps(MVMThreadContext *tc, MVMDispProgram *dp,
-        MVMRegister *temps, MVMGCWorklist *worklist) {
-    mark_resumption_temps(tc, dp, temps, worklist);
+        MVMRegister *temps, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
+    mark_resumption_temps(tc, dp, temps, worklist, snapshot);
 }
 
 /* Mark the outcome of a dispatch program. */
 void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *outcome,
-        MVMGCWorklist *worklist) {
+        MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
     switch (outcome->kind) {
         case MVM_DISP_OUTCOME_FAILED:
         case MVM_DISP_OUTCOME_CFUNCTION:
@@ -2798,17 +2821,21 @@ void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *
             /* Nothing to mark for these. */
             break;
         case MVM_DISP_OUTCOME_EXPECT_DELEGATE:
-            MVM_gc_worklist_add(tc, worklist, &(outcome->delegate_capture));
+            add_collectable(tc, worklist, snapshot, outcome->delegate_capture,
+                    "Dispatch outcome (delegate capture)");
             break;
         case MVM_DISP_OUTCOME_RESUME:
-            MVM_gc_worklist_add(tc, worklist, &(outcome->resume_capture));
+            add_collectable(tc, worklist, snapshot, outcome->resume_capture,
+                    "Dispatch outcome (resume capture)");
             break;
         case MVM_DISP_OUTCOME_VALUE:
             if (outcome->result_kind == MVM_reg_obj || outcome->result_kind == MVM_reg_str)
-                MVM_gc_worklist_add(tc, worklist, &(outcome->result_value.o));
+                add_collectable(tc, worklist, snapshot, outcome->result_value.o,
+                        "Dispatch outcome (value)");
             break;
         case MVM_DISP_OUTCOME_BYTECODE:
-            MVM_gc_worklist_add(tc, worklist, &(outcome->code));
+            add_collectable(tc, worklist, snapshot, outcome->code,
+                    "Dispatch outcome (bytecode)");
             break;
     }
 }
