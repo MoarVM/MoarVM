@@ -2420,9 +2420,11 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
             case MVMDispOpcodeGuardNoResumptionTopmost:
                 if (MVM_disp_resume_find_topmost(tc, &(record->resumption_data), record->resumption_level))
                     goto rejection;
+		break;
             case MVMDispOpcodeGuardNoResumptionCaller:
                 if (MVM_disp_resume_find_caller(tc, &(record->resumption_data), record->resumption_level))
                     goto rejection;
+		break;
             case MVMDispOpcodeUpdateResumeState:
                 *(record->resumption_data.state_ptr) = record->temps[op->res_value.temp].o;
                 break;
