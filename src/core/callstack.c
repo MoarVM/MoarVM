@@ -539,8 +539,8 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED: {
                 MVMCallStackDispatchRecord *disp_record = (MVMCallStackDispatchRecord *)record;
-                MVM_disp_program_mark_recording(tc, &(disp_record->rec), worklist);
-                MVM_disp_program_mark_outcome(tc, &(disp_record->outcome), worklist);
+                MVM_disp_program_mark_recording(tc, &(disp_record->rec), worklist, snapshot);
+                MVM_disp_program_mark_outcome(tc, &(disp_record->outcome), worklist, snapshot);
                 add_collectable(tc, worklist, snapshot, disp_record->current_capture.o,
                         "Dispatch recording current capture");
                 add_collectable(tc, worklist, snapshot, disp_record->update_sf,
@@ -549,10 +549,10 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                         worklist, snapshot);
                 if (disp_record->produced_dp) {
                     if (!disp_record->produced_dp_installed)
-                        MVM_disp_program_mark(tc, disp_record->produced_dp, worklist);
+                        MVM_disp_program_mark(tc, disp_record->produced_dp, worklist, snapshot);
                     if (disp_record->temps)
                         MVM_disp_program_mark_record_temps(tc, disp_record->produced_dp,
-                                disp_record->temps, worklist);
+                                disp_record->temps, worklist, snapshot);
                 }
                 break;
             }
@@ -562,7 +562,7 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                 if (dp)
                     MVM_disp_program_mark_run_temps(tc, dp,
                             disp_run->temp_mark_callsite, disp_run->temps,
-                            worklist);
+                            worklist, snapshot);
                 MVM_disp_resume_mark_resumption_state(tc, &(disp_run->resumption_state),
                         worklist, snapshot);
                 break;
@@ -571,7 +571,7 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                 MVMCallStackFlattening *f_record = (MVMCallStackFlattening *)record;
                 MVMuint16 flagi;
                 MVMCallsite *cs = &f_record->produced_cs;
-                MVM_callsite_mark(tc, cs, worklist);
+                MVM_callsite_mark(tc, cs, worklist, snapshot);
                 for (flagi = 0; flagi < f_record->produced_cs.flag_count; flagi++) {
                     MVMuint8 flagtype = cs->arg_flags[flagi] & MVM_CALLSITE_ARG_TYPE_MASK;
                     if (flagtype == MVM_CALLSITE_ARG_OBJ || flagtype == MVM_CALLSITE_ARG_STR) {
