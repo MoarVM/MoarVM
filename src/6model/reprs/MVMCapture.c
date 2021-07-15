@@ -34,7 +34,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
         if (flags[i] & MVM_CALLSITE_ARG_STR || flags[i] & MVM_CALLSITE_ARG_OBJ)
             MVM_gc_worklist_add(tc, worklist, &(body->args[i].o));
     if (!body->callsite->is_interned)
-        MVM_callsite_mark(tc, body->callsite, worklist);
+        MVM_callsite_mark(tc, body->callsite, worklist, NULL);
 }
 
 /* Called by the VM in order to free memory associated with this object. */

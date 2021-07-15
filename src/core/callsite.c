@@ -116,11 +116,16 @@ static MVMint32 callsites_equal(MVMThreadContext *tc, MVMCallsite *cs1, MVMCalls
 }
 
 /* GC marks a callsite (really, just its named args). */
-void MVM_callsite_mark(MVMThreadContext *tc, MVMCallsite *cs, MVMGCWorklist *worklist) {
+void MVM_callsite_mark(MVMThreadContext *tc, MVMCallsite *cs, MVMGCWorklist *worklist,
+        MVMHeapSnapshotState *snapshot) {
     MVMuint32 num_names = MVM_callsite_num_nameds(tc, cs);
     MVMuint32 i;
     for (i = 0; i < num_names; i++)
-        MVM_gc_worklist_add(tc, worklist, &(cs->arg_names[i]));
+        if (worklist)
+            MVM_gc_worklist_add(tc, worklist, &(cs->arg_names[i]));
+        else
+            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot, cs->arg_names[i],
+                    "Callsite named argument");
 }
 
 /* Destroy a callsite, freeing the memory associated with it. */
@@ -287,7 +292,8 @@ MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr,
 }
 
 /* GC marks all of the interned callsites (they may reference strings). */
-void MVM_callsite_mark_interns(MVMThreadContext *tc, MVMGCWorklist *worklist) {
+void MVM_callsite_mark_interns(MVMThreadContext *tc, MVMGCWorklist *worklist,
+        MVMHeapSnapshotState *snapshot) {
     MVMCallsiteInterns *interns = tc->instance->callsite_interns;
     MVMuint32 i;
     for (i = 0; i <= interns->max_arity; i++) {
@@ -295,7 +301,7 @@ void MVM_callsite_mark_interns(MVMThreadContext *tc, MVMGCWorklist *worklist) {
         MVMCallsite **callsites = interns->by_arity[i];
         MVMuint32 j;
         for (j = 0; j < callsite_count; j++)
-            MVM_callsite_mark(tc, callsites[j], worklist);
+            MVM_callsite_mark(tc, callsites[j], worklist, snapshot);
     }
 }
 
