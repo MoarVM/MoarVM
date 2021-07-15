@@ -637,26 +637,26 @@ void MVM_disp_inline_cache_mark(MVMThreadContext *tc, MVMDispInlineCache *cache,
             else if (entry->run_dispatch == dispatch_monomorphic) {
                 MVMDispInlineCacheEntryMonomorphicDispatch *mono =
                     (MVMDispInlineCacheEntryMonomorphicDispatch *)entry;
-                MVM_disp_program_mark(tc, mono->dp, worklist);
+                MVM_disp_program_mark(tc, mono->dp, worklist, NULL);
             }
             else if (entry->run_dispatch == dispatch_monomorphic_flattening) {
                 MVMDispInlineCacheEntryMonomorphicDispatchFlattening *mono =
                     (MVMDispInlineCacheEntryMonomorphicDispatchFlattening *)entry;
-                MVM_disp_program_mark(tc, mono->dp, worklist);
+                MVM_disp_program_mark(tc, mono->dp, worklist, NULL);
             }
             else if (entry->run_dispatch == dispatch_polymorphic) {
                 MVMDispInlineCacheEntryPolymorphicDispatch *poly =
                     (MVMDispInlineCacheEntryPolymorphicDispatch *)entry;
                 MVMuint32 i;
                 for (i = 0; i < poly->num_dps; i++)
-                    MVM_disp_program_mark(tc, poly->dps[i], worklist);
+                    MVM_disp_program_mark(tc, poly->dps[i], worklist, NULL);
             }
             else if (entry->run_dispatch == dispatch_polymorphic_flattening) {
                 MVMDispInlineCacheEntryPolymorphicDispatchFlattening *poly =
                     (MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry;
                 MVMuint32 i;
                 for (i = 0; i < poly->num_dps; i++)
-                    MVM_disp_program_mark(tc, poly->dps[i], worklist);
+                    MVM_disp_program_mark(tc, poly->dps[i], worklist, NULL);
             }
             else {
                 MVM_panic(1, "Unimplemented case of inline cache GC marking");
