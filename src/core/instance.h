@@ -98,6 +98,7 @@ struct MVMStringConsts {
     MVMString *boot_resume;
     MVMString *boot_syscall;
     MVMString *lang_call;
+    MVMString *lang_meth_not_found;
     MVMString *boolify_bigint;
     MVMString *boolify_boxed_int;
     MVMString *boolify_boxed_num;
