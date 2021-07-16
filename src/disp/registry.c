@@ -97,6 +97,8 @@ void MVM_disp_registry_init(MVMThreadContext *tc) {
     register_boot_dispatcher(tc, "boot-resume-caller", MVM_disp_boot_resume_caller_dispatch(tc));
     register_boot_dispatcher(tc, "lang-call", MVM_disp_lang_call_dispatch(tc));
     register_boot_dispatcher(tc, "lang-meth-call", MVM_disp_lang_meth_call_dispatch(tc));
+    register_boot_dispatcher(tc, "lang-meth-not-found",
+            MVM_disp_lang_meth_not_found_dispatch(tc));
     register_boot_dispatcher(tc, "boot-boolify", MVM_disp_boot_boolify_dispatch(tc));
     MVM_gc_allocate_gen2_default_clear(tc);
 }

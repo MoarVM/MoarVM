@@ -373,11 +373,8 @@ static void lang_meth_call(MVMThreadContext *tc, MVMArgs arg_info) {
             });
         }
         else {
-            char *c_name = MVM_string_utf8_encode_C_string(tc, method_name);
-            char *waste[] = { c_name, NULL };
-            MVM_exception_throw_adhoc_free(tc, waste,
-                    "Cannot find method '%s' on object of type %s",
-                    c_name, STABLE(invocant)->debug_name);
+            MVM_disp_program_record_delegate(tc,
+                    tc->instance->str_consts.lang_meth_not_found, capture);
         }
         return;
     }
@@ -392,6 +389,41 @@ static void lang_meth_call(MVMThreadContext *tc, MVMArgs arg_info) {
  * dispatcher. */
 MVMObject * MVM_disp_lang_meth_call_dispatch(MVMThreadContext *tc) {
     return wrap(tc, lang_meth_call);
+}
+
+/* Checks if the calling language has a method not found handler configured,
+ * and if so invokes it. Failing that, throws an exception. Excepts the same
+ * arguments that lang-meth-call does. */
+static void lang_meth_not_found(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVM_args_checkarity(tc, &arg_ctx, 1, 1);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMHLLConfig *hll = MVM_hll_current(tc);
+    if (hll && hll->method_not_found_error) {
+        /* Have a handler for this langauge. */
+        MVMRegister code_reg = { .o = hll->method_not_found_error };
+        MVMObject *del_capture = MVM_disp_program_record_capture_insert_constant_arg(tc,
+                capture, 0, MVM_CALLSITE_ARG_OBJ, code_reg);
+        MVM_disp_program_record_delegate(tc, tc->instance->str_consts.lang_call,
+                del_capture);
+    }
+    else {
+        /* No handler, so just produce error. */
+        MVMObject *invocant = MVM_capture_arg_pos_o(tc, capture, 0);
+        MVMString *method_name = MVM_capture_arg_pos_s(tc, capture, 1);
+        char *c_name = MVM_string_utf8_encode_C_string(tc, method_name);
+        char *waste[] = { c_name, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste,
+                "Cannot find method '%s' on object of type %s",
+                c_name, STABLE(invocant)->debug_name);
+    }
+}
+
+/* Gets the MVMCFunction object wrapping the language-aware method not found
+ * error production dispatcher. */
+MVMObject * MVM_disp_lang_meth_not_found_dispatch(MVMThreadContext *tc) {
+    return wrap(tc, lang_meth_not_found);
 }
 
 /* The boot-boolify dispatcher looks at the boolification protocol setting
