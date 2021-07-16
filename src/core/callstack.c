@@ -360,6 +360,13 @@ static void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
 
         tc->cur_frame = caller;
         tc->current_frame_nr = caller->sequence_nr;
+
+        /* Always sync these up in case of an exception throw in a C
+         * function dispatcher that comes after a bytecode dispatcher.
+         * It is a little wasteful since we repeat it in frame.c's
+         * remove_one_frame, in that case for the sake of lazy deopt. */
+        *(tc->interp_cur_op) = caller->return_address;
+        *(tc->interp_bytecode_start) = MVM_frame_effective_bytecode(caller);
     }
     else {
         tc->cur_frame = NULL;
