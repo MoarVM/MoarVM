@@ -711,9 +711,10 @@ static MVMuint64 hash_fsck_internal(MVMThreadContext *tc, struct MVMStrHashTable
     MVMuint64 errors = 0;
     MVMuint64 seen = 0;
 
-    if (MVM_str_hash_entries(control) == NULL) {
+    if (!control || (control->cur_items == 0 && control->max_items == 0)) {
         if (display) {
-            fprintf(stderr, "%s NULL %p (empty)\n", prefix_hashes, control);
+            fprintf(stderr, "%s %p (empty%s)\n", prefix_hashes, control,
+                    control ? " optimisation" : "");
         }
         return 0;
     }
