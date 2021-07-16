@@ -616,6 +616,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(boot_resume, "boot-resume");
     string_creator(boot_syscall, "boot-syscall");
     string_creator(lang_call, "lang-call");
+    string_creator(lang_meth_not_found, "lang-meth-not-found");
     string_creator(boolify_bigint, "boolify-bigint");
     string_creator(boolify_boxed_int, "boolify-boxed-int");
     string_creator(boolify_boxed_num, "boolify-boxed-num");
