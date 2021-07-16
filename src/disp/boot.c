@@ -391,6 +391,95 @@ MVMObject * MVM_disp_lang_meth_call_dispatch(MVMThreadContext *tc) {
     return wrap(tc, lang_meth_call);
 }
 
+/* Receives three arguments: an invocant, a method name (str), and a flag
+ * indicating that failure to find the method is an exception. Evaluates to
+ * a value that is either the resolved method or, in the case that a method
+ * is not found but the exception flag is not set, a VMNull. */
+static void lang_find_meth(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVM_args_checkarity(tc, &arg_ctx, 1, 1);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+
+    /* Obtain and guard on the first argument of the capture, which is the
+     * invocant of the method call, and then also on the name and the
+     * exception flag. */
+    MVMROOT(tc, capture, {
+        MVMObject *tracked_invocant = MVM_disp_program_record_track_arg(tc, capture, 0);
+        MVM_disp_program_record_guard_type(tc, tracked_invocant);
+        for (MVMuint8 i = 1; i <= 2; i++) {
+            MVMObject *tracked_arg = MVM_disp_program_record_track_arg(tc, capture, i);
+            MVM_disp_program_record_guard_literal(tc, tracked_arg);
+        }
+    });
+
+    /* If the invocant has an associated HLL and find method dispatcher,
+     * delegate there. */
+    MVMObject *invocant = MVM_capture_arg_pos_o(tc, capture, 0);
+    MVMHLLConfig *hll = STABLE(invocant)->hll_owner;
+    if (hll && hll->find_method_dispatcher) {
+        MVM_disp_program_record_delegate(tc, hll->find_method_dispatcher, capture);
+        return;
+    }
+
+    /* Otherwise if it's a KnowHOW, then look in its method table (this is how
+     * method dispatch bottoms out in the VM). */
+    MVMint64 exceptional = MVM_capture_arg_pos_i(tc, capture, 2);
+    MVMObject *HOW;
+    MVMROOT2(tc, capture, invocant, {
+        HOW = MVM_6model_get_how(tc, STABLE(invocant));
+    });
+    if (REPR(HOW)->ID == MVM_REPR_ID_KnowHOWREPR && IS_CONCRETE(HOW)) {
+        MVMObject *methods = ((MVMKnowHOWREPR *)HOW)->body.methods;
+        MVMString *method_name = MVM_capture_arg_pos_s(tc, capture, 1);
+        MVMObject *method = MVM_repr_at_key_o(tc, methods, method_name);
+        if (IS_CONCRETE(method)) {
+            /* Method found, produce that as the value result. */
+            MVMRegister method_reg = { .o = method };
+            MVMObject *del_capture = MVM_disp_program_record_capture_insert_constant_arg(tc,
+                    capture, 0, MVM_CALLSITE_ARG_OBJ, method_reg);
+            MVM_disp_program_record_delegate(tc, tc->instance->str_consts.boot_constant,
+                    del_capture);
+        }
+        else if (exceptional) {
+            /* Method not found, and we want an exception. Drop the final
+             * argument (exception flag) and delgate to the not found thrower. */
+            MVMObject *del_capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 2);
+            MVM_disp_program_record_delegate(tc,
+                    tc->instance->str_consts.lang_meth_not_found, del_capture);
+        }
+        else {
+            /* Not found; produce a VM null value. */
+            MVMRegister method_reg = { .o = tc->instance->VMNull };
+            MVMObject *del_capture = MVM_disp_program_record_capture_insert_constant_arg(tc,
+                    capture, 0, MVM_CALLSITE_ARG_OBJ, method_reg);
+            MVM_disp_program_record_delegate(tc, tc->instance->str_consts.boot_constant,
+                    del_capture);
+        }
+        return;
+    }
+
+    /* Otherwise, error or null. */
+    if (exceptional) {
+        MVM_exception_throw_adhoc(tc,
+                "lang-find-meth cannot work out how to look for a method on type '%s'",
+                STABLE(invocant)->debug_name);
+    }
+    else {
+        MVMRegister method_reg = { .o = tc->instance->VMNull };
+        MVMObject *del_capture = MVM_disp_program_record_capture_insert_constant_arg(tc,
+                capture, 0, MVM_CALLSITE_ARG_OBJ, method_reg);
+        MVM_disp_program_record_delegate(tc, tc->instance->str_consts.boot_constant,
+                del_capture);
+    }
+}
+
+/* Gets the MVMCFunction object wrapping the language-sensitive find method
+ * dispatcher. */
+MVMObject * MVM_disp_lang_find_meth_dispatch(MVMThreadContext *tc) {
+    return wrap(tc, lang_find_meth);
+}
+
 /* Checks if the calling language has a method not found handler configured,
  * and if so invokes it. Failing that, throws an exception. Excepts the same
  * arguments that lang-meth-call does. */
