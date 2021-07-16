@@ -2,7 +2,7 @@
  * about a static frame (logged statistics, generated specializations, and
  * so forth). */
 
-struct MVMStaticFrameSpeshBody {
+struct MVMSpeshCandidatesAndArgGuards {
     /* Specialization argument guard tree, for selecting a specialization. */
     MVMSpeshArgGuard *spesh_arg_guard;
 
@@ -10,6 +10,11 @@ struct MVMStaticFrameSpeshBody {
      * move in memory; the array of pointers to them is managed using the
      * fixed size allocator and freed at the next safepoint. */
     MVMSpeshCandidate **spesh_candidates;
+};
+
+struct MVMStaticFrameSpeshBody {
+    MVMSpeshCandidatesAndArgGuards *spesh_cands_and_arg_guards;
+
     MVMuint32 num_spesh_candidates;
 
     /* Recorded count for data recording for the specializer. Incremented

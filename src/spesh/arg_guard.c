@@ -318,7 +318,7 @@ void MVM_spesh_arg_guard_regenerate(MVMThreadContext *tc, MVMSpeshArgGuard **gua
         MVMSpeshCandidate **candidates, MVMuint32 num_spesh_candidates) {
     MVMSpeshArgGuard *tree;
 
-    /* Make a first pass thorugh the candidates, grouping them by callsite.
+    /* Make a first pass through the candidates, grouping them by callsite.
      * Along the way, work out how much space, at most, we'll need to store
      * the tree (when there are multiple candidates, head sharing may mean
      * we need less than this). */
@@ -651,8 +651,11 @@ void MVM_spesh_arg_guard_destroy(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVM
  * candidates will no longer be reachable. */
 void MVM_spesh_arg_guard_discard(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMStaticFrameSpesh *spesh = sf->body.spesh;
-    if (spesh && spesh->body.spesh_arg_guard) {
-        MVM_spesh_arg_guard_destroy(tc, spesh->body.spesh_arg_guard, 1);
-        spesh->body.spesh_arg_guard = NULL;
+    if (spesh) {
+        MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards = spesh->body.spesh_cands_and_arg_guards;
+        if (cands_and_arg_guards && cands_and_arg_guards->spesh_arg_guard) {
+            MVM_spesh_arg_guard_destroy(tc, cands_and_arg_guards->spesh_arg_guard, 1);
+            cands_and_arg_guards->spesh_arg_guard = NULL;
+        }
     }
 }

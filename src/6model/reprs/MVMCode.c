@@ -8,7 +8,7 @@ static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite
     if (IS_CONCRETE(invokee)) {
         MVMCode *code = (MVMCode *)invokee;
         MVM_frame_invoke(tc, code->body.sf, callsite, args,
-            code->body.outer, invokee, -1);
+            code->body.outer, invokee, NULL);
     }
     else {
         MVM_exception_throw_adhoc(tc, "Cannot invoke code type object");

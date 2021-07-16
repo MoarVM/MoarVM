@@ -470,7 +470,7 @@ static void setup_std_handles(MVMThreadContext *tc) {
  * the initial invocation. */
 static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
     /* Create initial frame, which sets up all of the interpreter state also. */
-    MVM_frame_invoke(tc, (MVMStaticFrame *)data, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS), NULL, NULL, NULL, -1);
+    MVM_frame_invoke(tc, (MVMStaticFrame *)data, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS), NULL, NULL, NULL, NULL);
 }
 
 /* Run deserialization frame, if there is one. Disable specialization
@@ -772,6 +772,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up event loop mutex. */
     uv_mutex_destroy(&instance->mutex_event_loop);
 
+    MVM_fixed_size_safepoint(instance->main_thread, instance->fsa);
     /* Destroy main thread contexts and thread list mutex. */
     MVM_tc_destroy(instance->main_thread);
     uv_mutex_destroy(&instance->mutex_threads);

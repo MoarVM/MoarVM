@@ -155,6 +155,7 @@ MVMCallsite * find_callsite_and_args(MVMThreadContext *tc, MVMRegister **args) {
 /* Polls for an optimization and, when one is produced, jumps into it. */
 void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
     MVMStaticFrameSpesh *spesh = tc->cur_frame->static_info->body.spesh;
+    MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards = spesh->body.spesh_cands_and_arg_guards;
     MVMint32 num_cands = spesh->body.num_spesh_candidates;
     MVMint32 seq_nr = tc->cur_frame->sequence_nr;
     if (seq_nr != tc->osr_hunt_frame_nr || num_cands != tc->osr_hunt_num_spesh_candidates) {
@@ -164,11 +165,11 @@ void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
             MVMRegister *args;
             MVMCallsite *cs = find_callsite_and_args(tc, &args);
             MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
-                spesh->body.spesh_arg_guard,
+                (cands_and_arg_guards ? cands_and_arg_guards->spesh_arg_guard : NULL),
                 (cs && cs->is_interned ? cs : NULL),
                 args, NULL);
             if (ag_result >= 0)
-                perform_osr(tc, spesh->body.spesh_candidates[ag_result]);
+                perform_osr(tc, cands_and_arg_guards->spesh_candidates[ag_result]);
         }
 
         /* Update state for avoiding checks in the common case. */

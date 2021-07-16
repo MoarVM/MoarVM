@@ -213,6 +213,7 @@ typedef struct MVMStaticFrameInstrumentation MVMStaticFrameInstrumentation;
 typedef struct MVMStaticFrameDebugLocal MVMStaticFrameDebugLocal;
 typedef struct MVMStaticFrameSpesh MVMStaticFrameSpesh;
 typedef struct MVMStaticFrameSpeshBody MVMStaticFrameSpeshBody;
+typedef struct MVMSpeshCandidatesAndArgGuards MVMSpeshCandidatesAndArgGuards;
 typedef struct MVMStorageSpec MVMStorageSpec;
 typedef struct MVMString MVMString;
 typedef struct MVMStringBody MVMStringBody;

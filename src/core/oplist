@@ -942,11 +942,11 @@ sp_getarg_n      .s w(num64) int16 :pure
 sp_getarg_s      .s w(str) int16 :pure
 
 # Fast invocation (link directly to an existing spesh candidate).
-sp_fastinvoke_v  .s r(obj) int16 :maycausedeopt
-sp_fastinvoke_i  .s w(int64) r(obj) int16 :maycausedeopt
-sp_fastinvoke_n  .s w(num64) r(obj) int16 :maycausedeopt
-sp_fastinvoke_s  .s w(str) r(obj) int16 :maycausedeopt
-sp_fastinvoke_o  .s w(obj) r(obj) int16 :maycausedeopt
+sp_fastinvoke_v  .s r(obj) sslot :maycausedeopt
+sp_fastinvoke_i  .s w(int64) r(obj) sslot :maycausedeopt
+sp_fastinvoke_n  .s w(num64) r(obj) sslot :maycausedeopt
+sp_fastinvoke_s  .s w(str) r(obj) sslot :maycausedeopt
+sp_fastinvoke_o  .s w(obj) r(obj) sslot :maycausedeopt
 
 # Spesh plugin resolve instruction's post-spesh from. The bytecode position is
 # included inside of the instruction since it will have moved afterwards, and

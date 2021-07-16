@@ -147,12 +147,28 @@ static void worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *arg
 
                     start_time = uv_hrtime();
 
-                    /* Implement the plan and then discard it. */
+                    /* Implement the plan... */
                     n = tc->instance->spesh_plan->num_planned;
                     for (i = 0; i < n; i++) {
-                        MVM_spesh_candidate_add(tc, &(tc->instance->spesh_plan->planned[i]));
+                        MVMSpeshPlanned *sp = &(tc->instance->spesh_plan->planned[i]);
+                        if (sp->kind == MVM_SPESH_PLANNED_REMOVE_OPT) {
+                            MVM_spesh_candidate_discard_one(tc, sp->sf, sp->deopt_info.spesh_cand);
+                        }
+                        else {
+                            MVM_spesh_candidate_add(tc, sp);
+                        }
                         GC_SYNC_POINT(tc);
                     }
+                    /* and then go through again and clear the stats for any frame that had a candidate removed... */
+                    for (i = 0; i < n; i++) {
+                        MVMSpeshPlanned *sp = &(tc->instance->spesh_plan->planned[i]);
+                        if (sp->kind == MVM_SPESH_PLANNED_REMOVE_OPT) {
+                            MVMStaticFrameSpesh *spesh = sp->sf->body.spesh;
+                            MVM_spesh_stats_destroy(tc, spesh->body.spesh_stats);
+                            spesh->body.spesh_stats = NULL;
+                        }
+                    }
+                    /* and now discard the plan. */
                     MVM_spesh_plan_destroy(tc, tc->instance->spesh_plan);
                     tc->instance->spesh_plan = NULL;
 
