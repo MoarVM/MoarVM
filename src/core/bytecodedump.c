@@ -9,10 +9,15 @@ static void append_string(char **out, MVMuint32 *size,
     va_list args;
     va_start(args, str);
 
-    vsnprintf(string, line_length, str, args);
+    int append_len = vsnprintf(string, line_length, str, args);
     va_end(args);
+    if (append_len >= line_length) { /* str got truncated by vsnprintf */
+        string[line_length - 1] = '\0';
+        len = line_length;
+    }
+    else
+        len = strlen(string) + 1; /* include terminating \0 so we copy that, too */
 
-    len = strlen(string);
     if (*length + len > *size) {
         while (*length + len > *size)
             *size = *size * 2;
@@ -20,7 +25,7 @@ static void append_string(char **out, MVMuint32 *size,
     }
 
     memcpy(*out + *length, string, len);
-    *length = *length + len;
+    *length = *length + len - 1; /* exclude \0 so we append before it */
 }
 
 static const char * get_typename(MVMuint16 type) {
@@ -105,7 +110,7 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
         /* allocate a line buffer */
         s = 200;
         l = 0;
-        o = MVM_calloc(s, sizeof(char));
+        o = MVM_malloc(s * sizeof(char));
 
         lineloc = cur_op - bytecode_start;
         /* mark that this line starts at this point in the bytestream */
@@ -370,7 +375,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
     MVMuint32 s = 1024;
     MVMuint32 l = 0;
     MVMuint32 i, j, k;
-    char *o = MVM_calloc(s, sizeof(char));
+    char *o = MVM_malloc(s * sizeof(char));
     char ***frame_lexicals = MVM_malloc(sizeof(char **) * cu->body.num_frames);
 
     a("\nMoarVM dump of binary compilation unit:\n\n");
@@ -493,7 +498,7 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
 void MVM_dump_bytecode_of(MVMThreadContext *tc, MVMFrame *frame, MVMSpeshCandidate *maybe_candidate) {
     MVMuint32 s = 1024;
     MVMuint32 l = 0;
-    char *o = MVM_calloc(s, sizeof(char));
+    char *o = MVM_malloc(s * sizeof(char));
     MVMuint8 *addr;
 
     if (!frame) {
@@ -516,7 +521,7 @@ void MVM_dump_bytecode_of(MVMThreadContext *tc, MVMFrame *frame, MVMSpeshCandida
 void MVM_dump_bytecode_staticframe(MVMThreadContext *tc, MVMStaticFrame *frame) {
     MVMuint32 s = 1024;
     MVMuint32 l = 0;
-    char *o = MVM_calloc(s, sizeof(char));
+    char *o = MVM_malloc(s * sizeof(char));
 
     bytecode_dump_frame_internal(tc, frame, NULL, NULL, NULL, &o, &s, &l);
 
