@@ -481,7 +481,7 @@ MVMObject * MVM_disp_lang_find_meth_dispatch(MVMThreadContext *tc) {
 }
 
 /* Checks if the calling language has a method not found handler configured,
- * and if so invokes it. Failing that, throws an exception. Excepts the same
+ * and if so invokes it. Failing that, throws an exception. Expects the same
  * arguments that lang-meth-call does. */
 static void lang_meth_not_found(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMArgProcContext arg_ctx;
