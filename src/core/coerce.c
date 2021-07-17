@@ -1,5 +1,5 @@
 #include "moar.h"
-#include "math/grisu.h"
+#include "ryu/ryu.h"
 
 #if defined(_MSC_VER)
 #define strtoll _strtoi64
@@ -255,26 +255,198 @@ MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
 }
 
 MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
-    if (n == MVM_num_posinf(tc)) {
-        return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Inf");
+    if (MVM_UNLIKELY(MVM_num_isnanorinf(tc, n))) {
+        if (n == MVM_num_posinf(tc)) {
+            return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "Inf");
+        }
+        else if (n == MVM_num_neginf(tc)) {
+            return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "-Inf");
+        }
+        else {
+            return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "NaN");
+        }
     }
-    else if (n == MVM_num_neginf(tc)) {
-        return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "-Inf");
+
+    char buf[64];
+    /* What we get back is 0E0, 1E0, 3.14E0, 1E2, ... Infinity.
+     * What we'd like is the classic "fixed decimal" representation for
+     * small values, and the exponent as a lower case 'e'. So we do some
+     * massaging, and handle infinity above. We could leave NaN to fall
+     * through here, but if so it would hit our "something went wrong" code,
+     * which somewhat downplays the absolute "this path means a bug". So I think
+     * that it's still clearer handling it above. */
+    const int orig_len = d2s_buffered_n(n, buf);
+    const char *first = buf;
+
+    /* Take any leading minus away. We put it back at the end. */
+    int len = orig_len;
+    if (*first == '-') {
+        ++first;
+        --len;
     }
-    else if (n != n) {
-        return MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "NaN");
+
+    if (len < 3 || !(first[1] == '.' || first[1] == 'E')) {
+        /* Well, this shouldn't be possible. */
     }
     else {
-        char buf[64];
-        if (dtoa_grisu3(n, buf, 64) < 0)
-            MVM_exception_throw_adhoc(tc, "Could not stringify number (%f)", n);
-        else {
-            MVMStringIndex len = strlen(buf);
-            MVMGrapheme8 *blob = MVM_malloc(len);
-            memcpy(blob, buf, len);
+        const char *end = first + len;
+        const char *E = NULL;
+        if (end[-2] == 'E') {
+            E = end - 2;
+        }
+        else if (end[-3] == 'E') {
+            E = end - 3;
+        }
+        else if (len >= 4 && end[-4] == 'E') {
+            E = end - 4;
+        }
+        else if (len > 4 && end[-5] == 'E') {
+            E = end - 5;
+        }
+
+        /* This is written out verbosely - arguably there is some DRY-violation.
+         * It seems clearer to write it all out, than attempt to fold the common
+         * parts together and make it confusing and potentially buggy.
+         * I hope that the C compiler optimiser can spot the common code paths.
+         */
+
+        if (E) {
+            MVMGrapheme8 *blob;
+            size_t e_len = end - (E + 1);
+            if (e_len == 2 && E[1] == '-') {
+                /* 1E-1 etc to 1E-9 etc */
+                if (E[2] > '4') {
+                    /* 1E-5 etc to 1E-9 etc. Need to add a zero. */
+                    len = orig_len + 1;
+                    blob = MVM_malloc(len);
+                    /* Using buf here, not first, means that we copy any '-'
+                     * too. */
+                    size_t new_e = E - buf;
+                    memcpy(blob, buf, new_e);
+                    blob[new_e] = 'e';
+                    blob[new_e + 1] = '-';
+                    blob[new_e + 2] = '0';
+                    blob[new_e + 3] = E[2];
+                }
+                else {
+                    /* Convert to fixed format, value < 1 */
+                    unsigned int zeros = E[2] - '0' - 1;
+                    size_t dec_len;
+                    if (E == first + 1) {
+                        /* No trailing decimals */
+                        dec_len = 0;
+                    }
+                    else {
+                        dec_len = E - (first + 2);
+                    }
+                    len = 2         /* "0." */
+                        + zeros     /* "", "0", "00" or "000" */
+                        + 1         /* first digit */
+                        + dec_len;  /* rest */
+
+                    MVMGrapheme8 *pos;
+                    if (first == buf) {
+                        blob = MVM_malloc(len);
+                        pos = blob;
+                    } else {
+                        ++len;
+                        blob = MVM_malloc(len);
+                        pos = blob;
+                        *pos++ = '-';
+                    }
+
+                    *pos++ = '0';
+                    *pos++ = '.';
+
+                    while (zeros) {
+                        *pos++ = '0';
+                        --zeros;
+                    }
+
+                    *pos++ = *first;
+
+                    if (dec_len) {
+                        memcpy(pos, first + 2, dec_len);
+                    }
+                }
+            }
+            else if (e_len == 1 || (e_len == 2 && E[1] == '1' && E[2] < '5')) {
+                /* 1E0 etc to 1E14 etc.
+                 * Convert to fixed format, possibly needing padding,
+                 * possibly with trailing decimals, possibly neither. */
+                unsigned int exp = e_len == 1 ? E[1] - '0' : 10 + E[2] - '0';
+                size_t dec_len;
+                if (E == first + 1) {
+                    /* No trailing decimals */
+                    dec_len = 0;
+                }
+                else {
+                    dec_len = E - (first + 2);
+                }
+                size_t padding = exp > dec_len ? exp - dec_len : 0;
+                size_t before_dp = exp > dec_len ? dec_len : exp;
+                int has_dp = dec_len > exp;
+
+                len = 1 + padding + dec_len + has_dp;
+
+                MVMGrapheme8 *pos;
+                if (first == buf) {
+                    blob = MVM_malloc(len);
+                    pos = blob;
+                } else {
+                    ++len;
+                    blob = MVM_malloc(len);
+                    pos = blob;
+                    *pos++ = '-';
+                }
+
+                *pos++ = *first;
+
+                if (before_dp) {
+                    memcpy(pos, first + 2, before_dp);
+                    pos += before_dp;
+                }
+
+                if (has_dp) {
+                    /* In this case, we never need to pad with zeros. */
+                    *pos++ = '.';
+                    memcpy(pos, first + 2 + before_dp, dec_len - exp);
+                }
+                else {
+                    /* In this case, we might need to pad with zeros. */
+                    while (padding) {
+                        *pos++ = '0';
+                        --padding;
+                    }
+                }
+            }
+            else if (E[1] == '-') {
+                /* Stays in scientific notation, but need to change to 'e'. */
+                len = orig_len;
+                blob = MVM_malloc(len);
+                size_t new_e = E - buf;
+                memcpy(blob, buf, new_e);
+                blob[new_e] = 'e';
+                memcpy(blob + new_e + 1, E + 1, e_len);
+            } else {
+                /* Stays in scientific notation, but need to change to 'e'
+                 * and add a + */
+                len = orig_len + 1;
+                blob = MVM_malloc(len);
+                size_t new_e = E - buf;
+                memcpy(blob, buf, new_e);
+                blob[new_e] = 'e';
+                blob[new_e + 1] = '+';
+                memcpy(blob + new_e + 2, E + 1, e_len);
+            }
             return MVM_string_ascii_from_buf_nocheck(tc, blob, len);
         }
     }
+
+    /* Something went wrong. Should we oops? */
+    MVMGrapheme8 *blob = MVM_malloc(orig_len);
+    memcpy(blob, buf, orig_len);
+    return MVM_string_ascii_from_buf_nocheck(tc, blob, orig_len);
 }
 
 void MVM_coerce_smart_stringify(MVMThreadContext *tc, MVMObject *obj, MVMRegister *res_reg) {
