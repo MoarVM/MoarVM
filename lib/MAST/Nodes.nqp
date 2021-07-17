@@ -410,10 +410,27 @@ module Arg {
 # Labels (used directly in the instruction stream indicates where the
 # label goes; can also be used as an instruction operand).
 class MAST::Label is MAST::Node {
+    my int $cur_id := 0;
+    my $cur_id_lock := NQPLock.new;
+    has $!id;
     method new() {
         my $label := nqp::create(self);
+
+        nqp::lock($cur_id_lock);
+        $cur_id := $cur_id + 1;
+        nqp::unlock($cur_id_lock);
+        $label.set-id(~$cur_id);
+
         $*MAST_FRAME.keep-label($label);
         $label
+    }
+
+    method set-id($id) {
+        $!id := $id;
+    }
+
+    method id() {
+        $!id
     }
 
     method dump_lines(@lines, $indent) {
@@ -1139,7 +1156,7 @@ class MAST::Frame is MAST::Node {
     method labels() { %!labels }
     method label-fixups() { %!label-fixups }
     method resolve-label($label) {
-        %!labels{nqp::objectid($label)}
+        %!labels{$label.id}
     }
 
     method keep-label(MAST::Label $l) {
@@ -1148,7 +1165,7 @@ class MAST::Frame is MAST::Node {
 
     method add-label(MAST::Label $i) {
         my int $pos := nqp::elems($!bytecode);
-        my str $key := nqp::objectid($i);
+        my str $key := $i.id;
         if %!labels{$key} {
             nqp::die("Duplicate label at $pos");
         }
@@ -1172,7 +1189,7 @@ class MAST::Frame is MAST::Node {
         $Arg::obj   # $MVM_reg_obj             := 8;
     ];
     method compile_label($bytecode, $arg) {
-        my $key := nqp::objectid($arg);
+        my $key := $arg.id;
         my %labels := self.labels;
         nqp::push_i(@!child-label-fixups, nqp::elems($!bytecode));
         if nqp::existskey(%labels, $key) {
