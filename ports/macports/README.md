@@ -47,6 +47,6 @@ When updating the `Portfile` to reflect the new release:
         * **port**: `MoarVM`
         * Make sure to attach the diff.
 
-    * Hang out in `#macports` on freenode and mention the ticket or write to the macports-dev mailing list with URL to the ticket and a descriptive subject if there is no response for a while.
+    * Hang out in `#macports` on libera.chat and mention the ticket or write to the macports-dev mailing list with URL to the ticket and a descriptive subject if there is no response for a while.
 
 5. Push the updated `Portfile` also to git.

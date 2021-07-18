@@ -5,16 +5,13 @@ Or, how to work on MoarVM.
 * Community
 
 MoarVM is a fairly small community. We communicate primarily on the
-#moarvm channel on freenode, and to a lesser extent via github issues.
+#moarvm channel on libera.chat, and to a lesser extent via github issues.
 
 We use IRC bots to keep up to date with new commits that are
 published; but those don't always work well, unfortunately.
 
 The [[https://rakudoweekly.blog/][Rakudo Weekly News]] newsletter publishes progress in MoarVM, and there's
 also the =/r/rakulang= subreddit.
-
-Apparently you can connect to freenode via discord, but the author of
-this text wouldn't know how.
 
 * Code Standards
 

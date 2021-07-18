@@ -89,7 +89,7 @@ Some key features provided by MoarVM include:
 
 Contributions by pull request are accepted. Commit bits are given to those who
 contribute quality work. If you are interested in contributing, drop by the
-`#moarvm` channel on freenode.org.
+`#moarvm` channel on libera.chat.
 
 See the LICENSE file in the root directory for information on the license of
 the source code in the MoarVM repository.
