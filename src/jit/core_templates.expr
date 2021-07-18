@@ -297,7 +297,7 @@
   (call (^func &MVM_args_slurpy_positional)
     (arglist
       (carg (tc) ptr)
-      (carg (^params) ptr)
+      (carg (const 0 ptr_sz) ptr)
       (carg $1 int)) ptr_sz))
 
 (template: param_sn

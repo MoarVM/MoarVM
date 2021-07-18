@@ -1274,7 +1274,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(param_sp):
-                GET_REG(cur_op, 0).o = MVM_args_slurpy_positional(tc, &tc->cur_frame->params, GET_UI16(cur_op, 2));
+                GET_REG(cur_op, 0).o = MVM_args_slurpy_positional(tc, NULL, GET_UI16(cur_op, 2));
                 cur_op += 4;
                 goto NEXT;
             OP(param_sn):
