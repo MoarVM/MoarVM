@@ -163,4 +163,4 @@ work on trying to get a more concrete roadmap together there.
 ## Where is...
 
 * The Git repository: https://github.com/MoarVM/MoarVM
-* The IRC channel: #moarvm on freenode.org
+* The IRC channel: #moarvm on libera.chat
