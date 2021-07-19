@@ -96,17 +96,19 @@ static void boot_code(MVMThreadContext *tc, MVMArgs arg_info) {
         MVMROOT(tc, args_capture, {
             /* Work out what the callee is, and set us up to invoke it. */
             MVMObject *code = MVM_capture_arg_pos_o(tc, capture, 0);
-            MVMObject *tracked_code = MVM_disp_program_record_track_arg(tc, capture, 0);
-            if (REPR(code)->ID == MVM_REPR_ID_MVMCode && IS_CONCRETE(code)) {
-                MVM_disp_program_record_tracked_code(tc, tracked_code, args_capture);
-            }
-            else if (REPR(code)->ID == MVM_REPR_ID_MVMCFunction && IS_CONCRETE(code)) {
-                MVM_disp_program_record_tracked_c_code(tc, tracked_code, args_capture);
-            }
-            else {
-                MVM_exception_throw_adhoc(tc,
-                        "boot-code dispatcher only works with MVMCode or MVMCFunction");
-            }
+            MVMROOT(tc, code, {
+                MVMObject *tracked_code = MVM_disp_program_record_track_arg(tc, capture, 0);
+                if (REPR(code)->ID == MVM_REPR_ID_MVMCode && IS_CONCRETE(code)) {
+                    MVM_disp_program_record_tracked_code(tc, tracked_code, args_capture);
+                }
+                else if (REPR(code)->ID == MVM_REPR_ID_MVMCFunction && IS_CONCRETE(code)) {
+                    MVM_disp_program_record_tracked_c_code(tc, tracked_code, args_capture);
+                }
+                else {
+                    MVM_exception_throw_adhoc(tc,
+                            "boot-code dispatcher only works with MVMCode or MVMCFunction");
+                }
+            });
         });
     });
 
