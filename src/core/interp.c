@@ -1623,16 +1623,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc, "invokewithcapture needs a MVMCallCapture");
                 }
             }
-            OP(multicacheadd):
-                GET_REG(cur_op, 0).o = MVM_multi_cache_add(tc, GET_REG(cur_op, 2).o,
-                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).o);
-                cur_op += 8;
-                goto NEXT;
-            OP(multicachefind):
-                GET_REG(cur_op, 0).o = MVM_multi_cache_find(tc, GET_REG(cur_op, 2).o,
-                    GET_REG(cur_op, 4).o);
-                cur_op += 6;
-                goto NEXT;
+            OP(DEPRECATED_60):
+            OP(DEPRECATED_61):
+                MVM_exception_throw_adhoc(tc, "The multi-dispatch cache is deprecated");
             OP(null_s):
                 GET_REG(cur_op, 0).s = NULL;
                 cur_op += 2;

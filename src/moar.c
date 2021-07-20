@@ -258,9 +258,6 @@ MVMInstance * MVM_vm_create_instance(void) {
      * them, so that spesh may end up optimizing more "internal" stuff. */
     MVM_callsite_initialize_common(instance->main_thread);
 
-    /* Multi-cache additions mutex. */
-    init_mutex(instance->mutex_multi_cache_add, "multi-cache addition");
-
     /* Current instrumentation level starts at 1; used to trigger all frames
      * to be verified before their first run. */
     instance->instrumentation_level = 1;
@@ -703,9 +700,6 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clean up Hash of hashes of symbol tables per hll. */
     uv_mutex_destroy(&instance->mutex_hll_syms);
-
-    /* Clean up multi cache addition mutex. */
-    uv_mutex_destroy(&instance->mutex_multi_cache_add);
 
     /* Clean up parameterization addition mutex. */
     uv_mutex_destroy(&instance->mutex_parameterization_add);
