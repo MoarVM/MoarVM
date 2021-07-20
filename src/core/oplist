@@ -251,8 +251,8 @@ captureposprimspec  w(int64) r(obj) r(int64) :pure
 captureexistsnamed  w(int64) r(obj) r(str) :pure
 capturehasnameds    w(int64) r(obj) :pure :useshll
 invokewithcapture   w(obj) r(obj) r(obj) :invokish :maycausedeopt
-multicacheadd       w(obj) r(obj) r(obj) r(obj)
-multicachefind      w(obj) r(obj) r(obj)
+DEPRECATED_60       w(obj) r(obj) r(obj) r(obj)
+DEPRECATED_61       w(obj) r(obj) r(obj)
 null_s              w(str) :pure :confprog
 isnull_s            w(int64) r(str) :pure :confprog
 eq_s                w(int64) r(str) r(str) :pure :confprog
