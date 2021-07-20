@@ -182,8 +182,8 @@ coerce_is           w(str) r(int64) :pure :confprog
 coerce_ns           w(str) r(num64) :pure :confprog
 coerce_si           w(int64) r(str) :pure :confprog
 coerce_sn           w(num64) r(str) :pure :confprog
-smrt_numify         w(num64) r(obj) :pure :invokish :maycausedeopt :specializable
-smrt_strify         w(str) r(obj) :pure :invokish :maycausedeopt :specializable
+DEPRECATED_66       w(num64) r(obj) :pure :invokish :maycausedeopt :specializable
+DEPRECATED_67       w(str) r(obj) :pure :invokish :maycausedeopt :specializable
 prepargs         +a callsite :predeoptonepoint
 arg_i            *a int16 r(int64)
 arg_n            *a int16 r(num64)
@@ -879,7 +879,7 @@ serializetobuf      w(obj) r(obj) r(obj) r(obj)
 readint             w(int64) r(obj) r(uint64) r(uint64)
 readuint            w(uint64) r(obj) r(uint64) r(uint64)
 readnum             w(num64) r(obj) r(uint64) r(uint64)
-smrt_intify         w(int64) r(obj) :pure :invokish :maycausedeopt :confprog :specializable
+DEPRECATED_68       w(int64) r(obj) :pure :invokish :maycausedeopt :confprog :specializable
 uname               w(obj) :pure
 freemem             w(int64) :pure
 totalmem            w(int64) :pure

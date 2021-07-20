@@ -126,8 +126,8 @@
 #define MVM_OP_coerce_ns 122
 #define MVM_OP_coerce_si 123
 #define MVM_OP_coerce_sn 124
-#define MVM_OP_smrt_numify 125
-#define MVM_OP_smrt_strify 126
+#define MVM_OP_DEPRECATED_66 125
+#define MVM_OP_DEPRECATED_67 126
 #define MVM_OP_prepargs 127
 #define MVM_OP_arg_i 128
 #define MVM_OP_arg_n 129
@@ -820,7 +820,7 @@
 #define MVM_OP_readint 816
 #define MVM_OP_readuint 817
 #define MVM_OP_readnum 818
-#define MVM_OP_smrt_intify 819
+#define MVM_OP_DEPRECATED_68 819
 #define MVM_OP_uname 820
 #define MVM_OP_freemem 821
 #define MVM_OP_totalmem 822
