@@ -406,18 +406,18 @@ static void validate_op(MVMThreadContext *tc, validatorstate *state) {
         state->prev_op = state->cur_op;
         state->cur_op = new_info;
 
-        if (new_opcode == MVM_OP_smrt_strify) {
+        if (new_opcode == MVM_OP_unbox_s) {
 
             validate_operand(tc, state, 0, state->cur_op->operands[0]);
             validate_operand(tc, state, 1, state->cur_op->operands[1]);
         }
-        else if (new_opcode == MVM_OP_smrt_intify) {
+        else if (new_opcode == MVM_OP_unbox_i) {
 
             validate_operand(tc, state, 0, state->cur_op->operands[0]);
             validate_operand(tc, state, 1, state->cur_op->operands[1]);
         }
         else {
-            MVM_exception_throw_adhoc(tc, "Confprog: invalid opcode %s followed getcodelocation; only smrt_strify and smrt_intify are allowed.", MVM_op_get_op(new_opcode)->name);
+            MVM_exception_throw_adhoc(tc, "Confprog: invalid opcode %s followed getcodelocation; only unbox_s and unbox_i are allowed.", MVM_op_get_op(new_opcode)->name);
         }
     }
     else {
@@ -821,15 +821,6 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 GET_REG(cur_op, 0).n64 = MVM_coerce_s_n(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
-            OP(smrt_strify): {
-                /* Increment PC before calling coercer, as it may make
-                 * a method call to get the result. */
-                MVMObject   *obj = GET_REG(cur_op, 2).o;
-                MVMRegister *res = (MVMRegister *)&GET_REG(cur_op, 0);
-                cur_op += 4;
-                MVM_coerce_smart_stringify(tc, obj, res);
-                goto NEXT;
-            }
             OP(gt_n):
                 debugprint(DEBUG_LVL(TRACE), tc, "%f > %f into %d", GET_REG(cur_op, 2).n64, GET_REG(cur_op, 4).n64, GET_UI16(cur_op, 0));
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).n64 >  GET_REG(cur_op, 4).n64;
@@ -966,7 +957,8 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 ins = *((MVMuint16 *)cur_op);
                 cur_op += 2;
                 MVM_code_location_out(tc, code_obj, &file_out, &line_out);
-                if (ins == MVM_OP_smrt_strify) {
+                MVM_exception_throw_adhoc(tc, "getcodelocation in conf prog needs updates after new-disp");
+                if (ins == MVM_OP_unbox_s) {
                     GET_REG(cur_op, 0).s = file_out ? file_out : tc->instance->str_consts.empty;
                 }
                 else {

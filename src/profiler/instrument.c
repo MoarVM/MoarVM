@@ -126,7 +126,6 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_coerce_is:
             case MVM_OP_coerce_us:
             case MVM_OP_coerce_ns:
-            case MVM_OP_smrt_strify:
             case MVM_OP_buffertocu:
             case MVM_OP_serializetobuf:
             case MVM_OP_getsignals:
