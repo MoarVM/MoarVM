@@ -146,9 +146,6 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_continuationreset: return MVM_continuation_reset;
     case MVM_OP_continuationcontrol: return MVM_continuation_control;
     case MVM_OP_continuationinvoke: return MVM_continuation_invoke;
-    case MVM_OP_smrt_intify: return MVM_coerce_smart_intify;
-    case MVM_OP_smrt_numify: return MVM_coerce_smart_numify;
-    case MVM_OP_smrt_strify: return MVM_coerce_smart_stringify;
     case MVM_OP_gethow: return MVM_6model_get_how_obj;
     case MVM_OP_box_i: return MVM_repr_box_int;
     case MVM_OP_box_u: return MVM_repr_box_uint;
@@ -2767,18 +2764,6 @@ start:
                                 { MVM_JIT_REG_VAL, { src } }};
 
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
-        break;
-    }
-    case MVM_OP_smrt_strify:
-    case MVM_OP_smrt_intify:
-    case MVM_OP_smrt_numify: {
-        MVMint16 obj = ins->operands[1].reg.orig;
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_REG_VAL, { obj } },
-                                 { MVM_JIT_REG_ADDR, { dst } }};
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args,
-                          MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_queuepoll: {
