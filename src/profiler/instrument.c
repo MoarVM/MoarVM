@@ -227,7 +227,6 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_concat_s:
             case MVM_OP_repeat_s:
             case MVM_OP_substr_s:
-            case MVM_OP_multicacheadd:
             case MVM_OP_radix:
             case MVM_OP_radix_I: {
                 add_allocation_logging(tc, g, bb, ins);

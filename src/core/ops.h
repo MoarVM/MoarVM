@@ -195,8 +195,8 @@
 #define MVM_OP_captureexistsnamed 191
 #define MVM_OP_capturehasnameds 192
 #define MVM_OP_invokewithcapture 193
-#define MVM_OP_multicacheadd 194
-#define MVM_OP_multicachefind 195
+#define MVM_OP_DEPRECATED_60 194
+#define MVM_OP_DEPRECATED_61 195
 #define MVM_OP_null_s 196
 #define MVM_OP_isnull_s 197
 #define MVM_OP_eq_s 198

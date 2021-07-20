@@ -2912,8 +2912,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_multicacheadd,
-        "multicacheadd",
+        MVM_OP_DEPRECATED_60,
+        "DEPRECATED_60",
         4,
         0,
         0,
@@ -2927,8 +2927,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_multicachefind,
-        "multicachefind",
+        MVM_OP_DEPRECATED_61,
+        "DEPRECATED_61",
         3,
         0,
         0,

@@ -18,7 +18,6 @@ struct MVMBootTypes {
     MVMObject *BOOTException;
     MVMObject *BOOTStaticFrame;
     MVMObject *BOOTCompUnit;
-    MVMObject *BOOTMultiCache;
     MVMObject *BOOTContinuation;
     MVMObject *BOOTQueue;
     MVMObject *BOOTAsync;
@@ -424,10 +423,6 @@ struct MVMInstance {
      * so that it lines up properly. */
     MVMIntConstCache    *int_const_cache;
     uv_mutex_t mutex_int_const_cache;
-
-    /* Multi-dispatch cache addition mutex (additions are relatively
-     * rare, so little motivation to have it more fine-grained). */
-    uv_mutex_t mutex_multi_cache_add;
 
     /* Next type cache ID, to go in STable. */
     AO_t cur_type_cache_id;

@@ -3956,8 +3956,8 @@ BEGIN {
     'captureexistsnamed', 191,
     'capturehasnameds', 192,
     'invokewithcapture', 193,
-    'multicacheadd', 194,
-    'multicachefind', 195,
+    'DEPRECATED_60', 194,
+    'DEPRECATED_61', 195,
     'null_s', 196,
     'isnull_s', 197,
     'eq_s', 198,
@@ -4787,8 +4787,8 @@ BEGIN {
     'captureexistsnamed',
     'capturehasnameds',
     'invokewithcapture',
-    'multicacheadd',
-    'multicachefind',
+    'DEPRECATED_60',
+    'DEPRECATED_61',
     'null_s',
     'isnull_s',
     'eq_s',
@@ -6823,7 +6823,7 @@ BEGIN {
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'multicacheadd', sub ($op0, $op1, $op2, $op3) {
+    'DEPRECATED_60', sub ($op0, $op1, $op2, $op3) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 194, 5);
@@ -6832,7 +6832,7 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'multicachefind', sub ($op0, $op1, $op2) {
+    'DEPRECATED_61', sub ($op0, $op1, $op2) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 195, 5);
