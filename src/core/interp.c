@@ -959,33 +959,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = MVM_coerce_s_n(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
-            OP(smrt_intify): {
-                /* Increment PC before calling coercer, as it may make
-                 * a method call to get the result. */
-                MVMObject   *obj = GET_REG(cur_op, 2).o;
-                MVMRegister *res = &GET_REG(cur_op, 0);
-                cur_op += 4;
-                MVM_coerce_smart_intify(tc, obj, res);
-                goto NEXT;
-            }
-            OP(smrt_numify): {
-                /* Increment PC before calling coercer, as it may make
-                 * a method call to get the result. */
-                MVMObject   *obj = GET_REG(cur_op, 2).o;
-                MVMRegister *res = &GET_REG(cur_op, 0);
-                cur_op += 4;
-                MVM_coerce_smart_numify(tc, obj, res);
-                goto NEXT;
-            }
-            OP(smrt_strify): {
-                /* Increment PC before calling coercer, as it may make
-                 * a method call to get the result. */
-                MVMObject   *obj = GET_REG(cur_op, 2).o;
-                MVMRegister *res = &GET_REG(cur_op, 0);
-                cur_op += 4;
-                MVM_coerce_smart_stringify(tc, obj, res);
-                goto NEXT;
-            }
+            OP(DEPRECATED_66):
+            OP(DEPRECATED_67):
+            OP(DEPRECATED_68):
+                MVM_exception_throw_adhoc(tc, "Smart coercion ops are superceded by the general dispatch mechanism");
             OP(prepargs):
                 /* Store callsite in the frame so that the GC knows how to mark
                  * any arguments. Note that since none of the arg-setting ops can

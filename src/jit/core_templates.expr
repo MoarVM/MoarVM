@@ -243,27 +243,6 @@
       (carg (tc) ptr)
       (carg $1   ptr))))
 
-(template: smrt_intify!
-  (callv (^func &MVM_coerce_smart_intify)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg \$0 ptr))))
-
-(template: smrt_numify!
-  (callv (^func &MVM_coerce_smart_numify)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg \$0 ptr))))
-
-(template: smrt_strify!
-  (callv (^func &MVM_coerce_smart_stringify)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg \$0 ptr))))
-
 (template: checkarity
   (callv (^func &MVM_args_checkarity)
     (arglist
