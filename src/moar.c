@@ -262,9 +262,7 @@ MVMInstance * MVM_vm_create_instance(void) {
      * to be verified before their first run. */
     instance->instrumentation_level = 1;
 
-    /* Mutex for spesh installations, and check if we've a file we
-     * should log specializations to. */
-    init_mutex(instance->mutex_spesh_install, "spesh installations");
+    /* Spesh enable/disable and debugging configurations. */
     spesh_log = getenv("MVM_SPESH_LOG");
     if (spesh_log && spesh_log[0])
         instance->spesh_log_fh
@@ -717,7 +715,6 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_uni_hash_demolish(instance->main_thread, &instance->codepoints_by_name);
 
     /* Clean up spesh mutexes and close any log. */
-    uv_mutex_destroy(&instance->mutex_spesh_install);
     uv_cond_destroy(&instance->cond_spesh_sync);
     uv_mutex_destroy(&instance->mutex_spesh_sync);
     if (instance->spesh_log_fh)

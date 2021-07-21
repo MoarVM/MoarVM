@@ -157,22 +157,6 @@ static void optimize_isnull(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
 static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                              MVMSpeshIns *ins, MVMint32 type_operand);
 
-static void optimize_findmeth_s_perhaps_constant(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
-    MVMSpeshFacts *name_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
-
-    if (name_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-        if (name_facts->writer && name_facts->writer->info->opcode == MVM_OP_const_s) {
-            MVM_spesh_usages_delete(tc, g, name_facts, ins);
-            ins->info = ins->info->opcode == MVM_OP_findmeth_s
-                ? MVM_op_get_op(MVM_OP_findmeth)
-                : MVM_op_get_op(MVM_OP_tryfindmeth);
-            ins->operands[2].lit_i64 = 0;
-            ins->operands[2].lit_str_idx = name_facts->writer->operands[1].lit_str_idx;
-            MVM_spesh_use_facts(tc, g, name_facts);
-        }
-    }
-}
-
 /* Sees if we can resolve an istype at compile time. */
 static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMSpeshFacts *obj_facts  = MVM_spesh_get_facts(tc, g, ins->operands[1]);
