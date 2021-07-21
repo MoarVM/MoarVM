@@ -141,7 +141,10 @@ static void boot_syscall(MVMThreadContext *tc, MVMArgs arg_info) {
     }
 
     /* Drop the name from the args capture, and then check them. */
-    MVMObject *args_capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 0);
+    MVMObject *args_capture;
+    MVMROOT(tc, name, {
+        args_capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 0);
+    });
     MVMCallsite *cs = ((MVMCapture *)args_capture)->body.callsite;
     if (MVM_callsite_has_nameds(tc, cs)) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
