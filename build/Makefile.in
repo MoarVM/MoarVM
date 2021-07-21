@@ -163,7 +163,6 @@ OBJECTS1 = src/core/callsite@obj@ \
           src/6model/reprs/MVMIter@obj@ \
           src/6model/reprs/MVMContext@obj@ \
           src/6model/reprs/SCRef@obj@ \
-          src/6model/reprs/MVMCallCapture@obj@ \
           src/6model/reprs/P6bigint@obj@ \
           src/6model/reprs/NFA@obj@ \
           src/6model/reprs/MVMException@obj@
@@ -348,7 +347,6 @@ HEADERS = src/moar.h \
           src/6model/reprs/MVMIter.h \
           src/6model/reprs/MVMContext.h \
           src/6model/reprs/SCRef.h \
-          src/6model/reprs/MVMCallCapture.h \
           src/6model/reprs/P6bigint.h \
           src/6model/reprs/NFA.h \
           src/6model/reprs/MVMException.h \

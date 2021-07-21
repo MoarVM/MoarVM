@@ -261,7 +261,6 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(Context);
     register_core_repr(SCRef);
     register_core_repr(SpeshLog);
-    register_core_repr(CallCapture);
     register_core_repr(P6bigint);
     register_core_repr(NFA);
     register_core_repr(Exception);
