@@ -481,7 +481,6 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand) {
     MVMFrame *frame;
     MVMuint8 *chosen_bytecode;
-    MVMStaticFrameSpesh *spesh;
 
     /* If the frame was never invoked before, or never before at the current
      * instrumentation level, we need to trigger the instrumentation level
@@ -522,85 +521,21 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         }
     }
 
-    /* See if any specializations apply. */
-    spesh = static_frame->body.spesh;
-    if (spesh_cand < 0)
-        spesh_cand = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
-            callsite, args, NULL);
-#if MVM_SPESH_CHECK_PRESELECTION
-    else {
-        MVMint32 certain = -1;
-        MVMint32 correct = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
-            callsite, args, &certain);
-        if (spesh_cand != correct && spesh_cand != certain) {
-            fprintf(stderr, "Inconsistent spesh preselection of '%s' (%s): got %d, not %d\n",
-                MVM_string_utf8_encode_C_string(tc, static_frame->body.name),
-                MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid),
-                spesh_cand, correct);
-            MVM_dump_backtrace(tc);
-        }
-    }
-#endif
-    if (spesh_cand >= 0) {
-        MVMSpeshCandidate *chosen_cand = spesh->body.spesh_candidates[spesh_cand];
-        if (static_frame->body.allocate_on_heap) {
-            MVMROOT4(tc, static_frame, code_ref, outer, chosen_cand, {
-                frame = allocate_frame(tc, static_frame, chosen_cand, 1);
-            });
-        }
-        else {
-            frame = allocate_frame(tc, static_frame, chosen_cand, 0);
-            frame->spesh_correlation_id = 0;
-        }
-        frame->code_ref = code_ref;
-        frame->outer = outer;
-        if (chosen_cand->body.jitcode) {
-            chosen_bytecode = chosen_cand->body.jitcode->bytecode;
-            frame->jit_entry_label = chosen_cand->body.jitcode->labels[0];
-        }
-        else {
-            chosen_bytecode = chosen_cand->body.bytecode;
-        }
-        frame->effective_spesh_slots = chosen_cand->body.spesh_slots;
-        MVM_ASSIGN_REF(tc, &(frame->header), frame->spesh_cand, chosen_cand);
+    MVMint32 on_heap = static_frame->body.allocate_on_heap;
+    if (on_heap) {
+        MVMROOT3(tc, static_frame, code_ref, outer, {
+            frame = allocate_frame(tc, static_frame, NULL, 1);
+        });
     }
     else {
-        MVMint32 on_heap = static_frame->body.allocate_on_heap;
-        if (on_heap) {
-            MVMROOT3(tc, static_frame, code_ref, outer, {
-                frame = allocate_frame(tc, static_frame, NULL, 1);
-            });
-        }
-        else {
-            frame = allocate_frame(tc, static_frame, NULL, 0);
-            frame->spesh_cand = NULL;
-            frame->effective_spesh_slots = NULL;
-            frame->spesh_correlation_id = 0;
-        }
-        frame->code_ref = code_ref;
-        frame->outer = outer;
-        chosen_bytecode = static_frame->body.bytecode;
-
-        /* If we should be spesh logging, set the correlation ID. */
-        if (tc->instance->spesh_enabled && tc->spesh_log && static_frame->body.bytecode_size < MVM_SPESH_MAX_BYTECODE_SIZE) {
-            if (spesh->body.spesh_entries_recorded++ < MVM_SPESH_LOG_LOGGED_ENOUGH) {
-                MVMint32 id = ++tc->spesh_cid;
-                frame->spesh_correlation_id = id;
-                MVMROOT3(tc, static_frame, code_ref, outer, {
-                    if (on_heap) {
-                        MVMROOT(tc, frame, {
-                            MVM_spesh_log_entry(tc, id, static_frame, callsite, args);
-                        });
-                    }
-                    else {
-                        MVMROOT2(tc, frame->caller, frame->static_info, {
-                            MVM_spesh_log_entry(tc, id, static_frame, callsite, args);
-                        });
-                    }
-                });
-            }
-        }
+        frame = allocate_frame(tc, static_frame, NULL, 0);
+        frame->spesh_cand = NULL;
+        frame->effective_spesh_slots = NULL;
+        frame->spesh_correlation_id = 0;
     }
+    frame->code_ref = code_ref;
+    frame->outer = outer;
+    chosen_bytecode = static_frame->body.bytecode;
 
     /* Initialize argument processing. */
     MVM_args_proc_init(tc, &frame->params, callsite, args);
