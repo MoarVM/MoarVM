@@ -89,8 +89,8 @@ if_s                r(str) ins
 unless_s            r(str) ins
 if_s0               r(str) ins
 unless_s0           r(str) ins
-if_o                r(obj) ins :invokish :maycausedeopt :specializable
-unless_o            r(obj) ins :invokish :maycausedeopt :specializable
+DEPRECATED_62       r(obj) ins :invokish :maycausedeopt :specializable
+DEPRECATED_63       r(obj) ins :invokish :maycausedeopt :specializable
 jumplist         :j int64 r(int64)
 getlex              w(`1) rl(`1) :pure :deoptonepoint :logged
 bindlex             wl(`1) r(`1)
@@ -394,8 +394,8 @@ setmethcacheauth    r(obj) r(int64)
 settypecache        r(obj) r(obj)
 settypecheckmode    r(obj) r(int64)
 setboolspec         r(obj) r(int64) r(obj)
-istrue              w(int64) r(obj) :invokish :maycausedeopt :specializable :confprog
-isfalse             w(int64) r(obj) :invokish :maycausedeopt :specializable :confprog
+DEPRECATED_64       w(int64) r(obj) :invokish :maycausedeopt :specializable :confprog
+DEPRECATED_65       w(int64) r(obj) :invokish :maycausedeopt :specializable :confprog
 bootint             w(obj) :pure
 bootnum             w(obj) :pure
 bootstr             w(obj) :pure

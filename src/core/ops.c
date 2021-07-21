@@ -482,8 +482,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_str, MVM_operand_ins }
     },
     {
-        MVM_OP_if_o,
-        "if_o",
+        MVM_OP_DEPRECATED_62,
+        "DEPRECATED_62",
         2,
         0,
         0,
@@ -497,8 +497,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_ins }
     },
     {
-        MVM_OP_unless_o,
-        "unless_o",
+        MVM_OP_DEPRECATED_63,
+        "DEPRECATED_63",
         2,
         0,
         0,
@@ -5057,8 +5057,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_istrue,
-        "istrue",
+        MVM_OP_DEPRECATED_64,
+        "DEPRECATED_64",
         2,
         0,
         0,
@@ -5072,8 +5072,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_isfalse,
-        "isfalse",
+        MVM_OP_DEPRECATED_65,
+        "DEPRECATED_65",
         2,
         0,
         0,

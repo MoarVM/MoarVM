@@ -923,164 +923,6 @@ static void optimize_string_equality(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
     }
 }
 
-/* boolification has a major indirection, which we can spesh away.
- * Afterwards, we may be able to spesh even further, so we defer
- * to other optimization methods. */
-static void optimize_istrue_isfalse(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
-    MVMuint8 negated_op;
-    MVMSpeshFacts *input_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
-    MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-
-    if (ins->info->opcode == MVM_OP_istrue) {
-        negated_op = 0;
-    } else if (ins->info->opcode == MVM_OP_isfalse) {
-        negated_op = 1;
-    } else {
-        return;
-    }
-
-    /* Known value, maybe possible to coerce to a constant */
-    if (input_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-        MVMObject *objval = input_facts->value.o;
-        MVMBoolificationSpec *bs = objval->st->boolification_spec;
-        MVMRegister resultreg;
-        MVMint64 truthvalue;
-        switch (bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode) {
-        case MVM_BOOL_MODE_UNBOX_INT:
-        case MVM_BOOL_MODE_UNBOX_NUM:
-        case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY:
-        case MVM_BOOL_MODE_UNBOX_STR_NOT_EMPTY_OR_ZERO:
-        case MVM_BOOL_MODE_BIGINT:
-        case MVM_BOOL_MODE_ITER:
-        case MVM_BOOL_MODE_HAS_ELEMS:
-        case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
-            MVM_coerce_istrue(tc, objval, &resultreg, NULL, NULL, 0);
-            truthvalue = negated_op ? !resultreg.i64 : !!resultreg.i64;
-            break;
-        case MVM_BOOL_MODE_CALL_METHOD:
-        default:
-            /* nothing fixed we can say about this */
-            return;
-        }
-        /* assign a constant value */
-        ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
-        ins->operands[1].lit_i16 = truthvalue;
-        /* we're no longer using this object (but we rely on the facts provided) */
-        MVM_spesh_use_facts(tc, g, input_facts);
-        MVM_spesh_usages_delete(tc, g, input_facts, ins);
-        /* and we know the result of this operations as a constant value */
-        result_facts->flags  |= MVM_SPESH_FACT_KNOWN_VALUE;
-        result_facts->value.i = truthvalue;
-        return;
-    }
-
-    /* Unknown value, known type. We may be able to lower this to a
-     * nonpolymorphic operation */
-    if (input_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
-        /* Go by boolification mode to pick a new instruction, if any. */
-        MVMObject *type            = input_facts->type;
-        MVMBoolificationSpec *bs   = type->st->boolification_spec;
-        MVMuint8 guaranteed_concrete = input_facts->flags & MVM_SPESH_FACT_CONCRETE;
-        MVMuint8 mode = bs == NULL ? MVM_BOOL_MODE_NOT_TYPE_OBJECT : bs->mode;
-
-        switch (mode) {
-        case MVM_BOOL_MODE_ITER:
-            if (!guaranteed_concrete)
-                break;
-            if (input_facts->flags & MVM_SPESH_FACT_ARRAY_ITER) {
-                ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter_arr);
-            } else if (input_facts->flags & MVM_SPESH_FACT_HASH_ITER) {
-                ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter_hash);
-            } else {
-                ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter);
-            }
-            break;
-        case MVM_BOOL_MODE_UNBOX_INT:
-            if (!guaranteed_concrete)
-                return;
-                /* We can just unbox the int and pretend it's a bool. */
-            ins->info = MVM_op_get_op(MVM_OP_unbox_i);
-            break;
-        case MVM_BOOL_MODE_BIGINT:
-            if (!guaranteed_concrete)
-                return;
-            ins->info = MVM_op_get_op(MVM_OP_bool_I);
-            break;
-        case MVM_BOOL_MODE_HAS_ELEMS:
-            if (!guaranteed_concrete)
-                return;
-            ins->info = MVM_op_get_op(MVM_OP_elems);
-            optimize_repr_op(tc, g, bb, ins, 1);
-            break;
-        case MVM_BOOL_MODE_NOT_TYPE_OBJECT:
-            ins->info = MVM_op_get_op(MVM_OP_isconcrete);
-            /* And now defer another bit of optimization */
-            optimize_isconcrete(tc, g, ins);
-            break;
-        case MVM_BOOL_MODE_UNBOX_NUM: {
-            if (!guaranteed_concrete)
-                return;
-            /* Unbox it into a temporary number register. */
-            MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_num64);
-            MVMSpeshIns *unbox_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-            unbox_ins->info = MVM_op_get_op(MVM_OP_unbox_n);
-            unbox_ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
-            unbox_ins->operands[0] = temp;
-            unbox_ins->operands[1] = ins->operands[1];
-            MVM_spesh_get_facts(tc, g, unbox_ins->operands[0])->writer = unbox_ins;
-            MVM_spesh_usages_add_by_reg(tc, g, unbox_ins->operands[1], unbox_ins);
-            MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
-            MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, unbox_ins);
-
-            /* Tweak the original instruction to test this. */
-            ins->info = MVM_op_get_op(MVM_OP_sp_istrue_n);
-            ins->operands[1] = temp;
-            MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
-            break;
-        }
-        default:
-            return;
-        }
-        /* Now we can take care of the negation. - NB I'm not entirely sure why
-         * this would need it's own register though! */
-        if (negated_op) {
-            /* Insert a not_i instruction that negates temp. This not_i is
-             * subject to further optimization in the case that temp has a
-             * known value set on it. */
-            MVMSpeshOperand orig       = ins->operands[0];
-            MVMSpeshOperand temp       = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
-            MVMSpeshIns     *new_ins   = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
-            MVMSpeshOperand *operands  = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshOperand ) * 2);
-            MVMSpeshFacts  *temp_facts = MVM_spesh_get_facts(tc,g,temp);
-            new_ins->info = MVM_op_get_op(MVM_OP_not_i);
-            new_ins->operands = operands;
-            operands[0] = orig;
-            operands[1] = temp;
-            ins->operands[0] = temp;
-            MVM_spesh_manipulate_insert_ins(tc, bb, ins, new_ins);
-            MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
-            /* temp is now put in the place of orig (results). Thus
-             * all facts computed on results are now true about temp */
-            copy_facts(tc, g, temp, orig);
-            /* update usages */
-            MVM_spesh_usages_add(tc, g, temp_facts, new_ins);
-            /* the new writer of the result facts = new_ins */
-            MVM_spesh_get_facts(tc, g, new_ins->operands[0])->writer = new_ins;
-            MVM_spesh_get_facts(tc, g, ins->operands[0])->writer = ins;
-            /* finally, if result_facts had a known value, forget it.
-             * (optimize_not_i will set it) */
-            result_facts->flags &= ~MVM_SPESH_FACT_KNOWN_VALUE;
-        }
-
-        MVM_spesh_use_facts(tc, g, input_facts);
-
-        if (ins->info->opcode == MVM_OP_bool_I)
-            optimize_bigint_bool_op(tc, g, bb, ins);
-
-        return;
-    }
-}
-
 /* Optimizes a hllbool instruction away if the value is known */
 static void optimize_hllbool(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
     MVMuint32 for_op = ins->info->opcode == MVM_OP_hllboolfor ? 1 : 0;
@@ -1113,51 +955,6 @@ static void optimize_hllbool(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns
         MVM_spesh_use_facts(tc, g, obj_facts);
         MVM_spesh_facts_depend(tc, g, tgt_facts, obj_facts);
     }
-}
-
-/* Optimize an object conditional (if_o, unless_o) to simpler operations.
- *
- * We always perform the split of the if_o to istrue + if_i, because a branch
- * plus an invokish operator is rather problematic for the JIT.
- *
- * We then try to optimize the resulting istrue, either by known value (to a
- * constant), or by known type (to a nonpolymorphic operation), deferring to
- * optimize_istrue_isfalse. The nonpolymorphic operation may itself be further
- * optimized (e.g. by optimize_isconcrete).
- *
- * If the optimization has yielded a known value, we may be able to remove the
- * branch entirely (e.g. optimize_iffy)
- *
- * We push the newly split if_i / unless_i forward (rather than pushing the
- * istrue 'backward'), so that the 'normal' optimizer routines pick them up,
- * rather than having to force picking them ourselves.
- */
-static void optimize_object_conditional(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
-    MVMSpeshOperand temp      = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
-    MVMSpeshOperand condition = ins->operands[0];
-    MVMSpeshOperand target    = ins->operands[1];
-    MVMSpeshFacts *temp_facts = MVM_spesh_get_facts(tc, g, temp);
-    MVMSpeshIns *new_ins      = MVM_spesh_alloc(tc, g, sizeof( MVMSpeshIns ));
-
-    /* Insert if_i/unless_i after the current one */
-    new_ins->info = MVM_op_get_op(ins->info->opcode == MVM_OP_unless_o ? MVM_OP_unless_i : MVM_OP_if_i);
-    new_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
-    new_ins->operands[0] = temp;
-    new_ins->operands[1] = target;
-    MVM_spesh_manipulate_insert_ins(tc, bb, ins, new_ins);
-    MVM_spesh_usages_add(tc, g, temp_facts, new_ins);
-
-    /* Tweak existing instruction to istrue */
-    ins->info = MVM_op_get_op(MVM_OP_istrue);
-    ins->operands[0] = temp;
-    ins->operands[1] = condition;
-    temp_facts->writer = ins;
-
-    /* try to optimize the istrue */
-    optimize_istrue_isfalse(tc, g, bb, ins);
-
-    /* Release the temporary register */
-    MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
 }
 
 /* Gets the kind of register a lexical lookup targets. */
@@ -2298,10 +2095,6 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_isnull:
             optimize_isnull(tc, g, bb, ins);
             break;
-        case MVM_OP_istrue:
-        case MVM_OP_isfalse:
-            optimize_istrue_isfalse(tc, g, bb, ins);
-            break;
         case MVM_OP_hllbool:
         case MVM_OP_hllboolfor:
             optimize_hllbool(tc, g, ins);
@@ -2312,10 +2105,6 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_unless_n:
         case MVM_OP_ifnonnull:
             optimize_iffy(tc, g, ins, bb);
-            break;
-        case MVM_OP_if_o:
-        case MVM_OP_unless_o:
-            optimize_object_conditional(tc, g, ins, bb);
             break;
         case MVM_OP_not_i:
             optimize_not_i(tc, g, ins, bb);
