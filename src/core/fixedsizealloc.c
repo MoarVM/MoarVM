@@ -228,12 +228,12 @@ void * MVM_fixed_size_realloc(MVMThreadContext *tc, MVMFixedSizeAlloc *al, void 
 #else
     MVMuint32 old_bin = bin_for(old_bytes);
     MVMuint32 new_bin = bin_for(new_bytes);
-    if (old_bin == new_bin) {
+    if (old_bin < MVM_FSA_BINS && old_bin == new_bin) {
         return p;
     }
     else if (old_bin < MVM_FSA_BINS || new_bin < MVM_FSA_BINS) {
         void *allocd = MVM_fixed_size_alloc(tc, al, new_bytes);
-        memcpy(allocd, p, new_bin > old_bin ? old_bytes : new_bytes);
+        memcpy(allocd, p, new_bytes > old_bytes ? old_bytes : new_bytes);
         MVM_fixed_size_free(tc, al, old_bytes, p);
         return allocd;
     }
@@ -253,12 +253,12 @@ void * MVM_fixed_size_realloc_at_safepoint(MVMThreadContext *tc, MVMFixedSizeAll
 #else
     MVMuint32 old_bin = bin_for(old_bytes);
     MVMuint32 new_bin = bin_for(new_bytes);
-    if (old_bin == new_bin) {
+    if (old_bin < MVM_FSA_BINS && old_bin == new_bin) {
         return p;
     }
     else {
         void *allocd = MVM_fixed_size_alloc(tc, al, new_bytes);
-        memcpy(allocd, p, new_bin > old_bin ? old_bytes : new_bytes);
+        memcpy(allocd, p, new_bytes > old_bytes ? old_bytes : new_bytes);
         MVM_fixed_size_free_at_safepoint(tc, al, old_bytes, p);
         return allocd;
     }
