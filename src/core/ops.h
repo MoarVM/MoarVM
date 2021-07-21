@@ -251,10 +251,10 @@
 #define MVM_OP_null 247
 #define MVM_OP_isnull 248
 #define MVM_OP_ifnonnull 249
-#define MVM_OP_findmeth 250
-#define MVM_OP_findmeth_s 251
-#define MVM_OP_can 252
-#define MVM_OP_can_s 253
+#define MVM_OP_DEPRECATED_75 250
+#define MVM_OP_DEPRECATED_76 251
+#define MVM_OP_DEPRECATED_77 252
+#define MVM_OP_DEPRECATED_78 253
 #define MVM_OP_create 254
 #define MVM_OP_clone 255
 #define MVM_OP_isconcrete 256
@@ -500,8 +500,8 @@
 #define MVM_OP_DEPRECATED_22 496
 #define MVM_OP_tell_fh 497
 #define MVM_OP_stat 498
-#define MVM_OP_tryfindmeth 499
-#define MVM_OP_tryfindmeth_s 500
+#define MVM_OP_DEPRECATED_79 499
+#define MVM_OP_DEPRECATED_80 500
 #define MVM_OP_chdir 501
 #define MVM_OP_srand 502
 #define MVM_OP_rand_i 503
@@ -798,7 +798,7 @@
 #define MVM_OP_slice 794
 #define MVM_OP_DEPRECATED_38 795
 #define MVM_OP_DEPRECATED_39 796
-#define MVM_OP_DEPRECATED_80 797
+#define MVM_OP_DEPRECATED_81 797
 #define MVM_OP_DEPRECATED_41 798
 #define MVM_OP_DEPRECATED_42 799
 #define MVM_OP_DEPRECATED_43 800

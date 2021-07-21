@@ -22,14 +22,6 @@ MVMObject * MVM_spesh_try_find_method(MVMThreadContext *tc, MVMObject *obj, MVMS
         : NULL;
 }
 
-/* Tries to check if the method exists on the object using the method cache,
- * provided the method cache has already been deserialized. */
-MVMint64 MVM_spesh_try_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
-    return STABLE(obj)->method_cache
-        ? MVM_6model_can_method_cache_only(tc, obj, name)
-        : -1;
-}
-
 MVMint8 MVM_spesh_get_reg_type(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMuint16 reg) {
     return sg->local_types ? sg->local_types[reg] : sg->sf->body.local_types[reg];
 }

@@ -706,13 +706,7 @@ struct MVMREPROps {
 /* Some functions related to 6model core functionality. */
 MVM_PUBLIC MVMObject * MVM_6model_get_how(MVMThreadContext *tc, MVMSTable *st);
 MVM_PUBLIC MVMObject * MVM_6model_get_how_obj(MVMThreadContext *tc, MVMObject *obj);
-void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name,
-    MVMRegister *res, MVMint64 throw_if_not_found);
 MVM_PUBLIC MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name);
-MVMint32 MVM_6model_find_method_spesh(MVMThreadContext *tc, MVMObject *obj, MVMString *name,
-                                      MVMint32 ss_idx, MVMRegister *res);
-MVMint64 MVM_6model_can_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name);
-void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res);
 void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res);
 MVM_PUBLIC MVMint64 MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMObject *type);
 MVMint64 MVM_6model_try_cache_type_check(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMint32 *result);
