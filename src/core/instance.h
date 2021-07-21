@@ -463,9 +463,6 @@ struct MVMInstance {
      * serialization context itself). */
     MVMObject *SCRef;
 
-    /* CallCapture type, used by custom dispatchers. */
-    MVMObject *CallCapture;
-
     /* Thread type, representing a VM-level thread. */
     MVMObject *Thread;
 
