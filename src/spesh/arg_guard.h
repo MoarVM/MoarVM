@@ -78,7 +78,7 @@ void MVM_spesh_arg_guard_regenerate(MVMThreadContext *tc, MVMSpeshArgGuard **gua
 MVMint32 MVM_spesh_arg_guard_run_types(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
     MVMCallsite *cs, MVMSpeshStatsType *types);
 MVMint32 MVM_spesh_arg_guard_run(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
-    MVMCallsite *cs, MVMRegister *args, MVMint32 *certain);
+    MVMArgs args, MVMint32 *certain);
 MVMint32 MVM_spesh_arg_guard_run_callinfo(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
     MVMSpeshCallInfo *info);
 void MVM_spesh_arg_guard_gc_mark(MVMThreadContext *tc, MVMSpeshArgGuard *ag,

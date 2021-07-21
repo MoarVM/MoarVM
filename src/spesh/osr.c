@@ -118,44 +118,20 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
     *(tc->interp_reg_base) = tc->cur_frame->work;
 }
 
-/* Finds the appropriate callsite and args to use when running an arg guard for
- * OSR. */
-MVMCallsite * find_callsite_and_args(MVMThreadContext *tc, MVMRegister **args) {
-    MVMFrame *caller = tc->cur_frame->caller;
-    if (caller) {
-        if (caller->cur_args_callsite) {
-            /* Normal call; take the current args buffer too. */
-            *args = caller->args;
-            return caller->cur_args_callsite;
-        }
-        else {
-            /* Otherwise, no idea what. */
-            *args = NULL;
-            return NULL;
-        }
-    }
-    else {
-        /* No call, so it's the entry point frame. */
-        *args = NULL;
-        return MVM_callsite_get_common(tc, MVM_CALLSITE_ID_ZERO_ARITY);
-    }
-}
-
 /* Polls for an optimization and, when one is produced, jumps into it. */
 void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
     MVMStaticFrameSpesh *spesh = tc->cur_frame->static_info->body.spesh;
     MVMint32 num_cands = spesh->body.num_spesh_candidates;
     MVMint32 seq_nr = tc->cur_frame->sequence_nr;
+    if (tc->cur_frame->params.version == MVM_ARGS_LEGACY)
+        return;
     if (seq_nr != tc->osr_hunt_frame_nr || num_cands != tc->osr_hunt_num_spesh_candidates) {
         /* Provided OSR is enabled... */
         if (tc->instance->spesh_osr_enabled) {
             /* Check if there's a candidate available and install it if so. */
-            MVMRegister *args;
-            MVMCallsite *cs = find_callsite_and_args(tc, &args);
             MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
                 spesh->body.spesh_arg_guard,
-                (cs && cs->is_interned ? cs : NULL),
-                args, NULL);
+                tc->cur_frame->params.arg_info, NULL);
             if (ag_result >= 0)
                 perform_osr(tc, spesh->body.spesh_candidates[ag_result]);
         }
