@@ -605,15 +605,14 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
     /* See if any specializations apply. */
     spesh = static_frame->body.spesh;
     if (spesh_cand < 0) {
-        // TODO update for new args scheme
-        //spesh_cand = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
-        //    callsite, args, NULL);
+        spesh_cand = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
+            args, NULL);
     }
 #if MVM_SPESH_CHECK_PRESELECTION
     else {
         MVMint32 certain = -1;
         MVMint32 correct = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
-            callsite, args, &certain);
+            args, &certain);
         if (spesh_cand != correct && spesh_cand != certain) {
             fprintf(stderr, "Inconsistent spesh preselection of '%s' (%s): got %d, not %d\n",
                 MVM_string_utf8_encode_C_string(tc, static_frame->body.name),
