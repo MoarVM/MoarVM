@@ -250,6 +250,14 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     if (tc->step_mode_frame)
         add_collectable(tc, worklist, snapshot, tc->step_mode_frame,
                 "Frame referenced for stepping mode");
+
+    if (tc->mark_args) {
+        for (int from = 0; from < tc->mark_args->callsite->flag_count; from++) {
+            if ((tc->mark_args->callsite->arg_flags[from] & MVM_CALLSITE_ARG_TYPE_MASK) == MVM_CALLSITE_ARG_OBJ
+                || (tc->mark_args->callsite->arg_flags[from] & MVM_CALLSITE_ARG_TYPE_MASK) == MVM_CALLSITE_ARG_STR)
+                MVM_gc_worklist_add(tc, worklist, &tc->mark_args->source[tc->mark_args->map[from]].o);
+        }
+    }
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */

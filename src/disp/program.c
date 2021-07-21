@@ -1145,7 +1145,10 @@ MVMObject * resume_init_capture(MVMThreadContext *tc, MVMDispResumptionData *res
             .source = rec_resumption->initial_resume_args,
             .map = MVM_args_identity_map(tc, callsite)
         };
-        return MVM_capture_from_args(tc, arg_info);
+        tc->mark_args = &arg_info;
+        MVMObject *capture = MVM_capture_from_args(tc, arg_info);
+        tc->mark_args = NULL;
+        return capture;
     }
     else {
         /* The straightforward case where the resumption data is the initial
