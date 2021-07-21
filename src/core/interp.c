@@ -1001,103 +1001,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
                 cur_op += 6;
                 goto NEXT;
-            OP(invoke_v):
-                {
-                    MVMObject   *code = GET_REG(cur_op, 0).o;
-                    MVMRegister *args = tc->cur_frame->args;
-                    MVMuint16 was_multi = 0;
-                    /* was_multi argument is MVMuint16* */
-                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
-                        &was_multi);
-                    if (MVM_spesh_log_is_logging(tc)) {
-                        MVMROOT(tc, code, {
-                            /* was_multi is MVMint16 */
-                            MVM_spesh_log_invoke_target(tc, code, was_multi);
-                        });
-                    }
-                    tc->cur_frame->return_value = NULL;
-                    tc->cur_frame->return_type = MVM_RETURN_VOID;
-                    cur_op += 2;
-                    tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cur_callsite, args);
-                }
-                goto NEXT;
-            OP(invoke_i):
-                {
-                    MVMObject   *code = GET_REG(cur_op, 2).o;
-                    MVMRegister *args = tc->cur_frame->args;
-                    MVMuint16 was_multi = 0;
-                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
-                        &was_multi);
-                    if (MVM_spesh_log_is_logging(tc)) {
-                        MVMROOT(tc, code, {
-                            MVM_spesh_log_invoke_target(tc, code, was_multi);
-                        });
-                    }
-                    tc->cur_frame->return_value = &GET_REG(cur_op, 0);
-                    tc->cur_frame->return_type = MVM_RETURN_INT;
-                    cur_op += 4;
-                    tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cur_callsite, args);
-                }
-                goto NEXT;
-            OP(invoke_n):
-                {
-                    MVMObject   *code = GET_REG(cur_op, 2).o;
-                    MVMRegister *args = tc->cur_frame->args;
-                    MVMuint16 was_multi = 0;
-                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
-                        &was_multi);
-                    if (MVM_spesh_log_is_logging(tc)) {
-                        MVMROOT(tc, code, {
-                            MVM_spesh_log_invoke_target(tc, code, was_multi);
-                        });
-                    }
-                    tc->cur_frame->return_value = &GET_REG(cur_op, 0);
-                    tc->cur_frame->return_type = MVM_RETURN_NUM;
-                    cur_op += 4;
-                    tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cur_callsite, args);
-                }
-                goto NEXT;
-            OP(invoke_s):
-                {
-                    MVMObject   *code = GET_REG(cur_op, 2).o;
-                    MVMRegister *args = tc->cur_frame->args;
-                    MVMuint16 was_multi = 0;
-                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
-                        &was_multi);
-                    if (MVM_spesh_log_is_logging(tc)) {
-                        MVMROOT(tc, code, {
-                            MVM_spesh_log_invoke_target(tc, code, was_multi);
-                        });
-                    }
-                    tc->cur_frame->return_value = &GET_REG(cur_op, 0);
-                    tc->cur_frame->return_type = MVM_RETURN_STR;
-                    cur_op += 4;
-                    tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cur_callsite, args);
-                }
-                goto NEXT;
-            OP(invoke_o):
-                {
-                    MVMObject   *code = GET_REG(cur_op, 2).o;
-                    MVMRegister *args = tc->cur_frame->args;
-                    MVMuint16 was_multi = 0;
-                    code = MVM_frame_find_invokee_multi_ok(tc, code, &cur_callsite, args,
-                        &was_multi);
-                    if (MVM_spesh_log_is_logging(tc)) {
-                        MVMROOT(tc, code, {
-                            MVM_spesh_log_invoke_target(tc, code, was_multi);
-                        });
-                    }
-                    tc->cur_frame->return_value = &GET_REG(cur_op, 0);
-                    tc->cur_frame->return_type = MVM_RETURN_OBJ;
-                    cur_op += 4;
-                    tc->cur_frame->return_address = cur_op;
-                    STABLE(code)->invoke(tc, code, cur_callsite, args);
-                }
-                goto NEXT;
+            OP(DEPRECATED_70):
+            OP(DEPRECATED_71):
+            OP(DEPRECATED_72):
+            OP(DEPRECATED_73):
+            OP(DEPRECATED_74):
+                MVM_exception_throw_adhoc(tc, "The invoke ops are superceded by the general dispatch mechanism");
             OP(checkarity):
                 MVM_args_checkarity(tc, &tc->cur_frame->params, GET_UI16(cur_op, 0), GET_UI16(cur_op, 2));
                 cur_op += 4;
@@ -6026,66 +5935,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         tc->cur_frame->params.arg_info.map[GET_UI16(cur_op, 2)]].s;
                 cur_op += 4;
                 goto NEXT;
-            OP(sp_fastinvoke_v): {
-                MVMCode     *code       = (MVMCode *)GET_REG(cur_op, 0).o;
-                MVMRegister *args       = tc->cur_frame->args;
-                MVMint32     spesh_cand = GET_UI16(cur_op, 2);
-                tc->cur_frame->return_value = NULL;
-                tc->cur_frame->return_type  = MVM_RETURN_VOID;
-                cur_op += 4;
-                tc->cur_frame->return_address = cur_op;
-                MVM_frame_invoke(tc, code->body.sf, cur_callsite, args,
-                    code->body.outer, (MVMObject *)code, spesh_cand);
-                goto NEXT;
-            }
-            OP(sp_fastinvoke_i): {
-                MVMCode     *code       = (MVMCode *)GET_REG(cur_op, 2).o;
-                MVMRegister *args       = tc->cur_frame->args;
-                MVMint32     spesh_cand = GET_UI16(cur_op, 4);
-                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
-                tc->cur_frame->return_type  = MVM_RETURN_INT;
-                cur_op += 6;
-                tc->cur_frame->return_address = cur_op;
-                MVM_frame_invoke(tc, code->body.sf, cur_callsite, args,
-                    code->body.outer, (MVMObject *)code, spesh_cand);
-                goto NEXT;
-            }
-            OP(sp_fastinvoke_n): {
-                MVMCode     *code       = (MVMCode *)GET_REG(cur_op, 2).o;
-                MVMRegister *args       = tc->cur_frame->args;
-                MVMint32     spesh_cand = GET_UI16(cur_op, 4);
-                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
-                tc->cur_frame->return_type  = MVM_RETURN_NUM;
-                cur_op += 6;
-                tc->cur_frame->return_address = cur_op;
-                MVM_frame_invoke(tc, code->body.sf, cur_callsite, args,
-                    code->body.outer, (MVMObject *)code, spesh_cand);
-                goto NEXT;
-            }
-            OP(sp_fastinvoke_s): {
-                MVMCode     *code       = (MVMCode *)GET_REG(cur_op, 2).o;
-                MVMRegister *args       = tc->cur_frame->args;
-                MVMint32     spesh_cand = GET_UI16(cur_op, 4);
-                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
-                tc->cur_frame->return_type  = MVM_RETURN_STR;
-                cur_op += 6;
-                tc->cur_frame->return_address = cur_op;
-                MVM_frame_invoke(tc, code->body.sf, cur_callsite, args,
-                    code->body.outer, (MVMObject *)code, spesh_cand);
-                goto NEXT;
-            }
-            OP(sp_fastinvoke_o): {
-                MVMCode     *code       = (MVMCode *)GET_REG(cur_op, 2).o;
-                MVMRegister *args       = tc->cur_frame->args;
-                MVMint32     spesh_cand = GET_UI16(cur_op, 4);
-                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
-                tc->cur_frame->return_type  = MVM_RETURN_OBJ;
-                cur_op += 6;
-                tc->cur_frame->return_address = cur_op;
-                MVM_frame_invoke(tc, code->body.sf, cur_callsite, args,
-                    code->body.outer, (MVMObject *)code, spesh_cand);
-                goto NEXT;
-            }
             OP(sp_paramnamesused):
                 MVM_args_throw_named_unused_error(tc, (MVMString *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 0)]);
@@ -6096,24 +5945,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     ->effective_spesh_slots[GET_UI16(cur_op, 2)];
                 cur_op += 4;
                 goto NEXT;
-            OP(sp_findmeth): {
-                /* Obtain object and cache index; see if we get a match. */
-                MVMObject *obj = GET_REG(cur_op, 2).o;
-                MVMuint16  idx = GET_UI16(cur_op, 8);
-                if ((MVMSTable *)tc->cur_frame->effective_spesh_slots[idx] == STABLE(obj)) {
-                    GET_REG(cur_op, 0).o = (MVMObject *)tc->cur_frame->effective_spesh_slots[idx + 1];
-                    cur_op += 10;
-                }
-                else {
-                    /* May invoke, so pre-increment op counter */
-                    MVMString *name = MVM_cu_string(tc, cu, GET_UI32(cur_op, 4));
-                    MVMRegister *res = &GET_REG(cur_op, 0);
-                    cur_op += 10;
-                    MVM_6model_find_method_spesh(tc, obj, name, idx, res);
-
-                }
-                goto NEXT;
-            }
             OP(sp_fastcreate):
                 GET_REG(cur_op, 0).o = fastcreate(tc, cur_op);
                 cur_op += 6;
