@@ -3161,37 +3161,7 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         }
     }
 
-    if (invoke->is_fast) {
-        /* call MVM_frame_invoke_code */
-        | mov ARG1, TC;
-        | mov ARG2, WORK[invoke->code_register_or_name];
-        | mov ARG3, TMP6; // this is the callsite object
-        | mov ARG4, invoke->spesh_cand_or_sf_slot;
-        | callp &MVM_frame_invoke_code;
-    } else {
-        /* first, save callsite and args */
-        | mov qword [rbp-0x28], TMP5; // args
-        | mov qword [rbp-0x30], TMP6; // callsite
-        /* setup call MVM_frame_multi_ok(tc, code, &cur_callsite, args); */
-        | mov ARG1, TC;
-        | mov ARG2, WORK[invoke->code_register_or_name]; // code object
-        | lea ARG3, [rbp-0x30];                          // &cur_callsite
-        | mov ARG4, TMP5;                                // args
-        | mov ARG5, 0;                           // NULL to &was_multi
-        | callp &MVM_frame_find_invokee_multi_ok;
-        /* restore callsite, args, RV now holds code object */
-        | mov TMP6, [rbp-0x30]; // callsite
-        | mov TMP5, [rbp-0x28]; // args
-        /* setup args for call to invoke(tc, code, cur_callsite, args) */
-        | mov ARG1, TC;
-        | mov ARG2, RV;   // code object
-        | mov ARG3, TMP6; // callsite
-        | mov ARG4, TMP5; // args
-        /* get the actual function */
-        | mov FUNCTION, OBJECT:RV->st;
-        | mov FUNCTION, STABLE:FUNCTION->invoke;
-        | call FUNCTION;
-    }
+    MVM_panic(1, "JIT needs updating for new-disp");
 }
 
 void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
