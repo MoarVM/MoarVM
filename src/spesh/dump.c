@@ -327,7 +327,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             MVMCallsite *callsite = g->sf->body.cu->body.callsites[cur_ins->operands[i].callsite_idx];
                             appendf(ds, "callsite(%p, %d arg, %d pos, %s, %s)",
                                     callsite,
-                                    callsite->arg_count, callsite->num_pos,
+                                    callsite->flag_count, callsite->num_pos,
                                     callsite->has_flattening ? "flattening" : "nonflattening",
                                     callsite->is_interned ? "interned" : "noninterned");
                             size += 2;
