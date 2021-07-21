@@ -2654,17 +2654,6 @@
 
 (template: sp_getspeshslot (^spesh_slot_value $1))
 
-(template: sp_findmeth!
-  (ifv (eq (^stable $1) (^spesh_slot_value $3))
-    (store \$0 (^spesh_slot_value (add $3 (const 1 int_sz))) ptr_sz)
-    (callv (^func &MVM_6model_find_method_spesh)
-      (arglist
-        (carg (tc) ptr)
-        (carg $1 ptr)
-        (carg (^cu_string $2) ptr)
-        (carg $3 int)
-        (carg \$0 ptr)))))
-
 (template: sp_fastcreate!
   (letv: (($block (call (^func &MVM_gc_allocate_nursery)
                    (arglist

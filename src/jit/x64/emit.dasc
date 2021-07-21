@@ -1890,31 +1890,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov qword WORK[dst], TMP1;
         break;
     }
-    case MVM_OP_sp_findmeth: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 obj = ins->operands[1].reg.orig;
-        MVMint32 str_idx = ins->operands[2].lit_str_idx;
-        MVMuint16 ss_idx = ins->operands[3].lit_i16;
-        | get_spesh_slot TMP1, ss_idx;
-        | mov TMP2, WORK[obj];
-        | mov TMP2, OBJECT:TMP2->st;
-        | cmp TMP1, TMP2;
-        | jne >1;
-        | get_spesh_slot TMP3, ss_idx + 1;
-        | mov WORK[dst], TMP3;
-        | jmp >2;
-        |1:
-        /* call find_method_spesh */
-        | mov ARG1, TC;
-        | mov ARG2, WORK[obj];
-        | get_string ARG3, str_idx;
-        | mov ARG4, ss_idx;
-        | lea TMP6, WORK[dst];
-        | mov ARG5, TMP6;
-        | callp &MVM_6model_find_method_spesh;
-        |2:
-        break;
-    }
     case MVM_OP_isconcrete: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;
