@@ -315,10 +315,8 @@ void MVM_sc_set_stable(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint
             sc->body->alloc_stables += 32;
             if (sc->body->alloc_stables < (MVMuint64)idx + 1)
                 sc->body->alloc_stables = idx + 1;
-            sc->body->root_stables = MVM_realloc(sc->body->root_stables,
+            sc->body->root_stables = MVM_recalloc(sc->body->root_stables, orig_size,
                 sc->body->alloc_stables * sizeof(MVMSTable *));
-            memset(sc->body->root_stables + orig_size, 0,
-                (sc->body->alloc_stables - orig_size) * sizeof(MVMSTable *));
         }
         MVM_ASSIGN_REF(tc, &(sc->common.header), sc->body->root_stables[idx], st);
         sc->body->num_stables = idx + 1;
