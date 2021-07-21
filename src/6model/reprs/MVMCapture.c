@@ -257,6 +257,21 @@ MVMObject * MVM_capture_get_names_list(MVMThreadContext *tc, MVMObject *capture_
     return result;
 }
 
+/* Get a hash of the named arguments. */
+MVMObject * MVM_capture_get_nameds(MVMThreadContext *tc, MVMObject *capture) {
+    /* Set up an args processing context and use the standard slurpy args
+     * handler to extract all nameds */
+    MVMObject *result;
+    MVMROOT(tc, capture, {
+        MVMArgs capture_args = MVM_capture_to_args(tc, capture);
+        MVMArgProcContext capture_ctx;
+        MVM_args_proc_setup(tc, &capture_ctx, capture_args);
+        result = MVM_args_slurpy_named(tc, &capture_ctx);
+        MVM_args_proc_cleanup(tc, &capture_ctx);
+    });
+    return result;
+}
+
 /* Obtain an argument by its flag index (that is, positional arguments have
  * their positions, and then names are according the order that the names
  * appear in in the callsite's argument name list). */
