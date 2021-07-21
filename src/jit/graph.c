@@ -1912,14 +1912,6 @@ start:
     case MVM_OP_prof_enterspesh:
     case MVM_OP_prof_enterinline:
     case MVM_OP_prof_replaced:
-    case MVM_OP_captureposelems:
-    case MVM_OP_capturehasnameds:
-    case MVM_OP_captureposarg:
-    case MVM_OP_captureposarg_i:
-    case MVM_OP_captureposarg_n:
-    case MVM_OP_captureposarg_s:
-    case MVM_OP_captureexistsnamed:
-    case MVM_OP_capturenamedshash:
         /* Exception handling */
     case MVM_OP_lastexpayload:
         /* Parameters */
