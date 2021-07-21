@@ -537,13 +537,11 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
 
 static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs) {
     MVMuint16 i;
-    appendf(ds, "Callsite %p (%d args, %d pos)\n", cs, cs->arg_count, cs->num_pos);
-    for (i = 0; i < (cs->arg_count - cs->num_pos) / 2; i++) {
-        if (cs->arg_names[i]) {
-            char * argname_utf8 = MVM_string_utf8_encode_C_string(tc, cs->arg_names[i]);
-            appendf(ds, "  - %s\n", argname_utf8);
-            MVM_free(argname_utf8);
-        }
+    appendf(ds, "Callsite %p (%d args, %d pos)\n", cs, cs->flag_count, cs->num_pos);
+    for (i = 0; i < cs->flag_count - cs->num_pos; i++) {
+        char * argname_utf8 = MVM_string_utf8_encode_C_string(tc, cs->arg_names[i]);
+        appendf(ds, "  - %s\n", argname_utf8);
+        MVM_free(argname_utf8);
     }
     if (cs->num_pos)
         append(ds, "Positional flags: ");
