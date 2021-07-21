@@ -1251,9 +1251,9 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
     /* Allow MVM_io_eventloop_start to restart the thread if necessary */
     instance->event_loop_thread = NULL;
 
-    MVM_gc_mark_thread_blocked(tc);
+    /* Do not mark thread blocked as the GC also tries to acquire
+     * mutex_threads and it's help only briefly by all holders anyway */
     uv_mutex_lock(&instance->mutex_threads);
-    MVM_gc_mark_thread_unblocked(tc);
 
     /* Check if we are single threaded and if true, fork() */
     if (MVM_thread_cleanup_threads_list(tc, &instance->threads) == 1) {
