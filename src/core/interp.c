@@ -1412,163 +1412,56 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
-            OP(captureposelems): {
-                MVMObject *obj = GET_REG(cur_op, 2).o;
-                if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
-                    MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    if (cc->body.apc->version != MVM_ARGS_LEGACY)
-                        MVM_panic(1, "Should not be using capture ops with new callsite format");
-                    GET_REG(cur_op, 0).i64 = cc->body.apc->legacy.num_pos;
-                }
-                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
-                    GET_REG(cur_op, 0).i64 = MVM_capture_num_pos_args(tc, obj);
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc, "captureposelems needs a MVMCallCapture");
-                }
+            OP(captureposelems):
+                GET_REG(cur_op, 0).i64 = MVM_capture_num_pos_args(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            }
             OP(captureposarg): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 MVMuint32 idx = (MVMuint32)GET_REG(cur_op, 4).i64;
-                if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
-                    MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).o = MVM_args_get_required_pos_obj(tc, cc->body.apc, idx);
-                }
-                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
-                    GET_REG(cur_op, 0).o = MVM_capture_arg_pos_o(tc, obj, idx);
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc, "captureposarg needs a MVMCapture");
-                }
+                GET_REG(cur_op, 0).o = MVM_capture_arg_pos_o(tc, obj, idx);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(captureposarg_i): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 MVMuint32 idx = (MVMuint32)GET_REG(cur_op, 4).i64;
-                if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
-                    MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).i64 = MVM_args_get_required_pos_int(tc, cc->body.apc, idx);
-                }
-                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
-                    GET_REG(cur_op, 0).i64 = MVM_capture_arg_pos_i(tc, obj, idx);
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc, "captureposarg_i needs a MVMCapture");
-                }
+                GET_REG(cur_op, 0).i64 = MVM_capture_arg_pos_i(tc, obj, idx);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(captureposarg_n): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 MVMuint32 idx = (MVMuint32)GET_REG(cur_op, 4).i64;
-                if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
-                    MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).n64 = MVM_args_get_required_pos_num(tc, cc->body.apc, idx);
-                }
-                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
-                    GET_REG(cur_op, 0).n64 = MVM_capture_arg_pos_n(tc, obj, idx);
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc, "captureposarg_n needs a MVMCapture");
-                }
+                GET_REG(cur_op, 0).n64 = MVM_capture_arg_pos_n(tc, obj, idx);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(captureposarg_s): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 MVMuint32 idx = (MVMuint32)GET_REG(cur_op, 4).i64;
-                if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
-                    MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).s = MVM_args_get_required_pos_str(tc, cc->body.apc, idx);
-                }
-                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
-                    GET_REG(cur_op, 0).s = MVM_capture_arg_pos_s(tc, obj, idx);
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc, "captureposarg_s needs a MVMCapture");
-                }
+                GET_REG(cur_op, 0).s = MVM_capture_arg_pos_s(tc, obj, idx);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(captureposprimspec): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 MVMint64   i   = GET_REG(cur_op, 4).i64;
-                if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
-                    MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    if (cc->body.apc->version != MVM_ARGS_LEGACY)
-                        MVM_panic(1, "Should not be using capture ops with new callsite format");
-                    if (i >= 0 && i < cc->body.apc->legacy.num_pos) {
-                        MVMCallsiteEntry *arg_flags = cc->body.apc->legacy.arg_flags
-                            ? cc->body.apc->legacy.arg_flags
-                            : cc->body.apc->legacy.callsite->arg_flags;
-                        switch (arg_flags[i] & MVM_CALLSITE_ARG_TYPE_MASK) {
-                            case MVM_CALLSITE_ARG_INT:
-                                GET_REG(cur_op, 0).i64 = MVM_STORAGE_SPEC_BP_INT;
-                                break;
-                            case MVM_CALLSITE_ARG_NUM:
-                                GET_REG(cur_op, 0).i64 = MVM_STORAGE_SPEC_BP_NUM;
-                                break;
-                            case MVM_CALLSITE_ARG_STR:
-                                GET_REG(cur_op, 0).i64 = MVM_STORAGE_SPEC_BP_STR;
-                                break;
-                            default:
-                                GET_REG(cur_op, 0).i64 = MVM_STORAGE_SPEC_BP_NONE;
-                                break;
-                        }
-                    }
-                    else {
-                        MVM_exception_throw_adhoc(tc,
-                            "Bad argument index (%"PRId64") given to captureposprimspec", i);
-                    }
-                }
-                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
-                    GET_REG(cur_op, 0).i64 = MVM_capture_arg_pos_primspec(tc, obj, i);
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc, "captureposprimspec needs a MVMCallCapture");
-                }
+                GET_REG(cur_op, 0).i64 = MVM_capture_arg_pos_primspec(tc, obj, i);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(captureexistsnamed): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
-                if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
-                    MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).i64 = MVM_args_has_named(tc, cc->body.apc,
-                        GET_REG(cur_op, 4).s);
-                }
-                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
-                    GET_REG(cur_op, 0).i64 = MVM_capture_has_named_arg(tc, obj,
-                        GET_REG(cur_op, 4).s);
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc, "captureexistsnamed needs a MVMCallCapture");
-                }
+                GET_REG(cur_op, 0).i64 = MVM_capture_has_named_arg(tc, obj,
+                    GET_REG(cur_op, 4).s);
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(capturehasnameds): {
-                MVMObject *obj = GET_REG(cur_op, 2).o;
-                if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
-                    /* If positionals count doesn't match arg count, we must
-                     * have some named args. */
-                    MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    if (cc->body.apc->version != MVM_ARGS_LEGACY)
-                        MVM_panic(1, "Should not be using capture ops with new callsite format");
-                    GET_REG(cur_op, 0).i64 = cc->body.apc->legacy.arg_count != cc->body.apc->legacy.num_pos;
-                }
-                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
-                    GET_REG(cur_op, 0).i64 = MVM_capture_has_nameds(tc, obj);
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc, "capturehasnameds needs a MVMCapture");
-                }
+            OP(capturehasnameds):
+                GET_REG(cur_op, 0).i64 = MVM_capture_has_nameds(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            }
             OP(DEPRECATED_69):
                 MVM_exception_throw_adhoc(tc, "The invokewithcapture op superceded by the general dispatch mechanism");
             OP(DEPRECATED_60):
@@ -3959,23 +3852,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_file_isexecutable(tc, GET_REG(cur_op, 2).s,0);
                 cur_op += 4;
                 goto NEXT;
-            OP(capturenamedshash): {
-                MVMObject *obj = GET_REG(cur_op, 2).o;
-                if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCallCapture) {
-                    MVMCallCapture *cc = (MVMCallCapture *)obj;
-                    GET_REG(cur_op, 0).o = MVM_args_slurpy_named(tc, cc->body.apc);
-                }
-                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
-                    GET_REG(cur_op, 0).o = MVM_capture_get_nameds(tc, obj);
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc,
-                        "capturehasnameds requires a concrete object with REPR MVMCallCapture, got %s (%s)",
-                        REPR(obj)->name, MVM_6model_get_debug_name(tc, obj));
-                }
+            OP(capturenamedshash):
+                GET_REG(cur_op, 0).o = MVM_capture_get_nameds(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
-            }
             OP(read_fhb):
                 MVM_io_read_bytes(tc, GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).i64);
