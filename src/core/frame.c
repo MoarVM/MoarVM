@@ -371,14 +371,6 @@ void MVM_frame_setup_deopt(MVMThreadContext *tc, MVMFrame *frame, MVMStaticFrame
     }
 }
 
-/* This exists to reduce the amount of pointer-fiddling that has to be
- * done by the JIT */
-void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
-                           MVMCallsite *callsite, MVMint32 spesh_cand) {
-    MVM_frame_invoke(tc, code->body.sf, callsite,  tc->cur_frame->args,
-        code->body.outer, (MVMObject*)code, spesh_cand);
-}
-
 /* Sets up storage for state variables. We do this after tc->cur_frame became
  * the current frame, to make sure these new objects will certainly get marked
  * if GC is triggered along the way. */
@@ -2022,22 +2014,6 @@ MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCal
         if (!is) {
             MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s; %s)",
                 REPR(code)->name, MVM_6model_get_debug_name(tc, code));
-        }
-        code = find_invokee_internal(tc, code, tweak_cs, is);
-    }
-    return code;
-}
-
-MVM_USED_BY_JIT
-MVMObject * MVM_frame_find_invokee_multi_ok(MVMThreadContext *tc, MVMObject *code,
-                                            MVMCallsite **tweak_cs, MVMRegister *args,
-                                            MVMuint16 *was_multi) {
-    if (!code)
-        MVM_exception_throw_adhoc(tc, "Cannot invoke null object");
-    if (STABLE(code)->invoke == MVM_6model_invoke_default) {
-        MVMInvocationSpec *is = STABLE(code)->invocation_spec;
-        if (!is) {
-            MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s; %s)", REPR(code)->name, MVM_6model_get_debug_name(tc, code));
         }
         code = find_invokee_internal(tc, code, tweak_cs, is);
     }
