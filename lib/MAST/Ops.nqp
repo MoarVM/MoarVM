@@ -4012,10 +4012,10 @@ BEGIN {
     'null', 247,
     'isnull', 248,
     'ifnonnull', 249,
-    'findmeth', 250,
-    'findmeth_s', 251,
-    'can', 252,
-    'can_s', 253,
+    'DEPRECATED_75', 250,
+    'DEPRECATED_76', 251,
+    'DEPRECATED_77', 252,
+    'DEPRECATED_78', 253,
     'create', 254,
     'clone', 255,
     'isconcrete', 256,
@@ -4261,8 +4261,8 @@ BEGIN {
     'DEPRECATED_22', 496,
     'tell_fh', 497,
     'stat', 498,
-    'tryfindmeth', 499,
-    'tryfindmeth_s', 500,
+    'DEPRECATED_79', 499,
+    'DEPRECATED_80', 500,
     'chdir', 501,
     'srand', 502,
     'rand_i', 503,
@@ -4559,7 +4559,7 @@ BEGIN {
     'slice', 794,
     'DEPRECATED_38', 795,
     'DEPRECATED_39', 796,
-    'DEPRECATED_80', 797,
+    'DEPRECATED_81', 797,
     'DEPRECATED_41', 798,
     'DEPRECATED_42', 799,
     'DEPRECATED_43', 800,
@@ -4843,10 +4843,10 @@ BEGIN {
     'null',
     'isnull',
     'ifnonnull',
-    'findmeth',
-    'findmeth_s',
-    'can',
-    'can_s',
+    'DEPRECATED_75',
+    'DEPRECATED_76',
+    'DEPRECATED_77',
+    'DEPRECATED_78',
     'create',
     'clone',
     'isconcrete',
@@ -5092,8 +5092,8 @@ BEGIN {
     'DEPRECATED_22',
     'tell_fh',
     'stat',
-    'tryfindmeth',
-    'tryfindmeth_s',
+    'DEPRECATED_79',
+    'DEPRECATED_80',
     'chdir',
     'srand',
     'rand_i',
@@ -5390,7 +5390,7 @@ BEGIN {
     'slice',
     'DEPRECATED_38',
     'DEPRECATED_39',
-    'DEPRECATED_80',
+    'DEPRECATED_81',
     'DEPRECATED_41',
     'DEPRECATED_42',
     'DEPRECATED_43',
@@ -7276,7 +7276,7 @@ BEGIN {
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         $frame.compile_label($bytecode, $op1);
     },
-    'findmeth', sub ($op0, $op1, str $op2) {
+    'DEPRECATED_75', sub ($op0, $op1, str $op2) {
         my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 250, 5);
@@ -7284,7 +7284,7 @@ BEGIN {
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 9);
     },
-    'findmeth_s', sub ($op0, $op1, $op2) {
+    'DEPRECATED_76', sub ($op0, $op1, $op2) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 251, 5);
@@ -7292,7 +7292,7 @@ BEGIN {
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'can', sub ($op0, $op1, str $op2) {
+    'DEPRECATED_77', sub ($op0, $op1, str $op2) {
         my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 252, 5);
@@ -7300,7 +7300,7 @@ BEGIN {
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 9);
     },
-    'can_s', sub ($op0, $op1, $op2) {
+    'DEPRECATED_78', sub ($op0, $op1, $op2) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 253, 5);
@@ -9141,7 +9141,7 @@ BEGIN {
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'tryfindmeth', sub ($op0, $op1, str $op2) {
+    'DEPRECATED_79', sub ($op0, $op1, str $op2) {
         my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 499, 5);
@@ -9149,7 +9149,7 @@ BEGIN {
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 9);
     },
-    'tryfindmeth_s', sub ($op0, $op1, $op2) {
+    'DEPRECATED_80', sub ($op0, $op1, $op2) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 500, 5);
@@ -11436,7 +11436,7 @@ BEGIN {
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'DEPRECATED_80', sub ($op0, $op1) {
+    'DEPRECATED_81', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 797, 5);

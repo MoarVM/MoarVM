@@ -742,40 +742,6 @@
           (ne $0 (^vmnull)))
     (branch $1)))
 
-(template: findmeth!
-  (callv (^func &MVM_6model_find_method)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1   ptr)
-      (carg (^cu_string $2) ptr)
-      (carg \$0  ptr)
-      (carg (^one) int))))
-
-(template: findmeth_s!
-  (callv (^func &MVM_6model_find_method)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1   ptr)
-      (carg $2   ptr)
-      (carg \$0  ptr)
-      (carg (^one) int))))
-
-(template: can!
-  (callv (^func &MVM_6model_can_method)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg (^cu_string $2) ptr)
-      (carg \$0 ptr))))
-
-(template: can_s!
-  (callv (^func &MVM_6model_can_method)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1   ptr)
-      (carg $2   ptr)
-      (carg \$0  ptr))))
-
 (template: create!
   (letv: (($obj (call (^getf (^repr $1) MVMREPROps allocate)
                  (arglist
@@ -1910,24 +1876,6 @@
       (carg $1   ptr)
       (carg $2   int)
       (carg (^zero) int)) int_sz))
-
-(template: tryfindmeth!
-  (callv (^func &MVM_6model_find_method)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1   ptr)
-      (carg (^cu_string $2) ptr)
-      (carg \$0  ptr)
-      (carg (^zero) int))))
-
-(template: tryfindmeth_s!
-  (callv (^func &MVM_6model_find_method)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1   ptr)
-      (carg $2   ptr)
-      (carg \$0  ptr)
-      (carg (^zero) int))))
 
 (template: rand_i
   (call (^func &MVM_proc_rand_i)

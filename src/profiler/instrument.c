@@ -195,8 +195,6 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_clargs:
             case MVM_OP_cwd:
             case MVM_OP_newthread:
-            case MVM_OP_tryfindmeth:
-            case MVM_OP_tryfindmeth_s:
             case MVM_OP_accept_sk:
             case MVM_OP_bind_sk:
             case MVM_OP_connect_sk:
