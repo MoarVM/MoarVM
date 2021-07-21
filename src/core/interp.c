@@ -352,20 +352,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GC_SYNC_POINT(tc);
                 goto NEXT;
             }
-            OP(if_o):
-                GC_SYNC_POINT(tc);
-                MVM_coerce_istrue(tc, GET_REG(cur_op, 0).o, NULL,
-                    bytecode_start + GET_UI32(cur_op, 2),
-                    cur_op + 6,
-                    0);
-                goto NEXT;
-            OP(unless_o):
-                GC_SYNC_POINT(tc);
-                MVM_coerce_istrue(tc, GET_REG(cur_op, 0).o, NULL,
-                    bytecode_start + GET_UI32(cur_op, 2),
-                    cur_op + 6,
-                    1);
-                goto NEXT;
+            OP(DEPRECATED_62):
+            OP(DEPRECATED_63):
+                MVM_exception_throw_adhoc(tc, "if_o/unless_o were superseded by the general dispatch mechanism");
             OP(jumplist): {
                 MVMint64 num_labels = MVM_BC_get_I64(cur_op, 0);
                 MVMint64 input = GET_REG(cur_op, 8).i64;
@@ -962,7 +951,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(DEPRECATED_66):
             OP(DEPRECATED_67):
             OP(DEPRECATED_68):
-                MVM_exception_throw_adhoc(tc, "Smart coercion ops are superceded by the general dispatch mechanism");
+                MVM_exception_throw_adhoc(tc, "Smart coercion ops are superseded by the general dispatch mechanism");
             OP(prepargs):
                 /* Store callsite in the frame so that the GC knows how to mark
                  * any arguments. Note that since none of the arg-setting ops can
@@ -1006,7 +995,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(DEPRECATED_72):
             OP(DEPRECATED_73):
             OP(DEPRECATED_74):
-                MVM_exception_throw_adhoc(tc, "The invoke ops are superceded by the general dispatch mechanism");
+                MVM_exception_throw_adhoc(tc, "The invoke ops are superseded by the general dispatch mechanism");
             OP(checkarity):
                 MVM_args_checkarity(tc, &tc->cur_frame->params, GET_UI16(cur_op, 0), GET_UI16(cur_op, 2));
                 cur_op += 4;
@@ -2438,24 +2427,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(istrue): {
-                /* Increment PC first then call coerce, since it may want to
-                 * do an invocation. */
-                MVMObject   *obj = GET_REG(cur_op, 2).o;
-                MVMRegister *res = &GET_REG(cur_op, 0);
-                cur_op += 4;
-                MVM_coerce_istrue(tc, obj, res, NULL, NULL, 0);
-                goto NEXT;
-            }
-            OP(isfalse): {
-                /* Increment PC first then call coerce, since it may want to
-                 * do an invocation. */
-                MVMObject   *obj = GET_REG(cur_op, 2).o;
-                MVMRegister *res = &GET_REG(cur_op, 0);
-                cur_op += 4;
-                MVM_coerce_istrue(tc, obj, res, NULL, NULL, 1);
-                goto NEXT;
-            }
+            OP(DEPRECATED_64):
+            OP(DEPRECATED_65):
+                MVM_exception_throw_adhoc(tc, "istrue/isfalse were superseded by the general dispatch mechanism");
             OP(bootint):
                 GET_REG(cur_op, 0).o = tc->instance->boot_types.BOOTInt;
                 cur_op += 2;
