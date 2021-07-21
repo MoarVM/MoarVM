@@ -686,8 +686,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMuint16 idx = ins->operands[1].callsite_idx;
         | mov TMP1, TC->cur_frame;
-        | mov TMP1, FRAME:TMP1->params.legacy.args;
-        | mov TMP1, REGISTER:TMP1[idx];
+        | mov TMP1, FRAME:TMP1->params.arg_info.map;
+        | mov TMP2, U16:TMP1[idx];
+        | mov TMP1, FRAME:TMP1->params.arg_info.source;
+        | mov TMP1, qword [TMP1 + TMP2 * 2];
         | mov WORK[reg], TMP1;
         break;
     }
