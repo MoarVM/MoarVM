@@ -5832,34 +5832,30 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         sf, -1);
                 goto NEXT;
             }
-            OP(sp_getarg_o):
-                GET_REG(cur_op, 0).o = tc->cur_frame->params.version == MVM_ARGS_LEGACY
-                    ? tc->cur_frame->params.legacy.args[GET_UI16(cur_op, 2)].o
-                    : tc->cur_frame->params.arg_info.source[
-                        tc->cur_frame->params.arg_info.map[GET_UI16(cur_op, 2)]].o;
+            OP(sp_getarg_o): {
+                MVMArgs *args = &(tc->cur_frame->params.arg_info);
+                GET_REG(cur_op, 0).o = args->source[args->map[GET_UI16(cur_op, 2)]].o;
                 cur_op += 4;
                 goto NEXT;
-            OP(sp_getarg_i):
-                GET_REG(cur_op, 0).i64 = tc->cur_frame->params.version == MVM_ARGS_LEGACY
-                    ? tc->cur_frame->params.legacy.args[GET_UI16(cur_op, 2)].i64
-                    : tc->cur_frame->params.arg_info.source[
-                        tc->cur_frame->params.arg_info.map[GET_UI16(cur_op, 2)]].i64;
+            }
+            OP(sp_getarg_i): {
+                MVMArgs *args = &(tc->cur_frame->params.arg_info);
+                GET_REG(cur_op, 0).i64 = args->source[args->map[GET_UI16(cur_op, 2)]].i64;
                 cur_op += 4;
                 goto NEXT;
-            OP(sp_getarg_n):
-                GET_REG(cur_op, 0).n64 = tc->cur_frame->params.version == MVM_ARGS_LEGACY
-                    ? tc->cur_frame->params.legacy.args[GET_UI16(cur_op, 2)].n64
-                    : tc->cur_frame->params.arg_info.source[
-                        tc->cur_frame->params.arg_info.map[GET_UI16(cur_op, 2)]].n64;
+            }
+            OP(sp_getarg_n): {
+                MVMArgs *args = &(tc->cur_frame->params.arg_info);
+                GET_REG(cur_op, 0).n64 = args->source[args->map[GET_UI16(cur_op, 2)]].n64;
                 cur_op += 4;
                 goto NEXT;
-            OP(sp_getarg_s):
-                GET_REG(cur_op, 0).s = tc->cur_frame->params.version == MVM_ARGS_LEGACY
-                    ? tc->cur_frame->params.legacy.args[GET_UI16(cur_op, 2)].s
-                    : tc->cur_frame->params.arg_info.source[
-                        tc->cur_frame->params.arg_info.map[GET_UI16(cur_op, 2)]].s;
+            }
+            OP(sp_getarg_s): {
+                MVMArgs *args = &(tc->cur_frame->params.arg_info);
+                GET_REG(cur_op, 0).s = args->source[args->map[GET_UI16(cur_op, 2)]].s;
                 cur_op += 4;
                 goto NEXT;
+            }
             OP(sp_paramnamesused):
                 MVM_args_throw_named_unused_error(tc, (MVMString *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 0)]);
