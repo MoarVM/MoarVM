@@ -313,9 +313,6 @@ struct MVMInstance {
     MVMint32 spesh_produced;
     MVMint32 spesh_limit;
 
-    /* Mutex taken when install specializations. */
-    uv_mutex_t mutex_spesh_install;
-
     /* The thread object representing the spesh thread */
     MVMObject *spesh_thread;
 

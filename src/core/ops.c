@@ -3752,8 +3752,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_ins }
     },
     {
-        MVM_OP_findmeth,
-        "findmeth",
+        MVM_OP_DEPRECATED_75,
+        "DEPRECATED_75",
         3,
         1,
         0,
@@ -3767,8 +3767,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str }
     },
     {
-        MVM_OP_findmeth_s,
-        "findmeth_s",
+        MVM_OP_DEPRECATED_76,
+        "DEPRECATED_76",
         3,
         1,
         0,
@@ -3782,8 +3782,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_can,
-        "can",
+        MVM_OP_DEPRECATED_77,
+        "DEPRECATED_77",
         3,
         1,
         0,
@@ -3797,8 +3797,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str }
     },
     {
-        MVM_OP_can_s,
-        "can_s",
+        MVM_OP_DEPRECATED_78,
+        "DEPRECATED_78",
         3,
         1,
         0,
@@ -7487,8 +7487,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_tryfindmeth,
-        "tryfindmeth",
+        MVM_OP_DEPRECATED_79,
+        "DEPRECATED_79",
         3,
         1,
         0,
@@ -7502,8 +7502,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str }
     },
     {
-        MVM_OP_tryfindmeth_s,
-        "tryfindmeth_s",
+        MVM_OP_DEPRECATED_80,
+        "DEPRECATED_80",
         3,
         1,
         0,
@@ -11957,8 +11957,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str }
     },
     {
-        MVM_OP_DEPRECATED_80,
-        "DEPRECATED_80",
+        MVM_OP_DEPRECATED_81,
+        "DEPRECATED_81",
         2,
         0,
         0,

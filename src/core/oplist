@@ -307,10 +307,10 @@ isfalse_s           w(int64) r(str) :pure
 null                w(obj) :pure
 isnull              w(int64) r(obj) :pure :specializable :confprog
 ifnonnull           r(obj) ins :specializable
-findmeth            w(obj) r(obj) str :pure :invokish :maycausedeopt :specializable
-findmeth_s          w(obj) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
-can                 w(int64) r(obj) str :pure :invokish :maycausedeopt :specializable
-can_s               w(int64) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
+DEPRECATED_75       w(obj) r(obj) str :pure :invokish :maycausedeopt :specializable
+DEPRECATED_76       w(obj) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
+DEPRECATED_77       w(int64) r(obj) str :pure :invokish :maycausedeopt :specializable
+DEPRECATED_78       w(int64) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
 create              w(obj) r(obj) :pure :specializable
 clone               w(obj) r(obj) :pure :specializable
 isconcrete          w(int64) r(obj) :pure :specializable :confprog
@@ -556,8 +556,8 @@ say                 r(str) :confprog
 DEPRECATED_22       w(str) r(obj)
 tell_fh             w(int64) r(obj)
 stat                w(int64) r(str) r(int64)
-tryfindmeth         w(obj) r(obj) str :pure :invokish :maycausedeopt :specializable
-tryfindmeth_s       w(obj) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
+DEPRECATED_79       w(obj) r(obj) str :pure :invokish :maycausedeopt :specializable
+DEPRECATED_80       w(obj) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
 chdir               r(str)
 srand               r(int64)
 rand_i              w(int64) :confprog
@@ -857,7 +857,7 @@ getsignals          w(obj) :useshll
 slice               w(obj) r(obj) r(int64) r(int64)
 DEPRECATED_38       r(str) r(str) r(obj)
 DEPRECATED_39    -a w(obj) str :deoptonepoint :logged :noinline :specializable :invokish
-DEPRECATED_80       r(obj) r(obj)
+DEPRECATED_81       r(obj) r(obj)
 DEPRECATED_41       r(obj)
 DEPRECATED_42       r(obj)
 DEPRECATED_43       r(obj)

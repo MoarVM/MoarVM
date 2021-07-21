@@ -1659,42 +1659,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     cur_op = bytecode_start + GET_UI32(cur_op, 2);
                 GC_SYNC_POINT(tc);
                 goto NEXT;
-            OP(findmeth): {
-                /* Increment PC first, as we may make a method call. */
-                MVMRegister *res  = &GET_REG(cur_op, 0);
-                MVMObject   *obj  = GET_REG(cur_op, 2).o;
-                MVMString   *name = MVM_cu_string(tc, cu, GET_UI32(cur_op, 4));
-                cur_op += 8;
-                MVM_6model_find_method(tc, obj, name, res, 1);
-                goto NEXT;
-            }
-            OP(findmeth_s):  {
-                /* Increment PC first, as we may make a method call. */
-                MVMRegister *res  = &GET_REG(cur_op, 0);
-                MVMObject   *obj  = GET_REG(cur_op, 2).o;
-                MVMString   *name = GET_REG(cur_op, 4).s;
-                cur_op += 6;
-                MVM_6model_find_method(tc, obj, name, res, 1);
-                goto NEXT;
-            }
-            OP(can): {
-                /* Increment PC first, as we may make a method call. */
-                MVMRegister *res  = &GET_REG(cur_op, 0);
-                MVMObject   *obj  = GET_REG(cur_op, 2).o;
-                MVMString   *name = MVM_cu_string(tc, cu, GET_UI32(cur_op, 4));
-                cur_op += 8;
-                MVM_6model_can_method(tc, obj, name, res);
-                goto NEXT;
-            }
-            OP(can_s): {
-                /* Increment PC first, as we may make a method call. */
-                MVMRegister *res  = &GET_REG(cur_op, 0);
-                MVMObject   *obj  = GET_REG(cur_op, 2).o;
-                MVMString   *name = GET_REG(cur_op, 4).s;
-                cur_op += 6;
-                MVM_6model_can_method(tc, obj, name, res);
-                goto NEXT;
-            }
+            OP(DEPRECATED_75):
+            OP(DEPRECATED_76):
+            OP(DEPRECATED_77):
+            OP(DEPRECATED_78):
+                MVM_exception_throw_adhoc(tc, "Find method ops are superceded by the general dispatch mechanism");
             OP(create): {
                 /* Ordering here matters. We write the object into the
                  * register before calling initialize. This is because
@@ -3557,22 +3526,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_file_stat(tc, GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).i64, 0);
                 cur_op += 6;
                 goto NEXT;
-            OP(tryfindmeth): {
-                MVMRegister *res  = &GET_REG(cur_op, 0);
-                MVMObject   *obj  = GET_REG(cur_op, 2).o;
-                MVMString   *name = MVM_cu_string(tc, cu, GET_UI32(cur_op, 4));
-                cur_op += 8;
-                MVM_6model_find_method(tc, obj, name, res, 0);
-                goto NEXT;
-            }
-            OP(tryfindmeth_s):  {
-                MVMRegister *res  = &GET_REG(cur_op, 0);
-                MVMObject   *obj  = GET_REG(cur_op, 2).o;
-                MVMString   *name = GET_REG(cur_op, 4).s;
-                cur_op += 6;
-                MVM_6model_find_method(tc, obj, name, res, 0);
-                goto NEXT;
-            }
+            OP(DEPRECATED_79):
+            OP(DEPRECATED_80):
+                MVM_exception_throw_adhoc(tc, "Find method ops are superceded by the general dispatch mechanism");
             OP(chdir):
                 MVM_dir_chdir(tc, GET_REG(cur_op, 0).s);
                 cur_op += 2;
@@ -5272,7 +5228,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(DEPRECATED_38):
             OP(DEPRECATED_39):
-            OP(DEPRECATED_80):
+            OP(DEPRECATED_81):
             OP(DEPRECATED_41):
             OP(DEPRECATED_42):
             OP(DEPRECATED_43):
