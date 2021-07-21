@@ -699,7 +699,7 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
     if (spesh_cand >= 0) {
         MVMSpeshCandidate *chosen_cand = spesh->body.spesh_candidates[spesh_cand];
         if (static_frame->body.allocate_on_heap) {
-            MVMROOT3(tc, static_frame, code, outer, {
+            MVMROOT4(tc, static_frame, code, outer, chosen_cand, {
                 frame = allocate_frame(tc, static_frame, chosen_cand, 1);
             });
         }
