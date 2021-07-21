@@ -344,41 +344,9 @@ MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
 }
 
 MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
-    MVMObject *cc_obj;
-    MVMROOT(tc, frame, {
-        MVMCallCapture *cc = (MVMCallCapture *)
-            (cc_obj = MVM_repr_alloc_init(tc, tc->instance->CallCapture));
-
-        /* Copy the arguments. */
-        MVMRegister *args;
-        if (frame->params.version == MVM_ARGS_LEGACY) {
-            MVMuint32 arg_size = frame->params.legacy.arg_count * sizeof(MVMRegister);
-            args = MVM_malloc(arg_size);
-            memcpy(args, frame->params.legacy.args, arg_size);
-        }
-        else {
-            MVMCallsite *cs = frame->params.arg_info.callsite;
-            MVMuint32 num_named = cs->flag_count - cs->num_pos;
-            cs->arg_count = cs->num_pos + 2 * num_named; /* Not reliably set under new calling conventions */
-            MVMuint32 arg_size = cs->arg_count * sizeof(MVMRegister);
-            args = MVM_malloc(arg_size);
-            MVMuint32 insert_pos = 0;
-            MVMuint32 cur_named = 0;
-            MVMuint32 i;
-            for (i = 0; i < cs->flag_count; i++) {
-                if (cs->arg_flags[i] & MVM_CALLSITE_ARG_NAMED)
-                    args[insert_pos++].s = cs->arg_names[cur_named++];
-                args[insert_pos++] = frame->params.arg_info.source[frame->params.arg_info.map[i]];
-            }
-        }
-
-        /* Set up the call capture, copying the callsite. */
-        cc->body.apc  = (MVMArgProcContext *)MVM_calloc(1, sizeof(MVMArgProcContext));
-        MVM_args_proc_init(tc, cc->body.apc,
-            MVM_args_copy_uninterned_callsite(tc, &frame->params),
-            args);
-    });
-    return cc_obj;
+    if (frame->params.version == MVM_ARGS_LEGACY)
+        MVM_exception_throw_adhoc(tc, "Cannot savecapture with legacy arguments");
+    return MVM_capture_from_args(tc, frame->params.arg_info);
 }
 
 static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx);
