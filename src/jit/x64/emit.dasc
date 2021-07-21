@@ -2180,49 +2180,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov aword WORK[dst], TMP3;
         break;
     }
-    case MVM_OP_invokewithcapture: {
-        MVMint16 dest    = ins->operands[0].reg.orig;
-        MVMint16 code    = ins->operands[1].reg.orig;
-        MVMint16 capture = ins->operands[2].reg.orig;
-        | mov TMP1, aword WORK[capture];
-        /* if (IS_CONCRETE(capture) && REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) */
-        | test_type_object TMP1;
-        | jnz >1;
-        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCallCapture;
-        | je >2;
-        |1:
-        /* else throw */
-        | throw_adhoc "invokewithcapture needs a MVMCallCapture";
-        |2:
-        /* code = MVM_frame_find_invokee(tc, code, NULL) */
-        | mov ARG1, TC;
-        | mov ARG2, WORK[code];
-        | xor ARG3, ARG3;
-        | callp &MVM_frame_find_invokee;
-
-        | mov ARG2, RV; // ARG2 = code
-        /* tc->cur_frame->return_value = &GET_REG(cur_op, 2) */
-        | lea ARG1, WORK[dest]; // ARG1 is used as scratch space
-        | mov TMP6, aword TC->cur_frame;
-        | mov aword FRAME:TMP6->return_value, ARG1;
-        /* tc->cur_frame->return_type = MVM_RETURN_OBJ */
-        | mov byte FRAME:TMP6->return_type, MVM_RETURN_OBJ;
-        /* tc->cur_frame->return_address = cur_op */
-        | get_cur_op ARG1;
-        | mov aword FRAME:TMP6->return_address, ARG1;
-        /* STABLE(code)->invoke(tc, code, capture->body.apc->effective_callsite,
-           capture->body.apc->arg) */
-        | mov ARG1, TC;
-        | mov ARG3, WORK[capture];
-        | mov ARG4, aword CAPTURE:ARG3->body.apc;
-        | mov ARG3, aword ARGCTX:ARG4->legacy.callsite;
-        | mov ARG4, aword ARGCTX:ARG4->legacy.args;
-        | mov FUNCTION, OBJECT:ARG2->st;
-        | mov FUNCTION, STABLE:FUNCTION->invoke;
-        | call FUNCTION;
-        /* jumping out is handled by invokish */
-        break;
-    }
     case MVM_OP_captureposelems: {
         MVMint16 dest    = ins->operands[0].reg.orig;
         MVMint16 capture = ins->operands[1].reg.orig;

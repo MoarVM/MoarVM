@@ -1569,40 +1569,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(invokewithcapture): {
-                MVMObject *cobj = GET_REG(cur_op, 4).o;
-                if (IS_CONCRETE(cobj) && REPR(cobj)->ID == MVM_REPR_ID_MVMCallCapture) {
-                    MVMObject *code = GET_REG(cur_op, 2).o;
-                    MVMCallCapture *cc = (MVMCallCapture *)cobj;
-                    MVMFrameExtra *e = MVM_frame_extra(tc, tc->cur_frame);
-                    code = MVM_frame_find_invokee(tc, code, NULL);
-                    tc->cur_frame->return_value = &GET_REG(cur_op, 0);
-                    tc->cur_frame->return_type = MVM_RETURN_OBJ;
-                    cur_op += 6;
-                    tc->cur_frame->return_address = cur_op;
-                    tc->cur_frame->cur_args_callsite = NULL;
-                    if (cc->body.apc->version != MVM_ARGS_LEGACY)
-                        MVM_panic(1, "Should not be using capture ops with new callsite format");
-                    MVMROOT(tc, cobj, {
-                        STABLE(code)->invoke(tc, code, cc->body.apc->legacy.callsite,
-                            cc->body.apc->legacy.args);
-                    });
-                    if (MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame)) {
-                        e->invoked_call_capture = cobj;
-                    }
-                    else {
-                        MVM_ASSIGN_REF(tc, &(tc->cur_frame->header),
-                            e->invoked_call_capture, cobj);
-                    }
-                    goto NEXT;
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc, "invokewithcapture needs a MVMCallCapture");
-                }
-            }
+            OP(DEPRECATED_69):
+                MVM_exception_throw_adhoc(tc, "The invokewithcapture op superceded by the general dispatch mechanism");
             OP(DEPRECATED_60):
             OP(DEPRECATED_61):
-                MVM_exception_throw_adhoc(tc, "The multi-dispatch cache is deprecated");
+                MVM_exception_throw_adhoc(tc, "The multi-dispatch cache is superceded by the general dispatch mechanism");
             OP(null_s):
                 GET_REG(cur_op, 0).s = NULL;
                 cur_op += 2;

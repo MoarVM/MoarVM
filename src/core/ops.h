@@ -194,7 +194,7 @@
 #define MVM_OP_captureposprimspec 190
 #define MVM_OP_captureexistsnamed 191
 #define MVM_OP_capturehasnameds 192
-#define MVM_OP_invokewithcapture 193
+#define MVM_OP_DEPRECATED_69 193
 #define MVM_OP_DEPRECATED_60 194
 #define MVM_OP_DEPRECATED_61 195
 #define MVM_OP_null_s 196

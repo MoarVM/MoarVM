@@ -111,10 +111,6 @@ struct MVMFrameExtra {
     /* Flag for if special_return_data need to be GC marked. */
     MVMSpecialReturnDataMark mark_special_return_data;
 
-    /* If we were invoked with a call capture, that call capture, so we can
-     * keep its callsite alive. */
-    MVMObject *invoked_call_capture;
-
     /* Cache for dynlex lookup; if the name is non-null, the cache is valid
      * and the register can be accessed directly to find the contextual. */
     MVMString   *dynlex_cache_name;
