@@ -3999,6 +3999,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVMCallCapture *cc = (MVMCallCapture *)obj;
                     GET_REG(cur_op, 0).o = MVM_args_slurpy_named(tc, cc->body.apc);
                 }
+                else if (IS_CONCRETE(obj) && REPR(obj)->ID == MVM_REPR_ID_MVMCapture) {
+                    GET_REG(cur_op, 0).o = MVM_capture_get_nameds(tc, obj);
+                }
                 else {
                     MVM_exception_throw_adhoc(tc,
                         "capturehasnameds requires a concrete object with REPR MVMCallCapture, got %s (%s)",

@@ -585,17 +585,8 @@ static void capture_named_args_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMArgProcContext arg_ctx;
     MVM_args_proc_setup(tc, &arg_ctx, arg_info);
     MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
-
-    /* Set up an args processing context and use the standard slurpy args
-     * handler to extract all nameds */
-    MVMROOT(tc, capture, {
-        MVMArgs capture_args = MVM_capture_to_args(tc, capture);
-        MVMArgProcContext capture_ctx;
-        MVM_args_proc_setup(tc, &capture_ctx, capture_args);
-        MVMObject *result = MVM_args_slurpy_named(tc, &capture_ctx);
-        MVM_args_proc_cleanup(tc, &capture_ctx);
-        MVM_args_set_result_obj(tc, result, MVM_RETURN_CURRENT_FRAME);
-    });
+    MVMObject *result = MVM_capture_get_nameds(tc, capture);
+    MVM_args_set_result_obj(tc, result, MVM_RETURN_CURRENT_FRAME);
 }
 static MVMDispSysCall capture_named_args = {
     .c_name = "capture-named-args",
