@@ -347,7 +347,7 @@ sub op_constants(@ops is copy) {
     my @counts;
     my @values;
     my $values_idx = 0;
-    @ops .= grep: {$_.mark ne '.s' and not $_.name.starts-with(any('sp_','prof_','DEPRECTAED'))};
+    @ops .= grep: {$_.mark ne '.s' and not $_.name.starts-with(any('sp_','prof_'))};
     for @ops -> $op {
         my $last_idx = $values_idx;
         @offsets.push($values_idx);
@@ -357,6 +357,7 @@ sub op_constants(@ops is copy) {
         }
         @counts.push($values_idx - $last_idx);
     }
+    @ops .= grep: {not $_.name.starts-with('DEPRECATED')};
     return (
         NQP => '
 class MAST::Ops {}
