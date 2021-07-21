@@ -155,7 +155,6 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_unbox_u: return MVM_repr_get_uint;
     case MVM_OP_unbox_s: return MVM_repr_get_str;
     case MVM_OP_unbox_n: return MVM_repr_get_num;
-    case MVM_OP_istrue: case MVM_OP_isfalse: return MVM_coerce_istrue;
     case MVM_OP_istype: return MVM_6model_istype;
     case MVM_OP_isint: case MVM_OP_isnum: case MVM_OP_isstr: /* continued */
     case MVM_OP_islist: case MVM_OP_ishash: return MVM_repr_compare_repr_id;
@@ -1957,12 +1956,6 @@ start:
     case MVM_OP_unless_s:
         jg_append_branch(tc, jg, 0, ins);
         break;
-        /* never any need to implement them anymore, since they're automatically
-           lowered for us by spesh into istrue + if_i. We can't properly compile
-           if_o / unless_o as-is because they're both invokish and branching. */
-    case MVM_OP_if_o:
-    case MVM_OP_unless_o:
-        return 0;
         /* some functions */
     case MVM_OP_gethow: {
         MVMint16 dst = ins->operands[0].reg.orig;
@@ -2161,19 +2154,6 @@ start:
                                  { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_CALLER } } };
         jg_append_call_c(tc, jg, MVM_frame_find_lexical_by_name_rel_caller,
                          3, args, MVM_JIT_RV_DEREF_OR_VMNULL, dst);
-        break;
-    }
-    case MVM_OP_isfalse:
-    case MVM_OP_istrue: {
-        MVMint16 obj = ins->operands[1].reg.orig;
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_REG_VAL,  { obj } },
-                                 { MVM_JIT_REG_ADDR, { dst } },
-                                 { MVM_JIT_LITERAL, { 0 } },
-                                 { MVM_JIT_LITERAL, { 0 } },
-                                 { MVM_JIT_LITERAL, { op == MVM_OP_isfalse } }};
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 6, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_capturelex: {

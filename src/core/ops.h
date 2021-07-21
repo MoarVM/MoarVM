@@ -33,8 +33,8 @@
 #define MVM_OP_unless_s 29
 #define MVM_OP_if_s0 30
 #define MVM_OP_unless_s0 31
-#define MVM_OP_if_o 32
-#define MVM_OP_unless_o 33
+#define MVM_OP_DEPRECATED_62 32
+#define MVM_OP_DEPRECATED_63 33
 #define MVM_OP_jumplist 34
 #define MVM_OP_getlex 35
 #define MVM_OP_bindlex 36
@@ -338,8 +338,8 @@
 #define MVM_OP_settypecache 334
 #define MVM_OP_settypecheckmode 335
 #define MVM_OP_setboolspec 336
-#define MVM_OP_istrue 337
-#define MVM_OP_isfalse 338
+#define MVM_OP_DEPRECATED_64 337
+#define MVM_OP_DEPRECATED_65 338
 #define MVM_OP_bootint 339
 #define MVM_OP_bootnum 340
 #define MVM_OP_bootstr 341
