@@ -192,11 +192,11 @@ arg_o            *a int16 r(obj)
 argconst_i       *a int16 int64
 argconst_n       *a int16 num64
 argconst_s       *a int16 str
-invoke_v         -a r(obj) :deoptallpoint :logged :maycausedeopt :specializable
-invoke_i         -a w(int64) r(obj) :deoptallpoint :maycausedeopt :specializable
-invoke_n         -a w(num64) r(obj) :deoptallpoint :maycausedeopt :specializable
-invoke_s         -a w(str) r(obj) :deoptallpoint :maycausedeopt :specializable
-invoke_o         -a w(obj) r(obj) :deoptallpoint :deoptonepoint :logged :maycausedeopt :specializable
+DEPRECATED_70    -a r(obj) :deoptallpoint :logged :maycausedeopt :specializable
+DEPRECATED_71    -a w(int64) r(obj) :deoptallpoint :maycausedeopt :specializable
+DEPRECATED_72    -a w(num64) r(obj) :deoptallpoint :maycausedeopt :specializable
+DEPRECATED_73    -a w(str) r(obj) :deoptallpoint :maycausedeopt :specializable
+DEPRECATED_74    -a w(obj) r(obj) :deoptallpoint :deoptonepoint :logged :maycausedeopt :specializable
 checkarity          int16 int16
 param_rp_i       .p w(int64) int16 :pure :noinline
 param_rp_n       .p w(num64) int16 :pure :noinline
@@ -961,22 +961,11 @@ sp_getarg_i      .s w(int64) int16 :pure
 sp_getarg_n      .s w(num64) int16 :pure
 sp_getarg_s      .s w(str) int16 :pure
 
-# Fast invocation (link directly to an existing spesh candidate).
-sp_fastinvoke_v  .s r(obj) int16 :maycausedeopt
-sp_fastinvoke_i  .s w(int64) r(obj) int16 :maycausedeopt
-sp_fastinvoke_n  .s w(num64) r(obj) int16 :maycausedeopt
-sp_fastinvoke_s  .s w(str) r(obj) int16 :maycausedeopt
-sp_fastinvoke_o  .s w(obj) r(obj) int16 :maycausedeopt
-
 # Error generation if a named param is unused (name goes in spesh slot).
 sp_paramnamesused  .s sslot
 
 # Look up a spesh slot.
 sp_getspeshslot  .s w(obj) sslot :pure
-
-# Find method, using spesh slot and the one after it as a cache.
-# Isn't marked invokish, since the check is implemented directly
-sp_findmeth      .s w(obj) r(obj) str sslot :pure :maycausedeopt
 
 # Create an object with the first int16's number of bytes size and then
 # set its STable to the STable in the spesh slot.
