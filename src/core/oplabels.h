@@ -194,7 +194,7 @@ static const void * const LABELS[] = {
     &&OP_captureposprimspec,
     &&OP_captureexistsnamed,
     &&OP_capturehasnameds,
-    &&OP_invokewithcapture,
+    &&OP_DEPRECATED_69,
     &&OP_DEPRECATED_60,
     &&OP_DEPRECATED_61,
     &&OP_null_s,

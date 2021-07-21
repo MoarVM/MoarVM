@@ -129,17 +129,6 @@ MVMCallsite * find_callsite_and_args(MVMThreadContext *tc, MVMRegister **args) {
             return caller->cur_args_callsite;
         }
         else {
-            /* Probably an invoke with capture. */
-            if (caller->extra && caller->extra->invoked_call_capture) {
-                /* Ensure what we have is compatible with what was invoked. */
-                MVMCallCapture *cc = (MVMCallCapture *)caller->extra->invoked_call_capture;
-                if (cc->body.apc->legacy.callsite == tc->cur_frame->params.legacy.callsite &&
-                        cc->body.apc->legacy.args == tc->cur_frame->params.legacy.args) {
-                    *args = cc->body.apc->legacy.args;
-                    return cc->body.apc->legacy.callsite;
-                }
-            }
-
             /* Otherwise, no idea what. */
             *args = NULL;
             return NULL;
