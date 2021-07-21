@@ -376,15 +376,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
         }
 
-        /* Invoke and return end a basic block. Anything that is marked as
+        /* Dispatch and return end a basic block. Anything that is marked as
          * invokish and throwish are also basic block ends. OSR points are
          * basic block starts. */
         switch (opcode) {
-        case MVM_OP_invoke_v:
-        case MVM_OP_invoke_i:
-        case MVM_OP_invoke_n:
-        case MVM_OP_invoke_s:
-        case MVM_OP_invoke_o:
         case MVM_OP_return_i:
         case MVM_OP_return_n:
         case MVM_OP_return_s:
@@ -703,11 +698,11 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                 num_active_handlers
                 && (
                     cur_bb->last_ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)
-                    || cur_bb->last_ins->info->opcode == MVM_OP_invoke_v
-                    || cur_bb->last_ins->info->opcode == MVM_OP_invoke_i
-                    || cur_bb->last_ins->info->opcode == MVM_OP_invoke_n
-                    || cur_bb->last_ins->info->opcode == MVM_OP_invoke_s
-                    || cur_bb->last_ins->info->opcode == MVM_OP_invoke_o
+                    || cur_bb->last_ins->info->opcode == MVM_OP_dispatch_v
+                    || cur_bb->last_ins->info->opcode == MVM_OP_dispatch_i
+                    || cur_bb->last_ins->info->opcode == MVM_OP_dispatch_n
+                    || cur_bb->last_ins->info->opcode == MVM_OP_dispatch_s
+                    || cur_bb->last_ins->info->opcode == MVM_OP_dispatch_o
                 )
             ) {
                 cur_bb->handler_succ = MVM_spesh_alloc(tc, g, num_active_handlers * sizeof(MVMSpeshBB *));
