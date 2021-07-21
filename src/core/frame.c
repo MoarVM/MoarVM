@@ -1056,9 +1056,14 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
      * return to the runloop. */
     MVMuint32 thunked = 0;
     MVMFrame *caller;
-    MVMROOT(tc, returner, {
+    if (MVM_FRAME_IS_ON_CALLSTACK(tc, returner)) {
         caller = MVM_callstack_unwind_frame(tc, unwind, &thunked);
-    });
+    }
+    else {
+        MVMROOT(tc, returner, {
+            caller = MVM_callstack_unwind_frame(tc, unwind, &thunked);
+        });
+    }
     if (clear_caller)
         returner->caller = NULL;
     if (thunked)
@@ -1297,10 +1302,18 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                     if (jit_return_label)
                         caller->jit_entry_label = jit_return_label;
                 }
-                MVMROOT2(tc, return_value, frame, {
-                    if (!remove_one_frame(tc, 1))
-                        MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
-                });
+                if (MVM_FRAME_IS_ON_CALLSTACK(tc, frame)) {
+                    MVMROOT(tc, return_value, {
+                        if (!remove_one_frame(tc, 1))
+                            MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
+                    });
+                }
+                else {
+                    MVMROOT2(tc, return_value, frame, {
+                        if (!remove_one_frame(tc, 1))
+                            MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
+                    });
+                }
             }
         }
     }
