@@ -108,7 +108,7 @@ void log_parameter(MVMThreadContext *tc, MVMint32 cid, MVMuint16 arg_idx, MVMObj
     }
 }
 void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf,
-                         MVMCallsite *cs, MVMRegister *args) {
+                         MVMArgs args) {
     MVMSpeshLog *sl = tc->spesh_log;
     if (sl) {
         /* Log the entry itself. */
@@ -116,21 +116,18 @@ void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf,
         entry->kind = MVM_SPESH_LOG_ENTRY;
         entry->id = cid;
         MVM_ASSIGN_REF(tc, &(sl->common.header), entry->entry.sf, sf);
+        MVMCallsite *cs = args.callsite;
         entry->entry.cs = cs->is_interned ? cs : NULL;
         commit_entry(tc, sl);
 
         /* Log each parameter in the args buffer. */
         if (cs->is_interned) {
             MVMuint32 i;
-            MVMuint32 arg_idx = 0;
             for (i = 0; i < cs->flag_count; i++) {
                 if (!tc->spesh_log)
                     break;
-                if (cs->arg_flags[i] & MVM_CALLSITE_ARG_NAMED)
-                    arg_idx++;
                 if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ)
-                    log_parameter(tc, cid, arg_idx, args[arg_idx].o);
-                arg_idx++;
+                    log_parameter(tc, cid, i, args.source[args.map[i]].o);
             }
         }
     }

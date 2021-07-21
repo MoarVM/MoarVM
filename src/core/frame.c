@@ -667,19 +667,18 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
             if (spesh->body.spesh_entries_recorded++ < MVM_SPESH_LOG_LOGGED_ENOUGH) {
                 MVMint32 id = ++tc->spesh_cid;
                 frame->spesh_correlation_id = id;
-                // TODO update for new args
-//                MVMROOT3(tc, static_frame, code, outer, {
-//                    if (on_heap) {
-//                        MVMROOT(tc, frame, {
-//                            MVM_spesh_log_entry(tc, id, static_frame, callsite, args);
-//                        });
-//                    }
-//                    else {
-//                        MVMROOT2(tc, frame->caller, frame->static_info, {
-//                            MVM_spesh_log_entry(tc, id, static_frame, callsite, args);
-//                        });
-//                    }
-//                });
+                MVMROOT3(tc, static_frame, code, outer, {
+                    if (on_heap) {
+                        MVMROOT(tc, frame, {
+//                            MVM_spesh_log_entry(tc, id, static_frame, args);
+                        });
+                    }
+                    else {
+                        MVMROOT2(tc, frame->caller, frame->static_info, {
+//                            MVM_spesh_log_entry(tc, id, static_frame, args);
+                        });
+                    }
+                });
             }
         }
     }
