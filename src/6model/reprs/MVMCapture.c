@@ -21,7 +21,17 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMCaptureBody *src_body  = (MVMCaptureBody *)src;
     MVMCaptureBody *dest_body = (MVMCaptureBody *)dest;
-    MVM_exception_throw_adhoc(tc, "Cannot clone an MVMCapture");
+    dest_body->callsite = src_body->callsite->is_interned
+        ? src_body->callsite
+        : MVM_callsite_copy(tc, src_body->callsite);
+    size_t arg_size = dest_body->callsite->flag_count * sizeof(MVMRegister);
+    if (arg_size) {
+        dest_body->args = MVM_fixed_size_alloc(tc, tc->instance->fsa, arg_size);
+        memcpy(dest_body->args, src_body->args, arg_size);
+    }
+    else {
+        dest_body->args = NULL;
+    }
 }
 
 /* Adds held objects to the GC worklist. */
