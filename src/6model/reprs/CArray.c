@@ -214,8 +214,7 @@ static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArray
         const size_t old_size = body->allocated * repr_data->elem_size;
         const size_t new_size = next_size * repr_data->elem_size;
 
-        body->storage = MVM_realloc(body->storage, new_size);
-        memset((char *)body->storage + old_size, 0, new_size - old_size);
+        body->storage = MVM_recalloc(body->storage, old_size, new_size);
     }
 
     is_complex = (repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CARRAY
@@ -229,8 +228,7 @@ static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArray
         const size_t old_size = body->allocated * sizeof(MVMObject *);
         const size_t new_size = next_size * sizeof(MVMObject *);
 
-        body->child_objs = (MVMObject **) MVM_realloc(body->child_objs, new_size);
-        memset((char *)body->child_objs + old_size, 0, new_size - old_size);
+        body->child_objs = (MVMObject **) MVM_recalloc(body->child_objs, old_size, new_size);
     }
 
     body->allocated = next_size;

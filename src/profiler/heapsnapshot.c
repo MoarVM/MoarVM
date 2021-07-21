@@ -93,8 +93,7 @@ static void grow_storage(void *store_ptr, MVMuint64 *num, MVMuint64 *alloc, size
     void **store = (void **)store_ptr;
     if (*num == *alloc) {
         *alloc = *alloc ? 2 * *alloc : 32;
-        *store = MVM_realloc(*store, *alloc * size);
-        memset(((char *)*store) + *num * size, 0, (*alloc - *num) * size);
+        *store = MVM_recalloc(*store, *num * size, *alloc * size);
     }
 }
 

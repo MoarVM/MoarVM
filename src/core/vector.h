@@ -36,8 +36,7 @@
 
 #define MVM_VECTOR_GROW(x, size) do {\
         size_t _s = (size); \
-        (x) = MVM_realloc(x, _s*sizeof(*x));   \
-        memset((x) + (x ## _alloc), 0, (_s - (x ## _alloc)) * sizeof(*(x))); \
+        (x) = MVM_recalloc(x, MVM_VECTOR_SIZE(x), _s*sizeof(*x));   \
         (x ## _alloc) = _s; \
     } while (0)
 
