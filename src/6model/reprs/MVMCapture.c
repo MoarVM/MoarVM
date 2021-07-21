@@ -219,7 +219,7 @@ MVMnum64 MVM_capture_arg_pos_n(MVMThreadContext *tc, MVMObject *capture_obj, MVM
     MVMCapture *capture = validate_capture(tc, capture_obj);
     if (idx >= capture->body.callsite->num_pos)
         MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
-    if ((capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK) != MVM_CALLSITE_ARG_STR)
+    if ((capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK) != MVM_CALLSITE_ARG_NUM)
         MVM_exception_throw_adhoc(tc, "Capture argument is not a number argument");
     return capture->body.args[idx].n64;
 }
