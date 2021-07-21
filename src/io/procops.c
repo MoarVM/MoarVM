@@ -1252,7 +1252,7 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
     instance->event_loop_thread = NULL;
 
     /* Do not mark thread blocked as the GC also tries to acquire
-     * mutex_threads and it's help only briefly by all holders anyway */
+     * mutex_threads and it's held only briefly by all holders anyway */
     uv_mutex_lock(&instance->mutex_threads);
 
     /* Check if we are single threaded and if true, fork() */

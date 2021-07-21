@@ -671,7 +671,7 @@ void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames) {
                 }
                 else if (tc->instance->spesh_stats_version - ss->last_update > MVM_SPESH_STATS_MAX_AGE) {
                     /* Do not mark thread blocked as the GC also tries to acquire
-                     * mutex_threads and it's help only briefly by all holders anyway */
+                     * mutex_threads and it's held only briefly by all holders anyway */
                     uv_mutex_lock(&tc->instance->mutex_threads);
 
                     MVMThread *current = tc->instance->threads;
