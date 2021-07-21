@@ -3955,7 +3955,7 @@ BEGIN {
     'captureposprimspec', 190,
     'captureexistsnamed', 191,
     'capturehasnameds', 192,
-    'invokewithcapture', 193,
+    'DEPRECATED_69', 193,
     'DEPRECATED_60', 194,
     'DEPRECATED_61', 195,
     'null_s', 196,
@@ -4786,7 +4786,7 @@ BEGIN {
     'captureposprimspec',
     'captureexistsnamed',
     'capturehasnameds',
-    'invokewithcapture',
+    'DEPRECATED_69',
     'DEPRECATED_60',
     'DEPRECATED_61',
     'null_s',
@@ -6815,7 +6815,7 @@ BEGIN {
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'invokewithcapture', sub ($op0, $op1, $op2) {
+    'DEPRECATED_69', sub ($op0, $op1, $op2) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 193, 5);

@@ -1912,7 +1912,6 @@ start:
     case MVM_OP_prof_enterspesh:
     case MVM_OP_prof_enterinline:
     case MVM_OP_prof_replaced:
-    case MVM_OP_invokewithcapture:
     case MVM_OP_captureposelems:
     case MVM_OP_capturehasnameds:
     case MVM_OP_captureposarg:
