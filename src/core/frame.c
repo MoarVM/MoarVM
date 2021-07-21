@@ -768,6 +768,17 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
         setup_state_vars(tc, static_frame);
 }
 
+/* Dispatches to a frame with zero args. Convenience for various entrypoint
+ * style locations. */
+void MVM_frame_dispatch_zero_args(MVMThreadContext *tc, MVMCode *code) {
+    MVMArgs args = {
+        .callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_ZERO_ARITY),
+        .source = NULL,
+        .map = NULL
+    };
+    MVM_frame_dispatch(tc, code, args, -1);
+}
+
 /* Moves the specified frame from the stack and on to the heap. Must only
  * be called if the frame is not already there. Use MVM_frame_force_to_heap
  * when not sure. */
