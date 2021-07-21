@@ -21,7 +21,6 @@ sixmodel_types = [
 'struct MVMCStr *',
 'struct MVMCStruct *',
 'struct MVMCUnion *',
-'struct MVMCallCapture *',
 'struct MVMCode *',
 #'struct MVMCompUnit *', # CompUnits are always allocated in gen2 directly
 'struct MVMConcBlockingQueue *',
