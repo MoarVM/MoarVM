@@ -113,7 +113,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_takeclosure: return MVM_frame_takeclosure;
     case MVM_OP_usecapture: return MVM_args_use_capture;
     case MVM_OP_savecapture: return MVM_args_save_capture;
-    case MVM_OP_captureposprimspec: return MVM_capture_pos_primspec;
+    case MVM_OP_captureposprimspec: return MVM_capture_arg_pos_primspec;
     case MVM_OP_return: return MVM_args_assert_void_return_ok;
     case MVM_OP_return_i: return MVM_args_set_result_int;
     case MVM_OP_return_s: return MVM_args_set_result_str;
