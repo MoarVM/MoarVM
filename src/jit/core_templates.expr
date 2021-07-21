@@ -1328,26 +1328,6 @@
         (carg $2           ptr)))
     (copy $1)))
 
-(template: istrue!
-  (callv (^func &MVM_coerce_istrue)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg \$0 ptr)
-      (carg (^nullptr) ptr)
-      (carg (^nullptr) ptr)
-      (carg (^zero) int))))
-
-(template: isfalse!
-  (callv (^func &MVM_coerce_istrue)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg \$0 ptr)
-      (carg (^nullptr) ptr)
-      (carg (^nullptr) ptr)
-      (carg (^one) int))))
-
 (template: bootint      (^get_instance_field boot_types.BOOTInt))
 (template: bootnum      (^get_instance_field boot_types.BOOTNum))
 (template: bootstr      (^get_instance_field boot_types.BOOTStr))
