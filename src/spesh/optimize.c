@@ -2349,7 +2349,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_dispatch_n:
         case MVM_OP_dispatch_s:
         case MVM_OP_dispatch_i:
-            MVM_spesh_disp_optimize(tc, g, p, ins);
+            ins = MVM_spesh_disp_optimize(tc, g, bb, p, ins);
             break;
         case MVM_OP_sp_guard:
         case MVM_OP_sp_guardconc:
