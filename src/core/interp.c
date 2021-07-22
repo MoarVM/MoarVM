@@ -5747,6 +5747,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 10;
                 goto NEXT;
             }
+            OP(sp_assertparamcheck): {
+                MVMint64 ok = GET_REG(cur_op, 0).i64;
+                if (!ok) {
+                    MVMStaticFrame *sf = (MVMStaticFrame *)tc->cur_frame
+                            ->effective_spesh_slots[GET_UI16(cur_op, 2)];
+                    MVMuint32 slot = GET_UI32(cur_op, 4);
+                    MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get_spesh(
+                            sf, slot);
+                    cur_op += 6;
+                    MVM_args_bind_failed(tc, ice_ptr);
+                }
+                else {
+                    cur_op += 6;
+                }
+                goto NEXT;
+            }
             OP(sp_dispatch_v): {
                 MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 0));
                 MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 4)];
