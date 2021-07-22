@@ -12737,6 +12737,21 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_spesh_slot, MVM_operand_uint32 }
     },
     {
+        MVM_OP_sp_assertparamcheck,
+        "sp_assertparamcheck",
+        3,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_int64, MVM_operand_spesh_slot, MVM_operand_uint32 }
+    },
+    {
         MVM_OP_sp_dispatch_v,
         "sp_dispatch_v",
         4,
@@ -13908,7 +13923,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 927;
+static const unsigned short MVM_op_counts = 928;
 
 static const MVMuint16 last_op_allowed = 830;
 
