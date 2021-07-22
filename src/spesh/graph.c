@@ -205,7 +205,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* Look up op info. */
         MVMuint16  opcode     = *(MVMuint16 *)pc;
         MVMuint8  *args       = pc + 2;
-        MVMuint8   arg_size   = 0;
+        MVMuint16  arg_size   = 0;
         const MVMOpInfo *info = MVM_bytecode_get_validated_op_info(tc, cu, opcode);
 
         /* Create an instruction node, add it, and record its position. */
