@@ -174,6 +174,9 @@ static void reached_eof(MVMThreadContext *tc, MVMDecodeStream *ds) {
     /* Decode all the things. */
     if (ds->bytes_head)
         run_decode(tc, ds, NULL, NULL, DECODE_EOF);
+    if (ds->bytes_head)
+        MVM_exception_throw_adhoc(tc,
+            "Incomplete character found at the end of a stream");
 
     /* If there's some things left in the normalization buffer, take them. */
     MVM_unicode_normalizer_eof(tc, &(ds->norm));
