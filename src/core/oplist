@@ -886,11 +886,11 @@ totalmem            w(int64) :pure
 nextdispatcherfor   r(obj) r(obj)
 takenextdispatcher  w(obj) :noinline
 time                w(uint64) :pure :confprog
-dispatch_v       .d str callsite :cache :deoptallpoint :deoptonepoint :maycausedeopt :specializable
-dispatch_i       .d w(int64) str callsite :cache :deoptallpoint :deoptonepoint :maycausedeopt :specializable
-dispatch_n       .d w(num64) str callsite :cache :deoptallpoint :deoptonepoint :maycausedeopt :specializable
-dispatch_s       .d w(str) str callsite :cache :deoptallpoint :deoptonepoint :maycausedeopt :specializable
-dispatch_o       .d w(obj) str callsite :cache :deoptallpoint :deoptonepoint :maycausedeopt :specializable
+dispatch_v       .d str callsite :cache :deoptallpoint :predeoptonepoint :maycausedeopt :specializable
+dispatch_i       .d w(int64) str callsite :cache :deoptallpoint :predeoptonepoint :maycausedeopt :specializable
+dispatch_n       .d w(num64) str callsite :cache :deoptallpoint :predeoptonepoint :maycausedeopt :specializable
+dispatch_s       .d w(str) str callsite :cache :deoptallpoint :predeoptonepoint :maycausedeopt :specializable
+dispatch_o       .d w(obj) str callsite :cache :deoptallpoint :predeoptonepoint :maycausedeopt :specializable
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

@@ -121,9 +121,10 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
         MVMuint32 num_comments = 0;
 
         while (ann) {
-            /* These four annotations carry a deopt index that we can find a
+            /* These annotations carry a deopt index that we can find a
              * corresponding line number for */
             if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS
+                || ann->type == MVM_SPESH_ANN_DEOPT_PRE_INS
                 || ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS
                 || ann->type == MVM_SPESH_ANN_DEOPT_INLINE
                 || ann->type == MVM_SPESH_ANN_DEOPT_OSR) {
@@ -149,7 +150,11 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         ann->data.frame_handler_index);
                     break;
                 case MVM_SPESH_ANN_DEOPT_ONE_INS:
-                    appendf(ds, "      [Annotation: INS Deopt One (idx %d -> pc %d; line %d)]\n",
+                    appendf(ds, "      [Annotation: INS Deopt One After Instruction (idx %d -> pc %d; line %d)]\n",
+                        ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx], line_number);
+                    break;
+                case MVM_SPESH_ANN_DEOPT_PRE_INS:
+                    appendf(ds, "      [Annotation: INS Deopt One Before Instruction (idx %d -> pc %d; line %d)]\n",
                         ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx], line_number);
                     break;
                 case MVM_SPESH_ANN_DEOPT_ALL_INS:
