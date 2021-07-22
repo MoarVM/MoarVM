@@ -85,27 +85,259 @@ static void rewrite_to_sp_dispatch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
     ins->operands = new_operands;
 }
 
+/* Get the index of the first normal argument operand to the dispatch
+ * instruction (after result unless void, dispatcher name, and callsite). */
+static MVMuint32 find_disp_op_first_real_arg(MVMThreadContext *tc, MVMSpeshIns *ins) {
+    if (ins->info->opcode == MVM_OP_dispatch_v)
+        return 2;
+    assert(ins->info->opcode == MVM_OP_dispatch_i ||
+            ins->info->opcode == MVM_OP_dispatch_n ||
+            ins->info->opcode == MVM_OP_dispatch_s ||
+            ins->info->opcode == MVM_OP_dispatch_o);
+    return 3;
+}
+
+/* Find the deopt annotation on a dispatch instruction and remove it. */
+static MVMSpeshAnn * take_dispatch_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshIns *ins) {
+    MVMSpeshAnn *deopt_ann = ins->annotations;
+    MVMSpeshAnn *prev = NULL;
+    while (deopt_ann) {
+        if (deopt_ann->type == MVM_SPESH_ANN_DEOPT_PRE_INS) {
+            if (prev)
+                prev->next = deopt_ann->next;
+            else
+                ins->annotations = deopt_ann->next;
+            return deopt_ann;
+        }
+        prev = deopt_ann;
+        deopt_ann = deopt_ann->next;
+    }
+    MVM_panic(1, "Spesh: unexpectedly missing deopt annotation on dispatch op");
+}
+
+/* Copy a deopt annotation, allocating a new deopt index for it. */
+MVMSpeshAnn * clone_deopt_ann(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshAnn *in) {
+    MVMSpeshAnn *cloned = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+    MVMuint32 deopt_idx = g->num_deopt_addrs;
+    cloned->type = in->type;
+    cloned->data.deopt_idx = deopt_idx;
+    MVM_spesh_graph_grow_deopt_table(tc, g);
+    g->deopt_addrs[deopt_idx * 2] = g->deopt_addrs[in->data.deopt_idx * 2];
+    g->num_deopt_addrs++;
+    return cloned;
+}
+
+/* Takes an instruction that may deopt and an operand that should contain the
+ * deopt index. Reuse the dispatch instruction deopt annotation if that did
+ * not happen already, otherwise clone it. */
+static void set_deopt(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+        MVMSpeshOperand *index_operand, MVMSpeshAnn *deopt_ann,
+        MVMuint32 *reused_deopt_ann) {
+    if (*reused_deopt_ann) {
+        /* Already reused, clone needed. */
+        deopt_ann = clone_deopt_ann(tc, g, deopt_ann);
+    }
+    else {
+        /* First usage. */
+        *reused_deopt_ann = 1;
+    }
+    deopt_ann->next = ins->annotations;
+    ins->annotations = deopt_ann;
+    index_operand->lit_ui32 = deopt_ann->data.deopt_idx;
+}
+
+/* Emit a type guard instruction. */
+static MVMSpeshOperand emit_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns **insert_after, MVMuint16 op,
+        MVMSpeshOperand guard_reg, MVMSTable *type, MVMSpeshAnn *deopt_ann,
+        MVMuint32 *reused_deopt_ann) {
+    /* Produce a new version for after the guarding. */
+    MVMSpeshOperand guarded_reg = MVM_spesh_manipulate_split_version(tc, g,
+            guard_reg, bb, (*insert_after)->next);
+
+    /* Produce the instruction and insert it. */
+    MVMSpeshIns *guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    guard->info = MVM_op_get_op(op);
+    guard->operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
+    guard->operands[0] = guarded_reg;
+    guard->operands[1] = guard_reg;
+    guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+            (MVMCollectable *)type);
+    set_deopt(tc, g, guard, &(guard->operands[3]), deopt_ann, reused_deopt_ann);
+    MVM_spesh_manipulate_insert_ins(tc, bb, *insert_after, guard);
+    *insert_after = guard;
+
+    /* Tweak usages. */
+    MVM_spesh_get_facts(tc, g, guarded_reg)->writer = guard;
+    MVM_spesh_usages_add_by_reg(tc, g, guard_reg, guard);
+
+    /* Add facts to and return the guarded register. */
+    MVM_spesh_facts_guard_facts(tc, g, bb, guard);
+    return guarded_reg;
+}
+
+/* Emit a simple binary instruction between two registers. */
+static void emit_bi_op(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns **insert_after, MVMuint16 op,
+        MVMSpeshOperand to_reg, MVMSpeshOperand from_reg) {
+    /* Produce the instruction and insert it. */
+    MVMSpeshIns *ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    ins->info = MVM_op_get_op(op);
+    ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
+    ins->operands[0] = to_reg;
+    ins->operands[1] = from_reg;
+    MVM_spesh_manipulate_insert_ins(tc, bb, *insert_after, ins);
+    *insert_after = ins;
+
+    /* Tweak usages. */
+    MVM_spesh_get_facts(tc, g, to_reg)->writer = ins;
+    MVM_spesh_usages_add_by_reg(tc, g, from_reg, ins);
+}
+
+/* Try to translate a dispatch program into a sequence of ops (which will
+ * be subject to later optimization and potentially JIT compilation). */
+static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns *ins, MVMDispProgram *dp) {
+    /* First, validate it is a dispatch program we know how to compile. */
+    if (dp->first_args_temporary != dp->num_temporaries)
+        return NULL;
+    MVMuint32 i;
+    for (i = 0; i < dp->num_ops; i++) {
+        switch (dp->ops[i].code) {
+            case MVMDispOpcodeGuardArgType:
+            case MVMDispOpcodeGuardArgTypeConc:
+            case MVMDispOpcodeGuardArgTypeTypeObject:
+            case MVMDispOpcodeLoadCaptureValue:
+            case MVMDispOpcodeResultValueObj:
+                break;
+            default:
+                return NULL;
+        }
+    }
+
+    /* We'll re-use the deopt annotation on the dispatch instruction for
+     * the first guard, and then clone it later if needed. */
+    MVMSpeshAnn *deopt_ann = take_dispatch_deopt_annotation(tc, g, ins);
+    MVMuint32 reused_deopt_ann = 0;
+
+    /* Find the arguments that are the input to the dispatch */
+    MVMSpeshOperand *args = &ins->operands[find_disp_op_first_real_arg(tc, ins)];
+
+    /* Registers holding temporaries, which may be registers that we have
+     * allocated, or may refer to the input arguments. */
+    MVMSpeshOperand *temporaries = MVM_spesh_alloc(tc, g,
+            sizeof(MVMSpeshOperand) * dp->num_temporaries);
+
+    /* Visit the ops of the dispatch program and translate them. */
+    MVMSpeshIns *insert_after = ins;
+    for (i = 0; i < dp->num_ops; i++) {
+        MVMDispProgramOp *op = &(dp->ops[i]);
+        switch (op->code) {
+            case MVMDispOpcodeGuardArgType:
+                args[op->arg_guard.arg_idx] = emit_type_guard(tc, g, bb, &insert_after,
+                        MVM_OP_sp_guard, args[op->arg_guard.arg_idx],
+                        (MVMSTable *)dp->gc_constants[op->arg_guard.checkee],
+                        deopt_ann, &reused_deopt_ann);
+                break;
+            case MVMDispOpcodeGuardArgTypeConc:
+                args[op->arg_guard.arg_idx] = emit_type_guard(tc, g, bb, &insert_after,
+                        MVM_OP_sp_guardconc, args[op->arg_guard.arg_idx],
+                        (MVMSTable *)dp->gc_constants[op->arg_guard.checkee],
+                        deopt_ann, &reused_deopt_ann);
+                break;
+            case MVMDispOpcodeGuardArgTypeTypeObject:
+                args[op->arg_guard.arg_idx] = emit_type_guard(tc, g, bb, &insert_after,
+                        MVM_OP_sp_guardtype, args[op->arg_guard.arg_idx],
+                        (MVMSTable *)dp->gc_constants[op->arg_guard.checkee],
+                        deopt_ann, &reused_deopt_ann);
+                break;
+            case MVMDispOpcodeLoadCaptureValue:
+                /* We already have all the capture values in the arg registers
+                 * so just alias. */
+                temporaries[op->load.temp] = args[op->arg_guard.arg_idx];
+                break;
+            case MVMDispOpcodeResultValueObj:
+                /* Emit instruction according to result type. */
+                switch (ins->info->opcode) {
+                    case MVM_OP_dispatch_v:
+                        break;
+                    case MVM_OP_dispatch_o:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_set, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
+                    case MVM_OP_dispatch_i:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_unbox_i, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
+                    case MVM_OP_dispatch_n:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_unbox_n, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
+                    case MVM_OP_dispatch_s:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_unbox_s, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
+                    default:
+                        MVM_oops(tc, "Unexpected dispatch op when translating object result");
+                }
+                break;
+            default:
+                /* Should never happen due to the validation earlier. */
+                MVM_oops(tc, "Unexpectedly hit dispatch op that cannot be translated");
+        }
+    }
+
+    /* Annotate start and end of translated dispatch program. */
+    MVMSpeshIns *first_inserted = ins->next;
+    MVM_spesh_graph_add_comment(tc, g, first_inserted,
+            "Start of dispatch program translation");
+    MVM_spesh_graph_add_comment(tc, g, insert_after,
+            "End of dispatch program translation");
+
+    /* Delete the dispatch instruction and return the first inserted
+     * instruction as the next thing to optimize. Make sure we don't
+     * mark it as having a dead writer (since we inserted a replacement
+     * instruction above). */
+    MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+    if (ins->info->opcode != MVM_OP_dispatch_v)
+        MVM_spesh_get_facts(tc, g, ins->operands[0])->dead_writer = 0;
+    return first_inserted;
+}
+
 /* Rewrite an unhit dispatch instruction. */
-static void rewrite_unhit(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+static MVMSpeshIns *rewrite_unhit(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins,
         MVMuint32 bytecode_offset) {
     MVM_spesh_graph_add_comment(tc, g, ins, "Never dispatched");
     rewrite_to_sp_dispatch(tc, g, ins, bytecode_offset);
+    return ins;
 }
 
 /* Rewrite a dispatch instruction that is considered monomorphic. */
-static void rewrite_monomorphic(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+static MVMSpeshIns *rewrite_monomorphic(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins,
         MVMuint32 bytecode_offset, MVMuint32 outcome) {
-    // TODO
-    MVM_spesh_graph_add_comment(tc, g, ins, "Deemed monomorphic (outcome %d)", outcome);
+    MVMDispInlineCache *cache = &(g->sf->body.inline_cache);
+    MVMDispInlineCacheEntry *entry = cache->entries[bytecode_offset >> cache->bit_shift];
+    MVMuint32 kind = MVM_disp_inline_cache_get_kind(tc, entry);
+    if (kind == MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH) {
+        MVMSpeshIns *result = translate_dispatch_program(tc, g, bb, ins,
+                ((MVMDispInlineCacheEntryMonomorphicDispatch *)entry)->dp);
+        if (result)
+            return result;
+    }
+    MVM_spesh_graph_add_comment(tc, g, ins,
+            "Deemed monomorphic (outcome %d, entry kind %d)", outcome, kind);
     rewrite_to_sp_dispatch(tc, g, ins, bytecode_offset);
+    return ins;
 }
 
 /* Rewrite a dispatch instruction that is polymorphic or megamorphic. */
-static void rewrite_polymorphic(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+static MVMSpeshIns *rewrite_polymorphic(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins,
         MVMuint32 bytecode_offset, OutcomeHitCount *outcomes, MVMuint32 num_outcomes) {
     // TODO
     MVM_spesh_graph_add_comment(tc, g, ins, "Deemed polymorphic");
     rewrite_to_sp_dispatch(tc, g, ins, bytecode_offset);
+    return ins;
 }
 
 /* Drives the overall process of optimizing a dispatch instruction. The instruction
@@ -115,8 +347,9 @@ static void rewrite_polymorphic(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
 static int compare_hits(const void *a, const void *b) {
     return ((OutcomeHitCount *)b)->hits - ((OutcomeHitCount *)a)->hits;
 }
-void MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPlanned *p,
+MVMSpeshIns *MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshPlanned *p,
         MVMSpeshIns *ins) {
+    MVMSpeshIns *result = ins;
     /* Locate the inline cache bytecode offset. There must always be one. */
     MVMSpeshAnn *ann = ins->annotations;
     while (ann) {
@@ -169,18 +402,20 @@ void MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshPla
     }
     qsort(outcome_hits, MVM_VECTOR_ELEMS(outcome_hits), sizeof(OutcomeHitCount), compare_hits);
 
+
     /* If there are no hits, we can only rewrite it to sp_dispatch. */
     if (MVM_VECTOR_ELEMS(outcome_hits) == 0)
-        rewrite_unhit(tc, g, ins, bytecode_offset);
+        result = rewrite_unhit(tc, g, bb, ins, bytecode_offset);
 
     /* If there's one hit, *or* the top hit has > 99% of the total hits, then we
      * rewrite it to monomorphic. */
     else if ((100 * outcome_hits[0].hits) / total_hits >= 99)
-        rewrite_monomorphic(tc, g, ins, bytecode_offset, outcome_hits[0].outcome);
+        result = rewrite_monomorphic(tc, g, bb, ins, bytecode_offset, outcome_hits[0].outcome);
 
     /* Otherwise, it's polymoprhic or megamorphic. */
     else
-        rewrite_polymorphic(tc, g, ins, bytecode_offset, outcome_hits, MVM_VECTOR_ELEMS(outcome_hits));
+        result = rewrite_polymorphic(tc, g, bb, ins, bytecode_offset, outcome_hits, MVM_VECTOR_ELEMS(outcome_hits));
 
     MVM_VECTOR_DESTROY(outcome_hits);
+    return result;
 }
