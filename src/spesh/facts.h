@@ -57,3 +57,5 @@ void MVM_spesh_facts_depend(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVMSpeshFacts *target, MVMSpeshFacts *source);
 void MVM_spesh_facts_object_facts(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVMSpeshOperand tgt, MVMObject *obj);
+void MVM_spesh_facts_guard_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+        MVMSpeshIns *ins);
