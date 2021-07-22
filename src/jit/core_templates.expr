@@ -2103,14 +2103,14 @@
       (carg $1 ptr)
       (carg $2 ptr)) int_sz))
 
-(template: paramnamesused
-  (letv: (($ctx   (^addrf (^frame) MVMFrame params))
-         ($csite (^getf  $ctx MVMArgProcContext legacy.callsite)))
-    (when (ne (^getf $csite MVMCallsite num_pos) (^getf $csite MVMCallsite arg_count))
-      (callv (^func &MVM_args_assert_nameds_used)
-        (arglist
-          (carg (tc) ptr)
-          (carg $ctx ptr))))))
+#(template: paramnamesused
+#  (letv: (($ctx   (^addrf (^frame) MVMFrame params))
+#         ($csite (^getf  $ctx MVMArgProcContext legacy.callsite)))
+#    (when (ne (^getf $csite MVMCallsite num_pos) (^getf $csite MVMCallsite arg_count))
+#      (callv (^func &MVM_args_assert_nameds_used)
+#        (arglist
+#          (carg (tc) ptr)
+#          (carg $ctx ptr))))))
 
 (template: getuniname
   (call (^func &MVM_unicode_get_name)
@@ -2735,10 +2735,10 @@
         (carg \$0 ptr)))
     (store \$0 $1 ptr_sz)))
 
-(template: sp_getarg_o (load (^parg $1) ptr_sz))
-(template: sp_getarg_i (load (^parg $1) int_sz))
-(template: sp_getarg_n (load_num (^parg $1) num_sz))
-(template: sp_getarg_s (load (^parg $1) ptr_sz))
+#(template: sp_getarg_o (load (^parg $1) ptr_sz))
+#(template: sp_getarg_i (load (^parg $1) int_sz))
+#(template: sp_getarg_n (load_num (^parg $1) num_sz))
+#(template: sp_getarg_s (load (^parg $1) ptr_sz))
 
 (template: sp_getspeshslot (^spesh_slot_value $1))
 
