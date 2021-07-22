@@ -784,6 +784,24 @@ static void optimize_assertparamcheck(MVMThreadContext *tc, MVMSpeshGraph *g, MV
         MVM_spesh_use_facts(tc, g, facts);
         MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
     }
+    else {
+        MVMSpeshAnn *ann = ins->annotations;
+        while (ann) {
+            if (ann->type == MVM_SPESH_ANN_CACHED)
+                break;
+            ann = ann->next;
+        }
+        if (ann) {
+            ins->info = MVM_op_get_op(MVM_OP_sp_assertparamcheck);
+            MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            new_operands[0] = ins->operands[0];
+            new_operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                (MVMCollectable *)g->sf);
+            new_operands[2].lit_ui32 = MVM_disp_inline_cache_get_slot(tc, g->sf,
+                ann->data.bytecode_offset);
+            ins->operands = new_operands;
+        }
+    }
 }
 
 static void optimize_guard(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,

@@ -947,6 +947,8 @@ sp_bindlex_os    .s wl(`1) r(`1)
 # positions changing (and makes it more comfortable to JIT).
 sp_getlexstatic_o .s w(obj) r(str) sslot uint32 :pure
 
+sp_assertparamcheck .s r(int64) sslot uint32 :noinline :invokish :maycausedeopt
+
 # Specialized form of dispatch_* for when we don't manage to rewrite it into
 # anything more optimal. These precalculate the inline cache slot.
 sp_dispatch_v    .s str callsite sslot uint32 :maycausedeopt
