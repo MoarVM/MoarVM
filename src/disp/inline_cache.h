@@ -90,6 +90,9 @@ struct MVMDispInlineCacheEntryPolymorphicDispatchFlattening {
     MVMuint32 max_temporaries;
 };
 
+/* The maximum degree of polymorphism allowed at a given inline cache site. */
+#define MVM_INLINE_CACHE_MAX_POLY 64
+
 void MVM_disp_inline_cache_setup(MVMThreadContext *tc, MVMStaticFrame *sf);
 void MVM_disp_inline_cache_mark(MVMThreadContext *tc, MVMDispInlineCache *cache,
         MVMGCWorklist *worklist);
