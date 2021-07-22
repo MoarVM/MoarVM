@@ -805,6 +805,56 @@ static MVMDispSysCall elems = {
     .expected_concrete = { 1 },
 };
 
+/* try-capture-lex */
+static void try_capture_lex_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *code = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    if (((MVMCode *)code)->body.sf->body.outer == tc->cur_frame->static_info)
+        MVM_frame_capturelex(tc, code);
+    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall try_capture_lex = {
+    .c_name = "try-capture-lex",
+    .implementation = try_capture_lex_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMCode },
+    .expected_concrete = { 1 },
+};
+
+/* try-capture-lex-callers */
+static void try_capture_lex_callers_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *code = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMFrame *find;
+    MVMROOT(tc, code, {
+        find = MVM_frame_force_to_heap(tc, tc->cur_frame);
+    });
+    while (find) {
+        if (((MVMCode *)code)->body.sf->body.outer == find->static_info) {
+            MVMFrame *orig = tc->cur_frame;
+            tc->cur_frame = find;
+            MVM_frame_capturelex(tc, code);
+            tc->cur_frame = orig;
+            break;
+        }
+        find = find->caller;
+    }
+    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall try_capture_lex_callers = {
+    .c_name = "try-capture-lex-callers",
+    .implementation = try_capture_lex_callers_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMCode },
+    .expected_concrete = { 1 },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -864,6 +914,8 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &coerce_boxed_int_to_num);
     add_to_hash(tc, &coerce_boxed_str_to_num);
     add_to_hash(tc, &elems);
+    add_to_hash(tc, &try_capture_lex);
+    add_to_hash(tc, &try_capture_lex_callers);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
