@@ -450,7 +450,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
         /* Ensure we've got all the arg fetch instructions we need, and that
          * types match or it's a box/unbox. */
         MVMint32 i;
-        for (i = 0; i < cs->num_pos; i++) {
+        for (i = 0; i < cs->num_pos && i < MAX_POS_ARGS; i++) {
             MVMCallsiteEntry arg_flag = cs->arg_flags[i];
             MVMCallsiteEntry arg_type = arg_flag & MVM_CALLSITE_ARG_TYPE_MASK;
             if (pos_ins[i]) {
@@ -628,13 +628,12 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
 
         /* Re-write the passed required positionals to spesh ops, and add any
          * facts. */
-        for (i = 0; i < cs->num_pos; i++) {
+        for (i = 0; i < cs->num_pos && i < MAX_POS_ARGS; i++) {
             MVMCallsiteEntry arg_flag = cs->arg_flags[i];
             MVMCallsiteEntry arg_type = arg_flag & MVM_CALLSITE_ARG_TYPE_MASK;
             if (!pos_ins[i])
                 continue;
             switch (pos_ins[i]->info->opcode) {
-                /* FIXME add support for param_rp_u here */
             case MVM_OP_param_rp_i:
             case MVM_OP_param_op_i:
                 if (arg_type == MVM_CALLSITE_ARG_INT) {
