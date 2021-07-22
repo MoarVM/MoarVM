@@ -670,12 +670,12 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
                 MVMROOT3(tc, static_frame, code, outer, {
                     if (on_heap) {
                         MVMROOT(tc, frame, {
-//                            MVM_spesh_log_entry(tc, id, static_frame, args);
+                            MVM_spesh_log_entry(tc, id, static_frame, args);
                         });
                     }
                     else {
                         MVMROOT2(tc, frame->caller, frame->static_info, {
-//                            MVM_spesh_log_entry(tc, id, static_frame, args);
+                            MVM_spesh_log_entry(tc, id, static_frame, args);
                         });
                     }
                 });
