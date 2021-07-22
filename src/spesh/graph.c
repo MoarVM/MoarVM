@@ -236,7 +236,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* If this is a pre-instruction deopt point opcode, annotate. */
         if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_ONE_PRE))
             MVM_spesh_graph_add_deopt_annotation(tc, g, ins_node,
-                pc - g->bytecode, MVM_SPESH_ANN_DEOPT_ONE_INS);
+                pc - g->bytecode, MVM_SPESH_ANN_DEOPT_PRE_INS);
 
         /* Let's see if we have a line-number annotation. */
         if (ann_ptr && pc - sf->body.bytecode == ann_ptr->bytecode_offset) {
