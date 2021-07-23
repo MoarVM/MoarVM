@@ -2514,28 +2514,50 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
                           0 ;
 }
 #define nfg_ok(cp) ((cp) < MVM_NORMALIZE_FIRST_SIG_NFC)
-/* BITOP is the operator that is done to the two strings. GO_FULL_LEN determines
- * if we do the operation for the longest strong. If GO_FULL_LEN == 0 then
- * it only goes to the end of the shortest string (we do this for the string AND
- * op, but the other ones go for the length of the longest string. */
-#define MVM_STRING_BITOP(BITOP, GO_FULL_LEN, OP_DESC) \
+/* BITOP is the operator that is done to the two strings. */
+#define MVM_STRING_BITOP(BITOP, OP_DESC) \
     MVMString      *res    = NULL;\
     MVMGrapheme32  *buffer = NULL;\
     MVMStringIndex  alen, blen, sgraphs = 0;\
-    size_t buf_size;\
-    MVMCodepointIter ci_a, ci_b;\
+    size_t buf_size, pad_size = 0;\
+    MVMCodepointIter ci_a, ci_b, *ci_longer = NULL;\
     int nfg_is_safe = 1;\
     MVM_string_check_arg(tc, a, (OP_DESC));\
     MVM_string_check_arg(tc, b, (OP_DESC));\
 \
     alen = MVM_string_graphs_nocheck(tc, a);\
     blen = MVM_string_graphs_nocheck(tc, b);\
-    buf_size = blen < alen ? alen : blen;\
+    if (alen == blen) {\
+        buf_size = alen;\
+    }\
+    else {\
+        if (alen < blen) {\
+            pad_size = blen - alen;\
+            buf_size = blen;\
+            ci_longer = &ci_b;\
+        }\
+        else {\
+            pad_size = alen - blen;\
+            buf_size = alen;\
+            ci_longer = &ci_a;\
+        }\
+    }\
     buffer = MVM_malloc(sizeof(MVMGrapheme32) * buf_size);\
     MVM_string_ci_init(tc, &ci_a, a, 0, 0);\
     MVM_string_ci_init(tc, &ci_b, b, 0, 0);\
 \
-    /* First, binary-or up to the length of the shortest string. */\
+    /* Effectively zero-pad the shorter string by binary-op'ing with 0 the longer \
+     * for the difference in their lengths. */\
+    if (pad_size) {\
+        for (size_t i = 0; i < pad_size; i++) {\
+            const MVMGrapheme32 g_longer = MVM_string_ci_get_codepoint(tc, ci_longer);\
+            buffer[sgraphs++] = 0 BITOP g_longer;\
+            if (nfg_is_safe && !nfg_ok(g_longer))\
+                nfg_is_safe = 0;\
+        }\
+    }\
+\
+    /* Now just binary-op through the two strings. */\
     while (MVM_string_ci_has_more(tc, &ci_a) && MVM_string_ci_has_more(tc, &ci_b)) {\
         const MVMGrapheme32 g_a = MVM_string_ci_get_codepoint(tc, &ci_a);\
         const MVMGrapheme32 g_b = MVM_string_ci_get_codepoint(tc, &ci_b);\
@@ -2545,28 +2567,6 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
         if (sgraphs == buf_size) {\
             buf_size += 16;\
             buffer = MVM_realloc(buffer, buf_size * sizeof(MVMGrapheme32));\
-        }\
-    }\
-    if (GO_FULL_LEN) {\
-        while (MVM_string_ci_has_more(tc, &ci_a)) {\
-            const MVMGrapheme32 g_a = MVM_string_ci_get_codepoint(tc, &ci_a);\
-            buffer[sgraphs++] = g_a;\
-            if (nfg_is_safe && !nfg_ok(g_a))\
-                nfg_is_safe = 0;\
-            if (sgraphs == buf_size) {\
-                buf_size += 16;\
-                buffer = MVM_realloc(buffer, buf_size * sizeof(MVMGrapheme32));\
-            }\
-        }\
-        while (MVM_string_ci_has_more(tc, &ci_b)) {\
-            const MVMGrapheme32 g_b = MVM_string_ci_get_codepoint(tc, &ci_b);\
-            buffer[sgraphs++] = g_b;\
-            if (nfg_is_safe && !nfg_ok(g_b))\
-                nfg_is_safe = 0;\
-            if (sgraphs == buf_size) {\
-                buf_size += 16;\
-                buffer = MVM_realloc(buffer, buf_size * sizeof(MVMGrapheme32));\
-            }\
         }\
     }\
 \
@@ -2581,16 +2581,16 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
 
 /* Takes two strings and AND's their characters. */
 MVMString * MVM_string_bitand(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    MVM_STRING_BITOP( & , 0, "bitwise and")
+    MVM_STRING_BITOP(&, "bitwise and")
 }
 
 /* Takes two strings and OR's their characters. */
 MVMString * MVM_string_bitor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    MVM_STRING_BITOP( | , 1, "bitwise or")
+    MVM_STRING_BITOP(|, "bitwise or")
 }
 /* Takes two strings and XOR's their characters. */
 MVMString * MVM_string_bitxor(MVMThreadContext *tc, MVMString *a, MVMString *b) {
-    MVM_STRING_BITOP( ^ , 1, "bitwise xor");
+    MVM_STRING_BITOP(^, "bitwise xor");
 }
 
 /* Shortcuts for some unicode general category pvalues */
