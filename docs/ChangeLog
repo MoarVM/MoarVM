@@ -1,3 +1,33 @@
+New in 2021.07
+
+6model:
++ [21f8cadd] Fix "Collectable in a gen2 freelist accessed" when deserializing a method cache
++ [d7a07bf3] Fix possible acces to a freed SC during deserialization
++ [8f513d55] Convert more `realloc+memset(0)` to `recalloc`
+
+Core:
++ [736154d2] Fix some bugs in the various `hash_fsck` functions
++ [1180c988] Fix read buffer overflow in bytecode dumper
++ [a27efd30] Fix overflows on slight reallocations of fixed size alloced buffers
+
+IO:
++ [8e9afcf5] Fix error handling of `mkdir`
++ [97948c2a] Assign the result of a `socket(2)` call immediately
++ [af001c96,3a3eb7f9] Fix possible deadlock when waiting for mutex_threads
+
+Profiler:
++ [ab2a0100,f8d5f300] Simplify code needed for GCC to avoid a warning
+
+Spesh:
++ [a4d59492] Fix memory corruption by accessing freed spesh stats
+
+Strings:
++ [4fea2f9a] Fix ShiftJIS decoder bug where a replacement is used
+  and a decoding error is encountered after '\r' character
+
+Tooling/Build:
++ [42bbff95] Remove msinttypes from `$PREFIX\include` as no longer needed
+
 New in 2021.06
 
 6model:
