@@ -1199,20 +1199,33 @@ void record_resume(MVMThreadContext *tc, MVMObject *capture, MVMDispResumptionDa
     record->outcome.resume_capture = capture;
 }
 
+/* Report inability to resume dispatch, either by delegating to a language
+ * configured dispatcher to do it, or throwing an exception if none is
+ * configured. */
+static void resume_error(MVMThreadContext *tc, MVMObject *capture) {
+    MVMHLLConfig *hll = MVM_hll_current(tc);
+    if (hll->resume_error_dispatcher)
+        MVM_disp_program_record_delegate(tc, hll->resume_error_dispatcher, capture);
+    else
+        MVM_exception_throw_adhoc(tc, "No resumable dispatch in dynamic scope");
+}
+
 /* Record the resumption of the topmost dispatch. */
 void MVM_disp_program_record_resume(MVMThreadContext *tc, MVMObject *capture) {
     MVMDispResumptionData resume_data;
-    if (!MVM_disp_resume_find_topmost(tc, &resume_data, 0))
-        MVM_exception_throw_adhoc(tc, "No resumable dispatch in dynamic scope");
-    record_resume(tc, capture, &resume_data, MVMDispProgramRecordingResumeTopmost);
+    if (MVM_disp_resume_find_topmost(tc, &resume_data, 0))
+        record_resume(tc, capture, &resume_data, MVMDispProgramRecordingResumeTopmost);
+    else
+        resume_error(tc, capture);
 }
 
 /* Record the resumption of a dispatch found relative to our caller. */
 void MVM_disp_program_record_resume_caller(MVMThreadContext *tc, MVMObject *capture) {
     MVMDispResumptionData resume_data;
-    if (!MVM_disp_resume_find_caller(tc, &resume_data, 0))
-        MVM_exception_throw_adhoc(tc, "No resumable dispatch in caller's dynamic scope");
-    record_resume(tc, capture, &resume_data, MVMDispProgramRecordingResumeCaller);
+    if (MVM_disp_resume_find_caller(tc, &resume_data, 0))
+        record_resume(tc, capture, &resume_data, MVMDispProgramRecordingResumeCaller);
+    else
+        resume_error(tc, capture);
 }
 
 /* Record a delegation from one dispatcher to another. */
