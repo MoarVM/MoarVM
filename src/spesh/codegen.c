@@ -49,6 +49,11 @@ static void write_int64(SpeshWriterState *ws, MVMuint64 value) {
     memcpy(ws->bytecode + ws->bytecode_pos, &value, 8);
     ws->bytecode_pos += 8;
 }
+static void write_uint64(SpeshWriterState *ws, MVMuint64 value) {
+    ensure_space(ws, 8);
+    memcpy(ws->bytecode + ws->bytecode_pos, &value, 8);
+    ws->bytecode_pos += 8;
+}
 static void write_int32(SpeshWriterState *ws, MVMuint32 value) {
     ensure_space(ws, 4);
     memcpy(ws->bytecode + ws->bytecode_pos, &value, 4);
@@ -221,6 +226,9 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                         break;
                     case MVM_operand_int64:
                         write_int64(ws, ins->operands[i].lit_i64);
+                        break;
+                    case MVM_operand_uint64:
+                        write_uint64(ws, ins->operands[i].lit_ui64);
                         break;
                     case MVM_operand_num32:
                         write_num32(ws, ins->operands[i].lit_n32);
