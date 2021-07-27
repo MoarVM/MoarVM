@@ -417,13 +417,16 @@ MVMSpeshOperand MVM_spesh_manipulate_split_version(MVMThreadContext *tc, MVMSpes
     MVMSpeshOperand new_version = MVM_spesh_manipulate_new_version(tc, g, split.reg.orig);
     /* More than we need by definition */
     MVMSpeshBB **bbq = alloca(sizeof(MVMSpeshBB*) * g->num_bbs);
+    MVMuint8 *seen_bb = alloca(g->num_bbs);
+    memset(seen_bb, 0, g->num_bbs);
     MVMint32 top = 0;
     /* Push initial basic block */
     bbq[top++] = bb;
+    seen_bb[bb->idx] = 1;
     while (top != 0) {
         MVMuint32 i;
         MVMSpeshBB *cur_bb = bbq[--top];
-        MVMSpeshIns *ins = cur_bb == bb && at ? at : cur_bb->first_ins;
+        MVMSpeshIns *ins = cur_bb == bb ? at : cur_bb->first_ins;
         while (ins) {
             for (i = 0; i < ins->info->num_operands; i++) {
                 if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg) {
@@ -437,8 +440,13 @@ MVMSpeshOperand MVM_spesh_manipulate_split_version(MVMThreadContext *tc, MVMSpes
             }
             ins = ins->next;
         }
-        for (i = 0; i < cur_bb->num_children; i++)
-            bbq[top++] = cur_bb->children[i];
+        for (i = 0; i < cur_bb->num_succ; i++) {
+            MVMSpeshBB *succ = cur_bb->succ[i];
+            if (!seen_bb[succ->idx]) {
+                bbq[top++] = succ;
+                seen_bb[succ->idx] = 1;
+            }
+        }
     }
     MVM_spesh_copy_facts(tc, g, new_version, split);
     return new_version;
