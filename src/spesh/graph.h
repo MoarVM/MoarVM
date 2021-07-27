@@ -215,6 +215,7 @@ struct MVMSpeshIns {
  * optimizer we're in determines which of these we look at. */
 union MVMSpeshOperand {
     MVMint64     lit_i64;
+    MVMint64     lit_ui64;
     MVMint32     lit_i32;
     MVMuint16    lit_ui32;
     MVMint16     lit_i16;
