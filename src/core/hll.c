@@ -179,7 +179,7 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
 
 /* Gets the current HLL configuration. */
 MVMHLLConfig *MVM_hll_current(MVMThreadContext *tc) {
-    return (*tc->interp_cu)->body.hll_config;
+    return tc->cur_frame->static_info->body.cu->body.hll_config;
 }
 
 /* Enter a level of compilee HLL configuration mode. */
