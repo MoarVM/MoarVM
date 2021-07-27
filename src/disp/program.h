@@ -612,3 +612,5 @@ void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *
         MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot);
 void MVM_disp_program_destroy(MVMThreadContext *tc, MVMDispProgram *dp);
 void MVM_disp_program_recording_destroy(MVMThreadContext *tc, MVMDispProgramRecording *rec);
+
+const char *MVM_disp_opcode_to_name(MVMDispProgramOpcode op);

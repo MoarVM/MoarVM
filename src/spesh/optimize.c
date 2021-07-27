@@ -824,6 +824,11 @@ static void optimize_guard(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
             turn_into_set = 1;
         }
     }
+    else if (opcode == MVM_OP_sp_guardnonzero) {
+        if ((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && facts->value.i != 0) {
+            turn_into_set = 1;
+        }
+    }
     else {
         if (opcode == MVM_OP_sp_guard
                 || opcode == MVM_OP_sp_guardconc

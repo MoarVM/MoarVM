@@ -918,6 +918,9 @@ sp_guardnotobj   .s w(obj) r(obj) sslot uint32 :maycausedeopt
 sp_guardjustconc .s w(obj) r(obj) uint32 :maycausedeopt
 sp_guardjusttype .s w(obj) r(obj) uint32 :maycausedeopt
 
+# Guards that the result of any custom operation was nonzero (e.g.  eq_s)
+sp_guardnonzero  .s w(int64) r(int64) uint32 :maycausedeopt
+
 # Specialized form of rebless that will always do a deopt one out of the
 # current code as well as a deopt all.
 sp_rebless       .s w(obj) r(obj) r(obj) uint32 :noinline :maycausedeopt

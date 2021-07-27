@@ -195,6 +195,66 @@ static void emit_bi_op(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_usages_add_by_reg(tc, g, from_reg, ins);
 }
 
+static void build_guard_arg_lit_str(MVMThreadContext *tc, MVMSpeshGraph *g,
+                MVMSpeshBB *bb, MVMSpeshIns **insert_after,
+                MVMDispProgramOp *op, MVMDispProgram *dp, MVMSpeshOperand *args,
+                MVMSpeshAnn *deopt_ann, MVMuint32 *reused_deopt_ann) {
+    MVMSpeshOperand op_res_reg  = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+    MVMSpeshOperand cmp_str_reg = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_str);
+
+    /* Create the spesh slot. */
+    MVMuint16 sslot = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+            (MVMCollectable *)dp->gc_constants[op->arg_guard.checkee]);
+
+    /* Retrieve the spesh slot. */
+    MVMSpeshIns *ssl_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    ssl_ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+    ssl_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
+    ssl_ins->operands[0] = cmp_str_reg;
+    ssl_ins->operands[1].lit_i16 = sslot;
+    MVM_spesh_manipulate_insert_ins(tc, bb, *insert_after, ssl_ins);
+    *insert_after = ssl_ins;
+
+    /* Tweak usages. */
+    MVM_spesh_get_facts(tc, g, cmp_str_reg)->writer = ssl_ins;
+
+    /* Produce the comparison and insert it. */
+    MVMSpeshIns *ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    ins->info = MVM_op_get_op(MVM_OP_eq_s);
+    ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 3);
+    ins->operands[0] = op_res_reg;
+    ins->operands[1] = cmp_str_reg;
+    ins->operands[2] = args[op->arg_guard.arg_idx];
+    MVM_spesh_manipulate_insert_ins(tc, bb, *insert_after, ins);
+    *insert_after = ins;
+
+    /* Tweak usages again. */
+    MVM_spesh_get_facts(tc, g, op_res_reg)->writer = ins;
+    MVM_spesh_usages_add_by_reg(tc, g, cmp_str_reg, ins);
+    MVM_spesh_usages_add_by_reg(tc, g, ins->operands[2], ins);
+
+    MVMSpeshOperand guarded_res = MVM_spesh_manipulate_split_version(tc, g,
+                op_res_reg, bb, (*insert_after)->next);
+
+    /* Finally, guard for the result. */
+    MVMSpeshIns *guard_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    guard_ins->info = MVM_op_get_op(MVM_OP_sp_guardnonzero);
+    guard_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 3);
+    guard_ins->operands[0] = guarded_res;
+    guard_ins->operands[1] = op_res_reg;
+    set_deopt(tc, g, guard_ins, &(guard_ins->operands[2]), deopt_ann, reused_deopt_ann);
+    MVM_spesh_manipulate_insert_ins(tc, bb, *insert_after, guard_ins);
+    *insert_after = guard_ins;
+
+    /* Tweak usages one last time. */
+    MVM_spesh_get_facts(tc, g, guarded_res)->writer = ins;
+    MVM_spesh_usages_add_by_reg(tc, g, op_res_reg, ins);
+
+    /* The temporary registers are immediately free for re-use. */
+    MVM_spesh_manipulate_release_temp_reg(tc, g, cmp_str_reg);
+    MVM_spesh_manipulate_release_temp_reg(tc, g, op_res_reg);
+}
+
 /* Try to translate a dispatch program into a sequence of ops (which will
  * be subject to later optimization and potentially JIT compilation). */
 static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -208,10 +268,13 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeGuardArgType:
             case MVMDispOpcodeGuardArgTypeConc:
             case MVMDispOpcodeGuardArgTypeTypeObject:
+            case MVMDispOpcodeGuardArgLiteralStr:
             case MVMDispOpcodeLoadCaptureValue:
             case MVMDispOpcodeResultValueObj:
                 break;
             default:
+                MVM_spesh_graph_add_comment(tc, g, ins, "disp not compiled: op %s NYI",
+                                MVM_disp_opcode_to_name(dp->ops[i].code));
                 return NULL;
         }
     }
@@ -250,6 +313,11 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 args[op->arg_guard.arg_idx] = emit_type_guard(tc, g, bb, &insert_after,
                         MVM_OP_sp_guardtype, args[op->arg_guard.arg_idx],
                         (MVMSTable *)dp->gc_constants[op->arg_guard.checkee],
+                        deopt_ann, &reused_deopt_ann);
+                break;
+            case MVMDispOpcodeGuardArgLiteralStr:
+                build_guard_arg_lit_str(tc, g, bb, &insert_after,
+                        op, dp, args,
                         deopt_ann, &reused_deopt_ann);
                 break;
             case MVMDispOpcodeLoadCaptureValue:
