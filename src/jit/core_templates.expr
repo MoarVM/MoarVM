@@ -881,6 +881,166 @@
 
 (template: eqaddr (flagval (eq $1 $2)))
 
+(template: bindattr_i
+  (callv (^func &MVM_repr_bind_attr_inso)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr)
+      (carg (^cu_string $2) ptr)
+      (carg $4 int)
+      (carg $3 ptr)
+      (carg (^reg_int) int))))
+
+(template: bindattr_n
+  (callv (^func &MVM_repr_bind_attr_inso)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr)
+      (carg (^cu_string $2) ptr)
+      (carg $4 int)
+      (carg $3 ptr)
+      (carg (^reg_num) int))))
+
+(template: bindattr_s
+  (callv (^func &MVM_repr_bind_attr_inso)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr)
+      (carg (^cu_string $2) ptr)
+      (carg $4 int)
+      (carg $3 ptr)
+      (carg (^reg_str) int))))
+
+(template: bindattr_o
+  (callv (^func &MVM_repr_bind_attr_inso)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr)
+      (carg (^cu_string $2) ptr)
+      (carg $4 int)
+      (carg $3 ptr)
+      (carg (^reg_obj) int))))
+
+(template: bindattrs_i
+  (callv (^func &MVM_repr_bind_attr_inso)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg (const -1 int_sz) int)
+      (carg $3 ptr)
+      (carg (^reg_int) int))))
+
+(template: bindattrs_n
+  (callv (^func &MVM_repr_bind_attr_inso)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg (const -1 int_sz) int)
+      (carg $3 ptr)
+      (carg (^reg_num) int))))
+
+(template: bindattrs_s
+  (callv (^func &MVM_repr_bind_attr_inso)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg (const -1 int_sz) int)
+      (carg $3 ptr)
+      (carg (^reg_str) int))))
+
+(template: bindattrs_o
+  (callv (^func &MVM_repr_bind_attr_inso)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg (const -1 int_sz) int)
+      (carg $3 ptr)
+      (carg (^reg_obj) int))))
+
+(template: getattr_i
+  (call (^func &MVM_repr_get_attr_i)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg (^cu_string $3) ptr)
+      (carg $4 int)) int_sz))
+
+(template: getattr_n
+  (calln (^func &MVM_repr_get_attr_n)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg (^cu_string $3) ptr)
+      (carg $4 int))))
+
+(template: getattr_s
+  (call (^func &MVM_repr_get_attr_s)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg (^cu_string $3) ptr)
+      (carg $4 int)) ptr_sz))
+
+(template: getattr_o
+  (call (^func &MVM_repr_get_attr_o)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg (^cu_string $3) ptr)
+      (carg $4 int)) ptr_sz))
+
+(template: getattrs_i
+  (call (^func &MVM_repr_get_attr_i)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 ptr)
+      (carg (const -1 int_sz) int)) int_sz))
+
+(template: getattrs_n
+  (calln (^func &MVM_repr_get_attr_n)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 ptr)
+      (carg (const -1 int_sz) int))))
+
+(template: getattrs_s
+  (call (^func &MVM_repr_get_attr_s)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 ptr)
+      (carg (const -1 int_sz) int)) ptr_sz))
+
+(template: getattrs_o
+  (call (^func &MVM_repr_get_attr_o)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 ptr)
+      (carg (const -1 int_sz) int)) ptr_sz))
+
 (template: box_i
   (call (^func &MVM_repr_box_int)
     (arglist
