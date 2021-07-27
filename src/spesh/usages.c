@@ -216,11 +216,27 @@ static void process_bb_for_deopt_usage(MVMThreadContext *tc, DeoptAnalysisState 
     /* Walk the BB's instructions. */
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
-        MVMint16 opcode = ins->info->opcode;
-        MVMuint8 is_phi = opcode == MVM_SSA_PHI;
-        MVMSpeshAnn *ann;
+        /* Work out of it's a deopt point. If it's a pre-deopt point, we should
+         * immediately process it as the values that are read by the op must be
+         * available to it after deopt. */
+        MVMSpeshAnn *ann = ins->annotations;
+        MVMSpeshAnn *post_deopt_ann = NULL;
+        while (ann) {
+            switch (ann->type) {
+                case MVM_SPESH_ANN_DEOPT_PRE_INS:
+                    process_deopt(tc, state, g, bb, ins, ann->data.deopt_idx);
+                    break;
+                case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                case MVM_SPESH_ANN_DEOPT_ALL_INS:
+                    post_deopt_ann = ann;
+                    break;
+            }
+            ann = ann->next;
+        }
 
         /* Process the read operands. */
+        MVMint16 opcode = ins->info->opcode;
+        MVMuint8 is_phi = opcode == MVM_SSA_PHI;
         if (MVM_spesh_is_inc_dec_op(opcode)) {
             MVMSpeshOperand read = ins->operands[0];
             read.reg.i--;
@@ -236,17 +252,10 @@ static void process_bb_for_deopt_usage(MVMThreadContext *tc, DeoptAnalysisState 
                     process_read(tc, state, g, bb, ins, ins->operands[i]);
         }
 
-        /* If it's a deopt point, add currently unread writes as dependencies. */
-        ann = ins->annotations;
-        while (ann) {
-            switch (ann->type) {
-                case MVM_SPESH_ANN_DEOPT_ONE_INS:
-                case MVM_SPESH_ANN_DEOPT_ALL_INS:
-                    process_deopt(tc, state, g, bb, ins, ann->data.deopt_idx);
-                    break;
-            }
-            ann = ann->next;
-        }
+        /* Now we've processed the reads, a post-deopt point should be put
+         * into effect. */
+        if (post_deopt_ann)
+            process_deopt(tc, state, g, bb, ins, post_deopt_ann->data.deopt_idx);
 
         /* Process the write. */
         if (is_phi) {
@@ -372,6 +381,7 @@ void MVM_spesh_usages_remove_unused_deopt(MVMThreadContext *tc, MVMSpeshGraph *g
             while (ann) {
                 switch (ann->type) {
                     case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                    case MVM_SPESH_ANN_DEOPT_PRE_INS:
                     case MVM_SPESH_ANN_DEOPT_ALL_INS:
                     case MVM_SPESH_ANN_DEOPT_INLINE:
                     case MVM_SPESH_ANN_DEOPT_SYNTH:
