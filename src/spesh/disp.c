@@ -211,6 +211,7 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeGuardArgTypeConc:
             case MVMDispOpcodeGuardArgTypeTypeObject:
             case MVMDispOpcodeLoadCaptureValue:
+            case MVMDispOpcodeSet:
             case MVMDispOpcodeResultValueObj:
             case MVMDispOpcodeUseArgsTail:
             case MVMDispOpcodeResultBytecode:
@@ -268,6 +269,10 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 /* We already have all the capture values in the arg registers
                  * so just alias. */
                 temporaries[op->load.temp] = args[op->arg_guard.arg_idx];
+                break;
+            case MVMDispOpcodeSet:
+                emit_bi_op(tc, g, bb, &insert_after, MVM_OP_set,
+                        temporaries[op->load.temp], temporaries[op->load.idx]);
                 break;
             case MVMDispOpcodeResultValueObj:
                 /* Emit instruction according to result type. */
