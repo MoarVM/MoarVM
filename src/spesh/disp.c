@@ -221,8 +221,14 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
     MVMSpeshAnn *deopt_ann = take_dispatch_deopt_annotation(tc, g, ins);
     MVMuint32 reused_deopt_ann = 0;
 
-    /* Find the arguments that are the input to the dispatch */
-    MVMSpeshOperand *args = &ins->operands[find_disp_op_first_real_arg(tc, ins)];
+    /* Find the arguments that are the input to the dispatch and copy
+     * them, since we'll mutate this list. */
+    MVMuint32 first_real_arg = find_disp_op_first_real_arg(tc, ins);
+    MVMSpeshOperand *orig_args = &ins->operands[first_real_arg];
+    MVMuint32 num_real_args = ins->info->num_operands - first_real_arg;
+    size_t args_size = num_real_args * sizeof(MVMSpeshOperand);
+    MVMSpeshOperand *args = MVM_spesh_alloc(tc, g, args_size);
+    memcpy(args, orig_args, args_size);
 
     /* Registers holding temporaries, which may be registers that we have
      * allocated, or may refer to the input arguments. */
