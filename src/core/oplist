@@ -1070,6 +1070,16 @@ sp_mul_I         .s w(obj) int16 sslot r(obj) r(obj) int16 int16 :pure
 
 sp_bool_I        .s w(int64) r(obj) int16 :pure
 
+# Run bytecode. This is what a dispatch op with a bytecode terminal
+# specializes as. The r(obj) register is the bytecode handle. The
+# uint64 is a pointer to the MVMCallsite (they never move and we know
+# they are interned).
+sp_runbytecode_v .s r(obj) uint64 :mycausedeopt
+sp_runbytecode_i .s w(int64) r(obj) uint64 :mycausedeopt
+sp_runbytecode_n .s w(num64) r(obj) uint64 :mycausedeopt
+sp_runbytecode_s .s w(str) r(obj) uint64 :mycausedeopt
+sp_runbytecode_o .s w(obj) r(obj) uint64 :mycausedeopt
+
 # Profiler recording ops. Naming convention: start with prof_. Must all be
 # marked .s, which is how the validator knows to exclude them. (For that
 # purpose, we treat them as a kind of spesh op).
