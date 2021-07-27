@@ -297,6 +297,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
             case MVM_OP_sp_guardsfouter:
             case MVM_OP_sp_guardjustconc:
             case MVM_OP_sp_guardjusttype:
+            case MVM_OP_sp_guardnonzero:
                 deopt_idx = ins->operands[2].lit_ui32;
                 break;
             default:
@@ -320,6 +321,12 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                         seen_deopt_idx = 1;
 #endif
                     break;
+                case MVM_SPESH_ANN_DEOPT_PRE_INS:
+#ifndef NDEBUG
+                    if (deopt_idx == ann->data.deopt_idx)
+                        seen_deopt_idx = 1;
+                    break;
+#endif
                 }
                 ann = ann->next;
             }

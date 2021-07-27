@@ -177,6 +177,26 @@ static MVMSpeshOperand emit_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     return guarded_reg;
 }
 
+/* Emit a simple three-ary instruction between two registers. */
+static void emit_tri_op(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns **insert_after, MVMuint16 op,
+        MVMSpeshOperand to_reg, MVMSpeshOperand from_reg, MVMSpeshOperand third_reg) {
+    /* Produce the instruction and insert it. */
+    MVMSpeshIns *ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    ins->info = MVM_op_get_op(op);
+    ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 3);
+    ins->operands[0] = to_reg;
+    ins->operands[1] = from_reg;
+    ins->operands[2] = third_reg;
+    MVM_spesh_manipulate_insert_ins(tc, bb, *insert_after, ins);
+    *insert_after = ins;
+
+    /* Tweak usages. */
+    MVM_spesh_get_facts(tc, g, to_reg)->writer = ins;
+    MVM_spesh_usages_add_by_reg(tc, g, from_reg, ins);
+    MVM_spesh_usages_add_by_reg(tc, g, third_reg, ins);
+}
+
 /* Emit a simple binary instruction between two registers. */
 static void emit_bi_op(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVMSpeshBB *bb, MVMSpeshIns **insert_after, MVMuint16 op,
@@ -255,6 +275,15 @@ static void build_guard_arg_lit_str(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_manipulate_release_temp_reg(tc, g, op_res_reg);
 }
 
+/* Ensure a temporary has a valid operand assigned, if necessary, allocate
+ * a temp register */
+static void ensure_temporary(MVMThreadContext *tc, MVMSpeshGraph *g, MVMDispProgram* dp, MVMSpeshOperand *temporaries, MVMuint8 *temporary_inited, MVMuint32 temporary_index, MVMuint16 kind) {
+    if (!temporary_inited[temporary_index]) {
+        temporaries[temporary_index] = MVM_spesh_manipulate_get_temp_reg(tc, g, kind);
+        temporary_inited[temporary_index] = 1;
+    }
+}
+
 /* Try to translate a dispatch program into a sequence of ops (which will
  * be subject to later optimization and potentially JIT compilation). */
 static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -270,7 +299,9 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeGuardArgTypeTypeObject:
             case MVMDispOpcodeGuardArgLiteralStr:
             case MVMDispOpcodeLoadCaptureValue:
+            case MVMDispOpcodeLoadConstantInt:
             case MVMDispOpcodeResultValueObj:
+            case MVMDispOpcodeResultValueInt:
                 break;
             default:
                 MVM_spesh_graph_add_comment(tc, g, ins, "disp not compiled: op %s NYI",
@@ -291,6 +322,8 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
      * allocated, or may refer to the input arguments. */
     MVMSpeshOperand *temporaries = MVM_spesh_alloc(tc, g,
             sizeof(MVMSpeshOperand) * dp->num_temporaries);
+
+    MVMuint8 *temporary_inited = MVM_spesh_alloc(tc, g, 1 * dp->num_temporaries);
 
     /* Visit the ops of the dispatch program and translate them. */
     MVMSpeshIns *insert_after = ins;
@@ -324,7 +357,16 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 /* We already have all the capture values in the arg registers
                  * so just alias. */
                 temporaries[op->load.temp] = args[op->arg_guard.arg_idx];
+                temporary_inited[op->load.temp] = 1;
                 break;
+            case MVMDispOpcodeLoadConstantInt: {
+                MVMSpeshOperand constint;
+                constint.lit_i64 = dp->constants[op->load.idx].i64;
+                ensure_temporary(tc, g, dp, temporaries, temporary_inited, op->load.temp, MVM_reg_int64);
+                emit_bi_op(tc, g, bb, &insert_after, MVM_OP_const_i64,
+                                temporaries[op->load.temp], constint);
+                break;
+            }
             case MVMDispOpcodeResultValueObj:
                 /* Emit instruction according to result type. */
                 switch (ins->info->opcode) {
@@ -350,10 +392,51 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                         MVM_oops(tc, "Unexpected dispatch op when translating object result");
                 }
                 break;
+            case MVMDispOpcodeResultValueInt: {
+                if (ins->info->opcode == MVM_OP_dispatch_v) {
+                    /* do nothing */
+                }
+                else if (ins->info->opcode == MVM_OP_dispatch_o) {
+                    MVMSpeshOperand type_reg = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+                    MVMSpeshIns *type_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                    type_ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand));
+                    type_ins->operands[0] = type_reg;
+
+                    MVM_spesh_manipulate_insert_ins(tc, bb, insert_after, type_ins);
+                    insert_after = type_ins;
+                    MVM_spesh_get_facts(tc, g, type_reg)->writer = type_ins;
+
+                    emit_tri_op(tc, g, bb, &insert_after, MVM_OP_box_i, ins->operands[0],
+                        temporaries[op->res_value.temp], type_reg);
+
+                    MVM_spesh_manipulate_release_temp_reg(tc, g, type_reg);
+                }
+                else {
+                    switch (ins->info->opcode) {
+                        case MVM_OP_dispatch_i:
+                            emit_bi_op(tc, g, bb, &insert_after, MVM_OP_set, ins->operands[0],
+                                temporaries[op->res_value.temp]);
+                            break;
+                        case MVM_OP_dispatch_n:
+                            emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_ni, ins->operands[0],
+                                temporaries[op->res_value.temp]);
+                            break;
+                        case MVM_OP_dispatch_s:
+                            emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_si, ins->operands[0],
+                                temporaries[op->res_value.temp]);
+                            break;
+                        default:
+                            MVM_oops(tc, "Unexpected dispatch op when translating object result");
+                    }
+                }
+                break;
+            }
             default:
                 /* Should never happen due to the validation earlier. */
                 MVM_oops(tc, "Unexpectedly hit dispatch op that cannot be translated");
         }
+        MVM_spesh_graph_add_comment(tc, g, insert_after,
+                        "disp prog opcode %s", MVM_disp_opcode_to_name(dp->ops[i].code));
     }
 
     /* Annotate start and end of translated dispatch program. */
