@@ -144,6 +144,12 @@ static MVMint32 already_succs(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *
     return 0;
 }
 
+/* Checks if the op is one of the spesh dispatch ops. */
+static MVMint32 spesh_dispatchy(MVMuint16 opcode) {
+    return opcode >= MVM_OP_sp_dispatch_v && opcode <= MVM_OP_sp_dispatch_o ||
+        opcode >= MVM_OP_sp_runbytecode_v && opcode <= MVM_OP_sp_runbytecode_o;
+}
+
 /* Builds the control flow graph, populating the passed spesh graph structure
  * with it. This also makes nodes for all of the instruction. */
 #define MVM_CFG_BB_START    1
@@ -252,9 +258,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 
         /* Dispatch ops have a variable number of arguments based on a callsite. */
         if (MVM_op_get_mark(info->opcode)[1] == 'd' ||
-                (MVM_op_get_mark(info->opcode)[1] == 's' &&
-                    info->opcode >= MVM_OP_sp_dispatch_v &&
-                    info->opcode <= MVM_OP_sp_dispatch_o)) {
+                (MVM_op_get_mark(info->opcode)[1] == 's' && spesh_dispatchy(info->opcode))) {
             /* Fake up an op info struct for the duration of this spesh graph's
              * life, so everything else can pretend it's got a fixed number of
              * arguments. */
