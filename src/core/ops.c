@@ -13847,6 +13847,81 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
     },
     {
+        MVM_OP_sp_runcfunc_v,
+        "sp_runcfunc_v",
+        2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
+    },
+    {
+        MVM_OP_sp_runcfunc_i,
+        "sp_runcfunc_i",
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
+    },
+    {
+        MVM_OP_sp_runcfunc_n,
+        "sp_runcfunc_n",
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
+    },
+    {
+        MVM_OP_sp_runcfunc_s,
+        "sp_runcfunc_s",
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
+    },
+    {
+        MVM_OP_sp_runcfunc_o,
+        "sp_runcfunc_o",
+        3,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
+    },
+    {
         MVM_OP_prof_enter,
         "prof_enter",
         0,
@@ -13998,7 +14073,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 933;
+static const unsigned short MVM_op_counts = 938;
 
 static const MVMuint16 last_op_allowed = 830;
 

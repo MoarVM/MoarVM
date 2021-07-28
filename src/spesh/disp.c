@@ -232,6 +232,7 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeResultValueObj:
             case MVMDispOpcodeUseArgsTail:
             case MVMDispOpcodeResultBytecode:
+            case MVMDispOpcodeResultCFunction:
                 break;
             default:
                 MVM_spesh_graph_add_comment(tc, g, ins, "dispatch not compiled: op %s NYI",
@@ -355,24 +356,26 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 callsite = dp->constants[op->use_arg_tail.callsite_idx].cs;
                 skip_args = op->use_arg_tail.skip_args;
                 break;
-            case MVMDispOpcodeResultBytecode: {
-                /* Determine the run bytecode op we'll specialize to. */
+            case MVMDispOpcodeResultBytecode:
+            case MVMDispOpcodeResultCFunction: {
+                /* Determine the op we'll specialize to. */
                 MVMOpInfo const *base_op;
+                MVMuint32 c = op->code == MVMDispOpcodeResultCFunction;
                 switch (ins->info->opcode) {
                     case MVM_OP_dispatch_v:
-                        base_op = MVM_op_get_op(MVM_OP_sp_runbytecode_v);
+                        base_op = MVM_op_get_op(c ? MVM_OP_sp_runcfunc_v : MVM_OP_sp_runbytecode_v);
                         break;
                     case MVM_OP_dispatch_o:
-                        base_op = MVM_op_get_op(MVM_OP_sp_runbytecode_o);
+                        base_op = MVM_op_get_op(c ? MVM_OP_sp_runcfunc_o : MVM_OP_sp_runbytecode_o);
                         break;
                     case MVM_OP_dispatch_i:
-                        base_op = MVM_op_get_op(MVM_OP_sp_runbytecode_i);
+                        base_op = MVM_op_get_op(c ? MVM_OP_sp_runcfunc_i : MVM_OP_sp_runbytecode_i);
                         break;
                     case MVM_OP_dispatch_n:
-                        base_op = MVM_op_get_op(MVM_OP_sp_runbytecode_n);
+                        base_op = MVM_op_get_op(c ? MVM_OP_sp_runcfunc_n : MVM_OP_sp_runbytecode_n);
                         break;
                     case MVM_OP_dispatch_s:
-                        base_op = MVM_op_get_op(MVM_OP_sp_runbytecode_s);
+                        base_op = MVM_op_get_op(c ? MVM_OP_sp_runcfunc_s : MVM_OP_sp_runbytecode_s);
                         break;
                     default:
                         MVM_oops(tc, "Unexpected dispatch op when translating bytecode result");
