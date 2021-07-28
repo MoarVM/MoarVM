@@ -118,7 +118,7 @@ static MVMSpeshAnn * take_dispatch_annotation(MVMThreadContext *tc, MVMSpeshGrap
 }
 
 /* Copy a deopt annotation, allocating a new deopt index for it. */
-MVMSpeshAnn * clone_deopt_ann(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshAnn *in) {
+static MVMSpeshAnn * clone_deopt_ann(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshAnn *in) {
     MVMSpeshAnn *cloned = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
     MVMuint32 deopt_idx = g->num_deopt_addrs;
     cloned->type = in->type;
