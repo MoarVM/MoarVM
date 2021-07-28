@@ -1129,18 +1129,18 @@ static void optimize_getlex_per_invocant(MVMThreadContext *tc, MVMSpeshGraph *g,
 //        ? MVM_spesh_arg_guard_run_types(tc, ag, arg_info->cs, type_tuple)
 //        : MVM_spesh_arg_guard_run_callinfo(tc, ag, arg_info);
 //}
-//
-///* Given an invoke instruction, find its logging bytecode offset. Returns 0
-// * if not found. */
-//MVMuint32 find_invoke_offset(MVMThreadContext *tc, MVMSpeshIns *ins) {
-//    MVMSpeshAnn *ann = ins->annotations;
-//    while (ann) {
-//        if (ann->type == MVM_SPESH_ANN_LOGGED)
-//            return ann->data.bytecode_offset;
-//        ann = ann->next;
-//    }
-//    return 0;
-//}
+
+/* Find the dispatch cache bytecode offset of the given instruction. Returns 0
+ * if not found. */
+MVMuint32 find_cache_offset(MVMThreadContext *tc, MVMSpeshIns *ins) {
+    MVMSpeshAnn *ann = ins->annotations;
+    while (ann) {
+        if (ann->type == MVM_SPESH_ANN_CACHED)
+            return ann->data.bytecode_offset;
+        ann = ann->next;
+    }
+    return 0;
+}
 
 /* Given an instruction, finds the deopt target on it. Panics if there is not
  * one there. */
@@ -1355,65 +1355,56 @@ void find_deopt_target_and_index(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 //        }
 //    }
 //}
-//
-///* Sees if any static frames were logged for this invoke instruction, and
-// * if so checks if there was a stable one. A static frame chosen by multi
-// * dispatch will for now never count as stable, as we don't have a good way
-// * to handle this situation yet and trying results in deopts. */
-//MVMStaticFrame * find_invokee_static_frame(MVMThreadContext *tc, MVMSpeshPlanned *p,
-//                                           MVMSpeshIns *ins) {
-//    MVMuint32 i;
-//    MVMStaticFrame *best_result = NULL;
-//    MVMuint32 best_result_hits = 0;
-//    MVMuint32 best_result_was_multi_hits = 0;
-//    MVMuint32 total_hits = 0;
-//
-//    /* First try to find logging bytecode offset. */
-//    MVMuint32 invoke_offset = find_invoke_offset(tc, ins);
-//    if (!invoke_offset)
-//        return NULL;
-//
-//    /* Now look for a stable invokee. */
-//    for (i = 0; i < p->num_type_stats; i++) {
-//        MVMSpeshStatsByType *ts = p->type_stats[i];
-//        MVMuint32 j;
-//        for (j = 0; j < ts->num_by_offset; j++) {
-//            if (ts->by_offset[j].bytecode_offset == invoke_offset) {
-//                MVMSpeshStatsByOffset *by_offset = &(ts->by_offset[j]);
-//                MVMuint32 k;
-//                for (k = 0; k < by_offset->num_invokes; k++) {
-//                    MVMSpeshStatsInvokeCount *ic = &(by_offset->invokes[k]);
-//
-//                    /* Add hits to total we've seen. */
-//                    total_hits += ic->count;
-//
-//                    /* If it's the same as the best so far, add hits. */
-//                    if (best_result && ic->sf == best_result) {
-//                        best_result_hits += ic->count;
-//                        best_result_was_multi_hits += ic->was_multi_count;
-//                    }
-//
-//                    /* Otherwise, if it beats the best result in hits, use. */
-//                    else if (ic->count > best_result_hits) {
-//                        best_result = ic->sf;
-//                        best_result_hits = ic->count;
-//                        best_result_was_multi_hits = ic->was_multi_count;
-//                    }
-//                }
-//            }
-//        }
-//    }
-//
-//    /* If the chosen frame was a multi, give up. */
-//    if (best_result_was_multi_hits)
-//        return NULL;
-//
-//    /* If the static frame is consistent enough, return it. */
-//    return total_hits && (100 * best_result_hits) / total_hits >= MVM_SPESH_CALLSITE_STABLE_PERCENT
-//        ? best_result
-//        : NULL;
-//}
-//
+
+/* Sees if any static frames were logged for the dispatch at this location,
+ * and if so checks if there was a stable one. */
+MVMStaticFrame * find_runbytecode_static_frame(MVMThreadContext *tc, MVMSpeshPlanned *p,
+        MVMSpeshIns *ins) {
+    MVMuint32 i;
+    MVMStaticFrame *best_result = NULL;
+    MVMuint32 best_result_hits = 0;
+    MVMuint32 total_hits = 0;
+
+    /* First try to find dispatch bytecode offset. */
+    MVMuint32 cache_offset = find_cache_offset(tc, ins);
+    if (!cache_offset)
+        return NULL;
+
+    /* Now look for a stable invokee. */
+    for (i = 0; i < p->num_type_stats; i++) {
+        MVMSpeshStatsByType *ts = p->type_stats[i];
+        MVMuint32 j;
+        for (j = 0; j < ts->num_by_offset; j++) {
+            if (ts->by_offset[j].bytecode_offset == cache_offset) {
+                MVMSpeshStatsByOffset *by_offset = &(ts->by_offset[j]);
+                MVMuint32 k;
+                for (k = 0; k < by_offset->num_invokes; k++) {
+                    MVMSpeshStatsInvokeCount *ic = &(by_offset->invokes[k]);
+
+                    /* Add hits to total we've seen. */
+                    total_hits += ic->count;
+
+                    /* If it's the same as the best so far, add hits. */
+                    if (best_result && ic->sf == best_result) {
+                        best_result_hits += ic->count;
+                    }
+
+                    /* Otherwise, if it beats the best result in hits, use. */
+                    else if (ic->count > best_result_hits) {
+                        best_result = ic->sf;
+                        best_result_hits = ic->count;
+                    }
+                }
+            }
+        }
+    }
+
+    /* If the static frame is consistent enough, return it. */
+    return total_hits && (100 * best_result_hits) / total_hits >= MVM_SPESH_CALLSITE_STABLE_PERCENT
+        ? best_result
+        : NULL;
+}
+
 ///* Inserts resolution of the invokee to an MVMCode and the guard on the
 // * invocation, and then tweaks the invoke instruction to use the resolved
 // * code object (for the case it is further optimized into a fast invoke). */
@@ -1688,6 +1679,44 @@ void find_deopt_target_and_index(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 //    if (have_code_temp)
 //        MVM_spesh_manipulate_release_temp_reg(tc, g, code_temp);
 //}
+
+
+/* Ties to optimize a runbytecode instruction by either pre-selecting a spesh
+ * candidate or, if possible, inlining it. */
+void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+        MVMSpeshIns *ins, MVMSpeshPlanned *p) {
+    /* Extract the interesting parts. */
+    MVMSpeshOperand coderef_reg;
+    MVMCallsite *cs;
+    MVMSpeshOperand *args;
+    MVMSpeshOperand *selected;
+    if (ins->info->opcode == MVM_OP_sp_runbytecode_v) {
+        coderef_reg = ins->operands[0];
+        cs = (MVMCallsite *)ins->operands[1].lit_ui64;
+        selected = &(ins->operands[2]);
+        args = ins->operands + 3;
+    }
+    else {
+        coderef_reg = ins->operands[1];
+        cs = (MVMCallsite *)ins->operands[2].lit_ui64;
+        selected = &(ins->operands[3]);
+        args = ins->operands + 4;
+    }
+
+    /* Is the bytecode we're invoking a constant? */
+    MVMSpeshFacts *coderef_facts = MVM_spesh_get_and_use_facts(tc, g, coderef_reg);
+    MVMStaticFrame *target_sf = NULL;
+    if (coderef_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+        /* Yes, so we know exactly what we'll be invoking. */
+        target_sf = ((MVMCode *)coderef_facts->value.o)->body.sf;
+    }
+    else {
+        /* No; see if there's a stable target static frame from the log. */
+        target_sf = find_runbytecode_static_frame(tc, p, ins);
+    }
+
+    // TODO everything else
+}
 
 static void optimize_coverage_log(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     char *cache        = (char *)(uintptr_t)ins->operands[3].lit_i64;
@@ -2336,6 +2365,13 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_sp_guardjustconc:
         case MVM_OP_sp_guardjusttype:
             optimize_guard(tc, g, bb, ins);
+            break;
+        case MVM_OP_sp_runbytecode_v:
+        case MVM_OP_sp_runbytecode_o:
+        case MVM_OP_sp_runbytecode_i:
+        case MVM_OP_sp_runbytecode_n:
+        case MVM_OP_sp_runbytecode_s:
+            optimize_runbytecode(tc, g, bb, ins, p);
             break;
         case MVM_OP_prof_enter:
             /* Profiling entered from spesh should indicate so. */
