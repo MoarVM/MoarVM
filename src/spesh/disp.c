@@ -97,23 +97,24 @@ static MVMuint32 find_disp_op_first_real_arg(MVMThreadContext *tc, MVMSpeshIns *
     return 3;
 }
 
-/* Find the deopt annotation on a dispatch instruction and remove it. */
-static MVMSpeshAnn * take_dispatch_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g,
-        MVMSpeshIns *ins) {
+/* Find an annotation on a dispatch instruction and remove it. */
+static MVMSpeshAnn * take_dispatch_annotation(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshIns *ins, MVMint32 kind) {
     MVMSpeshAnn *deopt_ann = ins->annotations;
     MVMSpeshAnn *prev = NULL;
     while (deopt_ann) {
-        if (deopt_ann->type == MVM_SPESH_ANN_DEOPT_PRE_INS) {
+        if (deopt_ann->type == kind) {
             if (prev)
                 prev->next = deopt_ann->next;
             else
                 ins->annotations = deopt_ann->next;
+            deopt_ann->next = NULL;
             return deopt_ann;
         }
         prev = deopt_ann;
         deopt_ann = deopt_ann->next;
     }
-    MVM_panic(1, "Spesh: unexpectedly missing deopt annotation on dispatch op");
+    MVM_panic(1, "Spesh: unexpectedly missing annotation on dispatch op");
 }
 
 /* Copy a deopt annotation, allocating a new deopt index for it. */
@@ -364,8 +365,16 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
 
     /* We'll re-use the deopt annotation on the dispatch instruction for
      * the first guard, and then clone it later if needed. */
-    MVMSpeshAnn *deopt_ann = take_dispatch_deopt_annotation(tc, g, ins);
+    MVMSpeshAnn *deopt_ann = take_dispatch_annotation(tc, g, ins,
+        MVM_SPESH_ANN_DEOPT_PRE_INS);
     MVMuint32 reused_deopt_ann = 0;
+
+    /* Steal other annotations in order to put them onto any runbytecode
+     * instruction we generate. */
+    MVMSpeshAnn *deopt_all_ann = take_dispatch_annotation(tc, g, ins,
+        MVM_SPESH_ANN_DEOPT_ALL_INS);
+    MVMSpeshAnn *cached_ann = take_dispatch_annotation(tc, g, ins,
+        MVM_SPESH_ANN_CACHED);
 
     /* Find the arguments that are the input to the dispatch and copy
      * them, since we'll mutate this list. */
@@ -720,9 +729,13 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
 
                 /* If it's not C, we can pre-select a spesh candidate. This will
                  * be taken care of by the optimizer; for now we poke -1 into the
-                 * value to mean that we didn't pre-select a candidate. */
-                if (!c)
+                 * value to mean that we didn't pre-select a candidate. We also
+                 * add deopt all and logged annotations. */
+                if (!c) {
                     rb_ins->operands[cur_op++].lit_i16 = -1;
+                    deopt_all_ann->next = cached_ann;
+                    rb_ins->annotations = deopt_all_ann;
+                }
 
                 /* Add the argument operands. */
                 MVMuint16 j;
