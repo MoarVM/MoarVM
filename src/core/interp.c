@@ -6512,6 +6512,75 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_frame_dispatch(tc, code, args, -1);
                 goto NEXT;
             }
+            OP(sp_runcfunc_v): {
+                MVMCFunction *code = (MVMCFunction *)GET_REG(cur_op, 0).o;
+                MVMArgs args = {
+                    .callsite = (MVMCallsite *)GET_UI64(cur_op, 2),
+                    .source = reg_base,
+                    .map = (MVMuint16 *)(cur_op + 10)
+                };
+                tc->cur_frame->return_type = MVM_RETURN_VOID;
+                cur_op += 10 + 2 * args.callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
+                code->body.func(tc, args);
+                goto NEXT;
+            }
+            OP(sp_runcfunc_i): {
+                MVMCFunction *code = (MVMCFunction *)GET_REG(cur_op, 2).o;
+                MVMArgs args = {
+                    .callsite = (MVMCallsite *)GET_UI64(cur_op, 4),
+                    .source = reg_base,
+                    .map = (MVMuint16 *)(cur_op + 12)
+                };
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type = MVM_RETURN_INT;
+                cur_op += 12 + 2 * args.callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
+                code->body.func(tc, args);
+                goto NEXT;
+            }
+            OP(sp_runcfunc_n): {
+                MVMCFunction *code = (MVMCFunction *)GET_REG(cur_op, 2).o;
+                MVMArgs args = {
+                    .callsite = (MVMCallsite *)GET_UI64(cur_op, 4),
+                    .source = reg_base,
+                    .map = (MVMuint16 *)(cur_op + 12)
+                };
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type = MVM_RETURN_NUM;
+                cur_op += 12 + 2 * args.callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
+                code->body.func(tc, args);
+                goto NEXT;
+            }
+            OP(sp_runcfunc_s): {
+                MVMCFunction *code = (MVMCFunction *)GET_REG(cur_op, 2).o;
+                MVMArgs args = {
+                    .callsite = (MVMCallsite *)GET_UI64(cur_op, 4),
+                    .source = reg_base,
+                    .map = (MVMuint16 *)(cur_op + 12)
+                };
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type = MVM_RETURN_STR;
+                cur_op += 12 + 2 * args.callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
+                code->body.func(tc, args);
+                goto NEXT;
+            }
+            OP(sp_runcfunc_o): {
+                MVMCFunction *code = (MVMCFunction *)GET_REG(cur_op, 2).o;
+                MVMArgs args = {
+                    .callsite = (MVMCallsite *)GET_UI64(cur_op, 4),
+                    .source = reg_base,
+                    .map = (MVMuint16 *)(cur_op + 12)
+                };
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type = MVM_RETURN_OBJ;
+                cur_op += 12 + 2 * args.callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
+                code->body.func(tc, args);
+                goto NEXT;
+            }
             OP(prof_enter):
                 MVM_profile_log_enter(tc, tc->cur_frame->static_info,
                     MVM_PROFILE_ENTER_NORMAL);
