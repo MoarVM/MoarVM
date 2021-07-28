@@ -13789,7 +13789,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_sp_runbytecode_v,
         "sp_runbytecode_v",
-        2,
+        3,
         0,
         0,
         0,
@@ -13799,12 +13799,12 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
+        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_int16 }
     },
     {
         MVM_OP_sp_runbytecode_i,
         "sp_runbytecode_i",
-        3,
+        4,
         0,
         0,
         0,
@@ -13814,12 +13814,12 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_int16 }
     },
     {
         MVM_OP_sp_runbytecode_n,
         "sp_runbytecode_n",
-        3,
+        4,
         0,
         0,
         0,
@@ -13829,12 +13829,12 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
+        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_int16 }
     },
     {
         MVM_OP_sp_runbytecode_s,
         "sp_runbytecode_s",
-        3,
+        4,
         0,
         0,
         0,
@@ -13844,12 +13844,12 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
+        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_int16 }
     },
     {
         MVM_OP_sp_runbytecode_o,
         "sp_runbytecode_o",
-        3,
+        4,
         0,
         0,
         0,
@@ -13859,7 +13859,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_int16 }
     },
     {
         MVM_OP_sp_runcfunc_v,

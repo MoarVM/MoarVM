@@ -710,6 +710,12 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 /* Add the callsite operand, smuggled as a 64-bit int. */
                 rb_ins->operands[cur_op++].lit_ui64 = (MVMuint64)callsite;
 
+                /* If it's not C, we can pre-select a spesh candidate. This will
+                 * be taken care of by the optimizer; for now we poke -1 into the
+                 * value to mean that we didn't pre-select a candidate. */
+                if (!c)
+                    rb_ins->operands[cur_op++].lit_i16 = -1;
+
                 /* Add the argument operands. */
                 MVMuint16 j;
                 for (j = 0; j < callsite->flag_count; j++) {
