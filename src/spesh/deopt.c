@@ -241,10 +241,14 @@ static void deopt_frame(MVMThreadContext *tc, MVMFrame *f, MVMuint32 deopt_idx, 
     deopt_named_args_used(tc, f);
     MVMROOT(tc, f, {
         materialize_replaced_objects(tc, f, deopt_idx);
+
+        /* Log that this opt was deopted, we want to undo the
+         * optimization if this happens too many times. */
+        MVM_spesh_log_deopt(tc, f->static_info, f->spesh_cand);
     });
 
     /* Check if we have inlines. */
-    if (f->spesh_cand->body.inlines) {
+    if (f->spesh_cand && f->spesh_cand->body.inlines) {
         /* Yes, going to have to re-create the frames; uninline
          * moves the interpreter, so we can just tweak the last
          * frame. For the moment, uninlining creates its frames

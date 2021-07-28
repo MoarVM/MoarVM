@@ -3379,7 +3379,7 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         | mov ARG1, TC;
         | mov ARG2, WORK[invoke->code_register_or_name];
         | mov ARG3, TMP6; // this is the callsite object
-        | mov ARG4, invoke->spesh_cand_or_sf_slot;
+        | get_spesh_slot ARG4, invoke->spesh_cand_or_sf_slot;
         | callp &MVM_frame_invoke_code;
     } else if (invoke->is_resolve) {
         /* call MVM_spesh_plugin_resolve_jit, which will trampoline out of

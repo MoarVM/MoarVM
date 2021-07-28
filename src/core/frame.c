@@ -388,7 +388,7 @@ static MVMFrame * allocate_heap_frame(MVMThreadContext *tc, MVMStaticFrame *stat
 /* This exists to reduce the amount of pointer-fiddling that has to be
  * done by the JIT */
 void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
-                           MVMCallsite *callsite, MVMint32 spesh_cand) {
+                           MVMCallsite *callsite, MVMSpeshCandidate *spesh_cand) {
     MVM_frame_invoke(tc, code->body.sf, callsite,  tc->cur_frame->args,
         code->body.outer, (MVMObject*)code, spesh_cand);
 }
@@ -396,16 +396,18 @@ void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
 /* Takes a static frame and a thread context. Invokes the static frame. */
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
-                      MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand) {
+                      MVMFrame *outer, MVMObject *code_ref, MVMSpeshCandidate *spesh_cand) {
     MVMFrame *frame;
     MVMuint8 *chosen_bytecode;
+    MVMint32 chosen_spesh_cand_index = -1;
     MVMStaticFrameSpesh *spesh;
+    MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards;
 
     /* If the frame was never invoked before, or never before at the current
      * instrumentation level, we need to trigger the instrumentation level
      * barrier. */
     if (static_frame->body.instrumentation_level != tc->instance->instrumentation_level) {
-        MVMROOT3(tc, static_frame, code_ref, outer, {
+        MVMROOT4(tc, static_frame, code_ref, outer, spesh_cand, {
             instrumentation_level_barrier(tc, static_frame);
         });
     }
@@ -475,7 +477,7 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         }
         else if (static_frame->body.outer) {
             /* Auto-close, and cache it in the static frame. */
-            MVMROOT3(tc, static_frame, code_ref, static_code, {
+            MVMROOT4(tc, static_frame, code_ref, static_code, spesh_cand, {
                 MVM_frame_force_to_heap(tc, tc->cur_frame);
                 outer = autoclose(tc, static_frame->body.outer);
                 MVM_ASSIGN_REF(tc, &(static_code->common.header),
@@ -489,43 +491,58 @@ void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
 
     /* See if any specializations apply. */
     spesh = static_frame->body.spesh;
-    if (spesh_cand < 0)
-        spesh_cand = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
+    cands_and_arg_guards = spesh->body.spesh_cands_and_arg_guards;
+
+    /* If we've been passed a spesh candidate that's planned to be removed (because it's
+     * been deopted too many times), but hasn't yet, don't use it. */
+    if (spesh_cand && spesh_cand->body.discarded) {
+        spesh_cand = NULL;
+    }
+
+    if (spesh_cand == NULL && cands_and_arg_guards)
+       chosen_spesh_cand_index = MVM_spesh_arg_guard_run(tc, cands_and_arg_guards->spesh_arg_guard,
             callsite, args, NULL);
 #if MVM_SPESH_CHECK_PRESELECTION
-    else {
+    else if (cands_and_arg_guards) {
         MVMint32 certain = -1;
-        MVMint32 correct = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
+        for (MVMuint32 i = 0; i < spesh->body.num_spesh_candidates; i++) {
+            if (spesh_cand == cands_and_arg_guards->spesh_candidates[i]) {
+                chosen_spesh_cand_index = i;
+                break;
+            }
+        }
+        MVMint32 correct = MVM_spesh_arg_guard_run(tc, cands_and_arg_guards->spesh_arg_guard,
             callsite, args, &certain);
-        if (spesh_cand != correct && spesh_cand != certain) {
+        if (chosen_spesh_cand_index != correct && chosen_spesh_cand_index != certain) {
             fprintf(stderr, "Inconsistent spesh preselection of '%s' (%s): got %d, not %d\n",
                 MVM_string_utf8_encode_C_string(tc, static_frame->body.name),
                 MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid),
-                spesh_cand, correct);
+                chosen_spesh_cand_index, correct);
             MVM_dump_backtrace(tc);
         }
     }
 #endif
-    if (spesh_cand >= 0) {
-        MVMSpeshCandidate *chosen_cand = spesh->body.spesh_candidates[spesh_cand];
+    if (spesh_cand || (chosen_spesh_cand_index >= 0 && chosen_spesh_cand_index < (MVMint32)spesh->body.num_spesh_candidates && cands_and_arg_guards)) {
+        if (!spesh_cand)
+            spesh_cand = cands_and_arg_guards->spesh_candidates[chosen_spesh_cand_index];
         if (static_frame->body.allocate_on_heap) {
-            MVMROOT4(tc, static_frame, code_ref, outer, chosen_cand, {
-                frame = allocate_frame(tc, static_frame, chosen_cand, 1);
+            MVMROOT4(tc, static_frame, code_ref, outer, spesh_cand, {
+                frame = allocate_frame(tc, static_frame, spesh_cand, 1);
             });
         }
         else {
-            frame = allocate_frame(tc, static_frame, chosen_cand, 0);
+            frame = allocate_frame(tc, static_frame, spesh_cand, 0);
             frame->spesh_correlation_id = 0;
         }
-        if (chosen_cand->body.jitcode) {
-            chosen_bytecode = chosen_cand->body.jitcode->bytecode;
-            frame->jit_entry_label = chosen_cand->body.jitcode->labels[0];
+        if (spesh_cand->body.jitcode) {
+            chosen_bytecode = spesh_cand->body.jitcode->bytecode;
+            frame->jit_entry_label = spesh_cand->body.jitcode->labels[0];
         }
         else {
-            chosen_bytecode = chosen_cand->body.bytecode;
+            chosen_bytecode = spesh_cand->body.bytecode;
         }
-        frame->effective_spesh_slots = chosen_cand->body.spesh_slots;
-        MVM_ASSIGN_REF(tc, &(frame->header), frame->spesh_cand, chosen_cand);
+        frame->effective_spesh_slots = spesh_cand->body.spesh_slots;
+        MVM_ASSIGN_REF(tc, &(frame->header), frame->spesh_cand, spesh_cand);
     }
     else {
         MVMint32 on_heap = static_frame->body.allocate_on_heap;

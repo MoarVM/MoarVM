@@ -206,10 +206,10 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *tc, MVMThreadCon
 MVMRegister * MVM_frame_initial_work(MVMThreadContext *tc, MVMuint16 *local_types,
                                      MVMuint16 num_locals);
 void MVM_frame_invoke_code(MVMThreadContext *tc, MVMCode *code,
-                           MVMCallsite *callsite, MVMint32 spesh_cand);
+                           MVMCallsite *callsite, MVMSpeshCandidate *spesh_cand);
 void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                       MVMCallsite *callsite, MVMRegister *args,
-                      MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand);
+                      MVMFrame *outer, MVMObject *code_ref, MVMSpeshCandidate *spesh_cand);
 MVMFrame * MVM_frame_create_context_only(MVMThreadContext *tc, MVMStaticFrame *static_frame,
         MVMObject *code_ref);
 MVMFrame * MVM_frame_create_for_deopt(MVMThreadContext *tc, MVMStaticFrame *static_frame,

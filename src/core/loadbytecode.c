@@ -18,7 +18,7 @@ static void run_comp_unit(MVMThreadContext *tc, MVMCompUnit *cu) {
 
         /* Invoke the deserialization frame and return to the runloop. */
         MVM_frame_invoke(tc, cu->body.deserialize_frame, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS),
-            NULL, NULL, NULL, -1);
+            NULL, NULL, NULL, NULL);
     }
     else {
         /* No deserialize frame, so do load frame instead. */
@@ -82,7 +82,7 @@ void MVM_load_bytecode_buffer_to_cu(MVMThreadContext *tc, MVMObject *buf, MVMReg
 
         /* Invoke the deserialization frame and return to the runloop. */
         MVM_frame_invoke(tc, cu->body.deserialize_frame, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS),
-            NULL, NULL, NULL, -1);
+            NULL, NULL, NULL, NULL);
     }
 }
 void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
@@ -153,6 +153,6 @@ static void run_load(MVMThreadContext *tc, void *sr_data) {
 
         /* Invoke the load frame and return to the runloop. */
         MVM_frame_invoke(tc, cu->body.load_frame, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS),
-            NULL, NULL, NULL, -1);
+            NULL, NULL, NULL, NULL);
     }
 }
