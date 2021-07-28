@@ -210,6 +210,26 @@ static void emit_load_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_get_facts(tc, g, to_reg)->writer = ins;
 }
 
+/* Emit an instruction to load an attribute. */
+static void emit_load_attribute(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns **insert_after, MVMuint16 op,
+        MVMSpeshOperand to_reg, MVMSpeshOperand from_reg, MVMuint16 offset) {
+    /* Produce instruction. */
+    MVMSpeshIns *ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    ins->info = MVM_op_get_op(op);
+    ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 3);
+    ins->operands[0] = to_reg;
+    ins->operands[1] = from_reg;
+    ins->operands[2].lit_i16 = offset;
+    MVM_spesh_graph_add_comment(tc, g, ins, "emitted from dispatch program attribute load op");
+    MVM_spesh_manipulate_insert_ins(tc, bb, *insert_after, ins);
+    *insert_after = ins;
+
+    /* Keep usage in sync. */
+    MVM_spesh_get_facts(tc, g, to_reg)->writer = ins;
+    MVM_spesh_usages_add_by_reg(tc, g, from_reg, ins);
+}
+
 /* Try to translate a dispatch program into a sequence of ops (which will
  * be subject to later optimization and potentially JIT compilation). */
 static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -229,6 +249,10 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeLoadConstantObjOrStr:
             case MVMDispOpcodeLoadConstantInt:
             case MVMDispOpcodeLoadConstantNum:
+            case MVMDispOpcodeLoadAttributeObj:
+            case MVMDispOpcodeLoadAttributeInt:
+            case MVMDispOpcodeLoadAttributeNum:
+            case MVMDispOpcodeLoadAttributeStr:
             case MVMDispOpcodeSet:
             case MVMDispOpcodeResultValueObj:
             case MVMDispOpcodeUseArgsTail:
@@ -326,6 +350,38 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 MVMSpeshOperand constnum = { .lit_i64 = dp->constants[op->load.idx].n64 };
                 emit_bi_op(tc, g, bb, &insert_after, MVM_OP_const_n64,
                     temporaries[op->load.temp], constnum);
+                break;
+            }
+            case MVMDispOpcodeLoadAttributeObj: {
+                MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+                MVM_VECTOR_PUSH(allocated_temps, temp);
+                emit_load_attribute(tc, g, bb, &insert_after, MVM_OP_sp_p6oget_o, temp,
+                        temporaries[op->load.temp], op->load.idx);
+                temporaries[op->load.temp] = temp;
+                break;
+            }
+            case MVMDispOpcodeLoadAttributeInt: {
+                MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+                MVM_VECTOR_PUSH(allocated_temps, temp);
+                emit_load_attribute(tc, g, bb, &insert_after, MVM_OP_sp_p6oget_i, temp,
+                        temporaries[op->load.temp], op->load.idx);
+                temporaries[op->load.temp] = temp;
+                break;
+            }
+            case MVMDispOpcodeLoadAttributeNum: {
+                MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_num64);
+                MVM_VECTOR_PUSH(allocated_temps, temp);
+                emit_load_attribute(tc, g, bb, &insert_after, MVM_OP_sp_p6oget_n, temp,
+                        temporaries[op->load.temp], op->load.idx);
+                temporaries[op->load.temp] = temp;
+                break;
+            }
+            case MVMDispOpcodeLoadAttributeStr: {
+                MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_str);
+                MVM_VECTOR_PUSH(allocated_temps, temp);
+                emit_load_attribute(tc, g, bb, &insert_after, MVM_OP_sp_p6oget_s, temp,
+                        temporaries[op->load.temp], op->load.idx);
+                temporaries[op->load.temp] = temp;
                 break;
             }
             case MVMDispOpcodeSet:
