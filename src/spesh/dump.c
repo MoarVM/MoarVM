@@ -779,12 +779,11 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
                     char *body_name = MVM_string_utf8_encode_C_string(tc, oss->invokes[k].sf->body.name);
                     char *body_cuuid = MVM_string_utf8_encode_C_string(tc, oss->invokes[k].sf->body.cuuid);
                     appendf(ds,
-                        "                %d x static frame '%s' (%s) (caller is outer: %d, multi %d)\n",
+                        "                %d x static frame '%s' (%s) (caller is outer: %d)\n",
                         oss->invokes[k].count,
                         body_name,
                         body_cuuid,
-                        oss->invokes[k].caller_is_outer_count,
-                        oss->invokes[k].was_multi_count);
+                        oss->invokes[k].caller_is_outer_count);
                     MVM_free(body_name);
                     MVM_free(body_cuuid);
                 }

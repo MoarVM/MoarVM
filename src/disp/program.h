@@ -596,7 +596,8 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
 
 /* Functions to run dispatch programs. */
 MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
-        MVMCallStackDispatchRun *disp_run);
+        MVMCallStackDispatchRun *disp_run, MVMint32 spesh_cid,
+        MVMuint32 bytecode_offset, MVMuint32 dp_index);
 
 /* Memory management of dispatch programs. */
 void MVM_disp_program_mark(MVMThreadContext *tc, MVMDispProgram *dp, MVMGCWorklist *worklist,

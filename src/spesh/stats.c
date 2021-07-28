@@ -158,7 +158,7 @@ void add_type_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
  * offset. */
 void add_invoke_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
                           MVMStaticFrame *sf, MVMStaticFrame *target_sf,
-                          MVMint16 caller_is_outer, MVMint16 was_multi) {
+                          MVMint16 caller_is_outer) {
     /* If we have it already, increment the count. */
     MVMuint32 found;
     MVMuint32 n = oss->num_invokes;
@@ -167,8 +167,6 @@ void add_invoke_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
             oss->invokes[found].count++;
             if (caller_is_outer)
                 oss->invokes[found].caller_is_outer_count++;
-            if (was_multi)
-                oss->invokes[found].was_multi_count++;
             return;
         }
     }
@@ -181,7 +179,6 @@ void add_invoke_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
     MVM_ASSIGN_REF(tc, &(sf->body.spesh->common.header), oss->invokes[found].sf, target_sf);
     oss->invokes[found].count = 1;
     oss->invokes[found].caller_is_outer_count = caller_is_outer ? 1 : 0;
-    oss->invokes[found].was_multi_count = was_multi ? 1 : 0;
 }
 
 /* Adds/increments the count of a dispatch result seen at the given offset. */
@@ -345,7 +342,7 @@ void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
                     MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
                         e->invoke.bytecode_offset);
                     add_invoke_at_offset(tc, oss, simf->sf, e->invoke.sf,
-                        e->invoke.caller_is_outer, e->invoke.was_multi);
+                        e->invoke.caller_is_outer);
                     break;
                 }
                 case MVM_SPESH_LOG_DISPATCH_RESOLUTION: {
