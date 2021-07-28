@@ -192,7 +192,8 @@ static void emit_bi_op(MVMThreadContext *tc, MVMSpeshGraph *g,
 
     /* Tweak usages. */
     MVM_spesh_get_facts(tc, g, to_reg)->writer = ins;
-    MVM_spesh_usages_add_by_reg(tc, g, from_reg, ins);
+    if ((ins->info->operands[1] & MVM_operand_rw_mask) == MVM_operand_read_reg)
+        MVM_spesh_usages_add_by_reg(tc, g, from_reg, ins);
 }
 
 /* Emit an instruction to load a value into a spesh slot. */
@@ -226,6 +227,8 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeGuardArgTypeTypeObject:
             case MVMDispOpcodeLoadCaptureValue:
             case MVMDispOpcodeLoadConstantObjOrStr:
+            case MVMDispOpcodeLoadConstantInt:
+            case MVMDispOpcodeLoadConstantNum:
             case MVMDispOpcodeResultValueObj:
             case MVMDispOpcodeUseArgsTail:
             case MVMDispOpcodeResultBytecode:
@@ -303,6 +306,24 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 temporaries[op->load.temp] = temp;
                 MVM_VECTOR_PUSH(allocated_temps, temp);
                 emit_load_spesh_slot(tc, g, bb, &insert_after, temp, value);
+                break;
+            }
+            case MVMDispOpcodeLoadConstantInt: {
+                MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+                temporaries[op->load.temp] = temp;
+                MVM_VECTOR_PUSH(allocated_temps, temp);
+                MVMSpeshOperand constint = { .lit_i64 = dp->constants[op->load.idx].i64 };
+                emit_bi_op(tc, g, bb, &insert_after, MVM_OP_const_i64,
+                    temporaries[op->load.temp], constint);
+                break;
+            }
+            case MVMDispOpcodeLoadConstantNum: {
+                MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_num64);
+                temporaries[op->load.temp] = temp;
+                MVM_VECTOR_PUSH(allocated_temps, temp);
+                MVMSpeshOperand constnum = { .lit_i64 = dp->constants[op->load.idx].n64 };
+                emit_bi_op(tc, g, bb, &insert_after, MVM_OP_const_n64,
+                    temporaries[op->load.temp], constnum);
                 break;
             }
             case MVMDispOpcodeResultValueObj:
