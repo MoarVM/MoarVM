@@ -328,6 +328,12 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                         seen_deopt_idx = 1;
 #endif
                     break;
+#ifndef NDEBUG
+                case MVM_SPESH_ANN_DEOPT_PRE_INS:
+                    if (deopt_idx == ann->data.deopt_idx)
+                        seen_deopt_idx = 1;
+                break;
+#endif
                 }
                 ann = ann->next;
             }
