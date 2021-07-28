@@ -5651,6 +5651,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     target->o = check;
                 goto NEXT;
             }
+            OP(sp_guardnonzero): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
+                MVMint64 check = GET_REG(cur_op, 2).i64;
+                cur_op += 8;
+                if (!check)
+                    MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                else
+                    target->i64 = check;
+                goto NEXT;
+            }
             OP(sp_rebless): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!REPR(obj)->change_type) {
