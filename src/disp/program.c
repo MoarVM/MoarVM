@@ -2413,7 +2413,8 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
 /* Interpret a dispatch program. */
 #define GET_ARG MVMRegister val = args->source[args->map[op->arg_guard.arg_idx]]
 MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
-        MVMCallStackDispatchRun *record) {
+        MVMCallStackDispatchRun *record, MVMint32 spesh_cid, MVMuint32 bytecode_offset,
+        MVMuint32 dp_index) {
     MVMArgs *args = &(record->arg_info);
     MVMuint32 i;
     MVMArgs invoke_args;
@@ -2632,24 +2633,36 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 MVM_args_set_dispatch_result_obj(tc, tc->cur_frame,
                         record->temps[op->res_value.temp].o);
                 MVM_callstack_unwind_dispatch_run(tc);
+                if (spesh_cid)
+                    MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
+                        bytecode_offset, dp_index);
                 break;
             }
             case MVMDispOpcodeResultValueStr: {
                 MVM_args_set_dispatch_result_str(tc, tc->cur_frame,
                         record->temps[op->res_value.temp].s);
                 MVM_callstack_unwind_dispatch_run(tc);
+                if (spesh_cid)
+                    MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
+                        bytecode_offset, dp_index);
                 break;
             }
             case MVMDispOpcodeResultValueInt: {
                 MVM_args_set_dispatch_result_int(tc, tc->cur_frame,
                         record->temps[op->res_value.temp].i64);
                 MVM_callstack_unwind_dispatch_run(tc);
+                if (spesh_cid)
+                    MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
+                        bytecode_offset, dp_index);
                 break;
             }
             case MVMDispOpcodeResultValueNum: {
                 MVM_args_set_dispatch_result_num(tc, tc->cur_frame,
                         record->temps[op->res_value.temp].n64);
                 MVM_callstack_unwind_dispatch_run(tc);
+                if (spesh_cid)
+                    MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
+                        bytecode_offset, dp_index);
                 break;
             }
 
@@ -2683,12 +2696,24 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
             }
 
             /* Invocation results. */
-            case MVMDispOpcodeResultBytecode:
+            case MVMDispOpcodeResultBytecode: {
                 record->chosen_dp = dp;
-                MVM_frame_dispatch(tc, (MVMCode *)record->temps[op->res_code.temp_invokee].o,
-                        invoke_args, -1);
+                MVMCode *code = (MVMCode *)record->temps[op->res_code.temp_invokee].o;
+                if (spesh_cid) {
+                    MVMROOT(tc, code, {
+                        MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
+                            bytecode_offset, dp_index);
+                        if (tc->spesh_log) /* Log may have filled from previous entry */
+                            MVM_spesh_log_bytecode_target(tc, spesh_cid, bytecode_offset, code);
+                    });
+                }
+                MVM_frame_dispatch(tc, code, invoke_args, -1);
                 break;
+            }
             case MVMDispOpcodeResultCFunction: {
+                if (spesh_cid)
+                    MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
+                        bytecode_offset, dp_index);
                 record->chosen_dp = dp;
                 MVMCFunction *wrapper = (MVMCFunction *)record->temps[op->res_code.temp_invokee].o;
                 wrapper->body.func(tc, invoke_args);

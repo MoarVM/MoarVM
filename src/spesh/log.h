@@ -43,8 +43,8 @@ void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf,
 void MVM_spesh_log_osr(MVMThreadContext *tc);
 void MVM_spesh_log_type(MVMThreadContext *tc, MVMObject *value);
 void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *value);
-void MVM_spesh_log_invoke_target(MVMThreadContext *tc, MVMObject *invoke_target,
-    MVMuint16 was_multi);
+void MVM_spesh_log_bytecode_target(MVMThreadContext *tc, MVMint32 cid,
+        MVMuint32 bytecode_offset, MVMCode *target);
 void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMObject *value);
 void MVM_spesh_log_return_to_unlogged(MVMThreadContext *tc);
 void MVM_spesh_log_dispatch_resolution_for_correlation_id(MVMThreadContext *tc,
