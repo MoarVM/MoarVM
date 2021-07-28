@@ -62,7 +62,6 @@ struct MVMSpeshLogEntry {
         struct {
             MVMStaticFrame *sf;
             MVMint16 caller_is_outer;
-            MVMuint16 was_multi;
             MVMuint32 bytecode_offset;
         } invoke;
 
