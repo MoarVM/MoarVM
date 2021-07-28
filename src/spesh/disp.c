@@ -290,7 +290,9 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeLoadAttributeStr:
             case MVMDispOpcodeSet:
             case MVMDispOpcodeResultValueObj:
+            case MVMDispOpcodeResultValueStr:
             case MVMDispOpcodeResultValueInt:
+            case MVMDispOpcodeResultValueNum:
             case MVMDispOpcodeUseArgsTail:
             case MVMDispOpcodeResultBytecode:
             case MVMDispOpcodeResultCFunction:
@@ -488,6 +490,37 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                         MVM_oops(tc, "Unexpected dispatch op when translating object result");
                 }
                 break;
+            case MVMDispOpcodeResultValueStr:
+                switch (ins->info->opcode) {
+                    case MVM_OP_dispatch_v:
+                        break;
+                    case MVM_OP_dispatch_o: {
+                        MVMObject *box_type = g->sf->body.cu->body.hll_config->str_box_type;
+                        MVMSpeshOperand type_temp = MVM_spesh_manipulate_get_temp_reg(tc,
+                            g, MVM_reg_obj);
+                        MVM_VECTOR_PUSH(allocated_temps, type_temp);
+                        emit_load_spesh_slot(tc, g, bb, &insert_after, type_temp,
+                            (MVMCollectable *)box_type);
+                        emit_tri_op(tc, g, bb, &insert_after, MVM_OP_box_s, ins->operands[0],
+                            temporaries[op->res_value.temp], type_temp);
+                        break;
+                    }
+                    case MVM_OP_dispatch_i:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_si, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
+                    case MVM_OP_dispatch_n:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_sn, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
+                    case MVM_OP_dispatch_s:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_set, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
+                    default:
+                        MVM_oops(tc, "Unexpected dispatch op when translating string result");
+                }
+                break;
             case MVMDispOpcodeResultValueInt:
                 switch (ins->info->opcode) {
                     case MVM_OP_dispatch_v:
@@ -508,11 +541,42 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                             temporaries[op->res_value.temp]);
                         break;
                     case MVM_OP_dispatch_n:
-                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_ni, ins->operands[0],
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_in, ins->operands[0],
                             temporaries[op->res_value.temp]);
                         break;
                     case MVM_OP_dispatch_s:
-                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_si, ins->operands[0],
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_is, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
+                    default:
+                        MVM_oops(tc, "Unexpected dispatch op when translating int result");
+                }
+                break;
+            case MVMDispOpcodeResultValueNum:
+                switch (ins->info->opcode) {
+                    case MVM_OP_dispatch_v:
+                        break;
+                    case MVM_OP_dispatch_o: {
+                        MVMObject *box_type = g->sf->body.cu->body.hll_config->num_box_type;
+                        MVMSpeshOperand type_temp = MVM_spesh_manipulate_get_temp_reg(tc,
+                            g, MVM_reg_obj);
+                        MVM_VECTOR_PUSH(allocated_temps, type_temp);
+                        emit_load_spesh_slot(tc, g, bb, &insert_after, type_temp,
+                            (MVMCollectable *)box_type);
+                        emit_tri_op(tc, g, bb, &insert_after, MVM_OP_box_n, ins->operands[0],
+                            temporaries[op->res_value.temp], type_temp);
+                        break;
+                    }
+                    case MVM_OP_dispatch_i:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_ni, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
+                    case MVM_OP_dispatch_n:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_set, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
+                    case MVM_OP_dispatch_s:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_ns, ins->operands[0],
                             temporaries[op->res_value.temp]);
                         break;
                     default:
