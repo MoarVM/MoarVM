@@ -344,7 +344,7 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeLoadCaptureValue:
                 /* We already have all the capture values in the arg registers
                  * so just alias. */
-                temporaries[op->load.temp] = args[op->arg_guard.arg_idx];
+                temporaries[op->load.temp] = args[op->load.idx];
                 break;
             case MVMDispOpcodeLoadConstantObjOrStr: {
                 MVMCollectable *value = dp->gc_constants[op->load.idx];
