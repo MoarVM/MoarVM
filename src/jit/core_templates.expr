@@ -2717,12 +2717,6 @@
       (carg $2   ptr)
       (carg $3   ptr)) ptr_sz))
 
-(template: sp_resolvecode
-  (call (^func &MVM_frame_resolve_invokee_spesh)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)) ptr_sz))
-
 (template: sp_decont!
   (ifv (all
          (nz $1)

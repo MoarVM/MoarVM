@@ -925,11 +925,6 @@ sp_guardnonzero  .s w(int64) r(int64) uint32 :maycausedeopt
 # current code as well as a deopt all.
 sp_rebless       .s w(obj) r(obj) r(obj) uint32 :noinline :maycausedeopt
 
-# Resolves an invokee into an MVMCode object, or returns VMNull when that is
-# not possible. Doesn't do multiple dispatch cache handling (since that needs
-# the args buffer set up).
-sp_resolvecode   .s w(obj) r(obj)
-
 # These are variants of the normal interpreted ops that do not log. Used for
 # the case where we can't JIT-compile, but don't want to keep on logging. Also,
 # the separated _o and _ins forms for getlex allow us to avoid a check of if
