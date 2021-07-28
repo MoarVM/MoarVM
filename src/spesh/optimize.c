@@ -1359,16 +1359,11 @@ void find_deopt_target_and_index(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
 /* Sees if any static frames were logged for the dispatch at this location,
  * and if so checks if there was a stable one. */
 MVMStaticFrame * find_runbytecode_static_frame(MVMThreadContext *tc, MVMSpeshPlanned *p,
-        MVMSpeshIns *ins) {
+        MVMSpeshIns *ins, MVMuint32 cache_offset) {
     MVMuint32 i;
     MVMStaticFrame *best_result = NULL;
     MVMuint32 best_result_hits = 0;
     MVMuint32 total_hits = 0;
-
-    /* First try to find dispatch bytecode offset. */
-    MVMuint32 cache_offset = find_cache_offset(tc, ins);
-    if (!cache_offset)
-        return NULL;
 
     /* Now look for a stable invokee. */
     for (i = 0; i < p->num_type_stats; i++) {
@@ -1405,61 +1400,7 @@ MVMStaticFrame * find_runbytecode_static_frame(MVMThreadContext *tc, MVMSpeshPla
         : NULL;
 }
 
-///* Inserts resolution of the invokee to an MVMCode and the guard on the
-// * invocation, and then tweaks the invoke instruction to use the resolved
-// * code object (for the case it is further optimized into a fast invoke). */
-//static void tweak_for_target_sf(MVMThreadContext *tc, MVMSpeshGraph *g,
-//                                MVMStaticFrame *target_sf, MVMSpeshIns *ins,
-//                                MVMSpeshCallInfo *arg_info, MVMSpeshOperand temp) {
-//    MVMSpeshIns *guard, *resolve;
-//    MVMuint32 deopt_target, deopt_index, new_deopt_index;
-//
-//    /* Work out which operand of the invoke instruction has the invokee. */
-//    MVMuint32 inv_code_index = ins->info->opcode == MVM_OP_invoke_v ? 0 : 1;
-//
-//    /* Insert instruction to resolve any code wrapper into the MVMCode before
-//     * prepargs. */
-//    resolve = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-//    resolve->info = MVM_op_get_op(MVM_OP_sp_resolvecode);
-//    resolve->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
-//    resolve->operands[0] = temp;
-//    resolve->operands[1] = ins->operands[inv_code_index];
-//    MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
-//        arg_info->prepargs_ins->prev, resolve);
-//    MVM_spesh_get_facts(tc, g, temp)->writer = resolve;
-//    MVM_spesh_usages_add_by_reg(tc, g, resolve->operands[1], resolve);
-//
-//    /* Insert guard instruction before the prepargs. */
-//    find_deopt_target_and_index(tc, g, arg_info->prepargs_ins, &deopt_target, &deopt_index);
-//    guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-//    guard->info = MVM_op_get_op(MVM_OP_sp_guardsf);
-//    guard->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-//    guard->operands[0] = temp;
-//    guard->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
-//        (MVMCollectable *)target_sf);
-//    MVM_spesh_usages_add_by_reg(tc, g, temp, guard);
-//    MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
-//        arg_info->prepargs_ins->prev, guard);
-//
-//    /* Also give the guard instruction a deopt annotation and reference the
-//     * prepargs annotation. */
-//    new_deopt_index = MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
-//        MVM_SPESH_ANN_DEOPT_ONE_INS);
-//    guard->operands[2].lit_ui32 = new_deopt_index;
-//    add_synthetic_deopt_annotation(tc, g, guard, deopt_index);
-//
-//    /* Make the invoke instruction call the resolved result. */
-//    MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[inv_code_index], ins);
-//    ins->operands[inv_code_index] = temp;
-//    MVM_spesh_usages_add_by_reg(tc, g, temp, ins);
-//}
-//
 ///* Drives optimization of a call. */
-//static MVMuint32 get_prepargs_deopt_idx(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshCallInfo *info) {
-//    MVMuint32 deopt_target, deopt_index;
-//    find_deopt_target_and_index(tc, g, info->prepargs_ins, &deopt_target, &deopt_index);
-//    return deopt_index;
-//}
 //static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
 //                          MVMSpeshIns *ins, MVMSpeshPlanned *p, MVMint32 callee_idx,
 //                          MVMSpeshCallInfo *arg_info) {
@@ -1681,10 +1622,34 @@ MVMStaticFrame * find_runbytecode_static_frame(MVMThreadContext *tc, MVMSpeshPla
 //}
 
 
+/* Generate a new deopt index for the given original bytecode location
+ * and produce an annotation. Returns the index of it. */
+static MVMuint32 add_deopt_ann(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+        MVMint32 bytecode_offset) {
+    MVMuint32 deopt_idx = g->num_deopt_addrs;
+    MVM_spesh_graph_grow_deopt_table(tc, g);
+    g->deopt_addrs[deopt_idx * 2] = bytecode_offset;
+    g->num_deopt_addrs++;
+
+    MVMSpeshAnn *ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+    ann->type = MVM_SPESH_ANN_DEOPT_PRE_INS;
+    ann->data.deopt_idx = deopt_idx;
+    ann->next = ins->annotations;
+    ins->annotations = ann;
+
+    return deopt_idx;
+}
+
 /* Ties to optimize a runbytecode instruction by either pre-selecting a spesh
  * candidate or, if possible, inlining it. */
 void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         MVMSpeshIns *ins, MVMSpeshPlanned *p) {
+    /* Make sure we can find the dispatch bytecode offset (used for both
+     * looking up in the spesh log and adding deopts). */
+    MVMuint32 bytecode_offset = find_cache_offset(tc, ins);
+    if (!bytecode_offset)
+        return;
+
     /* Extract the interesting parts. */
     MVMSpeshOperand coderef_reg;
     MVMCallsite *cs;
@@ -1711,8 +1676,20 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         target_sf = ((MVMCode *)coderef_facts->value.o)->body.sf;
     }
     else {
-        /* No; see if there's a stable target static frame from the log. */
-        target_sf = find_runbytecode_static_frame(tc, p, ins);
+        /* No; see if there's a stable target static frame from the log, and
+         * if so add a guard on the static frame. */
+        target_sf = find_runbytecode_static_frame(tc, p, ins, bytecode_offset);
+        if (target_sf) {
+            MVMSpeshIns *guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+            guard->info = MVM_op_get_op(MVM_OP_sp_guardsf);
+            guard->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            guard->operands[0] = coderef_reg;
+            MVM_spesh_usages_add_by_reg(tc, g, coderef_reg, guard);
+            guard->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+                (MVMCollectable *)target_sf);
+            guard->operands[2].lit_ui32 = add_deopt_ann(tc, g, guard, bytecode_offset);
+            MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard);
+        }
     }
 
     // TODO everything else
