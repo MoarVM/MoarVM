@@ -1080,6 +1080,15 @@ sp_runbytecode_n .s w(num64) r(obj) uint64 :mycausedeopt
 sp_runbytecode_s .s w(str) r(obj) uint64 :mycausedeopt
 sp_runbytecode_o .s w(obj) r(obj) uint64 :mycausedeopt
 
+# Run a C function. The r(obj) register is the MVMCFunction to invoke. The
+# uint64 is a pointer to the MVMCallsite (they never move and we know
+# they are interned).
+sp_runcfunc_v    .s r(obj) uint64
+sp_runcfunc_i    .s w(int64) r(obj) uint64
+sp_runcfunc_n    .s w(num64) r(obj) uint64
+sp_runcfunc_s    .s w(str) r(obj) uint64
+sp_runcfunc_o    .s w(obj) r(obj) uint64
+
 # Profiler recording ops. Naming convention: start with prof_. Must all be
 # marked .s, which is how the validator knows to exclude them. (For that
 # purpose, we treat them as a kind of spesh op).
