@@ -124,7 +124,8 @@ void MVM_callsite_mark(MVMThreadContext *tc, MVMCallsite *cs, MVMGCWorklist *wor
         if (worklist)
             MVM_gc_worklist_add(tc, worklist, &(cs->arg_names[i]));
         else
-            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot, cs->arg_names[i],
+            MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
+                    (MVMCollectable *)cs->arg_names[i],
                     "Callsite named argument");
 }
 
