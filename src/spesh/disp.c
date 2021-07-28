@@ -229,6 +229,7 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeLoadConstantObjOrStr:
             case MVMDispOpcodeLoadConstantInt:
             case MVMDispOpcodeLoadConstantNum:
+            case MVMDispOpcodeSet:
             case MVMDispOpcodeResultValueObj:
             case MVMDispOpcodeUseArgsTail:
             case MVMDispOpcodeResultBytecode:
@@ -327,6 +328,11 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                     temporaries[op->load.temp], constnum);
                 break;
             }
+            case MVMDispOpcodeSet:
+                /* Don't need to turn this into a set for now at least, since
+                 * dispatch programs currently have temporaries as write only. */
+                temporaries[op->load.temp] = temporaries[op->load.idx];
+                break;
             case MVMDispOpcodeResultValueObj:
                 /* Emit instruction according to result type. */
                 switch (ins->info->opcode) {
