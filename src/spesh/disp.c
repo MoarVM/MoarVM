@@ -231,6 +231,8 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeResultBytecode:
                 break;
             default:
+                MVM_spesh_graph_add_comment(tc, g, ins, "dispatch not compiled: op %s NYI",
+                                MVM_disp_opcode_to_name(dp->ops[i].code));
                 return NULL;
         }
     }
