@@ -177,7 +177,8 @@ static MVMSpeshOperand emit_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     return guarded_reg;
 }
 
-/* Emit a simple binary instruction between two registers. */
+/* Emit a simple binary instruction with a result register and either a
+ * input register or input constant. */
 static void emit_bi_op(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVMSpeshBB *bb, MVMSpeshIns **insert_after, MVMuint16 op,
         MVMSpeshOperand to_reg, MVMSpeshOperand from_reg) {
@@ -194,6 +195,27 @@ static void emit_bi_op(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_get_facts(tc, g, to_reg)->writer = ins;
     if ((ins->info->operands[1] & MVM_operand_rw_mask) == MVM_operand_read_reg)
         MVM_spesh_usages_add_by_reg(tc, g, from_reg, ins);
+}
+
+/* Emit a simple three-ary instruction where the first register is written
+ * to and the other two operands are registers that are read from. */
+static void emit_tri_op(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns **insert_after, MVMuint16 op,
+        MVMSpeshOperand to_reg, MVMSpeshOperand from_reg, MVMSpeshOperand third_reg) {
+    /* Produce the instruction and insert it. */
+    MVMSpeshIns *ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    ins->info = MVM_op_get_op(op);
+    ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 3);
+    ins->operands[0] = to_reg;
+    ins->operands[1] = from_reg;
+    ins->operands[2] = third_reg;
+    MVM_spesh_manipulate_insert_ins(tc, bb, *insert_after, ins);
+    *insert_after = ins;
+
+    /* Tweak usages. */
+    MVM_spesh_get_facts(tc, g, to_reg)->writer = ins;
+    MVM_spesh_usages_add_by_reg(tc, g, from_reg, ins);
+    MVM_spesh_usages_add_by_reg(tc, g, third_reg, ins);
 }
 
 /* Emit an instruction to load a value into a spesh slot. */
@@ -255,6 +277,7 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeLoadAttributeStr:
             case MVMDispOpcodeSet:
             case MVMDispOpcodeResultValueObj:
+            case MVMDispOpcodeResultValueInt:
             case MVMDispOpcodeUseArgsTail:
             case MVMDispOpcodeResultBytecode:
             case MVMDispOpcodeResultCFunction:
@@ -412,6 +435,37 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                         break;
                     default:
                         MVM_oops(tc, "Unexpected dispatch op when translating object result");
+                }
+                break;
+            case MVMDispOpcodeResultValueInt:
+                switch (ins->info->opcode) {
+                    case MVM_OP_dispatch_v:
+                        break;
+                    case MVM_OP_dispatch_o: {
+                        MVMObject *box_type = g->sf->body.cu->body.hll_config->int_box_type;
+                        MVMSpeshOperand type_temp = MVM_spesh_manipulate_get_temp_reg(tc,
+                            g, MVM_reg_obj);
+                        MVM_VECTOR_PUSH(allocated_temps, type_temp);
+                        emit_load_spesh_slot(tc, g, bb, &insert_after, type_temp,
+                            (MVMCollectable *)box_type);
+                        emit_tri_op(tc, g, bb, &insert_after, MVM_OP_box_i, ins->operands[0],
+                            temporaries[op->res_value.temp], type_temp);
+                        break;
+                    }
+                    case MVM_OP_dispatch_i:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_set, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
+                    case MVM_OP_dispatch_n:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_ni, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
+                    case MVM_OP_dispatch_s:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_si, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
+                    default:
+                        MVM_oops(tc, "Unexpected dispatch op when translating int result");
                 }
                 break;
             case MVMDispOpcodeUseArgsTail:
