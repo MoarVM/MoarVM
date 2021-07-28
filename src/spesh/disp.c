@@ -195,6 +195,20 @@ static void emit_bi_op(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_usages_add_by_reg(tc, g, from_reg, ins);
 }
 
+/* Emit an instruction to load a value into a spesh slot. */
+static void emit_load_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns **insert_after, MVMSpeshOperand to_reg,
+        MVMCollectable *value) {
+    MVMSpeshIns *ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
+    ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
+    ins->operands[0] = to_reg;
+    ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g, value);
+    MVM_spesh_manipulate_insert_ins(tc, bb, *insert_after, ins);
+    *insert_after = ins;
+    MVM_spesh_get_facts(tc, g, to_reg)->writer = ins;
+}
+
 /* Try to translate a dispatch program into a sequence of ops (which will
  * be subject to later optimization and potentially JIT compilation). */
 static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -211,6 +225,7 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeGuardArgTypeConc:
             case MVMDispOpcodeGuardArgTypeTypeObject:
             case MVMDispOpcodeLoadCaptureValue:
+            case MVMDispOpcodeLoadConstantObjOrStr:
             case MVMDispOpcodeResultValueObj:
             case MVMDispOpcodeUseArgsTail:
             case MVMDispOpcodeResultBytecode:
@@ -238,6 +253,14 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
      * allocated, or may refer to the input arguments. */
     MVMSpeshOperand *temporaries = MVM_spesh_alloc(tc, g,
             sizeof(MVMSpeshOperand) * dp->num_temporaries);
+
+    /* Registers that we have allocated, and should release after the
+     * emitting of the dispatch program. (Since the temporaries could get
+     * reused for something else and another register aliased there, we
+     * need to keep track of the list of things to release separately
+     * from the temporaries array above.) */
+    MVM_VECTOR_DECL(MVMSpeshOperand, allocated_temps);
+    MVM_VECTOR_INIT(allocated_temps, 0);
 
     /* Visit the ops of the dispatch program and translate them. */
     MVMSpeshIns *insert_after = ins;
@@ -269,6 +292,17 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                  * so just alias. */
                 temporaries[op->load.temp] = args[op->arg_guard.arg_idx];
                 break;
+            case MVMDispOpcodeLoadConstantObjOrStr: {
+                MVMCollectable *value = dp->gc_constants[op->load.idx];
+                MVMuint16 reg_kind = REPR(value)->ID == MVM_REPR_ID_MVMString
+                    ? MVM_reg_str
+                    : MVM_reg_obj;
+                MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, reg_kind);
+                temporaries[op->load.temp] = temp;
+                MVM_VECTOR_PUSH(allocated_temps, temp);
+                emit_load_spesh_slot(tc, g, bb, &insert_after, temp, value);
+                break;
+            }
             case MVMDispOpcodeResultValueObj:
                 /* Emit instruction according to result type. */
                 switch (ins->info->opcode) {
@@ -363,6 +397,11 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 MVM_oops(tc, "Unexpectedly hit dispatch op that cannot be translated");
         }
     }
+
+    /* Release temporaries. */
+    for (i = 0; i < MVM_VECTOR_ELEMS(allocated_temps); i++)
+        MVM_spesh_manipulate_release_temp_reg(tc, g, allocated_temps[i]);
+    MVM_VECTOR_DESTROY(allocated_temps);
 
     /* Annotate start and end of translated dispatch program. */
     MVMSpeshIns *first_inserted = ins->next;
