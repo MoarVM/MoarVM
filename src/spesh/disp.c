@@ -228,6 +228,7 @@ static void emit_tri_op(MVMThreadContext *tc, MVMSpeshGraph *g,
 static void emit_load_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVMSpeshBB *bb, MVMSpeshIns **insert_after, MVMSpeshOperand to_reg,
         MVMCollectable *value) {
+    /* Add the instruction. */
     MVMSpeshIns *ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
     ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
@@ -235,7 +236,14 @@ static void emit_load_spesh_slot(MVMThreadContext *tc, MVMSpeshGraph *g,
     ins->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g, value);
     MVM_spesh_manipulate_insert_ins(tc, bb, *insert_after, ins);
     *insert_after = ins;
-    MVM_spesh_get_facts(tc, g, to_reg)->writer = ins;
+
+    /* Set facts. */
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, to_reg);
+    facts->writer = ins;
+    facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE | MVM_SPESH_FACT_KNOWN_TYPE |
+        (IS_CONCRETE(value) ? MVM_SPESH_FACT_CONCRETE : MVM_SPESH_FACT_TYPEOBJ);
+    facts->value.o = (MVMObject *)value;
+    facts->type = STABLE(value)->WHAT;
 }
 
 /* Emit an instruction to load an attribute. */
@@ -853,7 +861,6 @@ MVMSpeshIns *MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
         }
     }
     qsort(outcome_hits, MVM_VECTOR_ELEMS(outcome_hits), sizeof(OutcomeHitCount), compare_hits);
-
 
     /* If there are no hits, we can only rewrite it to sp_dispatch. */
     if (MVM_VECTOR_ELEMS(outcome_hits) == 0)
