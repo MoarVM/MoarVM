@@ -258,6 +258,52 @@ static void emit_load_attribute(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_usages_add_by_reg(tc, g, from_reg, ins);
 }
 
+/* Emit a guard that a value is a given literal string. */
+static MVMSpeshOperand emit_literal_str_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns **insert_after, MVMSpeshOperand testee,
+        MVMString *expected, MVMSpeshAnn *deopt_ann, MVMuint32 *reused_deopt_ann) {
+    /* Load the string literal value from a spesh slot. */
+    MVMSpeshOperand cmp_str_reg = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_str);
+    emit_load_spesh_slot(tc, g, bb, insert_after, cmp_str_reg, (MVMCollectable *)expected);
+
+    /* Emit the comparison op. */
+    MVMSpeshOperand op_res_reg = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+    emit_tri_op(tc, g, bb, insert_after, MVM_OP_eq_s, op_res_reg, testee, cmp_str_reg);
+
+    /* Emit the guard. */
+    emit_guard(tc, g, bb, insert_after, MVM_OP_sp_guardnonzero, op_res_reg, NULL,
+        deopt_ann, reused_deopt_ann);
+
+    /* The temporary registers are immediately free for re-use. */
+    MVM_spesh_manipulate_release_temp_reg(tc, g, cmp_str_reg);
+    MVM_spesh_manipulate_release_temp_reg(tc, g, op_res_reg);
+
+    return testee;
+}
+
+/* Emit a guard that a value is a given literal object. */
+static MVMSpeshOperand emit_literal_obj_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns **insert_after, MVMSpeshOperand testee,
+        MVMObject *expected, MVMSpeshAnn *deopt_ann, MVMuint32 *reused_deopt_ann) {
+    /* Load the string literal value from a spesh slot. */
+    MVMSpeshOperand cmp_obj_reg = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+    emit_load_spesh_slot(tc, g, bb, insert_after, cmp_obj_reg, (MVMCollectable *)expected);
+
+    /* Emit the comparison op. */
+    MVMSpeshOperand op_res_reg = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+    emit_tri_op(tc, g, bb, insert_after, MVM_OP_eqaddr, op_res_reg, testee, cmp_obj_reg);
+
+    /* Emit the guard. */
+    emit_guard(tc, g, bb, insert_after, MVM_OP_sp_guardnonzero, op_res_reg, NULL,
+        deopt_ann, reused_deopt_ann);
+
+    /* The temporary registers are immediately free for re-use. */
+    MVM_spesh_manipulate_release_temp_reg(tc, g, cmp_obj_reg);
+    MVM_spesh_manipulate_release_temp_reg(tc, g, op_res_reg);
+
+    return testee;
+}
+
 /* Try to translate a dispatch program into a sequence of ops (which will
  * be subject to later optimization and potentially JIT compilation). */
 static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -275,11 +321,15 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeGuardArgTypeTypeObject:
             case MVMDispOpcodeGuardArgConc:
             case MVMDispOpcodeGuardArgTypeObject:
+            case MVMDispOpcodeGuardArgLiteralObj:
+            case MVMDispOpcodeGuardArgLiteralStr:
             case MVMDispOpcodeGuardTempType:
             case MVMDispOpcodeGuardTempTypeConc:
             case MVMDispOpcodeGuardTempTypeTypeObject:
             case MVMDispOpcodeGuardTempConc:
             case MVMDispOpcodeGuardTempTypeObject:
+            case MVMDispOpcodeGuardTempLiteralObj:
+            case MVMDispOpcodeGuardTempLiteralStr:
             case MVMDispOpcodeLoadCaptureValue:
             case MVMDispOpcodeLoadConstantObjOrStr:
             case MVMDispOpcodeLoadConstantInt:
@@ -366,6 +416,18 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                         MVM_OP_sp_guardjusttype, args[op->arg_guard.arg_idx],
                         NULL, deopt_ann, &reused_deopt_ann);
                 break;
+            case MVMDispOpcodeGuardArgLiteralObj:
+                args[op->arg_guard.arg_idx] = emit_literal_obj_guard(tc, g, bb, &insert_after,
+                    args[op->arg_guard.arg_idx],
+                    (MVMObject *)dp->gc_constants[op->arg_guard.checkee],
+                    deopt_ann, &reused_deopt_ann);
+                break;
+            case MVMDispOpcodeGuardArgLiteralStr:
+                args[op->arg_guard.arg_idx] = emit_literal_str_guard(tc, g, bb, &insert_after,
+                    args[op->arg_guard.arg_idx],
+                    (MVMString *)dp->gc_constants[op->arg_guard.checkee],
+                    deopt_ann, &reused_deopt_ann);
+                break;
             case MVMDispOpcodeGuardTempType:
                 temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
                         MVM_OP_sp_guard, temporaries[op->temp_guard.temp],
@@ -393,6 +455,18 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
                         MVM_OP_sp_guardjusttype, temporaries[op->temp_guard.temp],
                         NULL, deopt_ann, &reused_deopt_ann);
+                break;
+            case MVMDispOpcodeGuardTempLiteralObj:
+                temporaries[op->temp_guard.temp] = emit_literal_obj_guard(tc, g, bb,
+                    &insert_after, temporaries[op->temp_guard.temp],
+                    (MVMObject *)dp->gc_constants[op->temp_guard.checkee],
+                    deopt_ann, &reused_deopt_ann);
+                break;
+            case MVMDispOpcodeGuardTempLiteralStr:
+                temporaries[op->temp_guard.temp] = emit_literal_str_guard(tc, g, bb,
+                    &insert_after, temporaries[op->temp_guard.temp],
+                    (MVMString *)dp->gc_constants[op->temp_guard.checkee],
+                    deopt_ann, &reused_deopt_ann);
                 break;
             case MVMDispOpcodeLoadCaptureValue:
                 /* We already have all the capture values in the arg registers
