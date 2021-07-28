@@ -383,7 +383,6 @@ static void optimize_exception_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
     }
 }
 
-
 /* iffy ops that operate on a known value register can turn into goto
  * or be dropped. */
 static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
@@ -453,7 +452,6 @@ static void optimize_iffy(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *i
         MVM_spesh_eliminate_dead_bbs(tc, g, 1);
     }
 }
-
 
 /* A not_i on a known value can be turned into a constant. */
 static void optimize_not_i(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
@@ -526,7 +524,6 @@ static void optimize_bitwise_int_math(MVMThreadContext *tc, MVMSpeshGraph *g, MV
         MVM_spesh_graph_add_comment(tc, g, ins, "looked at this but no luck. flags: %d and %d", lhs_facts->flags, rhs_facts->flags);
     }
 }
-
 
 /* objprimspec can be done at spesh-time if we know the type of something.
  * Another thing is, that if we rely on the type being known, we'll be assured
@@ -1738,7 +1735,7 @@ static void optimize_uniprop_ops(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
                 MVM_spesh_usages_delete(tc, g, arg2_facts, ins);
             }
         }
-}
+    }
 }
 
 /* If something is only kept alive because we log its allocation, kick out
@@ -2101,7 +2098,6 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
 
 static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                         MVMSpeshPlanned *p) {
-    MVMSpeshCallInfo arg_info;
     /* Look for instructions that are interesting to optimize. */
     MVMSpeshIns *ins = bb->first_ins;
     while (ins) {
@@ -2137,33 +2133,6 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_bxor_i:
             optimize_bitwise_int_math(tc, g, ins, bb);
             break;
-        case MVM_OP_prepargs:
-            arg_info.cs = g->sf->body.cu->body.callsites[ins->operands[0].callsite_idx];
-            arg_info.prepargs_ins = ins;
-            arg_info.prepargs_bb  = bb;
-            break;
-        case MVM_OP_arg_i:
-        case MVM_OP_arg_n:
-        case MVM_OP_arg_s:
-        case MVM_OP_arg_o: {
-            MVMint16 idx = ins->operands[0].lit_i16;
-            if (idx < MAX_ARGS_FOR_OPT) {
-                arg_info.arg_is_const[idx] = 0;
-                arg_info.arg_facts[idx]    = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
-                arg_info.arg_ins[idx]      = ins;
-            }
-            break;
-        }
-        case MVM_OP_argconst_i:
-        case MVM_OP_argconst_n:
-        case MVM_OP_argconst_s: {
-            MVMint16 idx = ins->operands[0].lit_i16;
-            if (idx < MAX_ARGS_FOR_OPT) {
-                arg_info.arg_is_const[idx] = 1;
-                arg_info.arg_ins[idx]      = ins;
-            }
-            break;
-        }
         case MVM_OP_coerce_ui:
         case MVM_OP_coerce_iu:
             optimize_signedness_coerce(tc, g, bb, ins);
@@ -2171,20 +2140,6 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_coerce_in:
             optimize_coerce(tc, g, bb, ins);
             break;
-            // TODO update for dispatch bytecode invocation terminal
-/*
-        case MVM_OP_invoke_v:
-            if (!bb->inlined)
-                optimize_call(tc, g, bb, ins, p, 0, &arg_info);
-            break;
-        case MVM_OP_invoke_i:
-        case MVM_OP_invoke_n:
-        case MVM_OP_invoke_s:
-        case MVM_OP_invoke_o:
-            if (!bb->inlined)
-                optimize_call(tc, g, bb, ins, p, 1, &arg_info);
-            break;
-*/
         case MVM_OP_islist:
         case MVM_OP_ishash:
         case MVM_OP_isint:
@@ -2397,6 +2352,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         ins = ins->next;
     }
 }
+
 /* Visits the blocks in dominator tree order, recursively. */
 static void optimize_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                         MVMSpeshPlanned *p) {
