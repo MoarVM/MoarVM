@@ -1964,19 +1964,6 @@ MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCal
     return code;
 }
 
-/* Rapid resolution of an invokee. Used by the specialized resolve code op. */
-MVMObject * MVM_frame_resolve_invokee_spesh(MVMThreadContext *tc, MVMObject *invokee) {
-    if (REPR(invokee)->ID == MVM_REPR_ID_MVMCode) {
-        return invokee;
-    }
-    else {
-        MVMInvocationSpec *is = STABLE(invokee)->invocation_spec;
-        if (MVM_LIKELY(is && is->code_ref_offset && IS_CONCRETE(invokee)))
-            return MVM_p6opaque_read_object(tc, invokee, is->code_ref_offset);
-    }
-    return tc->instance->VMNull;
-}
-
 /* Gets, allocating if needed, the frame extra data structure for the given
  * frame. This is used to hold data that only a handful of frames need. */
 MVMFrameExtra * MVM_frame_extra(MVMThreadContext *tc, MVMFrame *f) {

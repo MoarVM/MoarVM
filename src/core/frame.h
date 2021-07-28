@@ -225,7 +225,6 @@ MVM_PUBLIC MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFram
 MVMuint16 MVM_frame_translate_to_primspec(MVMThreadContext *tc, MVMuint16 kind);
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
 MVM_PUBLIC MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs);
-MVMObject * MVM_frame_resolve_invokee_spesh(MVMThreadContext *tc, MVMObject *invokee);
 MVMFrameExtra * MVM_frame_extra(MVMThreadContext *tc, MVMFrame *f);
 MVM_PUBLIC void MVM_frame_special_return(MVMThreadContext *tc, MVMFrame *f,
     MVMSpecialReturn special_return, MVMSpecialReturn special_unwind,
