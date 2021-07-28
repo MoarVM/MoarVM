@@ -2902,3 +2902,55 @@ void MVM_disp_program_recording_destroy(MVMThreadContext *tc, MVMDispProgramReco
         MVM_VECTOR_DESTROY(rec->resumptions);
     }
 }
+
+const char *MVM_disp_opcode_to_name(MVMDispProgramOpcode op) {
+    switch (op) {
+        case MVMDispOpcodeStartResumption: return "MVMDispOpcodeStartResumption";
+        case MVMDispOpcodeNextResumption: return "MVMDispOpcodeNextResumption";
+        case MVMDispOpcodeResumeTopmost: return "MVMDispOpcodeResumeTopmost";
+        case MVMDispOpcodeResumeCaller: return "MVMDispOpcodeResumeCaller";
+        case MVMDispOpcodeGuardResumeInitCallsite: return "MVMDispOpcodeGuardResumeInitCallsite";
+        case MVMDispOpcodeGuardNoResumptionTopmost: return "MVMDispOpcodeGuardNoResumptionTopmost";
+        case MVMDispOpcodeGuardNoResumptionCaller: return "MVMDispOpcodeGuardNoResumptionCaller";
+        case MVMDispOpcodeUpdateResumeState: return "MVMDispOpcodeUpdateResumeState";
+        case MVMDispOpcodeGuardArgType: return "MVMDispOpcodeGuardArgType";
+        case MVMDispOpcodeGuardArgTypeConc: return "MVMDispOpcodeGuardArgTypeConc";
+        case MVMDispOpcodeGuardArgTypeTypeObject: return "MVMDispOpcodeGuardArgTypeTypeObject";
+        case MVMDispOpcodeGuardArgConc: return "MVMDispOpcodeGuardArgConc";
+        case MVMDispOpcodeGuardArgTypeObject: return "MVMDispOpcodeGuardArgTypeObject";
+        case MVMDispOpcodeGuardArgLiteralObj: return "MVMDispOpcodeGuardArgLiteralObj";
+        case MVMDispOpcodeGuardArgLiteralStr: return "MVMDispOpcodeGuardArgLiteralStr";
+        case MVMDispOpcodeGuardTempType: return "MVMDispOpcodeGuardTempType";
+        case MVMDispOpcodeGuardTempTypeConc: return "MVMDispOpcodeGuardTempTypeConc";
+        case MVMDispOpcodeGuardTempTypeTypeObject: return "MVMDispOpcodeGuardTempTypeTypeObject";
+        case MVMDispOpcodeGuardTempConc: return "MVMDispOpcodeGuardTempConc";
+        case MVMDispOpcodeGuardTempTypeObject: return "MVMDispOpcodeGuardTempTypeObject";
+        case MVMDispOpcodeGuardTempLiteralObj: return "MVMDispOpcodeGuardTempLiteralObj";
+        case MVMDispOpcodeGuardTempLiteralStr: return "MVMDispOpcodeGuardTempLiteralStr";
+        case MVMDispOpcodeGuardTempLiteralInt: return "MVMDispOpcodeGuardTempLiteralInt";
+        case MVMDispOpcodeGuardTempLiteralNum: return "MVMDispOpcodeGuardTempLiteralNum";
+        case MVMDispOpcodeGuardTempNotLiteralObj: return "MVMDispOpcodeGuardTempNotLiteralObj";
+        case MVMDispOpcodeLoadCaptureValue: return "MVMDispOpcodeLoadCaptureValue";
+        case MVMDispOpcodeLoadResumeInitValue: return "MVMDispOpcodeLoadResumeInitValue";
+        case MVMDispOpcodeLoadResumeState: return "MVMDispOpcodeLoadResumeState";
+        case MVMDispOpcodeLoadConstantObjOrStr: return "MVMDispOpcodeLoadConstantObjOrStr";
+        case MVMDispOpcodeLoadConstantInt: return "MVMDispOpcodeLoadConstantInt";
+        case MVMDispOpcodeLoadConstantNum: return "MVMDispOpcodeLoadConstantNum";
+        case MVMDispOpcodeLoadAttributeObj: return "MVMDispOpcodeLoadAttributeObj";
+        case MVMDispOpcodeLoadAttributeInt: return "MVMDispOpcodeLoadAttributeInt";
+        case MVMDispOpcodeLoadAttributeNum: return "MVMDispOpcodeLoadAttributeNum";
+        case MVMDispOpcodeLoadAttributeStr: return "MVMDispOpcodeLoadAttributeStr";
+        case MVMDispOpcodeSet: return "MVMDispOpcodeSet";
+        case MVMDispOpcodeResultValueObj: return "MVMDispOpcodeResultValueObj";
+        case MVMDispOpcodeResultValueStr: return "MVMDispOpcodeResultValueStr";
+        case MVMDispOpcodeResultValueInt: return "MVMDispOpcodeResultValueInt";
+        case MVMDispOpcodeResultValueNum: return "MVMDispOpcodeResultValueNum";
+        case MVMDispOpcodeBindFailureToResumption: return "MVMDispOpcodeBindFailureToResumption";
+        case MVMDispOpcodeUseArgsTail: return "MVMDispOpcodeUseArgsTail";
+        case MVMDispOpcodeCopyArgsTail: return "MVMDispOpcodeCopyArgsTail";
+        case MVMDispOpcodeResultBytecode: return "MVMDispOpcodeResultBytecode";
+        case MVMDispOpcodeResultCFunction: return "MVMDispOpcodeResultCFunction";
+        default:
+           return "<unknown>";
+    }
+}
