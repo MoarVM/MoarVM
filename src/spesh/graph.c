@@ -23,6 +23,12 @@ MVM_STATIC_INLINE MVMuint32 GET_UI32(const MVMuint8 *pc, MVMint32 idx) {
     return retval;
 }
 
+MVM_STATIC_INLINE MVMuint64 GET_UI64(const MVMuint8 *pc, MVMint32 idx) {
+    MVMuint64 retval;
+    memcpy(&retval, pc + idx, sizeof(retval));
+    return retval;
+}
+
 MVM_STATIC_INLINE MVMuint32 GET_N32(const MVMuint8 *pc, MVMint32 idx) {
     MVMnum32 retval;
     memcpy(&retval, pc + idx, sizeof(retval));
@@ -147,7 +153,41 @@ static MVMint32 already_succs(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *
 /* Checks if the op is one of the spesh dispatch ops. */
 static MVMint32 spesh_dispatchy(MVMuint16 opcode) {
     return opcode >= MVM_OP_sp_dispatch_v && opcode <= MVM_OP_sp_dispatch_o ||
-        opcode >= MVM_OP_sp_runbytecode_v && opcode <= MVM_OP_sp_runbytecode_o;
+        opcode >= MVM_OP_sp_runbytecode_v && opcode <= MVM_OP_sp_runbytecode_o ||
+        opcode >= MVM_OP_sp_runcfunc_v && opcode <= MVM_OP_sp_runcfunc_o;
+}
+
+/* Returns the callsite argument offset for an opcode. */
+static MVMCallsite * callsite_for_dispatch_op(MVMuint16 opcode, MVMuint8 *args,
+        MVMCompUnit *cu) {
+    switch (opcode) {
+        case MVM_OP_dispatch_v:
+        case MVM_OP_sp_dispatch_v:
+            return cu->body.callsites[GET_UI16(args, 4)];
+        case MVM_OP_dispatch_i:
+        case MVM_OP_dispatch_n:
+        case MVM_OP_dispatch_s:
+        case MVM_OP_dispatch_o:
+        case MVM_OP_sp_dispatch_i:
+        case MVM_OP_sp_dispatch_n:
+        case MVM_OP_sp_dispatch_s:
+        case MVM_OP_sp_dispatch_o:
+            return cu->body.callsites[GET_UI16(args, 6)];
+        case MVM_OP_sp_runbytecode_v:
+        case MVM_OP_sp_runcfunc_v:
+            return (MVMCallsite *)GET_UI64(args, 2);
+        case MVM_OP_sp_runbytecode_i:
+        case MVM_OP_sp_runbytecode_n:
+        case MVM_OP_sp_runbytecode_s:
+        case MVM_OP_sp_runbytecode_o:
+        case MVM_OP_sp_runcfunc_i:
+        case MVM_OP_sp_runcfunc_n:
+        case MVM_OP_sp_runcfunc_s:
+        case MVM_OP_sp_runcfunc_o:
+            return (MVMCallsite *)GET_UI64(args, 4);
+        default:
+            MVM_panic(1, "Unknown disaptch op when resolving callsite");
+    }
 }
 
 /* Builds the control flow graph, populating the passed spesh graph structure
@@ -262,9 +302,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             /* Fake up an op info struct for the duration of this spesh graph's
              * life, so everything else can pretend it's got a fixed number of
              * arguments. */
-            MVMuint32 callsite_arg_offset = 4 +
-                (info->opcode == MVM_OP_dispatch_v || info->opcode == MVM_OP_sp_dispatch_v ? 0 : 2);
-            MVMCallsite *callsite = cu->body.callsites[GET_UI16(args, callsite_arg_offset)];
+            MVMCallsite *callsite = callsite_for_dispatch_op(opcode, args, cu);
             ins_node->info = info = MVM_spesh_disp_create_dispatch_op_info(tc, g, info,
                     callsite);
         }
@@ -307,6 +345,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     break;
                 case MVM_operand_int64:
                     ins_node->operands[i].lit_i64 = MVM_BC_get_I64(args, arg_size);
+                    arg_size += 8;
+                    break;
+                case MVM_operand_uint64:
+                    ins_node->operands[i].lit_i64 = GET_UI64(args, arg_size);
                     arg_size += 8;
                     break;
                 case MVM_operand_num32:
