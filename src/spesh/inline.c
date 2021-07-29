@@ -1352,6 +1352,9 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVM_spesh_usages_delete_by_reg(tc, inliner,
         runbytecode_ins->operands[runbytecode_ins->info->opcode == MVM_OP_sp_runbytecode_v ? 0 : 1],
         runbytecode_ins);
+    MVMuint16 i;
+    for (i = 0; i < cs->flag_count; i++)
+        MVM_spesh_usages_delete_by_reg(tc, inliner, args[i], runbytecode_ins);
     runbytecode_ins->info = MVM_op_get_op(MVM_OP_goto);
     runbytecode_ins->operands[0].ins_bb = inlinee->entry->linear_next;
     tweak_succ(tc, inliner, runbytecode_bb, inlinee->entry, inlinee->entry->linear_next, 0);
