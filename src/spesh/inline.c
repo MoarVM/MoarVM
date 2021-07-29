@@ -1,8 +1,8 @@
 #include "moar.h"
 
 /* Ensures that a given compilation unit has access to the specified extop. */
-static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUnit *source_cu,
-                         const MVMOpInfo *info) {
+static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu,
+        MVMCompUnit *source_cu, const MVMOpInfo *info) {
     MVMExtOpRecord *extops;
     MVMuint16 i, num_extops;
 
@@ -47,7 +47,7 @@ static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu, MVMCompUn
  * current inliner. If there are no blockers, non-zero. Otherwise, sets the
  * reason for not inlining and returns zero. */
 static int is_static_frame_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
-                                      MVMStaticFrame *target_sf, char **no_inline_reason) {
+        MVMStaticFrame *target_sf, char **no_inline_reason) {
     /* Check inlining is enabled. */
     if (!tc->instance->spesh_inline_enabled) {
         *no_inline_reason = "inlining is disabled";
@@ -100,8 +100,8 @@ static int is_static_frame_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inlin
  * it is possbile to inline, returns non-zero. Otherwise, sets no_inline_reason
  * and returns zero. Optionally builds up usage counts on the graph. */
 static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
-                               MVMStaticFrame *target_sf, MVMSpeshIns *invoke_ins,
-                               MVMSpeshGraph *ig, char **no_inline_reason, MVMOpInfo const **no_inline_info) {
+        MVMStaticFrame *target_sf, MVMSpeshIns *runbytecode_ins,
+        MVMSpeshGraph *ig, char **no_inline_reason, MVMOpInfo const **no_inline_info) {
     MVMSpeshBB *bb = ig->entry;
     MVMint32 same_hll = target_sf->body.cu->body.hll_config ==
             inliner->sf->body.cu->body.hll_config;
@@ -140,18 +140,17 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 return 0;
             }
 
-            /* If we have an invoke_o, but a return_[ins] that would require
+            /* If we have a runbytecode_o, but a return_[ins] that would require
              * boxing, we can't inline if it's not the same HLL. */
-// TODO new-disp
-//            if (!same_hll && invoke_ins->info->opcode == MVM_OP_invoke_o) {
-//                switch (opcode) {
-//                    case MVM_OP_return_i:
-//                    case MVM_OP_return_n:
-//                    case MVM_OP_return_s:
-//                        *no_inline_reason = "target needs a return boxing and HLLs are different";
-//                        return 0;
-//                }
-//            }
+            if (!same_hll && runbytecode_ins->info->opcode == MVM_OP_sp_runbytecode_o) {
+                switch (opcode) {
+                    case MVM_OP_return_i:
+                    case MVM_OP_return_n:
+                    case MVM_OP_return_s:
+                        *no_inline_reason = "target needs a return boxing and HLLs are different";
+                        return 0;
+                }
+            }
 
             /* If we have lexical bind, make sure it's within the frame. */
             if (opcode == MVM_OP_bindlex) {
@@ -219,8 +218,8 @@ static MVMint32 get_effective_size(MVMThreadContext *tc, MVMSpeshCandidate *cand
 }
 
 /* Add deopt usage info to the inlinee. */
-static void add_deopt_usages(MVMThreadContext *tc, MVMSpeshGraph *g, MVMint32 *deopt_usage_info,
-                      MVMSpeshIns **deopt_usage_ins) {
+static void add_deopt_usages(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMint32 *deopt_usage_info, MVMSpeshIns **deopt_usage_ins) {
     MVMuint32 usage_idx = 0;
     MVMuint32 ins_idx = 0;
     while (deopt_usage_info[usage_idx] != -1) {
@@ -248,13 +247,10 @@ MVMuint32 MVM_spesh_inline_get_max_size(MVMThreadContext *tc, MVMStaticFrame *sf
 /* Sees if it will be possible to inline the target code ref, given we could
  * already identify a spesh candidate. Returns NULL if no inlining is possible
  * or a graph ready to be merged if it will be possible. */
-MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
-                                               MVMStaticFrame *target_sf,
-                                               MVMSpeshCandidate *cand,
-                                               MVMSpeshIns *invoke_ins,
-                                               char **no_inline_reason,
-                                               MVMuint32 *effective_size,
-                                               MVMOpInfo const **no_inline_info) {
+MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc,
+        MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshCandidate *cand,
+        MVMSpeshIns *runbytecode_ins, char **no_inline_reason,
+        MVMuint32 *effective_size, MVMOpInfo const **no_inline_info) {
     MVMSpeshGraph *ig;
     MVMSpeshIns **deopt_usage_ins = NULL;
 
@@ -272,7 +268,8 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
     /* Build graph from the already-specialized bytecode and check if we can
      * inline the graph. */
     ig = MVM_spesh_graph_create_from_cand(tc, target_sf, cand, 0, &deopt_usage_ins);
-    if (is_graph_inlineable(tc, inliner, target_sf, invoke_ins, ig, no_inline_reason, no_inline_info)) {
+    if (is_graph_inlineable(tc, inliner, target_sf, runbytecode_ins, ig,
+                no_inline_reason, no_inline_info)) {
         /* We can inline it. Do facts discovery, which also sets usage counts.
          * We also need to bump counts for any inline's code_ref_reg to make
          * sure it stays available for deopt. */
@@ -298,6 +295,8 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc, MVMSpeshGra
         return NULL;
     }
 }
+
+// TODO Below here still to update for new-disp
 
 /* Tries to get a spesh graph for a particular unspecialized candidate. */
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadContext *tc,
