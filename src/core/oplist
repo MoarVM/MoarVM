@@ -443,8 +443,8 @@ markcodestatic      r(obj)
 markcodestub        r(obj)
 getstaticcode       w(obj) r(obj) :pure
 getcodecuid         w(str) r(obj) :pure
-setdispatcher       r(obj)
-takedispatcher      w(obj)
+DEPRECATED_90       r(obj)
+DEPRECATED_91       w(obj)
 assign              r(obj) r(obj) :invokish :maycausedeopt
 assignunchecked     r(obj) r(obj) :invokish :maycausedeopt
 iscont              w(int64) r(obj) :pure :specializable :confprog
@@ -816,7 +816,7 @@ decoderempty        w(int64) r(obj) :pure
 indexingoptimized   w(str) r(str) :pure
 captureinnerlex     r(obj) :noinline
 unicmp_s            w(int64) r(str) r(str) r(int64) r(int64) r(int64) :pure
-setdispatcherfor    r(obj) r(obj)
+DEPRECATED_92       r(obj) r(obj)
 strfromname         w(str) r(str) :pure
 indexic_s           w(int64) r(str) r(str) r(int64) :pure
 getport_sk          w(int64) r(obj)
@@ -883,8 +883,8 @@ DEPRECATED_68       w(int64) r(obj) :pure :invokish :maycausedeopt :confprog :sp
 uname               w(obj) :pure
 freemem             w(int64) :pure
 totalmem            w(int64) :pure
-nextdispatcherfor   r(obj) r(obj)
-takenextdispatcher  w(obj) :noinline
+DEPRECATED_93       r(obj) r(obj)
+DEPRECATED_94       w(obj) :noinline
 time                w(uint64) :pure :confprog
 dispatch_v       .d str callsite :cache :deoptallpoint :predeoptonepoint :maycausedeopt :specializable
 dispatch_i       .d w(int64) str callsite :cache :deoptallpoint :predeoptonepoint :maycausedeopt :specializable

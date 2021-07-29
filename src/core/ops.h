@@ -387,8 +387,8 @@
 #define MVM_OP_markcodestub 383
 #define MVM_OP_getstaticcode 384
 #define MVM_OP_getcodecuid 385
-#define MVM_OP_setdispatcher 386
-#define MVM_OP_takedispatcher 387
+#define MVM_OP_DEPRECATED_90 386
+#define MVM_OP_DEPRECATED_91 387
 #define MVM_OP_assign 388
 #define MVM_OP_assignunchecked 389
 #define MVM_OP_iscont 390
@@ -759,7 +759,7 @@
 #define MVM_OP_indexingoptimized 755
 #define MVM_OP_captureinnerlex 756
 #define MVM_OP_unicmp_s 757
-#define MVM_OP_setdispatcherfor 758
+#define MVM_OP_DEPRECATED_92 758
 #define MVM_OP_strfromname 759
 #define MVM_OP_indexic_s 760
 #define MVM_OP_getport_sk 761
@@ -824,8 +824,8 @@
 #define MVM_OP_uname 820
 #define MVM_OP_freemem 821
 #define MVM_OP_totalmem 822
-#define MVM_OP_nextdispatcherfor 823
-#define MVM_OP_takenextdispatcher 824
+#define MVM_OP_DEPRECATED_93 823
+#define MVM_OP_DEPRECATED_94 824
 #define MVM_OP_time 825
 #define MVM_OP_dispatch_v 826
 #define MVM_OP_dispatch_i 827
