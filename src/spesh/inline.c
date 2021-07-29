@@ -71,7 +71,7 @@ static int is_static_frame_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inlin
     }
 
     /* Ensure it has no state vars (these need the setup code in frame
-     * invoke). */
+     * creation). */
     if (target_sf->body.has_state_vars) {
         *no_inline_reason = "cannot inline code that declares a state variable";
         return 0;
@@ -296,51 +296,49 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc,
     }
 }
 
-// TODO Below here still to update for new-disp
-
 /* Tries to get a spesh graph for a particular unspecialized candidate. */
-MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadContext *tc,
-        MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshIns *invoke_ins,
-        MVMSpeshCallInfo *call_info, MVMSpeshStatsType *type_tuple, char **no_inline_reason, MVMOpInfo const **no_inline_info) {
-    MVMSpeshGraph *ig;
+//MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadContext *tc,
+//        MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshIns *runbytecode_ins,
+//        MVMSpeshCallInfo *call_info, MVMSpeshStatsType *type_tuple, char **no_inline_reason, MVMOpInfo const **no_inline_info) {
+//    MVMSpeshGraph *ig;
+//
+//    /* Cannot inline with flattening args. */
+//    if (call_info->cs->has_flattening) {
+//        *no_inline_reason = "callsite has flattening args";
+//        return NULL;
+//    }
+//
+//    /* Check the target is suitable for inlining. */
+//    if (!is_static_frame_inlineable(tc, inliner, target_sf, no_inline_reason))
+//        return NULL;
+//
+//    /* Build the spesh graph from bytecode, transform args, do facts discovery
+//     * (setting usage counts) and optimize. We do this before checking if it
+//     * is inlineable as we can get rid of many :noinline ops (especially in
+//     * the args specialization). */
+//    ig = MVM_spesh_graph_create(tc, target_sf, 0, 1);
+//    MVM_spesh_args_from_callinfo(tc, ig, call_info, type_tuple);
+//    MVMROOT(tc, target_sf, {
+//        MVM_spesh_facts_discover(tc, ig, NULL, 0);
+//        MVM_spesh_optimize(tc, ig, NULL);
+//    });
+//
+//    /* See if it's inlineable; clean up if not. */
+//    if (is_graph_inlineable(tc, inliner, target_sf, runbytecode_ins, ig, no_inline_reason, no_inline_info)) {
+//        return ig;
+//    }
+//    else {
+//        /* TODO - we spent all this work creating an optimized version.  Maybe
+//           we can make use of it by compiling a custom target despite not being
+//           inlineable? */
+//        MVM_spesh_graph_destroy(tc, ig);
+//        return NULL;
+//    }
+//}
 
-    /* Cannot inline with flattening args. */
-    if (call_info->cs->has_flattening) {
-        *no_inline_reason = "callsite has flattening args";
-        return NULL;
-    }
-
-    /* Check the target is suitable for inlining. */
-    if (!is_static_frame_inlineable(tc, inliner, target_sf, no_inline_reason))
-        return NULL;
-
-    /* Build the spesh graph from bytecode, transform args, do facts discovery
-     * (setting usage counts) and optimize. We do this before checking if it
-     * is inlineable as we can get rid of many :noinline ops (especially in
-     * the args specialization). */
-    ig = MVM_spesh_graph_create(tc, target_sf, 0, 1);
-    MVM_spesh_args_from_callinfo(tc, ig, call_info, type_tuple);
-    MVMROOT(tc, target_sf, {
-        MVM_spesh_facts_discover(tc, ig, NULL, 0);
-        MVM_spesh_optimize(tc, ig, NULL);
-    });
-
-    /* See if it's inlineable; clean up if not. */
-    if (is_graph_inlineable(tc, inliner, target_sf, invoke_ins, ig, no_inline_reason, no_inline_info)) {
-        return ig;
-    }
-    else {
-        /* TODO - we spent all this work creating an optimized version.  Maybe
-           we can make use of it by compiling a custom target despite not being
-           inlineable? */
-        MVM_spesh_graph_destroy(tc, ig);
-        return NULL;
-    }
-}
-
-/* Finds the deopt index of the return. */
-static MVMuint32 return_deopt_idx(MVMThreadContext *tc, MVMSpeshIns *invoke_ins) {
-    MVMSpeshAnn *ann = invoke_ins->annotations;
+/* Finds the deopt index of the runbytecode instruction. */
+static MVMuint32 return_deopt_idx(MVMThreadContext *tc, MVMSpeshIns *runbytecode_ins) {
+    MVMSpeshAnn *ann = runbytecode_ins->annotations;
     while (ann) {
         if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS)
             return ann->data.deopt_idx;
@@ -438,7 +436,8 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 }
 
 /* Resizes the handlers table, making a copy if needed. */
-static void resize_handlers_table(MVMThreadContext *tc, MVMSpeshGraph *inliner, MVMuint32 new_handler_count) {
+static void resize_handlers_table(MVMThreadContext *tc, MVMSpeshGraph *inliner,
+        MVMuint32 new_handler_count) {
     if (inliner->handlers == inliner->sf->body.handlers) {
         /* Original handlers table; need a copy. */
         MVMFrameHandler *new_handlers = MVM_malloc(new_handler_count * sizeof(MVMFrameHandler));
@@ -454,8 +453,10 @@ static void resize_handlers_table(MVMThreadContext *tc, MVMSpeshGraph *inliner, 
     }
 }
 
+/* Make a curcode instruction refer to the code ref register from the
+ * inlining frame. */
 static void rewrite_curcode(MVMThreadContext *tc, MVMSpeshGraph *g,
-                                 MVMSpeshIns *ins, MVMuint16 num_locals, MVMSpeshOperand code_ref_reg) {
+        MVMSpeshIns *ins, MVMuint16 num_locals, MVMSpeshOperand code_ref_reg) {
     MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
     new_operands[0] = ins->operands[0];
     new_operands[0].reg.orig += num_locals;
@@ -468,8 +469,8 @@ static void rewrite_curcode(MVMThreadContext *tc, MVMSpeshGraph *g,
 /* Rewrites a lexical lookup to an outer to be done via. a register holding
  * the outer coderef. */
 static void rewrite_outer_lookup(MVMThreadContext *tc, MVMSpeshGraph *g,
-                                 MVMSpeshIns *ins, MVMuint16 num_locals,
-                                 MVMuint16 op, MVMSpeshOperand code_ref_reg) {
+        MVMSpeshIns *ins, MVMuint16 num_locals, MVMuint16 op,
+        MVMSpeshOperand code_ref_reg) {
     MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
     new_operands[0] = ins->operands[0];
     new_operands[0].reg.orig += num_locals;
@@ -484,8 +485,8 @@ static void rewrite_outer_lookup(MVMThreadContext *tc, MVMSpeshGraph *g,
 /* Rewrites a lexical bind to an outer to be done via. a register holding
  * the outer coderef. */
 static void rewrite_outer_bind(MVMThreadContext *tc, MVMSpeshGraph *g,
-                               MVMSpeshIns *ins, MVMuint16 num_locals,
-                               MVMuint16 op, MVMSpeshOperand code_ref_reg) {
+        MVMSpeshIns *ins, MVMuint16 num_locals, MVMuint16 op,
+        MVMSpeshOperand code_ref_reg) {
     MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
     new_operands[0].lit_ui16 = ins->operands[0].lex.idx;
     new_operands[1].lit_ui16 = ins->operands[0].lex.outers;
@@ -534,6 +535,7 @@ static void tweak_guard_deopt_idx(MVMSpeshIns *ins, MVMSpeshAnn *ann) {
     case MVM_OP_sp_guardsfouter:
     case MVM_OP_sp_guardjustconc:
     case MVM_OP_sp_guardjusttype:
+    case MVM_OP_sp_guardnonzero:
         ins->operands[2].lit_ui32 = ann->data.deopt_idx;
         break;
     default:
@@ -543,11 +545,10 @@ static void tweak_guard_deopt_idx(MVMSpeshIns *ins, MVMSpeshAnn *ann) {
 
 /* Merges the inlinee's spesh graph into the inliner. */
 static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
-                 MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
-                 MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins,
-                 MVMSpeshOperand code_ref_reg,
-                 MVMuint32 *inline_boundary_handler, MVMuint16 bytecode_size,
-                 MVMCallsite *cs) {
+        MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
+        MVMSpeshBB *runbytecode_bb, MVMSpeshIns *runbytecode_ins,
+        MVMSpeshOperand code_ref_reg, MVMuint32 *inline_boundary_handler,
+        MVMuint16 bytecode_size, MVMCallsite *cs) {
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
     MVMuint32        i, j, orig_inlines, total_inlines, orig_deopt_addrs,
@@ -565,10 +566,10 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             inlinee_sf->body.cu->body.hll_config;
 
     /* Gather all of the registers that have a deopt usage at the point of
-     * the invoke. We'll need to distribute deopt usages inside of the
+     * the runbytecode. We'll need to distribute deopt usages inside of the
      * inline to them for correctness of later analyses that use the deopt
      * usage information. */
-    impl_deopt_idx = return_deopt_idx(tc, invoke_ins);
+    impl_deopt_idx = return_deopt_idx(tc, runbytecode_ins);
     MVM_VECTOR_INIT(regs_for_deopt, 0);
     for (i = 0; i < inliner->sf->body.num_locals; i++) {
         MVMuint16 vers = inliner->fact_counts[i];
@@ -590,7 +591,7 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
      * re-write any indexes in annotations that need it. Since in this pass
      * we identify all deopt points, we also take the opportunity to add
      * deopt users to all registers that have deopt usages thanks to the
-     * invoke. */
+     * runbytecode. */
     bb = inlinee->entry;
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
@@ -600,6 +601,7 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             while (ann) {
                 switch (ann->type) {
                 case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                case MVM_SPESH_ANN_DEOPT_PRE_INS:
                 case MVM_SPESH_ANN_DEOPT_ALL_INS:
                 case MVM_SPESH_ANN_DEOPT_INLINE:
                 case MVM_SPESH_ANN_DEOPT_SYNTH:
@@ -714,8 +716,8 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVM_VECTOR_DESTROY(regs_for_deopt);
 
     /* Link inlinee BBs into the linear next chain. */
-    bb = invoke_bb->linear_next;
-    invoke_bb->linear_next = inlinee_first_bb = inlinee->entry->linear_next;
+    bb = runbytecode_bb->linear_next;
+    runbytecode_bb->linear_next = inlinee_first_bb = inlinee->entry->linear_next;
     inlinee_last_bb->linear_next = bb;
 
     bb = NULL;
@@ -842,31 +844,30 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     inliner->inlines[total_inlines - 1].locals_start   = inliner->num_locals;
     inliner->inlines[total_inlines - 1].lexicals_start = inliner->num_lexicals;
     inliner->inlines[total_inlines - 1].num_locals     = inlinee->num_locals;
-// TODO new-disp
-    switch (invoke_ins->info->opcode) {
-//    case MVM_OP_invoke_v:
-//        inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_VOID;
-//        break;
-//    case MVM_OP_invoke_o:
-//        inliner->inlines[total_inlines - 1].res_reg = invoke_ins->operands[0].reg.orig;
-//        inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_OBJ;
-//        break;
-//    case MVM_OP_invoke_i:
-//        inliner->inlines[total_inlines - 1].res_reg = invoke_ins->operands[0].reg.orig;
-//        inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_INT;
-//        break;
-//    case MVM_OP_invoke_n:
-//        inliner->inlines[total_inlines - 1].res_reg = invoke_ins->operands[0].reg.orig;
-//        inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_NUM;
-//        break;
-//    case MVM_OP_invoke_s:
-//        inliner->inlines[total_inlines - 1].res_reg = invoke_ins->operands[0].reg.orig;
-//        inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_STR;
-//        break;
+    switch (runbytecode_ins->info->opcode) {
+    case MVM_OP_sp_runbytecode_v:
+        inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_VOID;
+        break;
+    case MVM_OP_sp_runbytecode_o:
+        inliner->inlines[total_inlines - 1].res_reg = runbytecode_ins->operands[0].reg.orig;
+        inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_OBJ;
+        break;
+    case MVM_OP_sp_runbytecode_i:
+        inliner->inlines[total_inlines - 1].res_reg = runbytecode_ins->operands[0].reg.orig;
+        inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_INT;
+        break;
+    case MVM_OP_sp_runbytecode_n:
+        inliner->inlines[total_inlines - 1].res_reg = runbytecode_ins->operands[0].reg.orig;
+        inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_NUM;
+        break;
+    case MVM_OP_sp_runbytecode_s:
+        inliner->inlines[total_inlines - 1].res_reg = runbytecode_ins->operands[0].reg.orig;
+        inliner->inlines[total_inlines - 1].res_type = MVM_RETURN_STR;
+        break;
     default:
-        MVM_oops(tc, "Spesh inline: unknown invoke instruction");
+        MVM_oops(tc, "Spesh inline: unknown sp_runbytecode instruction");
     }
-    inliner->inlines[total_inlines - 1].return_deopt_idx = return_deopt_idx(tc, invoke_ins);
+    inliner->inlines[total_inlines - 1].return_deopt_idx = return_deopt_idx(tc, runbytecode_ins);
     inliner->inlines[total_inlines - 1].unreachable = 0;
     inliner->inlines[total_inlines - 1].deopt_named_used_bit_field =
         inlinee->deopt_named_used_bit_field;
@@ -974,7 +975,7 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 
 /* Tweak the successor of a BB, also updating the target BBs pred. */
 static void tweak_succ(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-                       MVMSpeshBB *prev_pred, MVMSpeshBB *new_succ, MVMuint32 missing_ok) {
+        MVMSpeshBB *prev_pred, MVMSpeshBB *new_succ, MVMuint32 missing_ok) {
     if (bb->num_succ == 0) {
         /* It had no successors, so we'll add one. */
         bb->succ = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *));
@@ -1007,9 +1008,10 @@ static void tweak_succ(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
     }
 }
 
-/* Finds return instructions and re-writes them into gotos, doing any needed
- * boxing or unboxing. */
-static void return_to_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *return_ins, MVMSpeshOperand target) {
+/* Finds return instructions and re-writes them, doing any needed boxing
+ * or unboxing. */
+static void return_to_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *return_ins,
+        MVMSpeshOperand target) {
     MVMSpeshOperand ver_target = MVM_spesh_manipulate_new_version(tc, g, target.reg.orig);
     MVMSpeshOperand *operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
     operands[0]               = ver_target;
@@ -1021,8 +1023,8 @@ static void return_to_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *r
 }
 
 static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *return_bb,
-                   MVMSpeshIns *return_ins, MVMSpeshOperand target,
-                   MVMuint16 box_type_op, MVMuint16 box_op) {
+        MVMSpeshIns *return_ins, MVMSpeshOperand target, MVMuint16 box_type_op,
+        MVMuint16 box_op) {
     MVMSpeshOperand type_temp     = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
     MVMSpeshFacts *target_facts;
 
@@ -1055,20 +1057,19 @@ static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *re
 }
 
 static void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
-                        MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
-                        MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
-    switch (invoke_ins->info->opcode) {
-// TODO new-disp
-//    case MVM_OP_invoke_v:
-//        MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
-//        break;
-//    case MVM_OP_invoke_i:
-//        return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
-//        break;
-//    case MVM_OP_invoke_o:
-//        return_to_box(tc, g, return_bb, return_ins, invoke_ins->operands[0],
-//            MVM_OP_hllboxtype_i, MVM_OP_box_i);
-//        break;
+        MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
+        MVMSpeshBB *runbytecode_bb, MVMSpeshIns *runbytecode_ins) {
+    switch (runbytecode_ins->info->opcode) {
+    case MVM_OP_sp_runbytecode_v:
+        MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
+        break;
+    case MVM_OP_sp_runbytecode_i:
+        return_to_set(tc, g, return_ins, runbytecode_ins->operands[0]);
+        break;
+    case MVM_OP_sp_runbytecode_o:
+        return_to_box(tc, g, return_bb, return_ins, runbytecode_ins->operands[0],
+            MVM_OP_hllboxtype_i, MVM_OP_box_i);
+        break;
     default:
         MVM_oops(tc,
             "Spesh inline: unhandled case of return_i");
@@ -1076,19 +1077,18 @@ static void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
 }
 static void rewrite_num_return(MVMThreadContext *tc, MVMSpeshGraph *g,
                         MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
-                        MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
-    switch (invoke_ins->info->opcode) {
-// TODO new-disp
-//    case MVM_OP_invoke_v:
-//        MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
-//        break;
-//    case MVM_OP_invoke_n:
-//        return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
-//        break;
-//    case MVM_OP_invoke_o:
-//        return_to_box(tc, g, return_bb, return_ins, invoke_ins->operands[0],
-//            MVM_OP_hllboxtype_n, MVM_OP_box_n);
-//        break;
+                        MVMSpeshBB *runbytecode_bb, MVMSpeshIns *runbytecode_ins) {
+    switch (runbytecode_ins->info->opcode) {
+    case MVM_OP_sp_runbytecode_v:
+        MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
+        break;
+    case MVM_OP_sp_runbytecode_n:
+        return_to_set(tc, g, return_ins, runbytecode_ins->operands[0]);
+        break;
+    case MVM_OP_sp_runbytecode_o:
+        return_to_box(tc, g, return_bb, return_ins, runbytecode_ins->operands[0],
+            MVM_OP_hllboxtype_n, MVM_OP_box_n);
+        break;
     default:
         MVM_oops(tc,
             "Spesh inline: unhandled case of return_n");
@@ -1096,20 +1096,19 @@ static void rewrite_num_return(MVMThreadContext *tc, MVMSpeshGraph *g,
 }
 
 static void rewrite_str_return(MVMThreadContext *tc, MVMSpeshGraph *g,
-                        MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
-                        MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
-    switch (invoke_ins->info->opcode) {
-// TODO new-disp
-//    case MVM_OP_invoke_v:
-//        MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
-//        break;
-//    case MVM_OP_invoke_s:
-//        return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
-//        break;
-//    case MVM_OP_invoke_o:
-//        return_to_box(tc, g, return_bb, return_ins, invoke_ins->operands[0],
-//            MVM_OP_hllboxtype_s, MVM_OP_box_s);
-//        break;
+        MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
+        MVMSpeshBB *runbytecode_bb, MVMSpeshIns *runbytecode_ins) {
+    switch (runbytecode_ins->info->opcode) {
+    case MVM_OP_sp_runbytecode_v:
+        MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
+        break;
+    case MVM_OP_sp_runbytecode_s:
+        return_to_set(tc, g, return_ins, runbytecode_ins->operands[0]);
+        break;
+    case MVM_OP_sp_runbytecode_o:
+        return_to_box(tc, g, return_bb, return_ins, runbytecode_ins->operands[0],
+            MVM_OP_hllboxtype_s, MVM_OP_box_s);
+        break;
     default:
         MVM_oops(tc,
             "Spesh inline: unhandled case of return_s");
@@ -1117,16 +1116,15 @@ static void rewrite_str_return(MVMThreadContext *tc, MVMSpeshGraph *g,
 }
 
 static void rewrite_obj_return(MVMThreadContext *tc, MVMSpeshGraph *g,
-                        MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
-                        MVMSpeshBB *invoke_bb, MVMSpeshIns *invoke_ins) {
-    switch (invoke_ins->info->opcode) {
-// TODO new-disp
-//    case MVM_OP_invoke_v:
-//        MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
-//        break;
-//    case MVM_OP_invoke_o:
-//        return_to_set(tc, g, return_ins, invoke_ins->operands[0]);
-//        break;
+        MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
+        MVMSpeshBB *runbytecode_bb, MVMSpeshIns *runbytecode_ins) {
+    switch (runbytecode_ins->info->opcode) {
+    case MVM_OP_sp_runbytecode_v:
+        MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
+        break;
+    case MVM_OP_sp_runbytecode_o:
+        return_to_set(tc, g, return_ins, runbytecode_ins->operands[0]);
+        break;
     default:
         MVM_oops(tc,
             "Spesh inline: unhandled case of return_o");
@@ -1134,99 +1132,100 @@ static void rewrite_obj_return(MVMThreadContext *tc, MVMSpeshGraph *g,
 }
 
 static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
-                     MVMSpeshGraph *inlinee, MVMSpeshBB *invoke_bb,
-                     MVMSpeshIns *invoke_ins, MVMSpeshBB *inlinee_last_bb) {
-    MVM_panic(1, "re-implement for new-disp");
-//    /* Locate return instructions and rewrite them. For each non-void return,
-//     * given the invoke instruction was itself non-void, we generate a new SSA
-//     * version of the target register. We then insert a PHI that merges those
-//     * versions. */
-//    MVMSpeshBB *bb = inlinee->entry;
-//    MVMint32 initial_last_result_version = invoke_ins->info->opcode != MVM_OP_invoke_v
-//        ? inliner->fact_counts[invoke_ins->operands[0].reg.orig]
-//        : -1;
-//    MVMint32 saw_return = 0;
-//    while (bb) {
-//        MVMSpeshIns *ins = bb->first_ins;
-//        while (ins) {
-//            MVMuint16 opcode = ins->info->opcode;
-//            switch (opcode) {
-//            case MVM_OP_return:
-//                if (invoke_ins->info->opcode == MVM_OP_invoke_v) {
-//                    MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
-//                        invoke_bb->succ[0]);
-//                    tweak_succ(tc, inliner, bb, invoke_bb, invoke_bb->succ[0], saw_return);
-//                    MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
-//                }
-//                else {
-//                    MVM_oops(tc,
-//                        "Spesh inline: return_v/invoke_[!v] mismatch");
-//                }
-//                saw_return = 1;
-//                break;
-//            case MVM_OP_return_i:
-//                MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
-//                    invoke_bb->succ[0]);
-//                tweak_succ(tc, inliner, bb, invoke_bb, invoke_bb->succ[0], saw_return);
-//                rewrite_int_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
-//                saw_return = 1;
-//                break;
-//            case MVM_OP_return_n:
-//                MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
-//                    invoke_bb->succ[0]);
-//                tweak_succ(tc, inliner, bb, invoke_bb, invoke_bb->succ[0], saw_return);
-//                rewrite_num_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
-//                saw_return = 1;
-//                break;
-//            case MVM_OP_return_s:
-//                MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
-//                    invoke_bb->succ[0]);
-//                tweak_succ(tc, inliner, bb, invoke_bb, invoke_bb->succ[0], saw_return);
-//                rewrite_str_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
-//                break;
-//            case MVM_OP_return_o:
-//                MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
-//                    invoke_bb->succ[0]);
-//                tweak_succ(tc, inliner, bb, invoke_bb, invoke_bb->succ[0], saw_return);
-//                rewrite_obj_return(tc, inliner, bb, ins, invoke_bb, invoke_ins);
-//                saw_return = 1;
-//                break;
-//            }
-//            ins = ins->next;
-//        }
-//        if (bb == inlinee_last_bb) {
-//            MVMint32 final_last_result_version = invoke_ins->info->opcode != MVM_OP_invoke_v
-//                ? inliner->fact_counts[invoke_ins->operands[0].reg.orig]
-//                : -1;
-//            if (final_last_result_version != initial_last_result_version) {
-//                /* Produced one or more return results; need a PHI. */
-//                MVMuint32 num_rets = final_last_result_version - initial_last_result_version;
-//                MVMuint32 i;
-//                MVMSpeshIns *phi = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshIns));
-//                phi->info = get_phi(tc, inliner, num_rets + 1);
-//                phi->operands = MVM_spesh_alloc(tc, inliner, (1 + num_rets) * sizeof(MVMSpeshOperand));
-//                phi->operands[0] = invoke_ins->operands[0];
-//                MVM_spesh_get_facts(tc, inliner, phi->operands[0])->writer = phi;
-//                for (i = 0; i < num_rets; i++) {
-//                    phi->operands[i + 1].reg.orig = invoke_ins->operands[0].reg.orig;
-//                    phi->operands[i + 1].reg.i = initial_last_result_version + i;
-//                    MVM_spesh_usages_add_by_reg(tc, inliner, phi->operands[i + 1], phi);
-//                }
-//                MVM_spesh_manipulate_insert_ins(tc, bb->linear_next, NULL, phi);
-//            }
-//            break;
-//        }
-//        bb = bb->linear_next;
-//    }
+                     MVMSpeshGraph *inlinee, MVMSpeshBB *runbytecode_bb,
+                     MVMSpeshIns *runbytecode_ins, MVMSpeshBB *inlinee_last_bb) {
+    /* Locate return instructions and rewrite them. For each non-void return,
+     * given the runbytecode instruction was itself non-void, we generate a new SSA
+     * version of the target register. We then insert a PHI that merges those
+     * versions. */
+    MVMSpeshBB *bb = inlinee->entry;
+    MVMint32 initial_last_result_version = runbytecode_ins->info->opcode != MVM_OP_sp_runbytecode_v
+        ? inliner->fact_counts[runbytecode_ins->operands[0].reg.orig]
+        : -1;
+    MVMint32 saw_return = 0;
+    while (bb) {
+        MVMSpeshIns *ins = bb->first_ins;
+        while (ins) {
+            MVMuint16 opcode = ins->info->opcode;
+            switch (opcode) {
+            case MVM_OP_return:
+                if (runbytecode_ins->info->opcode == MVM_OP_sp_runbytecode_v) {
+                    MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
+                        runbytecode_bb->succ[0]);
+                    tweak_succ(tc, inliner, bb, runbytecode_bb, runbytecode_bb->succ[0],
+                        saw_return);
+                    MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
+                }
+                else {
+                    MVM_oops(tc,
+                        "Spesh inline: return_v/sp_runbytecode_[!v] mismatch");
+                }
+                saw_return = 1;
+                break;
+            case MVM_OP_return_i:
+                MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
+                    runbytecode_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, runbytecode_bb, runbytecode_bb->succ[0],
+                    saw_return);
+                rewrite_int_return(tc, inliner, bb, ins, runbytecode_bb, runbytecode_ins);
+                saw_return = 1;
+                break;
+            case MVM_OP_return_n:
+                MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
+                    runbytecode_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, runbytecode_bb, runbytecode_bb->succ[0],
+                    saw_return);
+                rewrite_num_return(tc, inliner, bb, ins, runbytecode_bb, runbytecode_ins);
+                saw_return = 1;
+                break;
+            case MVM_OP_return_s:
+                MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
+                    runbytecode_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, runbytecode_bb, runbytecode_bb->succ[0],
+                    saw_return);
+                rewrite_str_return(tc, inliner, bb, ins, runbytecode_bb, runbytecode_ins);
+                break;
+            case MVM_OP_return_o:
+                MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
+                    runbytecode_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, runbytecode_bb, runbytecode_bb->succ[0],
+                    saw_return);
+                rewrite_obj_return(tc, inliner, bb, ins, runbytecode_bb, runbytecode_ins);
+                saw_return = 1;
+                break;
+            }
+            ins = ins->next;
+        }
+        if (bb == inlinee_last_bb) {
+            MVMint32 final_last_result_version = runbytecode_ins->info->opcode != MVM_OP_sp_runbytecode_v
+                ? inliner->fact_counts[runbytecode_ins->operands[0].reg.orig]
+                : -1;
+            if (final_last_result_version != initial_last_result_version) {
+                /* Produced one or more return results; need a PHI. */
+                MVMuint32 num_rets = final_last_result_version - initial_last_result_version;
+                MVMuint32 i;
+                MVMSpeshIns *phi = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshIns));
+                phi->info = get_phi(tc, inliner, num_rets + 1);
+                phi->operands = MVM_spesh_alloc(tc, inliner, (1 + num_rets) * sizeof(MVMSpeshOperand));
+                phi->operands[0] = runbytecode_ins->operands[0];
+                MVM_spesh_get_facts(tc, inliner, phi->operands[0])->writer = phi;
+                for (i = 0; i < num_rets; i++) {
+                    phi->operands[i + 1].reg.orig = runbytecode_ins->operands[0].reg.orig;
+                    phi->operands[i + 1].reg.i = initial_last_result_version + i;
+                    MVM_spesh_usages_add_by_reg(tc, inliner, phi->operands[i + 1], phi);
+                }
+                MVM_spesh_manipulate_insert_ins(tc, bb->linear_next, NULL, phi);
+            }
+            break;
+        }
+        bb = bb->linear_next;
+    }
 }
 
-/* Re-writes argument passing and parameter taking instructions to simple
- * register set operations. */
+/* Re-writes parameter taking instructions to simple register set operations. */
 static void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
-                  MVMSpeshGraph *inlinee, MVMSpeshBB *invoke_bb,
-                  MVMSpeshCallInfo *call_info, MVMSpeshBB *inlinee_last_bb) {
-    /* Look for param-taking instructions. Track what arg instructions we
-     * use in the process. */
+        MVMSpeshGraph *inlinee, MVMSpeshBB *runbytecode_bb, MVMCallsite *cs,
+        MVMSpeshOperand *args, MVMSpeshBB *inlinee_last_bb) {
     MVMSpeshBB *bb = inlinee->entry;
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
@@ -1234,92 +1233,23 @@ static void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             MVMuint16    opcode = ins->info->opcode;
             MVMSpeshIns *next   = ins->next;
             switch (opcode) {
-            case MVM_OP_sp_getarg_o:
-            case MVM_OP_sp_getarg_i:
-            case MVM_OP_sp_getarg_n:
-            case MVM_OP_sp_getarg_s: {
-                MVMuint16    idx     = ins->operands[1].lit_i16;
-                MVMSpeshIns *arg_ins = call_info->arg_ins[idx];
-                switch (arg_ins->info->opcode) {
-                case MVM_OP_arg_i:
-                case MVM_OP_arg_n:
-                case MVM_OP_arg_s:
-                case MVM_OP_arg_o:
-                    /* Receiver just becomes a set instruction; delete the
-                     * argument passing instruction. */
+                case MVM_OP_sp_getarg_o:
+                case MVM_OP_sp_getarg_i:
+                case MVM_OP_sp_getarg_n:
+                case MVM_OP_sp_getarg_s: {
+                    MVMuint16 idx = ins->operands[1].lit_i16;
                     ins->info = MVM_op_get_op(MVM_OP_set);
-                    ins->operands[1] = arg_ins->operands[1];
-                    MVM_spesh_usages_add_by_reg(tc, inliner, ins->operands[1], ins);
-                    MVM_spesh_manipulate_delete_ins(tc, inliner,
-                        call_info->prepargs_bb, arg_ins);
+                    ins->operands[1] = args[idx];
+                    MVM_spesh_usages_add_by_reg(tc, inliner, args[idx], ins);
                     break;
-                case MVM_OP_argconst_i:
-                    arg_ins->info        = MVM_op_get_op(MVM_OP_const_i64);
-                    arg_ins->operands[0] = ins->operands[0];
-                    MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
-                    MVM_spesh_usages_add_by_reg(tc, inliner, ins->operands[0], arg_ins);
-                    break;
-                case MVM_OP_argconst_n:
-                    arg_ins->info        = MVM_op_get_op(MVM_OP_const_n64);
-                    arg_ins->operands[0] = ins->operands[0];
-                    MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
-                    MVM_spesh_usages_add_by_reg(tc, inliner, ins->operands[0], arg_ins);
-                    break;
-                case MVM_OP_argconst_s:
-                    arg_ins->info        = MVM_op_get_op(MVM_OP_const_s);
-                    arg_ins->operands[0] = ins->operands[0];
-                    MVM_spesh_manipulate_delete_ins(tc, inliner, bb, ins);
-                    MVM_spesh_usages_add_by_reg(tc, inliner, ins->operands[0], arg_ins);
-                    break;
-                default:
-                    MVM_oops(tc,
-                        "Spesh inline: unhandled arg instruction %d",
-                        arg_ins->info->opcode);
                 }
-                break;
-            }
             }
             ins = next;
         }
-        if (bb == inlinee_last_bb) break;
+        if (bb == inlinee_last_bb)
+            break;
         bb = bb->linear_next;
     }
-
-    {
-    MVMSpeshIns *arg_ins = call_info->prepargs_ins->next;
-    /* If there's some args that are not fetched by our inlinee,
-     * we have to kick them out, as arg_* ops are only valid between
-     * a prepargs and invoke_* op. */
-    while (arg_ins) {
-        MVMuint16    opcode = arg_ins->info->opcode;
-        MVMSpeshIns *next   = arg_ins->next;
-        switch (opcode) {
-            case MVM_OP_arg_i:
-            case MVM_OP_arg_n:
-            case MVM_OP_arg_s:
-            case MVM_OP_arg_o:
-            case MVM_OP_argconst_i:
-            case MVM_OP_argconst_n:
-            case MVM_OP_argconst_s:
-                MVM_spesh_manipulate_delete_ins(tc, inliner, call_info->prepargs_bb, arg_ins);
-                break;
-            case MVM_OP_set:
-                break;
-// TODO new-disp
-//            case MVM_OP_invoke_i:
-//            case MVM_OP_invoke_n:
-//            case MVM_OP_invoke_s:
-//            case MVM_OP_invoke_o:
-//            case MVM_OP_invoke_v:
-            default:
-                next = NULL;
-        }
-        arg_ins = next;
-    }
-    }
-
-    /* Delete the prepargs instruction. */
-    MVM_spesh_manipulate_delete_ins(tc, inliner, invoke_bb, call_info->prepargs_ins);
 }
 
 /* Gets the first instruction from a spesh graph, looking through multiple
@@ -1338,9 +1268,8 @@ static MVMSpeshIns * find_first_instruction(MVMThreadContext *tc, MVMSpeshGraph 
 /* Annotates first and last instruction in post-processed inlinee with start
  * and end inline annotations. */
 static void annotate_inline_start_end(MVMThreadContext *tc, MVMSpeshGraph *inliner,
-                               MVMSpeshGraph *inlinee, MVMint32 idx,
-                               MVMSpeshBB *inlinee_last_bb,
-                               MVMuint32 inline_boundary_handler) {
+        MVMSpeshGraph *inlinee, MVMint32 idx, MVMSpeshBB *inlinee_last_bb,
+        MVMuint32 inline_boundary_handler) {
     /* Annotate first instruction as an inline start. */
     MVMSpeshAnn *start_ann     = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));
     MVMSpeshAnn *end_ann       = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshAnn));
@@ -1382,17 +1311,17 @@ static void annotate_inline_start_end(MVMThreadContext *tc, MVMSpeshGraph *inlin
 
 /* Drives the overall inlining process. */
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
-                      MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
-                      MVMSpeshIns *invoke_ins, MVMSpeshGraph *inlinee,
-                      MVMStaticFrame *inlinee_sf, MVMSpeshOperand code_ref_reg,
-                      MVMuint32 proxy_deopt_idx, MVMuint16 bytecode_size) {
+        MVMCallsite *cs, MVMSpeshOperand *args, MVMSpeshBB *runbytecode_bb,
+        MVMSpeshIns *runbytecode_ins, MVMSpeshGraph *inlinee,
+        MVMStaticFrame *inlinee_sf, MVMSpeshOperand code_ref_reg,
+        MVMuint32 proxy_deopt_idx, MVMuint16 bytecode_size) {
     MVMSpeshIns *first_ins;
 
     /* Merge inlinee's graph into the inliner. */
     MVMuint32 inline_boundary_handler;
     MVMSpeshBB *inlinee_last_bb = merge_graph(tc, inliner, inlinee, inlinee_sf,
-        invoke_bb, invoke_ins, code_ref_reg, &inline_boundary_handler, bytecode_size,
-        call_info->cs);
+        runbytecode_bb, runbytecode_ins, code_ref_reg, &inline_boundary_handler, bytecode_size,
+        cs);
 
     /* If we're profiling, note it's an inline. */
     first_ins = find_first_instruction(tc, inlinee);
@@ -1405,11 +1334,11 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     }
 
     /* Re-write returns to a set and goto. */
-    rewrite_returns(tc, inliner, inlinee, invoke_bb, invoke_ins, inlinee_last_bb);
+    rewrite_returns(tc, inliner, inlinee, runbytecode_bb, runbytecode_ins, inlinee_last_bb);
 
     /* Re-write the argument passing instructions to poke values into the
      * appropriate slots. */
-    rewrite_args(tc, inliner, inlinee, invoke_bb, call_info, inlinee_last_bb);
+    rewrite_args(tc, inliner, inlinee, runbytecode_bb, cs, args, inlinee_last_bb);
 
     /* Annotate first and last instruction with inline table annotations; also
      * add annotations for fixing up the handlers table inline boundary
@@ -1417,15 +1346,13 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     annotate_inline_start_end(tc, inliner, inlinee, inliner->num_inlines - 1,
         inlinee_last_bb, inline_boundary_handler);
 
-    /* Finally, turn the invoke instruction into a goto. */
-// TODO new-disp
-    MVM_panic(1, "re-implement for new-disp");
-//    MVM_spesh_usages_delete_by_reg(tc, inliner,
-//        invoke_ins->operands[invoke_ins->info->opcode == MVM_OP_invoke_v ? 0 : 1],
-//        invoke_ins);
-    invoke_ins->info = MVM_op_get_op(MVM_OP_goto);
-    invoke_ins->operands[0].ins_bb = inlinee->entry->linear_next;
-    tweak_succ(tc, inliner, invoke_bb, inlinee->entry, inlinee->entry->linear_next, 0);
+    /* Finally, turn the runbytecode instruction into a goto. */
+    MVM_spesh_usages_delete_by_reg(tc, inliner,
+        runbytecode_ins->operands[runbytecode_ins->info->opcode == MVM_OP_sp_runbytecode_v ? 0 : 1],
+        runbytecode_ins);
+    runbytecode_ins->info = MVM_op_get_op(MVM_OP_goto);
+    runbytecode_ins->operands[0].ins_bb = inlinee->entry->linear_next;
+    tweak_succ(tc, inliner, runbytecode_bb, inlinee->entry, inlinee->entry->linear_next, 0);
 
     /* If this inline may cause deopt, then we take the deopt index at the
      * calling point and use it as a proxy for the deopts that may happen in
