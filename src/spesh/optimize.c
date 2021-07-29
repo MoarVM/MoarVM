@@ -1196,137 +1196,6 @@ static MVMSpeshStatsType * find_invokee_type_tuple(MVMThreadContext *tc,
         : NULL;
 }
 
-///* Inserts an argument type guard as suggested by a logged type tuple. */
-//static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
-//                                  MVMSpeshStatsType *type_info,
-//                                  MVMSpeshCallInfo *arg_info, MVMuint32 arg_idx,
-//                                  MVMuint32 add_comment) {
-//    MVMuint32 deopt_target, deopt_index, new_deopt_index;
-//
-//    /* Split the SSA version of the arg. */
-//    MVMSpeshOperand preguard_reg = arg_info->arg_ins[arg_idx]->operands[1];
-//    MVMSpeshOperand guard_reg = MVM_spesh_manipulate_split_version(tc, g,
-//            preguard_reg, arg_info->prepargs_bb, arg_info->prepargs_ins);
-//
-//    /* Insert guard before prepargs (this means they stack up in order). */
-//    MVMSpeshIns *guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-//    guard->info = MVM_op_get_op(type_info->type_concrete
-//        ? MVM_OP_sp_guardconc
-//        : MVM_OP_sp_guardtype);
-//    guard->operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
-//    guard->operands[0] = guard_reg;
-//    guard->operands[1] = preguard_reg;
-//    guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
-//        (MVMCollectable *)type_info->type->st);
-//    find_deopt_target_and_index(tc, g, arg_info->prepargs_ins, &deopt_target, &deopt_index);
-//
-//    MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
-//        arg_info->prepargs_ins->prev, guard);
-//    MVM_spesh_usages_add_by_reg(tc, g, preguard_reg, guard);
-//    MVM_spesh_get_facts(tc, g, guard_reg)->writer = guard;
-//
-//    if (add_comment) {
-//        MVM_spesh_graph_add_comment(tc, g, guard, "inserted argument guards");
-//    }
-//
-//    /* Also give the instruction a deopt annotation, and related it to the
-//     * one on the prepargs. */
-//    new_deopt_index = MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
-//        MVM_SPESH_ANN_DEOPT_ONE_INS);
-//    guard->operands[3].lit_ui32 = new_deopt_index;
-//    add_synthetic_deopt_annotation(tc, g, guard, deopt_index);
-//}
-//
-///* Inserts an argument decont type guard as suggested by a logged type tuple. */
-//static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
-//                                         MVMSpeshStatsType *type_info,
-//                                         MVMSpeshCallInfo *arg_info, MVMuint32 arg_idx,
-//                                         MVMuint32 add_comment) {
-//    MVMSpeshIns *decont, *guard;
-//    MVMuint32 deopt_target, deopt_index, new_deopt_index;
-//
-//    /* We need a temporary register to decont into. */
-//    MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
-//
-//    /* Insert the decont, then try to optimize it into something cheaper. */
-//    decont = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-//    decont->info = MVM_op_get_op(MVM_OP_decont);
-//    decont->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
-//    decont->operands[0] = temp;
-//    decont->operands[1] = arg_info->arg_ins[arg_idx]->operands[1];
-//    MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
-//        arg_info->prepargs_ins->prev, decont);
-//    MVM_spesh_get_facts(tc, g, temp)->writer = decont;
-//    MVM_spesh_usages_add_by_reg(tc, g, arg_info->arg_ins[arg_idx]->operands[1], decont);
-//    optimize_decont(tc, g, arg_info->prepargs_bb, decont);
-//
-//    /* Guard the decontainerized value. */
-//    find_deopt_target_and_index(tc, g, arg_info->prepargs_ins, &deopt_target, &deopt_index);
-//    guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-//    guard->info = MVM_op_get_op(type_info->decont_type_concrete
-//        ? MVM_OP_sp_guardconc
-//        : MVM_OP_sp_guardtype);
-//    guard->operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
-//    MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
-//    guard->operands[0] = MVM_spesh_manipulate_new_version(tc, g, temp.reg.orig);
-//    guard->operands[1] = temp;
-//    guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
-//        (MVMCollectable *)type_info->decont_type->st);
-//    MVM_spesh_manipulate_insert_ins(tc, arg_info->prepargs_bb,
-//        arg_info->prepargs_ins->prev, guard);
-//    MVM_spesh_usages_add_by_reg(tc, g, temp, guard);
-//    MVM_spesh_get_facts(tc, g, guard->operands[0])->writer = guard;
-//
-//    if (add_comment) {
-//        MVM_spesh_graph_add_comment(tc, g, guard, "inserted argument guards");
-//    }
-//
-//    /* Also give the instruction a deopt annotation and reference prepargs
-//     * deopt index. */
-//    new_deopt_index = MVM_spesh_graph_add_deopt_annotation(tc, g, guard, deopt_target,
-//        MVM_SPESH_ANN_DEOPT_ONE_INS);
-//    guard->operands[3].lit_ui32 = new_deopt_index;
-//    add_synthetic_deopt_annotation(tc, g, guard, deopt_index);
-//}
-//
-///* Look through the call info and the type tuple, see what guards we are
-// * missing, and insert them. */
-//static void check_and_tweak_arg_guards(MVMThreadContext *tc, MVMSpeshGraph *g,
-//                                       MVMSpeshStatsType *type_tuple,
-//                                       MVMSpeshCallInfo *arg_info) {
-//    MVMuint32 n = arg_info->cs->flag_count;
-//    MVMuint32 arg_idx = 0;
-//    MVMuint32 i;
-//    MVMuint32 first_guard = 1;
-//    for (i = 0; i < n; i++, arg_idx++) {
-//        if (arg_info->cs->arg_flags[i] & MVM_CALLSITE_ARG_NAMED)
-//            arg_idx++;
-//        if (arg_info->cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ) {
-//            MVMObject *t_type = type_tuple[i].type;
-//            MVMObject *t_decont_type = type_tuple[i].decont_type;
-//            if (t_type) {
-//                /* Add a guard unless the facts already match. */
-//                MVMSpeshFacts *arg_facts = arg_info->arg_facts[arg_idx];
-//                MVMuint32 need_guard = !arg_facts ||
-//                    !(arg_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) ||
-//                    arg_facts->type != t_type ||
-//                    (type_tuple[i].type_concrete
-//                        && !(arg_facts->flags & MVM_SPESH_FACT_CONCRETE)) ||
-//                    (!type_tuple[i].type_concrete
-//                        && !(arg_facts->flags & MVM_SPESH_FACT_TYPEOBJ));
-//                if (need_guard) {
-//                    insert_arg_type_guard(tc, g, &type_tuple[i], arg_info, arg_idx, first_guard);
-//                    first_guard = 0;
-//                }
-//            }
-//            if (t_decont_type) {
-//                insert_arg_decont_type_guard(tc, g, &type_tuple[i], arg_info, arg_idx, first_guard);
-//                first_guard = 0;
-//            }
-//        }
-//    }
-//}
-
 /* Sees if any static frames were logged for the dispatch at this location,
  * and if so checks if there was a stable one. */
 MVMStaticFrame * find_runbytecode_static_frame(MVMThreadContext *tc, MVMSpeshPlanned *p,
@@ -1581,6 +1450,99 @@ static void insert_static_frame_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard);
 }
 
+/* Inserts an argument type guard as suggested by a logged type tuple. */
+static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns *ins, MVMuint32 bytecode_offset,
+        MVMSpeshStatsType *type_info, MVMSpeshOperand preguard_reg) {
+    /* Split the SSA version of the arg. */
+    MVMSpeshOperand guard_reg = MVM_spesh_manipulate_split_version(tc, g,
+            preguard_reg, bb, ins);
+
+    /* Insert guard before the runbytecode instruction. */
+    MVMSpeshIns *guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    guard->info = MVM_op_get_op(type_info->type_concrete
+        ? MVM_OP_sp_guardconc
+        : MVM_OP_sp_guardtype);
+    guard->operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
+    guard->operands[0] = guard_reg;
+    MVM_spesh_get_facts(tc, g, guard_reg)->writer = guard;
+    guard->operands[1] = preguard_reg;
+    MVM_spesh_usages_add_by_reg(tc, g, preguard_reg, guard);
+    guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+        (MVMCollectable *)type_info->type->st);
+    guard->operands[3].lit_ui32 = add_deopt_ann(tc, g, guard, bytecode_offset);
+    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard);
+    MVM_spesh_graph_add_comment(tc, g, guard, "Inserted to use specialization");
+}
+
+/* Inserts an argument decont type guard as suggested by a logged type tuple. */
+static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns *ins, MVMuint32 bytecode_offset,
+        MVMSpeshStatsType *type_info, MVMSpeshOperand to_guard) {
+    /* We need a temporary register to decont into. */
+    MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+
+    /* Insert the decont, then try to optimize it into something cheaper. */
+    MVMSpeshIns *decont = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    decont->info = MVM_op_get_op(MVM_OP_decont);
+    decont->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+    decont->operands[0] = temp;
+    MVM_spesh_get_facts(tc, g, temp)->writer = decont;
+    decont->operands[1] = to_guard;
+    MVM_spesh_usages_add_by_reg(tc, g, to_guard, decont);
+    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, decont);
+    MVM_spesh_graph_add_comment(tc, g, decont, "Decontainerized for guarding");
+    optimize_decont(tc, g, bb, decont);
+
+    /* Guard the decontainerized value. */
+    MVMSpeshIns *guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    guard->info = MVM_op_get_op(type_info->decont_type_concrete
+        ? MVM_OP_sp_guardconc
+        : MVM_OP_sp_guardtype);
+    guard->operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
+    MVM_spesh_manipulate_release_temp_reg(tc, g, temp);
+    guard->operands[0] = MVM_spesh_manipulate_new_version(tc, g, temp.reg.orig);
+    MVM_spesh_get_facts(tc, g, guard->operands[0])->writer = guard;
+    guard->operands[1] = temp;
+    MVM_spesh_usages_add_by_reg(tc, g, temp, guard);
+    guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+        (MVMCollectable *)type_info->decont_type->st);
+    guard->operands[3].lit_ui32 = add_deopt_ann(tc, g, guard, bytecode_offset);
+    MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard);
+}
+
+/* Look through the call info and the type tuple, see what guards we are
+ * missing, and insert them. */
+static void check_and_tweak_arg_guards(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns *ins, MVMuint32 bytecode_offset,
+        MVMSpeshStatsType *type_tuple, MVMCallsite *cs, MVMSpeshOperand *args) {
+    MVMuint32 n = cs->flag_count;
+    MVMuint32 i;
+    for (i = 0; i < n; i++) {
+        if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ) {
+            MVMObject *t_type = type_tuple[i].type;
+            MVMObject *t_decont_type = type_tuple[i].decont_type;
+            if (t_type) {
+                /* Add a guard unless the facts already match. */
+                MVMSpeshFacts *arg_facts = MVM_spesh_get_and_use_facts(tc, g, args[i]);
+                MVMuint32 need_guard = !arg_facts ||
+                    !(arg_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) ||
+                    arg_facts->type != t_type ||
+                    (type_tuple[i].type_concrete
+                        && !(arg_facts->flags & MVM_SPESH_FACT_CONCRETE)) ||
+                    (!type_tuple[i].type_concrete
+                        && !(arg_facts->flags & MVM_SPESH_FACT_TYPEOBJ));
+                if (need_guard)
+                    insert_arg_type_guard(tc, g, bb, ins, bytecode_offset,
+                        &type_tuple[i], args[i]);
+            }
+            if (t_decont_type)
+                insert_arg_decont_type_guard(tc, g, bb, ins, bytecode_offset,
+                    &type_tuple[i], args[i]);
+        }
+    }
+}
+
 /* Ties to optimize a runbytecode instruction by either pre-selecting a spesh
  * candidate or, if possible, inlining it. */
 void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -1645,15 +1607,18 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
 
     /* Try to find a specialization. TODO Can also consider facts. */
     MVMSpeshArgGuard *ag = target_sf->body.spesh->body.spesh_arg_guard;
-    MVMint32 spesh_cand = MVM_spesh_arg_guard_run_types(tc, ag, cs, stable_type_tuple);
+    MVMint16 spesh_cand = MVM_spesh_arg_guard_run_types(tc, ag, cs, stable_type_tuple);
    if (spesh_cand >= 0) {
        /* Found a candidate. Stack up any required guards. */
        if (need_guardsf)
            insert_static_frame_guard(tc, g, bb, ins, coderef_reg, target_sf,
                bytecode_offset);
-        // TODO arg guards
+        check_and_tweak_arg_guards(tc, g, bb, ins, bytecode_offset,
+            stable_type_tuple, cs, args);
 
-       // TODO inlining or spesh linking
+       // TODO try to inline
+       /* Set chosen spesh candidate in the runbytecode instruction. */
+       selected->lit_i16 = spesh_cand;
    }
    else if (target_sf->body.bytecode_size < MVM_spesh_inline_get_max_size(tc, target_sf)) {
        /* TODO Consider producing a candidate to inline */
@@ -2312,9 +2277,22 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_sp_runbytecode_o:
         case MVM_OP_sp_runbytecode_i:
         case MVM_OP_sp_runbytecode_n:
-        case MVM_OP_sp_runbytecode_s:
+        case MVM_OP_sp_runbytecode_s: {
+            MVMSpeshAnn *temps_ann = ins->annotations;
+            if (temps_ann && temps_ann->type == MVM_SPESH_ANN_DELAYED_TEMPS)
+                ins->annotations = temps_ann->next;
+            else
+                temps_ann = NULL;
             optimize_runbytecode(tc, g, bb, ins, p);
+            if (temps_ann) {
+                MVMint32 i = 0;
+                while (temps_ann->data.temps_to_release[i].lit_i64 != -1)
+                    MVM_spesh_manipulate_release_temp_reg(tc, g,
+                        temps_ann->data.temps_to_release[i++]);
+                MVM_free(temps_ann->data.temps_to_release);
+            }
             break;
+        }
         case MVM_OP_prof_enter:
             /* Profiling entered from spesh should indicate so. */
             ins->info = MVM_op_get_op(MVM_OP_prof_enterspesh);
