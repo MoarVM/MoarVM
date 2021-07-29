@@ -436,6 +436,21 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         case MVM_OP_dispatch_n:
         case MVM_OP_dispatch_s:
         case MVM_OP_dispatch_o:
+        case MVM_OP_sp_dispatch_v:
+        case MVM_OP_sp_dispatch_i:
+        case MVM_OP_sp_dispatch_n:
+        case MVM_OP_sp_dispatch_s:
+        case MVM_OP_sp_dispatch_o:
+        case MVM_OP_sp_runbytecode_v:
+        case MVM_OP_sp_runbytecode_i:
+        case MVM_OP_sp_runbytecode_n:
+        case MVM_OP_sp_runbytecode_s:
+        case MVM_OP_sp_runbytecode_o:
+        case MVM_OP_sp_runcfunc_v:
+        case MVM_OP_sp_runcfunc_i:
+        case MVM_OP_sp_runcfunc_n:
+        case MVM_OP_sp_runcfunc_s:
+        case MVM_OP_sp_runcfunc_o:
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
             next_bbs = 1;
             break;
