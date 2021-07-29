@@ -1499,23 +1499,22 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         }
     }
     else if (target_sf->body.bytecode_size < MVM_spesh_inline_get_max_size(tc, target_sf)) {
-        /* TODO Consider producing a candidate to inline */
-//        char *no_inline_reason = NULL;
-//        const MVMOpInfo *no_inline_info = NULL;
-//        MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph_from_unspecialized(
-//                tc, g, target_sf, ins, arg_info, stable_type_tuple, &no_inline_reason, &no_inline_info);
-//        log_inline(tc, g, target_sf, inline_graph, target_sf->body.bytecode_size,
-//                no_inline_reason, 1, no_inline_info);
-//        if (inline_graph) {
-//            MVMSpeshOperand coderef_reg = ins->info->opcode == MVM_OP_runbytecode_v
-//                ? ins->operands[0]
-//                    : ins->operands[1];
+        /* Consider producing a candidate to inline. */
+        char *no_inline_reason = NULL;
+        const MVMOpInfo *no_inline_info = NULL;
+        MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph_from_unspecialized(
+                tc, g, target_sf, ins, cs, args, stable_type_tuple,
+                &no_inline_reason, &no_inline_info);
+        log_inline(tc, g, target_sf, inline_graph, target_sf->body.bytecode_size,
+                no_inline_reason, 1, no_inline_info);
+        if (inline_graph) {
 //            MVMSpeshBB *optimize_from_bb = inline_graph->entry;
-//            MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
-//            MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
-//                    code_ref_reg, prepargs_deopt_idx, 0); /* Don't know an accurate size */
+            MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, coderef_reg);
+//            MVM_spesh_inline(tc, g, cs, args, bb, ins, inline_graph, target_sf,
+//                    coderef_reg, add_deopt_ann(tc, g, NULL, bytecode_offset),
+//                    0); /* Don't know an accurate size */
 //            optimize_bb(tc, g, optimize_from_bb, NULL);
-//        }
+        }
     }
 
     /* Otherwise, nothing to be done. */
