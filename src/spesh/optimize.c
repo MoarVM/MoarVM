@@ -1454,12 +1454,12 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             /* Yes, have inline graph, so go ahead and do it. Make sure we
              * keep the code ref reg alive by giving it a usage count as
              * it will be referenced from the deopt table. */
-            //MVMSpeshBB *optimize_from_bb = inline_graph->entry;
+            MVMSpeshBB *optimize_from_bb = inline_graph->entry;
             MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, coderef_reg);
             MVM_spesh_inline(tc, g, cs, args, bb, ins, inline_graph, target_sf,
                 coderef_reg, add_deopt_ann(tc, g, NULL, bytecode_offset),
                 (MVMuint16)target_sf->body.spesh->body.spesh_candidates[spesh_cand]->body.bytecode_size);
-            //optimize_bb(tc, g, optimize_from_bb, NULL);
+            optimize_bb(tc, g, optimize_from_bb, NULL);
 
             /* In debug mode, annotate what we inlined. */
             if (MVM_spesh_debug_enabled(tc)) {
