@@ -1,5 +1,7 @@
 #include "moar.h"
 
+#define DUMP_FULL_CACHES 0
+
 MVMuint32 try_update_cache_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry **target,
         MVMDispInlineCacheEntry *from, MVMDispInlineCacheEntry *to);
 
@@ -348,8 +350,13 @@ MVMuint32 MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         /* Polymorphic -> polymorphic transition. */
         MVMDispInlineCacheEntryPolymorphicDispatch *prev_entry =
                 (MVMDispInlineCacheEntryPolymorphicDispatch *)entry;
-        if (prev_entry->num_dps == MVM_INLINE_CACHE_MAX_POLY)
+        if (prev_entry->num_dps == MVM_INLINE_CACHE_MAX_POLY) {
+#if DUMP_FULL_CACHES
+            fprintf(stderr, "\n\nFull polymorphic dispatch inline cache at:\n");
+            MVM_dump_backtrace(tc);
+#endif
             return 0;
+        }
         MVMDispInlineCacheEntryPolymorphicDispatch *new_entry = MVM_fixed_size_alloc(tc,
                 tc->instance->fsa, sizeof(MVMDispInlineCacheEntryPolymorphicDispatch));
         new_entry->base.run_dispatch = dispatch_polymorphic;
@@ -366,8 +373,13 @@ MVMuint32 MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         /* Polymorphic flattening -> polymorphic flattening transition. */
         MVMDispInlineCacheEntryPolymorphicDispatchFlattening *prev_entry =
                 (MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry;
-        if (prev_entry->num_dps == MVM_INLINE_CACHE_MAX_POLY)
+        if (prev_entry->num_dps == MVM_INLINE_CACHE_MAX_POLY) {
+#if DUMP_FULL_CACHES
+            fprintf(stderr, "\n\nFull polymorphic flattening dispatch inline cache at:\n");
+            MVM_dump_backtrace(tc);
+#endif
             return 0;
+        }
         MVMDispInlineCacheEntryPolymorphicDispatchFlattening *new_entry = MVM_fixed_size_alloc(tc,
                 tc->instance->fsa, sizeof(MVMDispInlineCacheEntryPolymorphicDispatchFlattening));
         new_entry->base.run_dispatch = dispatch_polymorphic_flattening;
