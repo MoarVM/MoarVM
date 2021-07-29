@@ -778,10 +778,14 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
 static MVMint32 is_handler_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint16 reg) {
     MVMuint32 num_handlers = g->num_handlers;
     MVMuint32 i;
-    for (i = 0; i < num_handlers; i++)
+    for (i = 0; i < num_handlers; i++) {
         if (g->handlers[i].action == MVM_EX_ACTION_INVOKE)
             if (g->handlers[i].block_reg == reg)
                 return 1;
+        if (g->handlers[i].category_mask & MVM_EX_CAT_LABELED)
+            if (g->handlers[i].label_reg == reg)
+                return 1;
+    }
     return 0;
 }
 static void insert_object_null_instructions(MVMThreadContext *tc, MVMSpeshGraph *g) {

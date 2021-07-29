@@ -768,6 +768,12 @@ static void tweak_block_handler_usage(MVMThreadContext *tc, MVMSpeshGraph *g) {
             operand.reg.i = 1;
             MVM_spesh_usages_add_for_handler_by_reg(tc, g, operand);
         }
+        if (g->sf->body.handlers[i].category_mask & MVM_EX_CAT_LABELED) {
+            MVMSpeshOperand operand;
+            operand.reg.orig = g->sf->body.handlers[i].label_reg;
+            operand.reg.i = 1;
+            MVM_spesh_usages_add_for_handler_by_reg(tc, g, operand);
+        }
     }
 }
 
