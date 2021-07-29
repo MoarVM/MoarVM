@@ -1616,13 +1616,42 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         check_and_tweak_arg_guards(tc, g, bb, ins, bytecode_offset,
             stable_type_tuple, cs, args);
 
-       // TODO try to inline
-       /* Set chosen spesh candidate in the runbytecode instruction. */
-       selected->lit_i16 = spesh_cand;
-   }
-   else if (target_sf->body.bytecode_size < MVM_spesh_inline_get_max_size(tc, target_sf)) {
-       /* TODO Consider producing a candidate to inline */
-   }
+        /* See if we'll be able to inline it. */
+        char *no_inline_reason = NULL;
+        const MVMOpInfo *no_inline_info = NULL;
+        MVMuint32 effective_size;
+        MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
+            target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
+            ins, &no_inline_reason, &effective_size, &no_inline_info);
+        log_inline(tc, g, target_sf, inline_graph, effective_size, no_inline_reason,
+            0, no_inline_info);
+        if (inline_graph) {
+            // TODO actually inline
+            selected->lit_i16 = spesh_cand;
+        }
+        else {
+            /* Can't inline, but can still set the chosen spesh candidate in
+             * the runbytecode instruction. */
+            selected->lit_i16 = spesh_cand;
+
+            /* Maybe add inline blocking reason as a comment also. */
+            if (MVM_spesh_debug_enabled(tc)) {
+                char *cuuid_cstr = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
+                char *name_cstr  = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
+                MVM_spesh_graph_add_comment(tc, g, ins,
+                    "could not inline '%s' (%s) candidate %ld: %s",
+                    name_cstr, cuuid_cstr, spesh_cand, no_inline_reason);
+                if (no_inline_info)
+                    MVM_spesh_graph_add_comment(tc, g, ins, "inline-preventing instruction: %s",
+                        no_inline_info->name);
+                MVM_free(cuuid_cstr);
+                MVM_free(name_cstr);
+            }
+        }
+    }
+    else if (target_sf->body.bytecode_size < MVM_spesh_inline_get_max_size(tc, target_sf)) {
+        /* TODO Consider producing a candidate to inline */
+    }
 }
 
 static void optimize_coverage_log(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
