@@ -279,15 +279,6 @@ struct MVMThreadContext {
      * index 0. */
     MVMObject     *compiling_scs;
 
-    /* Dispatcher for next invocation that matches _for to take. If _for is
-     * NULL then anything matches. */
-    MVMObject     *cur_dispatcher;
-    MVMObject     *cur_dispatcher_for;
-
-    /* Dispatcher to return control to when current dispatcher exhausts. */
-    MVMObject     *next_dispatcher;
-    MVMObject     *next_dispatcher_for;
-
     /* Cache of native code callback data. */
     MVMStrHashTable native_callback_cache;
 

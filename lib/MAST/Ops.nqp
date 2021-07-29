@@ -4148,8 +4148,8 @@ BEGIN {
     'markcodestub', 383,
     'getstaticcode', 384,
     'getcodecuid', 385,
-    'setdispatcher', 386,
-    'takedispatcher', 387,
+    'DEPRECATED_90', 386,
+    'DEPRECATED_91', 387,
     'assign', 388,
     'assignunchecked', 389,
     'iscont', 390,
@@ -4520,7 +4520,7 @@ BEGIN {
     'indexingoptimized', 755,
     'captureinnerlex', 756,
     'unicmp_s', 757,
-    'setdispatcherfor', 758,
+    'DEPRECATED_92', 758,
     'strfromname', 759,
     'indexic_s', 760,
     'getport_sk', 761,
@@ -4585,8 +4585,8 @@ BEGIN {
     'uname', 820,
     'freemem', 821,
     'totalmem', 822,
-    'nextdispatcherfor', 823,
-    'takenextdispatcher', 824,
+    'DEPRECATED_93', 823,
+    'DEPRECATED_94', 824,
     'time', 825,
     'dispatch_v', 826,
     'dispatch_i', 827,
@@ -4979,8 +4979,8 @@ BEGIN {
     'markcodestub',
     'getstaticcode',
     'getcodecuid',
-    'setdispatcher',
-    'takedispatcher',
+    'DEPRECATED_90',
+    'DEPRECATED_91',
     'assign',
     'assignunchecked',
     'iscont',
@@ -5351,7 +5351,7 @@ BEGIN {
     'indexingoptimized',
     'captureinnerlex',
     'unicmp_s',
-    'setdispatcherfor',
+    'DEPRECATED_92',
     'strfromname',
     'indexic_s',
     'getport_sk',
@@ -5416,8 +5416,8 @@ BEGIN {
     'uname',
     'freemem',
     'totalmem',
-    'nextdispatcherfor',
-    'takenextdispatcher',
+    'DEPRECATED_93',
+    'DEPRECATED_94',
     'time',
     'dispatch_v',
     'dispatch_i',
@@ -8292,13 +8292,13 @@ BEGIN {
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'setdispatcher', sub ($op0) {
+    'DEPRECATED_90', sub ($op0) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 386, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'takedispatcher', sub ($op0) {
+    'DEPRECATED_91', sub ($op0) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 387, 5);
@@ -11134,7 +11134,7 @@ BEGIN {
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
     },
-    'setdispatcherfor', sub ($op0, $op1) {
+    'DEPRECATED_92', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 758, 5);
@@ -11635,14 +11635,14 @@ BEGIN {
         nqp::writeuint($bytecode, $elems, 822, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'nextdispatcherfor', sub ($op0, $op1) {
+    'DEPRECATED_93', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 823, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'takenextdispatcher', sub ($op0) {
+    'DEPRECATED_94', sub ($op0) {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 824, 5);
