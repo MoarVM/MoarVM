@@ -114,10 +114,6 @@ struct MVMSpeshGraph {
     /* Did we specialize on the invocant type? */
     MVMuint8 specialized_on_invocant;
 
-    /* Do we set a dispatcher? */
-    MVMuint8 sets_dispatcher;
-    MVMuint8 sets_nextdispatcher;
-
     /* Stored in comment annotations to give an ordering of comments */
     MVMuint32 next_annotation_idx;
 };

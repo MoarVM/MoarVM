@@ -2784,25 +2784,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(setdispatcher):
-                tc->cur_dispatcher = GET_REG(cur_op, 0).o;
-                tc->cur_dispatcher_for = NULL;
-                cur_op += 2;
-                goto NEXT;
-            OP(takedispatcher): {
-                MVMObject *disp = tc->cur_dispatcher;
-                MVMObject *disp_for = tc->cur_dispatcher_for;
-                MVMObject *cur_code = tc->cur_frame->code_ref;
-                if (disp && (!disp_for || disp_for == cur_code)) {
-                    GET_REG(cur_op, 0).o = disp;
-                    tc->cur_dispatcher = NULL;
-                }
-                else {
-                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
-                }
-                cur_op += 2;
-                goto NEXT;
-            }
+            OP(DEPRECATED_90):
+            OP(DEPRECATED_91):
+                MVM_exception_throw_adhoc(tc, "Dispatcher ops are superceded by the general dispatch mechanism");
             OP(assign): {
                 MVMObject *cont  = GET_REG(cur_op, 0).o;
                 MVMObject *obj = GET_REG(cur_op, 2).o;
@@ -4998,15 +4982,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 10).i64);
                 cur_op += 12;
                 goto NEXT;
-            OP(setdispatcherfor): {
-                MVMObject *disp_for = GET_REG(cur_op, 2).o;
-                tc->cur_dispatcher = GET_REG(cur_op, 0).o;
-                tc->cur_dispatcher_for = REPR(disp_for)->ID == MVM_REPR_ID_MVMCode
-                    ? disp_for
-                    : MVM_frame_find_invokee(tc, disp_for, NULL);
-                cur_op += 4;
-                goto NEXT;
-            }
+            OP(DEPRECATED_92):
+                MVM_exception_throw_adhoc(tc, "Dispatcher ops are superceded by the general dispatch mechanism");
             OP(strfromname):
                 GET_REG(cur_op, 0).s = MVM_unicode_string_from_name(tc,
                     GET_REG(cur_op, 2).s);
@@ -5438,29 +5415,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = MVM_platform_total_memory();
                 cur_op += 2;
                 goto NEXT;
-            OP(nextdispatcherfor): {
-                MVMObject *next_for = GET_REG(cur_op, 2).o;
-                tc->next_dispatcher = GET_REG(cur_op, 0).o;
-                tc->next_dispatcher_for = REPR(next_for)->ID == MVM_REPR_ID_MVMCode
-                    ? next_for
-                    : MVM_frame_find_invokee(tc, next_for, NULL);
-                cur_op += 4;
-                goto NEXT;
-            }
-            OP(takenextdispatcher): {
-                MVMObject *next_disp = tc->next_dispatcher;
-                MVMObject *next_for = tc->next_dispatcher_for;
-                MVMObject *cur_code = tc->cur_frame->code_ref;
-                if (next_disp && (!next_for || next_for == cur_code)) {
-                    GET_REG(cur_op, 0).o = next_disp;
-                    tc->next_dispatcher  = NULL;
-                }
-                else {
-                    GET_REG(cur_op, 0).o = tc->instance->VMNull;
-                }
-                cur_op += 2;
-                goto NEXT;
-            }
+            OP(DEPRECATED_93):
+            OP(DEPRECATED_94):
+                MVM_exception_throw_adhoc(tc, "Dispatcher ops are superceded by the general dispatch mechanism");
             OP(time):
                 GET_REG(cur_op, 0).u64 = MVM_proc_time(tc);
                 cur_op += 2;

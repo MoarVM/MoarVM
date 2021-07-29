@@ -720,13 +720,6 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[4].reg.orig, ins->operands[4].reg.i);
             break;
-        case MVM_OP_setdispatcher:
-        case MVM_OP_setdispatcherfor:
-            g->sets_dispatcher = 1;
-            break;
-        case MVM_OP_nextdispatcherfor:
-            g->sets_nextdispatcher = 1;
-            break;
         case MVM_OP_sp_guard:
         case MVM_OP_sp_guardconc:
         case MVM_OP_sp_guardtype:

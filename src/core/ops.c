@@ -5792,8 +5792,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_setdispatcher,
-        "setdispatcher",
+        MVM_OP_DEPRECATED_90,
+        "DEPRECATED_90",
         1,
         0,
         0,
@@ -5807,8 +5807,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_takedispatcher,
-        "takedispatcher",
+        MVM_OP_DEPRECATED_91,
+        "DEPRECATED_91",
         1,
         0,
         0,
@@ -11372,8 +11372,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_setdispatcherfor,
-        "setdispatcherfor",
+        MVM_OP_DEPRECATED_92,
+        "DEPRECATED_92",
         2,
         0,
         0,
@@ -12347,8 +12347,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_nextdispatcherfor,
-        "nextdispatcherfor",
+        MVM_OP_DEPRECATED_93,
+        "DEPRECATED_93",
         2,
         0,
         0,
@@ -12362,8 +12362,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_takenextdispatcher,
-        "takenextdispatcher",
+        MVM_OP_DEPRECATED_94,
+        "DEPRECATED_94",
         1,
         0,
         0,

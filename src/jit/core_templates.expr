@@ -1463,25 +1463,6 @@
     (flagval (nz (^getf (^stable $1) MVMSTable invocation_spec)))
     (^one)))
 
-(template: setdispatcher
-  (dov
-    (^setf (tc) MVMThreadContext cur_dispatcher $0)
-    (^setf (tc) MVMThreadContext cur_dispatcher_for (^nullptr))))
-
-(template: takedispatcher
-  (let: (($disp     (^getf (tc) MVMThreadContext cur_dispatcher))
-         ($disp_for (^getf (tc) MVMThreadContext cur_dispatcher_for))
-         ($cur_code (^getf (^frame) MVMFrame code_ref)))
-    (if (all
-          (nz $disp)
-          (any
-            (zr $disp_for)
-            (eq $disp_for $cur_code)))
-      (do
-        (^setf (tc) MVMThreadContext cur_dispatcher (^nullptr))
-        $disp)
-      (^vmnull))))
-
 (template: iscont
   (if
     (any (^is_vmnull $1) (zr (^getf (^stable $1) MVMSTable container_spec)))
@@ -2360,46 +2341,6 @@
       (carg $3 int)
       (carg $4 int)
       (carg $5 int)) int_sz))
-
-(template: setdispatcherfor
-  (dov
-    (^setf (tc) MVMThreadContext cur_dispatcher $0)
-    (^setf (tc) MVMThreadContext cur_dispatcher_for
-      (if
-        (^is_repr_id $1 MVM_REPR_ID_MVMCode)
-        $1
-        (call (^func &MVM_frame_find_invokee)
-          (arglist
-            (carg (tc) ptr)
-            (carg $1 ptr)
-            (carg (^nullptr) ptr)) ptr_sz)))))
-
-(template: nextdispatcherfor
-  (dov
-    (^setf (tc) MVMThreadContext next_dispatcher $0)
-    (^setf (tc) MVMThreadContext next_dispatcher_for
-      (if
-        (^is_repr_id $1 MVM_REPR_ID_MVMCode)
-        $1
-        (call (^func &MVM_frame_find_invokee)
-          (arglist
-            (carg (tc) ptr)
-            (carg $1 ptr)
-            (carg (^nullptr) ptr)) ptr_sz)))))
-
-(template: takenextdispatcher
-  (let: (($disp     (^getf (tc) MVMThreadContext next_dispatcher))
-         ($disp_for (^getf (tc) MVMThreadContext next_dispatcher_for))
-         ($cur_code (^getf (^frame) MVMFrame code_ref)))
-    (if (all
-          (nz $disp)
-          (any
-            (zr $disp_for)
-            (eq $disp_for $cur_code)))
-      (do
-        (^setf (tc) MVMThreadContext next_dispatcher (^nullptr))
-        $disp)
-      (^vmnull))))
 
 (template: strfromname
   (call (^func &MVM_unicode_string_from_name)
