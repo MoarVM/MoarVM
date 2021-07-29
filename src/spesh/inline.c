@@ -297,44 +297,44 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc,
 }
 
 /* Tries to get a spesh graph for a particular unspecialized candidate. */
-//MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadContext *tc,
-//        MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshIns *runbytecode_ins,
-//        MVMSpeshCallInfo *call_info, MVMSpeshStatsType *type_tuple, char **no_inline_reason, MVMOpInfo const **no_inline_info) {
-//    MVMSpeshGraph *ig;
-//
-//    /* Cannot inline with flattening args. */
-//    if (call_info->cs->has_flattening) {
-//        *no_inline_reason = "callsite has flattening args";
-//        return NULL;
-//    }
-//
-//    /* Check the target is suitable for inlining. */
-//    if (!is_static_frame_inlineable(tc, inliner, target_sf, no_inline_reason))
-//        return NULL;
-//
-//    /* Build the spesh graph from bytecode, transform args, do facts discovery
-//     * (setting usage counts) and optimize. We do this before checking if it
-//     * is inlineable as we can get rid of many :noinline ops (especially in
-//     * the args specialization). */
-//    ig = MVM_spesh_graph_create(tc, target_sf, 0, 1);
-//    MVM_spesh_args_from_callinfo(tc, ig, call_info, type_tuple);
-//    MVMROOT(tc, target_sf, {
-//        MVM_spesh_facts_discover(tc, ig, NULL, 0);
-//        MVM_spesh_optimize(tc, ig, NULL);
-//    });
-//
-//    /* See if it's inlineable; clean up if not. */
-//    if (is_graph_inlineable(tc, inliner, target_sf, runbytecode_ins, ig, no_inline_reason, no_inline_info)) {
-//        return ig;
-//    }
-//    else {
-//        /* TODO - we spent all this work creating an optimized version.  Maybe
-//           we can make use of it by compiling a custom target despite not being
-//           inlineable? */
-//        MVM_spesh_graph_destroy(tc, ig);
-//        return NULL;
-//    }
-//}
+MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadContext *tc,
+        MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshIns *runbytecode_ins,
+        MVMCallsite *cs, MVMSpeshOperand *args, MVMSpeshStatsType *type_tuple,
+        char **no_inline_reason, MVMOpInfo const **no_inline_info) {
+    /* Cannot inline with flattening args. */
+    if (cs->has_flattening) {
+        *no_inline_reason = "callsite has flattening args";
+        return NULL;
+    }
+
+    /* Check the target is suitable for inlining. */
+    if (!is_static_frame_inlineable(tc, inliner, target_sf, no_inline_reason))
+        return NULL;
+
+    /* Build the spesh graph from bytecode, transform args, do facts discovery
+     * (setting usage counts) and optimize. We do this before checking if it
+     * is inlineable as we can get rid of many :noinline ops (especially in
+     * the args specialization). */
+    MVMSpeshGraph *ig = MVM_spesh_graph_create(tc, target_sf, 0, 1);
+    MVM_spesh_args_for_inline(tc, ig, cs, args, type_tuple);
+    MVMROOT(tc, target_sf, {
+        MVM_spesh_facts_discover(tc, ig, NULL, 0);
+        MVM_spesh_optimize(tc, ig, NULL);
+    });
+
+    /* See if it's inlineable; clean up if not. */
+    if (is_graph_inlineable(tc, inliner, target_sf, runbytecode_ins, ig,
+                no_inline_reason, no_inline_info)) {
+        return ig;
+    }
+    else {
+        /* TODO - we spent all this work creating an optimized version.  Maybe
+           we can make use of it by compiling a custom target despite not being
+           inlineable? */
+        MVM_spesh_graph_destroy(tc, ig);
+        return NULL;
+    }
+}
 
 /* Finds the deopt index of the runbytecode instruction. */
 static MVMuint32 return_deopt_idx(MVMThreadContext *tc, MVMSpeshIns *runbytecode_ins) {
