@@ -1133,7 +1133,7 @@ MVMuint32 find_cache_offset(MVMThreadContext *tc, MVMSpeshIns *ins) {
 /* Given an instruction, finds the deopt target on it. Panics if there is not
  * one there. */
 void find_deopt_target_and_index(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
-                                 MVMuint32 *deopt_target_out, MVMuint32 *deopt_index_out) {
+        MVMuint32 *deopt_target_out, MVMuint32 *deopt_index_out) {
     MVMSpeshAnn *deopt_ann = ins->annotations;
     while (deopt_ann) {
         if (deopt_ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS) {
@@ -1143,7 +1143,7 @@ void find_deopt_target_and_index(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         }
         deopt_ann = deopt_ann->next;
     }
-    MVM_panic(1, "Spesh: unexpectedly missing deopt annotation on prepargs");
+    MVM_panic(1, "Spesh: unexpectedly missing deopt annotation");
 }
 
 /* Given a callsite instruction, finds the type tuples there and checks if
@@ -1240,185 +1240,8 @@ MVMStaticFrame * find_runbytecode_static_frame(MVMThreadContext *tc, MVMSpeshPla
         : NULL;
 }
 
-///* Drives optimization of a call. */
-//static void optimize_call(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-//                          MVMSpeshIns *ins, MVMSpeshPlanned *p, MVMint32 callee_idx,
-//                          MVMSpeshCallInfo *arg_info) {
-//    MVMSpeshStatsType *stable_type_tuple;
-//    MVMObject *target = NULL;
-//    MVMuint32 num_arg_slots;
-//    MVMSpeshOperand code_temp;
-//    MVMuint32 prepargs_deopt_idx = get_prepargs_deopt_idx(tc, g, arg_info);
-//
-//    /* Check we know what we're going to be invoking. */
-//    MVMSpeshFacts *callee_facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[callee_idx]);
-//    MVMObject *code = NULL;
-//    MVMStaticFrame *target_sf = NULL;
-//    MVMint32 have_code_temp = 0;
-//    if (callee_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-//        /* Already know the target code object based on existing guards or
-//         * a static value. */
-//        code = callee_facts->value.o;
-//    }
-//    else if (p) {
-//        /* See if there is a stable static frame at the callsite. If so, add
-//         * the resolution and guard instruction. Note that we must keep the
-//         * temporary alive throughout the whole guard and invocation sequence,
-//         * as an inline may use it during deopt to find the code ref. */
-//        target_sf = find_invokee_static_frame(tc, p, ins);
-//        if (target_sf) {
-//            code_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
-//            have_code_temp = 1;
-//            tweak_for_target_sf(tc, g, target_sf, ins, arg_info, code_temp);
-//        }
-//    }
-//    if (!code && !target_sf)
-//        return;
-//
-//    /* See if there's a stable type tuple at this callsite. If so, see if we
-//     * are missing any guards required, and try to insert them if so. Only do
-//     * this if the callsite isn't too big for arg_info. */
-//    num_arg_slots = arg_info->cs->num_pos +
-//        2 * (arg_info->cs->flag_count - arg_info->cs->num_pos);
-//    if (p) {
-//        stable_type_tuple = num_arg_slots <= MAX_ARGS_FOR_OPT
-//            ? find_invokee_type_tuple(tc, g, bb, ins, p, arg_info->cs)
-//            : NULL;
-//        if (stable_type_tuple)
-//            check_and_tweak_arg_guards(tc, g, stable_type_tuple, arg_info);
-//    }
-//    else {
-//        stable_type_tuple = NULL;
-//    }
-//
-//    /* See if we can point the call at a particular specialization. */
-//    if (target_sf->body.instrumentation_level == tc->instance->instrumentation_level) {
-//        MVMint32 spesh_cand = try_find_spesh_candidate(tc, target_sf, arg_info,
-//            stable_type_tuple);
-//        if (spesh_cand >= 0) {
-//            /* Yes. Will we be able to inline? */
-//            char *no_inline_reason = NULL;
-//            const MVMOpInfo *no_inline_info = NULL;
-//            MVMuint32 effective_size;
-//            MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
-//                target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
-//                ins, &no_inline_reason, &effective_size, &no_inline_info);
-//            log_inline(tc, g, target_sf, inline_graph, effective_size, no_inline_reason, 0, no_inline_info);
-//            if (inline_graph) {
-//                /* Yes, have inline graph, so go ahead and do it. Make sure we
-//                 * keep the code ref reg alive by giving it a usage count as
-//                 * it will be referenced from the deopt table. */
-//                MVMSpeshOperand code_ref_reg = ins->info->opcode == MVM_OP_invoke_v
-//                        ? ins->operands[0]
-//                        : ins->operands[1];
-//                MVMSpeshBB *optimize_from_bb = inline_graph->entry;
-//                MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
-//                MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
-//                        code_ref_reg, prepargs_deopt_idx,
-//                        (MVMuint16)target_sf->body.spesh->body.spesh_candidates[spesh_cand]->body.bytecode_size);
-//                optimize_bb(tc, g, optimize_from_bb, NULL);
-//
-//                if (MVM_spesh_debug_enabled(tc)) {
-//                    char *cuuid_cstr = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
-//                    char *name_cstr  = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
-//                    MVMSpeshBB *pointer = bb->succ[0];
-//                    while (!pointer->first_ins && pointer->num_succ > 0) {
-//                        pointer = pointer->succ[0];
-//                    }
-//                    if (pointer->first_ins)
-//                        MVM_spesh_graph_add_comment(tc, g, pointer->first_ins, "inline of '%s' (%s) candidate %ld",
-//                            name_cstr, cuuid_cstr,
-//                            spesh_cand);
-//                    MVM_free(cuuid_cstr);
-//                    MVM_free(name_cstr);
-//                }
-//            }
-//            else {
-//                /* Can't inline, so just identify candidate. */
-//                MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
-//                if (ins->info->opcode == MVM_OP_invoke_v) {
-//                    new_operands[0]         = ins->operands[0];
-//                    new_operands[1].lit_i16 = spesh_cand;
-//                    ins->operands           = new_operands;
-//                    ins->info               = MVM_op_get_op(MVM_OP_sp_fastinvoke_v);
-//                }
-//                else {
-//                    new_operands[0]         = ins->operands[0];
-//                    new_operands[1]         = ins->operands[1];
-//                    new_operands[2].lit_i16 = spesh_cand;
-//                    ins->operands           = new_operands;
-//                    switch (ins->info->opcode) {
-//                    case MVM_OP_invoke_i:
-//                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_i);
-//                        break;
-//                    case MVM_OP_invoke_n:
-//                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_n);
-//                        break;
-//                    case MVM_OP_invoke_s:
-//                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_s);
-//                        break;
-//                    case MVM_OP_invoke_o:
-//                        ins->info = MVM_op_get_op(MVM_OP_sp_fastinvoke_o);
-//                        break;
-//                    default:
-//                        MVM_oops(tc, "Spesh: unhandled invoke instruction");
-//                    }
-//                }
-//                if (MVM_spesh_debug_enabled(tc)) {
-//                    char *cuuid_cstr = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
-//                    char *name_cstr  = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
-//                    MVM_spesh_graph_add_comment(tc, g, ins, "could not inline '%s' (%s) candidate %ld: %s",
-//                        name_cstr, cuuid_cstr,
-//                        spesh_cand,
-//                        no_inline_reason);
-//                    if (no_inline_info)
-//                        MVM_spesh_graph_add_comment(tc, g, ins, "inline-preventing instruction: %s",
-//                            no_inline_info->name);
-//
-//                    MVM_free(cuuid_cstr);
-//                    MVM_free(name_cstr);
-//                }
-//            }
-//        }
-//
-//        /* We know what we're calling, but there's no specialization available
-//         * to us. If it's small, then we could produce one and inline it. */
-//        else if (target_sf->body.bytecode_size < MVM_spesh_inline_get_max_size(tc, target_sf)) {
-//            char *no_inline_reason = NULL;
-//            const MVMOpInfo *no_inline_info = NULL;
-//            MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph_from_unspecialized(
-//                    tc, g, target_sf, ins, arg_info, stable_type_tuple, &no_inline_reason, &no_inline_info);
-//            log_inline(tc, g, target_sf, inline_graph, target_sf->body.bytecode_size,
-//                    no_inline_reason, 1, no_inline_info);
-//            if (inline_graph) {
-//                MVMSpeshOperand code_ref_reg = ins->info->opcode == MVM_OP_invoke_v
-//                        ? ins->operands[0]
-//                        : ins->operands[1];
-//                MVMSpeshBB *optimize_from_bb = inline_graph->entry;
-//                MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
-//                MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
-//                        code_ref_reg, prepargs_deopt_idx, 0); /* Don't know an accurate size */
-//                optimize_bb(tc, g, optimize_from_bb, NULL);
-//            }
-//        }
-//
-//        /* Otherwise, nothing to be done. */
-//        else {
-//            log_inline(tc, g, target_sf, NULL, target_sf->body.bytecode_size,
-//                "no spesh candidate available and bytecode too large to produce an inline",
-//                0, NULL);
-//        }
-//    }
-//
-//    /* If we have a speculated target static frame, then it's now safe to
-//     * release the code temporary (no need to keep it). */
-//    if (have_code_temp)
-//        MVM_spesh_manipulate_release_temp_reg(tc, g, code_temp);
-//}
-
-
 /* Generate a new deopt index for the given original bytecode location
- * and produce an annotation. Returns the index of it. */
+ * and optionally annotate an instruction with it. Returns the index of it. */
 static MVMuint32 add_deopt_ann(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
         MVMint32 bytecode_offset) {
     MVMuint32 deopt_idx = g->num_deopt_addrs;
@@ -1426,11 +1249,13 @@ static MVMuint32 add_deopt_ann(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshI
     g->deopt_addrs[deopt_idx * 2] = bytecode_offset;
     g->num_deopt_addrs++;
 
-    MVMSpeshAnn *ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
-    ann->type = MVM_SPESH_ANN_DEOPT_PRE_INS;
-    ann->data.deopt_idx = deopt_idx;
-    ann->next = ins->annotations;
-    ins->annotations = ann;
+    if (ins) {
+        MVMSpeshAnn *ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+        ann->type = MVM_SPESH_ANN_DEOPT_PRE_INS;
+        ann->data.deopt_idx = deopt_idx;
+        ann->next = ins->annotations;
+        ins->annotations = ann;
+    }
 
     return deopt_idx;
 }
@@ -1626,8 +1451,32 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         log_inline(tc, g, target_sf, inline_graph, effective_size, no_inline_reason,
             0, no_inline_info);
         if (inline_graph) {
-            // TODO actually inline
-            selected->lit_i16 = spesh_cand;
+            /* Yes, have inline graph, so go ahead and do it. Make sure we
+             * keep the code ref reg alive by giving it a usage count as
+             * it will be referenced from the deopt table. */
+            //MVMSpeshBB *optimize_from_bb = inline_graph->entry;
+            MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, coderef_reg);
+            MVM_spesh_inline(tc, g, cs, args, bb, ins, inline_graph, target_sf,
+                coderef_reg, add_deopt_ann(tc, g, NULL, bytecode_offset),
+                (MVMuint16)target_sf->body.spesh->body.spesh_candidates[spesh_cand]->body.bytecode_size);
+            //optimize_bb(tc, g, optimize_from_bb, NULL);
+
+            /* In debug mode, annotate what we inlined. */
+            if (MVM_spesh_debug_enabled(tc)) {
+                char *cuuid_cstr = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
+                char *name_cstr  = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
+                MVMSpeshBB *pointer = bb->succ[0];
+                while (!pointer->first_ins && pointer->num_succ > 0) {
+                    pointer = pointer->succ[0];
+                }
+                if (pointer->first_ins)
+                    MVM_spesh_graph_add_comment(tc, g, pointer->first_ins,
+                        "inline of '%s' (%s) candidate %ld",
+                        name_cstr, cuuid_cstr,
+                        spesh_cand);
+                MVM_free(cuuid_cstr);
+                MVM_free(name_cstr);
+            }
         }
         else {
             /* Can't inline, but can still set the chosen spesh candidate in
@@ -1651,6 +1500,29 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
     }
     else if (target_sf->body.bytecode_size < MVM_spesh_inline_get_max_size(tc, target_sf)) {
         /* TODO Consider producing a candidate to inline */
+//        char *no_inline_reason = NULL;
+//        const MVMOpInfo *no_inline_info = NULL;
+//        MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph_from_unspecialized(
+//                tc, g, target_sf, ins, arg_info, stable_type_tuple, &no_inline_reason, &no_inline_info);
+//        log_inline(tc, g, target_sf, inline_graph, target_sf->body.bytecode_size,
+//                no_inline_reason, 1, no_inline_info);
+//        if (inline_graph) {
+//            MVMSpeshOperand coderef_reg = ins->info->opcode == MVM_OP_runbytecode_v
+//                ? ins->operands[0]
+//                    : ins->operands[1];
+//            MVMSpeshBB *optimize_from_bb = inline_graph->entry;
+//            MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, code_ref_reg);
+//            MVM_spesh_inline(tc, g, arg_info, bb, ins, inline_graph, target_sf,
+//                    code_ref_reg, prepargs_deopt_idx, 0); /* Don't know an accurate size */
+//            optimize_bb(tc, g, optimize_from_bb, NULL);
+//        }
+    }
+
+    /* Otherwise, nothing to be done. */
+    else {
+        log_inline(tc, g, target_sf, NULL, target_sf->body.bytecode_size,
+            "no spesh candidate available and bytecode too large to produce an inline",
+            0, NULL);
     }
 }
 
