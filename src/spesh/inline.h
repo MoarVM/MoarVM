@@ -60,9 +60,10 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc,
     MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshCandidate *cand,
     MVMSpeshIns *runbytecode_ins, char **no_inline_reason, MVMuint32 *effective_size,
     MVMOpInfo const **no_inline_info);
-//MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadContext *tc,
-//    MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshIns *invoke_ins,
-//    MVMSpeshCallInfo *call_info, MVMSpeshStatsType *type_tuple, char **no_inline_reason, MVMOpInfo const **no_inline_info);
+MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadContext *tc,
+    MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshIns *invoke_ins,
+    MVMCallsite *cs, MVMSpeshOperand *args, MVMSpeshStatsType *type_tuple,
+    char **no_inline_reason, MVMOpInfo const **no_inline_info);
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMCallsite *cs, MVMSpeshOperand *args, MVMSpeshBB *runbytecode_bb,
     MVMSpeshIns *runbytecode_ins, MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
