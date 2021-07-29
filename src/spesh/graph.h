@@ -262,6 +262,7 @@ struct MVMSpeshAnn {
             MVMuint32 line_number;
         } lineno;
         char *comment;
+        MVMSpeshOperand *temps_to_release;
     } data;
 };
 
@@ -280,6 +281,7 @@ struct MVMSpeshAnn {
 #define MVM_SPESH_ANN_DEOPT_SYNTH   12
 #define MVM_SPESH_ANN_CACHED        13
 #define MVM_SPESH_ANN_DEOPT_PRE_INS 14
+#define MVM_SPESH_ANN_DELAYED_TEMPS 2048
 #define MVM_SPESH_ANN_COMMENT       4096
 
 /* Functions to create/destroy the spesh graph. */
