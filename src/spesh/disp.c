@@ -398,6 +398,10 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
     MVM_VECTOR_DECL(MVMSpeshOperand, allocated_temps);
     MVM_VECTOR_INIT(allocated_temps, 0);
 
+    /* In the case we emit bytecode, we may also need to delay release of
+     * the temporaries until after runbytecode optimization. */
+    MVMint32 delay_temps_release = 0;
+
     /* Visit the ops of the dispatch program and translate them. */
     MVMSpeshIns *insert_after = ins;
     MVMCallsite *callsite = NULL;
@@ -748,6 +752,10 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 /* Insert the produced instruction. */
                 MVM_spesh_manipulate_insert_ins(tc, bb, insert_after, rb_ins);
                 insert_after = rb_ins;
+
+                /* Make sure we delay release of temporaries if it's a runbytecode
+                 * op, since runbytecode optimization can add further ones. */
+                delay_temps_release = 1;
                 break;
             }
             default:
@@ -756,10 +764,21 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
         }
     }
 
-    /* Release temporaries. */
-    for (i = 0; i < MVM_VECTOR_ELEMS(allocated_temps); i++)
-        MVM_spesh_manipulate_release_temp_reg(tc, g, allocated_temps[i]);
-    MVM_VECTOR_DESTROY(allocated_temps);
+    /* Release temporaries now or pass them along for later. */
+    if (delay_temps_release && MVM_VECTOR_ELEMS(allocated_temps)) {
+        MVMSpeshOperand end_sentinel = { .lit_i64 = -1 };
+        MVM_VECTOR_PUSH(allocated_temps, end_sentinel);
+        MVMSpeshAnn *ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+        ann->type = MVM_SPESH_ANN_DELAYED_TEMPS;
+        ann->data.temps_to_release = allocated_temps;
+        ann->next = insert_after->annotations;
+        insert_after->annotations = ann->next;
+    }
+    else {
+        for (i = 0; i < MVM_VECTOR_ELEMS(allocated_temps); i++)
+            MVM_spesh_manipulate_release_temp_reg(tc, g, allocated_temps[i]);
+        MVM_VECTOR_DESTROY(allocated_temps);
+    }
 
     /* Annotate start and end of translated dispatch program. */
     MVMSpeshIns *first_inserted = ins->next;
