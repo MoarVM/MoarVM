@@ -89,8 +89,8 @@ if_s                r(str) ins
 unless_s            r(str) ins
 if_s0               r(str) ins
 unless_s0           r(str) ins
-DEPRECATED_62       r(obj) ins :invokish :maycausedeopt :specializable
-DEPRECATED_63       r(obj) ins :invokish :maycausedeopt :specializable
+DEPRECATED_62       r(obj) ins
+DEPRECATED_63       r(obj) ins
 jumplist         :j int64 r(int64)
 getlex              w(`1) rl(`1) :pure :deoptonepoint :logged
 bindlex             wl(`1) r(`1)
@@ -182,8 +182,8 @@ coerce_is           w(str) r(int64) :pure :confprog
 coerce_ns           w(str) r(num64) :pure :confprog
 coerce_si           w(int64) r(str) :pure :confprog
 coerce_sn           w(num64) r(str) :pure :confprog
-DEPRECATED_66       w(num64) r(obj) :pure :invokish :maycausedeopt :specializable
-DEPRECATED_67       w(str) r(obj) :pure :invokish :maycausedeopt :specializable
+DEPRECATED_66       w(num64) r(obj)
+DEPRECATED_67       w(str) r(obj)
 prepargs         +a callsite :predeoptonepoint
 arg_i            *a int16 r(int64)
 arg_n            *a int16 r(num64)
@@ -192,11 +192,11 @@ arg_o            *a int16 r(obj)
 argconst_i       *a int16 int64
 argconst_n       *a int16 num64
 argconst_s       *a int16 str
-DEPRECATED_70    -a r(obj) :deoptallpoint :logged :maycausedeopt :specializable
-DEPRECATED_71    -a w(int64) r(obj) :deoptallpoint :maycausedeopt :specializable
-DEPRECATED_72    -a w(num64) r(obj) :deoptallpoint :maycausedeopt :specializable
-DEPRECATED_73    -a w(str) r(obj) :deoptallpoint :maycausedeopt :specializable
-DEPRECATED_74    -a w(obj) r(obj) :deoptallpoint :deoptonepoint :logged :maycausedeopt :specializable
+DEPRECATED_70    -a r(obj)
+DEPRECATED_71    -a w(int64) r(obj)
+DEPRECATED_72    -a w(num64) r(obj)
+DEPRECATED_73    -a w(str) r(obj)
+DEPRECATED_74    -a w(obj) r(obj)
 checkarity          int16 int16
 param_rp_i       .p w(int64) int16 :pure :noinline
 param_rp_n       .p w(num64) int16 :pure :noinline
@@ -250,7 +250,7 @@ captureposarg_s     w(str) r(obj) r(int64) :pure
 captureposprimspec  w(int64) r(obj) r(int64) :pure
 captureexistsnamed  w(int64) r(obj) r(str) :pure
 capturehasnameds    w(int64) r(obj) :pure :useshll
-DEPRECATED_69       w(obj) r(obj) r(obj) :invokish :maycausedeopt
+DEPRECATED_69       w(obj) r(obj) r(obj)
 DEPRECATED_60       w(obj) r(obj) r(obj) r(obj)
 DEPRECATED_61       w(obj) r(obj) r(obj)
 null_s              w(str) :pure :confprog
@@ -307,10 +307,10 @@ isfalse_s           w(int64) r(str) :pure
 null                w(obj) :pure
 isnull              w(int64) r(obj) :pure :specializable :confprog
 ifnonnull           r(obj) ins :specializable
-DEPRECATED_75       w(obj) r(obj) str :pure :invokish :maycausedeopt :specializable
-DEPRECATED_76       w(obj) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
-DEPRECATED_77       w(int64) r(obj) str :pure :invokish :maycausedeopt :specializable
-DEPRECATED_78       w(int64) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
+DEPRECATED_75       w(obj) r(obj) str
+DEPRECATED_76       w(obj) r(obj) r(str)
+DEPRECATED_77       w(int64) r(obj) str
+DEPRECATED_78       w(int64) r(obj) r(str)
 create              w(obj) r(obj) :pure :specializable
 clone               w(obj) r(obj) :pure :specializable
 isconcrete          w(int64) r(obj) :pure :specializable :confprog
@@ -394,8 +394,8 @@ setmethcacheauth    r(obj) r(int64)
 settypecache        r(obj) r(obj)
 settypecheckmode    r(obj) r(int64)
 setboolspec         r(obj) r(int64) r(obj)
-DEPRECATED_64       w(int64) r(obj) :invokish :maycausedeopt :specializable :confprog
-DEPRECATED_65       w(int64) r(obj) :invokish :maycausedeopt :specializable :confprog
+DEPRECATED_64       w(int64) r(obj)
+DEPRECATED_65       w(int64) r(obj)
 bootint             w(obj) :pure
 bootnum             w(obj) :pure
 bootstr             w(obj) :pure
@@ -556,17 +556,17 @@ say                 r(str) :confprog
 DEPRECATED_22       w(str) r(obj)
 tell_fh             w(int64) r(obj)
 stat                w(int64) r(str) r(int64)
-DEPRECATED_79       w(obj) r(obj) str :pure :invokish :maycausedeopt :specializable
-DEPRECATED_80       w(obj) r(obj) r(str) :pure :invokish :maycausedeopt :specializable
+DEPRECATED_79       w(obj) r(obj) str
+DEPRECATED_80       w(obj) r(obj) r(str)
 chdir               r(str)
 srand               r(int64)
 rand_i              w(int64) :confprog
 rand_n              w(num64) :confprog
-DEPRECATED_46       w(int64) :pure :confprog
+DEPRECATED_46       w(int64)
 sleep               r(num64)
 newthread           w(obj) r(obj) r(int64)
 threadjoin          r(obj)
-DEPRECATED_47       w(num64) :pure :confprog
+DEPRECATED_47       w(num64)
 exit                r(int64) :confprog
 DEPRECATED_30       w(int64) r(str) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 cwd                 w(str) :pure :confprog
@@ -695,7 +695,7 @@ decont_n            w(num64) r(obj) :pure :invokish :maycausedeopt :specializabl
 decont_s            w(str) r(obj) :pure :invokish :maycausedeopt :specializable
 getrusage           r(obj) :pure
 threadlockcount     w(int64) r(obj) :pure
-DEPRECATED_4        w(obj) r(str) :pure :noinline
+DEPRECATED_4        w(obj) r(str)
 getlexref_i         w(obj) rl(int64) :pure :noinline :useshll
 getlexref_n         w(obj) rl(num64) :pure :noinline :useshll
 getlexref_s         w(obj) rl(str) :pure :noinline :useshll
@@ -765,10 +765,10 @@ DEPRECATED_15       w(obj) r(obj) r(obj) r(obj) r(str) r(obj) r(str) r(int64)
 asyncwritebytesto   w(obj) r(obj) r(obj) r(obj) r(obj) r(obj) r(str) r(int64)
 objprimbits         w(int64) r(obj) :specializable
 objprimunsigned     w(int64) r(obj) :specializable
-DEPRECATED_5        w(obj) r(int32) :pure :noinline
-DEPRECATED_6        w(obj) r(int16) :pure :noinline
-DEPRECATED_7        w(obj) r(int8) :pure :noinline
-DEPRECATED_8        w(obj) r(num32) :pure :noinline
+DEPRECATED_5        w(obj) r(int32)
+DEPRECATED_6        w(obj) r(int16)
+DEPRECATED_7        w(obj) r(int8)
+DEPRECATED_8        w(obj) r(num32)
 getlexref_i32       w(obj) rl(int32) :pure :noinline :useshll
 getlexref_i16       w(obj) rl(int16) :pure :noinline :useshll
 getlexref_i8        w(obj) rl(int8) :pure :noinline :useshll
@@ -780,10 +780,10 @@ coerce_ui           w(int64) r(uint64) :pure
 coerce_nu           w(uint64) r(num64) :pure
 coerce_un           w(num64) r(uint64) :pure
 decont_u            w(uint64) r(obj) :pure :invokish :maycausedeopt :specializable
-DEPRECATED_9        w(obj) r(uint64) :pure :noinline
-DEPRECATED_10       w(obj) r(uint32) :pure :noinline
-DEPRECATED_11       w(obj) r(uint16) :pure :noinline
-DEPRECATED_12       w(obj) r(uint8) :pure :noinline
+DEPRECATED_9        w(obj) r(uint64)
+DEPRECATED_10       w(obj) r(uint32)
+DEPRECATED_11       w(obj) r(uint16)
+DEPRECATED_12       w(obj) r(uint8)
 getlexref_u         w(obj) rl(uint64) :pure :noinline :useshll
 getlexref_u32       w(obj) rl(uint32) :pure :noinline :useshll
 getlexref_u16       w(obj) rl(uint16) :pure :noinline :useshll
@@ -856,7 +856,7 @@ getppid             w(int64)
 getsignals          w(obj) :useshll
 slice               w(obj) r(obj) r(int64) r(int64)
 DEPRECATED_38       r(str) r(str) r(obj)
-DEPRECATED_39    -a w(obj) str :deoptonepoint :logged :noinline :specializable :invokish
+DEPRECATED_39    -a w(obj) str
 DEPRECATED_81       r(obj) r(obj)
 DEPRECATED_41       r(obj)
 DEPRECATED_42       r(obj)
@@ -879,7 +879,7 @@ serializetobuf      w(obj) r(obj) r(obj) r(obj)
 readint             w(int64) r(obj) r(uint64) r(uint64)
 readuint            w(uint64) r(obj) r(uint64) r(uint64)
 readnum             w(num64) r(obj) r(uint64) r(uint64)
-DEPRECATED_68       w(int64) r(obj) :pure :invokish :maycausedeopt :confprog :specializable
+DEPRECATED_68       w(int64) r(obj)
 uname               w(obj) :pure
 freemem             w(int64) :pure
 totalmem            w(int64) :pure
