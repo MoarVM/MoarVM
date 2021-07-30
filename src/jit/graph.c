@@ -452,13 +452,6 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
     MVMCallsite       *cs = cu->body.callsites[callsite_idx];
     MVMSpeshIns **arg_ins = MVM_spesh_alloc(tc, iter->graph, sizeof(MVMSpeshIns*) * cs->arg_count);
     MVMint16            i = 0;
-    MVMJitNode      *node;
-    MVMint32      reentry_label;
-    MVMReturnType return_type;
-    MVMint16      return_register;
-    MVMint16      code_register_or_name;
-    MVMint16      spesh_cand_or_sf_slot;
-    MVMuint32     resolve_offset = 0;
 
     while ((ins = ins->next)) {
         switch(ins->info->opcode) {
@@ -498,7 +491,8 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
             jg->last_node->next = nc_jg->first_node;
             jg->last_node = nc_jg->last_node;
 
-            goto success;
+            iter->ins = ins;
+            return 1;
         }
         default:
             MVM_spesh_graph_add_comment(tc, iter->graph, ins,
@@ -507,36 +501,7 @@ static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
             return 0;
         }
     }
- checkargs:
-    if (!ins || i < cs->arg_count) {
-        MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
-                                    "BAIL: op <%s>, expected args: %d, num of args: %d",
-                                    ins? ins->info->name : "NULL", i, cs->arg_count);
-        return 0;
-    }
-    /* get label /after/ current (invoke) ins, where we'll need to reenter the JIT */
-    reentry_label = MVM_jit_label_after_ins(tc, jg, iter->bb, ins);
-    /* create invoke node */
-    node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
-    node->type                           = MVM_JIT_NODE_INVOKE;
-    node->u.invoke.callsite_idx          = callsite_idx;
-    node->u.invoke.arg_count             = cs->arg_count;
-    node->u.invoke.arg_ins               = arg_ins;
-    node->u.invoke.return_type           = return_type;
-    node->u.invoke.return_register       = return_register;
-    node->u.invoke.code_register_or_name = code_register_or_name;
-    node->u.invoke.spesh_cand_or_sf_slot = spesh_cand_or_sf_slot;
-    node->u.invoke.resolve_offset        = resolve_offset;
-    node->u.invoke.reentry_label         = reentry_label;
-    node->u.invoke.is_fast               = 0;
-    jg_append_node(jg, node);
-
-    /* append reentry label */
-    jg_append_label(tc, jg, reentry_label);
-  success:
-    /* move forward to invoke ins */
-    iter->ins = ins;
-    return 1;
+    return 0;
 }
 
 static void jg_append_control(MVMThreadContext *tc, MVMJitGraph *jg,
