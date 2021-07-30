@@ -1010,13 +1010,13 @@ static void tweak_succ(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
 
 /* Finds return instructions and re-writes them, doing any needed boxing
  * or unboxing. */
-static void return_to_set(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *return_ins,
-        MVMSpeshOperand target) {
+static void return_to_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *return_ins,
+        MVMSpeshOperand target, MVMuint16 op) {
     MVMSpeshOperand ver_target = MVM_spesh_manipulate_new_version(tc, g, target.reg.orig);
     MVMSpeshOperand *operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
     operands[0]               = ver_target;
     operands[1]               = return_ins->operands[0];
-    return_ins->info          = MVM_op_get_op(MVM_OP_set);
+    return_ins->info          = MVM_op_get_op(op);
     return_ins->operands      = operands;
     MVM_spesh_get_facts(tc, g, ver_target)->writer = return_ins;
     MVM_spesh_copy_facts(tc, g, operands[0], operands[1]);
@@ -1064,7 +1064,7 @@ static void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
         break;
     case MVM_OP_sp_runbytecode_i:
-        return_to_set(tc, g, return_ins, runbytecode_ins->operands[0]);
+        return_to_op(tc, g, return_ins, runbytecode_ins->operands[0], MVM_OP_set);
         break;
     case MVM_OP_sp_runbytecode_o:
         return_to_box(tc, g, return_bb, return_ins, runbytecode_ins->operands[0],
@@ -1072,7 +1072,7 @@ static void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
         break;
     default:
         MVM_oops(tc,
-            "Spesh inline: unhandled case of return_i");
+            "Spesh inline: unhandled case (%s) of return_i", runbytecode_ins->info->name);
     }
 }
 static void rewrite_num_return(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -1083,7 +1083,7 @@ static void rewrite_num_return(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
         break;
     case MVM_OP_sp_runbytecode_n:
-        return_to_set(tc, g, return_ins, runbytecode_ins->operands[0]);
+        return_to_op(tc, g, return_ins, runbytecode_ins->operands[0], MVM_OP_set);
         break;
     case MVM_OP_sp_runbytecode_o:
         return_to_box(tc, g, return_bb, return_ins, runbytecode_ins->operands[0],
@@ -1091,7 +1091,7 @@ static void rewrite_num_return(MVMThreadContext *tc, MVMSpeshGraph *g,
         break;
     default:
         MVM_oops(tc,
-            "Spesh inline: unhandled case of return_n");
+            "Spesh inline: unhandled case (%s) of return_n", runbytecode_ins->info->name);
     }
 }
 
@@ -1103,7 +1103,7 @@ static void rewrite_str_return(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
         break;
     case MVM_OP_sp_runbytecode_s:
-        return_to_set(tc, g, return_ins, runbytecode_ins->operands[0]);
+        return_to_op(tc, g, return_ins, runbytecode_ins->operands[0], MVM_OP_set);
         break;
     case MVM_OP_sp_runbytecode_o:
         return_to_box(tc, g, return_bb, return_ins, runbytecode_ins->operands[0],
@@ -1111,7 +1111,7 @@ static void rewrite_str_return(MVMThreadContext *tc, MVMSpeshGraph *g,
         break;
     default:
         MVM_oops(tc,
-            "Spesh inline: unhandled case of return_s");
+            "Spesh inline: unhandled case (%s) of return_s", runbytecode_ins->info->name);
     }
 }
 
@@ -1122,12 +1122,21 @@ static void rewrite_obj_return(MVMThreadContext *tc, MVMSpeshGraph *g,
     case MVM_OP_sp_runbytecode_v:
         MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
         break;
+    case MVM_OP_sp_runbytecode_i:
+        return_to_op(tc, g, return_ins, runbytecode_ins->operands[0], MVM_OP_unbox_i);
+        break;
+    case MVM_OP_sp_runbytecode_n:
+        return_to_op(tc, g, return_ins, runbytecode_ins->operands[0], MVM_OP_unbox_n);
+        break;
+    case MVM_OP_sp_runbytecode_s:
+        return_to_op(tc, g, return_ins, runbytecode_ins->operands[0], MVM_OP_unbox_s);
+        break;
     case MVM_OP_sp_runbytecode_o:
-        return_to_set(tc, g, return_ins, runbytecode_ins->operands[0]);
+        return_to_op(tc, g, return_ins, runbytecode_ins->operands[0], MVM_OP_set);
         break;
     default:
         MVM_oops(tc,
-            "Spesh inline: unhandled case of return_o");
+            "Spesh inline: unhandled case (%s) of return_o", runbytecode_ins->info->name);
     }
 }
 
