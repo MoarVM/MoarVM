@@ -1508,12 +1508,20 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         log_inline(tc, g, target_sf, inline_graph, target_sf->body.bytecode_size,
                 no_inline_reason, 1, no_inline_info);
         if (inline_graph) {
-//            MVMSpeshBB *optimize_from_bb = inline_graph->entry;
+            /* We can do the inline. Stack up any required guards. */
+            if (need_guardsf)
+                insert_static_frame_guard(tc, g, bb, ins, coderef_reg, target_sf,
+                    bytecode_offset);
+            check_and_tweak_arg_guards(tc, g, bb, ins, bytecode_offset,
+                stable_type_tuple, cs, args);
+
+            /* Optimize and then inline the graph. */
+            MVMSpeshBB *optimize_from_bb = inline_graph->entry;
             MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, coderef_reg);
-//            MVM_spesh_inline(tc, g, cs, args, bb, ins, inline_graph, target_sf,
-//                    coderef_reg, add_deopt_ann(tc, g, NULL, bytecode_offset),
-//                    0); /* Don't know an accurate size */
-//            optimize_bb(tc, g, optimize_from_bb, NULL);
+            MVM_spesh_inline(tc, g, cs, args, bb, ins, inline_graph, target_sf,
+                    coderef_reg, add_deopt_ann(tc, g, NULL, bytecode_offset),
+                    0); /* Don't know an accurate size */
+            optimize_bb(tc, g, optimize_from_bb, NULL);
         }
     }
 
