@@ -121,6 +121,7 @@
 |.type MPINT, mp_int
 |.type MVMDISPINLINECACHEENTRY, MVMDispInlineCacheEntry
 |.type MVMDISPINLINECACHE, MVMDispInlineCache
+|.type CFUNCTION, MVMCFunction
 
 /* Static allocation of relevant types to registers. I pick
  * callee-save registers for efficiency. It is likely we'll be calling
@@ -3022,6 +3023,51 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
     /* jump out */
     | jmp ->exit;
     |2:
+}
+
+void MVM_jit_emit_runcode(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitRunCode *runcode) {
+    MVMint16 i;
+    MVMuint64 callsite = (MVMuint64)runcode->callsite;
+
+    /* Store the argument map in a data section so we can get a pointer to it */
+    |.data
+    |5:
+    for (i = 0; i < runcode->callsite->flag_count; i++) {
+        |.word (MVMuint16)runcode->map[i].reg.orig;
+    }
+    |.code
+
+    /* The return address for the interpreter */
+    | get_cur_op TMP2;
+    | mov TMP5, TC->cur_frame;
+    | mov aword FRAME:TMP5->return_address, TMP2;
+
+    /* Setup the frame for returning to our current position */
+    if (sizeof(MVMReturnType) == 1) {
+        | mov byte FRAME:TMP5->return_type, runcode->return_type;
+    } else {
+        MVM_panic(1, "JIT: MVMReturnType has unexpected size");
+    }
+
+    /* The register for our return value */
+    if (runcode->return_type == MVM_RETURN_VOID) {
+        | mov aword FRAME:TMP5->return_value, NULL;
+    } else {
+        | lea TMP2, WORK[runcode->return_register];
+        | mov aword FRAME:TMP5->return_value, TMP2;
+    }
+
+    | mov ARG1, TC;
+    | mov64 TMP6, callsite;
+    emit_stack_arg(tc, compiler, jg, 8, 0);
+    | mov TMP6, TC->interp_reg_base;
+    | mov TMP6, [TMP6];
+    emit_stack_arg(tc, compiler, jg, 8, 8);
+    | lea TMP6, [<5];
+    emit_stack_arg(tc, compiler, jg, 8, 16);
+    | mov FUNCTION, qword WORK[runcode->code_register];
+    | mov FUNCTION, CFUNCTION:FUNCTION->body.func;
+    | call FUNCTION
 }
 
 void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitInvoke *invoke) {

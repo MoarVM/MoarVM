@@ -3674,6 +3674,27 @@ start:
         jg_append_call_c(tc, jg, op_to_func(tc, op), 1, args, MVM_JIT_RV_PTR, dst);
         break;
     }
+    case MVM_OP_sp_runcfunc_i: {
+        MVMint16 dst          = ins->operands[0].reg.orig;
+        MVMint16 code         = ins->operands[1].reg.orig;
+        MVMCallsite *callsite = (MVMCallsite*)ins->operands[2].lit_ui64;
+
+        /* get label /after/ current (invoke) ins, where we'll need to reenter the JIT */
+        MVMint32 reentry_label = MVM_jit_label_after_ins(tc, jg, iter->bb, ins);
+        MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
+        node->type                           = MVM_JIT_NODE_RUNCODE;
+        node->u.runcode.callsite              = callsite;
+        node->u.runcode.return_type           = MVM_RETURN_INT;
+        node->u.runcode.return_register       = dst;
+        node->u.runcode.code_register         = code;
+        node->u.runcode.map                   = &ins->operands[3];
+        node->u.runcode.spesh_cand            = -1;
+        node->u.runcode.reentry_label         = reentry_label;
+        jg_append_node(jg, node);
+        /* append reentry label */
+        jg_append_label(tc, jg, reentry_label);
+        break;
+    }
     default: {
         /* Check if it's an extop. */
         MVMint32 emitted_extop = 0;
