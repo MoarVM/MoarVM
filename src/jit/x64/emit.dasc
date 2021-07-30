@@ -3065,6 +3065,10 @@ void MVM_jit_emit_runcode(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
     emit_stack_arg(tc, compiler, jg, 8, 8);
     | lea TMP6, [<5];
     emit_stack_arg(tc, compiler, jg, 8, 16);
+    |.if WIN32
+        /* Pass a pointer to the stack allocated struct as ordinary argument */
+        | mov ARG2, rsp;
+    |.endif
     | mov FUNCTION, qword WORK[runcode->code_register];
     | mov FUNCTION, CFUNCTION:FUNCTION->body.func;
     | call FUNCTION
