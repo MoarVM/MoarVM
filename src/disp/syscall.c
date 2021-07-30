@@ -418,6 +418,40 @@ static MVMDispSysCall dispatcher_resume_on_bind_failure = {
     .expected_concrete = { 0 },
 };
 
+/* dispatcher-inline-cache-size */
+static void dispatcher_inline_cache_size_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVM_args_set_result_int(tc, MVM_disp_program_record_get_inline_cache_size(tc),
+            MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_inline_cache_size = {
+    .c_name = "dispatcher-inline-cache-size",
+    .implementation = dispatcher_inline_cache_size_impl,
+    .min_args = 0,
+    .max_args = 0,
+    .expected_kinds = { },
+    .expected_reprs = { },
+    .expected_concrete = { },
+};
+
+/* capture-is-literal-arg */
+static void dispatcher_is_literal_arg_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMint64 idx = MVM_args_get_required_pos_int(tc, &arg_ctx, 1);
+    MVM_args_set_result_int(tc, MVM_capture_is_literal_arg(tc, capture, idx),
+        MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_is_literal_arg = {
+    .c_name = "capture-is-literal-arg",
+    .implementation = dispatcher_is_literal_arg_impl,
+    .min_args = 2,
+    .max_args = 2,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT },
+    .expected_reprs = { MVM_REPR_ID_MVMCapture, 0 },
+    .expected_concrete = { 1, 1 }
+};
+
 /* boolify-bigint */
 static void boolify_bigint_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMArgProcContext arg_ctx;
@@ -894,6 +928,8 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_track_resume_state);
     add_to_hash(tc, &dispatcher_next_resumption);
     add_to_hash(tc, &dispatcher_resume_on_bind_failure);
+    add_to_hash(tc, &dispatcher_inline_cache_size);
+    add_to_hash(tc, &dispatcher_is_literal_arg);
     add_to_hash(tc, &boolify_bigint);
     add_to_hash(tc, &boolify_boxed_int);
     add_to_hash(tc, &boolify_boxed_num);

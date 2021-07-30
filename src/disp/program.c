@@ -557,6 +557,28 @@ static void run_resume(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
     }
 }
 
+/* Gets the size of the inline cache at the site we're currently recording a
+ * dispatch program for. (Useful for when dispatchers want to do something
+ * different when there's megamorphic callsites.) */
+MVMint64 MVM_disp_program_record_get_inline_cache_size(MVMThreadContext *tc) {
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    switch (MVM_disp_inline_cache_get_kind(tc, record->ic_entry)) {
+        case MVM_INLINE_CACHE_KIND_INITIAL:
+        case MVM_INLINE_CACHE_KIND_INITIAL_FLATTENING:
+            return 0;
+        case MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH:
+        case MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH_FLATTENING:
+            return 1;
+        case MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH:
+            return ((MVMDispInlineCacheEntryPolymorphicDispatch *)record->ic_entry)->num_dps;
+        case MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH_FLATTENING:
+            return ((MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)record->ic_entry)
+                ->num_dps;
+        default:
+            MVM_exception_throw_adhoc(tc, "Unrecognized inline cache entry");
+    }
+}
+
 /* Calculates the path to a capture. If the capture is not found, then an
  * exception will be thrown. The caller should pass in a pointer to a
  * CapturePath, which will be populated with the path to that capture. */
