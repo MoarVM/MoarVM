@@ -368,9 +368,6 @@ MVMCallsite * MVM_callsite_drop_positional(MVMThreadContext *tc, MVMCallsite *cs
     }
     copy_nameds(tc, new_callsite, cs);
 
-    /* Try to intern it, and return the result (which may be the interned
-     * version that already existed, or may newly intern this). */
-    MVM_callsite_intern(tc, &new_callsite, 0, 1);
     return new_callsite;
 }
 
@@ -403,8 +400,5 @@ MVMCallsite * MVM_callsite_insert_positional(MVMThreadContext *tc, MVMCallsite *
         new_callsite->arg_flags[to] = flag;
     copy_nameds(tc, new_callsite, cs);
 
-    /* Try to intern it, and return the result (which may be the interned
-     * version that already existed, or may newly intern this). */
-    MVM_callsite_intern(tc, &new_callsite, 0, 1);
     return new_callsite;
 }
