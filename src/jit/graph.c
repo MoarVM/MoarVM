@@ -3674,7 +3674,10 @@ start:
         jg_append_call_c(tc, jg, op_to_func(tc, op), 1, args, MVM_JIT_RV_PTR, dst);
         break;
     }
-    case MVM_OP_sp_runcfunc_i: {
+    case MVM_OP_sp_runcfunc_v:
+    case MVM_OP_sp_runcfunc_i:
+    case MVM_OP_sp_runcfunc_s:
+    case MVM_OP_sp_runcfunc_o: {
         MVMint16 dst          = ins->operands[0].reg.orig;
         MVMint16 code         = ins->operands[1].reg.orig;
         MVMCallsite *callsite = (MVMCallsite*)ins->operands[2].lit_ui64;
@@ -3684,7 +3687,14 @@ start:
         MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
         node->type                           = MVM_JIT_NODE_RUNCODE;
         node->u.runcode.callsite              = callsite;
-        node->u.runcode.return_type           = MVM_RETURN_INT;
+        node->u.runcode.return_type           =
+            op == MVM_OP_sp_runcfunc_v
+                ? MVM_RETURN_VOID
+                : op == MVM_OP_sp_runcfunc_i
+                    ? MVM_RETURN_INT
+                    : op == MVM_OP_sp_runcfunc_s
+                        ? MVM_RETURN_STR
+                        : MVM_RETURN_OBJ;
         node->u.runcode.return_register       = dst;
         node->u.runcode.code_register         = code;
         node->u.runcode.map                   = &ins->operands[3];
