@@ -34,6 +34,7 @@ MVMObject * MVM_capture_get_nameds(MVMThreadContext *tc, MVMObject *capture);
 MVMint64 MVM_capture_has_nameds(MVMThreadContext *tc, MVMObject *capture);
 void MVM_capture_arg_by_flag_index(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx,
         MVMRegister *arg_out, MVMCallsiteFlags *arg_type_out);
+MVMint64 MVM_capture_is_literal_arg(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx);
 
 /* Operations for deriving a new MVMCapture from an existing one. */
 MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx);
