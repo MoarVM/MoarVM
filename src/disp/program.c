@@ -81,8 +81,12 @@ static void dump_recording_values(MVMThreadContext *tc, MVMDispProgramRecording 
                 }
                 break;
             case MVMDispProgramRecordingAttributeValue:
-                fprintf(stderr, "    %d Attribute value from offset %d of value %d \n", i,
+                fprintf(stderr, "    %d Attribute value from offset %d of value %d\n", i,
                         v->attribute.offset, v->attribute.from_value);
+                break;
+            case MVMDispProgramRecordingLookupValue:
+                fprintf(stderr, "    %d Lookup in hash value %d using key value %d\n", i,
+                        v->lookup.lookup_index, v->lookup.key_index);
                 break;
             case MVMDispProgramRecordingResumeStateValue:
                 fprintf(stderr, "    %d Resume state (resumption %d)\n", i, v->resumption.index);
@@ -344,6 +348,10 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
             case MVMDispOpcodeLoadAttributeStr:
                 fprintf(stderr, "    Deference string attribute at offset %d in temporary %d\n",
                         op->load.idx, op->load.temp);
+                break;
+            case MVMDispOpcodeLookup:
+                fprintf(stderr, "    Hash table lookup into temporary %d with key from %d\n",
+                        op->load.temp, op->load.idx);
                 break;
             case MVMDispOpcodeSet:
                 fprintf(stderr, "    Copy temporary %d into temporary %d\n",
@@ -731,6 +739,29 @@ static MVMuint32 value_index_attribute(MVMThreadContext *tc, MVMDispProgramRecor
     return MVM_VECTOR_ELEMS(rec->values) - 1;
 }
 
+/* Ensures we have a values used entry for the specified lookup table read. */
+static MVMuint32 value_index_lookup(MVMThreadContext *tc, MVMDispProgramRecording *rec,
+        MVMuint32 lookup_index, MVMuint32 key_index) {
+    /* Look for an existing such value. */
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++) {
+        MVMDispProgramRecordingValue *v = &(rec->values[i]);
+        if (v->source == MVMDispProgramRecordingLookupValue &&
+                v->lookup.lookup_index == lookup_index &&
+                v->lookup.key_index == key_index)
+            return i;
+    }
+
+    /* Otherwise, we need to create the value entry. */
+    MVMDispProgramRecordingValue new_value;
+    memset(&new_value, 0, sizeof(MVMDispProgramRecordingValue));
+    new_value.source = MVMDispProgramRecordingLookupValue;
+    new_value.lookup.lookup_index = lookup_index;
+    new_value.lookup.key_index = key_index;
+    MVM_VECTOR_PUSH(rec->values, new_value);
+    return MVM_VECTOR_ELEMS(rec->values) - 1;
+}
+
 /* Ensures we have a values used entry for the resume state. */
 static MVMuint32 value_index_resume_state(MVMThreadContext *tc, MVMDispProgramRecording *rec) {
     /* Look for an existing such value. */
@@ -929,6 +960,40 @@ void MVM_disp_program_record_guard_not_literal_obj(MVMThreadContext *tc,
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
     MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked);
     MVM_VECTOR_PUSH(record->rec.values[value_index].not_literal_guards, object);
+}
+
+/* Add a lookup table as a constant value, and then record a lookup of a key in
+ * it. Produces a new tracked value as a consequence. */
+MVMObject * MVM_disp_program_record_index_lookup_table(MVMThreadContext *tc,
+       MVMObject *lookup_hash, MVMObject *tracked_key) {
+    /* Ensure the tracked value is a string, and that it exists in the hash. */
+    if (!(((MVMTracked *)tracked_key)->body.kind & MVM_CALLSITE_ARG_STR))
+        MVM_exception_throw_adhoc(tc, "Dispatch program lookup key must be a tracked string");
+    MVMObject *resolved = MVM_repr_at_key_o(tc, lookup_hash,
+            ((MVMTracked *)tracked_key)->body.value.s);
+    if (MVM_is_null(tc, resolved))
+        MVM_exception_throw_adhoc(tc,
+            "Dispatch program lookup table must contain value used in the current dispatch");
+
+    /* Add the lookup hash as a constant value. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    MVMRegister lookup_register = { .o = lookup_hash };
+    MVMuint32 lookup_index = value_index_constant(tc, &(record->rec), MVM_CALLSITE_ARG_OBJ,
+        lookup_register);
+
+    /* Resolve the tracked key. */
+    MVMuint32 key_index = find_tracked_value_index(tc, &(record->rec), tracked_key);
+
+    /* Ensure that we have this lookup in the values table, and make
+     * a tracked object if not. */
+    MVMuint32 result_value_index = value_index_lookup(tc, &(record->rec), lookup_index,
+        key_index);
+    if (!record->rec.values[result_value_index].tracked) {
+        MVMRegister resolved_register = { .o = resolved };
+        record->rec.values[result_value_index].tracked = MVM_tracked_create(tc,
+            resolved_register, MVM_CALLSITE_ARG_OBJ);
+    }
+    return record->rec.values[result_value_index].tracked;
 }
 
 /* Record that we drop an argument from a capture. Also perform the drop,
@@ -1595,6 +1660,22 @@ static MVMuint32 get_temp_holding_value(MVMThreadContext *tc, compile_state *cs,
             op.load.idx = v->attribute.offset;
             break;
         }
+        case MVMDispProgramRecordingLookupValue: {
+            /* Get the lookup and key loaded into temporaries. */
+            MVMuint32 lookup_temp = get_temp_holding_value(tc, cs, v->lookup.lookup_index);
+            MVMuint32 key_temp = get_temp_holding_value(tc, cs, v->lookup.key_index);
+
+            /* Load the lookup into the target temporary; the op to do the lookup
+             * will overwrite it. */
+            op.code = MVMDispOpcodeSet;
+            op.load.idx = lookup_temp;
+            MVM_VECTOR_PUSH(cs->ops, op);
+
+            /* Then emit the op to do the lookup. */
+            op.code = MVMDispOpcodeLookup;
+            op.load.idx = key_temp;
+            break;
+        };
         case MVMDispProgramRecordingResumeStateValue:
             op.code = MVMDispOpcodeLoadResumeState;
             break;
@@ -2646,6 +2727,13 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 record->temps[op->load.temp].s = MVM_p6opaque_read_str(tc,
                         record->temps[op->load.temp].o, op->load.idx);
                 break;
+            case MVMDispOpcodeLookup:
+                record->temps[op->load.temp].o = MVM_repr_at_key_o(tc,
+                        record->temps[op->load.temp].o,
+                        record->temps[op->load.idx].s);
+                if (MVM_is_null(tc, record->temps[op->load.temp].o))
+                    goto rejection;
+                break;
             case MVMDispOpcodeSet:
                 record->temps[op->load.temp] = record->temps[op->load.idx];
                 break;
@@ -2790,6 +2878,7 @@ void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecordi
             case MVMDispProgramRecordingCaptureValue:
             case MVMDispProgramRecordingResumeInitCaptureValue:
             case MVMDispProgramRecordingAttributeValue:
+            case MVMDispProgramRecordingLookupValue:
             case MVMDispProgramRecordingResumeStateValue:
                 /* Nothing to mark. */
                 break;
