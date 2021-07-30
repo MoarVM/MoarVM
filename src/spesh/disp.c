@@ -798,9 +798,11 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
 }
 
 /* Rewrite an unhit dispatch instruction. */
-static MVMSpeshIns *rewrite_unhit(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins,
-        MVMuint32 bytecode_offset) {
-    MVM_spesh_graph_add_comment(tc, g, ins, "Never dispatched");
+static MVMSpeshIns *rewrite_unhit(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+        MVMSpeshIns *ins, MVMuint32 bytecode_offset, MVMint32 have_stats) {
+    MVM_spesh_graph_add_comment(tc, g, ins, have_stats
+        ? "Never dispatched"
+        : "No stats available");
     rewrite_to_sp_dispatch(tc, g, ins, bytecode_offset);
     return ins;
 }
@@ -896,7 +898,7 @@ MVMSpeshIns *MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
 
     /* If there are no hits, we can only rewrite it to sp_dispatch. */
     if (MVM_VECTOR_ELEMS(outcome_hits) == 0)
-        result = rewrite_unhit(tc, g, bb, ins, bytecode_offset);
+        result = rewrite_unhit(tc, g, bb, ins, bytecode_offset, p != NULL);
 
     /* If there's one hit, *or* the top hit has > 99% of the total hits, then we
      * rewrite it to monomorphic. */
