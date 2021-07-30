@@ -162,8 +162,9 @@ MVMint64 MVM_sc_find_code_idx(MVMThreadContext *tc, MVMSerializationContext *sc,
     roots = sc->body->root_codes;
     count = MVM_repr_elems(tc, roots);
     for (i = 0; i < count; i++) {
-        MVMObject *test = MVM_repr_at_pos_o(tc, roots, i);
-        if (test == obj)
+        MVMRegister test;
+        MVM_VMArray_at_pos(tc, STABLE(roots), roots, OBJECT_BODY(roots), i, &test, MVM_reg_obj);
+        if (test.o == obj)
             return i;
     }
 
