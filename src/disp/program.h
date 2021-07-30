@@ -97,6 +97,8 @@ typedef enum {
     MVMDispProgramRecordingLiteralValue,
     /* A read of an attribute from a dependent value. */
     MVMDispProgramRecordingAttributeValue,
+    /* A read of a key from a lookup table. */
+    MVMDispProgramRecordingLookupValue,
     /* The resume state for this dispatcher. */
     MVMDispProgramRecordingResumeStateValue
 } MVMDispProgramRecordingValueSource;
@@ -130,6 +132,12 @@ struct MVMDispProgramRecordingValue {
             /* The kind of value we'll read. */
             MVMCallsiteFlags kind;
         } attribute;
+        struct {
+            /* The value index of the lookup hash. */
+            MVMuint32 lookup_index;
+            /* The value index of the lookup key. */
+            MVMuint32 key_index;
+        } lookup;
         struct {
             /* The index of the resumption that this is the state of. */
             MVMuint32 index;
@@ -407,6 +415,9 @@ typedef enum {
     MVMDispOpcodeLoadAttributeNum,
     /* Load an attribute string value into a temporary. */
     MVMDispOpcodeLoadAttributeStr,
+    /* Do a lookup in a hash table and put the result into a temporary if it is
+     * found. */
+    MVMDispOpcodeLookup,
     /* Set one temp to the value of another. */
     MVMDispOpcodeSet,
     /* Set an object result outcome from a temporary. */
@@ -564,6 +575,8 @@ void MVM_disp_program_record_guard_concreteness(MVMThreadContext *tc, MVMObject 
 void MVM_disp_program_record_guard_literal(MVMThreadContext *tc, MVMObject *tracked);
 void MVM_disp_program_record_guard_not_literal_obj(MVMThreadContext *tc,
        MVMObject *tracked, MVMObject *object);
+MVMObject * MVM_disp_program_record_index_lookup_table(MVMThreadContext *tc,
+       MVMObject *lookup_hash, MVMObject *tracked_key);
 MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 index);
 MVMObject * MVM_disp_program_record_capture_insert_constant_arg(MVMThreadContext *tc,
