@@ -3674,20 +3674,54 @@ start:
         jg_append_call_c(tc, jg, op_to_func(tc, op), 1, args, MVM_JIT_RV_PTR, dst);
         break;
     }
-    case MVM_OP_sp_runcfunc_v:
-    case MVM_OP_sp_runcfunc_i:
-    case MVM_OP_sp_runcfunc_s:
-    case MVM_OP_sp_runcfunc_o: {
+    case MVM_OP_sp_runbytecode_v:
+    case MVM_OP_sp_runbytecode_i:
+    case MVM_OP_sp_runbytecode_s:
+    case MVM_OP_sp_runbytecode_o: {
+        int start = (op == MVM_OP_sp_runbytecode_v) ? 0 : 1;
         MVMint16 dst          = ins->operands[0].reg.orig;
-        MVMint16 code         = ins->operands[1].reg.orig;
-        MVMCallsite *callsite = (MVMCallsite*)ins->operands[2].lit_ui64;
+        MVMint16 code         = ins->operands[0 + start].reg.orig;
+        MVMCallsite *callsite = (MVMCallsite*)ins->operands[1 + start].lit_ui64;
+        MVMint16 spesh_cand   = ins->operands[2 + start].lit_i16;
 
         /* get label /after/ current (invoke) ins, where we'll need to reenter the JIT */
         MVMint32 reentry_label = MVM_jit_label_after_ins(tc, jg, iter->bb, ins);
         MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
-        node->type                           = MVM_JIT_NODE_RUNCODE;
-        node->u.runcode.callsite              = callsite;
-        node->u.runcode.return_type           =
+        node->type                          = MVM_JIT_NODE_RUNBYTECODE;
+        node->u.runbytecode.callsite        = callsite;
+        node->u.runbytecode.return_type     =
+            op == MVM_OP_sp_runbytecode_v
+                ? MVM_RETURN_VOID
+                : op == MVM_OP_sp_runbytecode_i
+                    ? MVM_RETURN_INT
+                    : op == MVM_OP_sp_runbytecode_s
+                        ? MVM_RETURN_STR
+                        : MVM_RETURN_OBJ;
+        node->u.runbytecode.return_register = dst;
+        node->u.runbytecode.map             = &ins->operands[3 + start];
+        node->u.runbytecode.code_register   = code;
+        node->u.runbytecode.spesh_cand      = spesh_cand;
+        node->u.runbytecode.reentry_label   = reentry_label;
+        jg_append_node(jg, node);
+        /* append reentry label */
+        jg_append_label(tc, jg, reentry_label);
+        break;
+    }
+    case MVM_OP_sp_runcfunc_v:
+    case MVM_OP_sp_runcfunc_i:
+    case MVM_OP_sp_runcfunc_s:
+    case MVM_OP_sp_runcfunc_o: {
+        int start = (op == MVM_OP_sp_runcfunc_v) ? 0 : 1;
+        MVMint16 dst          = ins->operands[0].reg.orig;
+        MVMint16 code         = ins->operands[0 + start].reg.orig;
+        MVMCallsite *callsite = (MVMCallsite*)ins->operands[1 + start].lit_ui64;
+
+        /* get label /after/ current (invoke) ins, where we'll need to reenter the JIT */
+        MVMint32 reentry_label = MVM_jit_label_after_ins(tc, jg, iter->bb, ins);
+        MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
+        node->type                       = MVM_JIT_NODE_RUNCCODE;
+        node->u.runccode.callsite        = callsite;
+        node->u.runccode.return_type     =
             op == MVM_OP_sp_runcfunc_v
                 ? MVM_RETURN_VOID
                 : op == MVM_OP_sp_runcfunc_i
@@ -3695,11 +3729,10 @@ start:
                     : op == MVM_OP_sp_runcfunc_s
                         ? MVM_RETURN_STR
                         : MVM_RETURN_OBJ;
-        node->u.runcode.return_register       = dst;
-        node->u.runcode.code_register         = code;
-        node->u.runcode.map                   = &ins->operands[3];
-        node->u.runcode.spesh_cand            = -1;
-        node->u.runcode.reentry_label         = reentry_label;
+        node->u.runccode.return_register = dst;
+        node->u.runccode.code_register   = code;
+        node->u.runccode.map             = &ins->operands[2 + start];
+        node->u.runccode.reentry_label   = reentry_label;
         jg_append_node(jg, node);
         /* append reentry label */
         jg_append_label(tc, jg, reentry_label);
