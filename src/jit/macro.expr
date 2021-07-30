@@ -19,9 +19,12 @@
 
 (macro: ^cu_callsite_addr (,a) (idx  (^getf (cu) MVMCompUnit body.callsites) ,a ptr_sz))
 
-(macro: ^frame () (^getf (tc) MVMThreadContext cur_frame))
+(macro: ^frame    () (^getf (tc) MVMThreadContext cur_frame))
+(macro: ^arg_source () (^getf (^frame) MVMFrame params.arg_info.source))
+(macro: ^arg_map () (^getf (^frame) MVMFrame params.arg_info.map))
 (macro: ^arg  (,a) (idx (^getf (^frame) MVMFrame args)        ,a reg_sz))
 (macro: ^parg (,a) (idx (^getf (^frame) MVMFrame params.legacy.args) ,a reg_sz))
+(macro: ^source_arg_addr (,a) (idx (^arg_source) (load (idx (^arg_map) ,a 2) 2) reg_sz))
 
 (macro: ^params () (addr (^frame) (&offsetof MVMFrame params)))
 (macro: ^caller () (^getf (^frame) MVMFrame caller))
