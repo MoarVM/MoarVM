@@ -51,6 +51,25 @@
   (when (zr $0)
     (branch $1)))
 
+(template: sp_getarg_o
+  (load
+    (^source_arg_addr $1)
+    ptr_sz
+  )
+)
+(template: sp_getarg_i
+  (load
+    (^source_arg_addr $1)
+    int_sz
+  )
+)
+(template: sp_getarg_s
+  (load
+    (^source_arg_addr $1)
+    ptr_sz
+  )
+)
+
 
 (template: getlex (copy $1))
 (template: bindlex! (store \$0 $1 reg_sz))
