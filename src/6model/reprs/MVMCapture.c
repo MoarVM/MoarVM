@@ -294,6 +294,12 @@ void MVM_capture_arg_by_flag_index(MVMThreadContext *tc, MVMObject *capture_obj,
     *arg_type_out = capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK;
 }
 
+/* Check if the argument at the given position is marked as literal. */
+MVMint64 MVM_capture_is_literal_arg(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    return (capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_LITERAL) ? 1 : 0;
+}
+
 /* Produce a new capture by taking the current one and dropping the specified
  * positional argument from it. */
 MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
