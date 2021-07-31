@@ -208,6 +208,17 @@ struct MVMJitRunCCode {
     MVMint32      reentry_label;
 };
 
+struct MVMJitDispatch {
+    MVMint32      id;
+    MVMCallsite  *callsite;
+    MVMuint16     sf_slot;
+    MVMuint32     ice_slot;
+    MVMReturnType return_type;
+    MVMint16      return_register;
+    MVMSpeshOperand *map;
+    MVMint32      reentry_label;
+};
+
 struct MVMJitJumpList {
     MVMint64 num_labels;
     MVMint16 reg;
@@ -242,6 +253,7 @@ typedef enum {
     MVM_JIT_NODE_DEOPT_CHECK,
     MVM_JIT_NODE_RUNCCODE,
     MVM_JIT_NODE_RUNBYTECODE,
+    MVM_JIT_NODE_DISPATCH,
 } MVMJitNodeType;
 
 struct MVMJitNode {
@@ -261,6 +273,7 @@ struct MVMJitNode {
         MVMJitStackSlot stack;
         MVMJitRunCCode   runccode;
         MVMJitRunByteCode runbytecode;
+        MVMJitDispatch  dispatch;
     } u;
 };
 
