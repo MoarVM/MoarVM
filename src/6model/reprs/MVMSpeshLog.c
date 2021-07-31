@@ -66,7 +66,6 @@ static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMST
     MVMuint64 cache_4 = 0;
     MVMuint64 cache_5 = 0;
     MVMuint64 cache_6 = 0;
-    MVMuint64 cache_7 = 0;
 
     if (!body->entries)
         return;
@@ -94,7 +93,7 @@ static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMST
                 break;
             case MVM_SPESH_LOG_INVOKE:
                 MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
-                    (MVMCollectable *)body->entries[i].invoke.sf, "Invoked staticframe entry", &cache_7);
+                    (MVMCollectable *)body->entries[i].invoke.sf, "Invoked staticframe entry", &cache_6);
                 break;
         }
     }

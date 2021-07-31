@@ -693,7 +693,6 @@ void MVM_spesh_stats_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *sna
     MVMuint64 cache_3 = 0;
     MVMuint64 cache_4 = 0;
     MVMuint64 cache_5 = 0;
-    MVMuint64 cache_6 = 0;
     if (ss) {
         MVMuint32 i, j, k, l, m;
         for (i = 0; i < ss->num_by_callsite; i++) {

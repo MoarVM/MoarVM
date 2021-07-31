@@ -152,9 +152,9 @@ static MVMint32 already_succs(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *
 
 /* Checks if the op is one of the spesh dispatch ops. */
 static MVMint32 spesh_dispatchy(MVMuint16 opcode) {
-    return opcode >= MVM_OP_sp_dispatch_v && opcode <= MVM_OP_sp_dispatch_o ||
-        opcode >= MVM_OP_sp_runbytecode_v && opcode <= MVM_OP_sp_runbytecode_o ||
-        opcode >= MVM_OP_sp_runcfunc_v && opcode <= MVM_OP_sp_runcfunc_o;
+    return (opcode >= MVM_OP_sp_dispatch_v    && opcode <= MVM_OP_sp_dispatch_o)    ||
+           (opcode >= MVM_OP_sp_runbytecode_v && opcode <= MVM_OP_sp_runbytecode_o) ||
+           (opcode >= MVM_OP_sp_runcfunc_v    && opcode <= MVM_OP_sp_runcfunc_o);
 }
 
 /* Returns the callsite argument offset for an opcode. */
