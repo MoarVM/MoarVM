@@ -2934,7 +2934,7 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
     MVMint16 obj       = guard->ins->operands[op == MVM_OP_sp_guardsf ? 0 : 1].reg.orig;
     /* load object and spesh slot value, except for those that don't need it */
     | mov TMP1, WORK[obj];
-    if (op != MVM_OP_sp_guardjustconc && op != MVM_OP_sp_guardjusttype) {
+    if (op != MVM_OP_sp_guardjustconc && op != MVM_OP_sp_guardjusttype && op != MVM_OP_sp_guardnonzero) {
         MVMint16 spesh_idx = guard->ins->operands[op == MVM_OP_sp_guardsf ? 1 : 2].lit_i16;
         | get_spesh_slot TMP2, spesh_idx;
     }
