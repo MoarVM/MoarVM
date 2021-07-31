@@ -435,6 +435,7 @@ static void jg_append_guard(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_guardsfouter:
     case MVM_OP_sp_guardjustconc:
     case MVM_OP_sp_guardjusttype:
+    case MVM_OP_sp_guardnonzero:
         deopt_idx = ins->operands[2].lit_ui32;
         break;
     default:
@@ -3546,6 +3547,7 @@ start:
     case MVM_OP_sp_guardjustconc:
     case MVM_OP_sp_guardjusttype:
     case MVM_OP_sp_guardsf:
+    case MVM_OP_sp_guardnonzero:
         jg_append_guard(tc, jg, ins, 2);
         break;
     case MVM_OP_prepargs: {
