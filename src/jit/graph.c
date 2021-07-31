@@ -3740,6 +3740,41 @@ start:
         jg_append_label(tc, jg, reentry_label);
         break;
     }
+    case MVM_OP_sp_dispatch_v:
+    case MVM_OP_sp_dispatch_i:
+    case MVM_OP_sp_dispatch_s:
+    case MVM_OP_sp_dispatch_o: {
+        int start = (op == MVM_OP_sp_dispatch_v) ? 0 : 1;
+        MVMint16 dst          = ins->operands[0].reg.orig;
+        MVMint32 id           = ins->operands[0 + start].lit_ui32;
+        MVMCallsite *callsite = jg->sg->sf->body.cu->body.callsites[ins->operands[1 + start].lit_ui16];
+        MVMuint16 sf_slot     = ins->operands[2 + start].lit_ui16;
+        MVMuint32 ice_slot    = ins->operands[3 + start].lit_ui32;
+
+        /* get label /after/ current (invoke) ins, where we'll need to reenter the JIT */
+        MVMint32 reentry_label = MVM_jit_label_after_ins(tc, jg, iter->bb, ins);
+        MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
+        node->type                       = MVM_JIT_NODE_DISPATCH;
+        node->u.dispatch.id              = id;
+        node->u.dispatch.callsite        = callsite;
+        node->u.dispatch.sf_slot         = sf_slot;
+        node->u.dispatch.ice_slot        = ice_slot;
+        node->u.dispatch.return_type     =
+            op == MVM_OP_sp_dispatch_v
+                ? MVM_RETURN_VOID
+                : op == MVM_OP_sp_dispatch_i
+                    ? MVM_RETURN_INT
+                    : op == MVM_OP_sp_dispatch_s
+                        ? MVM_RETURN_STR
+                        : MVM_RETURN_OBJ;
+        node->u.dispatch.return_register = dst;
+        node->u.dispatch.map             = &ins->operands[4 + start];
+        node->u.dispatch.reentry_label   = reentry_label;
+        jg_append_node(jg, node);
+        /* append reentry label */
+        jg_append_label(tc, jg, reentry_label);
+        break;
+    }
     default: {
         /* Check if it's an extop. */
         MVMint32 emitted_extop = 0;
