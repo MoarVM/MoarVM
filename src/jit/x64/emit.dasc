@@ -2984,6 +2984,10 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
         /* object should match that from the spesh slot */
         | cmp TMP2, TMP1;
         | jne >1;
+    } else if (op == MVM_OP_sp_guardnonzero) {
+        /* integer value should not be zero */
+        | test TMP1, TMP1;
+        | jz >1;
     } else if (op == MVM_OP_sp_guardnotobj) {
         /* object should not match that from the spesh slot */
         | cmp TMP2, TMP1;
