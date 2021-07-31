@@ -2179,6 +2179,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_sp_guardobj:
         case MVM_OP_sp_guardjustconc:
         case MVM_OP_sp_guardjusttype:
+        case MVM_OP_sp_guardnonzero:
             optimize_guard(tc, g, bb, ins);
             break;
         case MVM_OP_sp_runbytecode_v:
