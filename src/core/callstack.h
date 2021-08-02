@@ -252,28 +252,33 @@ struct MVMCallStackDispatchRun {
     MVMCallsite *temp_mark_callsite;
 };
 
-/* This record appears on the callstack before a frame, and indicates that,
- * should the frame have a bind failure, we wish to enact a dispatch
- * resumption. */
-#define MVM_CALLSTACK_RECORD_BIND_FAILURE       11
+/* This record appears on the callstack before a frame, and indicates that
+ * we wish to enact a dispatch resumption after paramter binding - either
+ * only on failure, or always. */
+#define MVM_CALLSTACK_RECORD_BIND_CONTROL       11
 typedef enum {
-    MVM_BIND_FAILURE_FRESH,      /* Record created in this state */
-    MVM_BIND_FAILURE_FAILED,     /* If there's a bind failure it is set to this... */
-    MVM_BIND_FAILURE_EXHAUSTED   /* ...but is only effective for one call, so ends up here */
-} MVMBindFailureState;
-struct MVMCallStackBindFailure {
+    MVM_BIND_CONTROL_FRESH_FAIL, /* Record created in this state (failures only) or... */
+    MVM_BIND_CONTROL_FRESH_ALL,  /* ...for both success and failure */
+    MVM_BIND_CONTROL_FAILED,     /* If there's a bind failure it is set to this... */
+    MVM_BIND_CONTROL_SUCCEEDED,  /* If there's a bind success it is set to this... */
+    MVM_BIND_CONTROL_EXHAUSTED   /* ...but is only effective for one call, so ends up here */
+} MVMBindControlState;
+struct MVMCallStackBindControl {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
 
-    /* The current state of the bind failure record. */
-    MVMBindFailureState state;
+    /* The current state of the bind control record. */
+    MVMBindControlState state;
 
     /* The flag to pass if we do resume upon a bind failure. */
-    MVMRegister flag;
+    MVMRegister failure_flag;
 
-    /* If we do fail, this is the inline cache entry pointer we hang the
-     * resumption dispatch program off, along with the static frame it
-     * lives in (needed for memory management). */
+    /* The flag to pass if we do resume upon a bind success. */
+    MVMRegister success_flag;
+
+    /* If we do resume, this is the inline cache entry pointer we hang the
+     * resumption dispatch program off, along with the static frame it lives
+     * in (needed for memory management). */
     MVMDispInlineCacheEntry **ice_ptr;
     MVMStaticFrame *sf;
 };
@@ -287,8 +292,10 @@ MVMCallStackDispatchRun * MVM_callstack_allocate_dispatch_run(MVMThreadContext *
         MVMuint32 num_temps);
 MVMCallStackFlattening * MVM_callstack_allocate_flattening(MVMThreadContext *tc,
         MVMuint16 num_args, MVMuint16 num_pos);
-MVMCallStackBindFailure * MVM_callstack_allocate_bind_failure(MVMThreadContext *tc,
-        MVMint64 flag);
+MVMCallStackBindControl * MVM_callstack_allocate_bind_control_failure_only(MVMThreadContext *tc,
+        MVMint64 failure_flag);
+MVMCallStackBindControl * MVM_callstack_allocate_bind_control(MVMThreadContext *tc,
+        MVMint64 flag, MVMint64 success_flag);
 void MVM_callstack_new_continuation_region(MVMThreadContext *tc, MVMObject *tag);
 MVMCallStackRegion * MVM_callstack_continuation_slice(MVMThreadContext *tc, MVMObject *tag,
         MVMActiveHandler **active_handlers);
