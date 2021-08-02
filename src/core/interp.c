@@ -4332,6 +4332,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
+            OP(bindcomplete): {
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
+                        cur_op, bytecode_start, tc->cur_frame);
+                MVM_args_bind_succeeded(tc, ice_ptr);
+                goto NEXT;
+            }
             OP(getlexref_i):
                 GET_REG(cur_op, 0).o = MVM_nativeref_lex_i(tc,
                     GET_UI16(cur_op, 4), GET_UI16(cur_op, 2));
@@ -5731,6 +5737,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 }
                 goto NEXT;
             }
+            OP(sp_bindcomplete): {
+                MVMStaticFrame *sf = (MVMStaticFrame *)tc->cur_frame
+                        ->effective_spesh_slots[GET_UI16(cur_op, 0)];
+                MVMuint32 slot = GET_UI32(cur_op, 2);
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get_spesh(
+                        sf, slot);
+                cur_op += 4;
+                MVM_args_bind_succeeded(tc, ice_ptr);
+                goto NEXT;
+            }
             OP(sp_dispatch_v): {
                 MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 0));
                 MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 4)];
@@ -6582,7 +6598,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             /* The compiler compiles faster if all deprecated are together and at the end
              * even though the op numbers are technically out of order. */
-            OP(DEPRECATED_4):
             OP(DEPRECATED_5):
             OP(DEPRECATED_6):
             OP(DEPRECATED_7):
