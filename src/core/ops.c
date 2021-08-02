@@ -9557,19 +9557,19 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_DEPRECATED_4,
-        "DEPRECATED_4",
-        2,
+        MVM_OP_bindcomplete,
+        "bindcomplete",
         0,
         0,
         0,
+        1,
+        0,
+        1,
+        1,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
+        1,
+        { 0 }
     },
     {
         MVM_OP_getlexref_i,
@@ -12752,6 +12752,21 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_int64, MVM_operand_spesh_slot, MVM_operand_uint32 }
     },
     {
+        MVM_OP_sp_bindcomplete,
+        "sp_bindcomplete",
+        2,
+        0,
+        0,
+        1,
+        0,
+        1,
+        1,
+        0,
+        0,
+        0,
+        { MVM_operand_spesh_slot, MVM_operand_uint32 }
+    },
+    {
         MVM_OP_sp_dispatch_v,
         "sp_dispatch_v",
         4,
@@ -14073,7 +14088,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 938;
+static const unsigned short MVM_op_counts = 939;
 
 static const MVMuint16 last_op_allowed = 830;
 

@@ -129,9 +129,17 @@ static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *rec
     fprintf(stderr, "  Values:\n");
     dump_recording_values(tc, &(record->rec));
     fprintf(stderr, "  Outcome:\n");
-    if (record->rec.map_bind_failure_to_resumption)
-        fprintf(stderr, "    Bind failure mapped to resumption with flag %"PRIi64"\n",
+    switch (record->rec.map_bind_outcome_to_resumption) {
+        case MVMDispProgramRecordingBindControlFailure:
+            fprintf(stderr, "    Bind failure mapped to resumption with flag %"PRIi64"\n",
                 record->rec.bind_failure_resumption_flag);
+            break;
+        case MVMDispProgramRecordingBindControlAll:
+            fprintf(stderr, "    Bind outcome mapped to resumption; failure=%"PRIi64", success=%"PRIi64"\n",
+                record->rec.bind_failure_resumption_flag,
+                record->rec.bind_success_resumption_flag);
+            break;
+    }
     switch (record->outcome.kind) {
         case MVM_DISP_OUTCOME_VALUE:
             fprintf(stderr, "    Value %d\n", record->rec.outcome_value);
@@ -523,7 +531,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     MVM_VECTOR_INIT(record->rec.values, 16);
     MVM_VECTOR_INIT(record->rec.resume_inits, 4);
     record->rec.outcome_capture = NULL;
-    record->rec.map_bind_failure_to_resumption = 0;
+    record->rec.map_bind_outcome_to_resumption = MVMDispProgramRecordingBindControlNone;
     record->rec.initial_capture.capture = capture;
     record->ic_entry_ptr = ic_entry_ptr;
     record->ic_entry = ic_entry;
@@ -1372,10 +1380,24 @@ MVMint32 MVM_disp_program_record_next_resumption(MVMThreadContext *tc) {
 /* Record that if this dispatch program invokes something, and it fails to
  * bind, we want that to map to a dispatch resumption, not to an invocation
  * of the bind failure handler. */
-void MVM_disp_program_record_resume_on_bind_failure(MVMThreadContext *tc, MVMuint64 flag) {
+void MVM_disp_program_record_resume_on_bind_failure(MVMThreadContext *tc, MVMuint32 flag) {
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    record->rec.map_bind_failure_to_resumption = 1;
+    if (record->rec.map_bind_outcome_to_resumption != MVMDispProgramRecordingBindControlNone)
+        MVM_exception_throw_adhoc(tc, "Already configured bind control for this disaptch");
+    record->rec.map_bind_outcome_to_resumption = MVMDispProgramRecordingBindControlFailure;
     record->rec.bind_failure_resumption_flag = flag;
+}
+
+/* Record that if this dispatch program invokes something, we only want it to
+ * run up until a signature binding outcome is determined. */
+void MVM_disp_program_record_resume_after_bind(MVMThreadContext *tc, MVMuint32 failure_flag,
+        MVMuint32 success_flag) {
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    if (record->rec.map_bind_outcome_to_resumption != MVMDispProgramRecordingBindControlNone)
+        MVM_exception_throw_adhoc(tc, "Already configured bind control for this disaptch");
+    record->rec.map_bind_outcome_to_resumption = MVMDispProgramRecordingBindControlAll;
+    record->rec.bind_failure_resumption_flag = failure_flag;
+    record->rec.bind_success_resumption_flag = success_flag;
 }
 
 /* Record a program terminator that is a constant object value. */
@@ -2318,13 +2340,22 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
     /* If we need to map bind failures into a resume, emit the op that will
      * create the special frame to do that. This can only be used if we have
      * a bytecode invocation outcome. */
-    if (record->rec.map_bind_failure_to_resumption) {
+    if (record->rec.map_bind_outcome_to_resumption != MVMDispProgramRecordingBindControlNone) {
         if (record->outcome.kind != MVM_DISP_OUTCOME_BYTECODE)
-            MVM_oops(tc, "Can only use dispatcher-resume-on-bind-failure with a bytecode result");
-        MVMDispProgramOp op;
-        op.code = MVMDispOpcodeBindFailureToResumption;
-        op.bind_failure_to_resumption.flag = record->rec.bind_failure_resumption_flag;
-        MVM_VECTOR_PUSH(cs.ops, op);
+            MVM_oops(tc, "Can only use dispatcher-resume-on-bind-failure or dispatch-resume-after-bind with a bytecode result");
+        if (record->rec.map_bind_outcome_to_resumption == MVMDispProgramRecordingBindControlAll) {
+            MVMDispProgramOp op;
+            op.code = MVMDispOpcodeBindCompletionToResumption;
+            op.bind_control_resumption.failure_flag = record->rec.bind_failure_resumption_flag;
+            op.bind_control_resumption.failure_flag = record->rec.bind_success_resumption_flag;
+            MVM_VECTOR_PUSH(cs.ops, op);
+        }
+        else {
+            MVMDispProgramOp op;
+            op.code = MVMDispOpcodeBindFailureToResumption;
+            op.bind_control_resumption.failure_flag = record->rec.bind_failure_resumption_flag;
+            MVM_VECTOR_PUSH(cs.ops, op);
+        }
     }
 
     /* Emit required ops to deliver the dispatch outcome. */
@@ -2486,16 +2517,27 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             return 1;
         }
         case MVM_DISP_OUTCOME_BYTECODE: {
-            MVMuint32 should_add_bind_failure = record->rec.map_bind_failure_to_resumption;
+            MVMDispProgramRecordingBindControlKind bind_control_kind =
+                record->rec.map_bind_outcome_to_resumption;
             MVMint64 bind_failure_resumption_flag = record->rec.bind_failure_resumption_flag;
+            MVMint64 bind_success_resumption_flag = record->rec.bind_success_resumption_flag;
             process_recording(tc, record);
             MVM_disp_program_recording_destroy(tc, &(record->rec));
             record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
             tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
             tc->cur_frame->return_type = record->orig_return_type;
-            if (should_add_bind_failure)
-                MVM_callstack_allocate_bind_control_failure_only(tc,
-                     bind_failure_resumption_flag);
+            switch (bind_control_kind) {
+                case MVMDispProgramRecordingBindControlFailure:
+                    MVM_callstack_allocate_bind_control_failure_only(tc,
+                        bind_failure_resumption_flag);
+                    break;
+                case MVMDispProgramRecordingBindControlAll:
+                    MVM_callstack_allocate_bind_control(tc, bind_failure_resumption_flag,
+                        bind_success_resumption_flag);
+                    break;
+                default:
+                    break;
+            }
             MVM_frame_dispatch(tc, record->outcome.code, record->outcome.args, -1);
             if (thunked)
                 *thunked = 1;
@@ -2777,10 +2819,15 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 break;
             }
 
-            /* Bind failure to resumption callstack record. */
+            /* Bind control to resumption callstack record. */
             case MVMDispOpcodeBindFailureToResumption:
                 MVM_callstack_allocate_bind_control_failure_only(tc,
-                    op->bind_failure_to_resumption.flag);
+                    op->bind_control_resumption.failure_flag);
+                break;
+            case MVMDispOpcodeBindCompletionToResumption:
+                MVM_callstack_allocate_bind_control(tc,
+                    op->bind_control_resumption.failure_flag,
+                    op->bind_control_resumption.success_flag);
                 break;
 
             /* Args preparation for invocation result. */

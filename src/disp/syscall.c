@@ -426,7 +426,7 @@ static void dispatcher_resume_on_bind_failure_impl(MVMThreadContext *tc, MVMArgs
     MVM_args_proc_setup(tc, &arg_ctx, arg_info);
     MVMint64 flag = MVM_args_get_required_pos_int(tc, &arg_ctx, 0);
     MVM_disp_program_record_resume_on_bind_failure(tc, flag);
-    MVM_args_set_result_int(tc, flag, MVM_RETURN_CURRENT_FRAME);
+    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
 }
 static MVMDispSysCall dispatcher_resume_on_bind_failure = {
     .c_name = "dispatcher-resume-on-bind-failure",
@@ -434,6 +434,25 @@ static MVMDispSysCall dispatcher_resume_on_bind_failure = {
     .min_args = 1,
     .max_args = 1,
     .expected_kinds = { MVM_CALLSITE_ARG_INT },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 0 },
+};
+
+/* dispatcher-resume-after-bind */
+static void dispatcher_resume_after_bind_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMint64 failure_flag = MVM_args_get_required_pos_int(tc, &arg_ctx, 0);
+    MVMint64 success_flag = MVM_args_get_required_pos_int(tc, &arg_ctx, 1);
+    MVM_disp_program_record_resume_after_bind(tc, failure_flag, success_flag);
+    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_resume_after_bind = {
+    .c_name = "dispatcher-resume-after-bind",
+    .implementation = dispatcher_resume_after_bind_impl,
+    .min_args = 2,
+    .max_args = 2,
+    .expected_kinds = { MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_INT },
     .expected_reprs = { 0 },
     .expected_concrete = { 0 },
 };
@@ -971,6 +990,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_track_resume_state);
     add_to_hash(tc, &dispatcher_next_resumption);
     add_to_hash(tc, &dispatcher_resume_on_bind_failure);
+    add_to_hash(tc, &dispatcher_resume_after_bind);
     add_to_hash(tc, &dispatcher_inline_cache_size);
     add_to_hash(tc, &dispatcher_is_literal_arg);
     add_to_hash(tc, &boolify_bigint);

@@ -1483,3 +1483,21 @@ void MVM_args_bind_failed(MVMThreadContext *tc, MVMDispInlineCacheEntry **ice_pt
     cur_frame->args[0].o = cc_obj;
     STABLE(bind_error)->invoke(tc, bind_error, inv_arg_callsite, cur_frame->args);
 }
+
+/* Called when args binding is completed successfully. A no-op unless we're
+ * below a bind control record that wants to turn bind success into a
+ * dispatch resumption. */
+void MVM_args_bind_succeeded(MVMThreadContext *tc, MVMDispInlineCacheEntry **ice_ptr) {
+    MVMCallStackRecord *under_us = tc->stack_top->prev;
+    if (under_us->kind == MVM_CALLSTACK_RECORD_BIND_CONTROL) {
+        MVMCallStackBindControl *control_record = (MVMCallStackBindControl *)under_us;
+        MVMBindControlState state = control_record->state;
+        if (state == MVM_BIND_CONTROL_FRESH_ALL) {
+            control_record->state = MVM_BIND_CONTROL_SUCCEEDED;
+            control_record->ice_ptr = ice_ptr;
+            control_record->sf = tc->cur_frame->static_info;
+            MVM_frame_try_return_no_exit_handlers(tc);
+            return;
+        }
+    }
+}

@@ -695,7 +695,7 @@ decont_n            w(num64) r(obj) :pure :invokish :maycausedeopt :specializabl
 decont_s            w(str) r(obj) :pure :invokish :maycausedeopt :specializable
 getrusage           r(obj) :pure
 threadlockcount     w(int64) r(obj) :pure
-DEPRECATED_4        w(obj) r(str)
+bindcomplete        :noinline :invokish :maycausedeopt :cache
 getlexref_i         w(obj) rl(int64) :pure :noinline :useshll
 getlexref_n         w(obj) rl(num64) :pure :noinline :useshll
 getlexref_s         w(obj) rl(str) :pure :noinline :useshll
@@ -945,7 +945,9 @@ sp_bindlex_os    .s wl(`1) r(`1)
 # positions changing (and makes it more comfortable to JIT).
 sp_getlexstatic_o .s w(obj) r(str) sslot uint32 :pure
 
+# These ops exist in spesh form because they refer to an inline cache entry.
 sp_assertparamcheck .s r(int64) sslot uint32 :noinline :invokish :maycausedeopt
+sp_bindcomplete     .s sslot uint32 :noinline :invokish :maycausedeopt
 
 # Specialized form of dispatch_* for when we don't manage to rewrite it into
 # anything more optimal. These precalculate the inline cache slot.
