@@ -2494,7 +2494,8 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
             tc->cur_frame->return_type = record->orig_return_type;
             if (should_add_bind_failure)
-                MVM_callstack_allocate_bind_failure(tc, bind_failure_resumption_flag);
+                MVM_callstack_allocate_bind_control_failure_only(tc,
+                     bind_failure_resumption_flag);
             MVM_frame_dispatch(tc, record->outcome.code, record->outcome.args, -1);
             if (thunked)
                 *thunked = 1;
@@ -2778,7 +2779,8 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
 
             /* Bind failure to resumption callstack record. */
             case MVMDispOpcodeBindFailureToResumption:
-                MVM_callstack_allocate_bind_failure(tc, op->bind_failure_to_resumption.flag);
+                MVM_callstack_allocate_bind_control_failure_only(tc,
+                    op->bind_failure_to_resumption.flag);
                 break;
 
             /* Args preparation for invocation result. */
