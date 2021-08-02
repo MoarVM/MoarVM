@@ -48,7 +48,7 @@ char * record_name(MVMuint8 kind) {
         case MVM_CALLSTACK_RECORD_DISPATCH_RECORD: return "dispatch recording";
         case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED: return "dispatch recorded";
         case MVM_CALLSTACK_RECORD_DISPATCH_RUN: return "dispatch run";
-        case MVM_CALLSTACK_RECORD_BIND_FAILURE: return "bind failure";
+        case MVM_CALLSTACK_RECORD_BIND_CONTROL: return "bind control";
         default: return "unknown";
     }
 }
@@ -184,13 +184,26 @@ MVMCallStackFlattening * MVM_callstack_allocate_flattening(MVMThreadContext *tc,
 
 /* Allocate a callstack record for indicating that a bind failure in the
  * next frame on the stack should be handled via dispatch resumption. */
-MVMCallStackBindFailure * MVM_callstack_allocate_bind_failure(MVMThreadContext *tc,
-        MVMint64 flag) {
-    tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_BIND_FAILURE,
-            sizeof(MVMCallStackBindFailure));
-    MVMCallStackBindFailure *record = (MVMCallStackBindFailure *)tc->stack_top;
-    record->state = MVM_BIND_FAILURE_FRESH;
-    record->flag.i64 = flag;
+MVMCallStackBindControl * MVM_callstack_allocate_bind_control_failure_only(
+        MVMThreadContext *tc, MVMint64 failure_flag) {
+    tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_BIND_CONTROL,
+            sizeof(MVMCallStackBindControl));
+    MVMCallStackBindControl *record = (MVMCallStackBindControl *)tc->stack_top;
+    record->state = MVM_BIND_CONTROL_FRESH_FAIL;
+    record->failure_flag.i64 = failure_flag;
+    return record;
+}
+
+/* Allocate a callstack record for indicating that a bind failure or success
+ * in the next frame on the stack should be handled via dispatch resumption. */
+MVMCallStackBindControl * MVM_callstack_allocate_bind_control(MVMThreadContext *tc,
+        MVMint64 failure_flag, MVMint64 success_flag) {
+    tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_BIND_CONTROL,
+            sizeof(MVMCallStackBindControl));
+    MVMCallStackBindControl *record = (MVMCallStackBindControl *)tc->stack_top;
+    record->state = MVM_BIND_CONTROL_FRESH_ALL;
+    record->failure_flag.i64 = failure_flag;
+    record->success_flag.i64 = success_flag;
     return record;
 }
 
@@ -372,15 +385,16 @@ static void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
         tc->cur_frame = NULL;
     }
 }
-static void handle_bind_failure(MVMThreadContext *tc, MVMCallStackBindFailure *failure_record) {
-    failure_record->state = MVM_BIND_FAILURE_EXHAUSTED;
-    MVMDispInlineCacheEntry **ice_ptr = failure_record->ice_ptr;
+static void handle_bind_control(MVMThreadContext *tc, MVMCallStackBindControl *control_record,
+        MVMRegister *flag_ptr) {
+    control_record->state = MVM_BIND_CONTROL_EXHAUSTED;
+    MVMDispInlineCacheEntry **ice_ptr = control_record->ice_ptr;
     MVMDispInlineCacheEntry *ice = *ice_ptr;
     MVMString *id = tc->instance->str_consts.boot_resume;
     MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INT);
-    MVMuint16 *args = MVM_args_identity_map(tc, callsite);
-    ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args, &(failure_record->flag),
-            failure_record->sf, 0);
+    MVMuint16 *args_map = MVM_args_identity_map(tc, callsite);
+    ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args_map, flag_ptr,
+            control_record->sf, 0);
 }
 MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional, MVMuint32 *thunked) {
     do {
@@ -457,11 +471,15 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                     tc->stack_top = tc->stack_top->prev;
                 }
                 break;
-            case MVM_CALLSTACK_RECORD_BIND_FAILURE: {
-                MVMCallStackBindFailure *failure_record =
-                    (MVMCallStackBindFailure *)tc->stack_top;
-                if (failure_record->state == MVM_BIND_FAILURE_FAILED) {
-                    handle_bind_failure(tc, failure_record);
+            case MVM_CALLSTACK_RECORD_BIND_CONTROL: {
+                MVMCallStackBindControl *control_record =
+                    (MVMCallStackBindControl *)tc->stack_top;
+                if (control_record->state == MVM_BIND_CONTROL_FAILED) {
+                    handle_bind_control(tc, control_record, &(control_record->failure_flag));
+                    *thunked = 1;
+                }
+                else if (control_record->state == MVM_BIND_CONTROL_SUCCEEDED) {
+                    handle_bind_control(tc, control_record, &(control_record->success_flag));
                     *thunked = 1;
                 }
                 else {
@@ -588,12 +606,13 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                 }
                 break;
             }
-            case MVM_CALLSTACK_RECORD_BIND_FAILURE: {
-                MVMCallStackBindFailure *failure_record =
-                    (MVMCallStackBindFailure *)record;
-                if (failure_record->state == MVM_BIND_FAILURE_FAILED)
-                    add_collectable(tc, worklist, snapshot, failure_record->sf,
-                            "Bind failure static frame");
+            case MVM_CALLSTACK_RECORD_BIND_CONTROL: {
+                MVMCallStackBindControl *control_record =
+                    (MVMCallStackBindControl *)record;
+                if (control_record->state == MVM_BIND_CONTROL_FAILED ||
+                        control_record->state == MVM_BIND_CONTROL_SUCCEEDED)
+                    add_collectable(tc, worklist, snapshot, control_record->sf,
+                            "Bind control static frame");
                 break;
             }
             default:
