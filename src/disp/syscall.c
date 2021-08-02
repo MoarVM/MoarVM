@@ -909,6 +909,28 @@ static MVMDispSysCall try_capture_lex_callers = {
     .expected_concrete = { 1 },
 };
 
+/* bind-will-resume-on-failure */
+static void bind_will_resume_on_failure_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMCallStackIterator iter;
+    MVMint64 result = 0;
+    MVM_callstack_iter_frame_init(tc, &iter, tc->stack_top);
+    if (MVM_callstack_iter_move_next(tc, &iter)) {
+        MVMCallStackRecord *frame_rec = MVM_callstack_iter_current(tc, &iter);
+        MVMCallStackRecord *under_frame = frame_rec->prev;
+        result = under_frame && under_frame->kind == MVM_CALLSTACK_RECORD_BIND_FAILURE;
+    }
+    MVM_args_set_result_int(tc, result, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall bind_will_resume_on_failure = {
+    .c_name = "bind-will-resume-on-failure",
+    .implementation = bind_will_resume_on_failure_impl,
+    .min_args = 0,
+    .max_args = 0,
+    .expected_kinds = { },
+    .expected_reprs = { },
+    .expected_concrete = { },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -973,6 +995,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &elems);
     add_to_hash(tc, &try_capture_lex);
     add_to_hash(tc, &try_capture_lex_callers);
+    add_to_hash(tc, &bind_will_resume_on_failure);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
