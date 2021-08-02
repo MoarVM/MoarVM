@@ -774,7 +774,8 @@ static void optimize_container_check(MVMThreadContext *tc, MVMSpeshGraph *g,
     }
 }
 
-/* Optimize away assertparamcheck if we know it will pass. */
+/* Optimize away assertparamcheck if we know it will pass, otherwise tweak
+ * it to work with inline caching after optimization. */
 static void optimize_assertparamcheck(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
     if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE && facts->value.i) {
@@ -798,6 +799,26 @@ static void optimize_assertparamcheck(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                 ann->data.bytecode_offset);
             ins->operands = new_operands;
         }
+    }
+}
+
+/* Tweak bindcomplete so that it works with inline caching after optimization. */
+static void optimize_bindcomplete(MVMThreadContext *tc, MVMSpeshGraph *g,
+    MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshAnn *ann = ins->annotations;
+    while (ann) {
+        if (ann->type == MVM_SPESH_ANN_CACHED)
+            break;
+        ann = ann->next;
+    }
+    if (ann) {
+        ins->info = MVM_op_get_op(MVM_OP_sp_bindcomplete);
+        MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+        new_operands[0].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+            (MVMCollectable *)g->sf);
+        new_operands[1].lit_ui32 = MVM_disp_inline_cache_get_slot(tc, g->sf,
+            ann->data.bytecode_offset);
+        ins->operands = new_operands;
     }
 }
 
@@ -2115,6 +2136,9 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             break;
         case MVM_OP_assertparamcheck:
             optimize_assertparamcheck(tc, g, bb, ins);
+            break;
+        case MVM_OP_bindcomplete:
+            optimize_bindcomplete(tc, g, bb, ins);
             break;
         case MVM_OP_getlex:
             optimize_getlex(tc, g, ins);

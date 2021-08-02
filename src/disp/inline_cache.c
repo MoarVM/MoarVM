@@ -553,8 +553,14 @@ void MVM_disp_inline_cache_setup(MVMThreadContext *tc, MVMStaticFrame *sf) {
                     /* When we have a dispatch resumption due to a bind failure
                      * we need the inline cache to hang around somewhere, and
                      * since this is typically because we're going to the next
-                     * multi candidate upon failure, it'll likely me lightly
+                     * multi candidate upon failure, it'll likely be lightly
                      * morphic on the assertparamcheck op itself. */
+                    entries[slot] = &unlinked_dispatch;
+                    break;
+                case MVM_OP_bindcomplete:
+                    /* The bindcomplete op will usually do nothing, but in the
+                     * case we need to do a dispatch resumption upon bind success,
+                     * this is where we'll hang the dispatch program. */
                     entries[slot] = &unlinked_dispatch;
                     break;
                 default:

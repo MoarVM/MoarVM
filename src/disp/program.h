@@ -243,6 +243,11 @@ typedef enum {
     MVMDispProgramRecordingResumeTopmost,
     MVMDispProgramRecordingResumeCaller
 } MVMDispProgramRecordingResumeKind;
+typedef enum {
+    MVMDispProgramRecordingBindControlNone,
+    MVMDispProgramRecordingBindControlAll,
+    MVMDispProgramRecordingBindControlFailure
+} MVMDispProgramRecordingBindControlKind;
 struct MVMDispProgramRecording {
     /* The initial argument capture, top of the tree of captures. */
     MVMDispProgramRecordingCapture initial_capture;
@@ -271,10 +276,11 @@ struct MVMDispProgramRecording {
      * arguments with. Will be located within the capture tree somewhere. */
     MVMObject *outcome_capture;
 
-    /* If it's an invocation outcome, do we want bind failure mapped to a
-     * resumption, and if so, what flag should be pass? */
-    MVMuint64 bind_failure_resumption_flag;
-    MVMuint32 map_bind_failure_to_resumption;
+    /* If it's an invocation outcome, do we want bind failure (and maybe also
+     * success) mapped to a resumption, and if so, what flag should we pass? */
+    MVMuint32 bind_failure_resumption_flag;
+    MVMuint32 bind_success_resumption_flag;
+    MVMDispProgramRecordingBindControlKind map_bind_outcome_to_resumption;
 };
 
 /* A "compiled" dispatch program, which is what we interpret at a callsite
@@ -431,6 +437,9 @@ typedef enum {
     /* For call outcomes, push a callstack entry used to indicate that
      * a bind failure should be mapped to a resumption. */
     MVMDispOpcodeBindFailureToResumption,
+    /* For call outcomes, push a callstack entry used to indicate that
+     * a bind success or failure should be mapped to a resumption. */
+    MVMDispOpcodeBindCompletionToResumption,
     /* Set the args buffer to use in the call to be the tail of that of
      * the initial capture. (Actually it's really the map that we take
      * the tail of.) The argument is how many of the args to skip from
@@ -496,8 +505,11 @@ struct MVMDispProgramOp {
         struct {
             /* The flag to pass when we do a resume when there is a bind
              * failure. */
-            MVMuint64 flag;
-        } bind_failure_to_resumption;
+            MVMuint32 failure_flag;
+            /* The flag to pass when we do a resume when there is a bind
+             * success. */
+            MVMuint32 success_flag;
+        } bind_control_resumption;
         struct {
             /* The number of args to skip when we use the tail of the incoming
              * capture. */
@@ -594,7 +606,9 @@ void MVM_disp_program_record_resume_caller(MVMThreadContext *tc, MVMObject *capt
 void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatcher_id,
         MVMObject *capture);
 MVMint32 MVM_disp_program_record_next_resumption(MVMThreadContext *tc);
-void MVM_disp_program_record_resume_on_bind_failure(MVMThreadContext *tc, MVMuint64 flag);
+void MVM_disp_program_record_resume_on_bind_failure(MVMThreadContext *tc, MVMuint32 flag);
+void MVM_disp_program_record_resume_after_bind(MVMThreadContext *tc, MVMuint32 failure_flag,
+        MVMuint32 success_flag);
 void MVM_disp_program_record_result_constant(MVMThreadContext *tc, MVMCallsiteFlags kind,
         MVMRegister value);
 void MVM_disp_program_record_result_tracked_value(MVMThreadContext *tc, MVMObject *tracked);
