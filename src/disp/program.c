@@ -1989,7 +1989,8 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
             Action action;
             MVMuint32 index;
         } ArgProduction;
-        ArgProduction arg_prod[num_to_produce];
+        ArgProduction *arg_prod = MVM_malloc(num_to_produce * sizeof(ArgProduction));
+
         for (i = 0; i < num_to_produce; i++) {
             /* Work out the source of this arg in the capture. For the rationale
              * for this algorithm, see MVM_disp_program_record_track_arg. */
@@ -2059,6 +2060,8 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
             op.load.idx = arg_prod[i].index;
             MVM_VECTOR_PUSH(cs->ops, op);
         }
+
+        MVM_free(arg_prod);
 
         /* Finally, the instruction to copy what we can from the args tail. */
         MVMDispProgramOp op;
