@@ -764,6 +764,19 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
         }
     }
 
+    /* Annotate start and end of translated dispatch program. */
+    MVMSpeshIns *first_inserted = ins->next;
+    MVM_spesh_graph_add_comment(tc, g, first_inserted,
+            "Start of dispatch program translation");
+    MVM_spesh_graph_add_comment(tc, g, insert_after,
+            "End of dispatch program translation");
+
+    /* Delete the dispatch instruction. Make sure we don't mark it as having
+     * a dead writer (since we inserted a replacement instruction above). */
+    MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+    if (ins->info->opcode != MVM_OP_dispatch_v)
+        MVM_spesh_get_facts(tc, g, ins->operands[0])->dead_writer = 0;
+
     /* Release temporaries now or pass them along for later. */
     if (delay_temps_release && MVM_VECTOR_ELEMS(allocated_temps)) {
         MVMSpeshOperand end_sentinel = { .lit_i64 = -1 };
@@ -780,20 +793,7 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
         MVM_VECTOR_DESTROY(allocated_temps);
     }
 
-    /* Annotate start and end of translated dispatch program. */
-    MVMSpeshIns *first_inserted = ins->next;
-    MVM_spesh_graph_add_comment(tc, g, first_inserted,
-            "Start of dispatch program translation");
-    MVM_spesh_graph_add_comment(tc, g, insert_after,
-            "End of dispatch program translation");
-
-    /* Delete the dispatch instruction and return the first inserted
-     * instruction as the next thing to optimize. Make sure we don't
-     * mark it as having a dead writer (since we inserted a replacement
-     * instruction above). */
-    MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
-    if (ins->info->opcode != MVM_OP_dispatch_v)
-        MVM_spesh_get_facts(tc, g, ins->operands[0])->dead_writer = 0;
+    /* Return the first inserted instruction as the next thing to optimize. */
     return first_inserted;
 }
 
