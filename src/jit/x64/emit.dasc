@@ -3064,20 +3064,24 @@ void MVM_jit_emit_runbytecode(MVMThreadContext *tc, MVMJitCompiler *compiler, MV
     | mov ARG1, TC;
     | mov ARG2, aword WORK[runcode->code_register]
     |.if WIN32
+    | mov64 TMP6, callsite;
+    | mov aword [rsp+0x20], TMP6;
+    | mov TMP6, TC->interp_reg_base;
+    | mov TMP6, [TMP6];
+    | mov aword [rsp+0x28], TMP6;
+    | lea TMP6, [<5];
+    | mov aword [rsp+0x30], TMP6;
+    | lea ARG3, [rsp+0x20];
     | mov ARG4, runcode->spesh_cand
     |.else
     | mov ARG3, runcode->spesh_cand
-    |.endif
     | mov64 TMP6, callsite;
-    emit_stack_arg(tc, compiler, jg, 8, 0);
+    | mov aword [rsp], TMP6;
     | mov TMP6, TC->interp_reg_base;
     | mov TMP6, [TMP6];
-    emit_stack_arg(tc, compiler, jg, 8, 8);
+    | mov aword [rsp+0x08], TMP6;
     | lea TMP6, [<5];
-    emit_stack_arg(tc, compiler, jg, 8, 16);
-    |.if WIN32
-        /* Pass a pointer to the stack allocated struct as ordinary argument */
-        | mov ARG3, rsp;
+    | mov aword [rsp+0x10], TMP6;
     |.endif
     | callp &MVM_frame_dispatch
 }
@@ -3116,15 +3120,21 @@ void MVM_jit_emit_runccode(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
 
     | mov ARG1, TC;
     | mov64 TMP6, callsite;
-    emit_stack_arg(tc, compiler, jg, 8, 0);
+    |.if WIN32
+    | mov aword [rsp+0x20], TMP6;
     | mov TMP6, TC->interp_reg_base;
     | mov TMP6, [TMP6];
-    emit_stack_arg(tc, compiler, jg, 8, 8);
+    | mov aword [rsp+0x28], TMP6;
     | lea TMP6, [<5];
-    emit_stack_arg(tc, compiler, jg, 8, 16);
-    |.if WIN32
-        /* Pass a pointer to the stack allocated struct as ordinary argument */
-        | mov ARG2, rsp;
+    | mov aword [rsp+0x30], TMP6;
+    | lea ARG2, [rsp+0x20];
+    |.else
+    | mov aword [rsp], TMP6;
+    | mov TMP6, TC->interp_reg_base;
+    | mov TMP6, [TMP6];
+    | mov aword [rsp+0x08], TMP6;
+    | lea TMP6, [<5];
+    | mov aword [rsp+0x10], TMP6;
     |.endif
     | mov FUNCTION, aword WORK[runcode->code_register];
     | mov FUNCTION, CFUNCTION:FUNCTION->body.func;
@@ -3170,15 +3180,19 @@ void MVM_jit_emit_dispatch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
     | lea ARG2, MVMDISPINLINECACHEENTRY:ARG2[dispatch->ice_slot];
     | mov ARG3, [ARG2]
     | get_string ARG4, dispatch->id;
-    | mov64 ARG5, callsite;
-    | lea ARG6, [<5];
 
     |.if WIN32
+    | mov64 TMP5, callsite;
+    | mov ARG5, TMP5;
+    | lea TMP5, [<5];
+    | mov ARG6, TMP5;
     | mov qword [rsp+6*8], WORK;
     | mov qword [rsp+7*8], TMP6;
     | mov TMP6, -1;
     | mov qword [rsp+8*8], TMP6;
     |.else
+    | mov64 ARG5, callsite;
+    | lea ARG6, [<5];
     | mov qword [rsp+0*8], WORK;
     | mov qword [rsp+1*8], TMP6;
     | mov TMP6, -1;
