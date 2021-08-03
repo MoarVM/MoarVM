@@ -328,9 +328,9 @@ static MVMDispSysCall dispatcher_get_resume_init_args = {
     .implementation = dispatcher_get_resume_init_args_impl,
     .min_args = 0,
     .max_args = 0,
-    .expected_kinds = { },
-    .expected_reprs = { },
-    .expected_concrete = { },
+    .expected_kinds = {0},
+    .expected_reprs = {0},
+    .expected_concrete = {0},
 };
 
 /* dispatcher-set-resume-state */
@@ -381,9 +381,9 @@ static MVMDispSysCall dispatcher_get_resume_state = {
     .implementation = dispatcher_get_resume_state_impl,
     .min_args = 0,
     .max_args = 0,
-    .expected_kinds = { },
-    .expected_reprs = { },
-    .expected_concrete = { },
+    .expected_kinds = {0},
+    .expected_reprs = {0},
+    .expected_concrete = {0}
 };
 
 /* dispatcher-track-resume-state */
@@ -398,9 +398,9 @@ static MVMDispSysCall dispatcher_track_resume_state = {
     .implementation = dispatcher_track_resume_state_impl,
     .min_args = 0,
     .max_args = 0,
-    .expected_kinds = { },
-    .expected_reprs = { },
-    .expected_concrete = { },
+    .expected_kinds = {0},
+    .expected_reprs = {0},
+    .expected_concrete = {0}
 };
 
 /* dispatcher-next-resumption */
@@ -415,9 +415,9 @@ static MVMDispSysCall dispatcher_next_resumption = {
     .implementation = dispatcher_next_resumption_impl,
     .min_args = 0,
     .max_args = 0,
-    .expected_kinds = { },
-    .expected_reprs = { },
-    .expected_concrete = { },
+    .expected_kinds = {0},
+    .expected_reprs = {0},
+    .expected_concrete = {0}
 };
 
 /* dispatcher-resume-on-bind-failure */
@@ -467,9 +467,9 @@ static MVMDispSysCall dispatcher_inline_cache_size = {
     .implementation = dispatcher_inline_cache_size_impl,
     .min_args = 0,
     .max_args = 0,
-    .expected_kinds = { },
-    .expected_reprs = { },
-    .expected_concrete = { },
+    .expected_kinds = {0},
+    .expected_reprs = {0},
+    .expected_concrete = {0}
 };
 
 /* capture-is-literal-arg */
@@ -945,9 +945,9 @@ static MVMDispSysCall bind_will_resume_on_failure = {
     .implementation = bind_will_resume_on_failure_impl,
     .min_args = 0,
     .max_args = 0,
-    .expected_kinds = { },
-    .expected_reprs = { },
-    .expected_concrete = { },
+    .expected_kinds = {0},
+    .expected_reprs = {0},
+    .expected_concrete = {0},
 };
 
 /* Add all of the syscalls into the hash. */
