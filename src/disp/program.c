@@ -386,8 +386,8 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
 
             /* Opcodes that handle invocation results. */
             case MVMDispOpcodeBindFailureToResumption:
-                fprintf(stderr, "    Map bind failure to resumption with flag %"PRIi64"\n",
-                        op->bind_failure_to_resumption.flag);
+                fprintf(stderr, "    Map bind failure to resumption with flag %"PRIi32"\n",
+                        op->bind_control_resumption.failure_flag);
                 break;
             case MVMDispOpcodeUseArgsTail:
                 fprintf(stderr, "    Skip first %d args of incoming capture; callsite from %d\n",
