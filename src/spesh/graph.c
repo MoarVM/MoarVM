@@ -792,13 +792,23 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     if (existing_deopts) {
         for (i = 0; i < num_existing_deopts; i ++) {
             if (existing_deopts[2 * i + 1] >= 0) {
-                MVMSpeshIns *post_ins     = ins_flat[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 3];
-                MVMSpeshIns *deopt_ins    = post_ins->prev ? post_ins->prev :
-                    MVM_spesh_graph_linear_prev(tc, g,
-                        ins_to_bb[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 3])->last_ins;
+                // check last bit which is abused as PRE_INS marker and set deopt_ins = post_ins if it is set
+                MVMuint32 deopt = (MVMuint32)existing_deopts[2 * i + 1];
+                MVMuint32 bytecode_pos = MVM_spesh_deopt_bytecode_pos(deopt);
+                MVMSpeshIns *post_ins     = ins_flat[byte_to_ins_flags[bytecode_pos] >> 3];
+                MVMSpeshIns *deopt_ins;
                 MVMSpeshAnn *deopt_ann    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+                if (deopt & 1) { /* MVM_SPESH_ANN_DEOPT_PRE_INS annotation */
+                    deopt_ins = post_ins;
+                    deopt_ann->type = MVM_SPESH_ANN_DEOPT_PRE_INS;
+                }
+                else {
+                    deopt_ins    = post_ins->prev ? post_ins->prev :
+                        MVM_spesh_graph_linear_prev(tc, g,
+                            ins_to_bb[byte_to_ins_flags[bytecode_pos] >> 3])->last_ins;
+                    deopt_ann->type           = MVM_SPESH_ANN_DEOPT_INLINE;
+                }
                 deopt_ann->next           = deopt_ins->annotations;
-                deopt_ann->type           = MVM_SPESH_ANN_DEOPT_INLINE;
                 deopt_ann->data.deopt_idx = i;
                 deopt_ins->annotations    = deopt_ann;
             }
