@@ -111,7 +111,7 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
     } else {
         *(tc->interp_bytecode_start) = specialized->body.bytecode;
         *(tc->interp_cur_op)         = specialized->body.bytecode +
-            specialized->body.deopts[2 * osr_index + 1];
+            MVM_spesh_deopt_bytecode_pos(specialized->body.deopts[2 * osr_index + 1]);
         if (tc->instance->profiling)
             MVM_profiler_log_osr(tc, 0);
     }

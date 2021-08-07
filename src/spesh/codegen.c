@@ -148,7 +148,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                 break;
             case MVM_SPESH_ANN_DEOPT_OSR:
             case MVM_SPESH_ANN_DEOPT_PRE_INS:
-                g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos;
+                g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos << 1 | 1;
                 break;
             }
             ann = ann->next;
@@ -323,7 +323,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                 case MVM_SPESH_ANN_DEOPT_ONE_INS:
                 case MVM_SPESH_ANN_DEOPT_ALL_INS:
                 case MVM_SPESH_ANN_DEOPT_INLINE:
-                    g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos;
+                    g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos << 1;
 #ifndef NDEBUG
                     if (deopt_idx == ann->data.deopt_idx)
                         seen_deopt_idx = 1;
