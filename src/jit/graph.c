@@ -2512,8 +2512,9 @@ start:
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { cont } },
                                  { MVM_JIT_REG_VAL, { code } },
-                                 { MVM_JIT_REG_ADDR, { reg } }};
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+                                 { MVM_JIT_REG_ADDR, { reg } },
+                                 { MVM_JIT_LITERAL_PTR, { 0 } }};
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 5, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_sp_boolify_iter: {
