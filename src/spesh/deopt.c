@@ -212,7 +212,7 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_idx) {
     assert(deopt_idx < f->spesh_cand->body.num_deopts);
     if (f->spesh_cand) {
         MVMuint32 deopt_target = f->spesh_cand->body.deopts[deopt_idx * 2];
-        MVMuint32 deopt_offset = f->spesh_cand->body.deopts[deopt_idx * 2 + 1];
+        MVMuint32 deopt_offset = MVM_spesh_deopt_bytecode_pos(f->spesh_cand->body.deopts[deopt_idx * 2 + 1]);
 #if MVM_LOG_DEOPTS
         fprintf(stderr, "    Will deopt %u -> %u\n", deopt_offset, deopt_target);
 #endif
@@ -311,11 +311,11 @@ MVMint32 MVM_spesh_deopt_find_inactive_frame_deopt_idx(MVMThreadContext *tc, MVM
     }
     else {
         /* Not JITted; see if we can find the return address in the deopt table. */
-        MVMint32 ret_offset = f->return_address - f->spesh_cand->body.bytecode;
+        MVMuint32 ret_offset = f->return_address - f->spesh_cand->body.bytecode;
         MVMint32 n = f->spesh_cand->body.num_deopts * 2;
         MVMint32 i;
         for (i = 0; i < n; i += 2) {
-            if (f->spesh_cand->body.deopts[i + 1] == ret_offset) {
+            if (MVM_spesh_deopt_bytecode_pos(f->spesh_cand->body.deopts[i + 1]) == ret_offset) {
                 MVMint32 deopt_idx = i / 2;
 #if MVM_LOG_DEOPTS
                 fprintf(stderr, "    Found deopt index for interpeter (idx %d)\n", deopt_idx);
@@ -349,7 +349,7 @@ void MVM_spesh_deopt_during_unwind(MVMThreadContext *tc) {
     MVMint32 deopt_idx = MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, frame);
     if (deopt_idx >= 0) {
         MVMuint32 deopt_target = frame->spesh_cand->body.deopts[deopt_idx * 2];
-        MVMuint32 deopt_offset = frame->spesh_cand->body.deopts[deopt_idx * 2 + 1];
+        MVMuint32 deopt_offset = MVM_spesh_deopt_bytecode_pos(frame->spesh_cand->body.deopts[deopt_idx * 2 + 1]);
         begin_frame_deopt(tc, frame, deopt_idx);
 
         /* Potentially need to uninline. This leaves the top frame being the
