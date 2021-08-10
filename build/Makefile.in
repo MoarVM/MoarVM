@@ -41,6 +41,7 @@ CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
 CINCLUDES = @moar_cincludes@ \
             @ccinc@@shaincludedir@ \
             @ccincsystem@3rdparty/tinymt \
+            @ccincsystem@3rdparty/ryu \
             @ccincsystem@3rdparty/dynasm \
             @ccincsystem@3rdparty/cmp \
             @ccincsystem@3rdparty \
@@ -105,7 +106,6 @@ OBJECTS1 = src/core/callsite@obj@ \
           src/core/ops@obj@ \
           src/core/hll@obj@ \
           src/core/loadbytecode@obj@ \
-          src/math/grisu@obj@ \
           src/core/coerce@obj@ \
           src/core/dll@obj@ \
           src/core/ext@obj@ \
@@ -247,6 +247,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/platform/random@obj@ \
           src/platform/memmem32@obj@ \
           3rdparty/freebsd/memmem@obj@ \
+          3rdparty/ryu/ryu/d2s@obj@ \
           src/platform/malloc_trim@obj@ \
           src/moar@obj@ \
           @platform@ \
@@ -286,7 +287,6 @@ HEADERS = src/moar.h \
           src/core/loadbytecode.h \
           src/core/bitmap.h \
           src/math/num.h \
-          src/math/grisu.h \
           src/core/coerce.h \
           src/core/dll.h \
           src/core/ext.h \
