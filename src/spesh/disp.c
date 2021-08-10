@@ -117,16 +117,14 @@ static MVMSpeshAnn * take_dispatch_annotation(MVMThreadContext *tc, MVMSpeshGrap
     MVM_panic(1, "Spesh: unexpectedly missing annotation on dispatch op");
 }
 
-/* Copy a deopt annotation, allocating a new deopt index for it. */
-static MVMSpeshAnn * clone_deopt_ann(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshAnn *in) {
-    MVMSpeshAnn *cloned = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
-    MVMuint32 deopt_idx = g->num_deopt_addrs;
-    cloned->type = in->type;
-    cloned->data.deopt_idx = deopt_idx;
-    MVM_spesh_graph_grow_deopt_table(tc, g);
-    g->deopt_addrs[deopt_idx * 2] = g->deopt_addrs[in->data.deopt_idx * 2];
-    g->num_deopt_addrs++;
-    return cloned;
+/* Creates an annotation relating a synthetic (added during optimization) deopt
+ * point back to the original one whose usages will have been recorded in the
+ * facts. */
+static MVMSpeshAnn * create_synthetic_deopt_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshAnn *in) {
+    MVMSpeshAnn *ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+    ann->type = MVM_SPESH_ANN_DEOPT_SYNTH;
+    ann->data.deopt_idx = in->data.deopt_idx;
+    return ann;
 }
 
 /* Takes an instruction that may deopt and an operand that should contain the
@@ -137,15 +135,18 @@ static void set_deopt(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
         MVMuint32 *reused_deopt_ann) {
     if (*reused_deopt_ann) {
         /* Already reused, clone needed. */
-        deopt_ann = clone_deopt_ann(tc, g, deopt_ann);
+        MVMuint32 new_deopt_index = MVM_spesh_graph_add_deopt_annotation(tc, g,
+            ins, g->deopt_addrs[deopt_ann->data.deopt_idx * 2], deopt_ann->type);
+        index_operand->lit_ui32 = new_deopt_index;
+        deopt_ann = create_synthetic_deopt_annotation(tc, g, deopt_ann);
     }
     else {
         /* First usage. */
         *reused_deopt_ann = 1;
+        index_operand->lit_ui32 = deopt_ann->data.deopt_idx;
     }
     deopt_ann->next = ins->annotations;
     ins->annotations = deopt_ann;
-    index_operand->lit_ui32 = deopt_ann->data.deopt_idx;
 }
 
 /* Emit a type and/or concreteness guard instruction (when concreteness
