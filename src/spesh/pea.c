@@ -450,6 +450,7 @@ static void add_deopt_materializations_ins(MVMThreadContext *tc, MVMSpeshGraph *
             case MVM_SPESH_ANN_DEOPT_ONE_INS:
             case MVM_SPESH_ANN_DEOPT_ALL_INS:
             case MVM_SPESH_ANN_DEOPT_INLINE:
+            case MVM_SPESH_ANN_DEOPT_PRE_INS:
                 add_deopt_materializations_idx(tc, g, bb, gs, ann->data.deopt_idx,
                         deopt_user_idx >= 0 ? deopt_user_idx : ann->data.deopt_idx);
                 break;
