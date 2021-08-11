@@ -489,7 +489,7 @@ static void run_deserialization_frame(MVMThreadContext *tc, MVMCompUnit *cu) {
 void MVM_vm_run_file(MVMInstance *instance, const char *filename) {
     /* Map the compilation unit into memory and dissect it. */
     MVMThreadContext *tc = instance->main_thread;
-    MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename);
+    MVMCompUnit      *cu = MVM_cu_map_from_file(tc, filename, 0);
 
     /* The call to MVM_string_utf8_decode() may allocate, invalidating the
        location cu->body.filename */

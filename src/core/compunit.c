@@ -29,25 +29,29 @@ MVMCompUnit * MVM_cu_from_bytes(MVMThreadContext *tc, MVMuint8 *bytes, MVMuint32
 }
 
 /* Loads a compilation unit from a bytecode file, mapping it into memory. */
-MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename) {
+MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename, MVMint32 free_filename) {
     MVMCompUnit *cu          = NULL;
     void        *block       = NULL;
     void        *handle      = NULL;
     uv_file      fd;
     MVMuint64    size;
     uv_fs_t req;
+    char *waste[2] = { free_filename ? (char *)filename : NULL, NULL };
 
     /* Ensure the file exists, and get its size. */
     if (uv_fs_stat(NULL, &req, filename, NULL) < 0) {
-        MVM_exception_throw_adhoc(tc, "While looking for '%s': %s", filename, uv_strerror(req.result));
+        MVM_exception_throw_adhoc_free(tc, waste, "While looking for '%s': %s", filename, uv_strerror(req.result));
     }
 
     size = req.statbuf.st_size;
 
     /* Map the bytecode file into memory. */
     if ((fd = uv_fs_open(NULL, &req, filename, O_RDONLY, 0, NULL)) < 0) {
-        MVM_exception_throw_adhoc(tc, "While trying to open '%s': %s", filename, uv_strerror(req.result));
+        MVM_exception_throw_adhoc_free(tc, waste, "While trying to open '%s': %s", filename, uv_strerror(req.result));
     }
+
+    if (free_filename)
+        MVM_free((char *)filename);
 
     if ((block = MVM_platform_map_file(fd, &handle, (size_t)size, 0)) == NULL) {
         /* FIXME: check errno or GetLastError() */
