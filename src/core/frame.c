@@ -644,6 +644,9 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
         }
         frame->effective_spesh_slots = chosen_cand->body.spesh_slots;
         frame->spesh_cand = chosen_cand;
+
+        /* Initialize argument processing. */
+        MVM_args_proc_setup(tc, &(frame->params), args);
     }
     else {
         MVMint32 on_heap = static_frame->body.allocate_on_heap;
@@ -661,6 +664,9 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
         frame->code_ref = (MVMObject *)code;
         frame->outer = outer;
         chosen_bytecode = static_frame->body.bytecode;
+
+        /* Initialize argument processing. Do this before the GC might process the frame. */
+        MVM_args_proc_setup(tc, &(frame->params), args);
 
         /* If we should be spesh logging, set the correlation ID. */
         if (tc->instance->spesh_enabled && tc->spesh_log && static_frame->body.bytecode_size < MVM_SPESH_MAX_BYTECODE_SIZE) {
@@ -682,9 +688,6 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
             }
         }
     }
-
-    /* Initialize argument processing. */
-    MVM_args_proc_setup(tc, &(frame->params), args);
 
     MVM_jit_code_trampoline(tc);
 
