@@ -105,10 +105,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     /* Otherwise, load from disk. */
     MVMROOT(tc, filename, {
         char *c_filename = MVM_string_utf8_c8_encode_C_string(tc, filename);
-        /* XXX any exception from MVM_cu_map_from_file needs to be handled
-         *     and c_filename needs to be freed */
-        MVMCompUnit *cu = MVM_cu_map_from_file(tc, c_filename);
-        MVM_free(c_filename);
+        MVMCompUnit *cu = MVM_cu_map_from_file(tc, c_filename, 1);
         cu->body.filename = filename;
         MVM_gc_write_barrier_hit(tc, (MVMCollectable *)cu);
 
