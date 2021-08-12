@@ -193,10 +193,12 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
 
                     /* If needed, signal sending thread that it can continue. */
                     if (sl->body.block_mutex) {
+                        MVM_gc_mark_thread_blocked(tc);
                         uv_mutex_lock(sl->body.block_mutex);
                         MVM_store(&(sl->body.completed), 1);
                         uv_cond_signal(sl->body.block_condvar);
                         uv_mutex_unlock(sl->body.block_mutex);
+                        MVM_gc_mark_thread_unblocked(tc);
                     }
                     {
                         MVMSpeshLogEntry *entries = sl->body.entries;
