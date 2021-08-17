@@ -613,6 +613,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(dot, ".");
     string_creator(boot_code, "boot-code");
     string_creator(boot_constant, "boot-constant");
+    string_creator(boot_value, "boot-value");
     string_creator(boot_resume, "boot-resume");
     string_creator(boot_syscall, "boot-syscall");
     string_creator(lang_call, "lang-call");

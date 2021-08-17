@@ -94,6 +94,7 @@ struct MVMStringConsts {
     MVMString *dot;
     MVMString *boot_code;
     MVMString *boot_constant;
+    MVMString *boot_value;
     MVMString *boot_resume;
     MVMString *boot_syscall;
     MVMString *lang_call;
