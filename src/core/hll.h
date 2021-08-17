@@ -71,6 +71,7 @@ struct MVMHLLConfig {
     MVMString *method_call_dispatcher;  /* decont'd inv, name, inv, args... */
     MVMString *find_method_dispatcher;  /* decont'd inv, name, throw_if_not_found */
     MVMString *resume_error_dispatcher; /* whatever args were given for resumption */
+    MVMString *hllize_dispatcher;
 
     /* The maximum code size that we'll inline. */
     MVMuint32 max_inline_size;
