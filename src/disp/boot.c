@@ -611,3 +611,37 @@ static void boot_boolify(MVMThreadContext *tc, MVMArgs arg_info) {
 MVMObject * MVM_disp_boot_boolify_dispatch(MVMThreadContext *tc) {
     return wrap(tc, boot_boolify);
 }
+
+/* The lang-hllize dispatcher looks at the current HLL and delegates
+ * to the registered language hllization dispatcher */
+static void lang_hllize(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVM_args_checkarity(tc, &arg_ctx, 1, 1);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+
+    /* We're really guarding on the type's HLL here */
+    MVMROOT(tc, capture, {
+        MVM_disp_program_record_guard_type(tc,
+                MVM_disp_program_record_track_arg(tc, capture, 0));
+    });
+
+    MVMRegister value;
+    MVMCallsiteFlags kind;
+    MVM_capture_arg_pos(tc, capture, 0, &value, &kind);
+
+    MVMHLLConfig *hll = MVM_hll_current(tc);
+
+    if (hll && hll != STABLE(value.o)->hll_owner && hll->hllize_dispatcher) {
+        MVM_disp_program_record_delegate(tc, hll->hllize_dispatcher, capture);
+        return;
+    }
+
+    MVM_disp_program_record_delegate(tc, tc->instance->str_consts.boot_value,
+            capture);
+}
+
+/* Gets the MVMCFunction object wrapping the hllization dispatcher. */
+MVMObject * MVM_disp_lang_hllize_dispatch(MVMThreadContext *tc) {
+    return wrap(tc, lang_hllize);
+}
