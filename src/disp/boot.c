@@ -617,7 +617,7 @@ MVMObject * MVM_disp_boot_boolify_dispatch(MVMThreadContext *tc) {
 static void lang_hllize(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMArgProcContext arg_ctx;
     MVM_args_proc_setup(tc, &arg_ctx, arg_info);
-    MVM_args_checkarity(tc, &arg_ctx, 1, 1);
+    MVM_args_checkarity(tc, &arg_ctx, 1, 2);
     MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
 
     /* We're really guarding on the type's HLL here */
@@ -626,13 +626,35 @@ static void lang_hllize(MVMThreadContext *tc, MVMArgs arg_info) {
                 MVM_disp_program_record_track_arg(tc, capture, 0));
     });
 
+    MVMCallsite *cs = ((MVMCapture *)capture)->body.callsite;
+
+    MVMHLLConfig *hll;
+    if (cs->num_pos == 1) {
+        hll = MVM_hll_current(tc);
+    }
+    else {
+        MVMROOT(tc, capture, {
+            MVM_disp_program_record_guard_literal(tc,
+                MVM_disp_program_record_track_arg(tc, capture, 1));
+        });
+        MVMRegister name;
+        MVMCallsiteFlags name_kind;
+        MVM_capture_arg_pos(tc, capture, 1, &name, &name_kind);
+        hll = MVM_hll_get_config_for(tc,
+            name_kind == MVM_CALLSITE_ARG_STR
+                ? name.s
+                : MVM_repr_get_str(tc, name.o)
+        );
+        MVMROOT(tc, capture, { /* keep capture alive when allocating the new one */
+            capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 1);
+        });
+    }
+
     MVMRegister value;
     MVMCallsiteFlags kind;
     MVM_capture_arg_pos(tc, capture, 0, &value, &kind);
 
-    MVMHLLConfig *hll = MVM_hll_current(tc);
-
-    if (hll && hll != STABLE(value.o)->hll_owner && hll->hllize_dispatcher) {
+    if (hll && hll->hllize_dispatcher && (kind != MVM_CALLSITE_ARG_OBJ || hll != STABLE(value.o)->hll_owner)) {
         MVM_disp_program_record_delegate(tc, hll->hllize_dispatcher, capture);
         return;
     }
