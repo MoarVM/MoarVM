@@ -5513,6 +5513,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         tc->cur_frame->static_info, bytecode_offset);
                 goto NEXT;
             }
+            OP(gettypehllrole):
+                GET_REG(cur_op, 0).i64 = STABLE(GET_REG(cur_op, 2).o)->hll_role;
+                cur_op += 4;
+                goto NEXT;
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;

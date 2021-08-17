@@ -891,6 +891,7 @@ dispatch_i       .d w(int64) str callsite :cache :deoptallpoint :predeoptonepoin
 dispatch_n       .d w(num64) str callsite :cache :deoptallpoint :predeoptonepoint :maycausedeopt :specializable
 dispatch_s       .d w(str) str callsite :cache :deoptallpoint :predeoptonepoint :maycausedeopt :specializable
 dispatch_o       .d w(obj) str callsite :cache :deoptallpoint :predeoptonepoint :maycausedeopt :specializable
+gettypehllrole      w(int64) r(obj) :pure
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.
