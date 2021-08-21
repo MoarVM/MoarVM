@@ -1,3 +1,17 @@
+New in 2021.08
+
+Core:
++ [2f5c21fb] Fix another bug in `MVM_str_hash_fsck`
++ [7355f744] Free filename if exception when loading bytecode
++ [8cc7fbdf,7907b85b,0c032a00,a81f129a,7f8bc1e7] Switch `MVM_coerce_n_s` to Ryū from Grisu3 with a `sprintf` fallback
+
+JIT:
++ [2932ef5b] Add JIT templates for `(bind|get)attr(s)?_*`
+
+Spesh:
++ [d4a8093e] Fix deadlock by untimely GC in multi-threaded programs
++ [a932b173] Fix spesh optimizing away still needed label register
+
 New in 2021.07
 
 6model:
