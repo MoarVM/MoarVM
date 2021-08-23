@@ -255,6 +255,9 @@ struct MVMDispProgramRecording {
     /* The kind of resume we're doing, if any. */
     MVMDispProgramRecordingResumeKind resume_kind;
 
+    /* The inline cache size when we started recording this dispatch. */
+    MVMuint32 inline_cache_size;
+
     /* If we are doing a resume, the list of resumable dispatches we have
      * worked through  */
     MVM_VECTOR_DECL(MVMDispProgramRecordingResumption, resumptions);

@@ -464,6 +464,22 @@ static MVMFrame * find_calling_frame(MVMThreadContext *tc, MVMCallStackRecord *p
         MVM_oops(tc, "Cannot find calling frame during dispatch resumption recording");
     return MVM_callstack_iter_current_frame(tc, &iter);
 }
+static MVMuint32 calculate_inline_cache_size(MVMThreadContext *tc, MVMDispInlineCacheEntry *ice) {
+    switch (MVM_disp_inline_cache_get_kind(tc, ice)) {
+        case MVM_INLINE_CACHE_KIND_INITIAL:
+        case MVM_INLINE_CACHE_KIND_INITIAL_FLATTENING:
+            return 0;
+        case MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH:
+        case MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH_FLATTENING:
+            return 1;
+        case MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH:
+            return ((MVMDispInlineCacheEntryPolymorphicDispatch *)ice)->num_dps;
+        case MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH_FLATTENING:
+            return ((MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)ice)->num_dps;
+        default:
+            MVM_exception_throw_adhoc(tc, "Unrecognized inline cache entry");
+    }
+}
 static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         MVMDispDefinition *disp, MVMObject *capture, MVMuint32 *thunked) {
     MVMCallsite *disp_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
@@ -513,6 +529,11 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     }
 #endif
 
+    /* Calculate the size of the current inline cache (must be done before we
+     * hit a safepoint, otherwise we may use the current inline cache content
+     * after it is freed). */
+    MVMuint32 inline_cache_size = calculate_inline_cache_size(tc, ic_entry);
+
     /* Form an argument capture. */
     MVMObject *capture;
     MVMROOT(tc, update_sf, {
@@ -533,6 +554,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     record->rec.outcome_capture = NULL;
     record->rec.map_bind_outcome_to_resumption = MVMDispProgramRecordingBindControlNone;
     record->rec.initial_capture.capture = capture;
+    record->rec.inline_cache_size = inline_cache_size;
     record->ic_entry_ptr = ic_entry_ptr;
     record->ic_entry = ic_entry;
     record->update_sf = update_sf;
@@ -578,21 +600,7 @@ static void run_resume(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
  * different when there's megamorphic callsites.) */
 MVMint64 MVM_disp_program_record_get_inline_cache_size(MVMThreadContext *tc) {
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    switch (MVM_disp_inline_cache_get_kind(tc, record->ic_entry)) {
-        case MVM_INLINE_CACHE_KIND_INITIAL:
-        case MVM_INLINE_CACHE_KIND_INITIAL_FLATTENING:
-            return 0;
-        case MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH:
-        case MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH_FLATTENING:
-            return 1;
-        case MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH:
-            return ((MVMDispInlineCacheEntryPolymorphicDispatch *)record->ic_entry)->num_dps;
-        case MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH_FLATTENING:
-            return ((MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)record->ic_entry)
-                ->num_dps;
-        default:
-            MVM_exception_throw_adhoc(tc, "Unrecognized inline cache entry");
-    }
+    return record->rec.inline_cache_size;
 }
 
 /* Calculates the path to a capture. If the capture is not found, then an
