@@ -645,9 +645,7 @@ static void lang_hllize(MVMThreadContext *tc, MVMArgs arg_info) {
                 ? name.s
                 : MVM_repr_get_str(tc, name.o)
         );
-        MVMROOT(tc, capture, { /* keep capture alive when allocating the new one */
-            capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 1);
-        });
+        capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 1);
     }
 
     MVMRegister value;
