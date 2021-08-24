@@ -820,6 +820,16 @@ static MVMSpeshIns *rewrite_monomorphic(MVMThreadContext *tc, MVMSpeshGraph *g, 
         if (result)
             return result;
     }
+    else if (kind == MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH) {
+        MVMDispInlineCacheEntryPolymorphicDispatch *pd =
+            (MVMDispInlineCacheEntryPolymorphicDispatch *)entry;
+        if (outcome < pd->num_dps) {
+            MVMSpeshIns *result = translate_dispatch_program(tc, g, bb, ins,
+                pd->dps[outcome]);
+            if (result)
+                return result;
+        }
+    }
     MVM_spesh_graph_add_comment(tc, g, ins,
             "Deemed monomorphic (outcome %d, entry kind %d)", outcome, kind);
     rewrite_to_sp_dispatch(tc, g, ins, bytecode_offset);
