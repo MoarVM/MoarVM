@@ -283,6 +283,15 @@ struct MVMCallStackBindControl {
     MVMStaticFrame *sf;
 };
 
+/* When we make a "call" from C code into bytecode, and there are arguments,
+ * this kind of record provides storage of them, and ensures they are marked.
+ * The argument storage follows the record. */
+#define MVM_CALLSTACK_RECORD_ARGS_FROM_C        12
+struct MVMCallStackArgsFromC {
+    MVMCallsite *cs;
+    MVMRegister *args;
+};
+
 /* Functions for working with the call stack. */
 void MVM_callstack_init(MVMThreadContext *tc);
 MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc);
