@@ -1227,6 +1227,8 @@ MVMStaticFrame * find_runbytecode_static_frame(MVMThreadContext *tc, MVMSpeshPla
     MVMuint32 total_hits = 0;
 
     /* Now look for a stable invokee. */
+    if (!p)
+        return NULL;
     for (i = 0; i < p->num_type_stats; i++) {
         MVMSpeshStatsByType *ts = p->type_stats[i];
         MVMuint32 j;
@@ -1417,15 +1419,6 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         args = ins->operands + 4;
     }
 
-    /* See if there's a stable type tuple at this callsite. If not, we can't
-     * optimize further for now (later: look if we have type info in the
-     * graph for all the args.) */
-    MVMSpeshStatsType *stable_type_tuple = p
-        ? stable_type_tuple = find_invokee_type_tuple(tc, g, bb, ins, p, bytecode_offset, cs)
-        : NULL;
-    if (!stable_type_tuple)
-        return;
-
     /* Is the bytecode we're invoking a constant? */
     MVMSpeshFacts *coderef_facts = MVM_spesh_get_and_use_facts(tc, g, coderef_reg);
     MVMStaticFrame *target_sf = NULL;
@@ -1441,8 +1434,11 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         target_sf = find_runbytecode_static_frame(tc, p, ins, bytecode_offset);
         need_guardsf = 1;
     }
-    if (!target_sf)
+    if (!target_sf) {
+        MVM_spesh_graph_add_comment(tc, g, ins,
+                "Cannot specialize runbytecode; no target static frame found");
         return;
+    }
 
     /* If the target static frame is not invoked or has no specializations,
      * give up. */
@@ -1451,7 +1447,39 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
     if (!target_sf->body.spesh)
         return;
 
-    /* Try to find a specialization. TODO Can also consider facts. */
+    /* See if there's a stable type tuple at this callsite. Failing that,
+     * form one based on the facts. */
+    MVMSpeshStatsType *stable_type_tuple = p
+        ? find_invokee_type_tuple(tc, g, bb, ins, p, bytecode_offset, cs)
+        : NULL;
+    MVMint32 type_tuple_from_facts;
+    if (stable_type_tuple) {
+        type_tuple_from_facts = 0;
+    }
+    else {
+        MVMuint16 flags = cs->flag_count;
+        stable_type_tuple = MVM_spesh_alloc(tc, g, flags * sizeof(MVMSpeshStatsType));
+        MVMuint16 i;
+        for (i = 0; i < flags; i++) {
+            if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ) {
+                MVMSpeshFacts *facts = MVM_spesh_get_and_use_facts(tc, g, args[i]);
+                if (facts) {
+                    if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE &&
+                            (facts->flags & (MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_TYPEOBJ))) {
+                        stable_type_tuple[i].type = facts->type;
+                        stable_type_tuple[i].type_concrete = facts->flags & MVM_SPESH_FACT_CONCRETE;
+                    }
+                    else if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                        stable_type_tuple[i].type = STABLE(facts->value.o)->WHAT;
+                        stable_type_tuple[i].type_concrete = IS_CONCRETE(facts->value.o);
+                    }
+                }
+            }
+        }
+        type_tuple_from_facts = 1;
+    }
+
+    /* Try to find a specialization. */
     MVMSpeshArgGuard *ag = target_sf->body.spesh->body.spesh_arg_guard;
     MVMint16 spesh_cand = MVM_spesh_arg_guard_run_types(tc, ag, cs, stable_type_tuple);
    if (spesh_cand >= 0) {
@@ -1459,8 +1487,9 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
        if (need_guardsf)
            insert_static_frame_guard(tc, g, bb, ins, coderef_reg, target_sf,
                bytecode_offset);
-        check_and_tweak_arg_guards(tc, g, bb, ins, bytecode_offset,
-            stable_type_tuple, cs, args);
+        if (!type_tuple_from_facts)
+            check_and_tweak_arg_guards(tc, g, bb, ins, bytecode_offset,
+                stable_type_tuple, cs, args);
 
         /* See if we'll be able to inline it. */
         char *no_inline_reason = NULL;
@@ -1533,8 +1562,9 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             if (need_guardsf)
                 insert_static_frame_guard(tc, g, bb, ins, coderef_reg, target_sf,
                     bytecode_offset);
-            check_and_tweak_arg_guards(tc, g, bb, ins, bytecode_offset,
-                stable_type_tuple, cs, args);
+            if (!type_tuple_from_facts)
+                check_and_tweak_arg_guards(tc, g, bb, ins, bytecode_offset,
+                    stable_type_tuple, cs, args);
 
             /* Optimize and then inline the graph. */
             MVMSpeshBB *optimize_from_bb = inline_graph->entry;
