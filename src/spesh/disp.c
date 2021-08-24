@@ -798,53 +798,6 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
     return first_inserted;
 }
 
-/* Rewrite an unhit dispatch instruction. */
-static MVMSpeshIns *rewrite_unhit(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-        MVMSpeshIns *ins, MVMuint32 bytecode_offset, MVMint32 have_stats) {
-    MVM_spesh_graph_add_comment(tc, g, ins, have_stats
-        ? "Never dispatched"
-        : "No stats available");
-    rewrite_to_sp_dispatch(tc, g, ins, bytecode_offset);
-    return ins;
-}
-
-/* Rewrite a dispatch instruction that is considered monomorphic. */
-static MVMSpeshIns *rewrite_monomorphic(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins,
-        MVMuint32 bytecode_offset, MVMuint32 outcome) {
-    MVMDispInlineCache *cache = &(g->sf->body.inline_cache);
-    MVMDispInlineCacheEntry *entry = cache->entries[bytecode_offset >> cache->bit_shift];
-    MVMuint32 kind = MVM_disp_inline_cache_get_kind(tc, entry);
-    if (kind == MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH) {
-        MVMSpeshIns *result = translate_dispatch_program(tc, g, bb, ins,
-                ((MVMDispInlineCacheEntryMonomorphicDispatch *)entry)->dp);
-        if (result)
-            return result;
-    }
-    else if (kind == MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH) {
-        MVMDispInlineCacheEntryPolymorphicDispatch *pd =
-            (MVMDispInlineCacheEntryPolymorphicDispatch *)entry;
-        if (outcome < pd->num_dps) {
-            MVMSpeshIns *result = translate_dispatch_program(tc, g, bb, ins,
-                pd->dps[outcome]);
-            if (result)
-                return result;
-        }
-    }
-    MVM_spesh_graph_add_comment(tc, g, ins,
-            "Deemed monomorphic (outcome %d, entry kind %d)", outcome, kind);
-    rewrite_to_sp_dispatch(tc, g, ins, bytecode_offset);
-    return ins;
-}
-
-/* Rewrite a dispatch instruction that is polymorphic or megamorphic. */
-static MVMSpeshIns *rewrite_polymorphic(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins,
-        MVMuint32 bytecode_offset, OutcomeHitCount *outcomes, MVMuint32 num_outcomes) {
-    // TODO
-    MVM_spesh_graph_add_comment(tc, g, ins, "Deemed polymorphic");
-    rewrite_to_sp_dispatch(tc, g, ins, bytecode_offset);
-    return ins;
-}
-
 /* Drives the overall process of optimizing a dispatch instruction. The instruction
  * will always recieve some transformation, even if it's simply to sp_dispatch_*,
  * which pre-resolves the inline cache (and so allows inlining of code that still
@@ -852,9 +805,8 @@ static MVMSpeshIns *rewrite_polymorphic(MVMThreadContext *tc, MVMSpeshGraph *g, 
 static int compare_hits(const void *a, const void *b) {
     return ((OutcomeHitCount *)b)->hits - ((OutcomeHitCount *)a)->hits;
 }
-MVMSpeshIns *MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshPlanned *p,
-        MVMSpeshIns *ins) {
-    MVMSpeshIns *result = ins;
+MVMSpeshIns * MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+        MVMSpeshPlanned *p, MVMSpeshIns *ins) {
     /* Locate the inline cache bytecode offset. There must always be one. */
     MVMSpeshAnn *ann = ins->annotations;
     while (ann) {
@@ -866,60 +818,113 @@ MVMSpeshIns *MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
         MVM_oops(tc, "Dispatch specialization could not find bytecode offset for dispatch instruction");
     MVMuint32 bytecode_offset = ann->data.bytecode_offset;
 
-    /* Find any statistics we have on what outcomes were selected by the
-     * dispatcher and aggregate them. */
-    MVM_VECTOR_DECL(OutcomeHitCount, outcome_hits);
-    MVM_VECTOR_INIT(outcome_hits, 0);
-    MVMuint32 total_hits = 0;
-    MVMuint32 i;
-    for (i = 0; i < (p ? p->num_type_stats : 0); i++) {
-        MVMSpeshStatsByType *ts = p->type_stats[i];
-        MVMuint32 j;
-        for (j = 0; j < ts->num_by_offset; j++) {
-            if (ts->by_offset[j].bytecode_offset == bytecode_offset) {
-                /* We found some stats at the offset of the dispatch. Count the
-                 * hits. */
-                MVMuint32 k;
-                for (k = 0; k < ts->by_offset[j].num_dispatch_results; k++) {
-                    MVMSpeshStatsDispatchResultCount *outcome_count =
-                            &(ts->by_offset[j].dispatch_results[k]);
-                    MVMuint32 l;
-                    MVMuint32 found = 0;
-                    for (l = 0; l < MVM_VECTOR_ELEMS(outcome_hits); l++) {
-                        if (outcome_hits[l].outcome == outcome_count->result_index) {
-                            outcome_hits[l].hits += outcome_count->count;
-                            found = 1;
-                            break;
+    /* Now find the inline cache entry, see what kind of entry it is, and
+     * optimize appropriately. We return if we manage to translate it into
+     * something better. */
+    MVMDispInlineCache *cache = &(g->sf->body.inline_cache);
+    MVMDispInlineCacheEntry *entry = cache->entries[bytecode_offset >> cache->bit_shift];
+    MVMuint32 kind = MVM_disp_inline_cache_get_kind(tc, entry);
+    switch (kind) {
+        case MVM_INLINE_CACHE_KIND_INITIAL:
+        case MVM_INLINE_CACHE_KIND_INITIAL_FLATTENING:
+            /* Never hit. */
+            MVM_spesh_graph_add_comment(tc, g, ins, "Never dispatched");
+            break;
+        case MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH:
+            /* Monomorphic, so translate the dispatch program if we can. */
+            MVM_spesh_graph_add_comment(tc, g, ins, "Monomorphic in the inline cache");
+            MVMSpeshIns *result = translate_dispatch_program(tc, g, bb, ins,
+                ((MVMDispInlineCacheEntryMonomorphicDispatch *)entry)->dp);
+            if (result)
+                return result;
+            break;
+        case MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH_FLATTENING:
+            MVM_spesh_graph_add_comment(tc, g, ins, "Monomorphic but flattening (no opt yet)");
+            break;
+        case MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH: {
+            /* Interesting. It's polymorphic in the inline cache, *but* we are
+             * producing a specialization, and it may be monomorphic in this
+             * specialization. See if this is so. */
+            MVM_VECTOR_DECL(OutcomeHitCount, outcome_hits);
+            MVM_VECTOR_INIT(outcome_hits, 0);
+            MVMuint32 total_hits = 0;
+            MVMuint32 i;
+            for (i = 0; i < (p ? p->num_type_stats : 0); i++) {
+                MVMSpeshStatsByType *ts = p->type_stats[i];
+                MVMuint32 j;
+                for (j = 0; j < ts->num_by_offset; j++) {
+                    if (ts->by_offset[j].bytecode_offset == bytecode_offset) {
+                        /* We found some stats at the offset of the dispatch. Count the
+                         * hits. */
+                        MVMuint32 k;
+                        for (k = 0; k < ts->by_offset[j].num_dispatch_results; k++) {
+                            MVMSpeshStatsDispatchResultCount *outcome_count =
+                                    &(ts->by_offset[j].dispatch_results[k]);
+                            MVMuint32 l;
+                            MVMuint32 found = 0;
+                            for (l = 0; l < MVM_VECTOR_ELEMS(outcome_hits); l++) {
+                                if (outcome_hits[l].outcome == outcome_count->result_index) {
+                                    outcome_hits[l].hits += outcome_count->count;
+                                    found = 1;
+                                    break;
+                                }
+                            }
+                            if (!found) {
+                                OutcomeHitCount ohc = {
+                                    .outcome = outcome_count->result_index,
+                                    .hits = outcome_count->count
+                                };
+                                MVM_VECTOR_PUSH(outcome_hits, ohc);
+                            }
+                            total_hits += outcome_count->count;
                         }
+                        break;
                     }
-                    if (!found) {
-                        OutcomeHitCount ohc = {
-                            .outcome = outcome_count->result_index,
-                            .hits = outcome_count->count
-                        };
-                        MVM_VECTOR_PUSH(outcome_hits, ohc);
-                    }
-                    total_hits += outcome_count->count;
                 }
-                break;
             }
+            qsort(outcome_hits, MVM_VECTOR_ELEMS(outcome_hits), sizeof(OutcomeHitCount),
+                compare_hits);
+            MVMint32 selected_outcome = -1;
+            if (MVM_VECTOR_ELEMS(outcome_hits) == 0) {
+                MVM_spesh_graph_add_comment(tc, g, ins, p
+                    ? "Polymorphic callsite and polymorphic in this specialization"
+                    : "No stats available to resolve polymorphic callsite");
+            }
+            else if ((100 * outcome_hits[0].hits) / total_hits >= 99) {
+                MVM_spesh_graph_add_comment(tc, g, ins,
+                        "Polymorphic callsite made monomorphic by specialization");
+                selected_outcome = outcome_hits[0].outcome;
+            }
+            else {
+                MVM_spesh_graph_add_comment(tc, g, ins,
+                        "Polymorphic callsite still polymorphic in specialization");
+            }
+            MVM_VECTOR_DESTROY(outcome_hits);
+
+            /* If we managed to make it monomorphic by specialization, then
+             * extract and translate the dispatch program. */
+            if (selected_outcome >= 0) {
+                MVMDispInlineCacheEntryPolymorphicDispatch *pd =
+                    (MVMDispInlineCacheEntryPolymorphicDispatch *)entry;
+                if ((MVMuint32)selected_outcome < pd->num_dps) {
+                    MVMSpeshIns *result = translate_dispatch_program(tc, g, bb, ins,
+                        pd->dps[selected_outcome]);
+                    if (result)
+                        return result;
+                }
+            }
+            break;
         }
+        case MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH_FLATTENING:
+            MVM_spesh_graph_add_comment(tc, g, ins, "Polymorphic and flattening (no opt yet)");
+            break;
+        default:
+            /* Really no idea... */
+            MVM_spesh_graph_add_comment(tc, g, ins, "Unknown inline cache entry kind");
+            break;
     }
-    qsort(outcome_hits, MVM_VECTOR_ELEMS(outcome_hits), sizeof(OutcomeHitCount), compare_hits);
 
-    /* If there are no hits, we can only rewrite it to sp_dispatch. */
-    if (MVM_VECTOR_ELEMS(outcome_hits) == 0)
-        result = rewrite_unhit(tc, g, bb, ins, bytecode_offset, p != NULL);
-
-    /* If there's one hit, *or* the top hit has > 99% of the total hits, then we
-     * rewrite it to monomorphic. */
-    else if ((100 * outcome_hits[0].hits) / total_hits >= 99)
-        result = rewrite_monomorphic(tc, g, bb, ins, bytecode_offset, outcome_hits[0].outcome);
-
-    /* Otherwise, it's polymoprhic or megamorphic. */
-    else
-        result = rewrite_polymorphic(tc, g, bb, ins, bytecode_offset, outcome_hits, MVM_VECTOR_ELEMS(outcome_hits));
-
-    MVM_VECTOR_DESTROY(outcome_hits);
-    return result;
+    /* If we make it here, rewrite it into a sp_dispatch_* op. */
+    rewrite_to_sp_dispatch(tc, g, ins, bytecode_offset);
+    return ins;
 }
