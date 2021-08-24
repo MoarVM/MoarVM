@@ -1053,38 +1053,3 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
     MVM_free(named_ins);
     MVM_free(named_bb);
 }
-
-/* Performs argument instruction specialization, either using a logged type
- * tuple or from arg facts. */
-void MVM_spesh_args_for_inline(MVMThreadContext *tc, MVMSpeshGraph *g,
-        MVMCallsite *cs, MVMSpeshOperand *args, MVMSpeshStatsType *type_tuple) {
-    /* If we have a type tuple passed, just use that. */
-    if (type_tuple) {
-        MVM_spesh_args(tc, g, cs, type_tuple);
-    }
-
-    /* Otherwise, transform arg facts to a type tuple, and use that. */
-    else if (cs->flag_count < MAX_ARGS_FOR_OPT) {
-        MVMuint16 flags = cs->flag_count;
-        MVMSpeshStatsType *tt = MVM_calloc(flags, sizeof(MVMSpeshStatsType));
-        MVMuint16 i;
-        for (i = 0; i < flags; i++) {
-            if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ) {
-                MVMSpeshFacts *facts = MVM_spesh_get_and_use_facts(tc, g, args[i]);
-                if (facts) {
-                    if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE &&
-                            (facts->flags & (MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_TYPEOBJ))) {
-                        tt[i].type = facts->type;
-                        tt[i].type_concrete = facts->flags & MVM_SPESH_FACT_CONCRETE;
-                    }
-                    else if (facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-                        tt[i].type = STABLE(facts->value.o)->WHAT;
-                        tt[i].type_concrete = IS_CONCRETE(facts->value.o);
-                    }
-                }
-            }
-        }
-        MVM_spesh_args(tc, g, cs, tt);
-        MVM_free(tt);
-    }
-}
