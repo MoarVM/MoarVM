@@ -622,9 +622,8 @@ static void lang_hllize(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* We're really guarding on the type's HLL here */
     MVMROOT(tc, capture, {
-        MVMObject *tracked_object = MVM_disp_program_record_track_arg(tc, capture, 0);
-        MVM_disp_program_record_guard_concreteness(tc, tracked_object);
-        MVM_disp_program_record_guard_type(tc, tracked_object);
+        MVM_disp_program_record_guard_type(tc,
+                MVM_disp_program_record_track_arg(tc, capture, 0));
     });
 
     MVMCallsite *cs = ((MVMCapture *)capture)->body.callsite;
