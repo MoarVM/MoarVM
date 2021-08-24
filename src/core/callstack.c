@@ -49,6 +49,7 @@ char * record_name(MVMuint8 kind) {
         case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED: return "dispatch recorded";
         case MVM_CALLSTACK_RECORD_DISPATCH_RUN: return "dispatch run";
         case MVM_CALLSTACK_RECORD_BIND_CONTROL: return "bind control";
+        case MVM_CALLSTACK_RECORD_ARGS_FROM_C: return "args from C";
         default: return "unknown";
     }
 }
@@ -435,6 +436,7 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                 break;
             case MVM_CALLSTACK_RECORD_START:
             case MVM_CALLSTACK_RECORD_FLATTENING:
+            case MVM_CALLSTACK_RECORD_ARGS_FROM_C:
                 /* No cleanup to do, just move to next record. */
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
@@ -597,7 +599,7 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                 MVMuint16 flagi;
                 MVMCallsite *cs = &f_record->produced_cs;
                 MVM_callsite_mark(tc, cs, worklist, snapshot);
-                for (flagi = 0; flagi < f_record->produced_cs.flag_count; flagi++) {
+                for (flagi = 0; flagi < cs->flag_count; flagi++) {
                     MVMuint8 flagtype = cs->arg_flags[flagi] & MVM_CALLSITE_ARG_TYPE_MASK;
                     if (flagtype == MVM_CALLSITE_ARG_OBJ || flagtype == MVM_CALLSITE_ARG_STR) {
                         add_collectable(tc, worklist, snapshot, f_record->arg_info.source[f_record->arg_info.map[flagi]].o,
@@ -613,6 +615,19 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                         control_record->state == MVM_BIND_CONTROL_SUCCEEDED)
                     add_collectable(tc, worklist, snapshot, control_record->sf,
                             "Bind control static frame");
+                break;
+            }
+            case MVM_CALLSTACK_RECORD_ARGS_FROM_C: {
+                MVMCallStackArgsFromC *a_record = (MVMCallStackArgsFromC *)record;
+                MVMCallsite *cs = &a_record->cs;
+                MVMuint16 flagi;
+                for (flagi = 0; flagi < cs->flag_count; flagi++) {
+                    MVMuint8 flagtype = cs->arg_flags[flagi] & MVM_CALLSITE_ARG_TYPE_MASK;
+                    if (flagtype == MVM_CALLSITE_ARG_OBJ || flagtype == MVM_CALLSITE_ARG_STR) {
+                        add_collectable(tc, worklist, snapshot, a_record->args[flagi].o,
+                                "Argument from C");
+                    }
+                }
                 break;
             }
             default:
