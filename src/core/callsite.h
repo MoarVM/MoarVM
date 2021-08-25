@@ -70,9 +70,6 @@ struct MVMCallsite {
      * specialization). */
     MVMuint8 is_interned;
 
-    /* Cached version of this callsite with an extra invocant arg. */
-    MVMCallsite *with_invocant;
-
     /* Names of named arguments, in the order that they are passed (and thus
      * matching the flags). Note that named flattening args do not have an
      * entry here, even though they come in the nameds section. */

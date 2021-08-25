@@ -131,18 +131,10 @@ void MVM_callsite_mark(MVMThreadContext *tc, MVMCallsite *cs, MVMGCWorklist *wor
 
 /* Destroy a callsite, freeing the memory associated with it. */
 void MVM_callsite_destroy(MVMCallsite *cs) {
-    if (cs->flag_count) {
+    if (cs->flag_count)
         MVM_free(cs->arg_flags);
-    }
-
-    if (cs->arg_names) {
+    if (cs->arg_names)
         MVM_free(cs->arg_names);
-    }
-
-    if (cs->with_invocant) {
-        MVM_callsite_destroy(cs->with_invocant);
-    }
-
     MVM_free(cs);
 }
 
@@ -169,10 +161,6 @@ MVMCallsite * MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
     }
 
     copy_nameds(tc, copy, cs);
-
-    copy->with_invocant = cs->with_invocant
-        ? MVM_callsite_copy(tc, cs->with_invocant)
-        : NULL;
 
     copy->flag_count = cs->flag_count;
     copy->arg_count = cs->arg_count;
