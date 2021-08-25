@@ -1141,7 +1141,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
 
     /* If it's a parametric type, save parameterizer. */
     if (st->mode_flags & MVM_PARAMETRIC_TYPE)
-        MVM_serialization_write_ref(tc, writer, st->paramet.ric.parameterizer);
+        MVM_serialization_write_ref(tc, writer, (MVMObject *)st->paramet.ric.parameterizer);
 
     /* If it's a parameterized type, we may also need to make an intern table
      * entry as well as writing out the parameter details. */

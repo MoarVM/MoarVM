@@ -9,6 +9,8 @@ void MVM_6model_parametric_setup(MVMThreadContext *tc, MVMObject *type, MVMObjec
         MVM_exception_throw_adhoc(tc, "This type is already parametric");
     if (st->mode_flags & MVM_PARAMETERIZED_TYPE)
         MVM_exception_throw_adhoc(tc, "Cannot make a parameterized type also be parametric");
+    if (!MVM_code_iscode(tc, parameterizer))
+        MVM_exception_throw_adhoc(tc, "Parameterizer callback must be a code handle");
 
     /* For now, we use a simple pairwise array, with parameters and the type
      * that is based on those parameters interleaved. It does make resolution
@@ -89,33 +91,31 @@ static void free_parameterize_sr_data(MVMThreadContext *tc, void *sr_data) {
 }
 void MVM_6model_parametric_parameterize(MVMThreadContext *tc, MVMObject *type, MVMObject *params,
                                         MVMRegister *result) {
-    ParameterizeReturnData *prd;
-    MVMObject *code, *found;
-
     /* Ensure we have a parametric type. */
     MVMSTable *st = STABLE(type);
     if (!(st->mode_flags & MVM_PARAMETRIC_TYPE))
         MVM_exception_throw_adhoc(tc, "This type is not parametric");
 
     /* Use an existing parameterization if we have it. */
-    found = MVM_6model_parametric_try_find_parameterization(tc, st, params);
+    MVMObject *found = MVM_6model_parametric_try_find_parameterization(tc, st, params);
     if (found) {
         result->o = found;
         return;
     }
 
     /* It wasn't found; run parameterizer. */
-    code = MVM_frame_find_invokee(tc, st->paramet.ric.parameterizer, NULL);
-    prd  = MVM_malloc(sizeof(ParameterizeReturnData));
+    ParameterizeReturnData *prd = MVM_malloc(sizeof(ParameterizeReturnData));
     prd->parametric_type                    = type;
     prd->parameters                         = params;
     prd->result                             = result;
     MVM_frame_special_return(tc, tc->cur_frame, finish_parameterizing, free_parameterize_sr_data,
         prd, mark_parameterize_sr_data);
-    MVM_args_setup_thunk(tc, result, MVM_RETURN_OBJ, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
-    tc->cur_frame->args[0].o = st->WHAT;
-    tc->cur_frame->args[1].o = params;
-    STABLE(code)->invoke(tc, code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ), tc->cur_frame->args);
+    MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+            MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
+    args_record->args.source[0].o = st->WHAT;
+    args_record->args.source[1].o = params;
+    MVM_frame_dispatch_from_c(tc, st->paramet.ric.parameterizer, args_record, result,
+            MVM_RETURN_OBJ);
 }
 
 /* Try to find an existing parameterization of the specified type and
