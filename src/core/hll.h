@@ -39,7 +39,7 @@ struct MVMHLLConfig {
 
     /* Language's object finalize handler, which can take a list of objects
      * which need to have a finalizer run. */
-    MVMObject *finalize_handler;
+    MVMCode *finalize_handler;
 
     /* Language's handler for various errors, if needed. */
     MVMCode *bind_error;
