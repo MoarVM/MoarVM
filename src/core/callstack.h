@@ -288,8 +288,11 @@ struct MVMCallStackBindControl {
  * The argument storage follows the record. */
 #define MVM_CALLSTACK_RECORD_ARGS_FROM_C        12
 struct MVMCallStackArgsFromC {
-    MVMCallsite *cs;
-    MVMRegister *args;
+    /* Commonalities of all records. */
+    MVMCallStackRecord common;
+
+    /* The arguments. */
+    MVMArgs args;
 };
 
 /* Functions for working with the call stack. */
@@ -305,6 +308,8 @@ MVMCallStackBindControl * MVM_callstack_allocate_bind_control_failure_only(MVMTh
         MVMint64 failure_flag);
 MVMCallStackBindControl * MVM_callstack_allocate_bind_control(MVMThreadContext *tc,
         MVMint64 flag, MVMint64 success_flag);
+MVMCallStackArgsFromC * MVM_callstack_allocate_args_from_c(MVMThreadContext *tc,
+        MVMCallsite *cs);
 void MVM_callstack_new_continuation_region(MVMThreadContext *tc, MVMObject *tag);
 MVMCallStackRegion * MVM_callstack_continuation_slice(MVMThreadContext *tc, MVMObject *tag,
         MVMActiveHandler **active_handlers);

@@ -715,6 +715,18 @@ void MVM_frame_dispatch_zero_args(MVMThreadContext *tc, MVMCode *code) {
     MVM_frame_dispatch(tc, code, args, -1);
 }
 
+/* Dispatches to a frame with args set up by C code. Also sets the expected
+ * return type and destination for the return value. */
+void MVM_frame_dispatch_from_c(MVMThreadContext *tc, MVMCode *code,
+        MVMCallStackArgsFromC *args_record, MVMRegister *return_value,
+        MVMReturnType return_type) {
+    MVMFrame *cur_frame = tc->cur_frame;
+    cur_frame->return_value = return_value;
+    cur_frame->return_type = return_type;
+    cur_frame->return_address = *(tc->interp_cur_op);
+    MVM_frame_dispatch(tc, code, args_record->args, -1);
+}
+
 /* Moves the specified frame from the stack and on to the heap. Must only
  * be called if the frame is not already there. Use MVM_frame_force_to_heap
  * when not sure. */

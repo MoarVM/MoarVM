@@ -208,6 +208,25 @@ MVMCallStackBindControl * MVM_callstack_allocate_bind_control(MVMThreadContext *
     return record;
 }
 
+/* Allocate a callstack record for holding arguments passed to bytecode from
+ * a call set up in C code. */
+MVMCallStackArgsFromC * MVM_callstack_allocate_args_from_c(MVMThreadContext *tc,
+        MVMCallsite *cs) {
+    /* Allocate. */
+    size_t record_size = to_8_bytes(sizeof(MVMCallStackArgsFromC));
+    size_t args_size = cs->flag_count * sizeof(MVMRegister);
+    tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_ARGS_FROM_C,
+            record_size + args_size);
+    MVMCallStackArgsFromC *record = (MVMCallStackArgsFromC *)tc->stack_top;
+
+    /* Set up arg info. */
+    record->args.callsite = cs;
+    record->args.map = MVM_args_identity_map(tc, cs);
+    record->args.source = (MVMRegister *)((char *)record + record_size);
+
+    return record;
+}
+
 /* Creates a new region for a continuation. By a continuation boundary starting
  * a new region, we are able to take the continuation by slicing off the entire
  * region from the regions linked list. The continuation tags always go at the
@@ -619,12 +638,12 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
             }
             case MVM_CALLSTACK_RECORD_ARGS_FROM_C: {
                 MVMCallStackArgsFromC *a_record = (MVMCallStackArgsFromC *)record;
-                MVMCallsite *cs = &a_record->cs;
+                MVMCallsite *cs = a_record->args.callsite;
                 MVMuint16 flagi;
                 for (flagi = 0; flagi < cs->flag_count; flagi++) {
                     MVMuint8 flagtype = cs->arg_flags[flagi] & MVM_CALLSITE_ARG_TYPE_MASK;
                     if (flagtype == MVM_CALLSITE_ARG_OBJ || flagtype == MVM_CALLSITE_ARG_STR) {
-                        add_collectable(tc, worklist, snapshot, a_record->args[flagi].o,
+                        add_collectable(tc, worklist, snapshot, a_record->args.source[flagi].o,
                                 "Argument from C");
                     }
                 }
