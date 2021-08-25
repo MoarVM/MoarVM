@@ -72,6 +72,9 @@ static MVMCallStackRecord * allocate_record(MVMThreadContext *tc, MVMuint8 kind,
 }
 
 /* Gets the actual size of a record (including any dynamically sized parts). */
+static MVMuint32 to_8_bytes(MVMuint32 num) {
+    return (num + 8 - 1) & -8;
+}
 size_t record_size(MVMCallStackRecord *record) {
     switch (MVM_callstack_kind_ignoring_deopt(record)) {
         case MVM_CALLSTACK_RECORD_START:
@@ -88,6 +91,11 @@ size_t record_size(MVMCallStackRecord *record) {
             return sizeof(MVMCallStackContinuationTag);
         case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
             return sizeof(MVMCallStackDispatchRecord);
+        case MVM_CALLSTACK_RECORD_ARGS_FROM_C: {
+            MVMCallsite *cs = ((MVMCallStackArgsFromC *)record)->args.callsite;
+            return to_8_bytes(sizeof(MVMCallStackArgsFromC)) +
+                to_8_bytes(cs->flag_count * sizeof(MVMRegister));
+        }
         default:
             MVM_panic(1, "Unknown callstack record type in record_size");
     }
@@ -151,9 +159,6 @@ MVMCallStackDispatchRun * MVM_callstack_allocate_dispatch_run(MVMThreadContext *
  *    pointing at a buffer of num_args MVMRegisters.
  * Neither the arg_flags nor the arg names list nor the source are zeroed, as
  * it is expected they will all be written during the flattening process. */
-static MVMuint32 to_8_bytes(MVMuint32 num) {
-    return (num + 8 - 1) & -8;
-}
 MVMCallStackFlattening * MVM_callstack_allocate_flattening(MVMThreadContext *tc,
         MVMuint16 num_args, MVMuint16 num_pos) {
     /* Allocate. */
