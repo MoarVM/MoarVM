@@ -1710,8 +1710,6 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
             }
         }
 
-        // STABLE(target)->invoke(tc, target, cs, tc->cur_frame->args);
-
         communicate_success(dtc, ctx, argument);
 
         return 0;
