@@ -630,7 +630,8 @@ static int react_to_debugserver_request(MVMThreadContext *tc) {
     MVMDebugServerRequestKind kind = tc->instance->debugserver->request_data.kind;
 
     if (kind == MVM_DebugRequest_invoke) {
-        MVMObject *invoke_target = tc->instance->debugserver->request_data.data.invoke.target;
+        MVMCode *invoke_target = tc->instance->debugserver->request_data.data.invoke.target;
+        MVMArgs *args = tc->instance->debugserver->request_data.data.invoke.args;
         tc->instance->debugserver->request_data.data.invoke.target = NULL;
 
         /* Have to clear the threadcontext's "blocked" status so that invoke
@@ -641,7 +642,7 @@ static int react_to_debugserver_request(MVMThreadContext *tc) {
             MVM_panic(MVM_exitcode_gcorch, "could not unblock/unsuspend thread");
         }
 
-        STABLE(invoke_target)->invoke(tc, invoke_target, tc->cur_frame->cur_args_callsite, tc->cur_frame->args);
+        MVM_frame_dispatch(tc, invoke_target, *args, -1);
 
         MVM_gc_mark_thread_blocked(tc);
     }
