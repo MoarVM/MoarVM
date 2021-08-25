@@ -1920,41 +1920,6 @@ static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, 
             is->hint, &dest, MVM_reg_obj);
         code = dest.o;
     }
-
-    /* Failing that, it must be an invocation handler. */
-    else {
-        /* Need to tweak the callsite and args to include the code object
-         * being invoked. */
-        if (tweak_cs) {
-            MVMCallsite *orig = *tweak_cs;
-            if (orig->with_invocant) {
-                *tweak_cs = orig->with_invocant;
-            }
-            else {
-                MVMCallsite *new   = MVM_calloc(1, sizeof(MVMCallsite));
-                MVMint32     fsize = orig->flag_count;
-                new->flag_count    = fsize + 1;
-                new->arg_flags     = MVM_malloc(new->flag_count * sizeof(MVMCallsiteEntry));
-                new->arg_flags[0]  = MVM_CALLSITE_ARG_OBJ;
-                memcpy(new->arg_flags + 1, orig->arg_flags, fsize);
-                new->arg_count      = orig->arg_count + 1;
-                new->num_pos        = orig->num_pos + 1;
-                new->has_flattening = orig->has_flattening;
-                new->is_interned    = 0;
-                new->with_invocant  = NULL;
-                *tweak_cs = orig->with_invocant = new;
-            }
-            memmove(tc->cur_frame->args + 1, tc->cur_frame->args,
-                orig->arg_count * sizeof(MVMRegister));
-            tc->cur_frame->args[0].o = code;
-            tc->cur_frame->cur_args_callsite = *tweak_cs; /* Keep in sync. */
-        }
-        else {
-            MVM_exception_throw_adhoc(tc,
-                "Cannot invoke object with invocation handler in this context");
-        }
-        code = is->invocation_handler;
-    }
     return code;
 }
 

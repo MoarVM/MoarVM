@@ -2705,8 +2705,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(setinvokespec): {
-                MVMObject *obj = GET_REG(cur_op, 0).o, *ch = GET_REG(cur_op, 2).o,
-                    *invocation_handler = GET_REG(cur_op, 6).o;
+                MVMObject *obj = GET_REG(cur_op, 0).o, *ch = GET_REG(cur_op, 2).o;
                 MVMString *name = GET_REG(cur_op, 4).s;
                 MVMInvocationSpec *is = MVM_calloc(1, sizeof(MVMInvocationSpec));
                 MVMSTable *st = STABLE(obj);
@@ -2714,7 +2713,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_ASSIGN_REF(tc, &(st->header), is->attr_name, name);
                 if (ch && name)
                     is->hint = REPR(ch)->attr_funcs.hint_for(tc, STABLE(ch), ch, name);
-                MVM_ASSIGN_REF(tc, &(st->header), is->invocation_handler, invocation_handler);
                 /* XXX not thread safe, but this should occur on non-shared objects anyway... */
                 if (st->invocation_spec)
                     MVM_free(st->invocation_spec);
