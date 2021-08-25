@@ -346,8 +346,8 @@ struct MVMSTable {
     /* Parametricity. Mode flags indicate what, if any, of this union is valid. */
     union {
         struct {
-            /* The code object to use to produce a new parameterization. */
-            MVMObject *parameterizer;
+            /* The code handle to use to produce a new parameterization. */
+            MVMCode *parameterizer;
 
             /* Lookup table of existing parameterizations. For now, just a VM
              * array with alternating pairs of [arg array], object. Could in
