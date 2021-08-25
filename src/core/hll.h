@@ -35,7 +35,7 @@ struct MVMHLLConfig {
     MVMObject *null_value;
 
     /* Language's handler to run at a block's exit time, if needed. */
-    MVMObject *exit_handler;
+    MVMCode *exit_handler;
 
     /* Language's object finalize handler, which can take a list of objects
      * which need to have a finalizer run. */
