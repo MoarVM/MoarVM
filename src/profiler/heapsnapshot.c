@@ -539,9 +539,6 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                         (MVMCollectable *)st->invocation_spec->attr_name,
                         "Invocation spec attribute name");
                     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable *)st->invocation_spec->invocation_handler,
-                        "Invocation spec invocation handler");
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                         (MVMCollectable *)st->invocation_spec->md_class_handle,
                         "Invocation spec class handle (multi)");
                     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
