@@ -109,9 +109,9 @@ void MVM_disp_registry_init(MVMThreadContext *tc) {
 void MVM_disp_registry_register(MVMThreadContext *tc, MVMString *id, MVMObject *dispatch,
         MVMObject *resume) {
     MVMDispRegistry *reg = &(tc->instance->disp_registry);
-    if (REPR(dispatch)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(dispatch))
+    if (!MVM_code_iscode(tc, dispatch))
         MVM_exception_throw_adhoc(tc, "dispatch callback be an instance with repr MVMCode");
-    if (resume && (REPR(resume)->ID != MVM_REPR_ID_MVMCode || !IS_CONCRETE(resume)))
+    if (resume && !MVM_code_iscode(tc, resume))
         MVM_exception_throw_adhoc(tc, "resume callback be an instance with repr MVMCode");
     uv_mutex_lock(&(reg->mutex_update));
     register_internal(tc, id, dispatch, resume);
