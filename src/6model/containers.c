@@ -173,12 +173,12 @@ typedef struct {
     size_t descriptor_offset;
 
     /* Callbacks. */
-    MVMObject *store;
-    MVMObject *store_unchecked;
-    MVMObject *cas;
-    MVMObject *atomic_store;
+    MVMCode *store;
+    MVMCode *store_unchecked;
+    MVMCode *cas;
+    MVMCode *atomic_store;
 
-    /* Retained for serializatin purposes only. */
+    /* Retained for serialization purposes only. */
     MVMObject *attrs_class;
     MVMString *value_attr;
     MVMString *descriptor_attr;
@@ -220,12 +220,11 @@ static void value_desc_cont_fetch_s(MVMThreadContext *tc, MVMObject *cont, MVMRe
 
 static void value_desc_cont_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *value) {
     MVMValueDescContainer *data = (MVMValueDescContainer *)STABLE(cont)->container_data;
-    MVMObject *code = MVM_frame_find_invokee(tc, data->store, NULL);
-    MVMCallsite *cs = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ);
-    MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, cs);
-    tc->cur_frame->args[0].o = cont;
-    tc->cur_frame->args[1].o = value;
-    STABLE(code)->invoke(tc, code, cs, tc->cur_frame->args);
+    MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+            MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
+    args_record->args.source[0].o = cont;
+    args_record->args.source[1].o = value;
+    MVM_frame_dispatch_from_c(tc, data->store, args_record, NULL, MVM_RETURN_VOID);
 }
 
 static void value_desc_cont_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
@@ -254,12 +253,11 @@ static void value_desc_cont_store_s(MVMThreadContext *tc, MVMObject *cont, MVMSt
 
 static void value_desc_cont_store_unchecked(MVMThreadContext *tc, MVMObject *cont, MVMObject *value) {
     MVMValueDescContainer *data = (MVMValueDescContainer *)STABLE(cont)->container_data;
-    MVMObject *code = MVM_frame_find_invokee(tc, data->store_unchecked, NULL);
-    MVMCallsite *cs = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ);
-    MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, cs);
-    tc->cur_frame->args[0].o = cont;
-    tc->cur_frame->args[1].o = value;
-    STABLE(code)->invoke(tc, code, cs, tc->cur_frame->args);
+    MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+            MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
+    args_record->args.source[0].o = cont;
+    args_record->args.source[1].o = value;
+    MVM_frame_dispatch_from_c(tc, data->store_unchecked, args_record, NULL, MVM_RETURN_VOID);
 }
 
 static void value_desc_cont_gc_mark_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
@@ -279,10 +277,10 @@ static void value_desc_cont_gc_free_data(MVMThreadContext *tc, MVMSTable *st) {
 
 static void value_desc_cont_serialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     MVMValueDescContainer *data = (MVMValueDescContainer *)st->container_data;
-    MVM_serialization_write_ref(tc, writer, data->store);
-    MVM_serialization_write_ref(tc, writer, data->store_unchecked);
-    MVM_serialization_write_ref(tc, writer, data->cas);
-    MVM_serialization_write_ref(tc, writer, data->atomic_store);
+    MVM_serialization_write_ref(tc, writer, (MVMObject *)data->store);
+    MVM_serialization_write_ref(tc, writer, (MVMObject *)data->store_unchecked);
+    MVM_serialization_write_ref(tc, writer, (MVMObject *)data->cas);
+    MVM_serialization_write_ref(tc, writer, (MVMObject *)data->atomic_store);
     MVM_serialization_write_ref(tc, writer, data->attrs_class);
     MVM_serialization_write_str(tc, writer, data->value_attr);
     MVM_serialization_write_str(tc, writer, data->descriptor_attr);
@@ -329,13 +327,12 @@ static void value_desc_cont_cas(MVMThreadContext *tc, MVMObject *cont,
                               MVMObject *expected, MVMObject *value,
                               MVMRegister *result) {
     MVMValueDescContainer *data = (MVMValueDescContainer *)STABLE(cont)->container_data;
-    MVMObject *code = MVM_frame_find_invokee(tc, data->cas, NULL);
-    MVMCallsite *cs = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ_OBJ);
-    MVM_args_setup_thunk(tc, result, MVM_RETURN_OBJ, cs);
-    tc->cur_frame->args[0].o = cont;
-    tc->cur_frame->args[1].o = expected;
-    tc->cur_frame->args[2].o = value;
-    STABLE(code)->invoke(tc, code, cs, tc->cur_frame->args);
+    MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+            MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ_OBJ));
+    args_record->args.source[0].o = cont;
+    args_record->args.source[1].o = expected;
+    args_record->args.source[2].o = value;
+    MVM_frame_dispatch_from_c(tc, data->cas, args_record, result, MVM_RETURN_OBJ);
 }
 
 static MVMObject * value_desc_cont_atomic_load(MVMThreadContext *tc, MVMObject *cont) {
@@ -346,12 +343,11 @@ static MVMObject * value_desc_cont_atomic_load(MVMThreadContext *tc, MVMObject *
 
 void value_desc_cont_atomic_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *value) {
     MVMValueDescContainer *data = (MVMValueDescContainer *)STABLE(cont)->container_data;
-    MVMObject *code = MVM_frame_find_invokee(tc, data->atomic_store, NULL);
-    MVMCallsite *cs = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ);
-    MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, cs);
-    tc->cur_frame->args[0].o = cont;
-    tc->cur_frame->args[1].o = value;
-    STABLE(code)->invoke(tc, code, cs, tc->cur_frame->args);
+    MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+            MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
+    args_record->args.source[0].o = cont;
+    args_record->args.source[1].o = value;
+    MVM_frame_dispatch_from_c(tc, data->atomic_store, args_record, NULL, MVM_RETURN_VOID);
 }
 
 static const MVMContainerSpec value_desc_cont_spec = {
@@ -400,12 +396,20 @@ static void value_desc_cont_configure_container_spec(MVMThreadContext *tc, MVMST
     MVMROOT2(tc, st, config, {
         MVMObject *value;
         value = grab_one_value(tc, config, "store");
+        if (!MVM_code_iscode(tc, value))
+            MVM_exception_throw_adhoc(tc, "Container spec must be configured with a code handle");
         MVM_ASSIGN_REF(tc, &(st->header), data->store, value);
         value = grab_one_value(tc, config, "store_unchecked");
+        if (!MVM_code_iscode(tc, value))
+            MVM_exception_throw_adhoc(tc, "Container spec must be configured with a code handle");
         MVM_ASSIGN_REF(tc, &(st->header), data->store_unchecked, value);
         value = grab_one_value(tc, config, "cas");
+        if (!MVM_code_iscode(tc, value))
+            MVM_exception_throw_adhoc(tc, "Container spec must be configured with a code handle");
         MVM_ASSIGN_REF(tc, &(st->header), data->cas, value);
         value = grab_one_value(tc, config, "atomic_store");
+        if (!MVM_code_iscode(tc, value))
+            MVM_exception_throw_adhoc(tc, "Container spec must be configured with a code handle");
         MVM_ASSIGN_REF(tc, &(st->header), data->atomic_store, value);
         value = grab_one_value(tc, config, "attrs_class");
         MVM_ASSIGN_REF(tc, &(st->header), data->attrs_class, value);
