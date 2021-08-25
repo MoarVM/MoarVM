@@ -148,9 +148,6 @@ struct MVMInvocationSpec {
     size_t md_cache_offset;
     size_t md_valid_offset;
 
-    /* Function that handles invocation, if any. */
-    MVMObject *invocation_handler;
-
     /* Class handle, name and hint for attribute holding code to invoke. */
     MVMObject *class_handle;
     MVMString *attr_name;

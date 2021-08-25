@@ -1122,7 +1122,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
         MVM_serialization_write_ref(tc, writer, st->invocation_spec->class_handle);
         MVM_serialization_write_str(tc, writer, st->invocation_spec->attr_name);
         MVM_serialization_write_int(tc, writer, st->invocation_spec->hint);
-        MVM_serialization_write_ref(tc, writer, st->invocation_spec->invocation_handler);
+        MVM_serialization_write_ref(tc, writer, NULL);
         MVM_serialization_write_ref(tc, writer, st->invocation_spec->md_class_handle);
         MVM_serialization_write_str(tc, writer, st->invocation_spec->md_cache_attr_name);
         MVM_serialization_write_int(tc, writer, st->invocation_spec->md_cache_hint);
@@ -2805,7 +2805,7 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
         MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->class_handle, MVM_serialization_read_ref(tc, reader));
         MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->attr_name, MVM_serialization_read_str(tc, reader));
         invocation_spec->hint = MVM_serialization_read_int(tc, reader);
-        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->invocation_handler, MVM_serialization_read_ref(tc, reader));
+        MVM_serialization_read_ref(tc, reader); // No longer used
         MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->md_class_handle, MVM_serialization_read_ref(tc, reader));
         MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->md_cache_attr_name, MVM_serialization_read_str(tc, reader));
         invocation_spec->md_cache_hint = MVM_serialization_read_int(tc, reader);
