@@ -1897,7 +1897,7 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
     }
 }
 
-static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs, MVMInvocationSpec *is) {
+static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, MVMInvocationSpec *is) {
     /* Fast path when we have an offset directly into a P6opaque. */
     if (is->code_ref_offset) {
         if (!IS_CONCRETE(code))
@@ -1932,7 +1932,7 @@ MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCal
             MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s; %s)",
                 REPR(code)->name, MVM_6model_get_debug_name(tc, code));
         }
-        code = find_invokee_internal(tc, code, tweak_cs, is);
+        code = find_invokee_internal(tc, code, is);
     }
     return code;
 }

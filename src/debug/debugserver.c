@@ -1632,7 +1632,6 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
         cs->num_pos    = argument->argument_count;
         cs->has_flattening = 0;
         cs->is_interned = 0;
-        cs->with_invocant = NULL;
         cs->arg_names = NULL;
 
         cs->arg_flags = MVM_malloc(sizeof(MVMCallsiteEntry) * cs->flag_count);

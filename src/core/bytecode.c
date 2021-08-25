@@ -936,7 +936,6 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         callsites[i]->arg_count      = positionals + nameds_slots;
         callsites[i]->has_flattening = has_flattening;
         callsites[i]->is_interned    = 0;
-        callsites[i]->with_invocant  = NULL;
 
         if (rs->version >= 3 && nameds_non_flattening) {
             ensure_can_read(tc, cu, rs, pos, nameds_non_flattening * 4);
