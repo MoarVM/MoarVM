@@ -2,42 +2,42 @@
 
 /* Some callsites used in the VM are interned at startup from static memory. */
 
-static MVMCallsite   zero_arity_callsite = { NULL, 0, 0, 0, 0, 0, 0, 0 };
+static MVMCallsite   zero_arity_callsite = { NULL, 0, 0, 0, 0, 0, NULL };
 
 static MVMCallsiteEntry obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     obj_callsite = { obj_arg_flags, 1, 1, 1, 0, 0, 0, 0 };
+static MVMCallsite     obj_callsite = { obj_arg_flags, 1, 1, 1, 0, 0, NULL };
 
 static MVMCallsiteEntry int_arg_flags[] = { MVM_CALLSITE_ARG_INT };
-static MVMCallsite     int_callsite = { int_arg_flags, 1, 1, 1, 0, 0, 0, 0 };
+static MVMCallsite     int_callsite = { int_arg_flags, 1, 1, 1, 0, 0, NULL };
 
 static MVMCallsiteEntry obj_obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                                 MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite    obj_obj_callsite = { obj_obj_arg_flags, 2, 2, 2, 0, 0, NULL, NULL };
+static MVMCallsite    obj_obj_callsite = { obj_obj_arg_flags, 2, 2, 2, 0, 0, NULL };
 
 static MVMCallsiteEntry obj_int_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                             MVM_CALLSITE_ARG_INT };
-static MVMCallsite    obj_int_callsite = { obj_int_flags, 2, 2, 2, 0, 0, NULL, NULL };
+static MVMCallsite    obj_int_callsite = { obj_int_flags, 2, 2, 2, 0, 0, NULL };
 
 static MVMCallsiteEntry obj_num_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                             MVM_CALLSITE_ARG_NUM };
-static MVMCallsite    obj_num_callsite = { obj_num_flags, 2, 2, 2, 0, 0, NULL, NULL };
+static MVMCallsite    obj_num_callsite = { obj_num_flags, 2, 2, 2, 0, 0, NULL };
 
 static MVMCallsiteEntry obj_str_arg_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                          MVM_CALLSITE_ARG_STR };
-static MVMCallsite     obj_str_callsite = { obj_str_arg_flags, 2, 2, 2, 0, 0, NULL, NULL };
+static MVMCallsite     obj_str_callsite = { obj_str_arg_flags, 2, 2, 2, 0, 0, NULL };
 
 static MVMCallsiteEntry int_int_arg_flags[] = { MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_INT };
-static MVMCallsite     int_int_callsite = { int_int_arg_flags, 2, 2, 2, 0, 0, 0, 0 };
+static MVMCallsite     int_int_callsite = { int_int_arg_flags, 2, 2, 2, 0, 0, NULL };
 
 static MVMCallsiteEntry obj_obj_str_arg_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                        MVM_CALLSITE_ARG_OBJ,
                                        MVM_CALLSITE_ARG_STR };
-static MVMCallsite     obj_obj_str_callsite = { obj_obj_str_arg_flags, 3, 3, 3, 0, 0, NULL, NULL };
+static MVMCallsite     obj_obj_str_callsite = { obj_obj_str_arg_flags, 3, 3, 3, 0, 0, NULL };
 
 static MVMCallsiteEntry obj_obj_obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                        MVM_CALLSITE_ARG_OBJ,
                                        MVM_CALLSITE_ARG_OBJ };
-static MVMCallsite     obj_obj_obj_callsite = { obj_obj_obj_arg_flags, 3, 3, 3, 0, 0, NULL, NULL };
+static MVMCallsite     obj_obj_obj_callsite = { obj_obj_obj_arg_flags, 3, 3, 3, 0, 0, NULL };
 
 /* Intern common callsites at startup. */
 void MVM_callsite_initialize_common(MVMThreadContext *tc) {
