@@ -4305,7 +4305,6 @@ BEGIN {
     'condsignalone', 578,
     'condsignalall', 579,
     'queuepoll', 580,
-    'setmultispec', 581,
     'ctxouterskipthunks', 582,
     'ctxcallerskipthunks', 583,
     'timer', 584,
@@ -5071,7 +5070,6 @@ BEGIN {
     'condsignalone',
     'condsignalall',
     'queuepoll',
-    'setmultispec',
     'ctxouterskipthunks',
     'ctxcallerskipthunks',
     'timer',
@@ -9297,15 +9295,6 @@ BEGIN {
         nqp::writeuint($bytecode, $elems, 580, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
-    },
-    'setmultispec', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
-        my uint $elems := nqp::elems($bytecode);
-        nqp::writeuint($bytecode, $elems, 581, 5);
-        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
-        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
-        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
-        my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
     'ctxouterskipthunks', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;
