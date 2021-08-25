@@ -703,7 +703,7 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
  * a handler for unlocated lexical handlers. */
 static MVMint32 use_lexical_handler_hll_error(MVMThreadContext *tc, MVMuint8 mode) {
     return (mode == MVM_EX_THROW_LEX || mode == MVM_EX_THROW_LEX_CALLER) &&
-        !MVM_is_null(tc, MVM_hll_current(tc)->lexical_handler_not_found_error);
+        !MVM_is_null(tc, (MVMObject *)MVM_hll_current(tc)->lexical_handler_not_found_error);
 }
 
 /* Invokes the HLL's handler for unresolved lexical throws. */
