@@ -24,13 +24,16 @@ void MVM_continuation_reset(MVMThreadContext *tc, MVMObject *tag,
             MVM_continuation_invoke(tc, (MVMContinuation *)code, NULL, res_reg, tag);
         }
     }
-    else {
+    else if (MVM_code_iscode(tc, code)) {
         /* Run the passed code. */
         MVM_callstack_new_continuation_region(tc, tag);
-        MVMCallsite *null_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_ZERO_ARITY);
-        code = MVM_frame_find_invokee(tc, code, NULL);
-        MVM_args_setup_thunk(tc, res_reg, MVM_RETURN_OBJ, null_args_callsite);
-        STABLE(code)->invoke(tc, code, null_args_callsite, tc->cur_frame->args);
+        MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+                MVM_callsite_get_common(tc, MVM_CALLSITE_ID_ZERO_ARITY));
+        MVM_frame_dispatch_from_c(tc, (MVMCode *)code, args_record, res_reg, MVM_RETURN_OBJ);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc,
+                "continuationreset requires a continuation or a code handle");
     }
 
     MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
@@ -39,10 +42,13 @@ void MVM_continuation_reset(MVMThreadContext *tc, MVMObject *tag,
 void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
                               MVMObject *tag, MVMObject *code,
                               MVMRegister *res_reg) {
-    MVM_jit_code_trampoline(tc);
+    if (!MVM_code_iscode(tc, code))
+        MVM_exception_throw_adhoc(tc,
+                "continuationcontrol requires a code handle");
 
     /* Allocate the continuation (done here so that we don't have any more
      * allocation while we're slicing the stack frames off). */
+    MVM_jit_code_trampoline(tc);
     MVMObject *cont;
     MVMROOT2(tc, tag, code, {
         cont = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContinuation);
@@ -105,11 +111,11 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     /* Invoke specified code, passing the continuation. We return to
      * interpreter to run this, which then returns control to the
      * original reset or invoke. */
-    code = MVM_frame_find_invokee(tc, code, NULL);
-    MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
-    MVM_args_setup_thunk(tc, tc->cur_frame->return_value, tc->cur_frame->return_type, inv_arg_callsite);
-    tc->cur_frame->args[0].o = cont;
-    STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
+    MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+            MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ));
+    args_record->args.source[0].o = cont;
+    MVM_frame_dispatch_from_c(tc, (MVMCode *)code, args_record, tc->cur_frame->return_value,
+            tc->cur_frame->return_type);
 
     MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
 }
@@ -120,6 +126,8 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
     /* First of all do a repr id check */
     if (REPR(cont)->ID != MVM_REPR_ID_MVMContinuation)
         MVM_exception_throw_adhoc(tc, "continuationinvoke expects an MVMContinuation");
+    if (!(MVM_is_null(tc, code) || MVM_code_iscode(tc, code)))
+        MVM_exception_throw_adhoc(tc, "continuationinvoke requires a code handle");
 
     /* Ensure we are the only invoker of the continuation. */
     if (!MVM_trycas(&(cont->body.invoked), 0, 1))
@@ -205,10 +213,10 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
         cont->body.res_reg->o = tc->instance->VMNull;
     }
     else {
-        MVMCallsite *null_args_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_ZERO_ARITY);
-        code = MVM_frame_find_invokee(tc, code, NULL);
-        MVM_args_setup_thunk(tc, cont->body.res_reg, MVM_RETURN_OBJ, null_args_callsite);
-        STABLE(code)->invoke(tc, code, null_args_callsite, tc->cur_frame->args);
+        MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+                MVM_callsite_get_common(tc, MVM_CALLSITE_ID_ZERO_ARITY));
+        MVM_frame_dispatch_from_c(tc, (MVMCode *)code, args_record, cont->body.res_reg,
+                MVM_RETURN_OBJ);
     }
 
     MVM_CHECK_CALLER_CHAIN(tc, tc->cur_frame);
