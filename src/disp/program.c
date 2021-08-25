@@ -2358,7 +2358,7 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
             MVMDispProgramOp op;
             op.code = MVMDispOpcodeBindCompletionToResumption;
             op.bind_control_resumption.failure_flag = record->rec.bind_failure_resumption_flag;
-            op.bind_control_resumption.failure_flag = record->rec.bind_success_resumption_flag;
+            op.bind_control_resumption.success_flag = record->rec.bind_success_resumption_flag;
             MVM_VECTOR_PUSH(cs.ops, op);
         }
         else {
