@@ -11,7 +11,8 @@ typedef enum {
 
 /* Representation used for VM thread handles. */
 struct MVMThreadBody {
-    /* The code object we will invoke to start the thread.. */
+    /* The code handle (MVMCode or MVMCFunction) we will invoke as the thread
+     * entrypoint. */
     MVMObject *invokee;
 
     /* The underlying OS thread handle. */

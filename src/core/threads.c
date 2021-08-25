@@ -13,6 +13,9 @@ MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 ap
     MVMThreadContext *child_tc;
     unsigned int interval_id;
 
+    if (!MVM_code_iscode(tc, invokee) && REPR(invokee)->ID != MVM_REPR_ID_MVMCFunction)
+        MVM_exception_throw_adhoc(tc, "Thread start code must be a code handle");
+
     interval_id = MVM_telemetry_interval_start(tc, "spawning a new thread off of me");
 
     /* Create the Thread object and stash code to run and lifetime. */
@@ -54,9 +57,15 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
     thread->body.invokee = NULL;
 
     /* Create initial frame, which sets up all of the interpreter state also. */
-    invokee = MVM_frame_find_invokee(tc, invokee, NULL);
-    STABLE(invokee)->invoke(tc, invokee,
-            MVM_callsite_get_common(tc, MVM_CALLSITE_ID_ZERO_ARITY), NULL);
+    MVMArgs args = {
+        .callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_ZERO_ARITY),
+        .source = NULL,
+        .map = NULL
+    };
+    if (MVM_code_iscode(tc, invokee))
+        MVM_frame_dispatch(tc, (MVMCode *)invokee, args, -1);
+    else
+        ((MVMCFunction *)invokee)->body.func(tc, args);
 
     /* This frame should be marked as the thread entry frame, so that any
      * return from it will cause us to drop out of the interpreter and end
