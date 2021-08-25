@@ -79,6 +79,15 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
     MVMObject *val = MVM_repr_at_key_o((tc), (hash), key); \
     if (!MVM_is_null(tc, val)) (config)->member = val; \
 } while (0)
+#define check_config_key_code(tc, hash, name, member, config) do { \
+    MVMString *key = MVM_string_utf8_decode((tc), (tc)->instance->VMString, (name), strlen((name))); \
+    MVMObject *val = MVM_repr_at_key_o((tc), (hash), key); \
+    if (!MVM_is_null(tc, val)) {\
+        if (!MVM_code_iscode(tc, val)) \
+            MVM_exception_throw_adhoc(tc, "%s must be a VM code handle", name); \
+        (config)->member = (MVMCode *)val; \
+    } \
+} while (0)
 #define check_config_key_reftype(tc, hash, name, member, config, wantprim, wantkind) do { \
     MVMString *key = MVM_string_utf8_decode((tc), (tc)->instance->VMString, (name), strlen((name))); \
     MVMObject *val = MVM_repr_at_key_o((tc), (hash), key); \
@@ -128,7 +137,7 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             check_config_key(tc, config_hash, "null_value", null_value, config);
             check_config_key(tc, config_hash, "exit_handler", exit_handler, config);
             check_config_key(tc, config_hash, "finalize_handler", finalize_handler, config);
-            check_config_key(tc, config_hash, "bind_error", bind_error, config);
+            check_config_key_code(tc, config_hash, "bind_error", bind_error, config);
             check_config_key(tc, config_hash, "method_not_found_error", method_not_found_error, config);
             check_config_key(tc, config_hash, "lexical_handler_not_found_error", lexical_handler_not_found_error, config);
             check_config_key(tc, config_hash, "true_value", true_value, config);

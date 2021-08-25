@@ -1463,25 +1463,21 @@ void MVM_args_bind_failed(MVMThreadContext *tc, MVMDispInlineCacheEntry **ice_pt
         }
     }
 
-    /* If we get here, it's the error case. */
-    MVMRegister *res;
-    MVMCallsite *inv_arg_callsite;
-
-    /* Capture arguments into a call capture, to pass off for analysis. */
+    /* If we get here, it's the error case. Capture arguments into a call
+     * capture, to pass off for analysis. */
     MVMObject *cc_obj = MVM_args_save_capture(tc, tc->cur_frame);
 
     /* Invoke the HLL's bind failure handler. */
     MVMFrame *cur_frame = tc->cur_frame;
-    MVMObject *bind_error = MVM_hll_current(tc)->bind_error;
+    MVMCode *bind_error = MVM_hll_current(tc)->bind_error;
     if (!bind_error)
         MVM_exception_throw_adhoc(tc, "Bind error occurred, but HLL has no handler");
-    bind_error = MVM_frame_find_invokee(tc, bind_error, NULL);
-    res = MVM_calloc(1, sizeof(MVMRegister));
-    inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
-    MVM_args_setup_thunk(tc, res, MVM_RETURN_OBJ, inv_arg_callsite);
+    MVMRegister *res = MVM_calloc(1, sizeof(MVMRegister));
     MVM_frame_special_return(tc, cur_frame, bind_error_return, bind_error_unwind, res, mark_sr_data);
-    cur_frame->args[0].o = cc_obj;
-    STABLE(bind_error)->invoke(tc, bind_error, inv_arg_callsite, cur_frame->args);
+    MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+            MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ));
+    args_record->args.source[0].o = cc_obj;
+    MVM_frame_dispatch_from_c(tc, bind_error, args_record, res, MVM_RETURN_OBJ);
 }
 
 /* Called when args binding is completed successfully. A no-op unless we're
