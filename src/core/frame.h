@@ -145,22 +145,11 @@ struct MVMInvocationSpec {
     /* Offsets for fast access; placed first as they are what will be most
      * often needed. */
     size_t code_ref_offset;
-    size_t md_cache_offset;
-    size_t md_valid_offset;
 
     /* Class handle, name and hint for attribute holding code to invoke. */
     MVMObject *class_handle;
     MVMString *attr_name;
     MVMint64   hint;
-
-    /* Multi-dispatch info class handle, and name/hint of attribute that
-     * holds the cache itself and a flag to check if it's allowed to
-     * consider the cache. */
-    MVMObject *md_class_handle;
-    MVMString *md_cache_attr_name;
-    MVMint64   md_cache_hint;
-    MVMint64   md_valid_hint;
-    MVMString *md_valid_attr_name;
 };
 
 /* Checks if a frame is allocated on a call stack or on the heap. If it is on

@@ -538,15 +538,6 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                         (MVMCollectable *)st->invocation_spec->attr_name,
                         "Invocation spec attribute name");
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable *)st->invocation_spec->md_class_handle,
-                        "Invocation spec class handle (multi)");
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable *)st->invocation_spec->md_cache_attr_name,
-                        "Invocation spec cache attribute name (multi)");
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable *)st->invocation_spec->md_valid_attr_name,
-                        "Invocation spec valid attribute name (multi)");
                 }
 
                 MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,

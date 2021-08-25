@@ -639,7 +639,7 @@ condwait            r(obj)
 condsignalone       r(obj)
 condsignalall       r(obj)
 queuepoll           w(obj) r(obj)
-setmultispec        r(obj) r(obj) r(str) r(str)
+DEPRECATED_82       r(obj) r(obj) r(str) r(str)
 ctxouterskipthunks  w(obj) r(obj) :noinline
 ctxcallerskipthunks w(obj) r(obj) :noinline
 timer               w(obj) r(obj) r(obj) r(int64) r(int64) r(obj)
