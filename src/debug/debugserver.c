@@ -1675,26 +1675,25 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
             }
         }
 
-        tc->cur_frame->return_value = NULL;
-        tc->cur_frame->return_type  = MVM_RETURN_VOID;
-
+        /* Set up return handling for after call. */
         DebugserverInvocationSpecialReturnData *srd = MVM_calloc(sizeof(DebugserverInvocationSpecialReturnData), 1);
-
         srd->id = argument->id;
-
-        MVM_args_setup_thunk(tc, &srd->return_target, MVM_RETURN_ALLOMORPH, cs);
         MVM_frame_special_return(tc, tc->cur_frame,
             debugserver_invocation_special_return,
             debugserver_invocation_special_unwind,
             (void *)srd, NULL);
-        /* XXX how to find out how much space there is?
-           Or maybe always point to our own arguments_to_pass and mark and delete it
-           using the special return mechanism? */
-        memcpy(tc->cur_frame->args, arguments_to_pass, sizeof(MVMRegister) * cs->flag_count);
+        tc->cur_frame->return_value = &srd->return_target;
+        tc->cur_frame->return_type = MVM_RETURN_ALLOMORPH;
+        tc->cur_frame->return_address = *(tc->interp_cur_op);
+
+        /* Create a callstack record to hold the args. */
+        MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc, cs);
+        memcpy(args_record->args.source, arguments_to_pass, sizeof(MVMRegister) * cs->flag_count);
 
         debugserver->request_data.kind = MVM_DebugRequest_invoke;
         debugserver->request_data.target_tc = tc;
-        debugserver->request_data.data.invoke.target = target;
+        debugserver->request_data.data.invoke.target = (MVMCode *)target;
+        debugserver->request_data.data.invoke.args = &(args_record->args);
         debugserver->request_data.request_id = argument->id;
 
         MVM_store(&debugserver->request_data.status, MVM_DebugRequestStatus_sender_is_waiting);
