@@ -1123,11 +1123,11 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
         MVM_serialization_write_str(tc, writer, st->invocation_spec->attr_name);
         MVM_serialization_write_int(tc, writer, st->invocation_spec->hint);
         MVM_serialization_write_ref(tc, writer, NULL);
-        MVM_serialization_write_ref(tc, writer, st->invocation_spec->md_class_handle);
-        MVM_serialization_write_str(tc, writer, st->invocation_spec->md_cache_attr_name);
-        MVM_serialization_write_int(tc, writer, st->invocation_spec->md_cache_hint);
-        MVM_serialization_write_str(tc, writer, st->invocation_spec->md_valid_attr_name);
-        MVM_serialization_write_int(tc, writer, st->invocation_spec->md_valid_hint);
+        MVM_serialization_write_ref(tc, writer, NULL);
+        MVM_serialization_write_str(tc, writer, NULL);
+        MVM_serialization_write_int(tc, writer, 0);
+        MVM_serialization_write_str(tc, writer, NULL);
+        MVM_serialization_write_int(tc, writer, 0);
     }
 
     /* HLL owner. */
@@ -2806,11 +2806,11 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
         MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->attr_name, MVM_serialization_read_str(tc, reader));
         invocation_spec->hint = MVM_serialization_read_int(tc, reader);
         MVM_serialization_read_ref(tc, reader); // No longer used
-        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->md_class_handle, MVM_serialization_read_ref(tc, reader));
-        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->md_cache_attr_name, MVM_serialization_read_str(tc, reader));
-        invocation_spec->md_cache_hint = MVM_serialization_read_int(tc, reader);
-        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->md_valid_attr_name, MVM_serialization_read_str(tc, reader));
-        invocation_spec->md_valid_hint = MVM_serialization_read_int(tc, reader);
+        MVM_serialization_read_ref(tc, reader); // No longer used
+        MVM_serialization_read_str(tc, reader); // No longer used
+        MVM_serialization_read_int(tc, reader); // No longer used
+        MVM_serialization_read_str(tc, reader); // No longer used
+        MVM_serialization_read_int(tc, reader); // No longer used
         /* Deserializing an object may trigger GC, so make sure a gc_mark of
          * the half-deserialized STable doesn't see the invocation_spec
          * until the methods are actually there */

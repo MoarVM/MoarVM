@@ -8717,8 +8717,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_setmultispec,
-        "setmultispec",
+        MVM_OP_DEPRECATED_82,
+        "DEPRECATED_82",
         4,
         0,
         0,

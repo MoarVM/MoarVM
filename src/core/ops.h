@@ -582,7 +582,7 @@
 #define MVM_OP_condsignalone 578
 #define MVM_OP_condsignalall 579
 #define MVM_OP_queuepoll 580
-#define MVM_OP_setmultispec 581
+#define MVM_OP_DEPRECATED_82 581
 #define MVM_OP_ctxouterskipthunks 582
 #define MVM_OP_ctxcallerskipthunks 583
 #define MVM_OP_timer 584
