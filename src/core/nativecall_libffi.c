@@ -124,7 +124,6 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMCode *callback, MVMObj
         cs->num_pos        = num_info - 1;
         cs->has_flattening = 0;
         cs->is_interned    = 0;
-        cs->with_invocant  = NULL;
 
         callback_data                = MVM_malloc(sizeof(MVMNativeCallback));
         callback_data->num_types     = num_info;
