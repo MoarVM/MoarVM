@@ -73,7 +73,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     MVM_serialization_write_cstr(
         tc,
         writer,
-        !MVM_is_null(tc, body->resolve_lib_name) && !MVM_is_null(tc, body->resolve_lib_name_arg)
+        !body->resolve_lib_name && !MVM_is_null(tc, body->resolve_lib_name_arg)
             ? NULL
             : body->lib_name
     );
@@ -113,7 +113,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         for (i = 0; i < body->num_args; i++) {
             body->arg_info[i] = MVM_serialization_read_ref(tc, reader);
         }
-        body->resolve_lib_name = MVM_serialization_read_ref(tc, reader);
+        body->resolve_lib_name = (MVMCode *)MVM_serialization_read_ref(tc, reader);
         body->resolve_lib_name_arg = MVM_serialization_read_ref(tc, reader);
 #ifdef HAVE_LIBFFI
         body->ffi_arg_types = MVM_malloc(sizeof(ffi_type *) * (body->num_args ? body->num_args : 1));
