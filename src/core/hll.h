@@ -42,7 +42,7 @@ struct MVMHLLConfig {
     MVMObject *finalize_handler;
 
     /* Language's handler for various errors, if needed. */
-    MVMObject *bind_error;
+    MVMCode *bind_error;
     MVMObject *method_not_found_error;
     MVMObject *lexical_handler_not_found_error;
 
