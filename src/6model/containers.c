@@ -15,17 +15,16 @@ MVMint64 MVM_6model_container_iscont_rw(MVMThreadContext *tc, MVMObject *cont) {
  * ***************************************************************************/
 
 typedef struct {
-    MVMObject *fetch_code;
-    MVMObject *store_code;
+    MVMCode *fetch_code;
+    MVMCode *store_code;
 } CodePairContData;
 
 static void code_pair_fetch_internal(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res, MVMReturnType res_type) {
-    CodePairContData        *data = (CodePairContData *)STABLE(cont)->container_data;
-    MVMObject               *code = MVM_frame_find_invokee(tc, data->fetch_code, NULL);
-    MVMCallsite *inv_arg_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
-    MVM_args_setup_thunk(tc, res, res_type, inv_arg_callsite);
-    tc->cur_frame->args[0].o      = cont;
-    STABLE(code)->invoke(tc, code, inv_arg_callsite, tc->cur_frame->args);
+    CodePairContData *data = (CodePairContData *)STABLE(cont)->container_data;
+    MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+            MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ));
+    args_record->args.source[0].o = cont;
+    MVM_frame_dispatch_from_c(tc, data->fetch_code, args_record, res, res_type);
 }
 
 static void code_pair_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
@@ -45,12 +44,11 @@ static void code_pair_fetch_s(MVMThreadContext *tc, MVMObject *cont, MVMRegister
 }
 
 static void code_pair_store_internal(MVMThreadContext *tc, MVMObject *cont, MVMRegister value, MVMCallsite *cs) {
-    CodePairContData         *data = (CodePairContData *)STABLE(cont)->container_data;
-    MVMObject                *code = MVM_frame_find_invokee(tc, data->store_code, NULL);
-    MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, cs);
-    tc->cur_frame->args[0].o       = cont;
-    tc->cur_frame->args[1]         = value;
-    STABLE(code)->invoke(tc, code, cs, tc->cur_frame->args);
+    CodePairContData *data = (CodePairContData *)STABLE(cont)->container_data;
+    MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc, cs);
+    args_record->args.source[0].o = cont;
+    args_record->args.source[1] = value;
+    MVM_frame_dispatch_from_c(tc, data->store_code, args_record, NULL, MVM_RETURN_VOID);
 }
 
 static void code_pair_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *obj) {
@@ -79,7 +77,6 @@ static void code_pair_store_s(MVMThreadContext *tc, MVMObject *cont, MVMString *
 
 static void code_pair_gc_mark_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist *worklist) {
     CodePairContData *data = (CodePairContData *)st->container_data;
-
     MVM_gc_worklist_add(tc, worklist, &data->fetch_code);
     MVM_gc_worklist_add(tc, worklist, &data->store_code);
 }
@@ -90,14 +87,12 @@ static void code_pair_gc_free_data(MVMThreadContext *tc, MVMSTable *st) {
 
 static void code_pair_serialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializationWriter *writer) {
     CodePairContData *data = (CodePairContData *)st->container_data;
-
-    MVM_serialization_write_ref(tc, writer, data->fetch_code);
-    MVM_serialization_write_ref(tc, writer, data->store_code);
+    MVM_serialization_write_ref(tc, writer, (MVMObject *)data->fetch_code);
+    MVM_serialization_write_ref(tc, writer, (MVMObject *)data->store_code);
 }
 
 static void code_pair_deserialize(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     CodePairContData *data = (CodePairContData *)st->container_data;
-
     MVM_ASSIGN_REF(tc, &(st->header), data->fetch_code, MVM_serialization_read_ref(tc, reader));
     MVM_ASSIGN_REF(tc, &(st->header), data->store_code, MVM_serialization_read_ref(tc, reader));
 }
@@ -132,7 +127,6 @@ static const MVMContainerSpec code_pair_spec = {
 
 static void code_pair_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
     CodePairContData *data = MVM_malloc(sizeof(CodePairContData));
-
     data->fetch_code   = NULL;
     data->store_code   = NULL;
     st->container_data = data;
@@ -141,22 +135,23 @@ static void code_pair_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
 
 static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *st, MVMObject *config) {
     CodePairContData *data = (CodePairContData *)st->container_data;
-
     MVMROOT2(tc, config, st, {
         MVMString *fetch = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "fetch");
-        MVMString *store;
+        MVMString *store = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "store");
 
         if (!MVM_repr_exists_key(tc, config, fetch))
             MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a fetch");
-
-        MVM_ASSIGN_REF(tc, &(st->header), data->fetch_code, MVM_repr_at_key_o(tc, config, fetch));
-
-        store = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "store");
+        MVMObject *fetch_code = MVM_repr_at_key_o(tc, config, fetch);
+        if (!MVM_code_iscode(tc, fetch_code))
+            MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a code handle");
+        MVM_ASSIGN_REF(tc, &(st->header), data->fetch_code, (MVMCode *)fetch_code);
 
         if (!MVM_repr_exists_key(tc, config, store))
             MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a store");
-
-        MVM_ASSIGN_REF(tc, &(st->header), data->store_code, MVM_repr_at_key_o(tc, config, store));
+        MVMObject *store_code = MVM_repr_at_key_o(tc, config, store);
+        if (!MVM_code_iscode(tc, store_code))
+            MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a code handle");
+        MVM_ASSIGN_REF(tc, &(st->header), data->store_code, store_code);
     });
 }
 
