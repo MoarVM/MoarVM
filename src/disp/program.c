@@ -1521,6 +1521,7 @@ void MVM_disp_program_record_code_constant(MVMThreadContext *tc, MVMCode *result
 
     /* Set up the invoke outcome. */
     MVMCallsite *callsite = ((MVMCapture *)capture)->body.callsite;
+    MVM_callsite_intern(tc, &callsite, 0, 0);
     record->outcome.kind = MVM_DISP_OUTCOME_BYTECODE;
     record->outcome.code = result;
     record->outcome.args.callsite = callsite;
@@ -1574,6 +1575,7 @@ void MVM_disp_program_record_tracked_code(MVMThreadContext *tc, MVMObject *track
 
     /* Set up the invoke outcome. */
     MVMCallsite *callsite = ((MVMCapture *)capture)->body.callsite;
+    MVM_callsite_intern(tc, &callsite, 0, 0);
     record->outcome.kind = MVM_DISP_OUTCOME_BYTECODE;
     record->outcome.code = (MVMCode *)code;
     record->outcome.args.callsite = callsite;
