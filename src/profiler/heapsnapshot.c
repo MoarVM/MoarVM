@@ -728,13 +728,13 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
  * relation to the current collectable with a constant C string that we
  * should not free. */
 void MVM_profile_heap_add_collectable_rel_const_cstr(MVMThreadContext *tc,
-        MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc) {
+        MVMHeapSnapshotState *ss, MVMCollectable *collectable, const char *desc) {
     if (collectable)
         add_reference_const_cstr(tc, ss, desc,
             get_collectable_idx(tc, ss, collectable));
 }
 void MVM_profile_heap_add_collectable_rel_const_cstr_cached(MVMThreadContext *tc,
-        MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc, MVMuint64 *cache) {
+        MVMHeapSnapshotState *ss, MVMCollectable *collectable, const char *desc, MVMuint64 *cache) {
     if (collectable)
         add_reference_const_cstr_cached(tc, ss, desc,
             get_collectable_idx(tc, ss, collectable), cache);
