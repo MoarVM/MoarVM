@@ -501,7 +501,8 @@ static void save_or_free_sim_stack(MVMThreadContext *tc, MVMSpeshSimStack *sims,
 
 /* Receives a spesh log and updates static frame statistics. Each static frame
  * that is updated is pushed once into sf_updated. */
-void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated, MVMuint64 *in_newly_seen, MVMuint64 *in_updated) {
+void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl,  MVMObject *sf_newly_seen,
+        MVMObject *sf_updated, MVMuint64 *in_newly_seen, MVMuint64 *in_updated) {
     MVMuint32 i;
     MVMuint32 n = sl->body.used;
     MVMSpeshSimStack *sims;
@@ -540,10 +541,13 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
             case MVM_SPESH_LOG_ENTRY: {
                 MVMSpeshStats *ss = stats_for(tc, e->entry.sf);
                 MVMuint32 callsite_idx;
-                if (ss->last_update == 0)
+                if (ss->last_update == 0) {
                     newly_seen++;
-                else
+                    MVM_repr_push_o(tc, sf_newly_seen, (MVMObject *)e->entry.sf);
+                }
+                else {
                     updated++;
+                }
                 if (ss->last_update != tc->instance->spesh_stats_version) {
                     ss->last_update = tc->instance->spesh_stats_version;
                     MVM_repr_push_o(tc, sf_updated, (MVMObject *)e->entry.sf);
@@ -633,17 +637,24 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
  * updated in a while, clears them out. */
 void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames) {
     MVMint64 elems = MVM_repr_elems(tc, check_frames);
+    MVMSTable *check_frames_st = STABLE(check_frames);
+    void *check_frames_data = OBJECT_BODY(check_frames);
     MVMROOT(tc, check_frames, {
         MVMint64 insert_pos = 0;
         MVMint64 i;
         for (i = 0; i < elems; i++) {
-            MVMStaticFrame *sf = (MVMStaticFrame *)MVM_repr_at_pos_o(tc, check_frames, i);
+            MVMRegister sf_reg;
+            MVM_VMArray_at_pos(tc, check_frames_st, check_frames, check_frames_data,
+                    i, &sf_reg, MVM_reg_obj);
+            MVMStaticFrame *sf = (MVMStaticFrame *)sf_reg.o;
             MVMROOT(tc, sf, {
                 MVMStaticFrameSpesh *spesh = sf->body.spesh;
                 MVMSpeshStats *ss = spesh->body.spesh_stats;
+                MVMuint32 removed = 0;
                 if (!ss) {
                     /* No stats; already destroyed, don't keep this frame under
                      * consideration. */
+                    removed = 1;
                 }
                 else if (tc->instance->spesh_stats_version - ss->last_update > MVM_SPESH_STATS_MAX_AGE) {
                     /* Do not mark thread blocked as the GC also tries to acquire
@@ -674,13 +685,14 @@ void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames) {
                     if (!found) {
                         MVM_spesh_stats_destroy(tc, ss);
                         MVM_free_null(spesh->body.spesh_stats);
-                    }
-                    else {
-                        MVM_repr_bind_pos_o(tc, check_frames, insert_pos++, (MVMObject *)sf);
+                        removed = 1;
                     }
                 }
-                else {
-                    MVM_repr_bind_pos_o(tc, check_frames, insert_pos++, (MVMObject *)sf);
+
+                if (!removed) {
+                    sf_reg.o = (MVMObject *)sf;
+                    MVM_VMArray_bind_pos(tc, check_frames_st, check_frames,
+                            check_frames_data, insert_pos++, sf_reg, MVM_reg_obj);
                 }
             });
         }
