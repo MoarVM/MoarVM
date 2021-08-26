@@ -596,6 +596,8 @@ MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMOb
         MVMuint32 index);
 MVMObject * MVM_disp_program_record_capture_insert_constant_arg(MVMThreadContext *tc,
         MVMObject *capture, MVMuint32 index, MVMCallsiteFlags kind, MVMRegister value);
+MVMint64 MVM_disp_program_record_capture_is_arg_literal(MVMThreadContext *tc,
+        MVMObject *capture, MVMuint32 index);
 MVMObject * MVM_disp_program_record_capture_insert_arg(MVMThreadContext *tc,
         MVMObject *capture, MVMuint32 index, MVMObject *tracked);
 void MVM_disp_program_record_set_resume_init_args(MVMThreadContext *tc, MVMObject *capture);
