@@ -296,10 +296,6 @@ static MVMSpeshOperand emit_literal_str_guard(MVMThreadContext *tc, MVMSpeshGrap
 static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVMSpeshBB *bb, MVMSpeshIns *ins, MVMDispProgram *dp) {
     /* First, validate it is a dispatch program we know how to compile. */
-    if (dp->first_args_temporary != dp->num_temporaries) {
-        MVM_spesh_graph_add_comment(tc, g, ins, "dispatch not compiled: has arg temporaries");
-        return NULL;
-    }
     if (dp->num_resumptions > 0) {
         MVM_spesh_graph_add_comment(tc, g, ins, "dispatch not compiled: has resumptions");
         return NULL;
@@ -337,6 +333,7 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeResultValueInt:
             case MVMDispOpcodeResultValueNum:
             case MVMDispOpcodeUseArgsTail:
+            case MVMDispOpcodeCopyArgsTail:
             case MVMDispOpcodeResultBytecode:
             case MVMDispOpcodeResultCFunction:
                 break;
@@ -678,6 +675,18 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 callsite = dp->constants[op->use_arg_tail.callsite_idx].cs;
                 skip_args = op->use_arg_tail.skip_args;
                 break;
+            case MVMDispOpcodeCopyArgsTail:
+                callsite = dp->constants[op->copy_arg_tail.callsite_idx].cs;
+                if (op->copy_arg_tail.tail_args > 0) {
+                    MVMuint32 to_copy = op->copy_arg_tail.tail_args;
+                    MVMuint32 source_idx = callsite->flag_count - to_copy;
+                    MVMuint32 target_idx = dp->first_args_temporary +
+                            (callsite->flag_count - to_copy);
+                    MVMuint32 i;
+                    for (i = 0; i < to_copy; i++)
+                        temporaries[target_idx++] = args[source_idx++];
+                }
+                break;
             case MVMDispOpcodeResultBytecode:
             case MVMDispOpcodeResultCFunction: {
                 /* Determine the op we'll specialize to. */
@@ -738,11 +747,21 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 }
 
                 /* Add the argument operands. */
-                MVMuint16 j;
-                for (j = 0; j < callsite->flag_count; j++) {
-                    rb_ins->operands[cur_op] = args[skip_args + j];
-                    MVM_spesh_usages_add_by_reg(tc, g, rb_ins->operands[cur_op], rb_ins);
-                    cur_op++;
+                if (skip_args >= 0) {
+                    MVMuint16 j;
+                    for (j = 0; j < callsite->flag_count; j++) {
+                        rb_ins->operands[cur_op] = args[skip_args + j];
+                        MVM_spesh_usages_add_by_reg(tc, g, rb_ins->operands[cur_op], rb_ins);
+                        cur_op++;
+                    }
+                }
+                else {
+                    MVMuint16 j;
+                    for (j = 0; j < callsite->flag_count; j++) {
+                        rb_ins->operands[cur_op] = temporaries[dp->first_args_temporary + j];
+                        MVM_spesh_usages_add_by_reg(tc, g, rb_ins->operands[cur_op], rb_ins);
+                        cur_op++;
+                    }
                 }
 
                 /* Insert the produced instruction. */
