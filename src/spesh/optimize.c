@@ -2256,6 +2256,25 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             }
             break;
         }
+        case MVM_OP_sp_runcfunc_v:
+        case MVM_OP_sp_runcfunc_o:
+        case MVM_OP_sp_runcfunc_i:
+        case MVM_OP_sp_runcfunc_n:
+        case MVM_OP_sp_runcfunc_s: {
+            MVMSpeshAnn *temps_ann = ins->annotations;
+            if (temps_ann && temps_ann->type == MVM_SPESH_ANN_DELAYED_TEMPS)
+                ins->annotations = temps_ann->next;
+            else
+                temps_ann = NULL;
+            if (temps_ann) {
+                MVMint32 i = 0;
+                while (temps_ann->data.temps_to_release[i].lit_i64 != -1)
+                    MVM_spesh_manipulate_release_temp_reg(tc, g,
+                        temps_ann->data.temps_to_release[i++]);
+                MVM_free(temps_ann->data.temps_to_release);
+            }
+            break;
+        }
         case MVM_OP_prof_enter:
             /* Profiling entered from spesh should indicate so. */
             ins->info = MVM_op_get_op(MVM_OP_prof_enterspesh);
