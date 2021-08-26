@@ -679,7 +679,7 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 callsite = dp->constants[op->copy_arg_tail.callsite_idx].cs;
                 if (op->copy_arg_tail.tail_args > 0) {
                     MVMuint32 to_copy = op->copy_arg_tail.tail_args;
-                    MVMuint32 source_idx = callsite->flag_count - to_copy;
+                    MVMuint32 source_idx = num_real_args - to_copy;
                     MVMuint32 target_idx = dp->first_args_temporary +
                             (callsite->flag_count - to_copy);
                     MVMuint32 i;
