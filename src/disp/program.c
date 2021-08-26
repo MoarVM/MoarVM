@@ -1100,6 +1100,67 @@ MVMObject * MVM_disp_program_record_capture_insert_constant_arg(MVMThreadContext
     return new_capture;
 }
 
+/* Check if an argument in a capture is a literal, either due to being flagged
+ * that way in the callsite, or because it was a literal value that was
+ * inserted into the capture. */
+MVMint64 MVM_disp_program_record_capture_is_arg_literal(MVMThreadContext *tc,
+        MVMObject *capture, MVMuint32 index) {
+    /* Obtain the value from the capture to ensure it is in range. */
+    MVMRegister value;
+    MVMCallsiteFlags kind;
+    MVM_capture_arg_pos(tc, capture, index, &value, &kind);
+
+    /* Ensure the incoming capture is known and calculate the path. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    CapturePath p;
+    MVM_VECTOR_INIT(p.path, 8);
+    calculate_capture_path(tc, record, capture, &p);
+
+    /* Walk the capture path to see where the argument came from. */
+    MVMint32 i;
+    MVMuint32 real_index = index;
+    for (i = MVM_VECTOR_ELEMS(p.path) - 1; i >= 0; i--) {
+        switch (p.path[i]->transformation) {
+            case MVMDispProgramRecordingInsert:
+                /* It's an insert. Was the insert at the index we are dealing
+                 * with? */
+                if (p.path[i]->index == real_index) {
+                    /* Yes, and so it will have a value index. We can then use
+                     * that to see if it's literal. */
+                    MVMuint32 idx = p.path[i]->value_index;
+                    MVM_VECTOR_DESTROY(p.path);
+                    return record->rec.values[idx].source == MVMDispProgramRecordingLiteralValue;
+                }
+                else {
+                    /* No, so we may need to adjust the offset. */
+                    if (real_index > p.path[i]->index)
+                        real_index--;
+                }
+                break;
+            case MVMDispProgramRecordingDrop:
+                /* Adjust the index to account for the drop. */
+                if (real_index >= p.path[i]->index)
+                    real_index++;
+                break;
+            case MVMDispProgramRecordingInitial: {
+                /* We have reached the initial capture, and so the index is
+                 * for it. See if the callsite at this capture is literal. */
+                MVM_VECTOR_DESTROY(p.path);
+                MVMObject *init_capture = record->rec.initial_capture.capture;
+                MVMCallsite *cs = ((MVMCapture *)init_capture)->body.callsite;
+                return real_index < cs->flag_count &&
+                    (cs->arg_flags[real_index] & MVM_CALLSITE_ARG_LITERAL);
+            }
+            default:
+                break;
+        }
+    }
+    MVM_VECTOR_DESTROY(p.path);
+
+    /* If we didn't make a determination by this point, non-literal. */
+    return 0;
+}
+
 /* Record the setting of the dispatch resume init args (the arguments that
  * should be made available for initializing resumption). */
 void MVM_disp_program_record_set_resume_init_args(MVMThreadContext *tc, MVMObject *capture) {
