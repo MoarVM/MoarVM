@@ -9,8 +9,13 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMuint64 work_sequence_number = 0;
     MVMObject *updated_static_frames = MVM_repr_alloc_init(tc,
         tc->instance->boot_types.BOOTArray);
-    MVMObject *previous_static_frames;
+    MVMObject *newly_seen_static_frames;
     MVMROOT(tc, updated_static_frames, {
+        newly_seen_static_frames = MVM_repr_alloc_init(tc,
+            tc->instance->boot_types.BOOTArray);
+    });
+    MVMObject *previous_static_frames;
+    MVMROOT2(tc, updated_static_frames, newly_seen_static_frames, {
         previous_static_frames = MVM_repr_alloc_init(tc,
             tc->instance->boot_types.BOOTArray);
     });
@@ -21,7 +26,7 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
 
     tc->instance->speshworker_thread_id = tc->thread_obj->body.thread_id;
 
-    MVMROOT2(tc, updated_static_frames, previous_static_frames, {
+    MVMROOT3(tc, updated_static_frames, newly_seen_static_frames, previous_static_frames, {
         while (1) {
             MVMObject *log_obj;
             MVMuint64 start_time;
@@ -93,7 +98,8 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                     /* Update stats, and if we're logging dump each of them. */
                     tc->instance->spesh_stats_version++;
                     start_time = uv_hrtime();
-                    MVM_spesh_stats_update(tc, sl, updated_static_frames, &newly_seen, &updated);
+                    MVM_spesh_stats_update(tc, sl, newly_seen_static_frames,
+                            updated_static_frames, &newly_seen, &updated);
                     n = MVM_repr_elems(tc, updated_static_frames);
                     if (MVM_spesh_debug_enabled(tc)) {
                         MVM_spesh_debug_printf(tc,
@@ -161,19 +167,20 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                     }
 
                     /* Clear up stats that didn't get updated for a while,
-                     * then add frames updated this time into the previously
+                     * then add frames newly seen this time into the previously
                      * updated array. */
                     MVM_spesh_stats_cleanup(tc, previous_static_frames);
-                    n = MVM_repr_elems(tc, updated_static_frames);
+                    n = MVM_repr_elems(tc, newly_seen_static_frames);
                     for (i = 0; i < n; i++)
                         MVM_repr_push_o(tc, previous_static_frames,
-                            MVM_repr_at_pos_o(tc, updated_static_frames, i));
+                            MVM_repr_at_pos_o(tc, newly_seen_static_frames, i));
 
                     if (overview_data) {
                         overview_data[13] = n;
                     }
 
-                    /* Clear updated static frames array. */
+                    /* Clear newly seen and updated static frames arrays. */
+                    MVM_repr_pos_set_elems(tc, newly_seen_static_frames, 0);
                     MVM_repr_pos_set_elems(tc, updated_static_frames, 0);
 
                     /* Allow the sending thread to produce more logs again,
