@@ -783,8 +783,6 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
     MVMSpeshIns *first_inserted = ins->next;
     MVM_spesh_graph_add_comment(tc, g, first_inserted,
             "Start of dispatch program translation");
-    MVM_spesh_graph_add_comment(tc, g, insert_after,
-            "End of dispatch program translation");
 
     /* Delete the dispatch instruction. Make sure we don't mark it as having
      * a dead writer (since we inserted a replacement instruction above). */
@@ -800,7 +798,7 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
         ann->type = MVM_SPESH_ANN_DELAYED_TEMPS;
         ann->data.temps_to_release = allocated_temps;
         ann->next = insert_after->annotations;
-        insert_after->annotations = ann->next;
+        insert_after->annotations = ann;
     }
     else {
         for (i = 0; i < MVM_VECTOR_ELEMS(allocated_temps); i++)
