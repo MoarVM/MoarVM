@@ -4,7 +4,7 @@
  * roots, so that it will always be marked and never die. Note that the
  * address of the collectable must be passed, since it will need to be
  * updated. */
-void MVM_gc_root_add_permanent_desc(MVMThreadContext *tc, MVMCollectable **obj_ref, char *description) {
+void MVM_gc_root_add_permanent_desc(MVMThreadContext *tc, MVMCollectable **obj_ref, const char *description) {
     if (obj_ref == NULL)
         MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null object address as a permanent root");
 
@@ -42,7 +42,7 @@ void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
             MVM_gc_worklist_add(tc, worklist, permroots[i]);
     }
     else {
-        char **permroot_descriptions = tc->instance->permroot_descriptions;
+        const char **permroot_descriptions = tc->instance->permroot_descriptions;
         for (i = 0; i < num_roots; i++)
             MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
                 *(permroots[i]), permroot_descriptions[i]);

@@ -155,7 +155,7 @@ struct MVMInstance {
     MVMuint32             num_permroots;
     MVMuint32             alloc_permroots;
     MVMCollectable     ***permroots;
-    char                **permroot_descriptions;
+    const char          **permroot_descriptions;
     uv_mutex_t            mutex_permroots;
 
     /* The current GC run sequence number. May wrap around over time; that
