@@ -149,11 +149,11 @@ static void set_deopt(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
     ins->annotations = deopt_ann;
 }
 
-/* Emit a type and/or concreteness guard instruction (when concreteness
- * only, type is null). */
+/* Emit a type, concreteness or object literal guard instruction (when concreteness
+ * only, comparee is null). */
 static MVMSpeshOperand emit_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVMSpeshBB *bb, MVMSpeshIns **insert_after, MVMuint16 op,
-        MVMSpeshOperand guard_reg, MVMSTable *type, MVMSpeshAnn *deopt_ann,
+        MVMSpeshOperand guard_reg, MVMCollectable *comparee, MVMSpeshAnn *deopt_ann,
         MVMuint32 *reused_deopt_ann) {
     /* Produce a new version for after the guarding. */
     MVMSpeshOperand guarded_reg = MVM_spesh_manipulate_split_version(tc, g,
@@ -162,12 +162,12 @@ static MVMSpeshOperand emit_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     /* Produce the instruction and insert it. */
     MVMSpeshIns *guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     guard->info = MVM_op_get_op(op);
-    guard->operands = MVM_spesh_alloc(tc, g, (type ? 4 : 3) * sizeof(MVMSpeshOperand));
+    guard->operands = MVM_spesh_alloc(tc, g, (comparee ? 4 : 3) * sizeof(MVMSpeshOperand));
     guard->operands[0] = guarded_reg;
     guard->operands[1] = guard_reg;
-    if (type) {
+    if (comparee) {
         guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
-                (MVMCollectable *)type);
+                comparee);
         set_deopt(tc, g, guard, &(guard->operands[3]), deopt_ann, reused_deopt_ann);
     }
     else {
@@ -291,29 +291,6 @@ static MVMSpeshOperand emit_literal_str_guard(MVMThreadContext *tc, MVMSpeshGrap
     return testee;
 }
 
-/* Emit a guard that a value is a given literal object. */
-static MVMSpeshOperand emit_literal_obj_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
-        MVMSpeshBB *bb, MVMSpeshIns **insert_after, MVMSpeshOperand testee,
-        MVMObject *expected, MVMSpeshAnn *deopt_ann, MVMuint32 *reused_deopt_ann) {
-    /* Load the string literal value from a spesh slot. */
-    MVMSpeshOperand cmp_obj_reg = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
-    emit_load_spesh_slot(tc, g, bb, insert_after, cmp_obj_reg, (MVMCollectable *)expected);
-
-    /* Emit the comparison op. */
-    MVMSpeshOperand op_res_reg = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
-    emit_tri_op(tc, g, bb, insert_after, MVM_OP_eqaddr, op_res_reg, testee, cmp_obj_reg);
-
-    /* Emit the guard. */
-    emit_guard(tc, g, bb, insert_after, MVM_OP_sp_guardnonzero, op_res_reg, NULL,
-        deopt_ann, reused_deopt_ann);
-
-    /* The temporary registers are immediately free for re-use. */
-    MVM_spesh_manipulate_release_temp_reg(tc, g, cmp_obj_reg);
-    MVM_spesh_manipulate_release_temp_reg(tc, g, op_res_reg);
-
-    return testee;
-}
-
 /* Try to translate a dispatch program into a sequence of ops (which will
  * be subject to later optimization and potentially JIT compilation). */
 static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -337,6 +314,7 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeGuardArgTypeObject:
             case MVMDispOpcodeGuardArgLiteralObj:
             case MVMDispOpcodeGuardArgLiteralStr:
+            case MVMDispOpcodeGuardArgNotLiteralObj:
             case MVMDispOpcodeGuardTempType:
             case MVMDispOpcodeGuardTempTypeConc:
             case MVMDispOpcodeGuardTempTypeTypeObject:
@@ -344,6 +322,7 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeGuardTempTypeObject:
             case MVMDispOpcodeGuardTempLiteralObj:
             case MVMDispOpcodeGuardTempLiteralStr:
+            case MVMDispOpcodeGuardTempNotLiteralObj:
             case MVMDispOpcodeLoadCaptureValue:
             case MVMDispOpcodeLoadConstantObjOrStr:
             case MVMDispOpcodeLoadConstantInt:
@@ -417,19 +396,19 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             case MVMDispOpcodeGuardArgType:
                 args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
                         MVM_OP_sp_guard, args[op->arg_guard.arg_idx],
-                        (MVMSTable *)dp->gc_constants[op->arg_guard.checkee],
+                        dp->gc_constants[op->arg_guard.checkee],
                         deopt_ann, &reused_deopt_ann);
                 break;
             case MVMDispOpcodeGuardArgTypeConc:
                 args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
                         MVM_OP_sp_guardconc, args[op->arg_guard.arg_idx],
-                        (MVMSTable *)dp->gc_constants[op->arg_guard.checkee],
+                        dp->gc_constants[op->arg_guard.checkee],
                         deopt_ann, &reused_deopt_ann);
                 break;
             case MVMDispOpcodeGuardArgTypeTypeObject:
                 args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
                         MVM_OP_sp_guardtype, args[op->arg_guard.arg_idx],
-                        (MVMSTable *)dp->gc_constants[op->arg_guard.checkee],
+                        dp->gc_constants[op->arg_guard.checkee],
                         deopt_ann, &reused_deopt_ann);
                 break;
             case MVMDispOpcodeGuardArgConc:
@@ -443,10 +422,10 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                         NULL, deopt_ann, &reused_deopt_ann);
                 break;
             case MVMDispOpcodeGuardArgLiteralObj:
-                args[op->arg_guard.arg_idx] = emit_literal_obj_guard(tc, g, bb, &insert_after,
-                    args[op->arg_guard.arg_idx],
-                    (MVMObject *)dp->gc_constants[op->arg_guard.checkee],
-                    deopt_ann, &reused_deopt_ann);
+                args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
+                        MVM_OP_sp_guardobj, args[op->arg_guard.arg_idx],
+                        dp->gc_constants[op->arg_guard.checkee],
+                        deopt_ann, &reused_deopt_ann);
                 break;
             case MVMDispOpcodeGuardArgLiteralStr:
                 args[op->arg_guard.arg_idx] = emit_literal_str_guard(tc, g, bb, &insert_after,
@@ -454,22 +433,28 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                     (MVMString *)dp->gc_constants[op->arg_guard.checkee],
                     deopt_ann, &reused_deopt_ann);
                 break;
+            case MVMDispOpcodeGuardArgNotLiteralObj:
+                args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
+                        MVM_OP_sp_guardnotobj, args[op->arg_guard.arg_idx],
+                        dp->gc_constants[op->arg_guard.checkee],
+                        deopt_ann, &reused_deopt_ann);
+                break;
             case MVMDispOpcodeGuardTempType:
                 temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
                         MVM_OP_sp_guard, temporaries[op->temp_guard.temp],
-                        (MVMSTable *)dp->gc_constants[op->temp_guard.checkee],
+                        dp->gc_constants[op->temp_guard.checkee],
                         deopt_ann, &reused_deopt_ann);
                 break;
             case MVMDispOpcodeGuardTempTypeConc:
                 temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
                         MVM_OP_sp_guardconc, temporaries[op->temp_guard.temp],
-                        (MVMSTable *)dp->gc_constants[op->temp_guard.checkee],
+                        dp->gc_constants[op->temp_guard.checkee],
                         deopt_ann, &reused_deopt_ann);
                 break;
             case MVMDispOpcodeGuardTempTypeTypeObject:
                 temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
                         MVM_OP_sp_guardtype, temporaries[op->temp_guard.temp],
-                        (MVMSTable *)dp->gc_constants[op->temp_guard.checkee],
+                        dp->gc_constants[op->temp_guard.checkee],
                         deopt_ann, &reused_deopt_ann);
                 break;
             case MVMDispOpcodeGuardTempConc:
@@ -483,16 +468,22 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                         NULL, deopt_ann, &reused_deopt_ann);
                 break;
             case MVMDispOpcodeGuardTempLiteralObj:
-                temporaries[op->temp_guard.temp] = emit_literal_obj_guard(tc, g, bb,
-                    &insert_after, temporaries[op->temp_guard.temp],
-                    (MVMObject *)dp->gc_constants[op->temp_guard.checkee],
-                    deopt_ann, &reused_deopt_ann);
+                temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
+                        MVM_OP_sp_guardobj, temporaries[op->temp_guard.temp],
+                        dp->gc_constants[op->temp_guard.checkee],
+                        deopt_ann, &reused_deopt_ann);
                 break;
             case MVMDispOpcodeGuardTempLiteralStr:
                 temporaries[op->temp_guard.temp] = emit_literal_str_guard(tc, g, bb,
                     &insert_after, temporaries[op->temp_guard.temp],
                     (MVMString *)dp->gc_constants[op->temp_guard.checkee],
                     deopt_ann, &reused_deopt_ann);
+                break;
+            case MVMDispOpcodeGuardTempNotLiteralObj:
+                temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
+                        MVM_OP_sp_guardnotobj, temporaries[op->temp_guard.temp],
+                        dp->gc_constants[op->temp_guard.checkee],
+                        deopt_ann, &reused_deopt_ann);
                 break;
             case MVMDispOpcodeLoadCaptureValue:
                 /* We already have all the capture values in the arg registers
