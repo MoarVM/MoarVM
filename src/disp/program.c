@@ -3179,6 +3179,9 @@ const char *MVM_disp_opcode_to_name(MVMDispProgramOpcode op) {
         case MVMDispOpcodeGuardArgTypeObject: return "MVMDispOpcodeGuardArgTypeObject";
         case MVMDispOpcodeGuardArgLiteralObj: return "MVMDispOpcodeGuardArgLiteralObj";
         case MVMDispOpcodeGuardArgLiteralStr: return "MVMDispOpcodeGuardArgLiteralStr";
+        case MVMDispOpcodeGuardArgLiteralInt: return "MVMDispOpcodeGuardArgLiteralInt";
+        case MVMDispOpcodeGuardArgLiteralNum: return "MVMDispOpcodeGuardArgLiteralNum";
+        case MVMDispOpcodeGuardArgNotLiteralObj: return "MVMDispOpcodeGuardArgNotLiteralObj";
         case MVMDispOpcodeGuardTempType: return "MVMDispOpcodeGuardTempType";
         case MVMDispOpcodeGuardTempTypeConc: return "MVMDispOpcodeGuardTempTypeConc";
         case MVMDispOpcodeGuardTempTypeTypeObject: return "MVMDispOpcodeGuardTempTypeTypeObject";
@@ -3199,12 +3202,14 @@ const char *MVM_disp_opcode_to_name(MVMDispProgramOpcode op) {
         case MVMDispOpcodeLoadAttributeInt: return "MVMDispOpcodeLoadAttributeInt";
         case MVMDispOpcodeLoadAttributeNum: return "MVMDispOpcodeLoadAttributeNum";
         case MVMDispOpcodeLoadAttributeStr: return "MVMDispOpcodeLoadAttributeStr";
+        case MVMDispOpcodeLookup: return "MVMDispOpcodeLookup";
         case MVMDispOpcodeSet: return "MVMDispOpcodeSet";
         case MVMDispOpcodeResultValueObj: return "MVMDispOpcodeResultValueObj";
         case MVMDispOpcodeResultValueStr: return "MVMDispOpcodeResultValueStr";
         case MVMDispOpcodeResultValueInt: return "MVMDispOpcodeResultValueInt";
         case MVMDispOpcodeResultValueNum: return "MVMDispOpcodeResultValueNum";
         case MVMDispOpcodeBindFailureToResumption: return "MVMDispOpcodeBindFailureToResumption";
+        case MVMDispOpcodeBindCompletionToResumption: return "MVMDispOpcodeBindCompletionToResumption";
         case MVMDispOpcodeUseArgsTail: return "MVMDispOpcodeUseArgsTail";
         case MVMDispOpcodeCopyArgsTail: return "MVMDispOpcodeCopyArgsTail";
         case MVMDispOpcodeResultBytecode: return "MVMDispOpcodeResultBytecode";
