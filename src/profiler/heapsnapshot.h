@@ -254,9 +254,9 @@ MVMObject * MVM_profile_heap_end(MVMThreadContext *tc);
 /* API for things that want to contribute more detailed data to the heap
  * profile. */
 MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_const_cstr(MVMThreadContext *tc,
-    MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc);
+    MVMHeapSnapshotState *ss, MVMCollectable *collectable, const char *desc);
 MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_const_cstr_cached(MVMThreadContext *tc,
-    MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc, MVMuint64 *cache);
+    MVMHeapSnapshotState *ss, MVMCollectable *collectable, const char *desc, MVMuint64 *cache);
 MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_vm_str(MVMThreadContext *tc,
     MVMHeapSnapshotState *ss, MVMCollectable *collectable, MVMString *desc);
 MVM_PUBLIC void MVM_profile_heap_add_collectable_rel_idx(MVMThreadContext *tc,
