@@ -319,10 +319,14 @@ static MVMSpeshOperand emit_literal_obj_guard(MVMThreadContext *tc, MVMSpeshGrap
 static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVMSpeshBB *bb, MVMSpeshIns *ins, MVMDispProgram *dp) {
     /* First, validate it is a dispatch program we know how to compile. */
-    if (dp->first_args_temporary != dp->num_temporaries)
+    if (dp->first_args_temporary != dp->num_temporaries) {
+        MVM_spesh_graph_add_comment(tc, g, ins, "dispatch not compiled: has arg temporaries");
         return NULL;
-    if (dp->num_resumptions > 0)
+    }
+    if (dp->num_resumptions > 0) {
+        MVM_spesh_graph_add_comment(tc, g, ins, "dispatch not compiled: has resumptions");
         return NULL;
+    }
     MVMuint32 i;
     for (i = 0; i < dp->num_ops; i++) {
         switch (dp->ops[i].code) {
