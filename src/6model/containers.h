@@ -67,18 +67,12 @@ struct MVMContainerSpec {
 /* A container configurer knows how to attach a certain type of container
  * to an STable and configure it. */
 struct MVMContainerConfigurer {
+    MVMString *name;
     /* Sets this container spec in place for the specified STable. */
     void (*set_container_spec) (MVMThreadContext *tc, MVMSTable *st);
 
     /* Configures the container spec with the specified info. */
     void (*configure_container_spec) (MVMThreadContext *tc, MVMSTable *st, MVMObject *config);
-};
-
-/* Container registry is a hash mapping names of container configurations
- * to function tables. */
-struct MVMContainerRegistry {
-    struct MVMStrHashHandle hash_handle;
-    const MVMContainerConfigurer *configurer;
 };
 
 const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name);

@@ -118,15 +118,6 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
         iterator = MVM_str_hash_next_nocheck(tc, weakhash, iterator);
     }
 
-    MVMStrHashTable *const containers = &tc->instance->container_registry;
-    iterator = MVM_str_hash_first(tc, containers);
-    while (!MVM_str_hash_at_end(tc, containers, iterator)) {
-        MVMContainerRegistry *registry = MVM_str_hash_current_nocheck(tc, containers, iterator);
-        add_collectable(tc, worklist, snapshot, registry->hash_handle.key,
-                        "Container configuration hash key");
-        iterator = MVM_str_hash_next_nocheck(tc, containers, iterator);
-    }
-
     add_collectable(tc, worklist, snapshot, tc->instance->cached_backend_config,
         "Cached backend configuration hash");
 
