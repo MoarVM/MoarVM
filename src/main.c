@@ -301,6 +301,8 @@ int wmain(int argc, wchar_t *wargv[])
         }
     }
 
+    instance->full_cleanup = full_cleanup;
+
     if (dump) MVM_vm_dump_file(instance, input_file);
     else MVM_vm_run_file(instance, input_file);
 
