@@ -82,7 +82,6 @@ struct MVMContainerRegistry {
     const MVMContainerConfigurer *configurer;
 };
 
-MVM_PUBLIC void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name, const MVMContainerConfigurer *configurer);
 const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name);
 void MVM_6model_containers_setup(MVMThreadContext *tc);
 MVMint64 MVM_6model_container_iscont_rw(MVMThreadContext *tc, MVMObject *cont);
