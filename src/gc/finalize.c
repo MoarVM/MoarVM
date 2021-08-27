@@ -98,6 +98,10 @@ static void walk_thread_finalize_queue(MVMThreadContext *tc, MVMuint8 gen) {
                 add_to_finalizing(tc, tc->finalize[i]);
             }
         }
+        else {
+            /* Just keep gen2 objects as they are during nursery-only collection */
+            tc->finalize[collapse_pos++] = tc->finalize[i];
+        }
     }
     tc->num_finalize = collapse_pos;
 }
