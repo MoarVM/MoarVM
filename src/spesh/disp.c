@@ -291,6 +291,117 @@ static MVMSpeshOperand emit_literal_str_guard(MVMThreadContext *tc, MVMSpeshGrap
     return testee;
 }
 
+/* Form the instruction info for an sp_resumption given the specified dispatch
+ * program resumption. This is a varargs instruction, thus why we need to
+ * synthesize the instruction info. */
+MVMOpInfo * MVM_spesh_disp_create_resumption_op_info(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMDispProgram *dp, MVMuint16 res_idx) {
+    /* Count up how many non-constant values the resume init capture will
+     * involve. */
+    MVMDispProgramResumption *dpr = &(dp->resumptions[res_idx]);
+    MVMuint16 non_constant;
+    if (dpr->init_values) {
+        MVMuint16 i;
+        non_constant = 0;
+        for (i = 0; i < dpr->init_callsite->flag_count; i++) {
+            switch (dpr->init_values[i].source) {
+                case MVM_DISP_RESUME_INIT_ARG:
+                case MVM_DISP_RESUME_INIT_TEMP:
+                    non_constant++;
+                default:
+                    break;
+            }
+        }
+    }
+    else {
+        /* It's based on the initial argument catpure to the dispatch. */
+        non_constant = dpr->init_callsite->flag_count;
+    }
+
+    /* Form the operand info. */
+    const MVMOpInfo *base_info = MVM_op_get_op(MVM_OP_sp_resumption);
+    MVMuint16 total_ops = base_info->num_operands + non_constant;
+    size_t total_size = sizeof(MVMOpInfo) + (total_ops > MVM_MAX_OPERANDS
+            ? total_ops - MVM_MAX_OPERANDS
+            : 0);
+    MVMOpInfo *res_info = MVM_spesh_alloc(tc, g, total_size);
+    memcpy(res_info, base_info, sizeof(MVMOpInfo));
+    res_info->num_operands += non_constant;
+    MVMuint16 operand_index = base_info->num_operands;
+    MVMuint16 i;
+    for (i = 0; i < dpr->init_callsite->flag_count; i++) {
+        MVMint32 include = dpr->init_values
+            ? dpr->init_values[i].source == MVM_DISP_RESUME_INIT_ARG ||
+                dpr->init_values[i].source == MVM_DISP_RESUME_INIT_TEMP
+            : 1;
+        if (include) {
+            MVMCallsiteFlags flag = dpr->init_callsite->arg_flags[i];
+            if (flag & MVM_CALLSITE_ARG_OBJ)
+                res_info->operands[operand_index] = MVM_operand_obj;
+            else if (flag & MVM_CALLSITE_ARG_INT)
+                res_info->operands[operand_index] = MVM_operand_int64;
+            else if (flag & MVM_CALLSITE_ARG_NUM)
+                res_info->operands[operand_index] = MVM_operand_num64;
+            else if (flag & MVM_CALLSITE_ARG_STR)
+                res_info->operands[operand_index] = MVM_operand_str;
+            res_info->operands[operand_index] |= MVM_operand_read_reg;
+            operand_index++;
+        }
+    }
+
+    return res_info;
+}
+
+/* Insert an instruction relating to each dispatch resumption init state that
+ * is wanted by the dispatch program. This makes sure we preserve the various
+ * registers that are used by the resumption. */
+static void insert_resume_inits(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+        MVMSpeshIns **insert_after, MVMDispProgram *dp, MVMSpeshOperand *orig_args,
+        MVMSpeshOperand *temporaries) {
+    MVMuint16 i;
+    for (i = 0; i < dp->num_resumptions; i++) {
+        /* Allocate the instruction. */
+        MVMDispProgramResumption *dpr = &(dp->resumptions[i]);
+        MVMSpeshIns *ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        ins->info = MVM_spesh_disp_create_resumption_op_info(tc, g, dp, i);
+        ins->operands = MVM_spesh_alloc(tc, g, ins->info->num_operands * sizeof(MVMSpeshOperand));
+
+        /* Get a register to use for the resumption state, should it be
+         * required. */
+        ins->operands[0] = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+
+        /* Store dispatch program and index. */
+        ins->operands[1].lit_ui64 = (MVMuint64)dp;
+        ins->operands[2].lit_ui16 = i;
+
+        /* Add all of the non-constant args. */
+        MVMuint16 j;
+        MVMuint16 insert_pos = 4;
+        for (j = 0; j < dpr->init_callsite->flag_count; j++) {
+            MVMSpeshOperand source;
+            if (!dpr->init_values) {
+                source = orig_args[j];
+            }
+            else if (dpr->init_values[j].source == MVM_DISP_RESUME_INIT_ARG) {
+                source = orig_args[dpr->init_values[j].index];
+            }
+            else if (dpr->init_values[j].source == MVM_DISP_RESUME_INIT_TEMP) {
+                source = temporaries[dpr->init_values[j].index];
+            }
+            else {
+                continue; /* Constant */
+            }
+            ins->operands[3].lit_ui16++;
+            ins->operands[insert_pos++] = source;
+            MVM_spesh_usages_add_by_reg(tc, g, source, ins);
+        }
+
+        /* Insert the instruction. */
+        MVM_spesh_manipulate_insert_ins(tc, bb, *insert_after, ins);
+        *insert_after = ins;
+    }
+}
+
 /* Try to translate a dispatch program into a sequence of ops (which will
  * be subject to later optimization and potentially JIT compilation). */
 static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -711,6 +822,11 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                     default:
                         MVM_oops(tc, "Unexpected dispatch op when translating bytecode result");
                 }
+
+                /* For bytecode invocations, insert ops to capture any resume
+                 * initialization states. */
+                if (!c)
+                    insert_resume_inits(tc, g, bb, &insert_after, dp, orig_args, temporaries);
 
                 /* Form the varargs op and create the instruction. */
                 MVMOpInfo *rb_op = MVM_spesh_disp_create_dispatch_op_info(tc, g,

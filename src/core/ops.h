@@ -931,16 +931,17 @@
 #define MVM_OP_sp_runcfunc_n 927
 #define MVM_OP_sp_runcfunc_s 928
 #define MVM_OP_sp_runcfunc_o 929
-#define MVM_OP_prof_enter 930
-#define MVM_OP_prof_enterspesh 931
-#define MVM_OP_prof_enterinline 932
-#define MVM_OP_prof_enternative 933
-#define MVM_OP_prof_exit 934
-#define MVM_OP_prof_allocated 935
-#define MVM_OP_prof_replaced 936
-#define MVM_OP_ctw_check 937
-#define MVM_OP_coverage_log 938
-#define MVM_OP_breakpoint 939
+#define MVM_OP_sp_resumption 930
+#define MVM_OP_prof_enter 931
+#define MVM_OP_prof_enterspesh 932
+#define MVM_OP_prof_enterinline 933
+#define MVM_OP_prof_enternative 934
+#define MVM_OP_prof_exit 935
+#define MVM_OP_prof_allocated 936
+#define MVM_OP_prof_replaced 937
+#define MVM_OP_ctw_check 938
+#define MVM_OP_coverage_log 939
+#define MVM_OP_breakpoint 940
 
 #define MVM_OP_EXT_BASE 1024
 #define MVM_OP_EXT_CU_LIMIT 1024
