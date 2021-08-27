@@ -578,7 +578,7 @@ void MVM_disp_inline_cache_setup(MVMThreadContext *tc, MVMStaticFrame *sf) {
 }
 
 /* Cleans up a cache entry. */
-void cleanup_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry *entry) {
+void cleanup_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry *entry, MVMuint8 destroy_dps) {
     if (!entry)
         return;
     else if (entry->run_getlexstatic == getlexstatic_initial) {
@@ -593,15 +593,23 @@ void cleanup_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry *entry) {
         /* Never free initial dispatch state. */
     }
     else if (entry->run_dispatch == dispatch_monomorphic) {
+        if (destroy_dps)
+            MVM_disp_program_destroy(tc, ((MVMDispInlineCacheEntryMonomorphicDispatch *)entry)->dp);
         MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
                 sizeof(MVMDispInlineCacheEntryMonomorphicDispatch), entry);
     }
     else if (entry->run_dispatch == dispatch_monomorphic_flattening) {
+        if (destroy_dps)
+            MVM_disp_program_destroy(tc, ((MVMDispInlineCacheEntryMonomorphicDispatchFlattening *)entry)->dp);
         MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
                 sizeof(MVMDispInlineCacheEntryMonomorphicDispatchFlattening), entry);
     }
     else if (entry->run_dispatch == dispatch_polymorphic) {
         MVMuint32 num_dps = ((MVMDispInlineCacheEntryPolymorphicDispatch *)entry)->num_dps;
+        MVMuint32 dpi;
+        if (destroy_dps)
+            for (dpi = 0; dpi > num_dps; dpi++)
+                MVM_disp_program_destroy(tc, ((MVMDispInlineCacheEntryPolymorphicDispatch *)entry)->dps[dpi]);
         MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
                 num_dps * sizeof(MVMDispProgram *),
                 ((MVMDispInlineCacheEntryPolymorphicDispatch *)entry)->dps);
@@ -610,6 +618,10 @@ void cleanup_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry *entry) {
     }
     else if (entry->run_dispatch == dispatch_polymorphic_flattening) {
         MVMuint32 num_dps = ((MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry)->num_dps;
+        MVMuint32 dpi;
+        if (destroy_dps)
+            for (dpi = 0; dpi > num_dps; dpi++)
+                MVM_disp_program_destroy(tc, ((MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry)->dps[dpi]);
         MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
                 num_dps * sizeof(MVMCallsite *),
                 ((MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry)->flattened_css);
@@ -628,11 +640,11 @@ void cleanup_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry *entry) {
 MVMuint32 try_update_cache_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry **target,
         MVMDispInlineCacheEntry *from, MVMDispInlineCacheEntry *to) {
     if (MVM_trycas(target, from, to)) {
-        cleanup_entry(tc, from);
+        cleanup_entry(tc, from, 0);
         return 1;
     }
     else {
-        cleanup_entry(tc, to);
+        cleanup_entry(tc, to, 0);
         return 0;
     }
 }
@@ -708,6 +720,6 @@ void MVM_disp_inline_cache_mark(MVMThreadContext *tc, MVMDispInlineCache *cache,
 void MVM_disp_inline_cache_destroy(MVMThreadContext *tc, MVMDispInlineCache *cache) {
     MVMuint32 i;
     for (i = 0; i < cache->num_entries; i++)
-        cleanup_entry(tc, cache->entries[i]);
+        cleanup_entry(tc, cache->entries[i], 1);
     MVM_free(cache->entries);
 }
