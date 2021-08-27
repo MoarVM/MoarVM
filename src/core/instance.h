@@ -248,9 +248,8 @@ struct MVMInstance {
     /* Mutex for REPR registration. */
     uv_mutex_t mutex_repr_registry;
 
-    /* Container type registry and mutex to protect it. */
+    /* Container type registry. */
     MVMStrHashTable       container_registry;
-    uv_mutex_t      mutex_container_registry;
 
     /* Hash of all known serialization contexts. Marked for GC iff
      * the item is unresolved. Also, array of all SCs, used for the
