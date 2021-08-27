@@ -739,14 +739,9 @@ static const MVMContainerConfigurer NativeRefContainerConfigurer = {
  * ***************************************************************************/
 
 /* Adds a container configurer to the registry. */
-static void add_container_config(MVMThreadContext *tc, MVMString *name,
+static void add_container_config(MVMThreadContext *tc, const char *c_name,
         const MVMContainerConfigurer *configurer) {
-
-    if (!MVM_str_hash_key_is_valid(tc, name)) {
-        MVM_str_hash_key_throw_invalid(tc, name);
-    }
-
-    uv_mutex_lock(&tc->instance->mutex_container_registry);
+    MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, c_name);
 
     MVMContainerRegistry *entry = MVM_str_hash_lvalue_fetch_nocheck(tc, &tc->instance->container_registry, name);
 
@@ -754,8 +749,6 @@ static void add_container_config(MVMThreadContext *tc, MVMString *name,
         entry->configurer      = configurer;
         entry->hash_handle.key = name;
     }
-
-    uv_mutex_unlock(&tc->instance->mutex_container_registry);
 }
 
 /* Gets a container configurer from the registry. */
@@ -765,9 +758,7 @@ const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext 
         MVM_str_hash_key_throw_invalid(tc, name);
     }
 
-    uv_mutex_lock(&tc->instance->mutex_container_registry);
     MVMContainerRegistry *entry = MVM_str_hash_fetch_nocheck(tc, &tc->instance->container_registry, name);
-    uv_mutex_unlock(&tc->instance->mutex_container_registry);
     return entry ? entry->configurer : NULL;
 }
 
@@ -775,12 +766,9 @@ const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext 
  * the various built-in container types. */
 void MVM_6model_containers_setup(MVMThreadContext *tc) {
     /* Add built-in configurations. */
-    add_container_config(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "code_pair"), &CodePairContainerConfigurer);
-    add_container_config(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "native_ref"), &NativeRefContainerConfigurer);
-    add_container_config(tc,
-        MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "value_desc_cont"), &ValueDescContainerConfigurer);
+    add_container_config(tc, "code_pair", &CodePairContainerConfigurer);
+    add_container_config(tc, "native_ref", &NativeRefContainerConfigurer);
+    add_container_config(tc, "value_desc_cont", &ValueDescContainerConfigurer);
 }
 
 /* ***************************************************************************
