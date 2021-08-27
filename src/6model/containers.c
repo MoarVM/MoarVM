@@ -155,7 +155,8 @@ static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *
     });
 }
 
-static const MVMContainerConfigurer CodePairContainerConfigurer = {
+static MVMContainerConfigurer CodePairContainerConfigurer = {
+    NULL,
     code_pair_set_container_spec,
     code_pair_configure_container_spec
 };
@@ -421,7 +422,8 @@ static void value_desc_cont_configure_container_spec(MVMThreadContext *tc, MVMST
     calculate_attr_offsets(tc, st, data);
 }
 
-static const MVMContainerConfigurer ValueDescContainerConfigurer = {
+static MVMContainerConfigurer ValueDescContainerConfigurer = {
+    NULL,
     value_desc_cont_set_container_spec,
     value_desc_cont_configure_container_spec
 };
@@ -729,7 +731,8 @@ void *MVM_container_devirtualize_store_for_jit(MVMThreadContext *tc, MVMSTable *
     return NULL;
 }
 
-static const MVMContainerConfigurer NativeRefContainerConfigurer = {
+static MVMContainerConfigurer NativeRefContainerConfigurer = {
+    NULL,
     native_ref_set_container_spec,
     native_ref_configure_container_spec
 };
@@ -740,15 +743,13 @@ static const MVMContainerConfigurer NativeRefContainerConfigurer = {
 
 /* Adds a container configurer to the registry. */
 static void add_container_config(MVMThreadContext *tc, const char *c_name,
-        const MVMContainerConfigurer *configurer) {
+        MVMContainerConfigurer *configurer) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, c_name);
+    configurer->name = name;
 
-    MVMContainerRegistry *entry = MVM_str_hash_lvalue_fetch_nocheck(tc, &tc->instance->container_registry, name);
-
-    if (!entry->hash_handle.key) {
-        entry->configurer      = configurer;
-        entry->hash_handle.key = name;
-    }
+    MVMContainerConfigurer **target = MVM_fixkey_hash_insert_nocheck(tc, &tc->instance->container_registry, name);
+    *target = configurer;
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&configurer->name, c_name);
 }
 
 /* Gets a container configurer from the registry. */
@@ -758,8 +759,7 @@ const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext 
         MVM_str_hash_key_throw_invalid(tc, name);
     }
 
-    MVMContainerRegistry *entry = MVM_str_hash_fetch_nocheck(tc, &tc->instance->container_registry, name);
-    return entry ? entry->configurer : NULL;
+    return MVM_fixkey_hash_fetch_nocheck(tc, &tc->instance->container_registry, name);
 }
 
 /* Does initial setup work of the container registry, including registering

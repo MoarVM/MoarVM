@@ -249,7 +249,7 @@ struct MVMInstance {
     uv_mutex_t mutex_repr_registry;
 
     /* Container type registry. */
-    MVMStrHashTable       container_registry;
+    MVMFixKeyHashTable container_registry;
 
     /* Hash of all known serialization contexts. Marked for GC iff
      * the item is unresolved. Also, array of all SCs, used for the
