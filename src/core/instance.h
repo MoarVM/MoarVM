@@ -279,7 +279,7 @@ struct MVMInstance {
     MVMDispRegistry disp_registry;
 
     /* MoarVM system calls hash (VM-provided functionality). */
-    MVMStrHashTable syscalls;
+    MVMFixKeyHashTable syscalls;
 
     /* Identity mapping for arguments (argument 0 is at position 0, argument
      * 1 is at position 1, etc.) Allocated at startup with an initial number

@@ -973,10 +973,10 @@ static MVMDispSysCall bind_will_resume_on_failure = {
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
-    MVMDispSysCallHashEntry *entry = MVM_str_hash_lvalue_fetch_nocheck(tc,
-            &tc->instance->syscalls, name);
-    entry->hash_handle.key = name;
-    entry->syscall = syscall;
+    syscall->name = name;
+    MVMDispSysCall **target = MVM_fixkey_hash_insert_nocheck(tc, &tc->instance->syscalls, name);
+    *target = syscall;
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&syscall->name, syscall->c_name);
 
     MVMObject *BOOTCCode = tc->instance->boot_types.BOOTCCode;
     MVMObject *code_obj = REPR(BOOTCCode)->allocate(tc, STABLE(BOOTCCode));
@@ -986,7 +986,7 @@ MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall
 }
 void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     MVM_gc_allocate_gen2_default_set(tc);
-    MVM_str_hash_build(tc, &tc->instance->syscalls, sizeof(MVMDispSysCallHashEntry), 64);
+    MVM_fixkey_hash_build(tc, &tc->instance->syscalls, 0);
     add_to_hash(tc, &dispatcher_register);
     add_to_hash(tc, &dispatcher_delegate);
     add_to_hash(tc, &dispatcher_track_arg);
@@ -1042,6 +1042,5 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
 
 /* Look up a syscall by name. Returns NULL if it's not found. */
 MVMDispSysCall * MVM_disp_syscall_find(MVMThreadContext *tc, MVMString *name) {
-    MVMDispSysCallHashEntry *entry = MVM_str_hash_fetch_nocheck(tc, &tc->instance->syscalls, name);
-    return entry ? entry->syscall : NULL;
+    return MVM_fixkey_hash_fetch_nocheck(tc, &tc->instance->syscalls, name);
 }
