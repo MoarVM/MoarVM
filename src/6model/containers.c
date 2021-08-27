@@ -739,7 +739,7 @@ static const MVMContainerConfigurer NativeRefContainerConfigurer = {
  * ***************************************************************************/
 
 /* Adds a container configurer to the registry. */
-void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name,
+static void add_container_config(MVMThreadContext *tc, MVMString *name,
         const MVMContainerConfigurer *configurer) {
 
     if (!MVM_str_hash_key_is_valid(tc, name)) {
@@ -775,11 +775,11 @@ const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext 
  * the various built-in container types. */
 void MVM_6model_containers_setup(MVMThreadContext *tc) {
     /* Add built-in configurations. */
-    MVM_6model_add_container_config(tc,
+    add_container_config(tc,
         MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "code_pair"), &CodePairContainerConfigurer);
-    MVM_6model_add_container_config(tc,
+    add_container_config(tc,
         MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "native_ref"), &NativeRefContainerConfigurer);
-    MVM_6model_add_container_config(tc,
+    add_container_config(tc,
         MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "value_desc_cont"), &ValueDescContainerConfigurer);
 }
 
