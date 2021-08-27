@@ -300,6 +300,10 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             appendf(ds, "liti16(%"PRId16")", cur_ins->operands[i].lit_i16);
                             size += 2;
                             break;
+                        case MVM_operand_uint16:
+                            appendf(ds, "litui16(%"PRIu16")", cur_ins->operands[i].lit_ui16);
+                            size += 2;
+                            break;
                         case MVM_operand_int32:
                             appendf(ds, "liti32(%"PRId32")", cur_ins->operands[i].lit_i32);
                             size += 4;

@@ -13952,6 +13952,21 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
     },
     {
+        MVM_OP_sp_resumption,
+        "sp_resumption",
+        4,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_uint16, MVM_operand_uint16 }
+    },
+    {
         MVM_OP_prof_enter,
         "prof_enter",
         0,
@@ -14103,7 +14118,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 940;
+static const unsigned short MVM_op_counts = 941;
 
 static const MVMuint16 last_op_allowed = 831;
 

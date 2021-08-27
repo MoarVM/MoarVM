@@ -1091,6 +1091,22 @@ sp_runcfunc_n    .s w(num64) r(obj) uint64
 sp_runcfunc_s    .s w(str) r(obj) uint64
 sp_runcfunc_o    .s w(obj) r(obj) uint64
 
+# An instruction produced when translating dispatch programs that set up
+# one or more resumption initialization states. One is produce for each
+# of the resumable dispatches set up, and they are stacked up immediately
+# prior to the sp_runbytecode instruction. The arguments are:
+# * A register used to hold the dispatch state if there is a resumption,
+#   which should be nulled out (this is the only runtime effect of this
+#   instruction at runtime, all other arguments contribute to static
+#   metadata attached to the spesh candidate)
+# * Pointer to the MVMDispProgram
+# * The index of the resumption (in the array of resumptions in the
+#   dispatch program)
+# * The number of vararg registers that follow
+# * Varargs pointing to registers for every non-constant value that is used
+#   in the resume initialization state (which keeps the registers alive)
+sp_resumption    .s w(obj) uint64 uint16 uint16
+
 # Profiler recording ops. Naming convention: start with prof_. Must all be
 # marked .s, which is how the validator knows to exclude them. (For that
 # purpose, we treat them as a kind of spesh op).
