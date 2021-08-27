@@ -232,7 +232,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
 
     /* Build a callsite and arguments buffer. */
     args = MVM_malloc(data->num_types * sizeof(MVMRegister));
-    num_roots = 0;
+    num_roots = 1; /* res.o is always in roots */
     for (i = 1; i < data->num_types; i++) {
         MVMObject *type     = data->types[i];
         MVMint16   typeinfo = data->typeinfos[i];
@@ -330,6 +330,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
 
     /* Call into a nested interpreter (since we already are in one). Need to
      * save a bunch of state around each side of this. */
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(res.o));
     cid.invokee = data->target;
     cid.args    = args;
     cid.cs      = data->cs;
