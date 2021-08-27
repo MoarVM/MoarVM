@@ -588,8 +588,9 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
             set_facts = 1;
         }
 
-        /* If it's a known type... */
-        if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && obj_facts->type) {
+        /* If it's a known type and known concrete... */
+        if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && obj_facts->type &&
+                (obj_facts->flags & MVM_SPESH_FACT_CONCRETE)) {
             /* Can try to specialize the fetch. */
             MVMSTable *stable = STABLE(obj_facts->type);
             MVMContainerSpec const *contspec = stable->container_spec;
