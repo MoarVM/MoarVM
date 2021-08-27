@@ -39,6 +39,7 @@ void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtabl
 /* Call this before you use the hashtable, to initialise it.
  * Doesn't allocate memory - you can embed the struct within a larger struct if
  * you wish.
+ * entry_size == 0 is permitted as a special case (see fixkey_hash_table.h)
  */
 void MVM_fixkey_hash_build(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable, MVMuint32 entry_size);
 
@@ -49,7 +50,14 @@ MVM_STATIC_INLINE int MVM_fixkey_hash_is_empty(MVMThreadContext *tc,
 }
 
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
- * Doesn't check if the key already exists. Use with care. */
+ * Doesn't check if the key already exists. Use with care.
+ * For entry_size != 0:
+ * returns a pointer to memory allocated by the FSA, with the pointer to your
+ * key written at the start.
+ * For entry_size == 0 returns a pointer to the address for the indirection
+ * pointer *within* the hash, which you should assign your static storage to.
+ * (where your static storage must be a structure starting with the key.)
+ */
 void *MVM_fixkey_hash_insert_nocheck(MVMThreadContext *tc,
                                      MVMFixKeyHashTable *hashtable,
                                      MVMString *key);
@@ -125,12 +133,22 @@ MVM_STATIC_INLINE void *MVM_fixkey_hash_fetch_nocheck(MVMThreadContext *tc,
 }
 
 /* Looks up entry for key, creating it if necessary.
- * Returns the structure we indirect to.
+ * For the general case (entry_size != 0):
+ * Returns the structure we indirect to (which must have a pointer to the key
+ * as the first element)
  * If it's freshly allocated, then *entry is NULL (you need to fill this in)
  * and everything else is uninitialised.
  * This might seem like a quirky API, but it's intended to fill a common pattern
  * we have, and the use of NULL key avoids needing two return values.
- * DON'T FORGET to fill in the NULL key. */
+ * DON'T FORGET to fill in the NULL key.
+ *
+ * For the special case (entry_size == 0):
+ * Returns a pointer to the address for the indirection pointer *within* the
+ * hash, which you should assign your static storage to.
+ * (where your static storage must be a structure starting with the key.)
+ * You probably *don't* want to call it for this case - use
+ * MVM_fixkey_hash_insert instead.
+ */
 void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
                                            MVMFixKeyHashTable *hashtable,
                                            MVMString *key);
