@@ -3,6 +3,7 @@
 /* Information about a VM-provided call. */
 struct MVMDispSysCall {
     /* Syscall name. */
+    MVMString *name;
     const char *c_name;
 
     /* The implementation. This assumes it can pull out arguments without
@@ -30,12 +31,6 @@ struct MVMDispSysCall {
     /* Set to 1 if we expect it to be concrete, otherwise means we don't
      * care. Only relevant for obj kind registers. */
     MVMuint8 expected_concrete[MVM_DISP_SYSCALL_MAX_ARGS];
-};
-
-/* Entry in the hash for looking up syscalls on first dispatch. */
-struct MVMDispSysCallHashEntry {
-    struct MVMStrHashHandle hash_handle;
-    MVMDispSysCall *syscall;
 };
 
 void MVM_disp_syscall_setup(MVMThreadContext *tc);
