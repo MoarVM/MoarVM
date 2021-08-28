@@ -2630,7 +2630,14 @@ static void merge_bbs(MVMThreadContext *tc, MVMSpeshGraph *g) {
     bb = bb->linear_next;
 
     while (bb->linear_next) {
-        if (bb->num_succ == 1 && bb->succ[0] == bb->linear_next && bb->linear_next->num_pred == 1 && !bb->inlined && !bb->linear_next->inlined) {
+        if (
+               bb->num_succ == 1
+            && bb->succ[0] == bb->linear_next
+            && bb->linear_next->num_pred == 1
+            && !bb->inlined
+            && !bb->linear_next->inlined
+            && (!bb->last_ins || !bb->linear_next->first_ins || !MVM_spesh_graph_ins_ends_bb(tc, bb->last_ins->info))
+        ) {
             if (bb->linear_next->first_ins) {
                 bb->linear_next->first_ins->prev = bb->last_ins;
                 if (bb->last_ins) {

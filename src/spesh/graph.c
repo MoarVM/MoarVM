@@ -157,6 +157,43 @@ static MVMint32 spesh_dispatchy(MVMuint16 opcode) {
            (opcode >= MVM_OP_sp_runcfunc_v    && opcode <= MVM_OP_sp_runcfunc_o);
 }
 
+int MVM_spesh_graph_ins_ends_bb(MVMThreadContext *tc, const MVMOpInfo *info) {
+    switch (info->opcode) {
+    case MVM_OP_return_i:
+    case MVM_OP_return_n:
+    case MVM_OP_return_s:
+    case MVM_OP_return_o:
+    case MVM_OP_return:
+    case MVM_OP_dispatch_v:
+    case MVM_OP_dispatch_i:
+    case MVM_OP_dispatch_n:
+    case MVM_OP_dispatch_s:
+    case MVM_OP_dispatch_o:
+    case MVM_OP_sp_dispatch_v:
+    case MVM_OP_sp_dispatch_i:
+    case MVM_OP_sp_dispatch_n:
+    case MVM_OP_sp_dispatch_s:
+    case MVM_OP_sp_dispatch_o:
+    case MVM_OP_sp_runbytecode_v:
+    case MVM_OP_sp_runbytecode_i:
+    case MVM_OP_sp_runbytecode_n:
+    case MVM_OP_sp_runbytecode_s:
+    case MVM_OP_sp_runbytecode_o:
+    case MVM_OP_sp_runcfunc_v:
+    case MVM_OP_sp_runcfunc_i:
+    case MVM_OP_sp_runcfunc_n:
+    case MVM_OP_sp_runcfunc_s:
+    case MVM_OP_sp_runcfunc_o:
+        return 1;
+    default:
+        if (info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
+            return 1;
+        }
+        break;
+    }
+    return 0;
+}
+
 /* Returns the callsite argument offset for an opcode. */
 static MVMCallsite * callsite_for_dispatch_op(MVMuint16 opcode, MVMuint8 *args,
         MVMCompUnit *cu) {
@@ -425,36 +462,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* Dispatch and return end a basic block. Anything that is marked as
          * invokish and throwish are also basic block ends. OSR points are
          * basic block starts. */
-        switch (opcode) {
-        case MVM_OP_return_i:
-        case MVM_OP_return_n:
-        case MVM_OP_return_s:
-        case MVM_OP_return_o:
-        case MVM_OP_return:
-        case MVM_OP_dispatch_v:
-        case MVM_OP_dispatch_i:
-        case MVM_OP_dispatch_n:
-        case MVM_OP_dispatch_s:
-        case MVM_OP_dispatch_o:
-        case MVM_OP_sp_dispatch_v:
-        case MVM_OP_sp_dispatch_i:
-        case MVM_OP_sp_dispatch_n:
-        case MVM_OP_sp_dispatch_s:
-        case MVM_OP_sp_dispatch_o:
-        case MVM_OP_sp_runbytecode_v:
-        case MVM_OP_sp_runbytecode_i:
-        case MVM_OP_sp_runbytecode_n:
-        case MVM_OP_sp_runbytecode_s:
-        case MVM_OP_sp_runbytecode_o:
-        case MVM_OP_sp_runcfunc_v:
-        case MVM_OP_sp_runcfunc_i:
-        case MVM_OP_sp_runcfunc_n:
-        case MVM_OP_sp_runcfunc_s:
-        case MVM_OP_sp_runcfunc_o:
-            byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
-            next_bbs = 1;
-            break;
-        case MVM_OP_osrpoint:
+        if (opcode == MVM_OP_osrpoint) {
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_START;
             if (pc - g->bytecode > 0) {
                 MVMuint32 prev = pc - g->bytecode;
@@ -462,13 +470,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                 byte_to_ins_flags[prev] |= MVM_CFG_BB_END;
             }
             num_osr_points++;
-            break;
-        default:
-            if (info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
-                byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
-                next_bbs = 1;
-            }
-            break;
+        }
+        else if (MVM_spesh_graph_ins_ends_bb(tc, info)) {
+            byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
+            next_bbs = 1;
         }
 
         /* Final instruction is basic block end. */
