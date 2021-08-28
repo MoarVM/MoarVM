@@ -27,7 +27,6 @@ void MVM_uni_hash_demolish(MVMThreadContext *tc, MVMUniHashTable *hashtable) {
 
 MVM_STATIC_INLINE struct MVMUniHashTableControl *hash_allocate_common(MVMThreadContext *tc,
                                                                       MVMuint8 official_size_log2) {
-    MVMuint8 key_right_shift = 8 * sizeof(MVMuint32) - official_size_log2;
     MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
     MVMuint32 max_items = official_size * MVM_UNI_HASH_LOAD_FACTOR;
     MVMuint8 max_probe_distance_limit;
@@ -54,7 +53,8 @@ MVM_STATIC_INLINE struct MVMUniHashTableControl *hash_allocate_common(MVMThreadC
     MVMuint8 initial_probe_distance = (1 << (8 - MVM_HASH_INITIAL_BITS_IN_METADATA)) - 1;
     control->max_probe_distance = max_probe_distance_limit > initial_probe_distance ? initial_probe_distance : max_probe_distance_limit;
     control->max_probe_distance_limit = max_probe_distance_limit;
-    control->key_right_shift = key_right_shift;
+    MVMuint8 bucket_right_shift = 8 * sizeof(MVMuint32) - official_size_log2;
+    control->key_right_shift = bucket_right_shift - control->metadata_hash_bits;
 
     MVMuint8 *metadata = (MVMuint8 *)(control + 1);
     memset(metadata, 0, metadata_size);
@@ -228,6 +228,7 @@ static struct MVMUniHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
         } while (--loop_count);
         assert(control->metadata_hash_bits);
         --control->metadata_hash_bits;
+        ++control->key_right_shift;
 
         control->max_probe_distance = new_probe_distance;
         /* Reset this to its proper value. */
@@ -350,6 +351,9 @@ static MVMuint64 uni_hash_fsck_internal(struct MVMUniHashTableControl *control, 
     MVMuint8 *metadata = MVM_uni_hash_metadata(control);
     MVMuint32 bucket = 0;
     MVMint64 prev_offset = 0;
+    MVMuint8 bucket_right_shift
+        = control->key_right_shift + control->metadata_hash_bits;
+
     while (bucket < allocated_items) {
         if (!*metadata) {
             /* empty slot. */
@@ -361,7 +365,7 @@ static MVMuint64 uni_hash_fsck_internal(struct MVMUniHashTableControl *control, 
             ++seen;
 
             struct MVMUniHashEntry *entry = (struct MVMUniHashEntry *) entry_raw;
-            MVMuint32 ideal_bucket = entry->hash_val >> control->key_right_shift;
+            MVMuint32 ideal_bucket = entry->hash_val >> bucket_right_shift;
             MVMint64 offset = 1 + bucket - ideal_bucket;
             MVMuint32 actual_bucket = *metadata >> metadata_hash_bits;
             char wrong_bucket = offset == actual_bucket ? ' ' : '!';

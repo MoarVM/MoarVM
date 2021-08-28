@@ -27,7 +27,6 @@ void MVM_index_hash_demolish(MVMThreadContext *tc, MVMIndexHashTable *hashtable)
 
 MVM_STATIC_INLINE struct MVMIndexHashTableControl *hash_allocate_common(MVMThreadContext *tc,
                                                                         MVMuint8 official_size_log2) {
-    MVMuint8 key_right_shift = 8 * sizeof(MVMuint64) - official_size_log2;
     MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
     MVMuint32 max_items = official_size * MVM_INDEX_HASH_LOAD_FACTOR;
     MVMuint8 max_probe_distance_limit;
@@ -64,7 +63,8 @@ MVM_STATIC_INLINE struct MVMIndexHashTableControl *hash_allocate_common(MVMThrea
     MVMuint8 initial_probe_distance = (1 << (8 - MVM_HASH_INITIAL_BITS_IN_METADATA)) - 1;
     control->max_probe_distance = max_probe_distance_limit > initial_probe_distance ? initial_probe_distance : max_probe_distance_limit;
     control->max_probe_distance_limit = max_probe_distance_limit;
-    control->key_right_shift = key_right_shift;
+    MVMuint8 bucket_right_shift = 8 * sizeof(MVMuint64) - official_size_log2;
+    control->key_right_shift = bucket_right_shift - control->metadata_hash_bits;
 
     MVMuint8 *metadata = (MVMuint8 *)(control + 1);
     memset(metadata, 0, metadata_size);
@@ -236,6 +236,7 @@ static struct MVMIndexHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
         } while (--loop_count);
         assert(control->metadata_hash_bits);
         --control->metadata_hash_bits;
+        ++control->key_right_shift;
 
         control->max_probe_distance = new_probe_distance;
         /* Reset this to its proper value. */

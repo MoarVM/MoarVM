@@ -43,7 +43,6 @@ void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtabl
 MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThreadContext *tc,
                                                                          MVMuint16 entry_size,
                                                                          MVMuint8 official_size_log2) {
-    MVMuint8 key_right_shift = 8 * sizeof(MVMuint64) - official_size_log2;
     MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
     MVMuint32 max_items = official_size * MVM_FIXKEY_HASH_LOAD_FACTOR;
     MVMuint8 max_probe_distance_limit;
@@ -70,7 +69,8 @@ MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThre
     MVMuint8 initial_probe_distance = (1 << (8 - MVM_HASH_INITIAL_BITS_IN_METADATA)) - 1;
     control->max_probe_distance = max_probe_distance_limit > initial_probe_distance ? initial_probe_distance : max_probe_distance_limit;
     control->max_probe_distance_limit = max_probe_distance_limit;
-    control->key_right_shift = key_right_shift;
+    MVMuint8 bucket_right_shift = 8 * sizeof(MVMuint64) - official_size_log2;
+    control->key_right_shift = bucket_right_shift - control->metadata_hash_bits;
     control->entry_size = entry_size;
 
     MVMuint8 *metadata = (MVMuint8 *)(control + 1);
@@ -239,6 +239,7 @@ static struct MVMFixKeyHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
         } while (--loop_count);
         assert(control->metadata_hash_bits);
         --control->metadata_hash_bits;
+        ++control->key_right_shift;
 
         control->max_probe_distance = new_probe_distance;
         /* Reset this to its proper value. */
@@ -373,6 +374,9 @@ MVMuint64 MVM_fixkey_hash_fsck(MVMThreadContext *tc, MVMFixKeyHashTable *hashtab
     MVMuint8 *metadata = MVM_fixkey_hash_metadata(control);
     MVMuint32 bucket = 0;
     MVMint64 prev_offset = 0;
+    MVMuint8 bucket_right_shift
+        = control->key_right_shift + control->metadata_hash_bits;
+
     while (bucket < entries_in_use) {
         if (!*metadata) {
             /* empty slot. */
@@ -394,7 +398,7 @@ MVMuint64 MVM_fixkey_hash_fsck(MVMThreadContext *tc, MVMFixKeyHashTable *hashtab
                     fprintf(stderr, "%s%3X!!\n", prefix_hashes, bucket);
                 } else {
                     MVMuint64 hash_val = MVM_string_hash_code(tc, *entry);
-                    MVMuint32 ideal_bucket = hash_val >> control->key_right_shift;
+                    MVMuint32 ideal_bucket = hash_val >> bucket_right_shift;
                     MVMint64 offset = 1 + bucket - ideal_bucket;
                     int wrong_bucket = offset != *metadata;
                     int wrong_order = offset < 1 || offset > prev_offset + 1;

@@ -115,7 +115,6 @@ void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable) {
 MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadContext *tc,
                                                                       MVMuint8 entry_size,
                                                                       MVMuint8 official_size_log2) {
-    MVMuint8 key_right_shift = 8 * sizeof(MVMuint64) - official_size_log2;
     MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
     MVMuint32 max_items = official_size * MVM_STR_HASH_LOAD_FACTOR;
     MVMuint8 max_probe_distance_limit;
@@ -143,7 +142,8 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
     MVMuint8 initial_probe_distance = (1 << (8 - MVM_HASH_INITIAL_BITS_IN_METADATA)) - 1;
     control->max_probe_distance = max_probe_distance_limit > initial_probe_distance ? initial_probe_distance : max_probe_distance_limit;
     control->max_probe_distance_limit = max_probe_distance_limit;
-    control->key_right_shift = key_right_shift;
+    MVMuint8 bucket_right_shift = 8 * sizeof(MVMuint64) - official_size_log2;
+    control->key_right_shift = bucket_right_shift - control->metadata_hash_bits;
     control->entry_size = entry_size;
     control->stale = 0;
 
@@ -383,6 +383,7 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
         } while (--loop_count);
         assert(control->metadata_hash_bits);
         --control->metadata_hash_bits;
+        ++control->key_right_shift;
 
         control->max_probe_distance = new_probe_distance;
         /* Reset this to its proper value. */
@@ -720,6 +721,9 @@ static MVMuint64 hash_fsck_internal(MVMThreadContext *tc, struct MVMStrHashTable
     MVMuint8 *metadata = MVM_str_hash_metadata(control);
     MVMuint32 bucket = 0;
     MVMint64 prev_offset = 0;
+    MVMuint8 bucket_right_shift
+        = control->key_right_shift + control->metadata_hash_bits;
+
     while (bucket < allocated_items) {
         if (!*metadata) {
             /* empty slot. */
@@ -784,7 +788,7 @@ static MVMuint64 hash_fsck_internal(MVMThreadContext *tc, struct MVMStrHashTable
             } else {
                 /* OK, it is a concrete string (still). */
                 MVMuint64 hash_val = MVM_str_hash_code(tc, control->salt, key);
-                MVMuint32 ideal_bucket = hash_val >> control->key_right_shift;
+                MVMuint32 ideal_bucket = hash_val >> bucket_right_shift;
                 MVMint64 offset = 1 + bucket - ideal_bucket;
                 MVMuint32 actual_bucket = *metadata >> metadata_hash_bits;
                 char wrong_bucket = offset == actual_bucket ? ' ' : '!';

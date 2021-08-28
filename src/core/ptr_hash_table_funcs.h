@@ -84,7 +84,7 @@ MVM_ptr_hash_create_loop_state(struct MVMPtrHashTableControl *control,
     retval.max_probe_distance = control->max_probe_distance;
 
     unsigned int used_hash_bits
-        = MVM_ptr_hash_code(key) >> (control->key_right_shift - control->metadata_hash_bits);
+        = MVM_ptr_hash_code(key) >> control->key_right_shift;
     retval.probe_distance = retval.metadata_increment | (used_hash_bits & retval.metadata_hash_mask);
     MVMHashNumItems bucket = used_hash_bits >> control->metadata_hash_bits;
     if (!control->metadata_hash_bits) {
