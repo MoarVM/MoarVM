@@ -1297,7 +1297,13 @@ static void annotate_inline_start_end(MVMThreadContext *tc, MVMSpeshGraph *inlin
 
     /* The end of inline annotation is exclusive and goes onto the
      * instruction after the inline. */
-    MVMSpeshIns *end_ann_target = inlinee_last_bb->linear_next->first_ins;
+    MVMSpeshBB *cur_bb = inlinee_last_bb;
+    MVMSpeshIns *end_ann_target = NULL;
+    while (cur_bb->linear_next && !end_ann_target) {
+        cur_bb = cur_bb->linear_next;
+        end_ann_target = cur_bb->first_ins;
+    }
+
     end_ann->next             = end_ann_target->annotations;
     end_ann->type             = MVM_SPESH_ANN_INLINE_END;
     end_ann->data.inline_idx  = idx;
