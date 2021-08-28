@@ -1,7 +1,6 @@
 #include "moar.h"
 
 #define FIXKEY_INITIAL_SIZE_LOG2 3
-#define FIXKEY_INITIAL_KEY_RIGHT_SHIFT (8 * sizeof(MVMuint64) - 3)
 
 void hash_demolish_internal(MVMThreadContext *tc,
                             struct MVMFixKeyHashTableControl *control) {
@@ -43,8 +42,8 @@ void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtabl
 
 MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThreadContext *tc,
                                                                          MVMuint16 entry_size,
-                                                                         MVMuint8 key_right_shift,
                                                                          MVMuint8 official_size_log2) {
+    MVMuint8 key_right_shift = 8 * sizeof(MVMuint64) - official_size_log2;
     MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
     MVMuint32 max_items = official_size * MVM_FIXKEY_HASH_LOAD_FACTOR;
     MVMuint8 max_probe_distance_limit;
@@ -86,7 +85,6 @@ void MVM_fixkey_hash_build(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable, 
     }
     hashtable->table = hash_allocate_common(tc,
                                             entry_size,
-                                            FIXKEY_INITIAL_KEY_RIGHT_SHIFT,
                                             FIXKEY_INITIAL_SIZE_LOG2);
 }
 
@@ -257,7 +255,6 @@ static struct MVMFixKeyHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
 
     control = hash_allocate_common(tc,
                                    control_orig->entry_size,
-                                   control_orig->key_right_shift - 1,
                                    control_orig->official_size_log2 + 1);
 
     MVMuint8 *entry_raw = entry_raw_orig;

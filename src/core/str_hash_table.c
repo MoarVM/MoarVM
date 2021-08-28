@@ -114,8 +114,8 @@ void MVM_str_hash_demolish(MVMThreadContext *tc, MVMStrHashTable *hashtable) {
 
 MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadContext *tc,
                                                                       MVMuint8 entry_size,
-                                                                      MVMuint8 key_right_shift,
                                                                       MVMuint8 official_size_log2) {
+    MVMuint8 key_right_shift = 8 * sizeof(MVMuint64) - official_size_log2;
     MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
     MVMuint32 max_items = official_size * MVM_STR_HASH_LOAD_FACTOR;
     MVMuint8 max_probe_distance_limit;
@@ -187,10 +187,7 @@ void MVM_str_hash_build(MVMThreadContext *tc,
             initial_size_base2 = STR_MIN_SIZE_BASE_2;
         }
 
-        control = hash_allocate_common(tc,
-                                       entry_size,
-                                       (8 * sizeof(MVMuint64) - initial_size_base2),
-                                       initial_size_base2);
+        control = hash_allocate_common(tc, entry_size, initial_size_base2);
     }
 
 #if HASH_DEBUG_ITER
@@ -337,7 +334,6 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
         control_orig->stale = 1;
         control = hash_allocate_common(tc,
                                        control_orig->entry_size,
-                                       (8 * sizeof(MVMuint64) - STR_MIN_SIZE_BASE_2),
                                        STR_MIN_SIZE_BASE_2);
 #if HASH_DEBUG_ITER
         control->ht_id = control_orig->ht_id;
@@ -405,7 +401,6 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
     control_orig->stale = 1;
     control = hash_allocate_common(tc,
                                    entry_size,
-                                   control_orig->key_right_shift - 1,
                                    control_orig->official_size_log2 + 1);
 
 

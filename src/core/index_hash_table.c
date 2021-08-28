@@ -26,8 +26,8 @@ void MVM_index_hash_demolish(MVMThreadContext *tc, MVMIndexHashTable *hashtable)
 
 
 MVM_STATIC_INLINE struct MVMIndexHashTableControl *hash_allocate_common(MVMThreadContext *tc,
-                                                                        MVMuint8 key_right_shift,
                                                                         MVMuint8 official_size_log2) {
+    MVMuint8 key_right_shift = 8 * sizeof(MVMuint64) - official_size_log2;
     MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
     MVMuint32 max_items = official_size * MVM_INDEX_HASH_LOAD_FACTOR;
     MVMuint8 max_probe_distance_limit;
@@ -88,9 +88,7 @@ void MVM_index_hash_build(MVMThreadContext *tc,
         }
     }
 
-    hashtable->table = hash_allocate_common(tc,
-                                            (8 * sizeof(MVMuint64) - initial_size_base2),
-                                            initial_size_base2);
+    hashtable->table = hash_allocate_common(tc, initial_size_base2);
 }
 
 MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
@@ -252,9 +250,7 @@ static struct MVMIndexHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
 
     struct MVMIndexHashTableControl *control_orig = control;
 
-    control = hash_allocate_common(tc,
-                                   control_orig->key_right_shift - 1,
-                                   control_orig->official_size_log2 + 1);
+    control = hash_allocate_common(tc, control_orig->official_size_log2 + 1);
 
     MVMuint8 *entry_raw = entry_raw_orig;
     MVMuint8 *metadata = metadata_orig;
