@@ -194,39 +194,6 @@ int MVM_spesh_graph_ins_ends_bb(MVMThreadContext *tc, const MVMOpInfo *info) {
     return 0;
 }
 
-/* Returns the callsite argument offset for an opcode. */
-static MVMCallsite * callsite_for_dispatch_op(MVMuint16 opcode, MVMuint8 *args,
-        MVMCompUnit *cu) {
-    switch (opcode) {
-        case MVM_OP_dispatch_v:
-        case MVM_OP_sp_dispatch_v:
-            return cu->body.callsites[GET_UI16(args, 4)];
-        case MVM_OP_dispatch_i:
-        case MVM_OP_dispatch_n:
-        case MVM_OP_dispatch_s:
-        case MVM_OP_dispatch_o:
-        case MVM_OP_sp_dispatch_i:
-        case MVM_OP_sp_dispatch_n:
-        case MVM_OP_sp_dispatch_s:
-        case MVM_OP_sp_dispatch_o:
-            return cu->body.callsites[GET_UI16(args, 6)];
-        case MVM_OP_sp_runbytecode_v:
-        case MVM_OP_sp_runcfunc_v:
-            return (MVMCallsite *)GET_UI64(args, 2);
-        case MVM_OP_sp_runbytecode_i:
-        case MVM_OP_sp_runbytecode_n:
-        case MVM_OP_sp_runbytecode_s:
-        case MVM_OP_sp_runbytecode_o:
-        case MVM_OP_sp_runcfunc_i:
-        case MVM_OP_sp_runcfunc_n:
-        case MVM_OP_sp_runcfunc_s:
-        case MVM_OP_sp_runcfunc_o:
-            return (MVMCallsite *)GET_UI64(args, 4);
-        default:
-            MVM_panic(1, "Unknown disaptch op when resolving callsite");
-    }
-}
-
 /* Builds the control flow graph, populating the passed spesh graph structure
  * with it. This also makes nodes for all of the instruction. */
 #define MVM_CFG_BB_START    1
@@ -339,9 +306,11 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             /* Fake up an op info struct for the duration of this spesh graph's
              * life, so everything else can pretend it's got a fixed number of
              * arguments. */
-            MVMCallsite *callsite = callsite_for_dispatch_op(opcode, args, cu);
-            ins_node->info = info = MVM_spesh_disp_create_dispatch_op_info(tc, g, info,
-                    callsite);
+            MVMCallsite *callsite = MVM_spesh_disp_callsite_for_dispatch_op(opcode, args, cu);
+            ins_node->info = MVM_spesh_alloc(tc, g, MVM_spesh_disp_dispatch_op_info_size(
+                tc, info, callsite));
+            MVM_spesh_disp_initialize_dispatch_op_info(tc, info, callsite, (MVMOpInfo*)ins_node->info);
+            info = ins_node->info;
         }
 
         /* Go over operands. */
