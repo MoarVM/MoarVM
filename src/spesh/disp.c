@@ -1,16 +1,26 @@
 #include "moar.h"
 
+#define GET_UI16(pc, idx)   *((MVMuint16 *)((pc) + (idx)))
+
+MVM_STATIC_INLINE MVMuint64 GET_UI64(const MVMuint8 *pc, MVMint32 idx) {
+    MVMuint64 retval;
+    memcpy(&retval, pc + idx, sizeof(retval));
+    return retval;
+}
+
 /* Create op info for a dispatch instruction, so that during specialization we
  * can pretend it's not varargs. */
-MVMOpInfo * MVM_spesh_disp_create_dispatch_op_info(MVMThreadContext *tc, MVMSpeshGraph *g,
+size_t MVM_spesh_disp_dispatch_op_info_size(MVMThreadContext *tc,
         const MVMOpInfo *base_info, MVMCallsite *callsite) {
     /* In general, ops support up to an operand limit; in the case that there are more,
      * we'd overrun the buffer. We thus allocate more. */
     MVMuint32 total_ops = base_info->num_operands + callsite->flag_count;
-    size_t total_size = sizeof(MVMOpInfo) + (total_ops > MVM_MAX_OPERANDS
+    return sizeof(MVMOpInfo) + (total_ops > MVM_MAX_OPERANDS
             ? total_ops - MVM_MAX_OPERANDS
             : 0);
-    MVMOpInfo *dispatch_info = MVM_spesh_alloc(tc, g, total_size);
+}
+void MVM_spesh_disp_initialize_dispatch_op_info(MVMThreadContext *tc,
+        const MVMOpInfo *base_info, MVMCallsite *callsite, MVMOpInfo *dispatch_info) {
 
     /* Populate based on the original operation. */
     memcpy(dispatch_info, base_info, sizeof(MVMOpInfo));
@@ -35,8 +45,39 @@ MVMOpInfo * MVM_spesh_disp_create_dispatch_op_info(MVMThreadContext *tc, MVMSpes
         }
         dispatch_info->operands[operand_index] |= MVM_operand_read_reg;
     }
+}
 
-    return dispatch_info;
+/* Returns the callsite argument offset for an opcode. */
+MVMCallsite * MVM_spesh_disp_callsite_for_dispatch_op(MVMuint16 opcode, MVMuint8 *args,
+        MVMCompUnit *cu) {
+    switch (opcode) {
+        case MVM_OP_dispatch_v:
+        case MVM_OP_sp_dispatch_v:
+            return cu->body.callsites[GET_UI16(args, 4)];
+        case MVM_OP_dispatch_i:
+        case MVM_OP_dispatch_n:
+        case MVM_OP_dispatch_s:
+        case MVM_OP_dispatch_o:
+        case MVM_OP_sp_dispatch_i:
+        case MVM_OP_sp_dispatch_n:
+        case MVM_OP_sp_dispatch_s:
+        case MVM_OP_sp_dispatch_o:
+            return cu->body.callsites[GET_UI16(args, 6)];
+        case MVM_OP_sp_runbytecode_v:
+        case MVM_OP_sp_runcfunc_v:
+            return (MVMCallsite *)GET_UI64(args, 2);
+        case MVM_OP_sp_runbytecode_i:
+        case MVM_OP_sp_runbytecode_n:
+        case MVM_OP_sp_runbytecode_s:
+        case MVM_OP_sp_runbytecode_o:
+        case MVM_OP_sp_runcfunc_i:
+        case MVM_OP_sp_runcfunc_n:
+        case MVM_OP_sp_runcfunc_s:
+        case MVM_OP_sp_runcfunc_o:
+            return (MVMCallsite *)GET_UI64(args, 4);
+        default:
+            MVM_panic(1, "Unknown disaptch op when resolving callsite");
+    }
 }
 
 /* Hit count of an outcome, used for analizing how to optimize the dispatch. */
@@ -64,8 +105,9 @@ static void rewrite_to_sp_dispatch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
         default:
             MVM_oops(tc, "Unexpected dispatch instruction to rewrite");
     }
-    MVMOpInfo *new_ins_info = MVM_spesh_disp_create_dispatch_op_info(tc, g,
-            new_ins_base_info, callsite);
+    MVMOpInfo *new_ins_info = MVM_spesh_alloc(tc, g, MVM_spesh_disp_dispatch_op_info_size(
+        tc, new_ins_base_info, callsite));
+    MVM_spesh_disp_initialize_dispatch_op_info(tc, new_ins_base_info, callsite, new_ins_info);
     ins->info = new_ins_info;
 
     /* Rewrite the operands. */
@@ -829,8 +871,9 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                     insert_resume_inits(tc, g, bb, &insert_after, dp, orig_args, temporaries);
 
                 /* Form the varargs op and create the instruction. */
-                MVMOpInfo *rb_op = MVM_spesh_disp_create_dispatch_op_info(tc, g,
-                    base_op, callsite);
+                MVMOpInfo *rb_op = MVM_spesh_alloc(tc, g, MVM_spesh_disp_dispatch_op_info_size(
+                    tc, base_op, callsite));
+                MVM_spesh_disp_initialize_dispatch_op_info(tc, base_op, callsite, rb_op);
                 MVMSpeshIns *rb_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
                 rb_ins->info = rb_op;
                 rb_ins->operands = MVM_spesh_alloc(tc, g,
