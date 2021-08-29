@@ -1,7 +1,6 @@
 #include "moar.h"
 
 #define PTR_INITIAL_SIZE_LOG2 3
-#define PTR_INITIAL_KEY_RIGHT_SHIFT (8 * sizeof(uintptr_t) - 3)
 
 MVM_STATIC_INLINE void hash_demolish_internal(MVMThreadContext *tc,
                                               struct MVMPtrHashTableControl *control) {
@@ -27,7 +26,6 @@ void MVM_ptr_hash_demolish(MVMThreadContext *tc, MVMPtrHashTable *hashtable) {
 
 
 MVM_STATIC_INLINE struct MVMPtrHashTableControl *hash_allocate_common(MVMThreadContext *tc,
-                                                                      MVMuint8 key_right_shift,
                                                                       MVMuint8 official_size_log2) {
     MVMuint32 official_size = 1 << (MVMuint32)official_size_log2;
     MVMuint32 max_items = official_size * MVM_PTR_HASH_LOAD_FACTOR;
@@ -55,7 +53,8 @@ MVM_STATIC_INLINE struct MVMPtrHashTableControl *hash_allocate_common(MVMThreadC
     MVMuint8 initial_probe_distance = (1 << (8 - MVM_HASH_INITIAL_BITS_IN_METADATA)) - 1;
     control->max_probe_distance = max_probe_distance_limit > initial_probe_distance ? initial_probe_distance : max_probe_distance_limit;
     control->max_probe_distance_limit = max_probe_distance_limit;
-    control->key_right_shift = key_right_shift;
+    MVMuint8 bucket_right_shift = 8 * sizeof(uintptr_t) - official_size_log2;
+    control->key_right_shift = bucket_right_shift - control->metadata_hash_bits;
 
     MVMuint8 *metadata = (MVMuint8 *)(control + 1);
     memset(metadata, 0, metadata_size);
@@ -204,6 +203,7 @@ static struct MVMPtrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
         } while (--loop_count);
         assert(control->metadata_hash_bits);
         --control->metadata_hash_bits;
+        ++control->key_right_shift;
 
         control->max_probe_distance = new_probe_distance;
         /* Reset this to its proper value. */
@@ -218,9 +218,7 @@ static struct MVMPtrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
 
     struct MVMPtrHashTableControl *control_orig = control;
 
-    control = hash_allocate_common(tc,
-                                   control_orig->key_right_shift - 1,
-                                   control_orig->official_size_log2 + 1);
+    control = hash_allocate_common(tc, control_orig->official_size_log2 + 1);
 
     MVMuint8 *entry_raw = entry_raw_orig;
     MVMuint8 *metadata = metadata_orig;
@@ -257,9 +255,7 @@ struct MVMPtrHashEntry *MVM_ptr_hash_lvalue_fetch(MVMThreadContext *tc,
                                                   const void *key) {
     struct MVMPtrHashTableControl *control = hashtable->table;
     if (MVM_UNLIKELY(!control)) {
-        control = hash_allocate_common(tc,
-                                       PTR_INITIAL_KEY_RIGHT_SHIFT,
-                                       PTR_INITIAL_SIZE_LOG2);
+        control = hash_allocate_common(tc, PTR_INITIAL_SIZE_LOG2);
         hashtable->table = control;
     }
     else if (MVM_UNLIKELY(control->cur_items >= control->max_items)) {
