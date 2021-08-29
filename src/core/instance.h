@@ -211,6 +211,9 @@ struct MVMInstance {
     MVM_VECTOR_DECL(void *, free_at_safepoint);
     uv_mutex_t mutex_free_at_safepoint;
 
+    /* Whether the --full-cleanup flag was passed. */
+    MVMuint32 full_cleanup;
+
     /************************************************************************
      * Object system
      ************************************************************************/

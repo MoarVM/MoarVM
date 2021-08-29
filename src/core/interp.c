@@ -3815,7 +3815,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(exit): {
                 MVMint64 exit_code = GET_REG(cur_op, 0).i64;
-                MVM_io_flush_standard_handles(tc);
+                if (tc->instance->full_cleanup) {
+                    MVM_vm_destroy_instance(tc->instance);
+                }
+                else {
+                    MVM_io_flush_standard_handles(tc);
+                }
                 exit(exit_code);
             }
             OP(cwd):
