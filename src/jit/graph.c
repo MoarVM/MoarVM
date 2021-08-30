@@ -650,7 +650,7 @@ static void after_ins(MVMThreadContext *tc, MVMJitGraph *jg,
      * control guards should in fact use the same (dynamic) labels. */
     while (ann) {
         if (ann->type == MVM_SPESH_ANN_INLINE_END) {
-            MVMint32 label = MVM_jit_label_after_ins(tc, jg, bb, ins);
+            MVMint32 label = MVM_jit_label_before_ins(tc, jg, bb, ins);
             jg_append_label(tc, jg, label);
             jg->inlines[ann->data.inline_idx].end_label = label;
         } else if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS) {
