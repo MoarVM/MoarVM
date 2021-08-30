@@ -311,7 +311,7 @@ MVMint32 MVM_spesh_deopt_find_inactive_frame_deopt_idx(MVMThreadContext *tc, MVM
     }
     else {
         /* Not JITted; see if we can find the return address in the deopt table. */
-        MVMuint32 ret_offset = f->return_address - f->spesh_cand->body.bytecode;
+        MVMuint32 ret_offset = (f == tc->cur_frame ? *(tc->interp_cur_op) : f->return_address) - f->spesh_cand->body.bytecode;
         MVMint32 n = f->spesh_cand->body.num_deopts * 2;
         MVMint32 i;
         for (i = 0; i < n; i += 2) {
