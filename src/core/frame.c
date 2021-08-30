@@ -1442,35 +1442,18 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
  * (for better or worse) by various things. Otherwise, an error is thrown
  * if it does not exist. Incorrect type always throws. */
 MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type) {
-    MVMFrame *cur_frame = tc->cur_frame;
-    while (cur_frame != NULL) {
-        if (cur_frame->static_info->body.num_lexicals) {
-            MVMuint32 idx = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
-            if (idx != MVM_INDEX_HASH_NOT_FOUND) {
-                if (MVM_LIKELY(cur_frame->static_info->body.lexical_types[idx] == type)) {
-                    MVMRegister *result = &cur_frame->env[idx];
-                    if (type == MVM_reg_obj && !result->o)
-                        MVM_frame_vivify_lexical(tc, cur_frame, idx);
-                    return result;
-                }
-                else {
-                    char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-                    char *waste[] = { c_name, NULL };
-                    MVM_exception_throw_adhoc_free(tc, waste,
-                        "Lexical with name '%s' has wrong type",
-                            c_name);
-                }
-            }
-        }
-        cur_frame = cur_frame->outer;
-    }
-    if (MVM_UNLIKELY(type != MVM_reg_obj)) {
+    MVMSpeshFrameWalker fw;
+    MVM_spesh_frame_walker_init_for_outers(tc, &fw, tc->cur_frame);
+    MVMRegister *res = MVM_frame_lexical_lookup_using_frame_walker(tc, &fw, name, type);
+
+    if (res == NULL && MVM_UNLIKELY(type != MVM_reg_obj)) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
             c_name);
     }
-    return NULL;
+
+    return res;
 }
 
 /* Binds the specified value to the given lexical, finding it along the static
@@ -1556,15 +1539,15 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
 /* Performs some kind of lexical lookup using the frame walker. The exact walk
  * that is done depends on the frame walker setup. */
 MVMRegister * MVM_frame_lexical_lookup_using_frame_walker(MVMThreadContext *tc,
-        MVMSpeshFrameWalker *fw, MVMString *name) {
+        MVMSpeshFrameWalker *fw, MVMString *name, MVMuint16 type) {
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(name));
     while (MVM_spesh_frame_walker_next(tc, fw)) {
         MVMRegister *found;
         MVMuint16 found_kind;
         if (MVM_spesh_frame_walker_get_lex(tc, fw, name, &found, &found_kind, 1, NULL)) {
             MVM_spesh_frame_walker_cleanup(tc, fw);
-            if (found_kind == MVM_reg_obj) {
-                MVM_gc_root_temp_pop(tc);
+            MVM_gc_root_temp_pop(tc);
+            if (found_kind == type) {
                 return found;
             }
             else {
@@ -1586,7 +1569,7 @@ MVMRegister * MVM_frame_lexical_lookup_using_frame_walker(MVMThreadContext *tc,
 MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame) {
     MVMSpeshFrameWalker fw;
     MVM_spesh_frame_walker_init(tc, &fw, cur_caller_frame, 1);
-    return MVM_frame_lexical_lookup_using_frame_walker(tc, &fw, name);
+    return MVM_frame_lexical_lookup_using_frame_walker(tc, &fw, name, MVM_reg_obj);
 }
 
 /* Looks up the address of the lexical with the specified name and the
