@@ -419,7 +419,7 @@ MVMObject * MVM_context_lexical_lookup(MVMThreadContext *tc, MVMContext *ctx, MV
     MVMSpeshFrameWalker fw;
     MVM_spesh_frame_walker_init_for_outers(tc, &fw, ctx->body.context);
     if (apply_traversals(tc, &fw, ctx->body.traversals, ctx->body.num_traversals)) {
-        MVMRegister *result = MVM_frame_lexical_lookup_using_frame_walker(tc, &fw, name);
+        MVMRegister *result = MVM_frame_lexical_lookup_using_frame_walker(tc, &fw, name, MVM_reg_obj);
         return result ? result->o : tc->instance->VMNull;
     }
     MVM_spesh_frame_walker_cleanup(tc, &fw);
@@ -443,7 +443,7 @@ MVMObject * MVM_context_caller_lookup(MVMThreadContext *tc, MVMContext *ctx, MVM
     MVMSpeshFrameWalker fw;
     MVM_spesh_frame_walker_init(tc, &fw, ctx->body.context, 1);
     if (apply_traversals(tc, &fw, ctx->body.traversals, ctx->body.num_traversals)) {
-        MVMRegister *result = MVM_frame_lexical_lookup_using_frame_walker(tc, &fw, name);
+        MVMRegister *result = MVM_frame_lexical_lookup_using_frame_walker(tc, &fw, name, MVM_reg_obj);
         return result ? result->o : tc->instance->VMNull;
     }
     MVM_spesh_frame_walker_cleanup(tc, &fw);
