@@ -157,30 +157,53 @@ static void optimize_isnull(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
 static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                              MVMSpeshIns *ins, MVMint32 type_operand);
 
-/* Sees if we can resolve an istype at compile time. */
+/* Try to turn an istype into a constant; failing that, rewrite it into the
+ * sp_istype op. */
 static void optimize_istype(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+    /* See if we can constant fold it. */
     MVMSpeshFacts *obj_facts  = MVM_spesh_get_facts(tc, g, ins->operands[1]);
     MVMSpeshFacts *type_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
     MVMSpeshFacts *result_facts;
-
     if (type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE &&
          obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
-        MVMint32 result;
-        if (!MVM_6model_try_cache_type_check(tc, obj_facts->type, type_facts->type, &result))
+        MVMint64 result;
+        if (MVM_6model_try_cache_type_check(tc, obj_facts->type, type_facts->type, &result)) {
+            /* Yes; turn it into a constant. */
+            ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
+            result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+            result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+            ins->operands[1].lit_i16 = result;
+            result_facts->value.i  = result;
+            MVM_spesh_usages_delete(tc, g, obj_facts, ins);
+            MVM_spesh_usages_delete(tc, g, type_facts, ins);
+            MVM_spesh_facts_depend(tc, g, result_facts, obj_facts);
+            MVM_spesh_use_facts(tc, g, obj_facts);
+            MVM_spesh_facts_depend(tc, g, result_facts, type_facts);
+            MVM_spesh_use_facts(tc, g, type_facts);
             return;
-        ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
-        result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
-        result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
-        ins->operands[1].lit_i16 = result;
-        result_facts->value.i  = result;
-
-        MVM_spesh_usages_delete(tc, g, obj_facts, ins);
-        MVM_spesh_usages_delete(tc, g, type_facts, ins);
-        MVM_spesh_facts_depend(tc, g, result_facts, obj_facts);
-        MVM_spesh_use_facts(tc, g, obj_facts);
-        MVM_spesh_facts_depend(tc, g, result_facts, type_facts);
-        MVM_spesh_use_facts(tc, g, type_facts);
+        }
     }
+
+    /* If we get here, turn it into sp_istype, so we retain the correct inline
+     * cache position, even over inlining. */
+    MVMSpeshAnn *ann = ins->annotations;
+    while (ann) {
+        if (ann->type == MVM_SPESH_ANN_CACHED)
+            break;
+        ann = ann->next;
+    }
+    if (!ann)
+        MVM_oops(tc, "Missing cache annotation on istype");
+    ins->info = MVM_op_get_op(MVM_OP_sp_istype);
+    MVMSpeshOperand *new_operands = MVM_spesh_alloc(tc, g, 5 * sizeof(MVMSpeshOperand));
+    new_operands[0] = ins->operands[0];
+    new_operands[1] = ins->operands[1];
+    new_operands[2] = ins->operands[2];
+    new_operands[3].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
+        (MVMCollectable *)g->sf);
+    new_operands[4].lit_ui32 = MVM_disp_inline_cache_get_slot(tc, g->sf,
+        ann->data.bytecode_offset);
+    ins->operands = new_operands;
 }
 
 /* Sees if we can resolve an eqaddr at compile time. If we know both of the

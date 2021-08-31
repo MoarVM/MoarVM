@@ -1713,12 +1713,34 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_spesh_deopt_all(tc);
                 goto NEXT;
             OP(istype): {
-                /* Increment PC first, as we may make a method call. */
-                MVMRegister *res  = &GET_REG(cur_op, 0);
-                MVMObject   *obj  = GET_REG(cur_op, 2).o;
-                MVMObject   *type = GET_REG(cur_op, 4).o;
-                cur_op += 6;
-                MVM_6model_istype(tc, obj, type, res);
+                /* First try to get a result from the type check cache. */
+                MVMObject *obj  = GET_REG(cur_op, 2).o;
+                MVMObject *type = GET_REG(cur_op, 4).o;
+                MVMHLLConfig *hll;
+                if (MVM_6model_try_cache_type_check(tc, obj, type, &(GET_REG(cur_op, 0).i64))) {
+                    /* Answered by the cache. */
+                    cur_op += 6;
+                }
+                else if ((hll = MVM_hll_current(tc)) && hll->istype_dispatcher) {
+                    /* Fall back to dispatcher to make calls to figure it out. */
+                    MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
+                        cur_op, bytecode_start, tc->cur_frame);
+                    MVMDispInlineCacheEntry *ice = *ice_ptr;
+                    MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ);
+                    MVMuint16 *args = (MVMuint16 *)(cur_op + 2);
+                    MVMuint32 bytecode_offset = (cur_op - bytecode_start) - 2;
+                    tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                    tc->cur_frame->return_type  = MVM_RETURN_INT;
+                    cur_op += 6;
+                    tc->cur_frame->return_address = cur_op;
+                    ice->run_dispatch(tc, ice_ptr, ice, hll->istype_dispatcher,
+                        callsite, args, tc->cur_frame->work,
+                        tc->cur_frame->static_info, bytecode_offset);
+                }
+                else {
+                    GET_REG(cur_op, 0).i64 = 0;
+                    cur_op += 6;
+                }
                 goto NEXT;
             }
             OP(objprimspec): {
@@ -5737,6 +5759,37 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         sf, slot);
                 cur_op += 4;
                 MVM_args_bind_succeeded(tc, ice_ptr);
+                goto NEXT;
+            }
+            OP(sp_istype): {
+                /* First try to get a result from the type check cache. */
+                MVMObject *obj  = GET_REG(cur_op, 2).o;
+                MVMObject *type = GET_REG(cur_op, 4).o;
+                MVMHLLConfig *hll;
+                if (MVM_6model_try_cache_type_check(tc, obj, type, &(GET_REG(cur_op, 0).i64))) {
+                    /* Answered by the cache. */
+                    cur_op += 12;
+                }
+                else if ((hll = MVM_hll_current(tc)) && hll->istype_dispatcher) {
+                    /* Fall back to dispatcher to make calls to figure it out. */
+                    MVMStaticFrame *sf = (MVMStaticFrame *)tc->cur_frame
+                            ->effective_spesh_slots[GET_UI16(cur_op, 6)];
+                    MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get_spesh(sf,
+                            GET_UI32(cur_op, 8));
+                    MVMDispInlineCacheEntry *ice = *ice_ptr;
+                    MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ);
+                    MVMuint16 *args = (MVMuint16 *)(cur_op + 2);
+                    tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                    tc->cur_frame->return_type  = MVM_RETURN_INT;
+                    cur_op += 12;
+                    tc->cur_frame->return_address = cur_op;
+                    ice->run_dispatch(tc, ice_ptr, ice, hll->istype_dispatcher,
+                        callsite, args, tc->cur_frame->work, sf, -1);
+                }
+                else {
+                    GET_REG(cur_op, 0).i64 = 0;
+                    cur_op += 12;
+                }
                 goto NEXT;
             }
             OP(sp_dispatch_v): {

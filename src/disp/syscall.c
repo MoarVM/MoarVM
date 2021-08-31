@@ -970,6 +970,42 @@ static MVMDispSysCall bind_will_resume_on_failure = {
     .expected_concrete = {0},
 };
 
+/* type-check-mode-flags */
+static void type_check_mode_flags_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *type = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMint64 mode = STABLE(type)->mode_flags & MVM_TYPE_CHECK_CACHE_FLAG_MASK;
+    MVM_args_set_result_int(tc, mode, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall type_check_mode_flags = {
+    .c_name = "type-check-mode-flags",
+    .implementation = type_check_mode_flags_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 0 },
+};
+
+/* has-type-check-cache */
+static void has_type_check_cache_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *obj = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMint64 has_cache = STABLE(obj)->type_check_cache != NULL;
+    MVM_args_set_result_int(tc, has_cache, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall has_type_check_cache = {
+    .c_name = "has-type-check-cache",
+    .implementation = has_type_check_cache_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 0 },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -1037,6 +1073,8 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &try_capture_lex);
     add_to_hash(tc, &try_capture_lex_callers);
     add_to_hash(tc, &bind_will_resume_on_failure);
+    add_to_hash(tc, &type_check_mode_flags);
+    add_to_hash(tc, &has_type_check_cache);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 

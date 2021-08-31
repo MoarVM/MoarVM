@@ -155,7 +155,6 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_unbox_u: return MVM_repr_get_uint;
     case MVM_OP_unbox_s: return MVM_repr_get_str;
     case MVM_OP_unbox_n: return MVM_repr_get_num;
-    case MVM_OP_istype: return MVM_6model_istype;
     case MVM_OP_isint: case MVM_OP_isnum: case MVM_OP_isstr: /* continued */
     case MVM_OP_islist: case MVM_OP_ishash: return MVM_repr_compare_repr_id;
     case MVM_OP_wval: case MVM_OP_wval_wide: return MVM_sc_get_sc_object;
@@ -1924,17 +1923,6 @@ start:
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { obj } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
-        break;
-    }
-    case MVM_OP_istype: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 obj = ins->operands[1].reg.orig;
-        MVMint16 type = ins->operands[2].reg.orig;
-        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_REG_VAL, { obj } },
-                                 { MVM_JIT_REG_VAL, { type } },
-                                 { MVM_JIT_REG_ADDR, { dst } }};
-        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_gethllsym: {
@@ -3752,7 +3740,7 @@ start:
         MVMuint16 sf_slot     = ins->operands[2 + start].lit_ui16;
         MVMuint32 ice_slot    = ins->operands[3 + start].lit_ui32;
 
-        /* get label /after/ current (invoke) ins, where we'll need to reenter the JIT */
+        /* get label /after/ current (dispatch) ins, where we'll need to reenter the JIT */
         MVMint32 reentry_label = MVM_jit_label_after_ins(tc, jg, iter->bb, ins);
         MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
         node->type                       = MVM_JIT_NODE_DISPATCH;
@@ -3771,6 +3759,24 @@ start:
         node->u.dispatch.return_register = dst;
         node->u.dispatch.map             = &ins->operands[4 + start];
         node->u.dispatch.reentry_label   = reentry_label;
+        jg_append_node(jg, node);
+        /* append reentry label */
+        jg_append_label(tc, jg, reentry_label);
+        break;
+    }
+    case MVM_OP_sp_istype: {
+        /* get label /after/ current istype ins, where we'll need to reenter the JIT
+         * in the case there's a call; we'll also use it to skip over the call if
+         * we resolve it via the cache */
+        MVMint32 reentry_label = MVM_jit_label_after_ins(tc, jg, iter->bb, ins);
+        MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
+        node->type                       = MVM_JIT_NODE_ISTYPE;
+        node->u.istype.return_register   = ins->operands[0].reg.orig;
+        node->u.istype.obj_register      = ins->operands[1].reg.orig;
+        node->u.istype.type_register     = ins->operands[2].reg.orig;
+        node->u.istype.sf_slot           = ins->operands[3].lit_ui16;
+        node->u.istype.ice_slot          = ins->operands[4].lit_ui32;
+        node->u.istype.reentry_label     = reentry_label;
         jg_append_node(jg, node);
         /* append reentry label */
         jg_append_label(tc, jg, reentry_label);
