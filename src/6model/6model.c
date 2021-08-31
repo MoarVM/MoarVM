@@ -34,172 +34,33 @@ MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *o
     return NULL;
 }
 
-/* Checks if an object has a given type, delegating to the type_check or
- * accepts_type methods as needed. */
-static void do_accepts_type_check(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res) {
-    MVMObject *HOW = NULL, *meth = NULL;
-
-    MVMROOT3(tc, obj, type, HOW, {
-        HOW = MVM_6model_get_how(tc, STABLE(type));
-        meth = MVM_6model_find_method_cache_only(tc, HOW,
-            tc->instance->str_consts.accepts_type);
-    });
-
-    if (!MVM_is_null(tc, meth)) {
-        /* Set up the call, using the result register as the target. */
-        MVMObject *code = MVM_frame_find_invokee(tc, meth, NULL);
-        MVMCallsite *typecheck_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ_OBJ);
-
-        MVM_args_setup_thunk(tc, res, MVM_RETURN_INT, typecheck_callsite);
-        tc->cur_frame->args[0].o = HOW;
-        tc->cur_frame->args[1].o = type;
-        tc->cur_frame->args[2].o = obj;
-        STABLE(code)->invoke(tc, code, typecheck_callsite, tc->cur_frame->args);
-        return;
-    }
-    else {
-        MVM_exception_throw_adhoc(tc,
-            "Expected 'accepts_type' method, but none found in meta-object");
-    }
-}
-typedef struct {
-    MVMObject   *obj;
-    MVMObject   *type;
-    MVMRegister *res;
-} AcceptsTypeSRData;
-
-static void accepts_type_sr(MVMThreadContext *tc, void *sr_data) {
-    AcceptsTypeSRData *atd = (AcceptsTypeSRData *)sr_data;
-    MVMObject   *obj  = atd->obj;
-    MVMObject   *type = atd->type;
-    MVMRegister *res  = atd->res;
-    MVM_free(atd);
-    if (!res->i64)
-        do_accepts_type_check(tc, obj, type, res);
-}
-
-static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    AcceptsTypeSRData *atd = (AcceptsTypeSRData *)frame->extra->special_return_data;
-    MVM_gc_worklist_add(tc, worklist, &atd->obj);
-    MVM_gc_worklist_add(tc, worklist, &atd->type);
-}
-
-static void free_sr_data(MVMThreadContext *tc, void *sr_data) {
-    MVM_free(sr_data);
-}
-
-void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res) {
-    MVMObject **cache;
-    MVMSTable  *st;
-    MVMint64    mode;
-
-    /* Null never type-checks. */
-    if (MVM_is_null(tc, obj)) {
-        res->i64 = 0;
-        return;
-    }
-
-    st    = STABLE(obj);
-    mode  = STABLE(type)->mode_flags & MVM_TYPE_CHECK_CACHE_FLAG_MASK;
-    cache = st->type_check_cache;
-    if (cache) {
-        /* We have the cache, so just look for the type object we
-         * want to be in there. */
-        MVMint64 elems = STABLE(obj)->type_check_cache_length;
-        MVMint64 i;
-        for (i = 0; i < elems; i++) {
-            if (cache[i] == type) {
-                res->i64 = 1;
-                return;
-            }
-        }
-
-        /* If the type check cache is definitive, we're done. */
-        if ((mode & MVM_TYPE_CHECK_CACHE_THEN_METHOD) == 0 &&
-            (mode & MVM_TYPE_CHECK_NEEDS_ACCEPTS) == 0) {
-            res->i64 = 0;
-            return;
-        }
-    }
-
-    /* If we get here, need to call .^type_check on the value we're
-     * checking, unless it's an accepts check. */
-    if (!cache || (mode & MVM_TYPE_CHECK_CACHE_THEN_METHOD)) {
-        MVMObject *HOW = NULL, *meth = NULL;
-
-        MVMROOT3(tc, obj, type, HOW, {
-            HOW = MVM_6model_get_how(tc, st);
-            meth = MVM_6model_find_method_cache_only(tc, HOW,
-                tc->instance->str_consts.type_check);
-        });
-        if (!MVM_is_null(tc, meth)) {
-            /* Set up the call, using the result register as the target. */
-            MVMObject *code = MVM_frame_find_invokee(tc, meth, NULL);
-            MVMCallsite *typecheck_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ_OBJ);
-
-            MVM_args_setup_thunk(tc, res, MVM_RETURN_INT, typecheck_callsite);
-            tc->cur_frame->args[0].o = HOW;
-            tc->cur_frame->args[1].o = obj;
-            tc->cur_frame->args[2].o = type;
-            if (mode & MVM_TYPE_CHECK_NEEDS_ACCEPTS) {
-                AcceptsTypeSRData *atd = MVM_malloc(sizeof(AcceptsTypeSRData));
-                atd->obj = obj;
-                atd->type = type;
-                atd->res = res;
-                MVM_frame_special_return(tc, tc->cur_frame, accepts_type_sr, free_sr_data,
-                    atd, mark_sr_data);
-            }
-            STABLE(code)->invoke(tc, code, typecheck_callsite, tc->cur_frame->args);
-            return;
-        }
-    }
-
-    /* If the flag to call .accepts_type on the target value is set, do so. */
-    if (mode & MVM_TYPE_CHECK_NEEDS_ACCEPTS) {
-        do_accepts_type_check(tc, obj, type, res);
-    }
-    else {
-        /* If all else fails... */
-        res->i64 = 0;
-    }
-}
-
-/* Checks if an object has a given type, using the cache only. */
-MVMint64 MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMObject *type) {
-    if (!MVM_is_null(tc, obj)) {
-        MVMuint16 i, elems = STABLE(obj)->type_check_cache_length;
-        MVMObject  **cache = STABLE(obj)->type_check_cache;
-        if (cache)
-            for (i = 0; i < elems; i++) {
-                if (cache[i] == type)
-                    return 1;
-            }
-    }
-
-    return 0;
-}
-
 /* Tries to do a type check using the cache. If the type is in the cache, then
  * result will be set to a true value and a true value will be returned. If it
  * is not in the cache and the cache is authoritative, then we know the answer
  * too; result is set to zero and a true value is returned. Otherwise, we can
  * not tell and a false value is returned and result is undefined. */
-MVMint64 MVM_6model_try_cache_type_check(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMint32 *result) {
-    if (!MVM_is_null(tc, obj)) {
-        MVMuint16 i, elems = STABLE(obj)->type_check_cache_length;
-        MVMObject  **cache = STABLE(obj)->type_check_cache;
-        if (cache) {
-            for (i = 0; i < elems; i++) {
-                if (cache[i] == type) {
-                    *result = 1;
-                    return 1;
-                }
-            }
-            if ((STABLE(obj)->mode_flags & MVM_TYPE_CHECK_CACHE_THEN_METHOD) == 0 &&
-                (STABLE(type)->mode_flags & MVM_TYPE_CHECK_NEEDS_ACCEPTS) == 0) {
-                *result = 0;
+MVMint64 MVM_6model_try_cache_type_check(MVMThreadContext *tc, MVMObject *obj,
+        MVMObject *type, MVMint64 *result) {
+    /* A null is always false. */
+    if (MVM_is_null(tc, obj)) {
+        *result = 0;
+        return 1;
+    }
+
+    /* Consider type cache. */
+    MVMuint16 i, elems = STABLE(obj)->type_check_cache_length;
+    MVMObject  **cache = STABLE(obj)->type_check_cache;
+    if (cache) {
+        for (i = 0; i < elems; i++) {
+            if (cache[i] == type) {
+                *result = 1;
                 return 1;
             }
+        }
+        if ((STABLE(obj)->mode_flags & MVM_TYPE_CHECK_CACHE_THEN_METHOD) == 0 &&
+            (STABLE(type)->mode_flags & MVM_TYPE_CHECK_NEEDS_ACCEPTS) == 0) {
+            *result = 0;
+            return 1;
         }
     }
     return 0;

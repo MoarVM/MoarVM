@@ -790,14 +790,6 @@
     (^one)
     (^zero)))
 
-(template: istype!
-  (callv (^func &MVM_6model_istype)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $2 ptr)
-      (carg \$0 ptr))))
-
 (template: objprimspec
   (if
     (nz $1)

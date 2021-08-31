@@ -219,6 +219,15 @@ struct MVMJitDispatch {
     MVMint32      reentry_label;
 };
 
+struct MVMJitIsType {
+    MVMint16      return_register;
+    MVMint16      obj_register;
+    MVMint16      type_register;
+    MVMuint16     sf_slot;
+    MVMuint32     ice_slot;
+    MVMint32      reentry_label;
+};
+
 struct MVMJitJumpList {
     MVMint64 num_labels;
     MVMint16 reg;
@@ -254,6 +263,7 @@ typedef enum {
     MVM_JIT_NODE_RUNCCODE,
     MVM_JIT_NODE_RUNBYTECODE,
     MVM_JIT_NODE_DISPATCH,
+    MVM_JIT_NODE_ISTYPE,
 } MVMJitNodeType;
 
 struct MVMJitNode {
@@ -274,6 +284,7 @@ struct MVMJitNode {
         MVMJitRunCCode   runccode;
         MVMJitRunByteCode runbytecode;
         MVMJitDispatch  dispatch;
+        MVMJitIsType    istype;
     } u;
 };
 

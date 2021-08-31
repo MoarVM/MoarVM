@@ -563,6 +563,13 @@ void MVM_disp_inline_cache_setup(MVMThreadContext *tc, MVMStaticFrame *sf) {
                      * this is where we'll hang the dispatch program. */
                     entries[slot] = &unlinked_dispatch;
                     break;
+                case MVM_OP_istype:
+                    /* The istype op most often looks at the cache and gives a
+                     * result based on that, but may fall back to needing to
+                     * do method calls. In that case, we handle it like a
+                     * dispatch op. */
+                    entries[slot] = &unlinked_dispatch;
+                    break;
                 default:
                     MVM_oops(tc, "Unimplemented case of inline cache unlinked state");
             }

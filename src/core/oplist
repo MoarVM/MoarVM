@@ -315,7 +315,7 @@ create              w(obj) r(obj) :pure :specializable
 clone               w(obj) r(obj) :pure :specializable
 isconcrete          w(int64) r(obj) :pure :specializable :confprog
 rebless             w(obj) r(obj) r(obj) :deoptonepoint
-istype              w(int64) r(obj) r(obj) :pure :invokish :maycausedeopt :specializable :confprog
+istype              w(int64) r(obj) r(obj) :pure :cache :deoptallpoint :predeoptonepoint :maycausedeopt :specializable :confprog
 objprimspec         w(int64) r(obj) :pure :specializable :confprog
 gethow              w(obj) r(obj) :pure
 getwhat             w(obj) r(obj) :pure
@@ -949,6 +949,7 @@ sp_getlexstatic_o .s w(obj) r(str) sslot uint32 :pure
 # These ops exist in spesh form because they refer to an inline cache entry.
 sp_assertparamcheck .s r(int64) sslot uint32 :noinline :invokish :maycausedeopt
 sp_bindcomplete     .s sslot uint32 :noinline :invokish :maycausedeopt
+sp_istype           .s w(int64) r(obj) r(obj) sslot uint32 :pure :maycausedeopt
 
 # Specialized form of dispatch_* for when we don't manage to rewrite it into
 # anything more optimal. These precalculate the inline cache slot.

@@ -3204,6 +3204,76 @@ void MVM_jit_emit_dispatch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
     | call FUNCTION;
 }
 
+void MVM_jit_emit_istype(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+        MVMJitIsType *istype) {
+    /* Emit the call to MVM_6model_try_cache_type_check, in order to try and
+     * resolve it via the cache. */
+    | mov ARG1, TC
+    | mov ARG2, aword WORK[istype->obj_register];
+    | mov ARG3, aword WORK[istype->type_register];
+    | lea ARG4, WORK[istype->return_register];
+    | callp &MVM_6model_try_cache_type_check;
+
+    /* If it worked out with the cache, we're done. */
+    | test RV, RV;
+    | jnz =>(istype->reentry_label);
+
+    /* Get HLL and ensure it has an istype dispatcher. If not, nothing
+     * more to do. */
+    MVMStaticFrame *sf = (MVMStaticFrame *)jg->sg->spesh_slots[istype->sf_slot];
+    MVMHLLConfig *hll = sf->body.cu->body.hll_config;
+    if (hll->istype_dispatcher) {
+        /* Otherwise, it's a dispatch. Emit argument map in the data section. */
+        |.data
+        |5:
+        |.word istype->obj_register;
+        |.word istype->type_register;
+        |.code
+
+        /* Set up return address and value location. */
+        | get_cur_op TMP2;
+        | mov TMP5, TC->cur_frame;
+        | mov aword FRAME:TMP5->return_address, TMP2;
+        | mov byte FRAME:TMP5->return_type, MVM_RETURN_INT;
+        | lea TMP2, WORK[istype->return_register];
+        | mov aword FRAME:TMP5->return_value, TMP2;
+
+        /* Perform the dispatch. */    
+        | mov ARG1, TC;
+        | get_spesh_slot TMP6, istype->sf_slot;
+        | lea ARG2, STATICFRAME:TMP6->body.inline_cache;
+        | mov ARG2, MVMDISPINLINECACHE:ARG2->entries;
+        | lea ARG2, MVMDISPINLINECACHEENTRY:ARG2[istype->ice_slot];
+        | mov ARG3, [ARG2]
+        MVMString **id_addr = &(hll->istype_dispatcher);
+        | mov64 ARG4, (uintptr_t)id_addr;
+        | mov ARG4, [ARG4]
+        
+        MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ);
+        |.if WIN32
+        | mov64 TMP5, (uintptr_t)callsite;
+        | mov ARG5, TMP5;
+        | lea TMP5, [<5];
+        | mov ARG6, TMP5;
+        | mov qword [rsp+6*8], WORK;
+        | mov qword [rsp+7*8], TMP6;
+        | mov TMP6, -1;
+        | mov qword [rsp+8*8], TMP6;
+        |.else
+        | mov64 ARG5, (uintptr_t)callsite;
+        | lea ARG6, [<5];
+        | mov qword [rsp+0*8], WORK;
+        | mov qword [rsp+1*8], TMP6;
+        | mov TMP6, -1;
+        | mov qword [rsp+2*8], TMP6;
+        |.endif
+
+        | mov FUNCTION, [ARG2];
+        | mov FUNCTION, MVMDISPINLINECACHEENTRY:FUNCTION->run_dispatch;
+        | call FUNCTION;
+    }
+}
+
 void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitInvoke *invoke) {
     MVMint16 i;
     MVMuint16 callsite_idx = invoke->callsite_idx;
