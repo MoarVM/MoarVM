@@ -67,10 +67,8 @@ gen2_allocated_types = [
 allocators = [
 'MVMDLLSym_initialize',
 'MVM_6model_bootstrap',
-'MVM_6model_find_method_cache_only',
 'MVM_6model_get_how',
 'MVM_6model_get_how_obj',
-'MVM_6model_istype',
 'MVM_args_assert_void_return_ok',
 'MVM_args_bind_failed',
 'MVM_args_set_result_int',
@@ -234,7 +232,6 @@ allocators = [
 'MVM_spesh_log_static',
 'MVM_spesh_log_type',
 'MVM_spesh_optimize',
-'MVM_spesh_try_find_method',
 'MVM_spesh_worker_join',
 'MVM_string_print',
 'MVM_string_say',
