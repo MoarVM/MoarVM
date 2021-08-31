@@ -1422,42 +1422,6 @@ static MVMuint64 request_hll_symbol_data(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
     }
 }
 
-static MVMuint64 request_find_method(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
-    MVMInstance *vm = dtc->instance;
-    MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
-    MVMObject *target = find_handle_target(dtc, argument->handle_id);
-    MVMThreadContext *tc;
-    MVMString *method_name = NULL;
-
-    if (!to_do) {
-        if (dtc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "no thread found for context/code obj handle (or thread not eligible)\n");
-        return 1;
-    }
-
-    tc = to_do->body.tc;
-
-    if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
-        if (dtc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %zu)\n", to_do->body.tc->gc_status);
-        return 1;
-    }
-
-    if (!target) {
-        if (dtc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "could not retrieve object of handle %"PRId64, argument->handle_id);
-        return 1;
-    }
-
-    MVM_gc_allocate_gen2_default_set(tc);
-    method_name = MVM_string_utf8_decode(tc, tc->instance->VMString, argument->name, strlen(argument->name));
-    MVM_gc_allocate_gen2_default_clear(tc);
-
-    allocate_and_send_handle(dtc, ctx, argument, MVM_spesh_try_find_method(tc, target, method_name));
-
-    return 0;
-}
-
 typedef struct {
     MVMuint64 id;
     MVMRegister return_target;
@@ -3349,9 +3313,9 @@ static void debugserver_worker(MVMThreadContext *tc, MVMArgs arg_info) {
                     }
                     break;
                 case MT_FindMethod:
-                    if (request_find_method(tc, &ctx, &argument)) {
-                        communicate_error(tc, &ctx, &argument);
-                    }
+                    /* No longer supported with the new generalized dispatch
+                     * mechanism; should invoke some code that does it. */
+                    communicate_error(tc, &ctx, &argument);
                     break;
                 case MT_DecontainerizeHandle:
                     if (request_object_decontainerize(tc, &ctx, &argument)) {

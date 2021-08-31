@@ -14,26 +14,6 @@ MVMObject * MVM_6model_get_how_obj(MVMThreadContext *tc, MVMObject *obj) {
     return MVM_6model_get_how(tc, STABLE(obj));
 }
 
-/* Obtains the method cache, lazily deserializing if it needed. */
-static MVMObject * get_method_cache(MVMThreadContext *tc, MVMSTable *st) {
-    if (!st->method_cache)
-        MVM_serialization_finish_deserialize_method_cache(tc, st);
-    return st->method_cache;
-}
-
-/* Locates a method by name, checking in the method cache only. */
-MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name) {
-    MVMObject *cache;
-
-    MVMROOT(tc, name, {
-        cache = get_method_cache(tc, STABLE(obj));
-    });
-
-    if (cache && IS_CONCRETE(cache))
-        return MVM_repr_at_key_o(tc, cache, name);
-    return NULL;
-}
-
 /* Tries to do a type check using the cache. If the type is in the cache, then
  * result will be set to a true value and a true value will be returned. If it
  * is not in the cache and the cache is authoritative, then we know the answer
