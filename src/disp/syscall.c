@@ -948,6 +948,28 @@ static MVMDispSysCall try_capture_lex_callers = {
     .expected_concrete = { 1 },
 };
 
+
+/* get-code-outer-ctx */
+static void get_code_outer_ctx_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *code = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMFrame *outer = ((MVMCode *)code)->body.outer;
+    if (!outer)
+        MVM_exception_throw_adhoc(tc, "Specified code ref has no outer");
+    MVMObject *wrapper = MVM_frame_context_wrapper(tc, outer);
+    MVM_args_set_result_obj(tc, wrapper, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall get_code_outer_ctx = {
+    .c_name = "get-code-outer-ctx",
+    .implementation = get_code_outer_ctx_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMCode },
+    .expected_concrete = { 1 },
+};
+
 /* bind-will-resume-on-failure */
 static void bind_will_resume_on_failure_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMCallStackIterator iter;
@@ -1072,6 +1094,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &elems);
     add_to_hash(tc, &try_capture_lex);
     add_to_hash(tc, &try_capture_lex_callers);
+    add_to_hash(tc, &get_code_outer_ctx);
     add_to_hash(tc, &bind_will_resume_on_failure);
     add_to_hash(tc, &type_check_mode_flags);
     add_to_hash(tc, &has_type_check_cache);
