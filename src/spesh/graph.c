@@ -733,11 +733,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                 num_active_handlers
                 && (
                     cur_bb->last_ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)
-                    || cur_bb->last_ins->info->opcode == MVM_OP_dispatch_v
-                    || cur_bb->last_ins->info->opcode == MVM_OP_dispatch_i
-                    || cur_bb->last_ins->info->opcode == MVM_OP_dispatch_n
-                    || cur_bb->last_ins->info->opcode == MVM_OP_dispatch_s
-                    || cur_bb->last_ins->info->opcode == MVM_OP_dispatch_o
+                    || MVM_op_get_mark(cur_bb->last_ins->info->opcode)[1] == 'd'
+                    || (MVM_op_get_mark(cur_bb->last_ins->info->opcode)[1] == 's' && spesh_dispatchy(cur_bb->last_ins->info->opcode))
                 )
             ) {
                 cur_bb->handler_succ = MVM_spesh_alloc(tc, g, num_active_handlers * sizeof(MVMSpeshBB *));
