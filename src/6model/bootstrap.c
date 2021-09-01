@@ -148,7 +148,7 @@ static void find_method(MVMThreadContext *tc, MVMArgs arg_info) {
 
 /* Composes the meta-object. */
 static void compose(MVMThreadContext *tc, MVMArgs arg_info) {
-    MVMObject *self, *type_obj, *method_table, *attributes, *BOOTArray, *BOOTHash,
+    MVMObject *self, *type_obj, *attributes, *BOOTArray, *BOOTHash,
               *repr_info_hash, *repr_info, *type_info, *attr_info_list, *parent_info;
     MVMuint64   num_attrs, i;
     MVMInstance *instance = tc->instance;
@@ -164,9 +164,6 @@ static void compose(MVMThreadContext *tc, MVMArgs arg_info) {
         MVM_exception_throw_adhoc(tc, "KnowHOW methods must be called on object instance with REPR KnowHOWREPR");
 
     /* Fill out STable. */
-    method_table = ((MVMKnowHOWREPR *)self)->body.methods;
-    MVM_ASSIGN_REF(tc, &(STABLE(type_obj)->header), STABLE(type_obj)->method_cache, method_table);
-    STABLE(type_obj)->mode_flags              = MVM_METHOD_CACHE_AUTHORITATIVE;
     STABLE(type_obj)->type_check_cache_length = 1;
     STABLE(type_obj)->type_check_cache        = MVM_malloc(sizeof(MVMObject *));
     MVM_ASSIGN_REF(tc, &(STABLE(type_obj)->header), STABLE(type_obj)->type_check_cache[0], type_obj);
@@ -322,13 +319,6 @@ static void bootstrap_KnowHOW(MVMThreadContext *tc) {
     /* Set this built up HOW as the KnowHOW's HOW. */
     STABLE(knowhow)->HOW = (MVMObject *)knowhow_how;
 
-    /* Give it an authoritative method cache; this in turn will make the
-     * method dispatch bottom out. */
-    STABLE(knowhow)->method_cache = knowhow_how->body.methods;
-    STABLE(knowhow)->mode_flags   = MVM_METHOD_CACHE_AUTHORITATIVE;
-    STABLE(knowhow_how)->method_cache = knowhow_how->body.methods;
-    STABLE(knowhow_how)->mode_flags   = MVM_METHOD_CACHE_AUTHORITATIVE;
-
     /* Stash the created KnowHOW. */
     tc->instance->KnowHOW = (MVMObject *)knowhow;
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&tc->instance->KnowHOW, "KnowHOW");
@@ -460,10 +450,6 @@ static void create_KnowHOWAttribute(MVMThreadContext *tc) {
         /* Create a new type object with the correct REPR. */
         repr = MVM_repr_get_by_id(tc, MVM_REPR_ID_KnowHOWAttributeREPR);
         type_obj = repr->type_object_for(tc, meta_obj);
-
-        /* Set up method dispatch cache. */
-        STABLE(type_obj)->method_cache = ((MVMKnowHOWREPR *)meta_obj)->body.methods;
-        STABLE(type_obj)->mode_flags   = MVM_METHOD_CACHE_AUTHORITATIVE;
 
         /* Stash the created type object. */
         tc->instance->KnowHOWAttribute = (MVMObject *)type_obj;
