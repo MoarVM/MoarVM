@@ -73,9 +73,10 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             /* Store the callsite, in case we need it for further processing
              * of arguments. Do enough to make sure we've got clean enough
              * state in the param processing context */
-            uf->params.version = MVM_ARGS_LEGACY;
-            uf->params.legacy.callsite = cand->body.inlines[i].cs;
-            uf->params.legacy.arg_flags = NULL;
+            uf->params.version = MVM_ARGS_DISPATCH;
+            uf->params.arg_info.callsite = cand->body.inlines[i].cs;
+            uf->params.arg_info.map = NULL;
+            uf->params.arg_info.source = NULL;
             uf->params.named_used_size = MVM_callsite_num_nameds(tc, cand->body.inlines[i].cs);
 
             /* Store the named argument used bit field, since if we deopt in
