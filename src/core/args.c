@@ -245,27 +245,6 @@ void MVM_args_marked_named_used(MVMThreadContext *tc, MVMuint32 idx) {
     mark_named_used(&(tc->cur_frame->params), idx);
 }
 
-static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 num) {
-    ctx->named_used_size = num;
-    if (num > 64)
-        ctx->named_used.byte_array = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, num);
-    else
-        ctx->named_used.bit_field = 0;
-}
-
-/* Initialize arguments processing context. */
-void MVM_args_proc_setup(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMArgs arg_info) {
-    ctx->arg_info = arg_info;
-    init_named_used(tc, ctx, arg_info.callsite->flag_count - arg_info.callsite->num_pos);
-}
-
-/* Clean up an arguments processing context. */
-void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    if (ctx->named_used_size > 64)
-        MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size,
-            ctx->named_used.byte_array);
-}
-
 /* Make a copy of the callsite. */
 MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     return MVM_callsite_copy(tc, ctx->arg_info.callsite);

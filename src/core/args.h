@@ -53,11 +53,27 @@ struct MVMArgInfo {
     MVMuint16          arg_idx; /* Set only for nameds, obvious for pos */
 };
 
-/* Legacy argument processing context handling. */
+/* Initialize arguments processing context. */
+MVM_STATIC_INLINE void MVM_args_proc_setup(MVMThreadContext *tc, MVMArgProcContext *ctx,
+        MVMArgs arg_info) {
+    ctx->arg_info = arg_info;
+    MVMuint16 num_nameds = arg_info.callsite->flag_count - arg_info.callsite->num_pos;
+    ctx->named_used_size = num_nameds;
+    if (MVM_UNLIKELY(num_nameds > 64))
+        ctx->named_used.byte_array = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
+                num_nameds);
+    else
+        ctx->named_used.bit_field = 0;
+}
+
+/* Clean up an arguments processing context. */
+MVM_STATIC_INLINE void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
+    if (ctx->named_used_size > 64)
+        MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size,
+            ctx->named_used.byte_array);
+}
 
 /* Argument processing context handling. */
-void MVM_args_proc_setup(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMArgs arg_info);
-void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx);
 void MVM_args_setup_identity_map(MVMThreadContext *tc);
 void MVM_args_grow_identity_map(MVMThreadContext *tc, MVMCallsite *callsite);
 MVM_STATIC_INLINE MVMuint16 * MVM_args_identity_map(MVMThreadContext *tc,
