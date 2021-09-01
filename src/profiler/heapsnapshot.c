@@ -514,9 +514,6 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                 process_collectable(tc, ss, &col, (MVMCollectable *)st, &sc_cache);
                 set_type_index(tc, ss, &col, st);
 
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)st->method_cache, "Method cache");
-
                 for (i = 0; i < st->type_check_cache_length; i++)
                     MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
                         (MVMCollectable *)st->type_check_cache[i], "Type cache entry", &cache_1);
@@ -539,9 +536,6 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                     (MVMCollectable *)st->HOW, "HOW");
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)st->HOW_sc, "HOW serialization context");
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)st->method_cache_sc,
-                    "Method cache serialization context");
 
                 if (st->mode_flags & MVM_PARAMETRIC_TYPE) {
                     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,

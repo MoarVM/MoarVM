@@ -46,11 +46,6 @@ MVMint64 MVM_6model_try_cache_type_check(MVMThreadContext *tc, MVMObject *obj,
     return 0;
 }
 
-/* Default invoke function on STables; for non-invokable objects */
-void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
-    MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s; %s)", REPR(invokee)->name, MVM_6model_get_debug_name(tc, invokee));
-}
-
 /* Clean up STable memory. */
 void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st) {
     /* First have it free its repr_data if it wants. */

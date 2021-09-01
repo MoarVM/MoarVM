@@ -212,7 +212,6 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_gethllsym:
             case MVM_OP_getcurhllsym:
             case MVM_OP_settypecache:
-            case MVM_OP_setmethcache:
             case MVM_OP_newtype:
             case MVM_OP_nfafromstatelist:
             case MVM_OP_nfarunproto:

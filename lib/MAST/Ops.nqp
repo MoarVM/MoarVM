@@ -4074,8 +4074,6 @@ BEGIN {
     'knowhowattr', 329,
     'newtype', 330,
     'composetype', 331,
-    'setmethcache', 332,
-    'setmethcacheauth', 333,
     'settypecache', 334,
     'settypecheckmode', 335,
     'setboolspec', 336,
@@ -4835,8 +4833,6 @@ BEGIN {
     'knowhowattr',
     'newtype',
     'composetype',
-    'setmethcache',
-    'setmethcacheauth',
     'settypecache',
     'settypecheckmode',
     'setboolspec',
@@ -7623,20 +7619,6 @@ BEGIN {
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
-    },
-    'setmethcache', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
-        my uint $elems := nqp::elems($bytecode);
-        nqp::writeuint($bytecode, $elems, 332, 5);
-        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
-        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
-    },
-    'setmethcacheauth', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
-        my uint $elems := nqp::elems($bytecode);
-        nqp::writeuint($bytecode, $elems, 333, 5);
-        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
-        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
     'settypecache', sub ($op0, $op1) {
         my $bytecode := $*MAST_FRAME.bytecode;

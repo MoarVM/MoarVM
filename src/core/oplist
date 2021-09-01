@@ -389,8 +389,8 @@ knowhow             w(obj) :pure
 knowhowattr         w(obj) :pure
 newtype             w(obj) r(obj) r(str)
 composetype         w(obj) r(obj) r(obj)
-setmethcache        r(obj) r(obj)
-setmethcacheauth    r(obj) r(int64)
+DEPRECATED_83       r(obj) r(obj)
+DEPRECATED_84       r(obj) r(int64)
 settypecache        r(obj) r(obj)
 settypecheckmode    r(obj) r(int64)
 setboolspec         r(obj) r(int64) r(obj)

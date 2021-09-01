@@ -368,7 +368,6 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
     else if (new_addr->flags1 & MVM_CF_STABLE) {
         /* Add all references in the STable to the work list. */
         MVMSTable *new_addr_st = (MVMSTable *)new_addr;
-        MVM_gc_worklist_add(tc, worklist, &new_addr_st->method_cache);
         for (i = 0; i < new_addr_st->type_check_cache_length; i++)
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->type_check_cache[i]);
         if (new_addr_st->container_spec)
@@ -380,7 +379,6 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHAT);
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->HOW);
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->HOW_sc);
-        MVM_gc_worklist_add(tc, worklist, &new_addr_st->method_cache_sc);
         if (new_addr_st->mode_flags & MVM_PARAMETRIC_TYPE) {
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->paramet.ric.parameterizer);
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->paramet.ric.lookup);

@@ -22,9 +22,6 @@
 #define MVM_TYPE_CHECK_NEEDS_ACCEPTS       2
 #define MVM_TYPE_CHECK_CACHE_FLAG_MASK     3
 
-/* This STable mode flag is set if we consider the method cache authoritative. */
-#define MVM_METHOD_CACHE_AUTHORITATIVE     4
-
 /* This STable mode flag is set if the type needs finalization. */
 #define MVM_FINALIZE_TYPE                  8
 
@@ -291,9 +288,6 @@ struct MVMSTable {
      * all the things it isa and all the things it does). */
     MVMObject **type_check_cache;
 
-    /* By-name method dispatch cache. */
-    MVMObject *method_cache;
-
     /* An ID solely for use in caches that last a VM instance. Thus it
      * should never, ever be serialized and you should NEVER make a
      * type directory based upon this ID. Otherwise you'll create memory
@@ -352,10 +346,6 @@ struct MVMSTable {
     /* We lazily deserialize HOW; this is the SC and index if needed. */
     MVMSerializationContext *HOW_sc;
     MVMuint32                HOW_idx;
-
-    /* Also info we need to lazily deserialize the method cache. */
-    MVMuint32                method_cache_offset;
-    MVMSerializationContext *method_cache_sc;
 
     /* A string associated with this STable for debugging purposes.
      * Usually the name of the class this belongs to. */
@@ -692,7 +682,6 @@ struct MVMREPROps {
 MVM_PUBLIC MVMObject * MVM_6model_get_how(MVMThreadContext *tc, MVMSTable *st);
 MVM_PUBLIC MVMObject * MVM_6model_get_how_obj(MVMThreadContext *tc, MVMObject *obj);
 MVMint64 MVM_6model_try_cache_type_check(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMint64 *result);
-void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args);
 void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st);
 MVMuint64 MVM_6model_next_type_cache_id(MVMThreadContext *tc);
 void MVM_6model_never_repossess(MVMThreadContext *tc, MVMObject *obj);

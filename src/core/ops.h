@@ -333,8 +333,8 @@
 #define MVM_OP_knowhowattr 329
 #define MVM_OP_newtype 330
 #define MVM_OP_composetype 331
-#define MVM_OP_setmethcache 332
-#define MVM_OP_setmethcacheauth 333
+#define MVM_OP_DEPRECATED_83 332
+#define MVM_OP_DEPRECATED_84 333
 #define MVM_OP_settypecache 334
 #define MVM_OP_settypecheckmode 335
 #define MVM_OP_setboolspec 336

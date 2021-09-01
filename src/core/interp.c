@@ -2383,8 +2383,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(setmethcache):
-            OP(setmethcacheauth):
+            OP(DEPRECATED_83):
+            OP(DEPRECATED_84):
                 MVM_exception_throw_adhoc(tc, "The method cache is superseded by the general dispatch mechanism");
             OP(settypecache): {
                 MVMObject *obj    = GET_REG(cur_op, 0).o;
