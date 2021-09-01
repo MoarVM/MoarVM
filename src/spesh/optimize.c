@@ -566,21 +566,6 @@ static void optimize_objprimspec(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     }
 }
 
-/* Optimizes a hllize instruction away if the type is known and already in the
- * right HLL, by turning it into a set. We can also do that if we know the type
- * is not VMNull and it has no HLL role, so the mapping would be a no-op. */
-static void optimize_hllize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
-    MVMSpeshFacts *obj_facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
-    if (obj_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && obj_facts->type) {
-        MVMObject *type = obj_facts->type;
-        if (STABLE(type)->hll_owner == g->sf->body.cu->body.hll_config ||
-                (type != tc->instance->VMNull && !STABLE(type)->hll_role)) {
-            MVM_spesh_use_facts(tc, g, obj_facts);
-            MVM_spesh_turn_into_set(tc, g, ins);
-        }
-    }
-}
-
 /* Turns a decont into a set, if we know it's not needed. Also make sure we
  * propagate any needed information. */
 static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
@@ -2181,9 +2166,6 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_getexmessage:
         case MVM_OP_getexpayload:
             optimize_exception_ops(tc, g, bb, ins);
-            break;
-        case MVM_OP_hllize:
-            optimize_hllize(tc, g, ins);
             break;
         case MVM_OP_decont:
             optimize_decont(tc, g, bb, ins);

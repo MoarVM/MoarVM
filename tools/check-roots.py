@@ -428,7 +428,6 @@ allocators = [
 'MVM_file_handle_from_fd',
 'MVM_file_open_fh',
 'MVM_frame_try_return',
-'MVM_hll_map',
 'MVM_hll_set_config',
 'MVM_hll_sym_get',
 'MVM_intcache_for',
