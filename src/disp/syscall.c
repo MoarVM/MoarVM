@@ -492,25 +492,6 @@ static MVMDispSysCall dispatcher_inline_cache_size = {
     .expected_concrete = {0}
 };
 
-/* capture-is-literal-arg */
-static void dispatcher_is_literal_arg_impl(MVMThreadContext *tc, MVMArgs arg_info) {
-    MVMArgProcContext arg_ctx;
-    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
-    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
-    MVMint64 idx = MVM_args_get_required_pos_int(tc, &arg_ctx, 1);
-    MVM_args_set_result_int(tc, MVM_capture_is_literal_arg(tc, capture, idx),
-        MVM_RETURN_CURRENT_FRAME);
-}
-static MVMDispSysCall dispatcher_is_literal_arg = {
-    .c_name = "capture-is-literal-arg",
-    .implementation = dispatcher_is_literal_arg_impl,
-    .min_args = 2,
-    .max_args = 2,
-    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT },
-    .expected_reprs = { MVM_REPR_ID_MVMCapture, 0 },
-    .expected_concrete = { 1, 1 }
-};
-
 /* boolify-bigint */
 static void boolify_bigint_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMArgProcContext arg_ctx;
@@ -644,6 +625,25 @@ static MVMDispSysCall boolify_using_elems = {
     .expected_concrete = { 1 },
 };
 
+/* capture-is-literal-arg */
+static void capture_is_literal_arg_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMint64 idx = MVM_args_get_required_pos_int(tc, &arg_ctx, 1);
+    MVM_args_set_result_int(tc, MVM_capture_is_literal_arg(tc, capture, idx),
+        MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall capture_is_literal_arg = {
+    .c_name = "capture-is-literal-arg",
+    .implementation = capture_is_literal_arg_impl,
+    .min_args = 2,
+    .max_args = 2,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT },
+    .expected_reprs = { MVM_REPR_ID_MVMCapture, 0 },
+    .expected_concrete = { 1, 1 }
+};
+
 /* capture-pos-args */
 static void capture_pos_args_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     /* Obtain the capture we are passed. */
@@ -708,6 +708,77 @@ static MVMDispSysCall capture_names_list = {
     .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
     .expected_reprs = { MVM_REPR_ID_MVMCapture },
     .expected_concrete = { 1 },
+};
+
+/* capture-num-args */
+static void capture_num_args_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVM_args_set_result_int(tc, MVM_capture_num_args(tc, capture), MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall capture_num_args = {
+    .c_name = "capture-num-args",
+    .implementation = capture_num_args_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMCapture },
+    .expected_concrete = { 1 },
+};
+
+/* capture-arg-prim-spec */
+static void capture_arg_prim_spec_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMint64 idx = MVM_args_get_required_pos_int(tc, &arg_ctx, 1);
+    MVM_args_set_result_int(tc, MVM_capture_arg_primspec(tc, capture, idx), MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall capture_arg_prim_spec = {
+    .c_name = "capture-arg-prim-spec",
+    .implementation = capture_arg_prim_spec_impl,
+    .min_args = 2,
+    .max_args = 2,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT },
+    .expected_reprs = { MVM_REPR_ID_MVMCapture, 0 },
+    .expected_concrete = { 1, 1 },
+};
+
+/* capture-arg-value */
+static void capture_arg_value_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+    MVMint64 idx = MVM_args_get_required_pos_int(tc, &arg_ctx, 1);
+    MVMRegister value;
+    MVMCallsiteFlags kind;
+    MVM_capture_arg(tc, capture, idx, &value, &kind);
+    switch (kind) {
+        case MVM_CALLSITE_ARG_OBJ:
+            MVM_args_set_result_obj(tc, value.o, MVM_RETURN_CURRENT_FRAME);
+            break;
+        case MVM_CALLSITE_ARG_INT:
+            MVM_args_set_result_int(tc, value.i64, MVM_RETURN_CURRENT_FRAME);
+            break;
+        case MVM_CALLSITE_ARG_NUM:
+            MVM_args_set_result_num(tc, value.n64, MVM_RETURN_CURRENT_FRAME);
+            break;
+        case MVM_CALLSITE_ARG_STR:
+            MVM_args_set_result_str(tc, value.s, MVM_RETURN_CURRENT_FRAME);
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Unknown arg kind in capture-arg-value");
+    }
+}
+static MVMDispSysCall capture_arg_value = {
+    .c_name = "capture-arg-value",
+    .implementation = capture_arg_value_impl,
+    .min_args = 2,
+    .max_args = 2,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT },
+    .expected_reprs = { MVM_REPR_ID_MVMCapture, 0 },
+    .expected_concrete = { 1, 1 },
 };
 
 /* can-unbox-to-int */
@@ -1071,7 +1142,6 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_resume_on_bind_failure);
     add_to_hash(tc, &dispatcher_resume_after_bind);
     add_to_hash(tc, &dispatcher_inline_cache_size);
-    add_to_hash(tc, &dispatcher_is_literal_arg);
     add_to_hash(tc, &boolify_bigint);
     add_to_hash(tc, &boolify_boxed_int);
     add_to_hash(tc, &boolify_boxed_num);
@@ -1079,9 +1149,13 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &boolify_boxed_str_with_zero_false);
     add_to_hash(tc, &boolify_iter);
     add_to_hash(tc, &boolify_using_elems);
+    add_to_hash(tc, &capture_is_literal_arg);
     add_to_hash(tc, &capture_pos_args);
     add_to_hash(tc, &capture_named_args);
     add_to_hash(tc, &capture_names_list);
+    add_to_hash(tc, &capture_num_args);
+    add_to_hash(tc, &capture_arg_prim_spec);
+    add_to_hash(tc, &capture_arg_value);
     add_to_hash(tc, &can_unbox_to_int);
     add_to_hash(tc, &can_unbox_to_num);
     add_to_hash(tc, &can_unbox_to_str);
