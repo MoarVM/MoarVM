@@ -5492,8 +5492,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_hllize,
-        "hllize",
+        MVM_OP_DEPRECATED_95,
+        "DEPRECATED_95",
         2,
         1,
         0,
@@ -5507,8 +5507,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_hllizefor,
-        "hllizefor",
+        MVM_OP_DEPRECATED_96,
+        "DEPRECATED_96",
         3,
         1,
         0,

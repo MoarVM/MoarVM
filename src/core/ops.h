@@ -367,8 +367,8 @@
 #define MVM_OP_bindhllsym 363
 #define MVM_OP_settypehll 364
 #define MVM_OP_settypehllrole 365
-#define MVM_OP_hllize 366
-#define MVM_OP_hllizefor 367
+#define MVM_OP_DEPRECATED_95 366
+#define MVM_OP_DEPRECATED_96 367
 #define MVM_OP_usecompileehllconfig 368
 #define MVM_OP_usecompilerhllconfig 369
 #define MVM_OP_iter 370

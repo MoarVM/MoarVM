@@ -2618,23 +2618,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 STABLE(GET_REG(cur_op, 0).o)->hll_role = GET_REG(cur_op, 2).i64;
                 cur_op += 4;
                 goto NEXT;
-            OP(hllize): {
-                /* Increment PC before mapping, as it may invoke. */
-                MVMRegister *res_reg = &GET_REG(cur_op, 0);
-                MVMObject   *mapee   = GET_REG(cur_op, 2).o;
-                cur_op += 4;
-                MVM_hll_map(tc, mapee, MVM_hll_current(tc), res_reg);
-                goto NEXT;
-            }
-            OP(hllizefor): {
-                /* Increment PC before mapping, as it may invoke. */
-                MVMRegister *res_reg = &GET_REG(cur_op, 0);
-                MVMObject   *mapee   = GET_REG(cur_op, 2).o;
-                MVMString   *hll     = GET_REG(cur_op, 4).s;
-                cur_op += 6;
-                MVM_hll_map(tc, mapee, MVM_hll_get_config_for(tc, hll), res_reg);
-                goto NEXT;
-            }
+            OP(DEPRECATED_95):
+            OP(DEPRECATED_96):
+                MVM_exception_throw_adhoc(tc, "hllize is superseded by the general dispatch mechanism");
             OP(usecompileehllconfig):
                 MVM_hll_enter_compilee_mode(tc);
                 goto NEXT;

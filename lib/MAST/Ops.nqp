@@ -4106,8 +4106,6 @@ BEGIN {
     'bindhllsym', 363,
     'settypehll', 364,
     'settypehllrole', 365,
-    'hllize', 366,
-    'hllizefor', 367,
     'usecompileehllconfig', 368,
     'usecompilerhllconfig', 369,
     'iter', 370,
@@ -4871,8 +4869,6 @@ BEGIN {
     'bindhllsym',
     'settypehll',
     'settypehllrole',
-    'hllize',
-    'hllizefor',
     'usecompileehllconfig',
     'usecompilerhllconfig',
     'iter',
@@ -7847,21 +7843,6 @@ BEGIN {
         nqp::writeuint($bytecode, $elems, 365, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
-    },
-    'hllize', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
-        my uint $elems := nqp::elems($bytecode);
-        nqp::writeuint($bytecode, $elems, 366, 5);
-        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
-        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
-    },
-    'hllizefor', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
-        my uint $elems := nqp::elems($bytecode);
-        nqp::writeuint($bytecode, $elems, 367, 5);
-        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
-        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
-        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
     'usecompileehllconfig', sub () {
         my $bytecode := $*MAST_FRAME.bytecode;
