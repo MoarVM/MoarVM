@@ -84,11 +84,6 @@ struct MVMArgInfo {
 };
 
 /* Legacy argument processing context handling. */
-void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args);
-MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx);
-MVMCallsite * MVM_args_copy_uninterned_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx);
-MVM_PUBLIC MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f);
-MVM_PUBLIC MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *f);
 
 /* Argument processing context handling. */
 void MVM_args_proc_setup(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMArgs arg_info);
@@ -144,6 +139,11 @@ void MVM_args_set_dispatch_result_obj(MVMThreadContext *tc, MVMFrame *target, MV
 void MVM_args_set_dispatch_result_int(MVMThreadContext *tc, MVMFrame *target, MVMint64 result);
 void MVM_args_set_dispatch_result_num(MVMThreadContext *tc, MVMFrame *target, MVMnum64 result);
 void MVM_args_set_dispatch_result_str(MVMThreadContext *tc, MVMFrame *target, MVMString *result);
+
+/* Capture handling. */
+MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx);
+MVM_PUBLIC MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f);
+MVM_PUBLIC MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *f);
 
 /* Setting up calls from C-land. */
 MVM_PUBLIC void MVM_args_setup_thunk(MVMThreadContext *tc, MVMRegister *return_value, MVMReturnType return_type,
