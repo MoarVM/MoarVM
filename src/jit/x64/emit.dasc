@@ -89,6 +89,7 @@
 |.type REGISTER, MVMRegister
 |.type FRAME, MVMFrame
 |.type ARGCTX, MVMArgProcContext
+|.type CALLSITE, MVMCallsite
 |.type CALLSITEPTR, MVMCallsite*
 |.type ARGPROCCONTEXT, MVMArgProcContext
 |.type STATICFRAME, MVMStaticFrame
@@ -1933,8 +1934,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_paramnamesused:
         | mov ARG2, TC->cur_frame;
         | lea ARG2, FRAME:ARG2->params;
-        | mov TMP5w, word ARGCTX:ARG2->legacy.num_pos;
-        | cmp TMP5w, word ARGCTX:ARG2->legacy.arg_count;
+        | mov ARG3, ARGCTX:ARG2->arg_info.callsite
+        | mov TMP5w, word CALLSITE:ARG3->num_pos;
+        | cmp TMP5w, word CALLSITE:ARG3->flag_count;
         | je >1;
         | mov ARG1, TC;
         | callp &MVM_args_assert_nameds_used;

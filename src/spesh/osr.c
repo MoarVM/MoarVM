@@ -123,8 +123,6 @@ void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
     MVMStaticFrameSpesh *spesh = tc->cur_frame->static_info->body.spesh;
     MVMint32 num_cands = spesh->body.num_spesh_candidates;
     MVMint32 seq_nr = tc->cur_frame->sequence_nr;
-    if (tc->cur_frame->params.version == MVM_ARGS_LEGACY)
-        return;
     if (seq_nr != tc->osr_hunt_frame_nr || num_cands != tc->osr_hunt_num_spesh_candidates) {
         /* Provided OSR is enabled... */
         if (tc->instance->spesh_osr_enabled) {

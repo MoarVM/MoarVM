@@ -255,17 +255,12 @@ static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuin
 
 /* Initialize arguments processing context. */
 void MVM_args_proc_setup(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMArgs arg_info) {
-    ctx->version = MVM_ARGS_DISPATCH;
     ctx->arg_info = arg_info;
     init_named_used(tc, ctx, arg_info.callsite->flag_count - arg_info.callsite->num_pos);
 }
 
 /* Clean up an arguments processing context. */
 void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    if (ctx->version == MVM_ARGS_LEGACY && ctx->legacy.arg_flags) {
-        MVM_free(ctx->legacy.arg_flags);
-        MVM_free(ctx->legacy.args);
-    }
     if (ctx->named_used_size > 64)
         MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size,
             ctx->named_used.byte_array);
@@ -273,34 +268,7 @@ void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
 
 /* Make a copy of the callsite. */
 MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    if (ctx->version == MVM_ARGS_LEGACY) {
-        MVMCallsite      *res   = MVM_calloc(1, sizeof(MVMCallsite));
-        MVMCallsiteEntry *flags = NULL;
-        MVMCallsiteEntry *src_flags;
-        MVMint32 fsize;
-
-        if (ctx->legacy.arg_flags) {
-            fsize = ctx->legacy.flag_count;
-            src_flags = ctx->legacy.arg_flags;
-        }
-        else {
-            fsize = ctx->legacy.callsite->flag_count;
-            src_flags = ctx->legacy.callsite->arg_flags;
-        }
-
-        if (fsize) {
-            flags = MVM_malloc(fsize * sizeof(MVMCallsiteEntry));
-            memcpy(flags, src_flags, fsize * sizeof(MVMCallsiteEntry));
-        }
-        res->flag_count = fsize;
-        res->arg_flags = flags;
-        res->arg_count = ctx->legacy.arg_count;
-        res->num_pos   = ctx->legacy.num_pos;
-        return res;
-    }
-    else {
-        return MVM_callsite_copy(tc, ctx->arg_info.callsite);
-    }
+    return MVM_callsite_copy(tc, ctx->arg_info.callsite);
 }
 
 MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
@@ -313,12 +281,8 @@ MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f) {
 }
 
 MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *frame) {
-    if (frame->params.version == MVM_ARGS_LEGACY)
-        MVM_exception_throw_adhoc(tc, "Cannot savecapture with legacy arguments");
     return MVM_capture_from_args(tc, frame->params.arg_info);
 }
-
-static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx);
 
 /* Checks that the passed arguments fall within the expected arity. */
 static void arity_fail(MVMThreadContext *tc, MVMuint16 got, MVMuint16 min, MVMuint16 max) {
@@ -334,43 +298,21 @@ static void arity_fail(MVMThreadContext *tc, MVMuint16 got, MVMuint16 min, MVMui
             problem, min, (min + 1 == max ? "or" : "to"), max, got);
 }
 void MVM_args_checkarity(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint16 min, MVMuint16 max) {
-    MVMuint16 num_pos;
-    if (ctx->version == MVM_ARGS_LEGACY) {
-        flatten_args(tc, ctx);
-        num_pos = ctx->legacy.num_pos;
-    }
-    else {
-        num_pos = ctx->arg_info.callsite->num_pos;
-    }
+    MVMuint16 num_pos = ctx->arg_info.callsite->num_pos;
     if (num_pos < min || num_pos > max)
         arity_fail(tc, num_pos, min, max);
 }
 
 /* Get positional arguments. */
 #define find_pos_arg(ctx, pos, result) do { \
-    if ((ctx)->version == MVM_ARGS_LEGACY) { \
-        if (pos < (ctx)->legacy.num_pos) { \
-            result.arg   = (ctx)->legacy.args[pos]; \
-            result.flags = ((ctx)->legacy.arg_flags \
-                    ? (ctx)->legacy.arg_flags \
-                    : (ctx)->legacy.callsite->arg_flags)[pos]; \
-            result.exists = 1; \
-        } \
-        else { \
-            result.arg.s = NULL; \
-            result.exists = 0; \
-        } \
+    if (pos < (ctx)->arg_info.callsite->num_pos) { \
+        result.arg   = (ctx)->arg_info.source[(ctx)->arg_info.map[pos]]; \
+        result.flags = (ctx)->arg_info.callsite->arg_flags[pos]; \
+        result.exists = 1; \
     } \
     else { \
-        if (pos < (ctx)->arg_info.callsite->num_pos) { \
-            result.arg   = (ctx)->arg_info.source[(ctx)->arg_info.map[pos]]; \
-            result.flags = (ctx)->arg_info.callsite->arg_flags[pos]; \
-            result.exists = 1; \
-        } \
-        else { \
-            result.arg.s = NULL; \
-            result.exists = 0; \
-        } \
+        result.arg.s = NULL; \
+        result.exists = 0; \
     } \
 } while (0)
 
@@ -577,34 +519,19 @@ MVMArgInfo MVM_args_get_optional_pos_uint(MVMThreadContext *tc, MVMArgProcContex
     result.arg.s = NULL; \
     result.exists = 0; \
      \
-    if (ctx->version == MVM_ARGS_LEGACY) { \
-        MVMuint32 flag_pos, arg_pos; \
-        for (flag_pos = arg_pos = ctx->legacy.num_pos; arg_pos < ctx->legacy.arg_count; flag_pos++, arg_pos += 2) { \
-            if (MVM_string_equal(tc, ctx->legacy.args[arg_pos].s, name)) { \
-                result.arg    = ctx->legacy.args[arg_pos + 1]; \
-                result.flags  = (ctx->legacy.arg_flags ? ctx->legacy.arg_flags : ctx->legacy.callsite->arg_flags)[flag_pos]; \
-                result.exists = 1; \
-                result.arg_idx = arg_pos + 1; \
-                mark_named_used(ctx, (arg_pos - ctx->legacy.num_pos)/2); \
-                break; \
-            } \
-        } \
-    } \
-    else { \
-        MVMCallsite *callsite = (ctx)->arg_info.callsite; \
-        MVMString **arg_names = callsite->arg_names; \
-        MVMuint16 num_arg_names = callsite->flag_count - callsite->num_pos; \
-        MVMuint16 i; \
-        for (i = 0; i < num_arg_names; i++) { \
-            if (MVM_string_equal(tc, arg_names[i], name)) { \
-                MVMuint16 arg_idx = callsite->num_pos + i; \
-                result.exists = 1; \
-                result.arg = (ctx)->arg_info.source[(ctx)->arg_info.map[arg_idx]]; \
-                result.flags = callsite->arg_flags[arg_idx]; \
-                result.arg_idx = arg_idx; \
-                mark_named_used(ctx, i); \
-                break; \
-            } \
+    MVMCallsite *callsite = (ctx)->arg_info.callsite; \
+    MVMString **arg_names = callsite->arg_names; \
+    MVMuint16 num_arg_names = callsite->flag_count - callsite->num_pos; \
+    MVMuint16 i; \
+    for (i = 0; i < num_arg_names; i++) { \
+        if (MVM_string_equal(tc, arg_names[i], name)) { \
+            MVMuint16 arg_idx = callsite->num_pos + i; \
+            result.exists = 1; \
+            result.arg = (ctx)->arg_info.source[(ctx)->arg_info.map[arg_idx]]; \
+            result.flags = callsite->arg_flags[arg_idx]; \
+            result.arg_idx = arg_idx; \
+            mark_named_used(ctx, i); \
+            break; \
         } \
     } \
      \
@@ -645,41 +572,18 @@ MVMArgInfo MVM_args_get_named_uint(MVMThreadContext *tc, MVMArgProcContext *ctx,
     autounbox(tc, MVM_CALLSITE_ARG_INT, "unsigned integer", result);
     return result;
 }
-MVMint64 MVM_args_has_named(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name) {
-    if (ctx->version != MVM_ARGS_LEGACY)
-        MVM_panic(1, "Cannot handle new callsite format in MVM_args_has_named");
-    MVMuint32 flag_pos, arg_pos;
-    for (flag_pos = arg_pos = ctx->legacy.num_pos; arg_pos < ctx->legacy.arg_count; flag_pos++, arg_pos += 2)
-        if (MVM_string_equal(tc, ctx->legacy.args[arg_pos].s, name))
-            return 1;
-    return 0;
-}
 void MVM_args_assert_nameds_used(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     MVMuint16 size = ctx->named_used_size;
     MVMuint16 i;
-    if (ctx->version == MVM_ARGS_LEGACY) {
-        if (size > 64) {
-            for (i = 0; i < size; i++)
-                if (!ctx->named_used.byte_array[i])
-                    MVM_args_throw_named_unused_error(tc, ctx->legacy.args[ctx->legacy.num_pos + 2 * i].s);
-        }
-        else {
-            for (i = 0; i < size; i++)
-                if (!(ctx->named_used.bit_field & ((MVMuint64)1 << i)))
-                    MVM_args_throw_named_unused_error(tc, ctx->legacy.args[ctx->legacy.num_pos + 2 * i].s);
-        }
+    if (size > 64) {
+        for (i = 0; i < size; i++)
+            if (!ctx->named_used.byte_array[i])
+                MVM_args_throw_named_unused_error(tc, ctx->arg_info.callsite->arg_names[i]);
     }
     else {
-        if (size > 64) {
-            for (i = 0; i < size; i++)
-                if (!ctx->named_used.byte_array[i])
-                    MVM_args_throw_named_unused_error(tc, ctx->arg_info.callsite->arg_names[i]);
-        }
-        else {
-            for (i = 0; i < size; i++)
-                if (!(ctx->named_used.bit_field & ((MVMuint64)1 << i)))
-                    MVM_args_throw_named_unused_error(tc, ctx->arg_info.callsite->arg_names[i]);
-        }
+        for (i = 0; i < size; i++)
+            if (!(ctx->named_used.bit_field & ((MVMuint64)1 << i)))
+                MVM_args_throw_named_unused_error(tc, ctx->arg_info.callsite->arg_names[i]);
     }
 }
 
@@ -1108,289 +1012,65 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
     if (reset_ctx)
         ctx = &tc->cur_frame->params;
 
-    if (ctx->version == MVM_ARGS_LEGACY) {
-        MVMuint32 flag_pos, arg_pos;
-        for (flag_pos = arg_pos = ctx->legacy.num_pos; arg_pos < ctx->legacy.arg_count; flag_pos++, arg_pos += 2) {
-            MVMString *key;
+    MVMCallsite *cs = ctx->arg_info.callsite;
+    MVMuint16 arg_idx;
+    for (arg_idx = cs->num_pos; arg_idx < cs->flag_count; arg_idx++) {
+        /* Skip any args already used. */
+        MVMuint32 named_idx = arg_idx - cs->num_pos;
+        if (is_named_used(ctx, named_idx))
+            continue;
 
-            if (is_named_used(ctx, flag_pos - ctx->legacy.num_pos))
-                continue;
-
-            key = ctx->legacy.args[arg_pos].s;
-
-            if (!key || !IS_CONCRETE(key)) {
-                MVM_exception_throw_adhoc(tc, "slurpy hash needs concrete key");
-            }
-            arg_info.arg    = ctx->legacy.args[arg_pos + 1];
-            arg_info.flags  = (ctx->legacy.arg_flags ? ctx->legacy.arg_flags : ctx->legacy.callsite->arg_flags)[flag_pos];
-            arg_info.exists = 1;
-
-            if (arg_info.flags & MVM_CALLSITE_ARG_FLAT) {
-                MVM_exception_throw_adhoc(tc, "Arg has not been flattened in slurpy_named");
-            }
-
-            switch (arg_info.flags & MVM_CALLSITE_ARG_TYPE_MASK) {
-                case MVM_CALLSITE_ARG_OBJ: {
-                    REPR(result)->ass_funcs.bind_key(tc, STABLE(result),
-                        result, OBJECT_BODY(result), (MVMObject *)key, arg_info.arg, MVM_reg_obj);
-                    if (reset_ctx)
-                        ctx = &(tc->cur_frame->params);
-                    break;
-                }
-                case MVM_CALLSITE_ARG_INT: {
-                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
-                    box_slurpy_named_int(tc, type, result, box, arg_info.arg.i64, reg, key);
-                    MVM_gc_root_temp_pop(tc);
-                    if (reset_ctx)
-                        ctx = &(tc->cur_frame->params);
-                    break;
-                }
-                case MVM_CALLSITE_ARG_NUM: {
-                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
-                    box_slurpy_named(tc, type, result, box, arg_info.arg.n64, reg, num_box_type, "num", set_num, key);
-                    MVM_gc_root_temp_pop(tc);
-                    if (reset_ctx)
-                        ctx = &(tc->cur_frame->params);
-                    break;
-                }
-                case MVM_CALLSITE_ARG_STR: {
-                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
-                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&arg_info.arg.s);
-                    box_slurpy_named(tc, type, result, box, arg_info.arg.s, reg, str_box_type, "str", set_str, key);
-                    MVM_gc_root_temp_pop_n(tc, 2);
-                    if (reset_ctx)
-                        ctx = &(tc->cur_frame->params);
-                    break;
-                }
-                default:
-                    MVM_exception_throw_adhoc(tc, "Arg flag is empty in slurpy_named");
-            }
+        /* Grab and check the arg name, which is to be the hash key. */
+        MVMString *key = cs->arg_names[named_idx];
+        if (!key || !IS_CONCRETE(key)) {
+            MVM_exception_throw_adhoc(tc, "slurpy hash needs concrete key");
         }
-    }
-    else {
-        MVMCallsite *cs = ctx->arg_info.callsite;
-        MVMuint16 arg_idx;
-        for (arg_idx = cs->num_pos; arg_idx < cs->flag_count; arg_idx++) {
-            /* Skip any args already used. */
-            MVMuint32 named_idx = arg_idx - cs->num_pos;
-            if (is_named_used(ctx, named_idx))
-                continue;
 
-            /* Grab and check the arg name, which is to be the hash key. */
-            MVMString *key = cs->arg_names[named_idx];
-            if (!key || !IS_CONCRETE(key)) {
-                MVM_exception_throw_adhoc(tc, "slurpy hash needs concrete key");
+        /* Process the value. */
+        arg_info.arg = ctx->arg_info.source[ctx->arg_info.map[arg_idx]];
+        arg_info.flags = cs->arg_flags[arg_idx];
+        arg_info.exists = 1;
+        switch (arg_info.flags & MVM_CALLSITE_ARG_TYPE_MASK) {
+            case MVM_CALLSITE_ARG_OBJ: {
+                REPR(result)->ass_funcs.bind_key(tc, STABLE(result),
+                    result, OBJECT_BODY(result), (MVMObject *)key, arg_info.arg, MVM_reg_obj);
+                if (reset_ctx)
+                    ctx = &(tc->cur_frame->params);
+                break;
             }
-
-            /* Process the value. */
-            arg_info.arg = ctx->arg_info.source[ctx->arg_info.map[arg_idx]];
-            arg_info.flags = cs->arg_flags[arg_idx];
-            arg_info.exists = 1;
-            switch (arg_info.flags & MVM_CALLSITE_ARG_TYPE_MASK) {
-                case MVM_CALLSITE_ARG_OBJ: {
-                    REPR(result)->ass_funcs.bind_key(tc, STABLE(result),
-                        result, OBJECT_BODY(result), (MVMObject *)key, arg_info.arg, MVM_reg_obj);
-                    if (reset_ctx)
-                        ctx = &(tc->cur_frame->params);
-                    break;
-                }
-                case MVM_CALLSITE_ARG_INT: {
-                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
-                    box_slurpy_named_int(tc, type, result, box, arg_info.arg.i64, reg, key);
-                    MVM_gc_root_temp_pop(tc);
-                    if (reset_ctx)
-                        ctx = &(tc->cur_frame->params);
-                    break;
-                }
-                case MVM_CALLSITE_ARG_NUM: {
-                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
-                    box_slurpy_named(tc, type, result, box, arg_info.arg.n64, reg, num_box_type, "num", set_num, key);
-                    MVM_gc_root_temp_pop(tc);
-                    if (reset_ctx)
-                        ctx = &(tc->cur_frame->params);
-                    break;
-                }
-                case MVM_CALLSITE_ARG_STR: {
-                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
-                    MVM_gc_root_temp_push(tc, (MVMCollectable **)&arg_info.arg.s);
-                    box_slurpy_named(tc, type, result, box, arg_info.arg.s, reg, str_box_type, "str", set_str, key);
-                    MVM_gc_root_temp_pop_n(tc, 2);
-                    if (reset_ctx)
-                        ctx = &(tc->cur_frame->params);
-                    break;
-                }
-                default:
-                    MVM_exception_throw_adhoc(tc, "Arg flag is empty in slurpy_named");
+            case MVM_CALLSITE_ARG_INT: {
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
+                box_slurpy_named_int(tc, type, result, box, arg_info.arg.i64, reg, key);
+                MVM_gc_root_temp_pop(tc);
+                if (reset_ctx)
+                    ctx = &(tc->cur_frame->params);
+                break;
             }
+            case MVM_CALLSITE_ARG_NUM: {
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
+                box_slurpy_named(tc, type, result, box, arg_info.arg.n64, reg, num_box_type, "num", set_num, key);
+                MVM_gc_root_temp_pop(tc);
+                if (reset_ctx)
+                    ctx = &(tc->cur_frame->params);
+                break;
+            }
+            case MVM_CALLSITE_ARG_STR: {
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&key);
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&arg_info.arg.s);
+                box_slurpy_named(tc, type, result, box, arg_info.arg.s, reg, str_box_type, "str", set_str, key);
+                MVM_gc_root_temp_pop_n(tc, 2);
+                if (reset_ctx)
+                    ctx = &(tc->cur_frame->params);
+                break;
+            }
+            default:
+                MVM_exception_throw_adhoc(tc, "Arg flag is empty in slurpy_named");
         }
     }
 
     MVM_gc_root_temp_pop_n(tc, 2);
 
     return result;
-}
-
-static MVMint32 seen_name(MVMThreadContext *tc, MVMString *name, MVMRegister *new_args, MVMint32 first_named, MVMint32 num_new_args) {
-    MVMint32 j;
-    for (j = first_named; j < num_new_args; j += 2)
-        if (MVM_string_equal(tc, new_args[j].s, name))
-            return 1;
-    return 0;
-}
-static void flatten_args(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    if (ctx->version != MVM_ARGS_LEGACY)
-        MVM_panic(1, "Should not be calling flatten_args with new callsite format");
-
-    MVMArgInfo arg_info;
-    MVMint32 flag_pos = 0, arg_pos = 0, new_arg_pos = 0,
-        new_arg_flags_size = ctx->legacy.arg_count > 0x7FFF ? ctx->legacy.arg_count : ctx->legacy.arg_count * 2,
-        new_args_size = new_arg_flags_size, i, new_flag_pos = 0, new_num_pos = 0;
-    MVMCallsiteEntry *new_arg_flags;
-    MVMRegister *new_args;
-
-    if (!ctx->legacy.callsite->has_flattening) return;
-
-    new_arg_flags = MVM_malloc(new_arg_flags_size * sizeof(MVMCallsiteEntry));
-    new_args = MVM_malloc(new_args_size * sizeof(MVMRegister));
-
-    /* First flatten any positionals in amongst any non-flattening
-     * positionals. */
-    for ( ; arg_pos < ctx->legacy.num_pos; arg_pos++) {
-
-        arg_info.arg    = ctx->legacy.args[arg_pos];
-        arg_info.flags  = ctx->legacy.callsite->arg_flags[arg_pos];
-        arg_info.exists = 1;
-
-        /* Skip it if it's not flattening or is null. The bytecode loader
-         * verifies it's a MVM_CALLSITE_ARG_OBJ. */
-        if ((arg_info.flags & MVM_CALLSITE_ARG_FLAT) && arg_info.arg.o) {
-            MVMObject      *list  = arg_info.arg.o;
-            MVMint64        count = REPR(list)->elems(tc, STABLE(list), list, OBJECT_BODY(list));
-            MVMStorageSpec  lss   = REPR(list)->pos_funcs.get_elem_storage_spec(tc, STABLE(list));
-
-            if ((MVMint64)new_arg_pos + count > MVM_ARGS_LIMIT) {
-                MVM_free(new_arg_flags);
-                MVM_free(new_args);
-                MVM_exception_throw_adhoc(tc, "Too many arguments (%"PRId64") in flattening array, only %"PRId32" allowed.", (MVMint64)new_arg_pos + count, MVM_ARGS_LIMIT);
-            }
-
-            for (i = 0; i < count; i++) {
-                if (new_arg_pos == new_args_size) {
-                    new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
-                }
-                if (new_flag_pos == new_arg_flags_size) {
-                    new_arg_flags = MVM_realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
-                }
-
-                switch (lss.inlineable ? lss.boxed_primitive : 0) {
-                    case MVM_STORAGE_SPEC_BP_INT:
-                        (new_args + new_arg_pos++)->i64 = MVM_repr_at_pos_i(tc, list, i);
-                        new_arg_flags[new_flag_pos++]   = MVM_CALLSITE_ARG_INT;
-                        break;
-                    case MVM_STORAGE_SPEC_BP_NUM:
-                        (new_args + new_arg_pos++)->n64 = MVM_repr_at_pos_n(tc, list, i);
-                        new_arg_flags[new_flag_pos++]   = MVM_CALLSITE_ARG_NUM;
-                        break;
-                    case MVM_STORAGE_SPEC_BP_STR:
-                        (new_args + new_arg_pos++)->s = MVM_repr_at_pos_s(tc, list, i);
-                        new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_STR;
-                        break;
-                    default:
-                        (new_args + new_arg_pos++)->o = MVM_repr_at_pos_o(tc, list, i);
-                        new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_OBJ;
-                        break;
-                }
-            }
-        }
-        else {
-            if (new_arg_pos == new_args_size) {
-                new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
-            }
-            if (new_flag_pos == new_arg_flags_size) {
-                new_arg_flags = MVM_realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
-            }
-
-            *(new_args + new_arg_pos++) = arg_info.arg;
-            new_arg_flags[new_flag_pos++] = arg_info.flags;
-        }
-    }
-    new_num_pos = new_arg_pos;
-
-    /* Then flatten in any nameds, amongst non-flattening nameds, starting
-     * from the right and skipping duplicates. */
-    flag_pos = ctx->legacy.callsite->flag_count;
-    arg_pos = ctx->legacy.arg_count;
-    while (flag_pos > ctx->legacy.num_pos) {
-        flag_pos--;
-        if (ctx->legacy.callsite->arg_flags[flag_pos] & MVM_CALLSITE_ARG_FLAT_NAMED) {
-            arg_info.flags = ctx->legacy.callsite->arg_flags[flag_pos];
-            arg_pos--;
-            arg_info.arg = ctx->legacy.args[arg_pos];
-
-            if (arg_info.arg.o && REPR(arg_info.arg.o)->ID == MVM_REPR_ID_MVMHash) {
-                MVMHashBody *body = &((MVMHash *)arg_info.arg.o)->body;
-                MVMStrHashTable *hashtable = &(body->hashtable);
-
-                MVMStrHashIterator iterator = MVM_str_hash_first(tc, hashtable);
-                while (!MVM_str_hash_at_end(tc, hashtable, iterator)) {
-                    MVMHashEntry *current = MVM_str_hash_current_nocheck(tc, hashtable, iterator);
-                    MVMString *arg_name = current->hash_handle.key;
-                    if (!seen_name(tc, arg_name, new_args, new_num_pos, new_arg_pos)) {
-                        if (new_arg_pos + 1 >= new_args_size) {
-                            new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
-                        }
-                        if (new_flag_pos == new_arg_flags_size) {
-                            new_arg_flags = MVM_realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
-                        }
-
-                        (new_args + new_arg_pos++)->s = arg_name;
-                        (new_args + new_arg_pos++)->o = current->value;
-                        new_arg_flags[new_flag_pos++] = MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
-                    }
-                    iterator = MVM_str_hash_next_nocheck(tc, hashtable, iterator);
-                }
-            }
-            else if (arg_info.arg.o) {
-                MVM_free(new_arg_flags);
-                MVM_free(new_args);
-                MVM_exception_throw_adhoc(tc, "flattening of other hash reprs NYI.");
-            }
-        }
-        else {
-            arg_pos -= 2;
-            if (!seen_name(tc, (ctx->legacy.args + arg_pos)->s, new_args, new_num_pos, new_arg_pos)) {
-                if (new_arg_pos + 1 >= new_args_size) {
-                    new_args = MVM_realloc(new_args, (new_args_size *= 2) * sizeof(MVMRegister));
-                }
-                if (new_flag_pos == new_arg_flags_size) {
-                    new_arg_flags = MVM_realloc(new_arg_flags, (new_arg_flags_size *= 2) * sizeof(MVMCallsiteEntry));
-                }
-
-                (new_args + new_arg_pos++)->s = (ctx->legacy.args + arg_pos)->s;
-                *(new_args + new_arg_pos++) = *(ctx->legacy.args + arg_pos + 1);
-                new_arg_flags[new_flag_pos++] = ctx->legacy.callsite->arg_flags[flag_pos];
-            }
-        }
-    }
-
-    if (ctx->named_used_size > 64)
-        MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size, ctx->named_used.byte_array);
-    init_named_used(tc, ctx, (new_arg_pos - new_num_pos) / 2);
-    ctx->legacy.args = new_args;
-    ctx->legacy.arg_count = new_arg_pos;
-    ctx->legacy.num_pos = new_num_pos;
-    ctx->legacy.arg_flags = new_arg_flags;
-    ctx->legacy.flag_count = new_flag_pos;
-}
-
-/* Does the common setup work when we jump the interpreter into a chosen
- * call from C-land. */
-void MVM_args_setup_thunk(MVMThreadContext *tc, MVMRegister *res_reg, MVMReturnType return_type, MVMCallsite *callsite) {
-    MVMFrame *cur_frame          = tc->cur_frame;
-    cur_frame->return_value      = res_reg;
-    cur_frame->return_type       = return_type;
-    cur_frame->return_address    = *(tc->interp_cur_op);
-    cur_frame->cur_args_callsite = callsite;
 }
 
 /* Custom bind failure handling. Invokes the HLL's bind failure handler, with

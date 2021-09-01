@@ -15,41 +15,11 @@ struct MVMArgs {
     MVMuint16 *map;
 };
 
-#define MVM_ARGS_LEGACY     1
-#define MVM_ARGS_DISPATCH   2
-
 #define MVM_ARGS_SMALL_IDENTITY_MAP_SIZE    256
 #define MVM_ARGS_LIMIT                      0xFFFF
 
 /* Argument processing context. */
 struct MVMArgProcContext {
-    /* Temporary version flag while we're migrating to new dispatch/calling
-     * conventions. */
-    MVMuint8 version;
-
-    /* Stuff for arg processing under previous model. */
-    struct {
-        /* The callsite we're processing. */
-        MVMCallsite *callsite;
-
-        /* The set of flags (only set if we flattened, otherwise we use the ones
-         * from callsite). */
-        MVMCallsiteEntry *arg_flags;
-
-        /* The arguments. */
-        MVMRegister *args;
-
-        /* The total argument count (including 2 for each
-         * named arg). */
-        MVMuint16 arg_count;
-
-        /* Number of positionals. */
-        MVMuint16 num_pos;
-
-        /* The number of arg flags; only valid if arg_flags isn't NULL. */
-        MVMuint16 flag_count;
-    } legacy;
-
     /* The incoming arguments to bind. */
     MVMArgs arg_info;
 
@@ -144,10 +114,6 @@ void MVM_args_set_dispatch_result_str(MVMThreadContext *tc, MVMFrame *target, MV
 MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx);
 MVM_PUBLIC MVMObject * MVM_args_use_capture(MVMThreadContext *tc, MVMFrame *f);
 MVM_PUBLIC MVMObject * MVM_args_save_capture(MVMThreadContext *tc, MVMFrame *f);
-
-/* Setting up calls from C-land. */
-MVM_PUBLIC void MVM_args_setup_thunk(MVMThreadContext *tc, MVMRegister *return_value, MVMReturnType return_type,
-    MVMCallsite *callsite);
 
 /* Custom bind failure/success handling. */
 void MVM_args_bind_failed(MVMThreadContext *tc, MVMDispInlineCacheEntry **ice_ptr);
