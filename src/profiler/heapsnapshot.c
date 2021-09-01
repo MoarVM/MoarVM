@@ -531,15 +531,6 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                         (MVMCollectable *)st->boolification_spec->method,
                         "Boolification method", &cache_2);
 
-                if (st->invocation_spec) {
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable *)st->invocation_spec->class_handle,
-                        "Invocation spec class handle");
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable *)st->invocation_spec->attr_name,
-                        "Invocation spec attribute name");
-                }
-
                 MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
                     (MVMCollectable *)st->WHO, "WHO", &cache_3);
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,

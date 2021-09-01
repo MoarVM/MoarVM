@@ -475,86 +475,6 @@ static void report_outer_conflict(MVMThreadContext *tc, MVMStaticFrame *static_f
         frame_outer_name);
 }
 
-/* Takes a static frame and a thread context. Invokes the static frame. */
-void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
-                      MVMCallsite *callsite, MVMRegister *args,
-                      MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand) {
-    MVMFrame *frame;
-    MVMuint8 *chosen_bytecode;
-
-    /* If the frame was never invoked before, or never before at the current
-     * instrumentation level, we need to trigger the instrumentation level
-     * barrier. */
-    if (MVM_UNLIKELY(static_frame->body.instrumentation_level != tc->instance->instrumentation_level)) {
-        MVMROOT3(tc, static_frame, code_ref, outer, {
-            instrumentation_level_barrier(tc, static_frame);
-        });
-    }
-
-    /* Ensure we have an outer if needed. This is done ahead of allocating the
-     * new frame, since an autoclose will force the callstack on to the heap. */
-    if (outer) {
-        /* We were provided with an outer frame. Ensure that it is based on the
-         * correct static frame (compare on bytecode address to cope with
-         * nqp::freshcoderef). */
-        if (MVM_UNLIKELY(static_frame->body.outer == 0 || outer->static_info->body.orig_bytecode != static_frame->body.outer->body.orig_bytecode))
-            report_outer_conflict(tc, static_frame, outer);
-    }
-    else if (static_frame->body.static_code) {
-        MVMCode *static_code = static_frame->body.static_code;
-        if (static_code->body.outer) {
-            /* We're lacking an outer, but our static code object may have one.
-            * This comes up in the case of cloned protoregexes, for example. */
-            outer = static_code->body.outer;
-        }
-        else if (static_frame->body.outer) {
-            /* Auto-close, and cache it in the static frame. */
-            MVMROOT3(tc, static_frame, code_ref, static_code, {
-                MVM_frame_force_to_heap(tc, tc->cur_frame);
-                outer = autoclose(tc, static_frame->body.outer);
-                MVM_ASSIGN_REF(tc, &(static_code->common.header),
-                    static_code->body.outer, outer);
-            });
-        }
-        else {
-            outer = NULL;
-        }
-    }
-
-    MVMint32 on_heap = static_frame->body.allocate_on_heap;
-    if (on_heap) {
-        MVMROOT3(tc, static_frame, code_ref, outer, {
-            frame = allocate_frame(tc, static_frame, NULL, 1);
-        });
-    }
-    else {
-        frame = allocate_frame(tc, static_frame, NULL, 0);
-        frame->spesh_cand = NULL;
-        frame->effective_spesh_slots = NULL;
-        frame->spesh_correlation_id = 0;
-    }
-    frame->code_ref = code_ref;
-    frame->outer = outer;
-    chosen_bytecode = static_frame->body.bytecode;
-
-    /* Initialize argument processing. */
-    MVM_args_proc_init(tc, &frame->params, callsite, args);
-
-    MVM_jit_code_trampoline(tc);
-
-    /* Update interpreter and thread context, so next execution will use this
-     * frame. */
-    tc->cur_frame = frame;
-    tc->current_frame_nr = frame->sequence_nr;
-    *(tc->interp_cur_op) = chosen_bytecode;
-    *(tc->interp_bytecode_start) = chosen_bytecode;
-    *(tc->interp_reg_base) = frame->work;
-    *(tc->interp_cu) = static_frame->body.cu;
-
-    if (static_frame->body.has_state_vars)
-        setup_state_vars(tc, static_frame);
-}
-
 /* Dispatches execution to the specified code object with the specified args. */
 void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMint32 spesh_cand) {
     MVMFrame *frame;
@@ -1878,46 +1798,6 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
         MVM_exception_throw_adhoc_free(tc, waste, "Frame has no lexical with name '%s'",
             c_name);
     }
-}
-
-static MVMObject * find_invokee_internal(MVMThreadContext *tc, MVMObject *code, MVMInvocationSpec *is) {
-    /* Fast path when we have an offset directly into a P6opaque. */
-    if (is->code_ref_offset) {
-        if (!IS_CONCRETE(code))
-            MVM_exception_throw_adhoc(tc, "Can not invoke a code type object");
-        code = MVM_p6opaque_read_object(tc, code, is->code_ref_offset);
-    }
-
-    /* Otherwise, if there is a class handle, fall back to the slow path
-     * lookup, but set up code_ref_offset if applicable. */
-    else if (!MVM_is_null(tc, is->class_handle)) {
-        MVMRegister dest;
-        if (!IS_CONCRETE(code))
-            MVM_exception_throw_adhoc(tc, "Can not invoke a code type object");
-        if (code->st->REPR->ID == MVM_REPR_ID_P6opaque)
-            is->code_ref_offset = MVM_p6opaque_attr_offset(tc, code->st->WHAT,
-                is->class_handle, is->attr_name);
-        REPR(code)->attr_funcs.get_attribute(tc,
-            STABLE(code), code, OBJECT_BODY(code),
-            is->class_handle, is->attr_name,
-            is->hint, &dest, MVM_reg_obj);
-        code = dest.o;
-    }
-    return code;
-}
-
-MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs) {
-    if (MVM_is_null(tc, code))
-        MVM_exception_throw_adhoc(tc, "Cannot invoke null object");
-    if (STABLE(code)->invoke == MVM_6model_invoke_default) {
-        MVMInvocationSpec *is = STABLE(code)->invocation_spec;
-        if (!is) {
-            MVM_exception_throw_adhoc(tc, "Cannot invoke this object (REPR: %s; %s)",
-                REPR(code)->name, MVM_6model_get_debug_name(tc, code));
-        }
-        code = find_invokee_internal(tc, code, is);
-    }
-    return code;
 }
 
 /* Gets, allocating if needed, the frame extra data structure for the given

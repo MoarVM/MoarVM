@@ -138,20 +138,6 @@ struct MVMFrameExtra {
     MVMObject *exit_handler_result;
 };
 
-/* How do we invoke this thing? Specifies either an attribute to look at for
- * an invokable thing, a method to call, and maybe a multi-dispatch cache to
- * look in first for an answer. */
-struct MVMInvocationSpec {
-    /* Offsets for fast access; placed first as they are what will be most
-     * often needed. */
-    size_t code_ref_offset;
-
-    /* Class handle, name and hint for attribute holding code to invoke. */
-    MVMObject *class_handle;
-    MVMString *attr_name;
-    MVMint64   hint;
-};
-
 /* Checks if a frame is allocated on a call stack or on the heap. If it is on
  * the call stack, then it will have zeroed flags (since heap-allocated frames
  * always have the "I'm a heap frame" bit set - MVM_CF_FRAME). */
@@ -172,9 +158,6 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *tc, MVMThreadCon
 
 MVMRegister * MVM_frame_initial_work(MVMThreadContext *tc, MVMuint16 *local_types,
                                      MVMuint16 num_locals);
-void MVM_frame_invoke(MVMThreadContext *tc, MVMStaticFrame *static_frame,
-                      MVMCallsite *callsite, MVMRegister *args,
-                      MVMFrame *outer, MVMObject *code_ref, MVMint32 spesh_cand);
 void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMint32 spesh_cand);
 MVM_PUBLIC void MVM_frame_dispatch_zero_args(MVMThreadContext *tc, MVMCode *code);
 void MVM_frame_dispatch_from_c(MVMThreadContext *tc, MVMCode *code,
@@ -213,7 +196,6 @@ MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *na
 MVM_PUBLIC MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name, MVMuint16 type);
 MVMuint16 MVM_frame_translate_to_primspec(MVMThreadContext *tc, MVMuint16 kind);
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
-MVM_PUBLIC MVMObject * MVM_frame_find_invokee(MVMThreadContext *tc, MVMObject *code, MVMCallsite **tweak_cs);
 MVMFrameExtra * MVM_frame_extra(MVMThreadContext *tc, MVMFrame *f);
 MVM_PUBLIC void MVM_frame_special_return(MVMThreadContext *tc, MVMFrame *f,
     MVMSpecialReturn special_return, MVMSpecialReturn special_unwind,

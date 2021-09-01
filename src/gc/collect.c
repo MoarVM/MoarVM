@@ -376,10 +376,6 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
                 new_addr_st->container_spec->gc_mark_data(tc, new_addr_st, worklist);
         if (new_addr_st->boolification_spec)
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->boolification_spec->method);
-        if (new_addr_st->invocation_spec) {
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->class_handle);
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->attr_name);
-        }
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHO);
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHAT);
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->HOW);
