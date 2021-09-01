@@ -3755,14 +3755,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(paramnamesused): {
                 MVMArgProcContext *ctx = &tc->cur_frame->params;
-                if (ctx->version == MVM_ARGS_LEGACY) {
-                    if (ctx->legacy.callsite->num_pos != ctx->legacy.callsite->arg_count)
-                        MVM_args_assert_nameds_used(tc, ctx);
-                }
-                else {
-                    if (ctx->arg_info.callsite->num_pos != ctx->arg_info.callsite->arg_count)
-                        MVM_args_assert_nameds_used(tc, ctx);
-                }
+                if (ctx->arg_info.callsite->num_pos != ctx->arg_info.callsite->flag_count)
+                    MVM_args_assert_nameds_used(tc, ctx);
                 goto NEXT;
             }
             OP(getuniname): {

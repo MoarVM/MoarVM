@@ -2316,16 +2316,10 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     else if (repr_id == MVM_REPR_ID_MVMContext) {
         MVMFrame *frame = ((MVMContext *)target)->body.context;
         MVMArgProcContext *argctx = &frame->params;
-        MVMCallsite *cs = argctx->version == MVM_ARGS_LEGACY
-                ? argctx->legacy.callsite
-                : argctx->arg_info.callsite;
-        MVMCallsiteEntry *cse = argctx->version == MVM_ARGS_LEGACY && argctx->legacy.arg_flags
-                ? argctx->legacy.arg_flags
-                : cs->arg_flags;
+        MVMCallsite *cs =  argctx->arg_info.callsite;
+        MVMCallsiteEntry *cse = cs->arg_flags;
         MVMuint16 flag_idx;
-        MVMuint16 flag_count = argctx->version == MVM_ARGS_LEGACY && argctx->legacy.arg_flags
-                ? argctx->legacy.flag_count
-                : cs->flag_count;
+        MVMuint16 flag_count = cs->flag_count;
         char *name = MVM_string_utf8_encode_C_string(dtc, frame->static_info->body.name);
         char *cuuid = MVM_string_utf8_encode_C_string(dtc, frame->static_info->body.cuuid);
 
