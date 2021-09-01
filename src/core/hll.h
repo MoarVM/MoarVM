@@ -21,16 +21,6 @@ struct MVMHLLConfig {
     /* The type to use for hash iteration (should have VMIter REPR). */
     MVMObject *hash_iterator_type;
 
-    /* HLL mapping types for cross-HLL boundary for int/num/str. */
-    MVMObject *foreign_type_int;
-    MVMObject *foreign_type_num;
-    MVMObject *foreign_type_str;
-
-    /* HLL mapping transforms for array/hash/code. */
-    MVMObject *foreign_transform_array;
-    MVMObject *foreign_transform_hash;
-    MVMObject *foreign_transform_code;
-
     /* The value to substitute for null. */
     MVMObject *null_value;
 
