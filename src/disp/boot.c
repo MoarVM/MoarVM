@@ -665,3 +665,59 @@ static void lang_hllize(MVMThreadContext *tc, MVMArgs arg_info) {
 MVMObject * MVM_disp_lang_hllize_dispatch(MVMThreadContext *tc) {
     return wrap(tc, lang_hllize);
 }
+
+
+/* The lang-isinvokable dispatcher first checks if the object is a VM bytecode
+ * handle, and if so evalutes to 1. Failing that, it looks at the HLL of the
+ * type of the object, sees if it has an isinvokable dispatcher registered,
+ * and delegates to it if so. Otherwise, evalutes to 0. */
+static void lang_isinvokable(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMArgProcContext arg_ctx;
+    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
+    MVM_args_checkarity(tc, &arg_ctx, 1, 2);
+    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
+
+    /* Guard on the type, as that's how we make our decision about either
+     * the outcome or where to delegate. */
+    MVMROOT(tc, capture, {
+        MVM_disp_program_record_guard_type(tc,
+                MVM_disp_program_record_track_arg(tc, capture, 0));
+    });
+
+    /* Get the value, and ensure it's an object (natives are certainly not
+     * invokable). */
+    MVMRegister value;
+    MVMCallsiteFlags kind;
+    MVM_capture_arg_pos(tc, capture, 0, &value, &kind);
+    if (kind == MVM_CALLSITE_ARG_OBJ) {
+        /* If it's a code ref, we're done. */
+        MVMObject *object = value.o;
+        if (MVM_code_iscode(tc, object)) {
+            MVMRegister res_reg = { .i64 = 1 };
+            MVMObject *del_capture = MVM_disp_program_record_capture_insert_constant_arg(tc,
+                    capture, 0, MVM_CALLSITE_ARG_INT, res_reg);
+            MVM_disp_program_record_delegate(tc, tc->instance->str_consts.boot_constant,
+                    del_capture);
+            return;
+        }
+
+        /* Otherwise, look at the HLL and see if it has a dispatcher. */
+        MVMHLLConfig *hll = STABLE(object)->hll_owner;
+        if (hll && hll->isinvokable_dispatcher) {
+            MVM_disp_program_record_delegate(tc, hll->isinvokable_dispatcher, capture);
+            return;
+        }
+    }
+
+    /* If we get here, can decide it's not invokable. */
+    MVMRegister res_reg = { .i64 = 0 };
+    MVMObject *del_capture = MVM_disp_program_record_capture_insert_constant_arg(tc,
+            capture, 0, MVM_CALLSITE_ARG_INT, res_reg);
+    MVM_disp_program_record_delegate(tc, tc->instance->str_consts.boot_constant,
+            del_capture);
+}
+
+/* Gets the MVMCFunction object wrapping the lang-isinvokable dispatcher. */
+MVMObject * MVM_disp_lang_isinvokable_dispatch(MVMThreadContext *tc) {
+    return wrap(tc, lang_isinvokable);
+}

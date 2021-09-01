@@ -73,6 +73,7 @@ struct MVMHLLConfig {
     MVMString *resume_error_dispatcher; /* whatever args were given for resumption */
     MVMString *hllize_dispatcher;       /* object to hllize, optional HLL name */
     MVMString *istype_dispatcher;       /* object, type */
+    MVMString *isinvokable_dispatcher;  /* object */
 
     /* The maximum code size that we'll inline. */
     MVMuint32 max_inline_size;

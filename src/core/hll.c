@@ -67,6 +67,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->resume_error_dispatcher, "HLL resume error dispatcher name");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hllize_dispatcher, "HLL hllize dispatcher name");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->istype_dispatcher, "HLL istype dispatcher name");
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->isinvokable_dispatcher, "HLL isinvokable dispatcher name");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->name, "HLL name");
     }
 
@@ -178,6 +179,8 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
                 hllize_dispatcher, config);
             check_config_key_str(tc, config_hash, "istype_dispatcher",
                 istype_dispatcher, config);
+            check_config_key_str(tc, config_hash, "isinvokable_dispatcher",
+                isinvokable_dispatcher, config);
             set_max_inline_size(tc, config_hash, config);
 
             /* Without this the integer objects are allocated in the nursery,
