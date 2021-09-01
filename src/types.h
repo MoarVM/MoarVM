@@ -78,7 +78,6 @@ typedef struct MVMHashEntry MVMHashEntry;
 typedef struct MVMHLLConfig MVMHLLConfig;
 typedef struct MVMIntConstCache MVMIntConstCache;
 typedef struct MVMInstance MVMInstance;
-typedef struct MVMInvocationSpec MVMInvocationSpec;
 typedef struct MVMIter MVMIter;
 typedef struct MVMIterBody MVMIterBody;
 typedef struct MVMKnowHOWAttributeREPR MVMKnowHOWAttributeREPR;

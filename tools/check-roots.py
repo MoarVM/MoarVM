@@ -114,7 +114,6 @@ allocators = [
 'MVM_frame_get_code_object',
 'MVM_frame_getdynlex',
 'MVM_frame_getdynlex_with_frame_walker',
-'MVM_frame_invoke',
 'MVM_frame_lexical_lookup_using_frame_walker',
 'MVM_frame_move_to_heap',
 'MVM_frame_takeclosure',

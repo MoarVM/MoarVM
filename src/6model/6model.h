@@ -319,21 +319,6 @@ struct MVMSTable {
     /* The role that the type plays in the HLL, if any. */
     MVMint64 hll_role;
 
-    /* Invocation handler. If something tries to invoke this object,
-     * whatever hangs off this function pointer gets invoked to handle
-     * the invocation. If it's a call into C code it may do stuff right
-     * off the bat. However, normally it will do whatever is needed to
-     * arrange for setting up a callframe, twiddle the interpreter's
-     * PC as needed and return. */
-    void (*invoke) (MVMThreadContext *tc, MVMObject *invokee,
-        MVMCallsite *callsite, MVMRegister *args);
-
-    /*
-     * If this is invokable, then this contains information needed to
-     * figure out how to invoke it. If not, it'll be null.
-     */
-    MVMInvocationSpec *invocation_spec;
-
     /* The type-object. */
     MVMObject *WHAT;
 

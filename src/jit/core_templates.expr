@@ -304,12 +304,6 @@
       (carg (tc) ptr)
       (carg (^zero) ptr)) ptr_sz))
 
-# since compilation of invocation is special-cased in the regular jit
-# we can't just toss this in here without also handling all of arg_*
-# and invoke_*.
-#(template: prepargs (^setf (^getf (tc) MVMThreadContext cur_frame) MVMFrame cur_args_callsite
-#                    (load (^cu_callsite_addr $0) ptr_sz)))
-
 (template: getcode
   (load (idx (^getf (cu) MVMCompUnit body.coderefs) $1 ptr_sz) ptr_sz))
 
@@ -1594,12 +1588,10 @@
       (carg $1 ptr)) ptr_sz))
 
 (template: iscoderef
-  (if
-    (any
-      (zr $1)
-      (eq (^getf (^stable $1) MVMSTable invoke) (^func &MVM_6model_invoke_default)))
-    (^zero)
-    (^one)))
+  (call (^func &MVM_code_iscode)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
 
 (template: getcodeobj
   (call (^func &MVM_frame_get_code_object)

@@ -1091,8 +1091,6 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     }
     if (st->container_spec != NULL)
         flags |= STABLE_HAS_CONTAINER_SPEC;
-    if (st->invocation_spec != NULL)
-        flags |= STABLE_HAS_INVOCATION_SPEC;
     if (st->hll_owner != NULL)
         flags |= STABLE_HAS_HLL_OWNER;
     if (st->hll_role != MVM_HLL_ROLE_NONE)
@@ -1115,19 +1113,6 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
 
         /* Give container spec a chance to serialize any data it wishes. */
         st->container_spec->serialize(tc, st, writer);
-    }
-
-    /* Invocation spec. */
-    if (st->invocation_spec) {
-        MVM_serialization_write_ref(tc, writer, st->invocation_spec->class_handle);
-        MVM_serialization_write_str(tc, writer, st->invocation_spec->attr_name);
-        MVM_serialization_write_int(tc, writer, st->invocation_spec->hint);
-        MVM_serialization_write_ref(tc, writer, NULL);
-        MVM_serialization_write_ref(tc, writer, NULL);
-        MVM_serialization_write_str(tc, writer, NULL);
-        MVM_serialization_write_int(tc, writer, 0);
-        MVM_serialization_write_str(tc, writer, NULL);
-        MVM_serialization_write_int(tc, writer, 0);
     }
 
     /* HLL owner. */
@@ -2735,7 +2720,6 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
             st->REPR->gc_free_repr_data(tc, st);
         MVM_free_null(st->type_check_cache);
         MVM_free_null(st->boolification_spec);
-        MVM_free_null(st->invocation_spec);
         MVM_free_null(st->debug_name);
         st->being_repossessed = 0;
     }
@@ -2801,20 +2785,15 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Invocation spec. */
     if (flags & STABLE_HAS_INVOCATION_SPEC) {
-        MVMInvocationSpec *invocation_spec = (MVMInvocationSpec *)MVM_calloc(1, sizeof(MVMInvocationSpec));
-        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->class_handle, MVM_serialization_read_ref(tc, reader));
-        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->attr_name, MVM_serialization_read_str(tc, reader));
-        invocation_spec->hint = MVM_serialization_read_int(tc, reader);
+        MVM_serialization_read_ref(tc, reader); // No longer used
+        MVM_serialization_read_str(tc, reader); // No longer used
+        MVM_serialization_read_int(tc, reader); // No longer used
         MVM_serialization_read_ref(tc, reader); // No longer used
         MVM_serialization_read_ref(tc, reader); // No longer used
         MVM_serialization_read_str(tc, reader); // No longer used
         MVM_serialization_read_int(tc, reader); // No longer used
         MVM_serialization_read_str(tc, reader); // No longer used
         MVM_serialization_read_int(tc, reader); // No longer used
-        /* Deserializing an object may trigger GC, so make sure a gc_mark of
-         * the half-deserialized STable doesn't see the invocation_spec
-         * until the methods are actually there */
-        st->invocation_spec = invocation_spec;
     }
 
     /* HLL owner. */

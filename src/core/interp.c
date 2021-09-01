@@ -2383,41 +2383,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
-            OP(setmethcache): {
-                MVMObject *iter = MVM_iter(tc, GET_REG(cur_op, 2).o);
-                MVMObject *cache;
-                MVMSTable *stable;
-                MVMROOT(tc, iter, {
-                    cache = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-                });
-
-                while (MVM_iter_istrue(tc, (MVMIter *)iter)) {
-                    MVMRegister result;
-                    REPR(iter)->pos_funcs.shift(tc, STABLE(iter), iter,
-                        OBJECT_BODY(iter), &result, MVM_reg_obj);
-                    MVM_repr_bind_key_o(tc, cache, MVM_iterkey_s(tc, (MVMIter *)iter),
-                        MVM_iterval(tc, (MVMIter *)iter));
-                }
-
-                stable = STABLE(GET_REG(cur_op, 0).o);
-                MVM_ASSIGN_REF(tc, &(stable->header), stable->method_cache, cache);
-                stable->method_cache_sc = NULL;
-                MVM_SC_WB_ST(tc, stable);
-
-                cur_op += 4;
-                goto NEXT;
-            }
-            OP(setmethcacheauth): {
-                MVMObject *obj = GET_REG(cur_op, 0).o;
-                MVMint64 new_flags = STABLE(obj)->mode_flags & (~MVM_METHOD_CACHE_AUTHORITATIVE);
-                MVMint64 flag = GET_REG(cur_op, 2).i64;
-                if (flag != 0)
-                    new_flags |= MVM_METHOD_CACHE_AUTHORITATIVE;
-                STABLE(obj)->mode_flags = new_flags;
-                MVM_SC_WB_ST(tc, STABLE(obj));
-                cur_op += 4;
-                goto NEXT;
-            }
+            OP(setmethcache):
+            OP(setmethcacheauth):
+                MVM_exception_throw_adhoc(tc, "The method cache is superseded by the general dispatch mechanism");
             OP(settypecache): {
                 MVMObject *obj    = GET_REG(cur_op, 0).o;
                 MVMObject *types  = GET_REG(cur_op, 2).o;
@@ -2655,8 +2623,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(iscoderef):
-                GET_REG(cur_op, 0).i64 = !GET_REG(cur_op, 2).o ||
-                    STABLE(GET_REG(cur_op, 2).o)->invoke == MVM_6model_invoke_default ? 0 : 1;
+                GET_REG(cur_op, 0).i64 = MVM_code_iscode(tc, GET_REG(cur_op, 2).o);
                 cur_op += 4;
                 goto NEXT;
             OP(getcodeobj): {
