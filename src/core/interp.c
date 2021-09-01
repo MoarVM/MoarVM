@@ -3986,10 +3986,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(DEPRECATED_82):
-                /* TODO make it an error once we rebootstrap NQP
-                MVM_exception_throw_adhoc(tc, "The multi-dispatch cache is superceded by the general dispatch mechanism"); */
-                cur_op += 8;
-                goto NEXT;
+                MVM_exception_throw_adhoc(tc, "The multi-dispatch cache is superceded by the general dispatch mechanism");
             OP(ctxouterskipthunks): {
                 MVMObject *ctx = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
