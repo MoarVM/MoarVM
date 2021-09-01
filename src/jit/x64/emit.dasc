@@ -1837,23 +1837,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |2:
         break;
     }
-    case MVM_OP_isinvokable: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, aword WORK[src];
-        | mov TMP1, OBJECT:TMP1->st;
-        | mov TMP2, 1;
-        | mov64 TMP3, ((uintptr_t)(MVM_6model_invoke_default));
-        | cmp TMP3, STABLE:TMP1->invoke;
-        | jne >1;
-        | mov TMP4, STABLE:TMP1->invocation_spec;
-        | test TMP4, TMP4;
-        | jnz >1;
-        | and TMP2, TMP4;
-        |1:
-        | mov aword WORK[dst], TMP2;
-        break;
-    }
     case MVM_OP_takehandlerresult: {
         MVMint16 dst = ins->operands[0].reg.orig;
         | mov TMP1, aword TC->last_handler_result;

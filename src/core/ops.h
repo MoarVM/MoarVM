@@ -380,8 +380,8 @@
 #define MVM_OP_setcodeobj 376
 #define MVM_OP_setcodename 377
 #define MVM_OP_forceouterctx 378
-#define MVM_OP_setinvokespec 379
-#define MVM_OP_isinvokable 380
+#define MVM_OP_DEPRECATED_97 379
+#define MVM_OP_DEPRECATED_98 380
 #define MVM_OP_freshcoderef 381
 #define MVM_OP_markcodestatic 382
 #define MVM_OP_markcodestub 383
