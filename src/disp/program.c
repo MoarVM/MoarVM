@@ -816,7 +816,7 @@ MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *c
     /* Obtain the value from the capture. This ensures that it is in range. */
     MVMRegister value;
     MVMCallsiteFlags kind;
-    MVM_capture_arg_pos(tc, capture, index, &value, &kind);
+    MVM_capture_arg(tc, capture, index, &value, &kind);
 
     /* Ensure the incoming capture is known. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
@@ -1108,7 +1108,7 @@ MVMint64 MVM_disp_program_record_capture_is_arg_literal(MVMThreadContext *tc,
     /* Obtain the value from the capture to ensure it is in range. */
     MVMRegister value;
     MVMCallsiteFlags kind;
-    MVM_capture_arg_pos(tc, capture, index, &value, &kind);
+    MVM_capture_arg(tc, capture, index, &value, &kind);
 
     /* Ensure the incoming capture is known and calculate the path. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
@@ -1804,12 +1804,12 @@ static void emit_capture_guards(MVMThreadContext *tc, compile_state *cs,
                 op.code = MVMDispOpcodeGuardArgLiteralObj;
                 op.arg_guard.arg_idx = (MVMuint16)index;
                 op.arg_guard.checkee = add_program_constant_obj(tc, cs,
-                        MVM_capture_arg_pos_o(tc, capture_obj, index));
+                        MVM_capture_arg_o(tc, capture_obj, index));
                 MVM_VECTOR_PUSH(cs->ops, op);
             }
             else {
                 if (v->guard_type) {
-                    MVMObject *value = MVM_capture_arg_pos_o(tc, capture_obj, index);
+                    MVMObject *value = MVM_capture_arg_o(tc, capture_obj, index);
                     MVMDispProgramOp op;
                     if (v->guard_concreteness)
                         op.code = IS_CONCRETE(value)
@@ -1823,7 +1823,7 @@ static void emit_capture_guards(MVMThreadContext *tc, compile_state *cs,
                     MVM_VECTOR_PUSH(cs->ops, op);
                 }
                 else if (v->guard_concreteness) {
-                    MVMObject *value = MVM_capture_arg_pos_o(tc, capture_obj, index);
+                    MVMObject *value = MVM_capture_arg_o(tc, capture_obj, index);
                     MVMDispProgramOp op;
                     op.code = IS_CONCRETE(value)
                             ? MVMDispOpcodeGuardArgConc

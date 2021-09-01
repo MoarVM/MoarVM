@@ -167,12 +167,15 @@ MVMint64 MVM_capture_num_pos_args(MVMThreadContext *tc, MVMObject *capture_obj) 
     return capture->body.callsite->num_pos;
 }
 
-/* Get the primitive value kind for a positional argument. */
-MVMint64 MVM_capture_arg_pos_primspec(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
+/* Get the number of arguments (positional and named) that the capture has. */
+MVMint64 MVM_capture_num_args(MVMThreadContext *tc, MVMObject *capture_obj) {
     MVMCapture *capture = validate_capture(tc, capture_obj);
-    if (idx >= capture->body.callsite->num_pos)
-        MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
-    switch (capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK) {
+    return capture->body.callsite->flag_count;
+}
+
+/* Get the primitive value kind for a positional argument. */
+static MVMint64 flag_to_spec(MVMint64 flag) {
+    switch (flag & MVM_CALLSITE_ARG_TYPE_MASK) {
         case MVM_CALLSITE_ARG_INT:
             return MVM_STORAGE_SPEC_BP_INT;
         case MVM_CALLSITE_ARG_NUM:
@@ -183,11 +186,35 @@ MVMint64 MVM_capture_arg_pos_primspec(MVMThreadContext *tc, MVMObject *capture_o
             return MVM_STORAGE_SPEC_BP_NONE;
     }
 }
+MVMint64 MVM_capture_arg_pos_primspec(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    if (idx >= capture->body.callsite->num_pos)
+        MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
+    return flag_to_spec(capture->body.callsite->arg_flags[idx]);
+}
+
+/* Get the primitive value kind for an argument. */
+MVMint64 MVM_capture_arg_primspec(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    if (idx >= capture->body.callsite->flag_count)
+        MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
+    return flag_to_spec(capture->body.callsite->arg_flags[idx]);
+}
 
 /* Access a positional object argument of an argument capture object. */
 MVMObject * MVM_capture_arg_pos_o(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
     MVMCapture *capture = validate_capture(tc, capture_obj);
     if (idx >= capture->body.callsite->num_pos)
+        MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
+    if ((capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK) != MVM_CALLSITE_ARG_OBJ)
+        MVM_exception_throw_adhoc(tc, "Capture argument is not an object argument");
+    return capture->body.args[idx].o;
+}
+
+/* Access an object argument of an argument capture object. */
+MVMObject * MVM_capture_arg_o(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    if (idx >= capture->body.callsite->flag_count)
         MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
     if ((capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK) != MVM_CALLSITE_ARG_OBJ)
         MVM_exception_throw_adhoc(tc, "Capture argument is not an object argument");
@@ -229,6 +256,16 @@ void MVM_capture_arg_pos(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32
         MVMRegister *arg_out, MVMCallsiteFlags *arg_type_out) {
     MVMCapture *capture = validate_capture(tc, capture_obj);
     if (idx >= capture->body.callsite->num_pos)
+        MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
+    *arg_out = capture->body.args[idx];
+    *arg_type_out = capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK;
+}
+
+/* Obtain an argument's value and type together. */
+void MVM_capture_arg(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx,
+        MVMRegister *arg_out, MVMCallsiteFlags *arg_type_out) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    if (idx >= capture->body.callsite->flag_count)
         MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
     *arg_out = capture->body.args[idx];
     *arg_type_out = capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK;
