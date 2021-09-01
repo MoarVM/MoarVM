@@ -26,9 +26,6 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         entry->slurpy_hash_type = tc->instance->boot_types.BOOTHash;
         entry->array_iterator_type = tc->instance->boot_types.BOOTIter;
         entry->hash_iterator_type = tc->instance->boot_types.BOOTIter;
-        entry->foreign_type_int = tc->instance->boot_types.BOOTInt;
-        entry->foreign_type_num = tc->instance->boot_types.BOOTNum;
-        entry->foreign_type_str = tc->instance->boot_types.BOOTStr;
         entry->max_inline_size = MVM_SPESH_DEFAULT_MAX_INLINE_SIZE;
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->int_box_type, "HLL int_box_type");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->num_box_type, "HLL num_box_type");
@@ -37,12 +34,6 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->slurpy_hash_type, "HLL slurpy_hash_type");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->array_iterator_type, "HLL array_iterator_type");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->hash_iterator_type, "HLL hash_iterator_type");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->foreign_type_int, "HLL foreign_type_int");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->foreign_type_num, "HLL foreign_type_num");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->foreign_type_str, "HLL foreign_type_str");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->foreign_transform_array, "HLL foreign_transform_array");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->foreign_transform_hash, "HLL foreign_transform_hash");
-        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->foreign_transform_code, "HLL foreign_transform_code");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->null_value, "HLL null_value");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->exit_handler, "HLL exit_handler");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->finalize_handler, "HLL finalize_handler");
@@ -130,12 +121,6 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             check_config_key(tc, config_hash, "slurpy_hash", slurpy_hash_type, config);
             check_config_key(tc, config_hash, "array_iter", array_iterator_type, config);
             check_config_key(tc, config_hash, "hash_iter", hash_iterator_type, config);
-            check_config_key(tc, config_hash, "foreign_type_int", foreign_type_int, config);
-            check_config_key(tc, config_hash, "foreign_type_num", foreign_type_num, config);
-            check_config_key(tc, config_hash, "foreign_type_str", foreign_type_str, config);
-            check_config_key(tc, config_hash, "foreign_transform_array", foreign_transform_array, config);
-            check_config_key(tc, config_hash, "foreign_transform_hash", foreign_transform_hash, config);
-            check_config_key(tc, config_hash, "foreign_transform_code", foreign_transform_code, config);
             check_config_key(tc, config_hash, "null_value", null_value, config);
             check_config_key_code(tc, config_hash, "exit_handler", exit_handler, config);
             check_config_key_code(tc, config_hash, "finalize_handler", finalize_handler, config);
