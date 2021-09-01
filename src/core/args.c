@@ -253,19 +253,6 @@ static void init_named_used(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuin
         ctx->named_used.bit_field = 0;
 }
 
-/* Initialize arguments processing context (legacy). */
-void MVM_args_proc_init(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMCallsite *callsite, MVMRegister *args) {
-    ctx->version = MVM_ARGS_LEGACY;
-    /* Stash callsite and argument counts/pointers. */
-    ctx->legacy.callsite = callsite;
-    /* initial counts and values; can be altered by flatteners */
-    init_named_used(tc, ctx, MVM_callsite_num_nameds(tc, callsite));
-    ctx->legacy.args     = args;
-    ctx->legacy.num_pos  = callsite->num_pos;
-    ctx->legacy.arg_count = callsite->arg_count;
-    ctx->legacy.arg_flags = NULL; /* will be populated by flattener if needed */
-}
-
 /* Initialize arguments processing context. */
 void MVM_args_proc_setup(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMArgs arg_info) {
     ctx->version = MVM_ARGS_DISPATCH;
@@ -313,22 +300,6 @@ MVMCallsite * MVM_args_copy_callsite(MVMThreadContext *tc, MVMArgProcContext *ct
     }
     else {
         return MVM_callsite_copy(tc, ctx->arg_info.callsite);
-    }
-}
-
-/* Copy a callsite unless it is interned. */
-MVMCallsite * MVM_args_copy_uninterned_callsite(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    if (ctx->version == MVM_ARGS_LEGACY) {
-        MVMCallsite *cs = ctx->legacy.callsite;
-        return cs->is_interned && !ctx->legacy.arg_flags
-            ? cs
-            : MVM_args_copy_callsite(tc, ctx);
-    }
-    else {
-        MVMCallsite *cs = ctx->arg_info.callsite;
-        return cs->is_interned
-            ? cs
-            : MVM_args_copy_callsite(tc, ctx);
     }
 }
 
