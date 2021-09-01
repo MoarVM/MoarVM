@@ -102,6 +102,7 @@ void MVM_disp_registry_init(MVMThreadContext *tc) {
             MVM_disp_lang_meth_not_found_dispatch(tc));
     register_boot_dispatcher(tc, "boot-boolify", MVM_disp_boot_boolify_dispatch(tc));
     register_boot_dispatcher(tc, "lang-hllize", MVM_disp_lang_hllize_dispatch(tc));
+    register_boot_dispatcher(tc, "lang-isinvokable", MVM_disp_lang_isinvokable_dispatch(tc));
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
