@@ -1669,7 +1669,6 @@ start:
         /* comparison (objects) */
     case MVM_OP_eqaddr:
     case MVM_OP_isconcrete:
-    case MVM_OP_isinvokable:
         /* comparison (big integer) */
     case MVM_OP_eq_I:
     case MVM_OP_ne_I:

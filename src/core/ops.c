@@ -5687,8 +5687,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_setinvokespec,
-        "setinvokespec",
+        MVM_OP_DEPRECATED_97,
+        "DEPRECATED_97",
         4,
         0,
         0,
@@ -5702,8 +5702,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_isinvokable,
-        "isinvokable",
+        MVM_OP_DEPRECATED_98,
+        "DEPRECATED_98",
         2,
         1,
         0,

@@ -2712,30 +2712,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(setinvokespec): {
-                MVMObject *obj = GET_REG(cur_op, 0).o, *ch = GET_REG(cur_op, 2).o;
-                MVMString *name = GET_REG(cur_op, 4).s;
-                MVMInvocationSpec *is = MVM_calloc(1, sizeof(MVMInvocationSpec));
-                MVMSTable *st = STABLE(obj);
-                MVM_ASSIGN_REF(tc, &(st->header), is->class_handle, ch);
-                MVM_ASSIGN_REF(tc, &(st->header), is->attr_name, name);
-                if (ch && name)
-                    is->hint = REPR(ch)->attr_funcs.hint_for(tc, STABLE(ch), ch, name);
-                /* XXX not thread safe, but this should occur on non-shared objects anyway... */
-                if (st->invocation_spec)
-                    MVM_free(st->invocation_spec);
-                st->invocation_spec = is;
+            OP(DEPRECATED_97):
+                /* TODO Make this throw once NQP is rebootstrapped. */
                 cur_op += 8;
                 goto NEXT;
-            }
-            OP(isinvokable): {
-                MVMSTable *st = STABLE(GET_REG(cur_op, 2).o);
-                GET_REG(cur_op, 0).i64 = st->invoke == MVM_6model_invoke_default
-                    ? (st->invocation_spec ? 1 : 0)
-                    : 1;
-                cur_op += 4;
-                goto NEXT;
-            }
+            OP(DEPRECATED_98):
+                MVM_exception_throw_adhoc(tc, "The invocation spec is superseded by the general dispatch mechanism");
             OP(freshcoderef): {
                 MVMObject * const cr = GET_REG(cur_op, 2).o;
                 MVMCode *ncr;

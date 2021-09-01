@@ -1607,12 +1607,6 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
-(template: isinvokable
-  (if
-    (eq (^getf (^stable $1) MVMSTable invoke) (^func &MVM_6model_invoke_default))
-    (flagval (nz (^getf (^stable $1) MVMSTable invocation_spec)))
-    (^one)))
-
 (template: iscont
   (if
     (any (^is_vmnull $1) (zr (^getf (^stable $1) MVMSTable container_spec)))

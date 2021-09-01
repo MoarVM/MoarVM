@@ -436,8 +436,8 @@ getcodeobj          w(obj) r(obj) :pure
 setcodeobj          r(obj) r(obj)
 setcodename         r(obj) r(str)
 forceouterctx       r(obj) r(obj)
-setinvokespec       r(obj) r(obj) r(str) r(obj)
-isinvokable         w(int64) r(obj) :pure :specializable
+DEPRECATED_97       r(obj) r(obj) r(str) r(obj)
+DEPRECATED_98       w(int64) r(obj) :pure :specializable
 freshcoderef        w(obj) r(obj)
 markcodestatic      r(obj)
 markcodestub        r(obj)

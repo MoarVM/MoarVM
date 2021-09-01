@@ -4117,8 +4117,6 @@ BEGIN {
     'setcodeobj', 376,
     'setcodename', 377,
     'forceouterctx', 378,
-    'setinvokespec', 379,
-    'isinvokable', 380,
     'freshcoderef', 381,
     'markcodestatic', 382,
     'markcodestub', 383,
@@ -4880,8 +4878,6 @@ BEGIN {
     'setcodeobj',
     'setcodename',
     'forceouterctx',
-    'setinvokespec',
-    'isinvokable',
     'freshcoderef',
     'markcodestatic',
     'markcodestub',
@@ -7916,22 +7912,6 @@ BEGIN {
         my $bytecode := $*MAST_FRAME.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 378, 5);
-        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
-        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
-    },
-    'setinvokespec', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
-        my uint $elems := nqp::elems($bytecode);
-        nqp::writeuint($bytecode, $elems, 379, 5);
-        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
-        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
-        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
-        my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
-    },
-    'isinvokable', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
-        my uint $elems := nqp::elems($bytecode);
-        nqp::writeuint($bytecode, $elems, 380, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
