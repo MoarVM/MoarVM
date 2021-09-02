@@ -70,19 +70,6 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                 memcpy(uf->env, f->env + cand->body.inlines[i].lexicals_start,
                     usf->body.num_lexicals * sizeof(MVMRegister));
 
-            /* Store the callsite, in case we need it for further processing
-             * of arguments. Do enough to make sure we've got clean enough
-             * state in the param processing context */
-            uf->params.arg_info.callsite = cand->body.inlines[i].cs;
-            uf->params.arg_info.map = NULL;
-            uf->params.arg_info.source = NULL;
-            uf->params.named_used_size = MVM_callsite_num_nameds(tc, cand->body.inlines[i].cs);
-
-            /* Store the named argument used bit field, since if we deopt in
-             * argument handling code we may have missed some. */
-            if (cand->body.inlines[i].deopt_named_used_bit_field)
-                uf->params.named_used.bit_field = cand->body.inlines[i].deopt_named_used_bit_field;
-
             /* Update our caller's return info. */
             caller->return_type = cand->body.inlines[i].res_type;
             caller->return_value = caller->return_type == MVM_RETURN_VOID
@@ -90,6 +77,20 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
                 : caller->work + cand->body.inlines[i].res_reg;
             caller->return_address = caller->static_info->body.bytecode +
                 cand->body.deopts[2 * cand->body.inlines[i].return_deopt_idx];
+
+            /* Store the callsite, in case we need it for further processing
+             * of arguments. Do enough to make sure we've got clean enough
+             * state in the param processing context */
+            uf->params.arg_info.callsite = cand->body.inlines[i].cs;
+            uf->params.arg_info.map = (MVMuint16*)(caller->return_address
+                - cand->body.inlines[i].cs->flag_count * 2);
+            uf->params.arg_info.source = caller->work;
+            uf->params.named_used_size = MVM_callsite_num_nameds(tc, cand->body.inlines[i].cs);
+
+            /* Store the named argument used bit field, since if we deopt in
+             * argument handling code we may have missed some. */
+            if (cand->body.inlines[i].deopt_named_used_bit_field)
+                uf->params.named_used.bit_field = cand->body.inlines[i].deopt_named_used_bit_field;
         }
     }
 
