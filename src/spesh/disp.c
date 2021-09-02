@@ -399,7 +399,7 @@ MVMOpInfo * MVM_spesh_disp_create_resumption_op_info(MVMThreadContext *tc, MVMSp
  * registers that are used by the resumption. */
 static void insert_resume_inits(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         MVMSpeshIns **insert_after, MVMDispProgram *dp, MVMSpeshOperand *orig_args,
-        MVMSpeshOperand *temporaries) {
+        MVMSpeshOperand *temporaries, MVMint32 deopt_idx) {
     MVMuint16 i;
     for (i = 0; i < dp->num_resumptions; i++) {
         /* Allocate the instruction. */
@@ -412,13 +412,21 @@ static void insert_resume_inits(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
          * required. */
         ins->operands[0] = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
 
-        /* Store dispatch program and index. */
-        ins->operands[1].lit_ui64 = (MVMuint64)dp;
-        ins->operands[2].lit_ui16 = i;
+        /* Prepare a spesh resume init record holding data about the dispatch
+         * resumption and write it into the instruction operands. */
+        ins->operands[1].lit_ui16 = MVM_VECTOR_ELEMS(g->resume_inits);
+        MVMSpeshResumeInit init_record = {
+            .dp = dp,
+            .deopt_idx = deopt_idx,
+            .res_idx = i,
+            .state_register = 0,
+            .init_registers = NULL,
+        };
+        MVM_VECTOR_PUSH(g->resume_inits, init_record);
 
         /* Add all of the non-constant args. */
         MVMuint16 j;
-        MVMuint16 insert_pos = 4;
+        MVMuint16 insert_pos = 3;
         for (j = 0; j < dpr->init_callsite->flag_count; j++) {
             MVMSpeshOperand source;
             if (!dpr->init_values) {
@@ -433,7 +441,7 @@ static void insert_resume_inits(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
             else {
                 continue; /* Constant */
             }
-            ins->operands[3].lit_ui16++;
+            ins->operands[2].lit_ui16++;
             ins->operands[insert_pos++] = source;
             MVM_spesh_usages_add_by_reg(tc, g, source, ins);
         }
@@ -868,7 +876,8 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 /* For bytecode invocations, insert ops to capture any resume
                  * initialization states. */
                 if (!c)
-                    insert_resume_inits(tc, g, bb, &insert_after, dp, orig_args, temporaries);
+                    insert_resume_inits(tc, g, bb, &insert_after, dp, orig_args, temporaries,
+                            deopt_all_ann->data.deopt_idx);
 
                 /* Form the varargs op and create the instruction. */
                 MVMOpInfo *rb_op = MVM_spesh_alloc(tc, g, MVM_spesh_disp_dispatch_op_info_size(

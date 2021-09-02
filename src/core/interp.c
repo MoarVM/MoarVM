@@ -6532,7 +6532,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_resumption):
                 GET_REG(cur_op, 0).o = tc->instance->VMNull;
-                cur_op += 14 + 2 * GET_UI16(cur_op, 12);
+                cur_op += 6 + 2 * GET_UI16(cur_op, 4);
                 goto NEXT;
             OP(prof_enter):
                 MVM_profile_log_enter(tc, tc->cur_frame->static_info,

@@ -1428,6 +1428,11 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         args = ins->operands + 4;
     }
 
+    /* If there's any resume initializations, keep track of the final one. */
+    MVMSpeshIns *resume_init = ins->prev && ins->prev->info->opcode == MVM_OP_sp_resumption
+        ? ins->prev
+        : NULL;
+
     /* Is the bytecode we're invoking a constant? */
     MVMSpeshFacts *coderef_facts = MVM_spesh_get_and_use_facts(tc, g, coderef_reg);
     MVMStaticFrame *target_sf = NULL;
@@ -1504,9 +1509,16 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         char *no_inline_reason = NULL;
         const MVMOpInfo *no_inline_info = NULL;
         MVMuint32 effective_size;
-        MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
-            target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
-            ins, &no_inline_reason, &effective_size, &no_inline_info);
+        MVMSpeshGraph *inline_graph;
+        if (resume_init) {
+            inline_graph = NULL;
+            no_inline_reason = "cannot inline with resume inits yet";
+        }
+        else {
+            inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
+                target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
+                ins, &no_inline_reason, &effective_size, &no_inline_info);
+        }
         log_inline(tc, g, target_sf, inline_graph, effective_size, no_inline_reason,
             0, no_inline_info);
         if (inline_graph) {

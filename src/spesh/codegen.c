@@ -193,6 +193,17 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
             else {
                 /* Core op. */
                 write_int16(ws, ins->info->opcode);
+
+                /* sp_resumption needs entries making in the spesh resume init
+                 * table. */
+                if (ins->info->opcode == MVM_OP_sp_resumption) {
+                    MVMSpeshResumeInit *ri = &(g->resume_inits[ins->operands[1].lit_ui16]);
+                    ri->state_register = ins->operands[0].reg.orig;
+                    MVMuint16 num_init_registers = ins->operands[2].lit_ui16;
+                    ri->init_registers = MVM_malloc(num_init_registers * sizeof(MVMuint16));
+                    for (i = 0; i < num_init_registers; i++)
+                        ri->init_registers[i] = ins->operands[2 + i].reg.orig;
+                }
             }
 
             /* Write out operands. */

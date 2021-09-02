@@ -179,6 +179,7 @@ typedef struct MVMSpeshLogGuard MVMSpeshLogGuard;
 typedef struct MVMSpeshCallInfo MVMSpeshCallInfo;
 typedef struct MVMSpeshInline MVMSpeshInline;
 typedef struct MVMSpeshIterator MVMSpeshIterator;
+typedef struct MVMSpeshResumeInit MVMSpeshResumeInit;
 typedef struct MVMSpeshLog MVMSpeshLog;
 typedef struct MVMSpeshLogBody MVMSpeshLogBody;
 typedef struct MVMSpeshLogEntry MVMSpeshLogEntry;

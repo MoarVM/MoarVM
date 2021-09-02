@@ -1098,15 +1098,13 @@ sp_runcfunc_o    .s w(obj) r(obj) uint64
 # prior to the sp_runbytecode instruction. The arguments are:
 # * A register used to hold the dispatch state if there is a resumption,
 #   which should be nulled out (this is the only runtime effect of this
-#   instruction at runtime, all other arguments contribute to static
-#   metadata attached to the spesh candidate)
-# * Pointer to the MVMDispProgram
-# * The index of the resumption (in the array of resumptions in the
-#   dispatch program)
+#   instruction, all other arguments contribute to static metadata
+#   attached to the spesh candidate)
+# * The index of the spesh resume init record
 # * The number of vararg registers that follow
 # * Varargs pointing to registers for every non-constant value that is used
 #   in the resume initialization state (which keeps the registers alive)
-sp_resumption    .s w(obj) uint64 uint16 uint16
+sp_resumption    .s w(obj) uint16 uint16 :noinline
 
 # Profiler recording ops. Naming convention: start with prof_. Must all be
 # marked .s, which is how the validator knows to exclude them. (For that

@@ -43,6 +43,10 @@ struct MVMSpeshCandidateBody {
     MVMuint32 num_inlines;
     MVMSpeshInline *inlines;
 
+    /* Resume initializations and the number of them. */
+    MVMSpeshResumeInit *resume_inits;
+    MVMuint32 num_resume_inits;
+
     /* The list of local types (only set up if we do inlines). */
     MVMuint16 *local_types;
 

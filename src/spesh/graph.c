@@ -313,6 +313,13 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             info = ins_node->info;
         }
 
+        /* The sp_resumption op is also var args. */
+        else if (info->opcode == MVM_OP_sp_resumption) {
+            MVMSpeshResumeInit *resume_init = &(g->resume_inits[((MVMuint16 *)args)[1]]);
+            info = ins_node->info = MVM_spesh_disp_create_resumption_op_info(tc, g,
+                    resume_init->dp, resume_init->res_idx);
+        }
+
         /* Go over operands. */
         ins_node->operands = MVM_spesh_alloc(tc, g, info->num_operands * sizeof(MVMSpeshOperand));
         for (i = 0; i < info->num_operands; i++) {
@@ -339,6 +346,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     break;
                 case MVM_operand_int16:
                     ins_node->operands[i].lit_i16 = GET_I16(args, arg_size);
+                    arg_size += 2;
+                    break;
+                case MVM_operand_uint16:
+                    ins_node->operands[i].lit_ui16 = GET_UI16(args, arg_size);
                     arg_size += 2;
                     break;
                 case MVM_operand_int32:
@@ -1411,6 +1422,9 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     g->num_lexicals      = cand->body.num_lexicals;
     g->inlines           = cand->body.inlines;
     g->num_inlines       = cand->body.num_inlines;
+    g->resume_inits      = cand->body.resume_inits;
+    g->resume_inits_num  = cand->body.num_resume_inits;
+    g->resume_inits_alloc = cand->body.num_resume_inits;
     g->deopt_addrs       = cand->body.deopts;
     g->num_deopt_addrs   = cand->body.num_deopts;
     g->alloc_deopt_addrs = cand->body.num_deopts;
@@ -1562,6 +1576,8 @@ void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g) {
         MVM_free(g->deopt_addrs);
     if (g->inlines && (!g->cand || g->cand->body.inlines != g->inlines))
         MVM_free(g->inlines);
+    if (g->resume_inits && (!g->cand || g->cand->body.resume_inits != g->resume_inits))
+        MVM_free(g->resume_inits);
     if (g->local_types &&  (!g->cand || g->cand->body.local_types != g->local_types))
         MVM_free(g->local_types);
     if (g->lexical_types &&  (!g->cand || g->cand->body.lexical_types != g->lexical_types))
