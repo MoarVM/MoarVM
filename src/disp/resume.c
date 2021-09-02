@@ -53,25 +53,86 @@ static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *d
 /* Looks down the callstack to find the dispatch that we are resuming, starting
  * from the indicated start point. If found, populates the struct pointed to by
  * the data parameter and returns a non-zero value. */
-static MVMuint32 find_internal(MVMThreadContext *tc, MVMCallStackRecord *start,
-        MVMDispResumptionData *data, MVMuint32 exhausted) {
+static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data,
+        MVMuint32 exhausted, MVMint32 caller) {
+    /* Create iterator, which is over both dispatch records and frames. */
     MVMCallStackIterator iter;
-    MVM_callstack_iter_dispatch_init(tc, &iter, start);
+    MVM_callstack_iter_resumeable_init(tc, &iter, tc->stack_top);
+
+    /* How many frames (including inlined ones) do we need to see before we
+     * start looking for something to resume? We never want to look at the
+     * current frame (or inline), and we need to go one more out if we're in
+     * caller mode. */
+    MVMint32 frames_to_skip = caller ? 2 : 1;
+    MVMint32 seen_frame = 0;
     while (MVM_callstack_iter_move_next(tc, &iter)) {
         MVMCallStackRecord *cur = MVM_callstack_iter_current(tc, &iter);
         switch (cur->kind) {
+            case MVM_CALLSTACK_RECORD_BIND_CONTROL:
+                /* If this is on the stack top, then we just exited a frame
+                 * due to a bind failure and are doing a resume as a result.
+                 * The frame we just left counts as 1. */
+                if (!seen_frame && frames_to_skip)
+                    frames_to_skip--;
+                break;
+            case MVM_CALLSTACK_RECORD_FRAME:
+            case MVM_CALLSTACK_RECORD_HEAP_FRAME:
+            case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
+            case MVM_CALLSTACK_RECORD_DEOPT_FRAME: {
+                seen_frame = 1;
+                MVMFrame *frame = MVM_callstack_record_to_frame(cur);
+                MVMSpeshCandidate *cand = frame->spesh_cand;
+                if (cand) {
+                    /* Specialized frame. Are there resume inits? */
+                    if (cand->body.num_resume_inits) {
+                        /* Yes, get the deopt idx and look for if we have any
+                         * such entries. */
+                        MVMint32 deopt_idx = MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc,
+                                frame);
+                        MVMuint32 i;
+                        for (i = 0; i < cand->body.num_resume_inits; i++) {
+                            if (cand->body.resume_inits[i].deopt_idx == deopt_idx) {
+                                MVM_oops(tc, "found specialized resume init but nyi");
+                            }
+                        }
+
+                        /* No matching resume init here. TODO handle inlines
+                         * when we support that. */
+                        if (frames_to_skip)
+                            frames_to_skip--;
+                    }
+                    else {
+                        /* No resume inits. TODO But maybe inlines, factor those
+                         * in to the skipping logic here. */
+                        if (frames_to_skip)
+                            frames_to_skip--;
+                    }
+                }
+                else {
+                    /* Non-specialized, so there'll be dispatch records if
+                     * there is anything to resume. It counts against the
+                     * frames we wish to skip, however. */
+                    if (frames_to_skip)
+                        frames_to_skip--;
+                }
+                break;
+            }
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED: {
-                MVMCallStackDispatchRecord *dr = (MVMCallStackDispatchRecord *)cur;
-                if (dr->produced_dp && setup_resumption(tc, data, dr->produced_dp,
-                            &(dr->arg_info), &(dr->resumption_state), dr->temps, exhausted))
-                    return 1;
+                if (!frames_to_skip) {
+                    MVMCallStackDispatchRecord *dr = (MVMCallStackDispatchRecord *)cur;
+                    if (dr->produced_dp && setup_resumption(tc, data, dr->produced_dp,
+                                &(dr->arg_info), &(dr->resumption_state), dr->temps, exhausted))
+                        return 1;
+                }
                 break;
             }
             case MVM_CALLSTACK_RECORD_DISPATCH_RUN: {
-                MVMCallStackDispatchRun *dr = (MVMCallStackDispatchRun *)cur;
-                if (dr->chosen_dp && setup_resumption(tc, data, dr->chosen_dp,
-                            &(dr->arg_info), &(dr->resumption_state), dr->temps, exhausted))
-                    return 1;
+                if (!frames_to_skip) {
+                    MVMCallStackDispatchRun *dr = (MVMCallStackDispatchRun *)cur;
+                    if (dr->chosen_dp && setup_resumption(tc, data, dr->chosen_dp,
+                                &(dr->arg_info), &(dr->resumption_state), dr->temps, exhausted))
+                        return 1;
+                }
                 break;
             }
         }
@@ -82,19 +143,13 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMCallStackRecord *start,
 /* Looks down the callstack to find the dispatch that we are resuming. */
 MVMuint32 MVM_disp_resume_find_topmost(MVMThreadContext *tc, MVMDispResumptionData *data,
                                        MVMuint32 exhausted) {
-    return find_internal(tc, tc->stack_top, data, exhausted);
+    return find_internal(tc, data, exhausted, 0);
 }
 
 /* Skip to our caller, and then find the current dispatch. */
 MVMuint32 MVM_disp_resume_find_caller(MVMThreadContext *tc, MVMDispResumptionData *data,
                                       MVMuint32 exhausted) {
-    MVMCallStackIterator iter;
-    MVM_callstack_iter_frame_init(tc, &iter, tc->stack_top);
-    if (!MVM_callstack_iter_move_next(tc, &iter)) // Current frame
-        return 0;
-    if (!MVM_callstack_iter_move_next(tc, &iter)) // Caller frame
-        return 0;
-    return find_internal(tc, MVM_callstack_iter_current(tc, &iter), data, exhausted);
+    return find_internal(tc, data, exhausted, 1);
 }
 
 /* Get the resume initialization state argument at the specified index. */

@@ -373,13 +373,19 @@ MVM_STATIC_INLINE void MVM_callstack_iter_frame_init(MVMThreadContext *tc,
                     1 << MVM_CALLSTACK_RECORD_DEOPT_FRAME);
 }
 
-/* Create an iterator over dispatch frames on the call stack. */
-MVM_STATIC_INLINE void MVM_callstack_iter_dispatch_init(MVMThreadContext *tc,
+/* Create an iterator over call stack records that we may want to consider if
+ * we are doing a resume. */
+MVM_STATIC_INLINE void MVM_callstack_iter_resumeable_init(MVMThreadContext *tc,
         MVMCallStackIterator *iter, MVMCallStackRecord *start) {
     iter->start = start;
     iter->current = NULL;
     iter->filter = (1 << MVM_CALLSTACK_RECORD_DISPATCH_RECORDED |
-                    1 << MVM_CALLSTACK_RECORD_DISPATCH_RUN);
+                    1 << MVM_CALLSTACK_RECORD_DISPATCH_RUN |
+                    1 << MVM_CALLSTACK_RECORD_FRAME |
+                    1 << MVM_CALLSTACK_RECORD_HEAP_FRAME |
+                    1 << MVM_CALLSTACK_RECORD_PROMOTED_FRAME |
+                    1 << MVM_CALLSTACK_RECORD_DEOPT_FRAME |
+                    1 << MVM_CALLSTACK_RECORD_BIND_CONTROL);
 }
 
 /* Move to the next applicable record. Should be called before reading a current
