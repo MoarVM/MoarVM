@@ -13969,17 +13969,17 @@ static const MVMOpInfo MVM_op_infos[] = {
     {
         MVM_OP_sp_resumption,
         "sp_resumption",
-        4,
+        3,
         0,
         0,
         0,
         0,
+        1,
         0,
         0,
         0,
         0,
-        0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_uint64, MVM_operand_uint16, MVM_operand_uint16 }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_uint16, MVM_operand_uint16 }
     },
     {
         MVM_OP_prof_enter,

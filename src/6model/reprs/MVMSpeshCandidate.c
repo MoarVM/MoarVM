@@ -69,6 +69,7 @@ void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(candidate->body.deopts);
     MVM_spesh_pea_destroy_deopt_info(tc, &(candidate->body.deopt_pea));
     MVM_free(candidate->body.inlines);
+    MVM_free(candidate->body.resume_inits);
     MVM_free(candidate->body.local_types);
     MVM_free(candidate->body.lexical_types);
     if (candidate->body.jitcode)
@@ -289,6 +290,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     candidate->body.num_handlers  = sg->num_handlers;
     candidate->body.num_deopts    = sg->num_deopt_addrs;
     candidate->body.deopts        = sg->deopt_addrs;
+    candidate->body.num_resume_inits = MVM_VECTOR_ELEMS(sg->resume_inits);
+    candidate->body.resume_inits = sg->resume_inits;
     candidate->body.deopt_named_used_bit_field = sg->deopt_named_used_bit_field;
     candidate->body.deopt_pea     = sg->deopt_pea;
     candidate->body.num_locals    = sg->num_locals;

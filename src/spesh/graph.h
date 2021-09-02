@@ -79,6 +79,9 @@ struct MVMSpeshGraph {
     MVMSpeshInline *inlines;
     MVMuint32 num_inlines;
 
+    /* Table of information about resume initialization arguments, if any. */
+    MVM_VECTOR_DECL(MVMSpeshResumeInit, resume_inits);
+
     /* Number of basic blocks we have. */
     MVMuint32 num_bbs;
 
