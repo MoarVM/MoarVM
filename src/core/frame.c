@@ -150,10 +150,15 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
     MVMFrame *frame;
 
     MVMROOT2(tc, static_frame, code_ref, {
-        /* If the frame was never invoked before, need initial calculations
-         * and verification. */
-         if (static_frame->body.instrumentation_level == 0)
-             instrumentation_level_barrier(tc, static_frame);
+        /* Ensure the frame is fully deserialized. */
+        if (!static_frame->body.fully_deserialized) {
+            MVM_reentrantmutex_lock(tc,
+                (MVMReentrantMutex *)static_frame->body.cu->body.deserialize_frame_mutex);
+            if (!static_frame->body.fully_deserialized)
+                MVM_bytecode_finish_frame(tc, static_frame->body.cu, static_frame, 0);
+            MVM_reentrantmutex_unlock(tc,
+                (MVMReentrantMutex *)static_frame->body.cu->body.deserialize_frame_mutex);
+        }
 
         frame = MVM_gc_allocate_frame(tc);
     });
