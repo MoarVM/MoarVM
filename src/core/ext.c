@@ -210,3 +210,10 @@ const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
 
     return record->info;
 }
+
+const MVMOpInfo * MVM_ext_resolve_extop_record_in_cu(MVMThreadContext *tc, MVMCompUnit *cu,
+        MVMuint16 opcode) {
+    MVMuint16       index  = opcode - MVM_OP_EXT_BASE;
+    MVMExtOpRecord *record = &cu->body.extops[index];
+    return MVM_ext_resolve_extop_record(tc, record);
+}

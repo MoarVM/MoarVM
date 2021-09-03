@@ -30,3 +30,5 @@ MVM_PUBLIC int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
         MVMExtOpSpesh *spesh, MVMExtOpFactDiscover *discover, MVMuint32 flags);
 const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
         MVMExtOpRecord *record);
+const MVMOpInfo * MVM_ext_resolve_extop_record_in_cu(MVMThreadContext *tc,
+        MVMCompUnit *cu, MVMuint16 opcode);
