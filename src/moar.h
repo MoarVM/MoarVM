@@ -136,16 +136,16 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "core/frame.h"
 #include "core/callstack.h"
 #include "core/validation.h"
+#include "core/ops.h"
+#include "core/ext.h"
 #include "core/bytecode.h"
 #include "core/bytecodedump.h"
-#include "core/ops.h"
 #include "core/threads.h"
 #include "core/hll.h"
 #include "core/loadbytecode.h"
 #include "core/bitmap.h"
 #include "math/num.h"
 #include "core/coerce.h"
-#include "core/ext.h"
 #ifdef HAVE_LIBFFI
 #include "core/nativecall_libffi.h"
 #else
