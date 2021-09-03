@@ -50,12 +50,6 @@ void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
     return allocated;
 }
 
-/* Same as MVM_gc_allocate, but promises that the memory will be zeroed. */
-void * MVM_gc_allocate_zeroed(MVMThreadContext *tc, size_t size) {
-    /* At present, MVM_gc_allocate always returns zeroed memory. */
-    return MVM_gc_allocate(tc, size);
-}
-
 /* Allocates a new STable, based on the specified thread context, REPR
  * and meta-object. */
 MVMSTable * MVM_gc_allocate_stable(MVMThreadContext *tc, const MVMREPROps *repr, MVMObject *how) {
@@ -107,17 +101,4 @@ MVMFrame * MVM_gc_allocate_frame(MVMThreadContext *tc) {
     f->header.size   = sizeof(MVMFrame);
     f->header.owner  = tc->thread_id;
     return f;
-}
-
-/* Sets allocate for this thread to be from the second generation by
- * default. */
-void MVM_gc_allocate_gen2_default_set(MVMThreadContext *tc) {
-    tc->allocate_in_gen2++;
-}
-
-/* Sets allocation for this thread to be from the nursery by default. */
-void MVM_gc_allocate_gen2_default_clear(MVMThreadContext *tc) {
-    if (tc->allocate_in_gen2 <= 0)
-        MVM_oops(tc, "Cannot leave gen2 allocation without entering it");
-    tc->allocate_in_gen2--;
 }
