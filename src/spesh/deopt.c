@@ -185,9 +185,7 @@ static void begin_frame_deopt(MVMThreadContext *tc, MVMFrame *f, MVMuint32 deopt
     /* Materialize any replaced objects first, then if we have stuff replaced
      * in inlines then uninlining will take care of moving it out into the
      * frames where it belongs. */
-    MVMROOT(tc, f, {
-        materialize_replaced_objects(tc, f, deopt_idx);
-    });
+    materialize_replaced_objects(tc, f, deopt_idx);
 }
 
 /* Perform actions common to the deopt of a frame after we do any kind of
@@ -217,24 +215,26 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_idx) {
 #if MVM_LOG_DEOPTS
         fprintf(stderr, "    Will deopt %u -> %u\n", deopt_offset, deopt_target);
 #endif
-        begin_frame_deopt(tc, f, deopt_idx);
-
-        /* Perform any uninlining. */
         MVMFrame *top_frame; 
-        if (f->spesh_cand->body.inlines) {
-            /* Perform uninlining. The top frame may have changes, so sync things
-             * up. */
-            uninline(tc, f, f->spesh_cand, deopt_offset, 0);
-            top_frame = MVM_callstack_current_frame(tc);
-            tc->cur_frame = top_frame;
-            tc->current_frame_nr = top_frame->sequence_nr;
-            *(tc->interp_reg_base) = top_frame->work;
-            *(tc->interp_cu) = top_frame->static_info->body.cu;
-        }
-        else {
-            /* No uninlining, so we know the top frame didn't change. */
-            top_frame = f;
-        }
+        MVMROOT(tc, f, {
+            begin_frame_deopt(tc, f, deopt_idx);
+
+            /* Perform any uninlining. */
+            if (f->spesh_cand->body.inlines) {
+                /* Perform uninlining. The top frame may have changes, so sync things
+                 * up. */
+                uninline(tc, f, f->spesh_cand, deopt_offset, 0);
+                top_frame = MVM_callstack_current_frame(tc);
+                tc->cur_frame = top_frame;
+                tc->current_frame_nr = top_frame->sequence_nr;
+                *(tc->interp_reg_base) = top_frame->work;
+                *(tc->interp_cu) = top_frame->static_info->body.cu;
+            }
+            else {
+                /* No uninlining, so we know the top frame didn't change. */
+                top_frame = f;
+            }
+        });
 
         /* Move the program counter of the interpreter. */
         *(tc->interp_cur_op)         = top_frame->static_info->body.bytecode + deopt_target;
@@ -351,19 +351,22 @@ void MVM_spesh_deopt_during_unwind(MVMThreadContext *tc) {
     if (deopt_idx >= 0) {
         MVMuint32 deopt_target = frame->spesh_cand->body.deopts[deopt_idx * 2];
         MVMuint32 deopt_offset = MVM_spesh_deopt_bytecode_pos(frame->spesh_cand->body.deopts[deopt_idx * 2 + 1]);
-        begin_frame_deopt(tc, frame, deopt_idx);
 
-        /* Potentially need to uninline. This leaves the top frame being the
-         * one we're returning into. Otherwise, the top frame is the current
-         * one. */
         MVMFrame *top_frame;
-        if (frame->spesh_cand->body.inlines) {
-            uninline(tc, frame, frame->spesh_cand, deopt_offset, 1);
-            top_frame = MVM_callstack_current_frame(tc);
-        }
-        else {
-            top_frame = frame;
-        }
+        MVMROOT(tc, frame, {
+            begin_frame_deopt(tc, frame, deopt_idx);
+
+            /* Potentially need to uninline. This leaves the top frame being the
+             * one we're returning into. Otherwise, the top frame is the current
+             * one. */
+            if (frame->spesh_cand->body.inlines) {
+                uninline(tc, frame, frame->spesh_cand, deopt_offset, 1);
+                top_frame = MVM_callstack_current_frame(tc);
+            }
+            else {
+                top_frame = frame;
+            }
+        });
 
         /* Rewrite return address in the current top frame and sync current
          * frame. */
