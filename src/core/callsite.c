@@ -340,7 +340,7 @@ MVMCallsite * MVM_callsite_drop_positional(MVMThreadContext *tc, MVMCallsite *cs
         MVM_exception_throw_adhoc(tc, "Cannot transform a callsite with flattening args");
 
     /* Allocate a new callsite and set it up. */
-    MVMCallsite *new_callsite = MVM_calloc(1, sizeof(MVMCallsite));
+    MVMCallsite *new_callsite = MVM_malloc(sizeof(MVMCallsite));
     new_callsite->num_pos = cs->num_pos - 1;
     new_callsite->flag_count = cs->flag_count - 1;
     new_callsite->arg_count = cs->arg_count - 1;
@@ -354,7 +354,12 @@ MVMCallsite * MVM_callsite_drop_positional(MVMThreadContext *tc, MVMCallsite *cs
             to++;
         }
     }
-    copy_nameds(tc, new_callsite, cs);
+    new_callsite->has_flattening = 0;
+    new_callsite->is_interned = 0;
+    if (cs->arg_names)
+        copy_nameds(tc, new_callsite, cs);
+    else
+        new_callsite->arg_names = NULL;
 
     return new_callsite;
 }
@@ -370,7 +375,7 @@ MVMCallsite * MVM_callsite_insert_positional(MVMThreadContext *tc, MVMCallsite *
         MVM_exception_throw_adhoc(tc, "Cannot transform a callsite with flattening args");
 
     /* Allocate a new callsite and set it up. */
-    MVMCallsite *new_callsite = MVM_calloc(1, sizeof(MVMCallsite));
+    MVMCallsite *new_callsite = MVM_malloc(sizeof(MVMCallsite));
     new_callsite->num_pos = cs->num_pos + 1;
     new_callsite->flag_count = cs->flag_count + 1;
     new_callsite->arg_count = cs->arg_count + 1;
@@ -386,7 +391,13 @@ MVMCallsite * MVM_callsite_insert_positional(MVMThreadContext *tc, MVMCallsite *
     }
     if (from == idx)
         new_callsite->arg_flags[to] = flag;
-    copy_nameds(tc, new_callsite, cs);
+    new_callsite->has_flattening = 0;
+    new_callsite->is_interned = 0;
+
+    if (cs->arg_names)
+        copy_nameds(tc, new_callsite, cs);
+    else
+        new_callsite->arg_names = NULL;
 
     return new_callsite;
 }
