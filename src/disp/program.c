@@ -2322,9 +2322,9 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
     compile_state cs;
     cs.rec = &(record->rec);
     MVM_VECTOR_INIT(cs.ops, 8);
-    MVM_VECTOR_INIT(cs.gc_constants, 4);
-    MVM_VECTOR_INIT(cs.constants, 4);
-    MVM_VECTOR_INIT(cs.value_temps, 4);
+    MVM_VECTOR_INIT(cs.gc_constants, 0);
+    MVM_VECTOR_INIT(cs.constants, 0);
+    MVM_VECTOR_INIT(cs.value_temps, 0);
     MVM_VECTOR_INIT(cs.fake_temps, 0);
     cs.args_buffer_temps = 0;
 
