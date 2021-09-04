@@ -360,12 +360,14 @@ void MVM_profile_ensure_uninstrumented(MVMThreadContext *tc, MVMStaticFrame *sf)
 void MVM_profile_instrumented_start(MVMThreadContext *tc, MVMObject *config) {
     /* Wait for specialization thread to stop working, so it won't trip over
      * bytecode instrumentation, then enable profiling. */
+    MVM_gc_mark_thread_blocked(tc);
     uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
     while (tc->instance->spesh_working != 0)
         uv_cond_wait(&(tc->instance->cond_spesh_sync), &(tc->instance->mutex_spesh_sync));
     tc->instance->profiling = 1;
     tc->instance->instrumentation_level++;
     uv_mutex_unlock(&(tc->instance->mutex_spesh_sync));
+    MVM_gc_mark_thread_unblocked(tc);
 }
 
 /* Simple allocation functions. */
