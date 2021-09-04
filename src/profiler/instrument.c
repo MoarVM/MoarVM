@@ -898,12 +898,14 @@ static MVMObject * dump_data(MVMThreadContext *tc) {
 MVMObject * MVM_profile_instrumented_end(MVMThreadContext *tc) {
 
     /* Disable profiling. */
+    MVM_gc_mark_thread_blocked(tc);
     uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
     while (tc->instance->spesh_working != 0)
         uv_cond_wait(&(tc->instance->cond_spesh_sync), &(tc->instance->mutex_spesh_sync));
     tc->instance->profiling = 0;
     tc->instance->instrumentation_level++;
     uv_mutex_unlock(&(tc->instance->mutex_spesh_sync));
+    MVM_gc_mark_thread_unblocked(tc);
 
     /* Build and return result data structure. */
     return dump_data(tc);
