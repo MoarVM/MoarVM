@@ -4,9 +4,6 @@
  * optionally visiting its static chain at each point, and getting correct
  * results even if inlining has taken place.*/
 
-/* Sentinel value to indicate there's no inline to explore. */
-#define NO_INLINE -2
-
 /* Initializes the frame walker. The `MVMSpeshFrameWalker` object MUST be on
  * the system stack, and the cleanup function MUST be called after using it,
  * except in the case of an exception. This is because, since frames are GC
@@ -18,7 +15,7 @@ static void init_common(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMFrame 
     fw->cur_outer_frame = NULL;
     fw->started = fw->traversed = 0;
     fw->visiting_outers = 0;
-    fw->inline_idx = NO_INLINE;
+    fw->inline_idx = MVM_SPESH_FRAME_WALKER_NO_INLINE;
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(fw->cur_caller_frame));
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(fw->cur_outer_frame));
 }
@@ -41,11 +38,11 @@ void MVM_spesh_frame_walker_init_for_outers(MVMThreadContext *tc, MVMSpeshFrameW
 /* Go to the next inline, if any. */
 static void go_to_next_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
     MVMFrame *f = fw->cur_caller_frame;
-    if (fw->inline_idx == NO_INLINE)
+    if (fw->inline_idx == MVM_SPESH_FRAME_WALKER_NO_INLINE)
         return;
     MVMSpeshCandidate *cand = f->spesh_cand;
     if (!cand) {
-        fw->inline_idx = NO_INLINE;
+        fw->inline_idx = MVM_SPESH_FRAME_WALKER_NO_INLINE;
         return;
     }
     MVMJitCode *jitcode = cand->body.jitcode;
@@ -68,7 +65,7 @@ static void go_to_next_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
     }
 
     /* No inline available. */
-    fw->inline_idx = NO_INLINE;
+    fw->inline_idx = MVM_SPESH_FRAME_WALKER_NO_INLINE;
 }
 
 /* See if the current frame is specialized, and if so if we are in an inline.
@@ -101,7 +98,7 @@ static void go_to_first_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MV
             }
         }
     }
-    fw->inline_idx = NO_INLINE;
+    fw->inline_idx = MVM_SPESH_FRAME_WALKER_NO_INLINE;
 }
 
 /* Moves one caller frame deeper, accounting for inlines. */
@@ -112,7 +109,7 @@ MVMuint32 move_one_caller(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
      * we will be placed on it. If there is not one, we will be placed
      * on the base frame containing inlines. Either way, we must have
      * something to go to. */
-    if (fw->inline_idx != NO_INLINE) {
+    if (fw->inline_idx != MVM_SPESH_FRAME_WALKER_NO_INLINE) {
         go_to_next_inline(tc, fw);
         return 1;
     }
@@ -165,7 +162,7 @@ MVMuint32 MVM_spesh_frame_walker_next(MVMThreadContext *tc, MVMSpeshFrameWalker 
         else if (fw->visit_outers) {
             MVMFrame *outer;
             MVMSpeshCandidate *spesh_cand = fw->cur_caller_frame->spesh_cand;
-            if (fw->inline_idx == NO_INLINE || !spesh_cand) {
+            if (fw->inline_idx == MVM_SPESH_FRAME_WALKER_NO_INLINE || !spesh_cand) {
                 outer = fw->cur_caller_frame->outer;
             }
             else {
@@ -186,19 +183,6 @@ MVMuint32 MVM_spesh_frame_walker_next(MVMThreadContext *tc, MVMSpeshFrameWalker 
     }
 }
 
-/* Returns non-zero if we're currently visiting an inline, zero otherwise. */
-MVMuint32 MVM_spesh_frame_walker_is_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
-    return fw->inline_idx != NO_INLINE;
-}
-
-/* Gets the current frame we're walking. If we're in an inline, then it's the
- * frame holding the inline. */
-MVMFrame * MVM_spesh_frame_walker_current_frame(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
-    return MVM_UNLIKELY(fw->visiting_outers)
-        ? fw->cur_outer_frame
-        : fw->cur_caller_frame;
-}
-
 static void find_lex_info(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMFrame **cur_frame_out,
                           MVMStaticFrame **sf_out, MVMuint32 *base_index_out) {
     if (fw->visiting_outers) {
@@ -209,7 +193,7 @@ static void find_lex_info(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMFram
     else {
         *cur_frame_out = fw->cur_caller_frame;
         MVMSpeshCandidate *spesh_cand = fw->cur_caller_frame->spesh_cand;
-        if (fw->inline_idx == NO_INLINE || !spesh_cand) {
+        if (fw->inline_idx == MVM_SPESH_FRAME_WALKER_NO_INLINE || !spesh_cand) {
             *sf_out = fw->cur_caller_frame->static_info;
             *base_index_out = 0;
         }
@@ -255,7 +239,7 @@ MVMuint32 MVM_spesh_frame_walker_get_lex(MVMThreadContext *tc, MVMSpeshFrameWalk
 MVMuint32 MVM_spesh_frame_walker_move_outer(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
     MVMFrame *outer;
     MVMSpeshCandidate *spesh_cand = fw->cur_caller_frame->spesh_cand;
-    if (fw->inline_idx == NO_INLINE || !spesh_cand) {
+    if (fw->inline_idx == MVM_SPESH_FRAME_WALKER_NO_INLINE || !spesh_cand) {
         outer = fw->cur_caller_frame->outer;
     }
     else {
@@ -265,7 +249,7 @@ MVMuint32 MVM_spesh_frame_walker_move_outer(MVMThreadContext *tc, MVMSpeshFrameW
     }
     fw->cur_caller_frame = outer;
     fw->cur_outer_frame = NULL;
-    fw->inline_idx = NO_INLINE;
+    fw->inline_idx = MVM_SPESH_FRAME_WALKER_NO_INLINE;
     fw->visiting_outers = 0;
     fw->started = 1;
     if (outer != NULL) {
@@ -304,7 +288,7 @@ MVMuint32 MVM_spesh_frame_walker_move_caller_skip_thunks(MVMThreadContext *tc,
                                                          MVMSpeshFrameWalker *fw) {
     while (MVM_spesh_frame_walker_move_caller(tc, fw)) {
         MVMSpeshCandidate *spesh_cand = fw->cur_caller_frame->spesh_cand;
-        MVMStaticFrame *sf = (fw->inline_idx == NO_INLINE || !spesh_cand)
+        MVMStaticFrame *sf = (fw->inline_idx == MVM_SPESH_FRAME_WALKER_NO_INLINE || !spesh_cand)
             ? fw->cur_caller_frame->static_info
             : spesh_cand->body.inlines[fw->inline_idx].sf;
         if (!sf->body.is_thunk)
@@ -318,7 +302,7 @@ MVMuint32 MVM_spesh_frame_walker_move_caller_skip_thunks(MVMThreadContext *tc,
 MVMFrame * MVM_spesh_frame_walker_get_frame(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
     if (fw->visiting_outers)
         return fw->cur_outer_frame;
-    if (fw->inline_idx == NO_INLINE)
+    if (fw->inline_idx == MVM_SPESH_FRAME_WALKER_NO_INLINE)
         return fw->cur_caller_frame;
     return NULL;
 }
@@ -440,7 +424,7 @@ MVMObject * MVM_spesh_frame_walker_get_code(MVMThreadContext *tc, MVMSpeshFrameW
     if (fw->visiting_outers)
         return fw->cur_outer_frame->code_ref;
     MVMSpeshCandidate *spesh_cand = fw->cur_caller_frame->spesh_cand;
-    if (fw->inline_idx == NO_INLINE || !spesh_cand)
+    if (fw->inline_idx == MVM_SPESH_FRAME_WALKER_NO_INLINE || !spesh_cand)
         return fw->cur_caller_frame->code_ref;
     return fw->cur_caller_frame->work[
         spesh_cand->body.inlines[fw->inline_idx].code_ref_reg
@@ -455,9 +439,4 @@ MVMuint64 MVM_spesh_frame_walker_get_lexical_count(MVMThreadContext *tc, MVMSpes
     MVMuint32 base_index;
     find_lex_info(tc, fw, &cur_frame, &sf, &base_index);
     return sf->body.num_lexicals;
-}
-
-/* Cleans up the spesh frame walker after use. */
-void MVM_spesh_frame_walker_cleanup(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
-    MVM_gc_root_temp_pop_n(tc, 2);
 }
