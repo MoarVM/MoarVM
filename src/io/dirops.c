@@ -46,9 +46,10 @@ static int mkdir_p(MVMThreadContext *tc, char *pathname, MVMint64 mode) {
 #ifdef _WIN32
             created = CreateDirectoryW(pathname, NULL);
 #else
-            created = (uv_fs_stat(NULL, &req, pathname, NULL) == 0
-                       && S_ISDIR(req.statbuf.st_mode)
-                       || mkdir(pathname, mode) == 0);
+            created = (mkdir(pathname, mode) == 0
+                       || ( errno == EEXIST
+                       && uv_fs_stat(NULL, &req, pathname, NULL) == 0
+                       && S_ISDIR(req.statbuf.st_mode)));
 #endif
             if (!(*p = ch)) break;
         }
