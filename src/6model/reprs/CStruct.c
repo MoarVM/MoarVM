@@ -151,6 +151,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
         repr_data->flattened_stables   = (MVMSTable **) MVM_calloc(info_alloc, sizeof(MVMObject *));
         repr_data->member_types        = (MVMObject **) MVM_calloc(info_alloc, sizeof(MVMObject *));
         repr_data->struct_align        = 0;
+        repr_data->dimensions          = (MVMint64 *)   MVM_calloc(info_alloc, sizeof(MVMint64));
 
         /* Go over the attributes and arrange their allocation. */
         for (i = 0; i < num_attrs; i++) {
@@ -171,7 +172,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                 MVM_gc_allocate_gen2_default_clear(tc);
                 free_repr_data(repr_data);
                 MVM_exception_throw_adhoc(tc,
-                    "Only one dimensions supported in CStruct attribute");
+                    "Only one dimension supported in CStruct attributes");
             }
 
             if (!MVM_is_null(tc, type)) {
@@ -231,6 +232,8 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                         if (num_dimensions > 0) {
                             MVMint64 dim_one     =  MVM_repr_at_pos_i(tc, dimensions, 0);
                             MVMObject *elem_type = carray_repr_data->elem_type;
+                            // Saving array size so we can initialize it later
+                            repr_data->dimensions[i] = dim_one;
 
                             // How do we distinguish between these members:
                             // a) struct  foo [32] alias;
@@ -249,6 +252,10 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                                 bits  = bits * dim_one;
                             }
                         }
+                        if (!repr_data->initialize_slots)
+                            repr_data->initialize_slots = (MVMint32 *) MVM_calloc(info_alloc + 1, sizeof(MVMint32));
+                        repr_data->initialize_slots[cur_init_slot] = i;
+                        cur_init_slot++;
                     }
                 }
                 else if (type_id == MVM_REPR_ID_MVMCStruct) {
@@ -432,8 +439,25 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     if (repr_data->initialize_slots) {
         MVMint32 i;
         for (i = 0; repr_data->initialize_slots[i] >= 0; i++) {
-            MVMint32  offset = repr_data->struct_offsets[repr_data->initialize_slots[i]];
-            MVMSTable *st     = repr_data->flattened_stables[repr_data->initialize_slots[i]];
+            MVMint32 slot = repr_data->initialize_slots[i];
+            MVMint32  offset = repr_data->struct_offsets[slot];
+            MVMSTable *st     = repr_data->member_types[i]->st;
+
+            //make the array
+            if (st->REPR->ID == MVM_REPR_ID_MVMCArray) {
+                if (repr_data->dimensions[slot]) {
+                    void* storage = (void*)((char *)body->cstruct + offset);
+                    MVMObject *typeobj = repr_data->member_types[slot];
+                    MVMCArray *result = (MVMCArray*)MVM_nativecall_make_carray(tc, typeobj, storage);
+                    body->child_objs[slot] = (MVMObject*)result;
+                    result->body.allocated = repr_data->dimensions[slot];
+                    result->body.elems = repr_data->dimensions[slot];
+                    result->body.fixed_cnt = repr_data->dimensions[slot];
+                    result->body.managed = 0;
+                    st->REPR->initialize(tc, st, root, (void*)&(result->body));
+                    continue;
+                }
+            }
             st->REPR->initialize(tc, st, root, (char *)body->cstruct + offset);
         }
     }
@@ -831,6 +855,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
     for(i = 0; i < repr_data->num_attributes; i++){
         MVM_serialization_write_int(tc, writer, repr_data->attribute_locations[i]);
         MVM_serialization_write_int(tc, writer, repr_data->struct_offsets[i]);
+        MVM_serialization_write_int(tc, writer, repr_data->dimensions[i]);
 
         MVM_serialization_write_int(tc, writer, repr_data->flattened_stables[i] != NULL);
         if (repr_data->flattened_stables[i])
@@ -875,10 +900,12 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     repr_data->struct_offsets      = (MVMint32 *)MVM_malloc(sizeof(MVMint32) * repr_data->num_attributes);
     repr_data->flattened_stables   = (MVMSTable **)MVM_malloc(repr_data->num_attributes * sizeof(MVMSTable *));
     repr_data->member_types        = (MVMObject **)MVM_malloc(repr_data->num_attributes * sizeof(MVMObject *));
+    repr_data->dimensions          = (MVMint64 *)   MVM_malloc(repr_data->num_attributes * sizeof(MVMint64));
 
     for(i = 0; i < repr_data->num_attributes; i++) {
         repr_data->attribute_locations[i] = MVM_serialization_read_int(tc, reader);
         repr_data->struct_offsets[i] = MVM_serialization_read_int(tc, reader);
+        repr_data->dimensions[i] = MVM_serialization_read_int(tc, reader);
 
         if(MVM_serialization_read_int(tc, reader)){
             MVM_ASSIGN_REF(tc, &(st->header), repr_data->flattened_stables[i], MVM_serialization_read_stable_ref(tc, reader));

@@ -100,6 +100,16 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     if (!repr_data)
         MVM_exception_throw_adhoc(tc, "CArray type must be composed before use");
 
+    /* This block handles inlined arrays. Everything else is already done */
+    if (body->fixed_cnt > 0) {
+        /* Don't need child_objs for numerics. */
+        if (repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_NUMERIC)
+            body->child_objs = NULL;
+        else
+            body->child_objs = (MVMObject **) MVM_calloc(body->fixed_cnt, sizeof(MVMObject *));
+        return;
+    }
+
     body->storage = MVM_calloc(4, repr_data->elem_size);
     body->managed = 1;
 
@@ -204,6 +214,10 @@ static void die_pos_nyi(MVMThreadContext *tc) {
 
 
 static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArrayBody *body, MVMint32 min_size) {
+    if (body->fixed_cnt > 0) {
+        MVM_exception_throw_adhoc(tc,
+        "Cannot expand CArray declared with fixed size.");
+    }
     MVMint8 is_complex;
     MVMint32 next_size = body->allocated? 2 * body->allocated: 4;
 
@@ -435,7 +449,7 @@ static void aslice(MVMThreadContext *tc, MVMSTable *st, MVMObject *src, void *da
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMCArrayBody *body = (MVMCArrayBody *)data;
 
-    if (body->managed)
+    if (body->managed || body->fixed_cnt > 0)
         return body->elems;
 
     MVM_exception_throw_adhoc(tc,
