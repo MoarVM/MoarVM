@@ -70,9 +70,11 @@ MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCa
         if (flag & MVM_CALLSITE_ARG_FLAT) {
             /* Positional flattening. */
             MVMObject *list = source[map[i]].o;
-            if (REPR(list)->ID != MVM_REPR_ID_VMArray || !IS_CONCRETE(list))
+            MVMuint32 repr = REPR(list)->ID;
+            if ((repr != MVM_REPR_ID_VMArray && repr != MVM_REPR_ID_MultiDimArray)
+                    || !IS_CONCRETE(list))
                 MVM_exception_throw_adhoc(tc,
-                        "Argument flattening array must be a concrete VMArray");
+                        "Argument flattening array must be a concrete VMArray or MultiDimArray");
             MVMint64 elems = REPR(list)->elems(tc, STABLE(list), list, OBJECT_BODY(list));
             if (elems > MVM_ARGS_LIMIT)
                 MVM_exception_throw_adhoc(tc,
