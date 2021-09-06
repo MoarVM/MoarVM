@@ -1988,17 +1988,8 @@ MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationRea
             return read_obj_ref(tc, reader);
         case REFVAR_VM_NULL:
             return tc->instance->VMNull;
-        case REFVAR_VM_INT: {
-            MVMint64 value;
-            value = MVM_serialization_read_int(tc, reader);
-            if (MVM_INTCACHE_RANGE_CHECK(value))
-                result = MVM_intcache_get(tc, tc->instance->boot_types.BOOTInt, value);
-            if (result == 0) {
-                result = MVM_gc_allocate_object(tc, STABLE(tc->instance->boot_types.BOOTInt));
-                MVMP6int_set_int(tc, STABLE(result), result, OBJECT_BODY(result), value);
-            }
-            return result;
-        }
+        case REFVAR_VM_INT:
+            return MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, MVM_serialization_read_int(tc, reader));
         case REFVAR_VM_NUM:
             result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTNum);
             MVM_repr_set_num(tc, result, MVM_serialization_read_num(tc, reader));

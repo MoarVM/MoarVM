@@ -215,16 +215,21 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                 MVM_spesh_graph_add_comment(tc, g, ins, "box_i into a %s",
                         MVM_6model_get_stable_debug_name(tc, st));
 
-                ins->info = MVM_op_get_op(int_cache_type_idx < 0
-                        ? MVM_OP_sp_fastbox_i
-                        : MVM_OP_sp_fastbox_i_ic);
-                ins->operands = MVM_spesh_alloc(tc, g, 6 * sizeof(MVMSpeshOperand));
-                ins->operands[0] = orig_operands[0];
-                ins->operands[1].lit_i16 = st->size;
-                ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
-                ins->operands[3].lit_i16 = offsetof(MVMP6int, body.value);
-                ins->operands[4] = orig_operands[1];
-                ins->operands[5].lit_i16 = (MVMint16)int_cache_type_idx;
+                if (int_cache_type_idx == MVM_INTCACHE_P6INT_INDEX) {
+                    ins->info = MVM_op_get_op(MVM_OP_sp_fastbox_i_ic);
+                    ins->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+                    ins->operands[0] = orig_operands[0];
+                    ins->operands[1] = orig_operands[1];
+                }
+                else {
+                    ins->info = MVM_op_get_op(MVM_OP_sp_fastbox_i);
+                    ins->operands = MVM_spesh_alloc(tc, g, 5 * sizeof(MVMSpeshOperand));
+                    ins->operands[0] = orig_operands[0];
+                    ins->operands[1].lit_i16 = st->size;
+                    ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+                    ins->operands[3].lit_i16 = offsetof(MVMP6int, body.value);
+                    ins->operands[4] = orig_operands[1];
+                }
                 MVM_spesh_usages_delete_by_reg(tc, g, orig_operands[2], ins);
                 tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
                 tgt_facts->type = st->WHAT;

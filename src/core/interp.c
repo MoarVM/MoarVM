@@ -82,21 +82,35 @@ static void error_concreteness(MVMThreadContext *tc, MVMObject *object, MVMuint1
 
 static int tracing_enabled = 0;
 
-/* Various spesh ops incorporate a fastcreate, so they can decide to not do
- * the allocation and serve a result from a cache instead. This factors the
- * fastcreate logic out. */
-static MVMObject * fastcreate(MVMThreadContext *tc, MVMuint8 *cur_op) {
+static MVMObject * fastcreate_with_size(MVMThreadContext *tc, MVMuint16 size) {
     /* Assume we're in normal code, so doing a nursery allocation.
      * Also, that there is no initialize. */
-    MVMuint16 size       = GET_UI16(cur_op, 2);
     MVMObject *obj       = MVM_gc_allocate_nursery(tc, size);
 #if MVM_GC_DEBUG
     if (tc->allocate_in_gen2)
         MVM_panic(1, "Illegal use of a nursery-allocating spesh op when gen2 allocation flag set");
 #endif
-    obj->st              = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
     obj->header.size     = size;
     obj->header.owner    = tc->thread_id;
+    return obj;
+}
+
+/* Various spesh ops incorporate a fastcreate, so they can decide to not do
+ * the allocation and serve a result from a cache instead. This factors the
+ * fastcreate logic out. */
+static MVMObject * fastcreate(MVMThreadContext *tc, MVMuint8 *cur_op) {
+    MVMObject *obj = fastcreate_with_size(tc, GET_UI16(cur_op, 2));
+    /* Doing this assignment after the allocation avoids a C temporary, which
+     * would need to be rooted. */
+    obj->st = (MVMSTable *)tc->cur_frame->effective_spesh_slots[GET_UI16(cur_op, 4)];
+    return obj;
+}
+
+static MVMObject * fastcreate_from_intcache(MVMThreadContext *tc,
+                                            int type_index) {
+    MVMObject *obj = fastcreate_with_size(tc,
+                                          tc->instance->int_const_cache.sizes[type_index]);
+    obj->st = tc->instance->int_const_cache.stables[type_index];
     return obj;
 }
 
@@ -6323,28 +6337,28 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_fastbox_i_ic): {
-                MVMint64 value = GET_REG(cur_op, 8).i64;
-                if (value >= -1 && value < 15) {
-                    MVMint16 slot = GET_UI16(cur_op, 10);
-                    GET_REG(cur_op, 0).o = tc->instance->int_const_cache->cache[slot][value + 1];
+                MVMint64 value = GET_REG(cur_op, 2).i64;
+                if (MVM_INTCACHE_RANGE_CHECK(value)) {
+                    GET_REG(cur_op, 0).o = tc->instance->int_const_cache.cache[MVM_INTCACHE_P6INT_INDEX][value + MVM_INTCACHE_ZERO_OFFSET];
                 }
                 else {
-                    MVMObject *obj = fastcreate(tc, cur_op);
-                    *((MVMint64 *)((char *)obj + GET_UI16(cur_op, 6))) = value;
+                    MVMuint16 offset = tc->instance->int_const_cache.offsets[MVM_INTCACHE_P6INT_INDEX];
+                    MVMObject *obj = fastcreate_from_intcache(tc, MVM_INTCACHE_P6INT_INDEX);
+                    *((MVMint64 *)((char *)obj + offset)) = value;
                     GET_REG(cur_op, 0).o = obj;
                 }
-                cur_op += 12;
+                cur_op += 4;
                 goto NEXT;
             }
             OP(sp_fastbox_bi_ic): {
-                MVMint64 value = GET_REG(cur_op, 8).i64;
-                if (value >= -1 && value < 15) {
-                    MVMint16 slot = GET_UI16(cur_op, 10);
-                    GET_REG(cur_op, 0).o = tc->instance->int_const_cache->cache[slot][value + 1];
+                MVMint64 value = GET_REG(cur_op, 2).i64;
+                if (MVM_INTCACHE_RANGE_CHECK(value)) {
+                    GET_REG(cur_op, 0).o = tc->instance->int_const_cache.cache[MVM_INTCACHE_P6BIGINT_INDEX][value + MVM_INTCACHE_ZERO_OFFSET];
                 }
                 else {
-                    MVMObject *obj = fastcreate(tc, cur_op);
-                    MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)obj + GET_UI16(cur_op, 6));
+                    MVMuint16 offset = tc->instance->int_const_cache.offsets[MVM_INTCACHE_P6BIGINT_INDEX];
+                    MVMObject *obj = fastcreate_from_intcache(tc, MVM_INTCACHE_P6BIGINT_INDEX);
+                    MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)obj + offset);
                     if (MVM_IS_32BIT_INT(value)) {
                         body->u.smallint.value = (MVMint32)value;
                         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
@@ -6354,7 +6368,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     }
                     GET_REG(cur_op, 0).o = obj;
                 }
-                cur_op += 12;
+                cur_op += 4;
                 goto NEXT;
             }
             OP(sp_deref_get_i64): {
@@ -6522,96 +6536,96 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_add_I): {
-                MVMuint16 offset = GET_UI16(cur_op, 10);
-                MVMP6bigintBody *ba = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 6).o + offset);
-                MVMP6bigintBody *bb = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 8).o + offset);
+                MVMuint16 offset = tc->instance->int_const_cache.offsets[MVM_INTCACHE_P6BIGINT_INDEX];
+                MVMP6bigintBody *ba = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 2).o + offset);
+                MVMP6bigintBody *bb = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 4).o + offset);
                 MVMP6bigintBody *bc;
                 MVMObject *result_obj = NULL;
                 if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
                     MVMint64 result = (MVMint64)ba->u.smallint.value + (MVMint64)bb->u.smallint.value;
                     if (MVM_IS_32BIT_INT(result)) {
-                        if (result < -1 || result >= 15) {
-                            result_obj = fastcreate(tc, cur_op);
+                        if (MVM_INTCACHE_RANGE_CHECK(result)) {
+                            result_obj = tc->instance->int_const_cache.cache[MVM_INTCACHE_P6BIGINT_INDEX][result + MVM_INTCACHE_ZERO_OFFSET];
+                        }
+                        else {
+                            result_obj = fastcreate_from_intcache(tc, MVM_INTCACHE_P6BIGINT_INDEX);
                             bc = (MVMP6bigintBody *)((char *)result_obj + offset);
                             bc->u.smallint.value = (MVMint32)result;
                             bc->u.smallint.flag = MVM_BIGINT_32_FLAG;
                         }
-                        else {
-                            result_obj = tc->instance->int_const_cache->cache[GET_UI16(cur_op, 12)][result + 1];
-                        }
                     }
                 }
                 if (!result_obj) {
-                    result_obj = fastcreate(tc, cur_op);
-                    ba = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 6).o + offset);
-                    bb = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 8).o + offset);
+                    result_obj = fastcreate_from_intcache(tc, MVM_INTCACHE_P6BIGINT_INDEX);
+                    ba = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 2).o + offset);
+                    bb = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 4).o + offset);
                     bc = (MVMP6bigintBody *)((char *)result_obj + offset);
                     MVM_bigint_fallback_add(tc, ba, bb, bc);
                 }
                 GET_REG(cur_op, 0).o = result_obj;
-                cur_op += 14;
+                cur_op += 6;
                 goto NEXT;
             }
             OP(sp_sub_I): {
-                MVMuint16 offset = GET_UI16(cur_op, 10);
-                MVMP6bigintBody *ba = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 6).o + offset);
-                MVMP6bigintBody *bb = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 8).o + offset);
+                MVMuint16 offset = tc->instance->int_const_cache.offsets[MVM_INTCACHE_P6BIGINT_INDEX];
+                MVMP6bigintBody *ba = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 2).o + offset);
+                MVMP6bigintBody *bb = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 4).o + offset);
                 MVMP6bigintBody *bc;
                 MVMObject *result_obj = NULL;
                 if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
                     MVMint64 result = (MVMint64)ba->u.smallint.value - (MVMint64)bb->u.smallint.value;
                     if (MVM_IS_32BIT_INT(result)) {
-                        if (result < -1 || result >= 15) {
-                            result_obj = fastcreate(tc, cur_op);
+                        if (MVM_INTCACHE_RANGE_CHECK(result)) {
+                            result_obj = tc->instance->int_const_cache.cache[MVM_INTCACHE_P6BIGINT_INDEX][result + MVM_INTCACHE_ZERO_OFFSET];
+                        }
+                        else {
+                            result_obj = fastcreate_from_intcache(tc, MVM_INTCACHE_P6BIGINT_INDEX);
                             bc = (MVMP6bigintBody *)((char *)result_obj + offset);
                             bc->u.smallint.value = (MVMint32)result;
                             bc->u.smallint.flag = MVM_BIGINT_32_FLAG;
                         }
-                        else {
-                            result_obj = tc->instance->int_const_cache->cache[GET_UI16(cur_op, 12)][result + 1];
-                        }
                     }
                 }
                 if (!result_obj) {
-                    result_obj = fastcreate(tc, cur_op);
-                    ba = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 6).o + offset);
-                    bb = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 8).o + offset);
+                    result_obj = fastcreate_from_intcache(tc, MVM_INTCACHE_P6BIGINT_INDEX);
+                    ba = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 2).o + offset);
+                    bb = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 4).o + offset);
                     bc = (MVMP6bigintBody *)((char *)result_obj + offset);
                     MVM_bigint_fallback_sub(tc, ba, bb, bc);
                 }
                 GET_REG(cur_op, 0).o = result_obj;
-                cur_op += 14;
+                cur_op += 6;
                 goto NEXT;
             }
             OP(sp_mul_I): {
-                MVMuint16 offset = GET_UI16(cur_op, 10);
-                MVMP6bigintBody *ba = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 6).o + offset);
-                MVMP6bigintBody *bb = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 8).o + offset);
+                MVMuint16 offset = tc->instance->int_const_cache.offsets[MVM_INTCACHE_P6BIGINT_INDEX];
+                MVMP6bigintBody *ba = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 2).o + offset);
+                MVMP6bigintBody *bb = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 4).o + offset);
                 MVMP6bigintBody *bc;
                 MVMObject *result_obj = NULL;
                 if (ba->u.smallint.flag == MVM_BIGINT_32_FLAG && bb->u.smallint.flag == MVM_BIGINT_32_FLAG) {
                     MVMint64 result = (MVMint64)ba->u.smallint.value * (MVMint64)bb->u.smallint.value;
                     if (MVM_IS_32BIT_INT(result)) {
-                        if (result < -1 || result >= 15) {
-                            result_obj = fastcreate(tc, cur_op);
+                        if (MVM_INTCACHE_RANGE_CHECK(result)) {
+                            result_obj = tc->instance->int_const_cache.cache[MVM_INTCACHE_P6BIGINT_INDEX][result + MVM_INTCACHE_ZERO_OFFSET];
+                        }
+                        else {
+                            result_obj = fastcreate_from_intcache(tc, MVM_INTCACHE_P6BIGINT_INDEX);
                             bc = (MVMP6bigintBody *)((char *)result_obj + offset);
                             bc->u.smallint.value = (MVMint32)result;
                             bc->u.smallint.flag = MVM_BIGINT_32_FLAG;
                         }
-                        else {
-                            result_obj = tc->instance->int_const_cache->cache[GET_UI16(cur_op, 12)][result + 1];
-                        }
                     }
                 }
                 if (!result_obj) {
-                    result_obj = fastcreate(tc, cur_op);
-                    ba = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 6).o + offset);
-                    bb = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 8).o + offset);
+                    result_obj = fastcreate_from_intcache(tc, MVM_INTCACHE_P6BIGINT_INDEX);
+                    ba = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 2).o + offset);
+                    bb = (MVMP6bigintBody *)((char *)GET_REG(cur_op, 4).o + offset);
                     bc = (MVMP6bigintBody *)((char *)result_obj + offset);
                     MVM_bigint_fallback_mul(tc, ba, bb, bc);
                 }
                 GET_REG(cur_op, 0).o = result_obj;
-                cur_op += 14;
+                cur_op += 6;
                 goto NEXT;
             }
             OP(sp_bool_I): {
