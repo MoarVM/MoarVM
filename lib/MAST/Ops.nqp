@@ -5282,35 +5282,35 @@ BEGIN {
     'dispatch_s',
     'dispatch_o',
     'gettypehllrole');
-    MAST::Ops.WHO<%generators> := nqp::hash('no_op', sub () {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    MAST::Ops.WHO<%generators> := nqp::hash('no_op', sub ($frame) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 0, 5);
 
     },
-    'const_i8', sub ($op0, int8 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'const_i8', sub ($frame, $op0, int8 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 1, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
     },
-    'const_i16', sub ($op0, int16 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'const_i16', sub ($frame, $op0, int16 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 2, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
     },
-    'const_i32', sub ($op0, int32 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'const_i32', sub ($frame, $op0, int32 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 3, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 13);
     },
-    'const_i64', sub ($op0, int $value) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'const_i64', sub ($frame, $op0, int $value) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         my uint $index := nqp::unbox_u($op0);
         if -32767 < $value && $value < 32768 {
@@ -5329,301 +5329,301 @@ BEGIN {
             nqp::writeuint($bytecode, nqp::add_i($elems, 4), $value, 13);
         }
     },
-    'const_n32', sub ($op0, num32 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'const_n32', sub ($frame, $op0, num32 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 5, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writenum($bytecode, nqp::add_i($elems, 4), $op1, 13)
     },
-    'const_n64', sub ($op0, num64 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'const_n64', sub ($frame, $op0, num64 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 6, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writenum($bytecode, nqp::add_i($elems, 4), $op1, 13)
     },
-    'const_s', sub ($op0, str $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'const_s', sub ($frame, $op0, str $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 7, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'set', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'set', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 8, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'extend_u8', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'extend_u8', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 9, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'extend_u16', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'extend_u16', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 10, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'extend_u32', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'extend_u32', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 11, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'extend_i8', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'extend_i8', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 12, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'extend_i16', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'extend_i16', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 13, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'extend_i32', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'extend_i32', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 14, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'trunc_u8', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'trunc_u8', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 15, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'trunc_u16', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'trunc_u16', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 16, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'trunc_u32', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'trunc_u32', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 17, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'trunc_i8', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'trunc_i8', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 18, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'trunc_i16', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'trunc_i16', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 19, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'trunc_i32', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'trunc_i32', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 20, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'extend_n32', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'extend_n32', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 21, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'trunc_n32', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'trunc_n32', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 22, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'goto', sub ($op0) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'goto', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 23, 5);
         $frame.compile_label($bytecode, $op0);
     },
-    'if_i', sub ($op0, $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'if_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 24, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         $frame.compile_label($bytecode, $op1);
     },
-    'unless_i', sub ($op0, $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'unless_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 25, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         $frame.compile_label($bytecode, $op1);
     },
-    'if_n', sub ($op0, $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'if_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 26, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         $frame.compile_label($bytecode, $op1);
     },
-    'unless_n', sub ($op0, $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'unless_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 27, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         $frame.compile_label($bytecode, $op1);
     },
-    'if_s', sub ($op0, $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'if_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 28, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         $frame.compile_label($bytecode, $op1);
     },
-    'unless_s', sub ($op0, $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'unless_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 29, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         $frame.compile_label($bytecode, $op1);
     },
-    'if_s0', sub ($op0, $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'if_s0', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 30, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         $frame.compile_label($bytecode, $op1);
     },
-    'unless_s0', sub ($op0, $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'unless_s0', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 31, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         $frame.compile_label($bytecode, $op1);
     },
-    'jumplist', sub (int64 $op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'jumplist', sub ($frame, int64 $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 34, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 2), $op0, 13);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index1, 5);
     },
-    'getlex', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlex', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 35, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 5);
     },
-    'bindlex', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindlex', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 36, 5);
         nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op0, MAST::Lexical);my uint $index0 := $op0.index; my uint $frames_out0 := $op0.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);nqp::writeuint($bytecode, nqp::add_i($elems, 4), $frames_out0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index1, 5);
     },
-    'getlex_ni', sub ($op0, str $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'getlex_ni', sub ($frame, $op0, str $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 37, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'getlex_nn', sub ($op0, str $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'getlex_nn', sub ($frame, $op0, str $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 38, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'getlex_ns', sub ($op0, str $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'getlex_ns', sub ($frame, $op0, str $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 39, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'getlex_no', sub ($op0, str $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'getlex_no', sub ($frame, $op0, str $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 40, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'bindlex_ni', sub (str $op0, $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'bindlex_ni', sub ($frame, str $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 41, 5);
         my uint $index0 := $frame.add-string($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 9);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index1, 5);
     },
-    'bindlex_nn', sub (str $op0, $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'bindlex_nn', sub ($frame, str $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 42, 5);
         my uint $index0 := $frame.add-string($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 9);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index1, 5);
     },
-    'bindlex_ns', sub (str $op0, $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'bindlex_ns', sub ($frame, str $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 43, 5);
         my uint $index0 := $frame.add-string($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 9);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index1, 5);
     },
-    'bindlex_no', sub (str $op0, $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'bindlex_no', sub ($frame, str $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 44, 5);
         my uint $index0 := $frame.add-string($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 9);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index1, 5);
     },
-    'getlex_ng', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlex_ng', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 45, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'bindlex_ng', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindlex_ng', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 46, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getdynlex', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getdynlex', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 47, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'binddynlex', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'binddynlex', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 48, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'setlexvalue', sub ($op0, str $op1, $op2, int16 $op3) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'setlexvalue', sub ($frame, $op0, str $op1, $op2, int16 $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 49, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -5631,1022 +5631,1022 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index2, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 10), $op3, 5);
     },
-    'lexprimspec', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'lexprimspec', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 50, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'return_i', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'return_i', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 51, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'return_n', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'return_n', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 52, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'return_s', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'return_s', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 53, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'return_o', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'return_o', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 54, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'return', sub () {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'return', sub ($frame) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 55, 5);
 
     },
-    'eq_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'eq_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 56, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'ne_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ne_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 57, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'lt_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'lt_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 58, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'le_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'le_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 59, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'gt_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'gt_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 60, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'ge_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ge_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 61, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'cmp_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'cmp_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 62, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'add_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'add_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 63, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'sub_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'sub_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 64, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'mul_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'mul_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 65, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'div_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'div_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 66, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'div_u', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'div_u', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 67, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'mod_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'mod_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 68, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'mod_u', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'mod_u', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 69, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'neg_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'neg_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 70, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'abs_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'abs_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 71, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'inc_i', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'inc_i', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 72, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'inc_u', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'inc_u', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 73, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'dec_i', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'dec_i', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 74, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'dec_u', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'dec_u', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 75, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'band_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'band_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 76, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bor_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bor_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 77, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bxor_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bxor_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 78, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bnot_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bnot_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 79, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'blshift_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'blshift_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 80, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'brshift_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'brshift_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 81, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'pow_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'pow_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 82, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'not_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'not_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 83, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'gcd_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'gcd_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 84, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'lcm_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'lcm_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 85, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'eq_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'eq_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 86, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'ne_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ne_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 87, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'lt_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'lt_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 88, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'le_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'le_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 89, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'gt_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'gt_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 90, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'ge_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ge_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 91, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'cmp_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'cmp_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 92, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'add_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'add_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 93, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'sub_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'sub_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 94, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'mul_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'mul_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 95, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'div_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'div_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 96, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'mod_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'mod_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 97, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'neg_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'neg_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 98, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'abs_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'abs_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 99, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'pow_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'pow_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 100, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'ceil_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ceil_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 101, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'floor_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'floor_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 102, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'sin_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'sin_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 103, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'asin_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'asin_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 104, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'cos_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'cos_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 105, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'acos_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'acos_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 106, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'tan_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'tan_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 107, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'atan_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atan_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 108, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'atan2_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atan2_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 109, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'sinh_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'sinh_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 112, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'cosh_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'cosh_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 113, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'tanh_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'tanh_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 114, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'sqrt_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'sqrt_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 116, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'log_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'log_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 117, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'exp_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'exp_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 118, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'coerce_in', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_in', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 119, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'coerce_ni', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_ni', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 120, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'coerce_is', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_is', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 121, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'coerce_ns', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_ns', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 122, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'coerce_si', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_si', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 123, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'coerce_sn', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_sn', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 124, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'prepargs', sub ($op0) {die("MAST::Ops generator for prepargs NYI (QASTOperationsMAST is supposed to do it by itself)");},
-    'arg_i', sub (int16 $op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'prepargs', sub ($frame, $op0) {die("MAST::Ops generator for prepargs NYI (QASTOperationsMAST is supposed to do it by itself)");},
+    'arg_i', sub ($frame, int16 $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 128, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 2), $op0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'arg_n', sub (int16 $op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'arg_n', sub ($frame, int16 $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 129, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 2), $op0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'arg_s', sub (int16 $op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'arg_s', sub ($frame, int16 $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 130, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 2), $op0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'arg_o', sub (int16 $op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'arg_o', sub ($frame, int16 $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 131, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 2), $op0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'argconst_i', sub (int16 $op0, int64 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'argconst_i', sub ($frame, int16 $op0, int64 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 132, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 2), $op0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 13);
     },
-    'argconst_n', sub (int16 $op0, num64 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'argconst_n', sub ($frame, int16 $op0, num64 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 133, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 2), $op0, 5);
         nqp::writenum($bytecode, nqp::add_i($elems, 4), $op1, 13)
     },
-    'argconst_s', sub (int16 $op0, str $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'argconst_s', sub ($frame, int16 $op0, str $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 134, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 2), $op0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'checkarity', sub (int16 $op0, int16 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'checkarity', sub ($frame, int16 $op0, int16 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 140, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 2), $op0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
     },
-    'param_rp_i', sub ($op0, int16 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'param_rp_i', sub ($frame, $op0, int16 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 141, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
     },
-    'param_rp_n', sub ($op0, int16 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'param_rp_n', sub ($frame, $op0, int16 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 142, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
     },
-    'param_rp_s', sub ($op0, int16 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'param_rp_s', sub ($frame, $op0, int16 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 143, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
     },
-    'param_rp_o', sub ($op0, int16 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'param_rp_o', sub ($frame, $op0, int16 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 144, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
     },
-    'param_op_i', sub ($op0, int16 $op1, $op2) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_op_i', sub ($frame, $op0, int16 $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 145, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
         $frame.compile_label($bytecode, $op2);
     },
-    'param_op_n', sub ($op0, int16 $op1, $op2) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_op_n', sub ($frame, $op0, int16 $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 146, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
         $frame.compile_label($bytecode, $op2);
     },
-    'param_op_s', sub ($op0, int16 $op1, $op2) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_op_s', sub ($frame, $op0, int16 $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 147, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
         $frame.compile_label($bytecode, $op2);
     },
-    'param_op_o', sub ($op0, int16 $op1, $op2) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_op_o', sub ($frame, $op0, int16 $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 148, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
         $frame.compile_label($bytecode, $op2);
     },
-    'param_rn_i', sub ($op0, str $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_rn_i', sub ($frame, $op0, str $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 149, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'param_rn_n', sub ($op0, str $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_rn_n', sub ($frame, $op0, str $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 150, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'param_rn_s', sub ($op0, str $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_rn_s', sub ($frame, $op0, str $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 151, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'param_rn_o', sub ($op0, str $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_rn_o', sub ($frame, $op0, str $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 152, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'param_on_i', sub ($op0, str $op1, $op2) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_on_i', sub ($frame, $op0, str $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 153, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
         $frame.compile_label($bytecode, $op2);
     },
-    'param_on_n', sub ($op0, str $op1, $op2) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_on_n', sub ($frame, $op0, str $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 154, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
         $frame.compile_label($bytecode, $op2);
     },
-    'param_on_s', sub ($op0, str $op1, $op2) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_on_s', sub ($frame, $op0, str $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 155, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
         $frame.compile_label($bytecode, $op2);
     },
-    'param_on_o', sub ($op0, str $op1, $op2) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_on_o', sub ($frame, $op0, str $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 156, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
         $frame.compile_label($bytecode, $op2);
     },
-    'param_sp', sub ($op0, int16 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'param_sp', sub ($frame, $op0, int16 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 157, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
     },
-    'param_sn', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'param_sn', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 158, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'getcode', sub ($op0, $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'getcode', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 159, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.writer.get_frame_index($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'caller', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'caller', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 160, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'capturelex', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'capturelex', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 161, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'takeclosure', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'takeclosure', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 162, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'exception', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'exception', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 163, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'bindexmessage', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindexmessage', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 164, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'bindexpayload', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindexpayload', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 165, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'bindexcategory', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindexcategory', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 166, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getexmessage', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getexmessage', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 167, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getexpayload', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getexpayload', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 168, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getexcategory', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getexcategory', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 169, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'throwdyn', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'throwdyn', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 170, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'throwlex', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'throwlex', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 171, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'throwlexotic', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'throwlexotic', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 172, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'throwcatdyn', sub ($op0, int64 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'throwcatdyn', sub ($frame, $op0, int64 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 173, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 13);
     },
-    'throwcatlex', sub ($op0, int64 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'throwcatlex', sub ($frame, $op0, int64 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 174, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 13);
     },
-    'throwcatlexotic', sub ($op0, int64 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'throwcatlexotic', sub ($frame, $op0, int64 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 175, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 13);
     },
-    'die', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'die', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 176, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'rethrow', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'rethrow', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 177, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'resume', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'resume', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 178, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'takehandlerresult', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'takehandlerresult', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 179, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'backtracestrings', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'backtracestrings', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 182, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'usecapture', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'usecapture', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 183, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'savecapture', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'savecapture', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 184, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'captureposelems', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'captureposelems', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 185, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'captureposarg', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'captureposarg', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 186, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'captureposarg_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'captureposarg_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 187, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'captureposarg_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'captureposarg_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 188, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'captureposarg_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'captureposarg_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 189, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'captureposprimspec', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'captureposprimspec', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 190, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'captureexistsnamed', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'captureexistsnamed', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 191, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'capturehasnameds', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'capturehasnameds', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 192, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'null_s', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'null_s', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 196, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'isnull_s', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'isnull_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 197, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'eq_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'eq_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 198, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'ne_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ne_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 199, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'gt_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'gt_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 200, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'ge_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ge_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 201, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'lt_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'lt_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 202, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'le_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'le_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 203, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'cmp_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'cmp_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 204, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'eqat_s', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'eqat_s', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 205, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6654,8 +6654,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'eqatic_s', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'eqatic_s', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 206, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6663,8 +6663,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'haveat_s', sub ($op0, $op1, $op2, $op3, $op4, $op5) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'haveat_s', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 207, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6674,24 +6674,24 @@ BEGIN {
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
     },
-    'concat_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'concat_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 208, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'repeat_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'repeat_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 209, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'substr_s', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'substr_s', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 210, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6699,8 +6699,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'index_s', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'index_s', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 211, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6708,75 +6708,75 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'codes_s', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'codes_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 213, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getcp_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getcp_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 214, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'indexcp_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'indexcp_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 215, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'uc', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'uc', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 216, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'lc', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'lc', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 217, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'tc', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'tc', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 218, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'split', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'split', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 219, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'join', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'join', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 220, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'getcpbyname', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getcpbyname', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 221, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'indexat', sub ($op0, $op1, str $op2, $op3) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'indexat', sub ($frame, $op0, $op1, str $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 222, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6784,8 +6784,8 @@ BEGIN {
         my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 9);
         $frame.compile_label($bytecode, $op3);
     },
-    'indexnat', sub ($op0, $op1, str $op2, $op3) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'indexnat', sub ($frame, $op0, $op1, str $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 223, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6793,23 +6793,23 @@ BEGIN {
         my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 9);
         $frame.compile_label($bytecode, $op3);
     },
-    'unipropcode', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'unipropcode', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 224, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'unipvalcode', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'unipvalcode', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 225, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'hasuniprop', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'hasuniprop', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 226, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6818,8 +6818,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'hasunipropc', sub ($op0, $op1, $op2, int16 $op3, int16 $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'hasunipropc', sub ($frame, $op0, $op1, $op2, int16 $op3, int16 $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 227, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6828,37 +6828,37 @@ BEGIN {
         nqp::writeuint($bytecode, nqp::add_i($elems, 8), $op3, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 10), $op4, 5);
     },
-    'chars', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'chars', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 228, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'chr', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'chr', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 229, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'ordfirst', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ordfirst', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 230, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'ordat', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ordat', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 231, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'rindexfrom', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'rindexfrom', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 232, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6866,29 +6866,29 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'escape', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'escape', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 233, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'flip', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'flip', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 234, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'setbuffersize_fh', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'setbuffersize_fh', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 235, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'iscclass', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'iscclass', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 236, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6896,8 +6896,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'findcclass', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'findcclass', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 237, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6906,8 +6906,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'findnotcclass', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'findnotcclass', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 238, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6916,16 +6916,16 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'nfafromstatelist', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'nfafromstatelist', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 239, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'nfarunproto', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'nfarunproto', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 240, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6933,8 +6933,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'nfarunalt', sub ($op0, $op1, $op2, $op3, $op4, $op5) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'nfarunalt', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 241, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6944,8 +6944,8 @@ BEGIN {
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
     },
-    'radix', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'radix', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 242, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6954,8 +6954,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'encode', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'encode', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 243, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -6963,145 +6963,145 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'decode', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decode', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 244, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'istrue_s', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'istrue_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 245, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'isfalse_s', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'isfalse_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 246, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'null', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'null', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 247, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'isnull', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'isnull', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 248, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'ifnonnull', sub ($op0, $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'ifnonnull', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 249, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         $frame.compile_label($bytecode, $op1);
     },
-    'create', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'create', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 254, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'clone', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'clone', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 255, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'isconcrete', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'isconcrete', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 256, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'rebless', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'rebless', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 257, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'istype', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'istype', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 258, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'objprimspec', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'objprimspec', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 259, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'gethow', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'gethow', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 260, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getwhat', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getwhat', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 261, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getwho', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getwho', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 262, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'setwho', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'setwho', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 263, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'reprname', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'reprname', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 264, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getwhere', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getwhere', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 265, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'eqaddr', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'eqaddr', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 266, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bindattr_i', sub ($op0, $op1, str $op2, $op3, int16 $op4) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'bindattr_i', sub ($frame, $op0, $op1, str $op2, $op3, int16 $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 267, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7110,8 +7110,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index3, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 12), $op4, 5);
     },
-    'bindattr_n', sub ($op0, $op1, str $op2, $op3, int16 $op4) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'bindattr_n', sub ($frame, $op0, $op1, str $op2, $op3, int16 $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 268, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7120,8 +7120,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index3, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 12), $op4, 5);
     },
-    'bindattr_s', sub ($op0, $op1, str $op2, $op3, int16 $op4) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'bindattr_s', sub ($frame, $op0, $op1, str $op2, $op3, int16 $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 269, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7130,8 +7130,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index3, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 12), $op4, 5);
     },
-    'bindattr_o', sub ($op0, $op1, str $op2, $op3, int16 $op4) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'bindattr_o', sub ($frame, $op0, $op1, str $op2, $op3, int16 $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 270, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7140,8 +7140,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index3, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 12), $op4, 5);
     },
-    'bindattrs_i', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindattrs_i', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 271, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7149,8 +7149,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'bindattrs_n', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindattrs_n', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 272, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7158,8 +7158,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'bindattrs_s', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindattrs_s', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 273, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7167,8 +7167,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'bindattrs_o', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindattrs_o', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 274, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7176,8 +7176,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'getattr_i', sub ($op0, $op1, $op2, str $op3, int16 $op4) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'getattr_i', sub ($frame, $op0, $op1, $op2, str $op3, int16 $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 275, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7186,8 +7186,8 @@ BEGIN {
         my uint $index3 := $frame.add-string($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 9);
         nqp::writeuint($bytecode, nqp::add_i($elems, 12), $op4, 5);
     },
-    'getattr_n', sub ($op0, $op1, $op2, str $op3, int16 $op4) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'getattr_n', sub ($frame, $op0, $op1, $op2, str $op3, int16 $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 276, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7196,8 +7196,8 @@ BEGIN {
         my uint $index3 := $frame.add-string($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 9);
         nqp::writeuint($bytecode, nqp::add_i($elems, 12), $op4, 5);
     },
-    'getattr_s', sub ($op0, $op1, $op2, str $op3, int16 $op4) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'getattr_s', sub ($frame, $op0, $op1, $op2, str $op3, int16 $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 277, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7206,8 +7206,8 @@ BEGIN {
         my uint $index3 := $frame.add-string($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 9);
         nqp::writeuint($bytecode, nqp::add_i($elems, 12), $op4, 5);
     },
-    'getattr_o', sub ($op0, $op1, $op2, str $op3, int16 $op4) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'getattr_o', sub ($frame, $op0, $op1, $op2, str $op3, int16 $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 278, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7216,8 +7216,8 @@ BEGIN {
         my uint $index3 := $frame.add-string($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 9);
         nqp::writeuint($bytecode, nqp::add_i($elems, 12), $op4, 5);
     },
-    'getattrs_i', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getattrs_i', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 279, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7225,8 +7225,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'getattrs_n', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getattrs_n', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 280, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7234,8 +7234,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'getattrs_s', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getattrs_s', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 281, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7243,8 +7243,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'getattrs_o', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getattrs_o', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 282, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7252,8 +7252,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'attrinited', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'attrinited', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 283, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7261,229 +7261,229 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'box_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'box_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 284, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'box_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'box_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 285, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'box_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'box_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 286, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'unbox_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'unbox_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 287, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'unbox_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'unbox_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 288, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'unbox_s', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'unbox_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 289, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'atpos_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atpos_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 290, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'atpos_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atpos_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 291, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'atpos_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atpos_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 292, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'atpos_o', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atpos_o', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 293, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bindpos_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindpos_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 294, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bindpos_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindpos_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 295, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bindpos_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindpos_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 296, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bindpos_o', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindpos_o', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 297, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'push_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'push_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 298, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'push_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'push_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 299, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'push_s', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'push_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 300, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'push_o', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'push_o', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 301, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'pop_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'pop_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 302, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'pop_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'pop_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 303, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'pop_s', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'pop_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 304, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'pop_o', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'pop_o', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 305, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'shift_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'shift_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 306, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'shift_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'shift_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 307, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'shift_s', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'shift_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 308, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'shift_o', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'shift_o', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 309, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'unshift_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'unshift_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 310, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'unshift_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'unshift_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 311, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'unshift_s', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'unshift_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 312, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'unshift_o', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'unshift_o', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 313, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'splice', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'splice', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 314, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -7491,572 +7491,572 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'setelemspos', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'setelemspos', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 315, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'existspos', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'existspos', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 316, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'atkey_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atkey_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 317, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'atkey_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atkey_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 318, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'atkey_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atkey_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 319, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'atkey_o', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atkey_o', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 320, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bindkey_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindkey_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 321, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bindkey_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindkey_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 322, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bindkey_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindkey_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 323, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bindkey_o', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindkey_o', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 324, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'existskey', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'existskey', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 325, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'deletekey', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'deletekey', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 326, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'elems', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'elems', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 327, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'knowhow', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'knowhow', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 328, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'knowhowattr', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'knowhowattr', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 329, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'newtype', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'newtype', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 330, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'composetype', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'composetype', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 331, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'settypecache', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'settypecache', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 334, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'settypecheckmode', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'settypecheckmode', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 335, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'setboolspec', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'setboolspec', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 336, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bootint', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bootint', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 339, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'bootnum', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bootnum', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 340, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'bootstr', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bootstr', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 341, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'bootarray', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bootarray', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 342, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'bootintarray', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bootintarray', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 343, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'bootnumarray', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bootnumarray', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 344, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'bootstrarray', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bootstrarray', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 345, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'boothash', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'boothash', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 346, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'isint', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'isint', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 347, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'isnum', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'isnum', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 348, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'isstr', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'isstr', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 349, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'islist', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'islist', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 350, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'ishash', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ishash', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 351, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'sethllconfig', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'sethllconfig', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 352, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'hllboxtype_i', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'hllboxtype_i', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 353, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'hllboxtype_n', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'hllboxtype_n', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 354, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'hllboxtype_s', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'hllboxtype_s', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 355, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'hlllist', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'hlllist', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 356, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'hllhash', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'hllhash', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 357, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'getcomp', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getcomp', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 358, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'bindcomp', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindcomp', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 359, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'getcurhllsym', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getcurhllsym', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 360, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'bindcurhllsym', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindcurhllsym', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 361, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'gethllsym', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'gethllsym', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 362, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bindhllsym', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindhllsym', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 363, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'settypehll', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'settypehll', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 364, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'settypehllrole', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'settypehllrole', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 365, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'usecompileehllconfig', sub () {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'usecompileehllconfig', sub ($frame) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 368, 5);
 
     },
-    'usecompilerhllconfig', sub () {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'usecompilerhllconfig', sub ($frame) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 369, 5);
 
     },
-    'iter', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'iter', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 370, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'iterkey_s', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'iterkey_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 371, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'iterval', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'iterval', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 372, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getcodename', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getcodename', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 373, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'iscoderef', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'iscoderef', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 374, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getcodeobj', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getcodeobj', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 375, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'setcodeobj', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'setcodeobj', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 376, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'setcodename', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'setcodename', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 377, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'forceouterctx', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'forceouterctx', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 378, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'freshcoderef', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'freshcoderef', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 381, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'markcodestatic', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'markcodestatic', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 382, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'markcodestub', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'markcodestub', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 383, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'getstaticcode', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getstaticcode', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 384, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getcodecuid', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getcodecuid', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 385, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'assign', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'assign', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 388, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'assignunchecked', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'assignunchecked', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 389, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'iscont', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'iscont', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 390, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'decont', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decont', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 391, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'setcontspec', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'setcontspec', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 392, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'sha1', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'sha1', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 393, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'createsc', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'createsc', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 394, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'scsetobj', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'scsetobj', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 395, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'scsetcode', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'scsetcode', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 396, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'scgetobj', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'scgetobj', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 397, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'scgethandle', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'scgethandle', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 398, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'scgetobjidx', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'scgetobjidx', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 399, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'scsetdesc', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'scsetdesc', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 400, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'scobjcount', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'scobjcount', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 401, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'setobjsc', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'setobjsc', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 402, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getobjsc', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getobjsc', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 403, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'serialize', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'serialize', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 404, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'deserialize', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'deserialize', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 405, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8065,138 +8065,138 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'wval', sub ($op0, int16 $op1, int16 $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'wval', sub ($frame, $op0, int16 $op1, int16 $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 406, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 6), $op2, 5);
     },
-    'wval_wide', sub ($op0, int16 $op1, int64 $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'wval_wide', sub ($frame, $op0, int16 $op1, int64 $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 407, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 6), $op2, 13);
     },
-    'scwbdisable', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'scwbdisable', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 408, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'scwbenable', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'scwbenable', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 409, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'pushcompsc', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'pushcompsc', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 410, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'popcompsc', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'popcompsc', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 411, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'scgetdesc', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'scgetdesc', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 412, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'loadbytecode', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'loadbytecode', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 413, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'newmixintype', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'newmixintype', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 414, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'installconfprog', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'installconfprog', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 415, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'iscompunit', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'iscompunit', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 416, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'compunitmainline', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'compunitmainline', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 417, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'compunitcodes', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'compunitcodes', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 418, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'ctx', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ctx', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 419, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'ctxouter', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ctxouter', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 420, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'ctxcaller', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ctxcaller', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 421, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'ctxlexpad', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ctxlexpad', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 422, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'curcode', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'curcode', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 423, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'callercode', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'callercode', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 424, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'add_I', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'add_I', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 425, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8204,8 +8204,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'sub_I', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'sub_I', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 426, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8213,8 +8213,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'mul_I', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'mul_I', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 427, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8222,8 +8222,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'div_I', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'div_I', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 428, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8231,8 +8231,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'mod_I', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'mod_I', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 429, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8240,80 +8240,80 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'neg_I', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'neg_I', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 430, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'abs_I', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'abs_I', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 431, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'cmp_I', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'cmp_I', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 432, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'eq_I', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'eq_I', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 433, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'ne_I', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ne_I', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 434, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'lt_I', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'lt_I', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 435, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'le_I', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'le_I', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 436, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'gt_I', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'gt_I', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 437, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'ge_I', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ge_I', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 438, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bor_I', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bor_I', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 439, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8321,8 +8321,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'bxor_I', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bxor_I', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 440, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8330,8 +8330,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'band_I', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'band_I', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 441, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8339,16 +8339,16 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'bnot_I', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bnot_I', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 442, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'blshift_I', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'blshift_I', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 443, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8356,8 +8356,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'brshift_I', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'brshift_I', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 444, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8365,8 +8365,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'pow_I', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'pow_I', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 445, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8375,8 +8375,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'gcd_I', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'gcd_I', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 446, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8384,8 +8384,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'lcm_I', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'lcm_I', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 447, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8393,8 +8393,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'expmod_I', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'expmod_I', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 448, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8403,75 +8403,75 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'isprime_I', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'isprime_I', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 449, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'rand_I', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'rand_I', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 450, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'coerce_In', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_In', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 451, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'coerce_Is', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_Is', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 452, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'coerce_nI', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_nI', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 453, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'coerce_sI', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_sI', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 454, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'isbig_I', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'isbig_I', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 455, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'bool_I', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bool_I', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 456, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'base_I', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'base_I', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 457, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'radix_I', sub ($op0, $op1, $op2, $op3, $op4, $op5) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'radix_I', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 458, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8481,164 +8481,164 @@ BEGIN {
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
     },
-    'div_In', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'div_In', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 459, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'copy_f', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'copy_f', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 460, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'append_f', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'append_f', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 461, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'rename_f', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'rename_f', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 462, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'delete_f', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'delete_f', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 463, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'chmod_f', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'chmod_f', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 464, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'exists_f', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'exists_f', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 465, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'mkdir', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'mkdir', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 466, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'rmdir', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'rmdir', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 467, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'open_dir', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'open_dir', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 468, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'read_dir', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'read_dir', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 469, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'close_dir', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'close_dir', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 470, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'open_fh', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'open_fh', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 471, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'close_fh', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'close_fh', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 472, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'seek_fh', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'seek_fh', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 477, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'lock_fh', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'lock_fh', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 478, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'unlock_fh', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'unlock_fh', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 479, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'sync_fh', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'sync_fh', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 480, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'trunc_fh', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'trunc_fh', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 481, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'eof_fh', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'eof_fh', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 482, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getstdin', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getstdin', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 483, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'getstdout', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getstdout', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 484, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'getstderr', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getstderr', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 485, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'connect_sk', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'connect_sk', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 486, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8646,15 +8646,15 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'socket', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'socket', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 487, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'bind_sk', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bind_sk', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 488, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8663,15 +8663,15 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'accept_sk', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'accept_sk', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 490, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'decodetocodes', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decodetocodes', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 491, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8679,287 +8679,287 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'encodefromcodes', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'encodefromcodes', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 492, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'print', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'print', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 494, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'say', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'say', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 495, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'tell_fh', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'tell_fh', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 497, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'stat', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'stat', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 498, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'chdir', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'chdir', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 501, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'srand', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'srand', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 502, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'rand_i', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'rand_i', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 503, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'rand_n', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'rand_n', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 504, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'sleep', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'sleep', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 506, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'newthread', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'newthread', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 507, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'threadjoin', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'threadjoin', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 508, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'exit', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'exit', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 510, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'cwd', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'cwd', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 512, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'clargs', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'clargs', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 513, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'getenvhash', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getenvhash', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 514, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'loadlib', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'loadlib', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 515, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'freelib', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'freelib', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 516, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'findsym', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'findsym', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 517, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'dropsym', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'dropsym', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 518, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'loadext', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'loadext', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 519, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'backendconfig', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'backendconfig', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 520, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'getlexouter', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexouter', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 521, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getlexrel', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexrel', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 522, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'getlexreldyn', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexreldyn', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 523, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'getlexrelcaller', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexrelcaller', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 524, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'getlexcaller', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexcaller', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 525, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'bitand_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bitand_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 526, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bitor_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bitor_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 527, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bitxor_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bitxor_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 528, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'isnanorinf', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'isnanorinf', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 529, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'inf', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'inf', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 530, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'neginf', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'neginf', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 531, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'nan', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'nan', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 532, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'getpid', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getpid', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 533, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'filereadable', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'filereadable', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 535, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'filewritable', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'filewritable', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 536, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'fileexecutable', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'fileexecutable', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 537, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'capturenamedshash', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'capturenamedshash', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 539, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'read_fhb', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'read_fhb', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 540, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'write_fhb', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'write_fhb', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 541, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'replace', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'replace', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 542, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -8968,70 +8968,70 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'newexception', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'newexception', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 543, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'permit', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'permit', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 544, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'backtrace', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'backtrace', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 545, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'symlink', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'symlink', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 546, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'link', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'link', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 547, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'gethostname', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'gethostname', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 548, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'exreturnafterunwind', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'exreturnafterunwind', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 549, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'vmeventsubscribe', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'vmeventsubscribe', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 550, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'continuationreset', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'continuationreset', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 551, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'continuationcontrol', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'continuationcontrol', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 552, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9039,23 +9039,23 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'continuationinvoke', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'continuationinvoke', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 553, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'randscale_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'randscale_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 554, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'uniisblock', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'uniisblock', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 555, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9063,59 +9063,59 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'assertparamcheck', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'assertparamcheck', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 556, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'hintfor', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'hintfor', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 557, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'paramnamesused', sub () {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'paramnamesused', sub ($frame) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 558, 5);
 
     },
-    'getuniname', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getuniname', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 559, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getuniprop_int', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getuniprop_int', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 560, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'getuniprop_bool', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getuniprop_bool', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 561, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'getuniprop_str', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getuniprop_str', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 562, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'matchuniprop', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'matchuniprop', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 563, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9123,8 +9123,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'nativecallbuild', sub ($op0, $op1, $op2, $op3, $op4, $op5, $op6) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'nativecallbuild', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5, $op6) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 564, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9135,8 +9135,8 @@ BEGIN {
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
         my uint $index6 := nqp::unbox_u($op6); nqp::writeuint($bytecode, nqp::add_i($elems, 14), $index6, 5);
     },
-    'nativecallinvoke', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'nativecallinvoke', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 565, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9144,117 +9144,117 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'nativecallrefresh', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'nativecallrefresh', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 566, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'threadrun', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'threadrun', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 567, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'threadid', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'threadid', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 568, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'threadyield', sub () {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'threadyield', sub ($frame) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 569, 5);
 
     },
-    'currentthread', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'currentthread', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 570, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'lock', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'lock', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 571, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'unlock', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'unlock', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 572, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'semacquire', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'semacquire', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 573, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'semtryacquire', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'semtryacquire', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 574, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'semrelease', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'semrelease', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 575, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'getlockcondvar', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlockcondvar', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 576, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'condwait', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'condwait', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 577, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'condsignalone', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'condsignalone', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 578, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'condsignalall', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'condsignalall', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 579, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'queuepoll', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'queuepoll', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 580, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'ctxouterskipthunks', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ctxouterskipthunks', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 582, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'ctxcallerskipthunks', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ctxcallerskipthunks', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 583, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'timer', sub ($op0, $op1, $op2, $op3, $op4, $op5) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'timer', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 584, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9264,14 +9264,14 @@ BEGIN {
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
     },
-    'cancel', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'cancel', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 585, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'signal', sub ($op0, $op1, $op2, $op3, $op4, $op5, $op6) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'signal', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5, $op6) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 586, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9282,8 +9282,8 @@ BEGIN {
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
         my uint $index6 := nqp::unbox_u($op6); nqp::writeuint($bytecode, nqp::add_i($elems, 14), $index6, 5);
     },
-    'watchfile', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'watchfile', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 587, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9292,8 +9292,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'asyncconnect', sub ($op0, $op1, $op2, $op3, $op4, $op5) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'asyncconnect', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 588, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9303,8 +9303,8 @@ BEGIN {
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
     },
-    'asynclisten', sub ($op0, $op1, $op2, $op3, $op4, $op5, $op6) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'asynclisten', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5, $op6) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 589, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9315,8 +9315,8 @@ BEGIN {
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
         my uint $index6 := nqp::unbox_u($op6); nqp::writeuint($bytecode, nqp::add_i($elems, 14), $index6, 5);
     },
-    'asyncwritebytes', sub ($op0, $op1, $op2, $op3, $op4, $op5) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'asyncwritebytes', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 591, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9326,8 +9326,8 @@ BEGIN {
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
     },
-    'asyncreadbytes', sub ($op0, $op1, $op2, $op3, $op4, $op5) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'asyncreadbytes', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 593, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9337,81 +9337,81 @@ BEGIN {
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
     },
-    'getlexstatic_o', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexstatic_o', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 594, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getlexperinvtype_o', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexperinvtype_o', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 595, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'execname', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'execname', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 596, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'const_i64_16', sub ($op0, int16 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'const_i64_16', sub ($frame, $op0, int16 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 597, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
     },
-    'const_i64_32', sub ($op0, int32 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'const_i64_32', sub ($frame, $op0, int32 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 598, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 13);
     },
-    'isnonnull', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'isnonnull', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 599, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'param_rn2_i', sub ($op0, str $op1, str $op2) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_rn2_i', sub ($frame, $op0, str $op1, str $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 600, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
         my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index2, 9);
     },
-    'param_rn2_n', sub ($op0, str $op1, str $op2) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_rn2_n', sub ($frame, $op0, str $op1, str $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 601, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
         my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index2, 9);
     },
-    'param_rn2_s', sub ($op0, str $op1, str $op2) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_rn2_s', sub ($frame, $op0, str $op1, str $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 602, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
         my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index2, 9);
     },
-    'param_rn2_o', sub ($op0, str $op1, str $op2) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_rn2_o', sub ($frame, $op0, str $op1, str $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 603, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
         my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index2, 9);
     },
-    'param_on2_i', sub ($op0, str $op1, str $op2, $op3) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_on2_i', sub ($frame, $op0, str $op1, str $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 604, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9419,8 +9419,8 @@ BEGIN {
         my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index2, 9);
         $frame.compile_label($bytecode, $op3);
     },
-    'param_on2_n', sub ($op0, str $op1, str $op2, $op3) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_on2_n', sub ($frame, $op0, str $op1, str $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 605, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9428,8 +9428,8 @@ BEGIN {
         my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index2, 9);
         $frame.compile_label($bytecode, $op3);
     },
-    'param_on2_s', sub ($op0, str $op1, str $op2, $op3) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_on2_s', sub ($frame, $op0, str $op1, str $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 606, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9437,8 +9437,8 @@ BEGIN {
         my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index2, 9);
         $frame.compile_label($bytecode, $op3);
     },
-    'param_on2_o', sub ($op0, str $op1, str $op2, $op3) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_on2_o', sub ($frame, $op0, str $op1, str $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 607, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9446,14 +9446,14 @@ BEGIN {
         my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index2, 9);
         $frame.compile_label($bytecode, $op3);
     },
-    'osrpoint', sub () {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'osrpoint', sub ($frame) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 608, 5);
 
     },
-    'nativecallcast', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'nativecallcast', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 609, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9461,8 +9461,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'spawnprocasync', sub ($op0, $op1, $op2, $op3, $op4, $op5, $op6) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'spawnprocasync', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5, $op6) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 610, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9473,47 +9473,47 @@ BEGIN {
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
         my uint $index6 := nqp::unbox_u($op6); nqp::writeuint($bytecode, nqp::add_i($elems, 14), $index6, 5);
     },
-    'killprocasync', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'killprocasync', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 611, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'startprofile', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'startprofile', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 612, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'endprofile', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'endprofile', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 613, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'objectid', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'objectid', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 614, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'settypefinalize', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'settypefinalize', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 615, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'force_gc', sub () {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'force_gc', sub ($frame) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 616, 5);
 
     },
-    'nativecallglobal', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'nativecallglobal', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 617, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9522,208 +9522,208 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'setparameterizer', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'setparameterizer', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 619, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'parameterizetype', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'parameterizetype', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 620, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'typeparameterized', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'typeparameterized', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 621, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'typeparameters', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'typeparameters', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 622, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'typeparameterat', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'typeparameterat', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 623, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'readlink', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'readlink', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 624, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'lstat', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'lstat', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 625, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'iscont_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'iscont_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 626, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'iscont_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'iscont_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 627, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'iscont_s', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'iscont_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 628, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'assign_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'assign_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 629, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'assign_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'assign_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 630, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'assign_s', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'assign_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 631, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'decont_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decont_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 632, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'decont_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decont_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 633, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'decont_s', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decont_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 634, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getrusage', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getrusage', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 635, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'threadlockcount', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'threadlockcount', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 636, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'bindcomplete', sub () {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindcomplete', sub ($frame) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 637, 5);
 
     },
-    'getlexref_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexref_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 638, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 5);
     },
-    'getlexref_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexref_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 639, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 5);
     },
-    'getlexref_s', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexref_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 640, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 5);
     },
-    'getlexref_ni', sub ($op0, str $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'getlexref_ni', sub ($frame, $op0, str $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 641, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'getlexref_nn', sub ($op0, str $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'getlexref_nn', sub ($frame, $op0, str $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 642, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'getlexref_ns', sub ($op0, str $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'getlexref_ns', sub ($frame, $op0, str $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 643, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'atposref_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atposref_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 644, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'atposref_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atposref_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 645, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'atposref_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atposref_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 646, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'getattrref_i', sub ($op0, $op1, $op2, str $op3, int16 $op4) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'getattrref_i', sub ($frame, $op0, $op1, $op2, str $op3, int16 $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 647, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9732,8 +9732,8 @@ BEGIN {
         my uint $index3 := $frame.add-string($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 9);
         nqp::writeuint($bytecode, nqp::add_i($elems, 12), $op4, 5);
     },
-    'getattrref_n', sub ($op0, $op1, $op2, str $op3, int16 $op4) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'getattrref_n', sub ($frame, $op0, $op1, $op2, str $op3, int16 $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 648, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9742,8 +9742,8 @@ BEGIN {
         my uint $index3 := $frame.add-string($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 9);
         nqp::writeuint($bytecode, nqp::add_i($elems, 12), $op4, 5);
     },
-    'getattrref_s', sub ($op0, $op1, $op2, str $op3, int16 $op4) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'getattrref_s', sub ($frame, $op0, $op1, $op2, str $op3, int16 $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 649, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9752,8 +9752,8 @@ BEGIN {
         my uint $index3 := $frame.add-string($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 9);
         nqp::writeuint($bytecode, nqp::add_i($elems, 12), $op4, 5);
     },
-    'getattrsref_i', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getattrsref_i', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 650, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9761,8 +9761,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'getattrsref_n', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getattrsref_n', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 651, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9770,8 +9770,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'getattrsref_s', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getattrsref_s', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 652, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9779,15 +9779,15 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'nativecallsizeof', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'nativecallsizeof', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 653, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'encodenorm', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'encodenorm', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 654, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9795,38 +9795,38 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'normalizecodes', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'normalizecodes', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 655, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'strfromcodes', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'strfromcodes', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 656, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'strtocodes', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'strtocodes', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 657, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'getcodelocation', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getcodelocation', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 658, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'eqatim_s', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'eqatim_s', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 659, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9834,34 +9834,34 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'ordbaseat', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ordbaseat', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 660, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'neverrepossess', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'neverrepossess', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 661, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'scdisclaim', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'scdisclaim', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 662, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'setthreadname', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'setthreadname', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 663, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'atpos2d_i', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atpos2d_i', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 664, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9869,8 +9869,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'atpos2d_n', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atpos2d_n', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 665, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9878,8 +9878,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'atpos2d_s', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atpos2d_s', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 666, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9887,8 +9887,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'atpos2d_o', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atpos2d_o', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 667, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9896,8 +9896,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'atpos3d_i', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atpos3d_i', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 668, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9906,8 +9906,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'atpos3d_n', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atpos3d_n', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 669, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9916,8 +9916,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'atpos3d_s', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atpos3d_s', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 670, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9926,8 +9926,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'atpos3d_o', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atpos3d_o', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 671, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9936,40 +9936,40 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'atposnd_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atposnd_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 672, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'atposnd_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atposnd_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 673, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'atposnd_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atposnd_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 674, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'atposnd_o', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atposnd_o', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 675, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bindpos2d_i', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindpos2d_i', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 676, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9977,8 +9977,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'bindpos2d_n', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindpos2d_n', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 677, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9986,8 +9986,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'bindpos2d_s', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindpos2d_s', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 678, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -9995,8 +9995,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'bindpos2d_o', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindpos2d_o', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 679, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10004,8 +10004,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'bindpos3d_i', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindpos3d_i', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 680, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10014,8 +10014,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'bindpos3d_n', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindpos3d_n', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 681, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10024,8 +10024,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'bindpos3d_s', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindpos3d_s', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 682, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10034,8 +10034,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'bindpos3d_o', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindpos3d_o', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 683, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10044,82 +10044,82 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'bindposnd_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindposnd_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 684, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bindposnd_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindposnd_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 685, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bindposnd_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindposnd_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 686, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'bindposnd_o', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'bindposnd_o', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 687, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'dimensions', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'dimensions', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 688, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'setdimensions', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'setdimensions', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 689, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'numdimensions', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'numdimensions', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 690, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'ctxcode', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'ctxcode', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 691, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'isrwcont', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'isrwcont', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 692, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'fc', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'fc', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 693, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'encoderep', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'encoderep', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 696, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10128,46 +10128,46 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'istty_fh', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'istty_fh', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 697, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'multidimref_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'multidimref_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 698, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'multidimref_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'multidimref_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 699, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'multidimref_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'multidimref_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 700, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'fileno_fh', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'fileno_fh', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 701, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'asyncudp', sub ($op0, $op1, $op2, $op3, $op4, $op5, $op6) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'asyncudp', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5, $op6) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 702, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10178,8 +10178,8 @@ BEGIN {
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
         my uint $index6 := nqp::unbox_u($op6); nqp::writeuint($bytecode, nqp::add_i($elems, 14), $index6, 5);
     },
-    'asyncwritebytesto', sub ($op0, $op1, $op2, $op3, $op4, $op5, $op6, $op7) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'asyncwritebytesto', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5, $op6, $op7) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 704, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10191,166 +10191,166 @@ BEGIN {
         my uint $index6 := nqp::unbox_u($op6); nqp::writeuint($bytecode, nqp::add_i($elems, 14), $index6, 5);
         my uint $index7 := nqp::unbox_u($op7); nqp::writeuint($bytecode, nqp::add_i($elems, 16), $index7, 5);
     },
-    'objprimbits', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'objprimbits', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 705, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'objprimunsigned', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'objprimunsigned', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 706, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getlexref_i32', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexref_i32', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 711, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 5);
     },
-    'getlexref_i16', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexref_i16', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 712, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 5);
     },
-    'getlexref_i8', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexref_i8', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 713, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 5);
     },
-    'getlexref_n32', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexref_n32', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 714, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 5);
     },
-    'box_u', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'box_u', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 715, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'unbox_u', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'unbox_u', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 716, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'coerce_iu', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_iu', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 717, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'coerce_ui', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_ui', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 718, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'coerce_nu', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_nu', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 719, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'coerce_un', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_un', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 720, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'decont_u', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decont_u', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 721, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getlexref_u', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexref_u', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 726, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 5);
     },
-    'getlexref_u32', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexref_u32', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 727, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 5);
     },
-    'getlexref_u16', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexref_u16', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 728, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 5);
     },
-    'getlexref_u8', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getlexref_u8', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 729, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::die("Expected MAST::Lexical, but didn't get one") unless nqp::istype($op1, MAST::Lexical);my uint $index1 := $op1.index; my uint $frames_out1 := $op1.frames_out; nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);nqp::writeuint($bytecode, nqp::add_i($elems, 6), $frames_out1, 5);
     },
-    'param_rp_u', sub ($op0, int16 $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'param_rp_u', sub ($frame, $op0, int16 $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 730, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
     },
-    'param_op_u', sub ($op0, int16 $op1, $op2) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_op_u', sub ($frame, $op0, int16 $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 731, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 5);
         $frame.compile_label($bytecode, $op2);
     },
-    'param_rn_u', sub ($op0, str $op1) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_rn_u', sub ($frame, $op0, str $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 732, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
     },
-    'param_on_u', sub ($op0, str $op1, $op2) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_on_u', sub ($frame, $op0, str $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 733, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
         $frame.compile_label($bytecode, $op2);
     },
-    'param_rn2_u', sub ($op0, str $op1, str $op2) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_rn2_u', sub ($frame, $op0, str $op1, str $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 734, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := $frame.add-string($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 9);
         my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index2, 9);
     },
-    'param_on2_u', sub ($op0, str $op1, str $op2, $op3) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'param_on2_u', sub ($frame, $op0, str $op1, str $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 735, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10358,118 +10358,118 @@ BEGIN {
         my uint $index2 := $frame.add-string($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index2, 9);
         $frame.compile_label($bytecode, $op3);
     },
-    'stat_time', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'stat_time', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 736, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'lstat_time', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'lstat_time', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 737, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'setdebugtypename', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'setdebugtypename', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 738, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'loadbytecodebuffer', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'loadbytecodebuffer', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 739, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'loadbytecodefh', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'loadbytecodefh', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 740, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'throwpayloadlex', sub ($op0, int64 $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'throwpayloadlex', sub ($frame, $op0, int64 $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 741, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 13);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index2, 5);
     },
-    'throwpayloadlexcaller', sub ($op0, int64 $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'throwpayloadlexcaller', sub ($frame, $op0, int64 $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 742, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         nqp::writeuint($bytecode, nqp::add_i($elems, 4), $op1, 13);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index2, 5);
     },
-    'lastexpayload', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'lastexpayload', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 743, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'cancelnotify', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'cancelnotify', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 744, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'decoderconfigure', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decoderconfigure', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 745, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'decodersetlineseps', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decodersetlineseps', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 746, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'decoderaddbytes', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decoderaddbytes', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 747, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'decodertakechars', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decodertakechars', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 748, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'decodertakeallchars', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decodertakeallchars', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 749, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'decodertakeavailablechars', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decodertakeavailablechars', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 750, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'decodertakeline', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decodertakeline', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 751, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10477,15 +10477,15 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'decoderbytesavailable', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decoderbytesavailable', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 752, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'decodertakebytes', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decodertakebytes', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 753, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10493,28 +10493,28 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'decoderempty', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decoderempty', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 754, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'indexingoptimized', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'indexingoptimized', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 755, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'captureinnerlex', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'captureinnerlex', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 756, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'unicmp_s', sub ($op0, $op1, $op2, $op3, $op4, $op5) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'unicmp_s', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 757, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10524,15 +10524,15 @@ BEGIN {
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
     },
-    'strfromname', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'strfromname', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 759, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'indexic_s', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'indexic_s', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 760, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10540,21 +10540,21 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'getport_sk', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getport_sk', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 761, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'cpucores', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'cpucores', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 762, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'eqaticim_s', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'eqaticim_s', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 763, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10562,8 +10562,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'indexicim_s', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'indexicim_s', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 764, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10571,16 +10571,16 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'decodertakecharseof', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decodertakecharseof', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 765, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'indexim_s', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'indexim_s', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 766, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10588,8 +10588,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'cas_o', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'cas_o', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 767, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10597,8 +10597,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'cas_i', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'cas_i', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 768, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10606,145 +10606,145 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'atomicinc_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atomicinc_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 769, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'atomicdec_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atomicdec_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 770, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'atomicadd_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atomicadd_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 771, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'atomicload_o', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atomicload_o', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 772, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'atomicload_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atomicload_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 773, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'atomicstore_o', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atomicstore_o', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 774, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'atomicstore_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atomicstore_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 775, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'barrierfull', sub () {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'barrierfull', sub ($frame) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 776, 5);
 
     },
-    'coveragecontrol', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coveragecontrol', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 777, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'nativeinvoke_v', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'nativeinvoke_v', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 778, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'nativeinvoke_i', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'nativeinvoke_i', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 779, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'nativeinvoke_n', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'nativeinvoke_n', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 780, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'nativeinvoke_s', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'nativeinvoke_s', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 781, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'nativeinvoke_o', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'nativeinvoke_o', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 782, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'getarg_i', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getarg_i', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 783, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getarg_n', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getarg_n', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 784, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getarg_s', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getarg_s', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 785, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'getarg_o', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getarg_o', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 786, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'coerce_II', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_II', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 787, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'encoderepconf', sub ($op0, $op1, $op2, $op3, $op4, $op5) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'encoderepconf', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 788, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10754,8 +10754,8 @@ BEGIN {
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
     },
-    'encodeconf', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'encodeconf', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 789, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10764,8 +10764,8 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'decodeconf', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decodeconf', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 790, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10773,8 +10773,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'decoderepconf', sub ($op0, $op1, $op2, $op3, $op4) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decoderepconf', sub ($frame, $op0, $op1, $op2, $op3, $op4) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 791, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10783,20 +10783,20 @@ BEGIN {
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
     },
-    'getppid', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getppid', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 792, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'getsignals', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'getsignals', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 793, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'slice', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'slice', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 794, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10804,8 +10804,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'atomicbindattr_o', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atomicbindattr_o', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 802, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10813,8 +10813,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'casattr_o', sub ($op0, $op1, $op2, $op3, $op4, $op5) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'casattr_o', sub ($frame, $op0, $op1, $op2, $op3, $op4, $op5) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 803, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10824,58 +10824,58 @@ BEGIN {
         my uint $index4 := nqp::unbox_u($op4); nqp::writeuint($bytecode, nqp::add_i($elems, 10), $index4, 5);
         my uint $index5 := nqp::unbox_u($op5); nqp::writeuint($bytecode, nqp::add_i($elems, 12), $index5, 5);
     },
-    'atkey_u', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'atkey_u', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 804, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'coerce_us', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'coerce_us', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 805, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'hllbool', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'hllbool', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 807, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'hllboolfor', sub ($op0, $op1, $op2) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'hllboolfor', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 808, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
     },
-    'decodelocaltime', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'decodelocaltime', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 809, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'fork', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'fork', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 810, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'buffertocu', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'buffertocu', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 811, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },
-    'writeint', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'writeint', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 812, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10883,8 +10883,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'writeuint', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'writeuint', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 813, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10892,8 +10892,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'writenum', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'writenum', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 814, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10901,8 +10901,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'serializetobuf', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'serializetobuf', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 815, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10910,8 +10910,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'readint', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'readint', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 816, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10919,8 +10919,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'readuint', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'readuint', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 817, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10928,8 +10928,8 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'readnum', sub ($op0, $op1, $op2, $op3) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'readnum', sub ($frame, $op0, $op1, $op2, $op3) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 818, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10937,32 +10937,32 @@ BEGIN {
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
         my uint $index3 := nqp::unbox_u($op3); nqp::writeuint($bytecode, nqp::add_i($elems, 8), $index3, 5);
     },
-    'uname', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'uname', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 820, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'freemem', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'freemem', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 821, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'totalmem', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'totalmem', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 822, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'time', sub ($op0) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'time', sub ($frame, $op0) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 825, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
     },
-    'dispatch_v', sub (str $op0, $op1, @arg-indices) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'dispatch_v', sub ($frame, str $op0, $op1, @arg-indices) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 826, 5);
         my uint $index0 := $frame.add-string($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 9);
@@ -10970,8 +10970,8 @@ BEGIN {
         my int $arg-offset := $elems + 8;
         for @arg-indices -> $offset { nqp::writeuint($bytecode, $arg-offset, nqp::unbox_u($offset), 5); $arg-offset := $arg-offset + 2; }
     },
-    'dispatch_i', sub ($op0, str $op1, $op2, @arg-indices) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'dispatch_i', sub ($frame, $op0, str $op1, $op2, @arg-indices) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 827, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10980,8 +10980,8 @@ BEGIN {
         my int $arg-offset := $elems + 10;
         for @arg-indices -> $offset { nqp::writeuint($bytecode, $arg-offset, nqp::unbox_u($offset), 5); $arg-offset := $arg-offset + 2; }
     },
-    'dispatch_n', sub ($op0, str $op1, $op2, @arg-indices) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'dispatch_n', sub ($frame, $op0, str $op1, $op2, @arg-indices) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 828, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -10990,8 +10990,8 @@ BEGIN {
         my int $arg-offset := $elems + 10;
         for @arg-indices -> $offset { nqp::writeuint($bytecode, $arg-offset, nqp::unbox_u($offset), 5); $arg-offset := $arg-offset + 2; }
     },
-    'dispatch_s', sub ($op0, str $op1, $op2, @arg-indices) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'dispatch_s', sub ($frame, $op0, str $op1, $op2, @arg-indices) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 829, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -11000,8 +11000,8 @@ BEGIN {
         my int $arg-offset := $elems + 10;
         for @arg-indices -> $offset { nqp::writeuint($bytecode, $arg-offset, nqp::unbox_u($offset), 5); $arg-offset := $arg-offset + 2; }
     },
-    'dispatch_o', sub ($op0, str $op1, $op2, @arg-indices) {
-        my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;
+    'dispatch_o', sub ($frame, $op0, str $op1, $op2, @arg-indices) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 830, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
@@ -11010,8 +11010,8 @@ BEGIN {
         my int $arg-offset := $elems + 10;
         for @arg-indices -> $offset { nqp::writeuint($bytecode, $arg-offset, nqp::unbox_u($offset), 5); $arg-offset := $arg-offset + 2; }
     },
-    'gettypehllrole', sub ($op0, $op1) {
-        my $bytecode := $*MAST_FRAME.bytecode;
+    'gettypehllrole', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 831, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
