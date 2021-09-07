@@ -438,12 +438,12 @@ class MAST::Op is MAST::Node {
     my @op_names := MAST::Ops.WHO<@names>;
     my %generators := MAST::Ops.WHO<%generators>;
 
-    method new(str :$op!, *@operands) {
-        %generators{$op}(|@operands)
+    method new(:$frame!, str :$op!, *@operands) {
+        %generators{$op}($frame, |@operands)
     }
 
-    method new_with_operand_array(@operands, str :$op!) {
-        %generators{$op}(|@operands)
+    method new_with_operand_array(@operands, :$frame!, str :$op!) {
+        %generators{$op}($frame, |@operands)
     }
 }
 

@@ -27,15 +27,15 @@ class Op {
     method generator() {
         my $offset = 2;
         if $.name eq "prepargs" {
-            my $signature = @!operands.map({self.generate_arg($_, $++)}).join(', ');
+            my $signature = ('$frame', |@!operands.map({self.generate_arg($_, $++)})).join(', ');
             'sub (' ~ $signature ~ ') {' ~
             ~ 'die("MAST::Ops generator for prepargs NYI (QASTOperationsMAST is supposed to do it by itself)");'
             ~ '}';
         }
         elsif $.name eq "const_i64" {
             q:to/CODE/.subst("CODE_GOES_HERE", $.code).chomp;
-            sub ($op0, int $value) {
-                    my $bytecode := $*MAST_FRAME.bytecode;
+            sub ($frame, $op0, int $value) {
+                    my $bytecode := $frame.bytecode;
                     my uint $elems := nqp::elems($bytecode);
                     my uint $index := nqp::unbox_u($op0);
                     if -32767 < $value && $value < 32768 {
@@ -58,11 +58,9 @@ class Op {
         } else {
             my $is-dispatch = $!mark eq '.d';
             my @params = @!operands.map({self.generate_arg($_, $++)});
+            @params.unshift('$frame');
             @params.push('@arg-indices') if $is-dispatch;
             my $signature = @params.join(', ');
-            my $frame-getter = self.needs_frame
-                ?? 'my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;'
-                !! 'my $bytecode := $*MAST_FRAME.bytecode;';
             my constant $prefix = "                ";
             my @operand-emitters = @!operands.map({ $prefix ~ self.generate_operand($_, $++, $offset)});
             if $is-dispatch {
@@ -71,21 +69,13 @@ class Op {
                     'nqp::writeuint($bytecode, $arg-offset, nqp::unbox_u($offset), 5); $arg-offset := $arg-offset + 2; }'
             }
             my $operands-code = @operand-emitters.join("\n");
-            'sub (' ~ $signature ~ ') {' ~ "\n" ~
-                $frame-getter.indent(8) ~ ('
+            'sub (' ~ $signature ~ ') {' ~ ('
+                my $bytecode := $frame.bytecode;
                 my uint $elems := nqp::elems($bytecode);
                 nqp::writeuint($bytecode, $elems, ' ~ $.code ~ ', 5);
 ' ~ $operands-code ~ '
             }').indent(-8);
         }
-    }
-    method needs_frame() {
-        for @!operands -> $operand {
-            if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
-                return True if !$rw and (($type // '') eq 'str' or ($special // '') eq 'ins' | 'coderef');
-            }
-        }
-        return False;
     }
     method generate_arg($operand, $i) {
         if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
