@@ -174,9 +174,36 @@ static void reached_eof(MVMThreadContext *tc, MVMDecodeStream *ds) {
     /* Decode all the things. */
     if (ds->bytes_head)
         run_decode(tc, ds, NULL, NULL, DECODE_EOF);
-    if (ds->bytes_head)
-        MVM_exception_throw_adhoc(tc,
-            "Incomplete character found at the end of a stream");
+    if (ds->bytes_head){
+        MVMDecodeStreamBytes *bh = ds->bytes_head;
+        MVMint32 i = ds->bytes_head_pos;
+        char dumped[16] = " xx xx xx xx...";
+        size_t j = 0;
+        while(bh && j < sizeof(dumped) - 4){
+            if(i < bh->length){
+                int r = snprintf(&dumped[j], sizeof(dumped)-j,
+                    " %02hhx", bh->bytes[i++]);
+                if(r < 0){
+                    j = 0;
+                    break;
+                }
+                j += r;
+            }
+            if(i >= bh->length){
+                bh = bh->next;
+                i = 0;
+            }
+        }
+        if(j == 0){
+            MVM_exception_throw_adhoc(tc, "Incomplete character "
+                "at the end of a stream");
+        }else{
+            if(bh)
+                dumped[12] = '.';
+            MVM_exception_throw_adhoc(tc, "Incomplete character "
+                "near bytes%s at the end of a stream", dumped);
+        }
+    }
 
     /* If there's some things left in the normalization buffer, take them. */
     MVM_unicode_normalizer_eof(tc, &(ds->norm));
