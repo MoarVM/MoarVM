@@ -1081,6 +1081,8 @@ void MVM_args_bind_failed(MVMThreadContext *tc, MVMDispInlineCacheEntry **ice_pt
      * bind failure handler. This is determined by if there is a bind failure
      * frame under us on the callstack in a fresh state. */
     MVMCallStackRecord *under_us = tc->stack_top->prev;
+    while (under_us && under_us->kind == MVM_CALLSTACK_RECORD_START_REGION)
+        under_us = under_us->prev;
     if (under_us->kind == MVM_CALLSTACK_RECORD_BIND_CONTROL) {
         MVMCallStackBindControl *control_record = (MVMCallStackBindControl *)under_us;
         MVMBindControlState state = control_record->state;
@@ -1117,6 +1119,8 @@ void MVM_args_bind_failed(MVMThreadContext *tc, MVMDispInlineCacheEntry **ice_pt
  * dispatch resumption. */
 void MVM_args_bind_succeeded(MVMThreadContext *tc, MVMDispInlineCacheEntry **ice_ptr) {
     MVMCallStackRecord *under_us = tc->stack_top->prev;
+    while (under_us && under_us->kind == MVM_CALLSTACK_RECORD_START_REGION)
+        under_us = under_us->prev;
     if (under_us->kind == MVM_CALLSTACK_RECORD_BIND_CONTROL) {
         MVMCallStackBindControl *control_record = (MVMCallStackBindControl *)under_us;
         MVMBindControlState state = control_record->state;
