@@ -1,5 +1,11 @@
 #include "moar.h"
 
+/* Set up resumption data for the situation where the dispatch that is to be
+ * resumed is either in unspecialized code or an untranslated dispatch program
+ * in specialized code (that is, left as sp_dispatch). In this case, there
+ * is a dispatch recorded or dispatch run record on the callstack, and we'll
+ * use that for storage of resumption state, to find the original dispatch
+ * args and temporaries, etc. */
 static void finish_resumption_data(MVMThreadContext *tc, MVMDispResumptionData *data,
         MVMDispResumptionState *state, MVMuint32 offset) {
     data->resumption = &(data->dp->resumptions[offset]);
@@ -9,10 +15,10 @@ static void finish_resumption_data(MVMThreadContext *tc, MVMDispResumptionData *
 }
 static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *data,
         MVMDispProgram *dp, MVMArgs *arg_info, MVMDispResumptionState *state,
-        MVMRegister *temps, MVMuint32 exhausted) {
+        MVMRegister *temps, MVMuint32 *exhausted) {
     /* Did the dispatch program set up any static resumptions, and are there at
      * least as many as we've already passed? */
-    if (dp->num_resumptions > exhausted) {
+    if (dp->num_resumptions > *exhausted) {
         /* Yes; do we have dispatch state for them already? */
         if (!state->disp) {
             /* No state; set it up. */
@@ -36,7 +42,7 @@ static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *d
             data->arg_source = MVMDispResumptionArgUntranslated;
             data->untran.initial_arg_info = arg_info;
             data->untran.temps = temps;
-            finish_resumption_data(tc, data, state, exhausted);
+            finish_resumption_data(tc, data, state, *exhausted);
             return 1;
         }
         else {
@@ -45,11 +51,26 @@ static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *d
             data->arg_source = MVMDispResumptionArgUntranslated;
             data->untran.initial_arg_info = arg_info;
             data->untran.temps = temps;
-            finish_resumption_data(tc, data, state, exhausted);
+            finish_resumption_data(tc, data, state, *exhausted);
             return 1;
         }
     }
+    *exhausted -= dp->num_resumptions;
     return 0;
+}
+
+/* Set up resumption data in the situation that the dispatch we'll resume was
+ * translated into ops. In this case, there is a register for storing any
+ * dispatch state object, and we also have registers holding all of the args
+ * and temps that we might need. */
+static void setup_translated_resumption(MVMThreadContext *tc, MVMDispResumptionData *data,
+        MVMSpeshResumeInit *ri, MVMFrame *frame) {
+    data->dp = ri->dp;
+    data->resumption = &(ri->dp->resumptions[ri->res_idx]);
+    data->state_ptr = &(frame->work[ri->state_register].o);
+    data->arg_source = MVMDispResumptionArgTranslated;
+    data->tran.work = frame->work;
+    data->tran.map = ri->init_registers;
 }
 
 /* Looks down the callstack to find the dispatch that we are resuming, starting
@@ -94,7 +115,14 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
                         MVMuint32 i;
                         for (i = 0; i < cand->body.num_resume_inits; i++) {
                             if (cand->body.resume_inits[i].deopt_idx == deopt_idx) {
-                                MVM_oops(tc, "found specialized resume init but nyi");
+                                if (exhausted == 0) {
+                                    MVMSpeshResumeInit *ri = &(cand->body.resume_inits[i]);
+                                    setup_translated_resumption(tc, data, ri, frame);
+                                    return 1;
+                                }
+                                else {
+                                    exhausted--;
+                                }
                             }
                         }
 
@@ -123,7 +151,7 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
                 if (!frames_to_skip) {
                     MVMCallStackDispatchRecord *dr = (MVMCallStackDispatchRecord *)cur;
                     if (dr->produced_dp && setup_resumption(tc, data, dr->produced_dp,
-                                &(dr->arg_info), &(dr->resumption_state), dr->temps, exhausted))
+                                &(dr->arg_info), &(dr->resumption_state), dr->temps, &exhausted))
                         return 1;
                 }
                 break;
@@ -132,7 +160,7 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
                 if (!frames_to_skip) {
                     MVMCallStackDispatchRun *dr = (MVMCallStackDispatchRun *)cur;
                     if (dr->chosen_dp && setup_resumption(tc, data, dr->chosen_dp,
-                                &(dr->arg_info), &(dr->resumption_state), dr->temps, exhausted))
+                                &(dr->arg_info), &(dr->resumption_state), dr->temps, &exhausted))
                         return 1;
                 }
                 break;
