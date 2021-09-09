@@ -131,11 +131,11 @@ static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *rec
     fprintf(stderr, "  Outcome:\n");
     switch (record->rec.map_bind_outcome_to_resumption) {
         case MVMDispProgramRecordingBindControlFailure:
-            fprintf(stderr, "    Bind failure mapped to resumption with flag %"PRIi64"\n",
+            fprintf(stderr, "    Bind failure mapped to resumption with flag %"PRIu32"\n",
                 record->rec.bind_failure_resumption_flag);
             break;
         case MVMDispProgramRecordingBindControlAll:
-            fprintf(stderr, "    Bind outcome mapped to resumption; failure=%"PRIi64", success=%"PRIi64"\n",
+            fprintf(stderr, "    Bind outcome mapped to resumption; failure=%"PRIu32", success=%"PRIu32"\n",
                 record->rec.bind_failure_resumption_flag,
                 record->rec.bind_success_resumption_flag);
             break;
