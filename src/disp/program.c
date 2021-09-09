@@ -1962,8 +1962,6 @@ static void emit_resume_init_capture_guards(MVMThreadContext *tc, compile_state 
     MVMRegister value = ((MVMTracked *)v->tracked)->body.value;
     MVMuint32 index = v->capture.index;
     MVMCallsiteFlags cs_flag = rec_res->resumption->init_callsite->arg_flags[index];
-    if ((cs_flag & MVM_CALLSITE_ARG_LITERAL) && !(cs_flag & MVM_CALLSITE_ARG_OBJ))
-        return;
     emit_loaded_value_guards(tc, cs, v, temp, value, cs_flag);
 }
 static void emit_attribute_guards(MVMThreadContext *tc, compile_state *cs,
