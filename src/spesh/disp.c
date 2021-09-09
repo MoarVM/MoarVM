@@ -411,6 +411,7 @@ static void insert_resume_inits(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
         /* Get a register to use for the resumption state, should it be
          * required. */
         ins->operands[0] = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+        MVM_spesh_get_facts(tc, g, ins->operands[0])->writer = ins;
 
         /* Prepare a spesh resume init record holding data about the dispatch
          * resumption and write it into the instruction operands. */
