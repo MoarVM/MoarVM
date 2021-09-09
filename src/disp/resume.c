@@ -33,16 +33,18 @@ static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *d
 
             /* Set up the resumption data for the requested dispatcher. */
             data->dp = dp;
-            data->initial_arg_info = arg_info;
-            data->temps = temps;
+            data->arg_source = MVMDispResumptionArgUntranslated;
+            data->untran.initial_arg_info = arg_info;
+            data->untran.temps = temps;
             finish_resumption_data(tc, data, state, exhausted);
             return 1;
         }
         else {
             /* Already have state record set up. */
             data->dp = dp;
-            data->initial_arg_info = arg_info;
-            data->temps = temps;
+            data->arg_source = MVMDispResumptionArgUntranslated;
+            data->untran.initial_arg_info = arg_info;
+            data->untran.temps = temps;
             finish_resumption_data(tc, data, state, exhausted);
             return 1;
         }
@@ -172,8 +174,13 @@ MVMRegister MVM_disp_resume_get_init_arg(MVMThreadContext *tc, MVMDispResumption
         MVMRegister result;
         switch (value->source) {
             case MVM_DISP_RESUME_INIT_ARG: {
-                MVMArgs *args = data->initial_arg_info;
-                result = args->source[args->map[value->index]];
+                if (data->arg_source == MVMDispResumptionArgTranslated) {
+                    result = data->tran.work[data->tran.map[arg_idx]];
+                }
+                else {
+                    MVMArgs *args = data->untran.initial_arg_info;
+                    result = args->source[args->map[value->index]];
+                }
                 break;
             }
             case MVM_DISP_RESUME_INIT_CONSTANT_OBJ:
@@ -186,7 +193,10 @@ MVMRegister MVM_disp_resume_get_init_arg(MVMThreadContext *tc, MVMDispResumption
                 result.n64 = data->dp->constants[value->index].n64;
                 break;
             case MVM_DISP_RESUME_INIT_TEMP:
-                result = data->temps[value->index];
+                if (data->arg_source == MVMDispResumptionArgTranslated)
+                    result = data->tran.work[data->tran.map[arg_idx]];
+                else
+                    result = data->untran.temps[value->index];
                 break;
             default:
                 MVM_oops(tc, "unknown resume init arg source");
@@ -195,8 +205,13 @@ MVMRegister MVM_disp_resume_get_init_arg(MVMThreadContext *tc, MVMDispResumption
     }
     else {
         /* Simple case where they are the initial arguments to the dispatch. */
-        MVMArgs *args = data->initial_arg_info;
-        return args->source[args->map[arg_idx]];
+        if (data->arg_source == MVMDispResumptionArgTranslated) {
+            return data->tran.work[data->tran.map[arg_idx]];
+        }
+        else {
+            MVMArgs *args = data->untran.initial_arg_info;
+            return args->source[args->map[arg_idx]];
+        }
     }
 }
 

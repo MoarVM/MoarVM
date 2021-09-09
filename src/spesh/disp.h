@@ -15,9 +15,10 @@ struct MVMSpeshResumeInit {
      * state. Populated at code-gen time. */
     MVMuint16 state_register;
 
-    /* Pointer to a list of registers that hold arguments and temporaries,
-     * and thus can be used to construct the resume init args. Also populated
-     * at code-gen time. */
+    /* Lookup table of resume init arguments to registers in the case the
+     * resume init arg is from either an argument or a tempoary; junk for
+     * constants, which should be read out of the dispatch program. Also
+     * populated at code-gen time. */
     MVMuint16 *init_registers;
 };
 
