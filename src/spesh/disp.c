@@ -457,10 +457,6 @@ static void insert_resume_inits(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
 static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVMSpeshBB *bb, MVMSpeshIns *ins, MVMDispProgram *dp) {
     /* First, validate it is a dispatch program we know how to compile. */
-    if (dp->num_resumptions > 0) {
-        MVM_spesh_graph_add_comment(tc, g, ins, "dispatch not compiled: has resumptions");
-        return NULL;
-    }
     MVMuint32 i;
     for (i = 0; i < dp->num_ops; i++) {
         switch (dp->ops[i].code) {
