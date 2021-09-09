@@ -135,6 +135,17 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
                 }
                 break;
             }
+            case MVM_CALLSTACK_RECORD_CONTINUATION_TAG:
+                /* We should never find resumptions the other side of a
+                 * continuation tag. The reason is that we'll retain
+                 * pointers into the lower parts of the call stack, at
+                 * the point where the dispatch resumed. This is safe as
+                 * we know that a callee will always complete before its
+                 * caller, but if there's a continuation tag between the
+                 * two, it's possible that the caller would exit and leave
+                 * dangling pointers in the callee at the time that it is
+                 * spliced back onto the stack and run. */
+                return 0;
         }
     }
     return 0;
