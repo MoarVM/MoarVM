@@ -197,12 +197,40 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                 /* sp_resumption needs entries making in the spesh resume init
                  * table. */
                 if (ins->info->opcode == MVM_OP_sp_resumption) {
+                    /* The state register is simply the register number. */
                     MVMSpeshResumeInit *ri = &(g->resume_inits[ins->operands[1].lit_ui16]);
                     ri->state_register = ins->operands[0].reg.orig;
+
+                    /* For the resume init registers, we only have registers
+                     * for args and temps, but not constants. We need to build
+                     * a table that has those register numbers in the correct
+                     * place. */
+                    MVMDispProgramResumption *dpr = &(ri->dp->resumptions[ri->res_idx]);
+                    MVMuint16 map_size = dpr->init_callsite->flag_count;
+                    ri->init_registers = MVM_malloc(map_size * sizeof(MVMuint16));
                     MVMuint16 num_init_registers = ins->operands[2].lit_ui16;
-                    ri->init_registers = MVM_malloc(num_init_registers * sizeof(MVMuint16));
-                    for (i = 0; i < num_init_registers; i++)
-                        ri->init_registers[i] = ins->operands[2 + i].reg.orig;
+                    if (dpr->init_values) {
+                        MVMuint16 cur_reg = 0;
+                        for (i = 0; i < map_size; i++) {
+                            switch (dpr->init_values[i].source) {
+                                case MVM_DISP_RESUME_INIT_ARG:
+                                case MVM_DISP_RESUME_INIT_TEMP:
+                                    ri->init_registers[i] = ins->operands[2 + cur_reg].reg.orig;
+                                    cur_reg++;
+                                    break;
+                                default:
+                                    ri->init_registers[i] = 0xFFFF;
+                                    break;
+                            }
+                        }
+                    }
+                    else {
+                        /* It's just the initial arguments to the dispatch, so
+                         * should match directly with the op registers. */
+                        assert(map_size == num_init_registers);
+                        for (i = 0; i < num_init_registers; i++)
+                            ri->init_registers[i] = ins->operands[2 + i].reg.orig;
+                    }
                 }
             }
 

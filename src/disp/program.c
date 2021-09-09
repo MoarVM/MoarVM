@@ -1295,31 +1295,23 @@ static void ensure_resume_ok(MVMThreadContext *tc, MVMCallStackDispatchRecord *r
 MVMObject * resume_init_capture(MVMThreadContext *tc, MVMDispResumptionData *resume_data,
         MVMDispProgramRecordingResumption *rec_resumption) {
     MVMDispProgramResumption *resumption = resume_data->resumption;
-    if (resumption->init_values) {
-        /* The resume init values are a derivation of the initial dispatch
-         * arguments, so we need to construct a capture. */
-        MVMCallsite *callsite = resumption->init_callsite;
-        rec_resumption->initial_resume_args =  MVM_fixed_size_alloc(tc, tc->instance->fsa,
-                callsite->flag_count * sizeof(MVMRegister));
-        for (MVMuint16 i = 0; i < callsite->flag_count; i++)
-            rec_resumption->initial_resume_args[i] = MVM_disp_resume_get_init_arg(tc,
-                    resume_data, i);
-        MVMArgs arg_info = {
-            .callsite = callsite,
-            .source = rec_resumption->initial_resume_args,
-            .map = MVM_args_identity_map(tc, callsite)
-        };
-        tc->mark_args = &arg_info;
-        MVMObject *capture = MVM_capture_from_args(tc, arg_info);
-        tc->mark_args = NULL;
-        return capture;
-    }
-    else {
-        /* The straightforward case where the resumption data is the initial
-         * arguments of the dispatch. */
-        rec_resumption->initial_resume_args = NULL;
-        return MVM_capture_from_args(tc, *(resume_data->initial_arg_info));
+    MVMCallsite *callsite = resumption->init_callsite;
+    rec_resumption->initial_resume_args = callsite->flag_count
+            ? MVM_fixed_size_alloc(tc, tc->instance->fsa,
+                callsite->flag_count * sizeof(MVMRegister))
+            : NULL;
+    for (MVMuint16 i = 0; i < callsite->flag_count; i++)
+        rec_resumption->initial_resume_args[i] = MVM_disp_resume_get_init_arg(tc,
+                resume_data, i);
+    MVMArgs arg_info = {
+        .callsite = callsite,
+        .source = rec_resumption->initial_resume_args,
+        .map = MVM_args_identity_map(tc, callsite)
     };
+    tc->mark_args = &arg_info;
+    MVMObject *capture = MVM_capture_from_args(tc, arg_info);
+    tc->mark_args = NULL;
+    return capture;
 }
 
 /* Set up another level fo dispatch resumption in the resumptions list. Used
