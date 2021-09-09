@@ -456,7 +456,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
          }
          break;
     }
-    case MVM_OP_null: {
+    case MVM_OP_null:
+    /* Runtime semantics of resumption setup are to null out a register to be
+     * used for dispatch state, thus we compile it just like null. */
+    case MVM_OP_sp_resumption: {
         MVMint16 reg = ins->operands[0].reg.orig;
         | get_vmnull TMP1;
         | mov WORK[reg], TMP1;

@@ -1686,6 +1686,7 @@ start:
     case MVM_OP_neginf:
     case MVM_OP_const_s:
     case MVM_OP_null:
+    case MVM_OP_sp_resumption:
         /* argument reading */
     case MVM_OP_sp_getarg_i:
     case MVM_OP_sp_getarg_o:
