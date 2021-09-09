@@ -215,7 +215,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                             switch (dpr->init_values[i].source) {
                                 case MVM_DISP_RESUME_INIT_ARG:
                                 case MVM_DISP_RESUME_INIT_TEMP:
-                                    ri->init_registers[i] = ins->operands[2 + cur_reg].reg.orig;
+                                    ri->init_registers[i] = ins->operands[3 + cur_reg].reg.orig;
                                     cur_reg++;
                                     break;
                                 default:
@@ -229,7 +229,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                          * should match directly with the op registers. */
                         assert(map_size == num_init_registers);
                         for (i = 0; i < num_init_registers; i++)
-                            ri->init_registers[i] = ins->operands[2 + i].reg.orig;
+                            ri->init_registers[i] = ins->operands[3 + i].reg.orig;
                     }
                 }
             }
