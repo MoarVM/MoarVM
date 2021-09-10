@@ -290,6 +290,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_nfarunproto: return MVM_nfa_run_proto;
     case MVM_OP_nfafromstatelist: return MVM_nfa_from_statelist;
     case MVM_OP_gethllsym: return MVM_hll_sym_get;
+    case MVM_OP_istrue_s: case MVM_OP_isfalse_s: return MVM_coerce_istrue_s;
     case MVM_OP_clone: return MVM_repr_clone;
     case MVM_OP_create: return MVM_repr_alloc_init;
     case MVM_OP_getcodeobj: return MVM_frame_get_code_object;
@@ -2237,6 +2238,17 @@ start:
             add_bail_comment(tc, jg, ins);
             return 0;
         }
+        break;
+    }
+    case MVM_OP_istrue_s:
+    case MVM_OP_isfalse_s: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args,
+                op == MVM_OP_istrue_s ? MVM_JIT_RV_INT : MVM_JIT_RV_INT_NEGATED,
+                dst);
         break;
     }
     case MVM_OP_clone: {

@@ -164,6 +164,8 @@ typedef enum {
     MVM_JIT_RV_DEREF_OR_VMNULL,
     /* store on stack with offset */
     MVM_JIT_RV_TO_STACK,
+    /* Exactly like the RV_INT, except we negate the value afterwards */
+    MVM_JIT_RV_INT_NEGATED,
 } MVMJitRVMode;
 
 
