@@ -743,6 +743,7 @@
           (carg $1 ptr)) int_sz))))
 
 (template: null (^vmnull))
+(template: sp_resumption (^vmnull))
 
 (template: isnull
   (or
