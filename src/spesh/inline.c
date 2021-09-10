@@ -646,6 +646,13 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 rewrite_outer_bind(tc, inliner, ins, inliner->num_locals,
                     MVM_OP_sp_bindlexvia_os, code_ref_reg);
             }
+            else if (opcode == MVM_OP_sp_bindcomplete) {
+                /* We currently cannot translate dispatch programs that want
+                 * to know about bind completion, and we can only be inlining
+                 * if we have a translated dispatch program, so this will be
+                 * a no-op. */
+                MVM_spesh_manipulate_delete_ins(tc, inlinee, bb, ins);
+            }
             else if (opcode == MVM_OP_getlex && ins->operands[1].lex.outers > 0) {
                 MVMuint16 outers = ins->operands[1].lex.outers;
                 MVMStaticFrame *outer = inlinee_sf;
