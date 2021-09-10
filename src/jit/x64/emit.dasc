@@ -2656,6 +2656,12 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
     case MVM_JIT_RV_PTR:
         | mov WORK[call_spec->rv_idx], RV;
         break;
+    case MVM_JIT_RV_INT_NEGATED:
+        | test RV, RV;
+        | setz TMP2b;
+        | movzx TMP2, TMP2b;
+        | mov WORK[call_spec->rv_idx], TMP2;
+        break;
     case MVM_JIT_RV_NUM:
         | movsd qword WORK[call_spec->rv_idx], RVF;
         break;
