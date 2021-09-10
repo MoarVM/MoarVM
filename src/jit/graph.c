@@ -113,7 +113,14 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_takeclosure: return MVM_frame_takeclosure;
     case MVM_OP_usecapture: return MVM_args_use_capture;
     case MVM_OP_savecapture: return MVM_args_save_capture;
+    case MVM_OP_captureposelems: return MVM_capture_num_pos_args;
+    case MVM_OP_captureposarg: return MVM_capture_arg_pos_o;
+    case MVM_OP_captureposarg_i: return MVM_capture_arg_pos_i;
+    case MVM_OP_captureposarg_n: return MVM_capture_arg_pos_n;
+    case MVM_OP_captureposarg_s: return MVM_capture_arg_pos_s;
     case MVM_OP_captureposprimspec: return MVM_capture_arg_pos_primspec;
+    case MVM_OP_captureexistsnamed: return MVM_capture_has_named_arg;
+    case MVM_OP_capturehasnameds: return MVM_capture_has_nameds;
     case MVM_OP_return: return MVM_args_assert_void_return_ok;
     case MVM_OP_return_i: return MVM_args_set_result_int;
     case MVM_OP_return_s: return MVM_args_set_result_str;
@@ -2134,6 +2141,45 @@ start:
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
         break;
     }
+    case MVM_OP_captureposelems: {
+        MVMint16 dst     = ins->operands[0].reg.orig;
+        MVMint16 capture = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { capture } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_captureposarg_s:
+    case MVM_OP_captureposarg: {
+        MVMint16 dst     = ins->operands[0].reg.orig;
+        MVMint16 capture = ins->operands[1].reg.orig;
+        MVMint16 idx     = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { capture } },
+                                 { MVM_JIT_REG_VAL, { idx } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_captureposarg_i: {
+        MVMint16 dst     = ins->operands[0].reg.orig;
+        MVMint16 capture = ins->operands[1].reg.orig;
+        MVMint16 idx     = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { capture } },
+                                 { MVM_JIT_REG_VAL, { idx } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_captureposarg_n: {
+        MVMint16 dst     = ins->operands[0].reg.orig;
+        MVMint16 capture = ins->operands[1].reg.orig;
+        MVMint16 idx     = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { capture } },
+                                 { MVM_JIT_REG_VAL, { idx } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_NUM, dst);
+        break;
+    }
     case MVM_OP_captureposprimspec: {
         MVMint16 dst     = ins->operands[0].reg.orig;
         MVMint16 capture = ins->operands[1].reg.orig;
@@ -2142,6 +2188,24 @@ start:
                                  { MVM_JIT_REG_VAL, { capture } },
                                  { MVM_JIT_REG_VAL, { index } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_captureexistsnamed: {
+        MVMint16 dst     = ins->operands[0].reg.orig;
+        MVMint16 capture = ins->operands[1].reg.orig;
+        MVMint16 name    = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { capture } },
+                                 { MVM_JIT_REG_VAL, { name } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_capturehasnameds: {
+        MVMint16 dst     = ins->operands[0].reg.orig;
+        MVMint16 capture = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { capture } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
         break;
     }
     case MVM_OP_gt_s:
