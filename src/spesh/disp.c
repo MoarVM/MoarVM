@@ -719,6 +719,8 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                     case MVM_OP_dispatch_o:
                         emit_bi_op(tc, g, bb, &insert_after, MVM_OP_set, ins->operands[0],
                             temporaries[op->res_value.temp]);
+                        MVM_spesh_copy_facts(tc, g, ins->operands[0],
+                            temporaries[op->res_value.temp]);
                         break;
                     case MVM_OP_dispatch_i:
                         emit_bi_op(tc, g, bb, &insert_after, MVM_OP_unbox_i, ins->operands[0],
