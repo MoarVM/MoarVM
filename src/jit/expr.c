@@ -235,6 +235,10 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
         constant = opr.lit_i16;
         size = sizeof(MVMint16);
         break;
+    case MVM_operand_uint16:
+        constant = opr.lit_ui16;
+        size = sizeof(MVMuint16);
+        break;
     case MVM_operand_coderef:
         constant = opr.coderef_idx;
         size = sizeof(MVMuint16);
