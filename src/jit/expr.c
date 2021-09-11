@@ -704,7 +704,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         MVMuint16 opcode = ins->info->opcode;
         MVMint32 operands[MAX(2, ins->info->num_operands)]; /* At least 2 for inc_i hack */
         MVMSpeshAnn *ann;
-        const MVMJitExprTemplate *template;
+        MVMJitExprTemplate *template;
         MVMint32 before_label = -1, after_label = -1, root = 0;
 
         struct ValueDefinition *defined_value = NULL;
@@ -789,7 +789,104 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             goto emit;
         }
 
-        template = MVM_jit_get_template_for_opcode(opcode);
+        /* Attempt to find a specialized template based on known types if it's
+         * a reprop */
+        MVMSpeshOperand *type_operand = NULL;
+
+        switch (opcode) {
+            case MVM_OP_unshift_i:
+            case MVM_OP_unshift_n:
+            case MVM_OP_unshift_s:
+            case MVM_OP_unshift_o:
+            case MVM_OP_bindkey_i:
+            case MVM_OP_bindkey_n:
+            case MVM_OP_bindkey_s:
+            case MVM_OP_bindkey_o:
+            case MVM_OP_bindpos_i:
+            case MVM_OP_bindpos_n:
+            case MVM_OP_bindpos_s:
+            case MVM_OP_bindpos_o:
+            case MVM_OP_bindattr_i:
+            case MVM_OP_bindattr_n:
+            case MVM_OP_bindattr_s:
+            case MVM_OP_bindattr_o:
+            case MVM_OP_bindattrs_i:
+            case MVM_OP_bindattrs_n:
+            case MVM_OP_bindattrs_s:
+            case MVM_OP_bindattrs_o:
+            case MVM_OP_push_i:
+            case MVM_OP_push_n:
+            case MVM_OP_push_s:
+            case MVM_OP_push_o:
+            case MVM_OP_deletekey:
+            case MVM_OP_setelemspos:
+            case MVM_OP_splice:
+            case MVM_OP_assign_i:
+            case MVM_OP_assign_n:
+            case MVM_OP_assign_s:
+                type_operand = &ins->operands[0];
+                break;
+            case MVM_OP_atpos_i:
+            case MVM_OP_atpos_n:
+            case MVM_OP_atpos_s:
+            case MVM_OP_atpos_o:
+            case MVM_OP_atkey_i:
+            case MVM_OP_atkey_n:
+            case MVM_OP_atkey_s:
+            case MVM_OP_atkey_o:
+            case MVM_OP_elems:
+            case MVM_OP_shift_i:
+            case MVM_OP_shift_n:
+            case MVM_OP_shift_s:
+            case MVM_OP_shift_o:
+            case MVM_OP_pop_i:
+            case MVM_OP_pop_n:
+            case MVM_OP_pop_s:
+            case MVM_OP_pop_o:
+            case MVM_OP_existskey:
+            case MVM_OP_existspos:
+            case MVM_OP_getattr_i:
+            case MVM_OP_getattr_n:
+            case MVM_OP_getattr_s:
+            case MVM_OP_getattr_o:
+            case MVM_OP_getattrs_i:
+            case MVM_OP_getattrs_n:
+            case MVM_OP_getattrs_s:
+            case MVM_OP_getattrs_o:
+            case MVM_OP_attrinited:
+            case MVM_OP_hintfor:
+            case MVM_OP_slice:
+            case MVM_OP_decont_i:
+            case MVM_OP_decont_n:
+            case MVM_OP_decont_s:
+                type_operand = &ins->operands[1];
+                break;
+            case MVM_OP_box_i:
+            case MVM_OP_box_u:
+            case MVM_OP_box_n:
+            case MVM_OP_box_s:
+                type_operand = &ins->operands[2];
+                break;
+            default:
+                break;
+        }
+        if (type_operand != NULL) {
+            MVMSpeshFacts *type_facts = MVM_spesh_get_facts(tc, jg->sg, *type_operand);
+
+            if (type_facts && type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && type_facts->type &&
+                    type_facts->flags & MVM_SPESH_FACT_CONCRETE) {
+                const MVMREPROps *repr = ((MVMObject *)type_facts->type)->st->REPR;
+
+                if (repr->exprjit) {
+                    MVMuint32 skip_remainder = repr->exprjit(tc, tree, ins, &template);
+                    if (skip_remainder)
+                        continue;
+                }
+            }
+        }
+
+        if (template != NULL)
+            template = (MVMJitExprTemplate *)MVM_jit_get_template_for_opcode(opcode);
         BAIL(template == NULL, "Cannot get template for: %s", ins->info->name);
         if (tree_is_empty(tc, tree)) {
             /* start with a no-op so every valid reference is nonzero */
