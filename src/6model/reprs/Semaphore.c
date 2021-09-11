@@ -111,6 +111,7 @@ static const MVMREPROps Semaphore_this_repr = {
     MVM_REPR_ID_Semaphore,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };
 
 MVMint64 MVM_semaphore_tryacquire(MVMThreadContext *tc, MVMSemaphore *sem) {

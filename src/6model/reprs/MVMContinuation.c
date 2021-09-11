@@ -110,4 +110,5 @@ static const MVMREPROps MVMContinuation_this_repr = {
     MVM_REPR_ID_MVMContinuation,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };

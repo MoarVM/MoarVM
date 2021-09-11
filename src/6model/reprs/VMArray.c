@@ -1563,4 +1563,5 @@ static const MVMREPROps VMArray_this_repr = {
     MVM_REPR_ID_VMArray,
     unmanaged_size,
     describe_refs,
+    NULL, /* exprjit */
 };

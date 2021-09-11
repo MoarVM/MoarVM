@@ -106,5 +106,6 @@ static const MVMREPROps StaticFrameSpesh_this_repr = {
     "MVMStaticFrameSpesh", /* name */
     MVM_REPR_ID_MVMStaticFrameSpesh,
     NULL, /* unmanaged_size */
-    describe_refs
+    describe_refs,
+    NULL, /* exprjit */
 };

@@ -1093,4 +1093,5 @@ static const MVMREPROps CStruct_this_repr = {
     MVM_REPR_ID_MVMCStruct,
     unmanaged_size,
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };

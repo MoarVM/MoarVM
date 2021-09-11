@@ -318,7 +318,8 @@ static const MVMREPROps ConcBlockingQueue_this_repr = {
     "ConcBlockingQueue", /* name */
     MVM_REPR_ID_ConcBlockingQueue,
     unmanaged_size,
-    NULL /* describe_refs */
+    NULL, /* describe_refs */
+    NULL, /* exprjit */
 };
 
 MVMObject * MVM_concblockingqueue_jit_poll(MVMThreadContext *tc, MVMObject *queue) {

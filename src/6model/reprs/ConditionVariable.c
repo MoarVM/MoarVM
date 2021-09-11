@@ -96,6 +96,7 @@ static const MVMREPROps ConditionVariable_this_repr = {
     MVM_REPR_ID_ConditionVariable,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };
 
 /* Given a reentrant mutex, produces an associated condition variable. */

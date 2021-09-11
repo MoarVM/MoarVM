@@ -838,4 +838,5 @@ static const MVMREPROps MultiDimArray_this_repr = {
     MVM_REPR_ID_MultiDimArray,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };

@@ -84,4 +84,5 @@ static const MVMREPROps MVMNull_this_repr = {
     MVM_REPR_ID_MVMNull,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };

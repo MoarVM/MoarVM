@@ -115,6 +115,7 @@ static const MVMREPROps ReentrantMutex_this_repr = {
     MVM_REPR_ID_ReentrantMutex,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };
 
 /* Locks the mutex. */

@@ -108,4 +108,5 @@ static const MVMREPROps MVMOSHandle_this_repr = {
     MVM_REPR_ID_MVMOSHandle,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };

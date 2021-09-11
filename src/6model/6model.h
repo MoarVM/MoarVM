@@ -668,6 +668,12 @@ struct MVMREPROps {
     /* Optional API to describe references to other Collectables either by
      * index or by name, i.E. names of attributes or lexicals. */
     void (*describe_refs) (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data);
+
+    /* Optional API to produce specialized templates for various instructions.
+     * Write to the template parameter to have it inserted automatically by the
+     * exprjit and return 0, or return 1 to skip the remainder of handling this
+     * op and do all the work on the MVMJitExprTree by hand. */
+    MVMuint32 (*exprjit) (MVMThreadContext *tc, MVMJitExprTree *tree, MVMSpeshIns *instruction, MVMJitExprTemplate **template);
 };
 
 /* Various handy macros for getting at important stuff. */

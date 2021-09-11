@@ -843,4 +843,5 @@ static const MVMREPROps CUnion_this_repr = {
     MVM_REPR_ID_MVMCUnion,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };

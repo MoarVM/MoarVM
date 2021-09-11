@@ -97,4 +97,5 @@ static const MVMREPROps MVMAsyncTask_this_repr = {
     MVM_REPR_ID_MVMAsyncTask,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };

@@ -155,4 +155,5 @@ static const MVMREPROps CPointer_this_repr = {
     MVM_REPR_ID_MVMCPointer,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };

@@ -216,4 +216,5 @@ static const MVMREPROps NativeCall_this_repr = {
     MVM_REPR_ID_MVMNativeCall,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };

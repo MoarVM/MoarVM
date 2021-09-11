@@ -81,6 +81,7 @@ static const MVMREPROps MVMTracked_this_repr = {
     MVM_REPR_ID_MVMTracked,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };
 
 /* Create a tracked wrapper of the specified value and kind. */

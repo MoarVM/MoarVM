@@ -95,4 +95,5 @@ static const MVMREPROps MVMThread_this_repr = {
     MVM_REPR_ID_MVMThread,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };

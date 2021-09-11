@@ -2100,6 +2100,7 @@ static const MVMREPROps P6opaque_this_repr = {
     MVM_REPR_ID_P6opaque,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };
 
 /* Get the pointer offset of an attribute. Used for optimizing access to it on

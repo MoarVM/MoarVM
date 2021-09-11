@@ -110,6 +110,7 @@ static const MVMREPROps MVMCapture_this_repr = {
     MVM_REPR_ID_MVMCapture,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };
 
 /* Form a capture object from an argument description. If the callsite is not an

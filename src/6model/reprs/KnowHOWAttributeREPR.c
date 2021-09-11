@@ -103,4 +103,5 @@ static const MVMREPROps KnowHOWAttributeREPR_this_repr = {
     MVM_REPR_ID_KnowHOWAttributeREPR,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };

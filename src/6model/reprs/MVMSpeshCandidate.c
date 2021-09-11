@@ -166,7 +166,8 @@ static const MVMREPROps SpeshCandidate_this_repr = {
     "MVMSpeshCandidate", /* name */
     MVM_REPR_ID_MVMSpeshCandidate,
     unmanaged_size,
-    NULL /* describe_refs */
+    NULL, /* describe_refs */
+    NULL, /* exprjit */
 };
 
 /* Calculates the work and env sizes based on the number of locals and

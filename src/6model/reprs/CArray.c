@@ -542,4 +542,5 @@ static const MVMREPROps CArray_this_repr = {
     MVM_REPR_ID_MVMCArray,
     unmanaged_size, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };

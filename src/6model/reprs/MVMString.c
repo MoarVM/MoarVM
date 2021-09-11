@@ -134,4 +134,5 @@ static const MVMREPROps MVMString_this_repr = {
     MVM_REPR_ID_MVMString,
     unmanaged_size,
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };

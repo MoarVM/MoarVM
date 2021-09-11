@@ -177,6 +177,7 @@ static const MVMREPROps NativeRef_this_repr = {
     MVM_REPR_ID_NativeRef,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };
 
 /* Validates the given type is a native reference of the required primitive

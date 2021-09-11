@@ -86,4 +86,5 @@ static const MVMREPROps Uninstantiable_this_repr = {
     MVM_REPR_ID_Uninstantiable,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* reprjit */
 };

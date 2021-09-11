@@ -175,5 +175,6 @@ static const MVMREPROps SpeshLog_this_repr = {
     "MVMSpeshLog", /* name */
     MVM_REPR_ID_MVMSpeshLog,
     unmanaged_size,
-    describe_refs
+    describe_refs,
+    NULL, /* exprjit */
 };

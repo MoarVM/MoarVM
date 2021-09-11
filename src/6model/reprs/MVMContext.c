@@ -264,6 +264,7 @@ static const MVMREPROps MVMContext_this_repr = {
     MVM_REPR_ID_MVMContext,
     NULL, /* unmanaged_size */
     NULL, /* describe_refs */
+    NULL, /* exprjit */
 };
 
 /* Walks through the frames and, upon encountering one whose caller has

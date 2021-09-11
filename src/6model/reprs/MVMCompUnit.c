@@ -244,4 +244,5 @@ static const MVMREPROps MVMCompUnit_this_repr = {
     MVM_REPR_ID_MVMCompUnit,
     unmanaged_size,
     describe_refs,
+    NULL, /* exprjit */
 };
