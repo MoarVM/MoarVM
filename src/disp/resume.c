@@ -73,6 +73,18 @@ static void setup_translated_resumption(MVMThreadContext *tc, MVMDispResumptionD
     data->tran.map = ri->init_registers;
 }
 
+/* Set up resumption data in the sitaution that the dispatch we'll resume was
+ * translated, but then we deoptimized and uninlined it. */
+static void setup_deopted_resumption(MVMThreadContext *tc,  MVMDispResumptionData *data,
+        MVMCallStackDeoptedResumeInit *dri) {
+    data->dp = dri->dp;
+    data->resumption = dri->dpr;
+    data->state_ptr = &(dri->state);
+    data->arg_source = MVMDispResumptionArgTranslated;
+    data->tran.work = dri->args;
+    data->tran.map = MVM_args_identity_map(tc, dri->dpr->init_callsite);
+}
+
 /* Looks down the callstack to find the dispatch that we are resuming, starting
  * from the indicated start point. If found, populates the struct pointed to by
  * the data parameter and returns a non-zero value. */
@@ -109,9 +121,20 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
                     /* Specialized frame. Are there resume inits? */
                     if (cand->body.num_resume_inits) {
                         /* Yes, get the deopt idx and look for if we have any
-                         * such entries. */
+                         * such entries at the current call. There are two cases:
+                         * 1. We're the top frame. In that case, we're sat on a
+                         *    sp_dispatch_*, since at least for now any resuming
+                         *    (not resumable) dispatch programs are not translated,
+                         *    thus we're effectively inactive and can find the
+                         *    deopt index this way.
+                         * 2. Failing that, we're simply an inactive frame.
+                         * We always look first for the dispatch that we're "on";
+                         * it is the one in the most nested inline, if there are
+                         * any inlines. */
                         MVMint32 deopt_idx = MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc,
                                 frame);
+                        if (deopt_idx == -1)
+                            MVM_oops(tc, "Failed to find deopt index when processing resume");
                         MVMuint32 i;
                         for (i = 0; i < cand->body.num_resume_inits; i++) {
                             if (cand->body.resume_inits[i].deopt_idx == deopt_idx) {
@@ -126,8 +149,42 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
                             }
                         }
 
-                        /* No matching resume init here. TODO handle inlines
-                         * when we support that. */
+                        /* Now walk any inlines to see if we're in any of those. */
+                        if (cand->body.num_inlines) {
+                            MVMuint32 deopt_offset = MVM_spesh_deopt_bytecode_pos(
+                                    cand->body.deopts[deopt_idx * 2 + 1]);
+                            MVMuint32 i;
+                            for (i = 0; i < cand->body.num_inlines; i++) {
+                                /* Check if we're in this inline. */
+                                MVMuint32 start = cand->body.inlines[i].start;
+                                MVMuint32 end = cand->body.inlines[i].end;
+                                if (!(deopt_offset > start && deopt_offset <= end))
+                                    continue;
+
+                                /* Does it have any resume inits? If so, are
+                                 * any applicable? */
+                                if (cand->body.inlines[i].first_spesh_resume_init != -1) {
+                                    MVMint16 j = cand->body.inlines[i].first_spesh_resume_init;
+                                    while (j <= cand->body.inlines[i].last_spesh_resume_init) {
+                                        if (exhausted == 0) {
+                                            MVMSpeshResumeInit *ri = &(cand->body.resume_inits[j]);
+                                            setup_translated_resumption(tc, data, ri, frame);
+                                            return 1;
+                                        }
+                                        else {
+                                            exhausted--;
+                                        }
+                                        j--;
+                                    }
+                                }
+
+                                /* Count this inline as a frame. */
+                                if (frames_to_skip)
+                                    frames_to_skip--;
+                            }
+                        }
+
+                        /* No matching resume init found; account for the frame. */
                         if (frames_to_skip)
                             frames_to_skip--;
                     }
@@ -165,6 +222,20 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
                 }
                 break;
             }
+            case MVM_CALLSTACK_RECORD_DEOPTED_RESUME_INIT:
+                if (!frames_to_skip) {
+                    /* Deoptimized resume init args. These look relatively
+                     * like the translated case. */
+                    if (exhausted == 0) {
+                        setup_deopted_resumption(tc, data,
+                            (MVMCallStackDeoptedResumeInit *)cur);
+                        return 1;
+                    }
+                    else {
+                        exhausted--;
+                    }
+                }
+                break;
             case MVM_CALLSTACK_RECORD_CONTINUATION_TAG:
                 /* We should never find resumptions the other side of a
                  * continuation tag. The reason is that we'll retain

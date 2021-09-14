@@ -31,6 +31,7 @@ typedef struct MVMCallStackDispatchRecord MVMCallStackDispatchRecord;
 typedef struct MVMCallStackDispatchRun MVMCallStackDispatchRun;
 typedef struct MVMCallStackBindControl MVMCallStackBindControl;
 typedef struct MVMCallStackArgsFromC MVMCallStackArgsFromC;
+typedef struct MVMCallStackDeoptedResumeInit MVMCallStackDeoptedResumeInit;
 typedef struct MVMCallStackRegion MVMCallStackRegion;
 typedef struct MVMCallStackIterator MVMCallStackIterator;
 typedef struct MVMCFunction MVMCFunction;

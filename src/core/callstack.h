@@ -295,6 +295,33 @@ struct MVMCallStackArgsFromC {
     MVMArgs args;
 };
 
+/* When we perform a deoptimization and uninline a call that set up resume
+ * init args, we need to evacuate those and the slot for state storage from
+ * the "composite" frame we are breaking apart during the uninline. To ease
+ * this process we have a distinct kind of call stack record; it would be
+ * possible to reconstruct the dispatch run call stack record in a sufficiently
+ * convincing way, but deopt is already difficult enough to reason about. */
+#define MVM_CALLSTACK_RECORD_DEOPTED_RESUME_INIT 13
+struct MVMCallStackDeoptedResumeInit {
+    /* Commonalities of all records. */
+    MVMCallStackRecord common;
+
+    /* The dispatch program with resume init args. */
+    MVMDispProgram *dp;
+
+    /* The particular dispatch resumption that we have the init args for
+     * here. */
+    MVMDispProgramResumption *dpr;
+
+    /* A slot for the state for this resumption. */
+    MVMObject *state;
+
+    /* The arguments, allocated dynamically after this based on the size of
+     * the callsite. Any slots in here that are from dispatch program
+     * constants are junk and should not be looked at. */
+    MVMRegister *args;
+};
+
 /* Functions for working with the call stack. */
 void MVM_callstack_init(MVMThreadContext *tc);
 MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc);
@@ -310,6 +337,8 @@ MVMCallStackBindControl * MVM_callstack_allocate_bind_control(MVMThreadContext *
         MVMint64 flag, MVMint64 success_flag);
 MVMCallStackArgsFromC * MVM_callstack_allocate_args_from_c(MVMThreadContext *tc,
         MVMCallsite *cs);
+MVMCallStackDeoptedResumeInit * MVM_callstack_allocate_deopted_resume_init(
+        MVMThreadContext *tc, MVMSpeshResumeInit *ri);
 void MVM_callstack_new_continuation_region(MVMThreadContext *tc, MVMObject *tag);
 MVMCallStackRegion * MVM_callstack_continuation_slice(MVMThreadContext *tc, MVMObject *tag,
         MVMActiveHandler **active_handlers);
@@ -385,7 +414,8 @@ MVM_STATIC_INLINE void MVM_callstack_iter_resumeable_init(MVMThreadContext *tc,
                     1 << MVM_CALLSTACK_RECORD_HEAP_FRAME |
                     1 << MVM_CALLSTACK_RECORD_PROMOTED_FRAME |
                     1 << MVM_CALLSTACK_RECORD_DEOPT_FRAME |
-                    1 << MVM_CALLSTACK_RECORD_BIND_CONTROL);
+                    1 << MVM_CALLSTACK_RECORD_BIND_CONTROL |
+                    1 << MVM_CALLSTACK_RECORD_DEOPTED_RESUME_INIT);
 }
 
 /* Move to the next applicable record. Should be called before reading a current

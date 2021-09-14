@@ -43,6 +43,48 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             /* Grab the current frame, which is the caller of this inline. */
             MVMFrame *caller = MVM_callstack_current_frame(tc);
 
+            /* Does the inline have any dispatch resume arg initializations?
+             * If so, we'll need to recreate a dispatch run record under the
+             * call frame, in order that we can successfully resume. */
+            if (cand->body.inlines[i].first_spesh_resume_init != -1) {
+                MVMint32 j = cand->body.inlines[i].last_spesh_resume_init;
+                while (j >= cand->body.inlines[i].first_spesh_resume_init) {
+                    /* Allocate the resume init record. */
+                    MVMSpeshResumeInit *ri = &(cand->body.resume_inits[j]);
+                    MVMCallStackDeoptedResumeInit *dri =
+                        MVM_callstack_allocate_deopted_resume_init(tc, ri);
+
+                    /* Evacuate the current dispatch state. */
+                    dri->state = f->work[ri->state_register].o;
+
+                    /* Evacuate all non-constant resume init args. */
+                    if (dri->dpr->init_values) {
+                        /* Complex init values; make sure only to copy args
+                         * and temporaries. */
+                        MVMuint16 k;
+                        for (k = 0; k < dri->dpr->init_callsite->flag_count; k++) {
+                            switch (dri->dpr->init_values[k].source) {
+                                case MVM_DISP_RESUME_INIT_ARG:
+                                case MVM_DISP_RESUME_INIT_TEMP:
+                                    dri->args[k] = f->work[ri->init_registers[k]];
+                                    break;
+                                default:
+                                    /* Constant, ignore. */
+                                    break;
+                            }
+                        }
+                    }
+                    else {
+                        /* Just the plain args, so we find them linearly in. */
+                        MVMuint16 k;
+                        for (k = 0; k < dri->dpr->init_callsite->flag_count; k++)
+                            dri->args[k] = f->work[ri->init_registers[k]];
+                    }
+
+                    j--;
+                }
+            }
+
             /* Resolve the inline's code object and static frame. */
             MVMStaticFrame *usf = cand->body.inlines[i].sf;
             MVMCode *ucode = (MVMCode *)f->work[cand->body.inlines[i].code_ref_reg].o;
