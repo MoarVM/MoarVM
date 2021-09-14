@@ -953,11 +953,11 @@ sp_istype           .s w(int64) r(obj) r(obj) sslot uint32 :pure :maycausedeopt
 
 # Specialized form of dispatch_* for when we don't manage to rewrite it into
 # anything more optimal. These precalculate the inline cache slot.
-sp_dispatch_v    .s str callsite sslot uint32 :maycausedeopt
-sp_dispatch_i    .s w(int64) str callsite sslot uint32 :maycausedeopt
-sp_dispatch_n    .s w(num64) str callsite sslot uint32 :maycausedeopt
-sp_dispatch_s    .s w(str) str callsite sslot uint32 :maycausedeopt
-sp_dispatch_o    .s w(obj) str callsite sslot uint32 :maycausedeopt
+sp_dispatch_v    .s str callsite sslot uint32 :maycausedeopt :invokish
+sp_dispatch_i    .s w(int64) str callsite sslot uint32 :maycausedeopt :invokish
+sp_dispatch_n    .s w(num64) str callsite sslot uint32 :maycausedeopt :invokish
+sp_dispatch_s    .s w(str) str callsite sslot uint32 :maycausedeopt :invokish
+sp_dispatch_o    .s w(obj) str callsite sslot uint32 :maycausedeopt :invokish
 
 # Following are for fast, unchecked grabbing of args from the arg buffer.
 sp_getarg_o      .s w(obj) int16 :pure
