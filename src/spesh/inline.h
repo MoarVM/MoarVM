@@ -54,6 +54,11 @@ struct MVMSpeshInline {
     /* Bit field of named args used to put in place during deopt, since we
      * typically don't update the array in specialized code. */
     MVMuint64 deopt_named_used_bit_field;
+
+    /* Indices of first and last spesh resume initialization records that
+     * are set up by the inlined call, or both set to -1 if none. */
+    MVMint16 first_spesh_resume_init;
+    MVMint16 last_spesh_resume_init;
 };
 
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc,
@@ -67,5 +72,6 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadConte
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMCallsite *cs, MVMSpeshOperand *args, MVMSpeshBB *runbytecode_bb,
     MVMSpeshIns *runbytecode_ins, MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
-    MVMSpeshOperand code_ref_reg, MVMuint32 proxy_deopt_idx, MVMuint16 bytecode_size);
+    MVMSpeshOperand code_ref_reg, MVMSpeshIns *resume_init, MVMuint32 proxy_deopt_idx,
+    MVMuint16 bytecode_size);
 MVMuint32 MVM_spesh_inline_get_max_size(MVMThreadContext *tc, MVMStaticFrame *sf);

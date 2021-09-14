@@ -547,8 +547,9 @@ static void tweak_guard_deopt_idx(MVMSpeshIns *ins, MVMSpeshAnn *ann) {
 static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
         MVMSpeshBB *runbytecode_bb, MVMSpeshIns *runbytecode_ins,
-        MVMSpeshOperand code_ref_reg, MVMuint32 *inline_boundary_handler,
-        MVMuint16 bytecode_size, MVMCallsite *cs) {
+        MVMSpeshOperand code_ref_reg, MVMSpeshIns *resume_init,
+        MVMuint32 *inline_boundary_handler, MVMuint16 bytecode_size,
+        MVMCallsite *cs) {
     MVMSpeshFacts **merged_facts;
     MVMuint16      *merged_fact_counts;
     MVMuint32        i, j, orig_inlines, total_inlines, orig_deopt_addrs,
@@ -882,6 +883,26 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     inliner->inlines[total_inlines - 1].may_cause_deopt = may_cause_deopt;
     inliner->inlines[total_inlines - 1].bytecode_size   = bytecode_size;
     inliner->num_inlines = total_inlines;
+
+    /* If the call we're inlining sets up any resume inits, then record those,
+     * so we can easily recover them when walking inlines if there is a
+     * resume. */
+    if (resume_init) {
+        /* What we are passed is the final resume init, so store the index. */
+        inliner->inlines[total_inlines - 1].last_spesh_resume_init =
+            resume_init->operands[1].lit_i16;
+
+        /* Then walk backwards so long as there are other resume inits that
+         * are stacked up before this one. */
+        while (resume_init->prev && resume_init->prev->info->opcode == MVM_OP_sp_resumption)
+            resume_init = resume_init->prev;
+        inliner->inlines[total_inlines - 1].first_spesh_resume_init =
+            resume_init->operands[1].lit_i16;
+    }
+    else {
+        inliner->inlines[total_inlines - 1].first_spesh_resume_init = -1;
+        inliner->inlines[total_inlines - 1].last_spesh_resume_init = -1;
+    }
 
     /* Create/update per-specialization local and lexical type maps. */
     if (!inliner->local_types && inliner->num_locals) {
@@ -1338,14 +1359,15 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         MVMCallsite *cs, MVMSpeshOperand *args, MVMSpeshBB *runbytecode_bb,
         MVMSpeshIns *runbytecode_ins, MVMSpeshGraph *inlinee,
         MVMStaticFrame *inlinee_sf, MVMSpeshOperand code_ref_reg,
-        MVMuint32 proxy_deopt_idx, MVMuint16 bytecode_size) {
+        MVMSpeshIns *resume_init, MVMuint32 proxy_deopt_idx,
+        MVMuint16 bytecode_size) {
     MVMSpeshIns *first_ins;
 
     /* Merge inlinee's graph into the inliner. */
     MVMuint32 inline_boundary_handler;
     MVMSpeshBB *inlinee_last_bb = merge_graph(tc, inliner, inlinee, inlinee_sf,
-        runbytecode_bb, runbytecode_ins, code_ref_reg, &inline_boundary_handler, bytecode_size,
-        cs);
+        runbytecode_bb, runbytecode_ins, code_ref_reg, resume_init,
+        &inline_boundary_handler, bytecode_size, cs);
 
     /* If we're profiling, note it's an inline. */
     first_ins = find_first_instruction(tc, inlinee);

@@ -50,6 +50,7 @@ char * record_name(MVMuint8 kind) {
         case MVM_CALLSTACK_RECORD_DISPATCH_RUN: return "dispatch run";
         case MVM_CALLSTACK_RECORD_BIND_CONTROL: return "bind control";
         case MVM_CALLSTACK_RECORD_ARGS_FROM_C: return "args from C";
+        case MVM_CALLSTACK_RECORD_DEOPTED_RESUME_INIT: return "deoptimized resume init";
         default: return "unknown";
     }
 }
@@ -94,6 +95,11 @@ size_t record_size(MVMCallStackRecord *record) {
         case MVM_CALLSTACK_RECORD_ARGS_FROM_C: {
             MVMCallsite *cs = ((MVMCallStackArgsFromC *)record)->args.callsite;
             return to_8_bytes(sizeof(MVMCallStackArgsFromC)) +
+                to_8_bytes(cs->flag_count * sizeof(MVMRegister));
+        }
+        case MVM_CALLSTACK_RECORD_DEOPTED_RESUME_INIT: {
+            MVMCallsite *cs = ((MVMCallStackDeoptedResumeInit *)record)->dpr->init_callsite;
+            return to_8_bytes(sizeof(MVMCallStackDeoptedResumeInit)) +
                 to_8_bytes(cs->flag_count * sizeof(MVMRegister));
         }
         default:
@@ -227,6 +233,26 @@ MVMCallStackArgsFromC * MVM_callstack_allocate_args_from_c(MVMThreadContext *tc,
     record->args.callsite = cs;
     record->args.map = MVM_args_identity_map(tc, cs);
     record->args.source = (MVMRegister *)((char *)record + record_size);
+
+    return record;
+}
+
+/* Allocate a callstack record for holding information about an uninlined call
+ * that has resume initialization arguments and maybe dispatch state. */
+MVMCallStackDeoptedResumeInit * MVM_callstack_allocate_deopted_resume_init(
+        MVMThreadContext *tc, MVMSpeshResumeInit *ri) {
+    /* Allocate. */
+    MVMDispProgramResumption *dpr = &(ri->dp->resumptions[ri->res_idx]);
+    size_t record_size = to_8_bytes(sizeof(MVMCallStackDeoptedResumeInit));
+    size_t init_args_size = dpr->init_callsite->flag_count * sizeof(MVMRegister);
+    tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_DEOPTED_RESUME_INIT,
+            record_size + init_args_size);
+    MVMCallStackDeoptedResumeInit *record = (MVMCallStackDeoptedResumeInit *)tc->stack_top;
+
+    /* Populate basic info. */
+    record->dp = ri->dp;
+    record->dpr = dpr;
+    record->args = (MVMRegister *)((char *)record + record_size);
 
     return record;
 }
@@ -460,6 +486,7 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
             case MVM_CALLSTACK_RECORD_START:
             case MVM_CALLSTACK_RECORD_FLATTENING:
             case MVM_CALLSTACK_RECORD_ARGS_FROM_C:
+            case MVM_CALLSTACK_RECORD_DEOPTED_RESUME_INIT:
                 /* No cleanup to do, just move to next record. */
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
@@ -649,6 +676,26 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                     if (flagtype == MVM_CALLSITE_ARG_OBJ || flagtype == MVM_CALLSITE_ARG_STR) {
                         add_collectable(tc, worklist, snapshot, a_record->args.source[flagi].o,
                                 "Argument from C");
+                    }
+                }
+                break;
+            }
+            case MVM_CALLSTACK_RECORD_DEOPTED_RESUME_INIT: {
+                MVMCallStackDeoptedResumeInit *dri = (MVMCallStackDeoptedResumeInit *)record;
+                add_collectable(tc, worklist, snapshot, dri->state,
+                        "Deoptimized dispatch resume init state");
+                MVMCallsite *cs = dri->dpr->init_callsite;
+                MVMDispProgramResumptionInitValue *init_values = dri->dpr->init_values;
+                MVMuint16 flagi;
+                for (flagi = 0; flagi < cs->flag_count; flagi++) {
+                    MVMuint8 flagtype = cs->arg_flags[flagi] & MVM_CALLSITE_ARG_TYPE_MASK;
+                    if (flagtype == MVM_CALLSITE_ARG_OBJ || flagtype == MVM_CALLSITE_ARG_STR) {
+                        if (init_values == NULL ||
+                                init_values[flagi].source == MVM_DISP_RESUME_INIT_ARG ||
+                                init_values[flagi].source == MVM_DISP_RESUME_INIT_TEMP) {
+                            add_collectable(tc, worklist, snapshot, dri->args[flagi].o,
+                                    "Deoptimized dispatch resume init arg");
+                        }
                     }
                 }
                 break;

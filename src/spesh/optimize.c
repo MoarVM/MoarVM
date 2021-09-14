@@ -1509,16 +1509,9 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
         char *no_inline_reason = NULL;
         const MVMOpInfo *no_inline_info = NULL;
         MVMuint32 effective_size;
-        MVMSpeshGraph *inline_graph;
-        if (resume_init) {
-            inline_graph = NULL;
-            no_inline_reason = "cannot inline with resume inits yet";
-        }
-        else {
-            inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
-                target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
-                ins, &no_inline_reason, &effective_size, &no_inline_info);
-        }
+        MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
+            target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
+            ins, &no_inline_reason, &effective_size, &no_inline_info);
         log_inline(tc, g, target_sf, inline_graph, effective_size, no_inline_reason,
             0, no_inline_info);
         if (inline_graph) {
@@ -1528,7 +1521,7 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             MVMSpeshBB *optimize_from_bb = inline_graph->entry;
             MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, coderef_reg);
             MVM_spesh_inline(tc, g, cs, args, bb, ins, inline_graph, target_sf,
-                coderef_reg, add_deopt_ann(tc, g, NULL, bytecode_offset),
+                coderef_reg, resume_init, add_deopt_ann(tc, g, NULL, bytecode_offset),
                 (MVMuint16)target_sf->body.spesh->body.spesh_candidates[spesh_cand]->body.bytecode_size);
             optimize_bb(tc, g, optimize_from_bb, NULL);
 
@@ -1591,7 +1584,7 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             MVMSpeshBB *optimize_from_bb = inline_graph->entry;
             MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, coderef_reg);
             MVM_spesh_inline(tc, g, cs, args, bb, ins, inline_graph, target_sf,
-                    coderef_reg, add_deopt_ann(tc, g, NULL, bytecode_offset),
+                    coderef_reg, resume_init, add_deopt_ann(tc, g, NULL, bytecode_offset),
                     0); /* Don't know an accurate size */
             optimize_bb(tc, g, optimize_from_bb, NULL);
         }
