@@ -659,7 +659,8 @@ static void after_ins(MVMThreadContext *tc, MVMJitGraph *jg,
             MVMint32 label = MVM_jit_label_before_ins(tc, jg, bb, ins);
             jg_append_label(tc, jg, label);
             jg->inlines[ann->data.inline_idx].end_label = label;
-        } else if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS) {
+        } else if (ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS ||
+                (ann->type == MVM_SPESH_ANN_DEOPT_INLINE && (ins->info->jittivity & MVM_JIT_INFO_INVOKISH))) {
             /* An underlying assumption here is that this instruction
              * will in fact set the jit_entry_label to a correct
              * value. This is clearly true for invoking ops as well
