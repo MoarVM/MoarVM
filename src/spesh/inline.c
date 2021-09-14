@@ -666,6 +666,15 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     rewrite_outer_lookup(tc, inliner, ins, inliner->num_locals,
                         MVM_OP_sp_getlexvia_ins, code_ref_reg);
             }
+            else if (opcode == MVM_OP_sp_resumption) {
+                /* Bump the index of the spesh resume info as well as the target
+                 * register and source registers. */
+                ins->operands[0].reg.orig += inliner->num_locals;
+                ins->operands[1].lit_ui16 += MVM_VECTOR_ELEMS(inliner->resume_inits);
+                MVMuint16 j;
+                for (j = 0; j < ins->operands[2].lit_ui16; j++)
+                    ins->operands[3 + j].reg.orig += inliner->num_locals;
+            }
             else {
                 if (!same_comp_unit) {
                     if (ins->info->opcode == MVM_OP_const_s) {
@@ -846,6 +855,10 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         inliner->inlines[i].lexicals_start += inliner->num_lexicals;
         inliner->inlines[i].return_deopt_idx += orig_deopt_addrs;
         inliner->inlines[i].bytecode_size = 0;
+        if (inliner->inlines[i].first_spesh_resume_init != -1) {
+            inliner->inlines[i].first_spesh_resume_init += MVM_VECTOR_ELEMS(inliner->resume_inits);
+            inliner->inlines[i].last_spesh_resume_init += MVM_VECTOR_ELEMS(inliner->resume_inits);
+        }
     }
     inliner->inlines[total_inlines - 1].sf             = inlinee_sf;
     inliner->inlines[total_inlines - 1].code_ref_reg   = code_ref_reg.reg.orig;
@@ -883,6 +896,15 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     inliner->inlines[total_inlines - 1].may_cause_deopt = may_cause_deopt;
     inliner->inlines[total_inlines - 1].bytecode_size   = bytecode_size;
     inliner->num_inlines = total_inlines;
+
+    /* Merge resume inits table. */
+    for (i = 0; i < MVM_VECTOR_ELEMS(inlinee->resume_inits); i++) {
+        MVMSpeshResumeInit ri = inlinee->resume_inits[i];
+        ri.deopt_idx += orig_deopt_addrs;
+        ri.state_register = 0;
+        ri.init_registers = NULL;
+        MVM_VECTOR_PUSH(inliner->resume_inits, ri);
+    }
 
     /* If the call we're inlining sets up any resume inits, then record those,
      * so we can easily recover them when walking inlines if there is a

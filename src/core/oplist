@@ -1104,7 +1104,7 @@ sp_runcfunc_o    .s w(obj) r(obj) uint64
 # * The number of vararg registers that follow
 # * Varargs pointing to registers for every non-constant value that is used
 #   in the resume initialization state (which keeps the registers alive)
-sp_resumption    .s w(obj) uint16 uint16 :noinline
+sp_resumption    .s w(obj) uint16 uint16
 
 # Profiler recording ops. Naming convention: start with prof_. Must all be
 # marked .s, which is how the validator knows to exclude them. (For that
