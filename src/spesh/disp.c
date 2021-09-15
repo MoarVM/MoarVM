@@ -906,11 +906,18 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 /* If it's not C, we can pre-select a spesh candidate. This will
                  * be taken care of by the optimizer; for now we poke -1 into the
                  * value to mean that we didn't pre-select a candidate. We also
-                 * add deopt all and logged annotations. */
+                 * add deopt all and logged annotations, plus the predeopt one
+                 * if we inserted no guards. */
                 if (!c) {
                     rb_ins->operands[cur_op++].lit_i16 = -1;
                     deopt_all_ann->next = cached_ann;
-                    rb_ins->annotations = deopt_all_ann;
+                    if (!reused_deopt_ann) {
+                        deopt_ann->next = deopt_all_ann;
+                        rb_ins->annotations = deopt_ann;
+                    }
+                    else {
+                        rb_ins->annotations = deopt_all_ann;
+                    }
                 }
 
                 /* Add the argument operands. */
