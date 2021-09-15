@@ -1069,7 +1069,8 @@ static void return_to_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *re
     return_ins->info          = MVM_op_get_op(op);
     return_ins->operands      = operands;
     MVM_spesh_get_facts(tc, g, ver_target)->writer = return_ins;
-    MVM_spesh_copy_facts(tc, g, operands[0], operands[1]);
+    if (op == MVM_OP_set)
+        MVM_spesh_copy_facts(tc, g, operands[0], operands[1]);
 }
 
 static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *return_bb,
