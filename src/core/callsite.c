@@ -298,6 +298,7 @@ void MVM_callsite_mark_interns(MVMThreadContext *tc, MVMGCWorklist *worklist,
 static int is_common(MVMCallsite *cs) {
     return cs == &zero_arity_callsite   ||
            cs == &obj_callsite          ||
+           cs == &int_callsite          ||
            cs == &obj_obj_callsite      ||
            cs == &obj_str_callsite      ||
            cs == &obj_int_callsite      ||
