@@ -408,22 +408,20 @@ MVMSpeshOperand MVM_spesh_manipulate_new_version(MVMThreadContext *tc, MVMSpeshG
 }
 
 /* Performs an SSA version split at the specified instruction, such that the
- * reads of the SSA value after (and including) the specified instruction
+ * reads of the SSA value dominated by (and including) the specified instruction
  * will use a new version. Returns the new version, which will at that point
  * lack a writer; a writer should be inserted for it. */
 MVMSpeshOperand MVM_spesh_manipulate_split_version(MVMThreadContext *tc, MVMSpeshGraph *g,
                                                    MVMSpeshOperand split, MVMSpeshBB *bb,
                                                    MVMSpeshIns *at) {
     MVMSpeshOperand new_version = MVM_spesh_manipulate_new_version(tc, g, split.reg.orig);
-    /* More than we need by definition */
+    /* Queue of children to process; more than we need by definition */
     MVMSpeshBB **bbq = alloca(sizeof(MVMSpeshBB*) * g->num_bbs);
-    MVMuint8 *seen_bb = alloca(g->num_bbs);
-    memset(seen_bb, 0, g->num_bbs);
     MVMint32 top = 0;
     /* Push initial basic block */
     bbq[top++] = bb;
-    seen_bb[bb->idx] = 1;
     while (top != 0) {
+        /* Update instructions in this basic block. */
         MVMuint32 i;
         MVMSpeshBB *cur_bb = bbq[--top];
         MVMSpeshIns *ins = cur_bb == bb ? at : cur_bb->first_ins;
@@ -440,13 +438,10 @@ MVMSpeshOperand MVM_spesh_manipulate_split_version(MVMThreadContext *tc, MVMSpes
             }
             ins = ins->next;
         }
-        for (i = 0; i < cur_bb->num_succ; i++) {
-            MVMSpeshBB *succ = cur_bb->succ[i];
-            if (!seen_bb[succ->idx]) {
-                bbq[top++] = succ;
-                seen_bb[succ->idx] = 1;
-            }
-        }
+
+        /* Add dominance children to the queue. */
+        for (i = 0; i < cur_bb->num_children; i++)
+            bbq[top++] = cur_bb->children[i];
     }
     MVM_spesh_copy_facts(tc, g, new_version, split);
     return new_version;
