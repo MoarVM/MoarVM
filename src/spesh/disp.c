@@ -629,7 +629,7 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                 MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
                     args[op->arg_guard.arg_idx]);
                 if ((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) &&
-                        facts->value.s == wanted_str)
+                        MVM_string_equal(tc, facts->value.s, wanted_str))
                     MVM_spesh_use_facts(tc, g, facts);
                 else
                     args[op->arg_guard.arg_idx] = emit_literal_str_guard(tc, g, bb,
@@ -652,52 +652,110 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                             unwanted_obj, deopt_ann, &reused_deopt_ann);
                 break;
             }
-            case MVMDispOpcodeGuardTempType:
-                temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
-                        MVM_OP_sp_guard, temporaries[op->temp_guard.temp],
-                        dp->gc_constants[op->temp_guard.checkee],
-                        deopt_ann, &reused_deopt_ann);
+            case MVMDispOpcodeGuardTempType: {
+                MVMCollectable *wanted_st = dp->gc_constants[op->temp_guard.checkee];
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    temporaries[op->temp_guard.temp]);
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
+                        STABLE(facts->type) == (MVMSTable *)wanted_st)
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
+                            MVM_OP_sp_guard, temporaries[op->temp_guard.temp],
+                            wanted_st, deopt_ann, &reused_deopt_ann);
                 break;
-            case MVMDispOpcodeGuardTempTypeConc:
-                temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
-                        MVM_OP_sp_guardconc, temporaries[op->temp_guard.temp],
-                        dp->gc_constants[op->temp_guard.checkee],
-                        deopt_ann, &reused_deopt_ann);
+            }
+            case MVMDispOpcodeGuardTempTypeConc: {
+                MVMCollectable *wanted_st = dp->gc_constants[op->temp_guard.checkee];
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    temporaries[op->temp_guard.temp]);
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
+                        STABLE(facts->type) == (MVMSTable *)wanted_st &&
+                        (facts->flags & MVM_SPESH_FACT_CONCRETE))
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
+                            MVM_OP_sp_guardconc, temporaries[op->temp_guard.temp],
+                            wanted_st, deopt_ann, &reused_deopt_ann);
                 break;
-            case MVMDispOpcodeGuardTempTypeTypeObject:
-                temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
-                        MVM_OP_sp_guardtype, temporaries[op->temp_guard.temp],
-                        dp->gc_constants[op->temp_guard.checkee],
-                        deopt_ann, &reused_deopt_ann);
+            }
+            case MVMDispOpcodeGuardTempTypeTypeObject: {
+                MVMCollectable *wanted_st = dp->gc_constants[op->temp_guard.checkee];
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    temporaries[op->temp_guard.temp]);
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
+                        STABLE(facts->type) == (MVMSTable *)wanted_st &&
+                        (facts->flags & MVM_SPESH_FACT_TYPEOBJ))
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
+                            MVM_OP_sp_guardtype, temporaries[op->temp_guard.temp],
+                            wanted_st, deopt_ann, &reused_deopt_ann);
                 break;
-            case MVMDispOpcodeGuardTempConc:
-                temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
-                        MVM_OP_sp_guardjustconc, temporaries[op->temp_guard.temp],
-                        NULL, deopt_ann, &reused_deopt_ann);
+            }
+            case MVMDispOpcodeGuardTempConc: {
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    temporaries[op->temp_guard.temp]);
+                if (facts->flags & MVM_SPESH_FACT_CONCRETE)
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
+                            MVM_OP_sp_guardjustconc, temporaries[op->temp_guard.temp],
+                            NULL, deopt_ann, &reused_deopt_ann);
                 break;
-            case MVMDispOpcodeGuardTempTypeObject:
-                temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
-                        MVM_OP_sp_guardjusttype, temporaries[op->temp_guard.temp],
-                        NULL, deopt_ann, &reused_deopt_ann);
+            }
+            case MVMDispOpcodeGuardTempTypeObject: {
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    temporaries[op->temp_guard.temp]);
+                if (facts->flags & MVM_SPESH_FACT_TYPEOBJ)
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
+                            MVM_OP_sp_guardjusttype, temporaries[op->temp_guard.temp],
+                            NULL, deopt_ann, &reused_deopt_ann);
                 break;
-            case MVMDispOpcodeGuardTempLiteralObj:
-                temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
-                        MVM_OP_sp_guardobj, temporaries[op->temp_guard.temp],
-                        dp->gc_constants[op->temp_guard.checkee],
-                        deopt_ann, &reused_deopt_ann);
+            }
+            case MVMDispOpcodeGuardTempLiteralObj: {
+                MVMCollectable *wanted_obj = dp->gc_constants[op->temp_guard.checkee];
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    temporaries[op->temp_guard.temp]);
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) &&
+                        facts->value.o == (MVMObject *)wanted_obj)
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
+                            MVM_OP_sp_guardobj, temporaries[op->temp_guard.temp],
+                            wanted_obj, deopt_ann, &reused_deopt_ann);
                 break;
-            case MVMDispOpcodeGuardTempLiteralStr:
-                temporaries[op->temp_guard.temp] = emit_literal_str_guard(tc, g, bb,
-                    &insert_after, temporaries[op->temp_guard.temp],
-                    (MVMString *)dp->gc_constants[op->temp_guard.checkee],
-                    deopt_ann, &reused_deopt_ann);
+            }
+            case MVMDispOpcodeGuardTempLiteralStr: {
+                MVMString *wanted_str = (MVMString *)dp->gc_constants[op->temp_guard.checkee];
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    temporaries[op->temp_guard.temp]);
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) &&
+                        MVM_string_equal(tc, facts->value.s, wanted_str))
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    temporaries[op->temp_guard.temp] = emit_literal_str_guard(tc, g, bb,
+                        &insert_after, temporaries[op->temp_guard.temp],
+                        wanted_str, deopt_ann, &reused_deopt_ann);
                 break;
-            case MVMDispOpcodeGuardTempNotLiteralObj:
-                temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
-                        MVM_OP_sp_guardnotobj, temporaries[op->temp_guard.temp],
-                        dp->gc_constants[op->temp_guard.checkee],
-                        deopt_ann, &reused_deopt_ann);
+            }
+            case MVMDispOpcodeGuardTempNotLiteralObj: {
+                MVMCollectable *unwanted_obj = dp->gc_constants[op->temp_guard.checkee];
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    temporaries[op->temp_guard.temp]);
+                if (((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) &&
+                        facts->value.o != (MVMObject *)unwanted_obj) ||
+                        ((facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
+                        STABLE(facts->type) != STABLE(unwanted_obj)))
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
+                            MVM_OP_sp_guardnotobj, temporaries[op->temp_guard.temp],
+                            unwanted_obj, deopt_ann, &reused_deopt_ann);
                 break;
+            }
             case MVMDispOpcodeLoadCaptureValue:
                 /* We already have all the capture values in the arg registers
                  * so just alias. */
