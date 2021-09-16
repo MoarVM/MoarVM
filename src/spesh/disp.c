@@ -611,24 +611,47 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
                             NULL, deopt_ann, &reused_deopt_ann);
                 break;
             }
-            case MVMDispOpcodeGuardArgLiteralObj:
-                args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
-                        MVM_OP_sp_guardobj, args[op->arg_guard.arg_idx],
-                        dp->gc_constants[op->arg_guard.checkee],
-                        deopt_ann, &reused_deopt_ann);
+            case MVMDispOpcodeGuardArgLiteralObj: {
+                MVMCollectable *wanted_obj = dp->gc_constants[op->arg_guard.checkee];
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    args[op->arg_guard.arg_idx]);
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) &&
+                        facts->value.o == (MVMObject *)wanted_obj)
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
+                            MVM_OP_sp_guardobj, args[op->arg_guard.arg_idx],
+                            wanted_obj, deopt_ann, &reused_deopt_ann);
                 break;
-            case MVMDispOpcodeGuardArgLiteralStr:
-                args[op->arg_guard.arg_idx] = emit_literal_str_guard(tc, g, bb, &insert_after,
-                    args[op->arg_guard.arg_idx],
-                    (MVMString *)dp->gc_constants[op->arg_guard.checkee],
-                    deopt_ann, &reused_deopt_ann);
+            }
+            case MVMDispOpcodeGuardArgLiteralStr: {
+                MVMString *wanted_str = (MVMString *)dp->gc_constants[op->arg_guard.checkee];
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    args[op->arg_guard.arg_idx]);
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) &&
+                        facts->value.s == wanted_str)
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    args[op->arg_guard.arg_idx] = emit_literal_str_guard(tc, g, bb,
+                            &insert_after, args[op->arg_guard.arg_idx], wanted_str,
+                            deopt_ann, &reused_deopt_ann);
                 break;
-            case MVMDispOpcodeGuardArgNotLiteralObj:
-                args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
-                        MVM_OP_sp_guardnotobj, args[op->arg_guard.arg_idx],
-                        dp->gc_constants[op->arg_guard.checkee],
-                        deopt_ann, &reused_deopt_ann);
+            }
+            case MVMDispOpcodeGuardArgNotLiteralObj: {
+                MVMCollectable *unwanted_obj = dp->gc_constants[op->arg_guard.checkee];
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    args[op->arg_guard.arg_idx]);
+                if (((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) &&
+                        facts->value.o != (MVMObject *)unwanted_obj) ||
+                        ((facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
+                        STABLE(facts->type) != STABLE(unwanted_obj)))
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
+                            MVM_OP_sp_guardnotobj, args[op->arg_guard.arg_idx],
+                            unwanted_obj, deopt_ann, &reused_deopt_ann);
                 break;
+            }
             case MVMDispOpcodeGuardTempType:
                 temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
                         MVM_OP_sp_guard, temporaries[op->temp_guard.temp],
