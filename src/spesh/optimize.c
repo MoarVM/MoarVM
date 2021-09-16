@@ -1160,6 +1160,23 @@ MVMuint32 find_cache_offset(MVMThreadContext *tc, MVMSpeshIns *ins) {
     return 0;
 }
 
+/* Find the pre-deopt index for the dispatch that was translated to a sequence
+ * of operations culminating in the runbytecode instruction. It may be on the
+ * runbytecode itself, if no guards were stacked up before it, but may also be
+ * earlier (but always in the same basic block). */
+MVMint32 find_predeopt_index(MVMThreadContext *tc, MVMSpeshIns *ins) {
+    while (ins) {
+        MVMSpeshAnn *ann = ins->annotations;
+        while (ann) {
+            if (ann->type == MVM_SPESH_ANN_DEOPT_PRE_INS)
+                return ann->data.deopt_idx;
+            ann = ann->next;
+        }
+        ins = ins->prev;
+    }
+    return -1;
+}
+
 /* Given an instruction, finds the deopt target on it. Panics if there is not
  * one there. */
 void find_deopt_target_and_index(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
@@ -1272,30 +1289,25 @@ MVMStaticFrame * find_runbytecode_static_frame(MVMThreadContext *tc, MVMSpeshPla
         : NULL;
 }
 
-/* Generate a new deopt index for the given original bytecode location
- * and optionally annotate an instruction with it. Returns the index of it. */
+/* Take the predeopt index for a dispatch. Add a synthetic deopt annotation
+ * to the instruction, to ensure the guard keeps alive deopt usages of the
+ * pre-deopt point if it ends up as the only one. Also produce a new deopt
+ * index for the guard currently being produced and return it. */
 static MVMuint32 add_deopt_ann(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
-        MVMint32 bytecode_offset) {
-    MVMuint32 deopt_idx = g->num_deopt_addrs;
-    MVM_spesh_graph_grow_deopt_table(tc, g);
-    g->deopt_addrs[deopt_idx * 2] = bytecode_offset;
-    g->num_deopt_addrs++;
-
-    if (ins) {
-        MVMSpeshAnn *ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
-        ann->type = MVM_SPESH_ANN_DEOPT_PRE_INS;
-        ann->data.deopt_idx = deopt_idx;
-        ann->next = ins->annotations;
-        ins->annotations = ann;
-    }
-
-    return deopt_idx;
+        MVMint32 predeopt_index) {
+    MVMSpeshAnn *ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+    ann->type = MVM_SPESH_ANN_DEOPT_SYNTH;
+    ann->data.deopt_idx = predeopt_index;
+    ann->next = ins->annotations;
+    ins->annotations = ann;
+    return MVM_spesh_graph_add_deopt_annotation(tc, g, ins,
+            g->deopt_addrs[predeopt_index * 2], MVM_SPESH_ANN_DEOPT_PRE_INS);
 }
 
 /* Inserts a static frame guard instruction. */
 static void insert_static_frame_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVMSpeshBB *bb, MVMSpeshIns *ins, MVMSpeshOperand coderef_reg,
-        MVMStaticFrame *target_sf, MVMuint32 bytecode_offset) {
+        MVMStaticFrame *target_sf, MVMint32 predeopt_index) {
     MVMSpeshIns *guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     guard->info = MVM_op_get_op(MVM_OP_sp_guardsf);
     guard->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
@@ -1303,13 +1315,13 @@ static void insert_static_frame_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_usages_add_by_reg(tc, g, coderef_reg, guard);
     guard->operands[1].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
         (MVMCollectable *)target_sf);
-    guard->operands[2].lit_ui32 = add_deopt_ann(tc, g, guard, bytecode_offset);
+    guard->operands[2].lit_ui32 = add_deopt_ann(tc, g, guard, predeopt_index);
     MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard);
 }
 
 /* Inserts an argument type guard as suggested by a logged type tuple. */
 static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
-        MVMSpeshBB *bb, MVMSpeshIns *ins, MVMuint32 bytecode_offset,
+        MVMSpeshBB *bb, MVMSpeshIns *ins, MVMint32 predeopt_index,
         MVMSpeshStatsType *type_info, MVMSpeshOperand preguard_reg) {
     /* Split the SSA version of the arg. */
     MVMSpeshOperand guard_reg = MVM_spesh_manipulate_split_version(tc, g,
@@ -1327,14 +1339,14 @@ static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_usages_add_by_reg(tc, g, preguard_reg, guard);
     guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
         (MVMCollectable *)type_info->type->st);
-    guard->operands[3].lit_ui32 = add_deopt_ann(tc, g, guard, bytecode_offset);
+    guard->operands[3].lit_ui32 = add_deopt_ann(tc, g, guard, predeopt_index);
     MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard);
     MVM_spesh_graph_add_comment(tc, g, guard, "Inserted to use specialization");
 }
 
 /* Inserts an argument decont type guard as suggested by a logged type tuple. */
 static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
-        MVMSpeshBB *bb, MVMSpeshIns *ins, MVMuint32 bytecode_offset,
+        MVMSpeshBB *bb, MVMSpeshIns *ins, MVMint32 predeopt_index,
         MVMSpeshStatsType *type_info, MVMSpeshOperand to_guard) {
     /* We need a temporary register to decont into. */
     MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
@@ -1364,14 +1376,14 @@ static void insert_arg_decont_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_usages_add_by_reg(tc, g, temp, guard);
     guard->operands[2].lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g,
         (MVMCollectable *)type_info->decont_type->st);
-    guard->operands[3].lit_ui32 = add_deopt_ann(tc, g, guard, bytecode_offset);
+    guard->operands[3].lit_ui32 = add_deopt_ann(tc, g, guard, predeopt_index);
     MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard);
 }
 
 /* Look through the call info and the type tuple, see what guards we are
  * missing, and insert them. */
 static void check_and_tweak_arg_guards(MVMThreadContext *tc, MVMSpeshGraph *g,
-        MVMSpeshBB *bb, MVMSpeshIns *ins, MVMuint32 bytecode_offset,
+        MVMSpeshBB *bb, MVMSpeshIns *ins, MVMuint32 predeopt_index,
         MVMSpeshStatsType *type_tuple, MVMCallsite *cs, MVMSpeshOperand *args) {
     MVMuint32 n = cs->flag_count;
     MVMuint32 i;
@@ -1390,11 +1402,11 @@ static void check_and_tweak_arg_guards(MVMThreadContext *tc, MVMSpeshGraph *g,
                     (!type_tuple[i].type_concrete
                         && !(arg_facts->flags & MVM_SPESH_FACT_TYPEOBJ));
                 if (need_guard)
-                    insert_arg_type_guard(tc, g, bb, ins, bytecode_offset,
+                    insert_arg_type_guard(tc, g, bb, ins, predeopt_index,
                         &type_tuple[i], args[i]);
             }
             if (t_decont_type)
-                insert_arg_decont_type_guard(tc, g, bb, ins, bytecode_offset,
+                insert_arg_decont_type_guard(tc, g, bb, ins, predeopt_index,
                     &type_tuple[i], args[i]);
         }
     }
@@ -1405,9 +1417,13 @@ static void check_and_tweak_arg_guards(MVMThreadContext *tc, MVMSpeshGraph *g,
 void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         MVMSpeshIns *ins, MVMSpeshPlanned *p) {
     /* Make sure we can find the dispatch bytecode offset (used for both
-     * looking up in the spesh log and adding deopts). */
+     * looking up in the spesh log) and the pre-deopt index (for use with
+     * any guards we add). */
     MVMuint32 bytecode_offset = find_cache_offset(tc, ins);
     if (!bytecode_offset)
+        return;
+    MVMint32 predeopt_index = find_predeopt_index(tc, ins);
+    if (predeopt_index < 0)
         return;
 
     /* Extract the interesting parts. */
@@ -1500,9 +1516,9 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
        /* Found a candidate. Stack up any required guards. */
        if (need_guardsf)
            insert_static_frame_guard(tc, g, bb, ins, coderef_reg, target_sf,
-               bytecode_offset);
+               predeopt_index);
         if (!type_tuple_from_facts)
-            check_and_tweak_arg_guards(tc, g, bb, ins, bytecode_offset,
+            check_and_tweak_arg_guards(tc, g, bb, ins, predeopt_index,
                 stable_type_tuple, cs, args);
 
         /* See if we'll be able to inline it. */
@@ -1575,9 +1591,9 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             /* We can do the inline. Stack up any required guards. */
             if (need_guardsf)
                 insert_static_frame_guard(tc, g, bb, ins, coderef_reg, target_sf,
-                    bytecode_offset);
+                    predeopt_index);
             if (!type_tuple_from_facts)
-                check_and_tweak_arg_guards(tc, g, bb, ins, bytecode_offset,
+                check_and_tweak_arg_guards(tc, g, bb, ins, predeopt_index,
                     stable_type_tuple, cs, args);
 
             /* Optimize and then inline the graph. */
