@@ -548,34 +548,69 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
     for (i = 0; i < dp->num_ops; i++) {
         MVMDispProgramOp *op = &(dp->ops[i]);
         switch (op->code) {
-            case MVMDispOpcodeGuardArgType:
-                args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
-                        MVM_OP_sp_guard, args[op->arg_guard.arg_idx],
-                        dp->gc_constants[op->arg_guard.checkee],
-                        deopt_ann, &reused_deopt_ann);
+            case MVMDispOpcodeGuardArgType: {
+                MVMCollectable *wanted_st = dp->gc_constants[op->arg_guard.checkee];
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    args[op->arg_guard.arg_idx]);
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
+                        STABLE(facts->type) == (MVMSTable *)wanted_st)
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
+                            MVM_OP_sp_guard, args[op->arg_guard.arg_idx],
+                            wanted_st, deopt_ann, &reused_deopt_ann);
                 break;
-            case MVMDispOpcodeGuardArgTypeConc:
-                args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
-                        MVM_OP_sp_guardconc, args[op->arg_guard.arg_idx],
-                        dp->gc_constants[op->arg_guard.checkee],
-                        deopt_ann, &reused_deopt_ann);
+            }
+            case MVMDispOpcodeGuardArgTypeConc: {
+                MVMCollectable *wanted_st = dp->gc_constants[op->arg_guard.checkee];
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    args[op->arg_guard.arg_idx]);
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
+                        STABLE(facts->type) == (MVMSTable *)wanted_st &&
+                        (facts->flags & MVM_SPESH_FACT_CONCRETE))
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
+                            MVM_OP_sp_guardconc, args[op->arg_guard.arg_idx],
+                            wanted_st, deopt_ann, &reused_deopt_ann);
                 break;
-            case MVMDispOpcodeGuardArgTypeTypeObject:
-                args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
-                        MVM_OP_sp_guardtype, args[op->arg_guard.arg_idx],
-                        dp->gc_constants[op->arg_guard.checkee],
-                        deopt_ann, &reused_deopt_ann);
+            }
+            case MVMDispOpcodeGuardArgTypeTypeObject: {
+                MVMCollectable *wanted_st = dp->gc_constants[op->arg_guard.checkee];
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    args[op->arg_guard.arg_idx]);
+                if ((facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
+                        STABLE(facts->type) == (MVMSTable *)wanted_st &&
+                        (facts->flags & MVM_SPESH_FACT_TYPEOBJ))
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
+                            MVM_OP_sp_guardtype, args[op->arg_guard.arg_idx],
+                            wanted_st, deopt_ann, &reused_deopt_ann);
                 break;
-            case MVMDispOpcodeGuardArgConc:
-                args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
-                        MVM_OP_sp_guardjustconc, args[op->arg_guard.arg_idx],
-                        NULL, deopt_ann, &reused_deopt_ann);
+            }
+            case MVMDispOpcodeGuardArgConc: {
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    args[op->arg_guard.arg_idx]);
+                if (facts->flags & MVM_SPESH_FACT_CONCRETE)
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
+                            MVM_OP_sp_guardjustconc, args[op->arg_guard.arg_idx],
+                            NULL, deopt_ann, &reused_deopt_ann);
                 break;
-            case MVMDispOpcodeGuardArgTypeObject:
-                args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
-                        MVM_OP_sp_guardjusttype, args[op->arg_guard.arg_idx],
-                        NULL, deopt_ann, &reused_deopt_ann);
+            }
+            case MVMDispOpcodeGuardArgTypeObject: {
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    args[op->arg_guard.arg_idx]);
+                if (facts->flags & MVM_SPESH_FACT_TYPEOBJ)
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
+                            MVM_OP_sp_guardjusttype, args[op->arg_guard.arg_idx],
+                            NULL, deopt_ann, &reused_deopt_ann);
                 break;
+            }
             case MVMDispOpcodeGuardArgLiteralObj:
                 args[op->arg_guard.arg_idx] = emit_guard(tc, g, bb, &insert_after,
                         MVM_OP_sp_guardobj, args[op->arg_guard.arg_idx],
