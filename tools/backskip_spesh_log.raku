@@ -13,13 +13,8 @@ multi sub partition(IO::Handle:D $file) {
     loop {
         my @results = (my $piece = $f.read(4096).decode("utf8")).comb(/^^skip\:\d+$$/);
         if @results {
-            say @results;
-            say @results.tail;
             $start_position = @results.tail.comb(/\d+/).head.Int;
             last;
-        }
-        else {
-            say "no";
         }
         $f.seek(-4096 * 2 + 64, SeekFromCurrent);
     }
@@ -34,4 +29,10 @@ multi sub partition(IO::Handle:D $file) {
     }
 
     return @positions;
+}
+
+sub MAIN($filename) {
+    my @positions = partition($filename);
+
+    .say for @positions;
 }
