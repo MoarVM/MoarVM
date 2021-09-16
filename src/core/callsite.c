@@ -49,7 +49,9 @@ void MVM_callsite_initialize_common(MVMThreadContext *tc) {
     interns->num_by_arity = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
             MVM_INTERN_ARITY_SOFT_LIMIT * sizeof(MVMuint32));
 
-    /* Intern callsites. */
+    /* Intern callsites.
+     * If you add a callsite to this list, remember to add it to the check in
+     * `is_common` below. */
     MVMCallsite *ptr;
     ptr = &zero_arity_callsite;
     MVM_callsite_intern(tc, &ptr, 0, 1);
