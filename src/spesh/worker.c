@@ -31,6 +31,7 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
             MVMObject *log_obj;
             MVMuint64 start_time;
             unsigned int interval_id;
+            size_t log_tell_before = 0;
             MVMint64 *overview_data = NULL;
 
             MVMObject *overview_subscription_packet = NULL;
@@ -113,6 +114,9 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                             MVM_spesh_debug_printf(tc, "%s==========\n\n", dump);
                             MVM_free(dump);
                         }
+                        size_t before_print = MVM_spesh_debug_tell(tc);
+                        MVM_spesh_debug_printf(tc, "\nskip:%d\n\n", log_tell_before);
+                        log_tell_before = before_print + 1;
                     }
                     if (overview_data) {
                         overview_data[5] = (uv_hrtime() - start_time) / 1000;
@@ -138,6 +142,9 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                             MVM_spesh_debug_printf(tc, "%s==========\n\n", dump);
                             MVM_free(dump);
                         }
+                        size_t before_print = MVM_spesh_debug_tell(tc);
+                        MVM_spesh_debug_printf(tc, "\nskip:%d\n\n", log_tell_before);
+                        log_tell_before = before_print + 1;
                     }
 
                     if (overview_data) {
@@ -158,6 +165,11 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                     for (i = 0; i < n; i++) {
                         MVM_spesh_candidate_add(tc, &(tc->instance->spesh_plan->planned[i]));
                         GC_SYNC_POINT(tc);
+                        if (MVM_spesh_debug_enabled(tc)) {
+                            size_t before_print = MVM_spesh_debug_tell(tc);
+                            MVM_spesh_debug_printf(tc, "\nskip:%d\n\n", log_tell_before);
+                            log_tell_before = before_print + 1;
+                        }
                     }
                     MVM_spesh_plan_destroy(tc, tc->instance->spesh_plan);
                     tc->instance->spesh_plan = NULL;
