@@ -702,7 +702,8 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
            template. And for optimisation, I'd like to copy spesh facts (if any)
            to the tree info */
         MVMuint16 opcode = ins->info->opcode;
-        MVMint32 operands[MAX(2, ins->info->num_operands)]; /* At least 2 for inc_i hack */
+        MVMuint16 operands_needed = MAX(2, ins->info->num_operands); /* At least 2 for inc_i hack */
+        MVMint32 *operands = alloca(operands_needed * sizeof(MVMint32));
         MVMSpeshAnn *ann;
         const MVMJitExprTemplate *template;
         MVMint32 before_label = -1, after_label = -1, root = 0;
