@@ -27,7 +27,7 @@ MVM_STATIC_INLINE void clear_dynlex_cache(MVMThreadContext *tc, MVMFrame *f) {
  * record on the callstack.
  */
 static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
-                     MVMuint32 offset, MVMint32 all) {
+                     MVMuint32 offset, MVMint32 all, MVMint32 is_pre) {
     /* Make absolutely sure this is the top thing on the callstack. */
     assert(MVM_callstack_current_frame(tc) == f);
 
@@ -39,7 +39,7 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
     for (i = cand->body.num_inlines - 1; i >= 0; i--) {
         MVMuint32 start = cand->body.inlines[i].start;
         MVMuint32 end = cand->body.inlines[i].end;
-        if (offset > start && (all ? offset <= end : offset < end)) {
+        if (offset > start && (all || !is_pre ? offset <= end : offset < end)) {
             /* Grab the current frame, which is the caller of this inline. */
             MVMFrame *caller = MVM_callstack_current_frame(tc);
 
@@ -254,6 +254,7 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_idx) {
     if (f->spesh_cand) {
         MVMuint32 deopt_target = f->spesh_cand->body.deopts[deopt_idx * 2];
         MVMuint32 deopt_offset = MVM_spesh_deopt_bytecode_pos(f->spesh_cand->body.deopts[deopt_idx * 2 + 1]);
+        MVMint32 is_pre = MVM_spesh_deopt_is_pre(f->spesh_cand->body.deopts[deopt_idx * 2 + 1]);
 #if MVM_LOG_DEOPTS
         fprintf(stderr, "    Will deopt %u -> %u\n", deopt_offset, deopt_target);
 #endif
@@ -265,7 +266,7 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_idx) {
             if (f->spesh_cand->body.inlines) {
                 /* Perform uninlining. The top frame may have changes, so sync things
                  * up. */
-                uninline(tc, f, f->spesh_cand, deopt_offset, 0);
+                uninline(tc, f, f->spesh_cand, deopt_offset, 0, is_pre);
                 top_frame = MVM_callstack_current_frame(tc);
                 tc->cur_frame = top_frame;
                 tc->current_frame_nr = top_frame->sequence_nr;
@@ -402,7 +403,7 @@ void MVM_spesh_deopt_during_unwind(MVMThreadContext *tc) {
              * one we're returning into. Otherwise, the top frame is the current
              * one. */
             if (frame->spesh_cand->body.inlines) {
-                uninline(tc, frame, frame->spesh_cand, deopt_offset, 1);
+                uninline(tc, frame, frame->spesh_cand, deopt_offset, 1, 0);
                 top_frame = MVM_callstack_current_frame(tc);
             }
             else {
