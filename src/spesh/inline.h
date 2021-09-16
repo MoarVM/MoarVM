@@ -72,6 +72,5 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadConte
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMCallsite *cs, MVMSpeshOperand *args, MVMSpeshBB *runbytecode_bb,
     MVMSpeshIns *runbytecode_ins, MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
-    MVMSpeshOperand code_ref_reg, MVMSpeshIns *resume_init, MVMuint32 proxy_deopt_idx,
-    MVMuint16 bytecode_size);
+    MVMSpeshOperand code_ref_reg, MVMSpeshIns *resume_init, MVMuint16 bytecode_size);
 MVMuint32 MVM_spesh_inline_get_max_size(MVMThreadContext *tc, MVMStaticFrame *sf);
