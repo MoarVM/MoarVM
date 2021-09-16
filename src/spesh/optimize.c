@@ -1521,7 +1521,7 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             MVMSpeshBB *optimize_from_bb = inline_graph->entry;
             MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, coderef_reg);
             MVM_spesh_inline(tc, g, cs, args, bb, ins, inline_graph, target_sf,
-                coderef_reg, resume_init, add_deopt_ann(tc, g, NULL, bytecode_offset),
+                coderef_reg, resume_init,
                 (MVMuint16)target_sf->body.spesh->body.spesh_candidates[spesh_cand]->body.bytecode_size);
             optimize_bb(tc, g, optimize_from_bb, NULL);
 
@@ -1584,8 +1584,7 @@ void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb
             MVMSpeshBB *optimize_from_bb = inline_graph->entry;
             MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, coderef_reg);
             MVM_spesh_inline(tc, g, cs, args, bb, ins, inline_graph, target_sf,
-                    coderef_reg, resume_init, add_deopt_ann(tc, g, NULL, bytecode_offset),
-                    0); /* Don't know an accurate size */
+                    coderef_reg, resume_init, 0); /* Don't know an accurate size */
             optimize_bb(tc, g, optimize_from_bb, NULL);
         }
     }

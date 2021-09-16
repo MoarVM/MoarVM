@@ -1382,8 +1382,7 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         MVMCallsite *cs, MVMSpeshOperand *args, MVMSpeshBB *runbytecode_bb,
         MVMSpeshIns *runbytecode_ins, MVMSpeshGraph *inlinee,
         MVMStaticFrame *inlinee_sf, MVMSpeshOperand code_ref_reg,
-        MVMSpeshIns *resume_init, MVMuint32 proxy_deopt_idx,
-        MVMuint16 bytecode_size) {
+        MVMSpeshIns *resume_init, MVMuint16 bytecode_size) {
     MVMSpeshIns *first_ins;
 
     /* Merge inlinee's graph into the inliner. */
@@ -1415,6 +1414,13 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     annotate_inline_start_end(tc, inliner, inlinee, inliner->num_inlines - 1,
         inlinee_last_bb, inline_boundary_handler);
 
+    /* If this inline may cause deopt, then we take the deopt index at the
+     * calling point and use it as a proxy for the deopts that may happen in
+     * the inline. Otherwise, we might incorrectly fail to preserve values
+     * for the sake of deopt. */
+    if (inliner->inlines[inliner->num_inlines - 1].may_cause_deopt)
+        MVM_spesh_usages_retain_deopt_index(tc, inliner, return_deopt_idx(tc, runbytecode_ins));
+
     /* Finally, turn the runbytecode instruction into a goto. */
     MVM_spesh_usages_delete_by_reg(tc, inliner,
         runbytecode_ins->operands[runbytecode_ins->info->opcode == MVM_OP_sp_runbytecode_v ? 0 : 1],
@@ -1426,15 +1432,9 @@ void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     runbytecode_ins->operands[0].ins_bb = inlinee->entry->linear_next;
     tweak_succ(tc, inliner, runbytecode_bb, inlinee->entry, inlinee->entry->linear_next, 0);
 
-    /* If this inline may cause deopt, then we take the deopt index at the
-     * calling point and use it as a proxy for the deopts that may happen in
-     * the inline. Otherwise, we might incorrectly fail to preserve values
-     * for the sake of deopt. */
-    if (inliner->inlines[inliner->num_inlines - 1].may_cause_deopt)
-        MVM_spesh_usages_retain_deopt_index(tc, inliner, proxy_deopt_idx);
-
     /* Claim ownership of inlinee memory */
     MVM_region_merge(tc, &inliner->region_alloc, &inlinee->region_alloc);
+
     /* Destroy the inlinee graph */
     MVM_spesh_graph_destroy(tc, inlinee);
 }
