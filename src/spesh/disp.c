@@ -455,8 +455,8 @@ static void insert_resume_inits(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
 
 /* Try to translate a dispatch program into a sequence of ops (which will
  * be subject to later optimization and potentially JIT compilation). */
-static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
-        MVMSpeshBB *bb, MVMSpeshIns *ins, MVMDispProgram *dp) {
+static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns *ins, MVMDispProgram *dp, MVMSpeshIns **next_ins) {
     /* First, validate it is a dispatch program we know how to compile. */
     MVMuint32 i;
     for (i = 0; i < dp->num_ops; i++) {
@@ -498,7 +498,7 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
             default:
                 MVM_spesh_graph_add_comment(tc, g, ins, "dispatch not compiled: op %s NYI",
                                 MVM_disp_opcode_to_name(dp->ops[i].code));
-                return NULL;
+                return 0;
         }
     }
 
@@ -1071,8 +1071,9 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
 
     /* Annotate start and end of translated dispatch program. */
     MVMSpeshIns *first_inserted = ins->next;
-    MVM_spesh_graph_add_comment(tc, g, first_inserted,
-            "Start of dispatch program translation");
+    if (first_inserted)
+        MVM_spesh_graph_add_comment(tc, g, first_inserted,
+                "Start of dispatch program translation");
 
     /* Delete the dispatch instruction. Make sure we don't mark it as having
      * a dead writer (since we inserted a replacement instruction above). */
@@ -1097,7 +1098,8 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
     }
 
     /* Return the first inserted instruction as the next thing to optimize. */
-    return first_inserted;
+    *next_ins = first_inserted;
+    return 1;
 }
 
 /* Drives the overall process of optimizing a dispatch instruction. The instruction
@@ -1107,8 +1109,8 @@ static MVMSpeshIns * translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGr
 static int compare_hits(const void *a, const void *b) {
     return ((OutcomeHitCount *)b)->hits - ((OutcomeHitCount *)a)->hits;
 }
-MVMSpeshIns * MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-        MVMSpeshPlanned *p, MVMSpeshIns *ins) {
+int MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+        MVMSpeshPlanned *p, MVMSpeshIns *ins, MVMSpeshIns **next_ins) {
     /* Locate the inline cache bytecode offset. There must always be one. */
     MVMSpeshAnn *ann = ins->annotations;
     while (ann) {
@@ -1135,10 +1137,10 @@ MVMSpeshIns * MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MV
         case MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH:
             /* Monomorphic, so translate the dispatch program if we can. */
             MVM_spesh_graph_add_comment(tc, g, ins, "Monomorphic in the inline cache");
-            MVMSpeshIns *result = translate_dispatch_program(tc, g, bb, ins,
-                ((MVMDispInlineCacheEntryMonomorphicDispatch *)entry)->dp);
-            if (result)
-                return result;
+            if (translate_dispatch_program(tc, g, bb, ins,
+                ((MVMDispInlineCacheEntryMonomorphicDispatch *)entry)->dp, next_ins)) {
+                return 1;
+            }
             break;
         case MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH_FLATTENING:
             MVM_spesh_graph_add_comment(tc, g, ins, "Monomorphic but flattening (no opt yet)");
@@ -1209,10 +1211,10 @@ MVMSpeshIns * MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MV
                 MVMDispInlineCacheEntryPolymorphicDispatch *pd =
                     (MVMDispInlineCacheEntryPolymorphicDispatch *)entry;
                 if ((MVMuint32)selected_outcome < pd->num_dps) {
-                    MVMSpeshIns *result = translate_dispatch_program(tc, g, bb, ins,
-                        pd->dps[selected_outcome]);
-                    if (result)
-                        return result;
+                    if (translate_dispatch_program(tc, g, bb, ins,
+                        pd->dps[selected_outcome], next_ins)) {
+                        return 1;
+                    }
                 }
             }
             break;
@@ -1228,5 +1230,5 @@ MVMSpeshIns * MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MV
 
     /* If we make it here, rewrite it into a sp_dispatch_* op. */
     rewrite_to_sp_dispatch(tc, g, ins, bytecode_offset);
-    return ins;
+    return 0;
 }

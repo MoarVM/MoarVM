@@ -2024,7 +2024,9 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
                         MVMSpeshPlanned *p) {
     /* Look for instructions that are interesting to optimize. */
     MVMSpeshIns *ins = bb->first_ins;
+    MVMSpeshIns *next_ins = ins;
     while (ins) {
+        next_ins = ins->next;
         switch (ins->info->opcode) {
         case MVM_SSA_PHI:
             analyze_phi(tc, g, ins);
@@ -2251,7 +2253,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_dispatch_n:
         case MVM_OP_dispatch_s:
         case MVM_OP_dispatch_i:
-            ins = MVM_spesh_disp_optimize(tc, g, bb, p, ins);
+            MVM_spesh_disp_optimize(tc, g, bb, p, ins, &next_ins);
             break;
         case MVM_OP_sp_guard:
         case MVM_OP_sp_guardconc:
@@ -2313,7 +2315,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             if (ins->info->opcode == (MVMuint16)-1)
                 optimize_extop(tc, g, bb, ins);
         }
-        ins = ins->next;
+        ins = next_ins;
     }
 }
 
