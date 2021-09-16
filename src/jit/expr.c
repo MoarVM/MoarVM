@@ -697,12 +697,25 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
        internally linked together (relative to absolute indexes).
        Afterwards stores are inserted for computed values. */
 
+    MVMuint16 operands_allocated = 0;
+    MVMint32 *operands = NULL;
     for (ins = iter->ins; ins != NULL; ins = MVM_spesh_iterator_next_ins(tc, iter)) {
         /* NB - we probably will want to involve the spesh info in selecting a
            template. And for optimisation, I'd like to copy spesh facts (if any)
            to the tree info */
         MVMuint16 opcode = ins->info->opcode;
-        MVMint32 operands[MAX(2, ins->info->num_operands)]; /* At least 2 for inc_i hack */
+        MVMuint16 operands_needed = MAX(2, ins->info->num_operands); /* At least 2 for inc_i hack */
+        if (operands_needed > operands_allocated) {
+            /* Round up to an even number - we're allocating an array of 4 byte
+               integers, so assume malloc will align (at least) to 8 bytes, and
+               hence avoid some "churn" */
+            if (operands_needed & 1) {
+                ++operands_needed;
+            }
+            MVM_free(operands);
+            operands = MVM_malloc(operands_needed * sizeof(MVMint32));
+            operands_allocated = operands_needed;
+        }
         MVMSpeshAnn *ann;
         const MVMJitExprTemplate *template;
         MVMint32 before_label = -1, after_label = -1, root = 0;
@@ -901,6 +914,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         tree = NULL;
     }
     MVM_free(values);
+    MVM_free(operands);
     return tree;
 }
 
