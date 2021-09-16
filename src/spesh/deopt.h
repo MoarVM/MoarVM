@@ -5,3 +5,6 @@ void MVM_spesh_deopt_during_unwind(MVMThreadContext *tc);
 MVM_STATIC_INLINE MVMuint32 MVM_spesh_deopt_bytecode_pos(MVMuint32 deopt) {
     return deopt >> 1;
 }
+MVM_STATIC_INLINE MVMuint32 MVM_spesh_deopt_is_pre(MVMuint32 deopt) {
+    return deopt & 1;
+}
