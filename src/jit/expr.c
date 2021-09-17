@@ -707,13 +707,15 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         MVMuint16 operands_needed = MAX(2, ins->info->num_operands); /* At least 2 for inc_i hack */
         if (operands_needed > operands_allocated) {
             /* Round up to an even number - we're allocating an array of 4 byte
-               integers, so assume malloc will align (at least) to 8 bytes, and
-               hence avoid some "churn" */
+               integers, whilst the FSA will align (at least) to 8 bytes. Hence
+               avoid some "churn" */
             if (operands_needed & 1) {
                 ++operands_needed;
             }
-            MVM_free(operands);
-            operands = MVM_malloc(operands_needed * sizeof(MVMint32));
+            if (operands) {
+                MVM_fixed_size_free(tc, tc->instance->fsa, operands_allocated * sizeof(MVMint32), operands);
+            }
+            operands = MVM_fixed_size_alloc(tc, tc->instance->fsa, operands_needed * sizeof(MVMint32));
             operands_allocated = operands_needed;
         }
         MVMSpeshAnn *ann;
@@ -914,7 +916,7 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         tree = NULL;
     }
     MVM_free(values);
-    MVM_free(operands);
+    MVM_fixed_size_free(tc, tc->instance->fsa, operands_allocated * sizeof(MVMint32), operands);
     return tree;
 }
 
