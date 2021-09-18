@@ -1,3 +1,13 @@
+New in 2021.09
+
+Core:
++ [0b713ada,e5cbede8] Store `key_right_shift` - metadata_hash_bits in the hashtable
++ [5ead9f0d] Respect `--full-cleanup` in `nqp::exit`
++ [7a385a35] Fix possible access to fromspace in NativeCall callbacks
+
+GC:
++ [bb14f423] Fix finalizers of gen2 objects rarely getting run
+
 New in 2021.08
 
 Core:
@@ -91,7 +101,7 @@ Tooling/Build:
 + [9f82a46b] Add a test configuration for MinGW on Windows
 + [19db00f7] Update CI package index before installing packages
 + [5ab2a1d2] Remove unnecessary Windows-specific jobs from CI
-+ [87cd6f5d] Only check for leaks on Ubuntu >=20.04 
++ [87cd6f5d] Only check for leaks on Ubuntu >=20.04
 + [67f5dddb] Run NQP/Rakudo under catchsegv in GNU/Linux CI jobs
 
 New in 2021.04
