@@ -702,6 +702,9 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_mutex_destroy(&instance->mutex_callsite_interns);
     MVM_callsite_cleanup_interns(instance);
 
+    /* Clean up syscall registry. */
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->syscalls);
+
     /* Clean up Unicode hashes. */
     for (int i = 0; i < MVM_NUM_PROPERTY_CODES; i++) {
         MVM_uni_hash_demolish(instance->main_thread, &instance->unicode_property_values_hashes[i]);
