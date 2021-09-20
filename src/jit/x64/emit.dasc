@@ -2088,6 +2088,17 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov qword WORK[dst], RV;
         break;
     }
+    case MVM_OP_sp_bindcomplete: {
+        MVMint16 spesh_idx = ins->operands[0].lit_i16;
+        MVMuint32 slot     = ins->operands[1].lit_ui32;
+        | mov ARG1, TC;
+        | get_spesh_slot ARG2, spesh_idx;
+        | lea ARG2, STATICFRAME:ARG2->body.inline_cache;
+        | mov ARG2, MVMDISPINLINECACHE:ARG2->entries;
+        | lea ARG2, MVMDISPINLINECACHEENTRY:ARG2[slot];
+        | callp &MVM_args_bind_succeeded;
+        break;
+    }
     case MVM_OP_sp_cas_o: {
         MVMint16 target = ins->operands[1].reg.orig;
         MVMint16 expected = ins->operands[2].reg.orig;
