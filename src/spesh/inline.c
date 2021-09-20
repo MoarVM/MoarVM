@@ -105,7 +105,6 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMSpeshBB *bb = ig->entry;
     MVMint32 same_hll = target_sf->body.cu->body.hll_config ==
             inliner->sf->body.cu->body.hll_config;
-    MVMuint32 seen_possible_deopt = 0;
     if (no_inline_info)
         *no_inline_info = NULL;
     while (bb) {
@@ -173,16 +172,6 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     *no_inline_reason = "too many arguments to inline";
                     return 0;
                 }
-                if (seen_possible_deopt) {
-                    *no_inline_reason = "a deopt may happen before arguments are processed";
-                    return 0;
-                }
-            }
-            else if (opcode == MVM_OP_sp_paramnamesused) {
-                if (seen_possible_deopt) {
-                    *no_inline_reason = "a deopt may happen before arguments are processed";
-                    return 0;
-                }
             }
 
             /* Ext-ops need special care in inter-comp-unit inlines. */
@@ -192,10 +181,6 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 if (source_cu != target_cu)
                     demand_extop(tc, target_cu, source_cu, ins->info);
             }
-
-            /* Record if this instruction would cause us to deopt. */
-            if (ins->info->may_cause_deopt)
-                seen_possible_deopt = 1;
 
             ins = ins->next;
         }
