@@ -2945,7 +2945,8 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
     MVMint16 obj       = guard->ins->operands[op == MVM_OP_sp_guardsf ? 0 : 1].reg.orig;
     /* load object and spesh slot value, except for those that don't need it */
     | mov TMP1, WORK[obj];
-    if (op != MVM_OP_sp_guardjustconc && op != MVM_OP_sp_guardjusttype && op != MVM_OP_sp_guardnonzero) {
+    if (op != MVM_OP_sp_guardjustconc && op != MVM_OP_sp_guardjusttype &&
+            op != MVM_OP_sp_guardnonzero && op != MVM_OP_sp_guardhll) {
         MVMint16 spesh_idx = guard->ins->operands[op == MVM_OP_sp_guardsf ? 1 : 2].lit_i16;
         | get_spesh_slot TMP2, spesh_idx;
     }
@@ -2984,6 +2985,12 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
         | jnz >1;
         /* should have our stable */
         | cmp TMP2, OBJECT:TMP1->st;
+        | jne >1;
+    } else if (op == MVM_OP_sp_guardhll) {
+        /* get HLL owner and compare */
+        | mov64 TMP2, guard->ins->operands[2].lit_ui64;
+        | mov TMP3, OBJECT:TMP1->st;
+        | cmp TMP2, STABLE:TMP3->hll_owner;
         | jne >1;
     } else if (op == MVM_OP_sp_guardsf) {
         /* Should be an MVMCode */

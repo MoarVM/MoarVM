@@ -155,6 +155,7 @@ struct MVMDispProgramRecordingValue {
     MVMuint8 guard_type;
     MVMuint8 guard_concreteness;
     MVMuint8 guard_literal;
+    MVMuint8 guard_hll;
 
     /* A list of objects that this value must *not* be. */
     MVM_VECTOR_DECL(MVMObject *, not_literal_guards);
@@ -324,6 +325,7 @@ struct MVMDispProgram {
  * the ops part more compact. */
 union MVMDispProgramConstant {
     MVMCallsite *cs;
+    MVMHLLConfig *hll;
     MVMint64 i64;
     MVMnum64 n64;
 };
@@ -377,6 +379,8 @@ typedef enum {
     /* Guard that the type of an incoming argument is not an unexpected
      * literal. */
     MVMDispOpcodeGuardArgNotLiteralObj,
+    /* Guard that the HLL of an incoming argument is as expected. */
+    MVMDispOpcodeGuardArgHLL,
     /* Guard that the type of a temporary is as expected. */
     MVMDispOpcodeGuardTempType,
     /* Guard that the type of a temporary is as expected and also
@@ -404,6 +408,8 @@ typedef enum {
     /* Guard that the type of a temporary is not an unexpected
      * literal. */
     MVMDispOpcodeGuardTempNotLiteralObj,
+    /* Guard that the HLL of a temporary is as expected. */
+    MVMDispOpcodeGuardTempHLL,
     /* Load a capture value into a temporary. */
     MVMDispOpcodeLoadCaptureValue,
     /* Load an resumption initialization state value into a temporary. */
@@ -591,6 +597,7 @@ void MVM_disp_program_record_guard_concreteness(MVMThreadContext *tc, MVMObject 
 void MVM_disp_program_record_guard_literal(MVMThreadContext *tc, MVMObject *tracked);
 void MVM_disp_program_record_guard_not_literal_obj(MVMThreadContext *tc,
        MVMObject *tracked, MVMObject *object);
+void MVM_disp_program_record_guard_hll(MVMThreadContext *tc, MVMObject *tracked);
 MVMObject * MVM_disp_program_record_index_lookup_table(MVMThreadContext *tc,
        MVMObject *lookup_hash, MVMObject *tracked_key);
 MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture,

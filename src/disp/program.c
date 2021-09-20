@@ -102,8 +102,12 @@ static void dump_recording_values(MVMThreadContext *tc, MVMDispProgramRecording 
                 fprintf(stderr, "      Guard type and concreteness\n");
             else if (v->guard_type)
                 fprintf(stderr, "      Guard type\n");
-            else if (v->guard_concreteness)
-                fprintf(stderr, "      Guard concreteness\n");
+            else {
+                if (v->guard_concreteness)
+                    fprintf(stderr, "      Guard concreteness\n");
+                if (v->guard_hll)
+                    fprintf(stderr, "      Guard HLL\n");
+            }
         }
         if (rec->resume_kind != MVMDispProgramRecordingResumeNone)
             for (MVMuint32 j = 0; j < MVM_VECTOR_ELEMS(rec->resumptions); j++)
@@ -263,6 +267,14 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                         op->arg_guard.arg_idx,
                         STABLE(((MVMObject *)dp->gc_constants[op->arg_guard.checkee]))->debug_name);
                 break;
+            case MVMDispOpcodeGuardArgHLL: {
+                MVMHLLConfig *hll = dp->constants[op->arg_guard.checkee].hll;
+                char *hll_name = hll ? MVM_string_utf8_encode_C_string(tc, hll->name) : NULL;
+                fprintf(stderr, "    Guard arg %d (hll=%s)\n",
+                        op->arg_guard.arg_idx, hll_name ? hll_name : "<none>");
+                MVM_free(hll_name);
+                break;
+            }
 
             /* Opcodes that guard on values in temporaries */
             case MVMDispOpcodeGuardTempType:
@@ -316,6 +328,14 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                         op->temp_guard.temp,
                         STABLE(((MVMObject *)dp->gc_constants[op->temp_guard.checkee]))->debug_name);
                 break;
+            case MVMDispOpcodeGuardTempHLL: {
+                MVMHLLConfig *hll = dp->constants[op->temp_guard.checkee].hll;
+                char *hll_name = hll ? MVM_string_utf8_encode_C_string(tc, hll->name) : NULL;
+                fprintf(stderr, "    Guard temp %d (hll=%s)\n",
+                        op->temp_guard.temp, hll_name ? hll_name : "<none>");
+                MVM_free(hll_name);
+                break;
+            }
 
             /* Opcodes that load values into temporaries. */
             case MVMDispOpcodeLoadCaptureValue:
@@ -983,6 +1003,13 @@ void MVM_disp_program_record_guard_not_literal_obj(MVMThreadContext *tc,
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
     MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked);
     MVM_VECTOR_PUSH(record->rec.values[value_index].not_literal_guards, object);
+}
+
+/* Record a guard of the HLL of the specified tracked value. */
+void MVM_disp_program_record_guard_hll(MVMThreadContext *tc, MVMObject *tracked) {
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked);
+    record->rec.values[value_index].guard_hll = 1;
 }
 
 /* Add a lookup table as a constant value, and then record a lookup of a key in
@@ -1655,6 +1682,12 @@ static MVMuint32 add_program_constant_callsite(MVMThreadContext *tc, compile_sta
     MVM_VECTOR_PUSH(cs->constants, c);
     return MVM_VECTOR_ELEMS(cs->constants) - 1;
 }
+static MVMuint32 add_program_constant_hll(MVMThreadContext *tc, compile_state *cs,
+        MVMHLLConfig *hll) {
+    MVMDispProgramConstant c = { .hll = hll };
+    MVM_VECTOR_PUSH(cs->constants, c);
+    return MVM_VECTOR_ELEMS(cs->constants) - 1;
+}
 static MVMuint32 add_program_gc_constant(MVMThreadContext *tc, compile_state *cs,
         MVMCollectable *value) {
     MVM_ASSERT_NOT_FROMSPACE(tc, value);
@@ -1821,14 +1854,25 @@ static void emit_capture_guards(MVMThreadContext *tc, compile_state *cs,
                             STABLE(value));
                     MVM_VECTOR_PUSH(cs->ops, op);
                 }
-                else if (v->guard_concreteness) {
-                    MVMObject *value = MVM_capture_arg_o(tc, capture_obj, index);
-                    MVMDispProgramOp op;
-                    op.code = IS_CONCRETE(value)
-                            ? MVMDispOpcodeGuardArgConc
-                            : MVMDispOpcodeGuardArgTypeObject;
-                    op.arg_guard.arg_idx = (MVMuint16)index;
-                    MVM_VECTOR_PUSH(cs->ops, op);
+                else {
+                    if (v->guard_concreteness) {
+                        MVMObject *value = MVM_capture_arg_o(tc, capture_obj, index);
+                        MVMDispProgramOp op;
+                        op.code = IS_CONCRETE(value)
+                                ? MVMDispOpcodeGuardArgConc
+                                : MVMDispOpcodeGuardArgTypeObject;
+                        op.arg_guard.arg_idx = (MVMuint16)index;
+                        MVM_VECTOR_PUSH(cs->ops, op);
+                    }
+                    if (v->guard_hll) {
+                        MVMObject *value = MVM_capture_arg_o(tc, capture_obj, index);
+                        MVMHLLConfig *hll = STABLE(value)->hll_owner;
+                        MVMDispProgramOp op;
+                        op.code = MVMDispOpcodeGuardArgHLL;
+                        op.arg_guard.arg_idx = (MVMuint16)index;
+                        op.arg_guard.checkee = add_program_constant_hll(tc, cs, hll);
+                        MVM_VECTOR_PUSH(cs->ops, op);
+                    }
                 }
                 MVMuint32 i;
                 for (i = 0; i < MVM_VECTOR_ELEMS(v->not_literal_guards); i++) {
@@ -1904,13 +1948,23 @@ static void emit_loaded_value_guards(MVMThreadContext *tc, compile_state *cs,
                             STABLE(value.o));
                     MVM_VECTOR_PUSH(cs->ops, op);
                 }
-                else if (v->guard_concreteness) {
-                    MVMDispProgramOp op;
-                    op.code = IS_CONCRETE(value.o)
-                            ? MVMDispOpcodeGuardTempConc
-                            : MVMDispOpcodeGuardTempTypeObject;
-                    op.temp_guard.temp = temp;
-                    MVM_VECTOR_PUSH(cs->ops, op);
+                else {
+                    if (v->guard_concreteness) {
+                        MVMDispProgramOp op;
+                        op.code = IS_CONCRETE(value.o)
+                                ? MVMDispOpcodeGuardTempConc
+                                : MVMDispOpcodeGuardTempTypeObject;
+                        op.temp_guard.temp = temp;
+                        MVM_VECTOR_PUSH(cs->ops, op);
+                    }
+                    if (v->guard_hll) {
+                        MVMHLLConfig *hll = STABLE(value.o)->hll_owner;
+                        MVMDispProgramOp op;
+                        op.code = MVMDispOpcodeGuardTempHLL;
+                        op.temp_guard.temp = temp;
+                        op.temp_guard.checkee = add_program_constant_hll(tc, cs, hll);
+                        MVM_VECTOR_PUSH(cs->ops, op);
+                    }
                 }
                 MVMuint32 i;
                 for (i = 0; i < MVM_VECTOR_ELEMS(v->not_literal_guards); i++) {
@@ -2738,6 +2792,12 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                     goto rejection;
                 break;
             }
+            case MVMDispOpcodeGuardArgHLL: {
+                GET_ARG;
+                if (STABLE(val.o)->hll_owner != dp->constants[op->arg_guard.checkee].hll)
+                    goto rejection;
+                break;
+            }
 
             /* Temporary guard ops. */
             case MVMDispOpcodeGuardTempType: {
@@ -2799,6 +2859,12 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
             case MVMDispOpcodeGuardTempNotLiteralObj: {
                 MVMRegister val = record->temps[op->temp_guard.temp];
                 if (val.o == (MVMObject *)dp->gc_constants[op->temp_guard.checkee])
+                    goto rejection;
+                break;
+            }
+            case MVMDispOpcodeGuardTempHLL: {
+                MVMRegister val = record->temps[op->temp_guard.temp];
+                if (STABLE(val.o)->hll_owner != dp->constants[op->temp_guard.checkee].hll)
                     goto rejection;
                 break;
             }

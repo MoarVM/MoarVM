@@ -5484,6 +5484,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     target->o = check;
                 goto NEXT;
             }
+            OP(sp_guardhll): {
+                MVMRegister *target = &GET_REG(cur_op, 0);
+                MVMObject *check = GET_REG(cur_op, 2).o;
+                MVMHLLConfig *want = (MVMHLLConfig *)GET_UI64(cur_op, 4);
+                cur_op += 16;
+                if (STABLE(check)->hll_owner != want)
+                    MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
+                else
+                    target->o = check;
+                goto NEXT;
+            }
             OP(sp_guardsf): {
                 MVMObject *check = GET_REG(cur_op, 0).o;
                 MVMStaticFrame *want = (MVMStaticFrame *)tc->cur_frame
