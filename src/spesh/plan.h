@@ -1,12 +1,15 @@
 /* The minimum number OSR hits a static frame as a whole has to receive
  * (across all callsites and type tuples) before it is hot enough to further
- * consider. */
-#define MVM_SPESH_PLAN_SF_MIN_OSR   100
+ * consider. Make this at least as high as a the threshold for a fairly large
+ * body, otherwise it's possible to have the loop body optimized later than
+ * the looping frame itself, and thus a (good) specialization of the loop body
+ * would not be available. */
+#define MVM_SPESH_PLAN_SF_MIN_OSR   200
 
 /* The minimum number of hits or OSR hits a given static frame and interned
  * callsite combination have to have before it is hot enough to further
  * consider. */
-#define MVM_SPESH_PLAN_CS_MIN_OSR   100
+#define MVM_SPESH_PLAN_CS_MIN_OSR   200
 
 /* The percentage of hits or OSR hits that a type tuple should receive, out of
  * the total callsite hits, to receive an "observed types" specialization. */
