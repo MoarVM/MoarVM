@@ -1788,7 +1788,7 @@ start:
     case MVM_OP_assignunchecked:
     case MVM_OP_getlexperinvtype_o:
     case MVM_OP_paramnamesused:
-    case MVM_OP_assertparamcheck:
+    case MVM_OP_sp_assertparamcheck:
     case MVM_OP_getobjsc:
     case MVM_OP_getstderr:
     case MVM_OP_getstdout:
