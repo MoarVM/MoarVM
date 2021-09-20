@@ -615,7 +615,7 @@ void cleanup_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry *entry, MVMuint
         MVMuint32 num_dps = ((MVMDispInlineCacheEntryPolymorphicDispatch *)entry)->num_dps;
         MVMuint32 dpi;
         if (destroy_dps)
-            for (dpi = 0; dpi > num_dps; dpi++)
+            for (dpi = 0; dpi < num_dps; dpi++)
                 MVM_disp_program_destroy(tc, ((MVMDispInlineCacheEntryPolymorphicDispatch *)entry)->dps[dpi]);
         MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
                 num_dps * sizeof(MVMDispProgram *),
@@ -627,7 +627,7 @@ void cleanup_entry(MVMThreadContext *tc, MVMDispInlineCacheEntry *entry, MVMuint
         MVMuint32 num_dps = ((MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry)->num_dps;
         MVMuint32 dpi;
         if (destroy_dps)
-            for (dpi = 0; dpi > num_dps; dpi++)
+            for (dpi = 0; dpi < num_dps; dpi++)
                 MVM_disp_program_destroy(tc, ((MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry)->dps[dpi]);
         MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
                 num_dps * sizeof(MVMCallsite *),
