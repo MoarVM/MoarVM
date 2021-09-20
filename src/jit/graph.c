@@ -1809,6 +1809,7 @@ start:
         /* Parameters */
     case MVM_OP_param_sp:
     case MVM_OP_param_sn:
+    case MVM_OP_sp_bindcomplete:
         /* Specialized atomics */
     case MVM_OP_sp_cas_o:
     case MVM_OP_sp_atomicload_o:
