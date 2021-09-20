@@ -87,7 +87,7 @@ static void go_to_first_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MV
             }
         }
         else {
-            if (f == tc->cur_frame) {
+            if (!fw->started && f == tc->cur_frame) {
                 fw->deopt_offset = *(tc->interp_cur_op) - spesh_cand->body.bytecode;
                 fw->inline_idx = -1;
                 go_to_next_inline(tc, fw);
@@ -141,8 +141,8 @@ MVMuint32 move_one_caller(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
  * over). */
 MVMuint32 MVM_spesh_frame_walker_next(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
     if (!fw->started) {
-        fw->started = 1;
         go_to_first_inline(tc, fw, NULL);
+        fw->started = 1;
         return fw->cur_caller_frame ? 1 : 0;
     }
     else if (fw->traversed) {
