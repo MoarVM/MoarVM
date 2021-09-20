@@ -620,9 +620,10 @@ static void lang_hllize(MVMThreadContext *tc, MVMArgs arg_info) {
     MVM_args_checkarity(tc, &arg_ctx, 1, 2);
     MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
 
-    /* We're really guarding on the type's HLL here */
+    /* Guard on the type's HLL (something later may strengthen it, if it is
+     * doing a type mapping). */
     MVMROOT(tc, capture, {
-        MVM_disp_program_record_guard_type(tc,
+        MVM_disp_program_record_guard_hll(tc,
                 MVM_disp_program_record_track_arg(tc, capture, 0));
     });
 

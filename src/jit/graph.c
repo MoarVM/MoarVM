@@ -434,6 +434,7 @@ static void jg_append_guard(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_guardtype:
     case MVM_OP_sp_guardobj:
     case MVM_OP_sp_guardnotobj:
+    case MVM_OP_sp_guardhll:
     case MVM_OP_sp_rebless:
         deopt_idx = ins->operands[3].lit_ui32;
         break;
@@ -3583,6 +3584,7 @@ start:
     case MVM_OP_sp_guardtype:
     case MVM_OP_sp_guardobj:
     case MVM_OP_sp_guardnotobj:
+    case MVM_OP_sp_guardhll:
         jg_append_guard(tc, jg, ins, 3);
         break;
     case MVM_OP_sp_guardjustconc:

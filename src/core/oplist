@@ -904,6 +904,9 @@ sp_guard         .s w(obj) r(obj) sslot uint32 :maycausedeopt
 sp_guardconc     .s w(obj) r(obj) sslot uint32 :maycausedeopt
 sp_guardtype     .s w(obj) r(obj) sslot uint32 :maycausedeopt
 
+# HLL guard operation. The uint64 is a pointer to a MVMHLLConfig.
+sp_guardhll      .s w(obj) r(obj) uint64 uint32 :maycausedeopt
+
 # Code guard operations. Trigger de-optimization if the guard is violated.
 #   guardsf = guard on being an MVMCode with specified static frame inside
 #   guardsfouter = as with guardsf but also ensures its ->outer is equal to

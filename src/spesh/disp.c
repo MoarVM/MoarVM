@@ -227,6 +227,34 @@ static MVMSpeshOperand emit_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
     return guarded_reg;
 }
 
+/* Emit a HLL guard instruction. */
+static MVMSpeshOperand emit_hll_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns **insert_after, MVMSpeshOperand guard_reg,
+        MVMHLLConfig *hll, MVMSpeshAnn *deopt_ann, MVMuint32 *reused_deopt_ann) {
+    /* Produce a new version for after the guarding. */
+    MVMSpeshOperand guarded_reg = MVM_spesh_manipulate_split_version(tc, g,
+            guard_reg, bb, (*insert_after)->next);
+
+    /* Produce the instruction and insert it. */
+    MVMSpeshIns *guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    guard->info = MVM_op_get_op(MVM_OP_sp_guardhll);
+    guard->operands = MVM_spesh_alloc(tc, g, 4 * sizeof(MVMSpeshOperand));
+    guard->operands[0] = guarded_reg;
+    guard->operands[1] = guard_reg;
+    guard->operands[2].lit_ui64 = (MVMuint64)hll;
+    set_deopt(tc, g, guard, &(guard->operands[3]), deopt_ann, reused_deopt_ann);
+    MVM_spesh_manipulate_insert_ins(tc, bb, *insert_after, guard);
+    *insert_after = guard;
+
+    /* Tweak usages. */
+    MVM_spesh_get_facts(tc, g, guarded_reg)->writer = guard;
+    MVM_spesh_usages_add_by_reg(tc, g, guard_reg, guard);
+
+    /* Add facts to and return the guarded register. */
+    MVM_spesh_facts_guard_facts(tc, g, bb, guard);
+    return guarded_reg;
+}
+
 /* Emit a simple binary instruction with a result register and either a
  * input register or input constant. */
 static void emit_bi_op(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -469,6 +497,7 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
             case MVMDispOpcodeGuardArgLiteralObj:
             case MVMDispOpcodeGuardArgLiteralStr:
             case MVMDispOpcodeGuardArgNotLiteralObj:
+            case MVMDispOpcodeGuardArgHLL:
             case MVMDispOpcodeGuardTempType:
             case MVMDispOpcodeGuardTempTypeConc:
             case MVMDispOpcodeGuardTempTypeTypeObject:
@@ -477,6 +506,7 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
             case MVMDispOpcodeGuardTempLiteralObj:
             case MVMDispOpcodeGuardTempLiteralStr:
             case MVMDispOpcodeGuardTempNotLiteralObj:
+            case MVMDispOpcodeGuardTempHLL:
             case MVMDispOpcodeLoadCaptureValue:
             case MVMDispOpcodeLoadConstantObjOrStr:
             case MVMDispOpcodeLoadConstantInt:
@@ -652,6 +682,21 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                             unwanted_obj, deopt_ann, &reused_deopt_ann);
                 break;
             }
+            case MVMDispOpcodeGuardArgHLL: {
+                MVMHLLConfig *wanted_hll = dp->constants[op->arg_guard.checkee].hll;
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    args[op->arg_guard.arg_idx]);
+                if (((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) &&
+                        STABLE(facts->value.o)->hll_owner == wanted_hll) ||
+                        ((facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
+                        STABLE(facts->type)->hll_owner == wanted_hll))
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    args[op->arg_guard.arg_idx] = emit_hll_guard(tc, g, bb,
+                            &insert_after, args[op->arg_guard.arg_idx], wanted_hll,
+                            deopt_ann, &reused_deopt_ann);
+                break;
+            }
             case MVMDispOpcodeGuardTempType: {
                 MVMCollectable *wanted_st = dp->gc_constants[op->temp_guard.checkee];
                 MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
@@ -754,6 +799,21 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                     temporaries[op->temp_guard.temp] = emit_guard(tc, g, bb, &insert_after,
                             MVM_OP_sp_guardnotobj, temporaries[op->temp_guard.temp],
                             unwanted_obj, deopt_ann, &reused_deopt_ann);
+                break;
+            }
+            case MVMDispOpcodeGuardTempHLL: {
+                MVMHLLConfig *wanted_hll = dp->constants[op->temp_guard.checkee].hll;
+                MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g,
+                    temporaries[op->temp_guard.temp]);
+                if (((facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) &&
+                        STABLE(facts->value.o)->hll_owner == wanted_hll) ||
+                        ((facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) &&
+                        STABLE(facts->type)->hll_owner == wanted_hll))
+                    MVM_spesh_use_facts(tc, g, facts);
+                else
+                    temporaries[op->temp_guard.temp] = emit_hll_guard(tc, g, bb,
+                            &insert_after, temporaries[op->temp_guard.temp],
+                            wanted_hll, deopt_ann, &reused_deopt_ann);
                 break;
             }
             case MVMDispOpcodeLoadCaptureValue:
