@@ -63,18 +63,17 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
         MVM_exception_throw_adhoc(tc, "No matching continuation reset found");
 
     /* Clear the caller of the first frame in the taken region. */
-    MVM_callstack_first_frame_in_region(tc, taken_region)->caller = NULL;
+    MVMFrame *first_frame = MVM_callstack_first_frame_in_region(tc, taken_region);
+    first_frame->caller = NULL;
 
     /* Set up the continuation. */
     ((MVMContinuation *)cont)->body.stack_top = orig_top;
     ((MVMContinuation *)cont)->body.first_region = taken_region;
     ((MVMContinuation *)cont)->body.addr    = *tc->interp_cur_op;
     ((MVMContinuation *)cont)->body.res_reg = res_reg;
-    if (tc->instance->profiling) {
-        MVM_panic(1, "Need to update profiling continuation support");
-//        ((MVMContinuation *)cont)->body.prof_cont =
-//            MVM_profile_log_continuation_control(tc, root_frame);
-    }
+    if (tc->instance->profiling)
+        ((MVMContinuation *)cont)->body.prof_cont =
+            MVM_profile_log_continuation_control(tc, first_frame);
 
     /* Save and clear any active exception handler(s) added since reset. */
     if (tc->active_handlers != active_handler_at_reset) {
