@@ -603,6 +603,13 @@ MVMint64 MVM_disp_program_record_get_inline_cache_size(MVMThreadContext *tc) {
     return record->rec.inline_cache_size;
 }
 
+/* Gets the HLL of the static frame where the dispatch program appears. This
+ * is useful for getting a reliable HLL even if the dispatch op is inlined. */
+MVMHLLConfig * MVM_disp_program_record_get_hll(MVMThreadContext *tc) {
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    return record->update_sf->body.cu->body.hll_config;
+}
+
 /* Calculates the path to a capture. If the capture is not found, then an
  * exception will be thrown. The caller should pass in a pointer to a
  * CapturePath, which will be populated with the path to that capture. */

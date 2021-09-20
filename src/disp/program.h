@@ -581,6 +581,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
         MVMArgs arg_info, MVMDispInlineCacheEntry **ic_entry_ptr,
         MVMDispInlineCacheEntry *ic_entry, MVMStaticFrame *update_sf);
 MVMint64 MVM_disp_program_record_get_inline_cache_size(MVMThreadContext *tc);
+MVMHLLConfig * MVM_disp_program_record_get_hll(MVMThreadContext *tc);
 MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 index);
 MVMObject * MVM_disp_program_record_track_attr(MVMThreadContext *tc, MVMObject *tracked,

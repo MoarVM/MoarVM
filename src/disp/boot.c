@@ -630,7 +630,7 @@ static void lang_hllize(MVMThreadContext *tc, MVMArgs arg_info) {
 
     MVMHLLConfig *hll;
     if (cs->num_pos == 1) {
-        hll = MVM_hll_current(tc);
+        hll = MVM_disp_program_record_get_hll(tc);
     }
     else {
         MVMROOT(tc, capture, {
