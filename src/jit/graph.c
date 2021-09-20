@@ -3720,6 +3720,7 @@ start:
     case MVM_OP_sp_runbytecode_v:
     case MVM_OP_sp_runbytecode_i:
     case MVM_OP_sp_runbytecode_s:
+    case MVM_OP_sp_runbytecode_n:
     case MVM_OP_sp_runbytecode_o: {
         int start = (op == MVM_OP_sp_runbytecode_v) ? 0 : 1;
         MVMint16 dst          = ins->operands[0].reg.orig;
@@ -3739,7 +3740,9 @@ start:
                     ? MVM_RETURN_INT
                     : op == MVM_OP_sp_runbytecode_s
                         ? MVM_RETURN_STR
-                        : MVM_RETURN_OBJ;
+                        : op == MVM_OP_sp_runbytecode_n
+                            ? MVM_RETURN_NUM
+                            : MVM_RETURN_OBJ;
         node->u.runbytecode.return_register = dst;
         node->u.runbytecode.map             = &ins->operands[3 + start];
         node->u.runbytecode.code_register   = code;
@@ -3753,6 +3756,7 @@ start:
     case MVM_OP_sp_runcfunc_v:
     case MVM_OP_sp_runcfunc_i:
     case MVM_OP_sp_runcfunc_s:
+    case MVM_OP_sp_runcfunc_n:
     case MVM_OP_sp_runcfunc_o: {
         int start = (op == MVM_OP_sp_runcfunc_v) ? 0 : 1;
         MVMint16 dst          = ins->operands[0].reg.orig;
@@ -3771,7 +3775,9 @@ start:
                     ? MVM_RETURN_INT
                     : op == MVM_OP_sp_runcfunc_s
                         ? MVM_RETURN_STR
-                        : MVM_RETURN_OBJ;
+                        : op == MVM_OP_sp_runcfunc_n
+                            ? MVM_RETURN_NUM
+                            : MVM_RETURN_OBJ;
         node->u.runccode.return_register = dst;
         node->u.runccode.code_register   = code;
         node->u.runccode.map             = &ins->operands[2 + start];
@@ -3784,6 +3790,7 @@ start:
     case MVM_OP_sp_dispatch_v:
     case MVM_OP_sp_dispatch_i:
     case MVM_OP_sp_dispatch_s:
+    case MVM_OP_sp_dispatch_n:
     case MVM_OP_sp_dispatch_o: {
         int start = (op == MVM_OP_sp_dispatch_v) ? 0 : 1;
         MVMint16 dst          = ins->operands[0].reg.orig;
@@ -3807,7 +3814,9 @@ start:
                     ? MVM_RETURN_INT
                     : op == MVM_OP_sp_dispatch_s
                         ? MVM_RETURN_STR
-                        : MVM_RETURN_OBJ;
+                        : op == MVM_OP_sp_dispatch_n
+                            ? MVM_RETURN_NUM
+                            : MVM_RETURN_OBJ;
         node->u.dispatch.return_register = dst;
         node->u.dispatch.map             = &ins->operands[4 + start];
         node->u.dispatch.reentry_label   = reentry_label;
