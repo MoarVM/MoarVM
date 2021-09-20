@@ -39,7 +39,8 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
     for (i = cand->body.num_inlines - 1; i >= 0; i--) {
         MVMuint32 start = cand->body.inlines[i].start;
         MVMuint32 end = cand->body.inlines[i].end;
-        if (offset > start && (all || !is_pre ? offset <= end : offset < end)) {
+        if ((is_pre ? offset >= start : offset > start) &&
+                (all || !is_pre ? offset <= end : offset < end)) {
             /* Grab the current frame, which is the caller of this inline. */
             MVMFrame *caller = MVM_callstack_current_frame(tc);
 
