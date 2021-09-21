@@ -999,6 +999,22 @@ static MVMDispSysCall has_type_check_cache = {
     .expected_concrete = { 0 },
 };
 
+/* code-is-stub */
+static void code_is_stub_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMObject *obj = get_obj_arg(arg_info, 0);
+    MVMint64 is_stub = ((MVMCode *)obj)->body.is_compiler_stub;
+    MVM_args_set_result_int(tc, is_stub, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall code_is_stub = {
+    .c_name = "code-is-stub",
+    .implementation = code_is_stub_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMCode },
+    .expected_concrete = { 1 },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -1072,6 +1088,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &bind_will_resume_on_failure);
     add_to_hash(tc, &type_check_mode_flags);
     add_to_hash(tc, &has_type_check_cache);
+    add_to_hash(tc, &code_is_stub);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
