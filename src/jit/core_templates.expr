@@ -2732,14 +2732,12 @@
 
 (template: sp_guardsf
   (letv: (($check (copy $0)))
-    (when (any (^not_repr_id $check MVM_REPR_ID_MVMCode)
-               (ne (^getf $check MVMCode body.sf) (^spesh_slot_value $1)))
+    (when (ne (^getf $check MVMCode body.sf) (^spesh_slot_value $1))
          (^deopt_one $2))))
 
 (template: sp_guardsfouter
   (letv: (($check (copy $0)))
-    (when (any (^not_repr_id $check MVM_REPR_ID_MVMCode)
-               (ne (^getf $check MVMCode body.sf) (^spesh_slot_value $1))
+    (when (any (ne (^getf $check MVMCode body.sf) (^spesh_slot_value $1))
                (ne (^getf $check MVMCode body.outer) (^frame)))
          (^deopt_one $2))))
 

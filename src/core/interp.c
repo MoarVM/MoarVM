@@ -5500,8 +5500,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMStaticFrame *want = (MVMStaticFrame *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 2)];
                 cur_op += 8;
-                if (REPR(check)->ID != MVM_REPR_ID_MVMCode ||
-                        ((MVMCode *)check)->body.sf != want)
+                if (((MVMCode *)check)->body.sf != want)
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
             }
@@ -5510,8 +5509,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMStaticFrame *want = (MVMStaticFrame *)tc->cur_frame
                     ->effective_spesh_slots[GET_UI16(cur_op, 2)];
                 cur_op += 8;
-                if (REPR(check)->ID != MVM_REPR_ID_MVMCode ||
-                        ((MVMCode *)check)->body.sf != want ||
+                if (((MVMCode *)check)->body.sf != want ||
                         ((MVMCode *)check)->body.outer != tc->cur_frame)
                     MVM_spesh_deopt_one(tc, GET_UI32(cur_op, -4));
                 goto NEXT;
