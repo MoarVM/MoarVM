@@ -1021,9 +1021,6 @@ MVMObject * MVM_disp_program_record_index_lookup_table(MVMThreadContext *tc,
         MVM_exception_throw_adhoc(tc, "Dispatch program lookup key must be a tracked string");
     MVMObject *resolved = MVM_repr_at_key_o(tc, lookup_hash,
             ((MVMTracked *)tracked_key)->body.value.s);
-    if (MVM_is_null(tc, resolved))
-        MVM_exception_throw_adhoc(tc,
-            "Dispatch program lookup table must contain value used in the current dispatch");
 
     /* Add the lookup hash as a constant value. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
@@ -2911,8 +2908,6 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 record->temps[op->load.temp].o = MVM_repr_at_key_o(tc,
                         record->temps[op->load.temp].o,
                         record->temps[op->load.idx].s);
-                if (MVM_is_null(tc, record->temps[op->load.temp].o))
-                    goto rejection;
                 break;
             case MVMDispOpcodeSet:
                 record->temps[op->load.temp] = record->temps[op->load.idx];
