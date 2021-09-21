@@ -2994,8 +2994,6 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
         | jne >1;
     } else if (op == MVM_OP_sp_guardsf) {
         /* Should be an MVMCode */
-        | cmp_repr_id TMP1, TMP3, MVM_REPR_ID_MVMCode;
-        | jne >1;
         | cmp TMP2, CODE:TMP1->body.sf;
         | jne >1;
     } else if (op == MVM_OP_sp_guardobj) {
