@@ -408,6 +408,19 @@ static void lang_find_meth(MVMThreadContext *tc, MVMArgs arg_info) {
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
     MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
 
+    /* If the invocant has an associated HLL and find method dispatcher,
+     * guard on the HLL and delegate there. */
+    MVMObject *invocant = MVM_capture_arg_pos_o(tc, capture, 0);
+    MVMHLLConfig *hll = STABLE(invocant)->hll_owner;
+    if (hll && hll->find_method_dispatcher) {
+        MVMROOT(tc, capture, {
+            MVMObject *tracked_invocant = MVM_disp_program_record_track_arg(tc, capture, 0);
+            MVM_disp_program_record_guard_hll(tc, tracked_invocant);
+        });
+        MVM_disp_program_record_delegate(tc, hll->find_method_dispatcher, capture);
+        return;
+    }
+
     /* Obtain and guard on the first argument of the capture, which is the
      * invocant of the method call, and then also on the name and the
      * exception flag. */
@@ -420,14 +433,6 @@ static void lang_find_meth(MVMThreadContext *tc, MVMArgs arg_info) {
         }
     });
 
-    /* If the invocant has an associated HLL and find method dispatcher,
-     * delegate there. */
-    MVMObject *invocant = MVM_capture_arg_pos_o(tc, capture, 0);
-    MVMHLLConfig *hll = STABLE(invocant)->hll_owner;
-    if (hll && hll->find_method_dispatcher) {
-        MVM_disp_program_record_delegate(tc, hll->find_method_dispatcher, capture);
-        return;
-    }
 
     /* Otherwise if it's a KnowHOW, then look in its method table (this is how
      * method dispatch bottoms out in the VM). */
