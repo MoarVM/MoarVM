@@ -164,6 +164,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_unbox_n: return MVM_repr_get_num;
     case MVM_OP_isint: case MVM_OP_isnum: case MVM_OP_isstr: /* continued */
     case MVM_OP_islist: case MVM_OP_ishash: return MVM_repr_compare_repr_id;
+    case MVM_OP_iscoderef: return MVM_code_iscode;
     case MVM_OP_wval: case MVM_OP_wval_wide: return MVM_sc_get_sc_object;
     case MVM_OP_scgetobjidx: return MVM_sc_find_object_idx_jit;
     case MVM_OP_getdynlex: return MVM_frame_getdynlex;
@@ -2252,6 +2253,14 @@ start:
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args,
                 op == MVM_OP_istrue_s ? MVM_JIT_RV_INT : MVM_JIT_RV_INT_NEGATED,
                 dst);
+        break;
+    }
+    case MVM_OP_iscoderef: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
         break;
     }
     case MVM_OP_clone: {
