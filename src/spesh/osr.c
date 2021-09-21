@@ -125,7 +125,10 @@ void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
     MVMint32 seq_nr = tc->cur_frame->sequence_nr;
     if (seq_nr != tc->osr_hunt_frame_nr || num_cands != tc->osr_hunt_num_spesh_candidates) {
         /* Provided OSR is enabled... */
-        if (tc->instance->spesh_osr_enabled) {
+        if (tc->instance->spesh_osr_enabled
+            /* and no snapshots were taken, otherwise we'd invalidate the positions */
+            && (!tc->cur_frame->extra || !tc->cur_frame->extra->caller_info_needed)
+        ) {
             /* Check if there's a candidate available and install it if so. */
             MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
                 spesh->body.spesh_arg_guard,
