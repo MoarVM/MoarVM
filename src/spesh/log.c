@@ -202,8 +202,7 @@ void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMObject *value) {
         entry->type.type = NULL;
         entry->type.flags = 0;
     }
-    entry->type.bytecode_offset = (caller->return_address - caller->static_info->body.bytecode)
-        - (caller->return_type == MVM_RETURN_VOID ? 4 : 6);
+    entry->type.bytecode_offset = (caller->return_address - 2) - caller->static_info->body.bytecode;
     commit_entry(tc, sl);
 }
 
