@@ -340,6 +340,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
             case MVM_OP_sp_guardtype:
             case MVM_OP_sp_guardobj:
             case MVM_OP_sp_guardnotobj:
+            case MVM_OP_sp_guardhll:
             case MVM_OP_sp_rebless:
                 deopt_idx = ins->operands[3].lit_ui32;
                 break;
