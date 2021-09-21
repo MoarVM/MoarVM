@@ -513,6 +513,7 @@ static void tweak_guard_deopt_idx(MVMSpeshIns *ins, MVMSpeshAnn *ann) {
     case MVM_OP_sp_guardtype:
     case MVM_OP_sp_guardobj:
     case MVM_OP_sp_guardnotobj:
+    case MVM_OP_sp_guardhll:
     case MVM_OP_sp_rebless:
         ins->operands[3].lit_ui32 = ann->data.deopt_idx;
         break;
