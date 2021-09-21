@@ -220,15 +220,18 @@ static void process_bb_for_deopt_usage(MVMThreadContext *tc, DeoptAnalysisState 
          * immediately process it as the values that are read by the op must be
          * available to it after deopt. */
         MVMSpeshAnn *ann = ins->annotations;
-        MVMSpeshAnn *post_deopt_ann = NULL;
+        MVMSpeshAnn *deopt_ann = NULL;
+        MVMSpeshAnn *deopt_all_ann = NULL;
         while (ann) {
             switch (ann->type) {
                 case MVM_SPESH_ANN_DEOPT_PRE_INS:
                     process_deopt(tc, state, g, bb, ins, ann->data.deopt_idx);
                     break;
                 case MVM_SPESH_ANN_DEOPT_ONE_INS:
+                    deopt_ann = ann;
+                    break;
                 case MVM_SPESH_ANN_DEOPT_ALL_INS:
-                    post_deopt_ann = ann;
+                    deopt_all_ann = ann;
                     break;
             }
             ann = ann->next;
@@ -254,8 +257,10 @@ static void process_bb_for_deopt_usage(MVMThreadContext *tc, DeoptAnalysisState 
 
         /* Now we've processed the reads, a post-deopt point should be put
          * into effect. */
-        if (post_deopt_ann)
-            process_deopt(tc, state, g, bb, ins, post_deopt_ann->data.deopt_idx);
+        if (deopt_ann)
+            process_deopt(tc, state, g, bb, ins, deopt_ann->data.deopt_idx);
+        if (deopt_all_ann)
+            process_deopt(tc, state, g, bb, ins, deopt_all_ann->data.deopt_idx);
 
         /* Process the write. */
         if (is_phi) {
