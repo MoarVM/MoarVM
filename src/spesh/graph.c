@@ -481,6 +481,12 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             MVM_spesh_graph_add_deopt_annotation(tc, g, ins_node,
                 pc - g->bytecode, MVM_SPESH_ANN_DEOPT_OSR);
 
+        /* If it is post-logged, annotate it with the updated offset (the -2
+         * is a bit of a hack; it avoids conflicts with the following
+         * instructions pre-logged offsets). */
+        if (info->post_logged)
+            add_logged_annotation(tc, g, ins_node, pc - 2);
+
         /* Go to next instruction. */
         ins_idx++;
     }

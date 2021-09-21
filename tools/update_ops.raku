@@ -432,6 +432,7 @@ sub opcode_details(@ops) {
                 ($op.adverbs<predeoptonepoint> ?? 8 !! 0)),";
             take "        $($op.adverbs<maycausedeopt> ?? '1' !! '0'),";
             take "        $($op.adverbs<logged> ?? '1' !! '0'),";
+            take "        $($op.adverbs<postlogged> ?? '1' !! '0'),";
             take "        $($op.adverbs<noinline> ?? '1' !! '0'),";
             take "        $(($op.adverbs<invokish> ?? 1 !! 0) +
                             ($op.adverbs<throwish> ?? 2 !! 0)),";

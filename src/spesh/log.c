@@ -194,7 +194,7 @@ void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMObject *value) {
     MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
     entry->kind = MVM_SPESH_LOG_RETURN;
     entry->id = cid;
-    if (value) {
+    if (value && tc->stack_top->prev->kind != MVM_CALLSTACK_RECORD_DISPATCH_RECORD) {
         MVM_ASSIGN_REF(tc, &(sl->common.header), entry->type.type, value->st->WHAT);
         entry->type.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_TYPE_FLAG_CONCRETE : 0;
     }
@@ -202,8 +202,7 @@ void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMObject *value) {
         entry->type.type = NULL;
         entry->type.flags = 0;
     }
-    entry->type.bytecode_offset = (caller->return_address - caller->static_info->body.bytecode)
-        - (caller->return_type == MVM_RETURN_VOID ? 4 : 6);
+    entry->type.bytecode_offset = (caller->return_address - 2) - caller->static_info->body.bytecode;
     commit_entry(tc, sl);
 }
 
