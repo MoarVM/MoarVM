@@ -505,7 +505,7 @@ static void rewrite_hlltype(MVMThreadContext *tc, MVMSpeshGraph *inlinee, MVMSpe
     ins->info = MVM_op_get_op(MVM_OP_sp_getspeshslot);
 }
 
-static void tweak_guard_deopt_idx(MVMSpeshIns *ins, MVMSpeshAnn *ann) {
+static void tweak_guard_deopt_idx(MVMSpeshIns *ins, MVMuint32 add) {
     /* Twiddle guard opcode to point to the correct deopt index */
     switch (ins->info->opcode) {
     case MVM_OP_sp_guard:
@@ -515,14 +515,14 @@ static void tweak_guard_deopt_idx(MVMSpeshIns *ins, MVMSpeshAnn *ann) {
     case MVM_OP_sp_guardnotobj:
     case MVM_OP_sp_guardhll:
     case MVM_OP_sp_rebless:
-        ins->operands[3].lit_ui32 = ann->data.deopt_idx;
+        ins->operands[3].lit_ui32 += add;
         break;
     case MVM_OP_sp_guardsf:
     case MVM_OP_sp_guardsfouter:
     case MVM_OP_sp_guardjustconc:
     case MVM_OP_sp_guardjusttype:
     case MVM_OP_sp_guardnonzero:
-        ins->operands[2].lit_ui32 = ann->data.deopt_idx;
+        ins->operands[2].lit_ui32 += add;
         break;
     default:
         break;
@@ -585,6 +585,7 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         while (ins) {
             MVMuint16    opcode = ins->info->opcode;
             MVMSpeshAnn *ann    = ins->annotations;
+            MVMint32 has_deopt = 0;
             while (ann) {
                 switch (ann->type) {
                 case MVM_SPESH_ANN_DEOPT_ONE_INS:
@@ -594,10 +595,10 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 case MVM_SPESH_ANN_DEOPT_SYNTH:
                 case MVM_SPESH_ANN_DEOPT_OSR:
                     ann->data.deopt_idx += inliner->num_deopt_addrs;
-                    tweak_guard_deopt_idx(ins, ann);
                     for (i = 0; i < MVM_VECTOR_ELEMS(regs_for_deopt); i++)
                         MVM_spesh_usages_add_deopt_usage_by_reg(tc, inliner,
                                 regs_for_deopt[i], ann->data.deopt_idx);
+                    has_deopt = 1;
                     break;
                 case MVM_SPESH_ANN_INLINE_START:
                 case MVM_SPESH_ANN_INLINE_END:
@@ -606,6 +607,8 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 }
                 ann = ann->next;
             }
+            if (has_deopt)
+                tweak_guard_deopt_idx(ins, inliner->num_deopt_addrs);
 
             if (ins->info->may_cause_deopt)
                 may_cause_deopt = 1;
