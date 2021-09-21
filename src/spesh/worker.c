@@ -27,11 +27,11 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
     tc->instance->speshworker_thread_id = tc->thread_obj->body.thread_id;
 
     MVMROOT3(tc, updated_static_frames, newly_seen_static_frames, previous_static_frames, {
+        size_t log_tell_before = 0;
         while (1) {
             MVMObject *log_obj;
             MVMuint64 start_time;
             unsigned int interval_id;
-            size_t log_tell_before = 0;
             MVMint64 *overview_data = NULL;
 
             MVMObject *overview_subscription_packet = NULL;
