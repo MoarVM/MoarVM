@@ -132,12 +132,12 @@ void MVM_callsite_mark(MVMThreadContext *tc, MVMCallsite *cs, MVMGCWorklist *wor
 }
 
 /* Destroy a callsite, freeing the memory associated with it. */
-void MVM_callsite_destroy(MVMCallsite *cs) {
-    if (cs->flag_count)
-        MVM_free(cs->arg_flags);
+void MVM_callsite_destroy(MVMThreadContext *tc, MVMCallsite *cs) {
     if (cs->arg_names)
-        MVM_free(cs->arg_names);
-    MVM_free(cs);
+        MVM_fixed_size_free(tc, tc->instance->fsa, MVM_callsite_num_nameds(tc, cs) * sizeof(MVMString *), cs->arg_names);
+    if (cs->flag_count)
+        MVM_fixed_size_free(tc, tc->instance->fsa, cs->flag_count, cs->arg_flags);
+    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMCallsite), cs);
 }
 
 /* Copies the named args of one callsite into another. */
@@ -145,8 +145,13 @@ void copy_nameds(MVMThreadContext *tc, MVMCallsite *to, const MVMCallsite *from)
     if (from->arg_names) {
         MVMuint32 num_names = MVM_callsite_num_nameds(tc, from);
         size_t memory_area = num_names * sizeof(MVMString *);
-        to->arg_names = MVM_malloc(memory_area);
-        memcpy(to->arg_names, from->arg_names, memory_area);
+        if (memory_area > 0) {
+            to->arg_names = MVM_fixed_size_alloc(tc, tc->instance->fsa, memory_area);
+            memcpy(to->arg_names, from->arg_names, memory_area);
+        }
+        else {
+            to->arg_names = NULL;
+        }
     }
     else {
         to->arg_names = NULL;
@@ -155,10 +160,10 @@ void copy_nameds(MVMThreadContext *tc, MVMCallsite *to, const MVMCallsite *from)
 
 /* Copy a callsite. */
 MVMCallsite * MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
-    MVMCallsite *copy = MVM_malloc(sizeof(MVMCallsite));
+    MVMCallsite *copy = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMCallsite));
 
     if (cs->flag_count) {
-        copy->arg_flags =  MVM_malloc(cs->flag_count);
+        copy->arg_flags = MVM_fixed_size_alloc(tc, tc->instance->fsa, cs->flag_count);
         memcpy(copy->arg_flags, cs->arg_flags, cs->flag_count);
     }
 
@@ -217,10 +222,11 @@ MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr,
                 /* Got a match! If we were asked to steal the callsite we were passed,
                  * then we should free it. */
                 if (steal) {
+                    if (cs->arg_names)
+                        MVM_fixed_size_free(tc, tc->instance->fsa, num_nameds * sizeof(MVMString *), cs->arg_names);
                     if (num_flags)
-                        MVM_free(cs->arg_flags);
-                    MVM_free(cs->arg_names);
-                    MVM_free(cs);
+                        MVM_fixed_size_free(tc, tc->instance->fsa, num_flags, cs->arg_flags);
+                    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMCallsite), cs);
                 }
                 *cs_ptr = interns->by_arity[num_flags][i];
                 found = 1;
@@ -310,6 +316,7 @@ static int is_common(MVMCallsite *cs) {
            cs == &obj_obj_obj_callsite;
 }
 void MVM_callsite_cleanup_interns(MVMInstance *instance) {
+    MVMThreadContext *tc = instance->main_thread;
     MVMCallsiteInterns *interns = instance->callsite_interns;
     MVMuint32 i;
     for (i = 0; i <= interns->max_arity; i++) {
@@ -320,7 +327,7 @@ void MVM_callsite_cleanup_interns(MVMInstance *instance) {
             for (j = 0; j < callsite_count; j++) {
                 MVMCallsite *callsite = callsites[j];
                 if (!is_common(callsite))
-                    MVM_callsite_destroy(callsite);
+                    MVM_callsite_destroy(tc, callsite);
             }
             MVM_fixed_size_free(instance->main_thread, instance->fsa,
                     callsite_count * sizeof(MVMCallsite *),
@@ -346,12 +353,12 @@ MVMCallsite * MVM_callsite_drop_positionals(MVMThreadContext *tc, MVMCallsite *c
         MVM_exception_throw_adhoc(tc, "Cannot transform a callsite with flattening args");
 
     /* Allocate a new callsite and set it up. */
-    MVMCallsite *new_callsite = MVM_malloc(sizeof(MVMCallsite));
+    MVMCallsite *new_callsite = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMCallsite));
     new_callsite->num_pos = cs->num_pos - count;
     new_callsite->flag_count = cs->flag_count - count;
     new_callsite->arg_count = cs->arg_count - count;
     new_callsite->arg_flags = new_callsite->flag_count
-        ? MVM_malloc(new_callsite->flag_count)
+        ? MVM_fixed_size_alloc(tc, tc->instance->fsa, new_callsite->flag_count)
         : NULL;
     MVMuint32 from, to = 0;
     for (from = 0; from < cs->flag_count; from++) {
@@ -381,11 +388,11 @@ MVMCallsite * MVM_callsite_insert_positional(MVMThreadContext *tc, MVMCallsite *
         MVM_exception_throw_adhoc(tc, "Cannot transform a callsite with flattening args");
 
     /* Allocate a new callsite and set it up. */
-    MVMCallsite *new_callsite = MVM_malloc(sizeof(MVMCallsite));
+    MVMCallsite *new_callsite = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMCallsite));
     new_callsite->num_pos = cs->num_pos + 1;
     new_callsite->flag_count = cs->flag_count + 1;
     new_callsite->arg_count = cs->arg_count + 1;
-    new_callsite->arg_flags = MVM_malloc(new_callsite->flag_count);
+    new_callsite->arg_flags = MVM_fixed_size_alloc(tc, tc->instance->fsa, new_callsite->flag_count);
     MVMuint32 from, to = 0;
     for (from = 0; from < cs->flag_count; from++) {
         if (from == idx) {

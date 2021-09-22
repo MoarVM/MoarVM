@@ -55,7 +55,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
                 capture->body.callsite->flag_count * sizeof(MVMRegister),
                 capture->body.args);
     if (capture->body.callsite && !capture->body.callsite->is_interned)
-        MVM_callsite_destroy(capture->body.callsite);
+        MVM_callsite_destroy(tc, capture->body.callsite);
 }
 
 static const MVMStorageSpec storage_spec = {

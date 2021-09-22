@@ -116,7 +116,7 @@ void MVM_callsite_mark(MVMThreadContext *tc, MVMCallsite *cs, MVMGCWorklist *wor
         MVMHeapSnapshotState *snapshot);
 void MVM_callsite_mark_interns(MVMThreadContext *tc, MVMGCWorklist *worklist,
         MVMHeapSnapshotState *snapshot);
-void MVM_callsite_destroy(MVMCallsite *cs);
+void MVM_callsite_destroy(MVMThreadContext *tc, MVMCallsite *cs);
 void MVM_callsite_cleanup_interns(MVMInstance *instance);
 
 /* Callsite transformations. */

@@ -73,7 +73,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     for (i = 0; i < body->num_callsites; i++) {
         MVMCallsite *cs = body->callsites[i];
         if (!cs->is_interned)
-            MVM_callsite_destroy(cs);
+            MVM_callsite_destroy(tc, cs);
     }
 
     uv_mutex_destroy(body->inline_tweak_mutex);

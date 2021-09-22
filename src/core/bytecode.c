@@ -848,7 +848,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
         callsites[i] = MVM_malloc(sizeof(MVMCallsite));
         callsites[i]->flag_count = elems;
         if (elems)
-            callsites[i]->arg_flags = MVM_malloc(elems * sizeof(MVMCallsiteEntry));
+            callsites[i]->arg_flags = MVM_fixed_size_alloc(tc, tc->instance->fsa, elems);
         else
             callsites[i]->arg_flags = NULL;
 
