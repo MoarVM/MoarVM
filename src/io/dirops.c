@@ -78,7 +78,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
          * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
         if (!GetFullPathNameW(wpathname, 4096, abs_dirname, &lpp_part)) {
             MVM_free(wpathname);
-            MVM_exception_throw_adhoc(tc, "Directory path is wrong: %d", GetLastError());
+            MVM_exception_throw_adhoc(tc, "Directory path is wrong: %lu", GetLastError());
         }
 
         MVM_free(wpathname);
@@ -93,7 +93,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
         DWORD error = GetLastError();
         if (error != ERROR_ALREADY_EXISTS) {
             MVM_free(wpathname);
-            MVM_exception_throw_adhoc(tc, "Failed to mkdir: %d", error);
+            MVM_exception_throw_adhoc(tc, "Failed to mkdir: %lu", error);
         }
     }
     MVM_free(wpathname);
@@ -229,7 +229,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
             if (!GetFullPathNameW(wname, 4096, abs_dirname, &lpp_part)) {
                 MVM_free(data);
                 MVM_free(wname);
-                MVM_exception_throw_adhoc(tc, "Directory path is wrong: %d", GetLastError());
+                MVM_exception_throw_adhoc(tc, "Directory path is wrong: %lu", GetLastError());
             }
             MVM_free(wname);
 
@@ -288,7 +288,6 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMIODirIter *data   = (MVMIODirIter *)handle->body.data;
 #ifdef _WIN32
     MVMString *result;
-    TCHAR dir[MAX_PATH];
     WIN32_FIND_DATAW ffd;
     char *dir_str;
 
@@ -299,7 +298,7 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
         HANDLE hFind = FindFirstFileW(data->dir_name, &ffd);
 
         if (hFind == INVALID_HANDLE_VALUE) {
-            MVM_exception_throw_adhoc(tc, "read from dirhandle failed: %d", GetLastError());
+            MVM_exception_throw_adhoc(tc, "read from dirhandle failed: %lu", GetLastError());
         }
 
         data->dir_handle = hFind;
@@ -351,7 +350,7 @@ void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
 
     if (data->dir_handle != INVALID_HANDLE_VALUE) {
         if (!FindClose(data->dir_handle))
-            MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %d", GetLastError());
+            MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %lu", GetLastError());
     }
     data->dir_handle = NULL;
 #else
