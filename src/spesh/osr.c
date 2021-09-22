@@ -125,16 +125,31 @@ void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
     MVMint32 seq_nr = tc->cur_frame->sequence_nr;
     if (seq_nr != tc->osr_hunt_frame_nr || num_cands != tc->osr_hunt_num_spesh_candidates) {
         /* Provided OSR is enabled... */
-        if (tc->instance->spesh_osr_enabled
-            /* and no snapshots were taken, otherwise we'd invalidate the positions */
-            && (!tc->cur_frame->extra || !tc->cur_frame->extra->caller_info_needed)
-        ) {
-            /* Check if there's a candidate available and install it if so. */
-            MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
-                spesh->body.spesh_arg_guard,
-                tc->cur_frame->params.arg_info, NULL);
-            if (ag_result >= 0)
-                perform_osr(tc, spesh->body.spesh_candidates[ag_result]);
+        if (tc->instance->spesh_osr_enabled) {
+            /* ...and no snapshots were taken, otherwise we'd invalidate the positions */
+            if (!tc->cur_frame->extra || !tc->cur_frame->extra->caller_info_needed) {
+                /* Check if there's a candidate available and install it if so. */
+                MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
+                    spesh->body.spesh_arg_guard,
+                    tc->cur_frame->params.arg_info, NULL);
+                if (ag_result >= 0) {
+                    perform_osr(tc, spesh->body.spesh_candidates[ag_result]);
+                }
+                else {
+#if MVM_LOG_OSR
+                fprintf(stderr, "Considered OSR but arg guard failed in '%s' (cuid: %s)\n",
+                    MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+                    MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
+                }
+            }
+            else {
+#if MVM_LOG_OSR
+                fprintf(stderr, "Unable to perform OSR due to caller info '%s' (cuid: %s)\n",
+                    MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+                    MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
+            }
         }
 
         /* Update state for avoiding checks in the common case. */
