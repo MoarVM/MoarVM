@@ -1043,28 +1043,40 @@ MVMObject * MVM_disp_program_record_index_lookup_table(MVMThreadContext *tc,
     return record->rec.values[result_value_index].tracked;
 }
 
-/* Record that we drop an argument from a capture. Also perform the drop,
+/* Record that we drop arguments from a capture. Also perform the drops,
  * resulting in a new capture without that argument. */
 MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 idx) {
+    return MVM_disp_program_record_capture_drop_args(tc, capture, idx, 1);
+}
+MVMObject * MVM_disp_program_record_capture_drop_args(MVMThreadContext *tc, MVMObject *capture,
+        MVMuint32 idx, MVMuint32 count) {
     /* Lookup the path to the incoming capture. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+
     CapturePath p;
     MVM_VECTOR_INIT(p.path, 8);
     calculate_capture_path(tc, record, capture, &p);
 
-    /* Calculate the new capture and add a record for it. */
-    MVMObject *new_capture = MVM_capture_drop_arg(tc, capture, idx);
-    MVMDispProgramRecordingCapture new_capture_record = {
-        .capture = new_capture,
-        .transformation = MVMDispProgramRecordingDrop,
-        .index = idx
-    };
-    MVM_VECTOR_INIT(new_capture_record.captures, 0);
-    MVMDispProgramRecordingCapture *update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
-    MVM_VECTOR_PUSH(update->captures, new_capture_record);
-    MVM_VECTOR_DESTROY(p.path);
+    /* Calculate the new capture and add the necessary records for it.
+     * We store one recording entry per dropped argument, but only the
+     * final entry actually has a MVMCapture allocated for it.
+     */
+    MVMObject *new_capture = MVM_capture_drop_args(tc, capture, idx, count);
+    for (MVMuint32 dropped_offs = 0; dropped_offs < count; dropped_offs++) {
+        MVMDispProgramRecordingCapture new_capture_record = {
+            .capture = dropped_offs == count - 1 ? new_capture : NULL,
+            .transformation = MVMDispProgramRecordingDrop,
+            .index = idx
+        };
 
+        MVM_VECTOR_INIT(new_capture_record.captures, 0);
+        MVMDispProgramRecordingCapture *update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
+        MVM_VECTOR_PUSH(update->captures, new_capture_record);
+        MVM_VECTOR_PUSH(p.path, &update->captures[MVM_VECTOR_ELEMS(update->captures) - 1]);
+    }
+
+    MVM_VECTOR_DESTROY(p.path);
     /* Evaluate to the new capture, for the running dispatch function. */
     return new_capture;
 }
@@ -2040,7 +2052,15 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
     MVMuint32 untouched_tail_length = initial_callsite->flag_count;
     MVMuint32 i;
     for (i = 0; i < MVM_VECTOR_ELEMS(p.path); i++) {
-        MVMCallsite *cur_callsite = ((MVMCapture *)p.path[i]->capture)->body.callsite;
+        MVMCapture *cur_capture = NULL;
+        MVMuint32 skipped_amount = -1;
+        i--;
+        while (!cur_capture) {
+            i++;
+            cur_capture = (MVMCapture *)p.path[i]->capture;
+            skipped_amount++;
+        }
+        MVMCallsite *cur_callsite = cur_capture->body.callsite;
         switch (p.path[i]->transformation) {
             case MVMDispProgramRecordingInsert: {
                 /* Given:
@@ -2059,8 +2079,17 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
                  *   arg1, arg2, arg3, arg4
                  * If we drop arg2 (index 1), then we get:
                  *  arg1, arg3, arg4
-                 * Thus the untouched tail is 2, generally (capture length - index). */
-                MVMuint32 locally_untouched = cur_callsite->flag_count - p.path[i]->index;
+                 * Thus the untouched tail is 2, generally (capture length - index).
+                 *
+                 * When we have skipped multiple for the same index:
+                 *  arg1, arg2, arg3, arg4, arg5
+                 * If we drop arg2 and arg3 (index 1 twice), then we get:
+                 *  arg1, arg4, arg5
+                 * Thus the untouched tail is 2, generally (capture length - (index + skipped))
+                 * It is as if we had only dropped the last argument, which is at the index
+                 *  index + skipped
+                 */
+                MVMuint32 locally_untouched = cur_callsite->flag_count - (p.path[i]->index + skipped_amount);
                 if (locally_untouched < untouched_tail_length)
                     untouched_tail_length = locally_untouched;
                 break;
