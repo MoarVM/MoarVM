@@ -3185,7 +3185,11 @@ static void debugserver_worker(MVMThreadContext *tc, MVMArgs arg_info) {
         }
 
         listensocket = socket(res->ai_family, SOCK_STREAM, 0);
+#ifdef _WIN32
+        if (listensocket == INVALID_SOCKET)
+#else
         if (listensocket == -1)
+#endif
             MVM_panic(1, "Debugserver: Could not create file descriptor for socket: %s", strerror(errno));
 
 #ifndef _WIN32
