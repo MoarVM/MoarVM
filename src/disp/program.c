@@ -2679,300 +2679,324 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
 }
 
 /* Interpret a dispatch program. */
-#define GET_ARG MVMRegister val = args->source[args->map[op->arg_guard.arg_idx]]
+#if MVM_CGOTO
+#define DISPATCH(op)
+#define OP(name) name
+#define NEXT do { \
+        op = dp->ops[i++];      \
+        goto *LABELS[op.code];  \
+    } while(0)
+#else
+#define DISPATCH(op) switch (op)
+#define OP(name) case name
+#define NEXT break
+#endif
+#define GET_ARG MVMRegister val = args->source[args->map[op.arg_guard.arg_idx]]
 MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
         MVMCallStackDispatchRun *record, MVMint32 spesh_cid, MVMuint32 bytecode_offset,
         MVMuint32 dp_index) {
-    MVMArgs *args = &(record->arg_info);
-    MVMuint32 i;
-    MVMArgs invoke_args;
+#if MVM_CGOTO
+#include "labels.h"
+#endif
 
-    for (i = 0; i < dp->num_ops; i++) {
-        MVMDispProgramOp *op = &(dp->ops[i]);
-        switch (op->code) {
+    MVMArgs *args = &(record->arg_info);
+    MVMuint32 i = 0 ;
+    MVMArgs invoke_args;
+    MVMDispProgramOp op;
+#if !MVM_CGOTO
+    while(i < dp->num_ops)
+#endif
+    {
+#if !MVM_CGOTO
+        op = dp->ops[i++];
+#endif
+        DISPATCH (op.code) {
+#if MVM_CGOTO
+               NEXT;
+#endif
             /* Resumption related ops. */
-            case MVMDispOpcodeStartResumption:
+            OP(MVMDispOpcodeStartResumption):
                 record->resumption_level = 0;
-                break;
-            case MVMDispOpcodeNextResumption:
+                NEXT;
+            OP(MVMDispOpcodeNextResumption):
                 record->resumption_level++;
-                break;
-            case MVMDispOpcodeResumeTopmost:
+                NEXT;
+            OP(MVMDispOpcodeResumeTopmost):
                 if (!MVM_disp_resume_find_topmost(tc, &(record->resumption_data), record->resumption_level))
                     goto rejection;
-                if (record->resumption_data.resumption->disp != op->resume.disp)
+                if (record->resumption_data.resumption->disp != op.resume.disp)
                     goto rejection;
-                break;
-            case MVMDispOpcodeResumeCaller:
+                NEXT;
+            OP(MVMDispOpcodeResumeCaller):
                 if (!MVM_disp_resume_find_caller(tc, &(record->resumption_data), record->resumption_level))
                     goto rejection;
-                if (record->resumption_data.resumption->disp != op->resume.disp)
+                if (record->resumption_data.resumption->disp != op.resume.disp)
                     goto rejection;
-                break;
-            case MVMDispOpcodeGuardResumeInitCallsite: {
-                MVMCallsite *expected = dp->constants[op->resume_init_callsite.callsite_idx].cs;
+                NEXT;
+            OP(MVMDispOpcodeGuardResumeInitCallsite): {
+                MVMCallsite *expected = dp->constants[op.resume_init_callsite.callsite_idx].cs;
                 if (record->resumption_data.resumption->init_callsite != expected)
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardNoResumptionTopmost:
+            OP(MVMDispOpcodeGuardNoResumptionTopmost):
                 if (MVM_disp_resume_find_topmost(tc, &(record->resumption_data), record->resumption_level))
                     goto rejection;
-		break;
-            case MVMDispOpcodeGuardNoResumptionCaller:
+		        NEXT;
+            OP(MVMDispOpcodeGuardNoResumptionCaller):
                 if (MVM_disp_resume_find_caller(tc, &(record->resumption_data), record->resumption_level))
                     goto rejection;
-		break;
-            case MVMDispOpcodeUpdateResumeState:
-                *(record->resumption_data.state_ptr) = record->temps[op->res_value.temp].o;
-                break;
+		        NEXT;
+            OP(MVMDispOpcodeUpdateResumeState):
+                *(record->resumption_data.state_ptr) = record->temps[op.res_value.temp].o;
+                NEXT;
             /* Argument guard ops. */
-            case MVMDispOpcodeGuardArgType: {
+            OP(MVMDispOpcodeGuardArgType): {
                 GET_ARG;
-                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op->arg_guard.checkee])
+                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op.arg_guard.checkee])
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardArgTypeConc: {
+            OP(MVMDispOpcodeGuardArgTypeConc): {
                 GET_ARG;
-                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op->arg_guard.checkee]
+                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op.arg_guard.checkee]
                         || !IS_CONCRETE(val.o))
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardArgTypeTypeObject: {
+            OP(MVMDispOpcodeGuardArgTypeTypeObject): {
                 GET_ARG;
-                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op->arg_guard.checkee]
+                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op.arg_guard.checkee]
                         || IS_CONCRETE(val.o))
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardArgConc: {
+            OP(MVMDispOpcodeGuardArgConc): {
                 GET_ARG;
                 if (!IS_CONCRETE(val.o))
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardArgTypeObject: {
+            OP(MVMDispOpcodeGuardArgTypeObject): {
                 GET_ARG;
                 if (IS_CONCRETE(val.o))
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardArgLiteralObj: {
+            OP(MVMDispOpcodeGuardArgLiteralObj): {
                 GET_ARG;
-                if (val.o != (MVMObject *)dp->gc_constants[op->arg_guard.checkee])
+                if (val.o != (MVMObject *)dp->gc_constants[op.arg_guard.checkee])
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardArgLiteralStr: {
+            OP(MVMDispOpcodeGuardArgLiteralStr): {
                 GET_ARG;
-                if (!MVM_string_equal(tc, val.s, (MVMString *)dp->gc_constants[op->arg_guard.checkee]))
+                if (!MVM_string_equal(tc, val.s, (MVMString *)dp->gc_constants[op.arg_guard.checkee]))
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardArgLiteralInt: {
+            OP(MVMDispOpcodeGuardArgLiteralInt): {
                 GET_ARG;
-                if (val.i64 != dp->constants[op->arg_guard.checkee].i64)
+                if (val.i64 != dp->constants[op.arg_guard.checkee].i64)
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardArgLiteralNum: {
+            OP(MVMDispOpcodeGuardArgLiteralNum): {
                 GET_ARG;
-                if (val.n64 != dp->constants[op->arg_guard.checkee].n64)
+                if (val.n64 != dp->constants[op.arg_guard.checkee].n64)
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardArgNotLiteralObj: {
+            OP(MVMDispOpcodeGuardArgNotLiteralObj): {
                 GET_ARG;
-                if (val.o == (MVMObject *)dp->gc_constants[op->arg_guard.checkee])
+                if (val.o == (MVMObject *)dp->gc_constants[op.arg_guard.checkee])
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardArgHLL: {
+            OP(MVMDispOpcodeGuardArgHLL): {
                 GET_ARG;
-                if (STABLE(val.o)->hll_owner != dp->constants[op->arg_guard.checkee].hll)
+                if (STABLE(val.o)->hll_owner != dp->constants[op.arg_guard.checkee].hll)
                     goto rejection;
-                break;
+                NEXT;
             }
 
             /* Temporary guard ops. */
-            case MVMDispOpcodeGuardTempType: {
-                MVMRegister val = record->temps[op->temp_guard.temp];
-                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op->temp_guard.checkee])
+            OP(MVMDispOpcodeGuardTempType): {
+                MVMRegister val = record->temps[op.temp_guard.temp];
+                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op.temp_guard.checkee])
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardTempTypeConc: {
-                MVMRegister val = record->temps[op->temp_guard.temp];
-                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op->temp_guard.checkee]
+            OP(MVMDispOpcodeGuardTempTypeConc): {
+                MVMRegister val = record->temps[op.temp_guard.temp];
+                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op.temp_guard.checkee]
                         || !IS_CONCRETE(val.o))
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardTempTypeTypeObject: {
-                MVMRegister val = record->temps[op->temp_guard.temp];
-                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op->temp_guard.checkee]
+            OP(MVMDispOpcodeGuardTempTypeTypeObject): {
+                MVMRegister val = record->temps[op.temp_guard.temp];
+                if (STABLE(val.o) != (MVMSTable *)dp->gc_constants[op.temp_guard.checkee]
                         || IS_CONCRETE(val.o))
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardTempConc: {
-                MVMRegister val = record->temps[op->temp_guard.temp];
+            OP(MVMDispOpcodeGuardTempConc): {
+                MVMRegister val = record->temps[op.temp_guard.temp];
                 if (!IS_CONCRETE(val.o))
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardTempTypeObject: {
-                MVMRegister val = record->temps[op->temp_guard.temp];
+            OP(MVMDispOpcodeGuardTempTypeObject): {
+                MVMRegister val = record->temps[op.temp_guard.temp];
                 if (IS_CONCRETE(val.o))
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardTempLiteralObj: {
-                MVMRegister val = record->temps[op->temp_guard.temp];
-                if (val.o != (MVMObject *)dp->gc_constants[op->temp_guard.checkee])
+            OP(MVMDispOpcodeGuardTempLiteralObj): {
+                MVMRegister val = record->temps[op.temp_guard.temp];
+                if (val.o != (MVMObject *)dp->gc_constants[op.temp_guard.checkee])
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardTempLiteralStr: {
-                MVMRegister val = record->temps[op->temp_guard.temp];
-                if (!MVM_string_equal(tc, val.s, (MVMString *)dp->gc_constants[op->temp_guard.checkee]))
+            OP(MVMDispOpcodeGuardTempLiteralStr): {
+                MVMRegister val = record->temps[op.temp_guard.temp];
+                if (!MVM_string_equal(tc, val.s, (MVMString *)dp->gc_constants[op.temp_guard.checkee]))
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardTempLiteralInt: {
-                MVMRegister val = record->temps[op->temp_guard.temp];
-                if (val.i64 != dp->constants[op->temp_guard.checkee].i64)
+            OP(MVMDispOpcodeGuardTempLiteralInt): {
+                MVMRegister val = record->temps[op.temp_guard.temp];
+                if (val.i64 != dp->constants[op.temp_guard.checkee].i64)
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardTempLiteralNum: {
-                MVMRegister val = record->temps[op->temp_guard.temp];
-                if (val.n64 != dp->constants[op->temp_guard.checkee].n64)
+            OP(MVMDispOpcodeGuardTempLiteralNum): {
+                MVMRegister val = record->temps[op.temp_guard.temp];
+                if (val.n64 != dp->constants[op.temp_guard.checkee].n64)
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardTempNotLiteralObj: {
-                MVMRegister val = record->temps[op->temp_guard.temp];
-                if (val.o == (MVMObject *)dp->gc_constants[op->temp_guard.checkee])
+            OP(MVMDispOpcodeGuardTempNotLiteralObj): {
+                MVMRegister val = record->temps[op.temp_guard.temp];
+                if (val.o == (MVMObject *)dp->gc_constants[op.temp_guard.checkee])
                     goto rejection;
-                break;
+                NEXT;
             }
-            case MVMDispOpcodeGuardTempHLL: {
-                MVMRegister val = record->temps[op->temp_guard.temp];
-                if (STABLE(val.o)->hll_owner != dp->constants[op->temp_guard.checkee].hll)
+            OP(MVMDispOpcodeGuardTempHLL): {
+                MVMRegister val = record->temps[op.temp_guard.temp];
+                if (STABLE(val.o)->hll_owner != dp->constants[op.temp_guard.checkee].hll)
                     goto rejection;
-                break;
+                NEXT;
             }
 
             /* Load ops. */
-            case MVMDispOpcodeLoadCaptureValue:
-                record->temps[op->load.temp] = args->source[args->map[op->load.idx]];
-                break;
-            case MVMDispOpcodeLoadResumeInitValue:
-                record->temps[op->load.temp] = MVM_disp_resume_get_init_arg(tc,
-                        &(record->resumption_data), op->load.idx);
-                break;
-            case MVMDispOpcodeLoadResumeState:
-                record->temps[op->load.temp].o = *(record->resumption_data.state_ptr);
-                break;
-            case MVMDispOpcodeLoadConstantObjOrStr:
-                record->temps[op->load.temp].o = (MVMObject *)dp->gc_constants[op->load.idx];
-                break;
-            case MVMDispOpcodeLoadConstantInt:
-                record->temps[op->load.temp].i64 = dp->constants[op->load.idx].i64;
-                break;
-            case MVMDispOpcodeLoadConstantNum:
-                record->temps[op->load.temp].n64 = dp->constants[op->load.idx].n64;
-                break;
-            case MVMDispOpcodeLoadAttributeObj: {
+            OP(MVMDispOpcodeLoadCaptureValue):
+                record->temps[op.load.temp] = args->source[args->map[op.load.idx]];
+                NEXT;
+            OP(MVMDispOpcodeLoadResumeInitValue):
+                record->temps[op.load.temp] = MVM_disp_resume_get_init_arg(tc,
+                        &(record->resumption_data), op.load.idx);
+                NEXT;
+            OP(MVMDispOpcodeLoadResumeState):
+                record->temps[op.load.temp].o = *(record->resumption_data.state_ptr);
+                NEXT;
+            OP(MVMDispOpcodeLoadConstantObjOrStr):
+                record->temps[op.load.temp].o = (MVMObject *)dp->gc_constants[op.load.idx];
+                NEXT;
+            OP(MVMDispOpcodeLoadConstantInt):
+                record->temps[op.load.temp].i64 = dp->constants[op.load.idx].i64;
+                NEXT;
+            OP(MVMDispOpcodeLoadConstantNum):
+                record->temps[op.load.temp].n64 = dp->constants[op.load.idx].n64;
+                NEXT;
+            OP(MVMDispOpcodeLoadAttributeObj): {
                 MVMObject *o = MVM_p6opaque_read_object(tc,
-                        record->temps[op->load.temp].o, op->load.idx);
-                record->temps[op->load.temp].o = o ? o : tc->instance->VMNull;
-                break;
+                        record->temps[op.load.temp].o, op.load.idx);
+                record->temps[op.load.temp].o = o ? o : tc->instance->VMNull;
+                NEXT;
             }
-            case MVMDispOpcodeLoadAttributeInt:
-                record->temps[op->load.temp].i64 = MVM_p6opaque_read_int64(tc,
-                        record->temps[op->load.temp].o, op->load.idx);
-                break;
-            case MVMDispOpcodeLoadAttributeNum:
-                record->temps[op->load.temp].n64 = MVM_p6opaque_read_num64(tc,
-                        record->temps[op->load.temp].o, op->load.idx);
-                break;
-            case MVMDispOpcodeLoadAttributeStr:
-                record->temps[op->load.temp].s = MVM_p6opaque_read_str(tc,
-                        record->temps[op->load.temp].o, op->load.idx);
-                break;
-            case MVMDispOpcodeLookup:
-                record->temps[op->load.temp].o = MVM_repr_at_key_o(tc,
-                        record->temps[op->load.temp].o,
-                        record->temps[op->load.idx].s);
-                break;
-            case MVMDispOpcodeSet:
-                record->temps[op->load.temp] = record->temps[op->load.idx];
-                break;
+            OP(MVMDispOpcodeLoadAttributeInt):
+                record->temps[op.load.temp].i64 = MVM_p6opaque_read_int64(tc,
+                        record->temps[op.load.temp].o, op.load.idx);
+                NEXT;
+            OP(MVMDispOpcodeLoadAttributeNum):
+                record->temps[op.load.temp].n64 = MVM_p6opaque_read_num64(tc,
+                        record->temps[op.load.temp].o, op.load.idx);
+                NEXT;
+            OP(MVMDispOpcodeLoadAttributeStr):
+                record->temps[op.load.temp].s = MVM_p6opaque_read_str(tc,
+                        record->temps[op.load.temp].o, op.load.idx);
+                NEXT;
+            OP(MVMDispOpcodeLookup):
+                record->temps[op.load.temp].o = MVM_repr_at_key_o(tc,
+                        record->temps[op.load.temp].o,
+                        record->temps[op.load.idx].s);
+                NEXT;
+            OP(MVMDispOpcodeSet):
+                record->temps[op.load.temp] = record->temps[op.load.idx];
+                NEXT;
 
             /* Value result ops. */
-            case MVMDispOpcodeResultValueObj: {
+            OP(MVMDispOpcodeResultValueObj): {
                 MVM_args_set_dispatch_result_obj(tc, tc->cur_frame,
-                        record->temps[op->res_value.temp].o);
+                        record->temps[op.res_value.temp].o);
                 MVM_callstack_unwind_dispatch_run(tc);
                 if (spesh_cid)
                     MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
                         bytecode_offset, dp_index);
-                break;
+                return 1;
             }
-            case MVMDispOpcodeResultValueStr: {
+            OP(MVMDispOpcodeResultValueStr): {
                 MVM_args_set_dispatch_result_str(tc, tc->cur_frame,
-                        record->temps[op->res_value.temp].s);
+                        record->temps[op.res_value.temp].s);
                 MVM_callstack_unwind_dispatch_run(tc);
                 if (spesh_cid)
                     MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
                         bytecode_offset, dp_index);
-                break;
+                return 1;
             }
-            case MVMDispOpcodeResultValueInt: {
+            OP(MVMDispOpcodeResultValueInt): {
                 MVM_args_set_dispatch_result_int(tc, tc->cur_frame,
-                        record->temps[op->res_value.temp].i64);
+                        record->temps[op.res_value.temp].i64);
                 MVM_callstack_unwind_dispatch_run(tc);
                 if (spesh_cid)
                     MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
                         bytecode_offset, dp_index);
-                break;
+                return 1;
             }
-            case MVMDispOpcodeResultValueNum: {
+            OP(MVMDispOpcodeResultValueNum): {
                 MVM_args_set_dispatch_result_num(tc, tc->cur_frame,
-                        record->temps[op->res_value.temp].n64);
+                        record->temps[op.res_value.temp].n64);
                 MVM_callstack_unwind_dispatch_run(tc);
                 if (spesh_cid)
                     MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
                         bytecode_offset, dp_index);
-                break;
+                return 1;
             }
 
             /* Bind control to resumption callstack record. */
-            case MVMDispOpcodeBindFailureToResumption:
+            OP(MVMDispOpcodeBindFailureToResumption):
                 MVM_callstack_allocate_bind_control_failure_only(tc,
-                    op->bind_control_resumption.failure_flag);
-                break;
-            case MVMDispOpcodeBindCompletionToResumption:
+                    op.bind_control_resumption.failure_flag);
+                NEXT;
+            OP(MVMDispOpcodeBindCompletionToResumption):
                 MVM_callstack_allocate_bind_control(tc,
-                    op->bind_control_resumption.failure_flag,
-                    op->bind_control_resumption.success_flag);
-                break;
+                    op.bind_control_resumption.failure_flag,
+                    op.bind_control_resumption.success_flag);
+                NEXT;
 
             /* Args preparation for invocation result. */
-            case MVMDispOpcodeUseArgsTail:
-                invoke_args.callsite = dp->constants[op->use_arg_tail.callsite_idx].cs;
+            OP(MVMDispOpcodeUseArgsTail):
+                invoke_args.callsite = dp->constants[op.use_arg_tail.callsite_idx].cs;
                 invoke_args.source = args->source;
-                invoke_args.map = args->map + op->use_arg_tail.skip_args;
-                break;
-            case MVMDispOpcodeCopyArgsTail: {
-                invoke_args.callsite = dp->constants[op->copy_arg_tail.callsite_idx].cs;
+                invoke_args.map = args->map + op.use_arg_tail.skip_args;
+                NEXT;
+            OP(MVMDispOpcodeCopyArgsTail): {
+                invoke_args.callsite = dp->constants[op.copy_arg_tail.callsite_idx].cs;
                 invoke_args.source = record->temps + dp->first_args_temporary;
                 invoke_args.map = MVM_args_identity_map(tc, invoke_args.callsite);
-                MVMuint32 to_copy = op->copy_arg_tail.tail_args;
+                MVMuint32 to_copy = op.copy_arg_tail.tail_args;
                 if (to_copy > 0) {
                     MVMuint32 source_idx = args->callsite->flag_count - to_copy;
                     MVMuint32 target_idx = dp->first_args_temporary +
@@ -2983,13 +3007,13 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 }
                 /* We need to stash this for correct marking of temporaries. */
                 record->temp_mark_callsite = invoke_args.callsite;
-                break;
+                NEXT;
             }
 
             /* Invocation results. */
-            case MVMDispOpcodeResultBytecode: {
+            OP(MVMDispOpcodeResultBytecode): {
                 record->chosen_dp = dp;
-                MVMCode *code = (MVMCode *)record->temps[op->res_code.temp_invokee].o;
+                MVMCode *code = (MVMCode *)record->temps[op.res_code.temp_invokee].o;
                 if (spesh_cid) {
                     MVMROOT(tc, code, {
                         MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
@@ -2999,25 +3023,25 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                     });
                 }
                 MVM_frame_dispatch(tc, code, invoke_args, -1);
-                break;
+                return 1;
             }
-            case MVMDispOpcodeResultCFunction: {
+            OP(MVMDispOpcodeResultCFunction): {
                 record->chosen_dp = dp;
                 if (spesh_cid)
                     MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
                         bytecode_offset, dp_index);
-                MVMCFunction *wrapper = (MVMCFunction *)record->temps[op->res_code.temp_invokee].o;
+                MVMCFunction *wrapper = (MVMCFunction *)record->temps[op.res_code.temp_invokee].o;
                 wrapper->body.func(tc, invoke_args);
                 MVM_callstack_unwind_dispatch_run(tc);
-                break;
+                return 1;
             }
-
+#if !MVM_CGOTO
             default:
-                MVM_oops(tc, "Unknown dispatch program op %d", op->code);
+                MVM_oops(tc, "Unknown dispatch program op %d", op.code);
+#endif
         }
     }
-
-    return 1;
+    MVM_oops(tc, "Should not reach end of dispatch program without a result");
 rejection:
     return 0;
 }
