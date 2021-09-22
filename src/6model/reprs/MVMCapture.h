@@ -42,6 +42,6 @@ void MVM_capture_arg_by_flag_index(MVMThreadContext *tc, MVMObject *capture, MVM
 MVMint64 MVM_capture_is_literal_arg(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx);
 
 /* Operations for deriving a new MVMCapture from an existing one. */
-MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx);
+MVMObject * MVM_capture_drop_args(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx, MVMuint32 count);
 MVMObject * MVM_capture_insert_arg(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx,
         MVMCallsiteFlags kind, MVMRegister value);

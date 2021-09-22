@@ -339,9 +339,9 @@ MVMint64 MVM_capture_is_literal_arg(MVMThreadContext *tc, MVMObject *capture_obj
 
 /* Produce a new capture by taking the current one and dropping the specified
  * positional argument from it. */
-MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
+MVMObject * MVM_capture_drop_args(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx, MVMuint32 count) {
     MVMCapture *capture = validate_capture(tc, capture_obj);
-    if (idx >= capture->body.callsite->num_pos)
+    if (idx + count > capture->body.callsite->num_pos)
         MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
 
     /* Allocate a new capture before we begin; this is the only GC allocation
@@ -351,8 +351,8 @@ MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture_obj, M
         new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
     });
 
-    /* We need a callsite without the argument that is being dropped. */
-    MVMCallsite *new_callsite = MVM_callsite_drop_positional(tc, capture->body.callsite, idx);
+    /* We need a callsite without the arguments that are being dropped. */
+    MVMCallsite *new_callsite = MVM_callsite_drop_positionals(tc, capture->body.callsite, idx, count);
 
     /* Form a new arguments buffer, dropping the specified argument. */
     MVMRegister *new_args;
@@ -361,7 +361,7 @@ MVMObject * MVM_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture_obj, M
             new_callsite->flag_count * sizeof(MVMRegister));
         MVMuint32 from, to = 0;
         for (from = 0; from < capture->body.callsite->flag_count; from++) {
-            if (from != idx) {
+            if (from < idx || from >= idx + count) {
                 new_args[to] = capture->body.args[from];
                 to++;
             }
