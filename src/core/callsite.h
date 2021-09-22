@@ -121,6 +121,7 @@ void MVM_callsite_cleanup_interns(MVMInstance *instance);
 
 /* Callsite transformations. */
 MVMCallsite * MVM_callsite_drop_positional(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx);
+MVMCallsite * MVM_callsite_drop_positionals(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx, MVMuint32 count);
 MVMCallsite * MVM_callsite_insert_positional(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx,
         MVMCallsiteFlags flag);
 

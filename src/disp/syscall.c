@@ -85,7 +85,7 @@ static MVMDispSysCall dispatcher_track_attr = {
 static void dispatcher_drop_arg_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *capture = get_obj_arg(arg_info, 0);
     MVMint64 idx = get_int_arg(arg_info, 1);
-    MVMObject *derived = MVM_disp_program_record_capture_drop_arg(tc, capture, (MVMuint32)idx);
+    MVMObject *derived = MVM_disp_program_record_capture_drop_args(tc, capture, (MVMuint32)idx, 1);
     MVM_args_set_result_obj(tc, derived, MVM_RETURN_CURRENT_FRAME);
 }
 static MVMDispSysCall dispatcher_drop_arg = {
@@ -96,6 +96,24 @@ static MVMDispSysCall dispatcher_drop_arg = {
     .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT },
     .expected_reprs = { MVM_REPR_ID_MVMCapture, 0 },
     .expected_concrete = { 1, 1 }
+};
+
+/* dispatcher-drop-n-args */
+static void dispatcher_drop_n_args_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMObject *capture = get_obj_arg(arg_info, 0);
+    MVMint64 idx   = get_int_arg(arg_info, 1);
+    MVMint64 count = get_int_arg(arg_info, 2);
+    MVMObject *derived = MVM_disp_program_record_capture_drop_args(tc, capture, (MVMuint32)idx, (MVMuint32)count);
+    MVM_args_set_result_obj(tc, derived, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_drop_n_args = {
+    .c_name = "dispatcher-drop-n-args",
+    .implementation = dispatcher_drop_n_args_impl,
+    .min_args = 3,
+    .max_args = 3,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_INT },
+    .expected_reprs = { MVM_REPR_ID_MVMCapture, 0, 0 },
+    .expected_concrete = { 1, 1, 1 }
 };
 
 /* dispatcher-insert-arg */
@@ -1037,6 +1055,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_track_arg);
     add_to_hash(tc, &dispatcher_track_attr);
     add_to_hash(tc, &dispatcher_drop_arg);
+    add_to_hash(tc, &dispatcher_drop_n_args);
     add_to_hash(tc, &dispatcher_insert_arg);
     add_to_hash(tc, &dispatcher_insert_arg_literal_obj);
     add_to_hash(tc, &dispatcher_insert_arg_literal_str);
