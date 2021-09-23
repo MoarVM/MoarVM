@@ -66,7 +66,7 @@ void MVM_repr_set_dimensions(MVMThreadContext *tc, MVMObject *obj, MVMObject *di
             OBJECT_BODY(obj), num_dims, tc->multi_dim_indices);
     }
     else {
-        MVM_exception_throw_adhoc(tc, "Cannot set dimensions on a type object");
+        MVM_exception_throw_adhoc(tc, "Cannot set dimensions on a type object. Did you forget a '.new'?");
     }
 }
 
@@ -594,7 +594,7 @@ MVMObject * MVM_repr_dimensions(MVMThreadContext *tc, MVMObject *obj) {
         return result;
     }
     else {
-        MVM_exception_throw_adhoc(tc, "Cannot get dimensions of a type object");
+        MVM_exception_throw_adhoc(tc, "Cannot get dimensions of a type object. Did you forget a '.new'?");
     }
 }
 
@@ -607,7 +607,7 @@ MVMint64 MVM_repr_num_dimensions(MVMThreadContext *tc, MVMObject *obj) {
         return num_dims;
     }
     else {
-        MVM_exception_throw_adhoc(tc, "Cannot get number of dimensions of a type object");
+        MVM_exception_throw_adhoc(tc, "Cannot get number of dimensions of a type object. Did you forget a '.new'?");
     }
 }
 
@@ -686,7 +686,7 @@ MVM_PUBLIC MVMint64 MVM_repr_get_attr_i(MVMThreadContext *tc, MVMObject *object,
                                            MVMString *name, MVMint16 hint) {
     MVMRegister result_reg;
     if (!IS_CONCRETE(object))
-        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", MVM_6model_get_debug_name(tc, object));
+        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, object));
     REPR(object)->attr_funcs.get_attribute(tc,
             STABLE(object), object, OBJECT_BODY(object),
             type, name,
@@ -698,7 +698,7 @@ MVM_PUBLIC MVMnum64 MVM_repr_get_attr_n(MVMThreadContext *tc, MVMObject *object,
                                            MVMString *name, MVMint16 hint) {
     MVMRegister result_reg;
     if (!IS_CONCRETE(object))
-        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", MVM_6model_get_debug_name(tc, object));
+        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, object));
     REPR(object)->attr_funcs.get_attribute(tc,
             STABLE(object), object, OBJECT_BODY(object),
             type, name,
@@ -710,7 +710,7 @@ MVM_PUBLIC MVMString * MVM_repr_get_attr_s(MVMThreadContext *tc, MVMObject *obje
                                            MVMString *name, MVMint16 hint) {
     MVMRegister result_reg;
     if (!IS_CONCRETE(object))
-        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", MVM_6model_get_debug_name(tc, object));
+        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, object));
     REPR(object)->attr_funcs.get_attribute(tc,
             STABLE(object), object, OBJECT_BODY(object),
             type, name,
@@ -722,7 +722,7 @@ MVM_PUBLIC MVMObject * MVM_repr_get_attr_o(MVMThreadContext *tc, MVMObject *obje
                                            MVMString *name, MVMint16 hint) {
     MVMRegister result_reg;
     if (!IS_CONCRETE(object))
-        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", MVM_6model_get_debug_name(tc, object));
+        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, object));
     REPR(object)->attr_funcs.get_attribute(tc,
             STABLE(object), object, OBJECT_BODY(object),
             type, name,
@@ -734,7 +734,7 @@ MVM_PUBLIC MVMObject * MVM_repr_get_attr_o(MVMThreadContext *tc, MVMObject *obje
 MVM_PUBLIC void MVM_repr_bind_attr_inso(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
                                            MVMString *name, MVMint16 hint, MVMRegister value_reg, MVMuint16 kind) {
     if (!IS_CONCRETE(object))
-        MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", MVM_6model_get_debug_name(tc, object));
+        MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, object));
     REPR(object)->attr_funcs.bind_attribute(tc,
             STABLE(object), object, OBJECT_BODY(object),
             type, name,
@@ -745,7 +745,7 @@ MVM_PUBLIC void MVM_repr_bind_attr_inso(MVMThreadContext *tc, MVMObject *object,
 MVM_PUBLIC MVMint64 MVM_repr_attribute_inited(MVMThreadContext *tc, MVMObject *obj, MVMObject *type,
                                               MVMString *name) {
     if (!IS_CONCRETE(obj))
-        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
     return REPR(obj)->attr_funcs.is_attribute_initialized(tc,
         STABLE(obj), OBJECT_BODY(obj),
         type, name, MVM_NO_HINT);
