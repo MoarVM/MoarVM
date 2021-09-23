@@ -1742,7 +1742,9 @@ start:
     case MVM_OP_sp_getlex_ins:
     case MVM_OP_sp_getlexvia_o:
     case MVM_OP_sp_getlexvia_ins:
+    case MVM_OP_getlexrel:
     case MVM_OP_getlexreldyn:
+    case MVM_OP_getlexrelcaller:
     case MVM_OP_getlex_no:
     case MVM_OP_sp_getlex_no:
     case MVM_OP_bindlex:

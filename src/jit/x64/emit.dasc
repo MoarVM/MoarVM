@@ -588,6 +588,24 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         }
         break;
     }
+    case MVM_OP_getlexrel: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 ctx  = ins->operands[1].reg.orig;
+        MVMint16 name = ins->operands[2].reg.orig;
+        | mov TMP5, aword WORK[ctx];
+        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMContext;
+        | je >1;
+        | test_type_object TMP5;
+        | jz >1;
+        | throw_adhoc "getlexrel needs a context";
+        |1:
+        | mov ARG1, TC;
+        | mov ARG2, TMP5;
+        | mov ARG3, aword WORK[name];
+        | callp &MVM_context_lexical_lookup;
+        | mov WORK[dst], RV;
+        break;
+    }
     case MVM_OP_getlexreldyn: {
         MVMint16 dst  = ins->operands[0].reg.orig;
         MVMint16 ctx  = ins->operands[1].reg.orig;
@@ -597,12 +615,30 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | je >1;
         | test_type_object TMP5;
         | jz >1;
-        | throw_adhoc "getlexreldyn needs a context"
+        | throw_adhoc "getlexreldyn needs a context";
         |1:
-        | mov ARG2, TMP5
-        | mov ARG1, TC
+        | mov ARG1, TC;
+        | mov ARG2, TMP5;
         | mov ARG3, aword WORK[name];
         | callp &MVM_context_dynamic_lookup;
+        | mov WORK[dst], RV;
+        break;
+    }
+    case MVM_OP_getlexrelcaller: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 ctx  = ins->operands[1].reg.orig;
+        MVMint16 name = ins->operands[2].reg.orig;
+        | mov TMP5, aword WORK[ctx];
+        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMContext;
+        | je >1;
+        | test_type_object TMP5;
+        | jz >1;
+        | throw_adhoc "getlexrelcaller needs a context";
+        |1:
+        | mov ARG1, TC;
+        | mov ARG2, TMP5;
+        | mov ARG3, aword WORK[name];
+        | callp &MVM_context_caller_lookup;
         | mov WORK[dst], RV;
         break;
     }
