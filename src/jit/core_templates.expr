@@ -346,6 +346,13 @@
       (carg $0 ptr)
       (carg $1 int))))
 
+(template: bindexmessage
+  (callv (^func &MVM_bind_exception_message)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr))))
+
 (template: getexpayload
   (call (^func &MVM_get_exception_payload)
     (arglist
@@ -357,6 +364,12 @@
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)) int_sz))
+
+(template: getexmessage
+  (call (^func &MVM_get_exception_message)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
 
 (template: die!
   (callv (^func &MVM_exception_die)

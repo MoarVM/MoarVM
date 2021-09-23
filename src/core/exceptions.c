@@ -1021,6 +1021,23 @@ MVMObject * MVM_get_exception_payload(MVMThreadContext *tc, MVMObject *ex) {
     return result;
 }
 
+MVMString * MVM_get_exception_message(MVMThreadContext *tc, MVMObject *ex) {
+    if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
+        return ((MVMException *)ex)->body.message;
+    else
+        MVM_exception_throw_adhoc(tc, "getexmessage needs a VMException, got %s (%s)", REPR(ex)->name, MVM_6model_get_debug_name(tc, ex));
+}
+
+void MVM_bind_exception_message(MVMThreadContext *tc, MVMObject *ex, MVMString *message) {
+    if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException) {
+        MVM_ASSIGN_REF(tc, &(ex->header), ((MVMException *)ex)->body.message,
+            message);
+    }
+    else {
+        MVM_exception_throw_adhoc(tc, "bindexmessage needs a VMException, got %s (%s)", REPR(ex)->name, MVM_6model_get_debug_name(tc, ex));
+    }
+}
+
 void MVM_bind_exception_payload(MVMThreadContext *tc, MVMObject *ex, MVMObject *payload) {
     if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException) {
         MVM_ASSIGN_REF(tc, &(ex->header), ((MVMException *)ex)->body.payload,

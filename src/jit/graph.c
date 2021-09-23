@@ -149,6 +149,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_throwpayloadlex: return MVM_exception_throwpayload;
     case MVM_OP_bindexpayload: return MVM_bind_exception_payload;
     case MVM_OP_getexpayload: return MVM_get_exception_payload;
+    case MVM_OP_bindexmessage: return MVM_bind_exception_message;
+    case MVM_OP_getexmessage: return MVM_get_exception_message;
     case MVM_OP_resume: return MVM_exception_resume;
     case MVM_OP_continuationreset: return MVM_continuation_reset;
     case MVM_OP_continuationcontrol: return MVM_continuation_control;
@@ -2053,6 +2055,23 @@ start:
         break;
     }
     case MVM_OP_bindexpayload: {
+        MVMint16 obj = ins->operands[0].reg.orig;
+        MVMint16 payload = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } },
+                                 { MVM_JIT_REG_VAL, { payload } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_getexmessage: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_bindexmessage: {
         MVMint16 obj = ins->operands[0].reg.orig;
         MVMint16 payload = ins->operands[1].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
