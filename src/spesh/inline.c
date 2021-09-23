@@ -579,6 +579,8 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
      * we identify all deopt points, we also take the opportunity to add
      * deopt users to all registers that have deopt usages thanks to the
      * runbytecode. */
+    MVMSpeshIns *sp_bindcomplete_delete_ins = NULL;
+    MVMSpeshBB *sp_bindcomplete_delete_bb = NULL;
     bb = inlinee->entry;
     while (bb) {
         MVMSpeshIns *ins = bb->first_ins;
@@ -640,8 +642,12 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 /* We currently cannot translate dispatch programs that want
                  * to know about bind completion, and we can only be inlining
                  * if we have a translated dispatch program, so this will be
-                 * a no-op. */
-                MVM_spesh_manipulate_delete_ins(tc, inlinee, bb, ins);
+                 * a no-op. However, we can't delete it now, as annotations
+                 * can move to the next instruction and get fixed up again, and
+                 * then be bogus. Thus just note we need to do the deletion and
+                 * do it after all the fixups */
+                sp_bindcomplete_delete_bb = bb;
+                sp_bindcomplete_delete_ins = ins;
             }
             else if (opcode == MVM_OP_getlex && ins->operands[1].lex.outers > 0) {
                 MVMuint16 outers = ins->operands[1].lex.outers;
@@ -720,6 +726,11 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
         bb = bb->linear_next;
     }
     MVM_VECTOR_DESTROY(regs_for_deopt);
+
+    /* Delete sp_bindcomplete instruction if we saw one. */
+    if (sp_bindcomplete_delete_ins)
+        MVM_spesh_manipulate_delete_ins(tc, inlinee, sp_bindcomplete_delete_bb,
+                sp_bindcomplete_delete_ins);
 
     /* Link inlinee BBs into the linear next chain. */
     bb = runbytecode_bb->linear_next;
