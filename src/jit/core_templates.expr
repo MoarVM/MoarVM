@@ -2003,6 +2003,13 @@
     (arglist
       (carg (tc) ptr)) ptr_sz))
 
+(template: loadlib
+  (callv (^func &MVM_dll_load)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0   ptr)
+      (carg $1   ptr))))
+
 (template: backendconfig
   (call (^func &MVM_backend_config)
     (arglist
