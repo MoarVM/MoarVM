@@ -352,6 +352,34 @@ MVMCallsite * MVM_callsite_drop_positionals(MVMThreadContext *tc, MVMCallsite *c
     if (cs->has_flattening)
         MVM_exception_throw_adhoc(tc, "Cannot transform a callsite with flattening args");
 
+    if (cs->is_interned && cs->flag_count == cs->arg_count) {
+        MVMCallsiteInterns *interns = tc->instance->callsite_interns;
+        MVMint32 target_arity = cs->flag_count - count;
+        MVMCallsite **by_arity = interns->by_arity[target_arity];
+        MVMint32 num_by_arity = interns->num_by_arity[target_arity];
+
+        for (MVMuint32 cidx = 0; cidx < num_by_arity; cidx++) {
+            MVMCallsite *ics = by_arity[cidx];
+            if (ics->flag_count != ics->arg_count)
+                continue;
+            MVMuint32 to = 0;
+            MVMuint8 success = 1;
+            for (MVMuint32 flag_index = 0; flag_index < target_arity;) {
+                if (flag_index == idx)
+                    to += count;
+                if (cs->arg_flags[to] != ics->arg_flags[flag_index]) {
+                    success = 0;
+                    break;
+                }
+                flag_index++;
+                to++;
+            }
+            if (!success)
+                continue;
+            return ics;
+        }
+    }
+
     /* Allocate a new callsite and set it up. */
     MVMCallsite *new_callsite = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMCallsite));
     new_callsite->num_pos = cs->num_pos - count;
