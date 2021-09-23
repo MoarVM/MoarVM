@@ -708,7 +708,7 @@
 #define MVM_OP_asyncwritebytesto 704
 #define MVM_OP_objprimbits 705
 #define MVM_OP_objprimunsigned 706
-#define MVM_OP_DEPRECATED_5 707
+#define MVM_OP_ctxnt 707
 #define MVM_OP_DEPRECATED_6 708
 #define MVM_OP_DEPRECATED_7 709
 #define MVM_OP_DEPRECATED_8 710

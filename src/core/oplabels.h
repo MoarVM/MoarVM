@@ -708,7 +708,7 @@ static const void * const LABELS[] = {
     &&OP_asyncwritebytesto,
     &&OP_objprimbits,
     &&OP_objprimunsigned,
-    &&OP_DEPRECATED_5,
+    &&OP_ctxnt,
     &&OP_DEPRECATED_6,
     &&OP_DEPRECATED_7,
     &&OP_DEPRECATED_8,

@@ -300,6 +300,19 @@ MVMObject * MVM_context_from_frame(MVMThreadContext *tc, MVMFrame *f) {
     MVMROOT(tc, f, {
         ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
         MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);
+        ((MVMContext *)ctx)->body.traversable = 1;
+    });
+    return ctx;
+}
+
+/* Creates a MVMContent wrapper object around an MVMFrame that only allows
+ * access to the current frame and does not support traversal. */
+MVMObject * MVM_context_from_frame_non_traversable(MVMThreadContext *tc, MVMFrame *f) {
+    MVMObject *ctx;
+    f = MVM_frame_force_to_heap(tc, f);
+    MVMROOT(tc, f, {
+        ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
+        MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);
     });
     return ctx;
 }
@@ -318,6 +331,11 @@ static MVMint32 traversal_exists(MVMThreadContext *tc, MVMFrame *base, MVMuint8 
 /* Try to get a context with the specified traversal applied. Ensures that the
  * traversal would lead to a result, and returns a NULL context if not. */
 MVMObject * MVM_context_apply_traversal(MVMThreadContext *tc, MVMContext *ctx, MVMuint8 traversal) {
+    /* Ensure we've got a traversable context. */
+    if (!ctx->body.traversable)
+        MVM_exception_throw_adhoc(tc,
+                "Cannot move to outers or callers with non-traversable context");
+
     /* Create new traversals array with the latest one at the end. */
     MVMuint32 new_num_traversals = ctx->body.num_traversals + 1;
     MVMuint8 *new_traversals = MVM_malloc(new_num_traversals);
@@ -335,6 +353,7 @@ MVMObject * MVM_context_apply_traversal(MVMThreadContext *tc, MVMContext *ctx, M
         MVM_ASSIGN_REF(tc, &(result->common.header), result->body.context, ctx->body.context);
         result->body.traversals = new_traversals;
         result->body.num_traversals = new_num_traversals;
+        result->body.traversable = 1;
         return (MVMObject *)result;
     }
     else {

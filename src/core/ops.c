@@ -11314,20 +11314,20 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_DEPRECATED_5,
-        "DEPRECATED_5",
-        2,
+        MVM_OP_ctxnt,
+        "ctxnt",
+        1,
+        1,
         0,
         0,
         0,
         0,
+        1,
         0,
         0,
         0,
         0,
-        0,
-        0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int32 }
+        { MVM_operand_write_reg | MVM_operand_obj }
     },
     {
         MVM_OP_DEPRECATED_6,
