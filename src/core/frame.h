@@ -119,8 +119,11 @@ struct MVMFrameExtra {
 
     /* If we use the ctx op, then we need to preserve the caller chain for
      * walking. We don't want to do that in the general case, since it can
-     * cause memory leaks in certain patterns of closure use. */
-    MVMuint16 caller_info_needed;
+     * cause memory leaks in certain patterns of closure use. We also
+     * differentiate needing just the caller chain (exceptions) or the
+     * caller position (contexts). */
+    MVMuint8 caller_info_needed;
+    MVMuint8 caller_pos_needed;
 
     /* If we use the ctx op and we have inlining, we no longer have an
      * immutable chain of callers to walk. When our caller had inlines, we
