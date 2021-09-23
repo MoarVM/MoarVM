@@ -156,6 +156,7 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     entry->info.pure         = flags & MVM_EXTOP_PURE;
     entry->info.deopt_point  = 0;
     entry->info.logged       = 0;
+    entry->info.post_logged  = 0;
     entry->info.no_inline    = flags & MVM_EXTOP_NOINLINE;
     entry->info.jittivity    = (flags & MVM_EXTOP_INVOKISH) ? MVM_JIT_INFO_INVOKISH : 0;
     entry->info.uses_hll     = 0;
