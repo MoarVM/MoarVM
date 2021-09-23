@@ -420,6 +420,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_getuniprop_bool: return MVM_unicode_codepoint_get_property_bool;
     case MVM_OP_getuniprop_str: return MVM_unicode_codepoint_get_property_str;
 
+    case MVM_OP_loadlib: return MVM_dll_load;
+
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -3873,6 +3875,15 @@ start:
         jg_append_node(jg, node);
         /* append reentry label */
         jg_append_label(tc, jg, reentry_label);
+        break;
+    }
+    case MVM_OP_loadlib: {
+        MVMint16 name = ins->operands[0].reg.orig;
+        MVMint16 path = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { name } },
+                                 { MVM_JIT_REG_VAL, { path } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     default: {
