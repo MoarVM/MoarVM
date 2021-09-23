@@ -3075,11 +3075,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
-            OP(ctx): {
+            OP(ctx):
                 GET_REG(cur_op, 0).o = MVM_context_from_frame(tc, tc->cur_frame);
                 cur_op += 2;
                 goto NEXT;
-            }
             OP(ctxouter): {
                 MVMObject *ctx = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
@@ -6580,9 +6579,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_cross_thread_write_check(tc, obj, blame);
                 goto NEXT;
             }
+            OP(ctxnt):
+                GET_REG(cur_op, 0).o = MVM_context_from_frame_non_traversable(tc, tc->cur_frame);
+                cur_op += 2;
+                goto NEXT;
             /* The compiler compiles faster if all deprecated are together and at the end
              * even though the op numbers are technically out of order. */
-            OP(DEPRECATED_5):
             OP(DEPRECATED_6):
             OP(DEPRECATED_7):
             OP(DEPRECATED_8):

@@ -765,7 +765,7 @@ DEPRECATED_15       w(obj) r(obj) r(obj) r(obj) r(str) r(obj) r(str) r(int64)
 asyncwritebytesto   w(obj) r(obj) r(obj) r(obj) r(obj) r(obj) r(str) r(int64)
 objprimbits         w(int64) r(obj) :specializable
 objprimunsigned     w(int64) r(obj) :specializable
-DEPRECATED_5        w(obj) r(int32)
+ctxnt               w(obj) :pure :noinline
 DEPRECATED_6        w(obj) r(int16)
 DEPRECATED_7        w(obj) r(int8)
 DEPRECATED_8        w(obj) r(num32)

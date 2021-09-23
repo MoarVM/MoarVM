@@ -14,6 +14,9 @@ struct MVMContextBody {
 
     /* The number of traversal operations. */
     MVMuint32 num_traversals;
+
+    /* Is traversal (moving to caller or outer contexts) allowed? */
+    MVMuint8 traversable;
 };
 struct MVMContext {
     MVMObject common;
@@ -31,6 +34,7 @@ const MVMREPROps * MVMContext_initialize(MVMThreadContext *tc);
 
 /* Functions for working with an MVMContext. */
 MVM_PUBLIC MVMObject * MVM_context_from_frame(MVMThreadContext *tc, MVMFrame *f);
+MVMObject * MVM_context_from_frame_non_traversable(MVMThreadContext *tc, MVMFrame *f);
 MVMObject * MVM_context_apply_traversal(MVMThreadContext *tc, MVMContext *ctx, MVMuint8 traversal);
 MVMFrame * MVM_context_get_frame(MVMThreadContext *tc, MVMContext *ctx);
 MVMFrame * MVM_context_get_frame_or_outer(MVMThreadContext *tc, MVMContext *ctx);
