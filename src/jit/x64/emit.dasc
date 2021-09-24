@@ -1877,6 +1877,38 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |2:
         break;
     }
+    case MVM_OP_markcodestatic: {
+        MVMint16 cr = ins->operands[0].reg.orig;
+        | mov TMP1, aword WORK[cr];
+        /* if (IS_CONCRETE(cr) && REPR(cr)->ID == MVM_REPR_ID_MVMCode) */
+        | test_type_object TMP1;
+        | jnz >1;
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCode;
+        | je >2;
+        |1:
+        /* else throw */
+        | throw_adhoc "markcodestatic requires a concrete coderef";
+        |2:
+        /* ((MVMCode *)cr)->body.is_static = 1; */
+        | mov dword CODE:TMP1->body.is_static, 1;
+        break;
+    }
+    case MVM_OP_markcodestub: {
+        MVMint16 cr = ins->operands[0].reg.orig;
+        | mov TMP1, aword WORK[cr];
+        /* if (IS_CONCRETE(cr) && REPR(cr)->ID == MVM_REPR_ID_MVMCode) */
+        | test_type_object TMP1;
+        | jnz >1;
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCode;
+        | je >2;
+        |1:
+        /* else throw */
+        | throw_adhoc "markcodestub requires a concrete coderef";
+        |2:
+        /* ((MVMCode *)cr)->body.is_compiler_stub = 1; */
+        | mov dword CODE:TMP1->body.is_compiler_stub, 1;
+        break;
+    }
     case MVM_OP_takehandlerresult: {
         MVMint16 dst = ins->operands[0].reg.orig;
         | mov TMP1, aword TC->last_handler_result;
