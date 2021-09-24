@@ -319,6 +319,10 @@ static MVMSpeshOperand make_temp_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
                 g->temps[i].i++;
 
                 /* Produce and return result. */
+                /* Ensure that all the bits in the union are initialised.
+                 * Code in `optimize_bb_switch` evaluates `lit_i64 != -1`
+                 * before calling `MVM_spesh_manipulate_release_temp_reg` */
+                result.lit_i64 = 0;
                 result.reg.orig = orig;
                 result.reg.i = g->temps[i].used_i = g->temps[i].i;
                 return result;
@@ -328,6 +332,9 @@ static MVMSpeshOperand make_temp_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
 
     /* Make sure we've space in the temporaries store. */
     ensure_more_temps(tc, g);
+
+    /* Again, ensure that all the bits in the union are initialised. */
+    result.lit_i64 = 0;
 
     /* Allocate temporary and set up result. */
     g->temps[g->num_temps].orig   = result.reg.orig = g->num_locals;
