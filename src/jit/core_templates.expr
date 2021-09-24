@@ -69,7 +69,12 @@
     ptr_sz
   )
 )
-
+(template: sp_getarg_n
+  (load_num
+    (^source_arg_addr $1)
+    num_sz
+  )
+)
 
 (template: getlex (copy $1))
 (template: bindlex! (store \$0 $1 reg_sz))
@@ -2640,11 +2645,6 @@
         (carg $1 ptr)
         (carg \$0 ptr)))
     (store \$0 $1 ptr_sz)))
-
-#(template: sp_getarg_o (load (^parg $1) ptr_sz))
-#(template: sp_getarg_i (load (^parg $1) int_sz))
-#(template: sp_getarg_n (load_num (^parg $1) num_sz))
-#(template: sp_getarg_s (load (^parg $1) ptr_sz))
 
 (template: sp_getspeshslot (^spesh_slot_value $1))
 
