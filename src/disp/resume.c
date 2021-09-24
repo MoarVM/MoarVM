@@ -1,5 +1,7 @@
 #include "moar.h"
 
+#define DUMP_RESUMPTIONS 0
+
 /* Set up resumption data for the situation where the dispatch that is to be
  * resumed is either in unspecialized code or an untranslated dispatch program
  * in specialized code (that is, left as sp_dispatch). In this case, there
@@ -9,6 +11,10 @@
 static void finish_resumption_data(MVMThreadContext *tc, MVMDispResumptionData *data,
         MVMDispResumptionState *state, MVMuint32 offset) {
     data->resumption = &(data->dp->resumptions[offset]);
+#if DUMP_RESUMPTIONS
+    fprintf(stderr, "    choosing %s\n",
+            MVM_string_utf8_encode_C_string(tc, data->resumption->disp->id));
+#endif
     for (MVMuint32 i = 0; i < offset; i++)
         state = state->next;
     data->state_ptr = &(state->state);
@@ -91,6 +97,10 @@ static void setup_deopted_resumption(MVMThreadContext *tc,  MVMDispResumptionDat
 static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data,
         MVMuint32 exhausted, MVMint32 caller) {
     /* Create iterator, which is over both dispatch records and frames. */
+#if DUMP_RESUMPTIONS
+    fprintf(stderr, "looking for a resumption; exhausted = %d, caller = %d\n",
+            exhausted, caller);
+#endif
     MVMCallStackIterator iter;
     MVM_callstack_iter_resumeable_init(tc, &iter, tc->stack_top);
 
@@ -207,6 +217,9 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED: {
                 if (!frames_to_skip) {
                     MVMCallStackDispatchRecord *dr = (MVMCallStackDispatchRecord *)cur;
+#if DUMP_RESUMPTIONS
+                    fprintf(stderr, "  Visiting a recorded dispatch record\n");
+#endif
                     if (dr->produced_dp && setup_resumption(tc, data, dr->produced_dp,
                                 &(dr->arg_info), &(dr->resumption_state), dr->temps, &exhausted))
                         return 1;
@@ -216,6 +229,9 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
             case MVM_CALLSTACK_RECORD_DISPATCH_RUN: {
                 if (!frames_to_skip) {
                     MVMCallStackDispatchRun *dr = (MVMCallStackDispatchRun *)cur;
+#if DUMP_RESUMPTIONS
+                    fprintf(stderr, "  Visiting a run dispatch record\n");
+#endif
                     if (dr->chosen_dp && setup_resumption(tc, data, dr->chosen_dp,
                                 &(dr->arg_info), &(dr->resumption_state), dr->temps, &exhausted))
                         return 1;
@@ -226,6 +242,9 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
                 if (!frames_to_skip) {
                     /* Deoptimized resume init args. These look relatively
                      * like the translated case. */
+#if DUMP_RESUMPTIONS
+                    fprintf(stderr, "  Visiting a deoptimized resume init record\n");
+#endif
                     if (exhausted == 0) {
                         setup_deopted_resumption(tc, data,
                             (MVMCallStackDeoptedResumeInit *)cur);
