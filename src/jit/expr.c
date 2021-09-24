@@ -714,6 +714,15 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         BAIL(opcode == MVM_OP_getlex && getlex_needs_autoviv(tc, jg, ins), "getlex with autoviv");
         BAIL(opcode == MVM_OP_bindlex && bindlex_needs_write_barrier(tc, jg, ins), "Can't compile write-barrier bindlex");
 
+        MVMint32 untemplated = opcode == MVM_SSA_PHI || opcode == MVM_OP_no_op;
+        if (!untemplated) {
+            template = MVM_jit_get_template_for_opcode(opcode);
+            BAIL(template == NULL, "Cannot get template for: %s", ins->info->name);
+        }
+        else {
+            template = NULL;
+        }
+
         /* Check annotations that may require handling or wrapping the expression */
         for (ann = ins->annotations; ann != NULL; ann = ann->next) {
             MVMint32 idx;
@@ -783,15 +792,13 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             }
         }
 
-        if (opcode == MVM_SSA_PHI || opcode == MVM_OP_no_op) {
+        if (untemplated) {
             /* No template here, but we may have to emit labels */
             if (after_label < 0 && (before_label < 0 || tree_is_empty(tc, tree)))
                 continue;
             goto emit;
         }
 
-        template = MVM_jit_get_template_for_opcode(opcode);
-        BAIL(template == NULL, "Cannot get template for: %s", ins->info->name);
         if (tree_is_empty(tc, tree)) {
             /* start with a no-op so every valid reference is nonzero */
             MVM_jit_expr_apply_template(tc, tree, &noop_template, NULL);
