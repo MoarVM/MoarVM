@@ -1618,6 +1618,20 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
+(template: markcodestatic
+  (ifv (all
+         (^is_conc_obj $0)
+         (^is_repr_id $0 MVM_REPR_ID_MVMCode))
+    (^setf $0 MVMCode body.is_static (const 1 int_sz))
+    (^throw_adhoc "markcodestatic requires a concrete coderef")))
+
+(template: markcodestub
+  (ifv (all
+         (^is_conc_obj $0)
+         (^is_repr_id $0 MVM_REPR_ID_MVMCode))
+    (^setf $0 MVMCode body.is_compiler_stub (const 1 int_sz))
+    (^throw_adhoc "markcodestub requires a concrete coderef")))
+
 (template: iscont
   (if
     (any (^is_vmnull $1) (zr (^getf (^stable $1) MVMSTable container_spec)))

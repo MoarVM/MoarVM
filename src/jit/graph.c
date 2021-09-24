@@ -1684,6 +1684,9 @@ start:
         /* comparison (objects) */
     case MVM_OP_eqaddr:
     case MVM_OP_isconcrete:
+        /* marking code */
+    case MVM_OP_markcodestatic:
+    case MVM_OP_markcodestub:
         /* comparison (big integer) */
     case MVM_OP_eq_I:
     case MVM_OP_ne_I:
