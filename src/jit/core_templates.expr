@@ -2310,6 +2310,14 @@
     (flagval (nz $1))
     (flagval (ne $1 (^vmnull)))))
 
+(template: parameterizetype!
+  (callv (^func &MVM_6model_parametric_parameterize)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg \$0 ptr))))
+
 (template: typeparameterized
   (call (^func &MVM_6model_parametric_type_parameterized)
     (arglist
