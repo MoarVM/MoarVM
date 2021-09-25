@@ -1676,6 +1676,19 @@
       (carg $1 int)
       (carg $2 int)) ptr_sz))
 
+(template: newmixintype
+  (let: (($repr (call (^func &MVM_repr_get_by_name)
+                  (arglist
+                    (carg (tc) ptr)
+                    (carg $2   ptr)) ptr_sz)))
+    (let: (($type (call (^getf $repr MVMREPROps type_object_for)
+                    (arglist
+                      (carg (tc) ptr)
+                      (carg $1   ptr)) ptr_sz)))
+      (do
+        (^setf $type MVMSTable is_mixin_type (const 1 int_sz))
+        (load $type ptr_sz)))))
+
 (template: iscompunit
   (flagval
     (^is_repr_id $1 MVM_REPR_ID_MVMCompUnit)))
