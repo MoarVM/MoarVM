@@ -470,7 +470,7 @@ scwbenable          w(int64)
 pushcompsc          r(obj)
 popcompsc           w(obj)
 scgetdesc           w(str) r(obj)
-loadbytecode        w(str) r(str) :invokish :maycausedeopt :noinline
+loadbytecode        w(str) r(str) :invokish :maycausedeopt :noinline :deoptonepoint
 newmixintype        w(obj) r(obj) r(str)
 installconfprog     r(obj) r(obj) r(obj)
 iscompunit          w(int64) r(obj) :pure
@@ -797,8 +797,8 @@ param_on2_u         w(uint64) str str ins :noinline
 stat_time           w(num64) r(str) r(int64)
 lstat_time          w(num64) r(str) r(int64)
 setdebugtypename    r(obj) r(str)
-loadbytecodebuffer  r(obj) :invokish :maycausedeopt :noinline
-loadbytecodefh      r(obj) r(str) :invokish :maycausedeopt :noinline
+loadbytecodebuffer  r(obj) :invokish :maycausedeopt :noinline :deoptonepoint
+loadbytecodefh      r(obj) r(str) :invokish :maycausedeopt :noinline :deoptonepoint
 throwpayloadlex     w(obj) int64 r(obj) :throwish
 throwpayloadlexcaller w(obj) int64 r(obj) :throwish
 lastexpayload       w(obj)
