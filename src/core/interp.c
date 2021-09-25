@@ -2016,7 +2016,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattr_i): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 4)),
@@ -2028,7 +2028,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattr_n): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 4)),
@@ -2040,7 +2040,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattr_s): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 4)),
@@ -2052,7 +2052,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattr_o): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 4)),
@@ -2064,7 +2064,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattrs_i): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
@@ -2076,7 +2076,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattrs_n): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
@@ -2088,7 +2088,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattrs_s): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
@@ -2100,7 +2100,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindattrs_o): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.bind_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
@@ -2112,7 +2112,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattr_i): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)),
@@ -2123,7 +2123,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattr_n): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)),
@@ -2134,7 +2134,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattr_s): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)),
@@ -2145,7 +2145,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattr_o): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)),
@@ -2158,7 +2158,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattrs_i): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
@@ -2169,7 +2169,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattrs_n): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
@@ -2180,7 +2180,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattrs_s): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
@@ -2191,7 +2191,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(getattrs_o): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 REPR(obj)->attr_funcs.get_attribute(tc,
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
@@ -2204,7 +2204,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(attrinited): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
-                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object", MVM_6model_get_debug_name(tc, obj));
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
                 GET_REG(cur_op, 0).i64 = REPR(obj)->attr_funcs.is_attribute_initialized(tc,
                     STABLE(obj), OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s, MVM_NO_HINT);
