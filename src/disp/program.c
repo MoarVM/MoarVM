@@ -2724,12 +2724,19 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
 #define NEXT break
 #endif
 #define GET_ARG MVMRegister val = args->source[args->map[op.arg_guard.arg_idx]]
+#define MAX_RES_STATES 8
 MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
         MVMCallStackDispatchRun *record, MVMint32 spesh_cid, MVMuint32 bytecode_offset,
         MVMuint32 dp_index) {
 #if MVM_CGOTO
 #include "labels.h"
 #endif
+
+    /* Resume states should only be put into place once we commit the dispatch
+     * program. */
+    MVMObject **resume_state_targets[MAX_RES_STATES];
+    MVMObject *resume_state_values[MAX_RES_STATES];
+    MVMuint8 num_resume_states = 0;
 
     MVMArgs *args = &(record->arg_info);
     MVMuint32 i = 0 ;
@@ -2780,7 +2787,11 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                     goto rejection;
 		        NEXT;
             OP(MVMDispOpcodeUpdateResumeState):
-                *(record->resumption_data.state_ptr) = record->temps[op.res_value.temp].o;
+                if (num_resume_states >= MAX_RES_STATES)
+                    MVM_exception_throw_adhoc(tc, "Too many resume state updates");
+                resume_state_targets[num_resume_states] = record->resumption_data.state_ptr;
+                resume_state_values[num_resume_states] = record->temps[op.res_value.temp].o;
+                num_resume_states++;
                 NEXT;
             /* Argument guard ops. */
             OP(MVMDispOpcodeGuardArgType): {
@@ -2977,7 +2988,7 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 if (spesh_cid)
                     MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
                         bytecode_offset, dp_index);
-                return 1;
+                goto accept;
             }
             OP(MVMDispOpcodeResultValueStr): {
                 MVM_args_set_dispatch_result_str(tc, tc->cur_frame,
@@ -2986,7 +2997,7 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 if (spesh_cid)
                     MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
                         bytecode_offset, dp_index);
-                return 1;
+                goto accept;
             }
             OP(MVMDispOpcodeResultValueInt): {
                 MVM_args_set_dispatch_result_int(tc, tc->cur_frame,
@@ -2995,7 +3006,7 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 if (spesh_cid)
                     MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
                         bytecode_offset, dp_index);
-                return 1;
+                goto accept;
             }
             OP(MVMDispOpcodeResultValueNum): {
                 MVM_args_set_dispatch_result_num(tc, tc->cur_frame,
@@ -3004,7 +3015,7 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 if (spesh_cid)
                     MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
                         bytecode_offset, dp_index);
-                return 1;
+                goto accept;
             }
 
             /* Bind control to resumption callstack record. */
@@ -3055,7 +3066,7 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                     });
                 }
                 MVM_frame_dispatch(tc, code, invoke_args, -1);
-                return 1;
+                goto accept;
             }
             OP(MVMDispOpcodeResultCFunction): {
                 record->chosen_dp = dp;
@@ -3065,7 +3076,7 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 MVMCFunction *wrapper = (MVMCFunction *)record->temps[op.res_code.temp_invokee].o;
                 wrapper->body.func(tc, invoke_args);
                 MVM_callstack_unwind_dispatch_run(tc);
-                return 1;
+                goto accept;
             }
 #if !MVM_CGOTO
             default:
@@ -3074,6 +3085,11 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
         }
     }
     MVM_oops(tc, "Should not reach end of dispatch program without a result");
+accept:
+    while (num_resume_states--) {
+        *resume_state_targets[num_resume_states] = resume_state_values[num_resume_states];
+    }
+    return 1;
 rejection:
     return 0;
 }
