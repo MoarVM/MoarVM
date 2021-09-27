@@ -1447,7 +1447,7 @@ void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatche
 
 /* Record a delegation to the next resumption in this dispatch, assuming that
  * there is one. */
-MVMint32 MVM_disp_program_record_next_resumption(MVMThreadContext *tc) {
+MVMint32 MVM_disp_program_record_next_resumption(MVMThreadContext *tc, MVMObject *with_args) {
     /* Make sure we're in a dispatcher and that we're in a resume, and try to find
      * the next level dispatch. Return zero if there is none. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
@@ -1478,6 +1478,7 @@ MVMint32 MVM_disp_program_record_next_resumption(MVMThreadContext *tc) {
      * possible for userspace code to do something terrible and invalidate
      * the held state.) */
     record->outcome.kind = MVM_DISP_OUTCOME_NEXT_RESUMPTION;
+    record->outcome.resume_capture = with_args;
     return 1;
 }
 
@@ -2644,8 +2645,10 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             cur_res->num_values = MVM_VECTOR_ELEMS(record->rec.values);
             cur_res->num_resume_inits = MVM_VECTOR_ELEMS(record->rec.resume_inits);
             push_resumption(tc, record, &resume_data);
-            run_resume(tc, record, resume_data.resumption->disp,
-                    record->rec.initial_capture.capture, thunked);
+            MVMObject *args = record->outcome.resume_capture
+                ? record->outcome.resume_capture
+                : record->rec.initial_capture.capture;
+            run_resume(tc, record, resume_data.resumption->disp, args, thunked);
             return 0;
         }
         case MVM_DISP_OUTCOME_VALUE: {

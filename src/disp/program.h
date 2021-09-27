@@ -620,7 +620,7 @@ void MVM_disp_program_record_resume(MVMThreadContext *tc, MVMObject *capture);
 void MVM_disp_program_record_resume_caller(MVMThreadContext *tc, MVMObject *capture);
 void MVM_disp_program_record_delegate(MVMThreadContext *tc, MVMString *dispatcher_id,
         MVMObject *capture);
-MVMint32 MVM_disp_program_record_next_resumption(MVMThreadContext *tc);
+MVMint32 MVM_disp_program_record_next_resumption(MVMThreadContext *tc, MVMObject *with_args);
 void MVM_disp_program_record_resume_on_bind_failure(MVMThreadContext *tc, MVMuint32 flag);
 void MVM_disp_program_record_resume_after_bind(MVMThreadContext *tc, MVMuint32 failure_flag,
         MVMuint32 success_flag);

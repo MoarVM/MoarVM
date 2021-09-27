@@ -407,17 +407,18 @@ static MVMDispSysCall dispatcher_track_resume_state = {
 
 /* dispatcher-next-resumption */
 static void dispatcher_next_resumption_impl(MVMThreadContext *tc, MVMArgs arg_info) {
-    MVMint32 have_next_resumption = MVM_disp_program_record_next_resumption(tc);
+    MVMint32 have_next_resumption = MVM_disp_program_record_next_resumption(tc,
+            arg_info.callsite->num_pos == 1 ? get_obj_arg(arg_info, 0) : NULL);
     MVM_args_set_result_int(tc, have_next_resumption, MVM_RETURN_CURRENT_FRAME);
 }
 static MVMDispSysCall dispatcher_next_resumption = {
     .c_name = "dispatcher-next-resumption",
     .implementation = dispatcher_next_resumption_impl,
     .min_args = 0,
-    .max_args = 0,
-    .expected_kinds = {0},
-    .expected_reprs = {0},
-    .expected_concrete = {0}
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMCapture },
+    .expected_concrete = { 1 }
 };
 
 /* dispatcher-resume-on-bind-failure */
