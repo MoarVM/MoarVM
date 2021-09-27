@@ -1357,7 +1357,7 @@ MVMObject * resume_init_capture(MVMThreadContext *tc, MVMDispResumptionData *res
     return capture;
 }
 
-/* Set up another level fo dispatch resumption in the resumptions list. Used
+/* Set up another level of dispatch resumption in the resumptions list. Used
  * for both the initial resume and falling back on the next resumption. */
 void push_resumption(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         MVMDispResumptionData *resume_data) {
