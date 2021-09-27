@@ -29,7 +29,7 @@ struct MVMCallStackRegion {
 };
 
 /* The default size of a call stack region. */
-#define MVM_CALLSTACK_REGION_SIZE 131072
+#define MVM_CALLSTACK_DEFAULT_REGION_SIZE 131072
 
 /*
  * We have various kinds of call stack records. They all have a common

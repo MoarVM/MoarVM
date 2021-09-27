@@ -2,12 +2,12 @@
 
 /* Allocates a new call stack region, not incorporated into the regions double
  * linked list yet. */
-static MVMCallStackRegion * allocate_region(void) {
-    MVMCallStackRegion *region = MVM_malloc(MVM_CALLSTACK_REGION_SIZE);
+static MVMCallStackRegion * allocate_region(size_t size) {
+    MVMCallStackRegion *region = MVM_malloc(size);
     region->prev = region->next = NULL;
     region->start = (char *)region + sizeof(MVMCallStackRegion);
     region->alloc = region->start;
-    region->alloc_limit = (char *)region + MVM_CALLSTACK_REGION_SIZE;
+    region->alloc_limit = (char *)region + size;
     return region;
 }
 
@@ -27,7 +27,25 @@ static MVMCallStackRecord * allocate_record_unchecked(MVMThreadContext *tc, MVMu
 static void next_region(MVMThreadContext *tc) {
     MVMCallStackRegion *region = tc->stack_current_region;
     if (!region->next) {
-        MVMCallStackRegion *next = allocate_region();
+        MVMCallStackRegion *next = allocate_region(MVM_CALLSTACK_DEFAULT_REGION_SIZE);
+        region->next = next;
+        next->prev = region;
+    }
+    tc->stack_current_region = region->next;
+}
+
+/* Moves to a new region that needs to be larger than the standard size. */
+static void next_oversize_region(MVMThreadContext *tc, size_t size) {
+    /* See if there's a next region and it's big enough. */
+    MVMCallStackRegion *region = tc->stack_current_region;
+    if (!region->next || (region->next->alloc_limit - region->next->start) < (ptrdiff_t)size) {
+        /* Nope; next region (if there is one) is too small, so insert a new and
+         * large enough region. */
+        MVMCallStackRegion *next = allocate_region(size);
+        if (region->next) {
+            region->next->prev = next;
+            next->next = region->next;
+        }
         region->next = next;
         next->prev = region;
     }
@@ -61,11 +79,12 @@ char * record_name(MVMuint8 kind) {
 static MVMCallStackRecord * allocate_record(MVMThreadContext *tc, MVMuint8 kind, size_t size) {
     MVMCallStackRegion *region = tc->stack_current_region;
     if ((region->alloc_limit - region->alloc) < (ptrdiff_t)size) {
-        size_t real_limit = MVM_CALLSTACK_REGION_SIZE - sizeof(MVMCallStackContinuationTag);
-        if (size > real_limit)
-            MVM_oops(tc, "Oversize callstack %s record requested (wanted %zu, maximum %zu)",
-                    record_name(kind), size, real_limit);
-        next_region(tc);
+        size_t start_size = sizeof(MVMCallStackRegion) + sizeof(MVMCallStackRegionStart);
+        size_t standard_limit = MVM_CALLSTACK_DEFAULT_REGION_SIZE - start_size;
+        if (size <= standard_limit)
+            next_region(tc);
+        else
+            next_oversize_region(tc, size + start_size);
         tc->stack_top = allocate_record_unchecked(tc, MVM_CALLSTACK_RECORD_START_REGION,
                 sizeof(MVMCallStackRegionStart));
     }
@@ -111,7 +130,8 @@ size_t record_size(MVMCallStackRecord *record) {
  * thread. */
 void MVM_callstack_init(MVMThreadContext *tc) {
     /* Allocate an initial region, and put a start of stack record in it. */
-    tc->stack_first_region = tc->stack_current_region = allocate_region();
+    tc->stack_first_region = tc->stack_current_region = allocate_region(
+            MVM_CALLSTACK_DEFAULT_REGION_SIZE);
     tc->stack_top = allocate_record_unchecked(tc, MVM_CALLSTACK_RECORD_START,
             sizeof(MVMCallStackStart));
 }
