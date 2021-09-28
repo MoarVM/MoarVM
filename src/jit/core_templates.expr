@@ -1999,6 +1999,14 @@
       (carg $2   int)
       (carg $3   int))))
 
+(template: seek_fh
+  (callv (^func &MVM_io_seek)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0   ptr)
+      (carg $1   int)
+      (carg $2   int))))
+
 (template: socket
   (call (^func &MVM_io_socket_create)
     (arglist
