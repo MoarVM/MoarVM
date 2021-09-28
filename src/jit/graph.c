@@ -255,6 +255,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_fileno_fh: return MVM_io_fileno;
     case MVM_OP_write_fhb: return MVM_io_write_bytes;
     case MVM_OP_read_fhb: return MVM_io_read_bytes;
+    case MVM_OP_seek_fh: return MVM_io_seek;
 
     case MVM_OP_encode: return MVM_string_encode_to_buf;
     case MVM_OP_decoderaddbytes: return MVM_decoder_add_bytes;
@@ -2783,6 +2784,17 @@ start:
                                  { MVM_JIT_REG_VAL, { fho } },
                                  { MVM_JIT_REG_VAL, { res } },
                                  { MVM_JIT_REG_VAL, { len } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_seek_fh: {
+        MVMint16 fho    = ins->operands[0].reg.orig;
+        MVMint16 offset = ins->operands[1].reg.orig;
+        MVMint16 flag   = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { fho } },
+                                 { MVM_JIT_REG_VAL, { offset } },
+                                 { MVM_JIT_REG_VAL, { flag } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
