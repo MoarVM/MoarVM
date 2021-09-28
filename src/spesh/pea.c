@@ -196,13 +196,42 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
             break;
         }
         case TRANSFORM_GETATTR_TO_SET: {
+            /* We'll never need the object input however we transform this. */
             MVMSpeshIns *ins = t->attr.ins;
             MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
-            ins->info = MVM_op_get_op(MVM_OP_set);
-            ins->operands[1].reg.orig = gs->attr_regs[t->attr.hypothetical_reg_idx];
-            ins->operands[1].reg.i = MVM_spesh_manipulate_get_current_version(tc, g,
-                ins->operands[1].reg.orig);
-            MVM_spesh_usages_add_by_reg(tc, g, ins->operands[1], ins);
+
+            /* Ensure that we have written to this attribute; if not, then
+             * we need to instead produce a null value. */
+            MVMSpeshOperand attr_sr;
+            attr_sr.reg.orig = gs->attr_regs[t->attr.hypothetical_reg_idx];
+            attr_sr.reg.i = MVM_spesh_manipulate_get_current_version(tc, g,
+                    attr_sr.reg.orig);
+            if (MVM_spesh_get_facts(tc, g, attr_sr)->writer) {
+                /* Already written to. */
+                ins->info = MVM_op_get_op(MVM_OP_set);
+                ins->operands[1] = attr_sr;
+                MVM_spesh_usages_add_by_reg(tc, g, attr_sr, ins);
+            }
+            else {
+                switch (ins->info->opcode) {
+                    case MVM_OP_sp_p6oget_o:
+                    case MVM_OP_sp_p6ogetvc_o:
+                    case MVM_OP_sp_p6ogetvt_o:
+                        ins->info = MVM_op_get_op(MVM_OP_null);
+                        break;
+                    case MVM_OP_sp_p6oget_i:
+                        ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
+                        ins->operands[1].lit_i16 = 0;
+                        break;
+                    case MVM_OP_sp_p6oget_n:
+                        ins->info = MVM_op_get_op(MVM_OP_const_n64);
+                        ins->operands[1].lit_n64 = 0.0;
+                        break;
+                    case MVM_OP_sp_p6oget_s:
+                        ins->info = MVM_op_get_op(MVM_OP_null_s);
+                        break;
+                }
+            }
             MVM_spesh_graph_add_comment(tc, g, ins, "read of scalar-replaced attribute");
             break;
         }
