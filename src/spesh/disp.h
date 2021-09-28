@@ -26,8 +26,10 @@ size_t MVM_spesh_disp_dispatch_op_info_size(MVMThreadContext *tc,
         const MVMOpInfo *base_info, MVMCallsite *callsite);
 void MVM_spesh_disp_initialize_dispatch_op_info(MVMThreadContext *tc,
         const MVMOpInfo *base_info, MVMCallsite *cs, MVMOpInfo *dispatch_info);
-MVMOpInfo * MVM_spesh_disp_create_resumption_op_info(MVMThreadContext *tc, MVMSpeshGraph *g,
+size_t MVM_spesh_disp_resumption_op_info_size(MVMThreadContext *tc,
         MVMDispProgram *dp, MVMuint16 res_idx);
+MVMOpInfo * MVM_spesh_disp_initialize_resumption_op_info(MVMThreadContext *tc,
+        MVMDispProgram *dp, MVMuint16 res_idx, MVMOpInfo *res_info);
 MVMCallsite * MVM_spesh_disp_callsite_for_dispatch_op(MVMuint16 opcode, MVMuint8 *args,
         MVMCompUnit *cu);
 int MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshPlanned *p, MVMSpeshIns *ins, MVMSpeshIns **next_ins);

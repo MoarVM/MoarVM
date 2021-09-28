@@ -316,8 +316,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* The sp_resumption op is also var args. */
         else if (info->opcode == MVM_OP_sp_resumption) {
             MVMSpeshResumeInit *resume_init = &(g->resume_inits[((MVMuint16 *)args)[1]]);
-            info = ins_node->info = MVM_spesh_disp_create_resumption_op_info(tc, g,
-                    resume_init->dp, resume_init->res_idx);
+            info = ins_node->info = MVM_spesh_alloc(tc, g, MVM_spesh_disp_resumption_op_info_size(
+                tc, resume_init->dp, resume_init->res_idx));
+            MVM_spesh_disp_initialize_resumption_op_info(tc,
+                    resume_init->dp, resume_init->res_idx, ins_node->info);
         }
 
         /* Go over operands. */

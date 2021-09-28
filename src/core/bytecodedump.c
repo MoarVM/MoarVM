@@ -181,6 +181,17 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
             op_info = temporary_op_info;
         }
 
+        if (op_num == MVM_OP_sp_resumption) {
+            MVMSpeshResumeInit *resume_init =
+                &(maybe_candidate->body.resume_inits[GET_I16(cur_op, 2)]);
+            temporary_op_info = MVM_malloc(MVM_spesh_disp_resumption_op_info_size(
+                tc, resume_init->dp, resume_init->res_idx));
+            MVM_spesh_disp_initialize_resumption_op_info(tc,
+                    resume_init->dp, resume_init->res_idx, temporary_op_info);
+
+            op_info = temporary_op_info;
+        }
+
         if (!op_info)
             continue;
 

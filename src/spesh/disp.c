@@ -17,7 +17,7 @@ size_t MVM_spesh_disp_dispatch_op_info_size(MVMThreadContext *tc,
     MVMuint32 total_ops = base_info->num_operands + callsite->flag_count;
     return sizeof(MVMOpInfo) + (total_ops > MVM_MAX_OPERANDS
             ? total_ops - MVM_MAX_OPERANDS
-            : 0);
+            : 0) * sizeof(MVMuint8);
 }
 void MVM_spesh_disp_initialize_dispatch_op_info(MVMThreadContext *tc,
         const MVMOpInfo *base_info, MVMCallsite *callsite, MVMOpInfo *dispatch_info) {
@@ -361,11 +361,7 @@ static MVMSpeshOperand emit_literal_str_guard(MVMThreadContext *tc, MVMSpeshGrap
     return testee;
 }
 
-/* Form the instruction info for an sp_resumption given the specified dispatch
- * program resumption. This is a varargs instruction, thus why we need to
- * synthesize the instruction info. */
-MVMOpInfo * MVM_spesh_disp_create_resumption_op_info(MVMThreadContext *tc, MVMSpeshGraph *g,
-        MVMDispProgram *dp, MVMuint16 res_idx) {
+static MVMuint16 resumption_op_non_constant(MVMDispProgram *dp, MVMuint16 res_idx) {
     /* Count up how many non-constant values the resume init capture will
      * involve. */
     MVMDispProgramResumption *dpr = &(dp->resumptions[res_idx]);
@@ -387,14 +383,31 @@ MVMOpInfo * MVM_spesh_disp_create_resumption_op_info(MVMThreadContext *tc, MVMSp
         /* It's based on the initial argument catpure to the dispatch. */
         non_constant = dpr->init_callsite->flag_count;
     }
+    return non_constant;
+}
+
+size_t MVM_spesh_disp_resumption_op_info_size(MVMThreadContext *tc,
+        MVMDispProgram *dp, MVMuint16 res_idx) {
+
+    MVMuint16 non_constant = resumption_op_non_constant(dp, res_idx);
 
     /* Form the operand info. */
     const MVMOpInfo *base_info = MVM_op_get_op(MVM_OP_sp_resumption);
     MVMuint16 total_ops = base_info->num_operands + non_constant;
-    size_t total_size = sizeof(MVMOpInfo) + (total_ops > MVM_MAX_OPERANDS
+    return sizeof(MVMOpInfo) + (total_ops > MVM_MAX_OPERANDS
             ? total_ops - MVM_MAX_OPERANDS
             : 0);
-    MVMOpInfo *res_info = MVM_spesh_alloc(tc, g, total_size);
+}
+
+/* Form the instruction info for an sp_resumption given the specified dispatch
+ * program resumption. This is a varargs instruction, thus why we need to
+ * synthesize the instruction info. */
+MVMOpInfo * MVM_spesh_disp_initialize_resumption_op_info(MVMThreadContext *tc,
+        MVMDispProgram *dp, MVMuint16 res_idx, MVMOpInfo *res_info) {
+    const MVMOpInfo *base_info = MVM_op_get_op(MVM_OP_sp_resumption);
+    MVMuint16 non_constant = resumption_op_non_constant(dp, res_idx);
+    MVMDispProgramResumption *dpr = &(dp->resumptions[res_idx]);
+
     memcpy(res_info, base_info, sizeof(MVMOpInfo));
     res_info->num_operands += non_constant;
     MVMuint16 operand_index = base_info->num_operands;
@@ -433,7 +446,8 @@ static void insert_resume_inits(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
         /* Allocate the instruction. */
         MVMDispProgramResumption *dpr = &(dp->resumptions[i]);
         MVMSpeshIns *ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-        ins->info = MVM_spesh_disp_create_resumption_op_info(tc, g, dp, i);
+        ins->info = MVM_spesh_alloc(tc, g, MVM_spesh_disp_resumption_op_info_size(tc, dp, i));
+        MVM_spesh_disp_initialize_resumption_op_info(tc, dp, i, ins->info);
         ins->operands = MVM_spesh_alloc(tc, g, ins->info->num_operands * sizeof(MVMSpeshOperand));
 
         /* Get a register to use for the resumption state, should it be
