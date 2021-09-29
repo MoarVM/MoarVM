@@ -442,7 +442,6 @@ static void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
         }
 
         tc->cur_frame = caller;
-        tc->current_frame_nr = caller->sequence_nr;
 
         /* Always sync these up in case of an exception throw in a C
          * function dispatcher that comes after a bytecode dispatcher.

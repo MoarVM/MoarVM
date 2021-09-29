@@ -6734,7 +6734,6 @@ void MVM_interp_run_nested(MVMThreadContext *tc, void (*initial_invoke)(MVMThrea
         tc->nested_interpreter--;
 
         tc->cur_frame             = backup_cur_frame;
-        tc->current_frame_nr      = backup_cur_frame->sequence_nr;
         tc->jit_return_address    = backup_jit_return_address;
         tc->thread_entry_frame    = backup_thread_entry_frame;
 

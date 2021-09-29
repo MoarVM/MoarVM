@@ -619,7 +619,6 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
     /* Update interpreter and thread context, so next execution will use this
      * frame. */
     tc->cur_frame = frame;
-    tc->current_frame_nr = frame->sequence_nr;
     *(tc->interp_cur_op) = chosen_bytecode;
     *(tc->interp_bytecode_start) = chosen_bytecode;
     *(tc->interp_reg_base) = frame->work;

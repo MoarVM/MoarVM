@@ -270,7 +270,6 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_idx) {
                 uninline(tc, f, f->spesh_cand, deopt_offset, 0, is_pre);
                 top_frame = MVM_callstack_current_frame(tc);
                 tc->cur_frame = top_frame;
-                tc->current_frame_nr = top_frame->sequence_nr;
                 *(tc->interp_reg_base) = top_frame->work;
                 *(tc->interp_cu) = top_frame->static_info->body.cu;
             }
@@ -419,7 +418,6 @@ void MVM_spesh_deopt_during_unwind(MVMThreadContext *tc) {
         fprintf(stderr, "    Deopt %u -> %u without uninlining\n", deopt_offset, deopt_target);
 #endif
         tc->cur_frame = top_frame;
-        tc->current_frame_nr = top_frame->sequence_nr;
 
         finish_frame_deopt(tc, frame);
     }

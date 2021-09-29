@@ -217,7 +217,6 @@ struct MVMThreadContext {
 
     /* Frame sequence numbers in order to cheaply identify the place of a frame
      * in the call stack */
-    MVMint32 current_frame_nr;
     MVMint32 next_frame_nr;
 
     /* JIT return address pointer, so we can figure out the current position in
