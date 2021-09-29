@@ -215,10 +215,6 @@ struct MVMThreadContext {
      * Specialization and JIT compilation
      ************************************************************************/
 
-    /* Frame sequence numbers in order to cheaply identify the place of a frame
-     * in the call stack */
-    MVMint32 next_frame_nr;
-
     /* JIT return address pointer, so we can figure out the current position in
      * the code */
     void **jit_return_address;
@@ -257,9 +253,9 @@ struct MVMThreadContext {
 
     /* State to cheaply determine if we should look again for the availability
      * of optimzied code at an OSR point. When the current state seen by the
-     * interpreter of frame number of spesh candidates matches, we know there
-     * was no change since the last OSR point. */
-    MVMint32 osr_hunt_frame_nr;
+     * interpreter of static frame and number of spesh candidates matches, we
+     * know there was no change since the last OSR point. */
+    MVMStaticFrame *osr_hunt_static_frame;
     MVMint32 osr_hunt_num_spesh_candidates;
 
     /************************************************************************

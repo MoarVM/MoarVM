@@ -338,9 +338,6 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
     frame->static_info = static_frame;
     frame->caller = tc->cur_frame;
 
-    /* Assign a sequence nr */
-    frame->sequence_nr = tc->next_frame_nr++;
-
     return frame;
 }
 

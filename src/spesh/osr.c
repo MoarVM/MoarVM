@@ -120,10 +120,10 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
 
 /* Polls for an optimization and, when one is produced, jumps into it. */
 void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
-    MVMStaticFrameSpesh *spesh = tc->cur_frame->static_info->body.spesh;
+    MVMStaticFrame *sf = tc->cur_frame->static_info;
+    MVMStaticFrameSpesh *spesh = sf->body.spesh;
     MVMint32 num_cands = spesh->body.num_spesh_candidates;
-    MVMint32 seq_nr = tc->cur_frame->sequence_nr;
-    if (seq_nr != tc->osr_hunt_frame_nr || num_cands != tc->osr_hunt_num_spesh_candidates) {
+    if (sf != tc->osr_hunt_static_frame || num_cands != tc->osr_hunt_num_spesh_candidates) {
         /* Provided OSR is enabled... */
         if (tc->instance->spesh_osr_enabled) {
             /* ...and no snapshots were taken, otherwise we'd invalidate the positions */
@@ -153,7 +153,7 @@ void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
         }
 
         /* Update state for avoiding checks in the common case. */
-        tc->osr_hunt_frame_nr = seq_nr;
+        tc->osr_hunt_static_frame = tc->cur_frame->static_info;
         tc->osr_hunt_num_spesh_candidates = num_cands;
     }
 }

@@ -83,9 +83,6 @@ struct MVMFrame {
      * Junk if running specialized code. */
     MVMint32 spesh_correlation_id;
 
-    /* A sequence number to indicate our place in the call stack */
-    MVMint32 sequence_nr;
-
     /* The 'entry label' is a sort of indirect return address for the JIT */
     void * jit_entry_label;
 

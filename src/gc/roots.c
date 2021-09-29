@@ -223,6 +223,8 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
         else
             MVM_spesh_graph_describe(tc, tc->spesh_active_graph, snapshot);
     }
+    add_collectable(tc, worklist, snapshot, tc->osr_hunt_static_frame,
+            "Current static frame for watching for OSR spesh candidate");
 
     if (tc->step_mode_frame)
         add_collectable(tc, worklist, snapshot, tc->step_mode_frame,
