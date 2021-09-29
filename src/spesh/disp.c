@@ -446,8 +446,10 @@ static void insert_resume_inits(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpesh
         /* Allocate the instruction. */
         MVMDispProgramResumption *dpr = &(dp->resumptions[i]);
         MVMSpeshIns *ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-        ins->info = MVM_spesh_alloc(tc, g, MVM_spesh_disp_resumption_op_info_size(tc, dp, i));
-        MVM_spesh_disp_initialize_resumption_op_info(tc, dp, i, ins->info);
+        MVMOpInfo *res_op_info = MVM_spesh_alloc(tc, g,
+                MVM_spesh_disp_resumption_op_info_size(tc, dp, i));
+        MVM_spesh_disp_initialize_resumption_op_info(tc, dp, i, res_op_info);
+        ins->info = res_op_info;
         ins->operands = MVM_spesh_alloc(tc, g, ins->info->num_operands * sizeof(MVMSpeshOperand));
 
         /* Get a register to use for the resumption state, should it be
