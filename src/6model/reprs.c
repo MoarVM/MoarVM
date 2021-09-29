@@ -261,14 +261,12 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(Context);
     register_core_repr(SCRef);
     register_core_repr(SpeshLog);
-    register_core_repr(CallCapture);
     register_core_repr(P6bigint);
     register_core_repr(NFA);
     register_core_repr(Exception);
     register_core_repr(StaticFrame);
     register_core_repr(CompUnit);
     register_core_repr(DLLSym);
-    register_core_repr(MultiCache);
     register_core_repr(Continuation);
     register_core_repr(NativeCall);
     register_core_repr(CPointer);
@@ -287,8 +285,9 @@ void MVM_repr_initialize_registry(MVMThreadContext *tc) {
     register_core_repr(CPPStruct);
     register_core_repr(Decoder);
     register_core_repr(StaticFrameSpesh);
-    register_core_repr(SpeshPluginState);
     register_core_repr(SpeshCandidate);
+    register_core_repr(Capture);
+    register_core_repr(Tracked);
 
     assert(tc->instance->num_reprs == MVM_REPR_CORE_COUNT);
 }

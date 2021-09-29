@@ -28,6 +28,7 @@ void MVM_profile_start(MVMThreadContext *tc, MVMObject *config) {
             tc->instance->profiling_overhead = (MVMuint64) ((e - s) / 1000) * 0.9;
 
             /* Disable profiling and discard the data we just collected. */
+            MVM_gc_mark_thread_blocked(tc);
             uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
             while (tc->instance->spesh_working != 0)
                 uv_cond_wait(&(tc->instance->cond_spesh_sync), &(tc->instance->mutex_spesh_sync));
@@ -37,6 +38,7 @@ void MVM_profile_start(MVMThreadContext *tc, MVMObject *config) {
             MVM_profile_instrumented_free_data(tc);
 
             uv_mutex_unlock(&(tc->instance->mutex_spesh_sync));
+            MVM_gc_mark_thread_unblocked(tc);
 
             /* Now start profiling for real. */
             MVM_profile_instrumented_start(tc, config);

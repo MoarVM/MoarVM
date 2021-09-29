@@ -111,68 +111,49 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
     } else {
         *(tc->interp_bytecode_start) = specialized->body.bytecode;
         *(tc->interp_cur_op)         = specialized->body.bytecode +
-            specialized->body.deopts[2 * osr_index + 1];
+            MVM_spesh_deopt_bytecode_pos(specialized->body.deopts[2 * osr_index + 1]);
         if (tc->instance->profiling)
             MVM_profiler_log_osr(tc, 0);
     }
     *(tc->interp_reg_base) = tc->cur_frame->work;
 }
 
-/* Finds the appropriate callsite and args to use when running an arg guard for
- * OSR. */
-MVMCallsite * find_callsite_and_args(MVMThreadContext *tc, MVMRegister **args) {
-    MVMFrame *caller = tc->cur_frame->caller;
-    if (caller) {
-        if (caller->cur_args_callsite) {
-            /* Normal call; take the current args buffer too. */
-            *args = caller->args;
-            return caller->cur_args_callsite;
-        }
-        else {
-            /* Probably an invoke with capture. */
-            if (caller->extra && caller->extra->invoked_call_capture) {
-                /* Ensure what we have is compatible with what was invoked. */
-                MVMCallCapture *cc = (MVMCallCapture *)caller->extra->invoked_call_capture;
-                if (cc->body.apc->callsite == tc->cur_frame->params.callsite &&
-                        cc->body.apc->args == tc->cur_frame->params.args) {
-                    *args = cc->body.apc->args;
-                    return cc->body.apc->callsite;
-                }
-            }
-
-            /* Otherwise, no idea what. */
-            *args = NULL;
-            return NULL;
-        }
-    }
-    else {
-        /* No call, so it's the entry point frame. */
-        *args = NULL;
-        return MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS);
-    }
-}
-
 /* Polls for an optimization and, when one is produced, jumps into it. */
 void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
-    MVMStaticFrameSpesh *spesh = tc->cur_frame->static_info->body.spesh;
+    MVMStaticFrame *sf = tc->cur_frame->static_info;
+    MVMStaticFrameSpesh *spesh = sf->body.spesh;
     MVMint32 num_cands = spesh->body.num_spesh_candidates;
-    MVMint32 seq_nr = tc->cur_frame->sequence_nr;
-    if (seq_nr != tc->osr_hunt_frame_nr || num_cands != tc->osr_hunt_num_spesh_candidates) {
+    if (sf != tc->osr_hunt_static_frame || num_cands != tc->osr_hunt_num_spesh_candidates) {
         /* Provided OSR is enabled... */
         if (tc->instance->spesh_osr_enabled) {
-            /* Check if there's a candidate available and install it if so. */
-            MVMRegister *args;
-            MVMCallsite *cs = find_callsite_and_args(tc, &args);
-            MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
-                spesh->body.spesh_arg_guard,
-                (cs && cs->is_interned ? cs : NULL),
-                args, NULL);
-            if (ag_result >= 0)
-                perform_osr(tc, spesh->body.spesh_candidates[ag_result]);
+            /* ...and no snapshots were taken, otherwise we'd invalidate the positions */
+            if (!tc->cur_frame->extra || !tc->cur_frame->extra->caller_pos_needed) {
+                /* Check if there's a candidate available and install it if so. */
+                MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
+                    spesh->body.spesh_arg_guard,
+                    tc->cur_frame->params.arg_info, NULL);
+                if (ag_result >= 0) {
+                    perform_osr(tc, spesh->body.spesh_candidates[ag_result]);
+                }
+                else {
+#if MVM_LOG_OSR
+                fprintf(stderr, "Considered OSR but arg guard failed in '%s' (cuid: %s)\n",
+                    MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+                    MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
+                }
+            }
+            else {
+#if MVM_LOG_OSR
+                fprintf(stderr, "Unable to perform OSR due to caller info '%s' (cuid: %s)\n",
+                    MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
+                    MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
+#endif
+            }
         }
 
         /* Update state for avoiding checks in the common case. */
-        tc->osr_hunt_frame_nr = seq_nr;
+        tc->osr_hunt_static_frame = tc->cur_frame->static_info;
         tc->osr_hunt_num_spesh_candidates = num_cands;
     }
 }

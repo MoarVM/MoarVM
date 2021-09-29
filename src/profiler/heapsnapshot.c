@@ -514,9 +514,6 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                 process_collectable(tc, ss, &col, (MVMCollectable *)st, &sc_cache);
                 set_type_index(tc, ss, &col, st);
 
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)st->method_cache, "Method cache");
-
                 for (i = 0; i < st->type_check_cache_length; i++)
                     MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
                         (MVMCollectable *)st->type_check_cache[i], "Type cache entry", &cache_1);
@@ -531,27 +528,6 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                         (MVMCollectable *)st->boolification_spec->method,
                         "Boolification method", &cache_2);
 
-                if (st->invocation_spec) {
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable *)st->invocation_spec->class_handle,
-                        "Invocation spec class handle");
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable *)st->invocation_spec->attr_name,
-                        "Invocation spec attribute name");
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable *)st->invocation_spec->invocation_handler,
-                        "Invocation spec invocation handler");
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable *)st->invocation_spec->md_class_handle,
-                        "Invocation spec class handle (multi)");
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable *)st->invocation_spec->md_cache_attr_name,
-                        "Invocation spec cache attribute name (multi)");
-                    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                        (MVMCollectable *)st->invocation_spec->md_valid_attr_name,
-                        "Invocation spec valid attribute name (multi)");
-                }
-
                 MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
                     (MVMCollectable *)st->WHO, "WHO", &cache_3);
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
@@ -560,9 +536,6 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                     (MVMCollectable *)st->HOW, "HOW");
                 MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                     (MVMCollectable *)st->HOW_sc, "HOW serialization context");
-                MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                    (MVMCollectable *)st->method_cache_sc,
-                    "Method cache serialization context");
 
                 if (st->mode_flags & MVM_PARAMETRIC_TYPE) {
                     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
@@ -644,15 +617,6 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
                     if (e->special_return_data && e->mark_special_return_data) {
                         e->mark_special_return_data(tc, frame, ss->gcwl);
                         process_gc_worklist(tc, ss, "Special return data");
-                    }
-                    if (e->continuation_tags) {
-                        MVMContinuationTag *tag = e->continuation_tags;
-                        while (tag) {
-                            MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
-                                (MVMCollectable *)tag->tag, "Continuation tag");
-                            col.unmanaged_size += sizeof(MVMContinuationTag);
-                            tag = tag->next;
-                        }
                     }
                     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                         (MVMCollectable *)e->dynlex_cache_name,
@@ -749,13 +713,13 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
  * relation to the current collectable with a constant C string that we
  * should not free. */
 void MVM_profile_heap_add_collectable_rel_const_cstr(MVMThreadContext *tc,
-        MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc) {
+        MVMHeapSnapshotState *ss, MVMCollectable *collectable, const char *desc) {
     if (collectable)
         add_reference_const_cstr(tc, ss, desc,
             get_collectable_idx(tc, ss, collectable));
 }
 void MVM_profile_heap_add_collectable_rel_const_cstr_cached(MVMThreadContext *tc,
-        MVMHeapSnapshotState *ss, MVMCollectable *collectable, char *desc, MVMuint64 *cache) {
+        MVMHeapSnapshotState *ss, MVMCollectable *collectable, const char *desc, MVMuint64 *cache) {
     if (collectable)
         add_reference_const_cstr_cached(tc, ss, desc,
             get_collectable_idx(tc, ss, collectable), cache);

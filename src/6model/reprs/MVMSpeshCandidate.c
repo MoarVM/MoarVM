@@ -69,6 +69,7 @@ void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(candidate->body.deopts);
     MVM_spesh_pea_destroy_deopt_info(tc, &(candidate->body.deopt_pea));
     MVM_free(candidate->body.inlines);
+    MVM_free(candidate->body.resume_inits);
     MVM_free(candidate->body.local_types);
     MVM_free(candidate->body.lexical_types);
     if (candidate->body.jitcode)
@@ -263,7 +264,11 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     tc->in_spesh = 0;
 #endif
 
+    /* Allocate the candidate. If we end up with it in gen2, then make sure it
+     * goes in the remembered set incase it ends up pointing to nursery objects. */
     candidate = (MVMSpeshCandidate *)MVM_repr_alloc_init(tc, tc->instance->SpeshCandidate);
+    if (candidate->common.header.flags2 & MVM_CF_SECOND_GEN)
+        MVM_gc_write_barrier_hit(tc, (MVMCollectable *)candidate);
 
     /* Clear active graph; beyond this point, no more GC syncs. */
     tc->spesh_active_graph = NULL;
@@ -285,6 +290,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     candidate->body.num_handlers  = sg->num_handlers;
     candidate->body.num_deopts    = sg->num_deopt_addrs;
     candidate->body.deopts        = sg->deopt_addrs;
+    candidate->body.num_resume_inits = MVM_VECTOR_ELEMS(sg->resume_inits);
+    candidate->body.resume_inits = sg->resume_inits;
     candidate->body.deopt_named_used_bit_field = sg->deopt_named_used_bit_field;
     candidate->body.deopt_pea     = sg->deopt_pea;
     candidate->body.num_locals    = sg->num_locals;
@@ -369,6 +376,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
      * not bother checking again. */
     MVM_spesh_arg_guard_regenerate(tc, &(spesh->body.spesh_arg_guard),
         spesh->body.spesh_candidates, spesh->body.num_spesh_candidates + 1);
+    if (spesh->common.header.flags2 & MVM_CF_SECOND_GEN)
+        MVM_gc_write_barrier_hit(tc, (MVMCollectable *)spesh);
     MVM_barrier();
     spesh->body.num_spesh_candidates++;
 

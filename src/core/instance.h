@@ -18,11 +18,12 @@ struct MVMBootTypes {
     MVMObject *BOOTException;
     MVMObject *BOOTStaticFrame;
     MVMObject *BOOTCompUnit;
-    MVMObject *BOOTMultiCache;
     MVMObject *BOOTContinuation;
     MVMObject *BOOTQueue;
     MVMObject *BOOTAsync;
     MVMObject *BOOTReentrantMutex;
+    MVMObject *BOOTCapture;
+    MVMObject *BOOTTracked;
 };
 
 /* Various raw types that don't need a HOW */
@@ -91,6 +92,20 @@ struct MVMStringConsts {
     MVMString *config;
     MVMString *replacement;
     MVMString *dot;
+    MVMString *boot_code;
+    MVMString *boot_constant;
+    MVMString *boot_value;
+    MVMString *boot_resume;
+    MVMString *boot_syscall;
+    MVMString *lang_call;
+    MVMString *lang_meth_not_found;
+    MVMString *boolify_bigint;
+    MVMString *boolify_boxed_int;
+    MVMString *boolify_boxed_num;
+    MVMString *boolify_boxed_str;
+    MVMString *boolify_boxed_str_with_zero_false;
+    MVMString *boolify_iter;
+    MVMString *boolify_using_elems;
 };
 
 struct MVMEventSubscriptions {
@@ -140,7 +155,7 @@ struct MVMInstance {
     MVMuint32             num_permroots;
     MVMuint32             alloc_permroots;
     MVMCollectable     ***permroots;
-    char                **permroot_descriptions;
+    const char          **permroot_descriptions;
     uv_mutex_t            mutex_permroots;
 
     /* The current GC run sequence number. May wrap around over time; that
@@ -233,9 +248,8 @@ struct MVMInstance {
     /* Mutex for REPR registration. */
     uv_mutex_t mutex_repr_registry;
 
-    /* Container type registry and mutex to protect it. */
-    MVMStrHashTable       container_registry;
-    uv_mutex_t      mutex_container_registry;
+    /* Container type registry. */
+    MVMFixKeyHashTable container_registry;
 
     /* Hash of all known serialization contexts. Marked for GC iff
      * the item is unresolved. Also, array of all SCs, used for the
@@ -260,6 +274,25 @@ struct MVMInstance {
     MVMConfigurationProgram *confprog;
 
     /************************************************************************
+     * Dispatcher mechanism
+     ************************************************************************/
+
+    /* Registry of dispatchers. */
+    MVMDispRegistry disp_registry;
+
+    /* MoarVM system calls hash (VM-provided functionality). */
+    MVMFixKeyHashTable syscalls;
+
+    /* Identity mapping for arguments (argument 0 is at position 0, argument
+     * 1 is at position 1, etc.) Allocated at startup with an initial number
+     * of elements; if it ever is not enough we allocate one to the maximum
+     * number of arguments. We cannot free the smaller one until termination
+     * as it may still be referenced. */
+    MVMuint16 *identity_arg_map;
+    MVMuint16 *small_identity_arg_map;
+    MVMuint32 identity_arg_map_alloc;
+
+    /************************************************************************
      * Specializer (dynamic optimization)
      ************************************************************************/
 
@@ -279,9 +312,6 @@ struct MVMInstance {
      * specializations (zero if no limit). */
     MVMint32 spesh_produced;
     MVMint32 spesh_limit;
-
-    /* Mutex taken when install specializations. */
-    uv_mutex_t mutex_spesh_install;
 
     /* The thread object representing the spesh thread */
     MVMObject *spesh_thread;
@@ -391,10 +421,6 @@ struct MVMInstance {
     MVMIntConstCache    *int_const_cache;
     uv_mutex_t mutex_int_const_cache;
 
-    /* Multi-dispatch cache addition mutex (additions are relatively
-     * rare, so little motivation to have it more fine-grained). */
-    uv_mutex_t mutex_multi_cache_add;
-
     /* Next type cache ID, to go in STable. */
     AO_t cur_type_cache_id;
 
@@ -434,9 +460,6 @@ struct MVMInstance {
      * serialization context itself). */
     MVMObject *SCRef;
 
-    /* CallCapture type, used by custom dispatchers. */
-    MVMObject *CallCapture;
-
     /* Thread type, representing a VM-level thread. */
     MVMObject *Thread;
 
@@ -444,9 +467,6 @@ struct MVMInstance {
      * StaticFrameSpesh type for hanging spesh data off frames. */
     MVMObject *SpeshLog;
     MVMObject *StaticFrameSpesh;
-
-    MVMObject *SpeshPluginState;
-
     MVMObject *SpeshCandidate;
 
     /* Set of bootstrapping types. */

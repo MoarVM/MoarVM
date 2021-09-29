@@ -122,25 +122,6 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from TC objects\n", worklist->items);
         process_worklist(tc, worklist, &wtp, gen);
 
-        /* Walk current call stack, following caller chain until we reach a
-         * heap-allocated frame. Note that tc->cur_frame may itself be a heap
-         * frame, in which case we put it directly on the worklist as it can
-         * move. */
-        if (tc->cur_frame && MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame)) {
-            MVMFrame *cur_frame = tc->cur_frame;
-            while (cur_frame && MVM_FRAME_IS_ON_CALLSTACK(tc, cur_frame)) {
-                MVM_gc_root_add_frame_roots_to_worklist(tc, worklist, cur_frame);
-                GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from a stack frame\n", worklist->items);
-                process_worklist(tc, worklist, &wtp, gen);
-                cur_frame = cur_frame->caller;
-            }
-        }
-        else {
-            MVM_gc_worklist_add(tc, worklist, &tc->cur_frame);
-            GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from current frame\n", worklist->items);
-            process_worklist(tc, worklist, &wtp, gen);
-        }
-
         /* Add temporary roots and process them (these are per-thread). */
         MVM_gc_root_add_temps_to_worklist(tc, worklist, NULL);
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_COLLECT, "Thread %d run %d : processing %d items from thread temps\n", worklist->items);
@@ -387,7 +368,6 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
     else if (new_addr->flags1 & MVM_CF_STABLE) {
         /* Add all references in the STable to the work list. */
         MVMSTable *new_addr_st = (MVMSTable *)new_addr;
-        MVM_gc_worklist_add(tc, worklist, &new_addr_st->method_cache);
         for (i = 0; i < new_addr_st->type_check_cache_length; i++)
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->type_check_cache[i]);
         if (new_addr_st->container_spec)
@@ -395,19 +375,10 @@ void MVM_gc_mark_collectable(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMC
                 new_addr_st->container_spec->gc_mark_data(tc, new_addr_st, worklist);
         if (new_addr_st->boolification_spec)
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->boolification_spec->method);
-        if (new_addr_st->invocation_spec) {
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->class_handle);
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->attr_name);
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->invocation_handler);
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->md_class_handle);
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->md_cache_attr_name);
-            MVM_gc_worklist_add(tc, worklist, &new_addr_st->invocation_spec->md_valid_attr_name);
-        }
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHO);
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->WHAT);
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->HOW);
         MVM_gc_worklist_add(tc, worklist, &new_addr_st->HOW_sc);
-        MVM_gc_worklist_add(tc, worklist, &new_addr_st->method_cache_sc);
         if (new_addr_st->mode_flags & MVM_PARAMETRIC_TYPE) {
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->paramet.ric.parameterizer);
             MVM_gc_worklist_add(tc, worklist, &new_addr_st->paramet.ric.lookup);

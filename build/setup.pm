@@ -342,7 +342,7 @@ our %COMPILERS = (
         ld => undef,
         as => 'as',
 
-        ccmiscflags  => '-std=gnu99 -Wextra -Wall -Wno-unused-parameter -Wno-unused-function -Wno-missing-braces -Werror=pointer-arith',
+        ccmiscflags  => '-std=gnu99 -Wextra -Wall -Wno-unused-parameter -Wno-unused-function -Wno-missing-braces -Werror=pointer-arith -Werror=vla',
         ccwarnflags  => '',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',
@@ -397,7 +397,7 @@ our %COMPILERS = (
         ld => undef,
         as => 'as',
 
-        ccmiscflags  =>  '-fno-omit-frame-pointer -fno-optimize-sibling-calls',
+        ccmiscflags  =>  '-fno-omit-frame-pointer -fno-optimize-sibling-calls -Werror=vla',
         ccwarnflags  => '-Wno-logical-op-parentheses',
         ccoptiflags  => '-O%s -DNDEBUG',
         ccdebugflags => '-g%s',

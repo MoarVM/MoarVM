@@ -236,8 +236,8 @@ static void discover_extop(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *
     }
 }
 
-static void sp_guard_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
-                      MVMSpeshIns *ins) {
+void MVM_spesh_facts_guard_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+        MVMSpeshIns *ins) {
     MVMuint16 opcode = ins->info->opcode;
 
     /* The sslot is always the second-to-last parameter, except for
@@ -245,15 +245,6 @@ static void sp_guard_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
     MVMuint16 sslot = ins->operands[ins->info->num_operands - 2].lit_i16;
 
     MVMSpeshFacts *facts    = &g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i];
-
-    /* We do not copy facts here, because it caused some trouble.
-     * Oftentimes, there were more flags set in the target register's
-     * facts before this, and got cleared by this copy operation.
-     * Also, it caused even the empty perl6 program to fail with a
-     * long stack trace about not finding an exception handler. */
-    /*copy_facts(tc, g,*/
-        /*ins->operands[0].reg.orig, ins->operands[0].reg.i,*/
-        /*ins->operands[1].reg.orig, ins->operands[1].reg.i);*/
 
     if (opcode == MVM_OP_sp_guard
             || opcode == MVM_OP_sp_guardconc
@@ -452,7 +443,7 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             }
             ann = ann->next;
         }
-        if (p && ann_deopt_one && ann_logged && ins->info->opcode != MVM_OP_speshresolve)
+        if (p && ann_deopt_one && ann_logged)
             log_facts(tc, g, bb, ins, p, ann_deopt_one, ann_logged);
 
         /* Look for ops that are fact-interesting. */
@@ -729,20 +720,13 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 ins->operands[4].reg.orig, ins->operands[4].reg.i);
             break;
-        case MVM_OP_setdispatcher:
-        case MVM_OP_setdispatcherfor:
-            g->sets_dispatcher = 1;
-            break;
-        case MVM_OP_nextdispatcherfor:
-            g->sets_nextdispatcher = 1;
-            break;
         case MVM_OP_sp_guard:
         case MVM_OP_sp_guardconc:
         case MVM_OP_sp_guardtype:
         case MVM_OP_sp_guardobj:
         case MVM_OP_sp_guardjustconc:
         case MVM_OP_sp_guardjusttype:
-            sp_guard_facts(tc, g, bb, ins);
+            MVM_spesh_facts_guard_facts(tc, g, bb, ins);
             break;
         default:
             if (ins->info->opcode == (MVMuint16)-1)

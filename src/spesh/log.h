@@ -39,14 +39,13 @@ void MVM_spesh_log_initialize_thread(MVMThreadContext *tc, MVMint32 main_thread)
 MVMSpeshLog * MVM_spesh_log_create(MVMThreadContext *tc, MVMThread *target_thread);
 void MVM_spesh_log_new_compunit(MVMThreadContext *tc);
 void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf,
-        MVMCallsite *cs, MVMRegister *args);
+        MVMArgs args);
 void MVM_spesh_log_osr(MVMThreadContext *tc);
 void MVM_spesh_log_type(MVMThreadContext *tc, MVMObject *value);
-void MVM_spesh_log_static(MVMThreadContext *tc, MVMObject *value);
 void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *value);
-void MVM_spesh_log_invoke_target(MVMThreadContext *tc, MVMObject *invoke_target,
-    MVMuint16 was_multi);
+void MVM_spesh_log_bytecode_target(MVMThreadContext *tc, MVMint32 cid,
+        MVMuint32 bytecode_offset, MVMCode *target);
 void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMObject *value);
 void MVM_spesh_log_return_to_unlogged(MVMThreadContext *tc);
-void MVM_spesh_log_plugin_resolution(MVMThreadContext *tc, MVMuint32 bytecode_offset,
-        MVMuint16 guard_index);
+void MVM_spesh_log_dispatch_resolution_for_correlation_id(MVMThreadContext *tc,
+        MVMint32 cid, MVMuint32 bytecode_offset, MVMuint16 result_index);

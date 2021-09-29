@@ -4,11 +4,6 @@ struct MVMSpeshStats {
     /* Statistics on a per-callsite basis. */
     MVMSpeshStatsByCallsite *by_callsite;
 
-    /* Map of MVM_SPESH_LOG_STATIC entries for this routine. Held at the top
-     * level as they represent static resolutions, so no need to duplicate
-     * this information across callsites. */
-    MVMSpeshStatsStatic *static_values;
-
     /* The number of entries in by_callsite. */
     MVMuint32 num_by_callsite;
 
@@ -106,9 +101,9 @@ struct MVMSpeshStatsByOffset {
     MVMuint32 num_type_tuples;
     MVMSpeshStatsTypeTupleCount *type_tuples;
 
-    /* Number of times spesh plugin guard indexes were recorded. */
-    MVMSpeshStatsPluginGuardCount *plugin_guards;
-    MVMuint32 num_plugin_guards;
+    /* Number of times spesh dispatch results were recorded. */
+    MVMSpeshStatsDispatchResultCount *dispatch_results;
+    MVMuint32 num_dispatch_results;
 };
 
 /* Counts of a given type that has shown up at a bytecode offset. */
@@ -129,9 +124,6 @@ struct MVMSpeshStatsInvokeCount {
     /* The number of times the caller frame was also the outer frame. */
     MVMuint32 caller_is_outer_count;
 
-    /* The number of times it was resolved from a multi-dispatch. */
-    MVMuint32 was_multi_count;
-
     /* The number of times we've seen it. */
     MVMuint32 count;
 };
@@ -149,10 +141,10 @@ struct MVMSpeshStatsTypeTupleCount {
     MVMuint32 count;
 };
 
-/* Counts of a given spesh plugin guard index. */
-struct MVMSpeshStatsPluginGuardCount {
-    /* The guard index that the plugin resolved to. */
-    MVMuint32 guard_index;
+/* Counts of a given dispatch result index. */
+struct MVMSpeshStatsDispatchResultCount {
+    /* The index of the dispatch result in the inline cache entry. */
+    MVMuint32 result_index;
 
     /* The number of times we've seen it. */
     MVMuint32 count;
@@ -237,7 +229,8 @@ struct MVMSpeshSimCallType {
     MVMSpeshStatsType *arg_types;
 };
 
-void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated, MVMuint64 *newly_seen, MVMuint64 *updated);
+void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_newly_seen,
+        MVMObject *sf_updated, MVMuint64 *newly_seen, MVMuint64 *updated);
 void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames);
 void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorklist *worklist);
 void MVM_spesh_stats_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *snapshot, MVMSpeshStats *ss);

@@ -163,12 +163,10 @@ OBJECTS1 = src/core/callsite@obj@ \
           src/6model/reprs/MVMIter@obj@ \
           src/6model/reprs/MVMContext@obj@ \
           src/6model/reprs/SCRef@obj@ \
-          src/6model/reprs/MVMCallCapture@obj@ \
           src/6model/reprs/P6bigint@obj@ \
           src/6model/reprs/NFA@obj@ \
           src/6model/reprs/MVMException@obj@
 OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
-          src/6model/reprs/MVMMultiCache@obj@ \
           src/6model/reprs/MVMContinuation@obj@ \
           src/6model/reprs/NativeCall@obj@ \
           src/6model/reprs/CPointer@obj@ \
@@ -188,11 +186,18 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/6model/reprs/Decoder@obj@ \
           src/6model/reprs/MVMSpeshLog@obj@ \
           src/6model/reprs/MVMStaticFrameSpesh@obj@ \
-          src/6model/reprs/MVMSpeshPluginState@obj@ \
+          src/6model/reprs/MVMCapture@obj@ \
+          src/6model/reprs/MVMTracked@obj@ \
           src/6model/6model@obj@ \
           src/6model/bootstrap@obj@ \
           src/6model/sc@obj@ \
           src/6model/serialization@obj@ \
+          src/disp/boot@obj@ \
+          src/disp/registry@obj@ \
+          src/disp/inline_cache@obj@ \
+          src/disp/program@obj@ \
+          src/disp/syscall@obj@ \
+          src/disp/resume@obj@ \
           src/spesh/dump@obj@ \
           src/spesh/graph@obj@ \
           src/spesh/codegen@obj@ \
@@ -215,10 +220,10 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/spesh/stats@obj@ \
           src/spesh/plan@obj@ \
           src/spesh/arg_guard@obj@ \
-          src/spesh/plugin@obj@ \
           src/spesh/frame_walker@obj@ \
           src/spesh/pea@obj@ \
           src/6model/reprs/MVMSpeshCandidate@obj@ \
+          src/spesh/disp@obj@ \
           src/strings/decode_stream@obj@ \
           src/strings/ascii@obj@ \
           src/strings/parse_num@obj@ \
@@ -342,13 +347,11 @@ HEADERS = src/moar.h \
           src/6model/reprs/MVMIter.h \
           src/6model/reprs/MVMContext.h \
           src/6model/reprs/SCRef.h \
-          src/6model/reprs/MVMCallCapture.h \
           src/6model/reprs/P6bigint.h \
           src/6model/reprs/NFA.h \
           src/6model/reprs/MVMException.h \
           src/6model/reprs/MVMCompUnit.h \
           src/6model/reprs/MVMDLLSym.h \
-          src/6model/reprs/MVMMultiCache.h \
           src/6model/reprs/MVMContinuation.h \
           src/6model/reprs/NativeCall.h \
           src/6model/reprs/CPointer.h \
@@ -368,8 +371,15 @@ HEADERS = src/moar.h \
           src/6model/reprs/Decoder.h \
           src/6model/reprs/MVMSpeshLog.h \
           src/6model/reprs/MVMStaticFrameSpesh.h \
-          src/6model/reprs/MVMSpeshPluginState.h \
+          src/6model/reprs/MVMCapture.h \
+          src/6model/reprs/MVMTracked.h \
           src/6model/sc.h \
+          src/disp/boot.h \
+          src/disp/registry.h \
+          src/disp/inline_cache.h \
+          src/disp/program.h \
+          src/disp/syscall.h \
+          src/disp/resume.h \
           src/spesh/dump.h \
           src/spesh/debug.h \
           src/spesh/graph.h \
@@ -391,10 +401,10 @@ HEADERS = src/moar.h \
           src/spesh/stats.h \
           src/spesh/plan.h \
           src/spesh/arg_guard.h \
-          src/spesh/plugin.h \
           src/spesh/frame_walker.h \
           src/spesh/pea.h \
           src/6model/reprs/MVMSpeshCandidate.h \
+          src/spesh/disp.h \
           src/strings/unicode_gen.h \
           src/strings/normalize.h \
           src/strings/decode_stream.h \
@@ -555,6 +565,7 @@ install: all
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/math"
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/platform"
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/profiler"
+	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/disp"
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/spesh"
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/debug"
 	$(MKPATH) "$(DESTDIR)$(PREFIX)/include/moar/strings"
@@ -572,6 +583,7 @@ install: all
 	$(CP) src/math/*.h "$(DESTDIR)$(PREFIX)/include/moar/math"
 	$(CP) src/platform/*.h "$(DESTDIR)$(PREFIX)/include/moar/platform"
 	$(CP) src/profiler/*.h "$(DESTDIR)$(PREFIX)/include/moar/profiler"
+	$(CP) src/disp/*.h "$(DESTDIR)$(PREFIX)/include/moar/disp"
 	$(CP) src/spesh/*.h "$(DESTDIR)$(PREFIX)/include/moar/spesh"
 	$(CP) src/debug/*.h "$(DESTDIR)$(PREFIX)/include/moar/debug"
 	$(CP) src/strings/*.h "$(DESTDIR)$(PREFIX)/include/moar/strings"

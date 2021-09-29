@@ -22,9 +22,6 @@
 #define MVM_TYPE_CHECK_NEEDS_ACCEPTS       2
 #define MVM_TYPE_CHECK_CACHE_FLAG_MASK     3
 
-/* This STable mode flag is set if we consider the method cache authoritative. */
-#define MVM_METHOD_CACHE_AUTHORITATIVE     4
-
 /* This STable mode flag is set if the type needs finalization. */
 #define MVM_FINALIZE_TYPE                  8
 
@@ -291,9 +288,6 @@ struct MVMSTable {
      * all the things it isa and all the things it does). */
     MVMObject **type_check_cache;
 
-    /* By-name method dispatch cache. */
-    MVMObject *method_cache;
-
     /* An ID solely for use in caches that last a VM instance. Thus it
      * should never, ever be serialized and you should NEVER make a
      * type directory based upon this ID. Otherwise you'll create memory
@@ -319,21 +313,6 @@ struct MVMSTable {
     /* The role that the type plays in the HLL, if any. */
     MVMint64 hll_role;
 
-    /* Invocation handler. If something tries to invoke this object,
-     * whatever hangs off this function pointer gets invoked to handle
-     * the invocation. If it's a call into C code it may do stuff right
-     * off the bat. However, normally it will do whatever is needed to
-     * arrange for setting up a callframe, twiddle the interpreter's
-     * PC as needed and return. */
-    void (*invoke) (MVMThreadContext *tc, MVMObject *invokee,
-        MVMCallsite *callsite, MVMRegister *args);
-
-    /*
-     * If this is invokable, then this contains information needed to
-     * figure out how to invoke it. If not, it'll be null.
-     */
-    MVMInvocationSpec *invocation_spec;
-
     /* The type-object. */
     MVMObject *WHAT;
 
@@ -346,8 +325,8 @@ struct MVMSTable {
     /* Parametricity. Mode flags indicate what, if any, of this union is valid. */
     union {
         struct {
-            /* The code object to use to produce a new parameterization. */
-            MVMObject *parameterizer;
+            /* The code handle to use to produce a new parameterization. */
+            MVMCode *parameterizer;
 
             /* Lookup table of existing parameterizations. For now, just a VM
              * array with alternating pairs of [arg array], object. Could in
@@ -367,10 +346,6 @@ struct MVMSTable {
     /* We lazily deserialize HOW; this is the SC and index if needed. */
     MVMSerializationContext *HOW_sc;
     MVMuint32                HOW_idx;
-
-    /* Also info we need to lazily deserialize the method cache. */
-    MVMuint32                method_cache_offset;
-    MVMSerializationContext *method_cache_sc;
 
     /* A string associated with this STable for debugging purposes.
      * Usually the name of the class this belongs to. */
@@ -706,17 +681,7 @@ struct MVMREPROps {
 /* Some functions related to 6model core functionality. */
 MVM_PUBLIC MVMObject * MVM_6model_get_how(MVMThreadContext *tc, MVMSTable *st);
 MVM_PUBLIC MVMObject * MVM_6model_get_how_obj(MVMThreadContext *tc, MVMObject *obj);
-void MVM_6model_find_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name,
-    MVMRegister *res, MVMint64 throw_if_not_found);
-MVM_PUBLIC MVMObject * MVM_6model_find_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name);
-MVMint32 MVM_6model_find_method_spesh(MVMThreadContext *tc, MVMObject *obj, MVMString *name,
-                                      MVMint32 ss_idx, MVMRegister *res);
-MVMint64 MVM_6model_can_method_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMString *name);
-void MVM_6model_can_method(MVMThreadContext *tc, MVMObject *obj, MVMString *name, MVMRegister *res);
-void MVM_6model_istype(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMRegister *res);
-MVM_PUBLIC MVMint64 MVM_6model_istype_cache_only(MVMThreadContext *tc, MVMObject *obj, MVMObject *type);
-MVMint64 MVM_6model_try_cache_type_check(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMint32 *result);
-void MVM_6model_invoke_default(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args);
+MVMint64 MVM_6model_try_cache_type_check(MVMThreadContext *tc, MVMObject *obj, MVMObject *type, MVMint64 *result);
 void MVM_6model_stable_gc_free(MVMThreadContext *tc, MVMSTable *st);
 MVMuint64 MVM_6model_next_type_cache_id(MVMThreadContext *tc);
 void MVM_6model_never_repossess(MVMThreadContext *tc, MVMObject *obj);

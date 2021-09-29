@@ -43,9 +43,49 @@ Not all the optimisations described above are in place yet. Starting with
 
 */
 
+/* This is a hashtable *like* MVMStrHashTable, but intended for uses where the
+ * stored value mustn't move in memory. The stored value must still be a
+ * structure with the first element as a pointer to the key, but instead of
+ * storing the structure directly in the hash's internal array, that just stores
+ * a pointer to the real structure, which it indirects through.
+ *
+ * As the structure *can't* move in memory, if the hash itself is part of the
+ * interpreter and is never freed, it's possible to mark the key with
+ * `MVM_gc_root_add_permanent_desc`
+ *
+ * As it's intended for internal use, it doesn't have randomisation. Also, only
+ * the methods that are needed have been implemented, so as nothing has needed
+ * delete yet, delete isn't implemented...
+ *
+ * The normal case is that the caller specify the `entry_size`, and the hash
+ * will allocate memory for new entries using `MVM_fixed_size_alloc` (when
+ * needed), and all the APIs return pointers to this memory, with the layer of
+ * indirection completely hidden internally. `MVM_fixkey_hash_demolish` will
+ * release all of the allocated blocks back to the FSA before freeing the hash
+ * itself.
+ *
+ * It can be useful to indirect to static storage. Hence `entry_size == 0` is
+ * treated as a special case (the allocated storage must be at least 1 pointer
+ * large to store the key).
+ *
+ * For this mode of operation, memory allocation is entirely "handled" by the
+ * caller. `MVM_fixkey_hash_demolish` assumes that the memory is in static
+ * storage. `MVM_fixkey_hash_lvalue_fetch` and `MVM_fixkey_hash_insert` behave
+ * differently, and expose the address of the indirection pointer *within* the
+ * hash, so that their caller can write into to it.
+ *
+ * It would be possible to also use memory from malloc - one would need to call
+ * `MVM_fixkey_hash_foreach` just before `MVM_fixkey_hash_demolish` to free all
+ * the memory, and delete (if implemented) would need to return the memory so
+ * that it could be freed correctly. But no code needs this (yet).
+ */
+
 struct MVMFixKeyHashTableControl {
     MVMHashNumItems cur_items;
     MVMHashNumItems max_items; /* hit this and we grow */
+    /* size of the (real) entry.
+     * If non-zero, allocated with MVM_fixed_size_alloc
+     * If zero, see the comments above. */
     MVMuint16 entry_size;
     MVMuint8 official_size_log2;
     MVMuint8 key_right_shift;

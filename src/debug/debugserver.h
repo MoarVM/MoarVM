@@ -95,7 +95,8 @@ struct MVMDebugServerRequestData {
     union
     {
         struct {
-            MVMObject *target;
+            MVMCode *target;
+            MVMArgs *args;
         } invoke;
         MVMObject *o;
     } data;

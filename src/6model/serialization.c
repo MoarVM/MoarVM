@@ -704,9 +704,6 @@ void MVM_serialization_write_ref(MVMThreadContext *tc, MVMSerializationWriter *w
     else if (ref == tc->instance->VMNull) {
         discrim = REFVAR_VM_NULL;
     }
-    else if (REPR(ref)->ID == MVM_REPR_ID_MVMMultiCache) {
-        discrim = REFVAR_VM_NULL;
-    }
     else if (REPR(ref)->ID == MVM_REPR_ID_MVMOSHandle) {
         discrim = REFVAR_VM_NULL;
     }
@@ -1049,10 +1046,8 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     write_obj_ref(tc, writer, st->WHAT);
     MVM_serialization_write_ref(tc, writer, st->WHO);
 
-    /* Method cache and v-table. */
-    if (!st->method_cache)
-        MVM_serialization_finish_deserialize_method_cache(tc, st);
-    MVM_serialization_write_ref(tc, writer, st->method_cache);
+    /* Former method cache (removed). */
+    MVM_serialization_write_ref(tc, writer, NULL);
 
     /* Type check cache. */
     MVM_serialization_write_int(tc, writer, st->type_check_cache_length);
@@ -1094,8 +1089,6 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
     }
     if (st->container_spec != NULL)
         flags |= STABLE_HAS_CONTAINER_SPEC;
-    if (st->invocation_spec != NULL)
-        flags |= STABLE_HAS_INVOCATION_SPEC;
     if (st->hll_owner != NULL)
         flags |= STABLE_HAS_HLL_OWNER;
     if (st->hll_role != MVM_HLL_ROLE_NONE)
@@ -1120,19 +1113,6 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
         st->container_spec->serialize(tc, st, writer);
     }
 
-    /* Invocation spec. */
-    if (st->invocation_spec) {
-        MVM_serialization_write_ref(tc, writer, st->invocation_spec->class_handle);
-        MVM_serialization_write_str(tc, writer, st->invocation_spec->attr_name);
-        MVM_serialization_write_int(tc, writer, st->invocation_spec->hint);
-        MVM_serialization_write_ref(tc, writer, st->invocation_spec->invocation_handler);
-        MVM_serialization_write_ref(tc, writer, st->invocation_spec->md_class_handle);
-        MVM_serialization_write_str(tc, writer, st->invocation_spec->md_cache_attr_name);
-        MVM_serialization_write_int(tc, writer, st->invocation_spec->md_cache_hint);
-        MVM_serialization_write_str(tc, writer, st->invocation_spec->md_valid_attr_name);
-        MVM_serialization_write_int(tc, writer, st->invocation_spec->md_valid_hint);
-    }
-
     /* HLL owner. */
     if (st->hll_owner)
         MVM_serialization_write_str(tc, writer, st->hll_owner->name);
@@ -1144,7 +1124,7 @@ static void serialize_stable(MVMThreadContext *tc, MVMSerializationWriter *write
 
     /* If it's a parametric type, save parameterizer. */
     if (st->mode_flags & MVM_PARAMETRIC_TYPE)
-        MVM_serialization_write_ref(tc, writer, st->paramet.ric.parameterizer);
+        MVM_serialization_write_ref(tc, writer, (MVMObject *)st->paramet.ric.parameterizer);
 
     /* If it's a parameterized type, we may also need to make an intern table
      * entry as well as writing out the parameter details. */
@@ -1723,11 +1703,7 @@ MVMnum64 MVM_serialization_read_num(MVMThreadContext *tc, MVMSerializationReader
     return result;
 }
 
-/* Reading function for native strings.
- *
- * BEWARE - logic in this function is partly duplicated in the skip calculations
- * of deserialize_method_cache_lazy(). See the note before
- * MVM_serialization_read_ref(). */
+/* Reading function for native strings. */
 MVMString * MVM_serialization_read_str(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint32 offset;
 
@@ -1797,11 +1773,7 @@ char * MVM_serialization_read_cstr(MVMThreadContext *tc, MVMSerializationReader 
    look up the SC, then use the index to call some other function. Putting the
    common parts into one function permits the serialized representation to be
    changed, but frustratingly it requires two return values, which is a bit of
-   a pain in (real) C. Hence this rather ungainly function.
-
-   BEWARE - logic in this function is partly duplicated in the skip calculations
-   of deserialize_method_cache_lazy(). See the note before
-   MVM_serialization_read_ref(). */
+   a pain in (real) C. Hence this rather ungainly function. */
 MVM_STATIC_INLINE MVMSerializationContext * read_locate_sc_and_index(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 *idx) {
     MVMuint32 sc_id;
     MVMuint32 packed;
@@ -1833,11 +1805,7 @@ MVM_STATIC_INLINE MVMSerializationContext * read_locate_sc_and_index(MVMThreadCo
     return locate_sc(tc, reader, sc_id);
 }
 
-/* Reads in and resolves an object references.
- *
- * BEWARE - logic in this function is partly duplicated in the skip calculations
- * of deserialize_method_cache_lazy(). See the note before
- * MVM_serialization_read_ref(). */
+/* Reads in and resolves an object references. */
 static MVMObject * read_obj_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint32 idx;
     MVMSerializationContext *sc = read_locate_sc_and_index(tc, reader, &idx);
@@ -1867,11 +1835,7 @@ static MVMObject * read_array_var(MVMThreadContext *tc, MVMSerializationReader *
     return result;
 }
 
-/* Reads in an hash with string keys and variant references.
- *
- * BEWARE - logic in this function is partly duplicated in the skip calculations
- * of deserialize_method_cache_lazy(). See the note before
- * MVM_serialization_read_ref(). */
+/* Reads in an hash with string keys and variant references. */
 static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMObject *result = MVM_gc_allocate_object(tc, STABLE(tc->instance->boot_types.BOOTHash));
     MVMint32 elems, i;
@@ -1945,11 +1909,7 @@ static MVMObject * read_array_str(MVMThreadContext *tc, MVMSerializationReader *
     return result;
 }
 
-/* Reads in a code reference.
- *
- * BEWARE - logic in this function is partly duplicated in the skip calculations
- * of deserialize_method_cache_lazy(). See the note before
- * MVM_serialization_read_ref(). */
+/* Reads in a code reference. */
 static MVMObject * read_code_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMint32 idx;
     MVMSerializationContext *sc = read_locate_sc_and_index(tc, reader, &idx);
@@ -1962,15 +1922,7 @@ MVM_STATIC_INLINE MVMuint8 read_discrim(MVMThreadContext *tc, MVMSerializationRe
     return *(*(reader->cur_read_buffer) + *(reader->cur_read_offset));
 }
 
-/* Reading function for references.
- *
- * BEWARE - logic in this function is partly duplicated in
- * deserialize_method_cache_lazy(). If you change the format (or sizes) of
- * things read here (including of course, things read down the calltree) you may
- * need to update the corresponding skip count logic in
- * deserialize_method_cache_lazy().
- */
-
+/* Reading function for references. */
 MVMObject * MVM_serialization_read_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
     MVMObject *result = NULL;
     assert(tc->allocate_in_gen2);
@@ -2535,139 +2487,6 @@ static MVMuint8 calculate_int_bytes(MVMThreadContext *tc, MVMSerializationReader
     return need + 1;
 }
 
-/* Stashes what we need to deserialize the method cache lazily later, and then
- * skips over it.
- *
- * This function is cruel and unforgiving if you change other parts of the
- * serialization format, but don't remember (or realise) that you need to update
- * its idea of sizes. Its "failure" mode is silent, and everything still passes
- * tests. Only if you benchmark do you realise that everything takes longer,
- * because the lazy paths are now no longer taken. */
-static void deserialize_method_cache_lazy(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    /* Peek ahead at the discriminator. */
-    const int discrim_size = 1;
-    const MVMuint8 discrim = read_discrim(tc, reader);
-
-    /* We only know how to lazily handle a hash of code refs or code objects;
-     * for anything else, don't do it lazily. */
-    if (discrim == REFVAR_VM_HASH_STR_VAR) {
-        MVMint32 elems, i, valid;
-
-        /* Save the offset, then skip past discriminator. */
-        MVMint32 before = *(reader->cur_read_offset);
-        *(reader->cur_read_offset) += discrim_size;
-
-        /* Check the elements are as expected. */
-        if (reader->root.version >= 19) {
-            elems = MVM_serialization_read_int(tc, reader);
-        } else {
-            assert_can_read(tc, reader, 4);
-            elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-            *(reader->cur_read_offset) += 4;
-        }
-        valid = 1;
-        for (i = 0; i < elems; i++) {
-            MVMuint32 packed;
-            MVMuint8 inner_discrim;
-            MVMint32 offset;
-            /* Skip string. */
-            assert_can_read(tc, reader, 2);
-            offset = read_uint16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-            *(reader->cur_read_offset) += 2;
-            if (offset & STRING_HEAP_LOC_PACKED_OVERFLOW) {
-                assert_can_read(tc, reader, 2);
-                *(reader->cur_read_offset) += 2;
-            }
-
-            /* Ensure we've a coderef or code object. */
-            assert_can_read(tc, reader, discrim_size);
-            inner_discrim = read_discrim(tc, reader);
-            *(reader->cur_read_offset) += discrim_size;
-            switch (inner_discrim) {
-            case REFVAR_OBJECT:
-            case REFVAR_STATIC_CODEREF:
-            case REFVAR_CLONED_CODEREF:
-                if (reader->root.version >= 19) {
-                    packed = MVM_serialization_read_int(tc, reader);
-                } else {
-                    assert_can_read(tc, reader, 4);
-                    packed = read_int32(*(reader->cur_read_buffer),
-                                        *(reader->cur_read_offset) );
-                }
-
-                if(packed == (PACKED_SC_OVERFLOW << PACKED_SC_SHIFT)) {
-                    if (reader->root.version >= 19) {
-                        *(reader->cur_read_offset) += calculate_int_bytes(tc, reader); /* for sc_id */
-                        *(reader->cur_read_offset) += calculate_int_bytes(tc, reader); /* for idx */
-                    } else {
-                        assert_can_read(tc, reader, 12);
-                        *(reader->cur_read_offset) += 12;
-                    }
-                } else {
-                    if (reader->root.version >= 19) {
-
-                    } else {
-                        *(reader->cur_read_offset) += 4;
-                    }
-                }
-                break;
-            case REFVAR_NULL:
-            case REFVAR_VM_NULL:
-            case REFVAR_VM_INT:
-            case REFVAR_VM_NUM:
-            case REFVAR_VM_STR:
-            case REFVAR_VM_ARR_VAR:
-            case REFVAR_VM_ARR_STR:
-            case REFVAR_VM_ARR_INT:
-            case REFVAR_VM_HASH_STR_VAR:
-                valid = 0;
-                *(reader->cur_read_offset) = before;
-                break;
-            default:
-                MVM_gc_allocate_gen2_default_clear(tc);
-                MVM_exception_throw_adhoc(tc,
-                                          "Serialization Error: Unimplemented discriminator %d in inner loop in deserialize_method_cache_lazy",
-                inner_discrim);
-            }
-            if (!valid)
-                break;
-        }
-
-        /* If all was valid then just stash what we need for later. */
-        if (valid) {
-            st->method_cache = NULL;
-            MVM_ASSIGN_REF(tc, &(st->header), st->method_cache_sc, reader->root.sc);
-            st->method_cache_offset = before;
-            return;
-        }
-    } else {
-        switch (discrim) {
-        case REFVAR_OBJECT:
-        case REFVAR_STATIC_CODEREF:
-        case REFVAR_CLONED_CODEREF:
-        case REFVAR_NULL:
-        case REFVAR_VM_NULL:
-        case REFVAR_VM_INT:
-        case REFVAR_VM_NUM:
-        case REFVAR_VM_STR:
-        case REFVAR_VM_ARR_VAR:
-        case REFVAR_VM_ARR_STR:
-        case REFVAR_VM_ARR_INT:
-        case REFVAR_VM_HASH_STR_VAR:
-            break;
-        default:
-            MVM_gc_allocate_gen2_default_clear(tc);
-            MVM_exception_throw_adhoc(tc,
-                                      "Serialization Error: Unimplemented discriminator %d in deserialize_method_cache_lazy",
-                                      discrim);
-        }
-    }
-
-    /* If we get here, fall back to eager deserialization. */
-    MVM_ASSIGN_REF(tc, &(st->header), st->method_cache,
-        MVM_serialization_read_ref(tc, reader));
-}
-
 static MVMObject *read_param_intern(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 offset, MVMint32 *type_idx, MVMint32 *st_idx) {
     char **orig_cur_read_buffer    = reader->cur_read_buffer;
     MVMint32 *orig_cur_read_offset = reader->cur_read_offset;
@@ -2738,7 +2557,6 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
             st->REPR->gc_free_repr_data(tc, st);
         MVM_free_null(st->type_check_cache);
         MVM_free_null(st->boolification_spec);
-        MVM_free_null(st->invocation_spec);
         MVM_free_null(st->debug_name);
         st->being_repossessed = 0;
     }
@@ -2748,8 +2566,8 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
     MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, read_obj_ref(tc, reader));
     MVM_ASSIGN_REF(tc, &(st->header), st->WHO, MVM_serialization_read_ref(tc, reader));
 
-    /* Method cache. */
-    deserialize_method_cache_lazy(tc, st, reader);
+    /* Legacy method cache (read, but discard). */
+    MVM_serialization_read_ref(tc, reader);
 
     /* Type check cache. */
     MVMuint16 type_check_cache_length = MVM_serialization_read_int(tc, reader);
@@ -2804,20 +2622,15 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
 
     /* Invocation spec. */
     if (flags & STABLE_HAS_INVOCATION_SPEC) {
-        MVMInvocationSpec *invocation_spec = (MVMInvocationSpec *)MVM_calloc(1, sizeof(MVMInvocationSpec));
-        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->class_handle, MVM_serialization_read_ref(tc, reader));
-        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->attr_name, MVM_serialization_read_str(tc, reader));
-        invocation_spec->hint = MVM_serialization_read_int(tc, reader);
-        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->invocation_handler, MVM_serialization_read_ref(tc, reader));
-        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->md_class_handle, MVM_serialization_read_ref(tc, reader));
-        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->md_cache_attr_name, MVM_serialization_read_str(tc, reader));
-        invocation_spec->md_cache_hint = MVM_serialization_read_int(tc, reader);
-        MVM_ASSIGN_REF(tc, &(st->header), invocation_spec->md_valid_attr_name, MVM_serialization_read_str(tc, reader));
-        invocation_spec->md_valid_hint = MVM_serialization_read_int(tc, reader);
-        /* Deserializing an object may trigger GC, so make sure a gc_mark of
-         * the half-deserialized STable doesn't see the invocation_spec
-         * until the methods are actually there */
-        st->invocation_spec = invocation_spec;
+        MVM_serialization_read_ref(tc, reader); // No longer used
+        MVM_serialization_read_str(tc, reader); // No longer used
+        MVM_serialization_read_int(tc, reader); // No longer used
+        MVM_serialization_read_ref(tc, reader); // No longer used
+        MVM_serialization_read_ref(tc, reader); // No longer used
+        MVM_serialization_read_str(tc, reader); // No longer used
+        MVM_serialization_read_int(tc, reader); // No longer used
+        MVM_serialization_read_str(tc, reader); // No longer used
+        MVM_serialization_read_int(tc, reader); // No longer used
     }
 
     /* HLL owner. */
@@ -3143,54 +2956,6 @@ void MVM_serialization_force_stable(MVMThreadContext *tc, MVMSerializationReader
         }
         if (found)
             wl->num_indexes--;
-    }
-}
-
-/* Finishes deserializing the method cache. */
-void MVM_serialization_finish_deserialize_method_cache(MVMThreadContext *tc, MVMSTable *st) {
-    MVMSerializationContext *sc = st->method_cache_sc;
-    if (sc && sc->body->sr) {
-        /* Acquire mutex and ensure we didn't lose a race to do this. */
-        MVMSerializationReader *sr = sc->body->sr;
-        MVMROOT2(tc, st, sc, {
-            MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
-        });
-        if (st->method_cache_sc) {
-            MVMObject *cache;
-
-            char     **orig_read_buffer         = sr->cur_read_buffer;
-            MVMint32  *orig_read_offset         = sr->cur_read_offset;
-            char     **orig_read_end            = sr->cur_read_end;
-
-            /* Set reader's position. */
-            sr->stables_data_offset    = st->method_cache_offset;
-            sr->cur_read_buffer        = &(sr->root.stables_data);
-            sr->cur_read_offset        = &(sr->stables_data_offset);
-            sr->cur_read_end           = &(sr->stables_data_end);
-
-            /* Flag that we're working on some deserialization (and so will run the
-            * loop). */
-            sr->working++;
-            MVM_gc_allocate_gen2_default_set(tc);
-
-            /* Deserialize what we need. */
-            cache = MVM_serialization_read_ref(tc, sr);
-            MVMROOT3(tc, st, sc, cache, { /* Keep cache from getting freed prematurely */
-                if (sr->working == 1)
-                    work_loop(tc, sr);
-            });
-            MVM_ASSIGN_REF(tc, &(st->header), st->method_cache, cache);
-
-            /* Clear up. */
-            MVM_gc_allocate_gen2_default_clear(tc);
-            sr->working--;
-            st->method_cache_sc = NULL;
-
-            sr->cur_read_buffer     = orig_read_buffer;
-            sr->cur_read_offset     = orig_read_offset;
-            sr->cur_read_end        = orig_read_end;
-        }
-        MVM_reentrantmutex_unlock(tc, (MVMReentrantMutex *)sc->body->mutex);
     }
 }
 

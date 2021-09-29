@@ -121,9 +121,10 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
         MVMuint32 num_comments = 0;
 
         while (ann) {
-            /* These four annotations carry a deopt index that we can find a
+            /* These annotations carry a deopt index that we can find a
              * corresponding line number for */
             if (ann->type == MVM_SPESH_ANN_DEOPT_ONE_INS
+                || ann->type == MVM_SPESH_ANN_DEOPT_PRE_INS
                 || ann->type == MVM_SPESH_ANN_DEOPT_ALL_INS
                 || ann->type == MVM_SPESH_ANN_DEOPT_INLINE
                 || ann->type == MVM_SPESH_ANN_DEOPT_OSR) {
@@ -149,7 +150,11 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                         ann->data.frame_handler_index);
                     break;
                 case MVM_SPESH_ANN_DEOPT_ONE_INS:
-                    appendf(ds, "      [Annotation: INS Deopt One (idx %d -> pc %d; line %d)]\n",
+                    appendf(ds, "      [Annotation: INS Deopt One After Instruction (idx %d -> pc %d; line %d)]\n",
+                        ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx], line_number);
+                    break;
+                case MVM_SPESH_ANN_DEOPT_PRE_INS:
+                    appendf(ds, "      [Annotation: INS Deopt One Before Instruction (idx %d -> pc %d; line %d)]\n",
                         ann->data.deopt_idx, g->deopt_addrs[2 * ann->data.deopt_idx], line_number);
                     break;
                 case MVM_SPESH_ANN_DEOPT_ALL_INS:
@@ -198,6 +203,10 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                 case MVM_SPESH_ANN_DEOPT_SYNTH:
                     appendf(ds, "      [Annotation: INS Deopt Synth (idx %d)]\n",
                         ann->data.deopt_idx);
+                    break;
+                case MVM_SPESH_ANN_CACHED:
+                    appendf(ds, "      [Annotation: Cached (bytecode offset %d)]\n",
+                        ann->data.bytecode_offset);
                     break;
                 case MVM_SPESH_ANN_COMMENT:
                     num_comments++;
@@ -291,6 +300,10 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             appendf(ds, "liti16(%"PRId16")", cur_ins->operands[i].lit_i16);
                             size += 2;
                             break;
+                        case MVM_operand_uint16:
+                            appendf(ds, "litui16(%"PRIu16")", cur_ins->operands[i].lit_ui16);
+                            size += 2;
+                            break;
                         case MVM_operand_int32:
                             appendf(ds, "liti32(%"PRId32")", cur_ins->operands[i].lit_i32);
                             size += 4;
@@ -301,6 +314,10 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             break;
                         case MVM_operand_int64:
                             appendf(ds, "liti64(%"PRId64")", cur_ins->operands[i].lit_i64);
+                            size += 8;
+                            break;
+                        case MVM_operand_uint64:
+                            appendf(ds, "liti64(%"PRIu64")", cur_ins->operands[i].lit_ui64);
                             size += 8;
                             break;
                         case MVM_operand_num32:
@@ -323,7 +340,7 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                             MVMCallsite *callsite = g->sf->body.cu->body.callsites[cur_ins->operands[i].callsite_idx];
                             appendf(ds, "callsite(%p, %d arg, %d pos, %s, %s)",
                                     callsite,
-                                    callsite->arg_count, callsite->num_pos,
+                                    callsite->flag_count, callsite->num_pos,
                                     callsite->has_flattening ? "flattening" : "nonflattening",
                                     callsite->is_interned ? "interned" : "noninterned");
                             size += 2;
@@ -533,30 +550,38 @@ static void dump_facts(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g) {
 
 static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs) {
     MVMuint16 i;
-    appendf(ds, "Callsite %p (%d args, %d pos)\n", cs, cs->arg_count, cs->num_pos);
-    for (i = 0; i < (cs->arg_count - cs->num_pos) / 2; i++) {
-        if (cs->arg_names[i]) {
-            char * argname_utf8 = MVM_string_utf8_encode_C_string(tc, cs->arg_names[i]);
-            appendf(ds, "  - %s\n", argname_utf8);
-            MVM_free(argname_utf8);
-        }
+    appendf(ds, "Callsite %p (%d args, %d pos)\n", cs, cs->flag_count, cs->num_pos);
+    for (i = 0; i < cs->flag_count - cs->num_pos; i++) {
+        char * argname_utf8 = MVM_string_utf8_encode_C_string(tc, cs->arg_names[i]);
+        appendf(ds, "  - %s\n", argname_utf8);
+        MVM_free(argname_utf8);
     }
     if (cs->num_pos)
         append(ds, "Positional flags: ");
     for (i = 0; i < cs->num_pos; i++) {
         MVMCallsiteEntry arg_flag = cs->arg_flags[i];
+        MVMCallsiteEntry arg_type = arg_flag & MVM_CALLSITE_ARG_TYPE_MASK;
+        MVMCallsiteEntry other_flags = arg_flag & ~MVM_CALLSITE_ARG_TYPE_MASK;
 
         if (i)
             append(ds, ", ");
 
-        if (arg_flag == MVM_CALLSITE_ARG_OBJ) {
+        if (arg_type == MVM_CALLSITE_ARG_OBJ) {
             append(ds, "obj");
-        } else if (arg_flag == MVM_CALLSITE_ARG_INT) {
+        } else if (arg_type == MVM_CALLSITE_ARG_INT) {
             append(ds, "int");
-        } else if (arg_flag == MVM_CALLSITE_ARG_NUM) {
+        } else if (arg_type == MVM_CALLSITE_ARG_NUM) {
             append(ds, "num");
-        } else if (arg_flag == MVM_CALLSITE_ARG_STR) {
+        } else if (arg_type == MVM_CALLSITE_ARG_STR) {
             append(ds, "str");
+        }
+        if (other_flags) {
+            if (other_flags == MVM_CALLSITE_ARG_LITERAL) {
+                append(ds, "lit");
+            }
+            else {
+                appendf(ds, "??%d", arg_flag);
+            }
         }
     }
     if (cs->num_pos)
@@ -758,12 +783,11 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
                     char *body_name = MVM_string_utf8_encode_C_string(tc, oss->invokes[k].sf->body.name);
                     char *body_cuuid = MVM_string_utf8_encode_C_string(tc, oss->invokes[k].sf->body.cuuid);
                     appendf(ds,
-                        "                %d x static frame '%s' (%s) (caller is outer: %d, multi %d)\n",
+                        "                %d x static frame '%s' (%s) (caller is outer: %d)\n",
                         oss->invokes[k].count,
                         body_name,
                         body_cuuid,
-                        oss->invokes[k].caller_is_outer_count,
-                        oss->invokes[k].was_multi_count);
+                        oss->invokes[k].caller_is_outer_count);
                     MVM_free(body_name);
                     MVM_free(body_cuuid);
                 }
@@ -774,10 +798,10 @@ void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCa
                         oss->type_tuples[k].arg_types,
                         "                    ");
                 }
-                for (k = 0; k < oss->num_plugin_guards; k++)
-                    appendf(ds, "                %d x spesh plugin guard index %d\n",
-                        oss->plugin_guards[k].count,
-                        oss->plugin_guards[k].guard_index);
+                for (k = 0; k < oss->num_dispatch_results; k++)
+                    appendf(ds, "                %d x dispatch result index %d\n",
+                        oss->dispatch_results[k].count,
+                        oss->dispatch_results[k].result_index);
             }
         }
         append(ds, "\n");
@@ -813,15 +837,6 @@ char * MVM_spesh_dump_stats(MVMThreadContext *tc, MVMStaticFrame *sf) {
 
         for (i = 0; i < ss->num_by_callsite; i++)
             dump_stats_by_callsite(tc, &ds, &(ss->by_callsite[i]));
-
-        if (ss->num_static_values) {
-            append(&ds, "Static values:\n");
-            for (i = 0; i < ss->num_static_values; i++)
-                appendf(&ds, "    - %s (%p) @ %d\n",
-                    MVM_6model_get_stable_debug_name(tc, ss->static_values[i].value->st),
-                    ss->static_values[i].value,
-                    ss->static_values[i].bytecode_offset);
-        }
     }
     else {
         append(&ds, "No spesh stats for this static frame\n");

@@ -49,6 +49,11 @@ static void write_int64(SpeshWriterState *ws, MVMuint64 value) {
     memcpy(ws->bytecode + ws->bytecode_pos, &value, 8);
     ws->bytecode_pos += 8;
 }
+static void write_uint64(SpeshWriterState *ws, MVMuint64 value) {
+    ensure_space(ws, 8);
+    memcpy(ws->bytecode + ws->bytecode_pos, &value, 8);
+    ws->bytecode_pos += 8;
+}
 static void write_int32(SpeshWriterState *ws, MVMuint32 value) {
     ensure_space(ws, 4);
     memcpy(ws->bytecode + ws->bytecode_pos, &value, 4);
@@ -142,7 +147,8 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                 g->inlines[ann->data.inline_idx].end = ws->bytecode_pos;
                 break;
             case MVM_SPESH_ANN_DEOPT_OSR:
-                g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos;
+            case MVM_SPESH_ANN_DEOPT_PRE_INS:
+                g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos << 1 | 1;
                 break;
             }
             ann = ann->next;
@@ -187,6 +193,45 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
             else {
                 /* Core op. */
                 write_int16(ws, ins->info->opcode);
+
+                /* sp_resumption needs entries making in the spesh resume init
+                 * table. */
+                if (ins->info->opcode == MVM_OP_sp_resumption) {
+                    /* The state register is simply the register number. */
+                    MVMSpeshResumeInit *ri = &(g->resume_inits[ins->operands[1].lit_ui16]);
+                    ri->state_register = ins->operands[0].reg.orig;
+
+                    /* For the resume init registers, we only have registers
+                     * for args and temps, but not constants. We need to build
+                     * a table that has those register numbers in the correct
+                     * place. */
+                    MVMDispProgramResumption *dpr = &(ri->dp->resumptions[ri->res_idx]);
+                    MVMuint16 map_size = dpr->init_callsite->flag_count;
+                    ri->init_registers = MVM_malloc(map_size * sizeof(MVMuint16));
+                    MVMuint16 num_init_registers = ins->operands[2].lit_ui16;
+                    if (dpr->init_values) {
+                        MVMuint16 cur_reg = 0;
+                        for (i = 0; i < map_size; i++) {
+                            switch (dpr->init_values[i].source) {
+                                case MVM_DISP_RESUME_INIT_ARG:
+                                case MVM_DISP_RESUME_INIT_TEMP:
+                                    ri->init_registers[i] = ins->operands[3 + cur_reg].reg.orig;
+                                    cur_reg++;
+                                    break;
+                                default:
+                                    ri->init_registers[i] = 0xFFFF;
+                                    break;
+                            }
+                        }
+                    }
+                    else {
+                        /* It's just the initial arguments to the dispatch, so
+                         * should match directly with the op registers. */
+                        assert(map_size == num_init_registers);
+                        for (i = 0; i < num_init_registers; i++)
+                            ri->init_registers[i] = ins->operands[3 + i].reg.orig;
+                    }
+                }
             }
 
             /* Write out operands. */
@@ -212,6 +257,9 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                     case MVM_operand_int16:
                         write_int16(ws, ins->operands[i].lit_i16);
                         break;
+                    case MVM_operand_uint16:
+                        write_int16(ws, ins->operands[i].lit_i16);
+                        break;
                     case MVM_operand_int32:
                         write_int32(ws, ins->operands[i].lit_i32);
                         break;
@@ -220,6 +268,9 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                         break;
                     case MVM_operand_int64:
                         write_int64(ws, ins->operands[i].lit_i64);
+                        break;
+                    case MVM_operand_uint64:
+                        write_uint64(ws, ins->operands[i].lit_ui64);
                         break;
                     case MVM_operand_num32:
                         write_num32(ws, ins->operands[i].lit_n32);
@@ -289,6 +340,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
             case MVM_OP_sp_guardtype:
             case MVM_OP_sp_guardobj:
             case MVM_OP_sp_guardnotobj:
+            case MVM_OP_sp_guardhll:
             case MVM_OP_sp_rebless:
                 deopt_idx = ins->operands[3].lit_ui32;
                 break;
@@ -296,6 +348,7 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
             case MVM_OP_sp_guardsfouter:
             case MVM_OP_sp_guardjustconc:
             case MVM_OP_sp_guardjusttype:
+            case MVM_OP_sp_guardnonzero:
                 deopt_idx = ins->operands[2].lit_ui32;
                 break;
             default:
@@ -313,12 +366,18 @@ static void write_instructions(MVMThreadContext *tc, MVMSpeshGraph *g, SpeshWrit
                 case MVM_SPESH_ANN_DEOPT_ONE_INS:
                 case MVM_SPESH_ANN_DEOPT_ALL_INS:
                 case MVM_SPESH_ANN_DEOPT_INLINE:
-                    g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos;
+                    g->deopt_addrs[2 * ann->data.deopt_idx + 1] = ws->bytecode_pos << 1;
 #ifndef NDEBUG
                     if (deopt_idx == ann->data.deopt_idx)
                         seen_deopt_idx = 1;
 #endif
                     break;
+#ifndef NDEBUG
+                case MVM_SPESH_ANN_DEOPT_PRE_INS:
+                    if (deopt_idx == ann->data.deopt_idx)
+                        seen_deopt_idx = 1;
+                break;
+#endif
                 }
                 ann = ann->next;
             }

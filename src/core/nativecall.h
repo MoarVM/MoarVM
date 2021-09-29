@@ -48,8 +48,8 @@ struct MVMNativeCallback {
     /* The dyncall/libffi callback object. */
     void *cb;
 
-    /* The routine that we will call. */
-    MVMObject *target;
+    /* The code handle that we will call. */
+    MVMCode *target;
 
     /* The VM instance. */
     MVMInstance *instance;

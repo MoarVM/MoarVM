@@ -235,6 +235,10 @@ static MVMint32 MVM_jit_expr_add_const(MVMThreadContext *tc, MVMJitExprTree *tre
         constant = opr.lit_i16;
         size = sizeof(MVMint16);
         break;
+    case MVM_operand_uint16:
+        constant = opr.lit_ui16;
+        size = sizeof(MVMuint16);
+        break;
     case MVM_operand_coderef:
         constant = opr.coderef_idx;
         size = sizeof(MVMuint16);
@@ -662,7 +666,6 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
     MVMSpeshGraph *sg = jg->sg;
     MVMSpeshIns *ins;
     MVMJitExprTree *tree;
-    MVMint32 operands[MVM_MAX_OPERANDS];
     struct ValueDefinition *values;
     MVMuint16 i;
     /* No instructions, just skip */
@@ -699,6 +702,8 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
            template. And for optimisation, I'd like to copy spesh facts (if any)
            to the tree info */
         MVMuint16 opcode = ins->info->opcode;
+        MVMuint16 operands_needed = MAX(2, ins->info->num_operands); /* At least 2 for inc_i hack */
+        MVMint32 *operands = alloca(operands_needed * sizeof(MVMint32));
         MVMSpeshAnn *ann;
         const MVMJitExprTemplate *template;
         MVMint32 before_label = -1, after_label = -1, root = 0;
@@ -708,6 +713,15 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
         /* check if this is a getlex and if we can handle it */
         BAIL(opcode == MVM_OP_getlex && getlex_needs_autoviv(tc, jg, ins), "getlex with autoviv");
         BAIL(opcode == MVM_OP_bindlex && bindlex_needs_write_barrier(tc, jg, ins), "Can't compile write-barrier bindlex");
+
+        MVMint32 untemplated = opcode == MVM_SSA_PHI || opcode == MVM_OP_no_op;
+        if (!untemplated) {
+            template = MVM_jit_get_template_for_opcode(opcode);
+            BAIL(template == NULL, "Cannot get template for: %s", ins->info->name);
+        }
+        else {
+            template = NULL;
+        }
 
         /* Check annotations that may require handling or wrapping the expression */
         for (ann = ins->annotations; ann != NULL; ann = ann->next) {
@@ -778,15 +792,13 @@ MVMJitExprTree * MVM_jit_expr_tree_build(MVMThreadContext *tc, MVMJitGraph *jg, 
             }
         }
 
-        if (opcode == MVM_SSA_PHI || opcode == MVM_OP_no_op) {
+        if (untemplated) {
             /* No template here, but we may have to emit labels */
             if (after_label < 0 && (before_label < 0 || tree_is_empty(tc, tree)))
                 continue;
             goto emit;
         }
 
-        template = MVM_jit_get_template_for_opcode(opcode);
-        BAIL(template == NULL, "Cannot get template for: %s", ins->info->name);
         if (tree_is_empty(tc, tree)) {
             /* start with a no-op so every valid reference is nonzero */
             MVM_jit_expr_apply_template(tc, tree, &noop_template, NULL);

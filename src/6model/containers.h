@@ -67,6 +67,7 @@ struct MVMContainerSpec {
 /* A container configurer knows how to attach a certain type of container
  * to an STable and configure it. */
 struct MVMContainerConfigurer {
+    MVMString *name;
     /* Sets this container spec in place for the specified STable. */
     void (*set_container_spec) (MVMThreadContext *tc, MVMSTable *st);
 
@@ -74,15 +75,6 @@ struct MVMContainerConfigurer {
     void (*configure_container_spec) (MVMThreadContext *tc, MVMSTable *st, MVMObject *config);
 };
 
-/* Container registry is a hash mapping names of container configurations
- * to function tables. As it's global (accessed with a mutex held) its entries
- * can't inline the struct returned to the caller. Hence the indirection: */
-struct MVMContainerRegistry {
-    struct MVMStrHashHandle hash_handle;
-    const MVMContainerConfigurer *configurer;
-};
-
-MVM_PUBLIC void MVM_6model_add_container_config(MVMThreadContext *tc, MVMString *name, const MVMContainerConfigurer *configurer);
 const MVMContainerConfigurer * MVM_6model_get_container_config(MVMThreadContext *tc, MVMString *name);
 void MVM_6model_containers_setup(MVMThreadContext *tc);
 MVMint64 MVM_6model_container_iscont_rw(MVMThreadContext *tc, MVMObject *cont);

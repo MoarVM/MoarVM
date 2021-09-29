@@ -1,5 +1,6 @@
 /* Callsite argument flags. */
-#define MVM_CALLSITE_ARG_MASK 31
+#define MVM_CALLSITE_ARG_TYPE_MASK       15
+#define MVM_CALLSITE_ARG_NAMED_FLAT_MASK 31
 typedef enum {
     /* Argument is an object. */
     MVM_CALLSITE_ARG_OBJ = 1,
@@ -13,6 +14,9 @@ typedef enum {
     /* Argument is a native NFG string (MVMString REPR). */
     MVM_CALLSITE_ARG_STR = 8,
 
+    /* Argument is a literal. */
+    MVM_CALLSITE_ARG_LITERAL = 16,
+
     /* Argument is named. The name is placed in the MVMCallsite. */
     MVM_CALLSITE_ARG_NAMED = 32,
 
@@ -23,41 +27,18 @@ typedef enum {
     MVM_CALLSITE_ARG_FLAT_NAMED = 128
 } MVMCallsiteFlags;
 
+/* Callsites that are used within the VM. */
 typedef enum {
-    /* Zero argument callsite. */
-    MVM_CALLSITE_ID_NULL_ARGS,
-
-    /* Dummy, invocant-arg callsite. Taken from coerce.c;
-     * OBJ */
-    MVM_CALLSITE_ID_INV_ARG,
-
-    /* Callsite for container store. Taken from containers.c;
-     * OBJ, OBJ */
-    MVM_CALLSITE_ID_TWO_OBJ,
-
-    /* Callsite for method not found errors. Taken from 6model.c;
-     * OBJ, STR */
-    MVM_CALLSITE_ID_METH_NOT_FOUND,
-
-    /* Callsite for finding methods. Taken from 6model.c;
-     * OBJ, OBJ, STR */
-    MVM_CALLSITE_ID_FIND_METHOD,
-
-    /* Callsite for typechecks. Taken from 6model.c;
-     * OBJ, OBJ, OBJ */
-    MVM_CALLSITE_ID_TYPECHECK,
-
-    /* Callsite OBJ, INT */
+    MVM_CALLSITE_ID_ZERO_ARITY,
+    MVM_CALLSITE_ID_OBJ,
+    MVM_CALLSITE_ID_INT,
+    MVM_CALLSITE_ID_OBJ_OBJ,
     MVM_CALLSITE_ID_OBJ_INT,
-
-    /* Callsite OBJ, INT */
     MVM_CALLSITE_ID_OBJ_NUM,
-
-    /* Callsite OBJ, STR */
     MVM_CALLSITE_ID_OBJ_STR,
-
-    /* Callsite INT, INT */
     MVM_CALLSITE_ID_INT_INT,
+    MVM_CALLSITE_ID_OBJ_OBJ_STR,
+    MVM_CALLSITE_ID_OBJ_OBJ_OBJ,
 } MVMCommonCallsiteID;
 
 /* A callsite entry is just one of the above flags. */
@@ -89,9 +70,6 @@ struct MVMCallsite {
      * specialization). */
     MVMuint8 is_interned;
 
-    /* Cached version of this callsite with an extra invocant arg. */
-    MVMCallsite *with_invocant;
-
     /* Names of named arguments, in the order that they are passed (and thus
      * matching the flags). Note that named flattening args do not have an
      * entry here, even though they come in the nameds section. */
@@ -102,32 +80,55 @@ struct MVMCallsite {
  * have that many slots available (e.g. find_method(how, obj, name)). */
 #define MVM_MIN_CALLSITE_SIZE 3
 
-/* Maximum arity + 1 that we'll intern callsites by. */
-#define MVM_INTERN_ARITY_LIMIT 8
+/* Maximum arity of a callsite (where arity is including positionals and
+ * nameds in this case) that we immediately consider for interning. However,
+ * we are willing to go over this if we are forced to intern something. */
+#define MVM_INTERN_ARITY_SOFT_LIMIT     8
+
+/* The growth size of the intern list for a given arity. */
+#define MVM_INTERN_ARITY_GROW           8
 
 /* Interned callsites data structure. */
 struct MVMCallsiteInterns {
-    /* Array of callsites, by arity. */
-    MVMCallsite **by_arity[MVM_INTERN_ARITY_LIMIT];
+    /* 2-level array of pointers to callsites, first indexed by the arity,
+     * then callsite of that arity. Allocated via the FSA and freed at a
+     * safepoint if we grow beyond it. */
+    MVMCallsite ***by_arity;
 
-    /* Number of callsites we have interned by arity. */
-    MVMint32 num_by_arity[MVM_INTERN_ARITY_LIMIT];
+    /* Number of callsites we have interned by each arity. Also allocated
+     * using the FSA and freed at a safepoint on growth. */
+    MVMuint32 *num_by_arity;
+
+    /* The maximum interned arity so far (the element count of the above two
+     * arrays). */
+    MVMuint32 max_arity;
 };
 
-/* Initialize the "common" callsites */
+/* Functions relating to common callsites used within the VM. */
 void MVM_callsite_initialize_common(MVMThreadContext *tc);
+MVM_PUBLIC MVMCallsite * MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id);
 
-/* Get any of the "common" callsites */
-MVM_PUBLIC MVMCallsite *MVM_callsite_get_common(MVMThreadContext *tc, MVMCommonCallsiteID id);
-
-int MVM_callsite_is_common(MVMCallsite *cs);
-
+/* Other copying, interning, and cleanup. */
+MVMCallsite * MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs);
+MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs,
+        MVMuint32 force, MVMuint32 steal);
+void MVM_callsite_mark(MVMThreadContext *tc, MVMCallsite *cs, MVMGCWorklist *worklist,
+        MVMHeapSnapshotState *snapshot);
+void MVM_callsite_mark_interns(MVMThreadContext *tc, MVMGCWorklist *worklist,
+        MVMHeapSnapshotState *snapshot);
 void MVM_callsite_destroy(MVMCallsite *cs);
+void MVM_callsite_cleanup_interns(MVMInstance *instance);
 
-MVMCallsite *MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs);
+/* Callsite transformations. */
+MVMCallsite * MVM_callsite_drop_positional(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx);
+MVMCallsite * MVM_callsite_drop_positionals(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx, MVMuint32 count);
+MVMCallsite * MVM_callsite_insert_positional(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx,
+        MVMCallsiteFlags flag);
 
-/* Callsite interning function. */
-MVM_PUBLIC void MVM_callsite_try_intern(MVMThreadContext *tc, MVMCallsite **cs);
+/* Check if the callsite has nameds. */
+MVM_STATIC_INLINE MVMuint32 MVM_callsite_has_nameds(MVMThreadContext *tc, const MVMCallsite *cs) {
+    return cs->num_pos != cs->flag_count;
+}
 
 /* Count the number of nameds (excluding flattening). */
 MVM_STATIC_INLINE MVMuint16 MVM_callsite_num_nameds(MVMThreadContext *tc, const MVMCallsite *cs) {
@@ -139,4 +140,20 @@ MVM_STATIC_INLINE MVMuint16 MVM_callsite_num_nameds(MVMThreadContext *tc, const 
         i++;
     }
     return nameds;
+}
+
+/* Describe the callsite flag type. */
+MVM_STATIC_INLINE const char * MVM_callsite_arg_type_name(MVMCallsiteFlags f) {
+    switch (f & MVM_CALLSITE_ARG_TYPE_MASK) {
+        case MVM_CALLSITE_ARG_OBJ:
+            return "obj";
+        case MVM_CALLSITE_ARG_STR:
+            return "str";
+        case MVM_CALLSITE_ARG_INT:
+            return "int";
+        case MVM_CALLSITE_ARG_NUM:
+            return "num";
+        default:
+            return "unknown";
+    }
 }

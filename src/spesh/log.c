@@ -108,7 +108,7 @@ void log_parameter(MVMThreadContext *tc, MVMint32 cid, MVMuint16 arg_idx, MVMObj
     }
 }
 void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf,
-                         MVMCallsite *cs, MVMRegister *args) {
+                         MVMArgs args) {
     MVMSpeshLog *sl = tc->spesh_log;
     if (sl) {
         /* Log the entry itself. */
@@ -116,21 +116,18 @@ void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf,
         entry->kind = MVM_SPESH_LOG_ENTRY;
         entry->id = cid;
         MVM_ASSIGN_REF(tc, &(sl->common.header), entry->entry.sf, sf);
+        MVMCallsite *cs = args.callsite;
         entry->entry.cs = cs->is_interned ? cs : NULL;
         commit_entry(tc, sl);
 
         /* Log each parameter in the args buffer. */
         if (cs->is_interned) {
             MVMuint32 i;
-            MVMuint32 arg_idx = 0;
             for (i = 0; i < cs->flag_count; i++) {
                 if (!tc->spesh_log)
                     break;
-                if (cs->arg_flags[i] & MVM_CALLSITE_ARG_NAMED)
-                    arg_idx++;
                 if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ)
-                    log_parameter(tc, cid, arg_idx, args[arg_idx].o);
-                arg_idx++;
+                    log_parameter(tc, cid, i, args.source[args.map[i]].o);
             }
         }
     }
@@ -160,18 +157,6 @@ void MVM_spesh_log_type(MVMThreadContext *tc, MVMObject *value) {
     commit_entry(tc, sl);
 }
 
-/* Log a static value. */
-void MVM_spesh_log_static(MVMThreadContext *tc, MVMObject *value) {
-    MVMSpeshLog *sl = tc->spesh_log;
-    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
-    MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
-    entry->kind = MVM_SPESH_LOG_STATIC;
-    entry->id = cid;
-    MVM_ASSIGN_REF(tc, &(sl->common.header), entry->value.value, value);
-    entry->value.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
-    commit_entry(tc, sl);
-}
-
 /* Log a decont, only those that did not invoke. */
 void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *value) {
     MVMSpeshLog *sl = tc->spesh_log;
@@ -189,21 +174,16 @@ void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *va
 
 /* Log the target of an invocation; we log the static frame and whether the
  * outer of the code object is the current frame. */
-void MVM_spesh_log_invoke_target(MVMThreadContext *tc, MVMObject *invoke_target,
-                                 MVMuint16 was_multi) {
-    if (REPR(invoke_target)->ID == MVM_REPR_ID_MVMCode && IS_CONCRETE(invoke_target)) {
-        MVMCode *invoke_code = (MVMCode *)invoke_target;
-        MVMSpeshLog *sl = tc->spesh_log;
-        MVMint32 cid = tc->cur_frame->spesh_correlation_id;
-        MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
-        entry->kind = MVM_SPESH_LOG_INVOKE;
-        entry->id = cid;
-        MVM_ASSIGN_REF(tc, &(sl->common.header), entry->invoke.sf, invoke_code->body.sf);
-        entry->invoke.caller_is_outer = invoke_code->body.outer == tc->cur_frame;
-        entry->invoke.was_multi = was_multi;
-        entry->invoke.bytecode_offset = (*(tc->interp_cur_op) - *(tc->interp_bytecode_start)) - 2;
-        commit_entry(tc, sl);
-    }
+void MVM_spesh_log_bytecode_target(MVMThreadContext *tc, MVMint32 cid,
+        MVMuint32 bytecode_offset, MVMCode *target) {
+    MVMSpeshLog *sl = tc->spesh_log;
+    MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
+    entry->kind = MVM_SPESH_LOG_INVOKE;
+    entry->id = cid;
+    MVM_ASSIGN_REF(tc, &(sl->common.header), entry->invoke.sf, target->body.sf);
+    entry->invoke.caller_is_outer = target->body.outer == tc->cur_frame;
+    entry->invoke.bytecode_offset = bytecode_offset;
+    commit_entry(tc, sl);
 }
 
 /* Log the type returned to a frame after an invocation. */
@@ -214,7 +194,7 @@ void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMObject *value) {
     MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
     entry->kind = MVM_SPESH_LOG_RETURN;
     entry->id = cid;
-    if (value) {
+    if (value && tc->stack_top->prev->kind != MVM_CALLSTACK_RECORD_DISPATCH_RECORD) {
         MVM_ASSIGN_REF(tc, &(sl->common.header), entry->type.type, value->st->WHAT);
         entry->type.flags = IS_CONCRETE(value) ? MVM_SPESH_LOG_TYPE_FLAG_CONCRETE : 0;
     }
@@ -222,8 +202,7 @@ void MVM_spesh_log_return_type(MVMThreadContext *tc, MVMObject *value) {
         entry->type.type = NULL;
         entry->type.flags = 0;
     }
-    entry->type.bytecode_offset = (caller->return_address - caller->static_info->body.bytecode)
-        - (caller->return_type == MVM_RETURN_VOID ? 4 : 6);
+    entry->type.bytecode_offset = (caller->return_address - 2) - caller->static_info->body.bytecode;
     commit_entry(tc, sl);
 }
 
@@ -238,15 +217,14 @@ void MVM_spesh_log_return_to_unlogged(MVMThreadContext *tc) {
     commit_entry(tc, sl);
 }
 
-/* Log the result of a spesh plugin resolution. */
-void MVM_spesh_log_plugin_resolution(MVMThreadContext *tc, MVMuint32 bytecode_offset,
-                                     MVMuint16 guard_index) {
+/* Log the result of a dispatch. */
+void MVM_spesh_log_dispatch_resolution_for_correlation_id(MVMThreadContext *tc,
+        MVMint32 cid, MVMuint32 bytecode_offset, MVMuint16 result_index) {
     MVMSpeshLog *sl = tc->spesh_log;
-    MVMint32 cid = tc->cur_frame->spesh_correlation_id;
     MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
-    entry->kind = MVM_SPESH_LOG_PLUGIN_RESOLUTION;
+    entry->kind = MVM_SPESH_LOG_DISPATCH_RESOLUTION;
     entry->id = cid;
-    entry->plugin.bytecode_offset = bytecode_offset;
-    entry->plugin.guard_index = guard_index;
+    entry->dispatch.bytecode_offset = bytecode_offset;
+    entry->dispatch.result_index = result_index;
     commit_entry(tc, sl);
 }

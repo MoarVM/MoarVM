@@ -27,15 +27,15 @@ class Op {
     method generator() {
         my $offset = 2;
         if $.name eq "prepargs" {
-            my $signature = @!operands.map({self.generate_arg($_, $++)}).join(', ');
+            my $signature = ('$frame', |@!operands.map({self.generate_arg($_, $++)})).join(', ');
             'sub (' ~ $signature ~ ') {' ~
             ~ 'die("MAST::Ops generator for prepargs NYI (QASTOperationsMAST is supposed to do it by itself)");'
             ~ '}';
         }
         elsif $.name eq "const_i64" {
             q:to/CODE/.subst("CODE_GOES_HERE", $.code).chomp;
-            sub ($op0, int $value) {
-                    my $bytecode := $*MAST_FRAME.bytecode;
+            sub ($frame, $op0, int $value) {
+                    my $bytecode := $frame.bytecode;
                     my uint $elems := nqp::elems($bytecode);
                     my uint $index := nqp::unbox_u($op0);
                     if -32767 < $value && $value < 32768 {
@@ -56,27 +56,26 @@ class Op {
                 }
             CODE
         } else {
-            my $signature = @!operands.map({self.generate_arg($_, $++)}).join(', ');
-            my $frame-getter = self.needs_frame
-                ?? 'my $frame := $*MAST_FRAME; my $bytecode := $frame.bytecode;'
-                !! 'my $bytecode := $*MAST_FRAME.bytecode;';
-            my $operands-code = join("\n", @!operands.map({"                " ~ self.generate_operand($_, $++, $offset)}));
-
-            'sub (' ~ $signature ~ ') {' ~ "\n" ~
-                $frame-getter.indent(8) ~ ('
+            my $is-dispatch = $!mark eq '.d';
+            my @params = @!operands.map({self.generate_arg($_, $++)});
+            @params.unshift('$frame');
+            @params.push('@arg-indices') if $is-dispatch;
+            my $signature = @params.join(', ');
+            my constant $prefix = "                ";
+            my @operand-emitters = @!operands.map({ $prefix ~ self.generate_operand($_, $++, $offset)});
+            if $is-dispatch {
+                @operand-emitters.push: $prefix ~ 'my int $arg-offset := $elems + ' ~ $offset ~ ';';
+                @operand-emitters.push: $prefix ~ 'for @arg-indices -> $offset { ' ~
+                    'nqp::writeuint($bytecode, $arg-offset, nqp::unbox_u($offset), 5); $arg-offset := $arg-offset + 2; }'
+            }
+            my $operands-code = @operand-emitters.join("\n");
+            'sub (' ~ $signature ~ ') {' ~ ('
+                my $bytecode := $frame.bytecode;
                 my uint $elems := nqp::elems($bytecode);
                 nqp::writeuint($bytecode, $elems, ' ~ $.code ~ ', 5);
 ' ~ $operands-code ~ '
             }').indent(-8);
         }
-    }
-    method needs_frame() {
-        for @!operands -> $operand {
-            if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
-                return True if !$rw and (($type // '') eq 'str' or ($special // '') eq 'ins' | 'coderef');
-            }
-        }
-        return False;
     }
     method generate_arg($operand, $i) {
         if OperandFlag.parse($operand) -> (:$rw, :$type, :$type_var, :$special) {
@@ -158,6 +157,8 @@ class Op {
                     ~ makewriteuint($offset, 2, '$index' ~ $i)
                 }
                 elsif ($special // '') eq 'callsite' {
+                    'my uint $index' ~ $i ~ ' := nqp::unbox_u($op' ~ $i ~ '); '
+                    ~ makewriteuint($offset, 2, '$index' ~ $i)
                 }
                 elsif ($special // '') eq 'sslot' {
                 }
@@ -431,11 +432,13 @@ sub opcode_details(@ops) {
                 ($op.adverbs<predeoptonepoint> ?? 8 !! 0)),";
             take "        $($op.adverbs<maycausedeopt> ?? '1' !! '0'),";
             take "        $($op.adverbs<logged> ?? '1' !! '0'),";
+            take "        $($op.adverbs<postlogged> ?? '1' !! '0'),";
             take "        $($op.adverbs<noinline> ?? '1' !! '0'),";
             take "        $(($op.adverbs<invokish> ?? 1 !! 0) +
                             ($op.adverbs<throwish> ?? 2 !! 0)),";
             take "        $($op.adverbs<useshll> ?? '1' !! '0'),";
             take "        $($op.adverbs<specializable> ?? '1' !! '0'),";
+            take "        $($op.adverbs<cache> ?? '1' !! '0'),";
             if $op.operands {
                 take "        \{ $op.operands.map(&operand_flags).join(', ') }";
             }

@@ -79,6 +79,9 @@ struct MVMSpeshGraph {
     MVMSpeshInline *inlines;
     MVMuint32 num_inlines;
 
+    /* Table of information about resume initialization arguments, if any. */
+    MVM_VECTOR_DECL(MVMSpeshResumeInit, resume_inits);
+
     /* Number of basic blocks we have. */
     MVMuint32 num_bbs;
 
@@ -113,10 +116,6 @@ struct MVMSpeshGraph {
 
     /* Did we specialize on the invocant type? */
     MVMuint8 specialized_on_invocant;
-
-    /* Do we set a dispatcher? */
-    MVMuint8 sets_dispatcher;
-    MVMuint8 sets_nextdispatcher;
 
     /* Stored in comment annotations to give an ordering of comments */
     MVMuint32 next_annotation_idx;
@@ -215,6 +214,7 @@ struct MVMSpeshIns {
  * optimizer we're in determines which of these we look at. */
 union MVMSpeshOperand {
     MVMint64     lit_i64;
+    MVMint64     lit_ui64;
     MVMint32     lit_i32;
     MVMuint16    lit_ui32;
     MVMint16     lit_i16;
@@ -261,6 +261,7 @@ struct MVMSpeshAnn {
             MVMuint32 line_number;
         } lineno;
         char *comment;
+        MVMSpeshOperand *temps_to_release;
     } data;
 };
 
@@ -277,6 +278,9 @@ struct MVMSpeshAnn {
 #define MVM_SPESH_ANN_LINENO        10
 #define MVM_SPESH_ANN_LOGGED        11
 #define MVM_SPESH_ANN_DEOPT_SYNTH   12
+#define MVM_SPESH_ANN_CACHED        13
+#define MVM_SPESH_ANN_DEOPT_PRE_INS 14
+#define MVM_SPESH_ANN_DELAYED_TEMPS 2048
 #define MVM_SPESH_ANN_COMMENT       4096
 
 /* Functions to create/destroy the spesh graph. */
@@ -303,3 +307,4 @@ MVM_STATIC_INLINE MVMuint32 MVM_spesh_is_inc_dec_op(MVMuint16 opcode) {
     return opcode == MVM_OP_inc_i || opcode == MVM_OP_dec_i ||
            opcode == MVM_OP_inc_u || opcode == MVM_OP_dec_u;
 }
+int MVM_spesh_graph_ins_ends_bb(MVMThreadContext *tc, const MVMOpInfo *info);

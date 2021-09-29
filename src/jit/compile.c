@@ -97,6 +97,18 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
         case MVM_JIT_NODE_INVOKE:
             MVM_jit_emit_invoke(tc, &cl, jg, &node->u.invoke);
             break;
+        case MVM_JIT_NODE_RUNBYTECODE:
+            MVM_jit_emit_runbytecode(tc, &cl, jg, &node->u.runbytecode);
+            break;
+        case MVM_JIT_NODE_RUNCCODE:
+            MVM_jit_emit_runccode(tc, &cl, jg, &node->u.runccode);
+            break;
+        case MVM_JIT_NODE_DISPATCH:
+            MVM_jit_emit_dispatch(tc, &cl, jg, &node->u.dispatch);
+            break;
+        case MVM_JIT_NODE_ISTYPE:
+            MVM_jit_emit_istype(tc, &cl, jg, &node->u.istype);
+            break;
         case MVM_JIT_NODE_JUMPLIST:
             MVM_jit_emit_jumplist(tc, &cl, jg, &node->u.jumplist);
             break;
@@ -126,8 +138,10 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
 
 #if linux
     /* Native Call compiles code that doesn't correspond
-     * to a staticframe, in which case we just skip this. */
-    if (tc->instance->jit_perf_map && jg->sg->sf) {
+     * to a staticframe, in which case we just skip this.
+     * Sometimes code ends up null here as well, in which
+     * case we also skip. */
+    if (tc->instance->jit_perf_map && jg->sg->sf && code) {
         MVMStaticFrame *sf = jg->sg->sf;
         char symbol_name[1024];
         char *file_location = MVM_staticframe_file_location(tc, sf);

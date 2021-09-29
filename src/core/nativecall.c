@@ -692,8 +692,12 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
 
     body->lib_name = lib_name;
-    MVM_ASSIGN_REF(tc, &(site->header), body->resolve_lib_name, resolve_lib_name);
-    MVM_ASSIGN_REF(tc, &(site->header), body->resolve_lib_name_arg, resolve_lib_name_arg);
+    if (!MVM_is_null(tc, resolve_lib_name)) {
+        if (!MVM_code_iscode(tc, resolve_lib_name))
+            MVM_exception_throw_adhoc(tc, "resolve_lib_name must be a code handle");
+        MVM_ASSIGN_REF(tc, &(site->header), body->resolve_lib_name, resolve_lib_name);
+        MVM_ASSIGN_REF(tc, &(site->header), body->resolve_lib_name_arg, resolve_lib_name_arg);
+    }
 
     /* Try to locate the symbol. */
     if (entry_point_o && !MVM_is_null(tc, entry_point_o)) {
@@ -1150,24 +1154,23 @@ void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy) {
 
 typedef struct ResolverData {
     MVMObject *site;
-    MVMRegister args[1];
 } ResolverData;
 static void callback_invoke(MVMThreadContext *tc, void *data) {
     /* Invoke the coderef, to set up the nested interpreter. */
     ResolverData *r = (ResolverData*)data;
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, r->site);
-    MVMObject *code = body->resolve_lib_name;
-    MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INV_ARG);
-    r->args[0].o = body->resolve_lib_name_arg;
-    STABLE(code)->invoke(tc, code, callsite, r->args);
+    MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+            MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ));
+    args_record->args.source[0].o = body->resolve_lib_name_arg;
+    MVM_frame_dispatch(tc, body->resolve_lib_name, args_record->args, -1);
 
     /* Ensure we exit interp after callback. */
     tc->thread_entry_frame = tc->cur_frame;
 }
 void MVM_nativecall_restore_library(MVMThreadContext *tc, MVMNativeCallBody *body, MVMObject *root) {
-    if (!MVM_is_null(tc, body->resolve_lib_name) && !MVM_is_null(tc, body->resolve_lib_name_arg)) {
+    if (body->resolve_lib_name && !MVM_is_null(tc, body->resolve_lib_name_arg)) {
         MVMRegister res = {NULL};
-        ResolverData data = {root, {NULL}};
+        ResolverData data = {root};
 
         MVM_interp_run_nested(tc, callback_invoke, &data, &res);
 

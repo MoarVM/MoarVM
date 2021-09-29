@@ -28,11 +28,12 @@ struct MVMSpeshInline {
     /* The number of locals in the inline. */
     MVMuint16 num_locals;
 
-    /* Result register and result type. */
+    /* Result register and result type at the point of the call that has been
+     * inlined. */
     MVMuint16     res_reg;
     MVMReturnType res_type;
 
-    /* Deopt index used to find return address. */
+    /* Deopt index used to find return address of the caller if we uninline. */
     MVMuint32 return_deopt_idx;
 
     /* If the inline became unreachable after being made, we'll mark it as
@@ -53,16 +54,23 @@ struct MVMSpeshInline {
     /* Bit field of named args used to put in place during deopt, since we
      * typically don't update the array in specialized code. */
     MVMuint64 deopt_named_used_bit_field;
+
+    /* Indices of first and last spesh resume initialization records that
+     * are set up by the inlined call, or both set to -1 if none. */
+    MVMint16 first_spesh_resume_init;
+    MVMint16 last_spesh_resume_init;
 };
 
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph(MVMThreadContext *tc,
     MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshCandidate *cand,
-    MVMSpeshIns *invoke_ins, char **no_inline_reason, MVMuint32 *effective_size, MVMOpInfo const **no_inline_info);
+    MVMSpeshIns *runbytecode_ins, char **no_inline_reason, MVMuint32 *effective_size,
+    MVMOpInfo const **no_inline_info);
 MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadContext *tc,
     MVMSpeshGraph *inliner, MVMStaticFrame *target_sf, MVMSpeshIns *invoke_ins,
-    MVMSpeshCallInfo *call_info, MVMSpeshStatsType *type_tuple, char **no_inline_reason, MVMOpInfo const **no_inline_info);
+    MVMCallsite *cs, MVMSpeshOperand *args, MVMSpeshStatsType *type_tuple,
+    char **no_inline_reason, MVMOpInfo const **no_inline_info);
 void MVM_spesh_inline(MVMThreadContext *tc, MVMSpeshGraph *inliner,
-    MVMSpeshCallInfo *call_info, MVMSpeshBB *invoke_bb,
-    MVMSpeshIns *invoke, MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
-    MVMSpeshOperand code_ref_reg, MVMuint32 proxy_deopt_idx, MVMuint16 bytecode_size);
+    MVMCallsite *cs, MVMSpeshOperand *args, MVMSpeshBB *runbytecode_bb,
+    MVMSpeshIns *runbytecode_ins, MVMSpeshGraph *inlinee, MVMStaticFrame *inlinee_sf,
+    MVMSpeshOperand code_ref_reg, MVMSpeshIns *resume_init, MVMuint16 bytecode_size);
 MVMuint32 MVM_spesh_inline_get_max_size(MVMThreadContext *tc, MVMStaticFrame *sf);

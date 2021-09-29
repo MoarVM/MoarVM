@@ -360,11 +360,9 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
     case MVM_EX_ACTION_INVOKE: {
         /* Create active handler record. */
         MVMActiveHandler *ah = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMActiveHandler));
-        MVMFrame *cur_frame = tc->cur_frame;
-        MVMFrame *pres_frame;
-        MVMObject *handler_code;
 
         /* Ensure we have an exception object. */
+        MVMFrame *cur_frame = tc->cur_frame;
         if (ex_obj == NULL) {
             MVMROOT3(tc, cur_frame, lh.frame, payload, {
                 ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
@@ -374,7 +372,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         }
 
         /* Preserve the frame caller chain, so we can do backtraces. */
-        pres_frame = ((MVMException *)ex_obj)->body.origin;
+        MVMFrame *pres_frame = ((MVMException *)ex_obj)->body.origin;
         while (pres_frame) {
             MVMFrameExtra *extra = MVM_frame_extra(tc, pres_frame);
             extra->caller_info_needed = 1;
@@ -382,7 +380,9 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         }
 
         /* Find frame to invoke. */
-        handler_code = MVM_frame_find_invokee(tc, lh.frame->work[lh.handler->block_reg].o, NULL);
+        MVMObject *handler_code = lh.frame->work[lh.handler->block_reg].o;
+        if (!MVM_code_iscode(tc, handler_code))
+            MVM_oops(tc, "Exception handler must be a VM code handle");
 
         /* Install active handler record. */
         ah->frame           = lh.frame;
@@ -401,8 +401,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
             ah, NULL);
 
         /* Invoke the handler frame and return to runloop. */
-        STABLE(handler_code)->invoke(tc, handler_code, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS),
-                                     cur_frame->args);
+        MVM_frame_dispatch_zero_args(tc, (MVMCode *)handler_code);
         break;
     }
     default:
@@ -704,18 +703,17 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
  * a handler for unlocated lexical handlers. */
 static MVMint32 use_lexical_handler_hll_error(MVMThreadContext *tc, MVMuint8 mode) {
     return (mode == MVM_EX_THROW_LEX || mode == MVM_EX_THROW_LEX_CALLER) &&
-        !MVM_is_null(tc, MVM_hll_current(tc)->lexical_handler_not_found_error);
+        !MVM_is_null(tc, (MVMObject *)MVM_hll_current(tc)->lexical_handler_not_found_error);
 }
 
 /* Invokes the HLL's handler for unresolved lexical throws. */
 static void invoke_lexical_handler_hll_error(MVMThreadContext *tc, MVMint64 cat, LocatedHandler lh) {
-    MVMObject *handler = MVM_hll_current(tc)->lexical_handler_not_found_error;
-    MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INT_INT);
-    handler = MVM_frame_find_invokee(tc, handler, NULL);
-    MVM_args_setup_thunk(tc, NULL, MVM_RETURN_VOID, callsite);
-    tc->cur_frame->args[0].i64 = cat;
-    tc->cur_frame->args[1].i64 = lh.handler_out_of_dynamic_scope;
-    STABLE(handler)->invoke(tc, handler, callsite, tc->cur_frame->args);
+    MVMCode *handler = MVM_hll_current(tc)->lexical_handler_not_found_error;
+    MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+            MVM_callsite_get_common(tc, MVM_CALLSITE_ID_INT_INT));
+    args_record->args.source[0].i64 = cat;
+    args_record->args.source[1].i64 = lh.handler_out_of_dynamic_scope;
+    MVM_frame_dispatch_from_c(tc, handler, args_record, NULL, MVM_RETURN_VOID);
 }
 
 /* Throws an exception by category, searching for a handler according to

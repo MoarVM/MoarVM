@@ -89,9 +89,8 @@
 |.type REGISTER, MVMRegister
 |.type FRAME, MVMFrame
 |.type ARGCTX, MVMArgProcContext
+|.type CALLSITE, MVMCallsite
 |.type CALLSITEPTR, MVMCallsite*
-|.type CAPTURE, MVMCallCapture
-|.type CAPTUREBODY, MVMCallCaptureBody
 |.type ARGPROCCONTEXT, MVMArgProcContext
 |.type STATICFRAME, MVMStaticFrame
 |.type P6OPAQUE, MVMP6opaque
@@ -121,7 +120,9 @@
 |.type U32, MVMuint32
 |.type U64, MVMuint64
 |.type MPINT, mp_int
-
+|.type MVMDISPINLINECACHEENTRY, MVMDispInlineCacheEntry
+|.type MVMDISPINLINECACHE, MVMDispInlineCache
+|.type CFUNCTION, MVMCFunction
 
 /* Static allocation of relevant types to registers. I pick
  * callee-save registers for efficiency. It is likely we'll be calling
@@ -455,7 +456,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
          }
          break;
     }
-    case MVM_OP_null: {
+    case MVM_OP_null:
+    /* Runtime semantics of resumption setup are to null out a register to be
+     * used for dispatch state, thus we compile it just like null. */
+    case MVM_OP_sp_resumption: {
         MVMint16 reg = ins->operands[0].reg.orig;
         | get_vmnull TMP1;
         | mov WORK[reg], TMP1;
@@ -687,8 +691,11 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMuint16 idx = ins->operands[1].callsite_idx;
         | mov TMP1, TC->cur_frame;
-        | mov TMP1, FRAME:TMP1->params.args;
-        | mov TMP1, REGISTER:TMP1[idx];
+        | mov TMP2, FRAME:TMP1->params.arg_info.map;
+        | mov TMP2w, U16:TMP2[idx];
+        | movzx TMP2, TMP2w
+        | mov TMP1, FRAME:TMP1->params.arg_info.source;
+        | mov TMP1, qword [TMP1 + TMP2 * 8];
         | mov WORK[reg], TMP1;
         break;
     }
@@ -936,78 +943,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], TMP1;
         break;
     }
-    case MVM_OP_setdispatcher: {
-        MVMint16 src = ins->operands[0].reg.orig;
-        | mov TMP1, aword WORK[src];
-        | mov aword TC->cur_dispatcher, TMP1;
-        break;
-    }
-    case MVM_OP_takedispatcher: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        | mov TMP1, aword TC->cur_dispatcher;
-        | cmp TMP1, 0;
-        | je >2;
-        | mov TMP2, aword TC->cur_dispatcher_for;
-        | cmp TMP2, 0;
-        | je >1;
-        | mov TMP3, TC->cur_frame;
-        | mov TMP3, FRAME:TMP3->code_ref;
-        | cmp TMP2, TMP3;
-        | jne >2;
-        |1:
-        | mov aword WORK[dst], TMP1;
-        | mov aword TC->cur_dispatcher, NULL;
-        | jmp >3;
-        |2:
-        | get_vmnull TMP1;
-        | mov aword WORK[dst], TMP1;
-        |3:
-        break;
-    }
-    case MVM_OP_takenextdispatcher: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        | mov TMP1, aword TC->next_dispatcher;
-        | cmp TMP1, 0;
-        | je >2;
-        | mov TMP2, aword TC->next_dispatcher_for;
-        | cmp TMP2, 0;
-        | je >1;
-        | mov TMP3, TC->cur_frame;
-        | mov TMP3, FRAME:TMP3->code_ref;
-        | cmp TMP2, TMP3;
-        | jne >2;
-        |1:
-        | mov aword WORK[dst], TMP1;
-        | mov aword TC->next_dispatcher, NULL;
-        | jmp >3;
-        |2:
-        | get_vmnull TMP1;
-        | mov aword WORK[dst], TMP1;
-        |3:
-        break;
-    }
-    case MVM_OP_nextdispatcherfor: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, aword WORK[src];
-        | mov TMP2, aword WORK[dst];
-        | mov aword TC->next_dispatcher, TMP2;
-        | cmp_repr_id TMP1, TMP3, MVM_REPR_ID_MVMCode;
-        | je >2;
-        |1:
-	/* On Windows TMP1 is ARG1, so read it before overwriting it! */
-        | mov ARG2, TMP1;
-        | mov ARG1, TC;
-        | xor ARG3, ARG3;
-        | callp &MVM_frame_find_invokee;
-        | mov aword TC->next_dispatcher_for, RV;
-        | jmp >3;
-        |2:
-        | mov aword TC->next_dispatcher_for, TMP1;
-        | jmp >3;
-        |3:
-        break;
-    }
     case MVM_OP_ctx: {
         MVMint16 dst = ins->operands[0].reg.orig;
         | mov ARG1, TC;
@@ -1096,86 +1031,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | setz TMP2b;
         | movzx TMP2, TMP2b;
         | mov qword WORK[dst], TMP2;
-        break;
-    }
-    case MVM_OP_captureposarg: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 src = ins->operands[1].reg.orig;
-        MVMint16 pos = ins->operands[2].reg.orig;
-        | mov TMP5, qword WORK[src];
-        | test_type_object TMP5;
-        | jnz >1;
-        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMCallCapture;
-        | jne >1;
-        | mov ARG1, TC;
-        | mov ARG2, aword CAPTURE:TMP5->body.apc;
-        | mov ARG3, WORK[pos];
-        | callp &MVM_args_get_required_pos_obj;
-        | mov WORK[dst], RV;
-        | jmp >2;
-        |1:
-        | throw_adhoc "captureposarg needs a MVMCallCapture";
-        |2:
-        break;
-    }
-    case MVM_OP_captureposarg_i: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 src = ins->operands[1].reg.orig;
-        MVMint16 pos = ins->operands[2].reg.orig;
-        | mov TMP5, qword WORK[src];
-        | test_type_object TMP5;
-        | jnz >1;
-        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMCallCapture;
-        | jne >1;
-        | mov ARG1, TC;
-        | mov ARG2, aword CAPTURE:TMP5->body.apc;
-        | mov ARG3, qword WORK[pos];
-        | callp &MVM_args_get_required_pos_int;
-        | mov WORK[dst], RV;
-        | jmp >2;
-        |1:
-        | throw_adhoc "captureposarg_i needs a MVMCallCapture";
-        |2:
-        break;
-    }
-    case MVM_OP_captureposarg_n: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 src = ins->operands[1].reg.orig;
-        MVMint16 pos = ins->operands[2].reg.orig;
-        | mov TMP5, qword WORK[src];
-        | test_type_object TMP5;
-        | jnz >1;
-        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMCallCapture;
-        | jne >1;
-        | mov ARG1, TC;
-        | mov ARG2, aword CAPTURE:TMP5->body.apc;
-        | mov ARG3, qword WORK[pos];
-        | callp &MVM_args_get_required_pos_num;
-        | mov WORK[dst], RV;
-        | jmp >2;
-        |1:
-        | throw_adhoc "captureposarg_n needs a MVMCallCapture";
-        |2:
-        break;
-    }
-    case MVM_OP_captureposarg_s: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 src = ins->operands[1].reg.orig;
-        MVMint16 pos = ins->operands[2].reg.orig;
-        | mov TMP5, qword WORK[src];
-        | test_type_object TMP5;
-        | jnz >1;
-        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMCallCapture;
-        | jne >1;
-        | mov ARG1, TC;
-        | mov ARG2, aword CAPTURE:TMP5->body.apc;
-        | mov ARG3, aword WORK[pos];
-        | callp MVM_args_get_required_pos_str;
-        | mov WORK[dst], RV;
-        | jmp >2;
-        |1:
-        | throw_adhoc "captureposarg_s needs a MVMCallCapture";
-        |2:
         break;
     }
     case MVM_OP_add_i:
@@ -1971,31 +1826,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov qword WORK[dst], TMP1;
         break;
     }
-    case MVM_OP_sp_findmeth: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 obj = ins->operands[1].reg.orig;
-        MVMint32 str_idx = ins->operands[2].lit_str_idx;
-        MVMuint16 ss_idx = ins->operands[3].lit_i16;
-        | get_spesh_slot TMP1, ss_idx;
-        | mov TMP2, WORK[obj];
-        | mov TMP2, OBJECT:TMP2->st;
-        | cmp TMP1, TMP2;
-        | jne >1;
-        | get_spesh_slot TMP3, ss_idx + 1;
-        | mov WORK[dst], TMP3;
-        | jmp >2;
-        |1:
-        /* call find_method_spesh */
-        | mov ARG1, TC;
-        | mov ARG2, WORK[obj];
-        | get_string ARG3, str_idx;
-        | mov ARG4, ss_idx;
-        | lea TMP6, WORK[dst];
-        | mov ARG5, TMP6;
-        | callp &MVM_6model_find_method_spesh;
-        |2:
-        break;
-    }
     case MVM_OP_isconcrete: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;
@@ -2009,23 +1839,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |1:
         | mov qword WORK[dst], 0;
         |2:
-        break;
-    }
-    case MVM_OP_isinvokable: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, aword WORK[src];
-        | mov TMP1, OBJECT:TMP1->st;
-        | mov TMP2, 1;
-        | mov64 TMP3, ((uintptr_t)(MVM_6model_invoke_default));
-        | cmp TMP3, STABLE:TMP1->invoke;
-        | jne >1;
-        | mov TMP4, STABLE:TMP1->invocation_spec;
-        | test TMP4, TMP4;
-        | jnz >1;
-        | and TMP2, TMP4;
-        |1:
-        | mov aword WORK[dst], TMP2;
         break;
     }
     case MVM_OP_takehandlerresult: {
@@ -2090,7 +1903,23 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | call FUNCTION;
         break;
     }
-    case MVM_OP_getlexstatic_o:
+    case MVM_OP_sp_getlexstatic_o: {
+        MVMint16 dst       = ins->operands[0].reg.orig;
+        MVMint16 name      = ins->operands[1].reg.orig;
+        MVMint16 spesh_idx = ins->operands[2].lit_i16;
+        MVMuint32 slot     = ins->operands[3].lit_ui32;
+        | mov ARG1, TC;
+        | get_spesh_slot ARG2, spesh_idx;
+        | lea ARG2, STATICFRAME:ARG2->body.inline_cache;
+        | mov ARG2, MVMDISPINLINECACHE:ARG2->entries;
+        | lea ARG2, MVMDISPINLINECACHEENTRY:ARG2[slot];
+        | mov ARG3, aword WORK[name];
+        | mov FUNCTION, [ARG2];
+        | mov FUNCTION, MVMDISPINLINECACHEENTRY:FUNCTION->run_getlexstatic;
+        | call FUNCTION;
+        | mov WORK[dst], RV;
+        break;
+    }
     case MVM_OP_getlexperinvtype_o: {
         MVMint16 dst  = ins->operands[0].reg.orig;
         MVMint16 name = ins->operands[1].reg.orig;
@@ -2108,19 +1937,26 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_paramnamesused:
         | mov ARG2, TC->cur_frame;
         | lea ARG2, FRAME:ARG2->params;
-        | mov TMP5w, word ARGCTX:ARG2->num_pos;
-        | cmp TMP5w, word ARGCTX:ARG2->arg_count;
+        | mov ARG3, ARGCTX:ARG2->arg_info.callsite
+        | mov TMP5w, word CALLSITE:ARG3->num_pos;
+        | cmp TMP5w, word CALLSITE:ARG3->flag_count;
         | je >1;
         | mov ARG1, TC;
         | callp &MVM_args_assert_nameds_used;
         |1:
         break;
-    case MVM_OP_assertparamcheck: {
+    case MVM_OP_sp_assertparamcheck: {
         MVMint16 ok = ins->operands[0].reg.orig;
+        MVMint16 spesh_idx = ins->operands[1].lit_i16;
+        MVMuint32 slot     = ins->operands[2].lit_ui32;
         | mov TMP1, qword WORK[ok];
         | test TMP1, TMP1;
         | jnz >1;
         | mov ARG1, TC;
+        | get_spesh_slot ARG2, spesh_idx;
+        | lea ARG2, STATICFRAME:ARG2->body.inline_cache;
+        | mov ARG2, MVMDISPINLINECACHE:ARG2->entries;
+        | lea ARG2, MVMDISPINLINECACHEENTRY:ARG2[slot];
         | callp &MVM_args_bind_failed;
         |1:
         break;
@@ -2161,125 +1997,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov TMP3, SCREFBODY:TMP3->sc;
         |1:
         | mov aword WORK[dst], TMP3;
-        break;
-    }
-    case MVM_OP_invokewithcapture: {
-        MVMint16 dest    = ins->operands[0].reg.orig;
-        MVMint16 code    = ins->operands[1].reg.orig;
-        MVMint16 capture = ins->operands[2].reg.orig;
-        | mov TMP1, aword WORK[capture];
-        /* if (IS_CONCRETE(capture) && REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) */
-        | test_type_object TMP1;
-        | jnz >1;
-        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCallCapture;
-        | je >2;
-        |1:
-        /* else throw */
-        | throw_adhoc "invokewithcapture needs a MVMCallCapture";
-        |2:
-        /* code = MVM_frame_find_invokee(tc, code, NULL) */
-        | mov ARG1, TC;
-        | mov ARG2, WORK[code];
-        | xor ARG3, ARG3;
-        | callp &MVM_frame_find_invokee;
-
-        | mov ARG2, RV; // ARG2 = code
-        /* tc->cur_frame->return_value = &GET_REG(cur_op, 2) */
-        | lea ARG1, WORK[dest]; // ARG1 is used as scratch space
-        | mov TMP6, aword TC->cur_frame;
-        | mov aword FRAME:TMP6->return_value, ARG1;
-        /* tc->cur_frame->return_type = MVM_RETURN_OBJ */
-        | mov byte FRAME:TMP6->return_type, MVM_RETURN_OBJ;
-        /* tc->cur_frame->return_address = cur_op */
-        | get_cur_op ARG1;
-        | mov aword FRAME:TMP6->return_address, ARG1;
-        /* STABLE(code)->invoke(tc, code, capture->body.apc->effective_callsite,
-           capture->body.apc->arg) */
-        | mov ARG1, TC;
-        | mov ARG3, WORK[capture];
-        | mov ARG4, aword CAPTURE:ARG3->body.apc;
-        | mov ARG3, aword ARGCTX:ARG4->callsite;
-        | mov ARG4, aword ARGCTX:ARG4->args;
-        | mov FUNCTION, OBJECT:ARG2->st;
-        | mov FUNCTION, STABLE:FUNCTION->invoke;
-        | call FUNCTION;
-        /* jumping out is handled by invokish */
-        break;
-    }
-    case MVM_OP_captureposelems: {
-        MVMint16 dest    = ins->operands[0].reg.orig;
-        MVMint16 capture = ins->operands[1].reg.orig;
-        | mov TMP1, aword WORK[capture];
-        /* if (IS_CONCRETE(capture) && REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) */
-        | test_type_object TMP1;
-        | jnz >1;
-        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCallCapture;
-        | je >2;
-        |1:
-        /* else throw */
-        | throw_adhoc "captureposelems needs a concrete MVMCallCapture";
-        |2:
-        | mov TMP2, aword CAPTURE:TMP1->body.apc;
-        | movzx TMP2, word ARGPROCCONTEXT:TMP2->num_pos;
-        | mov WORK[dest], TMP2;
-        break;
-    }
-    case MVM_OP_captureexistsnamed: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 obj = ins->operands[1].reg.orig;
-        MVMint16 name = ins->operands[2].reg.orig;
-        | mov TMP1, WORK[obj];
-        | test_type_object TMP1;
-        | jnz >1;
-        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCallCapture;
-        | je >2;
-        |1:
-        | throw_adhoc "captureexistsnamed needs a MVMCallCapture";
-        |2:
-        | mov ARG2, CAPTURE:TMP1->body.apc;
-        | mov ARG3, WORK[name];
-        | mov ARG1, TC;
-        | callp MVM_args_has_named;
-        | mov WORK[dst], RV;
-        break;
-    }
-    case MVM_OP_capturehasnameds: {
-        MVMint16 dest    = ins->operands[0].reg.orig;
-        MVMint16 capture = ins->operands[1].reg.orig;
-        | mov TMP1, aword WORK[capture];
-        /* if (IS_CONCRETE(capture) && REPR(capture)->ID == MVM_REPR_ID_MVMCallCapture) */
-        | test_type_object TMP1;
-        | jnz >1;
-        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCallCapture;
-        | je >2;
-        |1:
-        /* else throw */
-        | throw_adhoc "capturehasnameds needs a concrete MVMCallCapture";
-        |2:
-        | mov TMP2, CAPTURE:TMP1->body.apc;
-        | mov TMP3w, word ARGPROCCONTEXT:TMP2->num_pos;
-        | mov TMP2w, word ARGPROCCONTEXT:TMP2->arg_count;
-        | cmp TMP2w, TMP3w;
-        | setne RVb;
-        | movzx RV, RVb;
-        | mov WORK[dest], RV;
-        break;
-    }
-    case MVM_OP_capturenamedshash: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 obj = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[obj];
-        | test_type_object TMP1;
-        | jnz >1;
-        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCallCapture;
-        | je >2;
-        |1:
-        | throw_adhoc "capturenamedshash needs a MVMCallCapture";
-        |2:
-        | mov ARG2, CAPTURE:TMP1->body.apc;
-        | mov ARG1, TC;
-        | callp MVM_args_slurpy_named;
-        | mov WORK[dst], RV;
         break;
     }
     case MVM_OP_getstdin:
@@ -2362,8 +2079,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMuint16 dst = ins->operands[0].reg.orig;
         MVMuint16 off = ins->operands[1].lit_ui16;
         | mov ARG1, TC
-        | mov ARG2, TC:ARG1->cur_frame
-        | lea ARG2, FRAME:ARG2->params
+        | xor ARG2, ARG2
         | mov ARG3, off
         | callp &MVM_args_slurpy_positional;
         | mov qword WORK[dst], RV;
@@ -2376,6 +2092,17 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | xor ARG2, ARG2
         | callp &MVM_args_slurpy_named;
         | mov qword WORK[dst], RV;
+        break;
+    }
+    case MVM_OP_sp_bindcomplete: {
+        MVMint16 spesh_idx = ins->operands[0].lit_i16;
+        MVMuint32 slot     = ins->operands[1].lit_ui32;
+        | mov ARG1, TC;
+        | get_spesh_slot ARG2, spesh_idx;
+        | lea ARG2, STATICFRAME:ARG2->body.inline_cache;
+        | mov ARG2, MVMDISPINLINECACHE:ARG2->entries;
+        | lea ARG2, MVMDISPINLINECACHEENTRY:ARG2[slot];
+        | callp &MVM_args_bind_succeeded;
         break;
     }
     case MVM_OP_sp_cas_o: {
@@ -2946,6 +2673,12 @@ void MVM_jit_emit_call_c(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
     case MVM_JIT_RV_PTR:
         | mov WORK[call_spec->rv_idx], RV;
         break;
+    case MVM_JIT_RV_INT_NEGATED:
+        | test RV, RV;
+        | setz TMP2b;
+        | movzx TMP2, TMP2b;
+        | mov WORK[call_spec->rv_idx], TMP2;
+        break;
     case MVM_JIT_RV_NUM:
         | movsd qword WORK[call_spec->rv_idx], RVF;
         break;
@@ -3212,7 +2945,8 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
     MVMint16 obj       = guard->ins->operands[op == MVM_OP_sp_guardsf ? 0 : 1].reg.orig;
     /* load object and spesh slot value, except for those that don't need it */
     | mov TMP1, WORK[obj];
-    if (op != MVM_OP_sp_guardjustconc && op != MVM_OP_sp_guardjusttype) {
+    if (op != MVM_OP_sp_guardjustconc && op != MVM_OP_sp_guardjusttype &&
+            op != MVM_OP_sp_guardnonzero && op != MVM_OP_sp_guardhll) {
         MVMint16 spesh_idx = guard->ins->operands[op == MVM_OP_sp_guardsf ? 1 : 2].lit_i16;
         | get_spesh_slot TMP2, spesh_idx;
     }
@@ -3252,16 +2986,24 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
         /* should have our stable */
         | cmp TMP2, OBJECT:TMP1->st;
         | jne >1;
+    } else if (op == MVM_OP_sp_guardhll) {
+        /* get HLL owner and compare */
+        | mov64 TMP2, guard->ins->operands[2].lit_ui64;
+        | mov TMP3, OBJECT:TMP1->st;
+        | cmp TMP2, STABLE:TMP3->hll_owner;
+        | jne >1;
     } else if (op == MVM_OP_sp_guardsf) {
         /* Should be an MVMCode */
-        | cmp_repr_id TMP1, TMP3, MVM_REPR_ID_MVMCode;
-        | jne >1;
         | cmp TMP2, CODE:TMP1->body.sf;
         | jne >1;
     } else if (op == MVM_OP_sp_guardobj) {
         /* object should match that from the spesh slot */
         | cmp TMP2, TMP1;
         | jne >1;
+    } else if (op == MVM_OP_sp_guardnonzero) {
+        /* integer value should not be zero */
+        | test TMP1, TMP1;
+        | jz >1;
     } else if (op == MVM_OP_sp_guardnotobj) {
         /* object should not match that from the spesh slot */
         | cmp TMP2, TMP1;
@@ -3303,6 +3045,251 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
     |2:
 }
 
+void MVM_jit_emit_runbytecode(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitRunByteCode *runcode) {
+    MVMint16 i;
+    MVMuint64 callsite = (MVMuint64)runcode->callsite;
+
+    /* Store the argument map in a data section so we can get a pointer to it */
+    |.data
+    |5:
+    for (i = 0; i < runcode->callsite->flag_count; i++) {
+        |.word (MVMuint16)runcode->map[i].reg.orig;
+    }
+    |.code
+
+    /* The return address for the interpreter */
+    | get_cur_op TMP2;
+    | mov TMP5, TC->cur_frame;
+    | mov aword FRAME:TMP5->return_address, TMP2;
+
+    /* Setup the frame for returning to our current position */
+    if (sizeof(MVMReturnType) == 1) {
+        | mov byte FRAME:TMP5->return_type, runcode->return_type;
+    } else {
+        MVM_panic(1, "JIT: MVMReturnType has unexpected size");
+    }
+
+    /* The register for our return value */
+    if (runcode->return_type == MVM_RETURN_VOID) {
+        | mov aword FRAME:TMP5->return_value, NULL;
+    } else {
+        | lea TMP2, WORK[runcode->return_register];
+        | mov aword FRAME:TMP5->return_value, TMP2;
+    }
+
+    | mov ARG1, TC;
+    | mov ARG2, aword WORK[runcode->code_register]
+    |.if WIN32
+    | mov64 TMP6, callsite;
+    | mov aword [rsp+0x20], TMP6;
+    | mov TMP6, TC->interp_reg_base;
+    | mov TMP6, [TMP6];
+    | mov aword [rsp+0x28], TMP6;
+    | lea TMP6, [<5];
+    | mov aword [rsp+0x30], TMP6;
+    | lea ARG3, [rsp+0x20];
+    | mov ARG4, runcode->spesh_cand
+    |.else
+    | mov ARG3, runcode->spesh_cand
+    | mov64 TMP6, callsite;
+    | mov aword [rsp], TMP6;
+    | mov TMP6, TC->interp_reg_base;
+    | mov TMP6, [TMP6];
+    | mov aword [rsp+0x08], TMP6;
+    | lea TMP6, [<5];
+    | mov aword [rsp+0x10], TMP6;
+    |.endif
+    | callp &MVM_frame_dispatch
+}
+
+void MVM_jit_emit_runccode(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitRunCCode *runcode) {
+    MVMint16 i;
+    MVMuint64 callsite = (MVMuint64)runcode->callsite;
+
+    /* Store the argument map in a data section so we can get a pointer to it */
+    |.data
+    |5:
+    for (i = 0; i < runcode->callsite->flag_count; i++) {
+        |.word (MVMuint16)runcode->map[i].reg.orig;
+    }
+    |.code
+
+    /* The return address for the interpreter */
+    | get_cur_op TMP2;
+    | mov TMP5, TC->cur_frame;
+    | mov aword FRAME:TMP5->return_address, TMP2;
+
+    /* Setup the frame for returning to our current position */
+    if (sizeof(MVMReturnType) == 1) {
+        | mov byte FRAME:TMP5->return_type, runcode->return_type;
+    } else {
+        MVM_panic(1, "JIT: MVMReturnType has unexpected size");
+    }
+
+    /* The register for our return value */
+    if (runcode->return_type == MVM_RETURN_VOID) {
+        | mov aword FRAME:TMP5->return_value, NULL;
+    } else {
+        | lea TMP2, WORK[runcode->return_register];
+        | mov aword FRAME:TMP5->return_value, TMP2;
+    }
+
+    | mov ARG1, TC;
+    | mov64 TMP6, callsite;
+    |.if WIN32
+    | mov aword [rsp+0x20], TMP6;
+    | mov TMP6, TC->interp_reg_base;
+    | mov TMP6, [TMP6];
+    | mov aword [rsp+0x28], TMP6;
+    | lea TMP6, [<5];
+    | mov aword [rsp+0x30], TMP6;
+    | lea ARG2, [rsp+0x20];
+    |.else
+    | mov aword [rsp], TMP6;
+    | mov TMP6, TC->interp_reg_base;
+    | mov TMP6, [TMP6];
+    | mov aword [rsp+0x08], TMP6;
+    | lea TMP6, [<5];
+    | mov aword [rsp+0x10], TMP6;
+    |.endif
+    | mov FUNCTION, aword WORK[runcode->code_register];
+    | mov FUNCTION, CFUNCTION:FUNCTION->body.func;
+    | call FUNCTION
+}
+
+void MVM_jit_emit_dispatch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitDispatch *dispatch) {
+    MVMint16 i;
+    MVMuint64 callsite = (MVMuint64)dispatch->callsite;
+
+    /* Store the argument map in a data section so we can get a pointer to it */
+    |.data
+    |5:
+    for (i = 0; i < dispatch->callsite->flag_count; i++) {
+        |.word (MVMuint16)dispatch->map[i].reg.orig;
+    }
+    |.code
+
+    /* The return address for the interpreter */
+    | get_cur_op TMP2;
+    | mov TMP5, TC->cur_frame;
+    | mov aword FRAME:TMP5->return_address, TMP2;
+
+    /* Setup the frame for returning to our current position */
+    if (sizeof(MVMReturnType) == 1) {
+        | mov byte FRAME:TMP5->return_type, dispatch->return_type;
+    } else {
+        MVM_panic(1, "JIT: MVMReturnType has unexpected size");
+    }
+
+    /* The register for our return value */
+    if (dispatch->return_type == MVM_RETURN_VOID) {
+        | mov aword FRAME:TMP5->return_value, NULL;
+    } else {
+        | lea TMP2, WORK[dispatch->return_register];
+        | mov aword FRAME:TMP5->return_value, TMP2;
+    }
+
+    | mov ARG1, TC;
+    | get_spesh_slot TMP6, dispatch->sf_slot;
+    | lea ARG2, STATICFRAME:TMP6->body.inline_cache;
+    | mov ARG2, MVMDISPINLINECACHE:ARG2->entries;
+    | lea ARG2, MVMDISPINLINECACHEENTRY:ARG2[dispatch->ice_slot];
+    | mov ARG3, [ARG2]
+    | get_string ARG4, dispatch->id;
+
+    |.if WIN32
+    | mov64 TMP5, callsite;
+    | mov ARG5, TMP5;
+    | lea TMP5, [<5];
+    | mov ARG6, TMP5;
+    | mov qword [rsp+6*8], WORK;
+    | mov qword [rsp+7*8], TMP6;
+    | mov TMP6, -1;
+    | mov qword [rsp+8*8], TMP6;
+    |.else
+    | mov64 ARG5, callsite;
+    | lea ARG6, [<5];
+    | mov qword [rsp+0*8], WORK;
+    | mov qword [rsp+1*8], TMP6;
+    | mov TMP6, -1;
+    | mov qword [rsp+2*8], TMP6;
+    |.endif
+
+    | mov FUNCTION, [ARG2];
+    | mov FUNCTION, MVMDISPINLINECACHEENTRY:FUNCTION->run_dispatch;
+    | call FUNCTION;
+}
+
+void MVM_jit_emit_istype(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
+        MVMJitIsType *istype) {
+    /* Emit the call to MVM_6model_try_cache_type_check, in order to try and
+     * resolve it via the cache. */
+    | mov ARG1, TC
+    | mov ARG2, aword WORK[istype->obj_register];
+    | mov ARG3, aword WORK[istype->type_register];
+    | lea ARG4, WORK[istype->return_register];
+    | callp &MVM_6model_try_cache_type_check;
+
+    /* If it worked out with the cache, we're done. */
+    | test RV, RV;
+    | jnz =>(istype->reentry_label);
+
+    /* Get HLL and ensure it has an istype dispatcher. If not, nothing
+     * more to do. */
+    MVMStaticFrame *sf = (MVMStaticFrame *)jg->sg->spesh_slots[istype->sf_slot];
+    MVMHLLConfig *hll = sf->body.cu->body.hll_config;
+    if (hll->istype_dispatcher) {
+        /* Otherwise, it's a dispatch. Emit argument map in the data section. */
+        |.data
+        |5:
+        |.word istype->obj_register;
+        |.word istype->type_register;
+        |.code
+
+        /* Set up return address and value location. */
+        | get_cur_op TMP2;
+        | mov TMP5, TC->cur_frame;
+        | mov aword FRAME:TMP5->return_address, TMP2;
+        | mov byte FRAME:TMP5->return_type, MVM_RETURN_INT;
+        | lea TMP2, WORK[istype->return_register];
+        | mov aword FRAME:TMP5->return_value, TMP2;
+
+        /* Perform the dispatch. */    
+        | mov ARG1, TC;
+        | get_spesh_slot TMP6, istype->sf_slot;
+        | lea ARG2, STATICFRAME:TMP6->body.inline_cache;
+        | mov ARG2, MVMDISPINLINECACHE:ARG2->entries;
+        | lea ARG2, MVMDISPINLINECACHEENTRY:ARG2[istype->ice_slot];
+        | mov ARG3, [ARG2]
+        MVMString **id_addr = &(hll->istype_dispatcher);
+        | mov64 ARG4, (uintptr_t)id_addr;
+        | mov ARG4, [ARG4]
+        
+        MVMCallsite *callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ);
+        |.if WIN32
+        | mov64 TMP5, (uintptr_t)callsite;
+        | mov ARG5, TMP5;
+        | lea TMP5, [<5];
+        | mov ARG6, TMP5;
+        | mov qword [rsp+6*8], WORK;
+        | mov qword [rsp+7*8], TMP6;
+        | mov TMP6, -1;
+        | mov qword [rsp+8*8], TMP6;
+        |.else
+        | mov64 ARG5, (uintptr_t)callsite;
+        | lea ARG6, [<5];
+        | mov qword [rsp+0*8], WORK;
+        | mov qword [rsp+1*8], TMP6;
+        | mov TMP6, -1;
+        | mov qword [rsp+2*8], TMP6;
+        |.endif
+
+        | mov FUNCTION, [ARG2];
+        | mov FUNCTION, MVMDISPINLINECACHEENTRY:FUNCTION->run_dispatch;
+        | call FUNCTION;
+    }
+}
+
 void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitInvoke *invoke) {
     MVMint16 i;
     MVMuint16 callsite_idx = invoke->callsite_idx;
@@ -3312,30 +3299,27 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
     | mov TMP5, TC->cur_frame;
     | mov aword FRAME:TMP5->return_address, TMP2;
 
-    /* Unless it's a resolve op (in which case we delay a lot of this)... */
-    if (!invoke->is_resolve) {
-        /* Store callsite in tmp6, which we use at the end of invoke */
-        | mov TMP6, CU->body.callsites;
-        | mov TMP6, CALLSITEPTR:TMP6[callsite_idx];
+    /* Store callsite in tmp6, which we use at the end of invoke */
+    | mov TMP6, CU->body.callsites;
+    | mov TMP6, CALLSITEPTR:TMP6[callsite_idx];
 
-        /* Store callsite in the frame. I use TMP5 as it never conflicts
-         * with argument passing (like TMP6, but unlike other TMP regs) */
-        | mov FRAME:TMP5->cur_args_callsite, TMP6;
+    /* Store callsite in the frame. I use TMP5 as it never conflicts
+     * with argument passing (like TMP6, but unlike other TMP regs) */
+    | mov FRAME:TMP5->cur_args_callsite, TMP6;
 
-        /* Setup the frame for returning to our current position */
-        if (sizeof(MVMReturnType) == 1) {
-            | mov byte FRAME:TMP5->return_type, invoke->return_type;
-        } else {
-            MVM_panic(1, "JIT: MVMReturnType has unexpected size");
-        }
+    /* Setup the frame for returning to our current position */
+    if (sizeof(MVMReturnType) == 1) {
+        | mov byte FRAME:TMP5->return_type, invoke->return_type;
+    } else {
+        MVM_panic(1, "JIT: MVMReturnType has unexpected size");
+    }
 
-        /* The register for our return value */
-        if (invoke->return_type == MVM_RETURN_VOID) {
-            | mov aword FRAME:TMP5->return_value, NULL;
-        } else {
-            | lea TMP2, WORK[invoke->return_register];
-            | mov aword FRAME:TMP5->return_value, TMP2;
-        }
+    /* The register for our return value */
+    if (invoke->return_type == MVM_RETURN_VOID) {
+        | mov aword FRAME:TMP5->return_value, NULL;
+    } else {
+        | lea TMP2, WORK[invoke->return_register];
+        | mov aword FRAME:TMP5->return_value, TMP2;
     }
 
     /* Install invoke args */
@@ -3374,56 +3358,7 @@ void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         }
     }
 
-    if (invoke->is_fast) {
-        /* call MVM_frame_invoke_code */
-        | mov ARG1, TC;
-        | mov ARG2, WORK[invoke->code_register_or_name];
-        | mov ARG3, TMP6; // this is the callsite object
-        | mov ARG4, invoke->spesh_cand_or_sf_slot;
-        | callp &MVM_frame_invoke_code;
-    } else if (invoke->is_resolve) {
-        /* call MVM_spesh_plugin_resolve_jit, which will trampoline out of
-         * the JIT-compiled code if need be */
-        | mov ARG1, TC;
-        | get_string ARG2, invoke->code_register_or_name;
-        | lea ARG3, WORK[invoke->return_register];
-        | mov ARG4, invoke->resolve_offset;
-        |.if WIN32
-        | get_spesh_slot rax, invoke->spesh_cand_or_sf_slot;
-        | mov ARG5, rax;
-        | mov rax, CU->body.callsites;
-        | mov rax, CALLSITEPTR:rax[callsite_idx];
-        | mov ARG6, rax;
-        |.else
-        | get_spesh_slot ARG5, invoke->spesh_cand_or_sf_slot;
-        | mov ARG6, CU->body.callsites;
-        | mov ARG6, CALLSITEPTR:ARG6[callsite_idx];
-        |.endif
-        | callp &MVM_spesh_plugin_resolve_jit;
-    } else {
-        /* first, save callsite and args */
-        | mov qword [rbp-0x28], TMP5; // args
-        | mov qword [rbp-0x30], TMP6; // callsite
-        /* setup call MVM_frame_multi_ok(tc, code, &cur_callsite, args); */
-        | mov ARG1, TC;
-        | mov ARG2, WORK[invoke->code_register_or_name]; // code object
-        | lea ARG3, [rbp-0x30];                          // &cur_callsite
-        | mov ARG4, TMP5;                                // args
-        | mov ARG5, 0;                           // NULL to &was_multi
-        | callp &MVM_frame_find_invokee_multi_ok;
-        /* restore callsite, args, RV now holds code object */
-        | mov TMP6, [rbp-0x30]; // callsite
-        | mov TMP5, [rbp-0x28]; // args
-        /* setup args for call to invoke(tc, code, cur_callsite, args) */
-        | mov ARG1, TC;
-        | mov ARG2, RV;   // code object
-        | mov ARG3, TMP6; // callsite
-        | mov ARG4, TMP5; // args
-        /* get the actual function */
-        | mov FUNCTION, OBJECT:RV->st;
-        | mov FUNCTION, STABLE:FUNCTION->invoke;
-        | call FUNCTION;
-    }
+    MVM_panic(1, "JIT needs updating for new-disp");
 }
 
 void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,

@@ -156,9 +156,11 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     entry->info.pure         = flags & MVM_EXTOP_PURE;
     entry->info.deopt_point  = 0;
     entry->info.logged       = 0;
+    entry->info.post_logged  = 0;
     entry->info.no_inline    = flags & MVM_EXTOP_NOINLINE;
     entry->info.jittivity    = (flags & MVM_EXTOP_INVOKISH) ? MVM_JIT_INFO_INVOKISH : 0;
     entry->info.uses_hll     = 0;
+    entry->info.uses_cache   = 0;
     entry->info.may_cause_deopt = 0;
     entry->info.specializable = spesh ? 1 : 0;
     memcpy(entry->info.operands, operands, num_operands);
@@ -208,4 +210,11 @@ const MVMOpInfo * MVM_ext_resolve_extop_record(MVMThreadContext *tc,
     uv_mutex_unlock(&tc->instance->mutex_extop_registry);
 
     return record->info;
+}
+
+const MVMOpInfo * MVM_ext_resolve_extop_record_in_cu(MVMThreadContext *tc, MVMCompUnit *cu,
+        MVMuint16 opcode) {
+    MVMuint16       index  = opcode - MVM_OP_EXT_BASE;
+    MVMExtOpRecord *record = &cu->body.extops[index];
+    return MVM_ext_resolve_extop_record(tc, record);
 }

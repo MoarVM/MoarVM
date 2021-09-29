@@ -51,6 +51,30 @@
   (when (zr $0)
     (branch $1)))
 
+(template: sp_getarg_o
+  (load
+    (^source_arg_addr $1)
+    ptr_sz
+  )
+)
+(template: sp_getarg_i
+  (load
+    (^source_arg_addr $1)
+    int_sz
+  )
+)
+(template: sp_getarg_s
+  (load
+    (^source_arg_addr $1)
+    ptr_sz
+  )
+)
+(template: sp_getarg_n
+  (load_num
+    (^source_arg_addr $1)
+    num_sz
+  )
+)
 
 (template: getlex (copy $1))
 (template: bindlex! (store \$0 $1 reg_sz))
@@ -243,27 +267,6 @@
       (carg (tc) ptr)
       (carg $1   ptr))))
 
-(template: smrt_intify!
-  (callv (^func &MVM_coerce_smart_intify)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg \$0 ptr))))
-
-(template: smrt_numify!
-  (callv (^func &MVM_coerce_smart_numify)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg \$0 ptr))))
-
-(template: smrt_strify!
-  (callv (^func &MVM_coerce_smart_stringify)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg \$0 ptr))))
-
 (template: checkarity
   (callv (^func &MVM_args_checkarity)
     (arglist
@@ -297,7 +300,7 @@
   (call (^func &MVM_args_slurpy_positional)
     (arglist
       (carg (tc) ptr)
-      (carg (^params) ptr)
+      (carg (const 0 ptr_sz) ptr)
       (carg $1 int)) ptr_sz))
 
 (template: param_sn
@@ -305,12 +308,6 @@
     (arglist
       (carg (tc) ptr)
       (carg (^zero) ptr)) ptr_sz))
-
-# since compilation of invocation is special-cased in the regular jit
-# we can't just toss this in here without also handling all of arg_*
-# and invoke_*.
-#(template: prepargs (^setf (^getf (tc) MVMThreadContext cur_frame) MVMFrame cur_args_callsite
-#                    (load (^cu_callsite_addr $0) ptr_sz)))
 
 (template: getcode
   (load (idx (^getf (cu) MVMCompUnit body.coderefs) $1 ptr_sz) ptr_sz))
@@ -391,21 +388,6 @@
     (arglist
       (carg (tc)     ptr)
       (carg (^frame) ptr)) ptr_sz))
-
-(template: multicacheadd
-  (call (^func &MVM_multi_cache_add)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1   ptr)
-      (carg $2   ptr)
-      (carg $3   ptr)) ptr_sz))
-
-(template: multicachefind
-  (call (^func &MVM_multi_cache_find)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1   ptr)
-      (carg $2   ptr)) ptr_sz))
 
 (template: null_s (^nullptr))
 
@@ -766,6 +748,7 @@
           (carg $1 ptr)) int_sz))))
 
 (template: null (^vmnull))
+(template: sp_resumption (^vmnull))
 
 (template: isnull
   (or
@@ -777,40 +760,6 @@
           (nz $0)
           (ne $0 (^vmnull)))
     (branch $1)))
-
-(template: findmeth!
-  (callv (^func &MVM_6model_find_method)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1   ptr)
-      (carg (^cu_string $2) ptr)
-      (carg \$0  ptr)
-      (carg (^one) int))))
-
-(template: findmeth_s!
-  (callv (^func &MVM_6model_find_method)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1   ptr)
-      (carg $2   ptr)
-      (carg \$0  ptr)
-      (carg (^one) int))))
-
-(template: can!
-  (callv (^func &MVM_6model_can_method)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg (^cu_string $2) ptr)
-      (carg \$0 ptr))))
-
-(template: can_s!
-  (callv (^func &MVM_6model_can_method)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1   ptr)
-      (carg $2   ptr)
-      (carg \$0  ptr))))
 
 (template: create!
   (letv: (($obj (call (^getf (^repr $1) MVMREPROps allocate)
@@ -840,14 +789,6 @@
         (^is_conc_obj $1))
     (^one)
     (^zero)))
-
-(template: istype!
-  (callv (^func &MVM_6model_istype)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg $2 ptr)
-      (carg \$0 ptr))))
 
 (template: objprimspec
   (if
@@ -1558,26 +1499,6 @@
         (carg $2           ptr)))
     (copy $1)))
 
-(template: istrue!
-  (callv (^func &MVM_coerce_istrue)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg \$0 ptr)
-      (carg (^nullptr) ptr)
-      (carg (^nullptr) ptr)
-      (carg (^zero) int))))
-
-(template: isfalse!
-  (callv (^func &MVM_coerce_istrue)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg \$0 ptr)
-      (carg (^nullptr) ptr)
-      (carg (^nullptr) ptr)
-      (carg (^one) int))))
-
 (template: bootint      (^get_instance_field boot_types.BOOTInt))
 (template: bootnum      (^get_instance_field boot_types.BOOTNum))
 (template: bootstr      (^get_instance_field boot_types.BOOTStr))
@@ -1654,27 +1575,6 @@
 (template: settypehllrole
   (^setf (^stable $0) MVMSTable hll_role $1))
 
-(template: hllize!
-  (callv (^func &MVM_hll_map)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg (call (^func &MVM_hll_current)
-              (arglist
-                (carg (tc) ptr)) ptr_sz) ptr)
-      (carg \$0 ptr))))
-
-(template: hllizefor!
-  (callv (^func &MVM_hll_map)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)
-      (carg (call (^func &MVM_hll_get_config_for)
-              (arglist
-                (carg (tc) ptr)
-                (carg $2   ptr)) ptr_sz) ptr)
-      (carg \$0 ptr))))
-
 (template: iter
   (call (^func &MVM_iter)
     (arglist
@@ -1694,43 +1594,16 @@
       (carg $1 ptr)) ptr_sz))
 
 (template: iscoderef
-  (if
-    (any
-      (zr $1)
-      (eq (^getf (^stable $1) MVMSTable invoke) (^func &MVM_6model_invoke_default)))
-    (^zero)
-    (^one)))
+  (call (^func &MVM_code_iscode)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
 
 (template: getcodeobj
   (call (^func &MVM_frame_get_code_object)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
-
-(template: isinvokable
-  (if
-    (eq (^getf (^stable $1) MVMSTable invoke) (^func &MVM_6model_invoke_default))
-    (flagval (nz (^getf (^stable $1) MVMSTable invocation_spec)))
-    (^one)))
-
-(template: setdispatcher
-  (dov
-    (^setf (tc) MVMThreadContext cur_dispatcher $0)
-    (^setf (tc) MVMThreadContext cur_dispatcher_for (^nullptr))))
-
-(template: takedispatcher
-  (let: (($disp     (^getf (tc) MVMThreadContext cur_dispatcher))
-         ($disp_for (^getf (tc) MVMThreadContext cur_dispatcher_for))
-         ($cur_code (^getf (^frame) MVMFrame code_ref)))
-    (if (all
-          (nz $disp)
-          (any
-            (zr $disp_for)
-            (eq $disp_for $cur_code)))
-      (do
-        (^setf (tc) MVMThreadContext cur_dispatcher (^nullptr))
-        $disp)
-      (^vmnull))))
 
 (template: iscont
   (if
@@ -2107,24 +1980,6 @@
       (carg $2   int)
       (carg (^zero) int)) int_sz))
 
-(template: tryfindmeth!
-  (callv (^func &MVM_6model_find_method)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1   ptr)
-      (carg (^cu_string $2) ptr)
-      (carg \$0  ptr)
-      (carg (^zero) int))))
-
-(template: tryfindmeth_s!
-  (callv (^func &MVM_6model_find_method)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1   ptr)
-      (carg $2   ptr)
-      (carg \$0  ptr)
-      (carg (^zero) int))))
-
 (template: rand_i
   (call (^func &MVM_proc_rand_i)
     (arglist
@@ -2197,12 +2052,6 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
-(template: assertparamcheck
-  (when (zr $0)
-    (callv (^func &MVM_args_bind_failed)
-      (arglist
-        (carg (tc) ptr)))))
-
 (template: hintfor
   (call (^getf (^repr $1) MVMREPROps attr_funcs.hint_for)
     (arglist
@@ -2211,14 +2060,14 @@
       (carg $1 ptr)
       (carg $2 ptr)) int_sz))
 
-(template: paramnamesused
-  (letv: (($ctx   (^addrf (^frame) MVMFrame params))
-         ($csite (^getf  $ctx MVMArgProcContext callsite)))
-    (when (ne (^getf $csite MVMCallsite num_pos) (^getf $csite MVMCallsite arg_count))
-      (callv (^func &MVM_args_assert_nameds_used)
-        (arglist
-          (carg (tc) ptr)
-          (carg $ctx ptr))))))
+#(template: paramnamesused
+#  (letv: (($ctx   (^addrf (^frame) MVMFrame params))
+#         ($csite (^getf  $ctx MVMArgProcContext legacy.callsite)))
+#    (when (ne (^getf $csite MVMCallsite num_pos) (^getf $csite MVMCallsite arg_count))
+#      (callv (^func &MVM_args_assert_nameds_used)
+#        (arglist
+#          (carg (tc) ptr)
+#          (carg $ctx ptr))))))
 
 (template: getuniname
   (call (^func &MVM_unicode_get_name)
@@ -2392,14 +2241,6 @@
       (carg $3   ptr)
       (carg $4   ptr)
       (carg $5   ptr)) ptr_sz))
-
-(template: getlexstatic_o
-  (let: (($found (call (^func &MVM_frame_find_lexical_by_name)
-                   (arglist
-                     (carg (tc) ptr)
-                     (carg $1   ptr)
-                     (carg (^reg_obj) int)) ptr_sz)))
-    (if (nz $found) (load $found ptr_sz) (^vmnull))))
 
 (template: getlexperinvtype_o
   (let: (($found (call (^func &MVM_frame_find_lexical_by_name)
@@ -2637,46 +2478,6 @@
       (carg $4 int)
       (carg $5 int)) int_sz))
 
-(template: setdispatcherfor
-  (dov
-    (^setf (tc) MVMThreadContext cur_dispatcher $0)
-    (^setf (tc) MVMThreadContext cur_dispatcher_for
-      (if
-        (^is_repr_id $1 MVM_REPR_ID_MVMCode)
-        $1
-        (call (^func &MVM_frame_find_invokee)
-          (arglist
-            (carg (tc) ptr)
-            (carg $1 ptr)
-            (carg (^nullptr) ptr)) ptr_sz)))))
-
-(template: nextdispatcherfor
-  (dov
-    (^setf (tc) MVMThreadContext next_dispatcher $0)
-    (^setf (tc) MVMThreadContext next_dispatcher_for
-      (if
-        (^is_repr_id $1 MVM_REPR_ID_MVMCode)
-        $1
-        (call (^func &MVM_frame_find_invokee)
-          (arglist
-            (carg (tc) ptr)
-            (carg $1 ptr)
-            (carg (^nullptr) ptr)) ptr_sz)))))
-
-(template: takenextdispatcher
-  (let: (($disp     (^getf (tc) MVMThreadContext next_dispatcher))
-         ($disp_for (^getf (tc) MVMThreadContext next_dispatcher_for))
-         ($cur_code (^getf (^frame) MVMFrame code_ref)))
-    (if (all
-          (nz $disp)
-          (any
-            (zr $disp_for)
-            (eq $disp_for $cur_code)))
-      (do
-        (^setf (tc) MVMThreadContext next_dispatcher (^nullptr))
-        $disp)
-      (^vmnull))))
-
 (template: strfromname
   (call (^func &MVM_unicode_string_from_name)
     (arglist
@@ -2833,12 +2634,6 @@
       (carg $2   ptr)
       (carg $3   ptr)) ptr_sz))
 
-(template: sp_resolvecode
-  (call (^func &MVM_frame_resolve_invokee_spesh)
-    (arglist
-      (carg (tc) ptr)
-      (carg $1 ptr)) ptr_sz))
-
 (template: sp_decont!
   (ifv (all
          (nz $1)
@@ -2851,23 +2646,7 @@
         (carg \$0 ptr)))
     (store \$0 $1 ptr_sz)))
 
-(template: sp_getarg_o (load (^parg $1) ptr_sz))
-(template: sp_getarg_i (load (^parg $1) int_sz))
-(template: sp_getarg_n (load_num (^parg $1) num_sz))
-(template: sp_getarg_s (load (^parg $1) ptr_sz))
-
 (template: sp_getspeshslot (^spesh_slot_value $1))
-
-(template: sp_findmeth!
-  (ifv (eq (^stable $1) (^spesh_slot_value $3))
-    (store \$0 (^spesh_slot_value (add $3 (const 1 int_sz))) ptr_sz)
-    (callv (^func &MVM_6model_find_method_spesh)
-      (arglist
-        (carg (tc) ptr)
-        (carg $1 ptr)
-        (carg (^cu_string $2) ptr)
-        (carg $3 int)
-        (carg \$0 ptr)))))
 
 (template: sp_fastcreate!
   (letv: (($block (call (^func &MVM_gc_allocate_nursery)
@@ -2953,14 +2732,12 @@
 
 (template: sp_guardsf
   (letv: (($check (copy $0)))
-    (when (any (^not_repr_id $check MVM_REPR_ID_MVMCode)
-               (ne (^getf $check MVMCode body.sf) (^spesh_slot_value $1)))
+    (when (ne (^getf $check MVMCode body.sf) (^spesh_slot_value $1))
          (^deopt_one $2))))
 
 (template: sp_guardsfouter
   (letv: (($check (copy $0)))
-    (when (any (^not_repr_id $check MVM_REPR_ID_MVMCode)
-               (ne (^getf $check MVMCode body.sf) (^spesh_slot_value $1))
+    (when (any (ne (^getf $check MVMCode body.sf) (^spesh_slot_value $1))
                (ne (^getf $check MVMCode body.outer) (^frame)))
          (^deopt_one $2))))
 

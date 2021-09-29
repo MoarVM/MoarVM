@@ -45,10 +45,12 @@ struct MVMOpInfo {
     MVMuint8    deopt_point : 4;
     MVMuint8    may_cause_deopt : 1;
     MVMuint8    logged : 1;
+    MVMuint8    post_logged : 1;
     MVMuint8    no_inline : 1;
     MVMuint8    jittivity : 2;
     MVMuint8    uses_hll : 1;
     MVMuint8    specializable : 1;
+    MVMuint8    uses_cache : 1;
     MVMuint8    operands[MVM_MAX_OPERANDS];
 };
 

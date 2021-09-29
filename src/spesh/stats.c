@@ -158,7 +158,7 @@ void add_type_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
  * offset. */
 void add_invoke_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
                           MVMStaticFrame *sf, MVMStaticFrame *target_sf,
-                          MVMint16 caller_is_outer, MVMint16 was_multi) {
+                          MVMint16 caller_is_outer) {
     /* If we have it already, increment the count. */
     MVMuint32 found;
     MVMuint32 n = oss->num_invokes;
@@ -167,8 +167,6 @@ void add_invoke_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
             oss->invokes[found].count++;
             if (caller_is_outer)
                 oss->invokes[found].caller_is_outer_count++;
-            if (was_multi)
-                oss->invokes[found].was_multi_count++;
             return;
         }
     }
@@ -181,29 +179,28 @@ void add_invoke_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
     MVM_ASSIGN_REF(tc, &(sf->body.spesh->common.header), oss->invokes[found].sf, target_sf);
     oss->invokes[found].count = 1;
     oss->invokes[found].caller_is_outer_count = caller_is_outer ? 1 : 0;
-    oss->invokes[found].was_multi_count = was_multi ? 1 : 0;
 }
 
-/* Adds/increments the count of a plugin guard index seen at the given offset. */
-void add_plugin_guard_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
-                                MVMuint32 guard_index) {
+/* Adds/increments the count of a dispatch result seen at the given offset. */
+void add_dispatch_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
+                            MVMuint32 result_index) {
     /* If we have it already, increment the count. */
     MVMuint32 found;
-    MVMuint32 n = oss->num_plugin_guards;
+    MVMuint32 n = oss->num_dispatch_results;
     for (found = 0; found < n; found++) {
-        if (oss->plugin_guards[found].guard_index == guard_index) {
-            oss->plugin_guards[found].count++;
+        if (oss->dispatch_results[found].result_index == result_index) {
+            oss->dispatch_results[found].count++;
             return;
         }
     }
 
     /* Otherwise, add it to the list. */
-    found = oss->num_plugin_guards;
-    oss->num_plugin_guards++;
-    oss->plugin_guards = MVM_realloc(oss->plugin_guards,
-            oss->num_plugin_guards * sizeof(MVMSpeshStatsPluginGuardCount));
-    oss->plugin_guards[found].guard_index = guard_index;
-    oss->plugin_guards[found].count = 1;
+    found = oss->num_dispatch_results;
+    oss->num_dispatch_results++;
+    oss->dispatch_results = MVM_realloc(oss->dispatch_results,
+            oss->num_dispatch_results * sizeof(MVMSpeshStatsDispatchResultCount));
+    oss->dispatch_results[found].result_index = result_index;
+    oss->dispatch_results[found].count = 1;
 }
 
 /* Adds/increments the count of a type tuple seen at the given offset. */
@@ -345,13 +342,13 @@ void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
                     MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
                         e->invoke.bytecode_offset);
                     add_invoke_at_offset(tc, oss, simf->sf, e->invoke.sf,
-                        e->invoke.caller_is_outer, e->invoke.was_multi);
+                        e->invoke.caller_is_outer);
                     break;
                 }
-                case MVM_SPESH_LOG_PLUGIN_RESOLUTION: {
+                case MVM_SPESH_LOG_DISPATCH_RESOLUTION: {
                     MVMSpeshStatsByOffset *oss = by_offset(tc, tss,
-                        e->plugin.bytecode_offset);
-                    add_plugin_guard_at_offset(tc, oss, e->plugin.guard_index);
+                        e->dispatch.bytecode_offset);
+                    add_dispatch_at_offset(tc, oss, e->dispatch.result_index);
                     break;
                 }
             }
@@ -442,31 +439,13 @@ MVMSpeshStatsType * param_type(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf
         MVMuint16 idx = e->param.arg_idx;
         MVMCallsite *cs = simf->ss->by_callsite[simf->callsite_idx].cs;
         if (cs) {
-            MVMint32 flag_idx = idx < cs->num_pos
-                ? idx
-                : cs->num_pos + (((idx - 1) - cs->num_pos) / 2);
-            if (flag_idx >= cs->flag_count)
+            if (idx >= cs->flag_count)
                 MVM_panic(1, "Spesh stats: argument flag index out of bounds");
-            if (cs->arg_flags[flag_idx] & MVM_CALLSITE_ARG_OBJ)
-                return &(simf->arg_types[flag_idx]);
+            if (cs->arg_flags[idx] & MVM_CALLSITE_ARG_OBJ)
+                return &(simf->arg_types[idx]);
         }
     }
     return NULL;
-}
-
-/* Records a static value for a frame, unless it's already in the log. */
-void add_static_value(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf, MVMuint32 bytecode_offset,
-                      MVMObject *value) {
-    MVMSpeshStats *ss = simf->ss;
-    MVMuint32 i, id;
-    for (i = 0; i < ss->num_static_values; i++)
-        if (ss->static_values[i].bytecode_offset == bytecode_offset)
-            return;
-    id = ss->num_static_values++;
-    ss->static_values = MVM_realloc(ss->static_values,
-        ss->num_static_values * sizeof(MVMSpeshStatsStatic));
-    ss->static_values[id].bytecode_offset = bytecode_offset;
-    MVM_ASSIGN_REF(tc, &(simf->sf->body.spesh->common.header), ss->static_values[id].value, value);
 }
 
 /* Decides whether to save or free the simulation stack. */
@@ -519,7 +498,8 @@ static void save_or_free_sim_stack(MVMThreadContext *tc, MVMSpeshSimStack *sims,
 
 /* Receives a spesh log and updates static frame statistics. Each static frame
  * that is updated is pushed once into sf_updated. */
-void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf_updated, MVMuint64 *in_newly_seen, MVMuint64 *in_updated) {
+void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl,  MVMObject *sf_newly_seen,
+        MVMObject *sf_updated, MVMuint64 *in_newly_seen, MVMuint64 *in_updated) {
     MVMuint32 i;
     MVMuint32 n = sl->body.used;
     MVMSpeshSimStack *sims;
@@ -558,10 +538,13 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
             case MVM_SPESH_LOG_ENTRY: {
                 MVMSpeshStats *ss = stats_for(tc, e->entry.sf);
                 MVMuint32 callsite_idx;
-                if (ss->last_update == 0)
+                if (ss->last_update == 0) {
                     newly_seen++;
-                else
+                    MVM_repr_push_o(tc, sf_newly_seen, (MVMObject *)e->entry.sf);
+                }
+                else {
                     updated++;
+                }
                 if (ss->last_update != tc->instance->spesh_stats_version) {
                     ss->last_update = tc->instance->spesh_stats_version;
                     MVM_repr_push_o(tc, sf_updated, (MVMObject *)e->entry.sf);
@@ -603,7 +586,7 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
             case MVM_SPESH_LOG_TYPE:
             case MVM_SPESH_LOG_RETURN:
             case MVM_SPESH_LOG_INVOKE:
-            case MVM_SPESH_LOG_PLUGIN_RESOLUTION: {
+            case MVM_SPESH_LOG_DISPATCH_RESOLUTION: {
                 /* We only incorporate these into the model later, and only
                  * then if we need to. For now, just keep references to
                  * them. */
@@ -626,12 +609,6 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
                 MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id, sf_updated);
                 if (simf)
                     simf->osr_hits++;
-                break;
-            }
-            case MVM_SPESH_LOG_STATIC: {
-                MVMSpeshSimStackFrame *simf = sim_stack_find(tc, sims, e->id, sf_updated);
-                if (simf)
-                    add_static_value(tc, simf, e->value.bytecode_offset, e->value.value);
                 break;
             }
             case MVM_SPESH_LOG_RETURN_TO_UNLOGGED: {
@@ -657,17 +634,24 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl, MVMObject *sf
  * updated in a while, clears them out. */
 void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames) {
     MVMint64 elems = MVM_repr_elems(tc, check_frames);
+    MVMSTable *check_frames_st = STABLE(check_frames);
+    void *check_frames_data = OBJECT_BODY(check_frames);
     MVMROOT(tc, check_frames, {
         MVMint64 insert_pos = 0;
         MVMint64 i;
         for (i = 0; i < elems; i++) {
-            MVMStaticFrame *sf = (MVMStaticFrame *)MVM_repr_at_pos_o(tc, check_frames, i);
+            MVMRegister sf_reg;
+            MVM_VMArray_at_pos(tc, check_frames_st, check_frames, check_frames_data,
+                    i, &sf_reg, MVM_reg_obj);
+            MVMStaticFrame *sf = (MVMStaticFrame *)sf_reg.o;
             MVMROOT(tc, sf, {
                 MVMStaticFrameSpesh *spesh = sf->body.spesh;
                 MVMSpeshStats *ss = spesh->body.spesh_stats;
+                MVMuint32 removed = 0;
                 if (!ss) {
                     /* No stats; already destroyed, don't keep this frame under
                      * consideration. */
+                    removed = 1;
                 }
                 else if (tc->instance->spesh_stats_version - ss->last_update > MVM_SPESH_STATS_MAX_AGE) {
                     /* Do not mark thread blocked as the GC also tries to acquire
@@ -698,13 +682,14 @@ void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames) {
                     if (!found) {
                         MVM_spesh_stats_destroy(tc, ss);
                         MVM_free_null(spesh->body.spesh_stats);
-                    }
-                    else {
-                        MVM_repr_bind_pos_o(tc, check_frames, insert_pos++, (MVMObject *)sf);
+                        removed = 1;
                     }
                 }
-                else {
-                    MVM_repr_bind_pos_o(tc, check_frames, insert_pos++, (MVMObject *)sf);
+
+                if (!removed) {
+                    sf_reg.o = (MVMObject *)sf;
+                    MVM_VMArray_bind_pos(tc, check_frames_st, check_frames,
+                            check_frames_data, insert_pos++, sf_reg, MVM_reg_obj);
                 }
             });
         }
@@ -741,8 +726,6 @@ void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorkl
                 }
             }
         }
-        for (i = 0; i < ss->num_static_values; i++)
-            MVM_gc_worklist_add(tc, worklist, &(ss->static_values[i].value));
     }
 }
 
@@ -752,7 +735,6 @@ void MVM_spesh_stats_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *sna
     MVMuint64 cache_3 = 0;
     MVMuint64 cache_4 = 0;
     MVMuint64 cache_5 = 0;
-    MVMuint64 cache_6 = 0;
     if (ss) {
         MVMuint32 i, j, k, l, m;
         for (i = 0; i < ss->num_by_callsite; i++) {
@@ -787,9 +769,6 @@ void MVM_spesh_stats_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *sna
                 }
             }
         }
-        for (i = 0; i < ss->num_static_values; i++)
-            MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, snapshot,
-                (MVMCollectable*)(ss->static_values[i].value), "static value", &cache_6);
     }
 }
 
@@ -807,7 +786,7 @@ void MVM_spesh_stats_destroy(MVMThreadContext *tc, MVMSpeshStats *ss) {
                     for (l = 0; l < by_offset->num_type_tuples; l++)
                         MVM_free(by_offset->type_tuples[l].arg_types);
                     MVM_free(by_offset->type_tuples);
-                    MVM_free(by_offset->plugin_guards);
+                    MVM_free(by_offset->dispatch_results);
                 }
                 MVM_free(by_type->by_offset);
                 MVM_free(by_type->arg_types);
@@ -815,7 +794,6 @@ void MVM_spesh_stats_destroy(MVMThreadContext *tc, MVMSpeshStats *ss) {
             MVM_free(by_cs->by_type);
         }
         MVM_free(ss->by_callsite);
-        MVM_free(ss->static_values);
     }
 }
 

@@ -1422,42 +1422,6 @@ static MVMuint64 request_hll_symbol_data(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
     }
 }
 
-static MVMuint64 request_find_method(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
-    MVMInstance *vm = dtc->instance;
-    MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
-    MVMObject *target = find_handle_target(dtc, argument->handle_id);
-    MVMThreadContext *tc;
-    MVMString *method_name = NULL;
-
-    if (!to_do) {
-        if (dtc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "no thread found for context/code obj handle (or thread not eligible)\n");
-        return 1;
-    }
-
-    tc = to_do->body.tc;
-
-    if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
-        if (dtc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %zu)\n", to_do->body.tc->gc_status);
-        return 1;
-    }
-
-    if (!target) {
-        if (dtc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "could not retrieve object of handle %"PRId64, argument->handle_id);
-        return 1;
-    }
-
-    MVM_gc_allocate_gen2_default_set(tc);
-    method_name = MVM_string_utf8_decode(tc, tc->instance->VMString, argument->name, strlen(argument->name));
-    MVM_gc_allocate_gen2_default_clear(tc);
-
-    allocate_and_send_handle(dtc, ctx, argument, MVM_spesh_try_find_method(tc, target, method_name));
-
-    return 0;
-}
-
 typedef struct {
     MVMuint64 id;
     MVMRegister return_target;
@@ -1632,7 +1596,6 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
         cs->num_pos    = argument->argument_count;
         cs->has_flattening = 0;
         cs->is_interned = 0;
-        cs->with_invocant = NULL;
         cs->arg_names = NULL;
 
         cs->arg_flags = MVM_malloc(sizeof(MVMCallsiteEntry) * cs->flag_count);
@@ -1675,26 +1638,25 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
             }
         }
 
-        tc->cur_frame->return_value = NULL;
-        tc->cur_frame->return_type  = MVM_RETURN_VOID;
-
+        /* Set up return handling for after call. */
         DebugserverInvocationSpecialReturnData *srd = MVM_calloc(sizeof(DebugserverInvocationSpecialReturnData), 1);
-
         srd->id = argument->id;
-
-        MVM_args_setup_thunk(tc, &srd->return_target, MVM_RETURN_ALLOMORPH, cs);
         MVM_frame_special_return(tc, tc->cur_frame,
             debugserver_invocation_special_return,
             debugserver_invocation_special_unwind,
             (void *)srd, NULL);
-        /* XXX how to find out how much space there is?
-           Or maybe always point to our own arguments_to_pass and mark and delete it
-           using the special return mechanism? */
-        memcpy(tc->cur_frame->args, arguments_to_pass, sizeof(MVMRegister) * cs->flag_count);
+        tc->cur_frame->return_value = &srd->return_target;
+        tc->cur_frame->return_type = MVM_RETURN_ALLOMORPH;
+        tc->cur_frame->return_address = *(tc->interp_cur_op);
+
+        /* Create a callstack record to hold the args. */
+        MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc, cs);
+        memcpy(args_record->args.source, arguments_to_pass, sizeof(MVMRegister) * cs->flag_count);
 
         debugserver->request_data.kind = MVM_DebugRequest_invoke;
         debugserver->request_data.target_tc = tc;
-        debugserver->request_data.data.invoke.target = target;
+        debugserver->request_data.data.invoke.target = (MVMCode *)target;
+        debugserver->request_data.data.invoke.args = &(args_record->args);
         debugserver->request_data.request_id = argument->id;
 
         MVM_store(&debugserver->request_data.status, MVM_DebugRequestStatus_sender_is_waiting);
@@ -1710,8 +1672,6 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
                 break;
             }
         }
-
-        // STABLE(target)->invoke(tc, target, cs, tc->cur_frame->args);
 
         communicate_success(dtc, ctx, argument);
 
@@ -2356,10 +2316,10 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     else if (repr_id == MVM_REPR_ID_MVMContext) {
         MVMFrame *frame = ((MVMContext *)target)->body.context;
         MVMArgProcContext *argctx = &frame->params;
-        MVMCallsite *cs = argctx->callsite;
-        MVMCallsiteEntry *cse = argctx->arg_flags ? argctx->arg_flags : cs->arg_flags;
+        MVMCallsite *cs =  argctx->arg_info.callsite;
+        MVMCallsiteEntry *cse = cs->arg_flags;
         MVMuint16 flag_idx;
-        MVMuint16 flag_count = argctx->arg_flags ? argctx->flag_count : cs->flag_count;
+        MVMuint16 flag_count = cs->flag_count;
         char *name = MVM_string_utf8_encode_C_string(dtc, frame->static_info->body.name);
         char *cuuid = MVM_string_utf8_encode_C_string(dtc, frame->static_info->body.cuuid);
 
@@ -3188,7 +3148,7 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
 #define COMMUNICATE_RESULT(operation) do { if ((operation)) { communicate_error(tc, &ctx, &argument); } else { communicate_success(tc, &ctx, &argument); } } while (0)
 #define COMMUNICATE_ERROR(operation) do { if ((operation)) { communicate_error(tc, &ctx, &argument); } } while (0)
 
-static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMRegister *args) {
+static void debugserver_worker(MVMThreadContext *tc, MVMArgs arg_info) {
     int continue_running = 1;
     MVMSocket listensocket;
     MVMInstance *vm = tc->instance;
@@ -3225,7 +3185,11 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
         }
 
         listensocket = socket(res->ai_family, SOCK_STREAM, 0);
+#ifdef _WIN32
+        if (listensocket == INVALID_SOCKET)
+#else
         if (listensocket == -1)
+#endif
             MVM_panic(1, "Debugserver: Could not create file descriptor for socket: %s", strerror(errno));
 
 #ifndef _WIN32
@@ -3347,9 +3311,9 @@ static void debugserver_worker(MVMThreadContext *tc, MVMCallsite *callsite, MVMR
                     }
                     break;
                 case MT_FindMethod:
-                    if (request_find_method(tc, &ctx, &argument)) {
-                        communicate_error(tc, &ctx, &argument);
-                    }
+                    /* No longer supported with the new generalized dispatch
+                     * mechanism; should invoke some code that does it. */
+                    communicate_error(tc, &ctx, &argument);
                     break;
                 case MT_DecontainerizeHandle:
                     if (request_object_decontainerize(tc, &ctx, &argument)) {

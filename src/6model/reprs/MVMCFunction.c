@@ -3,23 +3,14 @@
 /* This representation's function pointer table. */
 static const MVMREPROps MVMCFunction_this_repr;
 
-/* Invocation protocol handler. */
-static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
-    if (IS_CONCRETE(invokee))
-        ((MVMCFunction *)invokee)->body.func(tc, callsite, args);
-    else
-        MVM_exception_throw_adhoc(tc, "Cannot invoke C function type object");
-}
-
 /* Creates a new type object of this representation, and associates it with
- * the given HOW. Also sets the invocation protocol handler in the STable. */
+ * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st = MVM_gc_allocate_stable(tc, &MVMCFunction_this_repr, HOW);
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
-        st->invoke = invoke_handler;
         st->size = sizeof(MVMCFunction);
     });
 
@@ -32,7 +23,6 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     MVMCFunctionBody *dest_body = (MVMCFunctionBody *)dest;
     dest_body->func = src_body->func;
 }
-
 
 static const MVMStorageSpec storage_spec = {
     MVM_STORAGE_SPEC_REFERENCE, /* inlineable */

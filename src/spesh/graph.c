@@ -23,6 +23,12 @@ MVM_STATIC_INLINE MVMuint32 GET_UI32(const MVMuint8 *pc, MVMint32 idx) {
     return retval;
 }
 
+MVM_STATIC_INLINE MVMuint64 GET_UI64(const MVMuint8 *pc, MVMint32 idx) {
+    MVMuint64 retval;
+    memcpy(&retval, pc + idx, sizeof(retval));
+    return retval;
+}
+
 MVM_STATIC_INLINE MVMuint32 GET_N32(const MVMuint8 *pc, MVMint32 idx) {
     MVMnum32 retval;
     memcpy(&retval, pc + idx, sizeof(retval));
@@ -33,19 +39,6 @@ MVM_STATIC_INLINE MVMuint32 GET_N32(const MVMuint8 *pc, MVMint32 idx) {
  * allocator. Deallocated when the spesh graph is. */
 void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes) {
     return MVM_region_alloc(tc, &g->region_alloc, bytes);
-}
-
-/* Looks up op info; doesn't sanity check, since we should be working on code
- * that already pass validation. */
-static const MVMOpInfo * get_op_info(MVMThreadContext *tc, MVMCompUnit *cu, MVMuint16 opcode) {
-    if (opcode < MVM_OP_EXT_BASE) {
-        return MVM_op_get_op(opcode);
-    }
-    else {
-        MVMuint16       index  = opcode - MVM_OP_EXT_BASE;
-        MVMExtOpRecord *record = &cu->body.extops[index];
-        return MVM_ext_resolve_extop_record(tc, record);
-    }
 }
 
 /* Grows the spesh graph's deopt table if it is already full, so that we have
@@ -121,6 +114,17 @@ static void add_logged_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
     ins_node->annotations = ann;
 }
 
+/* Records the current bytecode position as an inline cache annotation. Used for
+ * resolving to the correct inline cache entry. */
+static void add_cached_annotation(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins_node,
+                                  MVMuint8 *pc) {
+    MVMSpeshAnn *ann = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+    ann->type = MVM_SPESH_ANN_CACHED;
+    ann->data.bytecode_offset = pc - g->bytecode;
+    ann->next = ins_node->annotations;
+    ins_node->annotations = ann;
+}
+
 /* Finds the linearly previous basic block (not cheap, but uncommon). */
 MVMSpeshBB * MVM_spesh_graph_linear_prev(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *search) {
     MVMSpeshBB *bb = g->entry;
@@ -143,6 +147,50 @@ static MVMint32 already_succs(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *
     for (i = 0; i < bb->num_succ; i++)
         if (bb->succ[i] == succ)
             return 1;
+    return 0;
+}
+
+/* Checks if the op is one of the spesh dispatch ops. */
+static MVMint32 spesh_dispatchy(MVMuint16 opcode) {
+    return (opcode >= MVM_OP_sp_dispatch_v    && opcode <= MVM_OP_sp_dispatch_o)    ||
+           (opcode >= MVM_OP_sp_runbytecode_v && opcode <= MVM_OP_sp_runbytecode_o) ||
+           (opcode >= MVM_OP_sp_runcfunc_v    && opcode <= MVM_OP_sp_runcfunc_o);
+}
+
+int MVM_spesh_graph_ins_ends_bb(MVMThreadContext *tc, const MVMOpInfo *info) {
+    switch (info->opcode) {
+    case MVM_OP_return_i:
+    case MVM_OP_return_n:
+    case MVM_OP_return_s:
+    case MVM_OP_return_o:
+    case MVM_OP_return:
+    case MVM_OP_dispatch_v:
+    case MVM_OP_dispatch_i:
+    case MVM_OP_dispatch_n:
+    case MVM_OP_dispatch_s:
+    case MVM_OP_dispatch_o:
+    case MVM_OP_sp_dispatch_v:
+    case MVM_OP_sp_dispatch_i:
+    case MVM_OP_sp_dispatch_n:
+    case MVM_OP_sp_dispatch_s:
+    case MVM_OP_sp_dispatch_o:
+    case MVM_OP_sp_runbytecode_v:
+    case MVM_OP_sp_runbytecode_i:
+    case MVM_OP_sp_runbytecode_n:
+    case MVM_OP_sp_runbytecode_s:
+    case MVM_OP_sp_runbytecode_o:
+    case MVM_OP_sp_runcfunc_v:
+    case MVM_OP_sp_runcfunc_i:
+    case MVM_OP_sp_runcfunc_n:
+    case MVM_OP_sp_runcfunc_s:
+    case MVM_OP_sp_runcfunc_o:
+        return 1;
+    default:
+        if (info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
+            return 1;
+        }
+        break;
+    }
     return 0;
 }
 
@@ -207,8 +255,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* Look up op info. */
         MVMuint16  opcode     = *(MVMuint16 *)pc;
         MVMuint8  *args       = pc + 2;
-        MVMuint8   arg_size   = 0;
-        const MVMOpInfo *info = get_op_info(tc, cu, opcode);
+        MVMuint16  arg_size   = 0;
+        const MVMOpInfo *info = MVM_bytecode_get_validated_op_info(tc, cu, opcode);
 
         /* Create an instruction node, add it, and record its position. */
         MVMSpeshIns *ins_node = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
@@ -238,7 +286,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         /* If this is a pre-instruction deopt point opcode, annotate. */
         if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_ONE_PRE))
             MVM_spesh_graph_add_deopt_annotation(tc, g, ins_node,
-                pc - g->bytecode, MVM_SPESH_ANN_DEOPT_ONE_INS);
+                pc - g->bytecode, MVM_SPESH_ANN_DEOPT_PRE_INS);
 
         /* Let's see if we have a line-number annotation. */
         if (ann_ptr && pc - sf->body.bytecode == ann_ptr->bytecode_offset) {
@@ -250,6 +298,28 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             ins_node->annotations = lineno_ann;
 
             MVM_bytecode_advance_annotation(tc, &sf->body, ann_ptr);
+        }
+
+        /* Dispatch ops have a variable number of arguments based on a callsite. */
+        if (MVM_op_get_mark(info->opcode)[1] == 'd' ||
+                (MVM_op_get_mark(info->opcode)[1] == 's' && spesh_dispatchy(info->opcode))) {
+            /* Fake up an op info struct for the duration of this spesh graph's
+             * life, so everything else can pretend it's got a fixed number of
+             * arguments. */
+            MVMCallsite *callsite = MVM_spesh_disp_callsite_for_dispatch_op(opcode, args, cu);
+            ins_node->info = MVM_spesh_alloc(tc, g, MVM_spesh_disp_dispatch_op_info_size(
+                tc, info, callsite));
+            MVM_spesh_disp_initialize_dispatch_op_info(tc, info, callsite, (MVMOpInfo*)ins_node->info);
+            info = ins_node->info;
+        }
+
+        /* The sp_resumption op is also var args. */
+        else if (info->opcode == MVM_OP_sp_resumption) {
+            MVMSpeshResumeInit *resume_init = &(g->resume_inits[((MVMuint16 *)args)[1]]);
+            info = ins_node->info = MVM_spesh_alloc(tc, g, MVM_spesh_disp_resumption_op_info_size(
+                tc, resume_init->dp, resume_init->res_idx));
+            MVM_spesh_disp_initialize_resumption_op_info(tc,
+                    resume_init->dp, resume_init->res_idx, ins_node->info);
         }
 
         /* Go over operands. */
@@ -280,6 +350,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     ins_node->operands[i].lit_i16 = GET_I16(args, arg_size);
                     arg_size += 2;
                     break;
+                case MVM_operand_uint16:
+                    ins_node->operands[i].lit_ui16 = GET_UI16(args, arg_size);
+                    arg_size += 2;
+                    break;
                 case MVM_operand_int32:
                     ins_node->operands[i].lit_i32 = GET_I32(args, arg_size);
                     arg_size += 4;
@@ -290,6 +364,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                     break;
                 case MVM_operand_int64:
                     ins_node->operands[i].lit_i64 = MVM_BC_get_I64(args, arg_size);
+                    arg_size += 8;
+                    break;
+                case MVM_operand_uint64:
+                    ins_node->operands[i].lit_i64 = GET_UI64(args, arg_size);
                     arg_size += 8;
                     break;
                 case MVM_operand_num32:
@@ -363,24 +441,10 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
         }
 
-        /* Invoke and return end a basic block. Anything that is marked as
+        /* Dispatch and return end a basic block. Anything that is marked as
          * invokish and throwish are also basic block ends. OSR points are
          * basic block starts. */
-        switch (opcode) {
-        case MVM_OP_invoke_v:
-        case MVM_OP_invoke_i:
-        case MVM_OP_invoke_n:
-        case MVM_OP_invoke_s:
-        case MVM_OP_invoke_o:
-        case MVM_OP_return_i:
-        case MVM_OP_return_n:
-        case MVM_OP_return_s:
-        case MVM_OP_return_o:
-        case MVM_OP_return:
-            byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
-            next_bbs = 1;
-            break;
-        case MVM_OP_osrpoint:
+        if (opcode == MVM_OP_osrpoint) {
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_START;
             if (pc - g->bytecode > 0) {
                 MVMuint32 prev = pc - g->bytecode;
@@ -388,23 +452,22 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                 byte_to_ins_flags[prev] |= MVM_CFG_BB_END;
             }
             num_osr_points++;
-            break;
-        default:
-            if (info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
-                byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
-                next_bbs = 1;
-            }
-            break;
+        }
+        else if (MVM_spesh_graph_ins_ends_bb(tc, info)) {
+            byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
+            next_bbs = 1;
         }
 
         /* Final instruction is basic block end. */
         if (pc + 2 + arg_size == end)
             byte_to_ins_flags[pc - g->bytecode] |= MVM_CFG_BB_END;
 
-        /* If the instruction is logged, store its program counter so we can
-         * associate it with a static value later. */
+        /* If the instruction is logged or uses the inline cache, store its
+         * program counter so we can look up the cache state or log info. */
         if (info->logged)
             add_logged_annotation(tc, g, ins_node, pc);
+        if (info->uses_cache)
+            add_cached_annotation(tc, g, ins_node, pc);
 
         /* Caculate next instruction's PC. */
         pc += 2 + arg_size;
@@ -419,6 +482,12 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
         if (!existing_deopts && (info->deopt_point & MVM_DEOPT_MARK_OSR))
             MVM_spesh_graph_add_deopt_annotation(tc, g, ins_node,
                 pc - g->bytecode, MVM_SPESH_ANN_DEOPT_OSR);
+
+        /* If it is post-logged, annotate it with the updated offset (the -2
+         * is a bit of a hack; it avoids conflicts with the following
+         * instructions pre-logged offsets). */
+        if (info->post_logged)
+            add_logged_annotation(tc, g, ins_node, pc - 2);
 
         /* Go to next instruction. */
         ins_idx++;
@@ -488,7 +557,7 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
      * control exceptions, we will insert  */
     g->entry                  = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB));
     g->entry->first_ins       = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
-    g->entry->first_ins->info = get_op_info(tc, cu, 0);
+    g->entry->first_ins->info = MVM_bytecode_get_validated_op_info(tc, cu, 0);
     g->entry->last_ins        = g->entry->first_ins;
     g->entry->idx             = 0;
     cur_bb                    = NULL;
@@ -683,11 +752,8 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
                 num_active_handlers
                 && (
                     cur_bb->last_ins->info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)
-                    || cur_bb->last_ins->info->opcode == MVM_OP_invoke_v
-                    || cur_bb->last_ins->info->opcode == MVM_OP_invoke_i
-                    || cur_bb->last_ins->info->opcode == MVM_OP_invoke_n
-                    || cur_bb->last_ins->info->opcode == MVM_OP_invoke_s
-                    || cur_bb->last_ins->info->opcode == MVM_OP_invoke_o
+                    || MVM_op_get_mark(cur_bb->last_ins->info->opcode)[1] == 'd'
+                    || (MVM_op_get_mark(cur_bb->last_ins->info->opcode)[1] == 's' && spesh_dispatchy(cur_bb->last_ins->info->opcode))
                 )
             ) {
                 cur_bb->handler_succ = MVM_spesh_alloc(tc, g, num_active_handlers * sizeof(MVMSpeshBB *));
@@ -716,13 +782,23 @@ static void build_cfg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *sf
     if (existing_deopts) {
         for (i = 0; i < num_existing_deopts; i ++) {
             if (existing_deopts[2 * i + 1] >= 0) {
-                MVMSpeshIns *post_ins     = ins_flat[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 3];
-                MVMSpeshIns *deopt_ins    = post_ins->prev ? post_ins->prev :
-                    MVM_spesh_graph_linear_prev(tc, g,
-                        ins_to_bb[byte_to_ins_flags[existing_deopts[2 * i + 1]] >> 3])->last_ins;
+                // check last bit which is abused as PRE_INS marker and set deopt_ins = post_ins if it is set
+                MVMuint32 deopt = (MVMuint32)existing_deopts[2 * i + 1];
+                MVMuint32 bytecode_pos = MVM_spesh_deopt_bytecode_pos(deopt);
+                MVMSpeshIns *post_ins     = ins_flat[byte_to_ins_flags[bytecode_pos] >> 3];
+                MVMSpeshIns *deopt_ins;
                 MVMSpeshAnn *deopt_ann    = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshAnn));
+                if (deopt & 1) { /* MVM_SPESH_ANN_DEOPT_PRE_INS annotation */
+                    deopt_ins = post_ins;
+                    deopt_ann->type = MVM_SPESH_ANN_DEOPT_PRE_INS;
+                }
+                else {
+                    deopt_ins    = post_ins->prev ? post_ins->prev :
+                        MVM_spesh_graph_linear_prev(tc, g,
+                            ins_to_bb[byte_to_ins_flags[bytecode_pos] >> 3])->last_ins;
+                    deopt_ann->type           = MVM_SPESH_ANN_DEOPT_INLINE;
+                }
                 deopt_ann->next           = deopt_ins->annotations;
-                deopt_ann->type           = MVM_SPESH_ANN_DEOPT_INLINE;
                 deopt_ann->data.deopt_idx = i;
                 deopt_ins->annotations    = deopt_ann;
             }
@@ -1320,7 +1396,7 @@ MVMSpeshGraph * MVM_spesh_graph_create(MVMThreadContext *tc, MVMStaticFrame *sf,
     g->phi_infos     = MVM_spesh_alloc(tc, g, MVMPhiNodeCacheSize * sizeof(MVMOpInfo));
 
     /* Ensure the frame is validated, since we'll rely on this. */
-    if (sf->body.instrumentation_level == 0) {
+    if (!sf->body.validated) {
         MVM_spesh_graph_destroy(tc, g);
         MVM_oops(tc, "Spesh: cannot build CFG from unvalidated frame");
     }
@@ -1354,6 +1430,9 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     g->num_lexicals      = cand->body.num_lexicals;
     g->inlines           = cand->body.inlines;
     g->num_inlines       = cand->body.num_inlines;
+    g->resume_inits      = cand->body.resume_inits;
+    g->resume_inits_num  = cand->body.num_resume_inits;
+    g->resume_inits_alloc = cand->body.num_resume_inits;
     g->deopt_addrs       = cand->body.deopts;
     g->num_deopt_addrs   = cand->body.num_deopts;
     g->alloc_deopt_addrs = cand->body.num_deopts;
@@ -1371,7 +1450,7 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
     memcpy(g->spesh_slots, cand->body.spesh_slots, sizeof(MVMCollectable *) * g->num_spesh_slots);
 
     /* Ensure the frame is validated, since we'll rely on this. */
-    if (sf->body.instrumentation_level == 0) {
+    if (!sf->body.validated) {
         MVM_spesh_graph_destroy(tc, g);
         MVM_oops(tc, "Spesh: cannot build CFG from unvalidated frame");
     }
@@ -1505,6 +1584,8 @@ void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g) {
         MVM_free(g->deopt_addrs);
     if (g->inlines && (!g->cand || g->cand->body.inlines != g->inlines))
         MVM_free(g->inlines);
+    if (g->resume_inits && (!g->cand || g->cand->body.resume_inits != g->resume_inits))
+        MVM_free(g->resume_inits);
     if (g->local_types &&  (!g->cand || g->cand->body.local_types != g->local_types))
         MVM_free(g->local_types);
     if (g->lexical_types &&  (!g->cand || g->cand->body.lexical_types != g->lexical_types))

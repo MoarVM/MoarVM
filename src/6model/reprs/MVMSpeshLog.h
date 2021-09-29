@@ -12,19 +12,17 @@ typedef enum {
     MVM_SPESH_LOG_PARAMETER_DECONT,
     /* Decont, attribute lookup, or lexical lookup type information. */
     MVM_SPESH_LOG_TYPE,
-    /* Static lexical lookup (bytecode says we can cache the result). */
-    MVM_SPESH_LOG_STATIC,
     /* Invoked static frame, and whether we are its outer. */
     MVM_SPESH_LOG_INVOKE,
     /* OSR point. */
     MVM_SPESH_LOG_OSR,
     /* Return from a callframe, possibly with a logged type. */
     MVM_SPESH_LOG_RETURN,
-    /* Spesh plugin resolution result. */
-    MVM_SPESH_LOG_PLUGIN_RESOLUTION,
     /* Return from a logged callframe to an unlogged one, needed to keep
      * the spesh simulation stack in sync. */
     MVM_SPESH_LOG_RETURN_TO_UNLOGGED,
+    /* Dispatch program resolution result. */
+    MVM_SPESH_LOG_DISPATCH_RESOLUTION,
 } MVMSpeshLogEntryKind;
 
 /* Flags on types. */
@@ -60,17 +58,10 @@ struct MVMSpeshLogEntry {
             MVMuint32 bytecode_offset;
         } type;
 
-        /* Observed value (STATIC). */
-        struct {
-            MVMObject *value;
-            MVMuint32 bytecode_offset;
-        } value;
-
         /* Observed invocation (INVOKE). */
         struct {
             MVMStaticFrame *sf;
             MVMint16 caller_is_outer;
-            MVMuint16 was_multi;
             MVMuint32 bytecode_offset;
         } invoke;
 
@@ -79,11 +70,11 @@ struct MVMSpeshLogEntry {
             MVMuint32 bytecode_offset;
         } osr;
 
-        /* Spesh log resolution result (PLUGIN_RESOLUTION). */
+        /* Dispatch resolution (DISPATCH_RESOLUTION). */
         struct {
             MVMuint32 bytecode_offset;
-            MVMuint16 guard_index;
-        } plugin;
+            MVMuint16 result_index;
+        } dispatch;
     };
 };
 

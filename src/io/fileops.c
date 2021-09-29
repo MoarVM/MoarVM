@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "platform/io.h"
 
 #ifndef _WIN32
 #include <sys/types.h>
@@ -164,7 +165,6 @@ void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
 }
 
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
-    uv_fs_t req;
     char * const a = MVM_string_utf8_c8_encode_C_string(tc, f);
 
 #ifdef _WIN32
@@ -176,6 +176,7 @@ void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
     }
 
 #else
+    uv_fs_t req;
     const int r = uv_fs_unlink(NULL, &req, a, NULL);
 
     if( r < 0 && r != UV_ENOENT) {

@@ -78,7 +78,7 @@ static char get_signature_char(MVMint16 type_id) {
 
 /* Sets up a callback, caching the information to avoid duplicate work. */
 static char callback_handler(DCCallback *cb, DCArgs *args, DCValue *result, MVMNativeCallback *data);
-static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMObject *sig_info) {
+static void * unmarshal_callback(MVMThreadContext *tc, MVMCode *callback, MVMObject *sig_info) {
     MVMNativeCallback **callback_data_handle;
     MVMString          *cuid;
 
@@ -86,9 +86,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         return NULL;
 
     /* Try to locate existing cached callback info. */
-    callback = MVM_frame_find_invokee(tc, callback, NULL);
-    cuid     = ((MVMCode *)callback)->body.sf->body.cuuid;
-
+    cuid = callback->body.sf->body.cuuid;
     if (!MVM_str_hash_entry_size(tc, &tc->native_callback_cache)) {
         MVM_str_hash_build(tc, &tc->native_callback_cache, sizeof(MVMNativeCallbackCacheHead), 0);
     }
@@ -143,7 +141,6 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
         cs->num_pos        = num_info - 1;
         cs->has_flattening = 0;
         cs->is_interned    = 0;
-        cs->with_invocant  = NULL;
 
         typehash = MVM_repr_at_pos_o(tc, sig_info, 0);
         callback_data->types[0] = MVM_repr_at_key_o(tc, typehash,
@@ -182,7 +179,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
             }
         }
 
-        MVM_callsite_try_intern(tc, &cs);
+        MVM_callsite_intern(tc, &cs, 0, 1);
 
         callback_data->instance  = tc->instance;
         callback_data->cs        = cs;
@@ -201,14 +198,19 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMObject *callback, MVMO
 
 /* Called to handle a callback. */
 typedef struct {
-    MVMObject   *invokee;
+    MVMCode     *invokee;
     MVMRegister *args;
     MVMCallsite *cs;
 } CallbackInvokeData;
 static void callback_invoke(MVMThreadContext *tc, void *data) {
     /* Invoke the coderef, to set up the nested interpreter. */
     CallbackInvokeData *cid = (CallbackInvokeData *)data;
-    STABLE(cid->invokee)->invoke(tc, cid->invokee, cid->cs, cid->args);
+    MVMArgs args = {
+        .callsite = cid->cs,
+        .source = cid->args,
+        .map = MVM_args_identity_map(tc, cid->cs)
+    };
+    MVM_frame_dispatch(tc, cid->invokee, args, -1);
 
     /* Ensure we exit interp after callback. */
     tc->thread_entry_frame = tc->cur_frame;
@@ -298,7 +300,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
                 break;
             case MVM_NATIVECALL_ARG_CALLBACK:
                 /* TODO: A callback -return- value means that we have a C method
-                * that needs to be wrapped similarly to a is native(...) Perl 6
+                * that needs to be wrapped similarly to a is native(...) Raku
                 * sub. */
                 dcbArgPointer(cb_args);
                 args[i - 1].o = type;
@@ -390,7 +392,9 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
             cb_result->p = MVM_nativecall_unmarshal_vmarray(tc, res.o, MVM_NATIVECALL_UNMARSHAL_KIND_GENERIC);
             break;
         case MVM_NATIVECALL_ARG_CALLBACK:
-            cb_result->p = unmarshal_callback(tc, res.o, data->types[0]);
+            if (IS_CONCRETE(res.o) && !MVM_code_iscode(tc, res.o))
+                MVM_exception_throw_adhoc(tc, "Native callback must be a code handle");
+            cb_result->p = unmarshal_callback(tc, (MVMCode *)res.o, data->types[0]);
             break;
         case MVM_NATIVECALL_ARG_UCHAR:
             cb_result->c = MVM_nativecall_unmarshal_uchar(tc, res.o);
@@ -573,9 +577,12 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
             case MVM_NATIVECALL_ARG_VMARRAY:
                 dcArgPointer(vm, MVM_nativecall_unmarshal_vmarray(tc, value, i));
                 break;
-            case MVM_NATIVECALL_ARG_CALLBACK:
-                dcArgPointer(vm, unmarshal_callback(tc, value, body->arg_info[i]));
+            case MVM_NATIVECALL_ARG_CALLBACK: {
+                if (IS_CONCRETE(value) && !MVM_code_iscode(tc, value))
+                    MVM_exception_throw_adhoc(tc, "Native callback must be a code handle");
+                dcArgPointer(vm, unmarshal_callback(tc, (MVMCode *)value, body->arg_info[i]));
                 break;
+            }
             case MVM_NATIVECALL_ARG_UCHAR:
                 handle_arg("integer", cont_i, DCuchar, i64, dcArgChar, MVM_nativecall_unmarshal_uchar);
                 break;

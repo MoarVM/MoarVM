@@ -377,6 +377,28 @@ static void validate_operand(Validator *val, MVMuint32 flags) {
     }
 }
 
+static void validate_dispatch_args(Validator *val, MVMCallsite *cs) {
+    MVMuint16 i;
+    for (i = 0; i < cs->flag_count; i++) {
+        MVMuint8 arg_type = cs->arg_flags[i] & MVM_CALLSITE_ARG_TYPE_MASK;
+        switch (arg_type) {
+            case MVM_CALLSITE_ARG_OBJ:
+                validate_reg_operand(val, MVM_operand_obj);
+                break;
+            case MVM_CALLSITE_ARG_INT:
+                validate_reg_operand(val, MVM_operand_int64);
+                break;
+            case MVM_CALLSITE_ARG_NUM:
+                validate_reg_operand(val, MVM_operand_num64);
+                break;
+            case MVM_CALLSITE_ARG_STR:
+                validate_reg_operand(val, MVM_operand_str);
+                break;
+            default:
+                fail(val, MSG(val, "unrecognized callsite arg type %" PRIu8), arg_type);
+        }
+    }
+}
 
 static void validate_operands(Validator *val) {
     const MVMuint8 *operands = val->cur_info->operands;
@@ -443,6 +465,13 @@ static void validate_operands(Validator *val) {
             else {
                 for (i = 0; i < val->cur_info->num_operands; i++)
                     validate_operand(val, val->cur_info->operands[i]);
+                if (val->cur_mark[1] == 'd') {
+                    /* Dispatch op needs its register args section validated. We
+                     * already just validated the callsite is in range, so can
+                     * fetch it unchecked here. */
+                    MVMCallsite *cs = val->cu->body.callsites[GET_UI16(val->cur_op, -2)];
+                    validate_dispatch_args(val, cs);
+                }
             }
         }
     }
@@ -530,7 +559,7 @@ static void validate_arg(Validator *val) {
 
         flags = val->cur_call->arg_flags[index];
 
-        switch (flags & ~MVM_CALLSITE_ARG_MASK) {
+        switch (flags & ~MVM_CALLSITE_ARG_NAMED_FLAT_MASK) {
             case 0: /* positionals */
             case MVM_CALLSITE_ARG_FLAT:
                 val->remaining_positionals--;
@@ -541,12 +570,12 @@ static void validate_arg(Validator *val) {
                 break;
 
             case MVM_CALLSITE_ARG_NAMED:
-                val->expected_named_arg = flags & MVM_CALLSITE_ARG_MASK;
+                val->expected_named_arg = flags & MVM_CALLSITE_ARG_TYPE_MASK;
                 goto named_arg;
 
             default:
                 fail(val, MSG(val, "invalid argument flags (%i) at index %"
-                        PRIu16), (int)(flags & ~MVM_CALLSITE_ARG_MASK), index);
+                        PRIu16), (int)(flags & ~MVM_CALLSITE_ARG_NAMED_FLAT_MASK), index);
         }
     }
 
@@ -730,4 +759,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
 
     /* Validation successful. Clear up instruction offsets. */
     MVM_free(val->labels);
+
+    /* Mark frame validated. */
+    static_frame->body.validated = 1;
 }

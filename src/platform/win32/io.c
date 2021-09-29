@@ -45,7 +45,7 @@ MVMint64 MVM_platform_lseek(int fd, MVMint64 offset, int origin)
     return li.QuadPart;
 }
 
-MVMint64 MVM_platform_unlink(const char *pathname) {
+int MVM_platform_unlink(const char *pathname) {
     /* Must using UTF8ToUnicode for supporting CJK Windows file name. */
     wchar_t *wpathname = UTF8ToUnicode(pathname);
     int str_len = wcslen(wpathname);

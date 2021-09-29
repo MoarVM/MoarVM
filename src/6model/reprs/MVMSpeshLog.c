@@ -49,9 +49,6 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
             case MVM_SPESH_LOG_RETURN:
                 MVM_gc_worklist_add(tc, worklist, &(log->entries[i].type.type));
                 break;
-            case MVM_SPESH_LOG_STATIC:
-                MVM_gc_worklist_add(tc, worklist, &(log->entries[i].value.value));
-                break;
             case MVM_SPESH_LOG_INVOKE:
                 MVM_gc_worklist_add(tc, worklist, &(log->entries[i].invoke.sf));
                 break;
@@ -69,7 +66,6 @@ static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMST
     MVMuint64 cache_4 = 0;
     MVMuint64 cache_5 = 0;
     MVMuint64 cache_6 = 0;
-    MVMuint64 cache_7 = 0;
 
     if (!body->entries)
         return;
@@ -95,13 +91,9 @@ static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMST
                 MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
                     (MVMCollectable *)body->entries[i].type.type, "Return entry", &cache_5);
                 break;
-            case MVM_SPESH_LOG_STATIC:
-                MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
-                    (MVMCollectable *)body->entries[i].value.value, "Static value entry", &cache_6);
-                break;
             case MVM_SPESH_LOG_INVOKE:
                 MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
-                    (MVMCollectable *)body->entries[i].invoke.sf, "Invoked staticframe entry", &cache_7);
+                    (MVMCollectable *)body->entries[i].invoke.sf, "Invoked staticframe entry", &cache_6);
                 break;
         }
     }

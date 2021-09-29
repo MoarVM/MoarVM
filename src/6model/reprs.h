@@ -17,14 +17,13 @@
 #include "6model/reprs/MVMIter.h"
 #include "6model/reprs/MVMContext.h"
 #include "6model/reprs/SCRef.h"
-#include "6model/reprs/MVMCallCapture.h"
+#include "6model/reprs/MVMCapture.h"
 #include "6model/reprs/P6bigint.h"
 #include "6model/reprs/NFA.h"
 #include "6model/reprs/MVMException.h"
 #include "6model/reprs/MVMStaticFrame.h"
 #include "6model/reprs/MVMCompUnit.h"
 #include "6model/reprs/MVMDLLSym.h"
-#include "6model/reprs/MVMMultiCache.h"
 #include "6model/reprs/MVMContinuation.h"
 #include "6model/reprs/NativeCall.h"
 #include "6model/reprs/CPointer.h"
@@ -44,8 +43,8 @@
 #include "6model/reprs/Decoder.h"
 #include "6model/reprs/MVMSpeshLog.h"
 #include "6model/reprs/MVMStaticFrameSpesh.h"
-#include "6model/reprs/MVMSpeshPluginState.h"
 #include "6model/reprs/MVMSpeshCandidate.h"
+#include "6model/reprs/MVMTracked.h"
 
 /* REPR related functions. */
 void MVM_repr_initialize_registry(MVMThreadContext *tc);
@@ -74,36 +73,35 @@ const MVMREPROps * MVM_repr_get_by_name(MVMThreadContext *tc, MVMString *name);
 #define MVM_REPR_ID_MVMContext              16
 #define MVM_REPR_ID_SCRef                   17
 #define MVM_REPR_ID_MVMSpeshLog             18
-#define MVM_REPR_ID_MVMCallCapture          19
-#define MVM_REPR_ID_P6bigint                20
-#define MVM_REPR_ID_NFA                     21
-#define MVM_REPR_ID_MVMException            22
-#define MVM_REPR_ID_MVMStaticFrame          23
-#define MVM_REPR_ID_MVMCompUnit             24
-#define MVM_REPR_ID_MVMDLLSym               25
-#define MVM_REPR_ID_MVMMultiCache           26
-#define MVM_REPR_ID_MVMContinuation         27
-#define MVM_REPR_ID_MVMNativeCall           28
-#define MVM_REPR_ID_MVMCPointer             29
-#define MVM_REPR_ID_MVMCStr                 30
-#define MVM_REPR_ID_MVMCArray               31
-#define MVM_REPR_ID_MVMCStruct              32
-#define MVM_REPR_ID_ReentrantMutex          33
-#define MVM_REPR_ID_ConditionVariable       34
-#define MVM_REPR_ID_Semaphore               35
-#define MVM_REPR_ID_ConcBlockingQueue       36
-#define MVM_REPR_ID_MVMAsyncTask            37
-#define MVM_REPR_ID_MVMNull                 38
-#define MVM_REPR_ID_NativeRef               39
-#define MVM_REPR_ID_MVMCUnion               40
-#define MVM_REPR_ID_MultiDimArray           41
-#define MVM_REPR_ID_MVMCPPStruct            42
-#define MVM_REPR_ID_Decoder                 43
-#define MVM_REPR_ID_MVMStaticFrameSpesh     44
-#define MVM_REPR_ID_MVMSpeshPluginState     45
-#define MVM_REPR_ID_MVMSpeshCandidate       46
+#define MVM_REPR_ID_P6bigint                19
+#define MVM_REPR_ID_NFA                     20
+#define MVM_REPR_ID_MVMException            21
+#define MVM_REPR_ID_MVMStaticFrame          22
+#define MVM_REPR_ID_MVMCompUnit             23
+#define MVM_REPR_ID_MVMDLLSym               24
+#define MVM_REPR_ID_MVMContinuation         25
+#define MVM_REPR_ID_MVMNativeCall           26
+#define MVM_REPR_ID_MVMCPointer             27
+#define MVM_REPR_ID_MVMCStr                 28
+#define MVM_REPR_ID_MVMCArray               29
+#define MVM_REPR_ID_MVMCStruct              30
+#define MVM_REPR_ID_ReentrantMutex          31
+#define MVM_REPR_ID_ConditionVariable       32
+#define MVM_REPR_ID_Semaphore               33
+#define MVM_REPR_ID_ConcBlockingQueue       34
+#define MVM_REPR_ID_MVMAsyncTask            35
+#define MVM_REPR_ID_MVMNull                 36
+#define MVM_REPR_ID_NativeRef               37
+#define MVM_REPR_ID_MVMCUnion               38
+#define MVM_REPR_ID_MultiDimArray           39
+#define MVM_REPR_ID_MVMCPPStruct            40
+#define MVM_REPR_ID_Decoder                 41
+#define MVM_REPR_ID_MVMStaticFrameSpesh     42
+#define MVM_REPR_ID_MVMSpeshCandidate       43
+#define MVM_REPR_ID_MVMCapture              44
+#define MVM_REPR_ID_MVMTracked              45
 
-#define MVM_REPR_CORE_COUNT                 47
+#define MVM_REPR_CORE_COUNT                 46
 #define MVM_REPR_MAX_COUNT                  64
 
 /* Default attribute functions for a REPR that lacks them. */
@@ -225,3 +223,7 @@ void MVM_REPR_DEFAULT_BIND_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *r
 MVMint64 MVM_REPR_DEFAULT_EXISTS_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key);
 void MVM_REPR_DEFAULT_DELETE_KEY(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key);
 MVMStorageSpec MVM_REPR_DEFAULT_GET_VALUE_STORAGE_SPEC(MVMThreadContext *tc, MVMSTable *st);
+
+MVM_STATIC_INLINE MVMint32 MVM_code_iscode(MVMThreadContext *tc, MVMObject *code) {
+    return REPR(code)->ID == MVM_REPR_ID_MVMCode && IS_CONCRETE(code);
+}

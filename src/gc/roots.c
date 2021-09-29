@@ -4,7 +4,7 @@
  * roots, so that it will always be marked and never die. Note that the
  * address of the collectable must be passed, since it will need to be
  * updated. */
-void MVM_gc_root_add_permanent_desc(MVMThreadContext *tc, MVMCollectable **obj_ref, char *description) {
+void MVM_gc_root_add_permanent_desc(MVMThreadContext *tc, MVMCollectable **obj_ref, const char *description) {
     if (obj_ref == NULL)
         MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null object address as a permanent root");
 
@@ -42,7 +42,7 @@ void MVM_gc_root_add_permanents_to_worklist(MVMThreadContext *tc, MVMGCWorklist 
             MVM_gc_worklist_add(tc, worklist, permroots[i]);
     }
     else {
-        char **permroot_descriptions = tc->instance->permroot_descriptions;
+        const char **permroot_descriptions = tc->instance->permroot_descriptions;
         for (i = 0; i < num_roots; i++)
             MVM_profile_heap_add_collectable_rel_const_cstr(tc, snapshot,
                 *(permroots[i]), permroot_descriptions[i]);
@@ -118,15 +118,6 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
         iterator = MVM_str_hash_next_nocheck(tc, weakhash, iterator);
     }
 
-    MVMStrHashTable *const containers = &tc->instance->container_registry;
-    iterator = MVM_str_hash_first(tc, containers);
-    while (!MVM_str_hash_at_end(tc, containers, iterator)) {
-        MVMContainerRegistry *registry = MVM_str_hash_current_nocheck(tc, containers, iterator);
-        add_collectable(tc, worklist, snapshot, registry->hash_handle.key,
-                        "Container configuration hash key");
-        iterator = MVM_str_hash_next_nocheck(tc, containers, iterator);
-    }
-
     add_collectable(tc, worklist, snapshot, tc->instance->cached_backend_config,
         "Cached backend configuration hash");
 
@@ -147,12 +138,26 @@ void MVM_gc_root_add_instance_roots_to_worklist(MVMThreadContext *tc, MVMGCWorkl
     add_collectable(tc, worklist, snapshot, tc->instance->subscriptions.GCEvent,
         "VM Event SpeshOverviewEvent type");
 
+    MVM_callsite_mark_interns(tc, worklist, snapshot);
+
+    if (worklist)
+        MVM_disp_registry_mark(tc, worklist);
+    else
+        MVM_disp_registry_describe(tc, snapshot);
+
     MVM_debugserver_mark_handles(tc, worklist, snapshot);
 }
 
 /* Adds anything that is a root thanks to being referenced by a thread,
  * context, but that isn't permanent. */
 void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot) {
+    /* The call stack. */
+    MVM_callstack_mark_current_thread(tc, worklist, snapshot);
+
+    /* The current frame, if it's on the heap. */
+    if (tc->cur_frame && !MVM_FRAME_IS_ON_CALLSTACK(tc, tc->cur_frame))
+        add_collectable(tc, worklist, snapshot, tc->cur_frame, "Current bytecode frame");
+
     /* Any active exception handlers and payload. */
     MVMActiveHandler *cur_ah = tc->active_handlers;
     while (cur_ah != NULL) {
@@ -180,11 +185,6 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     /* compunit variable pointer (and be null if thread finished) */
     if (tc->interp_cu)
         add_collectable(tc, worklist, snapshot, *(tc->interp_cu), "Current interpreter compilation unit");
-    /* Current dispatcher. */
-    add_collectable(tc, worklist, snapshot, tc->cur_dispatcher, "Current dispatcher");
-    add_collectable(tc, worklist, snapshot, tc->cur_dispatcher_for, "Current dispatcher for");
-    add_collectable(tc, worklist, snapshot, tc->next_dispatcher, "Next dispatcher");
-    add_collectable(tc, worklist, snapshot, tc->next_dispatcher_for, "Next dispatcher for");
 
     /* Callback cache. */
     MVMStrHashTable *cache = &tc->native_callback_cache;
@@ -211,7 +211,7 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
     if (worklist)
         MVM_profile_instrumented_mark_data(tc, worklist);
 
-    /* Specialization log, stack simulation, and plugin state. */
+    /* Specialization log and stack simulation state. */
     add_collectable(tc, worklist, snapshot, tc->spesh_log, "Specialization log");
     if (worklist)
         MVM_spesh_sim_stack_gc_mark(tc, tc->spesh_sim_stack, worklist);
@@ -223,19 +223,20 @@ void MVM_gc_root_add_tc_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *w
         else
             MVM_spesh_graph_describe(tc, tc->spesh_active_graph, snapshot);
     }
-    if (worklist)
-        MVM_spesh_plugin_guard_list_mark(tc, tc->plugin_guards, tc->num_plugin_guards, worklist);
-    if (tc->temp_plugin_guards)
-        MVM_spesh_plugin_guard_list_mark(tc, tc->temp_plugin_guards, tc->temp_num_plugin_guards, worklist);
-    add_collectable(tc, worklist, snapshot, tc->plugin_guard_args,
-        "Plugin guard args");
-    if (tc->temp_plugin_guard_args)
-        add_collectable(tc, worklist, snapshot, tc->temp_plugin_guard_args,
-            "Temporary plugin guard args");
+    add_collectable(tc, worklist, snapshot, tc->osr_hunt_static_frame,
+            "Current static frame for watching for OSR spesh candidate");
 
     if (tc->step_mode_frame)
         add_collectable(tc, worklist, snapshot, tc->step_mode_frame,
                 "Frame referenced for stepping mode");
+
+    if (tc->mark_args) {
+        for (int from = 0; from < tc->mark_args->callsite->flag_count; from++) {
+            if ((tc->mark_args->callsite->arg_flags[from] & MVM_CALLSITE_ARG_TYPE_MASK) == MVM_CALLSITE_ARG_OBJ
+                || (tc->mark_args->callsite->arg_flags[from] & MVM_CALLSITE_ARG_TYPE_MASK) == MVM_CALLSITE_ARG_STR)
+                MVM_gc_worklist_add(tc, worklist, &tc->mark_args->source[tc->mark_args->map[from]].o);
+        }
+    }
 }
 
 /* Pushes a temporary root onto the thread-local roots list. */
@@ -421,14 +422,6 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
         MVMFrameExtra *e = cur_frame->extra;
         if (e->special_return_data && e->mark_special_return_data)
             e->mark_special_return_data(tc, cur_frame, worklist);
-        if (e->continuation_tags) {
-            MVMContinuationTag *tag = e->continuation_tags;
-            while (tag) {
-                MVM_gc_worklist_add(tc, worklist, &tag->tag);
-                tag = tag->next;
-            }
-        }
-        MVM_gc_worklist_add(tc, worklist, &e->invoked_call_capture);
         if (e->dynlex_cache_name)
             MVM_gc_worklist_add(tc, worklist, &e->dynlex_cache_name);
         MVM_gc_worklist_add(tc, worklist, &e->exit_handler_result);
@@ -477,23 +470,6 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
                 }
                 if (flag_map[flag] & MVM_CALLSITE_ARG_STR || flag_map[flag] & MVM_CALLSITE_ARG_OBJ)
                     MVM_gc_worklist_add(tc, worklist, &frame->args[i].o);
-            }
-        }
-
-        /* Scan arguments in case there was a flattening. Don't need to if
-         * there wasn't a flattening because orig args is a subset of locals. */
-        if (frame->params.arg_flags && frame->params.callsite->has_flattening) {
-            MVMArgProcContext *ctx = &frame->params;
-            flag_map = ctx->arg_flags;
-            count = ctx->arg_count;
-            for (i = 0, flag = 0; i < count; i++, flag++) {
-                if (flag_map[flag] & MVM_CALLSITE_ARG_NAMED) {
-                    /* Current position is name, then next is value. */
-                    MVM_gc_worklist_add(tc, worklist, &ctx->args[i].s);
-                    i++;
-                }
-                if (flag_map[flag] & MVM_CALLSITE_ARG_STR || flag_map[flag] & MVM_CALLSITE_ARG_OBJ)
-                    MVM_gc_worklist_add(tc, worklist, &ctx->args[i].o);
             }
         }
     }

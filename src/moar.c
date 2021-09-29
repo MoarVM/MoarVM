@@ -189,9 +189,8 @@ MVMInstance * MVM_vm_create_instance(void) {
     init_mutex(instance->mutex_loaded_compunits, "loaded compunits");
     MVM_fixkey_hash_build(instance->main_thread, &instance->loaded_compunits, sizeof(MVMString *));
 
-    /* Set up container registry mutex. */
-    init_mutex(instance->mutex_container_registry, "container registry");
-    MVM_str_hash_build(instance->main_thread, &instance->container_registry, sizeof(MVMContainerRegistry), 0);
+    /* Set up container registry. */
+    MVM_fixkey_hash_build(instance->main_thread, &instance->container_registry, 0);
 
     /* Set up persistent object ID hash mutex. */
     init_mutex(instance->mutex_object_ids, "object ID hash");
@@ -210,8 +209,15 @@ MVMInstance * MVM_vm_create_instance(void) {
     MVM_unicode_init(instance->main_thread);
     MVM_nfg_init(instance->main_thread);
 
+    /* Setup arg handling. */
+    MVM_args_setup_identity_map(instance->main_thread);
+
     /* Bootstrap 6model. It is assumed the GC will not be called during this. */
     MVM_6model_bootstrap(instance->main_thread);
+
+    /* Set up the dispatcher registry, boot dispatchers, and syscalls. */
+    MVM_disp_registry_init(instance->main_thread);
+    MVM_disp_syscall_setup(instance->main_thread);
 
     /* Set up main thread's last_payload. */
     instance->main_thread->last_payload = instance->VMNull;
@@ -251,16 +257,11 @@ MVMInstance * MVM_vm_create_instance(void) {
      * them, so that spesh may end up optimizing more "internal" stuff. */
     MVM_callsite_initialize_common(instance->main_thread);
 
-    /* Multi-cache additions mutex. */
-    init_mutex(instance->mutex_multi_cache_add, "multi-cache addition");
-
     /* Current instrumentation level starts at 1; used to trigger all frames
      * to be verified before their first run. */
     instance->instrumentation_level = 1;
 
-    /* Mutex for spesh installations, and check if we've a file we
-     * should log specializations to. */
-    init_mutex(instance->mutex_spesh_install, "spesh installations");
+    /* Spesh enable/disable and debugging configurations. */
     spesh_log = getenv("MVM_SPESH_LOG");
     if (spesh_log && spesh_log[0])
         instance->spesh_log_fh
@@ -470,7 +471,7 @@ static void setup_std_handles(MVMThreadContext *tc) {
  * the initial invocation. */
 static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
     /* Create initial frame, which sets up all of the interpreter state also. */
-    MVM_frame_invoke(tc, (MVMStaticFrame *)data, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_NULL_ARGS), NULL, NULL, NULL, -1);
+    MVM_frame_dispatch_zero_args(tc, ((MVMStaticFrame *)data)->body.static_code);
 }
 
 /* Run deserialization frame, if there is one. Disable specialization
@@ -606,32 +607,6 @@ void MVM_vm_exit(MVMInstance *instance) {
     exit(0);
 }
 
-static void cleanup_callsite_interns(MVMInstance *instance) {
-    int i;
-
-    for (i = 0; i < MVM_INTERN_ARITY_LIMIT; i++) {
-        int callsite_count = instance->callsite_interns->num_by_arity[i];
-        int j;
-
-        if (callsite_count) {
-            MVMCallsite **callsites = instance->callsite_interns->by_arity[i];
-
-            for (j = 0; j < callsite_count; j++) {
-                MVMCallsite *callsite = callsites[j];
-
-                if (MVM_callsite_is_common(callsite)) {
-                    continue;
-                }
-
-                MVM_callsite_destroy(callsite);
-            }
-
-            MVM_free(callsites);
-        }
-    }
-    MVM_free(instance->callsite_interns);
-}
-
 static void free_lib(MVMThreadContext *tc, void *entry_v, void *arg) {
     struct MVMDLLRegistry *entry = entry_v;
     MVM_nativecall_free_lib(entry->lib);
@@ -641,7 +616,6 @@ static void free_lib(MVMThreadContext *tc, void *entry_v, void *arg) {
  * should clear up all resources and free all memory; in practice, it falls
  * short of this goal at the moment. */
 void MVM_vm_destroy_instance(MVMInstance *instance) {
-
     /* Join any foreground threads and flush standard handles. */
     MVM_thread_join_foreground(instance->main_thread);
     MVM_io_flush_standard_handles(instance->main_thread);
@@ -659,9 +633,12 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Run the GC global destruction phase. After this,
      * no 6model object pointers should be accessed. */
     MVM_gc_global_destruction(instance->main_thread);
-
     MVM_ptr_hash_demolish(instance->main_thread, &instance->object_ids);
     MVM_sc_all_scs_destroy(instance->main_thread);
+
+    /* Clean up dispatcher registry and args identity map. */
+    MVM_disp_registry_destroy(instance->main_thread);
+    MVM_args_destroy_identity_map(instance->main_thread);
 
     /* Cleanup REPR registry */
     uv_mutex_destroy(&instance->mutex_repr_registry);
@@ -711,23 +688,22 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_fixkey_hash_demolish(instance->main_thread, &instance->loaded_compunits);
 
     /* Clean up Container registry. */
-    uv_mutex_destroy(&instance->mutex_container_registry);
-    MVM_str_hash_demolish(instance->main_thread, &instance->container_registry);
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->container_registry);
     /* Clean up Hash of compiler objects keyed by name. */
     uv_mutex_destroy(&instance->mutex_compiler_registry);
 
     /* Clean up Hash of hashes of symbol tables per hll. */
     uv_mutex_destroy(&instance->mutex_hll_syms);
 
-    /* Clean up multi cache addition mutex. */
-    uv_mutex_destroy(&instance->mutex_multi_cache_add);
-
     /* Clean up parameterization addition mutex. */
     uv_mutex_destroy(&instance->mutex_parameterization_add);
 
     /* Clean up interned callsites */
     uv_mutex_destroy(&instance->mutex_callsite_interns);
-    cleanup_callsite_interns(instance);
+    MVM_callsite_cleanup_interns(instance);
+
+    /* Clean up syscall registry. */
+    MVM_fixkey_hash_demolish(instance->main_thread, &instance->syscalls);
 
     /* Clean up Unicode hashes. */
     for (int i = 0; i < MVM_NUM_PROPERTY_CODES; i++) {
@@ -740,7 +716,6 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     MVM_uni_hash_demolish(instance->main_thread, &instance->codepoints_by_name);
 
     /* Clean up spesh mutexes and close any log. */
-    uv_mutex_destroy(&instance->mutex_spesh_install);
     uv_cond_destroy(&instance->cond_spesh_sync);
     uv_mutex_destroy(&instance->mutex_spesh_sync);
     if (instance->spesh_log_fh)
@@ -755,14 +730,12 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
         MVM_VECTOR_DESTROY(instance->jit_breakpoints);
     }
 
-
     /* Clean up cross-thread-write-logging mutex */
     uv_mutex_destroy(&instance->mutex_cross_thread_write_logging);
 
     /* Clean up NFG. */
     uv_mutex_destroy(&instance->nfg->update_mutex);
     MVM_nfg_destroy(instance->main_thread);
-
 
     /* Clean up integer constant and string cache. */
     uv_mutex_destroy(&instance->mutex_int_const_cache);

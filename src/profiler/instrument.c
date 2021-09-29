@@ -79,7 +79,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
 
                 break;
             }
-            case MVM_OP_invoke_o:
+            case MVM_OP_dispatch_o:
             case MVM_OP_param_rp_o:
             case MVM_OP_param_rn_o:
             case MVM_OP_param_rn2_o:
@@ -126,7 +126,6 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_coerce_is:
             case MVM_OP_coerce_us:
             case MVM_OP_coerce_ns:
-            case MVM_OP_smrt_strify:
             case MVM_OP_buffertocu:
             case MVM_OP_serializetobuf:
             case MVM_OP_getsignals:
@@ -196,8 +195,6 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_clargs:
             case MVM_OP_cwd:
             case MVM_OP_newthread:
-            case MVM_OP_tryfindmeth:
-            case MVM_OP_tryfindmeth_s:
             case MVM_OP_accept_sk:
             case MVM_OP_bind_sk:
             case MVM_OP_connect_sk:
@@ -215,7 +212,6 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_gethllsym:
             case MVM_OP_getcurhllsym:
             case MVM_OP_settypecache:
-            case MVM_OP_setmethcache:
             case MVM_OP_newtype:
             case MVM_OP_nfafromstatelist:
             case MVM_OP_nfarunproto:
@@ -227,7 +223,6 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_concat_s:
             case MVM_OP_repeat_s:
             case MVM_OP_substr_s:
-            case MVM_OP_multicacheadd:
             case MVM_OP_radix:
             case MVM_OP_radix_I: {
                 add_allocation_logging(tc, g, bb, ins);
@@ -365,12 +360,14 @@ void MVM_profile_ensure_uninstrumented(MVMThreadContext *tc, MVMStaticFrame *sf)
 void MVM_profile_instrumented_start(MVMThreadContext *tc, MVMObject *config) {
     /* Wait for specialization thread to stop working, so it won't trip over
      * bytecode instrumentation, then enable profiling. */
+    MVM_gc_mark_thread_blocked(tc);
     uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
     while (tc->instance->spesh_working != 0)
         uv_cond_wait(&(tc->instance->cond_spesh_sync), &(tc->instance->mutex_spesh_sync));
     tc->instance->profiling = 1;
     tc->instance->instrumentation_level++;
     uv_mutex_unlock(&(tc->instance->mutex_spesh_sync));
+    MVM_gc_mark_thread_unblocked(tc);
 }
 
 /* Simple allocation functions. */
@@ -901,12 +898,14 @@ static MVMObject * dump_data(MVMThreadContext *tc) {
 MVMObject * MVM_profile_instrumented_end(MVMThreadContext *tc) {
 
     /* Disable profiling. */
+    MVM_gc_mark_thread_blocked(tc);
     uv_mutex_lock(&(tc->instance->mutex_spesh_sync));
     while (tc->instance->spesh_working != 0)
         uv_cond_wait(&(tc->instance->cond_spesh_sync), &(tc->instance->mutex_spesh_sync));
     tc->instance->profiling = 0;
     tc->instance->instrumentation_level++;
     uv_mutex_unlock(&(tc->instance->mutex_spesh_sync));
+    MVM_gc_mark_thread_unblocked(tc);
 
     /* Build and return result data structure. */
     return dump_data(tc);

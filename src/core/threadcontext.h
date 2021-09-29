@@ -185,17 +185,21 @@ struct MVMThreadContext {
      * Frames, call stack, and exception state
      ************************************************************************/
 
-    /* The frame we're currently executing. */
+    /* The bytecode frame we're currently executing. */
     MVMFrame *cur_frame;
 
     /* The frame lying at the base of the current thread. */
     MVMFrame *thread_entry_frame;
 
     /* First call stack memory region, so we can traverse them for cleanup. */
-    MVMCallStackRegion *stack_first;
+    MVMCallStackRegion *stack_first_region;
 
-    /* Current call stack region, which the next frame will be allocated in. */
-    MVMCallStackRegion *stack_current;
+    /* Current call stack region, which the next record will be allocated
+     * so long as there is space. */
+    MVMCallStackRegion *stack_current_region;
+
+    /* The current call stack record on the top of the stack. */
+    MVMCallStackRecord *stack_top;
 
     /* Linked list of exception handlers that we're currently executing, topmost
      * one first in the list. */
@@ -210,11 +214,6 @@ struct MVMThreadContext {
     /************************************************************************
      * Specialization and JIT compilation
      ************************************************************************/
-
-    /* Frame sequence numbers in order to cheaply identify the place of a frame
-     * in the call stack */
-    MVMint32 current_frame_nr;
-    MVMint32 next_frame_nr;
 
     /* JIT return address pointer, so we can figure out the current position in
      * the code */
@@ -254,20 +253,10 @@ struct MVMThreadContext {
 
     /* State to cheaply determine if we should look again for the availability
      * of optimzied code at an OSR point. When the current state seen by the
-     * interpreter of frame number of spesh candidates matches, we know there
-     * was no change since the last OSR point. */
-    MVMint32 osr_hunt_frame_nr;
+     * interpreter of static frame and number of spesh candidates matches, we
+     * know there was no change since the last OSR point. */
+    MVMStaticFrame *osr_hunt_static_frame;
     MVMint32 osr_hunt_num_spesh_candidates;
-
-    /* If we are currently in a spesh plugin, the current set of guards we
-     * have recorded. */
-    MVMSpeshPluginGuard *plugin_guards;
-    MVMObject *plugin_guard_args;
-    MVMuint32 num_plugin_guards;
-
-    MVMSpeshPluginGuard *temp_plugin_guards;
-    MVMObject *temp_plugin_guard_args;
-    MVMuint32 temp_num_plugin_guards;
 
     /************************************************************************
      * Per-thread state held by assorted VM subsystems
@@ -284,15 +273,6 @@ struct MVMThreadContext {
     /* Any serialization contexts we are compiling. The current one is at
      * index 0. */
     MVMObject     *compiling_scs;
-
-    /* Dispatcher for next invocation that matches _for to take. If _for is
-     * NULL then anything matches. */
-    MVMObject     *cur_dispatcher;
-    MVMObject     *cur_dispatcher_for;
-
-    /* Dispatcher to return control to when current dispatcher exhausts. */
-    MVMObject     *next_dispatcher;
-    MVMObject     *next_dispatcher_for;
 
     /* Cache of native code callback data. */
     MVMStrHashTable native_callback_cache;
@@ -337,6 +317,8 @@ struct MVMThreadContext {
     MVMuint32 cur_line_no;
 
     int nested_interpreter;
+
+    MVMArgs *mark_args;
 };
 
 MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance);

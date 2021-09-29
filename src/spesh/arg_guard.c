@@ -68,13 +68,6 @@ static MVMint32 next_type_index(MVMCallsite *cs, MVMint32 cur_obj_arg_idx) {
     return -1;
 }
 
-/* Turns a type index into an argument index. */
-static MVMint32 type_index_to_arg_index(MVMCallsite *cs, MVMint32 type_index) {
-    return type_index < cs->num_pos
-        ? type_index
-        : (cs->num_pos - 1) + 2 * (type_index - (cs->num_pos - 1));
-}
-
 /* Add a new result node and return its index. */
 static MVMuint32 add_result_node(MVMThreadContext *tc, MVMSpeshArgGuard *tree,
         MVMuint32 result_index) {
@@ -89,7 +82,7 @@ static MVMuint32 add_result_node(MVMThreadContext *tc, MVMSpeshArgGuard *tree,
 static MVMuint32 add_load_node(MVMThreadContext *tc, MVMSpeshArgGuard *tree,
         MVMCallsite *cs, MVMuint32 type_index) {
     tree->nodes[tree->used_nodes].op = MVM_SPESH_GUARD_OP_LOAD_ARG;
-    tree->nodes[tree->used_nodes].arg_index = type_index_to_arg_index(cs, type_index);
+    tree->nodes[tree->used_nodes].arg_index = type_index;
     tree->nodes[tree->used_nodes].yes = 0;
     tree->nodes[tree->used_nodes].no = 0;
     return tree->used_nodes++;
@@ -476,8 +469,7 @@ MVMint32 MVM_spesh_arg_guard_run_types(MVMThreadContext *tc, MVMSpeshArgGuard *a
 /* Evaluates the argument guards. Returns >= 0 if there is a matching spesh
  * candidate, or -1 if there is not. */
 MVMint32 MVM_spesh_arg_guard_run(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
-                                 MVMCallsite *cs, MVMRegister *args,
-                                 MVMint32 *certain) {
+                                 MVMArgs args, MVMint32 *certain) {
     MVMuint32 current_node = 0;
     MVMObject *test = NULL;
     if (!ag)
@@ -486,10 +478,10 @@ MVMint32 MVM_spesh_arg_guard_run(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
         MVMSpeshArgGuardNode *agn = &(ag->nodes[current_node]);
         switch (agn->op) {
             case MVM_SPESH_GUARD_OP_CALLSITE:
-                current_node = agn->cs == cs ? agn->yes : agn->no;
+                current_node = agn->cs == args.callsite ? agn->yes : agn->no;
                 break;
             case MVM_SPESH_GUARD_OP_LOAD_ARG:
-                test = args[agn->arg_index].o;
+                test = args.source[args.map[agn->arg_index]].o;
                 current_node = agn->yes;
                 break;
             case MVM_SPESH_GUARD_OP_STABLE_CONC:

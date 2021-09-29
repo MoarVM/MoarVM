@@ -7,9 +7,8 @@ static void assert_within_region(MVMThreadContext *tc, MVMJitCode *code, void *a
     if ((0 <= ofs) && (ofs < code->size))
         return;
     MVM_panic(1, "JIT: address out of range for code!\n"
-              "(label %p, func_ptr %p, code size %lui, offset %li, frame_nr %i, seq nr %i)",
-              address, code->func_ptr, code->size, ofs,
-              tc->cur_frame->sequence_nr, code->seq_nr);
+              "(label %p, func_ptr %p, code size %lui, offset %li, seq nr %i)",
+              address, code->func_ptr, code->size, ofs, code->seq_nr);
 #endif
 }
 

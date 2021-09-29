@@ -105,6 +105,9 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
     char mark_this_line = 0;
     MVMCompUnit *cu = static_frame->body.cu;
 
+    /* For handling var-arg ops like the dispatch ops */
+    MVMOpInfo *temporary_op_info = NULL;
+
     while (cur_op < bytecode_end - 1) {
 
         /* allocate a line buffer */
@@ -163,6 +166,30 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
                 a("Extension op %d out of range", (int)op_num);
                 op_info = NULL;
             }
+        }
+        if (MVM_op_get_mark(op_num)[1] == 'd'
+            || (op_num >= MVM_OP_sp_dispatch_v    && op_num <= MVM_OP_sp_dispatch_o)
+            || (op_num >= MVM_OP_sp_runbytecode_v && op_num <= MVM_OP_sp_runbytecode_o)
+            || (op_num >= MVM_OP_sp_runcfunc_v    && op_num <= MVM_OP_sp_runcfunc_o)
+        ) {
+            /* These are var-arg ops; grab callsite and synthesize op info */
+            MVMCallsite *callsite = MVM_spesh_disp_callsite_for_dispatch_op(op_num, cur_op, cu);
+
+            temporary_op_info = MVM_malloc(MVM_spesh_disp_dispatch_op_info_size(tc, op_info, callsite));
+            MVM_spesh_disp_initialize_dispatch_op_info(tc, op_info, callsite, temporary_op_info);
+
+            op_info = temporary_op_info;
+        }
+
+        if (op_num == MVM_OP_sp_resumption) {
+            MVMSpeshResumeInit *resume_init =
+                &(maybe_candidate->body.resume_inits[GET_I16(cur_op, 2)]);
+            temporary_op_info = MVM_malloc(MVM_spesh_disp_resumption_op_info_size(
+                tc, resume_init->dp, resume_init->res_idx));
+            MVM_spesh_disp_initialize_resumption_op_info(tc,
+                    resume_init->dp, resume_init->res_idx, temporary_op_info);
+
+            op_info = temporary_op_info;
         }
 
         if (!op_info)
@@ -299,6 +326,9 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
             }
             cur_op += operand_size;
         }
+
+        if (temporary_op_info)
+            MVM_free_null(temporary_op_info);
 
         lines[lineno++] = o;
     }
@@ -531,25 +561,29 @@ void MVM_dump_bytecode_staticframe(MVMThreadContext *tc, MVMStaticFrame *frame) 
 }
 
 void MVM_dump_bytecode(MVMThreadContext *tc) {
-    MVMStaticFrame *sf = tc->cur_frame->static_info;
-    MVMuint8 *effective_bytecode = MVM_frame_effective_bytecode(tc->cur_frame);
-    if (effective_bytecode == sf->body.bytecode) {
-        MVM_dump_bytecode_of(tc, tc->cur_frame, NULL);
-    } else {
-        MVM_dump_bytecode_of(tc, tc->cur_frame, tc->cur_frame->spesh_cand);
-        /*MVMint32 spesh_cand_idx;*/
-        /*MVMuint8 found = 0;*/
-        /*for (spesh_cand_idx = 0; spesh_cand_idx < sf->body.num_spesh_candidates; spesh_cand_idx++) {*/
+    if (tc->cur_frame != NULL) {
+        MVMStaticFrame *sf = tc->cur_frame->static_info;
+        MVMuint8 *effective_bytecode = MVM_frame_effective_bytecode(tc->cur_frame);
+        if (effective_bytecode == sf->body.bytecode) {
+            MVM_dump_bytecode_of(tc, tc->cur_frame, NULL);
+        } else {
+            MVM_dump_bytecode_of(tc, tc->cur_frame, tc->cur_frame->spesh_cand);
+            /*MVMint32 spesh_cand_idx;*/
+            /*MVMuint8 found = 0;*/
+            /*for (spesh_cand_idx = 0; spesh_cand_idx < sf->body.num_spesh_candidates; spesh_cand_idx++) {*/
             /*MVMSpeshCandidate *cand = sf->body.spesh_candidates[spesh_cand_idx];*/
             /*if (cand->body.bytecode == effective_bytecode) {*/
                 /*MVM_dump_bytecode_of(tc, tc->cur_frame, cand);*/
                 /*found = 1;*/
             /*}*/
-        /*}*/
-        /*if (!found) {*/
+            /*if (!found) {*/
             /* It's likely the MAGIC_BYTECODE from the jit?
              * in that case we just grab tc->cur_frame->spesh_cand apparently */
-        /*}*/
+            /*}*/
+        }
+    }
+    else {
+        fprintf(stderr, "threadcontext has no frame (spesh worker or debug server thread?)\n");
     }
 }
 

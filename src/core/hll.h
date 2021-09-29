@@ -21,30 +21,20 @@ struct MVMHLLConfig {
     /* The type to use for hash iteration (should have VMIter REPR). */
     MVMObject *hash_iterator_type;
 
-    /* HLL mapping types for cross-HLL boundary for int/num/str. */
-    MVMObject *foreign_type_int;
-    MVMObject *foreign_type_num;
-    MVMObject *foreign_type_str;
-
-    /* HLL mapping transforms for array/hash/code. */
-    MVMObject *foreign_transform_array;
-    MVMObject *foreign_transform_hash;
-    MVMObject *foreign_transform_code;
-
     /* The value to substitute for null. */
     MVMObject *null_value;
 
     /* Language's handler to run at a block's exit time, if needed. */
-    MVMObject *exit_handler;
+    MVMCode *exit_handler;
 
     /* Language's object finalize handler, which can take a list of objects
      * which need to have a finalizer run. */
-    MVMObject *finalize_handler;
+    MVMCode *finalize_handler;
 
     /* Language's handler for various errors, if needed. */
-    MVMObject *bind_error;
+    MVMCode *bind_error;
     MVMObject *method_not_found_error;
-    MVMObject *lexical_handler_not_found_error;
+    MVMCode *lexical_handler_not_found_error;
 
     /* Native reference types. */
     MVMObject *int_lex_ref;
@@ -64,11 +54,16 @@ struct MVMHLLConfig {
     MVMObject *true_value;
     MVMObject *false_value;
 
-    /* Array of types to pass to compiler.c */
-    MVMObject *mast_types;
-
-    /* Spesh plugins hash. */
-    MVMObject *spesh_plugins;
+    /* The language's call dispatcher, method call dispatcher, and method
+     * lookup names. Used by the lang-call and lang-method-call built-in
+     * dispatchers to resolve dispatches. */
+    MVMString *call_dispatcher;         /* callee, args... */
+    MVMString *method_call_dispatcher;  /* decont'd inv, name, inv, args... */
+    MVMString *find_method_dispatcher;  /* decont'd inv, name, throw_if_not_found */
+    MVMString *resume_error_dispatcher; /* whatever args were given for resumption */
+    MVMString *hllize_dispatcher;       /* object to hllize, optional HLL name */
+    MVMString *istype_dispatcher;       /* object, type */
+    MVMString *isinvokable_dispatcher;  /* object */
 
     /* The maximum code size that we'll inline. */
     MVMuint32 max_inline_size;
@@ -79,5 +74,4 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
 MVM_PUBLIC MVMHLLConfig * MVM_hll_current(MVMThreadContext *tc);
 void MVM_hll_enter_compilee_mode(MVMThreadContext *tc);
 void MVM_hll_leave_compilee_mode(MVMThreadContext *tc);
-void MVM_hll_map(MVMThreadContext *tc, MVMObject *obj, MVMHLLConfig *hll, MVMRegister *res_reg);
 MVM_PUBLIC MVMObject * MVM_hll_sym_get(MVMThreadContext *tc, MVMString *hll, MVMString *sym);

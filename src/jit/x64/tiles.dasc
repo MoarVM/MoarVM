@@ -21,9 +21,14 @@ MVM_JIT_TILE_DECL(idx) {
     MVMint8 base = tile->values[1];
     MVMint8 idx  = tile->values[2];
     MVMint8 scl  = tile->args[0];
-    if (scl == 8) {
+    switch(scl) {
+    case 2:
+        | lea Rq(out), [Rq(base)+Rq(idx)*2];
+        break;
+    case 8:
         | lea Rq(out), [Rq(base)+Rq(idx)*8];
-    } else {
+        break;
+    default:
         DIE("Unsupported scale: %d", scl);
     }
 }
@@ -108,7 +113,7 @@ MVM_JIT_TILE_DECL(load_idx) {
     MVMint8 idx  = tile->values[2];
     MVMint8 scl  = tile->args[0];
     MVMint32 size = tile->args[1];
-    if (scl != 8) {
+    if (scl != 8 && size != 2) {
         DIE("Unsupported scale size: %d\n", scl);
     }
     switch (size) {
@@ -116,7 +121,14 @@ MVM_JIT_TILE_DECL(load_idx) {
         | mov Rb(out), byte [Rq(base)+Rq(idx)*8];
         break;
     case 2:
-        | mov Rw(out), word [Rq(base)+Rq(idx)*8];
+        switch(scl) {
+            case 2:
+                | mov Rw(out), word [Rq(base)+Rq(idx)*2];
+                break;
+            case 8:
+                | mov Rw(out), word [Rq(base)+Rq(idx)*8];
+                break;
+        }
         break;
     case 4:
         | mov Rd(out), dword [Rq(base)+Rq(idx)*8];

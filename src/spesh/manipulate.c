@@ -319,6 +319,10 @@ static MVMSpeshOperand make_temp_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
                 g->temps[i].i++;
 
                 /* Produce and return result. */
+                /* Ensure that all the bits in the union are initialised.
+                 * Code in `optimize_bb_switch` evaluates `lit_i64 != -1`
+                 * before calling `MVM_spesh_manipulate_release_temp_reg` */
+                result.lit_i64 = 0;
                 result.reg.orig = orig;
                 result.reg.i = g->temps[i].used_i = g->temps[i].i;
                 return result;
@@ -328,6 +332,9 @@ static MVMSpeshOperand make_temp_reg(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
 
     /* Make sure we've space in the temporaries store. */
     ensure_more_temps(tc, g);
+
+    /* Again, ensure that all the bits in the union are initialised. */
+    result.lit_i64 = 0;
 
     /* Allocate temporary and set up result. */
     g->temps[g->num_temps].orig   = result.reg.orig = g->num_locals;
@@ -408,22 +415,23 @@ MVMSpeshOperand MVM_spesh_manipulate_new_version(MVMThreadContext *tc, MVMSpeshG
 }
 
 /* Performs an SSA version split at the specified instruction, such that the
- * reads of the SSA value after (and including) the specified instruction
+ * reads of the SSA value dominated by (and including) the specified instruction
  * will use a new version. Returns the new version, which will at that point
  * lack a writer; a writer should be inserted for it. */
 MVMSpeshOperand MVM_spesh_manipulate_split_version(MVMThreadContext *tc, MVMSpeshGraph *g,
                                                    MVMSpeshOperand split, MVMSpeshBB *bb,
                                                    MVMSpeshIns *at) {
     MVMSpeshOperand new_version = MVM_spesh_manipulate_new_version(tc, g, split.reg.orig);
-    /* More than we need by definition */
+    /* Queue of children to process; more than we need by definition */
     MVMSpeshBB **bbq = alloca(sizeof(MVMSpeshBB*) * g->num_bbs);
     MVMint32 top = 0;
     /* Push initial basic block */
     bbq[top++] = bb;
     while (top != 0) {
+        /* Update instructions in this basic block. */
         MVMuint32 i;
         MVMSpeshBB *cur_bb = bbq[--top];
-        MVMSpeshIns *ins = cur_bb == bb && at ? at : cur_bb->first_ins;
+        MVMSpeshIns *ins = cur_bb == bb ? at : cur_bb->first_ins;
         while (ins) {
             for (i = 0; i < ins->info->num_operands; i++) {
                 if ((ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg) {
@@ -437,10 +445,11 @@ MVMSpeshOperand MVM_spesh_manipulate_split_version(MVMThreadContext *tc, MVMSpes
             }
             ins = ins->next;
         }
+
+        /* Add dominance children to the queue. */
         for (i = 0; i < cur_bb->num_children; i++)
             bbq[top++] = cur_bb->children[i];
     }
-    MVM_spesh_copy_facts(tc, g, new_version, split);
     return new_version;
 }
 

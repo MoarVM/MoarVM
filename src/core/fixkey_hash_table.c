@@ -24,14 +24,16 @@ void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtabl
     MVMuint8 *entry_raw = MVM_fixkey_hash_entries(control);
     MVMuint8 *metadata = MVM_fixkey_hash_metadata(control);
     MVMuint32 bucket = 0;
-    while (bucket < entries_in_use) {
-        if (*metadata) {
-            MVMString ***indirection = (MVMString ***) entry_raw;
-            MVM_fixed_size_free(tc, tc->instance->fsa, control->entry_size, *indirection);
+    if (control->entry_size) {
+        while (bucket < entries_in_use) {
+            if (*metadata) {
+                MVMString ***indirection = (MVMString ***) entry_raw;
+                MVM_fixed_size_free(tc, tc->instance->fsa, control->entry_size, *indirection);
+            }
+            ++bucket;
+            ++metadata;
+            entry_raw -= sizeof(MVMString ***);
         }
-        ++bucket;
-        ++metadata;
-        entry_raw -= sizeof(MVMString ***);
     }
 
     hash_demolish_internal(tc, control);
@@ -80,7 +82,7 @@ MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThre
 }
 
 void MVM_fixkey_hash_build(MVMThreadContext *tc, MVMFixKeyHashTable *hashtable, MVMuint32 entry_size) {
-    if (MVM_UNLIKELY(entry_size == 0 || entry_size > 1024 || entry_size & 3)) {
+    if (MVM_UNLIKELY(entry_size > 1024 || entry_size & 3)) {
         MVM_oops(tc, "Hash table entry_size %" PRIu32 " is invalid", entry_size);
     }
     hashtable->table = hash_allocate_common(tc,
@@ -329,6 +331,11 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
    }
     MVMString ***indirection = hash_insert_internal(tc, control, key);
     if (!*indirection) {
+        if (!control->entry_size) {
+            /* Assign your static storage here.... */
+            return indirection;
+        }
+
         MVMString **entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, control->entry_size);
         /* and we then set *this* to NULL to signal to our caller that this is a
          * new allocation. */
@@ -349,8 +356,14 @@ void *MVM_fixkey_hash_insert_nocheck(MVMThreadContext *tc,
     if (*new_entry) {
         /* This footgun has a safety catch. */
         MVM_oops(tc, "duplicate key in fixkey_hash_insert");
-    } else {
+    }
+    else if (hashtable->table->entry_size) {
         *new_entry = key;
+    }
+    else {
+        /* This is the special case entry_size == 0, and the returned value
+         * new_entry is actually the address inside the hash to be assigned to.
+         */
     }
     return new_entry;
 }

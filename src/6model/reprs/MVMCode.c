@@ -3,27 +3,14 @@
 /* This representation's function pointer table. */
 static const MVMREPROps MVMCode_this_repr;
 
-/* Invocation protocol handler. */
-static void invoke_handler(MVMThreadContext *tc, MVMObject *invokee, MVMCallsite *callsite, MVMRegister *args) {
-    if (IS_CONCRETE(invokee)) {
-        MVMCode *code = (MVMCode *)invokee;
-        MVM_frame_invoke(tc, code->body.sf, callsite, args,
-            code->body.outer, invokee, -1);
-    }
-    else {
-        MVM_exception_throw_adhoc(tc, "Cannot invoke code type object");
-    }
-}
-
 /* Creates a new type object of this representation, and associates it with
- * the given HOW. Also sets the invocation protocol handler in the STable. */
+ * the given HOW. */
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st = MVM_gc_allocate_stable(tc, &MVMCode_this_repr, HOW);
 
     MVMROOT(tc, st, {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
-        st->invoke = invoke_handler;
         st->size = sizeof(MVMCode);
     });
 

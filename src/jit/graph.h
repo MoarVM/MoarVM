@@ -164,6 +164,8 @@ typedef enum {
     MVM_JIT_RV_DEREF_OR_VMNULL,
     /* store on stack with offset */
     MVM_JIT_RV_TO_STACK,
+    /* Exactly like the RV_INT, except we negate the value afterwards */
+    MVM_JIT_RV_INT_NEGATED,
 } MVMJitRVMode;
 
 
@@ -185,8 +187,46 @@ struct MVMJitInvoke {
     MVMuint32     code_register_or_name;
     MVMint16      spesh_cand_or_sf_slot;
     MVMint8       is_fast;
-    MVMint8       is_resolve;
     MVMuint32     resolve_offset;           /* Only for spesh resolve */
+    MVMint32      reentry_label;
+};
+
+struct MVMJitRunByteCode {
+    MVMCallsite  *callsite;
+    MVMReturnType return_type;
+    MVMint16      return_register;
+    MVMint16      code_register;
+    MVMint16      spesh_cand;
+    MVMSpeshOperand *map;
+    MVMint32      reentry_label;
+};
+
+struct MVMJitRunCCode {
+    MVMCallsite  *callsite;
+    MVMReturnType return_type;
+    MVMint16      return_register;
+    MVMint16      code_register;
+    MVMSpeshOperand *map;
+    MVMint32      reentry_label;
+};
+
+struct MVMJitDispatch {
+    MVMint32      id;
+    MVMCallsite  *callsite;
+    MVMuint16     sf_slot;
+    MVMuint32     ice_slot;
+    MVMReturnType return_type;
+    MVMint16      return_register;
+    MVMSpeshOperand *map;
+    MVMint32      reentry_label;
+};
+
+struct MVMJitIsType {
+    MVMint16      return_register;
+    MVMint16      obj_register;
+    MVMint16      type_register;
+    MVMuint16     sf_slot;
+    MVMuint32     ice_slot;
     MVMint32      reentry_label;
 };
 
@@ -222,6 +262,10 @@ typedef enum {
     MVM_JIT_NODE_DATA,
     MVM_JIT_NODE_EXPR_TREE,
     MVM_JIT_NODE_DEOPT_CHECK,
+    MVM_JIT_NODE_RUNCCODE,
+    MVM_JIT_NODE_RUNBYTECODE,
+    MVM_JIT_NODE_DISPATCH,
+    MVM_JIT_NODE_ISTYPE,
 } MVMJitNodeType;
 
 struct MVMJitNode {
@@ -239,6 +283,10 @@ struct MVMJitNode {
         MVMJitData      data;
         MVMJitExprTree *tree;
         MVMJitStackSlot stack;
+        MVMJitRunCCode   runccode;
+        MVMJitRunByteCode runbytecode;
+        MVMJitDispatch  dispatch;
+        MVMJitIsType    istype;
     } u;
 };
 

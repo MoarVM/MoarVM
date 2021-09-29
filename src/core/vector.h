@@ -31,9 +31,6 @@
 #define MVM_VECTOR_TOP(x) \
     ((x) + (x ## _num))
 
-#define MVM_VECTOR_ELEMS(x) \
-    (x ## _num)
-
 #define MVM_VECTOR_GROW(x, size) do {\
         size_t _s = (size); \
         (x) = MVM_recalloc(x, MVM_VECTOR_SIZE(x), _s*sizeof(*x));   \
