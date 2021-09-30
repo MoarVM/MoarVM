@@ -1689,6 +1689,22 @@
                 (carg $st ptr)
                 (carg $0 ptr)))))))))
 
+(template: scsetcode
+  (ifv (^not_repr_id $0 MVM_REPR_ID_SCRef)
+    (^throw_adhoc "Must provide an SCRef operand to scsetcode")
+    (dov
+      (callv (^func &MVM_sc_set_obj_sc)
+        (arglist
+          (carg (tc) ptr)
+          (carg $2 ptr)
+          (carg $0 ptr)))
+      (callv (^func &MVM_sc_set_code)
+        (arglist
+          (carg (tc) ptr)
+          (carg $0 ptr)
+          (carg $1 int)
+          (carg $2 ptr))))))
+
 (template: getobjsc
   (call (^func &MVM_sc_get_obj_sc)
     (arglist

@@ -1792,6 +1792,27 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |2:
         break;
     }
+    case MVM_OP_scsetcode: {
+        MVMint16 sc   = ins->operands[0].reg.orig;
+        MVMint16 idx  = ins->operands[1].reg.orig;
+        MVMint16 code = ins->operands[2].reg.orig;
+        | mov TMP5, aword WORK[sc];
+        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_SCRef;
+        | je >1;
+        | throw_adhoc "Must provide an SCRef operand to scsetcode";
+        |1:
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[code];
+        | mov ARG3, SCREF:TMP5;
+        | call &MVM_sc_set_obj_sc;
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[sc];
+        | mov ARG2, SCREF:ARG2;
+        | mov ARG3, qword WORK[idx];
+        | mov ARG4, aword WORK[code];
+        | call &MVM_sc_set_code;
+        break;
+    }
     case MVM_OP_scgethandle: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 sc  = ins->operands[1].reg.orig;

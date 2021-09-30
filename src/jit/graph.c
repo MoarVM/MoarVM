@@ -1797,6 +1797,7 @@ start:
     case MVM_OP_takehandlerresult:
     case MVM_OP_exception:
     case MVM_OP_scsetobj:
+    case MVM_OP_scsetcode:
     case MVM_OP_scgethandle:
     case MVM_OP_scobjcount:
     case MVM_OP_setobjsc:
