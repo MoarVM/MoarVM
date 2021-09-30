@@ -3234,6 +3234,7 @@ void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecordi
             case MVMDispProgramRecordingResumeInitCaptureValue:
             case MVMDispProgramRecordingAttributeValue:
             case MVMDispProgramRecordingLookupValue:
+            case MVMDispProgramRecordingHOWValue:
             case MVMDispProgramRecordingResumeStateValue:
                 /* Nothing to mark. */
                 break;
