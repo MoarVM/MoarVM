@@ -431,6 +431,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
 
     case MVM_OP_setdebugtypename: return MVM_6model_set_debug_name;
 
+    case MVM_OP_settypefinalize: return MVM_gc_finalize_set;
+
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -3962,6 +3964,15 @@ start:
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { type } },
                                  { MVM_JIT_REG_VAL, { name } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_settypefinalize: {
+        MVMint16 type     = ins->operands[0].reg.orig;
+        MVMint16 finalize = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { type } },
+                                 { MVM_JIT_REG_VAL, { finalize } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         break;
     }
