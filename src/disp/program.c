@@ -3070,9 +3070,13 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 record->temps[op.load.temp].s = MVM_p6opaque_read_str(tc,
                         record->temps[op.load.temp].o, op.load.idx);
                 NEXT;
-            OP(MVMDispOpcodeLoadHOW):
-                record->temps[op.load.temp].o = STABLE(record->temps[op.load.idx].o)->HOW;
+            OP(MVMDispOpcodeLoadHOW): {
+                MVMObject *HOW = STABLE(record->temps[op.load.idx].o)->HOW;
+                if (!HOW) /* Not deserialized */
+                    goto rejection;
+                record->temps[op.load.temp].o = HOW;
                 NEXT;
+            }
             OP(MVMDispOpcodeLookup):
                 record->temps[op.load.temp].o = MVM_repr_at_key_o(tc,
                         record->temps[op.load.temp].o,
