@@ -782,6 +782,27 @@ static MVMuint32 value_index_attribute(MVMThreadContext *tc, MVMDispProgramRecor
     return MVM_VECTOR_ELEMS(rec->values) - 1;
 }
 
+/* Ensures we have a values used entry for the specified HOW read. */
+static MVMuint32 value_index_how(MVMThreadContext *tc, MVMDispProgramRecording *rec,
+        MVMuint32 from_value) {
+    /* Look for an existing such value. */
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++) {
+        MVMDispProgramRecordingValue *v = &(rec->values[i]);
+        if (v->source == MVMDispProgramRecordingHOWValue &&
+                v->how.from_value == from_value)
+            return i;
+    }
+
+    /* Otherwise, we need to create the value entry. */
+    MVMDispProgramRecordingValue new_value;
+    memset(&new_value, 0, sizeof(MVMDispProgramRecordingValue));
+    new_value.source = MVMDispProgramRecordingHOWValue;
+    new_value.how.from_value = from_value;
+    MVM_VECTOR_PUSH(rec->values, new_value);
+    return MVM_VECTOR_ELEMS(rec->values) - 1;
+}
+
 /* Ensures we have a values used entry for the specified lookup table read. */
 static MVMuint32 value_index_lookup(MVMThreadContext *tc, MVMDispProgramRecording *rec,
         MVMuint32 lookup_index, MVMuint32 key_index) {
@@ -972,6 +993,30 @@ MVMObject * MVM_disp_program_record_track_attr(MVMThreadContext *tc, MVMObject *
     if (!record->rec.values[result_value_index].tracked)
         record->rec.values[result_value_index].tracked = MVM_tracked_create(tc,
                 attr_value, attr_kind);
+    return record->rec.values[result_value_index].tracked;
+}
+
+/* Start tracking the HOW of the input tracked object. This does not guard on
+ * the type of the incoming tracked object, otherwise we'd not need this at
+ * all (since that behavior can be obtained by doing a guard, calling .HOW,
+ * and inserting it as a literal). */
+MVMObject * MVM_disp_program_record_track_how(MVMThreadContext *tc, MVMObject *tracked_in) {
+    /* Ensure the tracked value is an object type. */
+    if (((MVMTracked *)tracked_in)->body.kind != MVM_CALLSITE_ARG_OBJ)
+        MVM_exception_throw_adhoc(tc, "Can only use dispatcher-track-how on a tracked object");
+
+    /* Resolve the tracked value. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked_in);
+
+    /* Ensure that we have this HOW read in the values table, and make a
+     * tracked object if not. */
+    MVMuint32 result_value_index = value_index_how(tc, &(record->rec), value_index);
+    if (!record->rec.values[result_value_index].tracked) {
+        MVMRegister attr_value = { .o = STABLE(((MVMTracked *)tracked_in)->body.value.o)->HOW };
+        record->rec.values[result_value_index].tracked = MVM_tracked_create(tc,
+                attr_value, MVM_CALLSITE_ARG_OBJ);
+    }
     return record->rec.values[result_value_index].tracked;
 }
 
@@ -1793,6 +1838,13 @@ static MVMuint32 get_temp_holding_value(MVMThreadContext *tc, compile_state *cs,
                     MVM_oops(tc, "Unhandled kind of literal value in recorded dispatch");
             }
             op.load.idx = v->attribute.offset;
+            break;
+        }
+        case MVMDispProgramRecordingHOWValue: {
+            /* We first need to make sure that we load the dependent value,
+             * then add the op to read it. */
+            op.code = MVMDispOpcodeLoadHOW;
+            op.load.idx = get_temp_holding_value(tc, cs, v->how.from_value);
             break;
         }
         case MVMDispProgramRecordingLookupValue: {
@@ -2973,6 +3025,9 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
             OP(MVMDispOpcodeLoadAttributeStr):
                 record->temps[op.load.temp].s = MVM_p6opaque_read_str(tc,
                         record->temps[op.load.temp].o, op.load.idx);
+                NEXT;
+            OP(MVMDispOpcodeLoadHOW):
+                record->temps[op.load.temp].o = STABLE(record->temps[op.load.idx].o)->HOW;
                 NEXT;
             OP(MVMDispOpcodeLookup):
                 record->temps[op.load.temp].o = MVM_repr_at_key_o(tc,

@@ -97,6 +97,8 @@ typedef enum {
     MVMDispProgramRecordingLiteralValue,
     /* A read of an attribute from a dependent value. */
     MVMDispProgramRecordingAttributeValue,
+    /* A read of .HOW from a value. */
+    MVMDispProgramRecordingHOWValue,
     /* A read of a key from a lookup table. */
     MVMDispProgramRecordingLookupValue,
     /* The resume state for this dispatcher. */
@@ -132,6 +134,10 @@ struct MVMDispProgramRecordingValue {
             /* The kind of value we'll read. */
             MVMCallsiteFlags kind;
         } attribute;
+        struct {
+            /* The value that we'll read the HOW of. */
+            MVMuint32 from_value;
+        } how;
         struct {
             /* The value index of the lookup hash. */
             MVMuint32 lookup_index;
@@ -430,6 +436,8 @@ typedef enum {
     MVMDispOpcodeLoadAttributeNum,
     /* Load an attribute string value into a temporary. */
     MVMDispOpcodeLoadAttributeStr,
+    /* Load an object's HOW into a temporary. */
+    MVMDispOpcodeLoadHOW,
     /* Do a lookup in a hash table and put the result into a temporary if it is
      * found. */
     MVMDispOpcodeLookup,
@@ -592,6 +600,7 @@ MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *c
         MVMuint32 index);
 MVMObject * MVM_disp_program_record_track_attr(MVMThreadContext *tc, MVMObject *tracked,
         MVMObject *class_handle, MVMString *name);
+MVMObject * MVM_disp_program_record_track_how(MVMThreadContext *tc, MVMObject *tracked);
 void MVM_disp_program_record_guard_type(MVMThreadContext *tc, MVMObject *tracked);
 void MVM_disp_program_record_guard_concreteness(MVMThreadContext *tc, MVMObject *tracked);
 void MVM_disp_program_record_guard_literal(MVMThreadContext *tc, MVMObject *tracked);

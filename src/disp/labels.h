@@ -39,6 +39,7 @@ static const void * const LABELS[] = {
         &&MVMDispOpcodeLoadAttributeInt,
         &&MVMDispOpcodeLoadAttributeNum,
         &&MVMDispOpcodeLoadAttributeStr,
+        &&MVMDispOpcodeLoadHOW,
         &&MVMDispOpcodeLookup,
         &&MVMDispOpcodeSet,
         &&MVMDispOpcodeResultValueObj,
