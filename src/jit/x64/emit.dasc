@@ -2193,6 +2193,24 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |
         break;
     }
+    case MVM_OP_setcodename: {
+        MVMint16 obj  = ins->operands[0].reg.orig;
+        MVMint16 code = ins->operands[1].reg.orig;
+        | mov TMP1, aword WORK[obj];
+        /* if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) */
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCode;
+        | je >1;
+        /* else throw */
+        | throw_adhoc "setcodename needs a code ref";
+        |1:
+        | mov TMP2, aword WORK[code];
+        | mov aword CODE:TMP1->body.name, TMP2;
+        | check_wb TMP1, TMP2, >2;
+        | hit_wb TMP1, TMP2
+        |2:
+        |
+        break;
+    }
     case MVM_OP_lastexpayload: {
         MVMint16 dst = ins->operands[0].reg.orig;
         | mov TMP3, aword TC->last_payload;
