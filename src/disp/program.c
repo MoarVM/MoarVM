@@ -2329,13 +2329,20 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
     /* Cleanup. */
     MVM_VECTOR_DESTROY(p.path);
 }
-static void add_temp_to_fake(MVMThreadContext *tc, compile_state *cs,
+static void add_resume_init_temp_to_fake(MVMThreadContext *tc, compile_state *cs,
         MVMDispProgramRecordingResumption *rec_res, MVMuint32 temp_idx,
         MVMuint32 init_arg_idx) {
     MVMRegister value;
     MVMCallsiteFlags unused;
     MVM_capture_arg_by_flag_index(tc, rec_res->initial_resume_capture.capture, init_arg_idx,
             &value, &unused);
+    fake_temp fake = { .temp_idx = temp_idx, .value = value };
+    MVM_VECTOR_PUSH(cs->fake_temps, fake);
+}
+static void add_lookup_temp_to_fake(MVMThreadContext *tc, compile_state *cs,
+        MVMDispProgramRecordingResumption *rec_res, MVMuint32 temp_idx,
+        MVMObject *lookup_value) {
+    MVMRegister value = { .o = lookup_value };
     fake_temp fake = { .temp_idx = temp_idx, .value = value };
     MVM_VECTOR_PUSH(cs->fake_temps, fake);
 }
@@ -2401,7 +2408,15 @@ static void produce_resumption_init_values(MVMThreadContext *tc, compile_state *
                      * a temporary for it, so we can maybe re-use it. */
                     init->source = MVM_DISP_RESUME_INIT_TEMP;
                     init->index = get_temp_holding_value(tc, cs, found_value_index);
-                    add_temp_to_fake(tc, cs, rec_res, init->index, value->resume_capture.index);
+                    add_resume_init_temp_to_fake(tc, cs, rec_res, init->index,
+                        value->resume_capture.index);
+                    break;
+                case MVMDispProgramRecordingLookupValue:
+                    /* As described above, but for lookup values. */
+                    init->source = MVM_DISP_RESUME_INIT_TEMP;
+                    init->index = get_temp_holding_value(tc, cs, found_value_index);
+                    add_lookup_temp_to_fake(tc, cs, rec_res, init->index,
+                        ((MVMTracked *)value->tracked)->body.value.o);
                     break;
                 case MVMDispProgramRecordingLiteralValue:
                     switch (value->literal.kind) {
@@ -2441,7 +2456,7 @@ static void produce_resumption_init_values(MVMThreadContext *tc, compile_state *
             op.load.idx = real_index;
             MVM_VECTOR_PUSH(cs->ops, op);
             MVM_VECTOR_PUSH(cs->value_temps, NULL);
-            add_temp_to_fake(tc, cs, rec_res, init->index, real_index);
+            add_resume_init_temp_to_fake(tc, cs, rec_res, init->index, real_index);
         }
         else {
             /* It's an initial argument. */
