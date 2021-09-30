@@ -2045,6 +2045,13 @@
       (carg $0   ptr)
       (carg $1   ptr))))
 
+(template: loadext
+  (callv (^func &MVM_ext_load)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0   ptr)
+      (carg $1   ptr))))
+
 (template: backendconfig
   (call (^func &MVM_backend_config)
     (arglist
