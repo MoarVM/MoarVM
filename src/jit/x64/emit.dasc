@@ -2519,6 +2519,23 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |2:
         break;
     }
+    case MVM_OP_getcomp: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 comp = ins->operands[1].reg.orig;
+        | mov ARG1, TC->instance;
+        | lea ARG1, MVMINSTANCE:ARG1->mutex_compiler_registry;
+        | call &uv_mutex_lock;
+        | mov ARG1, TC;
+        | mov ARG2, TC->instance;
+        | mov ARG2, MVMINSTANCE:ARG2->compiler_registry;
+        | mov ARG3, aword WORK[comp];
+        | call &MVM_repr_at_key_o;
+        | mov WORK[dst], RV;
+        | mov ARG1, TC->instance;
+        | lea ARG1, MVMINSTANCE:ARG1->mutex_compiler_registry;
+        | call &uv_mutex_unlock;
+        break;
+    }
     default:
         MVM_panic(1, "Can't JIT opcode <%s>", ins->info->name);
     }

@@ -1571,6 +1571,20 @@
 (template: hllhash
   (^getf (^hllconfig) MVMHLLConfig slurpy_hash_type))
 
+(template: getcomp!
+  (dov
+    (callv (^func &uv_mutex_lock)
+      (arglist
+        (carg (^addrf (^getf (tc) MVMThreadContext instance) MVMInstance mutex_compiler_registry) ptr)))
+    (store \$0 (call (^func &MVM_repr_at_key_o)
+                 (arglist
+                   (carg (tc) ptr)
+                   (carg (^get_instance_field compiler_registry) ptr)
+                   (carg $1 ptr)) ptr_sz) ptr_sz)
+    (callv (^func &uv_mutex_unlock)
+      (arglist
+        (carg (^addrf (^getf (tc) MVMThreadContext instance) MVMInstance mutex_compiler_registry) ptr)))))
+
 (template: gethllsym
   (call (^func &MVM_hll_sym_get)
     (arglist
