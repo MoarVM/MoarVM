@@ -2607,6 +2607,13 @@
       (carg $1 ptr)
       (carg \$0 ptr))))
 
+(template: setdebugtypename
+  (callv (^func &MVM_6model_set_debug_name)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr))))
+
 (template: lastexpayload
   (^getf (tc) MVMThreadContext last_payload))
 
