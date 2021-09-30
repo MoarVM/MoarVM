@@ -355,6 +355,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_typeparameters: return MVM_6model_parametric_type_parameters;
     case MVM_OP_typeparameterat: return MVM_6model_parametric_type_parameter_at;
     case MVM_OP_parameterizetype: return MVM_6model_parametric_parameterize;
+    case MVM_OP_setparameterizer: return MVM_6model_parametric_setup;
     case MVM_OP_objectid: return MVM_gc_object_id;
     case MVM_OP_iscont_i: return MVM_6model_container_iscont_i;
     case MVM_OP_iscont_n: return MVM_6model_container_iscont_n;
@@ -3483,6 +3484,15 @@ start:
                                  { MVM_JIT_REG_VAL, { params } },
                                  { MVM_JIT_REG_ADDR, { dst } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_setparameterizer: {
+        MVMint16 type        = ins->operands[0].reg.orig;
+        MVMint16 parametizer = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { type } },
+                                 { MVM_JIT_REG_VAL, { parametizer } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     case MVM_OP_objectid: {
