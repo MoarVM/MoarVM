@@ -426,6 +426,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
 
     case MVM_OP_sha1: return MVM_sha1;
 
+    case MVM_OP_loadext: return MVM_ext_load;
+
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -3925,6 +3927,15 @@ start:
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { str } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_loadext: {
+        MVMint16 lib = ins->operands[0].reg.orig;
+        MVMint16 ext = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { lib } },
+                                 { MVM_JIT_REG_VAL, { ext } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     default: {
