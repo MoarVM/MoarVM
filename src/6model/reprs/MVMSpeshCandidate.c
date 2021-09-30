@@ -69,6 +69,8 @@ void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(candidate->body.deopts);
     MVM_spesh_pea_destroy_deopt_info(tc, &(candidate->body.deopt_pea));
     MVM_free(candidate->body.inlines);
+    for (MVMuint32 i = 0; i < candidate->body.num_resume_inits; i++)
+        MVM_free(candidate->body.resume_inits[i].init_registers);
     MVM_free(candidate->body.resume_inits);
     MVM_free(candidate->body.local_types);
     MVM_free(candidate->body.lexical_types);
