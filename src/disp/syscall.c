@@ -328,6 +328,24 @@ static MVMDispSysCall dispatcher_index_lookup_table = {
     .expected_concrete = { 1, 1 }
 };
 
+/* dispatcher-index-tracked-lookup-table */
+static void dispatcher_index_tracked_lookup_table_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMObject *tracked_lookup = get_obj_arg(arg_info, 0);
+    MVMObject *tracked_key = get_obj_arg(arg_info, 1);
+    MVMObject *tracked_result = MVM_disp_program_record_index_tracked_lookup_table(tc,
+        tracked_lookup, tracked_key);
+    MVM_args_set_result_obj(tc, tracked_result, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_index_tracked_lookup_table = {
+    .c_name = "dispatcher-index-tracked-lookup-table",
+    .implementation = dispatcher_index_tracked_lookup_table_impl,
+    .min_args = 2,
+    .max_args = 2,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMTracked, MVM_REPR_ID_MVMTracked },
+    .expected_concrete = { 1, 1 }
+};
+
 /* dispatcher-set-resume-init-args */
 static void dispatcher_set_resume_init_args_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *capture = get_obj_arg(arg_info, 0);
@@ -1085,6 +1103,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_guard_literal);
     add_to_hash(tc, &dispatcher_guard_not_literal_obj);
     add_to_hash(tc, &dispatcher_index_lookup_table);
+    add_to_hash(tc, &dispatcher_index_tracked_lookup_table);
     add_to_hash(tc, &dispatcher_set_resume_init_args);
     add_to_hash(tc, &dispatcher_get_resume_init_args);
     add_to_hash(tc, &dispatcher_set_resume_state);

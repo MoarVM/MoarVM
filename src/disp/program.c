@@ -1061,7 +1061,7 @@ void MVM_disp_program_record_guard_hll(MVMThreadContext *tc, MVMObject *tracked)
  * it. Produces a new tracked value as a consequence. */
 MVMObject * MVM_disp_program_record_index_lookup_table(MVMThreadContext *tc,
        MVMObject *lookup_hash, MVMObject *tracked_key) {
-    /* Ensure the tracked value is a string, and that it exists in the hash. */
+    /* Ensure the tracked value is a string and do the lookup. */
     if (!(((MVMTracked *)tracked_key)->body.kind & MVM_CALLSITE_ARG_STR))
         MVM_exception_throw_adhoc(tc, "Dispatch program lookup key must be a tracked string");
     MVMObject *resolved = MVM_repr_at_key_o(tc, lookup_hash,
@@ -1074,6 +1074,39 @@ MVMObject * MVM_disp_program_record_index_lookup_table(MVMThreadContext *tc,
         lookup_register);
 
     /* Resolve the tracked key. */
+    MVMuint32 key_index = find_tracked_value_index(tc, &(record->rec), tracked_key);
+
+    /* Ensure that we have this lookup in the values table, and make
+     * a tracked object if not. */
+    MVMuint32 result_value_index = value_index_lookup(tc, &(record->rec), lookup_index,
+        key_index);
+    if (!record->rec.values[result_value_index].tracked) {
+        MVMRegister resolved_register = { .o = resolved };
+        record->rec.values[result_value_index].tracked = MVM_tracked_create(tc,
+            resolved_register, MVM_CALLSITE_ARG_OBJ);
+    }
+    return record->rec.values[result_value_index].tracked;
+}
+
+/* Record a lookup of a key in a tracked value that should have representation
+ * MVMHash. Type and cocreteness guards are added to enforce that. */
+MVMObject * MVM_disp_program_record_index_tracked_lookup_table(MVMThreadContext *tc,
+       MVMObject *tracked_lookup_hash, MVMObject *tracked_key) {
+    /* Ensure the tracked lookup hash is a hash and the tracked value is a string,
+     * and do the lookup. */
+    if (!(((MVMTracked *)tracked_lookup_hash)->body.kind & MVM_CALLSITE_ARG_OBJ))
+        MVM_exception_throw_adhoc(tc, "Dispatch program lookup hash must be a tracked object");
+    MVMObject *lookup_hash = ((MVMTracked *)tracked_lookup_hash)->body.value.o;
+    if (!IS_CONCRETE(lookup_hash) || !(REPR(lookup_hash)->ID == MVM_REPR_ID_MVMHash))
+        MVM_exception_throw_adhoc(tc, "Dispatch program lookup hash must be a concrete VMHash");
+    if (!(((MVMTracked *)tracked_key)->body.kind & MVM_CALLSITE_ARG_STR))
+        MVM_exception_throw_adhoc(tc, "Dispatch program lookup key must be a tracked string");
+    MVMObject *resolved = MVM_repr_at_key_o(tc, lookup_hash,
+            ((MVMTracked *)tracked_key)->body.value.s);
+
+    /* Resolve the tracked lookup and key. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    MVMuint32 lookup_index = find_tracked_value_index(tc, &(record->rec), tracked_lookup_hash);
     MVMuint32 key_index = find_tracked_value_index(tc, &(record->rec), tracked_key);
 
     /* Ensure that we have this lookup in the values table, and make

@@ -609,6 +609,8 @@ void MVM_disp_program_record_guard_not_literal_obj(MVMThreadContext *tc,
 void MVM_disp_program_record_guard_hll(MVMThreadContext *tc, MVMObject *tracked);
 MVMObject * MVM_disp_program_record_index_lookup_table(MVMThreadContext *tc,
        MVMObject *lookup_hash, MVMObject *tracked_key);
+MVMObject * MVM_disp_program_record_index_tracked_lookup_table(MVMThreadContext *tc,
+       MVMObject *tracked_lookup_hash, MVMObject *tracked_key);
 MVMObject * MVM_disp_program_record_capture_drop_arg(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 index);
 MVMObject * MVM_disp_program_record_capture_drop_args(MVMThreadContext *tc, MVMObject *capture,
