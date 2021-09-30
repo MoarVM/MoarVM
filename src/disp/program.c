@@ -2129,6 +2129,12 @@ static void emit_attribute_guards(MVMThreadContext *tc, compile_state *cs,
     MVMRegister value = ((MVMTracked *)v->tracked)->body.value;
     emit_loaded_value_guards(tc, cs, v, temp, value, v->attribute.kind);
 }
+static void emit_lookup_or_how_guards(MVMThreadContext *tc, compile_state *cs,
+        MVMDispProgramRecordingValue *v, MVMuint32 value_index) {
+    MVMuint32 temp = get_temp_holding_value(tc, cs, value_index);
+    MVMRegister value = ((MVMTracked *)v->tracked)->body.value;
+    emit_loaded_value_guards(tc, cs, v, temp, value, MVM_CALLSITE_ARG_OBJ);
+}
 static void emit_resume_state_guards(MVMThreadContext *tc, compile_state *cs,
         MVMDispProgramRecordingValue *v, MVMuint32 value_index) {
     MVMuint32 temp = get_temp_holding_value(tc, cs, value_index);
@@ -2500,6 +2506,10 @@ static void emit_value_guards(MVMThreadContext *tc, compile_state *cs,
         }
         else if (v->source == MVMDispProgramRecordingAttributeValue) {
             emit_attribute_guards(tc, cs, v, i);
+        }
+        else if (v->source == MVMDispProgramRecordingLookupValue ||
+                v->source == MVMDispProgramRecordingHOWValue) {
+            emit_lookup_or_how_guards(tc, cs, v, i);
         }
         else if (v->source == MVMDispProgramRecordingResumeStateValue) {
             emit_resume_state_guards(tc, cs, v, i);
