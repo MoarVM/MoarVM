@@ -320,7 +320,7 @@ MVMObject * MVM_disp_lang_call_dispatch(MVMThreadContext *tc) {
 /* The lang-meth-call dispatcher looks at the language of the type of the
  * invocant, which should be in the first argument of the capture. If
  * there is one, it delegates to the registered method dispatcher for that
- * language, establishing a type guard on the invocant. If not, then the
+ * language, establishing a HLL guard on the invocant. If not, then the
  * type must have a metaclass that is a KnowHOW, and the method will be
  * resolved using the method table, with guards being established on both
  * the invocant and the name (which must be the second argument). There
@@ -335,24 +335,23 @@ static void lang_meth_call(MVMThreadContext *tc, MVMArgs arg_info) {
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
     MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
 
-    /* Obtain and guard on the first argument of the capture, which is the
-     * invocant of the method call. */
+    /* If the invocant has an associated HLL and method dispatcher, delegate there. */
     MVMObject *tracked_invocant;
     MVMROOT(tc, capture, {
          tracked_invocant = MVM_disp_program_record_track_arg(tc, capture, 0);
     });
-    MVM_disp_program_record_guard_type(tc, tracked_invocant);
-
-    /* If the invocant has an associated HLL and method dispatcher, delegate there. */
     MVMObject *invocant = MVM_capture_arg_pos_o(tc, capture, 0);
     MVMHLLConfig *hll = STABLE(invocant)->hll_owner;
     if (hll && hll->method_call_dispatcher) {
+        MVM_disp_program_record_guard_hll(tc, tracked_invocant);
         MVM_disp_program_record_delegate(tc, hll->method_call_dispatcher, capture);
         return;
     }
 
     /* Otherwise if it's a KnowHOW, then look in its method table (this is how
-     * method dispatch bottoms out in the VM). */
+     * method dispatch bottoms out in the VM). Since the method table depends
+     * on the invocant, add a guard. */
+    MVM_disp_program_record_guard_type(tc, tracked_invocant);
     MVMObject *HOW;
     MVMROOT2(tc, capture, invocant, {
         HOW = MVM_6model_get_how(tc, STABLE(invocant));
