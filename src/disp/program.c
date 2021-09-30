@@ -1109,6 +1109,10 @@ MVMObject * MVM_disp_program_record_index_tracked_lookup_table(MVMThreadContext 
     MVMuint32 lookup_index = find_tracked_value_index(tc, &(record->rec), tracked_lookup_hash);
     MVMuint32 key_index = find_tracked_value_index(tc, &(record->rec), tracked_key);
 
+    /* Enforce type and concreteness guards on the lookup table. */
+    record->rec.values[lookup_index].guard_type = 1;
+    record->rec.values[lookup_index].guard_concreteness = 1;
+
     /* Ensure that we have this lookup in the values table, and make
      * a tracked object if not. */
     MVMuint32 result_value_index = value_index_lookup(tc, &(record->rec), lookup_index,
