@@ -1833,6 +1833,7 @@ start:
     case MVM_OP_newtype:
     case MVM_OP_newmixintype:
     case MVM_OP_composetype:
+    case MVM_OP_getcomp:
         /* Profiling */
     case MVM_OP_prof_enterspesh:
     case MVM_OP_prof_enterinline:
