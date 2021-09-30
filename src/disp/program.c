@@ -84,6 +84,9 @@ static void dump_recording_values(MVMThreadContext *tc, MVMDispProgramRecording 
                 fprintf(stderr, "    %d Attribute value from offset %d of value %d\n", i,
                         v->attribute.offset, v->attribute.from_value);
                 break;
+            case MVMDispProgramRecordingHOWValue:
+                fprintf(stderr, "    %d HOW of value %d\n", i, v->how.from_value);
+                break;
             case MVMDispProgramRecordingLookupValue:
                 fprintf(stderr, "    %d Lookup in hash value %d using key value %d\n", i,
                         v->lookup.lookup_index, v->lookup.key_index);
@@ -376,6 +379,10 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
             case MVMDispOpcodeLoadAttributeStr:
                 fprintf(stderr, "    Deference string attribute at offset %d in temporary %d\n",
                         op->load.idx, op->load.temp);
+                break;
+            case MVMDispOpcodeLoadHOW:
+                fprintf(stderr, "    Put into temporary %d HOW of temporary %d\n",
+                        op->load.temp, op->load.idx);
                 break;
             case MVMDispOpcodeLookup:
                 fprintf(stderr, "    Hash table lookup into temporary %d with key from %d\n",
