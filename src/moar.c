@@ -108,6 +108,7 @@ MVMInstance * MVM_vm_create_instance(void) {
          *spesh_pea_disable;
     char *jit_expr_disable, *jit_disable, *jit_last_frame, *jit_last_bb;
     char *dynvar_log;
+    char *hash_randomization_disable;
     int init_stat;
 
 #ifndef MVM_THREAD_LOCAL
@@ -124,16 +125,20 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->subscriptions.vm_startup_hrtime = uv_hrtime();
     instance->subscriptions.vm_startup_now = MVM_proc_time(instance->main_thread);
 
-#if MVM_HASH_RANDOMIZE
-    /* Get the 128-bit hashSecret */
-    MVM_getrandom(instance->main_thread, instance->hashSecrets, sizeof(MVMuint64) * 2);
-    /* Just in case MVM_getrandom didn't work, XOR it with some (poorly) randomized data */
-    instance->hashSecrets[0] ^= ptr_hash_64_to_64((uintptr_t)instance);
-    instance->hashSecrets[1] ^= MVM_proc_getpid(instance->main_thread) * MVM_platform_now();
-#else
-    instance->hashSecrets[0] = 0;
-    instance->hashSecrets[1] = 0;
-#endif
+    hash_randomization_disable = getenv("MVM_HASH_RANDOMIZATION_DISABLE");
+    instance->hash_randomize = !(hash_randomization_disable && hash_randomization_disable[0]);
+
+    if (MVM_LIKELY(instance->hash_randomize)) {
+        /* Get the 128-bit hashSecret */
+        MVM_getrandom(instance->main_thread, instance->hashSecrets, sizeof(MVMuint64) * 2);
+        /* Just in case MVM_getrandom didn't work, XOR it with some (poorly) randomized data */
+        instance->hashSecrets[0] ^= ptr_hash_64_to_64((uintptr_t)instance);
+        instance->hashSecrets[1] ^= MVM_proc_getpid(instance->main_thread) * MVM_platform_now();
+    }
+    else {
+        instance->hashSecrets[0] = 0;
+        instance->hashSecrets[1] = 0;
+    }
     instance->main_thread->thread_id = 1;
 
     /* Next thread to be created gets ID 2 (the main thread got ID 1). */

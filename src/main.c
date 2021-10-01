@@ -100,7 +100,8 @@ The following environment variables are respected:\n\
     MVM_CROSS_THREAD_WRITE_LOG  Log unprotected cross-thread object writes to stderr\n\
     MVM_COVERAGE_LOG            Append (de-duped by default) line-by-line coverage messages to this file\n\
     MVM_COVERAGE_CONTROL        If set to 1, non-de-duping coverage started with nqp::coveragecontrol(1),\n\
-                                  if set to 2, non-de-duping coverage started right away\n"
+                                  if set to 2, non-de-duping coverage started right away\n\
+    MVM_HASH_RANDOMIZATION_DISABLE Disables hash randomization\n"
     TELEMEH_USAGE;
 
 static int cmp_flag(const void *key, const void *value)

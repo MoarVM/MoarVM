@@ -162,6 +162,8 @@ delete @ENV{qw(
     MVM_SPESH_OSR_DISABLE
     MVM_SPESH_PEA_DISABLE
 )} if $OPTS{spesh};
+# To get a stable order of processing and of spesh candidates
+$ENV{MVM_HASH_RANDOMIZATION_DISABLE} = 1;
 $ENV{MVM_SPESH_BLOCKING} = 1;
 $ENV{MVM_SPESH_NODELAY} = 1 if exists $OPTS{nodelay};
 

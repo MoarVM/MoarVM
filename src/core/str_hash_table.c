@@ -150,11 +150,7 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
     MVMuint8 *metadata = (MVMuint8 *)(control + 1);
     memset(metadata, 0, metadata_size);
 
-#if MVM_HASH_RANDOMIZE
-    control->salt = MVM_proc_rand_i(tc);
-#else
-    control->salt = 0;
-#endif
+    control->salt = MVM_LIKELY(tc->instance->hash_randomize) ? MVM_proc_rand_i(tc) : 0;
 
     return control;
 }
@@ -175,9 +171,9 @@ void MVM_str_hash_build(MVMThreadContext *tc,
          * control structure. */
         memset(control, 0, sizeof(*control));
         control->entry_size = entry_size;
-#if MVM_HASH_RANDOMIZE
-        control->salt = MVM_proc_rand_i(tc);
-#endif
+        if (MVM_LIKELY(tc->instance->hash_randomize)) {
+            control->salt = MVM_proc_rand_i(tc);
+        }
     } else {
         /* Minimum size we need to allocate, given the load factor. */
         MVMuint32 min_needed = entries * (1.0 / MVM_STR_HASH_LOAD_FACTOR);
@@ -191,18 +187,19 @@ void MVM_str_hash_build(MVMThreadContext *tc,
     }
 
 #if HASH_DEBUG_ITER
-#  if MVM_HASH_RANDOMIZE
-    /* Given that we can embed the hashtable structure into other structures
-     * (such as MVMHash) and those enclosing structures can be moved (GC!) we
-     * can't use the address of this structure as its ID for debugging. We
-     * could use the address of the first buckets array that we allocate, but if
-     * we grow, then that memory could well be re-used for another hashtable,
-     * and then we have two hashtables with the same ID, which rather defeats
-     * the need to have (likely to be) unique IDs, to spot iterator leakage. */
-    control->ht_id = control->salt;
-#  else
-    control->ht_id = MVM_proc_rand_i(tc);
-#  endif
+    if (MVM_LIKELY(tc->instance->hash_randomize)) {
+        /* Given that we can embed the hashtable structure into other structures
+         * (such as MVMHash) and those enclosing structures can be moved (GC!) we
+         * can't use the address of this structure as its ID for debugging. We
+         * could use the address of the first buckets array that we allocate, but if
+         * we grow, then that memory could well be re-used for another hashtable,
+         * and then we have two hashtables with the same ID, which rather defeats
+         * the need to have (likely to be) unique IDs, to spot iterator leakage. */
+        control->ht_id = control->salt;
+    }
+    else {
+        control->ht_id = MVM_proc_rand_i(tc);
+    }
     control->serial = 0;
     control->last_delete_at = 0;
 #endif
