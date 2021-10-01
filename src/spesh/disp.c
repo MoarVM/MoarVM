@@ -531,6 +531,8 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
             case MVMDispOpcodeLoadAttributeInt:
             case MVMDispOpcodeLoadAttributeNum:
             case MVMDispOpcodeLoadAttributeStr:
+            case MVMDispOpcodeLoadHOW:
+            case MVMDispOpcodeLookup:
             case MVMDispOpcodeSet:
             case MVMDispOpcodeResultValueObj:
             case MVMDispOpcodeResultValueStr:
@@ -895,6 +897,22 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 MVM_VECTOR_PUSH(allocated_temps, temp);
                 emit_load_attribute(tc, g, bb, &insert_after, MVM_OP_sp_p6oget_s, temp,
                         temporaries[op->load.temp], op->load.idx);
+                temporaries[op->load.temp] = temp;
+                break;
+            }
+            case MVMDispOpcodeLoadHOW: {
+                MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+                temporaries[op->load.temp] = temp;
+                MVM_VECTOR_PUSH(allocated_temps, temp);
+                emit_bi_op(tc, g, bb, &insert_after, MVM_OP_gethow,
+                    temporaries[op->load.temp], temporaries[op->load.idx]);
+                break;
+            }
+            case MVMDispOpcodeLookup: {
+                MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_str);
+                MVM_VECTOR_PUSH(allocated_temps, temp);
+                emit_tri_op(tc, g, bb, &insert_after, MVM_OP_atkey_o, temp,
+                    temporaries[op->load.temp], temporaries[op->load.idx]);
                 temporaries[op->load.temp] = temp;
                 break;
             }
