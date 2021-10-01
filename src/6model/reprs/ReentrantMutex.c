@@ -44,8 +44,10 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMReentrantMutex *rm = (MVMReentrantMutex *)obj;
     if (rm->body.lock_count)
         MVM_panic(1, "Tried to garbage-collect a locked mutex");
-    uv_mutex_destroy(rm->body.mutex);
-    MVM_free(rm->body.mutex);
+    if (rm->body.mutex) { /* Cope with incomplete object initialization */
+        uv_mutex_destroy(rm->body.mutex);
+        MVM_free(rm->body.mutex);
+    }
 }
 
 
