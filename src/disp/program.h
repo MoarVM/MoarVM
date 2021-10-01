@@ -291,6 +291,11 @@ struct MVMDispProgramRecording {
     MVMuint32 bind_failure_resumption_flag;
     MVMuint32 bind_success_resumption_flag;
     MVMDispProgramRecordingBindControlKind map_bind_outcome_to_resumption;
+
+    /* Flag indicating if we should install the dispatch program at the
+     * callsite or just keep it around until unwind (if resumptions need
+     * us to). */
+    MVMuint8 do_not_install;
 };
 
 /* A "compiled" dispatch program, which is what we interpret at a callsite
@@ -595,6 +600,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
         MVMArgs arg_info, MVMDispInlineCacheEntry **ic_entry_ptr,
         MVMDispInlineCacheEntry *ic_entry, MVMStaticFrame *update_sf);
 MVMint64 MVM_disp_program_record_get_inline_cache_size(MVMThreadContext *tc);
+void MVM_disp_program_record_do_not_install(MVMThreadContext *tc);
 MVMHLLConfig * MVM_disp_program_record_get_hll(MVMThreadContext *tc);
 MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *capture,
         MVMuint32 index);

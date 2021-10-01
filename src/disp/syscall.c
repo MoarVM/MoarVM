@@ -503,6 +503,21 @@ static MVMDispSysCall dispatcher_inline_cache_size = {
     .expected_concrete = {0}
 };
 
+/* dispatcher-do-not-install */
+static void dispatcher_do_not_install_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVM_disp_program_record_do_not_install(tc);
+    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_do_not_install = {
+    .c_name = "dispatcher-do-not-install",
+    .implementation = dispatcher_do_not_install_impl,
+    .min_args = 0,
+    .max_args = 0,
+    .expected_kinds = {0},
+    .expected_reprs = {0},
+    .expected_concrete = {0}
+};
+
 /* boolify-bigint */
 static void boolify_bigint_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *obj = get_obj_arg(arg_info, 0);
@@ -1114,6 +1129,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_resume_on_bind_failure);
     add_to_hash(tc, &dispatcher_resume_after_bind);
     add_to_hash(tc, &dispatcher_inline_cache_size);
+    add_to_hash(tc, &dispatcher_do_not_install);
     add_to_hash(tc, &boolify_bigint);
     add_to_hash(tc, &boolify_boxed_int);
     add_to_hash(tc, &boolify_boxed_num);

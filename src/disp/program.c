@@ -582,6 +582,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     record->rec.map_bind_outcome_to_resumption = MVMDispProgramRecordingBindControlNone;
     record->rec.initial_capture.capture = capture;
     record->rec.inline_cache_size = inline_cache_size;
+    record->rec.do_not_install = 0;
     record->ic_entry_ptr = ic_entry_ptr;
     record->ic_entry = ic_entry;
     record->update_sf = update_sf;
@@ -628,6 +629,13 @@ static void run_resume(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
 MVMint64 MVM_disp_program_record_get_inline_cache_size(MVMThreadContext *tc) {
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
     return record->rec.inline_cache_size;
+}
+
+/* Indicates that this dispatch program should not be installed at the callsite
+ * but rather discarded on unwind. */
+void MVM_disp_program_record_do_not_install(MVMThreadContext *tc) {
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    record->rec.do_not_install = 1;
 }
 
 /* Gets the HLL of the static frame where the dispatch program appears. This
@@ -2709,7 +2717,9 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
     dump_program(tc, dp);
 
     /* Transition the inline cache to incorporate this dispatch program. */
-    MVMuint32 installed = MVM_disp_inline_cache_transition(tc, record->ic_entry_ptr,
+    MVMuint32 installed = record->rec.do_not_install
+        ? 0
+        : MVM_disp_inline_cache_transition(tc, record->ic_entry_ptr,
             record->ic_entry, record->update_sf,
             ((MVMCapture *)record->rec.initial_capture.capture)->body.callsite,
             dp);
