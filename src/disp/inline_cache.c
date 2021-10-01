@@ -169,9 +169,11 @@ static void dispatch_polymorphic(MVMThreadContext *tc,
     record->arg_info.source = source;
     record->arg_info.map = arg_indices;
 
-    /* Go through the dispatch programs, taking the first one that works. */
-    MVMuint32 i;
-    for (i = 0; i < entry->num_dps; i++) {
+    /* Go through the dispatch programs, starting with the most recent one
+     * (which is most likely to be the megamorphic handler) and taking the
+     * first one that works. */
+    MVMint32 i;
+    for (i = entry->num_dps - 1; i >= 0; i--) {
         MVMint64 outcome;
         MVMROOT2(tc, id, sf, {
             outcome = MVM_disp_program_run(tc, entry->dps[i], record, cid, bytecode_offset, i);
@@ -205,8 +207,8 @@ static void dispatch_polymorphic_flattening(MVMThreadContext *tc,
 
     /* Go through the callsite and dispatch program pairs, taking the first one
      * that works. */
-    MVMuint32 i;
-    for (i = 0; i < entry->num_dps; i++) {
+    MVMint32 i;
+    for (i = entry->num_dps - 1; i >= 0; i--) {
         if (flat_record->arg_info.callsite == entry->flattened_css[i]) {
             MVMint64 outcome;
             MVMROOT2(tc, id, sf, {
