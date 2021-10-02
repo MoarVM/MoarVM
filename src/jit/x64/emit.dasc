@@ -1757,41 +1757,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], TMP2;
         break;
     }
-    case MVM_OP_scsetobj: {
-        MVMint16 sc  = ins->operands[0].reg.orig;
-        MVMint16 idx = ins->operands[1].reg.orig;
-        MVMint16 obj = ins->operands[2].reg.orig;
-        | mov TMP5, aword WORK[sc];
-        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_SCRef;
-        | je >1;
-        | throw_adhoc "Must provide an SCRef operand to scsetobj";
-        |1:
-        | mov ARG1, TC;
-        | mov ARG2, SCREF:TMP5;
-        | mov ARG3, qword WORK[idx];
-        | mov ARG4, aword WORK[obj];
-        | call &MVM_sc_set_object;
-        | mov ARG1, TC;
-        | mov TMP5, aword WORK[obj];
-        | get_stable ARG2, TMP5;
-        | call &MVM_sc_get_stable_sc;
-        | test RV, RV;
-        | jnz >2;
-        | mov ARG1, TC;
-        | mov TMP5, aword WORK[obj];
-        | get_stable ARG2, TMP5;
-        | mov TMP6, aword WORK[sc];
-        | mov ARG3, SCREF:TMP6;
-        | call &MVM_sc_set_stable_sc;
-        | mov ARG1, TC;
-        | mov TMP5, aword WORK[sc];
-        | mov ARG2, SCREF:TMP5;
-        | mov TMP6, aword WORK[obj];
-        | get_stable ARG3, TMP6;
-        | call &MVM_sc_push_stable;
-        |2:
-        break;
-    }
     case MVM_OP_scsetcode: {
         MVMint16 sc   = ins->operands[0].reg.orig;
         MVMint16 idx  = ins->operands[1].reg.orig;
