@@ -1662,6 +1662,33 @@
       (carg (tc) ptr)
       (carg $1   ptr)) ptr_sz))
 
+(template: scsetobj
+  (ifv (^not_repr_id $0 MVM_REPR_ID_SCRef)
+    (^throw_adhoc "Must provide an SCRef operand to scsetobj")
+    (dov
+      (callv (^func &MVM_sc_set_object)
+        (arglist
+          (carg (tc) ptr)
+          (carg $0 ptr)
+          (carg $1 int)
+          (carg $2 ptr)))
+      (letv: (($st (^stable $2)))
+        (when (zr (call (^func &MVM_sc_get_stable_sc)
+                   (arglist
+                     (carg (tc) ptr)
+                     (carg $st ptr)) ptr_sz))
+          (dov
+            (callv (^func &MVM_sc_set_stable_sc)
+              (arglist
+                (carg (tc) ptr)
+                (carg $0 ptr)
+                (carg $st ptr)))
+            (callv (^func &MVM_sc_push_stable)
+              (arglist
+                (carg (tc) ptr)
+                (carg $st ptr)
+                (carg $0 ptr)))))))))
+
 (template: getobjsc
   (call (^func &MVM_sc_get_obj_sc)
     (arglist
