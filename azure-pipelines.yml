@@ -136,17 +136,6 @@ stages:
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang --debug=3'
 
-         MVM_Ub_16_gcc:
-           IMAGE_NAME: 'ubuntu-16.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc --debug=3'
-         MVM_Ub_16_clang:
-           IMAGE_NAME: 'ubuntu-16.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang --debug=3'
-
       pool:
         vmImage: $(IMAGE_NAME)
       workspace:
