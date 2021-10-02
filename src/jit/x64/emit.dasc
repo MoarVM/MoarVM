@@ -1738,7 +1738,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_scobjcount: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 sc  = ins->operands[1].reg.orig;
-        | mov TMP5, aword WORK[dst];
+        | mov TMP5, aword WORK[sc];
         | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_SCRef;
         | je >1;
         | throw_adhoc "Must provide an SCRef operand to scobjcount"
