@@ -1735,6 +1735,22 @@
       (carg (tc) ptr)
       (carg $1   ptr)) ptr_sz))
 
+(template: scsetobj
+  (callv (^func &MVM_sc_set_object_op)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 int)
+      (carg $2 ptr))))
+
+(template: scsetcode
+  (callv (^func &MVM_sc_set_code_op)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 int)
+      (carg $2 ptr))))
+
 (template: getobjsc
   (call (^func &MVM_sc_get_obj_sc)
     (arglist

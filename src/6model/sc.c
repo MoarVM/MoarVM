@@ -248,6 +248,21 @@ MVMObject * MVM_sc_try_get_object(MVMThreadContext *tc, MVMSerializationContext 
 
 /* Given an SC, an index, and an object, store the object at that index and update
  * its SC index to match. */
+void MVM_sc_set_object_op(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *obj) {
+    if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+        MVM_exception_throw_adhoc(tc,
+            "Must provide an SCRef operand to scsetobj");
+    MVM_sc_set_object(tc, sc, idx, obj);
+    if (MVM_sc_get_stable_sc(tc, STABLE(obj)) == NULL) {
+        /* Need to claim the SC also; typical case for new type objects. */
+        MVMSTable *st = STABLE(obj);
+        MVM_sc_set_stable_sc(tc, st, (MVMSerializationContext *)sc);
+        MVM_sc_push_stable(tc, (MVMSerializationContext *)sc, st);
+    }
+}
+
+/* Given an SC, an index, and an object, store the object at that index and update
+ * its SC index to match. */
 void MVM_sc_set_object(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *obj) {
     MVM_sc_set_object_no_update(tc, sc, idx, obj);
     MVM_sc_set_idx_in_sc(&obj->header, idx);
@@ -356,6 +371,14 @@ MVMObject * MVM_sc_get_code(MVMThreadContext *tc, MVMSerializationContext *sc, M
     }
 }
 
+/* Given an SC, an index and a code ref, store it and the index. */
+void MVM_sc_set_code_op(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx, MVMObject *code) {
+    if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
+        MVM_exception_throw_adhoc(tc,
+            "Must provide an SCRef operand to scsetcode");
+    MVM_sc_set_obj_sc(tc, code, sc);
+    MVM_sc_set_code(tc, sc, idx, code);
+}
 /* Resolves an SC handle using the SC weakhash. */
 MVMSerializationContext * MVM_sc_find_by_handle(MVMThreadContext *tc, MVMString *handle) {
     uv_mutex_lock(&tc->instance->mutex_sc_registry);
