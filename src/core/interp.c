@@ -5677,11 +5677,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVMuint32 slot = GET_UI32(cur_op, 4);
                     MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get_spesh(
                             sf, slot);
-                    cur_op += 6;
+                    cur_op += 8;
                     MVM_args_bind_failed(tc, ice_ptr);
                 }
                 else {
-                    cur_op += 6;
+                    cur_op += 8;
                 }
                 goto NEXT;
             }
@@ -5691,7 +5691,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMuint32 slot = GET_UI32(cur_op, 2);
                 MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get_spesh(
                         sf, slot);
-                cur_op += 4;
+                cur_op += 6;
                 MVM_args_bind_succeeded(tc, ice_ptr);
                 goto NEXT;
             }
