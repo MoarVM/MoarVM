@@ -383,7 +383,7 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
             *(void **)cb_result = MVM_nativecall_unmarshal_vmarray(tc, res.o, MVM_NATIVECALL_UNMARSHAL_KIND_RETURN);
             break;
         case MVM_NATIVECALL_ARG_CALLBACK:
-            if (!MVM_code_iscode(tc, res.o))
+            if (IS_CONCRETE(res.o) && !MVM_code_iscode(tc, res.o))
                 MVM_exception_throw_adhoc(tc, "Native callback must be a code handle");
             *(void **)cb_result = unmarshal_callback(tc, (MVMCode *)res.o, data->types[0]);
             break;
@@ -574,7 +574,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 *(void **)values[i] = MVM_nativecall_unmarshal_vmarray(tc, value, i);
                 break;
             case MVM_NATIVECALL_ARG_CALLBACK:
-                if (!MVM_code_iscode(tc, value))
+                if (IS_CONCRETE(value) && !MVM_code_iscode(tc, value))
                     MVM_exception_throw_adhoc(tc, "Native callback must be a code handle");
                 values[i]           = MVM_malloc(sizeof(void *));
                 *(void **)values[i] = unmarshal_callback(tc, (MVMCode *)value, body->arg_info[i]);
