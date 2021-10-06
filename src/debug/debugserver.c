@@ -671,7 +671,7 @@ static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     }
 
     if (argument && argument->type == MT_SuspendOne)
-        communicate_success(tc, ctx,  argument);
+        communicate_success(tc, ctx, argument);
 
     MVM_gc_mark_thread_unblocked(dtc);
     if (tc->instance->debugserver->debugspam_protocol)
@@ -719,6 +719,7 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
     MVMInstance *vm = dtc->instance;
     MVMThread *to_do = thread ? thread : find_thread_by_id(vm, argument->thread_id);
     MVMThreadContext *tc = to_do ? to_do->body.tc : NULL;
+    MVMint32 is_one = argument && argument->type == MT_ResumeOne;
     AO_t current;
 
     if (!tc) {
@@ -741,7 +742,11 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
             /* Success! We signalled the thread and can now tell it to
              * mark itself unblocked, which takes care of any looming GC
              * and related business. */
-            uv_cond_broadcast(&vm->debugserver->tell_threads);
+            if (is_one) {
+                uv_mutex_lock(&vm->debugserver->mutex_cond);
+                uv_cond_broadcast(&vm->debugserver->tell_threads);
+                uv_mutex_unlock(&vm->debugserver->mutex_cond);
+            }
             break;
         } else if ((current & MVMGCSTATUS_MASK) == MVMGCStatus_STOLEN) {
             uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
@@ -751,8 +756,14 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
             }
             uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
         } else {
+            /* Suspend request wasn't handled during the suspended time. */
             if (current == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST)) {
                 if (MVM_cas(&tc->gc_status, current, MVMGCStatus_UNABLE) == current) {
+                    break;
+                }
+            }
+            else if (current == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)) {
+                if (MVM_cas(&tc->gc_status, current, MVMGCStatus_NONE) == current) {
                     break;
                 }
             }
@@ -761,7 +772,7 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
 
     MVM_gc_mark_thread_unblocked(dtc);
 
-    if (argument && argument->type == MT_ResumeOne)
+    if (is_one)
         communicate_success(tc, ctx, argument);
 
     if (tc->instance->debugserver->debugspam_protocol)
@@ -782,6 +793,7 @@ static MVMint32 request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx
             if (cur_thread != dtc->thread_obj) {
                 AO_t current = MVM_load(&cur_thread->body.tc->gc_status);
                 if (current == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED) ||
+                        current == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST) ||
                         current == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST) ||
                         current == (MVMGCStatus_STOLEN | MVMSuspendState_SUSPEND_REQUEST)) {
                     if (request_thread_resumes(dtc, ctx, argument, cur_thread)) {
@@ -795,6 +807,10 @@ static MVMint32 request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx
             cur_thread = cur_thread->body.next;
         }
     });
+
+    uv_mutex_lock(&vm->debugserver->mutex_cond);
+    uv_cond_broadcast(&vm->debugserver->tell_threads);
+    uv_mutex_unlock(&vm->debugserver->mutex_cond);
 
     if (success)
         communicate_success(dtc, ctx, argument);
@@ -1670,7 +1686,9 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
 
         MVM_store(&debugserver->request_data.status, MVM_DebugRequestStatus_sender_is_waiting);
 
+        uv_mutex_lock(&debugserver->mutex_cond);
         uv_cond_broadcast(&debugserver->tell_threads);
+        uv_mutex_unlock(&debugserver->mutex_cond);
 
         while (1) {
             if (MVM_cas(&debugserver->request_data.status,
