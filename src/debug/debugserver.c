@@ -719,7 +719,7 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
     MVMInstance *vm = dtc->instance;
     MVMThread *to_do = thread ? thread : find_thread_by_id(vm, argument->thread_id);
     MVMThreadContext *tc = to_do ? to_do->body.tc : NULL;
-    MVMint32 is_one = argument && argument->type == MT_ResumeOne;
+    MVMint32 is_one = !argument || argument->type != MT_ResumeAll;
     AO_t current;
 
     if (!tc) {
