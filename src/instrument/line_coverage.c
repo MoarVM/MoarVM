@@ -8,6 +8,7 @@ static void instrument_graph_with_breakpoints(MVMThreadContext *tc, MVMSpeshGrap
     MVMSpeshBB *bb = g->entry->linear_next;
 
     MVMint32 last_filename = -1;
+    MVMint64 last_line_number = -1;
 
     char *filename_buf = NULL;
 
@@ -46,7 +47,7 @@ static void instrument_graph_with_breakpoints(MVMThreadContext *tc, MVMSpeshGrap
             continue;
         }
 
-        if (line_number >= 0) {
+        if (line_number >= 0 && line_number != last_line_number) {
             breakpoint_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
             breakpoint_ins->info        = MVM_op_get_op(MVM_OP_breakpoint);
             breakpoint_ins->operands    = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
@@ -63,6 +64,7 @@ static void instrument_graph_with_breakpoints(MVMThreadContext *tc, MVMSpeshGrap
             breakpoint_ins->operands[1].lit_i32 = line_number;
 
             last_filename = filename_string_index;
+            last_line_number = line_number;
 
             MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, breakpoint_ins);
         }
