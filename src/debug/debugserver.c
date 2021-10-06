@@ -137,7 +137,7 @@ typedef struct {
 } request_data;
 
 static void write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMThread *thread);
-static MVMint32 request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument);
+static void request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument);
 static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target);
 
 /* Breakpoint stuff */
@@ -680,7 +680,7 @@ static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     return 0;
 }
 
-static MVMint32 request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+static void request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
     MVMInstance *vm = dtc->instance;
     MVMThread *cur_thread = 0;
     MVMuint32 success = 1;
@@ -711,8 +711,6 @@ static MVMint32 request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ct
         communicate_error(dtc, ctx, argument);
 
     uv_mutex_unlock(&vm->mutex_threads);
-
-    return success;
 }
 
 static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
@@ -781,7 +779,7 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
     return 0;
 }
 
-static MVMint32 request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+static void request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
     MVMInstance *vm = dtc->instance;
     MVMThread *cur_thread = 0;
     MVMuint8 success = 1;
@@ -818,8 +816,6 @@ static MVMint32 request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx
         communicate_error(dtc, ctx, argument);
 
     uv_mutex_unlock(&vm->mutex_threads);
-
-    return !success;
 }
 
 static void write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMThread *thread) {
@@ -3302,10 +3298,10 @@ static void debugserver_worker(MVMThreadContext *tc, MVMArgs arg_info) {
                     send_is_execution_suspended_info(tc, &ctx, &argument);
                     break;
                 case MT_SuspendAll:
-                    COMMUNICATE_ERROR(request_all_threads_suspend(tc, &ctx, &argument));
+                    request_all_threads_suspend(tc, &ctx, &argument);
                     break;
                 case MT_ResumeAll:
-                    COMMUNICATE_ERROR(request_all_threads_resume(tc, &ctx, &argument));
+                    request_all_threads_resume(tc, &ctx, &argument);
                     break;
                 case MT_SuspendOne:
                     COMMUNICATE_ERROR(request_thread_suspends(tc, &ctx, &argument, NULL));
