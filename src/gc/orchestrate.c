@@ -355,7 +355,8 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
                     }
                 }
             } else if (MVM_load(&tc->gc_status) == MVMGCStatus_NONE) {
-                fprintf(stderr, "marking thread %d unblocked, but its status is already NONE.\n", tc->thread_id);
+                if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
+                    fprintf(stderr, "marking thread %d unblocked, but its status is already NONE.\n", tc->thread_id);
                 break;
             } else {
                 MVM_platform_thread_yield();
@@ -624,7 +625,7 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
  * MVMSUSPENDSTATUS_MASK.
  *   */
 static int react_to_debugserver_request(MVMThreadContext *tc) {
-    if (tc->instance->debugserver->debugspam_protocol)
+    if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
         fprintf(stderr, "thread %p has received a request.\n", tc);
 
     MVMDebugServerRequestKind kind = tc->instance->debugserver->request_data.kind;
@@ -647,7 +648,8 @@ static int react_to_debugserver_request(MVMThreadContext *tc) {
         MVM_gc_mark_thread_blocked(tc);
     }
     else {
-        fprintf(stderr, "this debug request kind not implemented: %d\n", kind);
+        if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "this debug request kind not implemented: %d\n", kind);
         return 0;
     }
 
@@ -655,7 +657,8 @@ static int react_to_debugserver_request(MVMThreadContext *tc) {
                 MVM_DebugRequestStatus_sender_is_waiting,
                 MVM_DebugRequestStatus_receiver_acknowledged)
         != MVM_DebugRequestStatus_sender_is_waiting) {
-        fprintf(stderr, "could not acknowledge request?!?\n");
+        if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "could not acknowledge request?!?\n");
     }
     tc->instance->debugserver->request_data.kind = MVM_DebugRequest_empty;
 
