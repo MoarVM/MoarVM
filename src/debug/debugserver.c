@@ -1010,10 +1010,15 @@ MVMuint8 setup_step(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argumen
     MVMThread *to_do = thread ? thread : find_thread_by_id(dtc->instance, argument->thread_id);
     MVMThreadContext *tc;
 
-    if (!to_do)
+    if (!to_do) {
+        if (tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "Setting up step failed: no thread found\n");
         return 1;
+    }
 
     if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
+        if (tc->instance->debugserver->debugspam_protocol)
+            fprintf(stderr, "Setting up step failed: thread has wrong status\n");
         return 1;
     }
 
@@ -1024,6 +1029,9 @@ MVMuint8 setup_step(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argumen
     tc->step_mode_file_idx = tc->cur_file_idx;
 
     tc->step_mode = mode;
+
+    if (tc->instance->debugserver->debugspam_protocol)
+        fprintf(stderr, "Setting up step successful, going to resume\n");
 
     request_thread_resumes(dtc, ctx, NULL, to_do);
 
