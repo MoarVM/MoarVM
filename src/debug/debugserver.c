@@ -141,14 +141,23 @@ static MVMint32 request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ct
 static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target);
 
 /* Breakpoint stuff */
+void normalize_filename(char *name) {
+    /* On Windows, we sometimes see forward slashes, sometimes backslashes.
+     * Normalize them to forward slash so we can reliably hit breakpoints. */
+    char *cur_bs = strchr(name, '\\');
+    while (cur_bs) {
+        *cur_bs = '/';
+        cur_bs = strchr(cur_bs + 1, '\\');
+    }
+}
 MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx) {
     MVMDebugServerData *debugserver = tc->instance->debugserver;
     MVMDebugServerBreakpointTable *table = debugserver->breakpoints;
     MVMDebugServerBreakpointFileTable *found = NULL;
     MVMuint32 index = 0;
 
+    normalize_filename(filename);
     char *open_paren_pos = (char *)memchr(filename, '(', filename_len);
-
     if (open_paren_pos) {
         if (open_paren_pos[-1] == ' ') {
             filename_len = open_paren_pos - filename - 1;
@@ -2989,6 +2998,7 @@ MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *d
 
             switch (field_to_set) {
                 case FS_file:
+                    normalize_filename(string);
                     data->file = string;
                     break;
                 case FS_name:
