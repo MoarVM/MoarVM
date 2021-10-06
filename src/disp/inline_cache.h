@@ -105,3 +105,4 @@ MVMuint32 MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         MVMStaticFrame *root, MVMCallsite *initial_cs, MVMDispProgram *dp);
 void MVM_disp_inline_cache_destroy(MVMThreadContext *tc, MVMDispInlineCache *cache);
 MVMuint32 MVM_disp_inline_cache_get_kind(MVMThreadContext *tc, MVMDispInlineCacheEntry *entry);
+MVMint32 MVM_disp_inline_cache_try_get_kind(MVMThreadContext *tc, MVMDispInlineCacheEntry *entry);

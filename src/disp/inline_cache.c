@@ -229,6 +229,16 @@ static void dispatch_polymorphic_flattening(MVMThreadContext *tc,
 
 MVMuint32 MVM_disp_inline_cache_get_kind(MVMThreadContext *tc,
         MVMDispInlineCacheEntry *entry) {
+    MVMint32 kind = MVM_disp_inline_cache_try_get_kind(tc, entry);
+    if (kind < 0)
+        MVM_oops(tc, "Unknown handler in inline cache entry");
+    return (MVMuint32)kind;
+}
+
+MVMint32 MVM_disp_inline_cache_try_get_kind(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry *entry) {
+    if (!entry)
+        return -1;
     if (entry->run_dispatch == dispatch_initial) {
         return MVM_INLINE_CACHE_KIND_INITIAL;
     }
@@ -247,9 +257,8 @@ MVMuint32 MVM_disp_inline_cache_get_kind(MVMThreadContext *tc,
     else if (entry->run_dispatch == dispatch_polymorphic_flattening) {
         return MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH_FLATTENING;
     }
-    MVM_oops(tc, "Unknown handler in inline cache entry");
+    return -1;
 }
-
 /* Transition a callsite such that it incorporates a newly record dispatch
  * program. Returns a true value if it is transitioned successfully. */
 static void set_max_temps(MVMDispInlineCacheEntryPolymorphicDispatch *entry) {

@@ -435,6 +435,10 @@ typedef struct {
     MVMString *nursery_fresh;
     MVMString *nursery_seen;
     MVMString *gen2;
+    MVMString *mono;
+    MVMString *poly;
+    MVMString *mega;
+    MVMString *blow;
 } ProfDumpStrs;
 
 typedef struct {
@@ -569,6 +573,46 @@ static MVMObject * dump_call_graph_node(MVMThreadContext *tc, ProfDumpStrs *pds,
         /* Use static frame memory address to get a unique ID. */
         MVM_repr_bind_key_o(tc, node_hash, pds->id,
             box_i(tc, (MVMint64)(uintptr_t)sf));
+
+        /* Add data about cache entries. */
+        MVMDispInlineCache *ic = &(sf->body.inline_cache);
+        MVMuint32 monomorphic = 0;
+        MVMuint32 polymorphic = 0;
+        MVMuint32 megamorphic = 0;
+        MVMuint32 megamorphic_blowout = 0;
+        for (i = 0; i < ic->num_entries; i++) {
+            /* Skip entries that don't correspond to a bytecode operation. */
+            MVMDispInlineCacheEntry *entry = ic->entries[i];
+            MVMuint32 count = 0;
+            switch (MVM_disp_inline_cache_try_get_kind(tc, entry)) {
+                case MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH:
+                case MVM_INLINE_CACHE_KIND_MONOMORPHIC_DISPATCH_FLATTENING:
+                    count = 1;
+                    break;
+                case MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH:
+                    count = ((MVMDispInlineCacheEntryPolymorphicDispatch *)entry)->num_dps;
+                    break;
+                case MVM_INLINE_CACHE_KIND_POLYMORPHIC_DISPATCH_FLATTENING:
+                    count = ((MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry)->num_dps;
+                    break;
+            }
+            if (count == 1)
+                monomorphic++;
+            else if (count > 1 && count <= 4)
+                polymorphic++;
+            else if (count > 4 && count < MVM_INLINE_CACHE_MAX_POLY)
+                megamorphic++;
+            else if (count == MVM_INLINE_CACHE_MAX_POLY)
+                megamorphic_blowout = 1;
+        }
+        if (monomorphic)
+            MVM_repr_bind_key_o(tc, node_hash, pds->mono, box_i(tc, monomorphic));
+        if (polymorphic)
+            MVM_repr_bind_key_o(tc, node_hash, pds->poly, box_i(tc, polymorphic));
+        if (megamorphic)
+            MVM_repr_bind_key_o(tc, node_hash, pds->mega, box_i(tc, megamorphic));
+        if (megamorphic_blowout)
+            MVM_repr_bind_key_o(tc, node_hash, pds->blow, box_i(tc, megamorphic_blowout));
     } else if (pcn->native_target_name) {
         MVMString *function_name_string =
             MVM_string_utf8_c8_decode(tc, tc->instance->VMString,
@@ -834,6 +878,10 @@ void MVM_profile_dump_instrumented_data(MVMThreadContext *tc) {
         pds.nursery_fresh   = str(tc, "nursery_fresh");
         pds.nursery_seen    = str(tc, "nursery_seen");
         pds.gen2            = str(tc, "gen2");
+        pds.mono            = str(tc, "mono");
+        pds.poly            = str(tc, "poly");
+        pds.mega            = str(tc, "mega");
+        pds.blow            = str(tc, "blow");
 
         pds.stolen_gen2_roots  = str(tc, "stolen_gen2_roots");
         pds.has_unmanaged_data = str(tc, "has_unmanaged_data");
