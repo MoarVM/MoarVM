@@ -2304,12 +2304,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 dst  = ins->operands[0].reg.orig;
         MVMint16 obj  = ins->operands[1].reg.orig;
         MVMint16 type = ins->operands[2].reg.orig;
-        | mov TMP5, aword WORK[obj];
-        | mov FUNCTION, OBJECT:TMP5->st;
+        | mov TMP6, aword WORK[obj];
+        | mov FUNCTION, OBJECT:TMP6->st;
         | mov FUNCTION, STABLE:FUNCTION->REPR;
         | mov FUNCTION, REPR:FUNCTION->compose;
         | mov ARG1, TC;
-        | get_stable, ARG2, TMP5;
+        | get_stable, ARG2, TMP6;
         | mov ARG3, aword WORK[type];
         | call FUNCTION;
         | mov TMP1, aword WORK[obj];
