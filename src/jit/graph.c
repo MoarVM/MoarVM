@@ -146,9 +146,11 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_throwcatdyn:
     case MVM_OP_throwcatlex:
     case MVM_OP_throwcatlexotic: return MVM_exception_throwcat;
-    case MVM_OP_throwpayloadlex: return MVM_exception_throwpayload;
+    case MVM_OP_throwpayloadlex: case MVM_OP_throwpayloadlexcaller: return MVM_exception_throwpayload;
     case MVM_OP_bindexpayload: return MVM_bind_exception_payload;
     case MVM_OP_getexpayload: return MVM_get_exception_payload;
+    case MVM_OP_bindexmessage: return MVM_bind_exception_message;
+    case MVM_OP_getexmessage: return MVM_get_exception_message;
     case MVM_OP_resume: return MVM_exception_resume;
     case MVM_OP_continuationreset: return MVM_continuation_reset;
     case MVM_OP_continuationcontrol: return MVM_continuation_control;
@@ -253,6 +255,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_fileno_fh: return MVM_io_fileno;
     case MVM_OP_write_fhb: return MVM_io_write_bytes;
     case MVM_OP_read_fhb: return MVM_io_read_bytes;
+    case MVM_OP_seek_fh: return MVM_io_seek;
 
     case MVM_OP_encode: return MVM_string_encode_to_buf;
     case MVM_OP_decoderaddbytes: return MVM_decoder_add_bytes;
@@ -351,6 +354,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_typeparameterized: return MVM_6model_parametric_type_parameterized;
     case MVM_OP_typeparameters: return MVM_6model_parametric_type_parameters;
     case MVM_OP_typeparameterat: return MVM_6model_parametric_type_parameter_at;
+    case MVM_OP_parameterizetype: return MVM_6model_parametric_parameterize;
+    case MVM_OP_setparameterizer: return MVM_6model_parametric_setup;
     case MVM_OP_objectid: return MVM_gc_object_id;
     case MVM_OP_iscont_i: return MVM_6model_container_iscont_i;
     case MVM_OP_iscont_n: return MVM_6model_container_iscont_n;
@@ -417,6 +422,17 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_getuniprop_int: return MVM_unicode_codepoint_get_property_int;
     case MVM_OP_getuniprop_bool: return MVM_unicode_codepoint_get_property_bool;
     case MVM_OP_getuniprop_str: return MVM_unicode_codepoint_get_property_str;
+
+    case MVM_OP_loadlib: return MVM_dll_load;
+
+    case MVM_OP_sha1: return MVM_sha1;
+
+    case MVM_OP_loadext: return MVM_ext_load;
+
+    case MVM_OP_settypefinalize: return MVM_gc_finalize_set;
+
+    case MVM_OP_usecompileehllconfig: return MVM_hll_enter_compilee_mode;
+    case MVM_OP_usecompilerhllconfig: return MVM_hll_leave_compilee_mode;
 
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
@@ -1680,6 +1696,9 @@ start:
         /* comparison (objects) */
     case MVM_OP_eqaddr:
     case MVM_OP_isconcrete:
+        /* marking code */
+    case MVM_OP_markcodestatic:
+    case MVM_OP_markcodestub:
         /* comparison (big integer) */
     case MVM_OP_eq_I:
     case MVM_OP_ne_I:
@@ -1740,7 +1759,9 @@ start:
     case MVM_OP_sp_getlex_ins:
     case MVM_OP_sp_getlexvia_o:
     case MVM_OP_sp_getlexvia_ins:
+    case MVM_OP_getlexrel:
     case MVM_OP_getlexreldyn:
+    case MVM_OP_getlexrelcaller:
     case MVM_OP_getlex_no:
     case MVM_OP_sp_getlex_no:
     case MVM_OP_bindlex:
@@ -1800,8 +1821,12 @@ start:
     case MVM_OP_ordfirst:
     case MVM_OP_getcodename:
     case MVM_OP_setcodeobj:
+    case MVM_OP_setcodename:
     case MVM_OP_hllbool:
     case MVM_OP_sp_getlexstatic_o:
+    case MVM_OP_newtype:
+    case MVM_OP_newmixintype:
+    case MVM_OP_composetype:
         /* Profiling */
     case MVM_OP_prof_enterspesh:
     case MVM_OP_prof_enterinline:
@@ -2031,12 +2056,15 @@ start:
                           4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
-    case MVM_OP_throwpayloadlex: {
+    case MVM_OP_throwpayloadlex:
+    case MVM_OP_throwpayloadlexcaller: {
         MVMint16 regi     = ins->operands[0].reg.orig;
         MVMint32 category = (MVMuint32)ins->operands[1].lit_i64;
         MVMint16 payload  = ins->operands[2].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
-                                 { MVM_JIT_LITERAL, { MVM_EX_THROW_LEX } },
+                                 { MVM_JIT_LITERAL, { op == MVM_OP_throwpayloadlex
+                                                        ? MVM_EX_THROW_LEX
+                                                        : MVM_EX_THROW_LEX_CALLER } },
                                  { MVM_JIT_LITERAL, { category } },
                                  { MVM_JIT_REG_VAL, { payload } },
                                  { MVM_JIT_REG_ADDR, { regi } }};
@@ -2053,6 +2081,23 @@ start:
         break;
     }
     case MVM_OP_bindexpayload: {
+        MVMint16 obj = ins->operands[0].reg.orig;
+        MVMint16 payload = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } },
+                                 { MVM_JIT_REG_VAL, { payload } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_getexmessage: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 obj = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { obj } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_bindexmessage: {
         MVMint16 obj = ins->operands[0].reg.orig;
         MVMint16 payload = ins->operands[1].reg.orig;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
@@ -2754,6 +2799,17 @@ start:
         jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
         break;
     }
+    case MVM_OP_seek_fh: {
+        MVMint16 fho    = ins->operands[0].reg.orig;
+        MVMint16 offset = ins->operands[1].reg.orig;
+        MVMint16 flag   = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { fho } },
+                                 { MVM_JIT_REG_VAL, { offset } },
+                                 { MVM_JIT_REG_VAL, { flag } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
     case MVM_OP_box_n: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 val = ins->operands[1].reg.orig;
@@ -3424,6 +3480,26 @@ start:
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
         break;
     }
+    case MVM_OP_parameterizetype: {
+        MVMint16 dst    = ins->operands[0].reg.orig;
+        MVMint16 type   = ins->operands[1].reg.orig;
+        MVMint16 params = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { type } },
+                                 { MVM_JIT_REG_VAL, { params } },
+                                 { MVM_JIT_REG_ADDR, { dst } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_setparameterizer: {
+        MVMint16 type        = ins->operands[0].reg.orig;
+        MVMint16 parametizer = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { type } },
+                                 { MVM_JIT_REG_VAL, { parametizer } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
     case MVM_OP_objectid: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;
@@ -3852,6 +3928,47 @@ start:
         jg_append_node(jg, node);
         /* append reentry label */
         jg_append_label(tc, jg, reentry_label);
+        break;
+    }
+    case MVM_OP_loadlib: {
+        MVMint16 name = ins->operands[0].reg.orig;
+        MVMint16 path = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { name } },
+                                 { MVM_JIT_REG_VAL, { path } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_sha1: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint16 str = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { str } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_loadext: {
+        MVMint16 lib = ins->operands[0].reg.orig;
+        MVMint16 ext = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { lib } },
+                                 { MVM_JIT_REG_VAL, { ext } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_settypefinalize: {
+        MVMint16 type     = ins->operands[0].reg.orig;
+        MVMint16 finalize = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { type } },
+                                 { MVM_JIT_REG_VAL, { finalize } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_usecompileehllconfig:
+    case MVM_OP_usecompilerhllconfig: {
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 1, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     default: {

@@ -97,9 +97,11 @@ MVM_NO_RETURN void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char 
 MVM_PUBLIC void MVM_crash_on_error(void);
 char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame, MVMuint16 not_top, MVMuint8 *throw_address);
 MVMint32 MVM_get_exception_category(MVMThreadContext *tc, MVMObject *ex);
+void MVM_bind_exception_category(MVMThreadContext *tc, MVMObject *ex, MVMint32 category);
 MVMObject * MVM_get_exception_payload(MVMThreadContext *tc, MVMObject *ex);
 void MVM_bind_exception_payload(MVMThreadContext *tc, MVMObject *ex, MVMObject *payload);
-void MVM_bind_exception_category(MVMThreadContext *tc, MVMObject *ex, MVMint32 category);
+MVMString * MVM_get_exception_message(MVMThreadContext *tc, MVMObject *ex);
+void MVM_bind_exception_message(MVMThreadContext *tc, MVMObject *ex, MVMString *message);
 void MVM_exception_returnafterunwind(MVMThreadContext *tc, MVMObject *ex);
 
 /* Exit codes for panic. */

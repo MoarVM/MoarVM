@@ -1194,13 +1194,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(bindexmessage): {
                 MVMObject *ex = GET_REG(cur_op, 0).o;
-                if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException) {
-                    MVM_ASSIGN_REF(tc, &(ex->header), ((MVMException *)ex)->body.message,
-                        GET_REG(cur_op, 2).s);
-                }
-                else {
-                    MVM_exception_throw_adhoc(tc, "bindexmessage needs a VMException, got %s (%s)", REPR(ex)->name, MVM_6model_get_debug_name(tc, ex));
-                }
+                MVM_bind_exception_message(tc, ex, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -1218,10 +1212,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(getexmessage): {
                 MVMObject *ex = GET_REG(cur_op, 2).o;
-                if (IS_CONCRETE(ex) && REPR(ex)->ID == MVM_REPR_ID_MVMException)
-                    GET_REG(cur_op, 0).s = ((MVMException *)ex)->body.message;
-                else
-                    MVM_exception_throw_adhoc(tc, "getexmessage needs a VMException, got %s (%s)", REPR(ex)->name, MVM_6model_get_debug_name(tc, ex));
+                GET_REG(cur_op, 0).s = MVM_get_exception_message(tc, ex);
                 cur_op += 4;
                 goto NEXT;
             }

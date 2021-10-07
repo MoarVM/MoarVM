@@ -588,6 +588,24 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         }
         break;
     }
+    case MVM_OP_getlexrel: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 ctx  = ins->operands[1].reg.orig;
+        MVMint16 name = ins->operands[2].reg.orig;
+        | mov TMP5, aword WORK[ctx];
+        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMContext;
+        | je >1;
+        | test_type_object TMP5;
+        | jz >1;
+        | throw_adhoc "getlexrel needs a context";
+        |1:
+        | mov ARG1, TC;
+        | mov ARG2, TMP5;
+        | mov ARG3, aword WORK[name];
+        | callp &MVM_context_lexical_lookup;
+        | mov WORK[dst], RV;
+        break;
+    }
     case MVM_OP_getlexreldyn: {
         MVMint16 dst  = ins->operands[0].reg.orig;
         MVMint16 ctx  = ins->operands[1].reg.orig;
@@ -597,12 +615,30 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | je >1;
         | test_type_object TMP5;
         | jz >1;
-        | throw_adhoc "getlexreldyn needs a context"
+        | throw_adhoc "getlexreldyn needs a context";
         |1:
-        | mov ARG2, TMP5
-        | mov ARG1, TC
+        | mov ARG1, TC;
+        | mov ARG2, TMP5;
         | mov ARG3, aword WORK[name];
         | callp &MVM_context_dynamic_lookup;
+        | mov WORK[dst], RV;
+        break;
+    }
+    case MVM_OP_getlexrelcaller: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 ctx  = ins->operands[1].reg.orig;
+        MVMint16 name = ins->operands[2].reg.orig;
+        | mov TMP5, aword WORK[ctx];
+        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMContext;
+        | je >1;
+        | test_type_object TMP5;
+        | jz >1;
+        | throw_adhoc "getlexrelcaller needs a context";
+        |1:
+        | mov ARG1, TC;
+        | mov ARG2, TMP5;
+        | mov ARG3, aword WORK[name];
+        | callp &MVM_context_caller_lookup;
         | mov WORK[dst], RV;
         break;
     }
@@ -1738,7 +1774,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_scobjcount: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 sc  = ins->operands[1].reg.orig;
-        | mov TMP5, aword WORK[dst];
+        | mov TMP5, aword WORK[sc];
         | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_SCRef;
         | je >1;
         | throw_adhoc "Must provide an SCRef operand to scobjcount"
@@ -1839,6 +1875,38 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |1:
         | mov qword WORK[dst], 0;
         |2:
+        break;
+    }
+    case MVM_OP_markcodestatic: {
+        MVMint16 cr = ins->operands[0].reg.orig;
+        | mov TMP1, aword WORK[cr];
+        /* if (IS_CONCRETE(cr) && REPR(cr)->ID == MVM_REPR_ID_MVMCode) */
+        | test_type_object TMP1;
+        | jnz >1;
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCode;
+        | je >2;
+        |1:
+        /* else throw */
+        | throw_adhoc "markcodestatic requires a concrete coderef";
+        |2:
+        /* ((MVMCode *)cr)->body.is_static = 1; */
+        | mov dword CODE:TMP1->body.is_static, 1;
+        break;
+    }
+    case MVM_OP_markcodestub: {
+        MVMint16 cr = ins->operands[0].reg.orig;
+        | mov TMP1, aword WORK[cr];
+        /* if (IS_CONCRETE(cr) && REPR(cr)->ID == MVM_REPR_ID_MVMCode) */
+        | test_type_object TMP1;
+        | jnz >1;
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCode;
+        | je >2;
+        |1:
+        /* else throw */
+        | throw_adhoc "markcodestub requires a concrete coderef";
+        |2:
+        /* ((MVMCode *)cr)->body.is_compiler_stub = 1; */
+        | mov dword CODE:TMP1->body.is_compiler_stub, 1;
         break;
     }
     case MVM_OP_takehandlerresult: {
@@ -2069,6 +2137,24 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |
         break;
     }
+    case MVM_OP_setcodename: {
+        MVMint16 obj  = ins->operands[0].reg.orig;
+        MVMint16 code = ins->operands[1].reg.orig;
+        | mov TMP1, aword WORK[obj];
+        /* if (REPR(obj)->ID == MVM_REPR_ID_MVMCode) */
+        | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMCode;
+        | je >1;
+        /* else throw */
+        | throw_adhoc "setcodename needs a code ref";
+        |1:
+        | mov TMP2, aword WORK[code];
+        | mov aword CODE:TMP1->body.name, TMP2;
+        | check_wb TMP1, TMP2, >2;
+        | hit_wb TMP1, TMP2
+        |2:
+        |
+        break;
+    }
     case MVM_OP_lastexpayload: {
         MVMint16 dst = ins->operands[0].reg.orig;
         | mov TMP3, aword TC->last_payload;
@@ -2182,6 +2268,52 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov64 TMP1, true_value;
         |2:
         | mov WORK[target], TMP1;
+        break;
+    }
+    case MVM_OP_newtype: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 how  = ins->operands[1].reg.orig;
+        MVMint16 name = ins->operands[2].reg.orig;
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[name];
+        | call &MVM_repr_get_by_name;
+        | mov FUNCTION, REPR:RV->type_object_for;
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[how];
+        | call FUNCTION;
+        | mov WORK[dst], RV;
+        break;
+    }
+    case MVM_OP_newmixintype: {
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 how  = ins->operands[1].reg.orig;
+        MVMint16 name = ins->operands[2].reg.orig;
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[name];
+        | call &MVM_repr_get_by_name;
+        | mov FUNCTION, REPR:RV->type_object_for;
+        | mov ARG1, TC;
+        | mov ARG2, aword WORK[how];
+        | call FUNCTION;
+        | mov TMP1, OBJECT:RV->st;
+        | mov dword STABLE:TMP1->is_mixin_type, 1;
+        | mov WORK[dst], RV;
+        break;
+    }
+    case MVM_OP_composetype:{
+        MVMint16 dst  = ins->operands[0].reg.orig;
+        MVMint16 obj  = ins->operands[1].reg.orig;
+        MVMint16 type = ins->operands[2].reg.orig;
+        | mov TMP5, aword WORK[obj];
+        | mov FUNCTION, OBJECT:TMP5->st;
+        | mov FUNCTION, STABLE:FUNCTION->REPR;
+        | mov FUNCTION, REPR:FUNCTION->compose;
+        | mov ARG1, TC;
+        | get_stable, ARG2, TMP5;
+        | mov ARG3, aword WORK[type];
+        | call FUNCTION;
+        | mov TMP1, aword WORK[obj];
+        | mov WORK[dst], TMP1;
         break;
     }
     case MVM_OP_sp_fastbox_i:

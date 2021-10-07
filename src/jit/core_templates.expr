@@ -346,6 +346,13 @@
       (carg $0 ptr)
       (carg $1 int))))
 
+(template: bindexmessage
+  (callv (^func &MVM_bind_exception_message)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr))))
+
 (template: getexpayload
   (call (^func &MVM_get_exception_payload)
     (arglist
@@ -357,6 +364,12 @@
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)) int_sz))
+
+(template: getexmessage
+  (call (^func &MVM_get_exception_message)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) ptr_sz))
 
 (template: die!
   (callv (^func &MVM_exception_die)
@@ -1605,6 +1618,20 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
+(template: markcodestatic
+  (ifv (all
+         (^is_conc_obj $0)
+         (^is_repr_id $0 MVM_REPR_ID_MVMCode))
+    (^setf $0 MVMCode body.is_static (const 1 int_sz))
+    (^throw_adhoc "markcodestatic requires a concrete coderef")))
+
+(template: markcodestub
+  (ifv (all
+         (^is_conc_obj $0)
+         (^is_repr_id $0 MVM_REPR_ID_MVMCode))
+    (^setf $0 MVMCode body.is_compiler_stub (const 1 int_sz))
+    (^throw_adhoc "markcodestub requires a concrete coderef")))
+
 (template: iscont
   (if
     (any (^is_vmnull $1) (zr (^getf (^stable $1) MVMSTable container_spec)))
@@ -1648,6 +1675,19 @@
       (carg (cu) ptr)
       (carg $1 int)
       (carg $2 int)) ptr_sz))
+
+(template: newmixintype
+  (let: (($repr (call (^func &MVM_repr_get_by_name)
+                  (arglist
+                    (carg (tc) ptr)
+                    (carg $2   ptr)) ptr_sz)))
+    (let: (($type (call (^getf $repr MVMREPROps type_object_for)
+                    (arglist
+                      (carg (tc) ptr)
+                      (carg $1   ptr)) ptr_sz)))
+      (do
+        (^setf $type MVMSTable is_mixin_type (const 1 int_sz))
+        (load $type ptr_sz)))))
 
 (template: iscompunit
   (flagval
@@ -1932,6 +1972,14 @@
       (carg $2   int)
       (carg $3   int))))
 
+(template: seek_fh
+  (callv (^func &MVM_io_seek)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0   ptr)
+      (carg $1   int)
+      (carg $2   int))))
+
 (template: socket
   (call (^func &MVM_io_socket_create)
     (arglist
@@ -1989,6 +2037,20 @@
   (call (^func &MVM_proc_getenvhash)
     (arglist
       (carg (tc) ptr)) ptr_sz))
+
+(template: loadlib
+  (callv (^func &MVM_dll_load)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0   ptr)
+      (carg $1   ptr))))
+
+(template: loadext
+  (callv (^func &MVM_ext_load)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0   ptr)
+      (carg $1   ptr))))
 
 (template: backendconfig
   (call (^func &MVM_backend_config)
@@ -2262,6 +2324,28 @@
   (and
     (flagval (nz $1))
     (flagval (ne $1 (^vmnull)))))
+
+(template: settypefinalize
+  (callv (^func &MVM_gc_finalize_set)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 int))))
+
+(template: setparameterizer
+  (callv (^func &MVM_6model_parametric_setup)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr))))
+
+(template: parameterizetype!
+  (callv (^func &MVM_6model_parametric_parameterize)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg \$0 ptr))))
 
 (template: typeparameterized
   (call (^func &MVM_6model_parametric_type_parameterized)
