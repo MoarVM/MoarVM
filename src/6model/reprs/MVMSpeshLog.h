@@ -32,7 +32,11 @@ typedef enum {
 /* An entry in the spesh log. */
 struct MVMSpeshLogEntry {
     /* The kind of log entry it is; discriminator for the union. */
-    MVMint32 kind;
+    MVMuint8 kind;
+
+    /* The call depth, if it is an ENTRY. Junk otherwise. Sneaked in
+     * here to avoid making the entry record any bigger. */
+    MVMuint16 call_depth;
 
     /* Call frame correlation ID. */
     MVMint32 id;

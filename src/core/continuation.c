@@ -56,9 +56,10 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
 
     /* Find the tag and slice the required regions off the callstack. */
     MVMActiveHandler *active_handler_at_reset;
+    MVMuint32 prior_call_depth;
     MVMCallStackRecord *orig_top = tc->stack_top;
     MVMCallStackRegion *taken_region = MVM_callstack_continuation_slice(tc, tag,
-            &active_handler_at_reset);
+            &active_handler_at_reset, &prior_call_depth);
     if (!taken_region)
         MVM_exception_throw_adhoc(tc, "No matching continuation reset found");
 
@@ -71,6 +72,7 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
     ((MVMContinuation *)cont)->body.first_region = taken_region;
     ((MVMContinuation *)cont)->body.addr    = *tc->interp_cur_op;
     ((MVMContinuation *)cont)->body.res_reg = res_reg;
+    ((MVMContinuation *)cont)->body.prior_call_depth = prior_call_depth;
     if (tc->instance->profiling)
         ((MVMContinuation *)cont)->body.prof_cont =
             MVM_profile_log_continuation_control(tc, first_frame);
@@ -169,7 +171,8 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
      * Then detach it from the wrapper object. */
     MVM_callstack_continuation_append(tc, cont->body.first_region,
             cont->body.stack_top,
-            cont->body.protected_tag ? cont->body.protected_tag : insert_tag);
+            cont->body.protected_tag ? cont->body.protected_tag : insert_tag,
+            cont->body.prior_call_depth);
     cont->body.first_region = NULL;
     cont->body.stack_top = NULL;
 

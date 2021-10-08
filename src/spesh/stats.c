@@ -250,10 +250,10 @@ void sim_stack_init(MVMThreadContext *tc, MVMSpeshSimStack *sims) {
 
 /* Pushes an entry onto the stack frame model. */
 void sim_stack_push(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMStaticFrame *sf,
-                    MVMSpeshStats *ss, MVMuint32 cid, MVMuint32 callsite_idx) {
+                    MVMSpeshStats *ss, MVMuint32 cid, MVMuint32 callsite_idx,
+                    MVMuint32 call_depth) {
     MVMSpeshSimStackFrame *frame;
     MVMCallsite *cs;
-    MVMint32 depth = sims->used ? sims->frames[sims->used - 1].depth + 1 : 1;
     if (sims->used == sims->limit) {
         sims->limit *= 2;
         sims->frames = MVM_realloc(sims->frames, sims->limit * sizeof(MVMSpeshSimStackFrame));
@@ -274,7 +274,7 @@ void sim_stack_push(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMStaticFrame
     frame->call_type_info_used = frame->call_type_info_limit = 0;
     frame->last_invoke_offset = 0;
     frame->last_invoke_sf = NULL;
-    frame->depth = depth;
+    frame->depth = call_depth;
 }
 
 /* Adds an entry to a sim frame's callsite type info list, for later
@@ -550,7 +550,7 @@ void MVM_spesh_stats_update(MVMThreadContext *tc, MVMSpeshLog *sl,  MVMObject *s
                 ss->hits++;
                 callsite_idx = by_callsite_idx(tc, ss, e->entry.cs);
                 ss->by_callsite[callsite_idx].hits++;
-                sim_stack_push(tc, sims, e->entry.sf, ss, e->id, callsite_idx);
+                sim_stack_push(tc, sims, e->entry.sf, ss, e->id, callsite_idx, e->call_depth);
                 break;
             }
             case MVM_SPESH_LOG_PARAMETER: {

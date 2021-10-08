@@ -31,6 +31,7 @@ static void next_region(MVMThreadContext *tc) {
         region->next = next;
         next->prev = region;
     }
+    region->next->call_depth = region->call_depth;
     tc->stack_current_region = region->next;
 }
 
@@ -49,6 +50,7 @@ static void next_oversize_region(MVMThreadContext *tc, size_t size) {
         region->next = next;
         next->prev = region;
     }
+    region->next->call_depth = region->call_depth;
     tc->stack_current_region = region->next;
 }
 
@@ -140,6 +142,7 @@ void MVM_callstack_init(MVMThreadContext *tc) {
 MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc) {
     tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_FRAME,
             sizeof(MVMCallStackFrame));
+    tc->stack_current_region->call_depth++;
     return (MVMCallStackFrame *)tc->stack_top;
 }
 
@@ -147,6 +150,7 @@ MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc) {
 MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc) {
     tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_HEAP_FRAME,
             sizeof(MVMCallStackHeapFrame));
+    tc->stack_current_region->call_depth++;
     return (MVMCallStackHeapFrame *)tc->stack_top;
 }
 
@@ -295,7 +299,7 @@ void MVM_callstack_new_continuation_region(MVMThreadContext *tc, MVMObject *tag)
  * the previous region. The first region in the slice is retunred. The prev
  * pointer of both the region and of the region start record are NULL'd out. */
 MVMCallStackRegion * MVM_callstack_continuation_slice(MVMThreadContext *tc, MVMObject *tag,
-        MVMActiveHandler **active_handlers) {
+        MVMActiveHandler **active_handlers, MVMuint32 *prior_call_depth) {
     MVMCallStackRegion *cur_region = tc->stack_current_region;
     while (cur_region != NULL) {
         MVMCallStackRecord *record = (MVMCallStackRecord *)cur_region->start;
@@ -312,9 +316,11 @@ MVMCallStackRegion * MVM_callstack_continuation_slice(MVMThreadContext *tc, MVMO
                 tc->stack_top = tag_record->common.prev;
                 tag_record->common.prev = NULL;
 
-                /* Hand back the active handlers at the reset point through the
-                 * out argument, and the region pointer as the return value. */
+                /* Hand back the active handlers at the reset point and prior
+                 * call depth through the out arguments, and the region pointer 
+                 * as the return value. */
                 *active_handlers = tag_record->active_handlers;
+                *prior_call_depth = tc->stack_current_region->call_depth;
                 return cur_region;
             }
         }
@@ -333,7 +339,7 @@ static void free_regions_from(MVMCallStackRegion *cur) {
     }
 }
 void MVM_callstack_continuation_append(MVMThreadContext *tc, MVMCallStackRegion *first_region,
-        MVMCallStackRecord *stack_top, MVMObject *update_tag) {
+        MVMCallStackRecord *stack_top, MVMObject *update_tag, MVMuint32 prior_call_depth) {
     /* Ensure the first record in the region to append is a continuation tag. */
     MVMCallStackRecord *record = (MVMCallStackRecord *)first_region->start;
     if (record->kind != MVM_CALLSTACK_RECORD_CONTINUATION_TAG)
@@ -345,18 +351,28 @@ void MVM_callstack_continuation_append(MVMThreadContext *tc, MVMCallStackRegion 
     tag_record->active_handlers = tc->active_handlers;
 
     /* If we have next regions, free them (this prevents us ending up with
-     * runaway memory use then continuations move between threads in producer
+     * runaway memory use when continuations move between threads in producer
      * consumer style patterns). */
     free_regions_from(tc->stack_current_region->next);
+
+    /* Work out the difference to apply to the stack depths in the regions.
+     * If we were NB frames deep before the continuation tag when we did the
+     * continuation control, and we're NA frames deep now, then we need to
+     * adjust the frame depth by adding NA - NB. This will come out negative
+     * if we are shallower now, and positive if deeper. */
+    MVMint32 depth_diff = tc->stack_current_region->call_depth - prior_call_depth;
 
     /* Insert continuation regions into the region list. */
     tc->stack_current_region->next = first_region;
     first_region->prev = tc->stack_current_region;
 
-    /* Make sure the current stack region is the one containing the stack top. */
+    /* Make sure the current stack region is the one containing the stack top,
+     * tweaking their call depths as we go. */
     while ((char *)stack_top < tc->stack_current_region->start ||
-            (char *)stack_top > tc->stack_current_region->alloc)
+            (char *)stack_top > tc->stack_current_region->alloc) {
         tc->stack_current_region = tc->stack_current_region->next;
+        tc->stack_current_region->call_depth += depth_diff;
+    }
 
     /* Make the first record we splice in point back to the current stack top. */
     record->prev = tc->stack_top;
@@ -430,6 +446,7 @@ static void handle_end_of_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunk
     }
 }
 static void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
+    tc->stack_current_region->call_depth--;
     MVMFrame *caller = returner->caller;
     if (caller && (returner != tc->thread_entry_frame || tc->nested_interpreter)) {
        if (tc->jit_return_address != NULL) {

@@ -23,9 +23,9 @@ struct MVMCallStackRegion {
     /* The end of the allocatable region. */
     char *alloc_limit;
 
-#if MVM_PTR_SIZE == 4
-    MVMuint32 thingy_to_ensure_8_byte_alignment;
-#endif
+    /* The current call depth of the deepest frame on this stack
+     * segment. */
+    MVMuint32 call_depth;
 };
 
 /* The default size of a call stack region. */
@@ -341,9 +341,9 @@ MVMCallStackDeoptedResumeInit * MVM_callstack_allocate_deopted_resume_init(
         MVMThreadContext *tc, MVMSpeshResumeInit *ri);
 void MVM_callstack_new_continuation_region(MVMThreadContext *tc, MVMObject *tag);
 MVMCallStackRegion * MVM_callstack_continuation_slice(MVMThreadContext *tc, MVMObject *tag,
-        MVMActiveHandler **active_handlers);
+        MVMActiveHandler **active_handlers, MVMuint32 *prior_call_depth);
 void MVM_callstack_continuation_append(MVMThreadContext *tc, MVMCallStackRegion *first_region,
-        MVMCallStackRecord *stack_top, MVMObject *update_tag);
+        MVMCallStackRecord *stack_top, MVMObject *update_tag, MVMuint32 prior_call_depth);
 MVMFrame * MVM_callstack_first_frame_in_region(MVMThreadContext *tc, MVMCallStackRegion *region);
 MVMCallStackDispatchRecord * MVM_callstack_find_topmost_dispatch_recording(MVMThreadContext *tc);
 MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional, MVMuint32 *thunked);

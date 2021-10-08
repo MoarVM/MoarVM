@@ -28,6 +28,10 @@ struct MVMContinuationBody {
     /* If we're profiling, then data needed to cope with the continuation
      * being invoked again. */
     MVMProfileContinuationData *prof_cont;
+
+    /* The call depth of the region prior to the one we sliced off, so we can
+     * fix up call depths when invokving the continuation. */
+    MVMuint32 prior_call_depth;
 };
 struct MVMContinuation {
     MVMObject common;

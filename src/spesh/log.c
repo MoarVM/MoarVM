@@ -114,6 +114,7 @@ void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf,
         /* Log the entry itself. */
         MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
         entry->kind = MVM_SPESH_LOG_ENTRY;
+        entry->call_depth = (MVMuint16)tc->stack_current_region->call_depth;
         entry->id = cid;
         MVM_ASSIGN_REF(tc, &(sl->common.header), entry->entry.sf, sf);
         MVMCallsite *cs = args.callsite;
