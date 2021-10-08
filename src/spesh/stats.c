@@ -246,7 +246,6 @@ void sim_stack_init(MVMThreadContext *tc, MVMSpeshSimStack *sims) {
     sims->used = 0;
     sims->limit = 32;
     sims->frames = MVM_malloc(sims->limit * sizeof(MVMSpeshSimStackFrame));
-    sims->depth = 0;
 }
 
 /* Pushes an entry onto the stack frame model. */
@@ -254,6 +253,7 @@ void sim_stack_push(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMStaticFrame
                     MVMSpeshStats *ss, MVMuint32 cid, MVMuint32 callsite_idx) {
     MVMSpeshSimStackFrame *frame;
     MVMCallsite *cs;
+    MVMint32 depth = sims->used ? sims->frames[sims->used - 1].depth + 1 : 1;
     if (sims->used == sims->limit) {
         sims->limit *= 2;
         sims->frames = MVM_realloc(sims->frames, sims->limit * sizeof(MVMSpeshSimStackFrame));
@@ -274,7 +274,7 @@ void sim_stack_push(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMStaticFrame
     frame->call_type_info_used = frame->call_type_info_limit = 0;
     frame->last_invoke_offset = 0;
     frame->last_invoke_sf = NULL;
-    sims->depth++;
+    frame->depth = depth;
 }
 
 /* Adds an entry to a sim frame's callsite type info list, for later
@@ -390,7 +390,6 @@ void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
 /* Pops the top frame from the sim stack. */
 void sim_stack_pop(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMObject *sf_updated) {
     MVMSpeshSimStackFrame *simf;
-    MVMuint32 frame_depth;
 
     /* Pop off the simulated frame and incorporate logged data into the spesh
      * stats model. */
@@ -398,10 +397,9 @@ void sim_stack_pop(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMObject *sf_u
         MVM_panic(1, "Spesh stats: cannot pop an empty simulation stack");
     sims->used--;
     simf = &(sims->frames[sims->used]);
-    frame_depth = sims->depth--;
 
     /* Incorporate logged data into the statistics model. */
-    incorporate_stats(tc, simf, frame_depth,
+    incorporate_stats(tc, simf, simf->depth,
         sims->used > 0 ? &(sims->frames[sims->used - 1]) : NULL,
         sf_updated);
 }

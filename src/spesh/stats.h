@@ -173,9 +173,6 @@ struct MVMSpeshSimStack {
     /* Current frame index and allocated space. */
     MVMuint32 used;
     MVMuint32 limit;
-
-    /* Current stack depth. */
-    MVMuint32 depth;
 };
 
 /* This is the model of a frame on the simulated stack. */
@@ -218,6 +215,9 @@ struct MVMSpeshSimStackFrame {
      * used for producing callsite type stats based on callee type tuples. */
     MVMuint32 last_invoke_offset;
     MVMStaticFrame *last_invoke_sf;
+
+    /* The stack depth of this frame. */
+    MVMuint32 depth;
 };
 
 /* We associate recoded type tuples in callees with their caller's callsites.
