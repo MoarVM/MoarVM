@@ -111,13 +111,21 @@ void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf,
                          MVMArgs args) {
     MVMSpeshLog *sl = tc->spesh_log;
     if (sl) {
+        /* Ensure enough space in the spesh log for all parameters. */
+        MVMCallsite *cs = args.callsite;
+        if (cs->is_interned && (sl->body.limit - sl->body.used) <= 2 * cs->flag_count) {
+            send_log(tc, sl);
+            if (!tc->spesh_log)
+                return;
+            sl = tc->spesh_log;
+        }
+
         /* Log the entry itself. */
         MVMSpeshLogEntry *entry = &(sl->body.entries[sl->body.used]);
         entry->kind = MVM_SPESH_LOG_ENTRY;
         entry->call_depth = (MVMuint16)tc->stack_current_region->call_depth;
         entry->id = cid;
         MVM_ASSIGN_REF(tc, &(sl->common.header), entry->entry.sf, sf);
-        MVMCallsite *cs = args.callsite;
         entry->entry.cs = cs->is_interned ? cs : NULL;
         commit_entry(tc, sl);
 
