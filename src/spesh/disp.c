@@ -1288,7 +1288,7 @@ int MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
                     ? "Polymorphic callsite and polymorphic in this specialization"
                     : "No stats available to resolve polymorphic callsite");
             }
-            else if ((100 * outcome_hits[0].hits) / total_hits >= 99) {
+            else if ((100 * outcome_hits[0].hits) / total_hits >= 98) {
                 MVM_spesh_graph_add_comment(tc, g, ins,
                         "Polymorphic callsite made monomorphic by specialization");
                 selected_outcome = outcome_hits[0].outcome;
