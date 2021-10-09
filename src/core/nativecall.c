@@ -1203,11 +1203,3 @@ void MVM_nativecall_invoke_jit(MVMThreadContext *tc, MVMObject *site) {
     assert(jitcode->func_ptr);
     jitcode->func_ptr(tc, *tc->interp_cu, jitcode->labels[0]);
 }
-
-MVMObject *MVM_nativecall_args(MVMThreadContext *tc, MVMArgs *invoke_args) {
-    MVMObject *args_list = REPR(tc->instance->boot_types.BOOTArray)->allocate(tc, STABLE(tc->instance->boot_types.BOOTArray));
-    MVMint64 num_args = invoke_args->callsite->num_pos;
-    for (MVMint64 i = 1; i < num_args; i++)
-        MVM_repr_push_o(tc, args_list, invoke_args->source[invoke_args->map[i]].o);
-    return args_list;
-}
