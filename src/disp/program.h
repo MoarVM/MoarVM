@@ -45,7 +45,10 @@ typedef enum {
     MVM_DISP_OUTCOME_BYTECODE,
 
     /* Invoke a C function. */
-    MVM_DISP_OUTCOME_CFUNCTION
+    MVM_DISP_OUTCOME_CFUNCTION,
+
+    /* Invoke a foreign C function. */
+    MVM_DISP_OUTCOME_FOREIGNCODE
 } MVMDispProgramOutcomeKind;
 
 /* The outcome of a dispatch program. Used only in the record case; the run
@@ -68,6 +71,9 @@ struct MVMDispProgramOutcome {
                 MVMCode *code;
                 /* The C function to be invoked. */
                 void (*c_func) (MVMThreadContext *tc, MVMArgs arg_info);
+
+                /* The native call site to be invoked. */
+                MVMNativeCall *site;
             };
             /* Arguments for an invocation (must point into otherwise marked
              * areas). */
@@ -482,7 +488,10 @@ typedef enum {
     MVMDispOpcodeResultBytecode,
     /* Set a C function object result, specifying invokee and callsite.
      * The args should already have been set up. */
-    MVMDispOpcodeResultCFunction
+    MVMDispOpcodeResultCFunction,
+    /* Set a foreign function object result, specifying invokee and callsite.
+     * The args should already have been set up. */
+    MVMDispOpcodeResultForeignCode
 } MVMDispProgramOpcode;
 
 /* An operation, with its operands, in a dispatch program. */
@@ -647,6 +656,8 @@ void MVM_disp_program_record_result_tracked_value(MVMThreadContext *tc, MVMObjec
 void MVM_disp_program_record_code_constant(MVMThreadContext *tc, MVMCode *result, MVMObject *capture);
 void MVM_disp_program_record_c_code_constant(MVMThreadContext *tc, MVMCFunction *result,
         MVMObject *capture);
+void MVM_disp_program_record_foreign_code_constant(MVMThreadContext *tc,
+        MVMNativeCall *result, MVMObject *capture);
 void MVM_disp_program_record_tracked_code(MVMThreadContext *tc, MVMObject *tracked,
         MVMObject *capture);
 void MVM_disp_program_record_tracked_c_code(MVMThreadContext *tc, MVMObject *tracked,

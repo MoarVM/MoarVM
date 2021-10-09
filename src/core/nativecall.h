@@ -103,6 +103,7 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
     MVMObject *res_type, MVMObject *obj);
 MVMint64 MVM_nativecall_sizeof(MVMThreadContext *tc, MVMObject *obj);
 void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy);
+MVMObject *MVM_nativecall_args(MVMThreadContext *tc, MVMArgs *invoke_args);
 
 MVMObject * MVM_nativecall_make_cstruct(MVMThreadContext *tc, MVMObject *type, void *cstruct);
 MVMObject * MVM_nativecall_make_cppstruct(MVMThreadContext *tc, MVMObject *type, void *cppstruct);
