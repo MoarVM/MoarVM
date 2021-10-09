@@ -157,6 +157,9 @@ static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *rec
         case MVM_DISP_OUTCOME_CFUNCTION:
             fprintf(stderr, "    Run C function of value %d\n", record->rec.outcome_value);
             break;
+        case MVM_DISP_OUTCOME_FOREIGNCODE:
+            fprintf(stderr, "    Run foreign function of value %d\n", record->rec.outcome_value);
+            break;
         default:
             printf("    Unknown\n");
     }
@@ -430,6 +433,10 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                 break;
             case MVMDispOpcodeResultCFunction:
                 fprintf(stderr, "    Invoke MVMCFunction in temporary %d\n",
+                        op->res_code.temp_invokee);
+                break;
+            case MVMDispOpcodeResultForeignCode:
+                fprintf(stderr, "    Invoke foreign function in temporary %d\n",
                         op->res_code.temp_invokee);
                 break;
 
@@ -1777,6 +1784,24 @@ void MVM_disp_program_record_c_code_constant(MVMThreadContext *tc, MVMCFunction 
     record->outcome.args.source = ((MVMCapture *)capture)->body.args;
 }
 
+void MVM_disp_program_record_foreign_code_constant(MVMThreadContext *tc, MVMNativeCall *result, MVMObject *capture) {
+    /* Record the result action. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    ensure_known_capture(tc, record, capture);
+    MVMRegister value = { .o = (MVMObject *)result };
+    record->rec.outcome_value = value_index_constant(tc, &(record->rec),
+            MVM_CALLSITE_ARG_OBJ, value);
+    record->rec.outcome_capture = capture;
+
+    /* Set up the invoke outcome. */
+    MVMCallsite *callsite = ((MVMCapture *)capture)->body.callsite;
+    record->outcome.kind = MVM_DISP_OUTCOME_FOREIGNCODE;
+    record->outcome.site = result;
+    record->outcome.args.callsite = callsite;
+    record->outcome.args.map = MVM_args_identity_map(tc, callsite);
+    record->outcome.args.source = ((MVMCapture *)capture)->body.args;
+}
+
 /* Record a program terminator that invokes bytecode from a tracked value (for
  * example, from a capture or attribute read). Guards are established against
  * the tracked value for both type and concreteness as a side-effect. */
@@ -2801,6 +2826,22 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
             MVM_VECTOR_PUSH(cs.ops, op);
             break;
         }
+        case MVM_DISP_OUTCOME_FOREIGNCODE: {
+            /* Make sure we load the invokee into a temporary before we go any
+             * further. This is the last temporary we add before dealing with
+             * args. Also put callsite into constant table. */
+            MVMuint32 temp_invokee = get_temp_holding_value(tc, &cs, record->rec.outcome_value);
+            MVMuint32 callsite_idx = add_program_constant_callsite(tc, &cs,
+                    ((MVMCapture *)record->rec.outcome_capture)->body.callsite);
+
+            /* Produce the args op(s), and then add the dispatch op. */
+            emit_args_ops(tc, record, &cs, callsite_idx);
+            MVMDispProgramOp op;
+            op.code = MVMDispOpcodeResultForeignCode;
+            op.res_code.temp_invokee = temp_invokee;
+            MVM_VECTOR_PUSH(cs.ops, op);
+            break;
+        }
         default:
             MVM_oops(tc, "Unimplemented dispatch outcome compilation");
     }
@@ -2864,7 +2905,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
                 run_dispatch(tc, record, record->outcome.delegate_disp,
                         record->outcome.delegate_capture, thunked);
             else
-                MVM_exception_throw_adhoc(tc, "Dispatch callback failed to delegate to a dispatcher");
+                MVM_oops(tc, "Dispatch callback failed to delegate to a dispatcher");
             return 0;
         case MVM_DISP_OUTCOME_RESUME: {
             MVMDispProgramRecordingResumption *rec_resumption = get_current_resumption(tc, record);
@@ -2951,6 +2992,21 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
             tc->cur_frame->return_type = record->orig_return_type;
             record->outcome.c_func(tc, record->outcome.args);
+            return 1;
+        case MVM_DISP_OUTCOME_FOREIGNCODE:
+            process_recording(tc, record);
+            MVM_disp_program_recording_destroy(tc, &(record->rec));
+            record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
+            tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
+
+            /* allocates, so must come before other local variables! */
+            MVMObject *args = MVM_nativecall_args(tc, &record->outcome.args);
+
+            MVMObject *site = (MVMObject *)record->outcome.site;
+            MVMObject *result_type = record->outcome.args.source[record->outcome.args.map[0]].o;
+            MVMObject *result = MVM_nativecall_invoke(tc, result_type, site, args);
+            tc->cur_frame->return_type = record->orig_return_type;
+            MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
             return 1;
         default:
             MVM_oops(tc, "Unimplemented dispatch program outcome kind");
@@ -3332,6 +3388,21 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 MVM_callstack_unwind_dispatch_run(tc);
                 goto accept;
             }
+            OP(MVMDispOpcodeResultForeignCode): {
+                record->chosen_dp = dp;
+                if (spesh_cid)
+                    MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
+                        bytecode_offset, dp_index);
+
+                /* allocates, so must come before other local variables! */
+                MVMObject *args = MVM_nativecall_args(tc, &invoke_args);
+
+                MVMObject *result_type = invoke_args.source[invoke_args.map[0]].o;
+                MVMObject *result = MVM_nativecall_invoke(tc, result_type, record->temps[op.res_code.temp_invokee].o, args);
+                MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
+                MVM_callstack_unwind_dispatch_run(tc);
+                goto accept;
+            }
 #if !MVM_CGOTO
             default:
                 MVM_oops(tc, "Unknown dispatch program op %d", op.code);
@@ -3497,6 +3568,10 @@ void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *
             add_collectable(tc, worklist, snapshot, outcome->code,
                     "Dispatch outcome (bytecode)");
             break;
+        case MVM_DISP_OUTCOME_FOREIGNCODE:
+            add_collectable(tc, worklist, snapshot, outcome->site,
+                    "Dispatch outcome (foreign function)");
+            break;
     }
 }
 
@@ -3600,6 +3675,7 @@ const char *MVM_disp_opcode_to_name(MVMDispProgramOpcode op) {
         case MVMDispOpcodeCopyArgsTail: return "MVMDispOpcodeCopyArgsTail";
         case MVMDispOpcodeResultBytecode: return "MVMDispOpcodeResultBytecode";
         case MVMDispOpcodeResultCFunction: return "MVMDispOpcodeResultCFunction";
+        case MVMDispOpcodeResultForeignCode: return "MVMDispOpcodeResultForeignCode";
         default:
            return "<unknown>";
     }
