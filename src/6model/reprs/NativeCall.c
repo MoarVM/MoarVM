@@ -31,12 +31,20 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     }
 
     /* Rest is just simple copying. */
+    if (src_body->sym_name) {
+        dest_body->sym_name = MVM_malloc(strlen(src_body->sym_name) + 1);
+        strcpy(dest_body->sym_name, src_body->sym_name);
+    }
     dest_body->entry_point = src_body->entry_point;
     dest_body->convention = src_body->convention;
     dest_body->num_args = src_body->num_args;
     if (src_body->arg_types) {
         dest_body->arg_types = MVM_malloc(sizeof(MVMint16) * (src_body->num_args ? src_body->num_args : 1));
         memcpy(dest_body->arg_types, src_body->arg_types, src_body->num_args * sizeof(MVMint16));
+    }
+    if (src_body->arg_info) {
+        dest_body->arg_info = MVM_malloc(sizeof(MVMObject*) * (src_body->num_args ? src_body->num_args : 1));
+        memcpy(dest_body->arg_info, src_body->arg_info, src_body->num_args * sizeof(MVMObject*));
     }
     dest_body->ret_type = src_body->ret_type;
     if (src_body->jitcode) {
