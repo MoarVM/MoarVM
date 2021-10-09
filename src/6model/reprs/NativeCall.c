@@ -26,7 +26,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     if (src_body->lib_name) {
         dest_body->lib_name = MVM_malloc(strlen(src_body->lib_name) + 1);
         strcpy(dest_body->lib_name, src_body->lib_name);
-        dest_body->lib_handle = MVM_nativecall_load_lib(dest_body->lib_name);
+        if (src_body->entry_point)
+            dest_body->lib_handle = MVM_nativecall_load_lib(dest_body->lib_name);
     }
 
     /* Rest is just simple copying. */
