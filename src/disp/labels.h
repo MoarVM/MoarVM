@@ -51,5 +51,6 @@ static const void * const LABELS[] = {
         &&MVMDispOpcodeUseArgsTail,
         &&MVMDispOpcodeCopyArgsTail,
         &&MVMDispOpcodeResultBytecode,
-        &&MVMDispOpcodeResultCFunction
+        &&MVMDispOpcodeResultCFunction,
+        &&MVMDispOpcodeResultForeignCode
 };
