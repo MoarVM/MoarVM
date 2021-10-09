@@ -69,6 +69,7 @@ char * record_name(MVMuint8 kind) {
         case MVM_CALLSTACK_RECORD_BIND_CONTROL: return "bind control";
         case MVM_CALLSTACK_RECORD_ARGS_FROM_C: return "args from C";
         case MVM_CALLSTACK_RECORD_DEOPTED_RESUME_INIT: return "deoptimized resume init";
+        case MVM_CALLSTACK_RECORD_NESTED_RUNLOOP: return "nested runloop";
         default: return "unknown";
     }
 }
@@ -121,6 +122,8 @@ size_t record_size(MVMCallStackRecord *record) {
             return to_8_bytes(sizeof(MVMCallStackDeoptedResumeInit)) +
                 to_8_bytes(cs->flag_count * sizeof(MVMRegister));
         }
+        case MVM_CALLSTACK_RECORD_NESTED_RUNLOOP:
+            return sizeof(MVMCallStackNestedRunloop);
         default:
             MVM_panic(1, "Unknown callstack record type in record_size");
     }
@@ -134,6 +137,16 @@ void MVM_callstack_init(MVMThreadContext *tc) {
             MVM_CALLSTACK_DEFAULT_REGION_SIZE);
     tc->stack_top = allocate_record_unchecked(tc, MVM_CALLSTACK_RECORD_START,
             sizeof(MVMCallStackStart));
+}
+
+/* Allocates a nested runloop (e.g. NativeCall callback) record on the callstack.
+* This will act as a stopper when cleaning up the callstack after exiting the
+* nested runloop. */
+MVMCallStackRecord * MVM_callstack_allocate_nested_runloop(MVMThreadContext *tc) {
+    tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_NESTED_RUNLOOP,
+            sizeof(MVMCallStackNestedRunloop));
+    ((MVMCallStackNestedRunloop*)tc->stack_top)->cur_frame = tc->cur_frame;
+    return tc->stack_top;
 }
 
 /* Allocates a bytecode frame record on the callstack. */
@@ -561,6 +574,9 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                 }
                 break;
             }
+            case MVM_CALLSTACK_RECORD_NESTED_RUNLOOP: {
+                return ((MVMCallStackNestedRunloop*)tc->stack_top)->cur_frame;
+            }
             default:
                 MVM_panic(1, "Unknown call stack record type in unwind");
         }
@@ -721,6 +737,11 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                 }
                 break;
             }
+            case MVM_CALLSTACK_RECORD_NESTED_RUNLOOP:
+                add_collectable(tc, worklist, snapshot,
+                        ((MVMCallStackNestedRunloop *)record)->cur_frame,
+                        "Callstack reference to frame starting a nested runloop");
+                break;
             default:
                 MVM_panic(1, "Unknown call stack record type in GC marking");
         }
