@@ -2897,12 +2897,9 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
             tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
 
-            /* allocates, so must come before other local variables! */
-            MVMObject *args = MVM_nativecall_args(tc, &record->outcome.args);
-
             MVMObject *site = (MVMObject *)record->outcome.site;
             MVMObject *result_type = record->outcome.args.source[record->outcome.args.map[0]].o;
-            MVMObject *result = MVM_nativecall_invoke(tc, result_type, site, args);
+            MVMObject *result = MVM_nativecall_dispatch(tc, result_type, site, record->outcome.args);
             tc->cur_frame->return_type = record->orig_return_type;
             MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
             return 1;
@@ -3292,11 +3289,8 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                     MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
                         bytecode_offset, dp_index);
 
-                /* allocates, so must come before other local variables! */
-                MVMObject *args = MVM_nativecall_args(tc, &invoke_args);
-
                 MVMObject *result_type = invoke_args.source[invoke_args.map[0]].o;
-                MVMObject *result = MVM_nativecall_invoke(tc, result_type, record->temps[op.res_code.temp_invokee].o, args);
+                MVMObject *result = MVM_nativecall_dispatch(tc, result_type, record->temps[op.res_code.temp_invokee].o, invoke_args);
                 MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
                 MVM_callstack_unwind_dispatch_run(tc);
                 goto accept;

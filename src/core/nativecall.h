@@ -96,6 +96,8 @@ void MVM_nativecall_setup(MVMThreadContext *tc, MVMNativeCallBody *body, unsigne
 void MVM_nativecall_restore_library(MVMThreadContext *tc, MVMNativeCallBody *body, MVMObject *root);
 MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     MVMObject *site, MVMObject *args);
+MVMObject * MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
+    MVMObject *site, MVMArgs args);
 void MVM_nativecall_invoke_jit(MVMThreadContext *tc, MVMObject *site);
 MVMObject * MVM_nativecall_global(MVMThreadContext *tc, MVMString *lib, MVMString *sym,
     MVMObject *target_spec, MVMObject *target_type);
@@ -103,7 +105,6 @@ MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
     MVMObject *res_type, MVMObject *obj);
 MVMint64 MVM_nativecall_sizeof(MVMThreadContext *tc, MVMObject *obj);
 void MVM_nativecall_refresh(MVMThreadContext *tc, MVMObject *cthingy);
-MVMObject *MVM_nativecall_args(MVMThreadContext *tc, MVMArgs *invoke_args);
 
 MVMObject * MVM_nativecall_make_cstruct(MVMThreadContext *tc, MVMObject *type, void *cstruct);
 MVMObject * MVM_nativecall_make_cppstruct(MVMThreadContext *tc, MVMObject *type, void *cppstruct);
