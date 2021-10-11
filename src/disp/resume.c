@@ -94,6 +94,9 @@ static void setup_deopted_resumption(MVMThreadContext *tc,  MVMDispResumptionDat
 /* Looks down the callstack to find the dispatch that we are resuming, starting
  * from the indicated start point. If found, populates the struct pointed to by
  * the data parameter and returns a non-zero value. */
+static MVMint32 should_keep_searching(MVMThreadContext *tc, MVMDispProgram *dp) {
+    return !dp || dp->num_resumptions == 0 || dp->ops[0].code == MVMDispOpcodeStartResumption;
+}
 static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data,
         MVMuint32 exhausted, MVMint32 caller) {
     /* Create iterator, which is over both dispatch records and frames. */
@@ -146,6 +149,7 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
                         if (deopt_idx == -1)
                             MVM_oops(tc, "Failed to find deopt index when processing resume");
                         MVMuint32 i;
+                        MVMint32 saw_dispatch_with_resumptions = 0;
                         for (i = 0; i < cand->body.num_resume_inits; i++) {
                             if (cand->body.resume_inits[i].deopt_idx == deopt_idx) {
                                 if (exhausted == 0) {
@@ -155,9 +159,12 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
                                 }
                                 else {
                                     exhausted--;
+                                    saw_dispatch_with_resumptions = 1;
                                 }
                             }
                         }
+                        if (saw_dispatch_with_resumptions)
+                            return 0;
 
                         /* Now walk any inlines to see if we're in any of those. */
                         if (cand->body.num_inlines) {
@@ -186,6 +193,9 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
                                         }
                                         j--;
                                     }
+                                    /* There were resumptions, but none applied; we should
+                                     * not search beyond the innermost dispatch for them. */
+                                    return 0;
                                 }
 
                                 /* Count this inline as a frame. */
@@ -223,6 +233,8 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
                     if (dr->produced_dp && setup_resumption(tc, data, dr->produced_dp,
                                 &(dr->arg_info), &(dr->resumption_state), dr->temps, &exhausted))
                         return 1;
+                    if (!should_keep_searching(tc, dr->produced_dp))
+                        return 0;
                 }
                 break;
             }
@@ -235,6 +247,8 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
                     if (dr->chosen_dp && setup_resumption(tc, data, dr->chosen_dp,
                                 &(dr->arg_info), &(dr->resumption_state), dr->temps, &exhausted))
                         return 1;
+                    if (!should_keep_searching(tc, dr->chosen_dp))
+                        return 0;
                 }
                 break;
             }
