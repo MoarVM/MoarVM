@@ -2485,10 +2485,10 @@ static void produce_resumption_init_values(MVMThreadContext *tc, compile_state *
 static void emit_resume_inits(MVMThreadContext *tc, compile_state *cs,
         MVMCallStackDispatchRecord *record, MVMDispProgramRecordingResumption *rec_res,
         MVMDispProgram *dp, MVMuint32 from_inc, MVMuint32 to_exc) {
-    for (MVMuint32 i = from_inc; i < to_exc; i++) {
-        MVMDispProgramResumption *res = &(dp->resumptions[i]);
+    for (MVMuint32 insert = from_inc, source = to_exc - 1; insert < to_exc; insert++, source--) {
+        MVMDispProgramResumption *res = &(dp->resumptions[insert]);
         MVMDispProgramRecordingResumeInit *res_init =
-            &(record->rec.resume_inits[dp->num_resumptions - (i + 1)]);
+            &(record->rec.resume_inits[source]);
         res->disp = res_init->disp;
         MVMObject *init_capture = res_init->capture;
         res->init_callsite = ((MVMCapture *)init_capture)->body.callsite;
