@@ -517,6 +517,8 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                     MVM_disp_resume_destroy_resumption_state(tc, &(disp_record->resumption_state));
                 if (disp_record->produced_dp && !disp_record->produced_dp_installed)
                     MVM_disp_program_destroy(tc, disp_record->produced_dp);
+                if (disp_record->temps)
+                    MVM_free(disp_record->temps);
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
                 break;
