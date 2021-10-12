@@ -328,6 +328,9 @@ void MVM_callsite_cleanup_interns(MVMInstance *instance) {
         }
     }
     MVM_fixed_size_free(instance->main_thread, instance->fsa,
+            interns->max_arity * sizeof(MVMCallsite **),
+            interns->by_arity);
+    MVM_fixed_size_free(instance->main_thread, instance->fsa,
             interns->max_arity * sizeof(MVMuint32),
             interns->num_by_arity);
     MVM_free(instance->callsite_interns);
