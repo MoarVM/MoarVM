@@ -181,13 +181,37 @@ MVMCallsite * MVM_callsite_copy(MVMThreadContext *tc, const MVMCallsite *cs) {
  * just use it as the interned one. If steal is set to false, and we want
  * to intern the callsite, then we should make a copy of it and intern
  * that. */
+static MVMuint32 find_interned_callsite(MVMThreadContext *tc, MVMCallsite **cs_ptr,
+        MVMuint32 steal) {
+    MVMCallsiteInterns *interns    = tc->instance->callsite_interns;
+    MVMCallsite        *cs         = *cs_ptr;
+    MVMuint32           num_flags  = cs->flag_count;
+    MVMuint32           num_nameds = MVM_callsite_num_nameds(tc, cs);
+    if (num_flags > interns->max_arity)
+        return 0;
+    MVMuint32 i;
+    for (i = 0; i < interns->num_by_arity[num_flags]; i++) {
+        if (callsites_equal(tc, interns->by_arity[num_flags][i], cs, num_flags, num_nameds)) {
+            /* Got a match! If we were asked to steal the callsite we were passed,
+             * then we should free it. */
+            if (steal) {
+                if (num_flags)
+                    MVM_free(cs->arg_flags);
+                MVM_free(cs->arg_names);
+                MVM_free(cs);
+            }
+            *cs_ptr = interns->by_arity[num_flags][i];
+            return 1;
+        }
+    }
+    return 0;
+}
 MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr,
         MVMuint32 force, MVMuint32 steal) {
     MVMCallsiteInterns *interns    = tc->instance->callsite_interns;
     MVMCallsite        *cs         = *cs_ptr;
     MVMuint32           num_flags  = cs->flag_count;
     MVMuint32           num_nameds = MVM_callsite_num_nameds(tc, cs);
-    MVMuint32 i, found;
 
     /* Can't intern anything with flattening. */
     if (cs->has_flattening) {
@@ -206,28 +230,22 @@ MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr,
         return;
     }
 
+    /* First do a lookup without holding the lock; we only need it for any
+     * mutation. */
+    MVMuint64 orig_num_callsite_interns = (MVMuint64)MVM_load(
+            &(tc->instance->num_callsite_interns));
+    if (find_interned_callsite(tc, cs_ptr, steal))
+        return;
+
     /* Obtain mutex protecting interns store. */
     uv_mutex_lock(&tc->instance->mutex_callsite_interns);
 
-    /* Search for a match. */
-    found = 0;
-    if (num_flags <= interns->max_arity) {
-        for (i = 0; i < interns->num_by_arity[num_flags]; i++) {
-            if (callsites_equal(tc, interns->by_arity[num_flags][i], cs, num_flags, num_nameds)) {
-                /* Got a match! If we were asked to steal the callsite we were passed,
-                 * then we should free it. */
-                if (steal) {
-                    if (num_flags)
-                        MVM_free(cs->arg_flags);
-                    MVM_free(cs->arg_names);
-                    MVM_free(cs);
-                }
-                *cs_ptr = interns->by_arity[num_flags][i];
-                found = 1;
-                break;
-            }
-        }
-    }
+    /* If the total number of callsite interns changed, we should search for
+     * a match again, now we have the lock, to avoid any duplicates. */
+    MVMuint64 cur_num_callsite_interns = (MVMuint64)MVM_load(
+            &(tc->instance->num_callsite_interns));
+    MVMuint32 found = orig_num_callsite_interns != cur_num_callsite_interns &&
+        find_interned_callsite(tc, cs_ptr, steal);
 
     /* If it wasn't found, store it, either if we're below the soft limit or
      * we're in force mode. */
@@ -276,6 +294,9 @@ MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr,
         }
         MVM_barrier(); /* To make sure we installed callsite pointer first. */
         interns->num_by_arity[num_flags]++;
+
+        /* Bump total number of interns. */
+        MVM_incr(&(tc->instance->num_callsite_interns));
     }
 
     /* Finally, release mutex. */

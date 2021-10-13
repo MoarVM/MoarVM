@@ -430,6 +430,7 @@ struct MVMInstance {
     /* Interned callsites. */
     MVMCallsiteInterns *callsite_interns;
     uv_mutex_t          mutex_callsite_interns;
+    AO_t                num_callsite_interns;
 
     /* Normal Form Grapheme state (synthetics table, lookup, etc.). */
     MVMNFGState *nfg;
