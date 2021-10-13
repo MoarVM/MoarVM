@@ -54,6 +54,19 @@ static MVMint32 callsite_name_index(MVMThreadContext *tc, MVMCallStackFlattening
             return cs->num_pos + i;
     return -1;
 }
+typedef struct {
+    MVMString *name;
+    MVMObject *value;
+} ArgNameAndValue;
+static int key_sort_by_hash(const void *a, const void *b) {
+    /* Assume any key we see in a hash will already have its hash code
+     * calculated. */
+    MVMuint64 ha = ((ArgNameAndValue  *)a)->name->body.cached_hash_code;
+    MVMuint64 hb = ((ArgNameAndValue  *)b)->name->body.cached_hash_code;
+    return ha > hb ?  1 :
+           ha < hb ? -1 :
+                      0;
+}
 MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCallsite *cs,
         MVMRegister *source, MVMuint16 *map) {
     /* Go through the callsite and find the flattening things, counting up the
@@ -152,39 +165,51 @@ MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCa
             }
         }
         else if (flag & MVM_CALLSITE_ARG_FLAT_NAMED) {
-            /* Named flattening. */
-            if (flatten_counts[i] == 0)
+            /* Named flattening. Hash randomization means that iterating the
+             * hash can produce many orders of the same keys, which will ruin
+             * our hit rate on the callsite intern cache (and in turn cause
+             * fake megamorphic blowups at callsites). Thus we sort the keys;
+             * by hash code shall suffice, since collisions are unlikely. */
+            MVMuint32 limit = flatten_counts[i];
+            if (limit == 0)
                 continue;
+            ArgNameAndValue *anv = alloca(limit * sizeof(ArgNameAndValue));
             MVMObject *hash = source[map[i]].o;
             MVMHashBody *body = &((MVMHash *)hash)->body;
             MVMStrHashTable *hashtable = &(body->hashtable);
             MVMStrHashIterator iterator = MVM_str_hash_first(tc, hashtable);
-            MVMuint32 limit = flatten_counts[i];
-            MVMuint32 j = 0;
-            while (!MVM_str_hash_at_end(tc, hashtable, iterator)) {
-                if (j++ < limit) { /* Drop silently, we don't want to throw here. */
-                    MVMHashEntry *current = MVM_str_hash_current_nocheck(tc, hashtable, iterator);
-                    MVMString *arg_name = current->hash_handle.key;
-                    MVMint32 already_index = callsite_name_index(tc, record, cur_new_name,
-                            arg_name);
-                    if (already_index < 0) {
-                        /* Didn't see this name yet, so add to callsite and args. */
-                        record->produced_cs.arg_flags[cur_new_arg] =
-                                MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
-                        record->arg_info.source[cur_new_arg].o = current->value;
-                        cur_new_arg++;
-                        record->produced_cs.arg_names[cur_new_name] = arg_name;
-                        cur_new_name++;
-                    }
-                    else {
-                        /* New value for an existing name; replace the value and
-                         * ensure correct type flag. */
-                        record->produced_cs.arg_flags[already_index] =
-                                MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
-                        record->arg_info.source[already_index].o = current->value;
-                    }
-                }
+            MVMuint32 seen = 0;
+            while (seen < limit && /* Defend against hash changes */
+                    !MVM_str_hash_at_end(tc, hashtable, iterator)) {
+                MVMHashEntry *current = MVM_str_hash_current_nocheck(tc,
+                        hashtable, iterator);
+                anv[seen].name = current->hash_handle.key;
+                anv[seen].value = current->value;
+                seen++;
                 iterator = MVM_str_hash_next(tc, hashtable, iterator);
+            }
+            qsort(anv, seen, sizeof(ArgNameAndValue), key_sort_by_hash);
+            MVMuint32 j;
+            for (j = 0; j < seen; j++) {
+                MVMString *arg_name = anv[j].name;
+                MVMint32 already_index = callsite_name_index(tc, record, cur_new_name,
+                        arg_name);
+                if (already_index < 0) {
+                    /* Didn't see this name yet, so add to callsite and args. */
+                    record->produced_cs.arg_flags[cur_new_arg] =
+                            MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
+                    record->arg_info.source[cur_new_arg].o = anv[j].value;
+                    cur_new_arg++;
+                    record->produced_cs.arg_names[cur_new_name] = arg_name;
+                    cur_new_name++;
+                }
+                else {
+                    /* New value for an existing name; replace the value and
+                     * ensure correct type flag. */
+                    record->produced_cs.arg_flags[already_index] =
+                            MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
+                    record->arg_info.source[already_index].o = anv[j].value;
+                }
             }
         }
         else if (flag & MVM_CALLSITE_ARG_NAMED) {
