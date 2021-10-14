@@ -1234,11 +1234,39 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     st->REPR_data = repr_data;
 }
 
+static void allocate_replaced_body(MVMThreadContext *tc, MVMObject *obj, MVMSTable *new_type) {
+    /* Get current object body. */
+    MVMP6opaqueBody *body = (MVMP6opaqueBody *)OBJECT_BODY(obj);
+    void            *old  = body->replaced ? body->replaced : body;
+
+    /* Allocate new memory. */
+    size_t  new_size = new_type->size - sizeof(MVMObject);
+    void   *new = MVM_malloc(new_size);
+    memset((char *)new + (STABLE(obj)->size - sizeof(MVMObject)),
+        0, new_size - (STABLE(obj)->size - sizeof(MVMObject)));
+
+    /* Copy existing to new.
+     * XXX Need more care here, as may have to re-barrier pointers. */
+    memcpy(new, old, STABLE(obj)->size - sizeof(MVMObject));
+
+    /* Pointer switch, taking care of existing body issues. */
+    if (body->replaced) {
+        body->replaced = new;
+        MVM_free(old);
+    }
+    else {
+        body->replaced = new;
+    }
+}
+
 /* Deserializes the data. */
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     MVMuint16 num_attributes = repr_data->num_attributes;
     MVMuint16 i;
+    if (root->header.size != st->size && !((MVMP6opaque*)root)->body.replaced) {
+        allocate_replaced_body(tc, root, st);
+    }
     data = MVM_p6opaque_real_data(tc, data);
     for (i = 0; i < num_attributes; i++) {
         MVMuint16 a_offset = repr_data->attribute_offsets[i];
@@ -1322,28 +1350,7 @@ static void change_type(MVMThreadContext *tc, MVMObject *obj, MVMObject *new_typ
 
     /* Resize if needed. */
     if (STABLE(obj)->size != STABLE(new_type)->size) {
-        /* Get current object body. */
-        MVMP6opaqueBody *body = (MVMP6opaqueBody *)OBJECT_BODY(obj);
-        void            *old  = body->replaced ? body->replaced : body;
-
-        /* Allocate new memory. */
-        size_t  new_size = STABLE(new_type)->size - sizeof(MVMObject);
-        void   *new = MVM_malloc(new_size);
-        memset((char *)new + (STABLE(obj)->size - sizeof(MVMObject)),
-            0, new_size - (STABLE(obj)->size - sizeof(MVMObject)));
-
-        /* Copy existing to new.
-         * XXX Need more care here, as may have to re-barrier pointers. */
-        memcpy(new, old, STABLE(obj)->size - sizeof(MVMObject));
-
-        /* Pointer switch, taking care of existing body issues. */
-        if (body->replaced) {
-            body->replaced = new;
-            MVM_free(old);
-        }
-        else {
-            body->replaced = new;
-        }
+        allocate_replaced_body(tc, obj, STABLE(new_type));
     }
 
     /* Finally, ready to switch over the STable. */
