@@ -1007,13 +1007,13 @@ MVMuint8 setup_step(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argumen
     MVMThreadContext *tc;
 
     if (!to_do) {
-        if (tc->instance->debugserver->debugspam_protocol)
+        if (dtc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "Setting up step failed: no thread found\n");
         return 1;
     }
 
     if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
-        if (tc->instance->debugserver->debugspam_protocol)
+        if (dtc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "Setting up step failed: thread has wrong status\n");
         return 1;
     }
