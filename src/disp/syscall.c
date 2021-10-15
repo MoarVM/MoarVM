@@ -81,6 +81,22 @@ static MVMDispSysCall dispatcher_track_attr = {
     .expected_concrete = { 1, 0, 0 }
 };
 
+/* dispatcher-track-unbox-int */
+static void dispatcher_track_unbox_int_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMObject *tracked_in = get_obj_arg(arg_info, 0);
+    MVMObject *tracked_out = MVM_disp_program_record_track_unbox_int(tc, tracked_in);
+    MVM_args_set_result_obj(tc, tracked_out, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall dispatcher_track_unbox_int = {
+    .c_name = "dispatcher-track-unbox-int",
+    .implementation = dispatcher_track_unbox_int_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMTracked },
+    .expected_concrete = { 1 }
+};
+
 /* dispatcher-track-how */
 static void dispatcher_track_how_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *tracked_in = get_obj_arg(arg_info, 0);
@@ -1143,6 +1159,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &dispatcher_delegate);
     add_to_hash(tc, &dispatcher_track_arg);
     add_to_hash(tc, &dispatcher_track_attr);
+    add_to_hash(tc, &dispatcher_track_unbox_int);
     add_to_hash(tc, &dispatcher_track_how);
     add_to_hash(tc, &dispatcher_drop_arg);
     add_to_hash(tc, &dispatcher_drop_n_args);
