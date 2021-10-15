@@ -2346,6 +2346,16 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
 static void add_resume_init_temp_to_fake(MVMThreadContext *tc, compile_state *cs,
         MVMDispProgramRecordingResumption *rec_res, MVMuint32 temp_idx,
         MVMuint32 init_arg_idx) {
+    /* Make sure we didn't already add the argument to fake; it's possible we
+     * will end up overwriting it with the wrong value (because it could have
+     * previously been set from a resumption other than the one we are now
+     * in). */
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(cs->fake_temps); i++)
+        if (cs->fake_temps[i].temp_idx == temp_idx)
+            return;
+
+    /* Not found, so add it. */
     MVMRegister value;
     MVMCallsiteFlags unused;
     MVM_capture_arg_by_flag_index(tc, rec_res->initial_resume_capture.capture, init_arg_idx,
