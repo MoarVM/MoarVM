@@ -1053,6 +1053,14 @@
       (carg $3 ptr)
       (carg (const -1 int_sz) int)) ptr_sz))
 
+(template: attrinited
+  (call (^func &MVM_repr_attribute_inited)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 ptr)) ptr_sz))
+
 (template: box_i
   (call (^func &MVM_repr_box_int)
     (arglist
