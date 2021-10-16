@@ -20,6 +20,10 @@
 
 (template: set (copy $1))
 
+(template: trunc_u8 (ucast $1 int_sz 1))
+(template: trunc_u16 (ucast $1 int_sz 2))
+(template: trunc_u32 (ucast $1 int_sz 4))
+
 (template: trunc_i8 (ucast $1 int_sz 1))
 (template: trunc_i16 (ucast $1 int_sz 2))
 (template: trunc_i32 (ucast $1 int_sz 4))
