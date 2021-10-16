@@ -1672,6 +1672,14 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
+(template: getcodename
+  (do
+    (when (any
+           (^is_type_obj $1)
+           (^not_repr_id $1 MVM_REPR_ID_MVMCode))
+      (^throw_adhoc "getcodename requires a concrete code object"))
+    (^getf $1 MVMCode body.name)))
+
 (template: iscoderef
   (call (^func &MVM_code_iscode)
     (arglist
