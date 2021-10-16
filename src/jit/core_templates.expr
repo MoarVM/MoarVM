@@ -406,6 +406,60 @@
       (carg (tc)     ptr)
       (carg (^frame) ptr)) ptr_sz))
 
+(template: captureposelems
+  (call (^func &MVM_capture_num_pos_args)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
+(template: captureposarg
+  (call (^func &MVM_capture_arg_pos_o)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg (ucast $2 int_sz 4) int)) ptr_sz))
+
+(template: captureposarg_i
+  (call (^func &MVM_capture_arg_pos_i)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg (ucast $2 int_sz 4) int)) int_sz))
+
+(template: captureposarg_n
+  (calln (^func &MVM_capture_arg_pos_n)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg (ucast $2 int_sz 4) int))))
+
+(template: captureposarg_s
+  (call (^func &MVM_capture_arg_pos_s)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg (ucast $2 int_sz 4) int)) ptr_sz))
+
+(template: captureposprimspec
+  (call (^func &MVM_capture_arg_pos_primspec)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg (ucast $2 int_sz 4) int)) int_sz))
+
+(template: captureexistsnamed
+  (call (^func &MVM_capture_has_named_arg)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) int_sz))
+
+(template: capturehasnameds
+  (call (^func &MVM_capture_has_nameds)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
 (template: null_s (^nullptr))
 
 (template: isnull_s (flagval (zr $1)))
