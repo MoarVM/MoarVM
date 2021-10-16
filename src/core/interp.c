@@ -1341,8 +1341,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(captureposprimspec): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
-                MVMint64   i   = GET_REG(cur_op, 4).i64;
-                GET_REG(cur_op, 0).i64 = MVM_capture_arg_pos_primspec(tc, obj, i);
+                MVMuint32 idx = (MVMuint32)GET_REG(cur_op, 4).i64;
+                GET_REG(cur_op, 0).i64 = MVM_capture_arg_pos_primspec(tc, obj, idx);
                 cur_op += 6;
                 goto NEXT;
             }
