@@ -1994,6 +1994,12 @@
       (carg $2   ptr)
       (carg $1   ptr)) ptr_sz))
 
+(template: coerce_In
+  (calln (^func &MVM_bigint_to_num)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr))))
+
 (template: coerce_Is
   (call (^func &MVM_bigint_to_str)
     (arglist
