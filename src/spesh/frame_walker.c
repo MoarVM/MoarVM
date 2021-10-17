@@ -96,7 +96,7 @@ static void go_to_first_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MV
             else {
                 MVMint32 deopt_idx = prev && prev->extra && prev->extra->caller_deopt_idx > 0
                     ? prev->extra->caller_deopt_idx - 1
-                    : MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, f);
+                    : MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, f, spesh_cand);
                 if (deopt_idx >= 0) {
                     fw->deopt_offset = MVM_spesh_deopt_bytecode_pos(spesh_cand->body.deopts[2 * deopt_idx + 1]);
                     fw->inline_idx = -1;

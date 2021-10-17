@@ -340,10 +340,12 @@ void MVM_spesh_deopt_all(MVMThreadContext *tc) {
 /* Takes a frame that we're lazily deoptimizing and finds the currently
  * active deopt index at the point of the call it was making. Returns -1 if
  * none can be resolved. */
-MVMint32 MVM_spesh_deopt_find_inactive_frame_deopt_idx(MVMThreadContext *tc, MVMFrame *f) {
+MVMint32 MVM_spesh_deopt_find_inactive_frame_deopt_idx(MVMThreadContext *tc,
+    MVMFrame *f, MVMSpeshCandidate *spesh_cand)
+{
     /* Is it JITted code? */
-    if (f->spesh_cand->body.jitcode) {
-        MVMJitCode *jitcode = f->spesh_cand->body.jitcode;
+    if (spesh_cand->body.jitcode) {
+        MVMJitCode *jitcode = spesh_cand->body.jitcode;
         MVMuint32 idx = MVM_jit_code_get_active_deopt_idx(tc, jitcode, f);
         if (idx < jitcode->num_deopts) {
             MVMint32 deopt_idx = jitcode->deopts[idx].idx;
@@ -355,11 +357,11 @@ MVMint32 MVM_spesh_deopt_find_inactive_frame_deopt_idx(MVMThreadContext *tc, MVM
     }
     else {
         /* Not JITted; see if we can find the return address in the deopt table. */
-        MVMuint32 ret_offset = (f == tc->cur_frame ? *(tc->interp_cur_op) : f->return_address) - f->spesh_cand->body.bytecode;
-        MVMint32 n = f->spesh_cand->body.num_deopts * 2;
+        MVMuint32 ret_offset = (f == tc->cur_frame ? *(tc->interp_cur_op) : f->return_address) - spesh_cand->body.bytecode;
+        MVMint32 n = spesh_cand->body.num_deopts * 2;
         MVMint32 i;
         for (i = 0; i < n; i += 2) {
-            if (MVM_spesh_deopt_bytecode_pos(f->spesh_cand->body.deopts[i + 1]) == ret_offset) {
+            if (MVM_spesh_deopt_bytecode_pos(spesh_cand->body.deopts[i + 1]) == ret_offset) {
                 MVMint32 deopt_idx = i / 2;
 #if MVM_LOG_DEOPTS
                 fprintf(stderr, "    Found deopt index for interpeter (idx %d)\n", deopt_idx);
@@ -383,6 +385,7 @@ void MVM_spesh_deopt_during_unwind(MVMThreadContext *tc) {
      * stack top one. */
     MVMCallStackRecord *record = tc->stack_top;
     MVMFrame *frame = MVM_callstack_record_to_frame(record);
+    MVMSpeshCandidate *spesh_cand = frame->spesh_cand;
 #if MVM_LOG_DEOPTS
     fprintf(stderr, "Lazy deopt on unwind of frame '%s' (cuid '%s')\n",
         MVM_string_utf8_encode_C_string(tc, frame->static_info->body.name),
@@ -390,10 +393,10 @@ void MVM_spesh_deopt_during_unwind(MVMThreadContext *tc) {
 #endif
 
     /* Find the deopt index, and assuming it's found, deopt. */
-    MVMint32 deopt_idx = MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, frame);
+    MVMint32 deopt_idx = MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, frame, spesh_cand);
     if (deopt_idx >= 0) {
-        MVMuint32 deopt_target = frame->spesh_cand->body.deopts[deopt_idx * 2];
-        MVMuint32 deopt_offset = MVM_spesh_deopt_bytecode_pos(frame->spesh_cand->body.deopts[deopt_idx * 2 + 1]);
+        MVMuint32 deopt_target = spesh_cand->body.deopts[deopt_idx * 2];
+        MVMuint32 deopt_offset = MVM_spesh_deopt_bytecode_pos(spesh_cand->body.deopts[deopt_idx * 2 + 1]);
 
         MVMFrame *top_frame;
         MVMROOT(tc, frame, {
@@ -402,8 +405,8 @@ void MVM_spesh_deopt_during_unwind(MVMThreadContext *tc) {
             /* Potentially need to uninline. This leaves the top frame being the
              * one we're returning into. Otherwise, the top frame is the current
              * one. */
-            if (frame->spesh_cand->body.inlines) {
-                uninline(tc, frame, frame->spesh_cand, deopt_offset, 1, 0);
+            if (spesh_cand->body.inlines) {
+                uninline(tc, frame, spesh_cand, deopt_offset, 1, 0);
                 top_frame = MVM_callstack_current_frame(tc);
             }
             else {
