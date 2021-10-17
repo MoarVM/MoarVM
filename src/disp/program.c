@@ -848,6 +848,28 @@ static MVMuint32 value_index_unbox_int(MVMThreadContext *tc, MVMDispProgramRecor
     return MVM_VECTOR_ELEMS(rec->values) - 1;
 }
 
+/* Ensures we have a values used entry for the specified unboxed str. */
+static MVMuint32 value_index_unbox_str(MVMThreadContext *tc, MVMDispProgramRecording *rec,
+        MVMuint32 from_value) {
+    /* Look for an existing such value. */
+    MVMuint32 i;
+    for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++) {
+        MVMDispProgramRecordingValue *v = &(rec->values[i]);
+        if (v->source == MVMDispProgramRecordingUnboxValue &&
+                v->how.from_value == from_value)
+            return i;
+    }
+
+    /* Otherwise, we need to create the value entry. */
+    MVMDispProgramRecordingValue new_value;
+    memset(&new_value, 0, sizeof(MVMDispProgramRecordingValue));
+    new_value.source = MVMDispProgramRecordingUnboxValue;
+    new_value.unbox.from_value = from_value;
+    new_value.unbox.kind = MVM_CALLSITE_ARG_STR;
+    MVM_VECTOR_PUSH(rec->values, new_value);
+    return MVM_VECTOR_ELEMS(rec->values) - 1;
+}
+
 /* Ensures we have a values used entry for the specified lookup table read. */
 static MVMuint32 value_index_lookup(MVMThreadContext *tc, MVMDispProgramRecording *rec,
         MVMuint32 lookup_index, MVMuint32 key_index) {
@@ -1068,6 +1090,36 @@ MVMObject * MVM_disp_program_record_track_unbox_int(MVMThreadContext *tc, MVMObj
     if (!record->rec.values[result_value_index].tracked)
         record->rec.values[result_value_index].tracked = MVM_tracked_create(tc,
                 attr_value, MVM_CALLSITE_ARG_INT);
+    return record->rec.values[result_value_index].tracked;
+}
+
+MVMObject * MVM_disp_program_record_track_unbox_str(MVMThreadContext *tc, MVMObject *tracked_in) {
+    /* Ensure the tracked value is an object type. */
+    if (((MVMTracked *)tracked_in)->body.kind != MVM_CALLSITE_ARG_OBJ)
+        MVM_oops(tc, "Can only use dispatcher-track-unbox-str on a tracked object");
+
+    /* Resolve the tracked value. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+    MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked_in);
+
+    /* Obtain the object and ensure it is a concrete P6opaque; also track its
+     * type and concreteness since unboxing safety depends on this. */
+    MVMObject *read_from = ((MVMTracked *)tracked_in)->body.value.o;
+    if (!IS_CONCRETE(read_from))
+        MVM_exception_throw_adhoc(tc, "Can only use dispatcher-track-unbox-str on a concrete object");
+    record->rec.values[value_index].guard_type = 1;
+    record->rec.values[value_index].guard_concreteness = 1;
+
+    /* Read the value. */
+    MVMRegister attr_value;
+    attr_value.s = MVM_repr_get_str(tc, read_from);
+
+    /* Ensure that we have this value read in the values table, and make
+     * a tracked object if not. */
+    MVMuint32 result_value_index = value_index_unbox_str(tc, &(record->rec), value_index);
+    if (!record->rec.values[result_value_index].tracked)
+        record->rec.values[result_value_index].tracked = MVM_tracked_create(tc,
+                attr_value, MVM_CALLSITE_ARG_STR);
     return record->rec.values[result_value_index].tracked;
 }
 
@@ -1983,6 +2035,9 @@ static MVMuint32 get_temp_holding_value(MVMThreadContext *tc, compile_state *cs,
             switch (v->unbox.kind) {
                 case MVM_CALLSITE_ARG_INT:
                     op.code = MVMDispOpcodeUnboxInt;
+                    break;
+                case MVM_CALLSITE_ARG_STR:
+                    op.code = MVMDispOpcodeUnboxStr;
                     break;
                 default:
                     MVM_oops(tc, "Unhandled kind of unbox in recorded dispatch: %d", v->attribute.kind);
@@ -3243,6 +3298,10 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
             }
             OP(MVMDispOpcodeUnboxInt): {
                 record->temps[op.load.temp].i64 = MVM_repr_get_int(tc, record->temps[op.load.idx].o);
+                NEXT;
+            }
+            OP(MVMDispOpcodeUnboxStr): {
+                record->temps[op.load.temp].s = MVM_repr_get_str(tc, record->temps[op.load.idx].o);
                 NEXT;
             }
             OP(MVMDispOpcodeLookup):
