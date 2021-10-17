@@ -72,12 +72,15 @@ static void go_to_next_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
  * If so, go to the innermost inline. */
 static void go_to_first_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MVMFrame *prev) {
     MVMFrame *f = fw->cur_caller_frame;
+    /* Get a local copy of spesh_cand so we don't stumble over another thread
+     * clearing the pointer after we checked it */
     MVMSpeshCandidate *spesh_cand = f->spesh_cand;
     if (spesh_cand && spesh_cand->body.inlines) {
         MVMJitCode *jitcode = spesh_cand->body.jitcode;
         if (jitcode && f->jit_entry_label) {
-            void *current_position = prev && prev->extra && prev->extra->caller_jit_position
-                ? prev->extra->caller_jit_position
+            MVMFrameExtra *extra; /* Get a local copy as well for the same reason */
+            void *current_position = prev && (extra = prev->extra) && extra->caller_jit_position
+                ? extra->caller_jit_position
                 : MVM_jit_code_get_current_position(tc, jitcode, f);
             MVMuint32 idx = MVM_jit_code_get_active_inlines(tc, jitcode, current_position, 0);
             if (idx < jitcode->num_inlines) {
@@ -94,8 +97,9 @@ static void go_to_first_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MV
                 return;
             }
             else {
-                MVMint32 deopt_idx = prev && prev->extra && prev->extra->caller_deopt_idx > 0
-                    ? prev->extra->caller_deopt_idx - 1
+                MVMFrameExtra *extra; /* Get a local copy as well for the same reason */
+                MVMint32 deopt_idx = prev && (extra = prev->extra) && extra->caller_deopt_idx > 0
+                    ? extra->caller_deopt_idx - 1
                     : MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, f, spesh_cand);
                 if (deopt_idx >= 0) {
                     fw->deopt_offset = MVM_spesh_deopt_bytecode_pos(spesh_cand->body.deopts[2 * deopt_idx + 1]);
