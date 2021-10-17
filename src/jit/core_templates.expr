@@ -20,6 +20,10 @@
 
 (template: set (copy $1))
 
+(template: trunc_u8 (ucast $1 int_sz 1))
+(template: trunc_u16 (ucast $1 int_sz 2))
+(template: trunc_u32 (ucast $1 int_sz 4))
+
 (template: trunc_i8 (ucast $1 int_sz 1))
 (template: trunc_i16 (ucast $1 int_sz 2))
 (template: trunc_i32 (ucast $1 int_sz 4))
@@ -401,6 +405,60 @@
     (arglist
       (carg (tc)     ptr)
       (carg (^frame) ptr)) ptr_sz))
+
+(template: captureposelems
+  (call (^func &MVM_capture_num_pos_args)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
+
+(template: captureposarg
+  (call (^func &MVM_capture_arg_pos_o)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg (ucast $2 int_sz 4) int)) ptr_sz))
+
+(template: captureposarg_i
+  (call (^func &MVM_capture_arg_pos_i)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg (ucast $2 int_sz 4) int)) int_sz))
+
+(template: captureposarg_n
+  (calln (^func &MVM_capture_arg_pos_n)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg (ucast $2 int_sz 4) int))))
+
+(template: captureposarg_s
+  (call (^func &MVM_capture_arg_pos_s)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg (ucast $2 int_sz 4) int)) ptr_sz))
+
+(template: captureposprimspec
+  (call (^func &MVM_capture_arg_pos_primspec)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg (ucast $2 int_sz 4) int)) int_sz))
+
+(template: captureexistsnamed
+  (call (^func &MVM_capture_has_named_arg)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)
+      (carg $2   ptr)) int_sz))
+
+(template: capturehasnameds
+  (call (^func &MVM_capture_has_nameds)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr)) int_sz))
 
 (template: null_s (^nullptr))
 
@@ -994,6 +1052,14 @@
       (carg $2 ptr)
       (carg $3 ptr)
       (carg (const -1 int_sz) int)) ptr_sz))
+
+(template: attrinited
+  (call (^func &MVM_repr_attribute_inited)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 ptr)) ptr_sz))
 
 (template: box_i
   (call (^func &MVM_repr_box_int)
@@ -1606,6 +1672,14 @@
       (carg (tc) ptr)
       (carg $1 ptr)) ptr_sz))
 
+(template: getcodename
+  (do
+    (when (any
+           (^is_type_obj $1)
+           (^not_repr_id $1 MVM_REPR_ID_MVMCode))
+      (^throw_adhoc "getcodename requires a concrete code object"))
+    (^getf $1 MVMCode body.name)))
+
 (template: iscoderef
   (call (^func &MVM_code_iscode)
     (arglist
@@ -1919,6 +1993,12 @@
       (carg (tc) ptr)
       (carg $2   ptr)
       (carg $1   ptr)) ptr_sz))
+
+(template: coerce_In
+  (calln (^func &MVM_bigint_to_num)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1   ptr))))
 
 (template: coerce_Is
   (call (^func &MVM_bigint_to_str)
