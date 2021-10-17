@@ -987,6 +987,9 @@ MVMObject * MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                 case MVM_NATIVECALL_ARG_ULONGLONG:
                     dcArgLongLong(vm, value);
                     break;
+                case MVM_NATIVECALL_ARG_CPOINTER:
+                    dcArgPointer(vm, (void*)value);
+                    break;
                 default:
                     MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall argument type");
