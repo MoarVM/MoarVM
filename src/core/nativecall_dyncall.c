@@ -990,6 +990,12 @@ MVMObject * MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                 case MVM_NATIVECALL_ARG_CPOINTER:
                     dcArgPointer(vm, (void*)value);
                     break;
+                /* for undefined strings we'll get a literal 0 */
+                case MVM_NATIVECALL_ARG_ASCIISTR:
+                case MVM_NATIVECALL_ARG_UTF8STR:
+                case MVM_NATIVECALL_ARG_UTF16STR:
+                    dcArgPointer(vm, (void*)value);
+                    break;
                 default:
                     MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall argument type");
@@ -1007,6 +1013,38 @@ MVMObject * MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                 default:
                     MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall argument type");
+            }
+        }
+        else if (args.callsite->arg_flags[i + 1] & MVM_CALLSITE_ARG_STR) {
+            MVMString *value = args.source[args.map[i + 1]].s;
+            switch (arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
+                case MVM_NATIVECALL_ARG_ASCIISTR:
+                case MVM_NATIVECALL_ARG_UTF8STR:
+                case MVM_NATIVECALL_ARG_UTF16STR:
+                    {
+                        char *str;
+                        switch (arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
+                            case MVM_NATIVECALL_ARG_ASCIISTR:
+                                str = MVM_string_ascii_encode_any(tc, value);
+                                break;
+                            case MVM_NATIVECALL_ARG_UTF16STR:
+                                str = MVM_string_utf16_encode(tc, value, 0);
+                                break;
+                            default:
+                                str = MVM_string_utf8_encode_C_string(tc, value);
+                        }
+                        if (arg_types[i] & MVM_NATIVECALL_ARG_FREE_STR_MASK) {
+                            if (!free_strs)
+                                free_strs = (char**)MVM_malloc(num_args * sizeof(char *));
+                            free_strs[num_strs] = str;
+                            num_strs++;
+                        }
+                        dcArgPointer(vm, str);
+                    }
+                    break;
+                default:
+                    MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
+                    MVM_oops(tc, "Internal error: unhandled dyncall argument type for str %d", arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK);
             }
         }
         else {
