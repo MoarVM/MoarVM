@@ -145,7 +145,7 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
                          * it is the one in the most nested inline, if there are
                          * any inlines. */
                         MVMint32 deopt_idx = MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc,
-                                frame);
+                                frame, cand);
                         if (deopt_idx == -1)
                             MVM_oops(tc, "Failed to find deopt index when processing resume");
                         MVMuint32 i;

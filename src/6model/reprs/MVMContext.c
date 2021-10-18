@@ -286,7 +286,7 @@ static void snapshot_frame_callees(MVMThreadContext *tc, MVMFrame *f) {
                 if (extra->caller_deopt_idx)
                     return;
                 /* Store with + 1 to avoid semi-predicate problem. */
-                extra->caller_deopt_idx = MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, f->caller) + 1;
+                extra->caller_deopt_idx = 1 + MVM_spesh_deopt_find_inactive_frame_deopt_idx(tc, f->caller, cand);
             }
         }
         f = f->caller;
