@@ -583,6 +583,7 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     record->rec.initial_capture.capture = capture;
     record->rec.inline_cache_size = inline_cache_size;
     record->rec.do_not_install = 0;
+    record->initial_disp = disp;
     record->ic_entry_ptr = ic_entry_ptr;
     record->ic_entry = ic_entry;
     record->update_sf = update_sf;
@@ -2730,7 +2731,7 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
     MVMuint32 installed = record->rec.do_not_install
         ? 0
         : MVM_disp_inline_cache_transition(tc, record->ic_entry_ptr,
-            record->ic_entry, record->update_sf,
+            record->ic_entry, record->update_sf, record->initial_disp,
             ((MVMCapture *)record->rec.initial_capture.capture)->body.callsite,
             dp);
 

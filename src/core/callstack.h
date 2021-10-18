@@ -164,6 +164,9 @@ struct MVMCallStackDispatchRecord {
      * derived and guards established. */
     MVMDispProgramRecording rec;
 
+    /* The initial dispatcher (the one declared at the callsite). */
+    MVMDispDefinition *initial_disp;
+
     /* The current dispatcher that we're running. */
     MVMDispDefinition *current_disp;
 

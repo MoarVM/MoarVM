@@ -285,7 +285,8 @@ static void gc_barrier_program(MVMThreadContext *tc, MVMStaticFrame *root,
 }
 MVMuint32 MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *entry,
-        MVMStaticFrame *root, MVMCallsite *initial_cs, MVMDispProgram *dp) {
+        MVMStaticFrame *root, MVMDispDefinition *initial_disp,
+        MVMCallsite *initial_cs, MVMDispProgram *dp) {
     /* Ensure that the entry is current (this is re-checked when we actaully
      * update it, but this ensures we won't dereference a dangling pointer
      * below; safe as we know there's not a GC safepoint between here and
@@ -363,8 +364,11 @@ MVMuint32 MVM_disp_inline_cache_transition(MVMThreadContext *tc,
                 (MVMDispInlineCacheEntryPolymorphicDispatch *)entry;
         if (prev_entry->num_dps == MVM_INLINE_CACHE_MAX_POLY) {
 #if DUMP_FULL_CACHES
-            fprintf(stderr, "\n\nFull polymorphic dispatch inline cache at:\n");
+            char *disp_id = MVM_string_utf8_encode_C_string(tc, initial_disp->id);
+            fprintf(stderr, "\n\nFull polymorphic dispatch inline cache for %s at:\n",
+                    disp_id);
             MVM_dump_backtrace(tc);
+            MVM_free(disp_id);
 #endif
             return 0;
         }
@@ -386,8 +390,11 @@ MVMuint32 MVM_disp_inline_cache_transition(MVMThreadContext *tc,
                 (MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry;
         if (prev_entry->num_dps == MVM_INLINE_CACHE_MAX_POLY) {
 #if DUMP_FULL_CACHES
-            fprintf(stderr, "\n\nFull polymorphic flattening dispatch inline cache at:\n");
+            char *disp_id = MVM_string_utf8_encode_C_string(tc, initial_disp->id);
+            fprintf(stderr, "\n\nFull polymorphic flattening dispatch inline cache for %s at:\n",
+                    disp_id);
             MVM_dump_backtrace(tc);
+            MVM_free(disp_id);
 #endif
             return 0;
         }

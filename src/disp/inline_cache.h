@@ -102,7 +102,8 @@ MVMuint32 MVM_disp_inline_cache_get_slot(MVMThreadContext *tc, MVMStaticFrame *s
         MVMuint32 bytecode_offset);
 MVMuint32 MVM_disp_inline_cache_transition(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *entry,
-        MVMStaticFrame *root, MVMCallsite *initial_cs, MVMDispProgram *dp);
+        MVMStaticFrame *root, MVMDispDefinition *initial_disp,
+        MVMCallsite *initial_cs, MVMDispProgram *dp);
 void MVM_disp_inline_cache_destroy(MVMThreadContext *tc, MVMDispInlineCache *cache);
 MVMuint32 MVM_disp_inline_cache_get_kind(MVMThreadContext *tc, MVMDispInlineCacheEntry *entry);
 MVMint32 MVM_disp_inline_cache_try_get_kind(MVMThreadContext *tc, MVMDispInlineCacheEntry *entry);
