@@ -143,6 +143,9 @@ static MVMuint8 operand_size(MVMThreadContext *tc, MVMuint8 operand) {
 
             case MVM_operand_obj:
             case MVM_operand_type_var: size = 2; break;
+            default:
+                MVM_exception_throw_adhoc(tc, "TODO: unknown operand type");
+                /*fail(val, MSG(val, "unknown operand type %"PRIu32), type);*/
         }
     }
     else {
