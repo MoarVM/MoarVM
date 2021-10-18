@@ -546,11 +546,18 @@ static MVMint64 MVM_string_memmem_grapheme32str (MVMThreadContext *tc, MVMString
     MVMint64 rtrn;
     if (needle->body.storage_type != MVM_STRING_GRAPHEME_32) {
         MVMStringIndex i;
-        MVMGraphemeIter n_gi;
         needle_buf = MVM_malloc(needle->body.num_graphs * sizeof(MVMGrapheme32));
-        if (needle->body.storage_type != MVM_STRING_GRAPHEME_8) MVM_string_gi_init(tc, &n_gi, needle);
-        for (i = 0; i < needle->body.num_graphs; i++) {
-            needle_buf[i] = needle->body.storage_type == MVM_STRING_GRAPHEME_8 ? needle->body.storage.blob_8[i] : MVM_string_gi_get_grapheme(tc, &n_gi);
+        if (needle->body.storage_type != MVM_STRING_GRAPHEME_8) {
+            MVMGraphemeIter n_gi;
+            MVM_string_gi_init(tc, &n_gi, needle);
+            for (i = 0; i < needle->body.num_graphs; i++) {
+                needle_buf[i] = MVM_string_gi_get_grapheme(tc, &n_gi);
+            }
+        }
+        else {
+            for (i = 0; i < needle->body.num_graphs; i++) {
+                needle_buf[i] = needle->body.storage.blob_8[i];
+            }
         }
     }
     rtrn = MVM_string_memmem_grapheme32(tc, Haystack->body.storage.blob_32, needle_buf ? needle_buf : needle->body.storage.blob_32, H_start, H_graphs, n_graphs);
@@ -593,20 +600,25 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
                 MVMGrapheme8 *needle_buf  = NULL;
                 if (needle->body.storage_type != MVM_STRING_GRAPHEME_8) {
                     MVMStringIndex i;
-                    MVMGraphemeIter n_gi;
                     needle_buf = MVM_malloc(needle->body.num_graphs * sizeof(MVMGrapheme8));
-                    if (needle->body.storage_type != MVM_STRING_GRAPHEME_32) MVM_string_gi_init(tc, &n_gi, needle);
-                    for (i = 0; i < needle->body.num_graphs; i++) {
-                        MVMGrapheme32 g = needle->body.storage_type == MVM_STRING_GRAPHEME_32
-                            ? needle->body.storage.blob_32[i]
-                            : MVM_string_gi_get_grapheme(tc, &n_gi);
-                        /* Haystack is 8 bit, needle is 32 bit. if we encounter a non8bit grapheme
-                         * it's impossible to match */
-                        if (!can_fit_into_8bit(g)) {
-                            MVM_free(needle_buf);
-                            return -1;
+                    if (needle->body.storage_type != MVM_STRING_GRAPHEME_32) {
+                        MVMGraphemeIter n_gi;
+                        MVM_string_gi_init(tc, &n_gi, needle);
+                        for (i = 0; i < needle->body.num_graphs; i++) {
+                            needle_buf[i] = MVM_string_gi_get_grapheme(tc, &n_gi);
                         }
-                        needle_buf[i] = g;
+                    }
+                    else {
+                        for (i = 0; i < needle->body.num_graphs; i++) {
+                            MVMGrapheme32 g = needle->body.storage.blob_32[i];
+                            /* Haystack is 8 bit, needle is 32 bit. if we encounter a non8bit grapheme
+                             * it's impossible to match */
+                            if (!can_fit_into_8bit(g)) {
+                                MVM_free(needle_buf);
+                                return -1;
+                            }
+                            needle_buf[i] = g;
+                        }
                     }
                 }
                 mm_return_8 = MVM_memmem(
