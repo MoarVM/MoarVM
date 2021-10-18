@@ -612,9 +612,6 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             if (has_deopt)
                 tweak_guard_deopt_idx(ins, inliner->num_deopt_addrs);
 
-            if (ins->info->may_cause_deopt)
-                may_cause_deopt = 1;
-
             if (opcode == MVM_SSA_PHI) {
                 for (i = 0; i < ins->info->num_operands; i++)
                     ins->operands[i].reg.orig += inliner->num_locals;
@@ -671,6 +668,9 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     ins->operands[3 + j].reg.orig += inliner->num_locals;
             }
             else {
+                if (ins->info->may_cause_deopt)
+                    may_cause_deopt = 1;
+
                 if (!same_comp_unit) {
                     if (ins->info->opcode == MVM_OP_const_s) {
                         fix_const_str(tc, inliner, inlinee, ins);
@@ -908,8 +908,11 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
 
     /* If the call we're inlining sets up any resume inits, then record those,
      * so we can easily recover them when walking inlines if there is a
-     * resume. */
-    if (resume_init) {
+     * resume. If there's no way we can deopt, that implies that there are
+     * also no dispatch instructions left that could imply a resume (and no
+     * way to reach one via a deopt), in which case we can drop the resume
+     * setup instructions also. */
+    if (resume_init && may_cause_deopt) {
         /* What we are passed is the final resume init, so store the index. */
         inliner->inlines[total_inlines - 1].last_spesh_resume_init =
             resume_init->operands[1].lit_i16;
@@ -924,6 +927,11 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     else {
         inliner->inlines[total_inlines - 1].first_spesh_resume_init = -1;
         inliner->inlines[total_inlines - 1].last_spesh_resume_init = -1;
+        while (resume_init) {
+            MVMSpeshIns *prev = resume_init->prev;
+            MVM_spesh_manipulate_delete_ins(tc, inliner, runbytecode_bb, resume_init);
+            resume_init = prev && prev->info->opcode == MVM_OP_sp_resumption ? prev : NULL;
+        }
     }
 
     /* Create/update per-specialization local and lexical type maps. */
