@@ -1654,6 +1654,7 @@ start:
     case MVM_OP_blshift_i:
     case MVM_OP_brshift_i:
     case MVM_OP_pow_i:
+    case MVM_OP_abs_i:
     case MVM_OP_add_n:
     case MVM_OP_sub_n:
     case MVM_OP_mul_n:
