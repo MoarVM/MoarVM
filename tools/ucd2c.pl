@@ -1184,9 +1184,6 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
             }
             /* Fate NULL */
             case $FATE_NULL:
-                /* codepoint's += ends up being unused since it gets reset at the next loop.
-                 * For now leaving the code as it was. */
-                codepoint += length;
                 break;
             /* Fate Span */
             case $FATE_SPAN: {
@@ -1194,7 +1191,6 @@ static void generate_codepoints_by_name(MVMThreadContext *tc) {
                 if (name && *name != '<') {
                     MVM_uni_hash_insert(tc, &tc->instance->codepoints_by_name, name, codepoint);
                 }
-                codepoint += length;
                 codepoint_table_index++;
                 break;
             }
