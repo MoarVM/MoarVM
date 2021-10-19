@@ -201,6 +201,7 @@ static void * base64_decode(const char *s, size_t *data_len)
          || n[1] == -1
          || (n[2] == -1 && n[3] != -1)) {
             MVM_free(data);
+            *data_len = 0;
             return NULL;
         }
 
