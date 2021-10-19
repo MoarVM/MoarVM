@@ -50,17 +50,17 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename, M
         MVM_exception_throw_adhoc_free(tc, waste, "While trying to open '%s': %s", filename, uv_strerror(req.result));
     }
 
-    if (free_filename)
-        MVM_free((char *)filename);
-
     if ((block = MVM_platform_map_file(fd, &handle, (size_t)size, 0)) == NULL) {
         /* FIXME: check errno or GetLastError() */
-        MVM_exception_throw_adhoc(tc, "Could not map file '%s' into memory: %s", filename, "FIXME");
+        MVM_exception_throw_adhoc_free(tc, waste, "Could not map file '%s' into memory: %s", filename, "FIXME");
     }
 
     if (uv_fs_close(NULL, &req, fd, NULL) < 0) {
-        MVM_exception_throw_adhoc(tc, "Failed to close filehandle: %s", uv_strerror(req.result));
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to close filehandle for '%s': %s", filename, uv_strerror(req.result));
     }
+
+    if (free_filename)
+        MVM_free((char *)filename);
 
     /* Turn it into a compilation unit. */
     cu = MVM_cu_from_bytes(tc, (MVMuint8 *)block, (MVMuint32)size);
