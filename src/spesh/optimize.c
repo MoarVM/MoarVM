@@ -1341,6 +1341,7 @@ static void insert_arg_type_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
         (MVMCollectable *)type_info->type->st);
     guard->operands[3].lit_ui32 = add_deopt_ann(tc, g, guard, predeopt_index);
     MVM_spesh_manipulate_insert_ins(tc, bb, ins->prev, guard);
+    MVM_spesh_facts_guard_facts(tc, g, bb, guard);
     MVM_spesh_graph_add_comment(tc, g, guard, "Inserted to use specialization");
 }
 
