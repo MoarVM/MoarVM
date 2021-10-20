@@ -1168,6 +1168,12 @@ MVMint32 find_predeopt_index(MVMThreadContext *tc, MVMSpeshIns *ins) {
     while (ins) {
         MVMSpeshAnn *ann = ins->annotations;
         while (ann) {
+            if (ann->type == MVM_SPESH_ANN_DEOPT_SYNTH)
+                return ann->data.deopt_idx;
+            ann = ann->next;
+        }
+        ann = ins->annotations;
+        while (ann) {
             if (ann->type == MVM_SPESH_ANN_DEOPT_PRE_INS)
                 return ann->data.deopt_idx;
             ann = ann->next;
