@@ -6701,32 +6701,44 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 }
 
 void MVM_interp_run_nested(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContext *, void *), void *invoke_data, MVMRegister *res) {
-    MVMFrame *backup_cur_frame              = MVM_frame_force_to_heap(tc, tc->cur_frame);
-    MVMFrame *backup_thread_entry_frame     = tc->thread_entry_frame;
-    void **backup_jit_return_address        = tc->jit_return_address;
-    tc->jit_return_address                  = NULL;
-    MVMRunloopState outer_runloop = {tc->interp_cur_op, tc->interp_bytecode_start, tc->interp_reg_base, tc->interp_cu};
+    MVMFrame     *backup_cur_frame          = MVM_frame_force_to_heap(tc, tc->cur_frame);
+    MVMFrame     *backup_thread_entry_frame = tc->thread_entry_frame;
+    MVMReturnType backup_return_type        = tc->cur_frame->return_type;
+    MVMRegister  *backup_return_value       = tc->cur_frame->return_value;
+    void        **backup_jit_return_address = tc->jit_return_address;
+    tc->jit_return_address = NULL;
+    MVMRunloopState outer_runloop = {
+        tc->interp_cur_op,
+        tc->interp_bytecode_start,
+        tc->interp_reg_base,
+        tc->interp_cu
+    };
     MVMROOT2(tc, backup_cur_frame, backup_thread_entry_frame, {
         MVMuint32 backup_mark                   = MVM_gc_root_temp_mark(tc);
         jmp_buf backup_interp_jump;
         memcpy(backup_interp_jump, tc->interp_jump, sizeof(jmp_buf));
 
-
-        tc->cur_frame->return_value = res;
-        tc->cur_frame->return_type  = MVM_RETURN_OBJ;
+        MVMCallStackRecord *csrecord  = MVM_callstack_allocate_nested_runloop(tc);
+        tc->cur_frame->return_value   = res;
+        tc->cur_frame->return_type    = MVM_RETURN_OBJ;
         tc->cur_frame->return_address = *tc->interp_cur_op;
 
         tc->nested_interpreter++;
         MVM_interp_run(tc, initial_invoke, invoke_data, &outer_runloop);
-        tc->interp_cur_op = outer_runloop.interp_cur_op;
-        tc->interp_bytecode_start = outer_runloop.interp_bytecode_start;
-        tc->interp_reg_base = outer_runloop.interp_reg_base;
-        tc->interp_cu = outer_runloop.interp_cu;
         tc->nested_interpreter--;
 
-        tc->cur_frame             = backup_cur_frame;
-        tc->jit_return_address    = backup_jit_return_address;
-        tc->thread_entry_frame    = backup_thread_entry_frame;
+        assert(tc->stack_top == csrecord);
+        tc->stack_top             = tc->stack_top->prev;
+        tc->interp_cur_op         = outer_runloop.interp_cur_op;
+        tc->interp_bytecode_start = outer_runloop.interp_bytecode_start;
+        tc->interp_reg_base       = outer_runloop.interp_reg_base;
+        tc->interp_cu             = outer_runloop.interp_cu;
+
+        tc->cur_frame               = backup_cur_frame;
+        tc->cur_frame->return_type  = backup_return_type;
+        tc->cur_frame->return_value = backup_return_value;
+        tc->jit_return_address      = backup_jit_return_address;
+        tc->thread_entry_frame      = backup_thread_entry_frame;
 
         memcpy(tc->interp_jump, backup_interp_jump, sizeof(jmp_buf));
         MVM_gc_root_temp_mark_reset(tc, backup_mark);

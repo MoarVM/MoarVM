@@ -325,8 +325,18 @@ struct MVMCallStackDeoptedResumeInit {
     MVMRegister *args;
 };
 
+#define MVM_CALLSTACK_RECORD_NESTED_RUNLOOP 14
+struct MVMCallStackNestedRunloop {
+    /* Commonalities of all records. */
+    MVMCallStackRecord common;
+
+    /* The tag itself. */
+    MVMFrame *cur_frame;
+};
+
 /* Functions for working with the call stack. */
 void MVM_callstack_init(MVMThreadContext *tc);
+MVMCallStackRecord * MVM_callstack_allocate_nested_runloop(MVMThreadContext *tc);
 MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc);
 MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc);
 MVMCallStackDispatchRecord * MVM_callstack_allocate_dispatch_record(MVMThreadContext *tc);
