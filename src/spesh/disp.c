@@ -531,6 +531,7 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
             case MVMDispOpcodeLoadAttributeInt:
             case MVMDispOpcodeLoadAttributeNum:
             case MVMDispOpcodeLoadAttributeStr:
+            case MVMDispOpcodeUnboxInt:
             case MVMDispOpcodeLoadHOW:
             case MVMDispOpcodeLookup:
             case MVMDispOpcodeSet:
@@ -898,6 +899,14 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 emit_load_attribute(tc, g, bb, &insert_after, MVM_OP_sp_p6oget_s, temp,
                         temporaries[op->load.temp], op->load.idx);
                 temporaries[op->load.temp] = temp;
+                break;
+            }
+            case MVMDispOpcodeUnboxInt: {
+                MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+                temporaries[op->load.temp] = temp;
+                MVM_VECTOR_PUSH(allocated_temps, temp);
+                emit_bi_op(tc, g, bb, &insert_after, MVM_OP_unbox_i,
+                    temporaries[op->load.temp], temporaries[op->load.idx]);
                 break;
             }
             case MVMDispOpcodeLoadHOW: {
