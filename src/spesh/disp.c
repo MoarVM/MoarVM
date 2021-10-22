@@ -76,7 +76,7 @@ MVMCallsite * MVM_spesh_disp_callsite_for_dispatch_op(MVMuint16 opcode, MVMuint8
         case MVM_OP_sp_runcfunc_o:
             return (MVMCallsite *)GET_UI64(args, 4);
         default:
-            MVM_panic(1, "Unknown disaptch op when resolving callsite");
+            MVM_panic(1, "Unknown dispatch op when resolving callsite");
     }
 }
 
