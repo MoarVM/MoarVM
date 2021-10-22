@@ -104,13 +104,18 @@ size_t record_size(MVMCallStackRecord *record) {
             return sizeof(MVMCallStackRegionStart);
         case MVM_CALLSTACK_RECORD_FRAME:
             return sizeof(MVMCallStackFrame) +
-                to_8_bytes(((MVMCallStackFrame *)record)->frame.allocd_work);
+                to_8_bytes(((MVMCallStackFrame *)record)->frame.allocd_work +
+                    ((MVMCallStackFrame *)record)->frame.allocd_env);
         case MVM_CALLSTACK_RECORD_HEAP_FRAME:
             return sizeof(MVMCallStackHeapFrame) +
                 to_8_bytes(((MVMCallStackHeapFrame *)record)->frame->allocd_work);
         case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
+            /* Look at memory from dead (pre-promotion) environment size, as
+             * we won't grow that on the callstack if we've moved it to the
+             * heap. */
             return sizeof(MVMCallStackPromotedFrame) +
-                to_8_bytes(((MVMCallStackHeapFrame *)record)->frame->allocd_work);
+                to_8_bytes(((MVMCallStackPromotedFrame *)record)->frame->allocd_work +
+                    ((MVMCallStackPromotedFrame *)record)->dead.allocd_env);
         case MVM_CALLSTACK_RECORD_CONTINUATION_TAG:
             return sizeof(MVMCallStackContinuationTag);
         case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
@@ -153,13 +158,17 @@ MVMCallStackRecord * MVM_callstack_allocate_nested_runloop(MVMThreadContext *tc)
 }
 
 /* Allocates a bytecode frame record on the callstack. */
-MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc, MVMuint16 work_size) {
+MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc, MVMuint16 work_size,
+        MVMuint16 env_size) {
     /* Allocate frame with space for registers initialized. */
     tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_FRAME,
-            sizeof(MVMCallStackFrame) + to_8_bytes(work_size));
+            sizeof(MVMCallStackFrame) + to_8_bytes(work_size + env_size));
     MVMCallStackFrame *allocated = (MVMCallStackFrame *)tc->stack_top;
     allocated->frame.work = (MVMRegister *)((char *)allocated + sizeof(MVMCallStackFrame));
+    allocated->frame.env = (MVMRegister *)((char *)allocated + sizeof(MVMCallStackFrame)
+            + work_size);
     allocated->frame.allocd_work = work_size;
+    allocated->frame.allocd_env = env_size;
 
     /* Ensure collectable header flags and owner are zeroed, which means we'll
      * never try to mark or root the frame. */
@@ -191,20 +200,71 @@ MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc,
 
 /* Sees if we can allocate work space (extra registers) for the purposes of
  * OSR. */
-MVMint32 MVM_callstack_ensure_work_space(MVMThreadContext *tc, MVMuint16 needed_size) {
+MVMint32 MVM_callstack_ensure_work_and_env_space(MVMThreadContext *tc, MVMuint16 needed_work,
+        MVMuint16 needed_env) {
     /* Call this to ensure we really do have a frame on the top of the stack,
      * rather than just reading tc->cur_frame. */
     MVMFrame *cur_frame = MVM_callstack_current_frame(tc);
 
-    /* Get difference needed. If it's too much, return false. */
-    MVMuint16 diff = to_8_bytes(needed_size - cur_frame->allocd_work);
-    MVMCallStackRegion *region = tc->stack_current_region;
-    if (region->alloc_limit - region->alloc < diff)
-        return 0;
+    /* Calculate the new work and environment sizes, ensuring we only ever
+     * grow them. */
+    MVMuint16 new_work_size = needed_work > cur_frame->allocd_work
+        ? needed_work
+        : cur_frame->allocd_work;
+    MVMuint16 new_env_size = needed_env > cur_frame->allocd_env
+        ? needed_env
+        : cur_frame->allocd_env;
 
-    /* Add extra space. */
-    region->alloc += diff;
-    cur_frame->allocd_work = needed_size;;
+    /* How we grow them depends on whether it's a callstack frame (and so the
+     * environment lives on the callstack) or a heap one. */
+    MVMCallStackRegion *region = tc->stack_current_region;
+    if (MVM_FRAME_IS_ON_CALLSTACK(tc, cur_frame)) {
+        /* Work out how much space we need for work and environment; bail if
+         * we don't have that much. */
+        MVMuint16 have = cur_frame->allocd_work + cur_frame->allocd_env;
+        MVMuint16 need = new_work_size + new_env_size;
+        MVMuint16 diff = to_8_bytes(need - have);
+        if (region->alloc_limit - region->alloc < diff)
+            return 0;
+
+        /* Allocate the extra space on the callstack. */
+        region->alloc += diff;
+
+        /* Move the environment to its new location on the callstack. */
+        MVMRegister *new_env = (MVMRegister *)(((char *)cur_frame) + sizeof(MVMFrame)
+                + new_work_size);
+        memmove(new_env, cur_frame->env, cur_frame->allocd_env);
+        cur_frame->env = new_env;
+    }
+    else {
+        /* Work out how much extra space we need for work, if any. */
+        MVMuint16 have = cur_frame->allocd_work;
+        MVMuint16 need = new_work_size;
+        MVMuint16 diff = to_8_bytes(need - have);
+        if (region->alloc_limit - region->alloc < diff)
+            return 0;
+
+        /* Allocate the extra space on the callstack. */
+        region->alloc += diff;
+
+        /* If the environment size changed, then need to realloc using the
+         * FSA. */
+        if (new_env_size > cur_frame->allocd_env) {
+            MVMRegister *new_env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
+                    new_env_size);
+            if (cur_frame->allocd_env) {
+                memcpy(new_env, cur_frame->env, cur_frame->allocd_env);
+                MVM_fixed_size_free(tc, tc->instance->fsa, cur_frame->allocd_env,
+                    cur_frame->env);
+            }
+            cur_frame->env = new_env;
+        }
+    }
+
+    /* Update new sizes. */
+    cur_frame->allocd_work = new_work_size;
+    cur_frame->allocd_env = new_env_size;
+
     return 1;
 }
 

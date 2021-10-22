@@ -21,10 +21,12 @@ static MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *can
 /* Does the jump into the optimized code. */
 void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
     /* Ensure there is space for the work area. */
-    if (specialized->body.work_size > tc->cur_frame->allocd_work) {
-        if (!MVM_callstack_ensure_work_space(tc, specialized->body.work_size)) {
+    if (specialized->body.work_size > tc->cur_frame->allocd_work ||
+            specialized->body.env_size > tc->cur_frame->allocd_env) {
+        if (!MVM_callstack_ensure_work_and_env_space(tc, specialized->body.work_size,
+                    specialized->body.env_size)) {
 #if MVM_LOG_OSR
-            fprintf(stderr, "Failed OSR as cannot grow work area for frame '%s' (cuid: %s)\n",
+            fprintf(stderr, "Failed OSR as cannot grow work/env area for frame '%s' (cuid: %s)\n",
                 MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
                 MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
 #endif
@@ -46,32 +48,13 @@ void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
         osr_index);
 #endif
 
-    /* Ensure new area is zeroed out. */
+    /* Ensure new work and environment areas are zeroed out. */
     if (specialized->body.work_size > tc->cur_frame->static_info->body.work_size) {
         size_t keep_bytes = tc->cur_frame->static_info->body.num_locals * sizeof(MVMRegister);
         size_t to_null = specialized->body.work_size - keep_bytes;
         memset((char *)tc->cur_frame->work + keep_bytes, 0, to_null);
     }
-
-    /* Resize environment if needed. */
-    if (specialized->body.num_lexicals > tc->cur_frame->static_info->body.num_lexicals) {
-        MVMRegister *new_env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-            specialized->body.env_size);
-        if (tc->cur_frame->allocd_env) {
-            memcpy(new_env, tc->cur_frame->env,
-                tc->cur_frame->static_info->body.num_lexicals * sizeof(MVMRegister));
-            MVM_fixed_size_free(tc, tc->instance->fsa, tc->cur_frame->allocd_env,
-                tc->cur_frame->env);
-        }
-        tc->cur_frame->env = new_env;
-        tc->cur_frame->allocd_env = specialized->body.env_size;
-#if MVM_LOG_OSR
-    fprintf(stderr, "OSR resized environment of frame '%s' (cuid: %s)\n",
-        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.name),
-        MVM_string_utf8_encode_C_string(tc, tc->cur_frame->static_info->body.cuuid));
-#endif
-    }
-    else if (specialized->body.env_size > tc->cur_frame->static_info->body.env_size) {
+    if (specialized->body.env_size > tc->cur_frame->static_info->body.env_size) {
         size_t keep_bytes = tc->cur_frame->static_info->body.num_lexicals * sizeof(MVMRegister);
         size_t to_null = specialized->body.env_size - keep_bytes;
         memset((char *)tc->cur_frame->env + keep_bytes, 0, to_null);
