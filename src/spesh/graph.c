@@ -154,7 +154,8 @@ static MVMint32 already_succs(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *
 static MVMint32 spesh_dispatchy(MVMuint16 opcode) {
     return (opcode >= MVM_OP_sp_dispatch_v    && opcode <= MVM_OP_sp_dispatch_o)    ||
            (opcode >= MVM_OP_sp_runbytecode_v && opcode <= MVM_OP_sp_runbytecode_o) ||
-           (opcode >= MVM_OP_sp_runcfunc_v    && opcode <= MVM_OP_sp_runcfunc_o);
+           (opcode >= MVM_OP_sp_runcfunc_v    && opcode <= MVM_OP_sp_runcfunc_o) ||
+           opcode == MVM_OP_sp_runnativecall;
 }
 
 int MVM_spesh_graph_ins_ends_bb(MVMThreadContext *tc, const MVMOpInfo *info) {
@@ -184,6 +185,7 @@ int MVM_spesh_graph_ins_ends_bb(MVMThreadContext *tc, const MVMOpInfo *info) {
     case MVM_OP_sp_runcfunc_n:
     case MVM_OP_sp_runcfunc_s:
     case MVM_OP_sp_runcfunc_o:
+    case MVM_OP_sp_runnativecall:
         return 1;
     default:
         if (info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {

@@ -6529,6 +6529,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 code->body.func(tc, args);
                 goto NEXT;
             }
+            OP(sp_runnativecall): {
+                MVMObject *site = GET_REG(cur_op, 2).o;
+                MVMArgs args = {
+                    .callsite = (MVMCallsite *)GET_UI64(cur_op, 4),
+                    .source = reg_base,
+                    .map = (MVMuint16 *)(cur_op + 12)
+                };
+                MVMObject *result_type = GET_REG(cur_op, 12).o;
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type = MVM_RETURN_OBJ;
+                ptrdiff_t opcode_length = 12 + 2 * args.callsite->flag_count;
+                cur_op += opcode_length;
+                tc->cur_frame->return_address = cur_op;
+                GET_REG(cur_op, -opcode_length).o = MVM_nativecall_dispatch(tc, result_type, site, args);
+                goto NEXT;
+            }
             OP(sp_resumption):
                 GET_REG(cur_op, 0).o = tc->instance->VMNull;
                 cur_op += 6 + 2 * GET_UI16(cur_op, 4);

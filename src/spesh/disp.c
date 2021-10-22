@@ -74,6 +74,7 @@ MVMCallsite * MVM_spesh_disp_callsite_for_dispatch_op(MVMuint16 opcode, MVMuint8
         case MVM_OP_sp_runcfunc_n:
         case MVM_OP_sp_runcfunc_s:
         case MVM_OP_sp_runcfunc_o:
+        case MVM_OP_sp_runnativecall:
             return (MVMCallsite *)GET_UI64(args, 4);
         default:
             MVM_panic(1, "Unknown dispatch op when resolving callsite");
@@ -543,6 +544,7 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
             case MVMDispOpcodeCopyArgsTail:
             case MVMDispOpcodeResultBytecode:
             case MVMDispOpcodeResultCFunction:
+            case MVMDispOpcodeResultForeignCode:
                 break;
             default:
                 MVM_spesh_graph_add_comment(tc, g, ins, "dispatch not compiled: op %s NYI",
@@ -1067,16 +1069,22 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 }
                 break;
             case MVMDispOpcodeResultBytecode:
-            case MVMDispOpcodeResultCFunction: {
+            case MVMDispOpcodeResultCFunction:
+            case MVMDispOpcodeResultForeignCode: {
                 /* Determine the op we'll specialize to. */
                 MVMOpInfo const *base_op;
-                MVMuint32 c = op->code == MVMDispOpcodeResultCFunction;
+                MVMuint32 c = op->code == MVMDispOpcodeResultCFunction
+                           || op->code == MVMDispOpcodeResultForeignCode;
+                MVMuint32 native = op->code == MVMDispOpcodeResultForeignCode ? 1 : 0;
+                assert(!native || ins->info->opcode == MVM_OP_dispatch_o);
                 switch (ins->info->opcode) {
                     case MVM_OP_dispatch_v:
                         base_op = MVM_op_get_op(c ? MVM_OP_sp_runcfunc_v : MVM_OP_sp_runbytecode_v);
                         break;
                     case MVM_OP_dispatch_o:
-                        base_op = MVM_op_get_op(c ? MVM_OP_sp_runcfunc_o : MVM_OP_sp_runbytecode_o);
+                        base_op = MVM_op_get_op(c
+                            ? native ? MVM_OP_sp_runnativecall : MVM_OP_sp_runcfunc_o
+                            : MVM_OP_sp_runbytecode_o);
                         break;
                     case MVM_OP_dispatch_i:
                         base_op = MVM_op_get_op(c ? MVM_OP_sp_runcfunc_i : MVM_OP_sp_runbytecode_i);
@@ -1161,8 +1169,8 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 MVM_spesh_manipulate_insert_ins(tc, bb, insert_after, rb_ins);
                 insert_after = rb_ins;
 
-                /* Make sure we delay release of temporaries if it's a runbytecode
-                 * op, since runbytecode optimization can add further ones. */
+                /* Make sure we delay release of temporaries since optimization
+                 * can add further ones. */
                 delay_temps_release = 1;
                 break;
             }
