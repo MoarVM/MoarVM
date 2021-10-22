@@ -1095,6 +1095,17 @@ sp_runcfunc_n    .s w(num64) r(obj) uint64
 sp_runcfunc_s    .s w(str) r(obj) uint64
 sp_runcfunc_o    .s w(obj) r(obj) uint64
 
+# Run a native function. The r(obj) register is the native function to invoke.
+# The uint64 is a pointer to the MVMCallsite (they never move and we know they
+# are interned). The first of the var args is actually required and is the
+# result type. Specifying this argument here would require special handling in
+# several places though.
+sp_runnativecall_v .s          r(obj) uint64 :maycausedeopt :invokish
+sp_runnativecall_i .s w(int64) r(obj) uint64 :maycausedeopt :invokish
+sp_runnativecall_n .s w(num64) r(obj) uint64 :maycausedeopt :invokish
+sp_runnativecall_s .s w(str)   r(obj) uint64 :maycausedeopt :invokish
+sp_runnativecall_o .s w(obj)   r(obj) uint64 :maycausedeopt :invokish
+
 # An instruction produced when translating dispatch programs that set up
 # one or more resumption initialization states. One is produce for each
 # of the resumable dispatches set up, and they are stacked up immediately
