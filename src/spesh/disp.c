@@ -65,6 +65,7 @@ MVMCallsite * MVM_spesh_disp_callsite_for_dispatch_op(MVMuint16 opcode, MVMuint8
             return cu->body.callsites[GET_UI16(args, 6)];
         case MVM_OP_sp_runbytecode_v:
         case MVM_OP_sp_runcfunc_v:
+        case MVM_OP_sp_runnativecall_v:
             return (MVMCallsite *)GET_UI64(args, 2);
         case MVM_OP_sp_runbytecode_i:
         case MVM_OP_sp_runbytecode_n:
@@ -74,6 +75,10 @@ MVMCallsite * MVM_spesh_disp_callsite_for_dispatch_op(MVMuint16 opcode, MVMuint8
         case MVM_OP_sp_runcfunc_n:
         case MVM_OP_sp_runcfunc_s:
         case MVM_OP_sp_runcfunc_o:
+        case MVM_OP_sp_runnativecall_i:
+        case MVM_OP_sp_runnativecall_n:
+        case MVM_OP_sp_runnativecall_s:
+        case MVM_OP_sp_runnativecall_o:
             return (MVMCallsite *)GET_UI64(args, 4);
         default:
             MVM_panic(1, "Unknown dispatch op when resolving callsite");
@@ -543,6 +548,7 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
             case MVMDispOpcodeCopyArgsTail:
             case MVMDispOpcodeResultBytecode:
             case MVMDispOpcodeResultCFunction:
+            case MVMDispOpcodeResultForeignCode:
                 break;
             default:
                 MVM_spesh_graph_add_comment(tc, g, ins, "dispatch not compiled: op %s NYI",
@@ -1066,6 +1072,82 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                         temporaries[target_idx++] = args[source_idx++];
                 }
                 break;
+            case MVMDispOpcodeResultForeignCode: {
+                /* Determine the op we'll specialize to. */
+                MVMOpInfo const *base_op;
+                switch (ins->info->opcode) {
+                    case MVM_OP_dispatch_v:
+                        base_op = MVM_op_get_op(MVM_OP_sp_runnativecall_v);
+                        break;
+                    case MVM_OP_dispatch_o:
+                        base_op = MVM_op_get_op(MVM_OP_sp_runnativecall_o);
+                        break;
+                    case MVM_OP_dispatch_i:
+                        base_op = MVM_op_get_op(MVM_OP_sp_runnativecall_i);
+                        break;
+                    case MVM_OP_dispatch_n:
+                        base_op = MVM_op_get_op(MVM_OP_sp_runnativecall_n);
+                        break;
+                    case MVM_OP_dispatch_s:
+                        base_op = MVM_op_get_op(MVM_OP_sp_runnativecall_s);
+                        break;
+                    default:
+                        MVM_oops(tc, "Unexpected dispatch op when translating bytecode result");
+                }
+
+
+                /* Form the varargs op and create the instruction. */
+                MVMOpInfo *rb_op = MVM_spesh_alloc(tc, g, MVM_spesh_disp_dispatch_op_info_size(
+                    tc, base_op, callsite));
+                MVM_spesh_disp_initialize_dispatch_op_info(tc, base_op, callsite, rb_op);
+                MVMSpeshIns *rb_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+                rb_ins->info = rb_op;
+                rb_ins->operands = MVM_spesh_alloc(tc, g,
+                     rb_op->num_operands * sizeof(MVMSpeshOperand));
+
+                /* Write result into dispatch result register unless void. */
+                MVMuint16 cur_op = 0;
+                if (ins->info->opcode != MVM_OP_dispatch_v) {
+                    rb_ins->operands[cur_op] = ins->operands[0];
+                    MVM_spesh_get_facts(tc, g, rb_ins->operands[cur_op])->writer = rb_ins;
+                    cur_op++;
+                }
+
+                /* Add the operand with the bytecode to run. */
+                rb_ins->operands[cur_op] = temporaries[op->res_code.temp_invokee];
+                MVM_spesh_usages_add_by_reg(tc, g, rb_ins->operands[cur_op], rb_ins);
+                cur_op++;
+
+                /* Add the callsite operand, smuggled as a 64-bit int. */
+                rb_ins->operands[cur_op++].lit_ui64 = (MVMuint64)callsite;
+
+                /* Add the argument operands. */
+                if (skip_args >= 0) {
+                    MVMuint16 j;
+                    for (j = 0; j < callsite->flag_count; j++) {
+                        rb_ins->operands[cur_op] = args[skip_args + j];
+                        MVM_spesh_usages_add_by_reg(tc, g, rb_ins->operands[cur_op], rb_ins);
+                        cur_op++;
+                    }
+                }
+                else {
+                    MVMuint16 j;
+                    for (j = 0; j < callsite->flag_count; j++) {
+                        rb_ins->operands[cur_op] = temporaries[dp->first_args_temporary + j];
+                        MVM_spesh_usages_add_by_reg(tc, g, rb_ins->operands[cur_op], rb_ins);
+                        cur_op++;
+                    }
+                }
+
+                /* Insert the produced instruction. */
+                MVM_spesh_manipulate_insert_ins(tc, bb, insert_after, rb_ins);
+                insert_after = rb_ins;
+
+                /* Make sure we delay release of temporaries since optimization
+                 * can add further ones. */
+                delay_temps_release = 1;
+                break;
+            }
             case MVMDispOpcodeResultBytecode:
             case MVMDispOpcodeResultCFunction: {
                 /* Determine the op we'll specialize to. */
@@ -1161,8 +1243,8 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 MVM_spesh_manipulate_insert_ins(tc, bb, insert_after, rb_ins);
                 insert_after = rb_ins;
 
-                /* Make sure we delay release of temporaries if it's a runbytecode
-                 * op, since runbytecode optimization can add further ones. */
+                /* Make sure we delay release of temporaries since optimization
+                 * can add further ones. */
                 delay_temps_release = 1;
                 break;
             }
