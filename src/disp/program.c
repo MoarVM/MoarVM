@@ -3683,6 +3683,7 @@ const char *MVM_disp_opcode_to_name(MVMDispProgramOpcode op) {
         case MVMDispOpcodeLoadAttributeInt: return "MVMDispOpcodeLoadAttributeInt";
         case MVMDispOpcodeLoadAttributeNum: return "MVMDispOpcodeLoadAttributeNum";
         case MVMDispOpcodeLoadAttributeStr: return "MVMDispOpcodeLoadAttributeStr";
+        case MVMDispOpcodeUnboxInt: return "MVMDispOpcodeUnboxInt";
         case MVMDispOpcodeLoadHOW: return "MVMDispOpcodeLoadHOW";
         case MVMDispOpcodeLookup: return "MVMDispOpcodeLookup";
         case MVMDispOpcodeSet: return "MVMDispOpcodeSet";
