@@ -1,3 +1,59 @@
+New in 2021.10
+
+Special:
++ Introduce a new generalized dispatch mechanism.
+  It results in a more uniform architecture for all kinds
+  of dispatch, delivering better performance on a range of
+  langauge features.
+  For more information see https://6guts.wordpress.com/2021/09/29/the-new-moarvm-dispatch-mechanism-is-here/
+
+6model:
++ [b75d0047]  Add `.new()` suggestion to type object errors
+
+Core:
++ [e28e06de] Correct libffi/dyncall discrepancy
++ [e66404a8] Ensure stable order of flattened named args
++ [f7d6bc61] Avoid locking on intern cache lookup
++ [039cc584] Fix two leaks missed by `--full-cleanup`
+
+Debugserver:
++ [ab2a3f01] Normalize filenames for debug server
++ [137ca834] Produce one breakpoint instruction per line
++ [b5b276ff] Fix issues with resuming suspended threads
++ [8f7d970a] Only produce debugger debugging output when asked
++ [746175bc] Fix regression in stepping
++ [cedebdbf] Add more debug output for stepping
++ [86d0a050] Avoid duplicate response for suspend/resume all
+
+JIT:
++ [a6ff2c03] Fix segfault in lego jit of `composetype`
++ [3a1346a4] Fix typo in JIT of `scobjcount`
++ [4f0fb9dd] JIT `(bind|get)exmessage`
++ [e4765d6c] JIT `getlexrel(caller)`
++ [3fb968ae] JIT `loadlib`
++ [029030ab] JIT `markcode(static|stub`)
++ [84348c9f] JIT `(new(mixin)|compose)type`
++ [989a8750] JIT `parameterizetype`
++ [87df9196] JIT `sha1`
++ [8e326cbc] JIT `seek_fh`
++ [bde03151] JIT `loadext`
++ [a0f9f387] JIT `setcodename`
++ [70b57ed2] JIT `throwpayloadlexcaller`
++ [f27b7fac] JIT `setparameterizer`
++ [0d01a32b] JIT `settypefinalize`
++ [890e65c6] JIT `usecompile(e|r)hllconfig`
+
+Strings:
++ [665ab937,3d478190] Stream Decoder: Disallow incomplete code at EOF
+
+Other:
++ [79ac88ea] Improve `MVM_bithacks_next_greater_pow2` function
++ [e22a190b] Doc research on scoping for an AArch64 JIT port
+
+Tooling/Build:
++ [9b6dd5ce] Remove Ubuntu 16.04 jobs from CI pipeline
++ [76afe93c] Simplify cloning NQP and Rakudo repos in CI jobs
+
 New in 2021.09
 
 Core:
