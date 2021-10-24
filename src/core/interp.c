@@ -6579,10 +6579,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *result_type = GET_REG(cur_op, 12).o;
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                 tc->cur_frame->return_type = MVM_RETURN_OBJ;
-                ptrdiff_t opcode_length = 12 + 2 * args.callsite->flag_count;
-                cur_op += opcode_length;
+                cur_op += 12 + 2 * args.callsite->flag_count;
                 tc->cur_frame->return_address = cur_op;
-                GET_REG(cur_op, -opcode_length).o = MVM_nativecall_dispatch(tc, result_type, site, args);
+                MVM_nativecall_dispatch(tc, result_type, site, args);
                 goto NEXT;
             }
             OP(sp_resumption):
