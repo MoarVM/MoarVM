@@ -1100,7 +1100,11 @@ sp_runcfunc_o    .s w(obj) r(obj) uint64
 # are interned). The first of the var args is actually required and is the
 # result type. Specifying this argument here would require special handling in
 # several places though.
-sp_runnativecall .s w(obj) r(obj) uint64 :maycausedeopt :invokish
+sp_runnativecall_v .s          r(obj) uint64 :maycausedeopt :invokish
+sp_runnativecall_i .s w(int64) r(obj) uint64 :maycausedeopt :invokish
+sp_runnativecall_n .s w(num64) r(obj) uint64 :maycausedeopt :invokish
+sp_runnativecall_s .s w(str)   r(obj) uint64 :maycausedeopt :invokish
+sp_runnativecall_o .s w(obj)   r(obj) uint64 :maycausedeopt :invokish
 
 # An instruction produced when translating dispatch programs that set up
 # one or more resumption initialization states. One is produce for each

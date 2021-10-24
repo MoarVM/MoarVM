@@ -74,7 +74,11 @@ MVMCallsite * MVM_spesh_disp_callsite_for_dispatch_op(MVMuint16 opcode, MVMuint8
         case MVM_OP_sp_runcfunc_n:
         case MVM_OP_sp_runcfunc_s:
         case MVM_OP_sp_runcfunc_o:
-        case MVM_OP_sp_runnativecall:
+        case MVM_OP_sp_runnativecall_v:
+        case MVM_OP_sp_runnativecall_i:
+        case MVM_OP_sp_runnativecall_n:
+        case MVM_OP_sp_runnativecall_s:
+        case MVM_OP_sp_runnativecall_o:
             return (MVMCallsite *)GET_UI64(args, 4);
         default:
             MVM_panic(1, "Unknown dispatch op when resolving callsite");
@@ -1088,21 +1092,29 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 assert(!native || ins->info->opcode == MVM_OP_dispatch_o);
                 switch (ins->info->opcode) {
                     case MVM_OP_dispatch_v:
-                        base_op = MVM_op_get_op(c ? MVM_OP_sp_runcfunc_v : MVM_OP_sp_runbytecode_v);
+                        base_op = MVM_op_get_op(c
+                            ? native ? MVM_OP_sp_runnativecall_v : MVM_OP_sp_runcfunc_v
+                            : MVM_OP_sp_runbytecode_v);
                         break;
                     case MVM_OP_dispatch_o:
                         base_op = MVM_op_get_op(c
-                            ? native ? MVM_OP_sp_runnativecall : MVM_OP_sp_runcfunc_o
+                            ? native ? MVM_OP_sp_runnativecall_o : MVM_OP_sp_runcfunc_o
                             : MVM_OP_sp_runbytecode_o);
                         break;
                     case MVM_OP_dispatch_i:
-                        base_op = MVM_op_get_op(c ? MVM_OP_sp_runcfunc_i : MVM_OP_sp_runbytecode_i);
+                        base_op = MVM_op_get_op(c
+                            ? native ? MVM_OP_sp_runnativecall_i : MVM_OP_sp_runcfunc_i
+                            : MVM_OP_sp_runbytecode_i);
                         break;
                     case MVM_OP_dispatch_n:
-                        base_op = MVM_op_get_op(c ? MVM_OP_sp_runcfunc_n : MVM_OP_sp_runbytecode_n);
+                        base_op = MVM_op_get_op(c
+                            ? native ? MVM_OP_sp_runnativecall_n : MVM_OP_sp_runcfunc_n
+                            : MVM_OP_sp_runbytecode_n);
                         break;
                     case MVM_OP_dispatch_s:
-                        base_op = MVM_op_get_op(c ? MVM_OP_sp_runcfunc_s : MVM_OP_sp_runbytecode_s);
+                        base_op = MVM_op_get_op(c
+                            ? native ? MVM_OP_sp_runnativecall_s : MVM_OP_sp_runcfunc_s
+                            : MVM_OP_sp_runbytecode_s);
                         break;
                     default:
                         MVM_oops(tc, "Unexpected dispatch op when translating bytecode result");

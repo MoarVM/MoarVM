@@ -171,6 +171,7 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
             || (op_num >= MVM_OP_sp_dispatch_v    && op_num <= MVM_OP_sp_dispatch_o)
             || (op_num >= MVM_OP_sp_runbytecode_v && op_num <= MVM_OP_sp_runbytecode_o)
             || (op_num >= MVM_OP_sp_runcfunc_v    && op_num <= MVM_OP_sp_runcfunc_o)
+            || (op_num >= MVM_OP_sp_runnativecall_v && op_num <= MVM_OP_sp_runnativecall_o)
         ) {
             /* These are var-arg ops; grab callsite and synthesize op info */
             MVMCallsite *callsite = MVM_spesh_disp_callsite_for_dispatch_op(op_num, cur_op, cu);
