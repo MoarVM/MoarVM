@@ -388,7 +388,14 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
             cps[i] = cp_maybe[i];
         }
     }
+#if defined(__GNUC__) && !defined(__clang__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
     query = get_main_node(tc, cps[0], 0, starter_main_nodes_elems);
+#if defined(__GNUC__) && !defined(__clang__)
+    #pragma GCC diagnostic pop
+#endif
     if (query != -1) {
         DEBUG_PRINT_SUB_NODE(main_nodes[query]);
         /* If there are no sub_node_elems that means we don't need to look at
