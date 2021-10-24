@@ -3118,12 +3118,11 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             MVM_disp_program_recording_destroy(tc, &(record->rec));
             record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
             tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
+            tc->cur_frame->return_type = record->orig_return_type;
 
             MVMObject *site = (MVMObject *)record->outcome.site;
             MVMObject *result_type = record->outcome.args.source[record->outcome.args.map[0]].o;
-            MVMObject *result = MVM_nativecall_dispatch(tc, result_type, site, record->outcome.args);
-            tc->cur_frame->return_type = record->orig_return_type;
-            MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
+            MVM_nativecall_dispatch(tc, result_type, site, record->outcome.args);
             return 1;
         default:
             MVM_oops(tc, "Unimplemented dispatch program outcome kind");
@@ -3520,8 +3519,7 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                         bytecode_offset, dp_index);
 
                 MVMObject *result_type = invoke_args.source[invoke_args.map[0]].o;
-                MVMObject *result = MVM_nativecall_dispatch(tc, result_type, record->temps[op.res_code.temp_invokee].o, invoke_args);
-                MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
+                MVM_nativecall_dispatch(tc, result_type, record->temps[op.res_code.temp_invokee].o, invoke_args);
                 MVM_callstack_unwind_dispatch_run(tc);
                 goto accept;
             }
