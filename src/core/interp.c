@@ -6713,12 +6713,15 @@ void MVM_interp_run_nested(MVMThreadContext *tc, void (*initial_invoke)(MVMThrea
         tc->interp_reg_base,
         tc->interp_cu
     };
+#if __GNUC__
+    __attribute__((unused))
+#endif
+    MVMCallStackRecord *csrecord;
     MVMROOT2(tc, backup_cur_frame, backup_thread_entry_frame, {
         MVMuint32 backup_mark                   = MVM_gc_root_temp_mark(tc);
         jmp_buf backup_interp_jump;
         memcpy(backup_interp_jump, tc->interp_jump, sizeof(jmp_buf));
-
-        MVMCallStackRecord *csrecord  = MVM_callstack_allocate_nested_runloop(tc);
+        csrecord                      = MVM_callstack_allocate_nested_runloop(tc);
         tc->cur_frame->return_value   = res;
         tc->cur_frame->return_type    = MVM_RETURN_OBJ;
         tc->cur_frame->return_address = *tc->interp_cur_op;
