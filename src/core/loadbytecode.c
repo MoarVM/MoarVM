@@ -3,18 +3,28 @@
 /* Handles loading of bytecode, including triggering the deserialize and load
  * special frames. Takes place in two steps, with a callback between them which
  * is triggered by the special_return mechanism. */
-static void run_load(MVMThreadContext *tc, void *sr_data);
-static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    MVM_gc_worklist_add(tc, worklist, &frame->extra->special_return_data);
+typedef struct {
+    MVMCompUnit *cu;
+} CompUnitToLoad;
+static void run_load(MVMThreadContext *tc, MVMCompUnit *cu);
+static void sr_on_return(MVMThreadContext *tc, void *sr_data) {
+    CompUnitToLoad *cul = (CompUnitToLoad *)sr_data;
+    run_load(tc, cul->cu);
+}
+static void mark_sr_data(MVMThreadContext *tc, void *sr_data, MVMGCWorklist *worklist) {
+    CompUnitToLoad *cul = (CompUnitToLoad *)sr_data;
+    MVM_gc_worklist_add(tc, worklist, &(cul->cu));
 }
 static void run_comp_unit(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* If there's a deserialization frame, need to run that. */
     if (cu->body.deserialize_frame) {
         /* Set up special return to delegate to running the load frame,
          * if any. */
-        tc->cur_frame->return_value             = NULL;
-        tc->cur_frame->return_type              = MVM_RETURN_VOID;
-        MVM_frame_special_return(tc, tc->cur_frame, run_load, NULL, cu, mark_sr_data);
+        tc->cur_frame->return_value = NULL;
+        tc->cur_frame->return_type = MVM_RETURN_VOID;
+        CompUnitToLoad *cul = MVM_callstack_allocate_special_return(tc,
+                sr_on_return, NULL, mark_sr_data, sizeof(CompUnitToLoad));
+        cul->cu = cu;
 
         /* Invoke the deserialization frame and return to the runloop. */
         MVM_frame_dispatch_zero_args(tc, cu->body.deserialize_frame->body.static_code);
@@ -135,9 +145,7 @@ void MVM_load_bytecode_fh(MVMThreadContext *tc, MVMObject *oshandle, MVMString *
 }
 
 /* Callback after running deserialize code to run the load code. */
-static void run_load(MVMThreadContext *tc, void *sr_data) {
-    MVMCompUnit *cu = (MVMCompUnit *)sr_data;
-
+static void run_load(MVMThreadContext *tc, MVMCompUnit *cu) {
     /* If there's a load frame, need to run that. If not, we're done. */
     if (cu->body.load_frame) {
         /* Make sure the call happens in void context. No special return
