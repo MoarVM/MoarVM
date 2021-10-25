@@ -598,6 +598,9 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
      * the temporaries until after runbytecode optimization. */
     MVMint32 delay_temps_release = 0;
 
+    /* Keep result register alive */
+    MVMint32 keep_result_register = ins->info->opcode != MVM_OP_dispatch_v;
+
     /* Visit the ops of the dispatch program and translate them. */
     MVMSpeshIns *insert_after = ins;
     MVMCallsite *callsite = NULL;
@@ -1115,11 +1118,17 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
 
 
                 int box_return_value = 0;
+                int has_return_value = (ins->info->opcode != MVM_OP_dispatch_v);
                 if (ins->info->opcode == MVM_OP_dispatch_o) {
                     MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, g, temporaries[op->res_code.temp_invokee]);
                     if (object_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
                         MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
                         switch (body->ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
+                            case MVM_NATIVECALL_ARG_VOID:
+                                base_op = MVM_op_get_op(MVM_OP_sp_runnativecall_v);
+                                keep_result_register = 0;
+                                has_return_value = 0;
+                                break;
                             case MVM_NATIVECALL_ARG_CHAR:
                             case MVM_NATIVECALL_ARG_SHORT:
                             case MVM_NATIVECALL_ARG_INT:
@@ -1144,7 +1153,7 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
 
                 /* Write result into dispatch result register unless void. */
                 MVMuint16 cur_op = 0;
-                if (ins->info->opcode != MVM_OP_dispatch_v) {
+                if (has_return_value) {
                     if (box_return_value) {
                         rb_ins->operands[cur_op] = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
                     }
@@ -1311,7 +1320,7 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
     /* Delete the dispatch instruction. Make sure we don't mark it as having
      * a dead writer (since we inserted a replacement instruction above). */
     MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
-    if (ins->info->opcode != MVM_OP_dispatch_v)
+    if (keep_result_register)
         MVM_spesh_get_facts(tc, g, ins->operands[0])->dead_writer = 0;
 
     /* Release temporaries now or pass them along for later. */
