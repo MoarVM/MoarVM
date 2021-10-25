@@ -3333,6 +3333,43 @@ void MVM_jit_emit_runccode(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
     | call FUNCTION
 }
 
+void MVM_jit_emit_runnativecall(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitRunNativeCall *runcode) {
+    MVMint16 i;
+
+    /* The return address for the interpreter */
+    | get_cur_op TMP2;
+    | mov TMP5, TC->cur_frame;
+    | mov aword FRAME:TMP5->return_address, TMP2;
+
+    /* Setup the frame for returning to our current position */
+    if (sizeof(MVMReturnType) == 1) {
+        | mov byte FRAME:TMP5->return_type, runcode->return_type;
+    } else {
+        MVM_panic(1, "JIT: MVMReturnType has unexpected size");
+    }
+
+    /* The register for our return value */
+    if (runcode->return_type == MVM_RETURN_VOID) {
+        | mov aword FRAME:TMP5->return_value, NULL;
+    } else {
+        | lea TMP2, WORK[runcode->return_register];
+        | mov aword FRAME:TMP5->return_value, TMP2;
+    }
+
+    |.if WIN32;
+    || emit_win64_callargs(tc, compiler, jg, runcode->args, runcode->num_args);
+    |.else;
+    || emit_posix_callargs(tc, compiler, jg, runcode->args, runcode->num_args);
+    |.endif
+
+    MVMuint64 entry_point = (MVMuint64)runcode->entry_point;
+    | mov64 FUNCTION, entry_point;
+    | call FUNCTION
+    if (runcode->return_type != MVM_RETURN_VOID) {
+        | mov WORK[runcode->return_register], RV
+    }
+}
+
 void MVM_jit_emit_dispatch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitDispatch *dispatch) {
     MVMint16 i;
     MVMuint64 callsite = (MVMuint64)dispatch->callsite;

@@ -268,6 +268,7 @@ typedef struct MVMJitData MVMJitData;
 typedef struct MVMJitStackSlot MVMJitStackSlot;
 typedef struct MVMJitRunByteCode MVMJitRunByteCode;
 typedef struct MVMJitRunCCode MVMJitRunCCode;
+typedef struct MVMJitRunNativeCall MVMJitRunNativeCall;
 typedef struct MVMJitDispatch MVMJitDispatch;
 typedef struct MVMJitIsType MVMJitIsType;
 typedef struct MVMJitCode MVMJitCode;
