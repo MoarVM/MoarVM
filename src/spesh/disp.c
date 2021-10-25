@@ -1134,6 +1134,27 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                     insert_resume_inits(tc, g, bb, &insert_after, dp, orig_args, temporaries,
                             deopt_all_ann->data.deopt_idx);
 
+                int box_return_value = 0;
+                if (native) {
+                    if (ins->info->opcode == MVM_OP_dispatch_o) {
+                        MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, g, temporaries[op->res_code.temp_invokee]);
+                        if (object_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                            MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
+                            switch (body->ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
+                                case MVM_NATIVECALL_ARG_CHAR:
+                                case MVM_NATIVECALL_ARG_SHORT:
+                                case MVM_NATIVECALL_ARG_INT:
+                                case MVM_NATIVECALL_ARG_LONG:
+                                case MVM_NATIVECALL_ARG_LONGLONG:
+                                case MVM_NATIVECALL_ARG_CPOINTER:
+                                    base_op = MVM_op_get_op(MVM_OP_sp_runnativecall_i);
+                                    box_return_value = 1;
+                                    break;
+                            }
+                        }
+                    }
+                }
+
                 /* Form the varargs op and create the instruction. */
                 MVMOpInfo *rb_op = MVM_spesh_alloc(tc, g, MVM_spesh_disp_dispatch_op_info_size(
                     tc, base_op, callsite));
@@ -1146,8 +1167,13 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 /* Write result into dispatch result register unless void. */
                 MVMuint16 cur_op = 0;
                 if (ins->info->opcode != MVM_OP_dispatch_v) {
-                    rb_ins->operands[cur_op] = ins->operands[0];
-                    MVM_spesh_get_facts(tc, g, rb_ins->operands[cur_op])->writer = rb_ins;
+                    if (box_return_value) {
+                        rb_ins->operands[cur_op] = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+                    }
+                    else {
+                        rb_ins->operands[cur_op] = ins->operands[0];
+                        MVM_spesh_get_facts(tc, g, rb_ins->operands[cur_op])->writer = rb_ins;
+                    }
                     cur_op++;
                 }
 
@@ -1197,6 +1223,12 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 /* Insert the produced instruction. */
                 MVM_spesh_manipulate_insert_ins(tc, bb, insert_after, rb_ins);
                 insert_after = rb_ins;
+
+                if (box_return_value) {
+                    MVMSpeshIns *insert_after = NULL;
+                    emit_tri_op(tc, g, bb->linear_next, &insert_after, MVM_OP_box_i, ins->operands[0], rb_ins->operands[0], rb_ins->operands[3]);
+                    MVM_spesh_manipulate_release_temp_reg(tc, g, rb_ins->operands[0]);
+                }
 
                 /* Make sure we delay release of temporaries since optimization
                  * can add further ones. */
