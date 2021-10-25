@@ -1098,7 +1098,6 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 MVMuint32 c = op->code == MVMDispOpcodeResultCFunction
                            || op->code == MVMDispOpcodeResultForeignCode;
                 MVMuint32 native = op->code == MVMDispOpcodeResultForeignCode ? 1 : 0;
-                assert(!native || ins->info->opcode == MVM_OP_dispatch_o);
                 switch (ins->info->opcode) {
                     case MVM_OP_dispatch_v:
                         base_op = MVM_op_get_op(c
