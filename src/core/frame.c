@@ -1001,7 +1001,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
         }
 
         cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
-        MVM_frame_special_return(tc, cur_frame, remove_after_handler, NULL, NULL, NULL);
+        MVM_callstack_allocate_special_return(tc, remove_after_handler, NULL, NULL, 0);
         MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
                 MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
         args_record->args.source[0].o = cur_frame->code_ref;
@@ -1029,8 +1029,8 @@ typedef struct {
     MVMuint32  rel_addr;
     void      *jit_return_label;
 } MVMUnwindData;
-static void mark_unwind_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    MVMUnwindData *ud  = (MVMUnwindData *)frame->extra->special_return_data;
+static void mark_unwind_data(MVMThreadContext *tc, void *sr_data, MVMGCWorklist *worklist) {
+    MVMUnwindData *ud  = (MVMUnwindData *)sr_data;
     MVM_gc_worklist_add(tc, worklist, &(ud->frame));
 }
 static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
@@ -1039,11 +1039,7 @@ static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
     MVMuint8 *abs_addr = ud->abs_addr;
     MVMuint32 rel_addr = ud->rel_addr;
     void *jit_return_label = ud->jit_return_label;
-    MVM_free(sr_data);
     MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL, jit_return_label);
-}
-static void free_unwind_data(MVMThreadContext *tc, void *sr_data) {
-    MVM_free(sr_data);
 }
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
                          MVMuint32 rel_addr, MVMObject *return_value, void *jit_return_label) {
@@ -1092,15 +1088,12 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                     MVM_exception_throw_adhoc(tc, "Thread entry point frame cannot have an exit handler");
 
                 MVMHLLConfig *hll = MVM_hll_current(tc);
-                {
-                    MVMUnwindData *ud = MVM_malloc(sizeof(MVMUnwindData));
-                    ud->frame = frame;
-                    ud->abs_addr = abs_addr;
-                    ud->rel_addr = rel_addr;
-                    ud->jit_return_label = jit_return_label;
-                    MVM_frame_special_return(tc, cur_frame, continue_unwind,
-                        free_unwind_data, ud, mark_unwind_data);
-                }
+                MVMUnwindData *ud = MVM_callstack_allocate_special_return(tc,
+                        continue_unwind, NULL, mark_unwind_data, sizeof(MVMUnwindData));
+                ud->frame = frame;
+                ud->abs_addr = abs_addr;
+                ud->rel_addr = rel_addr;
+                ud->jit_return_label = jit_return_label;
                 cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
                 MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
                         MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
