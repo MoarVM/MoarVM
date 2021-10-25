@@ -1082,22 +1082,16 @@ MVMObject * MVM_args_slurpy_named(MVMThreadContext *tc, MVMArgProcContext *ctx) 
 /* Custom bind failure handling. Invokes the HLL's bind failure handler, with
  * an argument capture */
 static void bind_error_return(MVMThreadContext *tc, void *sr_data) {
-    MVMRegister *r   = (MVMRegister *)sr_data;
-    MVMObject   *res = r->o;
-    MVM_free(r);
+    MVMRegister *r = (MVMRegister *)sr_data;
+    MVMObject *res = r->o;
     if (tc->cur_frame->caller)
         MVM_args_set_result_obj(tc, res, 0);
     else
         MVM_exception_throw_adhoc(tc, "No caller to return to after bind_error");
     MVM_frame_try_return(tc);
 }
-
-static void bind_error_unwind(MVMThreadContext *tc, void *sr_data) {
-    MVM_free(sr_data);
-}
-
-static void mark_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    MVMRegister *r = (MVMRegister *)frame->extra->special_return_data;
+static void mark_sr_data(MVMThreadContext *tc, void *sr_data, MVMGCWorklist *worklist) {
+    MVMRegister *r = (MVMRegister *)sr_data;
     MVM_gc_worklist_add(tc, worklist, &r->o);
 }
 void MVM_args_bind_failed(MVMThreadContext *tc, MVMDispInlineCacheEntry **ice_ptr) {
@@ -1127,12 +1121,12 @@ void MVM_args_bind_failed(MVMThreadContext *tc, MVMDispInlineCacheEntry **ice_pt
     MVMObject *cc_obj = MVM_args_save_capture(tc, tc->cur_frame);
 
     /* Invoke the HLL's bind failure handler. */
-    MVMFrame *cur_frame = tc->cur_frame;
     MVMCode *bind_error = MVM_hll_current(tc)->bind_error;
     if (!bind_error)
         MVM_exception_throw_adhoc(tc, "Bind error occurred, but HLL has no handler");
-    MVMRegister *res = MVM_calloc(1, sizeof(MVMRegister));
-    MVM_frame_special_return(tc, cur_frame, bind_error_return, bind_error_unwind, res, mark_sr_data);
+    MVMRegister *res = MVM_callstack_allocate_special_return(tc, bind_error_return,
+            NULL, mark_sr_data, sizeof(MVMRegister));
+    res->o = tc->instance->VMNull;
     MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
             MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ));
     args_record->args.source[0].o = cc_obj;
