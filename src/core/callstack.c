@@ -70,6 +70,7 @@ char * record_name(MVMuint8 kind) {
         case MVM_CALLSTACK_RECORD_ARGS_FROM_C: return "args from C";
         case MVM_CALLSTACK_RECORD_DEOPTED_RESUME_INIT: return "deoptimized resume init";
         case MVM_CALLSTACK_RECORD_NESTED_RUNLOOP: return "nested runloop";
+        case MVM_CALLSTACK_RECORD_SPECIAL_RETURN: return "special return arguments";
         default: return "unknown";
     }
 }
@@ -132,6 +133,9 @@ size_t record_size(MVMCallStackRecord *record) {
         }
         case MVM_CALLSTACK_RECORD_NESTED_RUNLOOP:
             return sizeof(MVMCallStackNestedRunloop);
+        case MVM_CALLSTACK_RECORD_SPECIAL_RETURN:
+            return to_8_bytes(sizeof(MVMCallStackSpecialReturn) +
+                ((MVMCallStackSpecialReturn *)record)->data_size);
         default:
             MVM_panic(1, "Unknown callstack record type in record_size");
     }
@@ -155,6 +159,22 @@ MVMCallStackRecord * MVM_callstack_allocate_nested_runloop(MVMThreadContext *tc)
             sizeof(MVMCallStackNestedRunloop));
     ((MVMCallStackNestedRunloop*)tc->stack_top)->cur_frame = tc->cur_frame;
     return tc->stack_top;
+}
+
+/* Allocates a special return frame on the stack with the specified amount of
+ * extra storage space for special return data. Returns a pointer to the
+ * special return data that is allocated. */
+void * MVM_callstack_allocate_special_return(MVMThreadContext *tc,
+        MVMSpecialReturn special_return, MVMSpecialReturn special_unwind,
+        MVMSpecialReturnMark mark_data, size_t data_size) {
+    tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_SPECIAL_RETURN,
+            to_8_bytes(sizeof(MVMCallStackSpecialReturn) + data_size));
+    MVMCallStackSpecialReturn *sr = (MVMCallStackSpecialReturn *)tc->stack_top;
+    sr->special_return = special_return;
+    sr->special_unwind = special_unwind;
+    sr->mark_data = mark_data;
+    sr->data_size = data_size;
+    return (char *)sr + sizeof(MVMCallStackSpecialReturn);
 }
 
 /* Allocates a bytecode frame record on the callstack. */
@@ -682,6 +702,30 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
             case MVM_CALLSTACK_RECORD_NESTED_RUNLOOP: {
                 return ((MVMCallStackNestedRunloop*)tc->stack_top)->cur_frame;
             }
+            case MVM_CALLSTACK_RECORD_SPECIAL_RETURN: {
+                /* Read the callback info, and then remove this record (as we
+                 * may never run them twice). */
+                MVMCallStackSpecialReturn *sr = (MVMCallStackSpecialReturn *)tc->stack_top;
+                MVMSpecialReturn special_return = sr->special_return;
+                MVMSpecialReturn special_unwind = sr->special_unwind;
+                void *data = (char *)tc->stack_top + sizeof(MVMCallStackSpecialReturn);
+                tc->stack_current_region->alloc = (char *)tc->stack_top;
+                tc->stack_top = tc->stack_top->prev;
+
+                /* Run the callback if present. */
+                MVMCallStackRecord *top_was = tc->stack_top;
+                if (!exceptional && special_return)
+                    special_return(tc, data);
+                else if (exceptional && special_unwind)
+                    special_unwind(tc, data);
+
+                /* If we invoked something, then set the thunk flag and return. */
+                if (tc->stack_top != top_was) {
+                    *thunked = 1;
+                    return NULL;
+                }
+                break;
+            }
             default:
                 MVM_panic(1, "Unknown call stack record type in unwind");
         }
@@ -847,6 +891,13 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                         ((MVMCallStackNestedRunloop *)record)->cur_frame,
                         "Callstack reference to frame starting a nested runloop");
                 break;
+            case MVM_CALLSTACK_RECORD_SPECIAL_RETURN: {
+                MVMCallStackSpecialReturn *sr = (MVMCallStackSpecialReturn *)record;
+                if (sr->mark_data && worklist)
+                    sr->mark_data(tc, (char *)sr + sizeof(MVMCallStackSpecialReturn),
+                            worklist);
+                break;
+            }
             default:
                 MVM_panic(1, "Unknown call stack record type in GC marking");
         }

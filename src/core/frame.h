@@ -14,7 +14,9 @@ typedef void (* MVMSpecialReturn)(MVMThreadContext *tc, void *data);
 
 /* Function pointer for marking the special return handler data. */
 typedef void (* MVMSpecialReturnDataMark)(MVMThreadContext *tc, MVMFrame *frame,
-                                          MVMGCWorklist *worklist);
+                                          MVMGCWorklist *worklist); /* XXX Legacy */
+typedef void (* MVMSpecialReturnMark)(MVMThreadContext *tc, void *data,
+                                      MVMGCWorklist *worklist);
 
 /* This represents an call frame, aka invocation record. It may exist either on
  * the heap, in which case its header will have the MVM_CF_FRAME flag set, or
