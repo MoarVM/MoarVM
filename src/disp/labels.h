@@ -41,6 +41,7 @@ static const void * const LABELS[] = {
         &&MVMDispOpcodeLoadAttributeStr,
         &&MVMDispOpcodeLoadHOW,
         &&MVMDispOpcodeUnboxInt,
+        &&MVMDispOpcodeUnboxNum,
         &&MVMDispOpcodeUnboxStr,
         &&MVMDispOpcodeLookup,
         &&MVMDispOpcodeSet,
