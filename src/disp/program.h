@@ -459,6 +459,8 @@ typedef enum {
     MVMDispOpcodeLoadHOW,
     /* Unbox an int from an object into a temporary. */
     MVMDispOpcodeUnboxInt,
+    /* Unbox a num from an object into a temporary. */
+    MVMDispOpcodeUnboxNum,
     /* Unbox a str from an object into a temporary. */
     MVMDispOpcodeUnboxStr,
     /* Do a lookup in a hash table and put the result into a temporary if it is
@@ -628,6 +630,7 @@ MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *c
 MVMObject * MVM_disp_program_record_track_attr(MVMThreadContext *tc, MVMObject *tracked,
         MVMObject *class_handle, MVMString *name);
 MVMObject * MVM_disp_program_record_track_unbox_int(MVMThreadContext *tc, MVMObject *tracked);
+MVMObject * MVM_disp_program_record_track_unbox_num(MVMThreadContext *tc, MVMObject *tracked);
 MVMObject * MVM_disp_program_record_track_unbox_str(MVMThreadContext *tc, MVMObject *tracked);
 MVMObject * MVM_disp_program_record_track_how(MVMThreadContext *tc, MVMObject *tracked);
 void MVM_disp_program_record_guard_type(MVMThreadContext *tc, MVMObject *tracked);
