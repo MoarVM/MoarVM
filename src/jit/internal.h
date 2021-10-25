@@ -60,6 +60,7 @@ void MVM_jit_emit_marker(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMint3
 void MVM_jit_emit_deopt_check(MVMThreadContext *tc, MVMJitCompiler *compiler);
 void MVM_jit_emit_runbytecode(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitRunByteCode *runcode);
 void MVM_jit_emit_runccode(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitRunCCode *runcode);
+void MVM_jit_emit_runnativecall(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitRunNativeCall *runcode);
 void MVM_jit_emit_dispatch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitDispatch *dispatch);
 void MVM_jit_emit_istype(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitIsType *istype);
 

@@ -3877,6 +3877,72 @@ start:
         jg_append_label(tc, jg, reentry_label);
         break;
     }
+    case MVM_OP_sp_runnativecall_v:
+    case MVM_OP_sp_runnativecall_i: {
+        int start = (op == MVM_OP_sp_runnativecall_v) ? 0 : 1;
+        MVMint16 dst          = ins->operands[0].reg.orig;
+
+        MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, iter->graph, ins->operands[start]);
+        if (!(object_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)) {
+            MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
+                "BAIL: op <%s> (Can't find nc_site value on spesh ins)", ins->info->name);
+            return 0;
+        }
+
+        MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
+        MVMCallsite *callsite = (MVMCallsite*)ins->operands[1 + start].lit_ui64;
+        MVMJitCallArg *args = callsite->flag_count > 1 /* first arg is return_type */
+            ? MVM_spesh_alloc(tc, jg->sg, (callsite->flag_count - 1) * sizeof(MVMJitCallArg))
+            : NULL;
+
+        for (int i = 1; i < callsite->flag_count; i++) {
+            if (callsite->arg_flags[i] & MVM_CALLSITE_ARG_INT) {
+                args[i - 1].type = MVM_JIT_REG_VAL;
+                args[i - 1].v.reg = ins->operands[start + 2 + i].reg.orig;
+            }
+            else if (callsite->arg_flags[i] & MVM_CALLSITE_ARG_NUM && body->arg_types[i - 1] == MVM_NATIVECALL_ARG_DOUBLE) {
+                args[i - 1].type = MVM_JIT_REG_VAL_F;
+                args[i - 1].v.reg = ins->operands[start + 2 + i].reg.orig;
+            }
+            else {
+                MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
+                    "BAIL: op <%s> (arg type NYI)", ins->info->name);
+                return 0;
+            }
+        }
+
+        MVMint32 reentry_label = MVM_jit_label_after_ins(tc, jg, iter->bb, ins);
+        MVMJitNode *node = MVM_spesh_alloc(tc, jg->sg, sizeof(MVMJitNode));
+        node->type                       = MVM_JIT_NODE_RUNNATIVECALL;
+        node->u.runnativecall.args            = args;
+        node->u.runnativecall.num_args        = callsite->flag_count - 1;
+        node->u.runnativecall.return_type     =
+            op == MVM_OP_sp_runnativecall_v
+                ? MVM_RETURN_VOID
+                : op == MVM_OP_sp_runnativecall_i
+                    ? MVM_RETURN_INT
+                    : op == MVM_OP_sp_runnativecall_s
+                        ? MVM_RETURN_STR
+                        : op == MVM_OP_sp_runnativecall_n
+                            ? MVM_RETURN_NUM
+                            : MVM_RETURN_OBJ;
+        node->u.runnativecall.return_register = dst;
+        node->u.runnativecall.entry_point     = body->entry_point;
+        node->u.runnativecall.map             = &ins->operands[2 + start];
+        node->u.runnativecall.reentry_label   = reentry_label;
+        jg_append_node(jg, node);
+        /* append reentry label */
+        jg_append_label(tc, jg, reentry_label);
+        /* Check the entry_point after we've used it to generate the code to avoid a race
+         * condition where the check turned out fine, but entry_point got overwritten before we
+         * got to use it for generating the code. */
+        if (!body->entry_point) {
+            MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
+                "BAIL: op <%s> (entry_point is NULL)", ins->info->name);
+            return 0;
+        }
+        break;
+    }
     case MVM_OP_sp_dispatch_v:
     case MVM_OP_sp_dispatch_i:
     case MVM_OP_sp_dispatch_s:
