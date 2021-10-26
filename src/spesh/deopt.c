@@ -95,7 +95,8 @@ static void uninline(MVMThreadContext *tc, MVMFrame *f, MVMSpeshCandidate *cand,
             /* Make a record for it on the stack; the MVMFrame is contained in
              * it. Set up the frame. Note that this moves tc->stack_top, so we
              * are now considered to be in this frame. */
-            MVMCallStackFrame *urecord = MVM_callstack_allocate_frame(tc);
+            MVMCallStackFrame *urecord = MVM_callstack_allocate_frame(tc,
+                    usf->body.work_size, usf->body.env_size);
             MVMFrame *uf = &(urecord->frame);
             MVM_frame_setup_deopt(tc, uf, usf, ucode);
             uf->caller = caller;

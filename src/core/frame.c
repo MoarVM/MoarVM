@@ -128,12 +128,8 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
  * part of a continuation that was taken but never invoked, we should check
  * things normally cleaned up on return don't need cleaning up also. */
 void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame) {
-    if (frame->work) {
-        MVM_args_proc_cleanup(tc, &frame->params);
-        MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_work,
-            frame->work);
-    }
-    if (frame->env)
+    MVM_args_proc_cleanup(tc, &frame->params);
+    if (frame->env && !MVM_FRAME_IS_ON_CALLSTACK(tc, frame))
         MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_env, frame->env);
     if (frame->extra) {
         MVMFrameExtra *e = frame->extra;
@@ -251,21 +247,6 @@ static MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
     return result;
 }
 
-/* Makes sure memory is cleared for the stack frame entry. */
-MVM_STATIC_INLINE void MVM_frame_init_on_stack(MVMFrame *frame) {
-    /* Ensure collectable header flags and owner are zeroed, which means we'll
-     * never try to mark or root the frame. */
-    frame->header.flags1 = 0;
-    frame->header.flags2 = 0;
-    frame->header.owner = 0;
-
-    /* Current arguments callsite must be NULL as it's used in GC. Extra must
-     * be NULL so we know we don't have it. Flags should be zeroed. */
-    frame->cur_args_callsite = NULL;
-    frame->extra = NULL;
-    frame->flags = 0;
-}
-
 /* Obtains memory for a frame that we are about to enter and run bytecode in. Prefers
  * the callstack by default, but can put the frame onto the heap if it tends to be
  * promoted there anyway. Returns a pointer to the frame wherever in memory it ends
@@ -273,64 +254,57 @@ MVM_STATIC_INLINE void MVM_frame_init_on_stack(MVMFrame *frame) {
 static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame,
                                  MVMSpeshCandidate *spesh_cand, MVMint32 heap) {
     MVMFrame *frame;
-    MVMint32  env_size, work_size, num_locals;
+    MVMint32  num_locals;
     MVMStaticFrameBody *static_frame_body;
     MVMJitCode *jitcode;
 
+    MVMint32 work_size = spesh_cand ? spesh_cand->body.work_size : static_frame->body.work_size;
+    MVMint32 env_size = spesh_cand ? spesh_cand->body.env_size : static_frame->body.env_size;
     if (heap) {
-        /* Allocate frame on the heap, and stick it into a heap frame call stack
-         * record. We know it's already zeroed. */
+        /* Allocate frame on the heap. The callstack record includes space
+         * for the work registers and ->work will have been set up already. */
         MVMROOT2(tc, static_frame, spesh_cand, {
             if (tc->cur_frame)
                 MVM_frame_force_to_heap(tc, tc->cur_frame);
-            frame = MVM_gc_allocate_frame(tc);
+            frame = MVM_callstack_allocate_heap_frame(tc, work_size)->frame;
         });
-        MVMCallStackHeapFrame *record = MVM_callstack_allocate_heap_frame(tc);
-        record->frame = frame;
+
+        /* If we have an environment, that needs allocating separately for
+         * heap-based frames. */
+        if (env_size) {
+            frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
+            frame->allocd_env = env_size;
+        }
     }
     else {
-        /* Allocate the frame on the call stack. */
-        MVMCallStackFrame *record = MVM_callstack_allocate_frame(tc);
+        /* Allocate the frame on the call stack. The callstack record includes
+         * space for both the work registers and the environment, and both the
+         * ->work and ->env pointers will have been set up already, but we do
+         *  need to clear the environment. */
+        MVMCallStackFrame *record = MVM_callstack_allocate_frame(tc, work_size, env_size);
         frame = &(record->frame);
-        MVM_frame_init_on_stack(frame);
+        memset(frame->env, 0, env_size);
     }
 
-    /* Allocate space for lexicals and work area. */
+    /* Set up work area. */
     static_frame_body = &(static_frame->body);
-    env_size = spesh_cand ? spesh_cand->body.env_size : static_frame_body->env_size;
-
     jitcode = spesh_cand ? spesh_cand->body.jitcode : NULL;
     num_locals = jitcode && jitcode->local_types ? jitcode->num_locals :
         (spesh_cand ? spesh_cand->body.num_locals : static_frame_body->num_locals);
-    if (env_size) {
-        frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
-        frame->allocd_env = env_size;
-    }
-    else {
-        frame->env = NULL;
-        frame->allocd_env = 0;
-    }
-    work_size = spesh_cand ? spesh_cand->body.work_size : static_frame_body->work_size;
     if (work_size) {
         if (spesh_cand) {
-            /* Allocate zeroed memory. Spesh makes sure we have VMNull setup in
+            /* Zero frame memory. Spesh makes sure we have VMNull setup in
              * the places we need it. */
-            frame->work = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, work_size);
+            memset(frame->work, 0, work_size);
         }
         else {
             /* Copy frame template with VMNulls in to place. */
-            frame->work = MVM_fixed_size_alloc(tc, tc->instance->fsa, work_size);
             memcpy(frame->work, static_frame_body->work_initial,
                 sizeof(MVMRegister) * static_frame_body->num_locals);
         }
-        frame->allocd_work = work_size;
 
         /* Calculate args buffer position. */
         frame->args = frame->work + num_locals;
-    }
-    else {
-        frame->work = NULL;
-        frame->allocd_work = 0;
     }
 
     /* Set static frame and caller before we let this frame escape and the GC
@@ -345,32 +319,12 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
 void MVM_frame_setup_deopt(MVMThreadContext *tc, MVMFrame *frame, MVMStaticFrame *static_frame,
         MVMCode *code_ref) {
     /* Initialize various frame properties. */
-    MVM_frame_init_on_stack(frame);
     frame->static_info = static_frame;
     frame->code_ref = (MVMObject *)code_ref;
     frame->outer = code_ref->body.outer;
     frame->spesh_cand = NULL;
     frame->spesh_correlation_id = 0;
-
-    /* Allocate space for lexicals and work area. */
-    MVMStaticFrameBody *static_frame_body = &(static_frame->body);
-    MVMint32 env_size = static_frame_body->env_size;
-    if (env_size) {
-        frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
-        frame->allocd_env = env_size;
-    }
-    else {
-        frame->env = NULL;
-    }
-    MVMint32 work_size = static_frame_body->work_size;
-    if (work_size) {
-        frame->work = MVM_fixed_size_alloc(tc, tc->instance->fsa, work_size);
-        frame->allocd_work = work_size;
-        frame->args = frame->work + static_frame_body->num_locals;
-    }
-    else {
-        frame->work = NULL;
-    }
+    frame->args = frame->work + static_frame->body.num_locals;
 }
 
 /* Sets up storage for state variables. We do this after tc->cur_frame became
@@ -671,6 +625,28 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
             MVMCallStackFrame *unpromoted_record = (MVMCallStackFrame *)record;
             cur_to_promote = &(unpromoted_record->frame);
 
+            /* Move any lexical environment to the heap, as it may now
+             * out-live the callstack entry. */
+            MVMuint16 env_size = cur_to_promote->allocd_env;
+            if (env_size) {
+                MVMRegister *heap_env = MVM_fixed_size_alloc(tc,
+                        tc->instance->fsa, env_size);
+                memcpy(heap_env, cur_to_promote->env, env_size);
+                cur_to_promote->env = heap_env;
+            }
+            else {
+                /* Stack frames may set up the env pointer even if it's to
+                 * an empty area (avoids branches); ensure it is nulled out
+                 * so we don't try to do a bogus free later. */
+                cur_to_promote->env = NULL;
+            }
+
+            /* Clear any dynamic lexical cache entry, as it may point into an
+             * environment that gets moved to the heap. */
+            MVMFrameExtra *e = cur_to_promote->extra;
+            if (e)
+                e->dynlex_cache_name = NULL;
+
             /* Allocate a heap frame. */
             /* frame is safe from the GC as we wouldn't be here if it wasn't on the stack */
             MVMFrame *promoted = MVM_gc_allocate_frame(tc);
@@ -896,31 +872,15 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         need_caller = 0;
     }
 
-    /* Clean up frame working space. */
-    if (returner->work) {
-        MVM_args_proc_cleanup(tc, &returner->params);
-        MVM_fixed_size_free(tc, tc->instance->fsa, returner->allocd_work,
-            returner->work);
-    }
+    /* Clean up any allocations for argument working area. */
+    MVM_args_proc_cleanup(tc, &returner->params);
 
-    /* If it's a call stack frame, its environment wasn't closed over, so it
-     * can go away immediately. */
-    MVMuint32 clear_caller;
-    if (MVM_FRAME_IS_ON_CALLSTACK(tc, returner)) {
-        if (returner->env)
-            MVM_fixed_size_free(tc, tc->instance->fsa, returner->allocd_env, returner->env);
-        clear_caller = 0;
-    }
-
-    /* Otherwise, NULL  out ->work, to indicate the frame is no longer in
-     * dynamic scope. This is used by the GC to avoid marking stuff (this is
-     * needed for safety as otherwise we'd read freed memory), as well as by
-     * exceptions to ensure the target of an exception throw is indeed still
-     * in dynamic scope. */
-    else {
-        returner->work = NULL;
-        clear_caller = !need_caller;
-    }
+    /* NULL out ->work, to indicate the frame is no longer in dynamic scope.
+     * This is used by the GC to avoid marking stuff (this is needed for
+     * safety as otherwise we'd read freed memory), as well as by exceptions to
+     * ensure the target of an exception throw is indeed still in dynamic
+     * scope. */
+    returner->work = NULL;
 
     /* Unwind call stack entries. From this, we find out the caller. This may
      * actually *not* be the caller in the frame, because of lazy deopt. Also
@@ -935,9 +895,9 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         MVMROOT(tc, returner, {
             caller = MVM_callstack_unwind_frame(tc, unwind, &thunked);
         });
+        if (!need_caller)
+            returner->caller = NULL;
     }
-    if (clear_caller)
-        returner->caller = NULL;
     if (thunked)
         return 1;
 

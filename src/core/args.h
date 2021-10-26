@@ -68,9 +68,11 @@ MVM_STATIC_INLINE void MVM_args_proc_setup(MVMThreadContext *tc, MVMArgProcConte
 
 /* Clean up an arguments processing context. */
 MVM_STATIC_INLINE void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
-    if (ctx->named_used_size > 64)
+    if (ctx->named_used_size > 64) {
         MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size,
             ctx->named_used.byte_array);
+        ctx->named_used_size = 0;
+    }
 }
 
 /* Argument processing context handling. */

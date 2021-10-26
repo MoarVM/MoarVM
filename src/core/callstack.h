@@ -68,7 +68,11 @@ struct MVMCallStackRegionStart {
     MVMCallStackRecord common;
 };
 
-/* A bytecode frame, the MVMFrame being allocated inline on the callstack. */
+/* A bytecode frame, the MVMFrame being allocated inline on the callstack.
+ * It is followed by space for the work area (registers) and the lexical
+ * environment (also registers). The work area lives on the callstack no
+ * matter if the frame ends up heap promoted; the environment will be
+ * copied into a heap location for safety reasons upon promotion. */
 #define MVM_CALLSTACK_RECORD_FRAME              2
 struct MVMCallStackFrame {
     /* Commonalities of all records. */
@@ -78,7 +82,9 @@ struct MVMCallStackFrame {
     MVMFrame frame;
 };
 
-/* A bytecode frame where the MVMFrame was allocated directly on the heap.  */
+/* A bytecode frame where the MVMFrame was allocated directly on the heap.
+ * It is followed by space for the work area (registers). Unlike a frame on
+ * the stack, it is not followed by an environment. */
 #define MVM_CALLSTACK_RECORD_HEAP_FRAME         3
 struct MVMCallStackHeapFrame {
     /* Commonalities of all records. */
@@ -89,7 +95,9 @@ struct MVMCallStackHeapFrame {
 };
 
 /* A bytecode frame where the MVMFrame was allocated inline on the callstack,
- * but later promoted to the heap. */
+ * but later promoted to the heap. The work registers still live directly
+ * after it; the space for the environment remains allocated, but is not used
+ * (it's evacuated to the heap). */
 #define MVM_CALLSTACK_RECORD_PROMOTED_FRAME     4
 struct MVMCallStackPromotedFrame {
     /* Commonalities of all records. */
@@ -99,7 +107,8 @@ struct MVMCallStackPromotedFrame {
         /* A pointer to the heap-allocated frame. */
         MVMFrame *frame;
         /* The now-unused MVMFrame, used to keep the size of this record
-         * representative. */
+         * representative. Further, the alloc_work is needed for the sake
+         * of knowing the record size. */
         MVMFrame dead;
     };
 };
@@ -337,8 +346,12 @@ struct MVMCallStackNestedRunloop {
 /* Functions for working with the call stack. */
 void MVM_callstack_init(MVMThreadContext *tc);
 MVMCallStackRecord * MVM_callstack_allocate_nested_runloop(MVMThreadContext *tc);
-MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc);
-MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc);
+MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc, MVMuint16 work_size,
+        MVMuint16 env_size);
+MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc,
+        MVMuint16 work_size);
+MVMint32 MVM_callstack_ensure_work_and_env_space(MVMThreadContext *tc, MVMuint16 needed_work,
+        MVMuint16 needed_env);
 MVMCallStackDispatchRecord * MVM_callstack_allocate_dispatch_record(MVMThreadContext *tc);
 MVMCallStackDispatchRun * MVM_callstack_allocate_dispatch_run(MVMThreadContext *tc,
         MVMuint32 num_temps);
