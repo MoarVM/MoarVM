@@ -397,8 +397,10 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         cur_frame->return_value = (MVMRegister *)&tc->last_handler_result;
         cur_frame->return_type = MVM_RETURN_OBJ;
         cur_frame->return_address = *(tc->interp_cur_op);
-        MVM_frame_special_return(tc, cur_frame, unwind_after_handler, cleanup_active_handler,
-            ah, NULL);
+        MVMActiveHandler **sr = MVM_callstack_allocate_special_return(tc,
+                unwind_after_handler, cleanup_active_handler,
+                NULL, sizeof(MVMActiveHandler *));
+        *sr = ah;
 
         /* Invoke the handler frame and return to runloop. */
         MVM_frame_dispatch_zero_args(tc, (MVMCode *)handler_code);
@@ -419,7 +421,7 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
 
     /* Get active handler; sanity check (though it's possible other cases
      * should be supported). */
-    MVMActiveHandler *ah = (MVMActiveHandler *)sr_data;
+    MVMActiveHandler *ah = *((MVMActiveHandler **)sr_data);
     if (tc->active_handlers != ah)
         MVM_panic(1, "Trying to unwind from wrong handler");
 
@@ -455,7 +457,7 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
 static void cleanup_active_handler(MVMThreadContext *tc, void *sr_data) {
     /* Get active handler; sanity check (though it's possible other cases
      * should be supported). */
-    MVMActiveHandler *ah = (MVMActiveHandler *)sr_data;
+    MVMActiveHandler *ah = *((MVMActiveHandler **)sr_data);
     if (tc->active_handlers != ah)
         MVM_panic(1, "Trying to unwind over wrong handler");
 
@@ -804,10 +806,7 @@ void MVM_exception_throwpayload(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 c
 }
 
 void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
-    MVMException     *ex;
-    MVMFrame         *target;
-    MVMActiveHandler *ah;
-
+    MVMException *ex;
     if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
         ex = (MVMException *)ex_obj;
     else
@@ -816,10 +815,8 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
     /* Check that everything is in place to do the resumption. */
     if (!ex->body.resume_addr)
         MVM_exception_throw_adhoc(tc, "This exception is not resumable");
-    target = ex->body.origin;
+    MVMFrame *target = ex->body.origin;
     if (!target)
-        MVM_exception_throw_adhoc(tc, "This exception is not resumable");
-    if (!target->extra || target->extra->special_return != unwind_after_handler)
         MVM_exception_throw_adhoc(tc, "This exception is not resumable");
     if (!in_caller_chain(tc, target))
         MVM_exception_throw_adhoc(tc, "Too late to resume this exception");
@@ -829,14 +826,6 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
         MVM_exception_throw_adhoc(tc, "Can only resume an exception in its handler");
     if (tc->active_handlers->ex_obj != ex_obj)
         MVM_exception_throw_adhoc(tc, "Can only resume the current exception");
-
-    /* Clear special return handler; we'll do its work here. */
-    MVM_frame_clear_special_return(tc, target);
-
-    /* Clear the current active handler. */
-    ah = tc->active_handlers;
-    tc->active_handlers = ah->next_handler;
-    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMActiveHandler), ah);
 
     /* Unwind to the thrower of the exception; set PC and jit entry label. */
     MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL, ex->body.jit_resume_label);
