@@ -614,10 +614,6 @@ static void process_workitems(MVMThreadContext *tc, MVMHeapSnapshotState *ss) {
 
                 if (frame->extra) {
                     MVMFrameExtra *e = frame->extra;
-                    if (e->special_return_data && e->mark_special_return_data) {
-                        e->mark_special_return_data(tc, frame, ss->gcwl);
-                        process_gc_worklist(tc, ss, "Special return data");
-                    }
                     MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
                         (MVMCollectable *)e->dynlex_cache_name,
                         "Dynamic lexical cache name");
