@@ -732,6 +732,8 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                 MVM_panic(1, "Unknown call stack record type in unwind");
         }
     } while (tc->stack_top && !is_bytecode_frame(tc->stack_top->kind));
+    if (tc->num_finalizing && !exceptional && MVM_gc_finalize_run_handler(tc))
+        *thunked = 1;
     return tc->stack_top ? MVM_callstack_record_to_frame(tc->stack_top) : NULL;
 }
 
