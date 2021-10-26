@@ -104,18 +104,18 @@ size_t record_size(MVMCallStackRecord *record) {
             return sizeof(MVMCallStackRegionStart);
         case MVM_CALLSTACK_RECORD_FRAME:
             return sizeof(MVMCallStackFrame) +
-                to_8_bytes(((MVMCallStackFrame *)record)->frame.allocd_work +
-                    ((MVMCallStackFrame *)record)->frame.allocd_env);
+                ((MVMCallStackFrame *)record)->frame.allocd_work +
+                ((MVMCallStackFrame *)record)->frame.allocd_env;
         case MVM_CALLSTACK_RECORD_HEAP_FRAME:
             return sizeof(MVMCallStackHeapFrame) +
-                to_8_bytes(((MVMCallStackHeapFrame *)record)->frame->allocd_work);
+                ((MVMCallStackHeapFrame *)record)->frame->allocd_work;
         case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
             /* Look at memory from dead (pre-promotion) environment size, as
              * we won't grow that on the callstack if we've moved it to the
              * heap. */
             return sizeof(MVMCallStackPromotedFrame) +
-                to_8_bytes(((MVMCallStackPromotedFrame *)record)->frame->allocd_work +
-                    ((MVMCallStackPromotedFrame *)record)->dead.allocd_env);
+                ((MVMCallStackPromotedFrame *)record)->frame->allocd_work +
+                ((MVMCallStackPromotedFrame *)record)->dead.allocd_env;
         case MVM_CALLSTACK_RECORD_CONTINUATION_TAG:
             return sizeof(MVMCallStackContinuationTag);
         case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
@@ -162,7 +162,7 @@ MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc, MVMuint16
         MVMuint16 env_size) {
     /* Allocate frame with space for registers initialized. */
     tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_FRAME,
-            sizeof(MVMCallStackFrame) + to_8_bytes(work_size + env_size));
+            sizeof(MVMCallStackFrame) + work_size + env_size);
     MVMCallStackFrame *allocated = (MVMCallStackFrame *)tc->stack_top;
     allocated->frame.work = (MVMRegister *)((char *)allocated + sizeof(MVMCallStackFrame));
     allocated->frame.env = (MVMRegister *)((char *)allocated + sizeof(MVMCallStackFrame)
@@ -190,7 +190,7 @@ MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc,
         MVMuint16 work_size) {
     MVMFrame *frame = MVM_gc_allocate_frame(tc);
     tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_HEAP_FRAME,
-            sizeof(MVMCallStackHeapFrame) + to_8_bytes(work_size));
+            sizeof(MVMCallStackHeapFrame) + work_size);
     MVMCallStackHeapFrame *allocated = (MVMCallStackHeapFrame *)tc->stack_top;
     allocated->frame = frame;
     frame->work = (MVMRegister *)((char *)allocated + sizeof(MVMCallStackHeapFrame));
@@ -223,7 +223,7 @@ MVMint32 MVM_callstack_ensure_work_and_env_space(MVMThreadContext *tc, MVMuint16
          * we don't have that much. */
         MVMuint16 have = cur_frame->allocd_work + cur_frame->allocd_env;
         MVMuint16 need = new_work_size + new_env_size;
-        MVMuint16 diff = to_8_bytes(need - have);
+        MVMuint16 diff = need - have;
         if (region->alloc_limit - region->alloc < diff)
             return 0;
 
@@ -240,7 +240,7 @@ MVMint32 MVM_callstack_ensure_work_and_env_space(MVMThreadContext *tc, MVMuint16
         /* Work out how much extra space we need for work, if any. */
         MVMuint16 have = cur_frame->allocd_work;
         MVMuint16 need = new_work_size;
-        MVMuint16 diff = to_8_bytes(need - have);
+        MVMuint16 diff = need - have;
         if (region->alloc_limit - region->alloc < diff)
             return 0;
 
