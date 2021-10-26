@@ -903,11 +903,6 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
 
     /* Switch back to the caller frame if there is one. */
     if (caller && (returner != tc->thread_entry_frame || tc->nested_interpreter)) {
-        *(tc->interp_cur_op) = caller->return_address;
-        *(tc->interp_bytecode_start) = MVM_frame_effective_bytecode(caller);
-        *(tc->interp_reg_base) = caller->work;
-        *(tc->interp_cu) = caller->static_info->body.cu;
-
         /* Handle any special return hooks. */
         if (caller->extra) {
             MVMFrameExtra *e = caller->extra;
