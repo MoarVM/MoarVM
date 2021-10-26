@@ -587,6 +587,8 @@ static void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
          * remove_one_frame, in that case for the sake of lazy deopt. */
         *(tc->interp_cur_op) = caller->return_address;
         *(tc->interp_bytecode_start) = MVM_frame_effective_bytecode(caller);
+        *(tc->interp_reg_base) = caller->work;
+        *(tc->interp_cu) = caller->static_info->body.cu;
     }
     else {
         tc->cur_frame = NULL;
@@ -714,15 +716,15 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
 
                 /* Run the callback if present. */
                 MVMCallStackRecord *top_was = tc->stack_top;
+                MVMuint8 *bytecode_was = *(tc->interp_cur_op);
                 if (!exceptional && special_return)
                     special_return(tc, data);
                 else if (exceptional && special_unwind)
                     special_unwind(tc, data);
 
                 /* If we invoked something, then set the thunk flag and return. */
-                if (tc->stack_top != top_was) {
+                if (tc->stack_top != top_was || bytecode_was != *(tc->interp_cur_op)) {
                     *thunked = 1;
-                    return NULL;
                 }
                 break;
             }

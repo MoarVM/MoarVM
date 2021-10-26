@@ -1775,16 +1775,6 @@ void MVM_frame_special_return(MVMThreadContext *tc, MVMFrame *f,
     e->mark_special_return_data = mark_special_return_data;
 }
 
-/* Clears any special return data on a frame. */
-void MVM_frame_clear_special_return(MVMThreadContext *tc, MVMFrame *f) {
-    if (f->extra) {
-        f->extra->special_return = NULL;
-        f->extra->special_unwind = NULL;
-        f->extra->special_return_data = NULL;
-        f->extra->mark_special_return_data = NULL;
-    }
-}
-
 /* Gets the code object of the caller, provided there is one. Works even in
  * the face that the caller was an inline (however, the current frame that is
  * using the op must not be itself inlined). */
