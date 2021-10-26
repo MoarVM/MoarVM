@@ -422,9 +422,15 @@ void MVM_spesh_deopt_during_unwind(MVMThreadContext *tc) {
         fprintf(stderr, "    Deopt %u -> %u without uninlining\n", deopt_offset, deopt_target);
 #endif
         tc->cur_frame = top_frame;
-
         finish_frame_deopt(tc, frame);
     }
+
+    /* Sync interpreter so it's ready to continue running this deoptimized
+     * frame. */
+    *(tc->interp_cur_op) = tc->cur_frame->return_address;
+    *(tc->interp_bytecode_start) = MVM_frame_effective_bytecode(tc->cur_frame);
+    *(tc->interp_reg_base) = tc->cur_frame->work;
+    *(tc->interp_cu) = tc->cur_frame->static_info->body.cu;
 
     /* Update the record to indicate we're no long in need of deopt. */
     record->kind = record->orig_kind;
