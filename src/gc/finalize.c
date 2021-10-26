@@ -26,39 +26,6 @@ void MVM_gc_finalize_add_to_queue(MVMThreadContext *tc, MVMObject *obj) {
     tc->num_finalize++;
 }
 
-/* Sets the passed thread context's thread up so that we'll run a finalize
- * handler on it in the near future. */
-static void finalize_handler_caller(MVMThreadContext *tc, void *sr_data) {
-    MVMCode *handler = MVM_hll_current(tc)->finalize_handler;
-    if (handler) {
-        /* Drain the finalizing queue to an array. */
-        MVMObject *drain;
-        MVMROOT(tc, handler, {
-            drain = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-            while (tc->num_finalizing > 0)
-                MVM_repr_push_o(tc, drain, tc->finalizing[--tc->num_finalizing]);
-        });
-
-        /* Invoke the handler. */
-        MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
-                MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ));
-        args_record->args.source[0].o = drain;
-        MVM_frame_dispatch_from_c(tc, handler, args_record, NULL, MVM_RETURN_VOID);
-    }
-}
-static void setup_finalize_handler_call(MVMThreadContext *tc) {
-    MVMFrame *install_on = tc->cur_frame;
-    while (install_on) {
-        if (!install_on->extra || !install_on->extra->special_return)
-            if (install_on->static_info->body.cu->body.hll_config)
-                break;
-        install_on = install_on->caller;
-    }
-    if (install_on)
-        MVM_frame_special_return(tc, install_on, finalize_handler_caller, NULL,
-            NULL, NULL);
-}
-
 /* Walks through the per-thread finalize queues, identifying objects that
  * should be finalized, pushing them onto a finalize list, and then marking
  * that list entry. Assumes the world is stopped. */
@@ -108,11 +75,38 @@ void MVM_finalize_walk_queues(MVMThreadContext *tc, MVMuint8 gen) {
     while (cur_thread) {
         if (cur_thread->body.tc) {
             walk_thread_finalize_queue(cur_thread->body.tc, gen);
-            if (cur_thread->body.tc->num_finalizing > 0) {
+            if (cur_thread->body.tc->num_finalizing > 0)
                 MVM_gc_collect(cur_thread->body.tc, MVMGCWhatToDo_Finalizing, gen);
-                setup_finalize_handler_call(cur_thread->body.tc);
-            }
         }
         cur_thread = cur_thread->body.next;
     }
+}
+
+/* Try to run a finalization handler. Returns a true value if we do so */
+MVMint32 MVM_gc_finalize_run_handler(MVMThreadContext *tc) {
+    /* Make sure there is a current frame, that we aren't hanging on to an
+     * exception handler result (which the finalizer could overwrite), and
+     * that there's a HLL handler to run. */
+    if (!tc->cur_frame)
+        return 0;
+    if (tc->last_handler_result)
+        return 0;
+    MVMCode *handler = MVM_hll_current(tc)->finalize_handler;
+    if (handler) {
+        /* Drain the finalizing queue to an array. */
+        MVMObject *drain;
+        MVMROOT(tc, handler, {
+            drain = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+            while (tc->num_finalizing > 0)
+                MVM_repr_push_o(tc, drain, tc->finalizing[--tc->num_finalizing]);
+        });
+
+        /* Invoke the handler. */
+        MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+                MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ));
+        args_record->args.source[0].o = drain;
+        MVM_frame_dispatch_from_c(tc, handler, args_record, NULL, MVM_RETURN_VOID);
+        return 1;
+    }
+    return 0;
 }
