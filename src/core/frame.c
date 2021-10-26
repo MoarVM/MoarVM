@@ -128,8 +128,7 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
  * part of a continuation that was taken but never invoked, we should check
  * things normally cleaned up on return don't need cleaning up also. */
 void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame) {
-    if (frame->work)
-        MVM_args_proc_cleanup(tc, &frame->params);
+    MVM_args_proc_cleanup(tc, &frame->params);
     if (frame->env && !MVM_FRAME_IS_ON_CALLSTACK(tc, frame))
         MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_env, frame->env);
     if (frame->extra) {
