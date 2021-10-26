@@ -380,7 +380,7 @@ MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc,
         MVMuint32 work_size);
 MVMint32 MVM_callstack_ensure_work_and_env_space(MVMThreadContext *tc, MVMuint32 needed_work,
         MVMuint32 needed_env);
-void * MVM_callstack_allocate_special_return(MVMThreadContext *tc,
+MVM_PUBLIC void * MVM_callstack_allocate_special_return(MVMThreadContext *tc,
         MVMSpecialReturn special_return, MVMSpecialReturn special_unwind,
         MVMSpecialReturnMark mark_data, size_t data_size);
 MVMCallStackDispatchRecord * MVM_callstack_allocate_dispatch_record(MVMThreadContext *tc);

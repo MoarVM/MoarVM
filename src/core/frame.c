@@ -938,32 +938,6 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
 
     /* Switch back to the caller frame if there is one. */
     if (caller && (returner != tc->thread_entry_frame || tc->nested_interpreter)) {
-        /* Handle any special return hooks. */
-        if (caller->extra) {
-            MVMFrameExtra *e = caller->extra;
-            if (e->special_return || e->special_unwind) {
-                MVMSpecialReturn  sr  = e->special_return;
-                MVMSpecialReturn  su  = e->special_unwind;
-                void             *srd = e->special_return_data;
-                e->special_return           = NULL;
-                e->special_unwind           = NULL;
-                e->special_return_data      = NULL;
-                e->mark_special_return_data = NULL;
-                if (unwind && su)
-                    su(tc, srd);
-                else if (!unwind && sr)
-                    sr(tc, srd);
-                /* The special_return or special_unwind handler may schedule a
-                   finalizer call for the current runloop. If we are already in
-                   the top most call frame of the runloop, we need to replace
-                   the thread_entry_frame with the finalizer call. Otherwise we
-                   won't run the special code for ending the runloop when the
-                   finalizer returns. */
-                if (returner == tc->thread_entry_frame && tc->cur_frame != caller)
-                    tc->thread_entry_frame = tc->cur_frame;
-            }
-        }
-
         if (returner == tc->thread_entry_frame && tc->cur_frame == caller) {
             tc->cur_frame = NULL;
             return 0;
@@ -1790,19 +1764,6 @@ MVMFrameExtra * MVM_frame_extra(MVMThreadContext *tc, MVMFrame *f) {
     if (!f->extra)
         f->extra = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMFrameExtra));
     return f->extra;
-}
-
-/* Set up special return data on a frame. */
-void MVM_frame_special_return(MVMThreadContext *tc, MVMFrame *f,
-                               MVMSpecialReturn special_return,
-                               MVMSpecialReturn special_unwind,
-                               void *special_return_data,
-                               MVMSpecialReturnDataMark mark_special_return_data) {
-    MVMFrameExtra *e = MVM_frame_extra(tc, f);
-    e->special_return = special_return;
-    e->special_unwind = special_unwind;
-    e->special_return_data = special_return_data;
-    e->mark_special_return_data = mark_special_return_data;
 }
 
 /* Gets the code object of the caller, provided there is one. Works even in
