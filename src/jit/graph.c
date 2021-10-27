@@ -3903,18 +3903,24 @@ start:
             : NULL;
 
         for (int i = 1; i < callsite->flag_count; i++) {
-            if (callsite->arg_flags[i] & MVM_CALLSITE_ARG_INT) {
-                args[i - 1].type = MVM_JIT_REG_VAL;
-                args[i - 1].v.reg = ins->operands[start + 2 + i].reg.orig;
-            }
-            else if (callsite->arg_flags[i] & MVM_CALLSITE_ARG_NUM && body->arg_types[i - 1] == MVM_NATIVECALL_ARG_DOUBLE) {
-                args[i - 1].type = MVM_JIT_REG_VAL_F;
+            if ((body->arg_types[i - 1] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
+                args[i - 1].type = MVM_JIT_REG_ADDR;
                 args[i - 1].v.reg = ins->operands[start + 2 + i].reg.orig;
             }
             else {
-                MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
-                    "BAIL: op <%s> (arg type NYI)", ins->info->name);
-                return 0;
+                if (callsite->arg_flags[i] & MVM_CALLSITE_ARG_INT) {
+                    args[i - 1].type = MVM_JIT_REG_VAL;
+                    args[i - 1].v.reg = ins->operands[start + 2 + i].reg.orig;
+                }
+                else if (callsite->arg_flags[i] & MVM_CALLSITE_ARG_NUM && body->arg_types[i - 1] == MVM_NATIVECALL_ARG_DOUBLE) {
+                    args[i - 1].type = MVM_JIT_REG_VAL_F;
+                    args[i - 1].v.reg = ins->operands[start + 2 + i].reg.orig;
+                }
+                else {
+                    MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
+                        "BAIL: op <%s> (type of arg %d (%d) NYI)", ins->info->name, i, callsite->arg_flags[i]);
+                    return 0;
+                }
             }
         }
 
