@@ -573,7 +573,8 @@ static void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
        if (tc->jit_return_address != NULL) {
             /* on a JIT frame, exit to interpreter afterwards */
             MVMJitCode *jitcode = returner->spesh_cand->body.jitcode;
-            MVM_jit_code_set_current_position(tc, jitcode, returner, jitcode->exit_label);
+            assert(tc->cur_frame == returner);
+            MVM_jit_code_set_cur_frame_position(tc, jitcode, jitcode->exit_label);
             /* given that we might throw in the special-return, act as if we've
              * left the current frame (which is true) */
             tc->jit_return_address = NULL;
