@@ -299,6 +299,7 @@ void MVM_spesh_graph_describe(MVMThreadContext *tc, MVMSpeshGraph *g, MVMHeapSna
 void MVM_spesh_graph_destroy(MVMThreadContext *tc, MVMSpeshGraph *g);
 MVM_PUBLIC void * MVM_spesh_alloc(MVMThreadContext *tc, MVMSpeshGraph *g, size_t bytes);
 MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint32 nrargs);
+void MVM_spesh_graph_place_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMint32 n, MVMuint16 var);
 
 MVM_PUBLIC void MVM_spesh_graph_add_comment(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVMSpeshIns *ins, const char *fmt, ...);

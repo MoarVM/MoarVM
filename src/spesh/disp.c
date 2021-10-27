@@ -204,7 +204,7 @@ static MVMSpeshOperand emit_guard(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVMuint32 *reused_deopt_ann) {
     /* Produce a new version for after the guarding. */
     MVMSpeshOperand guarded_reg = MVM_spesh_manipulate_split_version(tc, g,
-            guard_reg, bb, (*insert_after)->next);
+            guard_reg, bb, *insert_after ? (*insert_after)->next : bb->first_ins);
 
     /* Produce the instruction and insert it. */
     MVMSpeshIns *guard = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
@@ -299,6 +299,23 @@ static void emit_tri_op(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_get_facts(tc, g, to_reg)->writer = ins;
     MVM_spesh_usages_add_by_reg(tc, g, from_reg, ins);
     MVM_spesh_usages_add_by_reg(tc, g, third_reg, ins);
+}
+
+static void emit_iffy_op(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *bb, MVMSpeshIns **insert_after, MVMuint16 op,
+        MVMSpeshOperand condition_reg, MVMSpeshBB *target) {
+    /* Produce the instruction and insert it. */
+    MVMSpeshIns *ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+    ins->info = MVM_op_get_op(op);
+    ins->operands = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshOperand) * 2);
+    ins->operands[0] = condition_reg;
+    ins->operands[1].ins_bb = target;
+    MVM_spesh_manipulate_insert_ins(tc, bb, *insert_after, ins);
+    *insert_after = ins;
+
+    /* Tweak usages. */
+    if ((ins->info->operands[0] & MVM_operand_rw_mask) == MVM_operand_read_reg)
+        MVM_spesh_usages_add_by_reg(tc, g, condition_reg, ins);
 }
 
 /* Emit an instruction to load a value into a spesh slot. */
@@ -1120,9 +1137,10 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 int box_return_value = 0;
                 int has_return_value = (ins->info->opcode != MVM_OP_dispatch_v);
                 if (ins->info->opcode == MVM_OP_dispatch_o) {
+                    /* Let's see if we can turn it into a more JITable instruction */
                     MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, g, temporaries[op->res_code.temp_invokee]);
+                    MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
                     if (object_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-                        MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
                         switch (body->ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
                             case MVM_NATIVECALL_ARG_VOID:
                                 base_op = MVM_op_get_op(MVM_OP_sp_runnativecall_v);
@@ -1172,27 +1190,26 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 MVMuint8 *is_rw_operand = MVM_spesh_alloc(tc, g, rb_op->num_operands * sizeof(MVMuint8));
                 memset(is_rw_operand, 0, rb_op->num_operands * sizeof(MVMuint8));
                 MVMSpeshOperand *rw_operands = MVM_spesh_alloc(tc, g, rb_op->num_operands * sizeof(MVMSpeshOperand));
-                if (native) {
-                    MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, g, temporaries[op->res_code.temp_invokee]);
-                    MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
-                    if (object_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-                        MVMint16 *arg_types   = body->arg_types;
-                        MVMuint16 j;
-                        for (j = 1; j < callsite->flag_count; j++) { /* first arg is return type */
-                            if ((arg_types[j - 1] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
-                                switch (arg_types[j - 1] & MVM_NATIVECALL_ARG_TYPE_MASK) {
-                                    case MVM_NATIVECALL_ARG_INT:
-                                    case MVM_NATIVECALL_ARG_LONG:
-                                    case MVM_NATIVECALL_ARG_LONGLONG:
-                                        is_rw_operand[j] = 1;
-                                        rw_operands[j] = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
-                                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_decont_i, rw_operands[j], skip_args >= 0 ? args[skip_args + j] : temporaries[dp->first_args_temporary + j]);
 
-                                        callsite = MVM_callsite_drop_positional(tc, callsite, j);
-                                        callsite = MVM_callsite_insert_positional(tc, callsite, j, MVM_CALLSITE_ARG_INT);
-                                        MVM_callsite_intern(tc, &callsite, 1, 0);
-                                        break;
-                                }
+                MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, g, temporaries[op->res_code.temp_invokee]);
+                MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
+                if (object_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                    MVMint16 *arg_types   = body->arg_types;
+                    MVMuint16 j;
+                    for (j = 1; j < callsite->flag_count; j++) { /* first arg is return type */
+                        if ((arg_types[j - 1] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
+                            switch (arg_types[j - 1] & MVM_NATIVECALL_ARG_TYPE_MASK) {
+                                case MVM_NATIVECALL_ARG_INT:
+                                case MVM_NATIVECALL_ARG_LONG:
+                                case MVM_NATIVECALL_ARG_LONGLONG:
+                                    is_rw_operand[j] = 1;
+                                    rw_operands[j] = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+                                    emit_bi_op(tc, g, bb, &insert_after, MVM_OP_decont_i, rw_operands[j], skip_args >= 0 ? args[skip_args + j] : temporaries[dp->first_args_temporary + j]);
+
+                                    callsite = MVM_callsite_drop_positional(tc, callsite, j);
+                                    callsite = MVM_callsite_insert_positional(tc, callsite, j, MVM_CALLSITE_ARG_INT);
+                                    MVM_callsite_intern(tc, &callsite, 1, 0);
+                                    break;
                             }
                         }
                     }
@@ -1229,21 +1246,73 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
 
                 MVMSpeshIns *post_call_instructions = NULL;
 
-                if (native) {
-                    MVMuint16 j;
-                    for (j = 1; j < callsite->flag_count; j++) {
-                        if (is_rw_operand[j]) {
-                            emit_bi_op(tc, g, bb->linear_next, &post_call_instructions, MVM_OP_assign_i,
-                                skip_args >= 0 ? args[skip_args + j] : temporaries[dp->first_args_temporary + j],
-                                rw_operands[j]);
-                            MVM_spesh_manipulate_release_temp_reg(tc, g, rw_operands[j]);
-                        }
+                MVMuint16 j;
+                for (j = 1; j < callsite->flag_count; j++) {
+                    if (is_rw_operand[j]) {
+                        emit_bi_op(tc, g, bb->linear_next, &post_call_instructions, MVM_OP_assign_i,
+                            skip_args >= 0 ? args[skip_args + j] : temporaries[dp->first_args_temporary + j],
+                            rw_operands[j]);
+                        MVM_spesh_manipulate_release_temp_reg(tc, g, rw_operands[j]);
                     }
                 }
 
                 if (box_return_value) {
-                    MVMSpeshIns *insert_after = NULL;
-                    emit_tri_op(tc, g, bb->linear_next, &insert_after, MVM_OP_box_i, ins->operands[0], rb_ins->operands[0], rb_ins->operands[3]);
+                    MVMSpeshFacts *return_type_facts = MVM_spesh_get_facts(tc, g, rb_ins->operands[3]);
+                    MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, g, temporaries[op->res_code.temp_invokee]);
+                    MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
+                    if ((body->ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) == MVM_NATIVECALL_ARG_CPOINTER) {
+                        /* For NULL pointers, we have to return a type object instead of a boxed NULL */
+                        MVMSpeshOperand set_target_reg = MVM_spesh_manipulate_new_version(tc, g, ins->operands[0].reg.orig);
+                        emit_bi_op(tc, g, bb->linear_next, &post_call_instructions, MVM_OP_set,
+                            set_target_reg,
+                            rb_ins->operands[3]);
+
+                        MVMSpeshBB *target_bb = MVM_spesh_manipulate_split_BB_at(
+                            tc, g, bb->linear_next, post_call_instructions->next);
+
+                        emit_iffy_op(tc, g, bb->linear_next, &post_call_instructions, MVM_OP_unless_i,
+                            rb_ins->operands[0],
+                            target_bb);
+
+                        MVMSpeshOperand box_target_reg = MVM_spesh_manipulate_new_version(tc, g, ins->operands[0].reg.orig);
+                        emit_tri_op(tc, g, bb->linear_next, &post_call_instructions, MVM_OP_box_i,
+                            box_target_reg,
+                            rb_ins->operands[0],
+                            rb_ins->operands[3]);
+
+                        MVMSpeshBB *box_bb = MVM_spesh_manipulate_split_BB_at(
+                            tc, g, bb->linear_next, post_call_instructions);
+
+                        bb->linear_next->children[1] = target_bb;
+                        bb->linear_next->succ[1] = target_bb;
+                        box_bb->num_succ = 1;
+                        box_bb->num_children = 0;
+                        box_bb->pred[0] = bb->linear_next;
+                        target_bb->num_pred = 2;
+                        target_bb->pred = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB*) * 2);
+                        target_bb->pred[0] = bb->linear_next;
+                        target_bb->pred[1] = box_bb;
+
+                        MVM_spesh_graph_place_phi(tc, g, target_bb, 2, ins->operands[0].reg.orig);
+                        MVMSpeshIns *phi = target_bb->first_ins;
+                        phi->operands[0].reg.i = ins->operands[0].reg.i;
+                        phi->operands[1].reg.i = set_target_reg.reg.i;
+                        phi->operands[2].reg.i = box_target_reg.reg.i;
+                        MVM_spesh_get_facts(tc, g, phi->operands[0])->writer = phi;
+                        MVM_spesh_usages_add_by_reg(tc, g, set_target_reg, phi);
+                        MVM_spesh_usages_add_by_reg(tc, g, box_target_reg, phi);
+                    }
+                    else {
+                        emit_tri_op(tc, g, bb->linear_next, &post_call_instructions, MVM_OP_box_i,
+                            ins->operands[0],
+                            rb_ins->operands[0],
+                            rb_ins->operands[3]);
+                    }
+                    if (return_type_facts->flags & MVM_SPESH_FACT_KNOWN_TYPE) {
+                        MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                        result_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE;
+                        result_facts->type = return_type_facts->type;
+                    }
                     MVM_spesh_manipulate_release_temp_reg(tc, g, rb_ins->operands[0]);
                 }
 
