@@ -529,6 +529,9 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
 
     new_bb->num_df = 0;
 
+    /* Update the books, since we now have more basic blocks in the graph. */
+    g->num_bbs++;
+
     /* Last step: Transfer over the instructions after the split point. */
     new_bb->last_ins = bb->last_ins;
     bb->last_ins = ins->prev;
