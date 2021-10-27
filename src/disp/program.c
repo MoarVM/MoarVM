@@ -3178,6 +3178,8 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             MVMObject *site = (MVMObject *)record->outcome.site;
             MVMObject *result_type = record->outcome.args.source[record->outcome.args.map[0]].o;
             MVM_nativecall_dispatch(tc, result_type, site, record->outcome.args);
+            if (tc->cur_frame->return_type == MVM_RETURN_OBJ && MVM_spesh_log_is_logging(tc))
+                MVM_spesh_log_type(tc, tc->cur_frame->return_value->o);
             return 1;
         default:
             MVM_oops(tc, "Unimplemented dispatch program outcome kind");
@@ -3579,6 +3581,8 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
 
                 MVMObject *result_type = invoke_args.source[invoke_args.map[0]].o;
                 MVM_nativecall_dispatch(tc, result_type, record->temps[op.res_code.temp_invokee].o, invoke_args);
+                if (tc->cur_frame->return_type == MVM_RETURN_OBJ && MVM_spesh_log_is_logging(tc))
+                    MVM_spesh_log_type(tc, tc->cur_frame->return_value->o);
                 MVM_callstack_unwind_dispatch_run(tc);
                 goto accept;
             }
