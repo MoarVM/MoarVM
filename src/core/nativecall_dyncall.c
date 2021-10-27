@@ -1214,9 +1214,15 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                 case MVM_NATIVECALL_ARG_CPOINTER: {
                     void *native_result = dcCallPointer(vm, body->entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
-                    result = MVM_nativecall_make_cpointer(tc, res_type, native_result);
-                    update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
-                    MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
+                    if (tc->cur_frame->return_type == MVM_RETURN_INT) {
+                        update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
+                        MVM_args_set_dispatch_result_int(tc, tc->cur_frame, (MVMuint64)native_result);
+                    }
+                    else {
+                        result = MVM_nativecall_make_cpointer(tc, res_type, native_result);
+                        update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
+                        MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
+                    }
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CARRAY: {
