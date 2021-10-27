@@ -465,18 +465,38 @@ static void report_outer_conflict(MVMThreadContext *tc, MVMStaticFrame *static_f
 
 /* Dispatches execution to the specified code object with the specified args. */
 void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMint32 spesh_cand) {
-    MVMFrame *frame;
-    MVMuint8 *chosen_bytecode;
-    MVMStaticFrameSpesh *spesh;
-
-    /* If the frame was never invoked before, or never before at the current
-     * instrumentation level, we need to trigger the instrumentation level
-     * barrier. */
+    /* Did we get given a specialization? */
     MVMStaticFrame *static_frame = code->body.sf;
-    if (MVM_UNLIKELY(static_frame->body.instrumentation_level != tc->instance->instrumentation_level)) {
-        MVMROOT2(tc, static_frame, code, {
-            instrumentation_level_barrier(tc, static_frame);
-        });
+    MVMStaticFrameSpesh *spesh;
+    if (spesh_cand < 0) {
+        /* No. In that case it's possible we never even invoked this frame
+         * before, or never at the current instrumentation level; check and
+         * handle this situation if so. */
+        if (MVM_UNLIKELY(static_frame->body.instrumentation_level != tc->instance->instrumentation_level)) {
+            MVMROOT2(tc, static_frame, code, {
+                instrumentation_level_barrier(tc, static_frame);
+            });
+        }
+
+        /* Run the specialization argument guard to see if we can use one. */
+        spesh = static_frame->body.spesh;
+        spesh_cand = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
+            args, NULL);
+    }
+    else {
+        spesh = static_frame->body.spesh;
+#if MVM_SPESH_CHECK_PRESELECTION
+        MVMint32 certain = -1;
+        MVMint32 correct = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
+            args, &certain);
+        if (spesh_cand != correct && spesh_cand != certain) {
+            fprintf(stderr, "Inconsistent spesh preselection of '%s' (%s): got %d, not %d\n",
+                MVM_string_utf8_encode_C_string(tc, static_frame->body.name),
+                MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid),
+                spesh_cand, correct);
+            MVM_dump_backtrace(tc);
+        }
+#endif
     }
 
     /* Ensure we have an outer if needed. This is done ahead of allocating the
@@ -510,26 +530,9 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
         }
     }
 
-    /* See if any specializations apply. */
-    spesh = static_frame->body.spesh;
-    if (spesh_cand < 0) {
-        spesh_cand = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
-            args, NULL);
-    }
-#if MVM_SPESH_CHECK_PRESELECTION
-    else {
-        MVMint32 certain = -1;
-        MVMint32 correct = MVM_spesh_arg_guard_run(tc, spesh->body.spesh_arg_guard,
-            args, &certain);
-        if (spesh_cand != correct && spesh_cand != certain) {
-            fprintf(stderr, "Inconsistent spesh preselection of '%s' (%s): got %d, not %d\n",
-                MVM_string_utf8_encode_C_string(tc, static_frame->body.name),
-                MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid),
-                spesh_cand, correct);
-            MVM_dump_backtrace(tc);
-        }
-    }
-#endif
+    /* Now go by whether we have a specialization. */
+    MVMFrame *frame;
+    MVMuint8 *chosen_bytecode;
     if (spesh_cand >= 0) {
         MVMSpeshCandidate *chosen_cand = spesh->body.spesh_candidates[spesh_cand];
         if (static_frame->body.allocate_on_heap) {
