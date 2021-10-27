@@ -617,16 +617,27 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
                 break;
-            case MVM_CALLSTACK_RECORD_HEAP_FRAME:
-                exit_frame(tc, ((MVMCallStackHeapFrame *)tc->stack_top)->frame);
+            case MVM_CALLSTACK_RECORD_HEAP_FRAME: {
+                MVMFrame *frame = ((MVMCallStackHeapFrame *)tc->stack_top)->frame;
+                /* NULL out ->work, to indicate the frame is no longer in dynamic scope.
+                 * This is used by the GC to avoid marking stuff (this is needed for
+                 * safety as otherwise we'd read freed memory), as well as by exceptions to
+                 * ensure the target of an exception throw is indeed still in dynamic
+                 * scope. */
+                frame->work = NULL;
+                exit_frame(tc, frame);
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
                 break;
-            case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
-                exit_frame(tc, ((MVMCallStackPromotedFrame *)tc->stack_top)->frame);
+            }
+            case MVM_CALLSTACK_RECORD_PROMOTED_FRAME: {
+                MVMFrame *frame = ((MVMCallStackPromotedFrame *)tc->stack_top)->frame;
+                frame->work = NULL;
+                exit_frame(tc, frame);
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
                 break;
+            }
             case MVM_CALLSTACK_RECORD_DEOPT_FRAME:
                 /* Deopt it, but don't move stack top back, since we're either
                  * turning the current frame into a deoptimized one or will put
