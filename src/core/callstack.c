@@ -569,7 +569,7 @@ static void handle_end_of_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunk
 }
 static void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
     MVMFrame *caller = returner->caller;
-    if (caller && (returner != tc->thread_entry_frame || tc->nested_interpreter)) {
+    if (caller) {
        if (tc->jit_return_address != NULL) {
             /* on a JIT frame, exit to interpreter afterwards */
             MVMJitCode *jitcode = returner->spesh_cand->body.jitcode;
@@ -579,20 +579,12 @@ static void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
             tc->jit_return_address = NULL;
         }
 
-        tc->cur_frame = caller;
-
-        /* Always sync these up in case of an exception throw in a C
-         * function dispatcher that comes after a bytecode dispatcher.
-         * It is a little wasteful since we repeat it in frame.c's
-         * remove_one_frame, in that case for the sake of lazy deopt. */
         *(tc->interp_cur_op) = caller->return_address;
         *(tc->interp_bytecode_start) = MVM_frame_effective_bytecode(caller);
         *(tc->interp_reg_base) = caller->work;
         *(tc->interp_cu) = caller->static_info->body.cu;
     }
-    else {
-        tc->cur_frame = NULL;
-    }
+    tc->cur_frame = caller;
 }
 static void handle_bind_control(MVMThreadContext *tc, MVMCallStackBindControl *control_record,
         MVMRegister *flag_ptr) {
@@ -702,7 +694,8 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                 break;
             }
             case MVM_CALLSTACK_RECORD_NESTED_RUNLOOP: {
-                return ((MVMCallStackNestedRunloop*)tc->stack_top)->cur_frame;
+                /* Return NULL to signal to exit the nested runloop. */
+                return NULL;
             }
             case MVM_CALLSTACK_RECORD_SPECIAL_RETURN: {
                 /* Read the callback info, and then remove this record (as we
