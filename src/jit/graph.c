@@ -3909,6 +3909,10 @@ start:
                     args[i - 1].type = MVM_JIT_REG_VAL_F;
                     args[i - 1].v.reg = ins->operands[start + 2 + i].reg.orig;
                 }
+                else if (callsite->arg_flags[i] & MVM_CALLSITE_ARG_OBJ && body->arg_types[i - 1] == MVM_NATIVECALL_ARG_VMARRAY) {
+                    args[i - 1].type = MVM_JIT_PARAM_VMARRAY;
+                    args[i - 1].v.lit_i64 = ins->operands[start + 2 + i].reg.orig;
+                }
                 else {
                     MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
                         "BAIL: op <%s> (type of arg %d (%d) NYI)", ins->info->name, i, callsite->arg_flags[i]);
