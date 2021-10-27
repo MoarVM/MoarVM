@@ -1196,7 +1196,7 @@ MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint32 nrargs) {
 }
 
 /* Inserts SSA phi functions at the required places in the graph. */
-static void place_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMint32 n, MVMuint16 var) {
+void MVM_spesh_graph_place_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMint32 n, MVMuint16 var) {
     MVMint32     i;
     MVMOpInfo   *phi_op  = get_phi(tc, g, n + 1);
     MVMSpeshIns *ins     = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
@@ -1235,7 +1235,7 @@ static void insert_phi_functions(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarI
                 MVMSpeshBB *y = x->df[i];
                 if (has_already[y->idx] < iter_count) {
                     /* Place phi function, and mark we have. */
-                    place_phi(tc, g, y, y->num_pred, var);
+                    MVM_spesh_graph_place_phi(tc, g, y, y->num_pred, var);
                     has_already[y->idx] = iter_count;
 
                     /* Add this block to worklist if needed. */
