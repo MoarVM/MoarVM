@@ -875,13 +875,6 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     /* Clean up any allocations for argument working area. */
     MVM_args_proc_cleanup(tc, &returner->params);
 
-    /* NULL out ->work, to indicate the frame is no longer in dynamic scope.
-     * This is used by the GC to avoid marking stuff (this is needed for
-     * safety as otherwise we'd read freed memory), as well as by exceptions to
-     * ensure the target of an exception throw is indeed still in dynamic
-     * scope. */
-    returner->work = NULL;
-
     /* Unwind call stack entries. From this, we find out the caller. This may
      * actually *not* be the caller in the frame, because of lazy deopt. Also
      * it may invoke something else, in which case we go no further and just
