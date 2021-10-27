@@ -508,6 +508,7 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
     new_bb->pred[0] = bb;
 
     new_bb->succ = bb->succ;
+    new_bb->num_succ = bb->num_succ;
 
     for (MVMuint16 i = 0; i < new_bb->num_succ; i++) {
         MVMSpeshBB *succ = new_bb->succ[i];
