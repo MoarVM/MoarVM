@@ -1169,6 +1169,35 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 MVM_spesh_usages_add_by_reg(tc, g, rb_ins->operands[cur_op], rb_ins);
                 cur_op++;
 
+                MVMuint8 *is_rw_operand = MVM_spesh_alloc(tc, g, rb_op->num_operands * sizeof(MVMuint8));
+                memset(is_rw_operand, 0, rb_op->num_operands * sizeof(MVMuint8));
+                MVMSpeshOperand *rw_operands = MVM_spesh_alloc(tc, g, rb_op->num_operands * sizeof(MVMSpeshOperand));
+                if (native) {
+                    MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, g, temporaries[op->res_code.temp_invokee]);
+                    MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
+                    if (object_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                        MVMint16 *arg_types   = body->arg_types;
+                        MVMuint16 j;
+                        for (j = 1; j < callsite->flag_count; j++) { /* first arg is return type */
+                            if ((arg_types[j - 1] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
+                                switch (arg_types[j - 1] & MVM_NATIVECALL_ARG_TYPE_MASK) {
+                                    case MVM_NATIVECALL_ARG_INT:
+                                    case MVM_NATIVECALL_ARG_LONG:
+                                    case MVM_NATIVECALL_ARG_LONGLONG:
+                                        is_rw_operand[j] = 1;
+                                        rw_operands[j] = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+                                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_decont_i, rw_operands[j], skip_args >= 0 ? args[skip_args + j] : temporaries[dp->first_args_temporary + j]);
+
+                                        callsite = MVM_callsite_drop_positional(tc, callsite, j);
+                                        callsite = MVM_callsite_insert_positional(tc, callsite, j, MVM_CALLSITE_ARG_INT);
+                                        MVM_callsite_intern(tc, &callsite, 1, 0);
+                                        break;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 /* Add the callsite operand, smuggled as a 64-bit int. */
                 rb_ins->operands[cur_op++].lit_ui64 = (MVMuint64)callsite;
 
@@ -1176,7 +1205,9 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 if (skip_args >= 0) {
                     MVMuint16 j;
                     for (j = 0; j < callsite->flag_count; j++) {
-                        rb_ins->operands[cur_op] = args[skip_args + j];
+                        rb_ins->operands[cur_op] = is_rw_operand[j]
+                            ? rw_operands[j]
+                            : args[skip_args + j];
                         MVM_spesh_usages_add_by_reg(tc, g, rb_ins->operands[cur_op], rb_ins);
                         cur_op++;
                     }
@@ -1184,7 +1215,9 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 else {
                     MVMuint16 j;
                     for (j = 0; j < callsite->flag_count; j++) {
-                        rb_ins->operands[cur_op] = temporaries[dp->first_args_temporary + j];
+                        rb_ins->operands[cur_op] = is_rw_operand[j]
+                            ? rw_operands[j]
+                            : temporaries[dp->first_args_temporary + j];
                         MVM_spesh_usages_add_by_reg(tc, g, rb_ins->operands[cur_op], rb_ins);
                         cur_op++;
                     }
@@ -1193,6 +1226,20 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 /* Insert the produced instruction. */
                 MVM_spesh_manipulate_insert_ins(tc, bb, insert_after, rb_ins);
                 insert_after = rb_ins;
+
+                MVMSpeshIns *post_call_instructions = NULL;
+
+                if (native) {
+                    MVMuint16 j;
+                    for (j = 1; j < callsite->flag_count; j++) {
+                        if (is_rw_operand[j]) {
+                            emit_bi_op(tc, g, bb->linear_next, &post_call_instructions, MVM_OP_assign_i,
+                                skip_args >= 0 ? args[skip_args + j] : temporaries[dp->first_args_temporary + j],
+                                rw_operands[j]);
+                            MVM_spesh_manipulate_release_temp_reg(tc, g, rw_operands[j]);
+                        }
+                    }
+                }
 
                 if (box_return_value) {
                     MVMSpeshIns *insert_after = NULL;
