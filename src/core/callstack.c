@@ -613,11 +613,15 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                 tc->stack_current_region = tc->stack_current_region->prev;
                 tc->stack_top = tc->stack_top->prev;
                 break;
-            case MVM_CALLSTACK_RECORD_FRAME:
-                exit_frame(tc, &(((MVMCallStackFrame *)tc->stack_top)->frame));
+            case MVM_CALLSTACK_RECORD_FRAME: {
+                MVMFrame *frame = &(((MVMCallStackFrame *)tc->stack_top)->frame);
+                if (frame->extra)
+                    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), frame->extra);
+                exit_frame(tc, frame);
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
                 break;
+            }
             case MVM_CALLSTACK_RECORD_HEAP_FRAME: {
                 MVMFrame *frame = ((MVMCallStackHeapFrame *)tc->stack_top)->frame;
                 /* NULL out ->work, to indicate the frame is no longer in dynamic scope.

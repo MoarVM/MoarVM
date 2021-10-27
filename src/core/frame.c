@@ -889,10 +889,17 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *debug_tc,
 /* Removes a single frame, as part of a return or unwind. Done after any exit
  * handler has already been run. */
 static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
+    /* Clean up any allocations relating to argument processing. */
     MVMFrame *returner = tc->cur_frame;
-    MVMuint32 need_caller;
+    MVM_args_proc_cleanup(tc, &returner->params);
 
-    /* Clear up any extra frame data. */
+    /* For frames on the callstack, nothing more to do other than unwind. */
+    if (MVM_FRAME_IS_ON_CALLSTACK(tc, returner))
+        return MVM_callstack_unwind_frame(tc, unwind) != NULL;
+
+    /* Heap promoted frames can stay around, but we may or may not need to
+     * clear up ->extra and ->caller. */
+    MVMuint32 need_caller;
     if (returner->extra) {
         MVMFrameExtra *e = returner->extra;
         need_caller = e->caller_info_needed;
@@ -906,25 +913,12 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     else {
         need_caller = 0;
     }
-
-    /* Clean up any allocations for argument working area. */
-    MVM_args_proc_cleanup(tc, &returner->params);
-
-    /* Unwind call stack entries. From this, we find out the caller. This may
-     * actually *not* be the caller in the frame, because of lazy deopt. Also
-     * it may invoke something else, in which case we go no further and just
-     * return to the runloop. */
     MVMFrame *caller;
-    if (MVM_FRAME_IS_ON_CALLSTACK(tc, returner)) {
+    MVMROOT(tc, returner, {
         caller = MVM_callstack_unwind_frame(tc, unwind);
-    }
-    else {
-        MVMROOT(tc, returner, {
-            caller = MVM_callstack_unwind_frame(tc, unwind);
-        });
-        if (!need_caller)
-            returner->caller = NULL;
-    }
+    });
+    if (!need_caller)
+        returner->caller = NULL;
     return caller != NULL;
 }
 
