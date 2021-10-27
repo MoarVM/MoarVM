@@ -1,24 +1,13 @@
 #include "moar.h"
 #include "internal.h"
 
-static void assert_within_region(MVMThreadContext *tc, MVMJitCode *code, void *address) {
-#if MVM_JIT_DEBUG
-    MVMint32 ofs = (char*)address - (char*)code->func_ptr;
-    if ((0 <= ofs) && (ofs < code->size))
-        return;
-    MVM_panic(1, "JIT: address out of range for code!\n"
-              "(label %p, func_ptr %p, code size %lui, offset %li, seq nr %i)",
-              address, code->func_ptr, code->size, ofs, code->seq_nr);
-#endif
-}
-
 
 /* Enter the JIT code segment. The label is a continuation point where control
  * is resumed after the frame is properly setup. */
 void MVM_jit_code_enter(MVMThreadContext *tc, MVMJitCode *code, MVMCompUnit *cu) {
     void *label = tc->cur_frame->jit_entry_label;
 
-    assert_within_region(tc, code, label);
+    MVM_jit_code_assert_within_region(tc, code, label);
 
     code->func_ptr(tc, cu, label);
 }
@@ -27,7 +16,7 @@ void * MVM_jit_code_get_current_position(MVMThreadContext *tc, MVMJitCode *code,
     if (tc->cur_frame == frame && tc->jit_return_address != NULL) {
         /* currently on C stack */
         void *return_address = *tc->jit_return_address;
-        assert_within_region(tc, code, return_address);
+        MVM_jit_code_assert_within_region(tc, code, return_address);
         return return_address;
     } else {
         /* trampolined-out of this frame, so jit_entry_label is correct */
@@ -36,7 +25,7 @@ void * MVM_jit_code_get_current_position(MVMThreadContext *tc, MVMJitCode *code,
 }
 
 void MVM_jit_code_set_current_position(MVMThreadContext *tc, MVMJitCode *code, MVMFrame *frame, void *position) {
-    assert_within_region(tc, code, position);
+    MVM_jit_code_assert_within_region(tc, code, position);
     if (tc->cur_frame == frame && tc->jit_return_address != NULL) {
         /* this overwrites the address on the stack that MVM_frame_invoke_code will ret to! */
         *tc->jit_return_address = position;
@@ -49,11 +38,11 @@ void MVM_jit_code_trampoline(MVMThreadContext *tc) {
     if (tc->jit_return_address != NULL) {
         MVMJitCode *code  = tc->cur_frame->spesh_cand->body.jitcode;
         void *reentry_label = *tc->jit_return_address;
-        assert_within_region(tc, code, reentry_label);
+        MVM_jit_code_assert_within_region(tc, code, reentry_label);
         /* Store our current position */
         tc->cur_frame->jit_entry_label = *tc->jit_return_address;
         /* Tell currently-active JIT code that we're leaving this frame */
-        assert_within_region(tc, code, code->exit_label);
+        MVM_jit_code_assert_within_region(tc, code, code->exit_label);
         *tc->jit_return_address = code->exit_label;
         /* And tell further frame handlers that as far as they are concerned,
            we're not on the stack anymore */
