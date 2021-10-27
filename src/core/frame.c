@@ -250,20 +250,16 @@ static MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
 /* Obtains memory for a frame that we are about to enter and run bytecode in. Prefers
  * the callstack by default, but can put the frame onto the heap if it tends to be
  * promoted there anyway. Returns a pointer to the frame wherever in memory it ends
- * up living. */
-static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_frame,
-                                 MVMSpeshCandidate *spesh_cand, MVMint32 heap) {
+ * up living. Separate versions for specialized and unspecialized frames. */
+static MVMFrame * allocate_unspecialized_frame(MVMThreadContext *tc,
+        MVMStaticFrame *static_frame, MVMint32 heap) {
     MVMFrame *frame;
-    MVMint32  num_locals;
-    MVMStaticFrameBody *static_frame_body;
-    MVMJitCode *jitcode;
-
-    MVMint32 work_size = spesh_cand ? spesh_cand->body.work_size : static_frame->body.work_size;
-    MVMint32 env_size = spesh_cand ? spesh_cand->body.env_size : static_frame->body.env_size;
+    MVMint32 work_size = static_frame->body.work_size;
+    MVMint32 env_size = static_frame->body.env_size;
     if (heap) {
         /* Allocate frame on the heap. The callstack record includes space
          * for the work registers and ->work will have been set up already. */
-        MVMROOT2(tc, static_frame, spesh_cand, {
+        MVMROOT(tc, static_frame, {
             if (tc->cur_frame)
                 MVM_frame_force_to_heap(tc, tc->cur_frame);
             frame = MVM_callstack_allocate_heap_frame(tc, work_size)->frame;
@@ -286,26 +282,62 @@ static MVMFrame * allocate_frame(MVMThreadContext *tc, MVMStaticFrame *static_fr
         memset(frame->env, 0, env_size);
     }
 
-    /* Set up work area. */
-    static_frame_body = &(static_frame->body);
-    jitcode = spesh_cand ? spesh_cand->body.jitcode : NULL;
-    num_locals = jitcode && jitcode->local_types ? jitcode->num_locals :
-        (spesh_cand ? spesh_cand->body.num_locals : static_frame_body->num_locals);
-    if (work_size) {
-        if (spesh_cand) {
-            /* Zero frame memory. Spesh makes sure we have VMNull setup in
-             * the places we need it. */
-            memset(frame->work, 0, work_size);
-        }
-        else {
-            /* Copy frame template with VMNulls in to place. */
-            memcpy(frame->work, static_frame_body->work_initial,
-                sizeof(MVMRegister) * static_frame_body->num_locals);
-        }
+    /* Copy frame template with VMNulls in to place. */
+    memcpy(frame->work, static_frame->body.work_initial,
+        sizeof(MVMRegister) * static_frame->body.num_locals);
 
-        /* Calculate args buffer position. */
-        frame->args = frame->work + num_locals;
+    /* Calculate args buffer position. */
+    frame->args = frame->work + static_frame->body.num_locals;
+
+    /* Set static frame and caller before we let this frame escape and the GC
+     * see it. */
+    frame->static_info = static_frame;
+    frame->caller = tc->cur_frame;
+
+    return frame;
+}
+static MVMFrame * allocate_specialized_frame(MVMThreadContext *tc,
+        MVMStaticFrame *static_frame, MVMSpeshCandidate *spesh_cand, MVMint32 heap) {
+    MVMFrame *frame;
+    MVMint32 work_size = spesh_cand->body.work_size;
+    MVMint32 env_size = spesh_cand->body.env_size;
+    if (heap) {
+        /* Allocate frame on the heap. The callstack record includes space
+         * for the work registers and ->work will have been set up already. */
+        MVMROOT2(tc, static_frame, spesh_cand, {
+            if (tc->cur_frame)
+                MVM_frame_force_to_heap(tc, tc->cur_frame);
+            frame = MVM_callstack_allocate_heap_frame(tc, work_size)->frame;
+        });
+
+        /* Zero out the work memory. Spesh makes sure we have VMNull setup in
+         * the places we need it. */
+        memset(frame->work, 0, work_size);
+
+        /* If we have an environment, that needs allocating separately for
+         * heap-based frames. */
+        if (env_size) {
+            frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
+            frame->allocd_env = env_size;
+        }
     }
+    else {
+        /* Allocate the frame on the call stack. The callstack record includes
+         * space for both the work registers and the environment, and both the
+         * ->work and ->env pointers will have been set up already. We need to
+         * zero out the work and env; we rely on them being contiguous and so
+         * zero them with a single memset call. */
+        MVMCallStackFrame *record = MVM_callstack_allocate_frame(tc, work_size, env_size);
+        frame = &(record->frame);
+        memset(frame->work, 0, work_size + env_size);
+    }
+
+    /* Calculate args buffer position. */
+    MVMJitCode *jitcode = spesh_cand->body.jitcode;
+    MVMint32 num_locals = jitcode && jitcode->local_types
+        ? jitcode->num_locals
+        : spesh_cand->body.num_locals;
+    frame->args = frame->work + num_locals;
 
     /* Set static frame and caller before we let this frame escape and the GC
      * see it. */
@@ -502,11 +534,11 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
         MVMSpeshCandidate *chosen_cand = spesh->body.spesh_candidates[spesh_cand];
         if (static_frame->body.allocate_on_heap) {
             MVMROOT4(tc, static_frame, code, outer, chosen_cand, {
-                frame = allocate_frame(tc, static_frame, chosen_cand, 1);
+                frame = allocate_specialized_frame(tc, static_frame, chosen_cand, 1);
             });
         }
         else {
-            frame = allocate_frame(tc, static_frame, chosen_cand, 0);
+            frame = allocate_specialized_frame(tc, static_frame, chosen_cand, 0);
             frame->spesh_correlation_id = 0;
         }
         frame->code_ref = (MVMObject *)code;
@@ -528,11 +560,11 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
         MVMint32 on_heap = static_frame->body.allocate_on_heap;
         if (on_heap) {
             MVMROOT3(tc, static_frame, code, outer, {
-                frame = allocate_frame(tc, static_frame, NULL, 1);
+                frame = allocate_unspecialized_frame(tc, static_frame, 1);
             });
         }
         else {
-            frame = allocate_frame(tc, static_frame, NULL, 0);
+            frame = allocate_unspecialized_frame(tc, static_frame, 0);
             frame->spesh_cand = NULL;
             frame->effective_spesh_slots = NULL;
             frame->spesh_correlation_id = 0;
