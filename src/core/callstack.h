@@ -497,3 +497,6 @@ MVM_STATIC_INLINE MVMFrame * MVM_callstack_iter_current_frame(MVMThreadContext *
         MVMCallStackIterator *iter) {
     return MVM_callstack_record_to_frame(iter->current);
 }
+
+/* Migration to callstack-based special return in Rakudo extops. */
+#define MVM_CALLSTACK_SPECIAL_RETURN 1
