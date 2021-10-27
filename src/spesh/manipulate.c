@@ -481,9 +481,10 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
     /* Step two: update all idx fields. */
     new_bb->idx = bb->idx + 1;
     {
-        MVMSpeshBB *ptr = linear_next;
+        MVMSpeshBB *ptr = g->entry;
         while (ptr != NULL) {
-            ptr->idx += 1;
+            if (ptr != new_bb && ptr->idx > bb->idx)
+                ptr->idx += 1;
             ptr = ptr->linear_next;
         }
     }
