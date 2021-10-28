@@ -350,7 +350,6 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_isnanorinf: return MVM_num_isnanorinf;
     case MVM_OP_nativecallcast: return MVM_nativecall_cast;
     case MVM_OP_nativecallinvoke: return MVM_nativecall_invoke;
-    case MVM_OP_nativeinvoke_o: return MVM_nativecall_invoke_jit;
     case MVM_OP_typeparameterized: return MVM_6model_parametric_type_parameterized;
     case MVM_OP_typeparameters: return MVM_6model_parametric_type_parameters;
     case MVM_OP_typeparameterat: return MVM_6model_parametric_type_parameter_at;
@@ -475,65 +474,6 @@ static void jg_append_guard(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     node->u.guard.deopt_idx = deopt_idx;
     jg_append_node(jg, node);
-}
-
-static MVMint32 consume_invoke(MVMThreadContext *tc, MVMJitGraph *jg,
-                               MVMSpeshIterator *iter, MVMSpeshIns *ins) {
-    MVMCompUnit       *cu = iter->graph->sf->body.cu;
-    MVMint16 callsite_idx = ins->operands[0].callsite_idx;
-    MVMCallsite       *cs = cu->body.callsites[callsite_idx];
-    MVMSpeshIns **arg_ins = MVM_spesh_alloc(tc, iter->graph, sizeof(MVMSpeshIns*) * cs->arg_count);
-    MVMint16            i = 0;
-
-    while ((ins = ins->next)) {
-        switch(ins->info->opcode) {
-        case MVM_OP_arg_i:
-        case MVM_OP_arg_n:
-        case MVM_OP_arg_s:
-        case MVM_OP_arg_o:
-        case MVM_OP_argconst_i:
-        case MVM_OP_argconst_n:
-        case MVM_OP_argconst_s:
-            arg_ins[i++] = ins;
-            break;
-        case MVM_OP_nativeinvoke_o: {
-            MVMint16 dst     = ins->operands[0].reg.orig;
-            MVMint16 restype = ins->operands[2].reg.orig;
-            MVMNativeCallBody *body;
-            MVMJitGraph *nc_jg;
-
-            MVMSpeshFacts *object_facts = MVM_spesh_get_facts(tc, iter->graph, ins->operands[1]);
-
-            if (!(object_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE)) {
-                MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
-                                            "BAIL: op <%s> (Can't find nc_site value on spesh ins)", ins->info->name);
-                return 0;
-            }
-
-            body = MVM_nativecall_get_nc_body(tc, object_facts->value.o);
-            nc_jg = MVM_nativecall_jit_graph_for_caller_code(tc, iter->graph, body, restype, dst, arg_ins);
-            /* Check the entry_point after we've used it to generate the code to avoid a race
-             * condition where the check turned out fine, but entry_point got overwritten before we
-             * got to use it for generating the code. */
-            if (!body->entry_point)
-                return 0;
-            if (nc_jg == NULL)
-                return 0;
-
-            jg->last_node->next = nc_jg->first_node;
-            jg->last_node = nc_jg->last_node;
-
-            iter->ins = ins;
-            return 1;
-        }
-        default:
-            MVM_spesh_graph_add_comment(tc, iter->graph, ins,
-                "BAIL: Unexpected opcode in invoke sequence: <%s>",
-                ins->info->name);
-            return 0;
-        }
-    }
-    return 0;
 }
 
 static void jg_append_control(MVMThreadContext *tc, MVMJitGraph *jg,
@@ -1639,7 +1579,6 @@ static void add_bail_comment(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshIns 
 static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                             MVMSpeshIterator *iter, MVMSpeshIns *ins) {
     MVMint16 op;
-start:
     op = ins->info->opcode;
     switch(op) {
     case MVM_SSA_PHI:
@@ -1725,11 +1664,6 @@ start:
     case MVM_OP_const_s:
     case MVM_OP_null:
     case MVM_OP_sp_resumption:
-        /* argument reading */
-    case MVM_OP_sp_getarg_i:
-    case MVM_OP_sp_getarg_o:
-    case MVM_OP_sp_getarg_n:
-    case MVM_OP_sp_getarg_s:
         /* accessors */
     case MVM_OP_sp_p6oget_o:
     case MVM_OP_sp_p6oget_s:
@@ -1862,49 +1796,6 @@ start:
     case MVM_OP_sp_bool_I:
         jg_append_primitive(tc, jg, ins);
         break;
-        /* reading back from arg buffer (after nativeinvoke_o) */
-    case MVM_OP_getarg_i:
-    case MVM_OP_getarg_o:
-    case MVM_OP_getarg_n:
-    case MVM_OP_getarg_s: {
-        /* getarg_* are used to read (possibly modified) values back from the args
-         * buffer. This is done only for native calls (after a nativeinvoke).
-         * However the JIT does not emit any code for the corresponding arg_* ops
-         * for a nativeinvoke. Instead the values are read directly from the WORK
-         * registers and the arg_* ops are only used to mark those registers. This
-         * means that there's nothing in the args buffer to read from. So instead,
-         * turn the getarg_* ops into plain set ops and take the value from the
-         * original WORK register.
-         * Though this is a modification you would usually find in spesh, in this
-         * case it depends on successful JIT compilation of previous ops. As we know
-         * this only when we actually JIT compile, we have to do it here instead */
-        MVMSpeshFacts *src_facts = MVM_spesh_get_facts(tc, iter->graph, ins->operands[1]);
-        if (src_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
-            MVMSpeshBB *cur_bb = iter->bb;
-            MVMSpeshIns *cur_ins = ins->prev;
-            while (cur_bb) {
-                while (cur_ins) {
-                    if (
-                        cur_ins->info->opcode == MVM_OP_arg_i
-                        && cur_ins->operands[0].lit_i16 == src_facts->value.i
-                    ) {
-                        ins->info = MVM_op_get_op(MVM_OP_set);
-                        ins->operands[1] = cur_ins->operands[1];
-                        MVM_spesh_usages_add_by_reg(tc, iter->graph, ins->operands[1], ins);
-                        MVM_spesh_usages_delete(tc, iter->graph, src_facts, ins);
-                        goto start;
-                    }
-                    cur_ins = cur_ins->prev;
-                }
-                /* FIXME to be correct, we'd need to search all predecessors, not just the
-                 * first but this will do for the currently known use case for getarg_i */
-                cur_bb = cur_bb->pred[0];
-                cur_ins = cur_bb->last_ins;
-            }
-        }
-        jg_append_primitive(tc, jg, ins);
-        break;
-    }
         /* Unspecialized parameter access */
     case MVM_OP_param_rp_i: {
         MVMint16  dst     = ins->operands[0].reg.orig;
@@ -3688,9 +3579,6 @@ start:
     case MVM_OP_sp_guardnonzero:
         jg_append_guard(tc, jg, ins, 2);
         break;
-    case MVM_OP_prepargs: {
-        return consume_invoke(tc, jg, iter, ins);
-    }
     case MVM_OP_getexcategory: {
         MVMint16 dst     = ins->operands[0].reg.orig;
         MVMint16 obj     = ins->operands[1].reg.orig;
