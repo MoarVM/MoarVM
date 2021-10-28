@@ -162,9 +162,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
     /* Points to the current compilation unit. */
     MVMCompUnit *cu = NULL;
 
-    /* The current call site we're constructing. */
-    MVMCallsite *cur_callsite = NULL;
-
     /* Stash addresses of current op, register base and SC deref base
      * in the TC; this will be used by anything that needs to switch
      * the current place we're interpreting. */
@@ -958,44 +955,14 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(DEPRECATED_67):
             OP(DEPRECATED_68):
                 MVM_exception_throw_adhoc(tc, "Smart coercion ops are superseded by the general dispatch mechanism");
-            OP(prepargs):
-                /* Store callsite in the frame so that the GC knows how to mark
-                 * any arguments. Note that since none of the arg-setting ops can
-                 * trigger GC, there's no way the setup can be interrupted, so we
-                 * don't need to clear the args buffer before we start. */
-                cur_callsite = cu->body.callsites[GET_UI16(cur_op, 0)];
-                tc->cur_frame->cur_args_callsite = cur_callsite;
-                cur_op += 2;
-                goto NEXT;
-            OP(arg_i):
-                tc->cur_frame->args[GET_UI16(cur_op, 0)].i64 = GET_REG(cur_op, 2).i64;
-                cur_op += 4;
-                goto NEXT;
-            OP(arg_n):
-                tc->cur_frame->args[GET_UI16(cur_op, 0)].n64 = GET_REG(cur_op, 2).n64;
-                cur_op += 4;
-                goto NEXT;
-            OP(arg_s):
-                tc->cur_frame->args[GET_UI16(cur_op, 0)].s = GET_REG(cur_op, 2).s;
-                cur_op += 4;
-                goto NEXT;
-            OP(arg_o):
-                tc->cur_frame->args[GET_UI16(cur_op, 0)].o = GET_REG(cur_op, 2).o;
-                cur_op += 4;
-                goto NEXT;
-            OP(argconst_i):
-                tc->cur_frame->args[GET_UI16(cur_op, 0)].i64 = MVM_BC_get_I64(cur_op, 2);
-                cur_op += 10;
-                goto NEXT;
-            OP(argconst_n):
-                tc->cur_frame->args[GET_UI16(cur_op, 0)].n64 = MVM_BC_get_N64(cur_op, 2);
-                cur_op += 10;
-                goto NEXT;
-            OP(argconst_s):
-                tc->cur_frame->args[GET_UI16(cur_op, 0)].s =
-                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
-                cur_op += 6;
-                goto NEXT;
+            OP(DEPRECATED_99):
+            OP(DEPRECATED_100):
+            OP(DEPRECATED_101):
+            OP(DEPRECATED_102):
+            OP(DEPRECATED_103):
+            OP(DEPRECATED_104):
+            OP(DEPRECATED_105):
+            OP(DEPRECATED_106):
             OP(DEPRECATED_70):
             OP(DEPRECATED_71):
             OP(DEPRECATED_72):

@@ -28,11 +28,6 @@
 # by several '.' annoted ops, eg ':j' for a jumplist that is followed
 # by '.j' annotated goto ops.
 #
-# Using a '+' marks the beginning and '-' the end of a block that may
-# only contain matching '*' annotated ops, eg '+a' for prepargs and
-# '-a' for invoke_o with ops like arg_i or arg_o annotated as '*a'
-# inbetween. Note that '*' ops must not appear outside such blocks.
-#
 # A number of adverbs may follow an operation:
 # * :pure means that the op has no side-effects and so can safely be
 #   thrown away if the result is unused
@@ -184,14 +179,14 @@ coerce_si           w(int64) r(str) :pure :confprog
 coerce_sn           w(num64) r(str) :pure :confprog
 DEPRECATED_66       w(num64) r(obj)
 DEPRECATED_67       w(str) r(obj)
-prepargs         +a callsite :predeoptonepoint
-arg_i            *a int16 r(int64)
-arg_n            *a int16 r(num64)
-arg_s            *a int16 r(str)
-arg_o            *a int16 r(obj)
-argconst_i       *a int16 int64
-argconst_n       *a int16 num64
-argconst_s       *a int16 str
+DEPRECATED_99    +a callsite :predeoptonepoint
+DEPRECATED_100   *a int16 r(int64)
+DEPRECATED_101   *a int16 r(num64)
+DEPRECATED_102   *a int16 r(str)
+DEPRECATED_103   *a int16 r(obj)
+DEPRECATED_104   *a int16 int64
+DEPRECATED_105   *a int16 num64
+DEPRECATED_106   *a int16 str
 DEPRECATED_70    -a r(obj)
 DEPRECATED_71    -a w(int64) r(obj)
 DEPRECATED_72    -a w(num64) r(obj)
