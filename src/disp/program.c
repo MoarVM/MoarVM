@@ -1255,6 +1255,52 @@ MVMObject * MVM_disp_program_record_capture_replace_arg(MVMThreadContext *tc,
     return new_capture;
 }
 
+/* Record that we insert a tracked value into a capture. Also perform the insert
+ * on the value that was read. */
+MVMObject * MVM_disp_program_record_capture_replace_literal_arg(MVMThreadContext *tc,
+        MVMObject *capture, MVMuint32 idx, MVMCallsiteFlags kind, MVMRegister value) {
+    /* Lookup the index of the tracked value. */
+    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
+
+    /* Also look up the path to the incoming capture. */
+    CapturePath p;
+    MVM_VECTOR_INIT(p.path, 8);
+    calculate_capture_path(tc, record, capture, &p);
+
+    /* Obtain a new value index for the constant. */
+    MVMuint32 value_index = value_index_constant(tc, &(record->rec), kind, value);
+
+    /* First, create an entry as if we had dropped the argument.
+     * We save the work of creating the capture here, because it is not
+     * used by anything - it is anonymous and can not be addressed. */
+    MVMDispProgramRecordingCapture dropped_arg_record = {
+        .capture = NULL,
+        .transformation = MVMDispProgramRecordingDrop,
+        .index = idx,
+    };
+    MVM_VECTOR_INIT(dropped_arg_record.captures, 0);
+    MVMDispProgramRecordingCapture *update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
+    MVM_VECTOR_PUSH(update->captures, dropped_arg_record);
+    MVM_VECTOR_PUSH(p.path, &update->captures[MVM_VECTOR_ELEMS(update->captures) - 1]);
+
+    MVMObject *new_capture = MVM_capture_replace_arg(tc, capture, idx, value);
+
+    /* After that, create an entry as if we had just added an argument.
+     * This one also gets to have the actual capture. */
+    MVMDispProgramRecordingCapture new_capture_record = {
+        .capture = new_capture,
+        .transformation = MVMDispProgramRecordingInsert,
+        .index = idx,
+        .value_index = value_index
+    };
+    MVM_VECTOR_INIT(new_capture_record.captures, 0);
+    update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
+    MVM_VECTOR_PUSH(update->captures, new_capture_record);
+    MVM_VECTOR_DESTROY(p.path);
+
+    /* Evaluate to the new capture, for the running dispatch function. */
+    return new_capture;
+}
 
 /* Record that we insert a new constant argument from a capture. Also perform the
  * insert, resulting in a new capture without a new argument inserted at the
