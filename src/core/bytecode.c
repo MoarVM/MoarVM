@@ -823,7 +823,6 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
     MVMCallsite **callsites;
     MVMuint8     *pos;
     MVMuint32     i, j, elems;
-    MVMCompUnitBody *cu_body = &cu->body;
 
     /* Allocate space for callsites. */
     if (rs->expected_callsites == 0)
@@ -948,21 +947,12 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
             callsites[i]->arg_names = NULL;
         }
 
-        /* Track maximum callsite size we've seen. (Used for now, though
-         * in the end we probably should calculate it by frame.) */
-        if (callsites[i]->arg_count > cu_body->max_callsite_size)
-            cu_body->max_callsite_size = callsites[i]->arg_count;
-
         /* Try to intern the callsite (that is, see if it matches one the
          * VM already knows about). If it does, it will free the memory
          * associated and replace it with the interned one. Otherwise it
          * will store this one, provided it meets the interning rules. */
         MVM_callsite_intern(tc, &(callsites[i]), 0, 1);
     }
-
-    /* Add one on to the maximum, to allow space for unshifting an extra
-     * arg in the "supply invoked code object" case. */
-    cu_body->max_callsite_size++;
 
     return callsites;
 }
@@ -1022,7 +1012,6 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     create_code_objects(tc, cu, rs);
 
     /* Load callsites. */
-    cu_body->max_callsite_size = MVM_MIN_CALLSITE_SIZE;
     cu_body->callsites = deserialize_callsites(tc, cu, rs);
     cu_body->num_callsites = rs->expected_callsites;
     cu_body->orig_callsites = rs->expected_callsites;

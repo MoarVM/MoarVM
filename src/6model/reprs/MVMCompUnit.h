@@ -47,9 +47,6 @@ struct MVMCompUnitBody {
     /* Refers to the extops pointer below. Lives here for struct layout */
     MVMuint16       num_extops;
 
-    /* See callsites, num_callsites, and orig_callsites below. */
-    MVMuint16       max_callsite_size;
-
     /* The code objects for each frame, along with counts of frames. */
     MVMObject      **coderefs;
     MVMuint32        num_frames;    /* Total, inc. added by inliner. */

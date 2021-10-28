@@ -432,9 +432,8 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
 
 /* Takes a frame, scans its registers and adds them to the roots. */
 void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame) {
-    MVMuint16  i, count, flag;
+    MVMuint16  i, count;
     MVMuint16 *type_map;
-    MVMuint8  *flag_map;
     /* We only need to do any of this work if the frame is in dynamic scope. */
     if (frame->work) {
         /* Scan locals. */
@@ -455,21 +454,6 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
         for (i = 0; i < count; i++)
             if (type_map[i] == MVM_reg_str || type_map[i] == MVM_reg_obj)
                 MVM_gc_worklist_add(tc, worklist, &frame->work[i].o);
-
-        /* Scan arg buffer if needed. */
-        if (frame->cur_args_callsite) {
-            flag_map = frame->cur_args_callsite->arg_flags;
-            count = frame->cur_args_callsite->arg_count;
-            for (i = 0, flag = 0; i < count; i++, flag++) {
-                if (flag_map[flag] & MVM_CALLSITE_ARG_NAMED) {
-                    /* Current position is name, then next is value. */
-                    MVM_gc_worklist_add(tc, worklist, &frame->args[i].s);
-                    i++;
-                }
-                if (flag_map[flag] & MVM_CALLSITE_ARG_STR || flag_map[flag] & MVM_CALLSITE_ARG_OBJ)
-                    MVM_gc_worklist_add(tc, worklist, &frame->args[i].o);
-            }
-        }
     }
 }
 
