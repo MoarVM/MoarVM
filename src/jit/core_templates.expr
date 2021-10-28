@@ -2677,11 +2677,6 @@
       (carg $2 ptr)
       (carg $3 int)) int_sz))
 
-(template: getarg_i (load (^arg $1) int_sz))
-(template: getarg_n (load_num (^arg $1) num_sz))
-(template: getarg_s (load (^arg $1) ptr_sz))
-(template: getarg_o (load (^arg $1) ptr_sz))
-
 (template: encoderepconf
   (call (^func &MVM_string_encode_to_buf_config)
     (arglist

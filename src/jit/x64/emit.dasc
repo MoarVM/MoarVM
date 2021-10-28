@@ -708,18 +708,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], RV;
         break;
     }
-    case MVM_OP_getarg_o:
-    case MVM_OP_getarg_n:
-    case MVM_OP_getarg_s:
-    case MVM_OP_getarg_i: {
-        MVMuint16 reg = ins->operands[0].reg.orig;
-        MVMuint16 idx = ins->operands[1].reg.orig;
-        | mov TMP1, TC->cur_frame;
-        | mov TMP1, FRAME:TMP1->args;
-        | mov TMP1, REGISTER:TMP1[idx];
-        | mov WORK[reg], TMP1;
-        break;
-    }
     case MVM_OP_sp_getarg_o:
     case MVM_OP_sp_getarg_n:
     case MVM_OP_sp_getarg_s:
@@ -2556,33 +2544,6 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
     case MVM_JIT_DATA_LABEL:
         | lea TMP6, [=>(arg.v.lit_i64)];
         break;
-    case MVM_JIT_ARG_I64:
-        | mov TMP6, TC->cur_frame;
-        | mov TMP6, FRAME:TMP6->args;
-        | mov TMP6, qword REGISTER:TMP6[arg.v.lit_i64];
-        break;
-    case MVM_JIT_ARG_DOUBLE:
-        | mov TMP6, TC->cur_frame;
-        | mov TMP6, FRAME:TMP6->args;
-        | mov TMP6, qword REGISTER:TMP6[arg.v.lit_i64];
-        break;
-    case MVM_JIT_ARG_I64_RW:
-        | mov TMP6, TC->cur_frame;
-        | mov TMP6, FRAME:TMP6->args;
-        | lea TMP6, qword REGISTER:TMP6[arg.v.lit_i64];
-        break;
-    case MVM_JIT_ARG_PTR:
-        | mov TMP6, TC->cur_frame;
-        | mov TMP6, FRAME:TMP6->args;
-        | mov TMP6, qword REGISTER:TMP6[arg.v.lit_i64];
-        | mov TMP6, aword STOOGE:TMP6->data;
-        break;
-    case MVM_JIT_ARG_VMARRAY:
-        | mov TMP6, TC->cur_frame;
-        | mov TMP6, FRAME:TMP6->args;
-        | mov TMP6, qword REGISTER:TMP6[arg.v.lit_i64];
-        | mov TMP6, aword VMARRAY:TMP6->body.slots;
-        break;
     case MVM_JIT_PARAM_I64:
         | mov TMP6, qword WORK[arg.v.lit_i64];
         break;
@@ -3461,77 +3422,6 @@ void MVM_jit_emit_istype(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         | mov FUNCTION, MVMDISPINLINECACHEENTRY:ARG3->run_dispatch;
         | call FUNCTION;
     }
-}
-
-void MVM_jit_emit_invoke(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg, MVMJitInvoke *invoke) {
-    MVMint16 i;
-    MVMuint16 callsite_idx = invoke->callsite_idx;
-
-    /* The return address for the interpreter */
-    | get_cur_op TMP2;
-    | mov TMP5, TC->cur_frame;
-    | mov aword FRAME:TMP5->return_address, TMP2;
-
-    /* Store callsite in tmp6, which we use at the end of invoke */
-    | mov TMP6, CU->body.callsites;
-    | mov TMP6, CALLSITEPTR:TMP6[callsite_idx];
-
-    /* Store callsite in the frame. I use TMP5 as it never conflicts
-     * with argument passing (like TMP6, but unlike other TMP regs) */
-    | mov FRAME:TMP5->cur_args_callsite, TMP6;
-
-    /* Setup the frame for returning to our current position */
-    if (sizeof(MVMReturnType) == 1) {
-        | mov byte FRAME:TMP5->return_type, invoke->return_type;
-    } else {
-        MVM_panic(1, "JIT: MVMReturnType has unexpected size");
-    }
-
-    /* The register for our return value */
-    if (invoke->return_type == MVM_RETURN_VOID) {
-        | mov aword FRAME:TMP5->return_value, NULL;
-    } else {
-        | lea TMP2, WORK[invoke->return_register];
-        | mov aword FRAME:TMP5->return_value, TMP2;
-    }
-
-    /* Install invoke args */
-    | mov TMP5, FRAME:TMP5->args;
-    for (i = 0;  i < invoke->arg_count; i++) {
-        MVMSpeshIns *ins = invoke->arg_ins[i];
-        switch (ins->info->opcode) {
-        case MVM_OP_arg_i:
-        case MVM_OP_arg_s:
-        case MVM_OP_arg_n:
-        case MVM_OP_arg_o: {
-            MVMint16 dst = ins->operands[0].lit_i16;
-            MVMint16 src = ins->operands[1].reg.orig;
-            | mov TMP4, WORK[src];
-            | mov REGISTER:TMP5[dst], TMP4;
-            break;
-        }
-        case MVM_OP_argconst_n:
-        case MVM_OP_argconst_i: {
-            MVMint16 dst = ins->operands[0].lit_i16;
-            MVMint64 val = ins->operands[1].lit_i64;
-            | mov64 TMP4, val;
-            | mov REGISTER:TMP5[dst], TMP4;
-            break;
-        }
-        case MVM_OP_argconst_s: {
-            MVMint16 dst = ins->operands[0].lit_i16;
-            MVMint32 idx = ins->operands[1].lit_str_idx;
-            | get_string TMP4, idx;
-            | mov REGISTER:TMP5[dst], TMP4;
-            break;
-        }
-        default:
-            MVM_panic(1, "JIT invoke: Can't add arg <%s>",
-                      ins->info->name);
-        }
-    }
-
-    MVM_panic(1, "JIT needs updating for new-disp");
 }
 
 void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,

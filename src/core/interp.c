@@ -5020,52 +5020,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             }
-            OP(nativeinvoke_v):
-                tc->cur_frame->return_value = NULL;
-                tc->cur_frame->return_type = MVM_RETURN_VOID;
-                MVM_nativecall_invoke_jit(tc, GET_REG(cur_op, 2).o);
-                cur_op += 6;
-                goto NEXT;
-            OP(nativeinvoke_i):
-                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
-                tc->cur_frame->return_type = MVM_RETURN_INT;
-                MVM_nativecall_invoke_jit(tc, GET_REG(cur_op, 2).o);
-                cur_op += 6;
-                goto NEXT;
-            OP(nativeinvoke_n):
-                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
-                tc->cur_frame->return_type = MVM_RETURN_NUM;
-                MVM_nativecall_invoke_jit(tc, GET_REG(cur_op, 2).o);
-                cur_op += 6;
-                goto NEXT;
-            OP(nativeinvoke_s):
-                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
-                tc->cur_frame->return_type = MVM_RETURN_STR;
-                MVM_nativecall_invoke_jit(tc, GET_REG(cur_op, 2).o);
-                cur_op += 6;
-                goto NEXT;
-            OP(nativeinvoke_o):
-                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
-                tc->cur_frame->return_type = MVM_RETURN_OBJ;
-                MVM_nativecall_invoke_jit(tc, GET_REG(cur_op, 2).o);
-                cur_op += 6;
-                goto NEXT;
-            OP(getarg_i):
-                GET_REG(cur_op, 0).i64 = tc->cur_frame->args[GET_REG(cur_op, 2).u16].i64;
-                cur_op += 4;
-                goto NEXT;
-            OP(getarg_n):
-                GET_REG(cur_op, 0).n64 = tc->cur_frame->args[GET_REG(cur_op, 2).u16].n64;
-                cur_op += 4;
-                goto NEXT;
-            OP(getarg_s):
-                GET_REG(cur_op, 0).s = tc->cur_frame->args[GET_REG(cur_op, 2).u16].s;
-                cur_op += 4;
-                goto NEXT;
-            OP(getarg_o):
-                GET_REG(cur_op, 0).o = tc->cur_frame->args[GET_REG(cur_op, 2).u16].o;
-                cur_op += 4;
-                goto NEXT;
+            OP(DEPRECATED_111):
+            OP(DEPRECATED_112):
+            OP(DEPRECATED_113):
+            OP(DEPRECATED_114):
+            OP(DEPRECATED_115):
+            OP(DEPRECATED_107):
+            OP(DEPRECATED_108):
+            OP(DEPRECATED_109):
+            OP(DEPRECATED_110):
+                MVM_exception_throw_adhoc(tc, "The invoke ops are superseded by the general dispatch mechanism");
             OP(coerce_II): {
                 MVMObject *   const type = GET_REG(cur_op, 4).o;
                 GET_REG(cur_op, 0).o = MVM_bigint_from_bigint(tc, type, GET_REG(cur_op, 2).o);
