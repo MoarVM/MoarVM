@@ -175,18 +175,11 @@ static const MVMREPROps SpeshCandidate_this_repr = {
  * lexicals. */
 static void calculate_work_env_sizes(MVMThreadContext *tc, MVMStaticFrame *sf,
                                      MVMSpeshCandidate *c) {
-    MVMuint32 max_callsite_size, jit_spill_size;
-    MVMuint32 i;
+    MVMuint32 jit_spill_size;
 
-    max_callsite_size = sf->body.cu->body.max_callsite_size;
     jit_spill_size = (c->body.jitcode ? c->body.jitcode->spill_size: 0);
-    for (i = 0; i < c->body.num_inlines; i++) {
-        MVMuint32 cs = c->body.inlines[i].sf->body.cu->body.max_callsite_size;
-        if (cs > max_callsite_size)
-            max_callsite_size = cs;
-    }
 
-    c->body.work_size = (c->body.num_locals + max_callsite_size + jit_spill_size) * sizeof(MVMRegister);
+    c->body.work_size = (c->body.num_locals + jit_spill_size) * sizeof(MVMRegister);
     c->body.env_size = c->body.num_lexicals * sizeof(MVMRegister);
 }
 
