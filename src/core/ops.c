@@ -2034,8 +2034,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_prepargs,
-        "prepargs",
+        MVM_OP_DEPRECATED_99,
+        "DEPRECATED_99",
         1,
         0,
         8,
@@ -2050,8 +2050,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_callsite }
     },
     {
-        MVM_OP_arg_i,
-        "arg_i",
+        MVM_OP_DEPRECATED_100,
+        "DEPRECATED_100",
         2,
         0,
         0,
@@ -2066,8 +2066,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_int16, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_arg_n,
-        "arg_n",
+        MVM_OP_DEPRECATED_101,
+        "DEPRECATED_101",
         2,
         0,
         0,
@@ -2082,8 +2082,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_int16, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
-        MVM_OP_arg_s,
-        "arg_s",
+        MVM_OP_DEPRECATED_102,
+        "DEPRECATED_102",
         2,
         0,
         0,
@@ -2098,8 +2098,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_int16, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_arg_o,
-        "arg_o",
+        MVM_OP_DEPRECATED_103,
+        "DEPRECATED_103",
         2,
         0,
         0,
@@ -2114,8 +2114,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_int16, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_argconst_i,
-        "argconst_i",
+        MVM_OP_DEPRECATED_104,
+        "DEPRECATED_104",
         2,
         0,
         0,
@@ -2130,8 +2130,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_int16, MVM_operand_int64 }
     },
     {
-        MVM_OP_argconst_n,
-        "argconst_n",
+        MVM_OP_DEPRECATED_105,
+        "DEPRECATED_105",
         2,
         0,
         0,
@@ -2146,8 +2146,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_int16, MVM_operand_num64 }
     },
     {
-        MVM_OP_argconst_s,
-        "argconst_s",
+        MVM_OP_DEPRECATED_106,
+        "DEPRECATED_106",
         2,
         0,
         0,

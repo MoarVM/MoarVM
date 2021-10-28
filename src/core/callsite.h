@@ -76,10 +76,6 @@ struct MVMCallsite {
     MVMString **arg_names;
 };
 
-/* Minimum callsite size is due to certain things internally expecting us to
- * have that many slots available (e.g. find_method(how, obj, name)). */
-#define MVM_MIN_CALLSITE_SIZE 3
-
 /* Maximum arity of a callsite (where arity is including positionals and
  * nameds in this case) that we immediately consider for interning. However,
  * we are willing to go over this if we are forced to intern something. */
