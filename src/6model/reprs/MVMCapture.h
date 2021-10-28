@@ -45,3 +45,5 @@ MVMint64 MVM_capture_is_literal_arg(MVMThreadContext *tc, MVMObject *capture, MV
 MVMObject * MVM_capture_drop_args(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx, MVMuint32 count);
 MVMObject * MVM_capture_insert_arg(MVMThreadContext *tc, MVMObject *capture, MVMuint32 idx,
         MVMCallsiteFlags kind, MVMRegister value);
+MVMObject * MVM_capture_replace_arg(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx,
+        MVMRegister value);
