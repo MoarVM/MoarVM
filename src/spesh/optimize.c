@@ -2482,7 +2482,10 @@ static void try_eliminate_one_box_unbox(MVMThreadContext *tc, MVMSpeshGraph *g, 
                                          MVMSpeshIns *box_ins, MVMSpeshIns *unbox_ins) {
     if (conflict_free(tc, g, bb, box_ins, unbox_ins, box_ins->operands[1].reg.orig, 1)) {
         /* Make unbox instruction no longer use the boxed value. */
-        MVM_spesh_usages_delete_by_reg(tc, g, unbox_ins->operands[1], unbox_ins);
+        for (int i = 1; i < unbox_ins->info->num_operands; i++) {
+            if ((unbox_ins->info->operands[i] & MVM_operand_rw_mask) == MVM_operand_read_reg)
+                MVM_spesh_usages_delete_by_reg(tc, g, unbox_ins->operands[i], unbox_ins);
+        }
 
         /* Use the unboxed version instead, rewriting to a set. */
         unbox_ins->operands[1] = box_ins->operands[1];
@@ -2525,6 +2528,56 @@ static void try_eliminate_box_unbox_pair(MVMThreadContext *tc, MVMSpeshGraph *g,
         MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
     }
 }
+static void walk_set_looking_for_unbool(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                       MVMSpeshIns *box_ins, MVMSpeshIns *set_ins) {
+    MVMSpeshUseChainEntry *user_entry = MVM_spesh_get_facts(tc, g, set_ins->operands[0])->usage.users;
+    while (user_entry) {
+        MVMSpeshIns *user = user_entry->user;
+        if (user->info->opcode == MVM_OP_sp_runcfunc_i) {
+            MVMSpeshFacts *dispatch_facts = MVM_spesh_get_facts(tc, g, user->operands[1]);
+            if (dispatch_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE
+                    && REPR(dispatch_facts->value.o)->ID == MVM_REPR_ID_MVMCFunction
+                    && ((MVMCFunction*)dispatch_facts->value.o)->body.func
+                        == MVM_disp_syscall_boolify_boxed_int_impl
+            ) {
+                try_eliminate_one_box_unbox(tc, g, bb, box_ins, user);
+            }
+        }
+        else if (user->info->opcode == MVM_OP_set ||
+                (user->info->opcode == MVM_SSA_PHI && user->info->num_operands == 2)) {
+            walk_set_looking_for_unbool(tc, g, bb, box_ins, user);
+        }
+        user_entry = user_entry->next;
+    }
+}
+static void try_eliminate_bool_unbool_pair(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+                                         MVMSpeshIns *ins, PostInlinePassState *pips) {
+    MVMSpeshUseChainEntry *user_entry = MVM_spesh_get_facts(tc, g, ins->operands[0])->usage.users;
+    while (user_entry) {
+        MVMSpeshIns *user = user_entry->user;
+        if (user->info->opcode == MVM_OP_sp_runcfunc_i) {
+            MVMSpeshFacts *dispatch_facts = MVM_spesh_get_facts(tc, g, user->operands[1]);
+            if (dispatch_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE
+                    && REPR(dispatch_facts->value.o)->ID == MVM_REPR_ID_MVMCFunction
+                    && ((MVMCFunction*)dispatch_facts->value.o)->body.func
+                        == MVM_disp_syscall_boolify_boxed_int_impl) {
+                try_eliminate_one_box_unbox(tc, g, bb, ins, user);
+            }
+            else
+                return;
+        }
+        else if (user->info->opcode == MVM_OP_set ||
+                (user->info->opcode == MVM_SSA_PHI && user->info->num_operands == 2)) {
+            walk_set_looking_for_unbool(tc, g, bb, ins, user);
+        }
+        user_entry = user_entry->next;
+    }
+    if (MVM_spesh_usages_is_used(tc, g, ins->operands[0])) {
+    }
+    else {
+        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+    }
+}
 
 
 static void post_inline_visit_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -2549,6 +2602,9 @@ static void post_inline_visit_bb(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
                 break;
             case MVM_OP_box_u:
                 try_eliminate_box_unbox_pair(tc, g, bb, ins, MVM_OP_unbox_u, MVM_OP_decont_u, pips);
+                break;
+            case MVM_OP_hllbool:
+                try_eliminate_bool_unbool_pair(tc, g, bb, ins, pips);
                 break;
             case MVM_OP_unbox_i:
             case MVM_OP_unbox_n:
