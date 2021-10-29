@@ -534,14 +534,14 @@ static MVMDispSysCall boolify_bigint = {
 };
 
 /* boolify-boxed-int */
-static void boolify_boxed_int_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+void MVM_disp_syscall_boolify_boxed_int_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *obj = get_obj_arg(arg_info, 0);
     MVMint64 unboxed = REPR(obj)->box_funcs.get_int(tc, STABLE(obj), obj, OBJECT_BODY(obj));
     MVM_args_set_result_int(tc, unboxed != 0, MVM_RETURN_CURRENT_FRAME);
 }
 static MVMDispSysCall boolify_boxed_int = {
     .c_name = "boolify-boxed-int",
-    .implementation = boolify_boxed_int_impl,
+    .implementation = MVM_disp_syscall_boolify_boxed_int_impl,
     .min_args = 1,
     .max_args = 1,
     .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
