@@ -1566,9 +1566,9 @@ MVMint64 MVM_bigint_is_prime(MVMThreadContext *tc, MVMObject *a) {
         return result;
     }
     else {
-        MVMuint32 x = ba->u.smallint.value;
+        MVMint32 x = ba->u.smallint.value;
         if (x==2 || x==3 || x==5 || x==7) return 1;
-        if (x%2==0 || x%3==0 || x%5==0 || x%7==0) return 0;
+        if (x%2==0 || x%3==0 || x%5==0 || x%7==0 || x<0) return 0;
         if (x<121) return (x>1);
         uint64_t h = x;
         h = ((h >> 16) ^ h) * 0x45d9f3b;
