@@ -1279,7 +1279,7 @@ MVMObject * MVM_disp_program_record_capture_replace_literal_arg(MVMThreadContext
         .transformation = MVMDispProgramRecordingDrop,
         .index = idx,
     };
-    MVM_VECTOR_INIT(dropped_arg_record.captures, 0);
+    MVM_VECTOR_INIT(dropped_arg_record.captures, 1);
     MVMDispProgramRecordingCapture *update = p.path[MVM_VECTOR_ELEMS(p.path) - 1];
     MVM_VECTOR_PUSH(update->captures, dropped_arg_record);
     MVM_VECTOR_PUSH(p.path, &update->captures[MVM_VECTOR_ELEMS(update->captures) - 1]);
