@@ -627,7 +627,7 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
 
             /* Move any lexical environment to the heap, as it may now
              * out-live the callstack entry. */
-            MVMuint16 env_size = cur_to_promote->allocd_env;
+            MVMuint32 env_size = cur_to_promote->allocd_env;
             if (env_size) {
                 MVMRegister *heap_env = MVM_fixed_size_alloc(tc,
                         tc->instance->fsa, env_size);

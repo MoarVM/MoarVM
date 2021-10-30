@@ -75,8 +75,8 @@ struct MVMFrame {
     MVMuint8 flags;
 
     /* The allocated work/env sizes. */
-    MVMuint16 allocd_work;
-    MVMuint16 allocd_env;
+    MVMuint32 allocd_work;
+    MVMuint32 allocd_env;
 
     /* The current spesh correlation ID, if we're interpreting code and
      * recording logs. Zero if interpreting unspecialized and not recording.
