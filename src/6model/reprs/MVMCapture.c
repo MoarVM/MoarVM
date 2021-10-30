@@ -429,7 +429,7 @@ MVMObject * MVM_capture_insert_arg(MVMThreadContext *tc, MVMObject *capture_obj,
  *
  * The callsite argument type is expected to be the same. */
 MVMObject * MVM_capture_replace_arg(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx,
-        MVMRegister value) {
+        MVMCallsiteEntry kind, MVMRegister value) {
     MVMCapture *capture = validate_capture(tc, capture_obj);
     if (idx > capture->body.callsite->num_pos)
         MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
@@ -437,9 +437,9 @@ MVMObject * MVM_capture_replace_arg(MVMThreadContext *tc, MVMObject *capture_obj
     /* Allocate a new capture before we begin; this is the only GC allocation
      * we do. */
     MVMCallsite *callsite = capture->body.callsite;
-    MVMCallsite *new_callsite = MVM_callsite_copy(tc, capture->body.callsite);
+    MVMCallsite *new_callsite = MVM_callsite_replace_positional(tc, capture->body.callsite, idx, kind);
     MVMObject *new_capture;
-    MVMCallsiteEntry kind = new_callsite->arg_flags[idx];
+    new_callsite->arg_flags[idx] = kind;
     MVMROOT(tc, capture, {
         if (kind & (MVM_CALLSITE_ARG_OBJ | MVM_CALLSITE_ARG_STR)) {
             MVMROOT(tc, value.o, {

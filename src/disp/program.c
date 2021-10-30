@@ -1236,7 +1236,8 @@ MVMObject * MVM_disp_program_record_capture_replace_arg(MVMThreadContext *tc,
     MVM_VECTOR_PUSH(update->captures, dropped_arg_record);
     MVM_VECTOR_PUSH(p.path, &update->captures[MVM_VECTOR_ELEMS(update->captures) - 1]);
 
-    MVMObject *new_capture = MVM_capture_replace_arg(tc, capture, idx, ((MVMTracked *)tracked)->body.value);
+    MVMTracked *trackobj = (MVMTracked *)tracked;
+    MVMObject *new_capture = MVM_capture_replace_arg(tc, capture, idx, trackobj->body.kind, trackobj->body.value);
 
     /* After that, create an entry as if we had just added an argument.
      * This one also gets to have the actual capture. */
@@ -1283,7 +1284,7 @@ MVMObject * MVM_disp_program_record_capture_replace_literal_arg(MVMThreadContext
     MVM_VECTOR_PUSH(update->captures, dropped_arg_record);
     MVM_VECTOR_PUSH(p.path, &update->captures[MVM_VECTOR_ELEMS(update->captures) - 1]);
 
-    MVMObject *new_capture = MVM_capture_replace_arg(tc, capture, idx, value);
+    MVMObject *new_capture = MVM_capture_replace_arg(tc, capture, idx, kind, value);
 
     /* After that, create an entry as if we had just added an argument.
      * This one also gets to have the actual capture. */
