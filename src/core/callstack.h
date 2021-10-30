@@ -346,12 +346,12 @@ struct MVMCallStackNestedRunloop {
 /* Functions for working with the call stack. */
 void MVM_callstack_init(MVMThreadContext *tc);
 MVMCallStackRecord * MVM_callstack_allocate_nested_runloop(MVMThreadContext *tc);
-MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc, MVMuint16 work_size,
-        MVMuint16 env_size);
+MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc, MVMuint32 work_size,
+        MVMuint32 env_size);
 MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc,
-        MVMuint16 work_size);
-MVMint32 MVM_callstack_ensure_work_and_env_space(MVMThreadContext *tc, MVMuint16 needed_work,
-        MVMuint16 needed_env);
+        MVMuint32 work_size);
+MVMint32 MVM_callstack_ensure_work_and_env_space(MVMThreadContext *tc, MVMuint32 needed_work,
+        MVMuint32 needed_env);
 MVMCallStackDispatchRecord * MVM_callstack_allocate_dispatch_record(MVMThreadContext *tc);
 MVMCallStackDispatchRun * MVM_callstack_allocate_dispatch_run(MVMThreadContext *tc,
         MVMuint32 num_temps);
