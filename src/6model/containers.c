@@ -137,23 +137,22 @@ static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *
     CodePairContData *data = (CodePairContData *)st->container_data;
     MVMROOT2(tc, config, st, {
         MVMString *fetch = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "fetch");
-        MVMROOT(tc, fetch, {
-            MVMString *store = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "store");
 
-            if (!MVM_repr_exists_key(tc, config, fetch))
-                MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a fetch");
-            MVMObject *fetch_code = MVM_repr_at_key_o(tc, config, fetch);
-            if (!MVM_code_iscode(tc, fetch_code))
-                MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a code handle");
-            MVM_ASSIGN_REF(tc, &(st->header), data->fetch_code, (MVMCode *)fetch_code);
+        if (!MVM_repr_exists_key(tc, config, fetch))
+            MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a fetch");
+        MVMObject *fetch_code = MVM_repr_at_key_o(tc, config, fetch);
+        if (!MVM_code_iscode(tc, fetch_code))
+            MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a code handle");
+        MVM_ASSIGN_REF(tc, &(st->header), data->fetch_code, (MVMCode *)fetch_code);
 
-            if (!MVM_repr_exists_key(tc, config, store))
-                MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a store");
-            MVMObject *store_code = MVM_repr_at_key_o(tc, config, store);
-            if (!MVM_code_iscode(tc, store_code))
-                MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a code handle");
-            MVM_ASSIGN_REF(tc, &(st->header), data->store_code, store_code);
-        });
+        MVMString *store = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "store");
+
+        if (!MVM_repr_exists_key(tc, config, store))
+            MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a store");
+        MVMObject *store_code = MVM_repr_at_key_o(tc, config, store);
+        if (!MVM_code_iscode(tc, store_code))
+            MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a code handle");
+        MVM_ASSIGN_REF(tc, &(st->header), data->store_code, store_code);
     });
 }
 
