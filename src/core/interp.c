@@ -3113,8 +3113,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(ctxouter): {
                 MVMObject *ctx = GET_REG(cur_op, 2).o;
-                if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
-                    MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext");
                 GET_REG(cur_op, 0).o = MVM_context_apply_traversal(tc, (MVMContext *)ctx,
                         MVM_CTX_TRAV_OUTER);
                 cur_op += 4;
@@ -3122,8 +3120,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(ctxcaller): {
                 MVMObject *ctx = GET_REG(cur_op, 2).o;
-                if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
-                    MVM_exception_throw_adhoc(tc, "ctxcaller needs an MVMContext");
                 GET_REG(cur_op, 0).o = MVM_context_apply_traversal(tc, (MVMContext *)ctx,
                         MVM_CTX_TRAV_CALLER);
                 cur_op += 4;
@@ -3955,9 +3951,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The multi-dispatch cache is superceded by the general dispatch mechanism");
             OP(ctxouterskipthunks): {
                 MVMObject *ctx = GET_REG(cur_op, 2).o;
-                if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
-                    MVM_exception_throw_adhoc(tc, "ctxouter needs an MVMContext, got %s (%s)",
-                        REPR(ctx)->name, MVM_6model_get_debug_name(tc, ctx));
                 GET_REG(cur_op, 0).o = MVM_context_apply_traversal(tc, (MVMContext *)ctx,
                         MVM_CTX_TRAV_OUTER_SKIP_THUNKS);
                 cur_op += 4;
@@ -3965,9 +3958,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(ctxcallerskipthunks): {
                 MVMObject *ctx = GET_REG(cur_op, 2).o;
-                if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
-                    MVM_exception_throw_adhoc(tc, "ctxcallerskipthunks needs an MVMContext, got %s (%s)",
-                        REPR(ctx)->name, MVM_6model_get_debug_name(tc, ctx));
                 GET_REG(cur_op, 0).o = MVM_context_apply_traversal(tc, (MVMContext *)ctx,
                         MVM_CTX_TRAV_CALLER_SKIP_THUNKS);
                 cur_op += 4;

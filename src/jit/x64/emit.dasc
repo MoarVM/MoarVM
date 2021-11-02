@@ -987,29 +987,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], TMP1;
         break;
     }
-    case MVM_OP_ctxcallerskipthunks: {
-        MVMint16 dst = ins->operands[0].reg.orig;
-        MVMint16 ctx = ins->operands[1].reg.orig;
-        /* ctx = NULL */
-        | xor RV, RV;
-        | mov TMP5, aword WORK[ctx];
-        /* check concrete instance of type or throw */
-        | test_type_object TMP5;
-        | jnz >1;
-        | cmp_repr_id TMP5, TMP6, MVM_REPR_ID_MVMContext;
-        | jne >1;
-        /* Call function to create context. */
-        | mov ARG1, TC
-        | mov ARG2, TMP5
-        | mov ARG3, MVM_CTX_TRAV_CALLER_SKIP_THUNKS
-        | callp &MVM_context_apply_traversal;
-        | mov WORK[dst], RV;
-        | jmp >2;
-        |1:
-        | throw_adhoc "ctxcallerskipthunks needs an MVMContext";
-        |2:
-        break;
-    }
     case MVM_OP_curcode: {
         MVMint16 dst = ins->operands[0].reg.orig;
         | mov TMP1, TC->cur_frame;
