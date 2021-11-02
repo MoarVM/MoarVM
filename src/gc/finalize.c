@@ -84,9 +84,12 @@ void MVM_finalize_walk_queues(MVMThreadContext *tc, MVMuint8 gen) {
 
 /* Try to run a finalization handler. Returns a true value if we do so */
 MVMint32 MVM_gc_finalize_run_handler(MVMThreadContext *tc) {
-    /* Make sure there is a current frame and that there's a HLL handler
-     * to run. */
+    /* Make sure there is a current frame, that we aren't hanging on to an
+     * exception handler result (which the finalizer could overwrite), and
+     * that there's a HLL handler to run. */
     if (!tc->cur_frame)
+        return 0;
+    if (tc->last_handler_result)
         return 0;
     MVMCode *handler = MVM_hll_current(tc)->finalize_handler;
     if (handler) {
