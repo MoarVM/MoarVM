@@ -3375,7 +3375,6 @@ void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *
     switch (outcome->kind) {
         case MVM_DISP_OUTCOME_FAILED:
         case MVM_DISP_OUTCOME_CFUNCTION:
-        case MVM_DISP_OUTCOME_NEXT_RESUMPTION:
             /* Nothing to mark for these. */
             break;
         case MVM_DISP_OUTCOME_EXPECT_DELEGATE:
@@ -3383,6 +3382,7 @@ void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *
                     "Dispatch outcome (delegate capture)");
             break;
         case MVM_DISP_OUTCOME_RESUME:
+        case MVM_DISP_OUTCOME_NEXT_RESUMPTION:
             add_collectable(tc, worklist, snapshot, outcome->resume_capture,
                     "Dispatch outcome (resume capture)");
             break;
