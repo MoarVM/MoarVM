@@ -191,7 +191,7 @@ static MVMuint32 find_internal(MVMThreadContext *tc, MVMDispResumptionData *data
                                         else {
                                             exhausted--;
                                         }
-                                        j--;
+                                        j++;
                                     }
                                     /* There were resumptions, but none applied; we should
                                      * not search beyond the innermost dispatch for them. */
