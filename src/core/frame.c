@@ -891,8 +891,6 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
         if (!need_caller)
             returner->caller = NULL;
     }
-    if (thunked)
-        return 1;
     return caller != NULL;
 }
 
