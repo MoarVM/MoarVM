@@ -895,7 +895,7 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
 
     /* For frames on the callstack, nothing more to do other than unwind. */
     if (MVM_FRAME_IS_ON_CALLSTACK(tc, returner))
-        return MVM_callstack_unwind_frame(tc, unwind) != NULL;
+        return MVM_callstack_unwind_frame(tc, unwind);
 
     /* Heap promoted frames can stay around, but we may or may not need to
      * clear up ->extra and ->caller. */
@@ -913,13 +913,13 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
     else {
         need_caller = 0;
     }
-    MVMFrame *caller;
+    MVMuint64 outcome;
     MVMROOT(tc, returner, {
-        caller = MVM_callstack_unwind_frame(tc, unwind);
+        outcome = MVM_callstack_unwind_frame(tc, unwind);
     });
     if (!need_caller)
         returner->caller = NULL;
-    return caller != NULL;
+    return outcome;
 }
 
 /* Attempt to return from the current frame. Returns non-zero if we can,

@@ -531,7 +531,9 @@ MVMCallStackDispatchRecord * MVM_callstack_find_topmost_dispatch_recording(MVMTh
     return (MVMCallStackDispatchRecord *)MVM_callstack_iter_current(tc, &iter);
 }
 
-/* Unwind the calls stack until we reach a prior bytecode frame. */
+/* Unwind the calls stack until we reach a prior bytecode frame. Returns a
+ * true value if we should continue running code in the interpreter and
+ * false if not. */
 static int is_bytecode_frame(MVMuint8 kind) {
     switch (kind) {
         case MVM_CALLSTACK_RECORD_FRAME:
@@ -598,7 +600,7 @@ static void handle_bind_control(MVMThreadContext *tc, MVMCallStackBindControl *c
     ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args_map, flag_ptr,
             control_record->sf, 0);
 }
-MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional) {
+MVMuint64 MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional) {
     MVMint32 thunked = 0;
     do {
         /* Ensure region and stack top are in a consistent state. */
@@ -714,8 +716,8 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                 break;
             }
             case MVM_CALLSTACK_RECORD_NESTED_RUNLOOP: {
-                /* Return NULL to signal to exit the nested runloop. */
-                return NULL;
+                /* Signal to exit the nested runloop. */
+                return 0;
             }
             case MVM_CALLSTACK_RECORD_SPECIAL_RETURN: {
                 /* Read the callback info, and then remove this record (as we
@@ -745,7 +747,7 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
     } while (tc->stack_top && !is_bytecode_frame(tc->stack_top->kind));
     if (tc->num_finalizing && !exceptional && !thunked)
         MVM_gc_finalize_run_handler(tc);
-    return tc->stack_top ? MVM_callstack_record_to_frame(tc->stack_top) : NULL;
+    return tc->stack_top != NULL;
 }
 
 /* Unwind a dispatch record frame, which should be on the top of the stack.
