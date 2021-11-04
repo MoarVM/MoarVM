@@ -551,14 +551,14 @@ static void unwind_region_start_or_flattening(MVMThreadContext *tc) {
         tc->stack_top = tc->stack_top->prev;
     }
 }
-static void handle_end_of_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunked) {
+static void handle_end_of_dispatch_record(MVMThreadContext *tc) {
     /* End of a dispatch recording; make callback to update the
      * inline cache, put the result in place, and take any further
      * actions. If the dispatch invokes bytecode, then the dispatch
      * record stays around, but we tweak its kind so we don't enter
      * the end of recording logic again. */
     MVMCallStackDispatchRecord *disp_record = (MVMCallStackDispatchRecord *)tc->stack_top;
-    MVMuint32 remove_dispatch_frame = MVM_disp_program_record_end(tc, disp_record, thunked);
+    MVMuint32 remove_dispatch_frame = MVM_disp_program_record_end(tc, disp_record);
     if (remove_dispatch_frame) {
         assert((char *)disp_record == (char *)tc->stack_top);
         MVM_disp_program_recording_destroy(tc, &(disp_record->rec));
@@ -597,7 +597,7 @@ static void handle_bind_control(MVMThreadContext *tc, MVMCallStackBindControl *c
     ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args_map, flag_ptr,
             control_record->sf, 0);
 }
-MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional, MVMuint32 *thunked_ignored) {
+MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional) {
     MVMint32 thunked = 0;
     do {
         /* Ensure region and stack top are in a consistent state. */
@@ -678,7 +678,7 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
                 if (!exceptional) {
                     MVMuint8 *bytecode_was = *(tc->interp_cur_op);
-                    handle_end_of_dispatch_record(tc, thunked_ignored);
+                    handle_end_of_dispatch_record(tc);
                     if (*(tc->interp_cur_op) != bytecode_was)
                         thunked = 1;
                 }
@@ -696,12 +696,10 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                     (MVMCallStackBindControl *)tc->stack_top;
                 if (control_record->state == MVM_BIND_CONTROL_FAILED) {
                     handle_bind_control(tc, control_record, &(control_record->failure_flag));
-                    *thunked_ignored = 1;
                     thunked = 1;
                 }
                 else if (control_record->state == MVM_BIND_CONTROL_SUCCEEDED) {
                     handle_bind_control(tc, control_record, &(control_record->success_flag));
-                    *thunked_ignored = 1;
                     thunked = 1;
                 }
                 else {
@@ -732,10 +730,8 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                     special_unwind(tc, data);
 
                 /* If we invoked something, then set the thunk flag and return. */
-                if (bytecode_was != *(tc->interp_cur_op)) {
-                    *thunked_ignored = 1;
+                if (bytecode_was != *(tc->interp_cur_op))
                     thunked = 1;
-                }
                 break;
             }
             default:
@@ -749,9 +745,9 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
 
 /* Unwind a dispatch record frame, which should be on the top of the stack.
  * This is for the purpose of dispatchers that do not invoke. */
-void MVM_callstack_unwind_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunked) {
+void MVM_callstack_unwind_dispatch_record(MVMThreadContext *tc) {
     assert(tc->stack_top->kind == MVM_CALLSTACK_RECORD_DISPATCH_RECORD);
-    handle_end_of_dispatch_record(tc, thunked);
+    handle_end_of_dispatch_record(tc);
 }
 
 /* Unwind a dispatch run frame, which should be on the top of the stack.

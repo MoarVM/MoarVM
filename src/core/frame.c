@@ -879,14 +879,13 @@ static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
      * actually *not* be the caller in the frame, because of lazy deopt. Also
      * it may invoke something else, in which case we go no further and just
      * return to the runloop. */
-    MVMuint32 thunked = 0;
     MVMFrame *caller;
     if (MVM_FRAME_IS_ON_CALLSTACK(tc, returner)) {
-        caller = MVM_callstack_unwind_frame(tc, unwind, &thunked);
+        caller = MVM_callstack_unwind_frame(tc, unwind);
     }
     else {
         MVMROOT(tc, returner, {
-            caller = MVM_callstack_unwind_frame(tc, unwind, &thunked);
+            caller = MVM_callstack_unwind_frame(tc, unwind);
         });
         if (!need_caller)
             returner->caller = NULL;
