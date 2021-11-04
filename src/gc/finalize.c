@@ -83,14 +83,14 @@ void MVM_finalize_walk_queues(MVMThreadContext *tc, MVMuint8 gen) {
 }
 
 /* Try to run a finalization handler. Returns a true value if we do so */
-MVMint32 MVM_gc_finalize_run_handler(MVMThreadContext *tc) {
+void MVM_gc_finalize_run_handler(MVMThreadContext *tc) {
     /* Make sure there is a current frame, that we aren't hanging on to an
      * exception handler result (which the finalizer could overwrite), and
      * that there's a HLL handler to run. */
     if (!tc->cur_frame)
-        return 0;
+        return;
     if (tc->last_handler_result)
-        return 0;
+        return;
     MVMCode *handler = MVM_hll_current(tc)->finalize_handler;
     if (handler) {
         /* Drain the finalizing queue to an array. */
@@ -106,7 +106,5 @@ MVMint32 MVM_gc_finalize_run_handler(MVMThreadContext *tc) {
                 MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ));
         args_record->args.source[0].o = drain;
         MVM_frame_dispatch_from_c(tc, handler, args_record, NULL, MVM_RETURN_VOID);
-        return 1;
     }
-    return 0;
 }

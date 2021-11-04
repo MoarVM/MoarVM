@@ -508,7 +508,7 @@ static MVMuint32 calculate_inline_cache_size(MVMThreadContext *tc, MVMDispInline
     }
 }
 static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
-        MVMDispDefinition *disp, MVMObject *capture, MVMuint32 *thunked) {
+        MVMDispDefinition *disp, MVMObject *capture) {
     MVMCallsite *disp_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
     record->current_disp = disp;
     record->current_capture.o = capture;
@@ -523,7 +523,7 @@ static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *recor
         record->outcome.delegate_disp = NULL;
         record->outcome.delegate_capture = NULL;
         ((MVMCFunction *)dispatch)->body.func(tc, dispatch_args);
-        MVM_callstack_unwind_dispatch_record(tc, thunked);
+        MVM_callstack_unwind_dispatch_record(tc);
     }
     else if (REPR(dispatch)->ID == MVM_REPR_ID_MVMCode) {
         record->outcome.kind = MVM_DISP_OUTCOME_EXPECT_DELEGATE;
@@ -531,8 +531,6 @@ static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *recor
         record->outcome.delegate_capture = NULL;
         tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
         MVM_frame_dispatch(tc, (MVMCode *)dispatch, dispatch_args, -1);
-        if (thunked)
-            *thunked = 1;
     }
     else {
         MVM_panic(1, "dispatch callback only supported as a MVMCFunction or MVMCode");
@@ -595,12 +593,12 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
     tc->cur_frame->return_type = MVM_RETURN_VOID;
 
     /* Run the dispatcher. */
-    run_dispatch(tc, record, disp, capture, NULL);
+    run_dispatch(tc, record, disp, capture);
 }
 
 /* Run a resume callback. */
 static void run_resume(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
-        MVMDispDefinition *disp, MVMObject *capture, MVMuint32 *thunked) {
+        MVMDispDefinition *disp, MVMObject *capture) {
     MVMCallsite *disp_callsite = MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ);
     record->current_disp = disp;
     record->current_capture.o = capture;
@@ -616,8 +614,6 @@ static void run_resume(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         record->outcome.delegate_capture = NULL;
         tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
         MVM_frame_dispatch(tc, (MVMCode *)resume, resume_args, -1);
-        if (thunked)
-            *thunked = 1;
     }
     else {
         MVM_panic(1, "resume callback only supported as a MVMCode");
@@ -2751,8 +2747,7 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
 }
 
 /* Called when we have finished recording a dispatch program. */
-MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatchRecord* record,
-        MVMuint32 *thunked) {
+MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatchRecord* record) {
     /* Set the result in place. */
     switch (record->outcome.kind) {
         case MVM_DISP_OUTCOME_FAILED:
@@ -2760,14 +2755,14 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
         case MVM_DISP_OUTCOME_EXPECT_DELEGATE:
             if (record->outcome.delegate_disp)
                 run_dispatch(tc, record, record->outcome.delegate_disp,
-                        record->outcome.delegate_capture, thunked);
+                        record->outcome.delegate_capture);
             else
                 MVM_exception_throw_adhoc(tc, "Dispatch callback failed to delegate to a dispatcher");
             return 0;
         case MVM_DISP_OUTCOME_RESUME: {
             MVMDispProgramRecordingResumption *rec_resumption = get_current_resumption(tc, record);
             run_resume(tc, record, rec_resumption->resumption->disp,
-                    record->outcome.resume_capture, thunked);
+                    record->outcome.resume_capture);
             return 0;
         }
         case MVM_DISP_OUTCOME_NEXT_RESUMPTION: {
@@ -2790,7 +2785,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             MVMObject *args = record->outcome.resume_capture
                 ? record->outcome.resume_capture
                 : record->rec.initial_capture.capture;
-            run_resume(tc, record, resume_data.resumption->disp, args, thunked);
+            run_resume(tc, record, resume_data.resumption->disp, args);
             return 0;
         }
         case MVM_DISP_OUTCOME_VALUE: {
@@ -2838,8 +2833,6 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
                     break;
             }
             MVM_frame_dispatch(tc, record->outcome.code, record->outcome.args, -1);
-            if (thunked)
-                *thunked = 1;
             return 0;
         }
         case MVM_DISP_OUTCOME_CFUNCTION:
