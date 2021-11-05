@@ -955,6 +955,9 @@ MVMObject * MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                 case MVM_NATIVECALL_ARG_ULONGLONG:
                     *(unsigned long long *)values[i] = value;
                     break;
+                case MVM_NATIVECALL_ARG_CPOINTER:
+                    *(void **)values[i] = (void*)value;
+                    break;
                 default:
                     MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled libffi argument type");
