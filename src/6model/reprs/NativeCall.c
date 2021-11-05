@@ -165,6 +165,10 @@ static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
         MVM_free(body->arg_info);
     if (body->jitcode)
         MVM_jit_code_destroy(tc, body->jitcode);
+#ifdef HAVE_LIBFFI
+    if (body->ffi_arg_types)
+        MVM_free(body->ffi_arg_types);
+#endif
 }
 
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
