@@ -47,6 +47,13 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         memcpy(dest_body->arg_info, src_body->arg_info, src_body->num_args * sizeof(MVMObject*));
     }
     dest_body->ret_type = src_body->ret_type;
+#ifdef HAVE_LIBFFI
+    dest_body->ffi_ret_type = src_body->ffi_ret_type;
+    if (src_body->ffi_arg_types) {
+        dest_body->ffi_arg_types = MVM_malloc(sizeof(ffi_type *) * (dest_body->num_args ? dest_body->num_args : 1));
+        memcpy(dest_body->ffi_arg_types, src_body->ffi_arg_types, sizeof(ffi_type *) * (dest_body->num_args ? dest_body->num_args : 1));
+    }
+#endif
     if (src_body->jitcode) {
         dest_body->jitcode = MVM_jit_code_copy(tc, src_body->jitcode);
     }
