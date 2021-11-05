@@ -190,8 +190,11 @@ static MVMuint32 find_interned_callsite(MVMThreadContext *tc, MVMCallsite **cs_p
     if (num_flags > interns->max_arity)
         return 0;
     MVMuint32 i;
-    for (i = 0; i < interns->num_by_arity[num_flags]; i++) {
-        if (callsites_equal(tc, interns->by_arity[num_flags][i], cs, num_flags, num_nameds)) {
+    MVMuint32 n = interns->num_by_arity[num_flags];
+    MVM_barrier(); /* Ensure we read count before array, in case they change */
+    MVMCallsite **arity_callsites = interns->by_arity[num_flags];
+    for (i = 0; i < n; i++) {
+        if (callsites_equal(tc, arity_callsites[i], cs, num_flags, num_nameds)) {
             /* Got a match! If we were asked to steal the callsite we were passed,
              * then we should free it. */
             if (steal) {
@@ -200,7 +203,7 @@ static MVMuint32 find_interned_callsite(MVMThreadContext *tc, MVMCallsite **cs_p
                 MVM_free(cs->arg_names);
                 MVM_free(cs);
             }
-            *cs_ptr = interns->by_arity[num_flags][i];
+            *cs_ptr = arity_callsites[i];
             return 1;
         }
     }
