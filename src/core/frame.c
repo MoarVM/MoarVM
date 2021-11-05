@@ -886,47 +886,11 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *debug_tc,
     return result;
 }
 
-/* Removes a single frame, as part of a return or unwind. Done after any exit
- * handler has already been run. */
-static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
-    /* Clean up any allocations relating to argument processing. */
-    MVMFrame *returner = tc->cur_frame;
-    MVM_args_proc_cleanup(tc, &returner->params);
-
-    /* For frames on the callstack, nothing more to do other than unwind. */
-    if (MVM_FRAME_IS_ON_CALLSTACK(tc, returner))
-        return MVM_callstack_unwind_frame(tc, unwind);
-
-    /* Heap promoted frames can stay around, but we may or may not need to
-     * clear up ->extra and ->caller. */
-    MVMuint32 need_caller;
-    if (returner->extra) {
-        MVMFrameExtra *e = returner->extra;
-        need_caller = e->caller_info_needed;
-        /* Preserve the extras if the frame has been used in a ctx operation
-         * and marked with caller info. */
-        if (!(e->caller_deopt_idx || e->caller_jit_position)) {
-            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
-            returner->extra = NULL;
-        }
-    }
-    else {
-        need_caller = 0;
-    }
-    MVMuint64 outcome;
-    MVMROOT(tc, returner, {
-        outcome = MVM_callstack_unwind_frame(tc, unwind);
-    });
-    if (!need_caller)
-        returner->caller = NULL;
-    return outcome;
-}
-
 /* Attempt to return from the current frame. Returns non-zero if we can,
  * and zero if there is nowhere to return to (which would signal the exit
  * of the interpreter). */
 static void remove_after_handler(MVMThreadContext *tc, void *sr_data) {
-    remove_one_frame(tc, 0);
+    MVM_callstack_unwind_frame(tc, 0);
 }
 MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
     MVMFrame *cur_frame = tc->cur_frame;
@@ -982,13 +946,13 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
     }
     else {
         /* No exit handler, so a straight return. */
-        return remove_one_frame(tc, 0);
+        return MVM_callstack_unwind_frame(tc, 0);
     }
 }
 
 /* Try a return from the current frame; skip running any exit handlers. */
 MVMuint64 MVM_frame_try_return_no_exit_handlers(MVMThreadContext *tc) {
-    return remove_one_frame(tc, 0);
+    return MVM_callstack_unwind_frame(tc, 0);
 }
 
 /* Unwinds execution state to the specified frame, placing control flow at either
@@ -1015,7 +979,7 @@ static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
                          MVMuint32 rel_addr, MVMObject *return_value, void *jit_return_label) {
     /* Lazy deopt means that we might have located an exception handler in
-     * optimized code, but then at the point we call remove_one_frame we'll
+     * optimized code, but then at the point we call MVM_callstack_unwind_frame we'll
      * end up deoptimizing it. That means the address here will be out of date.
      * This can only happen if we actually have frames to unwind; if we are
      * already in the current frame it cannot. So first handle that local
@@ -1032,7 +996,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
 
     /* Failing that, we'll set things up as if we're doing a return into the
      * frame, thus tweaking its return address and JIT label. That will cause
-     * remove_one_frame and any lazy deopt to move use to the right place. */
+     * MVM_callstack_unwind_frame and any lazy deopt to move use to the right place. */
     else {
         while (tc->cur_frame != frame) {
             MVMFrame *cur_frame = tc->cur_frame;
@@ -1093,13 +1057,13 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                 }
                 if (MVM_FRAME_IS_ON_CALLSTACK(tc, frame)) {
                     MVMROOT(tc, return_value, {
-                        if (!remove_one_frame(tc, 1))
+                        if (!MVM_callstack_unwind_frame(tc, 1))
                             MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
                     });
                 }
                 else {
                     MVMROOT2(tc, return_value, frame, {
-                        if (!remove_one_frame(tc, 1))
+                        if (!MVM_callstack_unwind_frame(tc, 1))
                             MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
                     });
                 }

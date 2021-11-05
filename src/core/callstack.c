@@ -569,7 +569,8 @@ static void handle_end_of_dispatch_record(MVMThreadContext *tc) {
         unwind_region_start_or_flattening(tc);
     }
 }
-static void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
+MVM_STATIC_INLINE void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
+    MVM_args_proc_cleanup(tc, &returner->params);
     MVMFrame *caller = returner->caller;
     if (caller) {
        if (tc->jit_return_address != NULL) {
@@ -588,6 +589,38 @@ static void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
         *(tc->interp_cu) = caller->static_info->body.cu;
     }
     tc->cur_frame = caller;
+}
+static void exit_heap_frame(MVMThreadContext *tc, MVMFrame *returner) {
+    /* NULL out ->work, to indicate the frame is no longer in dynamic scope.
+     * This is used by the GC to avoid marking stuff (this is needed for
+     * safety as otherwise we'd read freed memory), as well as by exceptions to
+     * ensure the target of an exception throw is indeed still in dynamic
+     * scope. */
+    returner->work = NULL;
+
+    /* Heap promoted frames can stay around, but we may or may not need to
+     * clear up ->extra and ->caller. */
+    MVMuint32 need_caller;
+    if (returner->extra) {
+        MVMFrameExtra *e = returner->extra;
+        need_caller = e->caller_info_needed;
+        /* Preserve the extras if the frame has been used in a ctx operation
+         * and marked with caller info. */
+        if (!(e->caller_deopt_idx || e->caller_jit_position)) {
+            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
+            returner->extra = NULL;
+        }
+    }
+    else {
+        need_caller = 0;
+    }
+
+    /* Do the standard frame exit sequence. */
+    exit_frame(tc, returner);
+
+    /* Clean up the caller unless it is required. */
+    if (!need_caller)
+        returner->caller = NULL;
 }
 static void handle_bind_control(MVMThreadContext *tc, MVMCallStackBindControl *control_record,
         MVMRegister *flag_ptr) {
@@ -627,21 +660,14 @@ MVMuint64 MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional)
             }
             case MVM_CALLSTACK_RECORD_HEAP_FRAME: {
                 MVMFrame *frame = ((MVMCallStackHeapFrame *)tc->stack_top)->frame;
-                /* NULL out ->work, to indicate the frame is no longer in dynamic scope.
-                 * This is used by the GC to avoid marking stuff (this is needed for
-                 * safety as otherwise we'd read freed memory), as well as by exceptions to
-                 * ensure the target of an exception throw is indeed still in dynamic
-                 * scope. */
-                frame->work = NULL;
-                exit_frame(tc, frame);
+                exit_heap_frame(tc, frame);
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
                 break;
             }
             case MVM_CALLSTACK_RECORD_PROMOTED_FRAME: {
                 MVMFrame *frame = ((MVMCallStackPromotedFrame *)tc->stack_top)->frame;
-                frame->work = NULL;
-                exit_frame(tc, frame);
+                exit_heap_frame(tc, frame);
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
                 break;
