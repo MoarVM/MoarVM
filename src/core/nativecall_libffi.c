@@ -460,6 +460,24 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
     } \
 } while (0)
 
+/* This is adapted from the macro handle_ret. */
+#define handle_ret_and_rws(tc, c_type, ffi_type, set_fun) do { \
+    if (sizeof(c_type) < sizeof(ffi_type)) { \
+        ffi_type ret; \
+        ffi_call(&cif, entry_point, &ret, values); \
+        MVM_gc_mark_thread_unblocked(tc); \
+        update_rws(tc, values, num_args, arg_types, args, interval_id); \
+        set_fun(tc, tc->cur_frame, (c_type)ret); \
+    } \
+    else { \
+        c_type ret; \
+        ffi_call(&cif, entry_point, &ret, values); \
+        MVM_gc_mark_thread_unblocked(tc); \
+        update_rws(tc, values, num_args, arg_types, args, interval_id); \
+        set_fun(tc, tc->cur_frame, ret); \
+    } \
+} while (0)
+
 MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
         MVMObject *site, MVMObject *args) {
     MVMObject     *result = NULL;
@@ -774,7 +792,64 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     return result;
 }
 
-MVMObject * MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
+static void update_rws(MVMThreadContext *tc, void **values, MVMint16 num_args, MVMint16 *arg_types, MVMArgs args, unsigned int interval_id) {
+    MVMint16 i;
+    for (i = 0; i < num_args; i++) {
+        MVMObject *value = args.source[args.map[i + 1]].o;
+        if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
+            switch (arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
+                case MVM_NATIVECALL_ARG_CHAR:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(signed char *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_SHORT:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(signed short *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_INT:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(signed int *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_LONG:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(signed long *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_LONGLONG:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(signed long long *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_FLOAT:
+                    MVM_6model_container_assign_n(tc, value, (MVMnum64)*(float *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_DOUBLE:
+                    MVM_6model_container_assign_n(tc, value, (MVMnum64)*(double *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_UCHAR:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(unsigned char *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_USHORT:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(unsigned short *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_UINT:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(unsigned int *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_ULONG:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(unsigned long *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_ULONGLONG:
+                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(unsigned long long *)*(void **)values[i]);
+                    break;
+                case MVM_NATIVECALL_ARG_CPOINTER:
+                    REPR(value)->box_funcs.set_int(tc, STABLE(value), value, OBJECT_BODY(value),
+                        (MVMint64)(uintptr_t)*(void **)*(void **)values[i]);
+                    break;
+                default:
+                    MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
+                    MVM_exception_throw_adhoc(tc, "Internal error: unhandled libffi argument type");
+            }
+        }
+        /* Perform CArray/CStruct write barriers. */
+        if (args.callsite->arg_flags[i + 1] & MVM_CALLSITE_ARG_OBJ)
+            MVM_nativecall_refresh(tc, value);
+    }
+}
+
+void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
         MVMObject *site, MVMArgs args) {
     MVMObject     *result = NULL;
     char      **free_strs = NULL;
@@ -1031,6 +1106,7 @@ MVMObject * MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
             void *ret; // We are not going to use it, but we need to pass it to libffi.
             ffi_call(&cif, entry_point, &ret, values);
             MVM_gc_mark_thread_unblocked(tc);
+            MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
         }
         else {
             /* Process return values. */
@@ -1040,35 +1116,38 @@ MVMObject * MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     ffi_call(&cif, entry_point, &ret, values);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = res_type;
+                    update_rws(tc, values, num_args, arg_types, args, interval_id);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CHAR:
-                    handle_ret(tc, signed char, ffi_sarg, MVM_nativecall_make_int);
+                    handle_ret_and_rws(tc, signed char, ffi_sarg, MVM_args_set_dispatch_result_int);
                     break;
                 case MVM_NATIVECALL_ARG_SHORT:
-                    handle_ret(tc, signed short, ffi_sarg, MVM_nativecall_make_int);
+                    handle_ret_and_rws(tc, signed short, ffi_sarg, MVM_args_set_dispatch_result_int);
                     break;
                 case MVM_NATIVECALL_ARG_INT:
-                    handle_ret(tc, signed int, ffi_sarg, MVM_nativecall_make_int);
+                    handle_ret_and_rws(tc, signed int, ffi_sarg, MVM_args_set_dispatch_result_int);
                     break;
                 case MVM_NATIVECALL_ARG_LONG:
-                    handle_ret(tc, signed long, ffi_sarg, MVM_nativecall_make_int);
+                    handle_ret_and_rws(tc, signed long, ffi_sarg, MVM_args_set_dispatch_result_int);
                     break;
                 case MVM_NATIVECALL_ARG_LONGLONG:
-                    handle_ret(tc, signed long long, ffi_sarg, MVM_nativecall_make_int);
+                    handle_ret_and_rws(tc, signed long long, ffi_sarg, MVM_args_set_dispatch_result_int);
                     break;
                 case MVM_NATIVECALL_ARG_FLOAT: {
                     float ret;
                     ffi_call(&cif, entry_point, &ret, values);
                     MVM_gc_mark_thread_unblocked(tc);
-                    result = MVM_nativecall_make_num(tc, res_type, ret);
+                    update_rws(tc, values, num_args, arg_types, args, interval_id);
+                    MVM_args_set_dispatch_result_num(tc, tc->cur_frame, ret);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_DOUBLE: {
                     double ret;
                     ffi_call(&cif, entry_point, &ret, values);
                     MVM_gc_mark_thread_unblocked(tc);
-                    result = MVM_nativecall_make_num(tc, res_type, ret);
+                    update_rws(tc, values, num_args, arg_types, args, interval_id);
+                    MVM_args_set_dispatch_result_num(tc, tc->cur_frame, ret);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_ASCIISTR:
@@ -1078,22 +1157,34 @@ MVMObject * MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     ffi_call(&cif, entry_point, &ret, values);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_str(tc, res_type, body->ret_type, ret);
+                    update_rws(tc, values, num_args, arg_types, args, interval_id);
+                    MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CSTRUCT:
                     handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_cstruct);
+                    update_rws(tc, values, num_args, arg_types, args, interval_id);
+                    MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
                     break;
                 case MVM_NATIVECALL_ARG_CPPSTRUCT:
                     handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_cppstruct);
+                    update_rws(tc, values, num_args, arg_types, args, interval_id);
+                    MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
                     break;
                 case MVM_NATIVECALL_ARG_CPOINTER:
                     handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_cpointer);
+                    update_rws(tc, values, num_args, arg_types, args, interval_id);
+                    MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
                     break;
                 case MVM_NATIVECALL_ARG_CARRAY:
                     handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_carray);
+                    update_rws(tc, values, num_args, arg_types, args, interval_id);
+                    MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
                     break;
                 case MVM_NATIVECALL_ARG_CUNION:
                     handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_cunion);
+                    update_rws(tc, values, num_args, arg_types, args, interval_id);
+                    MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
                     break;
                 case MVM_NATIVECALL_ARG_CALLBACK: {
                     /* TODO: A callback -return- value means that we have a C method
@@ -1104,22 +1195,24 @@ MVMObject * MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     MVM_gc_mark_thread_unblocked(tc);
                     /* XXX do something with the function pointer: ret */
                     result = res_type;
+                    update_rws(tc, values, num_args, arg_types, args, interval_id);
+                    MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_UCHAR:
-                    handle_ret(tc, unsigned char, ffi_arg, MVM_nativecall_make_int);
+                    handle_ret_and_rws(tc, unsigned char, ffi_arg, MVM_args_set_dispatch_result_int);
                     break;
                 case MVM_NATIVECALL_ARG_USHORT:
-                    handle_ret(tc, unsigned short, ffi_arg, MVM_nativecall_make_int);
+                    handle_ret_and_rws(tc, unsigned short, ffi_arg, MVM_args_set_dispatch_result_int);
                     break;
                 case MVM_NATIVECALL_ARG_UINT:
-                    handle_ret(tc, unsigned int, ffi_arg, MVM_nativecall_make_int);
+                    handle_ret_and_rws(tc, unsigned int, ffi_arg, MVM_args_set_dispatch_result_int);
                     break;
                 case MVM_NATIVECALL_ARG_ULONG:
-                    handle_ret(tc, unsigned long, ffi_arg, MVM_nativecall_make_int);
+                    handle_ret_and_rws(tc, unsigned long, ffi_arg, MVM_args_set_dispatch_result_int);
                     break;
                 case MVM_NATIVECALL_ARG_ULONGLONG:
-                    handle_ret(tc, unsigned long long, ffi_arg, MVM_nativecall_make_int);
+                    handle_ret_and_rws(tc, unsigned long long, ffi_arg, MVM_args_set_dispatch_result_int);
                     break;
                 default:
                     MVM_gc_mark_thread_unblocked(tc);
@@ -1128,60 +1221,6 @@ MVMObject * MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
             }
         }
     });
-
-    for (i = 0; i < num_args; i++) {
-        MVMObject *value = args.source[args.map[i + 1]].o;
-        if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
-            switch (arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
-                case MVM_NATIVECALL_ARG_CHAR:
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(signed char *)*(void **)values[i]);
-                    break;
-                case MVM_NATIVECALL_ARG_SHORT:
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(signed short *)*(void **)values[i]);
-                    break;
-                case MVM_NATIVECALL_ARG_INT:
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(signed int *)*(void **)values[i]);
-                    break;
-                case MVM_NATIVECALL_ARG_LONG:
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(signed long *)*(void **)values[i]);
-                    break;
-                case MVM_NATIVECALL_ARG_LONGLONG:
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(signed long long *)*(void **)values[i]);
-                    break;
-                case MVM_NATIVECALL_ARG_FLOAT:
-                    MVM_6model_container_assign_n(tc, value, (MVMnum64)*(float *)*(void **)values[i]);
-                    break;
-                case MVM_NATIVECALL_ARG_DOUBLE:
-                    MVM_6model_container_assign_n(tc, value, (MVMnum64)*(double *)*(void **)values[i]);
-                    break;
-                case MVM_NATIVECALL_ARG_UCHAR:
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(unsigned char *)*(void **)values[i]);
-                    break;
-                case MVM_NATIVECALL_ARG_USHORT:
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(unsigned short *)*(void **)values[i]);
-                    break;
-                case MVM_NATIVECALL_ARG_UINT:
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(unsigned int *)*(void **)values[i]);
-                    break;
-                case MVM_NATIVECALL_ARG_ULONG:
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(unsigned long *)*(void **)values[i]);
-                    break;
-                case MVM_NATIVECALL_ARG_ULONGLONG:
-                    MVM_6model_container_assign_i(tc, value, (MVMint64)*(unsigned long long *)*(void **)values[i]);
-                    break;
-                case MVM_NATIVECALL_ARG_CPOINTER:
-                    REPR(value)->box_funcs.set_int(tc, STABLE(value), value, OBJECT_BODY(value),
-                        (MVMint64)(uintptr_t)*(void **)*(void **)values[i]);
-                    break;
-                default:
-                    MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
-                    MVM_exception_throw_adhoc(tc, "Internal error: unhandled libffi argument type");
-            }
-        }
-        /* Perform CArray/CStruct write barriers. */
-        if (args.callsite->arg_flags[i + 1] & MVM_CALLSITE_ARG_OBJ)
-            MVM_nativecall_refresh(tc, value);
-    }
 
     /* Free any memory that we need to. */
     if (free_strs) {
@@ -1194,6 +1233,4 @@ MVMObject * MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
         MVM_free(values);
 
     MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke");
-
-    return result;
 }
