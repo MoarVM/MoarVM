@@ -1188,11 +1188,23 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     update_rws(tc, values, num_args, arg_types, args, interval_id);
                     MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
                     break;
-                case MVM_NATIVECALL_ARG_CPOINTER:
-                    handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_cpointer);
-                    update_rws(tc, values, num_args, arg_types, args, interval_id);
-                    MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
+                case MVM_NATIVECALL_ARG_CPOINTER: {
+                    void *ret;
+                    ffi_call(&cif, entry_point, &ret, values);
+                    MVM_gc_mark_thread_unblocked(tc);
+
+                    if (tc->cur_frame->return_type == MVM_RETURN_INT) {
+                        update_rws(tc, values, num_args, arg_types, args, interval_id);
+                        MVM_args_set_dispatch_result_int(tc, tc->cur_frame, (MVMuint64)ret);
+                    }
+                    else {
+                        result = MVM_nativecall_make_cpointer(tc, res_type, ret);
+
+                        update_rws(tc, values, num_args, arg_types, args, interval_id);
+                        MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
+                    }
                     break;
+                }
                 case MVM_NATIVECALL_ARG_CARRAY:
                     handle_ret(tc, void *, ffi_arg, MVM_nativecall_make_carray);
                     update_rws(tc, values, num_args, arg_types, args, interval_id);
