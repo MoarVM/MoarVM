@@ -1714,7 +1714,6 @@
 
 (template: decont!
   (ifv (any
-         (zr $1)
          (^is_type_obj $1)
          (zr (^getf (^stable $1) MVMSTable container_spec)))
     (store \$0 $1 ptr_sz)
@@ -2800,7 +2799,6 @@
 
 (template: sp_decont!
   (ifv (all
-         (nz $1)
          (^is_conc_obj $1)
          (nz (^getf (^stable $1) MVMSTable container_spec)))
     (callv (^getf (^getf (^stable $1) MVMSTable container_spec) MVMContainerSpec fetch)

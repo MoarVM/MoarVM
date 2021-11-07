@@ -1833,9 +1833,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
         | mov TMP5, WORK[src];
-        | test TMP5, TMP5;
-        // obj is null
-        | jz >1;
         | test_type_object TMP5;
         // object is type object (not concrete)
         | jnz >1;
