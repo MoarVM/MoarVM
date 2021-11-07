@@ -5544,8 +5544,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (!REPR(obj)->change_type) {
                     MVM_exception_throw_adhoc(tc, "REPR %s (%s) cannot change type", REPR(obj)->name, MVM_6model_get_debug_name(tc, obj));
                 }
-                REPR(GET_REG(cur_op, 2).o)->change_type(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
+                REPR(obj)->change_type(tc, obj, GET_REG(cur_op, 4).o);
+                GET_REG(cur_op, 0).o = obj;
                 MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
                 cur_op += 10;
                 MVM_spesh_deopt_all(tc);

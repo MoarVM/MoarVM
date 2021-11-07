@@ -3679,6 +3679,7 @@ start:
     case MVM_OP_sp_guardobj:
     case MVM_OP_sp_guardnotobj:
     case MVM_OP_sp_guardhll:
+    case MVM_OP_sp_rebless:
         jg_append_guard(tc, jg, ins, 3);
         break;
     case MVM_OP_sp_guardjustconc:
