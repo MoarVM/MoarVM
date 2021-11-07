@@ -3356,8 +3356,7 @@ void MVM_jit_emit_dispatch(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
     | mov qword [rsp+2*8], TMP6;
     |.endif
 
-    | mov FUNCTION, [ARG2];
-    | mov FUNCTION, MVMDISPINLINECACHEENTRY:FUNCTION->run_dispatch;
+    | mov FUNCTION, MVMDISPINLINECACHEENTRY:ARG3->run_dispatch;
     | call FUNCTION;
 }
 
@@ -3425,8 +3424,7 @@ void MVM_jit_emit_istype(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
         | mov qword [rsp+2*8], TMP6;
         |.endif
 
-        | mov FUNCTION, [ARG2];
-        | mov FUNCTION, MVMDISPINLINECACHEENTRY:FUNCTION->run_dispatch;
+        | mov FUNCTION, MVMDISPINLINECACHEENTRY:ARG3->run_dispatch;
         | call FUNCTION;
     }
 }
