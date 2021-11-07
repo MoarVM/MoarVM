@@ -4,7 +4,9 @@
 /* The redzone we will put in front of and after every
  * allocation from the fixed size allocator */
 #ifndef MVM_FSA_REDZONE_BYTES
-#define MVM_FSA_REDZONE_BYTES 4
+/* MUST take alignment into account here, so use a multiple of the
+   architecture's pointer size! */
+#define MVM_FSA_REDZONE_BYTES 8
 #endif
 
 #else
