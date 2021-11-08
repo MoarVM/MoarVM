@@ -2770,7 +2770,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 MVMRegister *r = &GET_REG(cur_op, 0);
                 cur_op += 4;
-                if (obj && IS_CONCRETE(obj) && STABLE(obj)->container_spec) {
+                if (IS_CONCRETE(obj) && STABLE(obj)->container_spec) {
                     STABLE(obj)->container_spec->fetch(tc, obj, r);
                 }
                 else {
@@ -5575,7 +5575,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 MVMRegister *r = &GET_REG(cur_op, 0);
                 cur_op += 4;
-                if (obj && IS_CONCRETE(obj) && STABLE(obj)->container_spec)
+                if (IS_CONCRETE(obj) && STABLE(obj)->container_spec)
                     STABLE(obj)->container_spec->fetch(tc, obj, r);
                 else
                     r->o = obj;
