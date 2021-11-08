@@ -2264,9 +2264,15 @@ static void emit_args_ops(MVMThreadContext *tc, MVMCallStackDispatchRecord *reco
             skipped_drops++;
             i++;
             assert(i < MVM_VECTOR_ELEMS(p.path));
-            assert(p.path[i]->transformation == MVMDispProgramRecordingDrop);
             cur_capture = (MVMCapture *)p.path[i]->capture;
         }
+        /* If the previous loop has run at all, then the entry on the path reached
+         * must either be a Drop operation (like disp-drop-n-args generates) or an
+         * Insert operation (like disp-replace-arg generates).
+         */
+        assert(skipped_drops == 0
+                    || p.path[i]->transformation == MVMDispProgramRecordingDrop
+                    || p.path[i]->transformation == MVMDispProgramRecordingInsert);
         MVMCallsite *cur_callsite = cur_capture->body.callsite;
         switch (p.path[i]->transformation) {
             case MVMDispProgramRecordingInsert: {
