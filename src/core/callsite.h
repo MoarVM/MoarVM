@@ -124,7 +124,8 @@ MVMCallsite * MVM_callsite_drop_positional(MVMThreadContext *tc, MVMCallsite *cs
 MVMCallsite * MVM_callsite_drop_positionals(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx, MVMuint32 count);
 MVMCallsite * MVM_callsite_insert_positional(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx,
         MVMCallsiteFlags flag);
-
+MVMCallsite * MVM_callsite_replace_positional(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx,
+        MVMCallsiteFlags flag);
 /* Check if the callsite has nameds. */
 MVM_STATIC_INLINE MVMuint32 MVM_callsite_has_nameds(MVMThreadContext *tc, const MVMCallsite *cs) {
     return cs->num_pos != cs->flag_count;

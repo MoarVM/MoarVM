@@ -423,3 +423,45 @@ MVMObject * MVM_capture_insert_arg(MVMThreadContext *tc, MVMObject *capture_obj,
     ((MVMCapture *)new_capture)->body.args = new_args;
     return new_capture;
 }
+
+/* Produce a new capture by taking the current one and replacing a designated
+ * argument with a new value.
+ *
+ * The callsite argument type is expected to be the same. */
+MVMObject * MVM_capture_replace_arg(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx,
+        MVMCallsiteEntry kind, MVMRegister value) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    if (idx > capture->body.callsite->num_pos)
+        MVM_exception_throw_adhoc(tc, "Capture argument index out of range");
+
+    /* Allocate a new capture before we begin; this is the only GC allocation
+     * we do. */
+    MVMCallsite *callsite = capture->body.callsite;
+    MVMCallsite *new_callsite = MVM_callsite_replace_positional(tc, capture->body.callsite, idx, kind);
+    MVMObject *new_capture;
+    new_callsite->arg_flags[idx] = kind;
+    MVMROOT(tc, capture, {
+        if (kind & (MVM_CALLSITE_ARG_OBJ | MVM_CALLSITE_ARG_STR)) {
+            MVMROOT(tc, value.o, {
+                new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
+            });
+        }
+        else {
+            new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
+        }
+    });
+
+    /* Form a new arguments buffer, replacing the specified argument. */
+    MVMRegister *new_args = MVM_fixed_size_alloc(tc, tc->instance->fsa,
+            callsite->flag_count * sizeof(MVMRegister));
+    MVMuint32 from = 0;
+    for (from = 0; from < capture->body.callsite->flag_count; from++) {
+        new_args[from] = capture->body.args[from];
+    }
+    new_args[idx] = value;
+
+    /* Form new capture object. */
+    ((MVMCapture *)new_capture)->body.callsite = new_callsite;
+    ((MVMCapture *)new_capture)->body.args = new_args;
+    return new_capture;
+}

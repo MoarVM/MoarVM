@@ -399,6 +399,7 @@ MVMCallsite * MVM_callsite_drop_positionals(MVMThreadContext *tc, MVMCallsite *c
 
 /* Produce a new callsite consisting of the current one with a positional
  * argument inserted. It will be interned if possible. */
+/* TODO figure out if we want interning here or not */
 MVMCallsite * MVM_callsite_insert_positional(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx,
         MVMCallsiteFlags flag) {
     /* Can only do this with positional arguments and non-flattening callsite. */
@@ -424,6 +425,38 @@ MVMCallsite * MVM_callsite_insert_positional(MVMThreadContext *tc, MVMCallsite *
     }
     if (from == idx)
         new_callsite->arg_flags[to] = flag;
+    new_callsite->has_flattening = 0;
+    new_callsite->is_interned = 0;
+
+    if (cs->arg_names)
+        copy_nameds(tc, new_callsite, cs);
+    else
+        new_callsite->arg_names = NULL;
+
+    return new_callsite;
+}
+
+/* Produce a new callsite consisting of the current one with a positional
+ * argument inserted. */
+MVMCallsite * MVM_callsite_replace_positional(MVMThreadContext *tc, MVMCallsite *cs, MVMuint32 idx,
+        MVMCallsiteFlags flag) {
+    /* Can only do this with positional arguments and non-flattening callsite. */
+    if (idx > cs->num_pos)
+        MVM_exception_throw_adhoc(tc, "Cannot replace positional in callsite: index out of range");
+    if (cs->has_flattening)
+        MVM_exception_throw_adhoc(tc, "Cannot transform a callsite with flattening args");
+
+    /* Allocate a new callsite and set it up. */
+    MVMCallsite *new_callsite = MVM_malloc(sizeof(MVMCallsite));
+    new_callsite->num_pos = cs->num_pos;
+    new_callsite->flag_count = cs->flag_count;
+    new_callsite->arg_count = cs->arg_count;
+    new_callsite->arg_flags = MVM_malloc(new_callsite->flag_count);
+    MVMuint32 i = 0;
+    for (i = 0; i < cs->flag_count; i++) {
+        new_callsite->arg_flags[i] = cs->arg_flags[i];
+    }
+    new_callsite->arg_flags[idx] = flag;
     new_callsite->has_flattening = 0;
     new_callsite->is_interned = 0;
 
