@@ -1637,6 +1637,20 @@
 (template: hllhash
   (^getf (^hllconfig) MVMHLLConfig slurpy_hash_type))
 
+(template: getcomp!
+  (dov
+    (callv (^func &uv_mutex_lock)
+      (arglist
+        (carg (^addrf (^getf (tc) MVMThreadContext instance) MVMInstance mutex_compiler_registry) ptr)))
+    (store \$0 (call (^func &MVM_repr_at_key_o)
+                 (arglist
+                   (carg (tc) ptr)
+                   (carg (^get_instance_field compiler_registry) ptr)
+                   (carg $1 ptr)) ptr_sz) ptr_sz)
+    (callv (^func &uv_mutex_unlock)
+      (arglist
+        (carg (^addrf (^getf (tc) MVMThreadContext instance) MVMInstance mutex_compiler_registry) ptr)))))
+
 (template: gethllsym
   (call (^func &MVM_hll_sym_get)
     (arglist
@@ -1734,6 +1748,22 @@
     (arglist
       (carg (tc) ptr)
       (carg $1   ptr)) ptr_sz))
+
+(template: scsetobj
+  (callv (^func &MVM_sc_set_object_op)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 int)
+      (carg $2 ptr))))
+
+(template: scsetcode
+  (callv (^func &MVM_sc_set_code_op)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 int)
+      (carg $2 ptr))))
 
 (template: getobjsc
   (call (^func &MVM_sc_get_obj_sc)
@@ -2576,6 +2606,13 @@
       (carg (tc) ptr)
       (carg $1 ptr)
       (carg \$0 ptr))))
+
+(template: setdebugtypename
+  (callv (^func &MVM_6model_set_debug_name)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr))))
 
 (template: lastexpayload
   (^getf (tc) MVMThreadContext last_payload))

@@ -436,6 +436,11 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
 
     case MVM_OP_getcurhllsym: return MVM_hll_sym_get;
 
+    case MVM_OP_scsetobj: return MVM_sc_set_object_op;
+    case MVM_OP_scsetcode: return MVM_sc_set_code_op;
+
+    case MVM_OP_setdebugtypename: return MVM_6model_set_debug_name;
+
     default:
         MVM_oops(tc, "JIT: No function for op %d in op_to_func (%s)", opcode, MVM_op_get_op(opcode)->name);
     }
@@ -1830,6 +1835,7 @@ start:
     case MVM_OP_newtype:
     case MVM_OP_newmixintype:
     case MVM_OP_composetype:
+    case MVM_OP_getcomp:
         /* Profiling */
     case MVM_OP_prof_enterspesh:
     case MVM_OP_prof_enterinline:
@@ -3673,6 +3679,7 @@ start:
     case MVM_OP_sp_guardobj:
     case MVM_OP_sp_guardnotobj:
     case MVM_OP_sp_guardhll:
+    case MVM_OP_sp_rebless:
         jg_append_guard(tc, jg, ins, 3);
         break;
     case MVM_OP_sp_guardjustconc:
@@ -3982,6 +3989,27 @@ start:
                                  { MVM_JIT_LITERAL_PTR, { (uintptr_t)hll_name } },
                                  { MVM_JIT_REG_VAL, { sym } } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_PTR, dst);
+        break;
+    }
+    case MVM_OP_scsetobj:
+    case MVM_OP_scsetcode: {
+        MVMint16 sc  = ins->operands[0].reg.orig;
+        MVMint16 idx = ins->operands[1].reg.orig;
+        MVMint16 obj = ins->operands[2].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { sc } },
+                                 { MVM_JIT_REG_VAL, { idx } },
+                                 { MVM_JIT_REG_VAL, { obj } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 4, args, MVM_JIT_RV_VOID, -1);
+        break;
+    }
+    case MVM_OP_setdebugtypename: {
+        MVMint16 type = ins->operands[0].reg.orig;
+        MVMint16 name = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_VAL, { type } },
+                                 { MVM_JIT_REG_VAL, { name } } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 3, args, MVM_JIT_RV_VOID, -1);
         break;
     }
     default: {

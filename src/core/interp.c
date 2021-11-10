@@ -2810,31 +2810,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(scsetobj): {
-                MVMObject *sc  = GET_REG(cur_op, 0).o;
-                MVMObject *obj = GET_REG(cur_op, 4).o;
-                if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
-                    MVM_exception_throw_adhoc(tc,
-                        "Must provide an SCRef operand to scsetobj");
-                MVM_sc_set_object(tc, (MVMSerializationContext *)sc,
-                    GET_REG(cur_op, 2).i64, obj);
-                if (MVM_sc_get_stable_sc(tc, STABLE(obj)) == NULL) {
-                    /* Need to claim the SC also; typical case for new type objects. */
-                    MVMSTable *st = STABLE(obj);
-                    MVM_sc_set_stable_sc(tc, st, (MVMSerializationContext *)sc);
-                    MVM_sc_push_stable(tc, (MVMSerializationContext *)sc, st);
-                }
+                MVM_sc_set_object_op(tc, (MVMSerializationContext *)GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).o);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(scsetcode): {
-                MVMObject *sc   = GET_REG(cur_op, 0).o;
-                MVMObject *code = GET_REG(cur_op, 4).o;
-                if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
-                    MVM_exception_throw_adhoc(tc,
-                        "Must provide an SCRef operand to scsetcode");
-                MVM_sc_set_obj_sc(tc, code, (MVMSerializationContext *)sc);
-                MVM_sc_set_code(tc, (MVMSerializationContext *)sc,
-                    GET_REG(cur_op, 2).i64, code);
+                MVM_sc_set_code_op(tc, (MVMSerializationContext *)GET_REG(cur_op, 0).o, GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).o);
                 cur_op += 6;
                 goto NEXT;
             }
@@ -5563,8 +5544,8 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (!REPR(obj)->change_type) {
                     MVM_exception_throw_adhoc(tc, "REPR %s (%s) cannot change type", REPR(obj)->name, MVM_6model_get_debug_name(tc, obj));
                 }
-                REPR(GET_REG(cur_op, 2).o)->change_type(tc, GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
-                GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).o;
+                REPR(obj)->change_type(tc, obj, GET_REG(cur_op, 4).o);
+                GET_REG(cur_op, 0).o = obj;
                 MVM_SC_WB_OBJ(tc, GET_REG(cur_op, 0).o);
                 cur_op += 10;
                 MVM_spesh_deopt_all(tc);
