@@ -544,24 +544,32 @@ static MVMint64 MVM_string_memmem_grapheme32 (MVMThreadContext *tc, MVMGrapheme3
 static MVMint64 MVM_string_memmem_grapheme32str (MVMThreadContext *tc, MVMString *Haystack, MVMString *needle, MVMint64 H_start, MVMStringIndex H_graphs, MVMStringIndex n_graphs) {
     MVMGrapheme32 *needle_buf = NULL;
     MVMint64 rtrn;
+    int needle_is_malloced = 0;
     if (needle->body.storage_type != MVM_STRING_GRAPHEME_32) {
         MVMStringIndex i;
-        needle_buf = MVM_malloc(needle->body.num_graphs * sizeof(MVMGrapheme32));
+        size_t needle_size = n_graphs * sizeof(MVMGrapheme32);
+        /* Allocate max 3K onto the stack, otherwise malloc */
+        if (needle_size < 3000)
+            needle_buf = alloca(needle_size);
+        else {
+            needle_buf = MVM_malloc(needle_size);
+            needle_is_malloced = 1;
+        }
         if (needle->body.storage_type != MVM_STRING_GRAPHEME_8) {
             MVMGraphemeIter n_gi;
             MVM_string_gi_init(tc, &n_gi, needle);
-            for (i = 0; i < needle->body.num_graphs; i++) {
+            for (i = 0; i < n_graphs; i++) {
                 needle_buf[i] = MVM_string_gi_get_grapheme(tc, &n_gi);
             }
         }
         else {
-            for (i = 0; i < needle->body.num_graphs; i++) {
+            for (i = 0; i < n_graphs; i++) {
                 needle_buf[i] = needle->body.storage.blob_8[i];
             }
         }
     }
     rtrn = MVM_string_memmem_grapheme32(tc, Haystack->body.storage.blob_32, needle_buf ? needle_buf : needle->body.storage.blob_32, H_start, H_graphs, n_graphs);
-    if (needle_buf) MVM_free(needle_buf);
+    if (needle_is_malloced) MVM_free(needle_buf);
     return rtrn;
 }
 /* Returns the location of one string in another or -1  */
@@ -590,31 +598,40 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
      * Crochemore+Perrin two-way string matching */
     switch (Haystack->body.storage_type) {
         case MVM_STRING_GRAPHEME_32:
-            if (needle->body.storage_type == MVM_STRING_GRAPHEME_32 || needle->body.num_graphs < 100) {
+            if (needle->body.storage_type == MVM_STRING_GRAPHEME_32 || n_graphs < 100) {
                 return MVM_string_memmem_grapheme32str(tc, Haystack, needle, start, H_graphs, n_graphs);
             }
             break;
         case MVM_STRING_GRAPHEME_8:
-            if (needle->body.storage_type == MVM_STRING_GRAPHEME_8 || needle->body.num_graphs < 100) {
+            if (needle->body.storage_type == MVM_STRING_GRAPHEME_8 || n_graphs < 100) {
                 void         *mm_return_8 = NULL;
                 MVMGrapheme8 *needle_buf  = NULL;
+                int    needle_is_malloced = 0;
                 if (needle->body.storage_type != MVM_STRING_GRAPHEME_8) {
                     MVMStringIndex i;
-                    needle_buf = MVM_malloc(needle->body.num_graphs * sizeof(MVMGrapheme8));
+                    size_t needle_size = n_graphs * sizeof(MVMGrapheme8);
+                    /* Allocate max 3K onto the stack, otherwise malloc */
+                    if (needle_size < 3000)
+                        needle_buf = alloca(needle_size);
+                    else {
+                        needle_buf = MVM_malloc(needle_size);
+                        needle_is_malloced = 1;
+                    }
                     if (needle->body.storage_type != MVM_STRING_GRAPHEME_32) {
                         MVMGraphemeIter n_gi;
                         MVM_string_gi_init(tc, &n_gi, needle);
-                        for (i = 0; i < needle->body.num_graphs; i++) {
+                        for (i = 0; i < n_graphs; i++) {
                             needle_buf[i] = MVM_string_gi_get_grapheme(tc, &n_gi);
                         }
                     }
                     else {
-                        for (i = 0; i < needle->body.num_graphs; i++) {
+                        for (i = 0; i < n_graphs; i++) {
                             MVMGrapheme32 g = needle->body.storage.blob_32[i];
                             /* Haystack is 8 bit, needle is 32 bit. if we encounter a non8bit grapheme
                              * it's impossible to match */
                             if (!can_fit_into_8bit(g)) {
-                                MVM_free(needle_buf);
+                                if (needle_is_malloced)
+                                    MVM_free(needle_buf);
                                 return -1;
                             }
                             needle_buf[i] = g;
@@ -627,7 +644,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
                     needle_buf ? needle_buf : needle->body.storage.blob_8, /* needle start */
                     n_graphs * sizeof(MVMGrapheme8) /* needle length */
                 );
-                if (needle_buf) MVM_free(needle_buf);
+                if (needle_is_malloced) MVM_free(needle_buf);
                 if (mm_return_8 == NULL)
                     return -1;
                 else
@@ -1313,7 +1330,7 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
     /* Empty string is found at start of string */
     if (needle_graphs == 0)
         return 0;
-    /* Allocate max 8K onto the stack, otherwise malloc */
+    /* Allocate max 3K onto the stack, otherwise malloc */
     if (next_size < 3000)
         next = alloca(next_size);
     else {
