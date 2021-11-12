@@ -655,8 +655,7 @@ void MVM_disp_program_record_tracked_code(MVMThreadContext *tc, MVMObject *track
         MVMObject *capture);
 void MVM_disp_program_record_tracked_c_code(MVMThreadContext *tc, MVMObject *tracked,
         MVMObject *capture);
-MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatchRecord* record,
-        MVMuint32 *thunked);
+MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatchRecord* record);
 
 /* Functions to run dispatch programs. */
 MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,

@@ -13,8 +13,8 @@
 typedef void (* MVMSpecialReturn)(MVMThreadContext *tc, void *data);
 
 /* Function pointer for marking the special return handler data. */
-typedef void (* MVMSpecialReturnDataMark)(MVMThreadContext *tc, MVMFrame *frame,
-                                          MVMGCWorklist *worklist);
+typedef void (* MVMSpecialReturnMark)(MVMThreadContext *tc, void *data,
+                                      MVMGCWorklist *worklist);
 
 /* This represents an call frame, aka invocation record. It may exist either on
  * the heap, in which case its header will have the MVM_CF_FRAME flag set, or
@@ -94,20 +94,6 @@ struct MVMFrame {
 /* Extra data that a handful of call frames optionally need. It is needed
  * only while the frame is in dynamic scope; after that it can go away. */
 struct MVMFrameExtra {
-    /* If we want to invoke a special handler upon a return to this
-     * frame, this function pointer is set. */
-    MVMSpecialReturn special_return;
-
-    /* If we want to invoke a special handler upon unwinding past a
-     * frame, this function pointer is set. */
-    MVMSpecialReturn special_unwind;
-
-    /* Data slot for the special return handler function. */
-    void *special_return_data;
-
-    /* Flag for if special_return_data need to be GC marked. */
-    MVMSpecialReturnDataMark mark_special_return_data;
-
     /* Cache for dynlex lookup; if the name is non-null, the cache is valid
      * and the register can be accessed directly to find the contextual. */
     MVMString   *dynlex_cache_name;
@@ -197,8 +183,4 @@ MVM_PUBLIC MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFram
 MVMuint16 MVM_frame_translate_to_primspec(MVMThreadContext *tc, MVMuint16 kind);
 MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
 MVMFrameExtra * MVM_frame_extra(MVMThreadContext *tc, MVMFrame *f);
-MVM_PUBLIC void MVM_frame_special_return(MVMThreadContext *tc, MVMFrame *f,
-    MVMSpecialReturn special_return, MVMSpecialReturn special_unwind,
-    void *special_return_data, MVMSpecialReturnDataMark mark_special_return_data);
-MVM_PUBLIC void MVM_frame_clear_special_return(MVMThreadContext *tc, MVMFrame *f);
 MVMObject * MVM_frame_caller_code(MVMThreadContext *tc);

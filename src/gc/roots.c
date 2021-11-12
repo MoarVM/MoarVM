@@ -420,8 +420,6 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
     /* Mark frame extras if needed. */
     if (cur_frame->extra) {
         MVMFrameExtra *e = cur_frame->extra;
-        if (e->special_return_data && e->mark_special_return_data)
-            e->mark_special_return_data(tc, cur_frame, worklist);
         if (e->dynlex_cache_name)
             MVM_gc_worklist_add(tc, worklist, &e->dynlex_cache_name);
         MVM_gc_worklist_add(tc, worklist, &e->exit_handler_result);

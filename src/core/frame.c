@@ -886,111 +886,11 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *debug_tc,
     return result;
 }
 
-/* Removes a single frame, as part of a return or unwind. Done after any exit
- * handler has already been run. */
-static MVMuint64 remove_one_frame(MVMThreadContext *tc, MVMuint8 unwind) {
-    MVMFrame *returner = tc->cur_frame;
-    MVMuint32 need_caller;
-
-    /* Clear up any extra frame data. */
-    if (returner->extra) {
-        MVMFrameExtra *e = returner->extra;
-        need_caller = e->caller_info_needed;
-        /* Preserve the extras if the frame has been used in a ctx operation
-         * and marked with caller info. */
-        if (!(e->caller_deopt_idx || e->caller_jit_position)) {
-            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
-            returner->extra = NULL;
-        }
-    }
-    else {
-        need_caller = 0;
-    }
-
-    /* Clean up any allocations for argument working area. */
-    MVM_args_proc_cleanup(tc, &returner->params);
-
-    /* NULL out ->work, to indicate the frame is no longer in dynamic scope.
-     * This is used by the GC to avoid marking stuff (this is needed for
-     * safety as otherwise we'd read freed memory), as well as by exceptions to
-     * ensure the target of an exception throw is indeed still in dynamic
-     * scope. */
-    returner->work = NULL;
-
-    /* Unwind call stack entries. From this, we find out the caller. This may
-     * actually *not* be the caller in the frame, because of lazy deopt. Also
-     * it may invoke something else, in which case we go no further and just
-     * return to the runloop. */
-    MVMuint32 thunked = 0;
-    MVMFrame *caller;
-    if (MVM_FRAME_IS_ON_CALLSTACK(tc, returner)) {
-        caller = MVM_callstack_unwind_frame(tc, unwind, &thunked);
-    }
-    else {
-        MVMROOT(tc, returner, {
-            caller = MVM_callstack_unwind_frame(tc, unwind, &thunked);
-        });
-        if (!need_caller)
-            returner->caller = NULL;
-    }
-    if (thunked)
-        return 1;
-
-    /* Switch back to the caller frame if there is one. */
-    if (caller && (returner != tc->thread_entry_frame || tc->nested_interpreter)) {
-        *(tc->interp_cur_op) = caller->return_address;
-        *(tc->interp_bytecode_start) = MVM_frame_effective_bytecode(caller);
-        *(tc->interp_reg_base) = caller->work;
-        *(tc->interp_cu) = caller->static_info->body.cu;
-
-        /* Handle any special return hooks. */
-        if (caller->extra) {
-            MVMFrameExtra *e = caller->extra;
-            if (e->special_return || e->special_unwind) {
-                MVMSpecialReturn  sr  = e->special_return;
-                MVMSpecialReturn  su  = e->special_unwind;
-                void             *srd = e->special_return_data;
-                e->special_return           = NULL;
-                e->special_unwind           = NULL;
-                e->special_return_data      = NULL;
-                e->mark_special_return_data = NULL;
-                if (unwind && su)
-                    su(tc, srd);
-                else if (!unwind && sr)
-                    sr(tc, srd);
-                /* The special_return or special_unwind handler may schedule a
-                   finalizer call for the current runloop. If we are already in
-                   the top most call frame of the runloop, we need to replace
-                   the thread_entry_frame with the finalizer call. Otherwise we
-                   won't run the special code for ending the runloop when the
-                   finalizer returns. */
-                if (returner == tc->thread_entry_frame && tc->cur_frame != caller)
-                    tc->thread_entry_frame = tc->cur_frame;
-            }
-        }
-
-        if (returner == tc->thread_entry_frame && tc->cur_frame == caller) {
-            tc->cur_frame = NULL;
-            return 0;
-        }
-        else {
-            /* We're either somewhere in a nested call or already up in the top
-               most frame but still need to run some finalizer, so keep the
-               runloop running */
-            return 1;
-        }
-    }
-    else {
-        tc->cur_frame = NULL;
-        return 0;
-    }
-}
-
 /* Attempt to return from the current frame. Returns non-zero if we can,
  * and zero if there is nowhere to return to (which would signal the exit
  * of the interpreter). */
 static void remove_after_handler(MVMThreadContext *tc, void *sr_data) {
-    remove_one_frame(tc, 0);
+    MVM_callstack_unwind_frame(tc, 0);
 }
 MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
     MVMFrame *cur_frame = tc->cur_frame;
@@ -1036,7 +936,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
         }
 
         cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
-        MVM_frame_special_return(tc, cur_frame, remove_after_handler, NULL, NULL, NULL);
+        MVM_callstack_allocate_special_return(tc, remove_after_handler, NULL, NULL, 0);
         MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
                 MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
         args_record->args.source[0].o = cur_frame->code_ref;
@@ -1046,13 +946,13 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
     }
     else {
         /* No exit handler, so a straight return. */
-        return remove_one_frame(tc, 0);
+        return MVM_callstack_unwind_frame(tc, 0);
     }
 }
 
 /* Try a return from the current frame; skip running any exit handlers. */
 MVMuint64 MVM_frame_try_return_no_exit_handlers(MVMThreadContext *tc) {
-    return remove_one_frame(tc, 0);
+    return MVM_callstack_unwind_frame(tc, 0);
 }
 
 /* Unwinds execution state to the specified frame, placing control flow at either
@@ -1064,8 +964,8 @@ typedef struct {
     MVMuint32  rel_addr;
     void      *jit_return_label;
 } MVMUnwindData;
-static void mark_unwind_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    MVMUnwindData *ud  = (MVMUnwindData *)frame->extra->special_return_data;
+static void mark_unwind_data(MVMThreadContext *tc, void *sr_data, MVMGCWorklist *worklist) {
+    MVMUnwindData *ud  = (MVMUnwindData *)sr_data;
     MVM_gc_worklist_add(tc, worklist, &(ud->frame));
 }
 static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
@@ -1074,16 +974,12 @@ static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
     MVMuint8 *abs_addr = ud->abs_addr;
     MVMuint32 rel_addr = ud->rel_addr;
     void *jit_return_label = ud->jit_return_label;
-    MVM_free(sr_data);
     MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL, jit_return_label);
-}
-static void free_unwind_data(MVMThreadContext *tc, void *sr_data) {
-    MVM_free(sr_data);
 }
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
                          MVMuint32 rel_addr, MVMObject *return_value, void *jit_return_label) {
     /* Lazy deopt means that we might have located an exception handler in
-     * optimized code, but then at the point we call remove_one_frame we'll
+     * optimized code, but then at the point we call MVM_callstack_unwind_frame we'll
      * end up deoptimizing it. That means the address here will be out of date.
      * This can only happen if we actually have frames to unwind; if we are
      * already in the current frame it cannot. So first handle that local
@@ -1100,7 +996,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
 
     /* Failing that, we'll set things up as if we're doing a return into the
      * frame, thus tweaking its return address and JIT label. That will cause
-     * remove_one_frame and any lazy deopt to move use to the right place. */
+     * MVM_callstack_unwind_frame and any lazy deopt to move use to the right place. */
     else {
         while (tc->cur_frame != frame) {
             MVMFrame *cur_frame = tc->cur_frame;
@@ -1127,15 +1023,12 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                     MVM_exception_throw_adhoc(tc, "Thread entry point frame cannot have an exit handler");
 
                 MVMHLLConfig *hll = MVM_hll_current(tc);
-                {
-                    MVMUnwindData *ud = MVM_malloc(sizeof(MVMUnwindData));
-                    ud->frame = frame;
-                    ud->abs_addr = abs_addr;
-                    ud->rel_addr = rel_addr;
-                    ud->jit_return_label = jit_return_label;
-                    MVM_frame_special_return(tc, cur_frame, continue_unwind,
-                        free_unwind_data, ud, mark_unwind_data);
-                }
+                MVMUnwindData *ud = MVM_callstack_allocate_special_return(tc,
+                        continue_unwind, NULL, mark_unwind_data, sizeof(MVMUnwindData));
+                ud->frame = frame;
+                ud->abs_addr = abs_addr;
+                ud->rel_addr = rel_addr;
+                ud->jit_return_label = jit_return_label;
                 cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
                 MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
                         MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
@@ -1164,13 +1057,13 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                 }
                 if (MVM_FRAME_IS_ON_CALLSTACK(tc, frame)) {
                     MVMROOT(tc, return_value, {
-                        if (!remove_one_frame(tc, 1))
+                        if (!MVM_callstack_unwind_frame(tc, 1))
                             MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
                     });
                 }
                 else {
                     MVMROOT2(tc, return_value, frame, {
-                        if (!remove_one_frame(tc, 1))
+                        if (!MVM_callstack_unwind_frame(tc, 1))
                             MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
                     });
                 }
@@ -1802,29 +1695,6 @@ MVMFrameExtra * MVM_frame_extra(MVMThreadContext *tc, MVMFrame *f) {
     if (!f->extra)
         f->extra = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMFrameExtra));
     return f->extra;
-}
-
-/* Set up special return data on a frame. */
-void MVM_frame_special_return(MVMThreadContext *tc, MVMFrame *f,
-                               MVMSpecialReturn special_return,
-                               MVMSpecialReturn special_unwind,
-                               void *special_return_data,
-                               MVMSpecialReturnDataMark mark_special_return_data) {
-    MVMFrameExtra *e = MVM_frame_extra(tc, f);
-    e->special_return = special_return;
-    e->special_unwind = special_unwind;
-    e->special_return_data = special_return_data;
-    e->mark_special_return_data = mark_special_return_data;
-}
-
-/* Clears any special return data on a frame. */
-void MVM_frame_clear_special_return(MVMThreadContext *tc, MVMFrame *f) {
-    if (f->extra) {
-        f->extra->special_return = NULL;
-        f->extra->special_unwind = NULL;
-        f->extra->special_return_data = NULL;
-        f->extra->mark_special_return_data = NULL;
-    }
 }
 
 /* Gets the code object of the caller, provided there is one. Works even in

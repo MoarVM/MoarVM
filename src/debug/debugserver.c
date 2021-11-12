@@ -1668,12 +1668,11 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
         }
 
         /* Set up return handling for after call. */
-        DebugserverInvocationSpecialReturnData *srd = MVM_calloc(sizeof(DebugserverInvocationSpecialReturnData), 1);
-        srd->id = argument->id;
-        MVM_frame_special_return(tc, tc->cur_frame,
+        DebugserverInvocationSpecialReturnData *srd = MVM_callstack_allocate_special_return(tc,
             debugserver_invocation_special_return,
             debugserver_invocation_special_unwind,
-            (void *)srd, NULL);
+            NULL, sizeof(DebugserverInvocationSpecialReturnData));
+        srd->id = argument->id;
         tc->cur_frame->return_value = &srd->return_target;
         tc->cur_frame->return_type = MVM_RETURN_ALLOMORPH;
         tc->cur_frame->return_address = *(tc->interp_cur_op);

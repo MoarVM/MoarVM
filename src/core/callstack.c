@@ -70,6 +70,7 @@ char * record_name(MVMuint8 kind) {
         case MVM_CALLSTACK_RECORD_ARGS_FROM_C: return "args from C";
         case MVM_CALLSTACK_RECORD_DEOPTED_RESUME_INIT: return "deoptimized resume init";
         case MVM_CALLSTACK_RECORD_NESTED_RUNLOOP: return "nested runloop";
+        case MVM_CALLSTACK_RECORD_SPECIAL_RETURN: return "special return arguments";
         default: return "unknown";
     }
 }
@@ -132,6 +133,9 @@ size_t record_size(MVMCallStackRecord *record) {
         }
         case MVM_CALLSTACK_RECORD_NESTED_RUNLOOP:
             return sizeof(MVMCallStackNestedRunloop);
+        case MVM_CALLSTACK_RECORD_SPECIAL_RETURN:
+            return to_8_bytes(sizeof(MVMCallStackSpecialReturn) +
+                ((MVMCallStackSpecialReturn *)record)->data_size);
         default:
             MVM_panic(1, "Unknown callstack record type in record_size");
     }
@@ -155,6 +159,22 @@ MVMCallStackRecord * MVM_callstack_allocate_nested_runloop(MVMThreadContext *tc)
             sizeof(MVMCallStackNestedRunloop));
     ((MVMCallStackNestedRunloop*)tc->stack_top)->cur_frame = tc->cur_frame;
     return tc->stack_top;
+}
+
+/* Allocates a special return frame on the stack with the specified amount of
+ * extra storage space for special return data. Returns a pointer to the
+ * special return data that is allocated. */
+void * MVM_callstack_allocate_special_return(MVMThreadContext *tc,
+        MVMSpecialReturn special_return, MVMSpecialReturn special_unwind,
+        MVMSpecialReturnMark mark_data, size_t data_size) {
+    tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_SPECIAL_RETURN,
+            to_8_bytes(sizeof(MVMCallStackSpecialReturn) + data_size));
+    MVMCallStackSpecialReturn *sr = (MVMCallStackSpecialReturn *)tc->stack_top;
+    sr->special_return = special_return;
+    sr->special_unwind = special_unwind;
+    sr->mark_data = mark_data;
+    sr->data_size = data_size;
+    return (char *)sr + sizeof(MVMCallStackSpecialReturn);
 }
 
 /* Allocates a bytecode frame record on the callstack. */
@@ -511,7 +531,9 @@ MVMCallStackDispatchRecord * MVM_callstack_find_topmost_dispatch_recording(MVMTh
     return (MVMCallStackDispatchRecord *)MVM_callstack_iter_current(tc, &iter);
 }
 
-/* Unwind the calls stack until we reach a prior bytecode frame. */
+/* Unwind the calls stack until we reach a prior bytecode frame. Returns a
+ * true value if we should continue running code in the interpreter and
+ * false if not. */
 static int is_bytecode_frame(MVMuint8 kind) {
     switch (kind) {
         case MVM_CALLSTACK_RECORD_FRAME:
@@ -531,14 +553,14 @@ static void unwind_region_start_or_flattening(MVMThreadContext *tc) {
         tc->stack_top = tc->stack_top->prev;
     }
 }
-static void handle_end_of_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunked) {
+static void handle_end_of_dispatch_record(MVMThreadContext *tc) {
     /* End of a dispatch recording; make callback to update the
      * inline cache, put the result in place, and take any further
      * actions. If the dispatch invokes bytecode, then the dispatch
      * record stays around, but we tweak its kind so we don't enter
      * the end of recording logic again. */
     MVMCallStackDispatchRecord *disp_record = (MVMCallStackDispatchRecord *)tc->stack_top;
-    MVMuint32 remove_dispatch_frame = MVM_disp_program_record_end(tc, disp_record, thunked);
+    MVMuint32 remove_dispatch_frame = MVM_disp_program_record_end(tc, disp_record);
     if (remove_dispatch_frame) {
         assert((char *)disp_record == (char *)tc->stack_top);
         MVM_disp_program_recording_destroy(tc, &(disp_record->rec));
@@ -547,30 +569,58 @@ static void handle_end_of_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunk
         unwind_region_start_or_flattening(tc);
     }
 }
-static void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
+MVM_STATIC_INLINE void exit_frame(MVMThreadContext *tc, MVMFrame *returner) {
+    MVM_args_proc_cleanup(tc, &returner->params);
     MVMFrame *caller = returner->caller;
-    if (caller && (returner != tc->thread_entry_frame || tc->nested_interpreter)) {
+    if (caller) {
        if (tc->jit_return_address != NULL) {
             /* on a JIT frame, exit to interpreter afterwards */
             MVMJitCode *jitcode = returner->spesh_cand->body.jitcode;
-            MVM_jit_code_set_current_position(tc, jitcode, returner, jitcode->exit_label);
+            assert(tc->cur_frame == returner);
+            MVM_jit_code_set_cur_frame_position(tc, jitcode, jitcode->exit_label);
             /* given that we might throw in the special-return, act as if we've
              * left the current frame (which is true) */
             tc->jit_return_address = NULL;
         }
 
-        tc->cur_frame = caller;
-
-        /* Always sync these up in case of an exception throw in a C
-         * function dispatcher that comes after a bytecode dispatcher.
-         * It is a little wasteful since we repeat it in frame.c's
-         * remove_one_frame, in that case for the sake of lazy deopt. */
         *(tc->interp_cur_op) = caller->return_address;
         *(tc->interp_bytecode_start) = MVM_frame_effective_bytecode(caller);
+        *(tc->interp_reg_base) = caller->work;
+        *(tc->interp_cu) = caller->static_info->body.cu;
+    }
+    tc->cur_frame = caller;
+}
+static void exit_heap_frame(MVMThreadContext *tc, MVMFrame *returner) {
+    /* NULL out ->work, to indicate the frame is no longer in dynamic scope.
+     * This is used by the GC to avoid marking stuff (this is needed for
+     * safety as otherwise we'd read freed memory), as well as by exceptions to
+     * ensure the target of an exception throw is indeed still in dynamic
+     * scope. */
+    returner->work = NULL;
+
+    /* Heap promoted frames can stay around, but we may or may not need to
+     * clear up ->extra and ->caller. */
+    MVMuint32 need_caller;
+    if (returner->extra) {
+        MVMFrameExtra *e = returner->extra;
+        need_caller = e->caller_info_needed;
+        /* Preserve the extras if the frame has been used in a ctx operation
+         * and marked with caller info. */
+        if (!(e->caller_deopt_idx || e->caller_jit_position)) {
+            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
+            returner->extra = NULL;
+        }
     }
     else {
-        tc->cur_frame = NULL;
+        need_caller = 0;
     }
+
+    /* Do the standard frame exit sequence. */
+    exit_frame(tc, returner);
+
+    /* Clean up the caller unless it is required. */
+    if (!need_caller)
+        returner->caller = NULL;
 }
 static void handle_bind_control(MVMThreadContext *tc, MVMCallStackBindControl *control_record,
         MVMRegister *flag_ptr) {
@@ -583,7 +633,8 @@ static void handle_bind_control(MVMThreadContext *tc, MVMCallStackBindControl *c
     ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args_map, flag_ptr,
             control_record->sf, 0);
 }
-MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional, MVMuint32 *thunked) {
+MVMuint64 MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional) {
+    MVMint32 thunked = 0;
     do {
         /* Ensure region and stack top are in a consistent state. */
         assert(tc->stack_current_region->start <= (char *)tc->stack_top);
@@ -598,21 +649,29 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                 tc->stack_current_region = tc->stack_current_region->prev;
                 tc->stack_top = tc->stack_top->prev;
                 break;
-            case MVM_CALLSTACK_RECORD_FRAME:
-                exit_frame(tc, &(((MVMCallStackFrame *)tc->stack_top)->frame));
+            case MVM_CALLSTACK_RECORD_FRAME: {
+                MVMFrame *frame = &(((MVMCallStackFrame *)tc->stack_top)->frame);
+                if (frame->extra)
+                    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), frame->extra);
+                exit_frame(tc, frame);
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
                 break;
-            case MVM_CALLSTACK_RECORD_HEAP_FRAME:
-                exit_frame(tc, ((MVMCallStackHeapFrame *)tc->stack_top)->frame);
+            }
+            case MVM_CALLSTACK_RECORD_HEAP_FRAME: {
+                MVMFrame *frame = ((MVMCallStackHeapFrame *)tc->stack_top)->frame;
+                exit_heap_frame(tc, frame);
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
                 break;
-            case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
-                exit_frame(tc, ((MVMCallStackPromotedFrame *)tc->stack_top)->frame);
+            }
+            case MVM_CALLSTACK_RECORD_PROMOTED_FRAME: {
+                MVMFrame *frame = ((MVMCallStackPromotedFrame *)tc->stack_top)->frame;
+                exit_heap_frame(tc, frame);
                 tc->stack_current_region->alloc = (char *)tc->stack_top;
                 tc->stack_top = tc->stack_top->prev;
                 break;
+            }
             case MVM_CALLSTACK_RECORD_DEOPT_FRAME:
                 /* Deopt it, but don't move stack top back, since we're either
                  * turning the current frame into a deoptimized one or will put
@@ -651,7 +710,10 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
             }
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
                 if (!exceptional) {
-                    handle_end_of_dispatch_record(tc, thunked);
+                    MVMuint8 *bytecode_was = *(tc->interp_cur_op);
+                    handle_end_of_dispatch_record(tc);
+                    if (*(tc->interp_cur_op) != bytecode_was)
+                        thunked = 1;
                 }
                 else {
                     /* There was an exception; just leave the frame behind. */
@@ -667,11 +729,11 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                     (MVMCallStackBindControl *)tc->stack_top;
                 if (control_record->state == MVM_BIND_CONTROL_FAILED) {
                     handle_bind_control(tc, control_record, &(control_record->failure_flag));
-                    *thunked = 1;
+                    thunked = 1;
                 }
                 else if (control_record->state == MVM_BIND_CONTROL_SUCCEEDED) {
                     handle_bind_control(tc, control_record, &(control_record->success_flag));
-                    *thunked = 1;
+                    thunked = 1;
                 }
                 else {
                     tc->stack_current_region->alloc = (char *)tc->stack_top;
@@ -680,20 +742,45 @@ MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional
                 break;
             }
             case MVM_CALLSTACK_RECORD_NESTED_RUNLOOP: {
-                return ((MVMCallStackNestedRunloop*)tc->stack_top)->cur_frame;
+                /* Signal to exit the nested runloop. */
+                return 0;
+            }
+            case MVM_CALLSTACK_RECORD_SPECIAL_RETURN: {
+                /* Read the callback info, and then remove this record (as we
+                 * may never run them twice). */
+                MVMCallStackSpecialReturn *sr = (MVMCallStackSpecialReturn *)tc->stack_top;
+                MVMSpecialReturn special_return = sr->special_return;
+                MVMSpecialReturn special_unwind = sr->special_unwind;
+                void *data = (char *)tc->stack_top + sizeof(MVMCallStackSpecialReturn);
+                tc->stack_current_region->alloc = (char *)tc->stack_top;
+                tc->stack_top = tc->stack_top->prev;
+
+                /* Run the callback if present. */
+                MVMuint8 *bytecode_was = *(tc->interp_cur_op);
+                if (!exceptional && special_return)
+                    special_return(tc, data);
+                else if (exceptional && special_unwind)
+                    special_unwind(tc, data);
+
+                /* If we invoked something, then set the thunk flag and return. */
+                if (bytecode_was != *(tc->interp_cur_op))
+                    thunked = 1;
+                break;
             }
             default:
                 MVM_panic(1, "Unknown call stack record type in unwind");
         }
     } while (tc->stack_top && !is_bytecode_frame(tc->stack_top->kind));
-    return tc->stack_top ? MVM_callstack_record_to_frame(tc->stack_top) : NULL;
+    if (tc->num_finalizing && !exceptional && !thunked)
+        MVM_gc_finalize_run_handler(tc);
+    return tc->stack_top != NULL;
 }
 
 /* Unwind a dispatch record frame, which should be on the top of the stack.
  * This is for the purpose of dispatchers that do not invoke. */
-void MVM_callstack_unwind_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunked) {
+void MVM_callstack_unwind_dispatch_record(MVMThreadContext *tc) {
     assert(tc->stack_top->kind == MVM_CALLSTACK_RECORD_DISPATCH_RECORD);
-    handle_end_of_dispatch_record(tc, thunked);
+    handle_end_of_dispatch_record(tc);
 }
 
 /* Unwind a dispatch run frame, which should be on the top of the stack.
@@ -847,6 +934,13 @@ static void mark(MVMThreadContext *tc, MVMCallStackRecord *from_record, MVMGCWor
                         ((MVMCallStackNestedRunloop *)record)->cur_frame,
                         "Callstack reference to frame starting a nested runloop");
                 break;
+            case MVM_CALLSTACK_RECORD_SPECIAL_RETURN: {
+                MVMCallStackSpecialReturn *sr = (MVMCallStackSpecialReturn *)record;
+                if (sr->mark_data && worklist)
+                    sr->mark_data(tc, (char *)sr + sizeof(MVMCallStackSpecialReturn),
+                            worklist);
+                break;
+            }
             default:
                 MVM_panic(1, "Unknown call stack record type in GC marking");
         }

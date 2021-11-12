@@ -334,13 +334,41 @@ struct MVMCallStackDeoptedResumeInit {
     MVMRegister *args;
 };
 
+/* Record to indicate the boundary of a nested runloop. */
 #define MVM_CALLSTACK_RECORD_NESTED_RUNLOOP 14
 struct MVMCallStackNestedRunloop {
     /* Commonalities of all records. */
     MVMCallStackRecord common;
 
-    /* The tag itself. */
+    /* The frame to stop at during unwinding. */
     MVMFrame *cur_frame;
+};
+
+/* Sometimes we wish to take a special action after execution of a frame.
+ * This is typically used when the VM needs to invoke something and then
+ * take action based upon the result, to avoid creating nested runloops
+ * (which would be a continuation barrier). The record has variable size; the
+ * fixed part here is followed by some state as required by the particular
+ * use of the mechanism. */
+#define MVM_CALLSTACK_RECORD_SPECIAL_RETURN 15
+struct MVMCallStackSpecialReturn {
+    /* Commonalities of all records. */
+    MVMCallStackRecord common;
+
+    /* If we want to invoke a special handler upon a return, this function
+     * pointer is set. */
+    MVMSpecialReturn special_return;
+
+    /* If we want to invoke a special handler upon unwinding, this function
+     * pointer is set. */
+    MVMSpecialReturn special_unwind;
+
+    /* Function pointer to something that will GC mark the special return
+     * data. */
+    MVMSpecialReturnMark mark_data;
+
+    /* The size of the special return data following this record. */
+    size_t data_size;
 };
 
 /* Functions for working with the call stack. */
@@ -352,6 +380,9 @@ MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc,
         MVMuint32 work_size);
 MVMint32 MVM_callstack_ensure_work_and_env_space(MVMThreadContext *tc, MVMuint32 needed_work,
         MVMuint32 needed_env);
+MVM_PUBLIC void * MVM_callstack_allocate_special_return(MVMThreadContext *tc,
+        MVMSpecialReturn special_return, MVMSpecialReturn special_unwind,
+        MVMSpecialReturnMark mark_data, size_t data_size);
 MVMCallStackDispatchRecord * MVM_callstack_allocate_dispatch_record(MVMThreadContext *tc);
 MVMCallStackDispatchRun * MVM_callstack_allocate_dispatch_run(MVMThreadContext *tc,
         MVMuint32 num_temps);
@@ -372,8 +403,8 @@ void MVM_callstack_continuation_append(MVMThreadContext *tc, MVMCallStackRegion 
         MVMCallStackRecord *stack_top, MVMObject *update_tag);
 MVMFrame * MVM_callstack_first_frame_in_region(MVMThreadContext *tc, MVMCallStackRegion *region);
 MVMCallStackDispatchRecord * MVM_callstack_find_topmost_dispatch_recording(MVMThreadContext *tc);
-MVMFrame * MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional, MVMuint32 *thunked);
-void MVM_callstack_unwind_dispatch_record(MVMThreadContext *tc, MVMuint32 *thunked);
+MVMuint64 MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional);
+void MVM_callstack_unwind_dispatch_record(MVMThreadContext *tc);
 void MVM_callstack_unwind_dispatch_run(MVMThreadContext *tc);
 void MVM_callstack_unwind_failed_dispatch_run(MVMThreadContext *tc);
 void MVM_callstack_mark_current_thread(MVMThreadContext *tc, MVMGCWorklist *worklist,
@@ -466,3 +497,6 @@ MVM_STATIC_INLINE MVMFrame * MVM_callstack_iter_current_frame(MVMThreadContext *
         MVMCallStackIterator *iter) {
     return MVM_callstack_record_to_frame(iter->current);
 }
+
+/* Migration to callstack-based special return in Rakudo extops. */
+#define MVM_CALLSTACK_SPECIAL_RETURN 1

@@ -77,17 +77,11 @@ static void finish_parameterizing(MVMThreadContext *tc, void *sr_data) {
         }
         uv_mutex_unlock(&tc->instance->mutex_parameterization_add);
     });
-
-    /* Clean up parametric return data, now we're finished with it. */
-    MVM_free(prd);
 }
-static void mark_parameterize_sr_data(MVMThreadContext *tc, MVMFrame *frame, MVMGCWorklist *worklist) {
-    ParameterizeReturnData *prd = (ParameterizeReturnData *)frame->extra->special_return_data;
+static void mark_parameterize_sr_data(MVMThreadContext *tc, void *sr_data, MVMGCWorklist *worklist) {
+    ParameterizeReturnData *prd = (ParameterizeReturnData *)sr_data;
     MVM_gc_worklist_add(tc, worklist, &(prd->parametric_type));
     MVM_gc_worklist_add(tc, worklist, &(prd->parameters));
-}
-static void free_parameterize_sr_data(MVMThreadContext *tc, void *sr_data) {
-    MVM_free(sr_data);
 }
 void MVM_6model_parametric_parameterize(MVMThreadContext *tc, MVMObject *type, MVMObject *params,
                                         MVMRegister *result) {
@@ -104,12 +98,12 @@ void MVM_6model_parametric_parameterize(MVMThreadContext *tc, MVMObject *type, M
     }
 
     /* It wasn't found; run parameterizer. */
-    ParameterizeReturnData *prd = MVM_malloc(sizeof(ParameterizeReturnData));
-    prd->parametric_type                    = type;
-    prd->parameters                         = params;
-    prd->result                             = result;
-    MVM_frame_special_return(tc, tc->cur_frame, finish_parameterizing, free_parameterize_sr_data,
-        prd, mark_parameterize_sr_data);
+    ParameterizeReturnData *prd = MVM_callstack_allocate_special_return(tc,
+            finish_parameterizing, NULL, mark_parameterize_sr_data,
+            sizeof(ParameterizeReturnData));
+    prd->parametric_type = type;
+    prd->parameters = params;
+    prd->result = result;
     MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
             MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
     args_record->args.source[0].o = st->WHAT;
