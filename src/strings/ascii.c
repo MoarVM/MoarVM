@@ -161,7 +161,7 @@ char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
     result = MVM_malloc(result_alloc + 1);
     if (str->body.storage_type == MVM_STRING_GRAPHEME_ASCII) {
         /* No encoding needed; directly copy. */
-        memcpy(result, str->body.storage.blob_ascii, lengthu);
+        memcpy(result, str->body.storage.blob_ascii + start, lengthu);
         result[lengthu] = 0;
         if (output_size)
             *output_size = lengthu;
@@ -170,6 +170,10 @@ char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMu
         MVMuint32 i = 0;
         MVMCodepointIter ci;
         MVM_string_ci_init(tc, &ci, str, translate_newlines, 0);
+        while (MVM_string_ci_has_more(tc, &ci) && start > 0) {
+            MVM_string_ci_get_codepoint(tc, &ci);
+            start--;
+        }
         while (MVM_string_ci_has_more(tc, &ci)) {
             MVMCodepoint ord = MVM_string_ci_get_codepoint(tc, &ci);
             if (i == result_alloc) {
