@@ -618,7 +618,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     }
 
 
-    MVMROOT2(tc, args, res_type, {
+    MVMROOT3(tc, args, res_type, result, {
         MVM_gc_mark_thread_blocked(tc);
         if (result) {
             /* We are calling a C++ constructor so we hand back the invocant (THIS) we recorded earlier. */
@@ -1110,7 +1110,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
     }
 
 
-    MVMROOT(tc, res_type, {
+    MVMROOT2(tc, res_type, result, {
         MVM_gc_mark_thread_blocked(tc);
         if (result) {
             /* We are calling a C++ constructor so we hand back the invocant (THIS) we recorded earlier. */
