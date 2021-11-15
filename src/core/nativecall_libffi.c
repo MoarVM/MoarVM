@@ -231,7 +231,7 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
     interval_id = MVM_telemetry_interval_start(tc, "nativecall callback handler");
 
     /* Build a callsite and arguments buffer. */
-    args = MVM_malloc(data->num_types * sizeof(MVMRegister));
+    args = alloca(data->num_types * sizeof(MVMRegister));
     num_roots = 1; /* res.o is always in roots */
     for (i = 1; i < data->num_types; i++) {
         MVMObject *type     = data->types[i];
@@ -410,7 +410,6 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
 
     /* Clean up. */
     MVM_gc_root_temp_pop_n(tc, num_roots);
-    MVM_free(args);
 
     /* Re-block GC if needed, so other threads will be able to collect. */
     if (was_blocked)
@@ -498,7 +497,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     MVMint16 *arg_types   = body->arg_types;
     MVMint16  ret_type    = body->ret_type;
     void     *entry_point = body->entry_point;
-    void    **values      = MVM_malloc(sizeof(void *) * (num_args ? num_args : 1));
+    void    **values      = alloca(sizeof(void *) * (num_args ? num_args : 1));
 
     unsigned int interval_id;
 
@@ -540,7 +539,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 char *str = MVM_nativecall_unmarshal_string(tc, value, arg_types[i], &free, i);
                 if (free) {
                     if (!free_strs)
-                        free_strs = (char**)MVM_malloc(num_args * sizeof(char *));
+                        free_strs = (char**)alloca(num_args * sizeof(char *));
                     free_strs[num_strs] = str;
                     num_strs++;
                 }
@@ -778,14 +777,9 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     }
 
     /* Free any memory that we need to. */
-    if (free_strs) {
+    if (free_strs)
         for (i = 0; i < num_strs; i++)
             MVM_free(free_strs[i]);
-        MVM_free(free_strs);
-    }
-
-    if (values)
-        MVM_free(values);
 
     MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke");
 
@@ -872,7 +866,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
     MVMint16 *arg_types   = body->arg_types;
     MVMint16  ret_type    = body->ret_type;
     void     *entry_point = body->entry_point;
-    void    **values      = MVM_malloc(sizeof(void *) * (num_args ? num_args : 1));
+    void    **values      = alloca(sizeof(void *) * (num_args ? num_args : 1));
 
     unsigned int interval_id;
 
@@ -915,7 +909,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     char *str = MVM_nativecall_unmarshal_string(tc, value, arg_types[i], &free, i);
                     if (free) {
                         if (!free_strs)
-                            free_strs = (char**)MVM_malloc(num_args * sizeof(char *));
+                            free_strs = (char**)alloca(num_args * sizeof(char *));
                         free_strs[num_strs] = str;
                         num_strs++;
                     }
@@ -1095,7 +1089,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                         }
                         if (arg_types[i] & MVM_NATIVECALL_ARG_FREE_STR_MASK) {
                             if (!free_strs)
-                                free_strs = (char**)MVM_malloc(num_args * sizeof(char *));
+                                free_strs = (char**)alloca(num_args * sizeof(char *));
                             free_strs[num_strs] = str;
                             num_strs++;
                         }
@@ -1253,14 +1247,9 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
     });
 
     /* Free any memory that we need to. */
-    if (free_strs) {
+    if (free_strs)
         for (i = 0; i < num_strs; i++)
             MVM_free(free_strs[i]);
-        MVM_free(free_strs);
-    }
-
-    if (values)
-        MVM_free(values);
 
     MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke");
 }

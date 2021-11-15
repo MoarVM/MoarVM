@@ -233,7 +233,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     interval_id = MVM_telemetry_interval_start(tc, "nativecall callback handler");
 
     /* Build a callsite and arguments buffer. */
-    args = MVM_malloc(data->num_types * sizeof(MVMRegister));
+    args = alloca(data->num_types * sizeof(MVMRegister));
     num_roots = 1; /* res.o is always in roots */
     for (i = 1; i < data->num_types; i++) {
         MVMObject *type     = data->types[i];
@@ -323,7 +323,6 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
                 args[i - 1].i64 = dcbArgULongLong(cb_args);
                 break;
             default:
-                MVM_free(args);
                 MVM_telemetry_interval_stop(tc, interval_id, "nativecall callback handler failed");
                 MVM_exception_throw_adhoc(tc,
                     "Internal error: unhandled dyncall callback argument type");
@@ -412,7 +411,6 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
             cb_result->l = MVM_nativecall_unmarshal_ulonglong(tc, res.o);
             break;
         default:
-            MVM_free(args);
             MVM_telemetry_interval_stop(tc, interval_id, "nativecall callback handler failed");
             MVM_exception_throw_adhoc(tc,
                 "Internal error: unhandled dyncall callback return type");
@@ -420,7 +418,6 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
 
     /* Clean up. */
     MVM_gc_root_temp_pop_n(tc, num_roots);
-    MVM_free(args);
 
     /* Re-block GC if needed, so other threads will be able to collect. */
     if (was_blocked)
@@ -440,7 +437,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
             MVM_6model_container_de ## cont_X(tc, value, &r); \
             *rw = (dc_type)r. reg_slot ; \
             if (!free_rws) \
-                free_rws = (void **)MVM_malloc(num_args * sizeof(void *)); \
+                free_rws = (void **)alloca(num_args * sizeof(void *)); \
             free_rws[num_rws] = rw; \
             num_rws++; \
             dcArgPointer(vm, rw); \
@@ -529,7 +526,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     char *str = MVM_nativecall_unmarshal_string(tc, value, arg_types[i], &free, i);
                     if (free) {
                         if (!free_strs)
-                            free_strs = (char**)MVM_malloc(num_args * sizeof(char *));
+                            free_strs = (char**)alloca(num_args * sizeof(char *));
                         free_strs[num_strs] = str;
                         num_strs++;
                     }
@@ -559,7 +556,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     DCpointer *rw = (DCpointer *)MVM_malloc(sizeof(DCpointer *));
                     *rw           = (DCpointer)MVM_nativecall_unmarshal_cpointer(tc, value, i);
                     if (!free_rws)
-                        free_rws = (void **)MVM_malloc(num_args * sizeof(void *));
+                        free_rws = (void **)alloca(num_args * sizeof(void *));
                     free_rws[num_rws] = rw;
                     num_rws++;
                     dcArgPointer(vm, rw);
@@ -802,17 +799,13 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     }
 
     /* Free any memory that we need to. */
-    if (free_strs) {
+    if (free_strs)
         for (i = 0; i < num_strs; i++)
             MVM_free(free_strs[i]);
-        MVM_free(free_strs);
-    }
 
-    if (free_rws) {
+    if (free_rws)
         for (i = 0; i < num_rws; i++)
             MVM_free(free_rws[i]);
-        MVM_free(free_rws);
-    }
 
     /* Finally, free call VM. */
     dcFree(vm);
@@ -951,7 +944,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                         char *str = MVM_nativecall_unmarshal_string(tc, value, arg_types[i], &free, i);
                         if (free) {
                             if (!free_strs)
-                                free_strs = (char**)MVM_malloc(num_args * sizeof(char *));
+                                free_strs = (char**)alloca(num_args * sizeof(char *));
                             free_strs[num_strs] = str;
                             num_strs++;
                         }
@@ -981,7 +974,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                         DCpointer *rw = (DCpointer *)MVM_malloc(sizeof(DCpointer *));
                         *rw           = (DCpointer)MVM_nativecall_unmarshal_cpointer(tc, value, i);
                         if (!free_rws)
-                            free_rws = (void **)MVM_malloc(num_args * sizeof(void *));
+                            free_rws = (void **)alloca(num_args * sizeof(void *));
                         free_rws[num_rws] = rw;
                         num_rws++;
                         dcArgPointer(vm, rw);
@@ -1107,7 +1100,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                         }
                         if (arg_types[i] & MVM_NATIVECALL_ARG_FREE_STR_MASK) {
                             if (!free_strs)
-                                free_strs = (char**)MVM_malloc(num_args * sizeof(char *));
+                                free_strs = (char**)alloca(num_args * sizeof(char *));
                             free_strs[num_strs] = str;
                             num_strs++;
                         }
@@ -1306,17 +1299,13 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
 
 
     /* Free any memory that we need to. */
-    if (free_strs) {
+    if (free_strs)
         for (i = 0; i < num_strs; i++)
             MVM_free(free_strs[i]);
-        MVM_free(free_strs);
-    }
 
-    if (free_rws) {
+    if (free_rws)
         for (i = 0; i < num_rws; i++)
             MVM_free(free_rws[i]);
-        MVM_free(free_rws);
-    }
 
     /* Finally, free call VM. */
     dcFree(vm);
