@@ -6207,7 +6207,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 /* trampoline back to this opcode */
                 cur_op -= 2;
                 MVM_jit_code_enter(tc, jc, cu);
-                if (MVM_UNLIKELY(!tc->cur_frame)) {
+                if (MVM_UNLIKELY(!tc->cur_frame || tc->stack_top->kind == MVM_CALLSTACK_RECORD_NESTED_RUNLOOP)) {
                     /* somehow unwound our top frame */
                     goto return_label;
                 }
