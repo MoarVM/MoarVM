@@ -3808,9 +3808,13 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                     args[i - 1].type = MVM_JIT_PARAM_VMARRAY;
                     args[i - 1].v.lit_i64 = ins->operands[start + 2 + i].reg.orig;
                 }
+                else if (callsite->arg_flags[i] & MVM_CALLSITE_ARG_OBJ && body->arg_types[i - 1] == MVM_NATIVECALL_ARG_CARRAY) {
+                    args[i - 1].type = MVM_JIT_PARAM_CARRAY;
+                    args[i - 1].v.lit_i64 = ins->operands[start + 2 + i].reg.orig;
+                }
                 else {
                     MVM_spesh_graph_add_comment(tc, iter->graph, iter->ins,
-                        "BAIL: op <%s> (type of arg %d (%d) NYI)", ins->info->name, i, callsite->arg_flags[i]);
+                        "BAIL: op <%s> (type of arg %d (%d, function's %d) NYI)", ins->info->name, i, callsite->arg_flags[i], body->arg_types[i - 1]);
                     return 0;
                 }
             }

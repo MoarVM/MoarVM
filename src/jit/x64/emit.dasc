@@ -101,6 +101,7 @@
 |.type OBJECT, MVMObject
 |.type STOOGE, MVMObjectStooge
 |.type VMARRAY, MVMArray
+|.type CARRAY, MVMCArray
 |.type COLLECTABLE, MVMCollectable
 |.type STABLE, MVMSTable
 |.type REPR, MVMREPROps
@@ -2578,6 +2579,10 @@ static void load_call_arg(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJit
         | mov TMP6, aword WORK[arg.v.lit_i64];
         | mov TMP6, aword VMARRAY:TMP6->body.slots;
         break;
+    case MVM_JIT_PARAM_CARRAY:
+        | mov TMP6, aword WORK[arg.v.lit_i64];
+        | mov TMP6, aword CARRAY:TMP6->body.storage;
+        break;
     case MVM_JIT_SPESH_SLOT_VALUE:
         | get_spesh_slot TMP6, arg.v.lit_i64;
         break;
@@ -2708,6 +2713,7 @@ static void emit_posix_callargs(MVMThreadContext *tc, MVMJitCompiler *compiler, 
         case MVM_JIT_PARAM_I64_RW:
         case MVM_JIT_PARAM_PTR:
         case MVM_JIT_PARAM_VMARRAY:
+        case MVM_JIT_PARAM_CARRAY:
         case MVM_JIT_SPESH_SLOT_VALUE:
         case MVM_JIT_STACK_VALUE:
             if (num_gpr < 6) {

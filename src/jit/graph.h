@@ -123,6 +123,7 @@ typedef enum {
     MVM_JIT_PARAM_DOUBLE,
     MVM_JIT_PARAM_PTR,
     MVM_JIT_PARAM_VMARRAY,
+    MVM_JIT_PARAM_CARRAY,
     /* spesh slot value */
     MVM_JIT_SPESH_SLOT_VALUE,
     /* stack relative address */
