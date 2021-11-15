@@ -211,6 +211,19 @@ static void dump_bb(MVMThreadContext *tc, DumpStr *ds, MVMSpeshGraph *g, MVMSpes
                 case MVM_SPESH_ANN_COMMENT:
                     num_comments++;
                     break;
+                case MVM_SPESH_ANN_DELAYED_TEMPS:
+                    appendf(ds, "      [Delayed temps to release: ");
+                    MVMSpeshOperand *ptr = ann->data.temps_to_release;
+                    MVMuint16 insert_comma = 0;
+                    while (ptr->lit_i64 != -1) {
+                        if (insert_comma++) {
+                            append(ds, ", ");
+                        }
+                        appendf(ds, "%d(%d)", ptr->reg.orig, ptr->reg.i);
+                        ptr++;
+                    }
+                    appendf(ds, ")]\n");
+                    break;
                 default:
                     appendf(ds, "      [Annotation: %d (unknown)]\n", ann->type);
             }
