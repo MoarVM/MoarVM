@@ -96,7 +96,8 @@ void MVM_nativecall_setup(MVMThreadContext *tc, MVMNativeCallBody *body, unsigne
 void MVM_nativecall_restore_library(MVMThreadContext *tc, MVMNativeCallBody *body, MVMObject *root);
 MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     MVMObject *site, MVMObject *args);
-void MVM_nativecall_invoke_jit(MVMThreadContext *tc, MVMObject *site);
+void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
+    MVMObject *site, MVMArgs args);
 MVMObject * MVM_nativecall_global(MVMThreadContext *tc, MVMString *lib, MVMString *sym,
     MVMObject *target_spec, MVMObject *target_type);
 MVMObject * MVM_nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,

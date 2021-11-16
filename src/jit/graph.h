@@ -123,6 +123,7 @@ typedef enum {
     MVM_JIT_PARAM_DOUBLE,
     MVM_JIT_PARAM_PTR,
     MVM_JIT_PARAM_VMARRAY,
+    MVM_JIT_PARAM_CARRAY,
     /* spesh slot value */
     MVM_JIT_SPESH_SLOT_VALUE,
     /* stack relative address */
@@ -210,6 +211,16 @@ struct MVMJitRunCCode {
     MVMint32      reentry_label;
 };
 
+struct MVMJitRunNativeCall {
+    void            *entry_point;
+    MVMJitCallArg   *args;
+    MVMuint16        num_args;
+    MVMReturnType    return_type;
+    MVMint16         return_register;
+    MVMSpeshOperand *map;
+    MVMint32         reentry_label;
+};
+
 struct MVMJitDispatch {
     MVMint32      id;
     MVMCallsite  *callsite;
@@ -256,7 +267,6 @@ typedef enum {
     MVM_JIT_NODE_BRANCH,
     MVM_JIT_NODE_LABEL,
     MVM_JIT_NODE_GUARD,
-    MVM_JIT_NODE_INVOKE,
     MVM_JIT_NODE_JUMPLIST,
     MVM_JIT_NODE_CONTROL,
     MVM_JIT_NODE_DATA,
@@ -264,6 +274,7 @@ typedef enum {
     MVM_JIT_NODE_DEOPT_CHECK,
     MVM_JIT_NODE_RUNCCODE,
     MVM_JIT_NODE_RUNBYTECODE,
+    MVM_JIT_NODE_RUNNATIVECALL,
     MVM_JIT_NODE_DISPATCH,
     MVM_JIT_NODE_ISTYPE,
 } MVMJitNodeType;
@@ -285,6 +296,7 @@ struct MVMJitNode {
         MVMJitStackSlot stack;
         MVMJitRunCCode   runccode;
         MVMJitRunByteCode runbytecode;
+        MVMJitRunNativeCall runnativecall;
         MVMJitDispatch  dispatch;
         MVMJitIsType    istype;
     } u;

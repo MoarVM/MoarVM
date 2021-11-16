@@ -26,9 +26,6 @@ enum {
     MARK_regular  = ' ',
     MARK_special  = '.',
     MARK_sequence = ':',
-    MARK_head     = '+',
-    MARK_body     = '*',
-    MARK_tail     = '-'
 };
 
 typedef struct {
@@ -511,7 +508,6 @@ static void validate_sequence(Validator *val) {
 
             case MARK_regular:
             case MARK_sequence:
-            case MARK_head:
                 unread_op(val);
                 goto terminate_seq;
 
@@ -535,154 +531,6 @@ terminate_seq:
     switch (seq_id) {
         case 'j':
             ensure_no_remaining_jumplabels(val);
-            break;
-    }
-}
-
-
-static void validate_arg(Validator *val) {
-    MVMCallsiteEntry flags;
-
-    val->remaining_args--;
-
-    if (val->expected_named_arg) {
-        flags = val->expected_named_arg;
-        val->expected_named_arg = 0;
-    }
-    else {
-        MVMuint16 index = val->cur_arg++;
-        MVMuint16 count = val->cur_call->arg_count;
-
-        if (index >= count)
-            fail (val, MSG(val, "argument index %" PRIu16
-                    " not in range 0..%" PRIu32), index, count - 1);
-
-        flags = val->cur_call->arg_flags[index];
-
-        switch (flags & ~MVM_CALLSITE_ARG_NAMED_FLAT_MASK) {
-            case 0: /* positionals */
-            case MVM_CALLSITE_ARG_FLAT:
-                val->remaining_positionals--;
-                break;
-
-            case MVM_CALLSITE_ARG_FLAT_NAMED:
-                /* Nothing to do for this case. */
-                break;
-
-            case MVM_CALLSITE_ARG_NAMED:
-                val->expected_named_arg = flags & MVM_CALLSITE_ARG_TYPE_MASK;
-                goto named_arg;
-
-            default:
-                fail(val, MSG(val, "invalid argument flags (%i) at index %"
-                        PRIu16), (int)(flags & ~MVM_CALLSITE_ARG_NAMED_FLAT_MASK), index);
-        }
-    }
-
-    goto regular_arg;
-
-named_arg:
-    if (val->cur_info->opcode != MVM_OP_argconst_s)
-        fail(val, MSG(val, "expected instruction 'argconst_s' but got '%s'"),
-                val->cur_info->name);
-    return;
-
-regular_arg:
-    switch (val->cur_info->opcode) {
-        case MVM_OP_arg_o:
-            if(!(flags & MVM_CALLSITE_ARG_OBJ))
-                goto fail_arg;
-            break;
-
-        case MVM_OP_arg_s:
-            if(!(flags & MVM_CALLSITE_ARG_STR))
-                goto fail_arg;
-            break;
-
-        case MVM_OP_argconst_s:
-            if(!(flags & MVM_CALLSITE_ARG_STR))
-                goto fail_arg;
-            break;
-
-        case MVM_OP_arg_i:
-            if(!(flags & MVM_CALLSITE_ARG_INT))
-                goto fail_arg;
-            break;
-
-        case MVM_OP_arg_n:
-            if(!(flags & MVM_CALLSITE_ARG_NUM))
-                goto fail_arg;
-            break;
-
-        default:
-            fail(val, MSG(val,
-                    "unexpected instruction '%s' during argument preparation"),
-                    val->cur_info->name);
-
-        fail_arg:
-            fail(val, MSG(val, "invalid argument (%i) for instruction %s"),
-                    (int)flags, val->cur_info->name);
-    }
-}
-
-
-static void validate_block(Validator *val) {
-    int block_id = val->cur_mark[1];
-
-    switch (block_id) {
-        case 'a': {
-            MVMuint16 index;
-
-            ensure_op(val, MVM_OP_prepargs);
-            validate_operands(val);
-            index = GET_UI16(val->cur_op, -2);
-            val->cur_call  = val->cu->body.callsites[index];
-            val->cur_arg   = 0;
-            val->expected_named_arg = 0;
-            val->remaining_args = val->cur_call->arg_count;
-            val->remaining_positionals = val->cur_call->num_pos;
-
-            break;
-        }
-
-        default:
-            fail(val, MSG(val, "unknown instruction block '%c'"), block_id);
-    }
-
-    while (val->cur_op < val->bc_end) {
-        int type, id;
-
-        read_op(val);
-        type = val->cur_mark[0];
-        id   = val->cur_mark[1];
-
-        if (val->cur_info->specializable)
-            val->frame->body.specializable = 1;
-
-        if (id != block_id)
-            fail(val, MSG(val, "expected instruction marked '%c' but got '%c'"),
-                    block_id, id);
-
-        switch (type) {
-            case MARK_body: break;
-            case MARK_tail: goto terminate_block;
-            default:        fail_illegal_mark(val);
-        }
-
-        switch (block_id) {
-            case 'a':
-                validate_operands(val);
-                validate_arg(val);
-                break;
-        }
-    }
-
-terminate_block:
-    switch (block_id) {
-        case 'a':
-            validate_operands(val);
-            ensure_no_remaining_positionals(val);
-            ensure_no_remaining_args(val);
             break;
     }
 }
@@ -743,10 +591,6 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
 
             case MARK_sequence:
                 validate_sequence(val);
-                break;
-
-            case MARK_head:
-                validate_block(val);
                 break;
 
             default:

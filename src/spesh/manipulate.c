@@ -481,9 +481,10 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
     /* Step two: update all idx fields. */
     new_bb->idx = bb->idx + 1;
     {
-        MVMSpeshBB *ptr = linear_next;
+        MVMSpeshBB *ptr = g->entry;
         while (ptr != NULL) {
-            ptr->idx += 1;
+            if (ptr != new_bb && ptr->idx > bb->idx)
+                ptr->idx += 1;
             ptr = ptr->linear_next;
         }
     }
@@ -507,6 +508,7 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
     new_bb->pred[0] = bb;
 
     new_bb->succ = bb->succ;
+    new_bb->num_succ = bb->num_succ;
 
     /* We assume the reason for the split is to add a new succ in the middle
      * which is why we allocate two slots instead of 1. */
@@ -518,6 +520,9 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
     new_bb->initial_pc = bb->initial_pc;
 
     new_bb->num_df = 0;
+
+    /* Update the books, since we now have more basic blocks in the graph. */
+    g->num_bbs++;
 
     /* Last step: Transfer over the instructions after the split point. */
     new_bb->last_ins = bb->last_ins;

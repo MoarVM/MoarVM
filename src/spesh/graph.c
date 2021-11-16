@@ -154,7 +154,8 @@ static MVMint32 already_succs(MVMThreadContext *tc, MVMSpeshBB *bb, MVMSpeshBB *
 static MVMint32 spesh_dispatchy(MVMuint16 opcode) {
     return (opcode >= MVM_OP_sp_dispatch_v    && opcode <= MVM_OP_sp_dispatch_o)    ||
            (opcode >= MVM_OP_sp_runbytecode_v && opcode <= MVM_OP_sp_runbytecode_o) ||
-           (opcode >= MVM_OP_sp_runcfunc_v    && opcode <= MVM_OP_sp_runcfunc_o);
+           (opcode >= MVM_OP_sp_runcfunc_v    && opcode <= MVM_OP_sp_runcfunc_o) ||
+           (opcode >= MVM_OP_sp_runnativecall_v && opcode <= MVM_OP_sp_runnativecall_o);
 }
 
 int MVM_spesh_graph_ins_ends_bb(MVMThreadContext *tc, const MVMOpInfo *info) {
@@ -184,6 +185,11 @@ int MVM_spesh_graph_ins_ends_bb(MVMThreadContext *tc, const MVMOpInfo *info) {
     case MVM_OP_sp_runcfunc_n:
     case MVM_OP_sp_runcfunc_s:
     case MVM_OP_sp_runcfunc_o:
+    case MVM_OP_sp_runnativecall_v:
+    case MVM_OP_sp_runnativecall_i:
+    case MVM_OP_sp_runnativecall_n:
+    case MVM_OP_sp_runnativecall_s:
+    case MVM_OP_sp_runnativecall_o:
         return 1;
     default:
         if (info->jittivity & (MVM_JIT_INFO_THROWISH | MVM_JIT_INFO_INVOKISH)) {
@@ -1190,7 +1196,7 @@ MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint32 nrargs) {
 }
 
 /* Inserts SSA phi functions at the required places in the graph. */
-static void place_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMint32 n, MVMuint16 var) {
+void MVM_spesh_graph_place_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMint32 n, MVMuint16 var) {
     MVMint32     i;
     MVMOpInfo   *phi_op  = get_phi(tc, g, n + 1);
     MVMSpeshIns *ins     = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
@@ -1229,7 +1235,7 @@ static void insert_phi_functions(MVMThreadContext *tc, MVMSpeshGraph *g, SSAVarI
                 MVMSpeshBB *y = x->df[i];
                 if (has_already[y->idx] < iter_count) {
                     /* Place phi function, and mark we have. */
-                    place_phi(tc, g, y, y->num_pred, var);
+                    MVM_spesh_graph_place_phi(tc, g, y, y->num_pred, var);
                     has_already[y->idx] = iter_count;
 
                     /* Add this block to worklist if needed. */

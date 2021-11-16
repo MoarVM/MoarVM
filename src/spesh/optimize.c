@@ -2297,6 +2297,11 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             }
             break;
         }
+        case MVM_OP_sp_runnativecall_v:
+        case MVM_OP_sp_runnativecall_o:
+        case MVM_OP_sp_runnativecall_i:
+        case MVM_OP_sp_runnativecall_n:
+        case MVM_OP_sp_runnativecall_s:
         case MVM_OP_sp_runcfunc_v:
         case MVM_OP_sp_runcfunc_o:
         case MVM_OP_sp_runcfunc_i:

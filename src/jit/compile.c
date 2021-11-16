@@ -94,14 +94,14 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
         case MVM_JIT_NODE_GUARD:
             MVM_jit_emit_guard(tc, &cl, jg, &node->u.guard);
             break;
-        case MVM_JIT_NODE_INVOKE:
-            MVM_jit_emit_invoke(tc, &cl, jg, &node->u.invoke);
-            break;
         case MVM_JIT_NODE_RUNBYTECODE:
             MVM_jit_emit_runbytecode(tc, &cl, jg, &node->u.runbytecode);
             break;
         case MVM_JIT_NODE_RUNCCODE:
             MVM_jit_emit_runccode(tc, &cl, jg, &node->u.runccode);
+            break;
+        case MVM_JIT_NODE_RUNNATIVECALL:
+            MVM_jit_emit_runnativecall(tc, &cl, jg, &node->u.runnativecall);
             break;
         case MVM_JIT_NODE_DISPATCH:
             MVM_jit_emit_dispatch(tc, &cl, jg, &node->u.dispatch);
