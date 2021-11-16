@@ -3877,7 +3877,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         MVM_OP_radix,
         "radix",
         5,
-        0,
+        1,
         0,
         0,
         0,

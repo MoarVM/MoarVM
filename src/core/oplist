@@ -294,7 +294,7 @@ findnotcclass       w(int64) r(int64) r(str) r(int64) r(int64) :pure
 nfafromstatelist    w(obj) r(obj) r(obj)
 nfarunproto         w(obj) r(obj) r(str) r(int64)
 nfarunalt           r(obj) r(str) r(int64) r(obj) r(obj) r(obj)
-radix               w(obj) r(int64) r(str) r(int64) r(int64) :useshll
+radix               w(obj) r(int64) r(str) r(int64) r(int64) :pure :useshll
 encode              w(obj) r(str) r(str) r(obj)
 decode              w(str) r(obj) r(str)
 istrue_s            w(int64) r(str) :pure
