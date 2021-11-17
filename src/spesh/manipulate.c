@@ -510,6 +510,14 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
     new_bb->succ = bb->succ;
     new_bb->num_succ = bb->num_succ;
 
+    for (MVMuint16 i = 0; i < new_bb->num_succ; i++) {
+        MVMSpeshBB *succ = new_bb->succ[i];
+        if (succ)
+            for (MVMuint16 j = 0; j < succ->num_pred; j++)
+                if (succ->pred[j] == bb)
+                    succ->pred[j] = new_bb;
+    }
+
     /* We assume the reason for the split is to add a new succ in the middle
      * which is why we allocate two slots instead of 1. */
     bb->succ = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshBB *) * 2);
