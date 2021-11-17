@@ -180,7 +180,7 @@ void MVM_VMArray_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
             break;
         case MVM_ARRAY_I64:
             if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
+                MVM_exception_throw_adhoc(tc, "MVMArray: atpos I64 expected int register");
             if (real_index >= body->elems)
                 value->i64 = 0;
             else
@@ -188,7 +188,7 @@ void MVM_VMArray_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
             break;
         case MVM_ARRAY_I32:
             if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
+                MVM_exception_throw_adhoc(tc, "MVMArray: atpos I32 expected int register");
             if (real_index >= body->elems)
                 value->i64 = 0;
             else
@@ -196,7 +196,7 @@ void MVM_VMArray_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
             break;
         case MVM_ARRAY_I16:
             if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
+                MVM_exception_throw_adhoc(tc, "MVMArray: atpos I16 expected int register");
             if (real_index >= body->elems)
                 value->i64 = 0;
             else
@@ -204,7 +204,7 @@ void MVM_VMArray_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
             break;
         case MVM_ARRAY_I8:
             if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
+                MVM_exception_throw_adhoc(tc, "MVMArray: atpos I8 expected int register");
             if (real_index >= body->elems)
                 value->i64 = 0;
             else
@@ -227,36 +227,36 @@ void MVM_VMArray_at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
                 value->n64 = (MVMnum64)body->slots.n32[body->start + real_index];
             break;
         case MVM_ARRAY_U64:
-            if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
+            if (kind != MVM_reg_uint64 && kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: atpos U64 expected int register, got %d instead", kind);
             if (real_index >= body->elems)
-                value->i64 = 0;
+                value->u64 = 0;
             else
-                value->i64 = (MVMint64)body->slots.u64[body->start + real_index];
+                value->u64 = (MVMint64)body->slots.u64[body->start + real_index];
             break;
         case MVM_ARRAY_U32:
-            if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
+            if (kind != MVM_reg_uint64 && kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: atpos U32 expected int register");
             if (real_index >= body->elems)
-                value->i64 = 0;
+                value->u64 = 0;
             else
-                value->i64 = (MVMint64)body->slots.u32[body->start + real_index];
+                value->u64 = (MVMint64)body->slots.u32[body->start + real_index];
             break;
         case MVM_ARRAY_U16:
-            if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
+            if (kind != MVM_reg_uint64 && kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: atpos U16 expected int register");
             if (real_index >= body->elems)
-                value->i64 = 0;
+                value->u64 = 0;
             else
-                value->i64 = (MVMint64)body->slots.u16[body->start + real_index];
+                value->u64 = (MVMint64)body->slots.u16[body->start + real_index];
             break;
         case MVM_ARRAY_U8:
-            if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected int register");
+            if (kind != MVM_reg_uint64 && kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: atpos U8 expected int register");
             if (real_index >= body->elems)
-                value->i64 = 0;
+                value->u64 = 0;
             else
-                value->i64 = (MVMint64)body->slots.u8[body->start + real_index];
+                value->u64 = (MVMint64)body->slots.u8[body->start + real_index];
             break;
         default:
             MVM_exception_throw_adhoc(tc, "MVMArray: Unhandled slot type, got '%s'", MVM_reg_get_debug_name(tc, repr_data->slot_type));
@@ -412,22 +412,22 @@ void MVM_VMArray_bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
             break;
         case MVM_ARRAY_I64:
             if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
+                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos I64 expected int register");
             body->slots.i64[body->start + real_index] = value.i64;
             break;
         case MVM_ARRAY_I32:
             if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
+                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos I32 expected int register");
             body->slots.i32[body->start + real_index] = (MVMint32)value.i64;
             break;
         case MVM_ARRAY_I16:
             if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
+                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos I16 expected int register");
             body->slots.i16[body->start + real_index] = (MVMint16)value.i64;
             break;
         case MVM_ARRAY_I8:
             if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
+                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos I8 expected int register");
             body->slots.i8[body->start + real_index] = (MVMint8)value.i64;
             break;
         case MVM_ARRAY_N64:
@@ -441,23 +441,23 @@ void MVM_VMArray_bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
             body->slots.n32[body->start + real_index] = (MVMnum32)value.n64;
             break;
         case MVM_ARRAY_U64:
-            if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
+            if (kind != MVM_reg_uint64 && kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos U64 expected int register");
             body->slots.u64[body->start + real_index] = value.i64;
             break;
         case MVM_ARRAY_U32:
-            if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
+            if (kind != MVM_reg_uint64 && kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos U32 expected int register");
             body->slots.u32[body->start + real_index] = (MVMuint32)value.i64;
             break;
         case MVM_ARRAY_U16:
-            if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
+            if (kind != MVM_reg_uint64 && kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos U16 expected int register");
             body->slots.u16[body->start + real_index] = (MVMuint16)value.i64;
             break;
         case MVM_ARRAY_U8:
-            if (kind != MVM_reg_int64)
-                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos expected int register");
+            if (kind != MVM_reg_uint64 && kind != MVM_reg_int64)
+                MVM_exception_throw_adhoc(tc, "MVMArray: bindpos U8 expected int register");
             body->slots.u8[body->start + real_index] = (MVMuint8)value.i64;
             break;
         default:
@@ -1499,6 +1499,14 @@ void *MVM_VMArray_find_fast_impl_for_jit(MVMThreadContext *tc, MVMSTable *st, MV
                 return NULL;
             }
             if (repr_data->slot_type == MVM_ARRAY_I64) {
+                return vmarray_at_pos_int64;
+            }
+            break;
+        case MVM_OP_atpos_u:
+            if (kind != MVM_reg_uint64) {
+                return NULL;
+            }
+            if (repr_data->slot_type == MVM_ARRAY_U64) {
                 return vmarray_at_pos_int64;
             }
             break;
