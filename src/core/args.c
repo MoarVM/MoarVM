@@ -376,6 +376,10 @@ static MVMObject * decont_arg(MVMThreadContext *tc, MVMObject *arg) {
                             MVM_exception_throw_adhoc(tc, "Expected native int argument, but got num"); \
                         case MVM_CALLSITE_ARG_STR: \
                             MVM_exception_throw_adhoc(tc, "Expected native int argument, but got str"); \
+                        case MVM_CALLSITE_ARG_INT: \
+                        case MVM_CALLSITE_ARG_UINT: \
+                            /* Ignore signedness mismatch to facilitate rebootstrapping */ \
+                            break; \
                         default: \
                             MVM_exception_throw_adhoc(tc, "unreachable unbox 1"); \
                     } \
@@ -524,13 +528,13 @@ MVMArgInfo MVM_args_get_optional_pos_str(MVMThreadContext *tc, MVMArgProcContext
 MVMuint64 MVM_args_get_required_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos) {
     MVMArgInfo result;
     args_get_pos(tc, ctx, pos, MVM_ARG_REQUIRED, result);
-    autounbox(tc, MVM_CALLSITE_ARG_INT, "unsigned integer", result);
+    autounbox(tc, MVM_CALLSITE_ARG_UINT, "unsigned integer", result);
     return result.arg.u64;
 }
 MVMArgInfo MVM_args_get_optional_pos_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMuint32 pos) {
     MVMArgInfo result;
     args_get_pos(tc, ctx, pos, MVM_ARG_OPTIONAL, result);
-    autounbox(tc, MVM_CALLSITE_ARG_INT, "unsigned integer", result);
+    autounbox(tc, MVM_CALLSITE_ARG_UINT, "unsigned integer", result);
     return result;
 }
 
@@ -589,7 +593,7 @@ MVMArgInfo MVM_args_get_named_str(MVMThreadContext *tc, MVMArgProcContext *ctx, 
 MVMArgInfo MVM_args_get_named_uint(MVMThreadContext *tc, MVMArgProcContext *ctx, MVMString *name, MVMuint8 required) {
     MVMArgInfo result;
     args_get_named(tc, ctx, name, required);
-    autounbox(tc, MVM_CALLSITE_ARG_INT, "unsigned integer", result);
+    autounbox(tc, MVM_CALLSITE_ARG_UINT, "unsigned integer", result);
     return result;
 }
 void MVM_args_assert_nameds_used(MVMThreadContext *tc, MVMArgProcContext *ctx) {
