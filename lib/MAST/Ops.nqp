@@ -835,7 +835,8 @@ BEGIN {
     2088,
     2091,
     2094,
-    2096);
+    2096,
+    2099);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1668,6 +1669,7 @@ BEGIN {
     3,
     3,
     2,
+    3,
     3);
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
@@ -3767,7 +3769,10 @@ BEGIN {
     65,
     65,
     33,
-    161);
+    161,
+    162,
+    65,
+    33);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
     'const_i16', 2,
@@ -4511,7 +4516,8 @@ BEGIN {
     'dispatch_s', 829,
     'dispatch_o', 830,
     'gettypehllrole', 831,
-    'bindpos_u', 832);
+    'bindpos_u', 832,
+    'atpos_u', 833);
     MAST::Ops.WHO<@names> := nqp::list_s('no_op',
     'const_i8',
     'const_i16',
@@ -5255,7 +5261,8 @@ BEGIN {
     'dispatch_s',
     'dispatch_o',
     'gettypehllrole',
-    'bindpos_u');
+    'bindpos_u',
+    'atpos_u');
     MAST::Ops.WHO<%generators> := nqp::hash('no_op', sub ($frame) {
         my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
@@ -10884,6 +10891,14 @@ BEGIN {
         my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 832, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+        my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
+    },
+    'atpos_u', sub ($frame, $op0, $op1, $op2) {
+        my $bytecode := $frame.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, 833, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
         my uint $index2 := nqp::unbox_u($op2); nqp::writeuint($bytecode, nqp::add_i($elems, 6), $index2, 5);
