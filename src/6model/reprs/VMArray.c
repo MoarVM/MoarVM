@@ -1510,6 +1510,14 @@ void *MVM_VMArray_find_fast_impl_for_jit(MVMThreadContext *tc, MVMSTable *st, MV
                 return vmarray_bind_pos_int64;
             }
             break;
+        case MVM_OP_bindpos_u:
+            if (kind != MVM_reg_uint64) {
+                return NULL;
+            }
+            if (repr_data->slot_type == MVM_ARRAY_U64) {
+                return vmarray_bind_pos_int64;
+            }
+            break;
         default:
             return NULL;
     }
