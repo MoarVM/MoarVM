@@ -2124,6 +2124,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_bindkey_s:
         case MVM_OP_bindkey_o:
         case MVM_OP_bindpos_i:
+        case MVM_OP_bindpos_u:
         case MVM_OP_bindpos_n:
         case MVM_OP_bindpos_s:
         case MVM_OP_bindpos_o:

@@ -5350,6 +5350,16 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = STABLE(GET_REG(cur_op, 2).o)->hll_role;
                 cur_op += 4;
                 goto NEXT;
+            OP(bindpos_u): {
+                MVMObject *obj = GET_REG(cur_op, 0).o;
+                CHECK_CONC(obj);
+                REPR(obj)->pos_funcs.bind_pos(tc, STABLE(obj), obj,
+                    OBJECT_BODY(obj), GET_REG(cur_op, 2).i64,
+                    GET_REG(cur_op, 4), MVM_reg_uint64);
+                MVM_SC_WB_OBJ(tc, obj);
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
