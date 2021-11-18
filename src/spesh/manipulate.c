@@ -481,10 +481,9 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
     /* Step two: update all idx fields. */
     new_bb->idx = bb->idx + 1;
     {
-        MVMSpeshBB *ptr = g->entry;
+        MVMSpeshBB *ptr = linear_next;
         while (ptr != NULL) {
-            if (ptr != new_bb && ptr->idx > bb->idx)
-                ptr->idx += 1;
+            ptr->idx += 1;
             ptr = ptr->linear_next;
         }
     }
@@ -508,7 +507,6 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
     new_bb->pred[0] = bb;
 
     new_bb->succ = bb->succ;
-    new_bb->num_succ = bb->num_succ;
 
     for (MVMuint16 i = 0; i < new_bb->num_succ; i++) {
         MVMSpeshBB *succ = new_bb->succ[i];
@@ -528,9 +526,6 @@ MVMSpeshBB *MVM_spesh_manipulate_split_BB_at(MVMThreadContext *tc, MVMSpeshGraph
     new_bb->initial_pc = bb->initial_pc;
 
     new_bb->num_df = 0;
-
-    /* Update the books, since we now have more basic blocks in the graph. */
-    g->num_bbs++;
 
     /* Last step: Transfer over the instructions after the split point. */
     new_bb->last_ins = bb->last_ins;

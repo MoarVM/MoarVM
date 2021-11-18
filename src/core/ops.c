@@ -2034,8 +2034,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_DEPRECATED_99,
-        "DEPRECATED_99",
+        MVM_OP_prepargs,
+        "prepargs",
         1,
         0,
         8,
@@ -2050,8 +2050,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_callsite }
     },
     {
-        MVM_OP_DEPRECATED_100,
-        "DEPRECATED_100",
+        MVM_OP_arg_i,
+        "arg_i",
         2,
         0,
         0,
@@ -2066,8 +2066,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_int16, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_DEPRECATED_101,
-        "DEPRECATED_101",
+        MVM_OP_arg_n,
+        "arg_n",
         2,
         0,
         0,
@@ -2082,8 +2082,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_int16, MVM_operand_read_reg | MVM_operand_num64 }
     },
     {
-        MVM_OP_DEPRECATED_102,
-        "DEPRECATED_102",
+        MVM_OP_arg_s,
+        "arg_s",
         2,
         0,
         0,
@@ -2098,8 +2098,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_int16, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_DEPRECATED_103,
-        "DEPRECATED_103",
+        MVM_OP_arg_o,
+        "arg_o",
         2,
         0,
         0,
@@ -2114,8 +2114,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_int16, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_DEPRECATED_104,
-        "DEPRECATED_104",
+        MVM_OP_argconst_i,
+        "argconst_i",
         2,
         0,
         0,
@@ -2130,8 +2130,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_int16, MVM_operand_int64 }
     },
     {
-        MVM_OP_DEPRECATED_105,
-        "DEPRECATED_105",
+        MVM_OP_argconst_n,
+        "argconst_n",
         2,
         0,
         0,
@@ -2146,8 +2146,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_int16, MVM_operand_num64 }
     },
     {
-        MVM_OP_DEPRECATED_106,
-        "DEPRECATED_106",
+        MVM_OP_argconst_s,
+        "argconst_s",
         2,
         0,
         0,
@@ -12450,8 +12450,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
-        MVM_OP_DEPRECATED_111,
-        "DEPRECATED_111",
+        MVM_OP_nativeinvoke_v,
+        "nativeinvoke_v",
         2,
         0,
         2,
@@ -12466,8 +12466,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_DEPRECATED_112,
-        "DEPRECATED_112",
+        MVM_OP_nativeinvoke_i,
+        "nativeinvoke_i",
         3,
         0,
         2,
@@ -12482,8 +12482,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_DEPRECATED_113,
-        "DEPRECATED_113",
+        MVM_OP_nativeinvoke_n,
+        "nativeinvoke_n",
         3,
         0,
         2,
@@ -12498,8 +12498,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_DEPRECATED_114,
-        "DEPRECATED_114",
+        MVM_OP_nativeinvoke_s,
+        "nativeinvoke_s",
         3,
         0,
         2,
@@ -12514,8 +12514,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_DEPRECATED_115,
-        "DEPRECATED_115",
+        MVM_OP_nativeinvoke_o,
+        "nativeinvoke_o",
         3,
         0,
         2,
@@ -12530,8 +12530,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
     },
     {
-        MVM_OP_DEPRECATED_107,
-        "DEPRECATED_107",
+        MVM_OP_getarg_i,
+        "getarg_i",
         2,
         0,
         0,
@@ -12546,8 +12546,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int16 }
     },
     {
-        MVM_OP_DEPRECATED_108,
-        "DEPRECATED_108",
+        MVM_OP_getarg_n,
+        "getarg_n",
         2,
         0,
         0,
@@ -12562,8 +12562,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_int16 }
     },
     {
-        MVM_OP_DEPRECATED_109,
-        "DEPRECATED_109",
+        MVM_OP_getarg_s,
+        "getarg_s",
         2,
         0,
         0,
@@ -12578,8 +12578,8 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int16 }
     },
     {
-        MVM_OP_DEPRECATED_110,
-        "DEPRECATED_110",
+        MVM_OP_getarg_o,
+        "getarg_o",
         2,
         0,
         0,
@@ -14914,86 +14914,6 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
     },
     {
-        MVM_OP_sp_runnativecall_v,
-        "sp_runnativecall_v",
-        2,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
-    },
-    {
-        MVM_OP_sp_runnativecall_i,
-        "sp_runnativecall_i",
-        3,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
-    },
-    {
-        MVM_OP_sp_runnativecall_n,
-        "sp_runnativecall_n",
-        3,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        { MVM_operand_write_reg | MVM_operand_num64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
-    },
-    {
-        MVM_OP_sp_runnativecall_s,
-        "sp_runnativecall_s",
-        3,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
-    },
-    {
-        MVM_OP_sp_runnativecall_o,
-        "sp_runnativecall_o",
-        3,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        1,
-        0,
-        0,
-        0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_uint64 }
-    },
-    {
         MVM_OP_sp_resumption,
         "sp_resumption",
         3,
@@ -15171,7 +15091,7 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 948;
+static const unsigned short MVM_op_counts = 943;
 
 static const MVMuint16 last_op_allowed = 831;
 

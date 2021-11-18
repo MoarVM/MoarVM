@@ -54,6 +54,11 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         memcpy(dest_body->ffi_arg_types, src_body->ffi_arg_types, sizeof(ffi_type *) * (dest_body->num_args ? dest_body->num_args : 1));
     }
 #endif
+    if (src_body->jitcode) {
+        dest_body->jitcode = MVM_jit_code_copy(tc, src_body->jitcode);
+    }
+    else
+        dest_body->jitcode = NULL;
     dest_body->resolve_lib_name = src_body->resolve_lib_name;
     dest_body->resolve_lib_name_arg = src_body->resolve_lib_name_arg;
 }
@@ -165,6 +170,8 @@ static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
         MVM_free(body->arg_types);
     if (body->arg_info)
         MVM_free(body->arg_info);
+    if (body->jitcode)
+        MVM_jit_code_destroy(tc, body->jitcode);
 #ifdef HAVE_LIBFFI
     if (body->ffi_arg_types)
         MVM_free(body->ffi_arg_types);
@@ -188,7 +195,7 @@ const MVMREPROps * MVMNativeCall_initialize(MVMThreadContext *tc) {
 /* gets the setup state */
 static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMNativeCallBody *body = (MVMNativeCallBody *)data;
-    return (body->lib_handle ? 1 : 0);
+    return (body->lib_handle ? 1 + (body->jitcode ? 1 : 0) : 0);
 }
 
 static const MVMREPROps NativeCall_this_repr = {

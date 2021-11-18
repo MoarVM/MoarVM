@@ -377,7 +377,6 @@ HEADERS = src/moar.h \
           src/disp/boot.h \
           src/disp/registry.h \
           src/disp/inline_cache.h \
-          src/disp/labels.h \
           src/disp/program.h \
           src/disp/syscall.h \
           src/disp/resume.h \

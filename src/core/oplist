@@ -28,6 +28,11 @@
 # by several '.' annoted ops, eg ':j' for a jumplist that is followed
 # by '.j' annotated goto ops.
 #
+# Using a '+' marks the beginning and '-' the end of a block that may
+# only contain matching '*' annotated ops, eg '+a' for prepargs and
+# '-a' for invoke_o with ops like arg_i or arg_o annotated as '*a'
+# inbetween. Note that '*' ops must not appear outside such blocks.
+#
 # A number of adverbs may follow an operation:
 # * :pure means that the op has no side-effects and so can safely be
 #   thrown away if the result is unused
@@ -179,14 +184,14 @@ coerce_si           w(int64) r(str) :pure :confprog
 coerce_sn           w(num64) r(str) :pure :confprog
 DEPRECATED_66       w(num64) r(obj)
 DEPRECATED_67       w(str) r(obj)
-DEPRECATED_99    +a callsite :predeoptonepoint
-DEPRECATED_100   *a int16 r(int64)
-DEPRECATED_101   *a int16 r(num64)
-DEPRECATED_102   *a int16 r(str)
-DEPRECATED_103   *a int16 r(obj)
-DEPRECATED_104   *a int16 int64
-DEPRECATED_105   *a int16 num64
-DEPRECATED_106   *a int16 str
+prepargs         +a callsite :predeoptonepoint
+arg_i            *a int16 r(int64)
+arg_n            *a int16 r(num64)
+arg_s            *a int16 r(str)
+arg_o            *a int16 r(obj)
+argconst_i       *a int16 int64
+argconst_n       *a int16 num64
+argconst_s       *a int16 str
 DEPRECATED_70    -a r(obj)
 DEPRECATED_71    -a w(int64) r(obj)
 DEPRECATED_72    -a w(num64) r(obj)
@@ -833,15 +838,15 @@ atomicstore_o       r(obj) r(obj) :invokish :maycausedeopt :specializable
 atomicstore_i       r(obj) r(int64) :specializable
 barrierfull
 coveragecontrol     r(int64)
-DEPRECATED_111     -a r(obj) r(obj) :specializable :deoptallpoint :maycausedeopt
-DEPRECATED_112     -a w(int64) r(obj) r(obj) :specializable :deoptallpoint :maycausedeopt
-DEPRECATED_113     -a w(num64) r(obj) r(obj) :specializable :deoptallpoint :maycausedeopt
-DEPRECATED_114     -a w(str) r(obj) r(obj) :specializable :deoptallpoint :maycausedeopt
-DEPRECATED_115     -a w(obj) r(obj) r(obj) :specializable :deoptallpoint :maycausedeopt
-DEPRECATED_107      w(int64) r(int16)
-DEPRECATED_108      w(num64) r(int16)
-DEPRECATED_109      w(str) r(int16)
-DEPRECATED_110      w(obj) r(int16)
+nativeinvoke_v       -a r(obj) r(obj) :specializable :deoptallpoint :maycausedeopt
+nativeinvoke_i       -a w(int64) r(obj) r(obj) :specializable :deoptallpoint :maycausedeopt
+nativeinvoke_n       -a w(num64) r(obj) r(obj) :specializable :deoptallpoint :maycausedeopt
+nativeinvoke_s       -a w(str) r(obj) r(obj) :specializable :deoptallpoint :maycausedeopt
+nativeinvoke_o       -a w(obj) r(obj) r(obj) :specializable :deoptallpoint :maycausedeopt
+getarg_i            w(int64) r(int16)
+getarg_n            w(num64) r(int16)
+getarg_s            w(str) r(int16)
+getarg_o            w(obj) r(int16)
 coerce_II           w(obj) r(obj) r(obj) :pure
 encoderepconf       w(obj) r(str) r(str) r(str) r(obj) r(int64)
 encodeconf          w(obj) r(str) r(str) r(obj) r(int64)
@@ -1089,17 +1094,6 @@ sp_runcfunc_i    .s w(int64) r(obj) uint64
 sp_runcfunc_n    .s w(num64) r(obj) uint64
 sp_runcfunc_s    .s w(str) r(obj) uint64
 sp_runcfunc_o    .s w(obj) r(obj) uint64
-
-# Run a native function. The r(obj) register is the native function to invoke.
-# The uint64 is a pointer to the MVMCallsite (they never move and we know they
-# are interned). The first of the var args is actually required and is the
-# result type. Specifying this argument here would require special handling in
-# several places though.
-sp_runnativecall_v .s          r(obj) uint64 :maycausedeopt :invokish
-sp_runnativecall_i .s w(int64) r(obj) uint64 :maycausedeopt :invokish
-sp_runnativecall_n .s w(num64) r(obj) uint64 :maycausedeopt :invokish
-sp_runnativecall_s .s w(str)   r(obj) uint64 :maycausedeopt :invokish
-sp_runnativecall_o .s w(obj)   r(obj) uint64 :maycausedeopt :invokish
 
 # An instruction produced when translating dispatch programs that set up
 # one or more resumption initialization states. One is produce for each

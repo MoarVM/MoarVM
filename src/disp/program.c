@@ -157,9 +157,6 @@ static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *rec
         case MVM_DISP_OUTCOME_CFUNCTION:
             fprintf(stderr, "    Run C function of value %d\n", record->rec.outcome_value);
             break;
-        case MVM_DISP_OUTCOME_FOREIGNCODE:
-            fprintf(stderr, "    Run foreign function of value %d\n", record->rec.outcome_value);
-            break;
         default:
             printf("    Unknown\n");
     }
@@ -433,10 +430,6 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                 break;
             case MVMDispOpcodeResultCFunction:
                 fprintf(stderr, "    Invoke MVMCFunction in temporary %d\n",
-                        op->res_code.temp_invokee);
-                break;
-            case MVMDispOpcodeResultForeignCode:
-                fprintf(stderr, "    Invoke foreign function in temporary %d\n",
                         op->res_code.temp_invokee);
                 break;
 
@@ -822,75 +815,6 @@ static MVMuint32 value_index_how(MVMThreadContext *tc, MVMDispProgramRecording *
     return MVM_VECTOR_ELEMS(rec->values) - 1;
 }
 
-/* Ensures we have a values used entry for the specified unboxed int. */
-static MVMuint32 value_index_unbox_int(MVMThreadContext *tc, MVMDispProgramRecording *rec,
-        MVMuint32 from_value) {
-    /* Look for an existing such value. */
-    MVMuint32 i;
-    for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++) {
-        MVMDispProgramRecordingValue *v = &(rec->values[i]);
-        if (v->source == MVMDispProgramRecordingUnboxValue &&
-                v->unbox.from_value == from_value &&
-                v->unbox.kind == MVM_CALLSITE_ARG_INT)
-            return i;
-    }
-
-    /* Otherwise, we need to create the value entry. */
-    MVMDispProgramRecordingValue new_value;
-    memset(&new_value, 0, sizeof(MVMDispProgramRecordingValue));
-    new_value.source = MVMDispProgramRecordingUnboxValue;
-    new_value.unbox.from_value = from_value;
-    new_value.unbox.kind = MVM_CALLSITE_ARG_INT;
-    MVM_VECTOR_PUSH(rec->values, new_value);
-    return MVM_VECTOR_ELEMS(rec->values) - 1;
-}
-
-/* Ensures we have a values used entry for the specified unboxed num. */
-static MVMuint32 value_index_unbox_num(MVMThreadContext *tc, MVMDispProgramRecording *rec,
-        MVMuint32 from_value) {
-    /* Look for an existing such value. */
-    MVMuint32 i;
-    for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++) {
-        MVMDispProgramRecordingValue *v = &(rec->values[i]);
-        if (v->source == MVMDispProgramRecordingUnboxValue &&
-                v->unbox.from_value == from_value &&
-                v->unbox.kind == MVM_CALLSITE_ARG_NUM)
-            return i;
-    }
-
-    /* Otherwise, we need to create the value entry. */
-    MVMDispProgramRecordingValue new_value;
-    memset(&new_value, 0, sizeof(MVMDispProgramRecordingValue));
-    new_value.source = MVMDispProgramRecordingUnboxValue;
-    new_value.unbox.from_value = from_value;
-    new_value.unbox.kind = MVM_CALLSITE_ARG_NUM;
-    MVM_VECTOR_PUSH(rec->values, new_value);
-    return MVM_VECTOR_ELEMS(rec->values) - 1;
-}
-
-/* Ensures we have a values used entry for the specified unboxed str. */
-static MVMuint32 value_index_unbox_str(MVMThreadContext *tc, MVMDispProgramRecording *rec,
-        MVMuint32 from_value) {
-    /* Look for an existing such value. */
-    MVMuint32 i;
-    for (i = 0; i < MVM_VECTOR_ELEMS(rec->values); i++) {
-        MVMDispProgramRecordingValue *v = &(rec->values[i]);
-        if (v->source == MVMDispProgramRecordingUnboxValue &&
-                v->unbox.from_value == from_value &&
-                v->unbox.kind == MVM_CALLSITE_ARG_STR)
-            return i;
-    }
-
-    /* Otherwise, we need to create the value entry. */
-    MVMDispProgramRecordingValue new_value;
-    memset(&new_value, 0, sizeof(MVMDispProgramRecordingValue));
-    new_value.source = MVMDispProgramRecordingUnboxValue;
-    new_value.unbox.from_value = from_value;
-    new_value.unbox.kind = MVM_CALLSITE_ARG_STR;
-    MVM_VECTOR_PUSH(rec->values, new_value);
-    return MVM_VECTOR_ELEMS(rec->values) - 1;
-}
-
 /* Ensures we have a values used entry for the specified lookup table read. */
 static MVMuint32 value_index_lookup(MVMThreadContext *tc, MVMDispProgramRecording *rec,
         MVMuint32 lookup_index, MVMuint32 key_index) {
@@ -1081,96 +1005,6 @@ MVMObject * MVM_disp_program_record_track_attr(MVMThreadContext *tc, MVMObject *
     if (!record->rec.values[result_value_index].tracked)
         record->rec.values[result_value_index].tracked = MVM_tracked_create(tc,
                 attr_value, attr_kind);
-    return record->rec.values[result_value_index].tracked;
-}
-
-MVMObject * MVM_disp_program_record_track_unbox_int(MVMThreadContext *tc, MVMObject *tracked_in) {
-    /* Ensure the tracked value is an object type. */
-    if (((MVMTracked *)tracked_in)->body.kind != MVM_CALLSITE_ARG_OBJ)
-        MVM_oops(tc, "Can only use dispatcher-track-unbox-int on a tracked object");
-
-    /* Resolve the tracked value. */
-    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked_in);
-
-    /* Obtain the object and ensure it is concrete; also track its
-     * type and concreteness since unboxing safety depends on this. */
-    MVMObject *read_from = ((MVMTracked *)tracked_in)->body.value.o;
-    if (!IS_CONCRETE(read_from))
-        MVM_exception_throw_adhoc(tc, "Can only use dispatcher-track-unbox-int on a concrete object");
-    record->rec.values[value_index].guard_type = 1;
-    record->rec.values[value_index].guard_concreteness = 1;
-
-    /* Read the value. */
-    MVMRegister attr_value;
-    attr_value.i64 = MVM_repr_get_int(tc, read_from);
-
-    /* Ensure that we have this value read in the values table, and make
-     * a tracked object if not. */
-    MVMuint32 result_value_index = value_index_unbox_int(tc, &(record->rec), value_index);
-    if (!record->rec.values[result_value_index].tracked)
-        record->rec.values[result_value_index].tracked = MVM_tracked_create(tc,
-                attr_value, MVM_CALLSITE_ARG_INT);
-    return record->rec.values[result_value_index].tracked;
-}
-
-MVMObject * MVM_disp_program_record_track_unbox_num(MVMThreadContext *tc, MVMObject *tracked_in) {
-    /* Ensure the tracked value is an object type. */
-    if (((MVMTracked *)tracked_in)->body.kind != MVM_CALLSITE_ARG_OBJ)
-        MVM_oops(tc, "Can only use dispatcher-track-unbox-num on a tracked object");
-
-    /* Resolve the tracked value. */
-    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked_in);
-
-    /* Obtain the object and ensure it is concrete; also track its
-     * type and concreteness since unboxing safety depends on this. */
-    MVMObject *read_from = ((MVMTracked *)tracked_in)->body.value.o;
-    if (!IS_CONCRETE(read_from))
-        MVM_exception_throw_adhoc(tc, "Can only use dispatcher-track-unbox-num on a concrete object");
-    record->rec.values[value_index].guard_type = 1;
-    record->rec.values[value_index].guard_concreteness = 1;
-
-    /* Read the value. */
-    MVMRegister attr_value;
-    attr_value.n64 = MVM_repr_get_num(tc, read_from);
-
-    /* Ensure that we have this value read in the values table, and make
-     * a tracked object if not. */
-    MVMuint32 result_value_index = value_index_unbox_num(tc, &(record->rec), value_index);
-    if (!record->rec.values[result_value_index].tracked)
-        record->rec.values[result_value_index].tracked = MVM_tracked_create(tc,
-                attr_value, MVM_CALLSITE_ARG_NUM);
-    return record->rec.values[result_value_index].tracked;
-}
-
-MVMObject * MVM_disp_program_record_track_unbox_str(MVMThreadContext *tc, MVMObject *tracked_in) {
-    /* Ensure the tracked value is an object type. */
-    if (((MVMTracked *)tracked_in)->body.kind != MVM_CALLSITE_ARG_OBJ)
-        MVM_oops(tc, "Can only use dispatcher-track-unbox-str on a tracked object");
-
-    /* Resolve the tracked value. */
-    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked_in);
-
-    /* Obtain the object and ensure it is concrete; also track its
-     * type and concreteness since unboxing safety depends on this. */
-    MVMObject *read_from = ((MVMTracked *)tracked_in)->body.value.o;
-    if (!IS_CONCRETE(read_from))
-        MVM_exception_throw_adhoc(tc, "Can only use dispatcher-track-unbox-str on a concrete object");
-    record->rec.values[value_index].guard_type = 1;
-    record->rec.values[value_index].guard_concreteness = 1;
-
-    /* Read the value. */
-    MVMRegister attr_value;
-    attr_value.s = MVM_repr_get_str(tc, read_from);
-
-    /* Ensure that we have this value read in the values table, and make
-     * a tracked object if not. */
-    MVMuint32 result_value_index = value_index_unbox_str(tc, &(record->rec), value_index);
-    if (!record->rec.values[result_value_index].tracked)
-        record->rec.values[result_value_index].tracked = MVM_tracked_create(tc,
-                attr_value, MVM_CALLSITE_ARG_STR);
     return record->rec.values[result_value_index].tracked;
 }
 
@@ -1939,24 +1773,6 @@ void MVM_disp_program_record_c_code_constant(MVMThreadContext *tc, MVMCFunction 
     record->outcome.args.source = ((MVMCapture *)capture)->body.args;
 }
 
-void MVM_disp_program_record_foreign_code_constant(MVMThreadContext *tc, MVMNativeCall *result, MVMObject *capture) {
-    /* Record the result action. */
-    MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
-    ensure_known_capture(tc, record, capture);
-    MVMRegister value = { .o = (MVMObject *)result };
-    record->rec.outcome_value = value_index_constant(tc, &(record->rec),
-            MVM_CALLSITE_ARG_OBJ, value);
-    record->rec.outcome_capture = capture;
-
-    /* Set up the invoke outcome. */
-    MVMCallsite *callsite = ((MVMCapture *)capture)->body.callsite;
-    record->outcome.kind = MVM_DISP_OUTCOME_FOREIGNCODE;
-    record->outcome.site = result;
-    record->outcome.args.callsite = callsite;
-    record->outcome.args.map = MVM_args_identity_map(tc, callsite);
-    record->outcome.args.source = ((MVMCapture *)capture)->body.args;
-}
-
 /* Record a program terminator that invokes bytecode from a tracked value (for
  * example, from a capture or attribute read). Guards are established against
  * the tracked value for both type and concreteness as a side-effect. */
@@ -2171,25 +1987,6 @@ static MVMuint32 get_temp_holding_value(MVMThreadContext *tc, compile_state *cs,
              * then add the op to read it. */
             op.code = MVMDispOpcodeLoadHOW;
             op.load.idx = get_temp_holding_value(tc, cs, v->how.from_value);
-            break;
-        }
-        case MVMDispProgramRecordingUnboxValue: {
-            /* We first need to make sure that we load the dependent value,
-             * then add the op to read it. */
-            switch (v->unbox.kind) {
-                case MVM_CALLSITE_ARG_INT:
-                    op.code = MVMDispOpcodeUnboxInt;
-                    break;
-                case MVM_CALLSITE_ARG_NUM:
-                    op.code = MVMDispOpcodeUnboxNum;
-                    break;
-                case MVM_CALLSITE_ARG_STR:
-                    op.code = MVMDispOpcodeUnboxStr;
-                    break;
-                default:
-                    MVM_oops(tc, "Unhandled kind of unbox in recorded dispatch: %d", v->attribute.kind);
-            }
-            op.load.idx = get_temp_holding_value(tc, cs, v->unbox.from_value);
             break;
         }
         case MVMDispProgramRecordingLookupValue: {
@@ -3000,22 +2797,6 @@ static void process_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *
             MVM_VECTOR_PUSH(cs.ops, op);
             break;
         }
-        case MVM_DISP_OUTCOME_FOREIGNCODE: {
-            /* Make sure we load the invokee into a temporary before we go any
-             * further. This is the last temporary we add before dealing with
-             * args. Also put callsite into constant table. */
-            MVMuint32 temp_invokee = get_temp_holding_value(tc, &cs, record->rec.outcome_value);
-            MVMuint32 callsite_idx = add_program_constant_callsite(tc, &cs,
-                    ((MVMCapture *)record->rec.outcome_capture)->body.callsite);
-
-            /* Produce the args op(s), and then add the dispatch op. */
-            emit_args_ops(tc, record, &cs, callsite_idx);
-            MVMDispProgramOp op;
-            op.code = MVMDispOpcodeResultForeignCode;
-            op.res_code.temp_invokee = temp_invokee;
-            MVM_VECTOR_PUSH(cs.ops, op);
-            break;
-        }
         default:
             MVM_oops(tc, "Unimplemented dispatch outcome compilation");
     }
@@ -3163,19 +2944,6 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
             tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
             tc->cur_frame->return_type = record->orig_return_type;
             record->outcome.c_func(tc, record->outcome.args);
-            return 1;
-        case MVM_DISP_OUTCOME_FOREIGNCODE:
-            process_recording(tc, record);
-            MVM_disp_program_recording_destroy(tc, &(record->rec));
-            record->common.kind = MVM_CALLSTACK_RECORD_DISPATCH_RECORDED;
-            tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
-            tc->cur_frame->return_type = record->orig_return_type;
-
-            MVMObject *site = (MVMObject *)record->outcome.site;
-            MVMObject *result_type = record->outcome.args.source[record->outcome.args.map[0]].o;
-            MVM_nativecall_dispatch(tc, result_type, site, record->outcome.args);
-            if (tc->cur_frame->return_type == MVM_RETURN_OBJ && MVM_spesh_log_is_logging(tc))
-                MVM_spesh_log_type(tc, tc->cur_frame->return_value->o);
             return 1;
         default:
             MVM_oops(tc, "Unimplemented dispatch program outcome kind");
@@ -3450,18 +3218,6 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 record->temps[op.load.temp].o = HOW;
                 NEXT;
             }
-            OP(MVMDispOpcodeUnboxInt): {
-                record->temps[op.load.temp].i64 = MVM_repr_get_int(tc, record->temps[op.load.idx].o);
-                NEXT;
-            }
-            OP(MVMDispOpcodeUnboxNum): {
-                record->temps[op.load.temp].n64 = MVM_repr_get_num(tc, record->temps[op.load.idx].o);
-                NEXT;
-            }
-            OP(MVMDispOpcodeUnboxStr): {
-                record->temps[op.load.temp].s = MVM_repr_get_str(tc, record->temps[op.load.idx].o);
-                NEXT;
-            }
             OP(MVMDispOpcodeLookup):
                 record->temps[op.load.temp].o = MVM_repr_at_key_o(tc,
                         record->temps[op.load.temp].o,
@@ -3569,19 +3325,6 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 MVM_callstack_unwind_dispatch_run(tc);
                 goto accept;
             }
-            OP(MVMDispOpcodeResultForeignCode): {
-                record->chosen_dp = dp;
-                if (spesh_cid)
-                    MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
-                        bytecode_offset, dp_index);
-
-                MVMObject *result_type = invoke_args.source[invoke_args.map[0]].o;
-                MVM_nativecall_dispatch(tc, result_type, record->temps[op.res_code.temp_invokee].o, invoke_args);
-                if (tc->cur_frame->return_type == MVM_RETURN_OBJ && MVM_spesh_log_is_logging(tc))
-                    MVM_spesh_log_type(tc, tc->cur_frame->return_value->o);
-                MVM_callstack_unwind_dispatch_run(tc);
-                goto accept;
-            }
 #if !MVM_CGOTO
             default:
                 MVM_oops(tc, "Unknown dispatch program op %d", op.code);
@@ -3637,7 +3380,6 @@ void MVM_disp_program_mark_recording(MVMThreadContext *tc, MVMDispProgramRecordi
             case MVMDispProgramRecordingAttributeValue:
             case MVMDispProgramRecordingLookupValue:
             case MVMDispProgramRecordingHOWValue:
-            case MVMDispProgramRecordingUnboxValue:
             case MVMDispProgramRecordingResumeStateValue:
                 /* Nothing to mark. */
                 break;
@@ -3748,10 +3490,6 @@ void MVM_disp_program_mark_outcome(MVMThreadContext *tc, MVMDispProgramOutcome *
             add_collectable(tc, worklist, snapshot, outcome->code,
                     "Dispatch outcome (bytecode)");
             break;
-        case MVM_DISP_OUTCOME_FOREIGNCODE:
-            add_collectable(tc, worklist, snapshot, outcome->site,
-                    "Dispatch outcome (foreign function)");
-            break;
     }
 }
 
@@ -3842,9 +3580,6 @@ const char *MVM_disp_opcode_to_name(MVMDispProgramOpcode op) {
         case MVMDispOpcodeLoadAttributeInt: return "MVMDispOpcodeLoadAttributeInt";
         case MVMDispOpcodeLoadAttributeNum: return "MVMDispOpcodeLoadAttributeNum";
         case MVMDispOpcodeLoadAttributeStr: return "MVMDispOpcodeLoadAttributeStr";
-        case MVMDispOpcodeUnboxInt: return "MVMDispOpcodeUnboxInt";
-        case MVMDispOpcodeUnboxNum: return "MVMDispOpcodeUnboxNum";
-        case MVMDispOpcodeUnboxStr: return "MVMDispOpcodeUnboxStr";
         case MVMDispOpcodeLoadHOW: return "MVMDispOpcodeLoadHOW";
         case MVMDispOpcodeLookup: return "MVMDispOpcodeLookup";
         case MVMDispOpcodeSet: return "MVMDispOpcodeSet";
@@ -3858,7 +3593,6 @@ const char *MVM_disp_opcode_to_name(MVMDispProgramOpcode op) {
         case MVMDispOpcodeCopyArgsTail: return "MVMDispOpcodeCopyArgsTail";
         case MVMDispOpcodeResultBytecode: return "MVMDispOpcodeResultBytecode";
         case MVMDispOpcodeResultCFunction: return "MVMDispOpcodeResultCFunction";
-        case MVMDispOpcodeResultForeignCode: return "MVMDispOpcodeResultForeignCode";
         default:
            return "<unknown>";
     }

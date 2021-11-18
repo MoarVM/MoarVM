@@ -43,7 +43,8 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
 
     /* Work size is number of locals/registers plus size of the maximum
      * call site argument list. */
-    static_frame_body->work_size = sizeof(MVMRegister) * static_frame_body->num_locals;
+    static_frame_body->work_size = sizeof(MVMRegister) *
+        (static_frame_body->num_locals + static_frame_body->cu->body.max_callsite_size);
 
     /* Validate the bytecode. */
     MVMROOT(tc, static_frame, {
@@ -285,6 +286,9 @@ static MVMFrame * allocate_unspecialized_frame(MVMThreadContext *tc,
     memcpy(frame->work, static_frame->body.work_initial,
         sizeof(MVMRegister) * static_frame->body.num_locals);
 
+    /* Calculate args buffer position. */
+    frame->args = frame->work + static_frame->body.num_locals;
+
     /* Set static frame and caller before we let this frame escape and the GC
      * see it. */
     frame->static_info = static_frame;
@@ -328,6 +332,13 @@ static MVMFrame * allocate_specialized_frame(MVMThreadContext *tc,
         memset(frame->work, 0, work_size + env_size);
     }
 
+    /* Calculate args buffer position. */
+    MVMJitCode *jitcode = spesh_cand->body.jitcode;
+    MVMint32 num_locals = jitcode && jitcode->local_types
+        ? jitcode->num_locals
+        : spesh_cand->body.num_locals;
+    frame->args = frame->work + num_locals;
+
     /* Set static frame and caller before we let this frame escape and the GC
      * see it. */
     frame->static_info = static_frame;
@@ -345,6 +356,7 @@ void MVM_frame_setup_deopt(MVMThreadContext *tc, MVMFrame *frame, MVMStaticFrame
     frame->outer = code_ref->body.outer;
     frame->spesh_cand = NULL;
     frame->spesh_correlation_id = 0;
+    frame->args = frame->work + static_frame->body.num_locals;
 }
 
 /* Sets up storage for state variables. We do this after tc->cur_frame became

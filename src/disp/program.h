@@ -45,10 +45,7 @@ typedef enum {
     MVM_DISP_OUTCOME_BYTECODE,
 
     /* Invoke a C function. */
-    MVM_DISP_OUTCOME_CFUNCTION,
-
-    /* Invoke a foreign C function. */
-    MVM_DISP_OUTCOME_FOREIGNCODE
+    MVM_DISP_OUTCOME_CFUNCTION
 } MVMDispProgramOutcomeKind;
 
 /* The outcome of a dispatch program. Used only in the record case; the run
@@ -71,9 +68,6 @@ struct MVMDispProgramOutcome {
                 MVMCode *code;
                 /* The C function to be invoked. */
                 void (*c_func) (MVMThreadContext *tc, MVMArgs arg_info);
-
-                /* The native call site to be invoked. */
-                MVMNativeCall *site;
             };
             /* Arguments for an invocation (must point into otherwise marked
              * areas). */
@@ -105,8 +99,6 @@ typedef enum {
     MVMDispProgramRecordingAttributeValue,
     /* A read of .HOW from a value. */
     MVMDispProgramRecordingHOWValue,
-    /* An unbox of a value. */
-    MVMDispProgramRecordingUnboxValue,
     /* A read of a key from a lookup table. */
     MVMDispProgramRecordingLookupValue,
     /* The resume state for this dispatcher. */
@@ -146,12 +138,6 @@ struct MVMDispProgramRecordingValue {
             /* The value that we'll read the HOW of. */
             MVMuint32 from_value;
         } how;
-        struct {
-            /* The value that we'll unbox. */
-            MVMuint32 from_value;
-            /* The kind of value we'll unbox. */
-            MVMCallsiteFlags kind;
-        } unbox;
         struct {
             /* The value index of the lookup hash. */
             MVMuint32 lookup_index;
@@ -457,12 +443,6 @@ typedef enum {
     MVMDispOpcodeLoadAttributeStr,
     /* Load an object's HOW into a temporary. */
     MVMDispOpcodeLoadHOW,
-    /* Unbox an int from an object into a temporary. */
-    MVMDispOpcodeUnboxInt,
-    /* Unbox a num from an object into a temporary. */
-    MVMDispOpcodeUnboxNum,
-    /* Unbox a str from an object into a temporary. */
-    MVMDispOpcodeUnboxStr,
     /* Do a lookup in a hash table and put the result into a temporary if it is
      * found. */
     MVMDispOpcodeLookup,
@@ -502,10 +482,7 @@ typedef enum {
     MVMDispOpcodeResultBytecode,
     /* Set a C function object result, specifying invokee and callsite.
      * The args should already have been set up. */
-    MVMDispOpcodeResultCFunction,
-    /* Set a foreign function object result, specifying invokee and callsite.
-     * The args should already have been set up. */
-    MVMDispOpcodeResultForeignCode
+    MVMDispOpcodeResultCFunction
 } MVMDispProgramOpcode;
 
 /* An operation, with its operands, in a dispatch program. */
@@ -629,9 +606,6 @@ MVMObject * MVM_disp_program_record_track_arg(MVMThreadContext *tc, MVMObject *c
         MVMuint32 index);
 MVMObject * MVM_disp_program_record_track_attr(MVMThreadContext *tc, MVMObject *tracked,
         MVMObject *class_handle, MVMString *name);
-MVMObject * MVM_disp_program_record_track_unbox_int(MVMThreadContext *tc, MVMObject *tracked);
-MVMObject * MVM_disp_program_record_track_unbox_num(MVMThreadContext *tc, MVMObject *tracked);
-MVMObject * MVM_disp_program_record_track_unbox_str(MVMThreadContext *tc, MVMObject *tracked);
 MVMObject * MVM_disp_program_record_track_how(MVMThreadContext *tc, MVMObject *tracked);
 void MVM_disp_program_record_guard_type(MVMThreadContext *tc, MVMObject *tracked);
 void MVM_disp_program_record_guard_concreteness(MVMThreadContext *tc, MVMObject *tracked);
@@ -677,8 +651,6 @@ void MVM_disp_program_record_result_tracked_value(MVMThreadContext *tc, MVMObjec
 void MVM_disp_program_record_code_constant(MVMThreadContext *tc, MVMCode *result, MVMObject *capture);
 void MVM_disp_program_record_c_code_constant(MVMThreadContext *tc, MVMCFunction *result,
         MVMObject *capture);
-void MVM_disp_program_record_foreign_code_constant(MVMThreadContext *tc,
-        MVMNativeCall *result, MVMObject *capture);
 void MVM_disp_program_record_tracked_code(MVMThreadContext *tc, MVMObject *tracked,
         MVMObject *capture);
 void MVM_disp_program_record_tracked_c_code(MVMThreadContext *tc, MVMObject *tracked,

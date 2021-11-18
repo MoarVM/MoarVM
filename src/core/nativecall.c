@@ -406,6 +406,234 @@ static const char *dlerror(void)
 }
 #endif
 
+void init_c_call_node(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMJitNode *node, void *func_ptr, MVMint16 num_args, MVMJitCallArg *args) {
+    node->type = MVM_JIT_NODE_CALL_C;
+    node->u.call.func_ptr = func_ptr;
+    if (0 < num_args) {
+        node->u.call.args = MVM_spesh_alloc(tc, sg, num_args * sizeof(MVMJitCallArg));
+        memcpy(node->u.call.args, args, num_args * sizeof(MVMJitCallArg));
+    }
+    else {
+        node->u.call.args = NULL;
+    }
+    node->u.call.num_args = num_args;
+    node->u.call.rv_mode = MVM_JIT_RV_VOID;
+    node->u.call.rv_idx  = -1;
+}
+
+void save_rv_to_stack(MVMThreadContext *tc, MVMJitNode *node, MVMint32 storage_pos) {
+    node->u.call.rv_mode = MVM_JIT_RV_TO_STACK;
+    node->u.call.rv_idx = storage_pos;
+}
+
+void init_box_call_node(MVMThreadContext *tc, MVMSpeshGraph *sg, MVMJitNode *box_rv_node, void *func_ptr, MVMint16 restype, MVMint16 dst) {
+    MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } },
+                             { MVM_JIT_REG_DYNIDX, { 2 } },
+                             { MVM_JIT_STACK_VALUE, { 0 } }};
+    init_c_call_node(tc, sg, box_rv_node, func_ptr, 3, args);
+    box_rv_node->next = NULL;
+    if (dst == -1) {
+        box_rv_node->u.call.rv_mode = MVM_JIT_RV_DYNIDX;
+        box_rv_node->u.call.rv_idx = 0;
+    }
+    else {
+        box_rv_node->u.call.args[1].type = MVM_JIT_REG_VAL;
+        box_rv_node->u.call.args[1].v.reg = restype;
+
+        box_rv_node->u.call.rv_mode = MVM_JIT_RV_PTR;
+        box_rv_node->u.call.rv_idx = dst;
+    }
+}
+
+MVMJitGraph *MVM_nativecall_jit_graph_for_caller_code(
+    MVMThreadContext   *tc,
+    MVMSpeshGraph      *sg,
+    MVMNativeCallBody  *body,
+    MVMint16            restype,
+    MVMint16            dst,
+    MVMSpeshIns       **arg_ins
+) {
+    MVMJitGraph *jg = MVM_spesh_alloc(tc, sg, sizeof(MVMJitGraph)); /* will actually calloc */
+    MVMJitNode *block_gc_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
+    MVMJitNode *unblock_gc_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
+    MVMJitNode *call_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
+    MVMJitNode *box_rv_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
+    MVMJitCallArg block_gc_args[] = { { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } } };
+
+    jg->sg = sg;
+    jg->first_node = block_gc_node;
+    init_c_call_node(tc, sg, block_gc_node,   &MVM_gc_mark_thread_blocked, 1, block_gc_args);
+    block_gc_node->next = call_node;
+    init_c_call_node(tc, sg, call_node, body->entry_point, 0, NULL); /* we handle args manually */
+    save_rv_to_stack(tc, call_node, 0);
+
+    init_c_call_node(tc, sg, unblock_gc_node, &MVM_gc_mark_thread_unblocked, 1, block_gc_args);
+
+    call_node->next = unblock_gc_node;
+    call_node->u.call.num_args = body->num_args;
+    jg->last_node = unblock_gc_node->next = box_rv_node;
+
+    if (0 < body->num_args) {
+        MVMuint16 i = 0, str_arg_count = 0;
+        call_node->u.call.args = MVM_spesh_alloc(tc, sg, body->num_args * sizeof(MVMJitCallArg));
+        for (i = 0; i < body->num_args; i++) {
+            if ((body->arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) == MVM_NATIVECALL_ARG_UTF8STR) {
+                MVMJitNode *unbox_str_node;
+                MVMJitNode *free_str_node;
+
+                if (7 < ++str_arg_count) /* only got 7 empty slots in the stack scratch space */
+                    goto fail;
+
+                unbox_str_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
+                {
+                    MVMJitCallArg unbox_str_args[] = {
+                        { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } },
+                        {
+                            dst == -1 ? MVM_JIT_ARG_I64 : MVM_JIT_PARAM_I64 ,
+                            { dst == -1 ? i : arg_ins[i]->operands[1].reg.orig }
+                        }
+                    };
+                    init_c_call_node(tc, sg, unbox_str_node, &MVM_string_utf8_maybe_encode_C_string, 2, unbox_str_args);
+                    save_rv_to_stack(tc, unbox_str_node, str_arg_count);
+                }
+                unbox_str_node->next = jg->first_node;
+                jg->first_node = unbox_str_node;
+
+                call_node->u.call.args[i].type = MVM_JIT_STACK_VALUE;
+                call_node->u.call.args[i].v.lit_i64 = str_arg_count;
+
+                if ((body->arg_types[i] & MVM_NATIVECALL_ARG_FREE_STR_MASK) != 0) {
+                    MVMJitCallArg free_str_args[] = {
+                        { MVM_JIT_STACK_VALUE , { str_arg_count } }
+                    };
+                    free_str_node = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
+                    init_c_call_node(tc, sg, free_str_node, &MVM_free, 1, free_str_args);
+                    free_str_node->next = unblock_gc_node->next;
+                    unblock_gc_node->next = free_str_node;
+                }
+            }
+        }
+        for (i = 0; i < body->num_args; i++) {
+            MVMJitArgType arg_type;
+            int is_rw = ((body->arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW);
+
+            switch (body->arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
+                case MVM_NATIVECALL_ARG_CHAR:
+                case MVM_NATIVECALL_ARG_UCHAR:
+                case MVM_NATIVECALL_ARG_SHORT:
+                case MVM_NATIVECALL_ARG_USHORT:
+                case MVM_NATIVECALL_ARG_INT:
+                case MVM_NATIVECALL_ARG_UINT:
+                case MVM_NATIVECALL_ARG_LONG:
+                case MVM_NATIVECALL_ARG_ULONG:
+                case MVM_NATIVECALL_ARG_LONGLONG:
+                case MVM_NATIVECALL_ARG_ULONGLONG:
+                    arg_type = dst == -1
+                        ? is_rw ? MVM_JIT_ARG_I64_RW : MVM_JIT_ARG_I64
+                        : is_rw ? MVM_JIT_PARAM_I64_RW : MVM_JIT_PARAM_I64;
+                    break;
+                case MVM_NATIVECALL_ARG_DOUBLE:
+                    if (is_rw) goto fail;
+                    arg_type = dst == -1
+                        ? MVM_JIT_ARG_DOUBLE
+                        : MVM_JIT_PARAM_DOUBLE;
+                    break;
+                case MVM_NATIVECALL_ARG_CPOINTER:
+                    if (is_rw) goto fail;
+                    arg_type = dst == -1 ? MVM_JIT_ARG_PTR : MVM_JIT_PARAM_PTR;
+                    break;
+                case MVM_NATIVECALL_ARG_CARRAY:
+                    if (body->arg_types[i] & MVM_NATIVECALL_ARG_REFRESH_MASK) goto fail;
+                    if (is_rw) goto fail;
+                    arg_type = dst == -1 ? MVM_JIT_ARG_PTR : MVM_JIT_PARAM_PTR;
+                    break;
+                case MVM_NATIVECALL_ARG_VMARRAY:
+                    if (is_rw) goto fail;
+                    arg_type = dst == -1 ? MVM_JIT_ARG_VMARRAY : MVM_JIT_PARAM_VMARRAY;
+                    break;
+                case MVM_NATIVECALL_ARG_UTF8STR:
+                    if (is_rw) goto fail;
+                    continue; /* already handled */
+                default:
+                    goto fail;
+            }
+            call_node->u.call.args[i].type = arg_type;
+            call_node->u.call.args[i].v.lit_i64 = dst == -1 ? i : arg_ins[i]->operands[1].reg.orig;
+        }
+    }
+
+    if (body->ret_type == MVM_NATIVECALL_ARG_CHAR
+        || body->ret_type == MVM_NATIVECALL_ARG_UCHAR
+        || body->ret_type == MVM_NATIVECALL_ARG_SHORT
+        || body->ret_type == MVM_NATIVECALL_ARG_USHORT
+        || body->ret_type == MVM_NATIVECALL_ARG_INT
+        || body->ret_type == MVM_NATIVECALL_ARG_UINT
+        || body->ret_type == MVM_NATIVECALL_ARG_LONG
+        || body->ret_type == MVM_NATIVECALL_ARG_ULONG
+        || body->ret_type == MVM_NATIVECALL_ARG_LONGLONG
+        || body->ret_type == MVM_NATIVECALL_ARG_ULONGLONG
+    ) {
+        call_node->u.call.rv_type = body->ret_type;
+        init_box_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_int, restype, dst);
+    }
+    else if (body->ret_type == MVM_NATIVECALL_ARG_CPOINTER) {
+        init_box_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_cpointer, restype, dst);
+    }
+    else if (body->ret_type == MVM_NATIVECALL_ARG_UTF8STR) {
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR , { MVM_JIT_INTERP_TC } },
+                                 { MVM_JIT_REG_DYNIDX, { 2 } },
+                                 { MVM_JIT_LITERAL, { MVM_NATIVECALL_ARG_UTF8STR } },
+                                 { MVM_JIT_STACK_VALUE, { 0 } }};
+        init_c_call_node(tc, sg, box_rv_node, &MVM_nativecall_make_str, 4, args);
+        box_rv_node->next = NULL;
+        if (dst == -1) {
+            box_rv_node->u.call.rv_mode = MVM_JIT_RV_DYNIDX;
+            box_rv_node->u.call.rv_idx = 0;
+        }
+        else {
+            box_rv_node->u.call.args[1].type = MVM_JIT_REG_VAL;
+            box_rv_node->u.call.args[1].v.reg = restype;
+
+            box_rv_node->u.call.rv_mode = MVM_JIT_RV_PTR;
+            box_rv_node->u.call.rv_idx = dst;
+        }
+    }
+    else if (body->ret_type == MVM_NATIVECALL_ARG_VOID) {
+        call_node->next = unblock_gc_node;
+        unblock_gc_node->next = NULL;
+        jg->last_node = unblock_gc_node;
+    }
+    else {
+        goto fail;
+    }
+
+    return jg;
+fail:
+    return NULL;
+}
+
+MVMJitCode *create_caller_code(MVMThreadContext *tc, MVMNativeCallBody *body) {
+    MVMSpeshGraph *sg = MVM_calloc(1, sizeof(MVMSpeshGraph));
+    MVMJitGraph *jg = MVM_nativecall_jit_graph_for_caller_code(tc, sg, body, -1, -1, NULL);
+    MVMJitCode *jitcode;
+    if (jg != NULL) {
+        MVMJitNode *entry_label = MVM_spesh_alloc(tc, sg, sizeof(MVMJitNode));
+        entry_label->next = jg->first_node;
+        jg->first_node = entry_label;
+        jg->num_labels = 1;
+        jg->no_trampoline = 1;
+
+        entry_label->type = MVM_JIT_NODE_LABEL;
+        entry_label->u.label.name = 0;
+        jitcode = MVM_jit_compile_graph(tc, jg);
+    }
+    else {
+        jitcode = NULL;
+    }
+    MVM_spesh_graph_destroy(tc, sg);
+    return jitcode;
+}
+
 void MVM_nativecall_setup(MVMThreadContext *tc, MVMNativeCallBody *body, unsigned int interval_id) {
     /* Try to load the library. */
     DLLib *lib_handle = MVM_nativecall_load_lib(body->lib_name[0] ? body->lib_name : NULL);
@@ -431,6 +659,12 @@ void MVM_nativecall_setup(MVMThreadContext *tc, MVMNativeCallBody *body, unsigne
                 waste[0], waste[1]);
         }
     }
+
+    if (tc->instance->jit_enabled) {
+        body->jitcode = create_caller_code(tc, body);
+    }
+    else
+        body->jitcode = NULL;
 
     /* Initialize body->lib_handle as late as possible, so get_int won't report
        that the NativeCall site is set up too early */
@@ -518,7 +752,7 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
 
     MVM_telemetry_interval_stop(tc, interval_id, "nativecall built");
 
-    return 0;
+    return body->jitcode != NULL;
 }
 
 static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObject *target_type, void *cpointer_body) {
@@ -952,4 +1186,20 @@ void MVM_nativecall_restore_library(MVMThreadContext *tc, MVMNativeCallBody *bod
     if (body->lib_name && body->sym_name && !body->lib_handle) {
         MVM_nativecall_setup(tc, body, 0);
     }
+}
+
+void MVM_nativecall_invoke_jit(MVMThreadContext *tc, MVMObject *site) {
+    MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
+
+    if (MVM_UNLIKELY(!body->lib_handle)) {
+        MVMROOT(tc, site, {
+            MVM_nativecall_restore_library(tc, body, site);
+        });
+        body = MVM_nativecall_get_nc_body(tc, site);
+    }
+
+    MVMJitCode * const jitcode = body->jitcode;
+    assert(jitcode);
+    assert(jitcode->func_ptr);
+    jitcode->func_ptr(tc, *tc->interp_cu, jitcode->labels[0]);
 }

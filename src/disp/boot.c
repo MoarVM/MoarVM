@@ -80,33 +80,6 @@ MVMObject * MVM_disp_boot_code_constant_dispatch(MVMThreadContext *tc) {
     return wrap(tc, boot_code_constant);
 }
 
-static void boot_foreign_code(MVMThreadContext *tc, MVMArgs arg_info) {
-    MVMArgProcContext arg_ctx;
-    MVM_args_proc_setup(tc, &arg_ctx, arg_info);
-    MVM_args_checkarity(tc, &arg_ctx, 1, 1);
-    MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
-    MVMROOT(tc, capture, {
-        /* Get a capture dropping the first argument, which is the callee. */
-        MVMObject *args_capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 0);
-
-        /* Work out what the callee is, and set us up to invoke it. */
-        MVMObject *code = MVM_capture_arg_pos_o(tc, capture, 0);
-        if (REPR(code)->ID == MVM_REPR_ID_MVMNativeCall && IS_CONCRETE(code)) {
-            MVM_disp_program_record_foreign_code_constant(tc, (MVMNativeCall *)code, args_capture);
-        }
-        else {
-            MVM_exception_throw_adhoc(tc,
-                    "boot-foreign-code dispatcher only works with MVMNativeCall, got %s", REPR(code)->name);
-        }
-    });
-
-    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
-}
-
-MVMObject * MVM_disp_boot_foreign_code_dispatch(MVMThreadContext *tc) {
-    return wrap(tc, boot_foreign_code);
-}
-
 /* The boot-code dispatcher takes the first positional argument of the
  * incoming argument capture, which should be either an MVMCode or an
  * MVMCFunction. It establishes a type and concreteness guard on it,

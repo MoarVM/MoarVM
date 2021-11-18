@@ -26,7 +26,13 @@ class Op {
     has %.adverbs;
     method generator() {
         my $offset = 2;
-        if $.name eq "const_i64" {
+        if $.name eq "prepargs" {
+            my $signature = ('$frame', |@!operands.map({self.generate_arg($_, $++)})).join(', ');
+            'sub (' ~ $signature ~ ') {' ~
+            ~ 'die("MAST::Ops generator for prepargs NYI (QASTOperationsMAST is supposed to do it by itself)");'
+            ~ '}';
+        }
+        elsif $.name eq "const_i64" {
             q:to/CODE/.subst("CODE_GOES_HERE", $.code).chomp;
             sub ($frame, $op0, int $value) {
                     my $bytecode := $frame.bytecode;

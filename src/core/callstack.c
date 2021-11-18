@@ -196,7 +196,9 @@ MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc, MVMuint32
     allocated->frame.header.flags2 = 0;
     allocated->frame.header.owner = 0;
 
-    /* Extra must be NULL so we know we don't have it. Flags should be zeroed. */
+    /* Current arguments callsite must be NULL as it's used in GC. Extra must
+     * be NULL so we know we don't have it. Flags should be zeroed. */
+    allocated->frame.cur_args_callsite = NULL;
     allocated->frame.extra = NULL;
     allocated->frame.flags = 0;
 
