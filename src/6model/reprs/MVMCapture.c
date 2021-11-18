@@ -436,10 +436,7 @@ MVMObject * MVM_capture_replace_arg(MVMThreadContext *tc, MVMObject *capture_obj
 
     /* Allocate a new capture before we begin; this is the only GC allocation
      * we do. */
-    MVMCallsite *callsite = capture->body.callsite;
-    MVMCallsite *new_callsite = MVM_callsite_replace_positional(tc, capture->body.callsite, idx, kind);
     MVMObject *new_capture;
-    new_callsite->arg_flags[idx] = kind;
     MVMROOT(tc, capture, {
         if (kind & (MVM_CALLSITE_ARG_OBJ | MVM_CALLSITE_ARG_STR)) {
             MVMROOT(tc, value.o, {
@@ -450,6 +447,13 @@ MVMObject * MVM_capture_replace_arg(MVMThreadContext *tc, MVMObject *capture_obj
             new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
         }
     });
+
+    /* We need a new callsite with the argument flag replaced.
+     * The callsite MUST be created after we allocated as it may contain named
+     * arguments, i.e. contain pointers to strings which wouldn't get marked. */
+    MVMCallsite *callsite = capture->body.callsite;
+    MVMCallsite *new_callsite = MVM_callsite_replace_positional(tc, capture->body.callsite, idx, kind);
+    new_callsite->arg_flags[idx] = kind;
 
     /* Form a new arguments buffer, replacing the specified argument. */
     MVMRegister *new_args = MVM_fixed_size_alloc(tc, tc->instance->fsa,
