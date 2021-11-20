@@ -217,6 +217,7 @@ struct MVMJitRunNativeCall {
     MVMuint16        num_args;
     MVMReturnType    return_type;
     MVMint16         return_register;
+    MVMint16         rv_type;
     MVMSpeshOperand *map;
     MVMint32         reentry_label;
 };

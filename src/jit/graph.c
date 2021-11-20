@@ -3836,6 +3836,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                             ? MVM_RETURN_NUM
                             : MVM_RETURN_OBJ;
         node->u.runnativecall.return_register = dst;
+        node->u.runnativecall.rv_type         = body->ret_type;
         node->u.runnativecall.entry_point     = body->entry_point;
         node->u.runnativecall.map             = &ins->operands[2 + start];
         node->u.runnativecall.reentry_label   = reentry_label;

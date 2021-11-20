@@ -3333,6 +3333,27 @@ void MVM_jit_emit_runnativecall(MVMThreadContext *tc, MVMJitCompiler *compiler, 
     | mov64 FUNCTION, entry_point;
     | call FUNCTION
     if (runcode->return_type != MVM_RETURN_VOID) {
+        if (runcode->rv_type == MVM_NATIVECALL_ARG_CHAR) {
+        | cbw;
+        }
+        if (runcode->rv_type == MVM_NATIVECALL_ARG_CHAR || runcode->rv_type == MVM_NATIVECALL_ARG_SHORT) {
+        | cwde;
+        }
+        if (runcode->rv_type == MVM_NATIVECALL_ARG_CHAR || runcode->rv_type == MVM_NATIVECALL_ARG_SHORT || runcode->rv_type == MVM_NATIVECALL_ARG_INT) {
+        | cdqe;
+        }
+        if (runcode->rv_type == MVM_NATIVECALL_ARG_UCHAR) {
+        | and RV, 0xFF
+        }
+        else if (runcode->rv_type == MVM_NATIVECALL_ARG_USHORT) {
+        | and RV, 0xFFFF
+        }
+        else if (runcode->rv_type == MVM_NATIVECALL_ARG_UINT) {
+        | and RV, 0xFFFFFFFF
+        }
+        else if (runcode->rv_type == MVM_NATIVECALL_ARG_ULONG && sizeof(long) == 4) {
+        | and RV, 0xFFFFFFFF
+        }
         | mov WORK[runcode->return_register], RV
     }
 }
