@@ -217,7 +217,6 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
     MVMRegister res = {0};
     MVMRegister *args;
     MVMNativeCallback *data = (MVMNativeCallback *)cb_data;
-    void           **values = MVM_malloc(sizeof(void *) * (data->cs->arg_count ? data->cs->arg_count : 1));
     unsigned int interval_id;
 
     /* Locate the MoarVM thread this callback is being run on. */
