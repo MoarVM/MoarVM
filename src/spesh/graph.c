@@ -1165,8 +1165,8 @@ MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint32 nrargs) {
 
     /* Up to 64 args, almost every number is represented, but after that
      * we have a sparse array through which we must search. */
-    if (nrargs - 2 < MVMPhiNodeCacheSparseBegin) {
-        result = &g->phi_infos[nrargs - 2];
+    if (nrargs - 1 < MVMPhiNodeCacheSparseBegin) {
+        result = &g->phi_infos[nrargs - 1];
     } else {
         MVMint32 cache_idx;
 
