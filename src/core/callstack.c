@@ -428,7 +428,7 @@ void MVM_callstack_new_continuation_region(MVMThreadContext *tc, MVMObject *tag)
 
 /* Locates the callstack region for the specified continuation tag, and slices
  * it off the callstack, updating the stack top to point at the top frame in
- * the previous region. The first region in the slice is retunred. The prev
+ * the previous region. The first region in the slice is returned. The prev
  * pointer of both the region and of the region start record are NULL'd out. */
 MVMCallStackRegion * MVM_callstack_continuation_slice(MVMThreadContext *tc, MVMObject *tag,
         MVMActiveHandler **active_handlers) {
@@ -502,20 +502,23 @@ void MVM_callstack_continuation_append(MVMThreadContext *tc, MVMCallStackRegion 
 }
 
 /* Walk the frames in the region, looking for the first bytecode one. */
-MVMFrame * MVM_callstack_first_frame_in_region(MVMThreadContext *tc, MVMCallStackRegion *region) {
-    char *cur_pos = region->start;
-    while (cur_pos < region->alloc) {
-        MVMCallStackRecord *record = (MVMCallStackRecord *)cur_pos;
-        switch (MVM_callstack_kind_ignoring_deopt(record)) {
-            case MVM_CALLSTACK_RECORD_FRAME:
-                return &(((MVMCallStackFrame *)record)->frame);
-            case MVM_CALLSTACK_RECORD_HEAP_FRAME:
-                return ((MVMCallStackHeapFrame *)record)->frame;
-            case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
-                return ((MVMCallStackPromotedFrame *)record)->frame;
-            default:
-                cur_pos += record_size(record);
+MVMFrame * MVM_callstack_first_frame_from_region(MVMThreadContext *tc, MVMCallStackRegion *region) {
+    while (region) {
+        char *cur_pos = region->start;
+        while (cur_pos < region->alloc) {
+            MVMCallStackRecord *record = (MVMCallStackRecord *)cur_pos;
+            switch (MVM_callstack_kind_ignoring_deopt(record)) {
+                case MVM_CALLSTACK_RECORD_FRAME:
+                    return &(((MVMCallStackFrame *)record)->frame);
+                case MVM_CALLSTACK_RECORD_HEAP_FRAME:
+                    return ((MVMCallStackHeapFrame *)record)->frame;
+                case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
+                    return ((MVMCallStackPromotedFrame *)record)->frame;
+                default:
+                    cur_pos += record_size(record);
+            }
         }
+        region = region->next;
     }
     MVM_panic(1, "No frame found in callstack region");
 }

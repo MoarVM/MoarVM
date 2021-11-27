@@ -63,7 +63,7 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
         MVM_exception_throw_adhoc(tc, "No matching continuation reset found");
 
     /* Clear the caller of the first frame in the taken region. */
-    MVMFrame *first_frame = MVM_callstack_first_frame_in_region(tc, taken_region);
+    MVMFrame *first_frame = MVM_callstack_first_frame_from_region(tc, taken_region);
     first_frame->caller = NULL;
 
     /* Set up the continuation. */

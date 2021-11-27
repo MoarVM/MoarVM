@@ -401,7 +401,7 @@ MVMCallStackRegion * MVM_callstack_continuation_slice(MVMThreadContext *tc, MVMO
         MVMActiveHandler **active_handlers);
 void MVM_callstack_continuation_append(MVMThreadContext *tc, MVMCallStackRegion *first_region,
         MVMCallStackRecord *stack_top, MVMObject *update_tag);
-MVMFrame * MVM_callstack_first_frame_in_region(MVMThreadContext *tc, MVMCallStackRegion *region);
+MVMFrame * MVM_callstack_first_frame_from_region(MVMThreadContext *tc, MVMCallStackRegion *region);
 MVMCallStackDispatchRecord * MVM_callstack_find_topmost_dispatch_recording(MVMThreadContext *tc);
 MVMuint64 MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional);
 void MVM_callstack_unwind_to_frame(MVMThreadContext *tc, MVMuint8 exceptional);
