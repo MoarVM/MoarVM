@@ -408,6 +408,7 @@ void MVM_callstack_unwind_to_frame(MVMThreadContext *tc, MVMuint8 exceptional);
 void MVM_callstack_unwind_dispatch_record(MVMThreadContext *tc);
 void MVM_callstack_unwind_dispatch_run(MVMThreadContext *tc);
 void MVM_callstack_unwind_failed_dispatch_run(MVMThreadContext *tc);
+void MVM_callstack_unwind_nested_runloop(MVMThreadContext *tc);
 void MVM_callstack_mark_current_thread(MVMThreadContext *tc, MVMGCWorklist *worklist,
         MVMHeapSnapshotState *snapshot);
 void MVM_callstack_mark_detached(MVMThreadContext *tc, MVMCallStackRecord *stack_top,

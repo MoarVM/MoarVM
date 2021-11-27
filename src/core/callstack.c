@@ -886,6 +886,13 @@ void MVM_callstack_unwind_failed_dispatch_run(MVMThreadContext *tc) {
     move_to_prev_record(tc);
 }
 
+void MVM_callstack_unwind_nested_runloop(MVMThreadContext *tc) {
+    assert(tc->stack_top->kind == MVM_CALLSTACK_RECORD_NESTED_RUNLOOP);
+    tc->stack_current_region->alloc = (char *)tc->stack_top;
+    tc->stack_top = tc->stack_top->prev;
+    unwind_region_start_or_flattening(tc);
+}
+
 /* Walk the linked list of records and mark each of them. */
 #define add_collectable(tc, worklist, snapshot, col, desc) \
     do { \

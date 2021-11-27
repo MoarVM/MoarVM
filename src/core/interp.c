@@ -6717,7 +6717,7 @@ void MVM_interp_run_nested(MVMThreadContext *tc, void (*initial_invoke)(MVMThrea
         tc->nested_interpreter--;
 
         assert(tc->stack_top == csrecord);
-        tc->stack_top             = tc->stack_top->prev;
+        MVM_callstack_unwind_nested_runloop(tc);
         tc->interp_cur_op         = outer_runloop.interp_cur_op;
         tc->interp_bytecode_start = outer_runloop.interp_bytecode_start;
         tc->interp_reg_base       = outer_runloop.interp_reg_base;
