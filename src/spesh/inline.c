@@ -223,6 +223,30 @@ static void add_deopt_usages(MVMThreadContext *tc, MVMSpeshGraph *g,
     }
 }
 
+static void propagate_phi_deopt_usages(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshIns *phi, MVMuint32 operand) {
+    MVMSpeshDeoptUseEntry *deopt_entry =
+        MVM_spesh_get_facts(tc, g, phi->operands[0])->usage.deopt_users;
+    MVMSpeshDeoptUseEntry *cur_entry = NULL;
+
+    while (deopt_entry) {
+        MVMSpeshDeoptUseEntry *new_entry =
+            MVM_spesh_alloc(tc, g, sizeof(MVMSpeshDeoptUseEntry));
+        new_entry->deopt_idx = deopt_entry->deopt_idx;
+
+        if (cur_entry) {
+            cur_entry->next = new_entry;
+            cur_entry = cur_entry->next;
+        }
+        else
+            cur_entry
+                = MVM_spesh_get_facts(tc, g, phi->operands[operand])->usage.deopt_users
+                = new_entry;
+
+        deopt_entry = deopt_entry->next;
+    }
+}
+
 /* Get the maximum inline size applicable to the specified static frame (it can
  * be configured by language). */
 MVMuint32 MVM_spesh_inline_get_max_size(MVMThreadContext *tc, MVMStaticFrame *sf) {
@@ -1281,6 +1305,8 @@ static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     phi->operands[i + 1].reg.orig = runbytecode_ins->operands[0].reg.orig;
                     phi->operands[i + 1].reg.i = initial_last_result_version + i;
                     MVM_spesh_usages_add_by_reg(tc, inliner, phi->operands[i + 1], phi);
+
+                    propagate_phi_deopt_usages(tc, inliner, phi, i + 1);
                 }
                 MVM_spesh_manipulate_insert_ins(tc, bb->linear_next, NULL, phi);
             }
