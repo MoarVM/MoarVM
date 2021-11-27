@@ -499,5 +499,13 @@ MVM_STATIC_INLINE MVMFrame * MVM_callstack_iter_current_frame(MVMThreadContext *
     return MVM_callstack_record_to_frame(iter->current);
 }
 
+MVM_STATIC_INLINE MVMCallStackRecord * MVM_callstack_prev_significant_record(
+    MVMThreadContext *tc, MVMCallStackRecord *record) {
+    MVMCallStackRecord *prev = record->prev;
+    if (prev && prev->kind == MVM_CALLSTACK_RECORD_START_REGION)
+        prev = prev->prev;
+    return prev;
+}
+
 /* Migration to callstack-based special return in Rakudo extops. */
 #define MVM_CALLSTACK_SPECIAL_RETURN 1

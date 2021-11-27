@@ -1107,7 +1107,8 @@ static void bind_will_resume_on_failure_impl(MVMThreadContext *tc, MVMArgs arg_i
     MVM_callstack_iter_frame_init(tc, &iter, tc->stack_top);
     if (MVM_callstack_iter_move_next(tc, &iter)) {
         MVMCallStackRecord *frame_rec = MVM_callstack_iter_current(tc, &iter);
-        MVMCallStackRecord *under_frame = frame_rec->prev;
+        MVMCallStackRecord *under_frame =
+            MVM_callstack_prev_significant_record(tc, frame_rec);
         result = under_frame && under_frame->kind == MVM_CALLSTACK_RECORD_BIND_CONTROL;
     }
     MVM_args_set_result_int(tc, result, MVM_RETURN_CURRENT_FRAME);
