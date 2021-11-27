@@ -1281,6 +1281,20 @@ static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                     phi->operands[i + 1].reg.orig = runbytecode_ins->operands[0].reg.orig;
                     phi->operands[i + 1].reg.i = initial_last_result_version + i;
                     MVM_spesh_usages_add_by_reg(tc, inliner, phi->operands[i + 1], phi);
+
+                    MVMSpeshDeoptUseEntry *deopt_entry = MVM_spesh_get_facts(tc, inliner, phi->operands[0])->usage.deopt_users;
+                    MVMSpeshDeoptUseEntry *cur_entry = NULL;
+                    while (deopt_entry) {
+                        MVMSpeshDeoptUseEntry *new_entry = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshDeoptUseEntry));
+                        new_entry->deopt_idx = deopt_entry->deopt_idx;
+                        if (cur_entry) {
+                            cur_entry->next = new_entry;
+                            cur_entry = cur_entry->next;
+                        }
+                        else
+                            cur_entry = MVM_spesh_get_facts(tc, inliner, phi->operands[i + 1])->usage.deopt_users = new_entry;
+                        deopt_entry = deopt_entry->next;
+                    }
                 }
                 MVM_spesh_manipulate_insert_ins(tc, bb->linear_next, NULL, phi);
             }
