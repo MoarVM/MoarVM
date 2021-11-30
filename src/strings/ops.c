@@ -2519,7 +2519,7 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMString      *res    = NULL;\
     MVMGrapheme32  *buffer = NULL;\
     MVMStringIndex  alen, blen, sgraphs = 0;\
-    size_t buf_size, pad_size = 0;\
+    size_t buf_size;\
     MVMCodepointIter ci_a, ci_b, *ci_longer = NULL;\
     int nfg_is_safe = 1;\
     MVM_string_check_arg(tc, a, (OP_DESC));\
@@ -2532,12 +2532,10 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     }\
     else {\
         if (alen < blen) {\
-            pad_size = blen - alen;\
             buf_size = blen;\
             ci_longer = &ci_b;\
         }\
         else {\
-            pad_size = alen - blen;\
             buf_size = alen;\
             ci_longer = &ci_a;\
         }\
@@ -2546,18 +2544,7 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVM_string_ci_init(tc, &ci_a, a, 0, 0);\
     MVM_string_ci_init(tc, &ci_b, b, 0, 0);\
 \
-    /* Effectively zero-pad the shorter string by binary-op'ing with 0 the longer \
-     * for the difference in their lengths. */\
-    if (pad_size) {\
-        for (size_t i = 0; i < pad_size; i++) {\
-            const MVMGrapheme32 g_longer = MVM_string_ci_get_codepoint(tc, ci_longer);\
-            buffer[sgraphs++] = 0 BITOP g_longer;\
-            if (nfg_is_safe && !nfg_ok(g_longer))\
-                nfg_is_safe = 0;\
-        }\
-    }\
-\
-    /* Now just binary-op through the two strings. */\
+    /* Just binary-op through the two strings. */\
     while (MVM_string_ci_has_more(tc, &ci_a) && MVM_string_ci_has_more(tc, &ci_b)) {\
         const MVMGrapheme32 g_a = MVM_string_ci_get_codepoint(tc, &ci_a);\
         const MVMGrapheme32 g_b = MVM_string_ci_get_codepoint(tc, &ci_b);\
@@ -2567,6 +2554,21 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
         if (sgraphs == buf_size) {\
             buf_size += 16;\
             buffer = MVM_realloc(buffer, buf_size * sizeof(MVMGrapheme32));\
+        }\
+    }\
+\
+    /* Effectively zero-pad (on the right) the shorter string by binary-op'ing with 0 the\
+     * longer for the difference in their lengths. */\
+    if (ci_longer) {\
+        while (MVM_string_ci_has_more(tc, ci_longer)) {\
+            const MVMGrapheme32 g_longer = MVM_string_ci_get_codepoint(tc, ci_longer);\
+            buffer[sgraphs++] = 0 BITOP g_longer;\
+            if (nfg_is_safe && !nfg_ok(g_longer))\
+                nfg_is_safe = 0;\
+            if (sgraphs == buf_size) {\
+              buf_size += 16;\
+              buffer = MVM_realloc(buffer, buf_size * sizeof(MVMGrapheme32));\
+            }\
         }\
     }\
 \
