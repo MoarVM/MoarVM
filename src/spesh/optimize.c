@@ -1913,7 +1913,7 @@ static void optimize_bigint_bool_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
     }
 }
 
-static void eliminate_phi_dead_reads(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+static int eliminate_phi_dead_reads(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMuint32 operand = 1;
     MVMuint32 insert_pos = 1;
     MVMuint32 num_operands = ins->info->num_operands;
@@ -1930,8 +1930,13 @@ static void eliminate_phi_dead_reads(MVMThreadContext *tc, MVMSpeshGraph *g, MVM
     }
     if (num_operands != ins->info->num_operands)
         ins->info = get_phi(tc, g, num_operands);
+    if (num_operands <= 1) {
+        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+        return 0;
+    }
+    return 1;
 }
-static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins) {
+static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
     MVMuint32 operand;
     MVMint32 common_flags;
     MVMObject *common_type;
@@ -1944,7 +1949,8 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins
      * to carry them forward. */
     MVMuint32 total_log_guards = 0;
 
-    eliminate_phi_dead_reads(tc, g, ins);
+    if (!eliminate_phi_dead_reads(tc, g, bb, ins))
+        return; /* PHI eliminated completely */
 
     cur_operand_facts = get_facts_direct(tc, g, ins->operands[1]);
     common_flags       = cur_operand_facts->flags;
@@ -2042,7 +2048,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         next_ins = ins->next;
         switch (ins->info->opcode) {
         case MVM_SSA_PHI:
-            analyze_phi(tc, g, ins);
+            analyze_phi(tc, g, bb, ins);
             break;
         case MVM_OP_set:
             copy_facts(tc, g, ins->operands[0], ins->operands[1]);
