@@ -401,12 +401,14 @@ MVMCallStackRegion * MVM_callstack_continuation_slice(MVMThreadContext *tc, MVMO
         MVMActiveHandler **active_handlers);
 void MVM_callstack_continuation_append(MVMThreadContext *tc, MVMCallStackRegion *first_region,
         MVMCallStackRecord *stack_top, MVMObject *update_tag);
-MVMFrame * MVM_callstack_first_frame_in_region(MVMThreadContext *tc, MVMCallStackRegion *region);
+MVMFrame * MVM_callstack_first_frame_from_region(MVMThreadContext *tc, MVMCallStackRegion *region);
 MVMCallStackDispatchRecord * MVM_callstack_find_topmost_dispatch_recording(MVMThreadContext *tc);
 MVMuint64 MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional);
+void MVM_callstack_unwind_to_frame(MVMThreadContext *tc, MVMuint8 exceptional);
 void MVM_callstack_unwind_dispatch_record(MVMThreadContext *tc);
 void MVM_callstack_unwind_dispatch_run(MVMThreadContext *tc);
 void MVM_callstack_unwind_failed_dispatch_run(MVMThreadContext *tc);
+void MVM_callstack_unwind_nested_runloop(MVMThreadContext *tc);
 void MVM_callstack_mark_current_thread(MVMThreadContext *tc, MVMGCWorklist *worklist,
         MVMHeapSnapshotState *snapshot);
 void MVM_callstack_mark_detached(MVMThreadContext *tc, MVMCallStackRecord *stack_top,
@@ -496,6 +498,14 @@ MVM_STATIC_INLINE MVMCallStackRecord * MVM_callstack_iter_current(MVMThreadConte
 MVM_STATIC_INLINE MVMFrame * MVM_callstack_iter_current_frame(MVMThreadContext *tc,
         MVMCallStackIterator *iter) {
     return MVM_callstack_record_to_frame(iter->current);
+}
+
+MVM_STATIC_INLINE MVMCallStackRecord * MVM_callstack_prev_significant_record(
+    MVMThreadContext *tc, MVMCallStackRecord *record) {
+    MVMCallStackRecord *prev = record->prev;
+    if (prev && prev->kind == MVM_CALLSTACK_RECORD_START_REGION)
+        prev = prev->prev;
+    return prev;
 }
 
 /* Migration to callstack-based special return in Rakudo extops. */

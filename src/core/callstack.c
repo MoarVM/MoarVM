@@ -428,7 +428,7 @@ void MVM_callstack_new_continuation_region(MVMThreadContext *tc, MVMObject *tag)
 
 /* Locates the callstack region for the specified continuation tag, and slices
  * it off the callstack, updating the stack top to point at the top frame in
- * the previous region. The first region in the slice is retunred. The prev
+ * the previous region. The first region in the slice is returned. The prev
  * pointer of both the region and of the region start record are NULL'd out. */
 MVMCallStackRegion * MVM_callstack_continuation_slice(MVMThreadContext *tc, MVMObject *tag,
         MVMActiveHandler **active_handlers) {
@@ -502,20 +502,23 @@ void MVM_callstack_continuation_append(MVMThreadContext *tc, MVMCallStackRegion 
 }
 
 /* Walk the frames in the region, looking for the first bytecode one. */
-MVMFrame * MVM_callstack_first_frame_in_region(MVMThreadContext *tc, MVMCallStackRegion *region) {
-    char *cur_pos = region->start;
-    while (cur_pos < region->alloc) {
-        MVMCallStackRecord *record = (MVMCallStackRecord *)cur_pos;
-        switch (MVM_callstack_kind_ignoring_deopt(record)) {
-            case MVM_CALLSTACK_RECORD_FRAME:
-                return &(((MVMCallStackFrame *)record)->frame);
-            case MVM_CALLSTACK_RECORD_HEAP_FRAME:
-                return ((MVMCallStackHeapFrame *)record)->frame;
-            case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
-                return ((MVMCallStackPromotedFrame *)record)->frame;
-            default:
-                cur_pos += record_size(record);
+MVMFrame * MVM_callstack_first_frame_from_region(MVMThreadContext *tc, MVMCallStackRegion *region) {
+    while (region) {
+        char *cur_pos = region->start;
+        while (cur_pos < region->alloc) {
+            MVMCallStackRecord *record = (MVMCallStackRecord *)cur_pos;
+            switch (MVM_callstack_kind_ignoring_deopt(record)) {
+                case MVM_CALLSTACK_RECORD_FRAME:
+                    return &(((MVMCallStackFrame *)record)->frame);
+                case MVM_CALLSTACK_RECORD_HEAP_FRAME:
+                    return ((MVMCallStackHeapFrame *)record)->frame;
+                case MVM_CALLSTACK_RECORD_PROMOTED_FRAME:
+                    return ((MVMCallStackPromotedFrame *)record)->frame;
+                default:
+                    cur_pos += record_size(record);
+            }
         }
+        region = region->next;
     }
     MVM_panic(1, "No frame found in callstack region");
 }
@@ -551,6 +554,10 @@ static void unwind_region_start_or_flattening(MVMThreadContext *tc) {
         tc->stack_top = tc->stack_top->prev;
     }
 }
+MVM_STATIC_INLINE void move_to_prev_record(MVMThreadContext *tc) {
+    tc->stack_current_region->alloc = (char *)tc->stack_top;
+    tc->stack_top = tc->stack_top->prev;
+}
 static void handle_end_of_dispatch_record(MVMThreadContext *tc) {
     /* End of a dispatch recording; make callback to update the
      * inline cache, put the result in place, and take any further
@@ -562,8 +569,7 @@ static void handle_end_of_dispatch_record(MVMThreadContext *tc) {
     if (remove_dispatch_frame) {
         assert((char *)disp_record == (char *)tc->stack_top);
         MVM_disp_program_recording_destroy(tc, &(disp_record->rec));
-        tc->stack_current_region->alloc = (char *)tc->stack_top;
-        tc->stack_top = tc->stack_top->prev;
+        move_to_prev_record(tc);
         unwind_region_start_or_flattening(tc);
     }
 }
@@ -631,8 +637,149 @@ static void handle_bind_control(MVMThreadContext *tc, MVMCallStackBindControl *c
     ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args_map, flag_ptr,
             control_record->sf, 0);
 }
+
+MVM_STATIC_INLINE void cleanup_region_record(MVMThreadContext *tc) {
+    tc->stack_current_region->alloc = (char *)tc->stack_top;
+    tc->stack_current_region = tc->stack_current_region->prev;
+    tc->stack_top = tc->stack_top->prev;
+}
+MVM_STATIC_INLINE void cleanup_dispatch_recorded_record(MVMThreadContext *tc) {
+    MVMCallStackDispatchRecord *disp_record =
+        (MVMCallStackDispatchRecord *)tc->stack_top;
+    if (disp_record->resumption_state.disp)
+        MVM_disp_resume_destroy_resumption_state(tc, &(disp_record->resumption_state));
+    if (disp_record->produced_dp && !disp_record->produced_dp_installed)
+        MVM_disp_program_destroy(tc, disp_record->produced_dp);
+    if (disp_record->temps)
+        MVM_free(disp_record->temps);
+    move_to_prev_record(tc);
+}
+MVM_STATIC_INLINE void cleanup_dispatch_run_record(MVMThreadContext *tc) {
+    MVMCallStackDispatchRun *disp_run = (MVMCallStackDispatchRun *)tc->stack_top;
+    if (disp_run->resumption_state.disp)
+        MVM_disp_resume_destroy_resumption_state(tc, &(disp_run->resumption_state));
+    move_to_prev_record(tc);
+}
+MVM_STATIC_INLINE MVMint32 cleanup_dispatch_record_record(MVMThreadContext *tc, MVMuint8 exceptional) {
+    if (!exceptional) {
+        MVMuint8 *bytecode_was = *(tc->interp_cur_op);
+        handle_end_of_dispatch_record(tc);
+        if (*(tc->interp_cur_op) != bytecode_was)
+            return 1;
+    }
+    else {
+        /* There was an exception; just leave the frame behind. */
+        MVMCallStackDispatchRecord *disp_record =
+            (MVMCallStackDispatchRecord *)tc->stack_top;
+        MVM_disp_program_recording_destroy(tc, &(disp_record->rec));
+        move_to_prev_record(tc);
+    }
+    return 0;
+}
+MVM_STATIC_INLINE MVMint32 cleanup_bind_control_record(MVMThreadContext *tc) {
+    MVMCallStackBindControl *control_record =
+        (MVMCallStackBindControl *)tc->stack_top;
+    if (control_record->state == MVM_BIND_CONTROL_FAILED) {
+        handle_bind_control(tc, control_record, &(control_record->failure_flag));
+        return 1;
+    }
+    else if (control_record->state == MVM_BIND_CONTROL_SUCCEEDED) {
+        handle_bind_control(tc, control_record, &(control_record->success_flag));
+        return 1;
+    }
+    else {
+        move_to_prev_record(tc);
+        return 0;
+    }
+}
+MVM_STATIC_INLINE MVMint32 cleanup_special_return_record(MVMThreadContext *tc, MVMuint8 exceptional) {
+    MVMCallStackSpecialReturn *sr = (MVMCallStackSpecialReturn *)tc->stack_top;
+    MVMSpecialReturn special_return = sr->special_return;
+    MVMSpecialReturn special_unwind = sr->special_unwind;
+    void *data = (char *)tc->stack_top + sizeof(MVMCallStackSpecialReturn);
+    move_to_prev_record(tc);
+
+    /* Run the callback if present. */
+    MVMuint8 *bytecode_was = *(tc->interp_cur_op);
+    if (!exceptional && special_return) {
+        MVM_callstack_unwind_to_frame(tc, exceptional);
+        special_return(tc, data);
+    }
+    else if (exceptional && special_unwind) {
+        MVM_callstack_unwind_to_frame(tc, exceptional);
+        special_unwind(tc, data);
+    }
+
+    /* If we invoked something, then set the thunk flag and return. */
+    if (bytecode_was != *(tc->interp_cur_op))
+        return 1;
+    return 0;
+}
+
+/* Unwinds the callstack until a frame is on top */
+void MVM_callstack_unwind_to_frame(MVMThreadContext *tc, MVMuint8 exceptional) {
+    while (tc->stack_top && !is_bytecode_frame(tc->stack_top->kind)) {
+        /* Ensure region and stack top are in a consistent state. */
+        assert(tc->stack_current_region->start <= (char *)tc->stack_top);
+        assert((char *)tc->stack_top < tc->stack_current_region->alloc);
+
+        /* Do any cleanup actions needed. */
+        switch (tc->stack_top->kind) {
+            case MVM_CALLSTACK_RECORD_START_REGION:
+            case MVM_CALLSTACK_RECORD_CONTINUATION_TAG:
+                cleanup_region_record(tc);
+                /* Sync region and move to previous record. */
+                break;
+            case MVM_CALLSTACK_RECORD_DEOPT_FRAME:
+                /* Deopt it, but don't move stack top back, since we're either
+                 * turning the current frame into a deoptimized one or will put
+                 * new uninlined frames on the top of the stack, which we shall
+                 * then want to return in to. */
+                MVM_spesh_deopt_during_unwind(tc);
+                break;
+            case MVM_CALLSTACK_RECORD_START:
+            case MVM_CALLSTACK_RECORD_FLATTENING:
+            case MVM_CALLSTACK_RECORD_ARGS_FROM_C:
+            case MVM_CALLSTACK_RECORD_DEOPTED_RESUME_INIT:
+                /* No cleanup to do, just move to next record. */
+                move_to_prev_record(tc);
+                break;
+            case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED: {
+                cleanup_dispatch_recorded_record(tc);
+                break;
+            }
+            case MVM_CALLSTACK_RECORD_DISPATCH_RUN: {
+                cleanup_dispatch_run_record(tc);
+                break;
+            }
+            case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
+                cleanup_dispatch_record_record(tc, exceptional);
+                break;
+            case MVM_CALLSTACK_RECORD_BIND_CONTROL: {
+                cleanup_bind_control_record(tc);
+                break;
+            }
+            case MVM_CALLSTACK_RECORD_NESTED_RUNLOOP: {
+                /* Signal to exit the nested runloop. */
+                return;
+            }
+            case MVM_CALLSTACK_RECORD_SPECIAL_RETURN: {
+                /* Read the callback info, and then remove this record (as we
+                 * may never run them twice). */
+                cleanup_special_return_record(tc, exceptional);
+                break;
+            }
+            default:
+                MVM_panic(1, "Unknown call stack record type in unwind to frame");
+        }
+    }
+}
+
+/* Unwinds the frame on top of the callstack and the non-bytecode entries below it */
 MVMuint64 MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional) {
     MVMint32 thunked = 0;
+    assert(is_bytecode_frame(tc->stack_top->kind));
+
     do {
         /* Ensure region and stack top are in a consistent state. */
         assert(tc->stack_current_region->start <= (char *)tc->stack_top);
@@ -643,31 +790,26 @@ MVMuint64 MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional)
             case MVM_CALLSTACK_RECORD_START_REGION:
             case MVM_CALLSTACK_RECORD_CONTINUATION_TAG:
                 /* Sync region and move to previous record. */
-                tc->stack_current_region->alloc = (char *)tc->stack_top;
-                tc->stack_current_region = tc->stack_current_region->prev;
-                tc->stack_top = tc->stack_top->prev;
+                cleanup_region_record(tc);
                 break;
             case MVM_CALLSTACK_RECORD_FRAME: {
                 MVMFrame *frame = &(((MVMCallStackFrame *)tc->stack_top)->frame);
                 if (frame->extra)
                     MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), frame->extra);
                 exit_frame(tc, frame);
-                tc->stack_current_region->alloc = (char *)tc->stack_top;
-                tc->stack_top = tc->stack_top->prev;
+                move_to_prev_record(tc);
                 break;
             }
             case MVM_CALLSTACK_RECORD_HEAP_FRAME: {
                 MVMFrame *frame = ((MVMCallStackHeapFrame *)tc->stack_top)->frame;
                 exit_heap_frame(tc, frame);
-                tc->stack_current_region->alloc = (char *)tc->stack_top;
-                tc->stack_top = tc->stack_top->prev;
+                move_to_prev_record(tc);
                 break;
             }
             case MVM_CALLSTACK_RECORD_PROMOTED_FRAME: {
                 MVMFrame *frame = ((MVMCallStackPromotedFrame *)tc->stack_top)->frame;
                 exit_heap_frame(tc, frame);
-                tc->stack_current_region->alloc = (char *)tc->stack_top;
-                tc->stack_top = tc->stack_top->prev;
+                move_to_prev_record(tc);
                 break;
             }
             case MVM_CALLSTACK_RECORD_DEOPT_FRAME:
@@ -682,61 +824,23 @@ MVMuint64 MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional)
             case MVM_CALLSTACK_RECORD_ARGS_FROM_C:
             case MVM_CALLSTACK_RECORD_DEOPTED_RESUME_INIT:
                 /* No cleanup to do, just move to next record. */
-                tc->stack_current_region->alloc = (char *)tc->stack_top;
-                tc->stack_top = tc->stack_top->prev;
+                move_to_prev_record(tc);
                 break;
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORDED: {
-                MVMCallStackDispatchRecord *disp_record =
-                    (MVMCallStackDispatchRecord *)tc->stack_top;
-                if (disp_record->resumption_state.disp)
-                    MVM_disp_resume_destroy_resumption_state(tc, &(disp_record->resumption_state));
-                if (disp_record->produced_dp && !disp_record->produced_dp_installed)
-                    MVM_disp_program_destroy(tc, disp_record->produced_dp);
-                if (disp_record->temps)
-                    MVM_free(disp_record->temps);
-                tc->stack_current_region->alloc = (char *)tc->stack_top;
-                tc->stack_top = tc->stack_top->prev;
+                cleanup_dispatch_recorded_record(tc);
                 break;
             }
             case MVM_CALLSTACK_RECORD_DISPATCH_RUN: {
-                MVMCallStackDispatchRun *disp_run = (MVMCallStackDispatchRun *)tc->stack_top;
-                if (disp_run->resumption_state.disp)
-                    MVM_disp_resume_destroy_resumption_state(tc, &(disp_run->resumption_state));
-                tc->stack_current_region->alloc = (char *)tc->stack_top;
-                tc->stack_top = tc->stack_top->prev;
+                cleanup_dispatch_run_record(tc);
                 break;
             }
             case MVM_CALLSTACK_RECORD_DISPATCH_RECORD:
-                if (!exceptional) {
-                    MVMuint8 *bytecode_was = *(tc->interp_cur_op);
-                    handle_end_of_dispatch_record(tc);
-                    if (*(tc->interp_cur_op) != bytecode_was)
-                        thunked = 1;
-                }
-                else {
-                    /* There was an exception; just leave the frame behind. */
-                    MVMCallStackDispatchRecord *disp_record =
-                        (MVMCallStackDispatchRecord *)tc->stack_top;
-                    MVM_disp_program_recording_destroy(tc, &(disp_record->rec));
-                    tc->stack_current_region->alloc = (char *)tc->stack_top;
-                    tc->stack_top = tc->stack_top->prev;
-                }
+                if (cleanup_dispatch_record_record(tc, exceptional))
+                    thunked = 1;
                 break;
             case MVM_CALLSTACK_RECORD_BIND_CONTROL: {
-                MVMCallStackBindControl *control_record =
-                    (MVMCallStackBindControl *)tc->stack_top;
-                if (control_record->state == MVM_BIND_CONTROL_FAILED) {
-                    handle_bind_control(tc, control_record, &(control_record->failure_flag));
+                if (cleanup_bind_control_record(tc))
                     thunked = 1;
-                }
-                else if (control_record->state == MVM_BIND_CONTROL_SUCCEEDED) {
-                    handle_bind_control(tc, control_record, &(control_record->success_flag));
-                    thunked = 1;
-                }
-                else {
-                    tc->stack_current_region->alloc = (char *)tc->stack_top;
-                    tc->stack_top = tc->stack_top->prev;
-                }
                 break;
             }
             case MVM_CALLSTACK_RECORD_NESTED_RUNLOOP: {
@@ -746,22 +850,7 @@ MVMuint64 MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional)
             case MVM_CALLSTACK_RECORD_SPECIAL_RETURN: {
                 /* Read the callback info, and then remove this record (as we
                  * may never run them twice). */
-                MVMCallStackSpecialReturn *sr = (MVMCallStackSpecialReturn *)tc->stack_top;
-                MVMSpecialReturn special_return = sr->special_return;
-                MVMSpecialReturn special_unwind = sr->special_unwind;
-                void *data = (char *)tc->stack_top + sizeof(MVMCallStackSpecialReturn);
-                tc->stack_current_region->alloc = (char *)tc->stack_top;
-                tc->stack_top = tc->stack_top->prev;
-
-                /* Run the callback if present. */
-                MVMuint8 *bytecode_was = *(tc->interp_cur_op);
-                if (!exceptional && special_return)
-                    special_return(tc, data);
-                else if (exceptional && special_unwind)
-                    special_unwind(tc, data);
-
-                /* If we invoked something, then set the thunk flag and return. */
-                if (bytecode_was != *(tc->interp_cur_op))
+                if (cleanup_special_return_record(tc, exceptional))
                     thunked = 1;
                 break;
             }
@@ -785,8 +874,7 @@ void MVM_callstack_unwind_dispatch_record(MVMThreadContext *tc) {
  * This is for the purpose of dispatchers that do not invoke. */
 void MVM_callstack_unwind_dispatch_run(MVMThreadContext *tc) {
     assert(tc->stack_top->kind == MVM_CALLSTACK_RECORD_DISPATCH_RUN);
-    tc->stack_current_region->alloc = (char *)tc->stack_top;
-    tc->stack_top = tc->stack_top->prev;
+    move_to_prev_record(tc);
     unwind_region_start_or_flattening(tc);
 }
 
@@ -795,8 +883,14 @@ void MVM_callstack_unwind_dispatch_run(MVMThreadContext *tc) {
  * we want to leave any flattened arguments in place. */
 void MVM_callstack_unwind_failed_dispatch_run(MVMThreadContext *tc) {
     assert(tc->stack_top->kind == MVM_CALLSTACK_RECORD_DISPATCH_RUN);
+    move_to_prev_record(tc);
+}
+
+void MVM_callstack_unwind_nested_runloop(MVMThreadContext *tc) {
+    assert(tc->stack_top->kind == MVM_CALLSTACK_RECORD_NESTED_RUNLOOP);
     tc->stack_current_region->alloc = (char *)tc->stack_top;
     tc->stack_top = tc->stack_top->prev;
+    unwind_region_start_or_flattening(tc);
 }
 
 /* Walk the linked list of records and mark each of them. */
