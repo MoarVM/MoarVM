@@ -3263,6 +3263,7 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                     MVM_exception_throw_adhoc(tc, "Too many resume state updates");
                 resume_state_targets[num_resume_states] = record->resumption_data.state_ptr;
                 resume_state_values[num_resume_states] = record->temps[op.res_value.temp].o;
+                MVM_gc_root_temp_push(tc, (MVMCollectable**)&resume_state_values[num_resume_states]);
                 num_resume_states++;
                 NEXT;
             /* Argument guard ops. */
@@ -3590,11 +3591,13 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
     }
     MVM_oops(tc, "Should not reach end of dispatch program without a result");
 accept:
+    MVM_gc_root_temp_pop_n(tc, num_resume_states);
     while (num_resume_states--) {
         *resume_state_targets[num_resume_states] = resume_state_values[num_resume_states];
     }
     return 1;
 rejection:
+    MVM_gc_root_temp_pop_n(tc, num_resume_states);
     return 0;
 }
 
