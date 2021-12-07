@@ -433,7 +433,7 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
     MVMRegister r; \
     if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) { \
         if (MVM_6model_container_is ## cont_X(tc, value)) { \
-            dc_type *rw = (dc_type *)MVM_malloc(sizeof(dc_type)); \
+            dc_type *rw = (dc_type *)alloca(sizeof(dc_type)); \
             MVM_6model_container_de ## cont_X(tc, value, &r); \
             *rw = (dc_type)r. reg_slot ; \
             if (!free_rws) \
@@ -553,7 +553,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 break;
             case MVM_NATIVECALL_ARG_CPOINTER:
                 if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
-                    DCpointer *rw = (DCpointer *)MVM_malloc(sizeof(DCpointer *));
+                    DCpointer *rw = (DCpointer *)alloca(sizeof(DCpointer *));
                     *rw           = (DCpointer)MVM_nativecall_unmarshal_cpointer(tc, value, i);
                     if (!free_rws)
                         free_rws = (void **)alloca(num_args * sizeof(void *));
@@ -803,10 +803,6 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
         for (i = 0; i < num_strs; i++)
             MVM_free(free_strs[i]);
 
-    if (free_rws)
-        for (i = 0; i < num_rws; i++)
-            MVM_free(free_rws[i]);
-
     /* Finally, free call VM. */
     dcFree(vm);
 
@@ -971,7 +967,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 case MVM_NATIVECALL_ARG_CPOINTER:
                     if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
-                        DCpointer *rw = (DCpointer *)MVM_malloc(sizeof(DCpointer *));
+                        DCpointer *rw = (DCpointer *)alloca(sizeof(DCpointer *));
                         *rw           = (DCpointer)MVM_nativecall_unmarshal_cpointer(tc, value, i);
                         if (!free_rws)
                             free_rws = (void **)alloca(num_args * sizeof(void *));
@@ -1302,10 +1298,6 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
     if (free_strs)
         for (i = 0; i < num_strs; i++)
             MVM_free(free_strs[i]);
-
-    if (free_rws)
-        for (i = 0; i < num_rws; i++)
-            MVM_free(free_rws[i]);
 
     /* Finally, free call VM. */
     dcFree(vm);

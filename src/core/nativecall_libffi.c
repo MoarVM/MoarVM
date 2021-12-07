@@ -422,8 +422,8 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
     if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) { \
         if (MVM_6model_container_is ## cont_X(tc, value)) { \
             MVM_6model_container_de ## cont_X(tc, value, &r); \
-            values[i]                       = MVM_malloc(sizeof(void *)); \
-            *(void **)values[i]             = MVM_malloc(sizeof(dc_type)); \
+            values[i]                       = alloca(sizeof(void *)); \
+            *(void **)values[i]             = alloca(sizeof(dc_type)); \
             *(dc_type *)*(void **)values[i] = (dc_type)r. reg_slot ; \
         } \
         else \
@@ -432,7 +432,7 @@ static void callback_handler(ffi_cif *cif, void *cb_result, void **cb_args, void
                 i, what, REPR(value)->name); \
     } \
     else { \
-        values[i] = MVM_malloc(sizeof(dc_type)); \
+        values[i] = alloca(sizeof(dc_type)); \
         if (value && IS_CONCRETE(value) && STABLE(value)->container_spec) { \
             STABLE(value)->container_spec->fetch(tc, value, &r); \
             *(dc_type *)values[i] = unmarshal_fun(tc, r.o); \
@@ -542,12 +542,12 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     free_strs[num_strs] = str;
                     num_strs++;
                 }
-                values[i]           = MVM_malloc(sizeof(void *));
+                values[i]           = alloca(sizeof(void *));
                 *(void **)values[i] = str;
                 break;
             }
             case MVM_NATIVECALL_ARG_CSTRUCT:
-                values[i]           = MVM_malloc(sizeof(void *));
+                values[i]           = alloca(sizeof(void *));
                 *(void **)values[i] = MVM_nativecall_unmarshal_cstruct(tc, value, i);
                 break;
             case MVM_NATIVECALL_ARG_CPPSTRUCT: {
@@ -557,42 +557,42 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     /* Allocate a full byte aligned area where the C++ structure fits into. */
                     void *ptr           = MVM_malloc(repr_data->struct_size > 0 ? repr_data->struct_size : 1);
                     result              = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
-                    values[i]           = MVM_malloc(sizeof(void *));
+                    values[i]           = alloca(sizeof(void *));
                     *(void **)values[i] = ptr;
                 }
                 else {
-                    values[i]           = MVM_malloc(sizeof(void *));
+                    values[i]           = alloca(sizeof(void *));
                     *(void **)values[i] = MVM_nativecall_unmarshal_cppstruct(tc, value, i);
                 }
                 break;
             }
             case MVM_NATIVECALL_ARG_CPOINTER:
                 if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
-                    values[i]                     = MVM_malloc(sizeof(void *));
-                    *(void **)values[i]           = MVM_malloc(sizeof(void *));
+                    values[i]                     = alloca(sizeof(void *));
+                    *(void **)values[i]           = alloca(sizeof(void *));
                     *(void **)*(void **)values[i] = (void *)MVM_nativecall_unmarshal_cpointer(tc, value, i);
                 }
                 else {
-                    values[i]           = MVM_malloc(sizeof(void *));
+                    values[i]           = alloca(sizeof(void *));
                     *(void **)values[i] = MVM_nativecall_unmarshal_cpointer(tc, value, i);
                 }
                 break;
             case MVM_NATIVECALL_ARG_CARRAY:
-                values[i]           = MVM_malloc(sizeof(void *));
+                values[i]           = alloca(sizeof(void *));
                 *(void **)values[i] = MVM_nativecall_unmarshal_carray(tc, value, i);
                 break;
             case MVM_NATIVECALL_ARG_CUNION:
-                values[i]           = MVM_malloc(sizeof(void *));
+                values[i]           = alloca(sizeof(void *));
                 *(void **)values[i] = MVM_nativecall_unmarshal_cunion(tc, value, i);
                 break;
             case MVM_NATIVECALL_ARG_VMARRAY:
-                values[i]           = MVM_malloc(sizeof(void *));
+                values[i]           = alloca(sizeof(void *));
                 *(void **)values[i] = MVM_nativecall_unmarshal_vmarray(tc, value, i);
                 break;
             case MVM_NATIVECALL_ARG_CALLBACK:
                 if (IS_CONCRETE(value) && !MVM_code_iscode(tc, value))
                     MVM_exception_throw_adhoc(tc, "Native callback must be a code handle");
-                values[i]           = MVM_malloc(sizeof(void *));
+                values[i]           = alloca(sizeof(void *));
                 *(void **)values[i] = unmarshal_callback(tc, (MVMCode *)value, body->arg_info[i]);
                 break;
             case MVM_NATIVECALL_ARG_UCHAR:
@@ -912,12 +912,12 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                         free_strs[num_strs] = str;
                         num_strs++;
                     }
-                    values[i]           = MVM_malloc(sizeof(void *));
+                    values[i]           = alloca(sizeof(void *));
                     *(void **)values[i] = str;
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CSTRUCT:
-                    values[i]           = MVM_malloc(sizeof(void *));
+                    values[i]           = alloca(sizeof(void *));
                     *(void **)values[i] = MVM_nativecall_unmarshal_cstruct(tc, value, i);
                     break;
                 case MVM_NATIVECALL_ARG_CPPSTRUCT: {
@@ -927,42 +927,42 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                         /* Allocate a full byte aligned area where the C++ structure fits into. */
                         void *ptr           = MVM_malloc(repr_data->struct_size > 0 ? repr_data->struct_size : 1);
                         result              = MVM_nativecall_make_cppstruct(tc, res_type, ptr);
-                        values[i]           = MVM_malloc(sizeof(void *));
+                        values[i]           = alloca(sizeof(void *));
                         *(void **)values[i] = ptr;
                     }
                     else {
-                        values[i]           = MVM_malloc(sizeof(void *));
+                        values[i]           = alloca(sizeof(void *));
                         *(void **)values[i] = MVM_nativecall_unmarshal_cppstruct(tc, value, i);
                     }
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CPOINTER:
                     if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
-                        values[i]                     = MVM_malloc(sizeof(void *));
-                        *(void **)values[i]           = MVM_malloc(sizeof(void *));
+                        values[i]                     = alloca(sizeof(void *));
+                        *(void **)values[i]           = alloca(sizeof(void *));
                         *(void **)*(void **)values[i] = (void *)MVM_nativecall_unmarshal_cpointer(tc, value, i);
                     }
                     else {
-                        values[i]           = MVM_malloc(sizeof(void *));
+                        values[i]           = alloca(sizeof(void *));
                         *(void **)values[i] = MVM_nativecall_unmarshal_cpointer(tc, value, i);
                     }
                     break;
                 case MVM_NATIVECALL_ARG_CARRAY:
-                    values[i]           = MVM_malloc(sizeof(void *));
+                    values[i]           = alloca(sizeof(void *));
                     *(void **)values[i] = MVM_nativecall_unmarshal_carray(tc, value, i);
                     break;
                 case MVM_NATIVECALL_ARG_CUNION:
-                    values[i]           = MVM_malloc(sizeof(void *));
+                    values[i]           = alloca(sizeof(void *));
                     *(void **)values[i] = MVM_nativecall_unmarshal_cunion(tc, value, i);
                     break;
                 case MVM_NATIVECALL_ARG_VMARRAY:
-                    values[i]           = MVM_malloc(sizeof(void *));
+                    values[i]           = alloca(sizeof(void *));
                     *(void **)values[i] = MVM_nativecall_unmarshal_vmarray(tc, value, i);
                     break;
                 case MVM_NATIVECALL_ARG_CALLBACK:
                     if (IS_CONCRETE(value) && !MVM_code_iscode(tc, value))
                         MVM_exception_throw_adhoc(tc, "Native callback must be a code handle");
-                    values[i]           = MVM_malloc(sizeof(void *));
+                    values[i]           = alloca(sizeof(void *));
                     *(void **)values[i] = unmarshal_callback(tc, (MVMCode *)value, body->arg_info[i]);
                     break;
                 case MVM_NATIVECALL_ARG_UCHAR:
@@ -989,7 +989,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
         }
         else if (args.callsite->arg_flags[i + 1] & MVM_CALLSITE_ARG_INT) {
             if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
-                values[i]           = MVM_malloc(sizeof(void *));
+                values[i]           = alloca(sizeof(void *));
                 *(void **)values[i] = &args.source[args.map[i + 1]].i64;
             }
             else {
@@ -1001,7 +1001,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                  * of malloc calls. Instead we should eliminate one level of
                  * pointers and simply store everything directly inline, with a
                  * size based on a union of double and long long. */
-                values[i] = MVM_malloc(sizeof(long long));
+                values[i] = alloca(sizeof(long long));
                 switch (arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
                     case MVM_NATIVECALL_ARG_CHAR:
                         *(char *)values[i] = value;
@@ -1052,7 +1052,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
         }
         else if (args.callsite->arg_flags[i + 1] & MVM_CALLSITE_ARG_NUM) {
             MVMnum64 value = args.source[args.map[i + 1]].n64;
-            values[i] = MVM_malloc(sizeof(double));
+            values[i] = alloca(sizeof(double));
             switch (arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
                 case MVM_NATIVECALL_ARG_FLOAT:
                     *(float *)values[i] = value;
@@ -1069,7 +1069,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
         }
         else if (args.callsite->arg_flags[i + 1] & MVM_CALLSITE_ARG_STR) {
             MVMString *value = args.source[args.map[i + 1]].s;
-            values[i] = MVM_malloc(sizeof(void *));
+            values[i] = alloca(sizeof(void *));
             switch (arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
                 case MVM_NATIVECALL_ARG_ASCIISTR:
                 case MVM_NATIVECALL_ARG_UTF8STR:
