@@ -601,6 +601,10 @@ void MVM_nativeref_write_positional_i(MVMThreadContext *tc, MVMObject *ref_obj, 
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     MVM_repr_bind_pos_i(tc, ref->body.u.positional.obj, ref->body.u.positional.idx, value);
 }
+void MVM_nativeref_write_positional_u(MVMThreadContext *tc, MVMObject *ref_obj, MVMuint64 value) {
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVM_repr_bind_pos_u(tc, ref->body.u.positional.obj, ref->body.u.positional.idx, value);
+}
 void MVM_nativeref_write_positional_n(MVMThreadContext *tc, MVMObject *ref_obj, MVMnum64 value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     MVM_repr_bind_pos_n(tc, ref->body.u.positional.obj, ref->body.u.positional.idx, value);
