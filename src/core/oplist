@@ -889,6 +889,7 @@ dispatch_o       .d w(obj) str callsite :cache :deoptallpoint :predeoptonepoint 
 gettypehllrole      w(int64) r(obj) :pure
 bindpos_u           r(obj) r(int64) r(uint64) :specializable
 atpos_u             w(uint64) r(obj) r(int64) :specializable :confprog
+atposref_u          w(obj) r(obj) r(int64) :pure :useshll
 
 # Spesh ops. Naming convention: start with sp_. Must all be marked .s, which
 # is how the validator knows to exclude them.

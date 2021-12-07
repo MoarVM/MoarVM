@@ -390,6 +390,12 @@ MVMObject * MVM_nativeref_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 i
         return posref(tc, ref_type, obj, idx);
     MVM_exception_throw_adhoc(tc, "No int positional reference type registered for current HLL");
 }
+MVMObject * MVM_nativeref_pos_u(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
+    MVMObject *ref_type = MVM_hll_current(tc)->uint_pos_ref;
+    if (ref_type)
+        return posref(tc, ref_type, obj, idx);
+    MVM_exception_throw_adhoc(tc, "No uint positional reference type registered for current HLL");
+}
 MVMObject * MVM_nativeref_pos_n(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
     MVMObject *ref_type = MVM_hll_current(tc)->num_pos_ref;
     if (ref_type)
