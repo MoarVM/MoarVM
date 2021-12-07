@@ -42,15 +42,19 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->method_not_found_error, "HLL method_not_found_error");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->lexical_handler_not_found_error, "HLL lexical_handler_not_found_error");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->int_lex_ref, "HLL int_lex_ref");
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->uint_lex_ref, "HLL uint_lex_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->num_lex_ref, "HLL num_lex_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->str_lex_ref, "HLL str_lex_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->int_attr_ref, "HLL int_attr_ref");
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->uint_attr_ref, "HLL uint_attr_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->num_attr_ref, "HLL num_attr_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->str_attr_ref, "HLL str_attr_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->int_pos_ref, "HLL int_pos_ref");
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->uint_pos_ref, "HLL uint_pos_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->num_pos_ref, "HLL num_pos_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->str_pos_ref, "HLL str_pos_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->int_multidim_ref, "HLL int_multidim_ref");
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->uint_multidim_ref, "HLL uint_multidim_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->num_multidim_ref, "HLL num_multidim_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->str_multidim_ref, "HLL str_multidim_ref");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->call_dispatcher, "HLL call dispatcher name");
@@ -133,11 +137,15 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             check_config_key(tc, config_hash, "false_value", false_value, config);
             check_config_key_reftype(tc, config_hash, "int_lex_ref", int_lex_ref,
                 config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_LEX);
+            check_config_key_reftype(tc, config_hash, "uint_lex_ref", uint_lex_ref,
+                config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_LEX);
             check_config_key_reftype(tc, config_hash, "num_lex_ref", num_lex_ref,
                 config, MVM_STORAGE_SPEC_BP_NUM, MVM_NATIVEREF_LEX);
             check_config_key_reftype(tc, config_hash, "str_lex_ref", str_lex_ref,
                 config, MVM_STORAGE_SPEC_BP_STR, MVM_NATIVEREF_LEX);
             check_config_key_reftype(tc, config_hash, "int_attr_ref", int_attr_ref,
+                config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_ATTRIBUTE);
+            check_config_key_reftype(tc, config_hash, "uint_attr_ref", uint_attr_ref,
                 config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_ATTRIBUTE);
             check_config_key_reftype(tc, config_hash, "num_attr_ref", num_attr_ref,
                 config, MVM_STORAGE_SPEC_BP_NUM, MVM_NATIVEREF_ATTRIBUTE);
@@ -145,11 +153,15 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
                 config, MVM_STORAGE_SPEC_BP_STR, MVM_NATIVEREF_ATTRIBUTE);
             check_config_key_reftype(tc, config_hash, "int_pos_ref", int_pos_ref,
                 config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_POSITIONAL);
+            check_config_key_reftype(tc, config_hash, "uint_pos_ref", uint_pos_ref,
+                config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_POSITIONAL);
             check_config_key_reftype(tc, config_hash, "num_pos_ref", num_pos_ref,
                 config, MVM_STORAGE_SPEC_BP_NUM, MVM_NATIVEREF_POSITIONAL);
             check_config_key_reftype(tc, config_hash, "str_pos_ref", str_pos_ref,
                 config, MVM_STORAGE_SPEC_BP_STR, MVM_NATIVEREF_POSITIONAL);
             check_config_key_reftype(tc, config_hash, "int_multidim_ref", int_multidim_ref,
+                config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_MULTIDIM);
+            check_config_key_reftype(tc, config_hash, "uint_multidim_ref", uint_multidim_ref,
                 config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_MULTIDIM);
             check_config_key_reftype(tc, config_hash, "num_multidim_ref", num_multidim_ref,
                 config, MVM_STORAGE_SPEC_BP_NUM, MVM_NATIVEREF_MULTIDIM);
