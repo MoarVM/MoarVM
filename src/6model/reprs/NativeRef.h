@@ -40,6 +40,8 @@ struct MVMNativeRefREPRData {
 
     /* The kind of reference this is. */
     MVMuint16 ref_kind;
+
+    MVMuint8 is_unsigned;
 };
 
 /* Function for REPR setup. */
