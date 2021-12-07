@@ -39,15 +39,19 @@ struct MVMHLLConfig {
 
     /* Native reference types. */
     MVMObject *int_lex_ref;
+    MVMObject *uint_lex_ref;
     MVMObject *num_lex_ref;
     MVMObject *str_lex_ref;
     MVMObject *int_attr_ref;
+    MVMObject *uint_attr_ref;
     MVMObject *num_attr_ref;
     MVMObject *str_attr_ref;
     MVMObject *int_pos_ref;
+    MVMObject *uint_pos_ref;
     MVMObject *num_pos_ref;
     MVMObject *str_pos_ref;
     MVMObject *int_multidim_ref;
+    MVMObject *uint_multidim_ref;
     MVMObject *num_multidim_ref;
     MVMObject *str_multidim_ref;
 
