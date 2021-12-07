@@ -662,7 +662,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
                 }
                 else {
-                    pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_decont_i));
+                    pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_decont_u));
                     pos_added[i]++;
                     if (type_tuple && type_tuple[i].type)
                         add_facts(tc, g, i, type_tuple[i], pos_ins[i]);
