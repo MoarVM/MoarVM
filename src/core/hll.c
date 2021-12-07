@@ -28,6 +28,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
         entry->hash_iterator_type = tc->instance->boot_types.BOOTIter;
         entry->max_inline_size = MVM_SPESH_DEFAULT_MAX_INLINE_SIZE;
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->int_box_type, "HLL int_box_type");
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->uint_box_type, "HLL uint_box_type");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->num_box_type, "HLL num_box_type");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->str_box_type, "HLL str_box_type");
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&entry->slurpy_array_type, "HLL slurpy_array_type");
@@ -115,6 +116,7 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
     /* MVM_string_utf8_decode() can potentially allocate, and hence gc. */
     MVMROOT(tc, config_hash, {
             check_config_key(tc, config_hash, "int_box", int_box_type, config);
+            check_config_key(tc, config_hash, "uint_box", uint_box_type, config);
             check_config_key(tc, config_hash, "num_box", num_box_type, config);
             check_config_key(tc, config_hash, "str_box", str_box_type, config);
             check_config_key(tc, config_hash, "slurpy_array", slurpy_array_type, config);

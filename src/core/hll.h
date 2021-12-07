@@ -6,6 +6,7 @@ struct MVMHLLConfig {
     MVMString *name;
     /* The types the language wishes to get things boxed as. */
     MVMObject *int_box_type;
+    MVMObject *uint_box_type;
     MVMObject *num_box_type;
     MVMObject *str_box_type;
 
