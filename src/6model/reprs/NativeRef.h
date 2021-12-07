@@ -92,6 +92,7 @@ void MVM_nativeref_write_positional_u(MVMThreadContext *tc, MVMObject *ref, MVMu
 void MVM_nativeref_write_positional_n(MVMThreadContext *tc, MVMObject *ref, MVMnum64 value);
 void MVM_nativeref_write_positional_s(MVMThreadContext *tc, MVMObject *ref, MVMString *value);
 void MVM_nativeref_write_multidim_i(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
+void MVM_nativeref_write_multidim_u(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
 void MVM_nativeref_write_multidim_n(MVMThreadContext *tc, MVMObject *ref, MVMnum64 value);
 void MVM_nativeref_write_multidim_s(MVMThreadContext *tc, MVMObject *ref, MVMString *value);
 AO_t * MVM_nativeref_as_atomic_lex_i(MVMThreadContext *tc, MVMObject *ref_obj);
