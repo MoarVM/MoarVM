@@ -644,9 +644,16 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
                 switch (primitive_type) {
                     case MVM_STORAGE_SPEC_BP_INT:
                         out_type = hll->int_box_type;
-                        register_type = MVM_reg_int64;
-                        box_op = MVM_OP_box_i;
-                        unbox_op = MVM_OP_decont_i;
+                        if (repr_data->is_unsigned) {
+                            register_type = MVM_reg_uint64;
+                            box_op = MVM_OP_box_u;
+                            unbox_op = MVM_OP_decont_u;
+                        }
+                        else {
+                            register_type = MVM_reg_int64;
+                            box_op = MVM_OP_box_i;
+                            unbox_op = MVM_OP_decont_i;
+                        }
                         break;
                     case MVM_STORAGE_SPEC_BP_NUM:
                         out_type = hll->num_box_type;
