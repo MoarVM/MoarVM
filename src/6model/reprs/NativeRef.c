@@ -244,6 +244,23 @@ MVMObject * MVM_nativeref_lex_i(MVMThreadContext *tc, MVMuint16 outers, MVMuint1
     }
     MVM_exception_throw_adhoc(tc, "No int lexical reference type registered for current HLL");
 }
+MVMObject * MVM_nativeref_lex_u(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
+    MVMObject *ref_type;
+    MVM_frame_force_to_heap(tc, tc->cur_frame);
+    ref_type = MVM_hll_current(tc)->uint_lex_ref;
+    if (ref_type) {
+        MVMFrame  *f = get_lexical_outer(tc, outers);
+        MVMuint16 *lexical_types = f->spesh_cand && f->spesh_cand->body.lexical_types
+            ? f->spesh_cand->body.lexical_types
+            : f->static_info->body.lexical_types;
+        MVMuint16 type = lexical_types[idx];
+        if (type != MVM_reg_uint64 && type != MVM_reg_uint32 &&
+                type != MVM_reg_uint16 && type != MVM_reg_uint8)
+            MVM_exception_throw_adhoc(tc, "getlexref_u: lexical is not an uint");
+        return lex_ref(tc, ref_type, f, idx, type);
+    }
+    MVM_exception_throw_adhoc(tc, "No uint lexical reference type registered for current HLL");
+}
 MVMObject * MVM_nativeref_lex_n(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx) {
     MVMObject *ref_type;
     MVM_frame_force_to_heap(tc, tc->cur_frame);
