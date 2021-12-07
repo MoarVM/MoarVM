@@ -104,7 +104,7 @@ static double parse_int_frac_exp(MVMThreadContext *tc, MVMCodepointIter *ci, MVM
     int buf_size = 1 + MVM_string_graphs(tc, s);
     int is_malloced = 0;
     char *digits_buf;
-    if (buf_size > 3000) {
+    if (buf_size > MAX_ALLOCA_SIZE) {
        digits_buf = (char *)MVM_malloc(buf_size);
        is_malloced = 1;
     }
