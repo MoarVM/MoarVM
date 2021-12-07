@@ -84,6 +84,7 @@ void MVM_nativeref_write_lex_u(MVMThreadContext *tc, MVMObject *ref, MVMint64 va
 void MVM_nativeref_write_lex_n(MVMThreadContext *tc, MVMObject *ref, MVMnum64 value);
 void MVM_nativeref_write_lex_s(MVMThreadContext *tc, MVMObject *ref, MVMString *value);
 void MVM_nativeref_write_attribute_i(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
+void MVM_nativeref_write_attribute_u(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
 void MVM_nativeref_write_attribute_n(MVMThreadContext *tc, MVMObject *ref, MVMnum64 value);
 void MVM_nativeref_write_attribute_s(MVMThreadContext *tc, MVMObject *ref, MVMString *value);
 void MVM_nativeref_write_positional_i(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
