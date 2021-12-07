@@ -554,7 +554,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     val->bc_size   = fb->bytecode_size;
     val->src_cur_op = fb->bytecode;
     val->src_bc_end = fb->bytecode + fb->bytecode_size;
-    if (fb->bytecode_size > 3000) {
+    if (fb->bytecode_size > MAX_ALLOCA_SIZE) {
         val->labels    = MVM_calloc(1, fb->bytecode_size);
         is_calloced = 1;
     }

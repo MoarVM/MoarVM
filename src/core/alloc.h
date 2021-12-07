@@ -1,3 +1,7 @@
+/* Size chosen based on https://logs.liz.nl/moarvm/2017-10-03.html
+ * tl;dr we don't want to allocate more than one page of stack. */
+#define MAX_ALLOCA_SIZE 3000
+
 MVM_STATIC_INLINE void * MVM_malloc(size_t size) {
 #ifdef MVM_USE_MIMALLOC
     void *ptr = mi_malloc(size);

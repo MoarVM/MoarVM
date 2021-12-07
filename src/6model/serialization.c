@@ -530,7 +530,7 @@ static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *wri
         MVMint32 is_malloced = 0;
         MVMuint32 keys_size = sizeof(MVMString *) * elems;
         MVMString **keys;
-        if (keys_size > 3000) {
+        if (keys_size > MAX_ALLOCA_SIZE) {
             keys = MVM_malloc(keys_size);
             is_malloced = 1;
         }

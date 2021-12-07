@@ -427,7 +427,7 @@ static void find_holes(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileL
 
     MVMint32 is_calloced = 0;
     MVMBitmap *bitmaps;
-    if (total_bitmap_alloc > 3000) {
+    if (total_bitmap_alloc > MAX_ALLOCA_SIZE) {
         bitmaps = MVM_calloc(list->blocks_num + 1, sizeof(MVMBitmap) * bitmap_size);
         is_calloced = 1;
     }
