@@ -80,6 +80,7 @@ MVMint64 MVM_nativeref_read_multidim_i(MVMThreadContext *tc, MVMObject *ref);
 MVMnum64 MVM_nativeref_read_multidim_n(MVMThreadContext *tc, MVMObject *ref);
 MVMString * MVM_nativeref_read_multidim_s(MVMThreadContext *tc, MVMObject *ref);
 void MVM_nativeref_write_lex_i(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
+void MVM_nativeref_write_lex_u(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
 void MVM_nativeref_write_lex_n(MVMThreadContext *tc, MVMObject *ref, MVMnum64 value);
 void MVM_nativeref_write_lex_s(MVMThreadContext *tc, MVMObject *ref, MVMString *value);
 void MVM_nativeref_write_attribute_i(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
