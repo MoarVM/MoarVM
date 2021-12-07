@@ -825,7 +825,24 @@ static MVMint64 get_container_primitive(MVMThreadContext *tc, MVMObject *cont) {
     return MVM_STORAGE_SPEC_BP_NONE;
 }
 MVMint64 MVM_6model_container_iscont_i(MVMThreadContext *tc, MVMObject *cont) {
-    return get_container_primitive(tc, cont) == MVM_STORAGE_SPEC_BP_INT;
+    if (cont && IS_CONCRETE(cont)) {
+        const MVMContainerSpec *cs = STABLE(cont)->container_spec;
+        if (cs == &native_ref_spec && REPR(cont)->ID == MVM_REPR_ID_NativeRef) {
+            MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
+            return repr_data->primitive_type == MVM_STORAGE_SPEC_BP_INT && !repr_data->is_unsigned;
+        }
+    }
+    return 0;
+}
+MVMint64 MVM_6model_container_iscont_u(MVMThreadContext *tc, MVMObject *cont) {
+    if (cont && IS_CONCRETE(cont)) {
+        const MVMContainerSpec *cs = STABLE(cont)->container_spec;
+        if (cs == &native_ref_spec && REPR(cont)->ID == MVM_REPR_ID_NativeRef) {
+            MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
+            return repr_data->primitive_type == MVM_STORAGE_SPEC_BP_INT && repr_data->is_unsigned;
+        }
+    }
+    return 0;
 }
 MVMint64 MVM_6model_container_iscont_n(MVMThreadContext *tc, MVMObject *cont) {
     return get_container_primitive(tc, cont) == MVM_STORAGE_SPEC_BP_NUM;
