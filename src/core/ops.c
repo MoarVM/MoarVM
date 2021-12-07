@@ -13362,6 +13362,22 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_int64 }
     },
     {
+        MVM_OP_iscont_u,
+        "iscont_u",
+        2,
+        1,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1,
+        0,
+        { MVM_operand_write_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_obj }
+    },
+    {
         MVM_OP_sp_guard,
         "sp_guard",
         4,
@@ -15219,9 +15235,9 @@ static const MVMOpInfo MVM_op_infos[] = {
     },
 };
 
-static const unsigned short MVM_op_counts = 951;
+static const unsigned short MVM_op_counts = 952;
 
-static const MVMuint16 last_op_allowed = 834;
+static const MVMuint16 last_op_allowed = 835;
 
 static const MVMuint8 MVM_op_allowed_in_confprog[] = {
     0xD1, 0x1, 0x80, 0x3,
@@ -15265,7 +15281,7 @@ MVM_PUBLIC MVMuint8 MVM_op_is_allowed_in_confprog(unsigned short op) {
 }
 
 MVM_PUBLIC const char *MVM_op_get_mark(unsigned short op) {
-    if (op > 835 && op < MVM_OP_EXT_BASE) {
+    if (op > 836 && op < MVM_OP_EXT_BASE) {
         return ".s";
     } else if (op == 23) {
         return ".j";
