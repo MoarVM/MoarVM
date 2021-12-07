@@ -503,6 +503,10 @@ MVMint64 MVM_nativeref_read_positional_i(MVMThreadContext *tc, MVMObject *ref_ob
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     return MVM_repr_at_pos_i(tc, ref->body.u.positional.obj, ref->body.u.positional.idx);
 }
+MVMuint64 MVM_nativeref_read_positional_u(MVMThreadContext *tc, MVMObject *ref_obj) {
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    return MVM_repr_at_pos_u(tc, ref->body.u.positional.obj, ref->body.u.positional.idx);
+}
 MVMnum64 MVM_nativeref_read_positional_n(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     return MVM_repr_at_pos_n(tc, ref->body.u.positional.obj, ref->body.u.positional.idx);

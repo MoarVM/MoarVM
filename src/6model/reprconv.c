@@ -105,6 +105,19 @@ MVMint64 MVM_repr_at_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
     return value.i64;
 }
 
+MVMuint64 MVM_repr_at_pos_u(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
+    MVMRegister value;
+    if (REPR(obj)->ID == MVM_REPR_ID_VMArray) {
+        MVM_VMArray_at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            idx, &value, MVM_reg_uint64);
+    }
+    else {
+        REPR(obj)->pos_funcs.at_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            idx, &value, MVM_reg_uint64);
+    }
+    return value.u64;
+}
+
 MVMnum64 MVM_repr_at_pos_n(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
     MVMRegister value;
     if (REPR(obj)->ID == MVM_REPR_ID_VMArray) {

@@ -72,6 +72,7 @@ MVMint64 MVM_nativeref_read_attribute_i(MVMThreadContext *tc, MVMObject *ref);
 MVMnum64 MVM_nativeref_read_attribute_n(MVMThreadContext *tc, MVMObject *ref);
 MVMString * MVM_nativeref_read_attribute_s(MVMThreadContext *tc, MVMObject *ref);
 MVMint64 MVM_nativeref_read_positional_i(MVMThreadContext *tc, MVMObject *ref);
+MVMuint64 MVM_nativeref_read_positional_u(MVMThreadContext *tc, MVMObject *ref);
 MVMnum64 MVM_nativeref_read_positional_n(MVMThreadContext *tc, MVMObject *ref);
 MVMString * MVM_nativeref_read_positional_s(MVMThreadContext *tc, MVMObject *ref);
 MVMint64 MVM_nativeref_read_multidim_i(MVMThreadContext *tc, MVMObject *ref);

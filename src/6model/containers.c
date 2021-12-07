@@ -35,6 +35,10 @@ static void code_pair_fetch_i(MVMThreadContext *tc, MVMObject *cont, MVMRegister
     code_pair_fetch_internal(tc, cont, res, MVM_RETURN_INT);
 }
 
+static void code_pair_fetch_u(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    code_pair_fetch_internal(tc, cont, res, MVM_RETURN_INT);
+}
+
 static void code_pair_fetch_n(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
     code_pair_fetch_internal(tc, cont, res, MVM_RETURN_NUM);
 }
@@ -105,6 +109,7 @@ static const MVMContainerSpec code_pair_spec = {
     "code_pair",
     code_pair_fetch,
     code_pair_fetch_i,
+    code_pair_fetch_u,
     code_pair_fetch_n,
     code_pair_fetch_s,
     code_pair_store,
@@ -210,6 +215,10 @@ static void value_desc_cont_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegi
 
 static void value_desc_cont_fetch_i(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
     res->i64 = MVM_repr_get_int(tc, read_container_value(cont));
+}
+
+static void value_desc_cont_fetch_u(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    res->u64 = MVM_repr_get_uint(tc, read_container_value(cont));
 }
 
 static void value_desc_cont_fetch_n(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
@@ -356,6 +365,7 @@ static const MVMContainerSpec value_desc_cont_spec = {
     "value_desc_cont",
     value_desc_cont_fetch,
     value_desc_cont_fetch_i,
+    value_desc_cont_fetch_u,
     value_desc_cont_fetch_n,
     value_desc_cont_fetch_s,
     value_desc_cont_store,
@@ -455,6 +465,28 @@ static void native_ref_fetch_i(MVMThreadContext *tc, MVMObject *cont, MVMRegiste
     }
 }
 
+static void native_ref_fetch_u(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
+    MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
+    if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_INT)
+        MVM_exception_throw_adhoc(tc, "This container does not reference a native integer");
+    switch (repr_data->ref_kind) {
+        case MVM_NATIVEREF_LEX:
+            res->u64 = MVM_nativeref_read_lex_i(tc, cont); /* covers unsigned as well */
+            break;
+        case MVM_NATIVEREF_ATTRIBUTE:
+            res->u64 = MVM_nativeref_read_attribute_i(tc, cont); /* FIXME needs get_attr_u */
+            break;
+        case MVM_NATIVEREF_POSITIONAL:
+            res->u64 = MVM_nativeref_read_positional_u(tc, cont);
+            break;
+        case MVM_NATIVEREF_MULTIDIM:
+            res->u64 = MVM_nativeref_read_multidim_i(tc, cont); /* FIXME needs at_pos_multidim_u */
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Unknown native int reference kind");
+    }
+}
+
 static void native_ref_fetch_n(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
     MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
     if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_NUM)
@@ -507,8 +539,14 @@ static void native_ref_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister 
         hll = MVM_hll_current(tc);
     switch (repr_data->primitive_type) {
         case MVM_STORAGE_SPEC_BP_INT:
-            native_ref_fetch_i(tc, cont, &tmp);
-            res->o = MVM_repr_box_int(tc, hll->int_box_type, tmp.i64);
+            if (repr_data->is_unsigned) {
+                native_ref_fetch_u(tc, cont, &tmp);
+                res->o = MVM_repr_box_uint(tc, hll->int_box_type, tmp.u64);
+            }
+            else {
+                native_ref_fetch_i(tc, cont, &tmp);
+                res->o = MVM_repr_box_int(tc, hll->int_box_type, tmp.i64);
+            }
             break;
         case MVM_STORAGE_SPEC_BP_NUM:
             native_ref_fetch_n(tc, cont, &tmp);
@@ -622,6 +660,7 @@ static const MVMContainerSpec native_ref_spec = {
     "native_ref",
     native_ref_fetch,
     native_ref_fetch_i,
+    native_ref_fetch_u,
     native_ref_fetch_n,
     native_ref_fetch_s,
     native_ref_store,
@@ -825,13 +864,12 @@ void MVM_6model_container_decont_s(MVMThreadContext *tc, MVMObject *cont, MVMReg
         res->s = MVM_repr_get_str(tc, cont);
 }
 
-/* If it's a container, do a fetch_i. Otherwise, try to unbox the received
+/* If it's a container, do a fetch_u. Otherwise, try to unbox the received
  * value as a native unsigned integer. */
 void MVM_6model_container_decont_u(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
     const MVMContainerSpec *cs = STABLE(cont)->container_spec;
     if (cs && IS_CONCRETE(cont))
-        /* XXX We need a fetch_u at some point. */
-        cs->fetch_i(tc, cont, res);
+        cs->fetch_u(tc, cont, res);
     else
         res->u64 = MVM_repr_get_uint(tc, cont);
 }
