@@ -76,6 +76,7 @@ struct MVMHLLConfig {
 
 MVMHLLConfig * MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name);
 MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject *config_hash);
+void MVM_hll_set_config_key(MVMThreadContext *tc, MVMHLLConfig *hll, MVMString *key, MVMObject *value);
 MVM_PUBLIC MVMHLLConfig * MVM_hll_current(MVMThreadContext *tc);
 void MVM_hll_enter_compilee_mode(MVMThreadContext *tc);
 void MVM_hll_leave_compilee_mode(MVMThreadContext *tc);
