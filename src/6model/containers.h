@@ -12,6 +12,7 @@ struct MVMContainerSpec {
 
     /* Native value fetches. */
     void (*fetch_i) (MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
+    void (*fetch_u) (MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
     void (*fetch_n) (MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
     void (*fetch_s) (MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
 
