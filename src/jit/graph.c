@@ -373,7 +373,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_getsignals: return MVM_io_get_signals;
     case MVM_OP_sleep: return MVM_platform_sleep;
     case MVM_OP_getlexref_i32: case MVM_OP_getlexref_i16: case MVM_OP_getlexref_i8: case MVM_OP_getlexref_i: return MVM_nativeref_lex_i;
-    case MVM_OP_getlexref_u32: case MVM_OP_getlexref_u16: case MVM_OP_getlexref_u8: case MVM_OP_getlexref_u: return MVM_nativeref_lex_i;
+    case MVM_OP_getlexref_u32: case MVM_OP_getlexref_u16: case MVM_OP_getlexref_u8: case MVM_OP_getlexref_u: return MVM_nativeref_lex_u;
     case MVM_OP_getlexref_n32: case MVM_OP_getlexref_n: return MVM_nativeref_lex_n;
     case MVM_OP_getlexref_s: return MVM_nativeref_lex_s;
     case MVM_OP_getattrref_i: return MVM_nativeref_attr_i;
