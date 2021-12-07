@@ -262,6 +262,13 @@ void MVM_repr_bind_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx, MVM
         idx, val, MVM_reg_int64);
 }
 
+void MVM_repr_bind_pos_u(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx, MVMuint64 value) {
+    MVMRegister val;
+    val.u64 = value;
+    REPR(obj)->pos_funcs.bind_pos(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+        idx, val, MVM_reg_uint64);
+}
+
 void MVM_repr_bind_pos_n(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx, MVMnum64 value) {
     MVMRegister val;
     val.n64 = value;

@@ -585,6 +585,28 @@ static void native_ref_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 v
     }
 }
 
+static void native_ref_store_u(MVMThreadContext *tc, MVMObject *cont, MVMuint64 value) {
+    MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
+    if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_INT)
+        MVM_exception_throw_adhoc(tc, "This container does not reference a native integer");
+    switch (repr_data->ref_kind) {
+        case MVM_NATIVEREF_LEX:
+            MVM_nativeref_write_lex_i(tc, cont, value); /* FIXME need a MVM_nativeref_write_lex_u */
+            break;
+        case MVM_NATIVEREF_ATTRIBUTE:
+            MVM_nativeref_write_attribute_i(tc, cont, value); /* FIXME need a MVM_nativeref_write_attribute_u */
+            break;
+        case MVM_NATIVEREF_POSITIONAL:
+            MVM_nativeref_write_positional_u(tc, cont, value);
+            break;
+        case MVM_NATIVEREF_MULTIDIM:
+            MVM_nativeref_write_multidim_i(tc, cont, value); /* FIXME need a MVM_nativeref_write_multidim_u */
+            break;
+        default:
+            MVM_exception_throw_adhoc(tc, "Unknown native int reference kind");
+    }
+}
+
 static void native_ref_store_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 value) {
     MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
     if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_NUM)
@@ -633,7 +655,10 @@ static void native_ref_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *o
     MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
     switch (repr_data->primitive_type) {
         case MVM_STORAGE_SPEC_BP_INT:
-            native_ref_store_i(tc, cont, MVM_repr_get_int(tc, obj));
+            if (repr_data->is_unsigned)
+                native_ref_store_u(tc, cont, MVM_repr_get_uint(tc, obj));
+            else
+                native_ref_store_i(tc, cont, MVM_repr_get_int(tc, obj));
             break;
         case MVM_STORAGE_SPEC_BP_NUM:
             native_ref_store_n(tc, cont, MVM_repr_get_num(tc, obj));
