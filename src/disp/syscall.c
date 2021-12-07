@@ -1171,6 +1171,24 @@ static MVMDispSysCall code_is_stub = {
     .expected_concrete = { 1 },
 };
 
+/* set-cur-hll-config-key */
+static void set_cur_hll_config_key_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMString *key = get_str_arg(arg_info, 0);
+    MVMObject *value = get_obj_arg(arg_info, 1);
+    MVMHLLConfig *hll = MVM_hll_current(tc);
+    MVM_hll_set_config_key(tc, hll, key, value);
+    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall set_cur_hll_config_key = {
+    .c_name = "set-cur-hll-config-key",
+    .implementation = set_cur_hll_config_key_impl,
+    .min_args = 2,
+    .max_args = 2,
+    .expected_kinds = { MVM_CALLSITE_ARG_STR, MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { 0, 0 },
+    .expected_concrete = { 1, 0 },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -1254,6 +1272,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &type_check_mode_flags);
     add_to_hash(tc, &has_type_check_cache);
     add_to_hash(tc, &code_is_stub);
+    add_to_hash(tc, &set_cur_hll_config_key);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 

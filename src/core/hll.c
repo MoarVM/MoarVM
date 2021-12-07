@@ -107,6 +107,9 @@ void set_max_inline_size(MVMThreadContext *tc, MVMObject *config_hash, MVMHLLCon
             config->max_inline_size = MVM_repr_get_int(tc, size);
     });
 }
+void MVM_hll_set_config_key(MVMThreadContext *tc, MVMHLLConfig *hll, MVMString *key, MVMObject *value) {
+    hll->uint_box_type = value;
+}
 MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject *config_hash) {
     MVMHLLConfig *config;
 
