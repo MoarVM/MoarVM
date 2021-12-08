@@ -114,6 +114,7 @@ static const MVMContainerSpec code_pair_spec = {
     code_pair_fetch_s,
     code_pair_store,
     code_pair_store_i,
+    code_pair_store_i, /* FIXME need a code_pair_store_u but lacking tests showing this need */
     code_pair_store_n,
     code_pair_store_s,
     code_pair_store,
@@ -370,6 +371,7 @@ static const MVMContainerSpec value_desc_cont_spec = {
     value_desc_cont_fetch_s,
     value_desc_cont_store,
     value_desc_cont_store_i,
+    value_desc_cont_store_i, /* FIXME need a value_desc_cont_store_u but lacking tests showing this need */
     value_desc_cont_store_n,
     value_desc_cont_store_s,
     value_desc_cont_store_unchecked,
@@ -665,6 +667,7 @@ static const MVMContainerSpec native_ref_spec = {
     native_ref_fetch_s,
     native_ref_store,
     native_ref_store_i,
+    native_ref_store_u,
     native_ref_store_n,
     native_ref_store_s,
     native_ref_store,
@@ -839,7 +842,7 @@ MVMint64 MVM_6model_container_iscont_u(MVMThreadContext *tc, MVMObject *cont) {
         const MVMContainerSpec *cs = STABLE(cont)->container_spec;
         if (cs == &native_ref_spec && REPR(cont)->ID == MVM_REPR_ID_NativeRef) {
             MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
-            return repr_data->primitive_type == MVM_STORAGE_SPEC_BP_INT && repr_data->is_unsigned;
+            return repr_data->primitive_type == MVM_STORAGE_SPEC_BP_UINT64 && repr_data->is_unsigned;
         }
     }
     return 0;
@@ -896,6 +899,15 @@ void MVM_6model_container_assign_i(MVMThreadContext *tc, MVMObject *cont, MVMint
     const MVMContainerSpec *cs = STABLE(cont)->container_spec;
     if (cs && IS_CONCRETE(cont))
         cs->store_i(tc, cont, value);
+    else
+        MVM_exception_throw_adhoc(tc, "Cannot assign to an immutable value");
+}
+
+/* Checks we have a container, and provided we do, assigns an uint into it. */
+void MVM_6model_container_assign_u(MVMThreadContext *tc, MVMObject *cont, MVMuint64 value) {
+    const MVMContainerSpec *cs = STABLE(cont)->container_spec;
+    if (cs && IS_CONCRETE(cont))
+        cs->store_u(tc, cont, value);
     else
         MVM_exception_throw_adhoc(tc, "Cannot assign to an immutable value");
 }
