@@ -21,6 +21,7 @@ struct MVMContainerSpec {
 
     /* Native container stores. */
     void (*store_i) (MVMThreadContext *tc, MVMObject *cont, MVMint64 value);
+    void (*store_u) (MVMThreadContext *tc, MVMObject *cont, MVMint64 value);
     void (*store_n) (MVMThreadContext *tc, MVMObject *cont, MVMnum64 value);
     void (*store_s) (MVMThreadContext *tc, MVMObject *cont, MVMString *value);
 
@@ -88,6 +89,7 @@ void MVM_6model_container_decont_n(MVMThreadContext *tc, MVMObject *cont, MVMReg
 void MVM_6model_container_decont_s(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
 void MVM_6model_container_decont_u(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res);
 void MVM_6model_container_assign_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value);
+void MVM_6model_container_assign_u(MVMThreadContext *tc, MVMObject *cont, MVMuint64 value);
 void MVM_6model_container_assign_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 value);
 void MVM_6model_container_assign_s(MVMThreadContext *tc, MVMObject *cont, MVMString *value);
 void MVM_6model_container_cas(MVMThreadContext *tc, MVMObject *cont,

@@ -838,7 +838,8 @@ BEGIN {
     2096,
     2099,
     2102,
-    2105);
+    2105,
+    2107);
     MAST::Ops.WHO<@counts> := nqp::list_i(0,
     2,
     2,
@@ -1674,6 +1675,7 @@ BEGIN {
     3,
     3,
     3,
+    2,
     2);
     MAST::Ops.WHO<@values> := nqp::list_i(10,
     8,
@@ -3781,7 +3783,9 @@ BEGIN {
     65,
     33,
     34,
-    65);
+    65,
+    65,
+    161);
     MAST::Ops.WHO<%codes> := nqp::hash('no_op', 0,
     'const_i8', 1,
     'const_i16', 2,
@@ -4528,7 +4532,8 @@ BEGIN {
     'bindpos_u', 832,
     'atpos_u', 833,
     'atposref_u', 834,
-    'iscont_u', 835);
+    'iscont_u', 835,
+    'assign_u', 836);
     MAST::Ops.WHO<@names> := nqp::list_s('no_op',
     'const_i8',
     'const_i16',
@@ -5275,7 +5280,8 @@ BEGIN {
     'bindpos_u',
     'atpos_u',
     'atposref_u',
-    'iscont_u');
+    'iscont_u',
+    'assign_u');
     MAST::Ops.WHO<%generators> := nqp::hash('no_op', sub ($frame) {
         my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
@@ -10928,6 +10934,13 @@ BEGIN {
         my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 835, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+    },
+    'assign_u', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, 836, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     });
