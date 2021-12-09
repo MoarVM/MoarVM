@@ -11,13 +11,10 @@ MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, MVMString *str) {
 }
 
 /* ui64toa and i64toa
- * Copyright(c) 2014-2016 Milo Yip (miloyip@gmail.com)
- * https://github.com/miloyip/itoa-benchmark
- * With minor modifications.
+MIT License
 
- Copyright (C) 2014 Milo Yip
-
-MIT License:
+Copyright (c) 2017 James Edward Anhalt III - https://github.com/jeaiii/itoa
+with minor modifications for formatting and so it will compile as C code
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -26,43 +23,68 @@ to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of the Software, and to permit persons to whom the Software is
 furnished to do so, subject to the following conditions:
 
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
 AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-    THE SOFTWARE. */
-static char * u64toa_naive_worker(uint64_t value, char* buffer) {
-    char temp[20];
-    char *p = temp;
-    do {
-        *p++ = (char)(value % 10) + '0';
-        value /= 10;
-    } while (value > 0);
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. */
 
-    do {
-        *buffer++ = *--p;
-    } while (p != temp);
+#define W(N, I) b[N] = (char)(I) + '0'
+#define A(N) t = ((uint64_t)(1) << (32 + N / 5 * N * 53 / 16)) / (uint32_t)(1e##N) + 1 - N / 9, t *= u, t >>= N / 5 * N * 53 / 16, t += N / 5 * 4, W(0, t >> 32)
+#define D(N) t = (uint64_t)(10) * (uint32_t)(t), W(N, t >> 32)
 
-    return buffer;
-}
-static size_t i64toa_naive(int64_t value, char* buffer) {
-    uint64_t u = value;
-    char *buf = buffer;
-    if (value < 0) {
-        *buf++ = '-';
-        u = ~u + 1;
+#define L0 W(0, u)
+#define L1 A(1), D(1)
+#define L2 A(2), D(1), D(2)
+#define L3 A(3), D(1), D(2), D(3)
+#define L4 A(4), D(1), D(2), D(3), D(4)
+#define L5 A(5), D(1), D(2), D(3), D(4), D(5)
+#define L6 A(6), D(1), D(2), D(3), D(4), D(5), D(6)
+#define L7 A(7), D(1), D(2), D(3), D(4), D(5), D(6), D(7)
+#define L8 A(8), D(1), D(2), D(3), D(4), D(5), D(6), D(7), D(8)
+#define L9 A(9), D(1), D(2), D(3), D(4), D(5), D(6), D(7), D(8), D(9)
+
+#define LN(N) (L##N, b += N + 1)
+#define LZ LN
+
+#define LG(F) (u<100 ? u<10 ? F(0) : F(1) : u<1000000 ? u<10000 ? u<1000 ? F(2) : F(3) : u<100000 ? F(4) : F(5) : u<100000000 ? u<10000000 ? F(6) : F(7) : u<1000000000 ? F(8) : F(9))
+
+static char * u64toa_jeaiii(uint64_t n, char* b) {
+    uint32_t u;
+    uint64_t t;
+
+    if ((uint32_t)(n >> 32) == 0)
+        return u = (uint32_t)(n), LG(LZ);
+
+    uint64_t a = n / 100000000;
+
+    if ((uint32_t)(a >> 32) == 0) {
+        u = (uint32_t)(a);
+        LG(LN);
     }
-    return u64toa_naive_worker(u, buf) - buffer;
+    else {
+        u = (uint32_t)(a / 100000000);
+        LG(LN);
+        u = a % 100000000;
+        LN(7);
+    }
+
+    u = n % 100000000;
+    return LZ(7);
 }
+
+static char * i64toa_jeaiii(int64_t i, char* b) {
+    uint64_t n = i < 0 ? *b++ = '-', 0 - (uint64_t)(i) : (uint64_t)i;
+    return u64toa_jeaiii(n, b);
+}
+
 /* End code */
-static size_t u64toa_naive(uint64_t value, char* buffer) {
-    return u64toa_naive_worker(value, buffer) - buffer;
-}
+
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     char buffer[20];
     int len;
@@ -74,7 +96,7 @@ MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
             return cached;
     }
     /* Otherwise, need to do the work; cache it if in range. */
-    len = i64toa_naive(i, buffer);
+    len = i64toa_jeaiii(i, buffer) - buffer;
     if (0 <= len) {
         MVMString *result = NULL;
         MVMGrapheme8 *blob = MVM_malloc(len);
@@ -100,7 +122,7 @@ MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
             return cached;
     }
     /* Otherwise, need to do the work; cache it if in range. */
-    len = u64toa_naive(i, buffer);
+    len = u64toa_jeaiii(i, buffer) - buffer;
     if (0 <= len) {
         MVMString *result = NULL;
         MVMGrapheme8 *blob = MVM_malloc(len);
