@@ -396,7 +396,6 @@ module Arg {
     our $literal := 16;
     our $named := 32;
     our $flat  := 64;
-    our $flatnamed := 128;
 }
 
 # Labels (used directly in the instruction stream indicates where the

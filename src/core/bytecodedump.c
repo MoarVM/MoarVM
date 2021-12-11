@@ -430,19 +430,21 @@ char * MVM_bytecode_dump(MVMThreadContext *tc, MVMCompUnit *cu) {
             MVMCallsiteEntry csitee = callsite->arg_flags[i++];
             a("    Arg %u :", i);
             if (csitee & MVM_CALLSITE_ARG_NAMED) {
-                if (callsite->arg_names) {
-                    char *arg_name = MVM_string_utf8_encode_C_string(tc,
-                        callsite->arg_names[nameds_count++]);
-                    a(" named(%s)", arg_name);
-                    MVM_free(arg_name);
+                if (csitee & MVM_CALLSITE_ARG_FLAT) {
+                    a(" flatnamed");
                 }
                 else {
-                    a(" named");
+                    if (callsite->arg_names) {
+                        char *arg_name = MVM_string_utf8_encode_C_string(tc,
+                            callsite->arg_names[nameds_count++]);
+                        a(" named(%s)", arg_name);
+                        MVM_free(arg_name);
+                    }
+                    else {
+                        a(" named");
+                    }
+                    j++;
                 }
-                j++;
-            }
-            else if (csitee & MVM_CALLSITE_ARG_FLAT_NAMED) {
-                a(" flatnamed");
             }
             else if (csitee & MVM_CALLSITE_ARG_FLAT) {
                 a(" flat");

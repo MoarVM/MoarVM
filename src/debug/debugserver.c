@@ -2386,8 +2386,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
                 + !!(entry & MVM_CALLSITE_ARG_NUM)
                 + !!(entry & MVM_CALLSITE_ARG_STR)
                 + !!(entry & MVM_CALLSITE_ARG_NAMED)
-                + !!(entry & MVM_CALLSITE_ARG_FLAT)
-                + !!(entry & MVM_CALLSITE_ARG_FLAT_NAMED);
+                + !!(entry & MVM_CALLSITE_ARG_FLAT);
             cmp_write_array(ctx, entry_count ? entry_count : 0);
             if (entry & MVM_CALLSITE_ARG_OBJ)
                 cmp_write_str(ctx, "obj", 3);
@@ -2397,12 +2396,14 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
                 cmp_write_str(ctx, "num", 3);
             if (entry & MVM_CALLSITE_ARG_STR)
                 cmp_write_str(ctx, "str", 3);
-            if (entry & MVM_CALLSITE_ARG_NAMED)
-                cmp_write_str(ctx, "named", 5);
-            if (entry & MVM_CALLSITE_ARG_FLAT)
-                cmp_write_str(ctx, "flat", 4);
-            if (entry & MVM_CALLSITE_ARG_FLAT_NAMED)
-                cmp_write_str(ctx, "flat&named", 10);
+            if (entry & MVM_CALLSITE_ARG_FLAT) {
+                if (entry & MVM_CALLSITE_ARG_NAMED)
+                    cmp_write_str(ctx, "flat&named", 10);
+                else
+                    cmp_write_str(ctx, "flat", 4);
+            }
+            else if (entry & MVM_CALLSITE_ARG_NAMED)
+                    cmp_write_str(ctx, "named", 5);
             if (!entry_count)
                 cmp_write_str(ctx, "nothing", 7);
         }
