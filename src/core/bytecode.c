@@ -864,34 +864,53 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
          * before all nameds (flattening named counts as named). */
         for (j = 0; j < elems; j++) {
             if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT) {
-                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ)) {
-                    MVMuint32 k;
-                    for (k = 0; k <= i; k++) {
-                        if (!callsites[i]->is_interned) {
-                            MVM_free(callsites[i]->arg_flags);
-                            MVM_free_null(callsites[i]);
+                if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_NAMED) {
+                    if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ)) {
+                        MVMuint32 k;
+                        for (k = 0; k <= i; k++) {
+                            if (!callsites[i]->is_interned) {
+                                MVM_free(callsites[i]->arg_flags);
+                                MVM_free_null(callsites[i]);
+                            }
                         }
+                        MVM_fixed_size_free(tc, tc->instance->fsa,
+                            sizeof(MVMCallsite *) * rs->expected_callsites,
+                            callsites);
+                        MVM_exception_throw_adhoc(tc, "Flattened named args must be objects");
                     }
-                    MVM_fixed_size_free(tc, tc->instance->fsa,
-                        sizeof(MVMCallsite *) * rs->expected_callsites,
-                        callsites);
-                    MVM_exception_throw_adhoc(tc, "Flattened positional args must be objects");
+                    has_flattening = 1;
+                    nameds_slots++;
                 }
-                if (nameds_slots) {
-                    MVMuint32 k;
-                    for (k = 0; k <= i; k++) {
-                        if (!callsites[i]->is_interned) {
-                            MVM_free(callsites[i]->arg_flags);
-                            MVM_free_null(callsites[i]);
+                else {
+                    if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ)) {
+                        MVMuint32 k;
+                        for (k = 0; k <= i; k++) {
+                            if (!callsites[i]->is_interned) {
+                                MVM_free(callsites[i]->arg_flags);
+                                MVM_free_null(callsites[i]);
+                            }
                         }
+                        MVM_fixed_size_free(tc, tc->instance->fsa,
+                            sizeof(MVMCallsite *) * rs->expected_callsites,
+                            callsites);
+                        MVM_exception_throw_adhoc(tc, "Flattened positional args must be objects");
                     }
-                    MVM_fixed_size_free(tc, tc->instance->fsa,
-                        sizeof(MVMCallsite *) * rs->expected_callsites,
-                        callsites);
-                    MVM_exception_throw_adhoc(tc, "Flattened positional args must appear before named args");
+                    if (nameds_slots) {
+                        MVMuint32 k;
+                        for (k = 0; k <= i; k++) {
+                            if (!callsites[i]->is_interned) {
+                                MVM_free(callsites[i]->arg_flags);
+                                MVM_free_null(callsites[i]);
+                            }
+                        }
+                        MVM_fixed_size_free(tc, tc->instance->fsa,
+                            sizeof(MVMCallsite *) * rs->expected_callsites,
+                            callsites);
+                        MVM_exception_throw_adhoc(tc, "Flattened positional args must appear before named args");
+                    }
+                    has_flattening = 1;
+                    positionals++;
                 }
-                has_flattening = 1;
-                positionals++;
             }
             else if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT_NAMED) {
                 if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ)) {

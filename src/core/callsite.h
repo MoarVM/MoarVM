@@ -132,7 +132,7 @@ MVM_STATIC_INLINE MVMuint16 MVM_callsite_num_nameds(MVMThreadContext *tc, const 
     MVMuint16 i = cs->num_pos;
     MVMuint16 nameds = 0;
     while (i < cs->flag_count) {
-        if (!(cs->arg_flags[i] & MVM_CALLSITE_ARG_FLAT_NAMED))
+        if (!(cs->arg_flags[i] & (MVM_CALLSITE_ARG_FLAT_NAMED | MVM_CALLSITE_ARG_FLAT)))
             nameds++;
         i++;
     }
