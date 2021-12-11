@@ -912,23 +912,6 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
                     positionals++;
                 }
             }
-            else if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT_NAMED) {
-                if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ)) {
-                    MVMuint32 k;
-                    for (k = 0; k <= i; k++) {
-                        if (!callsites[i]->is_interned) {
-                            MVM_free(callsites[i]->arg_flags);
-                            MVM_free_null(callsites[i]);
-                        }
-                    }
-                    MVM_fixed_size_free(tc, tc->instance->fsa,
-                        sizeof(MVMCallsite *) * rs->expected_callsites,
-                        callsites);
-                    MVM_exception_throw_adhoc(tc, "Flattened named args must be objects");
-                }
-                has_flattening = 1;
-                nameds_slots++;
-            }
             else if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_NAMED) {
                 nameds_slots += 2;
                 nameds_non_flattening++;

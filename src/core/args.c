@@ -113,20 +113,6 @@ MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCa
                 num_args += (MVMuint16)elems;
             }
         }
-        else if (flag & MVM_CALLSITE_ARG_FLAT_NAMED) {
-            /* Named flattening. */
-            MVMObject *hash = source[map[i]].o;
-            if (REPR(hash)->ID != MVM_REPR_ID_MVMHash || !IS_CONCRETE(hash))
-                MVM_exception_throw_adhoc(tc,
-                        "Argument flattening hash must be a concrete VMHash");
-            MVMint64 elems = REPR(hash)->elems(tc, STABLE(hash), hash, OBJECT_BODY(hash));
-            if (elems > MVM_ARGS_LIMIT)
-                MVM_exception_throw_adhoc(tc,
-                        "Flattened hash has %"PRId64" elements, but argument lists are limited to %"PRId32"",
-                        elems, MVM_ARGS_LIMIT);
-            flatten_counts[i] = (MVMuint16)elems;
-            num_args += (MVMuint16)elems;
-        }
         else if (flag & MVM_CALLSITE_ARG_NAMED) {
             /* Named arg. */
             num_args++;
@@ -227,54 +213,6 @@ MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCa
                             break;
                     }
                     cur_new_arg++;
-                }
-            }
-        }
-        else if (flag & MVM_CALLSITE_ARG_FLAT_NAMED) {
-            /* Named flattening. Hash randomization means that iterating the
-             * hash can produce many orders of the same keys, which will ruin
-             * our hit rate on the callsite intern cache (and in turn cause
-             * fake megamorphic blowups at callsites). Thus we sort the keys;
-             * by hash code shall suffice, since collisions are unlikely. */
-            MVMuint32 limit = flatten_counts[i];
-            if (limit == 0)
-                continue;
-            ArgNameAndValue *anv = alloca(limit * sizeof(ArgNameAndValue));
-            MVMObject *hash = source[map[i]].o;
-            MVMHashBody *body = &((MVMHash *)hash)->body;
-            MVMStrHashTable *hashtable = &(body->hashtable);
-            MVMStrHashIterator iterator = MVM_str_hash_first(tc, hashtable);
-            MVMuint32 seen = 0;
-            while (seen < limit && /* Defend against hash changes */
-                    !MVM_str_hash_at_end(tc, hashtable, iterator)) {
-                MVMHashEntry *current = MVM_str_hash_current_nocheck(tc,
-                        hashtable, iterator);
-                anv[seen].name = current->hash_handle.key;
-                anv[seen].value = current->value;
-                seen++;
-                iterator = MVM_str_hash_next(tc, hashtable, iterator);
-            }
-            qsort(anv, seen, sizeof(ArgNameAndValue), key_sort_by_hash);
-            MVMuint32 j;
-            for (j = 0; j < seen; j++) {
-                MVMString *arg_name = anv[j].name;
-                MVMint32 already_index = callsite_name_index(tc, record, cur_new_name,
-                        arg_name);
-                if (already_index < 0) {
-                    /* Didn't see this name yet, so add to callsite and args. */
-                    record->produced_cs.arg_flags[cur_new_arg] =
-                            MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
-                    record->arg_info.source[cur_new_arg].o = anv[j].value;
-                    cur_new_arg++;
-                    record->produced_cs.arg_names[cur_new_name] = arg_name;
-                    cur_new_name++;
-                }
-                else {
-                    /* New value for an existing name; replace the value and
-                     * ensure correct type flag. */
-                    record->produced_cs.arg_flags[already_index] =
-                            MVM_CALLSITE_ARG_NAMED | MVM_CALLSITE_ARG_OBJ;
-                    record->arg_info.source[already_index].o = anv[j].value;
                 }
             }
         }

@@ -22,9 +22,6 @@ typedef enum {
 
     /* Argument is flattened. What this means is up to the target. */
     MVM_CALLSITE_ARG_FLAT = 64,
-
-    /* Argument is flattened and named. */
-    MVM_CALLSITE_ARG_FLAT_NAMED = 128
 } MVMCallsiteFlags;
 
 /* Callsites that are used within the VM. */
@@ -132,7 +129,7 @@ MVM_STATIC_INLINE MVMuint16 MVM_callsite_num_nameds(MVMThreadContext *tc, const 
     MVMuint16 i = cs->num_pos;
     MVMuint16 nameds = 0;
     while (i < cs->flag_count) {
-        if (!(cs->arg_flags[i] & (MVM_CALLSITE_ARG_FLAT_NAMED | MVM_CALLSITE_ARG_FLAT)))
+        if (!(cs->arg_flags[i] & MVM_CALLSITE_ARG_FLAT))
             nameds++;
         i++;
     }
