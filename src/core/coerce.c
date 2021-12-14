@@ -344,10 +344,10 @@ MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
 MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag) {
     MVMObject *result;
     MVMint64 zvalue = 0;
-    MVMint64 zbase  = 1;
     MVMint64 chars  = MVM_string_graphs(tc, str);
     MVMint64 value  = zvalue;
-    MVMint64 base   = zbase;
+    MVMuint32 chars_converted = 0;
+    MVMuint32 chars_really_converted = chars_converted;
     MVMint64   pos  = -1;
     MVMuint16  neg  = 0;
     MVMint64   ch;
@@ -384,9 +384,9 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
         else break;
         if (ch >= radix) break;
         zvalue = zvalue * radix + ch;
-        zbase = zbase * radix;
         offset++; pos = offset;
-        if (ch != 0 || !(flag & 0x04)) { value=zvalue; base=zbase; }
+        chars_converted++;
+        if (ch != 0 || !(flag & 0x04)) { value=zvalue; chars_really_converted = chars_converted; }
         if (offset >= chars) break;
         ch = MVM_string_get_grapheme_at_nocheck(tc, str, offset);
         if (ch != '_') continue;
@@ -404,7 +404,7 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
         MVMROOT(tc, box_type, {
             MVMObject *boxed = MVM_repr_box_int(tc, box_type, value);
             MVM_repr_push_o(tc, result, boxed);
-            boxed = MVM_repr_box_int(tc, box_type, base);
+            boxed = MVM_repr_box_int(tc, box_type, chars_really_converted);
             MVM_repr_push_o(tc, result, boxed);
             boxed = MVM_repr_box_int(tc, box_type, pos);
             MVM_repr_push_o(tc, result, boxed);
