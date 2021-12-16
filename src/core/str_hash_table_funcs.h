@@ -24,8 +24,14 @@ MVM_STATIC_INLINE MVMuint32 MVM_str_hash_allocated_items(const struct MVMStrHash
     assert(!(control->cur_items == 0 && control->max_items == 0));
     return MVM_str_hash_official_size(control) + control->max_probe_distance_limit - 1;
 }
+/* Returns the number of buckets that the hash is using. This can be lower than
+ * the number of buckets allocated, as the last bucket that can be used is at
+ * max_probe_distance - 1, whereas buckets are allocated up to
+ * max_probe_distance_limit - 1. And if the hash is empty, it can't be using
+ * any buckets. As the name is meant to imply, this function is private. */
 MVM_STATIC_INLINE MVMuint32 MVM_str_hash_kompromat(const struct MVMStrHashTableControl *control) {
-    assert(!(control->cur_items == 0 && control->max_items == 0));
+    if (MVM_UNLIKELY(control->cur_items == 0))
+        return 0;
     return MVM_str_hash_official_size(control) + control->max_probe_distance - 1;
 }
 MVM_STATIC_INLINE MVMuint8 *MVM_str_hash_metadata(const struct MVMStrHashTableControl *control) {
