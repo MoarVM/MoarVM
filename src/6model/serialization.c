@@ -523,24 +523,27 @@ static int cmp_strings(const void *s1, const void *s2) {
 }
 static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *writer, MVMObject *hash) {
     MVMuint32 elems = (MVMuint32)MVM_repr_elems(tc, hash);
-    MVMString **keys = MVM_malloc(sizeof(MVMString *) * elems);
-    MVMObject *iter = MVM_iter(tc, hash);
-    MVMuint64 i = 0;
 
     /* Write out element count. */
     MVM_serialization_write_int(tc, writer, elems);
 
-    /* Write elements, as key,value,key,value etc. */
-    while (MVM_iter_istrue(tc, (MVMIter *)iter)) {
-        MVM_repr_shift_o(tc, iter);
-        keys[i++] = MVM_iterkey_s(tc, (MVMIter *)iter);
+    if (elems) {
+        MVMString **keys = MVM_malloc(sizeof(MVMString *) * elems);
+        MVMObject *iter = MVM_iter(tc, hash);
+        MVMuint64 i = 0;
+
+        /* Write elements, as key,value,key,value etc. */
+        while (MVM_iter_istrue(tc, (MVMIter *)iter)) {
+            MVM_repr_shift_o(tc, iter);
+            keys[i++] = MVM_iterkey_s(tc, (MVMIter *)iter);
+        }
+        qsort(keys, elems, sizeof(MVMString*), cmp_strings);
+        for (i = 0; i < elems; i++) {
+            MVM_serialization_write_str(tc, writer, keys[i]);
+            MVM_serialization_write_ref(tc, writer, MVM_repr_at_key_o(tc, hash, keys[i]));
+        }
+        MVM_free(keys);
     }
-    qsort(keys, elems, sizeof(MVMString*), cmp_strings);
-    for (i = 0; i < elems; i++) {
-        MVM_serialization_write_str(tc, writer, keys[i]);
-        MVM_serialization_write_ref(tc, writer, MVM_repr_at_key_o(tc, hash, keys[i]));
-    }
-    MVM_free(keys);
 }
 
 /* Writes a reference to a code object in some SC. */

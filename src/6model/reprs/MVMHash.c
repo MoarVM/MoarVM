@@ -187,16 +187,18 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         MVM_oops(tc, "deserialize on MVMHash that is already initialized");
     }
     MVMint64 elems = MVM_serialization_read_int(tc, reader);
-    MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry), elems);
-    MVMint64 i;
-    for (i = 0; i < elems; i++) {
-        MVMString *key = MVM_serialization_read_str(tc, reader);
-        if (!MVM_str_hash_key_is_valid(tc, key)) {
-            MVM_str_hash_key_throw_invalid(tc, key);
-        }
-        MVMObject *value = MVM_serialization_read_ref(tc, reader);
-        MVMHashEntry *entry = MVM_str_hash_insert_nocheck(tc, hashtable, key);
-        MVM_ASSIGN_REF(tc, &(root->header), entry->value, value);
+    if (elems) {
+        MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry), elems);
+        MVMint64 i = 0;
+        do {
+            MVMString *key = MVM_serialization_read_str(tc, reader);
+            if (!MVM_str_hash_key_is_valid(tc, key)) {
+                MVM_str_hash_key_throw_invalid(tc, key);
+            }
+            MVMObject *value = MVM_serialization_read_ref(tc, reader);
+            MVMHashEntry *entry = MVM_str_hash_insert_nocheck(tc, hashtable, key);
+            MVM_ASSIGN_REF(tc, &(root->header), entry->value, value);
+        } while (++i < elems);
     }
 }
 
