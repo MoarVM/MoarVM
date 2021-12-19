@@ -1140,13 +1140,14 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
 
                 int box_return_value = 0;
                 int has_return_value = (ins->info->opcode != MVM_OP_dispatch_v);
+                int undef_return_value = 0;
                 if (ins->info->opcode == MVM_OP_dispatch_o && body) {
                     /* Let's see if we can turn it into a more JITable instruction */
                     switch (body->ret_type & MVM_NATIVECALL_ARG_TYPE_MASK) {
                         case MVM_NATIVECALL_ARG_VOID:
                             base_op = MVM_op_get_op(MVM_OP_sp_runnativecall_v);
-                            keep_result_register = 0;
                             has_return_value = 0;
+                            undef_return_value = 1;
                             break;
                         case MVM_NATIVECALL_ARG_CHAR:
                         case MVM_NATIVECALL_ARG_SHORT:
@@ -1250,6 +1251,13 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                             rw_operands[j]);
                         MVM_spesh_manipulate_release_temp_reg(tc, g, rw_operands[j]);
                     }
+                }
+
+                if (undef_return_value) {
+                    emit_bi_op(tc, g, bb->linear_next, &post_call_instructions, MVM_OP_set,
+                        ins->operands[0],
+                        rb_ins->operands[2]);
+                    MVM_spesh_get_facts(tc, g, post_call_instructions->operands[0])->writer = post_call_instructions;
                 }
 
                 if (box_return_value) {
