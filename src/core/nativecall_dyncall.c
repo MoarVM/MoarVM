@@ -605,7 +605,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
         MVM_gc_mark_thread_blocked(tc);
         if (result) {
             /* We are calling a C++ constructor so we hand back the invocant (THIS) we recorded earlier. */
-            dcCallVoid(vm, body->entry_point);
+            dcCallVoid(vm, entry_point);
             MVM_gc_mark_thread_unblocked(tc);
         }
         else {
@@ -663,36 +663,36 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 case MVM_NATIVECALL_ARG_UTF16STR: {
                     char *native_result = (char *)dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
-                    result = MVM_nativecall_make_str(tc, res_type, body->ret_type,
+                    result = MVM_nativecall_make_str(tc, res_type, ret_type,
                         native_result);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CSTRUCT: {
-                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    void *native_result = dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_cstruct(tc, res_type, native_result);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CPPSTRUCT: {
-                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    void *native_result = dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_cppstruct(tc, res_type, native_result);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CPOINTER: {
-                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    void *native_result = dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_cpointer(tc, res_type, native_result);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CARRAY: {
-                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    void *native_result = dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_carray(tc, res_type, native_result);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CUNION: {
-                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    void *native_result = dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_cunion(tc, res_type, native_result);
                     break;
@@ -701,7 +701,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     /* TODO: A callback -return- value means that we have a C method
                     * that needs to be wrapped similarly to a is native(...) Perl 6
                     * sub. */
-                    dcCallPointer(vm, body->entry_point);
+                    dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = res_type;
                     break;
@@ -1120,7 +1120,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
         MVM_gc_mark_thread_blocked(tc);
         if (result) {
             /* We are calling a C++ constructor so we hand back the invocant (THIS) we recorded earlier. */
-            dcCallVoid(vm, body->entry_point);
+            dcCallVoid(vm, entry_point);
             MVM_gc_mark_thread_unblocked(tc);
             MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
         }
@@ -1187,14 +1187,14 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                 case MVM_NATIVECALL_ARG_UTF16STR: {
                     char *native_result = (char *)dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
-                    result = MVM_nativecall_make_str(tc, res_type, body->ret_type,
+                    result = MVM_nativecall_make_str(tc, res_type, ret_type,
                         native_result);
                     update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
                     MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CSTRUCT: {
-                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    void *native_result = dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_cstruct(tc, res_type, native_result);
                     update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
@@ -1202,7 +1202,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CPPSTRUCT: {
-                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    void *native_result = dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_cppstruct(tc, res_type, native_result);
                     update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
@@ -1210,7 +1210,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CPOINTER: {
-                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    void *native_result = dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     if (tc->cur_frame->return_type == MVM_RETURN_INT) {
                         update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
@@ -1224,7 +1224,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CARRAY: {
-                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    void *native_result = dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_carray(tc, res_type, native_result);
                     update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
@@ -1232,7 +1232,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CUNION: {
-                    void *native_result = dcCallPointer(vm, body->entry_point);
+                    void *native_result = dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = MVM_nativecall_make_cunion(tc, res_type, native_result);
                     update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
@@ -1243,7 +1243,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     /* TODO: A callback -return- value means that we have a C method
                     * that needs to be wrapped similarly to a is native(...) Perl 6
                     * sub. */
-                    dcCallPointer(vm, body->entry_point);
+                    dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     result = res_type;
                     update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
