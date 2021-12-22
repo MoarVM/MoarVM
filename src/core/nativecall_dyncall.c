@@ -1132,6 +1132,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     MVM_gc_mark_thread_unblocked(tc);
                     result = res_type;
                     update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
+                    MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
                     break;
                 case MVM_NATIVECALL_ARG_CHAR: {
                     MVMint64 native_result = (signed char)dcCallChar(vm, entry_point);
