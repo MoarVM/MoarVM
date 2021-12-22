@@ -439,7 +439,7 @@ void MVM_nativecall_setup(MVMThreadContext *tc, MVMNativeCallBody *body, unsigne
 
 /* Builds up a native call site out of the supplied arguments. */
 MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *lib,
-        MVMString *sym, MVMString *conv, MVMObject *arg_info, MVMObject *ret_info) {
+        MVMString *sym, MVMString *conv, MVMObject *in_arg_info, MVMObject *ret_info) {
     char *lib_name = MVM_string_utf8_c8_encode_C_string(tc, lib);
     char *sym_name = MVM_string_utf8_c8_encode_C_string(tc, sym);
     MVMint8  keep_sym_name = 0;
@@ -487,26 +487,29 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
     body->convention = MVM_nativecall_get_calling_convention(tc, conv);
 
     /* Transform each of the args info structures into a flag. */
-    body->num_args  = MVM_repr_elems(tc, arg_info);
-    body->arg_types = MVM_malloc(sizeof(MVMint16) * (body->num_args ? body->num_args : 1));
-    body->arg_info  = MVM_malloc(sizeof(MVMObject *) * (body->num_args ? body->num_args : 1));
+    MVMint16 num_args  = MVM_repr_elems(tc, in_arg_info);
+    MVMint16   *arg_types = MVM_malloc(sizeof(MVMint16) * (num_args ? num_args : 1));
+    MVMObject **arg_info  = MVM_malloc(sizeof(MVMObject *) * (num_args ? num_args : 1));
 #ifdef HAVE_LIBFFI
-    body->ffi_arg_types = MVM_malloc(sizeof(ffi_type *) * (body->num_args ? body->num_args : 1));
+    body->ffi_arg_types = MVM_malloc(sizeof(ffi_type *) * (num_args ? num_args : 1));
 #endif
-    for (i = 0; i < body->num_args; i++) {
-        MVMObject *info = MVM_repr_at_pos_o(tc, arg_info, i);
-        body->arg_types[i] = MVM_nativecall_get_arg_type(tc, info, 0);
+    for (i = 0; i < num_args; i++) {
+        MVMObject *info = MVM_repr_at_pos_o(tc, in_arg_info, i);
+        arg_types[i] = MVM_nativecall_get_arg_type(tc, info, 0);
 #ifdef HAVE_LIBFFI
-        body->ffi_arg_types[i] = MVM_nativecall_get_ffi_type(tc, body->arg_types[i]);
+        body->ffi_arg_types[i] = MVM_nativecall_get_ffi_type(tc, arg_types[i]);
 #endif
-        if(body->arg_types[i] == MVM_NATIVECALL_ARG_CALLBACK) {
-            MVM_ASSIGN_REF(tc, &(site->header), body->arg_info[i],
+        if(arg_types[i] == MVM_NATIVECALL_ARG_CALLBACK) {
+            MVM_ASSIGN_REF(tc, &(site->header), arg_info[i],
                 MVM_repr_at_key_o(tc, info, tc->instance->str_consts.callback_args));
         }
         else {
-            body->arg_info[i]  = NULL;
+            arg_info[i]  = NULL;
         }
     }
+    body->arg_types = arg_types;
+    body->arg_info  = arg_info;
+    body->num_args  = num_args; /* ensure we have properly populated arrays before setting num */
 
     /* Transform return argument type info a flag. */
     body->ret_type     = MVM_nativecall_get_arg_type(tc, ret_info, 1);

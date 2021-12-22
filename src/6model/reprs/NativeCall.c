@@ -115,8 +115,8 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         body->convention = MVM_serialization_read_int(tc, reader);
         body->num_args = MVM_serialization_read_int(tc, reader);
         body->ret_type = MVM_serialization_read_int(tc, reader);
-        body->arg_types = MVM_malloc(body->num_args * sizeof(MVMint16));
-        body->arg_info  = MVM_malloc(body->num_args * sizeof(MVMObject*));
+        body->arg_types = body->num_args ? MVM_malloc(body->num_args * sizeof(MVMint16)) : NULL;
+        body->arg_info  = body->num_args ? MVM_malloc(body->num_args * sizeof(MVMObject*)) : NULL;
         /* TODO ffi support */
         for (i = 0; i < body->num_args; i++) {
             body->arg_types[i] = MVM_serialization_read_int(tc, reader);
