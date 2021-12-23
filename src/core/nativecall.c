@@ -509,6 +509,7 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
     }
     body->arg_types = arg_types;
     body->arg_info  = arg_info;
+    MVM_barrier();
     body->num_args  = num_args; /* ensure we have properly populated arrays before setting num */
 
     /* Transform return argument type info a flag. */
