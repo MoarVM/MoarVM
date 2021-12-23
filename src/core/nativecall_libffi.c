@@ -670,7 +670,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     char *ret;
                     ffi_call(&cif, entry_point, &ret, values);
                     MVM_gc_mark_thread_unblocked(tc);
-                    result = MVM_nativecall_make_str(tc, res_type, body->ret_type, ret);
+                    result = MVM_nativecall_make_str(tc, res_type, ret_type, ret);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_CSTRUCT:
@@ -1167,7 +1167,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     char *ret;
                     ffi_call(&cif, entry_point, &ret, values);
                     MVM_gc_mark_thread_unblocked(tc);
-                    result = MVM_nativecall_make_str(tc, res_type, body->ret_type, ret);
+                    result = MVM_nativecall_make_str(tc, res_type, ret_type, ret);
                     update_rws(tc, values, num_args, arg_types, args, interval_id);
                     MVM_args_set_dispatch_result_obj(tc, tc->cur_frame, result);
                     break;
