@@ -1,3 +1,69 @@
+New in 2021.12
+
+Core:
++ Allocate frame work and, when possible, environment registers on the
+  callstack [fd571614][9266e794][7eca0ed3][d83edbea]
++ Negative numbers should not be prime [1bd61725]
++ Fix segfaults when a frame has more than 8192 locals [24392a32]
++ Some small optimizations for frame allocation [9903a543][fcddd121]
+  [4d145b46][93809811]
++ When NativeCall is libffi, copy `ffi_ret_type` and `ffi_arg_types`
+  [a2a82f99]
++ When NativeCall is libffi, don't leak ffi_arg_types during GC [a3c17d0f]
++ Avoid thread safety issues in intern lookups [08d41d5e]
++ Fix threading issues caused by misalignment in --valgrind builds
+  [ea5a86a1]
++ Remove counter productive NULL checks in decont ops [8aca849f]
++ Dispatcher replace arg syscall [68b8f429][ed0c8ec0][4cdce310][0a5b37a1]
++ Migrate special return to callstack and simplify return handling
+  [05b34685][485ca825][f58cf69f][139f54aa][feba1cd5][3f45b234][8e197406]
+  [776a1e3c][4adf3a2c][ce19abf2][0f43204e][2f423b20][b8e90bf8][cb7deb4b]
+  [843cf0f3][cd3b759b][f2685cd9][9f22ccc2]
++ Mark nqp::radix as :pure [9d5bcfc5]
++ New disp nativecall [e3614b05][8b33b49a][1eb6bd4c][58cb30a8]
+  [3f6ffa19][3881e22e][7dd49341][d44be4f2][2acd842a][b0b0638e][a9c3db5d]
+  [7de49439][ece63176][40267983][8aac4bf7][d5956209][5b477341][e403ec59]
+  [21f6f323][87442f53][ee404907][960d87db][1e0d70c4][2e2f6607][4fd9c73a]
+  [cfcab847][d843f4ab][cd9541be][9bbd50cd][795d75ed][785d3e03][e1b5e35d]
+  [c451fede][35963970][45692bbc]
++ Properly extend int return values of native calls to 64 bits [bd83921d]
++ Fix use of uninitialized memory in native callbacks with libffi
+  [0006714d]
++ Close socket on async error during an async connection [2a124542]
++ Fix various callstack region record related failures [e7e0bdc0][469bf913]
+  [6903c952][c15c093d]
++ Alloca the nativecall args that we can [5503065c]
++ Deserialize empty hashes robustly [c1e8775f][2fa51c61][0a674c8c]
++ Fix segfaults due to race condition when initializing native call sites
+  [207db4bb]
++ Fix segfault with void native calls [fd6a4103][768228b3]
+
+GC:
++ Fix possible access to fromspace in code_pair_configure_container_spec
+  [cd809ee4][0821570a]
++ Fix possible access to fromspace after MVM_capture_replace_arg [81082e1c]
++ Fix possible access to fromspace in MVM_disp_program_run [6fd62329]
++ Fix possible access to fromspace in native calls [f4aa22ad]
++ Fix possible access to fromspace when autoboxing return values [f0e4b08c]
+
+JIT:
++ Improve the jit implementation of nqp::abs_i [52c4a6d7]
++ Use callp instead of call in jit of new(mixin)type [ba03cb2e]
++ Lego JIT of getcurhllsym [4c3f4cde]
++ Fix race conditions in JIT compiled dispatches [4c6755f4]
++ Fix JITed return from nested runloops [8a91bf8e]
+
+Spesh:
++ Eliminate hllbool/boot-boolify-boxed-int pairs in spesh [14a8befd]
++ show annotation for delayed temps in spesh log [10e5344c]
++ Fix invalid pred chain caused by MVM_spesh_manipulate_split_BB_at
+  [44c88da7]
++ Fix out of bounds read of PHI facts in spesh [8a684b33]
++ Fix uninitialized register after PEA and inlining [bb719a63]
+
+Strings:
++ Use alloca in MVM_string_memmem_grapheme32str... [9a37bb61]
+
 New in 2021.10
 
 Special:
