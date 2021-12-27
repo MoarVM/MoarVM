@@ -20,3 +20,7 @@
 	path = 3rdparty/ryu
 	url = https://github.com/MoarVM/ryu
 	ignore = untracked
+[submodule "3rdparty/mimalloc"]
+	path = 3rdparty/mimalloc
+	url = https://github.com/microsoft/mimalloc.git
+	ignore = untracked
