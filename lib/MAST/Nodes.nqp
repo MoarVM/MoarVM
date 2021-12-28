@@ -74,7 +74,7 @@ class MAST::Bytecode is repr('VMArray') is array_type(uint8) {
     method write_buf(@buf) {
         nqp::splice(self, @buf, nqp::elems(self), 0);
     }
-    method write_buf_at(@buf, int $offset) {
+    method write_buf_at(@buf, uint $offset) {
         nqp::splice(self, @buf, $offset, 0);
     }
     method dump() {
@@ -455,7 +455,7 @@ class MAST::ExtOp is MAST::Node {
 
     method new_with_operand_array(@operands, str :$op!, :$cu!) {
         my $bytecode := $*MAST_FRAME.bytecode;
-        my int $op_code := $cu.get_extop_code($op);
+        my uint $op_code := $cu.get_extop_code($op);
 
         my @extop_sigs := nqp::getattr($*MAST_FRAME.compunit, MAST::CompUnit, '@!extop_sigs');
         nqp::die("Invalid extension op $op specified")
@@ -563,7 +563,7 @@ class MoarVM::Handler {
     method set_label_reg($l) { $!label_reg := $l }
     method local()           { $!local }
     method set_local($l)     { $!local := $l }
-    method add-offset(int32 $offset, int32 $after) {
+    method add-offset(uint32 $offset, uint32 $after) {
         $!start_offset := $!start_offset + $offset if $!start_offset >= $after;
         $!end_offset := $!end_offset + $offset if $!end_offset >= $after;
     }
@@ -710,9 +710,9 @@ class MAST::Frame is MAST::Node {
         $subbuffer
     }
 
-    method insert_bytecode($subbuffer, int32 $insert_offset) {
+    method insert_bytecode($subbuffer, uint32 $insert_offset) {
         my $subbytecode := $subbuffer.bytecode;
-        my int32 $offset := nqp::elems($subbytecode);
+        my uint32 $offset := nqp::elems($subbytecode);
         # if there's a label at $insert_offset and there's already an instruction, we assume
         # that we need to move the label with the instruction. If there's just a label but
         # no instruction yet, we assume the label was meant for the inserted instruction.
@@ -720,8 +720,8 @@ class MAST::Frame is MAST::Node {
 
         my $iter := nqp::iterator(@!child-label-fixups);
         while $iter {
-            my int32 $at := nqp::shift_i($iter);
-            my int32 $pos := $!bytecode.read_uint32_at($at);
+            my uint32 $at := nqp::shift_i($iter);
+            my uint32 $pos := $!bytecode.read_uint32_at($at);
             if $include_pos ?? $pos >= $insert_offset !! $pos > $insert_offset {
                 $pos := $pos + $offset;
                 $!bytecode.write_uint32_at($pos, $at);
@@ -729,14 +729,14 @@ class MAST::Frame is MAST::Node {
         }
         $iter := nqp::iterator($subbuffer.label-fixups);
         while $iter {
-            my int32 $at := nqp::shift_i($iter);
-            my int32 $pos := $subbytecode.read_uint32_at($at);
+            my uint32 $at := nqp::shift_i($iter);
+            my uint32 $pos := $subbytecode.read_uint32_at($at);
             $pos := $pos + $insert_offset;
             $subbytecode.write_uint32_at($pos, $at);
             nqp::push_i(@!child-label-fixups, $at + $insert_offset); # for nested subbuffers
         }
         for %!labels {
-            my int32 $pos := nqp::iterval($_);
+            my uint32 $pos := nqp::iterval($_);
             if $include_pos ?? $pos >= $insert_offset !! $pos > $insert_offset {
                 $pos := $pos + $offset;
                 %!labels{nqp::iterkey_s($_)} := $pos;
@@ -745,11 +745,11 @@ class MAST::Frame is MAST::Node {
         for @!handlers {
             $_.add-offset($offset, $insert_offset);
         }
-        my int32 $at := $!annotations-offset;
-        my int32 $end := $subbuffer.annotations-offset;
-        my int32 $ann-size := 3 * 4;
+        my uint32 $at := $!annotations-offset;
+        my uint32 $end := $subbuffer.annotations-offset;
+        my uint32 $ann-size := 3 * 4;
         while $at < $end {
-            my int32 $pos := $!annotations.read_uint32_at($at);
+            my uint32 $pos := $!annotations.read_uint32_at($at);
             if $pos >= $insert_offset {
                 $pos := $pos + $offset;
                 $!annotations.write_uint32_at($pos, $at);
@@ -761,13 +761,14 @@ class MAST::Frame is MAST::Node {
             for $subbuffer.labels {
                 %!labels{nqp::iterkey_s($_)} := nqp::iterval($_) + $insert_offset;
             }
+            my uint $zero := 0;
             for $subbuffer.handlers {
-                $_.add-offset($insert_offset, 0);
+                $_.add-offset($insert_offset, $zero);
                 nqp::push(@!handlers, $_);
             }
             $end := $subbuffer.annotations-end;
             while $at < $end {
-                my int32 $pos := $!annotations.read_uint32_at($at);
+                my uint32 $pos := $!annotations.read_uint32_at($at);
                 $pos := $pos + $insert_offset;
                 $!annotations.write_uint32_at($pos, $at);
                 $at := $at + $ann-size;
@@ -1021,7 +1022,7 @@ class MAST::Frame is MAST::Node {
     }
 
     method add-label(MAST::Label $i) {
-        my int $pos := nqp::elems($!bytecode);
+        my uint $pos := nqp::elems($!bytecode);
         my str $key := $i.id;
         if %!labels{$key} {
             nqp::die("Duplicate label at $pos");
@@ -1030,7 +1031,7 @@ class MAST::Frame is MAST::Node {
         if nqp::existskey(%!label-fixups, $key) {
             my $iter := nqp::iterator(%!label-fixups{$key});
             while $iter {
-                $!bytecode.write_uint32_at($pos, nqp::shift_i($iter));
+                $!bytecode.write_uint32_at($pos, my uint32 $id := nqp::shift_i($iter));
             }
         }
     }
@@ -1058,17 +1059,17 @@ class MAST::Frame is MAST::Node {
                 ?? %label-fixups{$key}
                 !! (%label-fixups{$key} := nqp::list_i);
             nqp::push_i(@fixups, nqp::elems($bytecode));
-            $bytecode.write_uint32(0);
+            $bytecode.write_uint32(my uint $zero := 0);
         }
     }
     method compile_operand($bytecode, int $rw, int $type, $arg) {
         if $rw == nqp::const::MVM_OPERAND_LITERAL {
             if $type == nqp::const::MVM_OPERAND_INT64 {
-                my int $value := nqp::unbox_i($arg);
+                my uint $value := nqp::unbox_i($arg);
                 $bytecode.write_uint64($value);
             }
             elsif $type == nqp::const::MVM_OPERAND_INT16 {
-                my int $value := nqp::unbox_i($arg);
+                my uint $value := nqp::unbox_i($arg);
                 if $value < -32768 || 32767 < $value {
                     nqp::die("Value outside range of 16-bit MAST::IVal");
                 }
@@ -1086,7 +1087,7 @@ class MAST::Frame is MAST::Node {
             elsif $type == nqp::const::MVM_OPERAND_CODEREF {
                 nqp::die("Expected MAST::Frame, but didn't get one")
                     unless $arg.isa(MAST::Frame);
-                my $index := self.writer.get_frame_index($arg);
+                my uint16 $index := self.writer.get_frame_index($arg);
                 $bytecode.write_uint16($index);
             }
             else {
@@ -1098,7 +1099,7 @@ class MAST::Frame is MAST::Node {
                 unless $arg.isa(MAST::Local);
 
             my @local_types := self.local_types;
-            my int $index := nqp::unbox_i($arg);
+            my uint $index := nqp::unbox_u($arg);
             if $index > nqp::elems(@local_types) {
                 nqp::die("MAST::Local index out of range");
             }
@@ -1120,7 +1121,7 @@ class MAST::Frame is MAST::Node {
         }
     }
     method add-annotation(:$file, :$line) {
-        $!annotations.write_uint32(nqp::elems($!bytecode));
+        $!annotations.write_uint32(my uint $elems := nqp::elems($!bytecode));
         $!annotations.write_uint32(self.add-string($file));
         $!annotations.write_uint32($line);
         $!num-annotations++;
@@ -1141,9 +1142,9 @@ class MAST::Frame is MAST::Node {
             nqp::die('MAST::Local required for HandlerScope with loop label')
                 unless $label.isa(MAST::Local);
             nqp::die('MAST::Local index out of range in HandlerScope')
-                if $label >= nqp::elems(self.local_types);
+                if nqp::unbox_u($label) >= nqp::elems(self.local_types);
             nqp::die('MAST::Local for HandlerScope must be an object')
-                if type_to_local_type(self.local_types()[$label]) != $MVM_reg_obj;
+                if type_to_local_type(self.local_types()[nqp::unbox_u($label)]) != $MVM_reg_obj;
             $handler.set_label_reg($label.index);
         }
         if $action == 2 { # HANDLER_INVOKE
