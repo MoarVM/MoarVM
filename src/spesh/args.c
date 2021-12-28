@@ -478,7 +478,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 case MVM_OP_param_op_u:
                     if (arg_type != MVM_CALLSITE_ARG_UINT)
                         if (arg_type != MVM_CALLSITE_ARG_OBJ ||
-                                !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_INT)) {
+                                !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_UINT64)) {
                             MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
                                     "bailed argument spesh: expected arg flag %ld to be int or box an int; type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
                             goto cleanup;
