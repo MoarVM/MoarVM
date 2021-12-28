@@ -69,6 +69,10 @@ static void dump_recording_values(MVMThreadContext *tc, MVMDispProgramRecording 
                         fprintf(stderr, "    %d Literal int value %"PRId64"\n", i,
                                 v->literal.value.i64);
                         break;
+                    case MVM_CALLSITE_ARG_UINT:
+                        fprintf(stderr, "    %d Literal uint value %"PRIu64"\n", i,
+                                v->literal.value.u64);
+                        break;
                     case MVM_CALLSITE_ARG_NUM:
                         fprintf(stderr, "    %d Literal num value %g\n", i,
                                 v->literal.value.n64);
@@ -708,6 +712,10 @@ static MVMuint32 value_index_constant(MVMThreadContext *tc, MVMDispProgramRecord
                     if (v->literal.value.i64 == value.i64)
                         return i;
                     break;
+                case MVM_CALLSITE_ARG_UINT:
+                    if (v->literal.value.u64 == value.u64)
+                        return i;
+                    break;
                 case MVM_CALLSITE_ARG_NUM:
                     if (v->literal.value.n64 == value.n64)
                         return i;
@@ -1062,6 +1070,7 @@ MVMObject * MVM_disp_program_record_track_attr(MVMThreadContext *tc, MVMObject *
                 attr_value.o = tc->instance->VMNull;
             break;
         case MVM_CALLSITE_ARG_INT:
+        case MVM_CALLSITE_ARG_UINT:
             attr_value.i64 = MVM_p6opaque_read_int64(tc, read_from, offset);
             break;
         case MVM_CALLSITE_ARG_NUM:
@@ -1871,6 +1880,7 @@ void MVM_disp_program_record_result_constant(MVMThreadContext *tc, MVMCallsiteFl
     switch (kind) {
         case MVM_CALLSITE_ARG_OBJ: record->outcome.result_kind = MVM_reg_obj; break;
         case MVM_CALLSITE_ARG_INT: record->outcome.result_kind = MVM_reg_int64; break;
+        case MVM_CALLSITE_ARG_UINT: record->outcome.result_kind = MVM_reg_uint64; break;
         case MVM_CALLSITE_ARG_NUM: record->outcome.result_kind = MVM_reg_num64; break;
         case MVM_CALLSITE_ARG_STR: record->outcome.result_kind = MVM_reg_str; break;
         default: MVM_oops(tc, "Unknown capture value type in boot-constant dispatch");
@@ -1890,6 +1900,7 @@ void MVM_disp_program_record_result_tracked_value(MVMThreadContext *tc, MVMObjec
     switch (((MVMTracked *)tracked)->body.kind) {
         case MVM_CALLSITE_ARG_OBJ: record->outcome.result_kind = MVM_reg_obj; break;
         case MVM_CALLSITE_ARG_INT: record->outcome.result_kind = MVM_reg_int64; break;
+        case MVM_CALLSITE_ARG_UINT: record->outcome.result_kind = MVM_reg_uint64; break;
         case MVM_CALLSITE_ARG_NUM: record->outcome.result_kind = MVM_reg_num64; break;
         case MVM_CALLSITE_ARG_STR: record->outcome.result_kind = MVM_reg_str; break;
         default: MVM_oops(tc, "Unknown capture value type in boot-value dispatch");
@@ -2127,6 +2138,10 @@ static MVMuint32 get_temp_holding_value(MVMThreadContext *tc, compile_state *cs,
                     op.code = MVMDispOpcodeLoadConstantInt;
                     op.load.idx = add_program_constant_int(tc, cs, v->literal.value.i64);
                     break;
+                case MVM_CALLSITE_ARG_UINT:
+                    op.code = MVMDispOpcodeLoadConstantInt;
+                    op.load.idx = add_program_constant_int(tc, cs, v->literal.value.u64);
+                    break;
                 case MVM_CALLSITE_ARG_NUM:
                     op.code = MVMDispOpcodeLoadConstantNum;
                     op.load.idx = add_program_constant_num(tc, cs, v->literal.value.n64);
@@ -2155,6 +2170,7 @@ static MVMuint32 get_temp_holding_value(MVMThreadContext *tc, compile_state *cs,
                     op.code = MVMDispOpcodeLoadAttributeStr;
                     break;
                 case MVM_CALLSITE_ARG_INT:
+                case MVM_CALLSITE_ARG_UINT:
                     op.code = MVMDispOpcodeLoadAttributeInt;
                     break;
                 case MVM_CALLSITE_ARG_NUM:
@@ -2303,6 +2319,7 @@ static void emit_capture_guards(MVMThreadContext *tc, compile_state *cs,
             }
             break;
         case MVM_CALLSITE_ARG_INT:
+        case MVM_CALLSITE_ARG_UINT:
             if (v->guard_literal) {
                 MVMDispProgramOp op;
                 op.code = MVMDispOpcodeGuardArgLiteralInt;
@@ -2394,6 +2411,7 @@ static void emit_loaded_value_guards(MVMThreadContext *tc, compile_state *cs,
             }
             break;
         case MVM_CALLSITE_ARG_INT:
+        case MVM_CALLSITE_ARG_UINT:
             if (v->guard_literal) {
                 MVMDispProgramOp op;
                 op.code = MVMDispOpcodeGuardTempLiteralInt;
@@ -2753,6 +2771,7 @@ static void produce_resumption_init_values(MVMThreadContext *tc, compile_state *
                                     (MVMCollectable *)value->literal.value.o);
                             break;
                         case MVM_CALLSITE_ARG_INT:
+                        case MVM_CALLSITE_ARG_UINT:
                             init->source = MVM_DISP_RESUME_INIT_CONSTANT_INT;
                             init->index = add_program_constant_int(tc, cs,
                                     value->literal.value.i64);

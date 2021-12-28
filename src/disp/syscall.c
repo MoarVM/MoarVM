@@ -846,6 +846,9 @@ static void capture_arg_value_impl(MVMThreadContext *tc, MVMArgs arg_info) {
         case MVM_CALLSITE_ARG_INT:
             MVM_args_set_result_int(tc, value.i64, MVM_RETURN_CURRENT_FRAME);
             break;
+        case MVM_CALLSITE_ARG_UINT:
+            MVM_args_set_result_int(tc, value.u64, MVM_RETURN_CURRENT_FRAME);
+            break;
         case MVM_CALLSITE_ARG_NUM:
             MVM_args_set_result_num(tc, value.n64, MVM_RETURN_CURRENT_FRAME);
             break;

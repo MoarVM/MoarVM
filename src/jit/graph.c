@@ -3796,7 +3796,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                 args[i - 1].v.reg = ins->operands[start + 2 + i].reg.orig;
             }
             else {
-                if (callsite->arg_flags[i] & MVM_CALLSITE_ARG_INT) {
+                if (callsite->arg_flags[i] & (MVM_CALLSITE_ARG_INT | MVM_CALLSITE_ARG_UINT)) {
                     args[i - 1].type = MVM_JIT_REG_VAL;
                     args[i - 1].v.reg = ins->operands[start + 2 + i].reg.orig;
                 }

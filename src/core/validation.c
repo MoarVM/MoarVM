@@ -385,6 +385,9 @@ static void validate_dispatch_args(Validator *val, MVMCallsite *cs) {
             case MVM_CALLSITE_ARG_INT:
                 validate_reg_operand(val, MVM_operand_int64);
                 break;
+            case MVM_CALLSITE_ARG_UINT:
+                validate_reg_operand(val, MVM_operand_uint64);
+                break;
             case MVM_CALLSITE_ARG_NUM:
                 validate_reg_operand(val, MVM_operand_num64);
                 break;

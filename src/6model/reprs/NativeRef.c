@@ -192,7 +192,7 @@ void MVM_nativeref_ensure(MVMThreadContext *tc, MVMObject *type, MVMuint16 wantp
         if (!repr_data)
             MVM_exception_throw_adhoc(tc, "%s set to NativeRef that is not yet composed", guilty);
         if (repr_data->primitive_type != wantprim)
-            MVM_exception_throw_adhoc(tc, "%s set to NativeRef of wrong primitive type", guilty);
+            MVM_exception_throw_adhoc(tc, "%s set to NativeRef of wrong primitive type, got %d, expected %d", guilty, repr_data->primitive_type, wantprim);
         if (repr_data->ref_kind != wantkind)
             MVM_exception_throw_adhoc(tc, "%s set to NativeRef of wrong reference kind", guilty);
     }

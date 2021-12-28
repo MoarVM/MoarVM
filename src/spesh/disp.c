@@ -37,6 +37,9 @@ void MVM_spesh_disp_initialize_dispatch_op_info(MVMThreadContext *tc,
         else if (flag & MVM_CALLSITE_ARG_INT) {
             dispatch_info->operands[operand_index] = MVM_operand_int64;
         }
+        else if (flag & MVM_CALLSITE_ARG_UINT) {
+            dispatch_info->operands[operand_index] = MVM_operand_uint64;
+        }
         else if (flag & MVM_CALLSITE_ARG_NUM) {
             dispatch_info->operands[operand_index] = MVM_operand_num64;
         }
@@ -445,6 +448,8 @@ MVMOpInfo * MVM_spesh_disp_initialize_resumption_op_info(MVMThreadContext *tc,
                 res_info->operands[operand_index] = MVM_operand_obj;
             else if (flag & MVM_CALLSITE_ARG_INT)
                 res_info->operands[operand_index] = MVM_operand_int64;
+            else if (flag & MVM_CALLSITE_ARG_UINT)
+                res_info->operands[operand_index] = MVM_operand_uint64;
             else if (flag & MVM_CALLSITE_ARG_NUM)
                 res_info->operands[operand_index] = MVM_operand_num64;
             else if (flag & MVM_CALLSITE_ARG_STR)

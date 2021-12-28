@@ -166,8 +166,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMCode *callback, MVMObj
                 case MVM_NATIVECALL_ARG_UINT:
                 case MVM_NATIVECALL_ARG_ULONG:
                 case MVM_NATIVECALL_ARG_ULONGLONG:
-                    /* TODO: should probably be UINT, when we can support that. */
-                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_INT;
+                    cs->arg_flags[i - 1] = MVM_CALLSITE_ARG_UINT;
                     break;
                 case MVM_NATIVECALL_ARG_FLOAT:
                 case MVM_NATIVECALL_ARG_DOUBLE:
@@ -1016,7 +1015,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                         arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK, i);
             }
         }
-        else if (args.callsite->arg_flags[i + 1] & MVM_CALLSITE_ARG_INT) {
+        else if (args.callsite->arg_flags[i + 1] & (MVM_CALLSITE_ARG_INT | MVM_CALLSITE_ARG_UINT)) {
             if ((arg_types[i] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
                 dcArgPointer(vm, &args.source[args.map[i + 1]].i64);
             }

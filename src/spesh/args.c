@@ -157,6 +157,12 @@ static void insert_getarg_and_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
                 hlltype_op = MVM_OP_hllboxtype_i;
                 fetch_op = MVM_OP_sp_getarg_i;
                 break;
+            case MVM_CALLSITE_ARG_UINT:
+                unboxed_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_uint64);
+                box_op = MVM_OP_box_u;
+                hlltype_op = MVM_OP_hllboxtype_i;
+                fetch_op = MVM_OP_sp_getarg_i;
+                break;
             case MVM_CALLSITE_ARG_NUM:
                 unboxed_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_num64);
                 box_op = MVM_OP_box_n;
@@ -470,7 +476,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     break;
                 case MVM_OP_param_rp_u:
                 case MVM_OP_param_op_u:
-                    if (arg_type != MVM_CALLSITE_ARG_INT)
+                    if (arg_type != MVM_CALLSITE_ARG_UINT)
                         if (arg_type != MVM_CALLSITE_ARG_OBJ ||
                                 !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_INT)) {
                             MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
@@ -501,7 +507,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 case MVM_OP_param_rp_o:
                 case MVM_OP_param_op_o:
                     if (arg_type != MVM_CALLSITE_ARG_OBJ && arg_type != MVM_CALLSITE_ARG_INT &&
-                        arg_type != MVM_CALLSITE_ARG_NUM && arg_type != MVM_CALLSITE_ARG_STR) {
+                        arg_type != MVM_CALLSITE_ARG_NUM && arg_type != MVM_CALLSITE_ARG_STR &&
+                        arg_type != MVM_CALLSITE_ARG_UINT) {
                         MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
                                 "bailed argument spesh: expected arg flag %ld to be obj or int or num or str", i);
                         goto cleanup;
@@ -651,7 +658,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 break;
             case MVM_OP_param_rp_u:
             case MVM_OP_param_op_u:
-                if (arg_type == MVM_CALLSITE_ARG_INT) {
+                if (arg_type == MVM_CALLSITE_ARG_UINT) {
                     pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
                 }
                 else {
