@@ -21,7 +21,7 @@ struct MVMContainerSpec {
 
     /* Native container stores. */
     void (*store_i) (MVMThreadContext *tc, MVMObject *cont, MVMint64 value);
-    void (*store_u) (MVMThreadContext *tc, MVMObject *cont, MVMint64 value);
+    void (*store_u) (MVMThreadContext *tc, MVMObject *cont, MVMuint64 value);
     void (*store_n) (MVMThreadContext *tc, MVMObject *cont, MVMnum64 value);
     void (*store_s) (MVMThreadContext *tc, MVMObject *cont, MVMString *value);
 

@@ -522,6 +522,10 @@ static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_int_slot];
         return st->REPR->box_funcs.get_int(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot]);
     }
+    else if (repr_data->unbox_uint_slot >= 0) {
+        MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_uint_slot];
+        return st->REPR->box_funcs.get_int(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_uint_slot]);
+    }
     else {
         MVM_exception_throw_adhoc(tc,
             "This type cannot unbox to a native integer: P6opaque, %s", MVM_6model_get_stable_debug_name(tc, st));
@@ -593,13 +597,17 @@ static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
 static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 value) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     data = MVM_p6opaque_real_data(tc, data);
-    if (repr_data->unbox_int_slot >= 0) {
+    if (repr_data->unbox_uint_slot >= 0) {
+        MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_uint_slot];
+        st->REPR->box_funcs.set_uint(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_uint_slot], value);
+    }
+    else if (repr_data->unbox_int_slot >= 0) {
         MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_int_slot];
         st->REPR->box_funcs.set_uint(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot], value);
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "This type cannot box a native integer: P6opaque, %s", MVM_6model_get_stable_debug_name(tc, st));
+            "This type cannot box a native unsigned integer: P6opaque, %s", MVM_6model_get_stable_debug_name(tc, st));
     }
 }
 
@@ -608,13 +616,17 @@ static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
 static MVMuint64 get_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
     data = MVM_p6opaque_real_data(tc, data);
+    if (repr_data->unbox_uint_slot >= 0) {
+        MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_uint_slot];
+        return st->REPR->box_funcs.get_uint(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_uint_slot]);
+    }
     if (repr_data->unbox_int_slot >= 0) {
         MVMSTable *st = repr_data->flattened_stables[repr_data->unbox_int_slot];
         return st->REPR->box_funcs.get_uint(tc, st, root, (char *)data + repr_data->attribute_offsets[repr_data->unbox_int_slot]);
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "This type cannot unbox to a native integer: P6opaque, %s", MVM_6model_get_stable_debug_name(tc, st));
+            "This type cannot unbox to a native unsigned integer: P6opaque, %s", MVM_6model_get_stable_debug_name(tc, st));
     }
 }
 
@@ -656,6 +668,8 @@ static void mk_storage_spec(MVMThreadContext *tc, MVMP6opaqueREPRData * repr_dat
     spec->can_box         = 0;
 
     if (repr_data->unbox_int_slot >= 0)
+        spec->can_box += MVM_STORAGE_SPEC_CAN_BOX_INT;
+    if (repr_data->unbox_uint_slot >= 0)
         spec->can_box += MVM_STORAGE_SPEC_CAN_BOX_INT;
     if (repr_data->unbox_num_slot >= 0)
         spec->can_box += MVM_STORAGE_SPEC_CAN_BOX_NUM;
@@ -742,6 +756,7 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
 
     /* -1 indicates no unboxing or delegate possible for a type. */
     repr_data->unbox_int_slot = -1;
+    repr_data->unbox_uint_slot = -1;
     repr_data->unbox_num_slot = -1;
     repr_data->unbox_str_slot = -1;
     repr_data->pos_del_slot   = -1;
@@ -851,6 +866,19 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
                                         "While composing %s: Duplicate box_target for native int: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), unbox_int_slot, i);
                                 }
                                 repr_data->unbox_int_slot = cur_slot;
+                                break;
+                            case MVM_STORAGE_SPEC_BP_UINT64:
+                                if (repr_data->unbox_uint_slot >= 0) {
+                                    if (num_attrs) {
+                                        MVM_free_null(name_map->names);
+                                        MVM_free_null(name_map->slots);
+                                    }
+                                    MVMint16 unbox_uint_slot = repr_data->unbox_uint_slot;
+                                    free_repr_data(repr_data);
+                                    MVM_exception_throw_adhoc(tc,
+                                        "While composing %s: Duplicate box_target for native uint: attributes %d and %"PRId64, MVM_6model_get_stable_debug_name(tc, st), unbox_uint_slot, i);
+                                }
+                                repr_data->unbox_uint_slot = cur_slot;
                                 break;
                             case MVM_STORAGE_SPEC_BP_NUM:
                                 if (repr_data->unbox_num_slot >= 0) {
@@ -1053,6 +1081,8 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
     }
 
     MVM_serialization_write_int(tc, writer, repr_data->unbox_int_slot);
+    if (writer->root.version >= 24)
+        MVM_serialization_write_int(tc, writer, repr_data->unbox_uint_slot);
     MVM_serialization_write_int(tc, writer, repr_data->unbox_num_slot);
     MVM_serialization_write_int(tc, writer, repr_data->unbox_str_slot);
 
@@ -1125,6 +1155,10 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     }
 
     repr_data->unbox_int_slot = MVM_serialization_read_int(tc, reader);
+    if (reader->root.version >= 24)
+        repr_data->unbox_uint_slot = MVM_serialization_read_int(tc, reader);
+    else
+        repr_data->unbox_uint_slot = -1;
     repr_data->unbox_num_slot = MVM_serialization_read_int(tc, reader);
     repr_data->unbox_str_slot = MVM_serialization_read_int(tc, reader);
 
@@ -2133,7 +2167,7 @@ void MVM_p6opaque_attr_offset_and_arg_type(MVMThreadContext *tc, MVMObject *type
         *type_out = MVM_CALLSITE_ARG_OBJ;
     }
     else if (flattened->REPR->ID == MVM_REPR_ID_P6int) {
-        *type_out = MVM_CALLSITE_ARG_INT;
+        *type_out = ((MVMP6intREPRData *)flattened->REPR_data)->storage_spec.boxed_primitive == MVM_STORAGE_SPEC_BP_INT ? MVM_CALLSITE_ARG_INT : MVM_CALLSITE_ARG_UINT;
     }
     else if (flattened->REPR->ID == MVM_REPR_ID_P6num) {
         *type_out = MVM_CALLSITE_ARG_NUM;

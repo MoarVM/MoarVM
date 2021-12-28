@@ -469,8 +469,8 @@ static void native_ref_fetch_i(MVMThreadContext *tc, MVMObject *cont, MVMRegiste
 
 static void native_ref_fetch_u(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
     MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
-    if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_INT)
-        MVM_exception_throw_adhoc(tc, "This container does not reference a native integer");
+    if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_UINT64)
+        MVM_exception_throw_adhoc(tc, "This container does not reference a native unsigned integer");
     switch (repr_data->ref_kind) {
         case MVM_NATIVEREF_LEX:
             res->u64 = MVM_nativeref_read_lex_i(tc, cont); /* covers unsigned as well */
@@ -541,6 +541,7 @@ static void native_ref_fetch(MVMThreadContext *tc, MVMObject *cont, MVMRegister 
         hll = MVM_hll_current(tc);
     switch (repr_data->primitive_type) {
         case MVM_STORAGE_SPEC_BP_INT:
+        case MVM_STORAGE_SPEC_BP_UINT64:
             if (repr_data->is_unsigned) {
                 native_ref_fetch_u(tc, cont, &tmp);
                 res->o = MVM_repr_box_uint(tc, hll->int_box_type, tmp.u64);
@@ -587,7 +588,7 @@ static void native_ref_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 v
 
 static void native_ref_store_u(MVMThreadContext *tc, MVMObject *cont, MVMuint64 value) {
     MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
-    if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_INT)
+    if (repr_data->primitive_type != MVM_STORAGE_SPEC_BP_UINT64)
         MVM_exception_throw_adhoc(tc, "This container does not reference a native integer");
     switch (repr_data->ref_kind) {
         case MVM_NATIVEREF_LEX:
@@ -654,6 +655,7 @@ static void native_ref_store_s(MVMThreadContext *tc, MVMObject *cont, MVMString 
 static void native_ref_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *obj) {
     MVMNativeRefREPRData *repr_data = (MVMNativeRefREPRData *)STABLE(cont)->REPR_data;
     switch (repr_data->primitive_type) {
+        case MVM_STORAGE_SPEC_BP_UINT64:
         case MVM_STORAGE_SPEC_BP_INT:
             if (repr_data->is_unsigned)
                 native_ref_store_u(tc, cont, MVM_repr_get_uint(tc, obj));

@@ -47,6 +47,9 @@ struct MVMP6opaqueREPRData {
     /* Slot to delegate to when we need to unbox to a native integer. */
     MVMint16 unbox_int_slot;
 
+    /* Slot to delegate to when we need to unbox to a native unsigned integer. */
+    MVMint16 unbox_uint_slot;
+
     /* Slot to delegate to when we need to unbox to a native number. */
     MVMint16 unbox_num_slot;
 

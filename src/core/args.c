@@ -199,6 +199,10 @@ MVMCallStackFlattening * MVM_args_perform_flattening(MVMThreadContext *tc, MVMCa
                             record->produced_cs.arg_flags[cur_new_arg] = MVM_CALLSITE_ARG_INT;
                             record->arg_info.source[cur_new_arg].i64 = MVM_repr_at_pos_i(tc, list, j);
                             break;
+                        case MVM_STORAGE_SPEC_BP_UINT64:
+                            record->produced_cs.arg_flags[cur_new_arg] = MVM_CALLSITE_ARG_UINT;
+                            record->arg_info.source[cur_new_arg].u64 = MVM_repr_at_pos_u(tc, list, j);
+                            break;
                         case MVM_STORAGE_SPEC_BP_NUM:
                             record->produced_cs.arg_flags[cur_new_arg] = MVM_CALLSITE_ARG_NUM;
                             record->arg_info.source[cur_new_arg].n64 = MVM_repr_at_pos_n(tc, list, j);
