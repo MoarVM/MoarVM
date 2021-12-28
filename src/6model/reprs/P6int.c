@@ -9,7 +9,7 @@ static const MVMREPROps P6int_this_repr;
 static void mk_storage_spec(MVMThreadContext *tc, MVMuint16 bits, MVMuint16 is_unsigned, MVMStorageSpec *spec) {
     /* create storage spec */
     spec->inlineable      = MVM_STORAGE_SPEC_INLINED;
-    spec->boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
+    spec->boxed_primitive = is_unsigned ? MVM_STORAGE_SPEC_BP_UINT64 : MVM_STORAGE_SPEC_BP_INT;
     spec->can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
     spec->bits            = bits;
     spec->is_unsigned     = is_unsigned;

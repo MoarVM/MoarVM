@@ -1082,7 +1082,7 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
         case MVM_ARRAY_U16:
         case MVM_ARRAY_U8:
             spec.inlineable      = MVM_STORAGE_SPEC_INLINED;
-            spec.boxed_primitive = MVM_STORAGE_SPEC_BP_INT;
+            spec.boxed_primitive = MVM_STORAGE_SPEC_BP_UINT64;
             spec.can_box         = MVM_STORAGE_SPEC_CAN_BOX_INT;
             spec.is_unsigned     = 1;
             break;
@@ -1127,6 +1127,7 @@ static AO_t * pos_as_atomic_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObj
 /* Compose the representation. */
 static void spec_to_repr_data(MVMThreadContext *tc, MVMArrayREPRData *repr_data, const MVMStorageSpec *spec) {
     switch (spec->boxed_primitive) {
+        case MVM_STORAGE_SPEC_BP_UINT64:
         case MVM_STORAGE_SPEC_BP_INT:
             if (spec->is_unsigned) {
                 switch (spec->bits) {

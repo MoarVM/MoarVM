@@ -141,7 +141,7 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             check_config_key_reftype(tc, config_hash, "int_lex_ref", int_lex_ref,
                 config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_LEX);
             check_config_key_reftype(tc, config_hash, "uint_lex_ref", uint_lex_ref,
-                config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_LEX);
+                config, MVM_STORAGE_SPEC_BP_UINT64, MVM_NATIVEREF_LEX);
             check_config_key_reftype(tc, config_hash, "num_lex_ref", num_lex_ref,
                 config, MVM_STORAGE_SPEC_BP_NUM, MVM_NATIVEREF_LEX);
             check_config_key_reftype(tc, config_hash, "str_lex_ref", str_lex_ref,
@@ -149,7 +149,7 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             check_config_key_reftype(tc, config_hash, "int_attr_ref", int_attr_ref,
                 config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_ATTRIBUTE);
             check_config_key_reftype(tc, config_hash, "uint_attr_ref", uint_attr_ref,
-                config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_ATTRIBUTE);
+                config, MVM_STORAGE_SPEC_BP_UINT64, MVM_NATIVEREF_ATTRIBUTE);
             check_config_key_reftype(tc, config_hash, "num_attr_ref", num_attr_ref,
                 config, MVM_STORAGE_SPEC_BP_NUM, MVM_NATIVEREF_ATTRIBUTE);
             check_config_key_reftype(tc, config_hash, "str_attr_ref", str_attr_ref,
@@ -157,7 +157,7 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             check_config_key_reftype(tc, config_hash, "int_pos_ref", int_pos_ref,
                 config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_POSITIONAL);
             check_config_key_reftype(tc, config_hash, "uint_pos_ref", uint_pos_ref,
-                config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_POSITIONAL);
+                config, MVM_STORAGE_SPEC_BP_UINT64, MVM_NATIVEREF_POSITIONAL);
             check_config_key_reftype(tc, config_hash, "num_pos_ref", num_pos_ref,
                 config, MVM_STORAGE_SPEC_BP_NUM, MVM_NATIVEREF_POSITIONAL);
             check_config_key_reftype(tc, config_hash, "str_pos_ref", str_pos_ref,
@@ -165,7 +165,7 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             check_config_key_reftype(tc, config_hash, "int_multidim_ref", int_multidim_ref,
                 config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_MULTIDIM);
             check_config_key_reftype(tc, config_hash, "uint_multidim_ref", uint_multidim_ref,
-                config, MVM_STORAGE_SPEC_BP_INT, MVM_NATIVEREF_MULTIDIM);
+                config, MVM_STORAGE_SPEC_BP_UINT64, MVM_NATIVEREF_MULTIDIM);
             check_config_key_reftype(tc, config_hash, "num_multidim_ref", num_multidim_ref,
                 config, MVM_STORAGE_SPEC_BP_NUM, MVM_NATIVEREF_MULTIDIM);
             check_config_key_reftype(tc, config_hash, "str_multidim_ref", str_multidim_ref,

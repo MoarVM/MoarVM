@@ -178,6 +178,8 @@ static MVMint64 flag_to_spec(MVMint64 flag) {
     switch (flag & MVM_CALLSITE_ARG_TYPE_MASK) {
         case MVM_CALLSITE_ARG_INT:
             return MVM_STORAGE_SPEC_BP_INT;
+        case MVM_CALLSITE_ARG_UINT:
+            return MVM_STORAGE_SPEC_BP_UINT64;
         case MVM_CALLSITE_ARG_NUM:
             return MVM_STORAGE_SPEC_BP_NUM;
         case MVM_CALLSITE_ARG_STR:
