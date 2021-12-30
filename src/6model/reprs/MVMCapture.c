@@ -241,6 +241,16 @@ MVMint64 MVM_capture_arg_pos_i(MVMThreadContext *tc, MVMObject *capture_obj, MVM
     return capture->body.args[idx].i64;
 }
 
+/* Access a positional unsigned integer argument of an argument capture object. */
+MVMuint64 MVM_capture_arg_pos_u(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
+    MVMCapture *capture = validate_capture(tc, capture_obj);
+    if (idx >= capture->body.callsite->num_pos)
+        MVM_exception_throw_adhoc(tc, "Capture argument index (%u) out of range (0..^%u) for captureposarg_u", idx, capture->body.callsite->num_pos);
+    if (!(capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_INT))
+        MVM_exception_throw_adhoc(tc, "Capture argument is not an integer argument for captureposarg_u");
+    return capture->body.args[idx].u64;
+}
+
 /* Access a positional number argument of an argument capture object. */
 MVMnum64 MVM_capture_arg_pos_n(MVMThreadContext *tc, MVMObject *capture_obj, MVMuint32 idx) {
     MVMCapture *capture = validate_capture(tc, capture_obj);
