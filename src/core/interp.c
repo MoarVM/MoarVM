@@ -5386,6 +5386,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_6model_container_assign_u(tc, cont, value);
                 goto NEXT;
             }
+            OP(captureposarg_u): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                MVMuint32 idx = (MVMuint32)GET_REG(cur_op, 4).i64;
+                GET_REG(cur_op, 0).u64 = MVM_capture_arg_pos_u(tc, obj, idx);
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_guard): {
                 MVMRegister *target = &GET_REG(cur_op, 0);
                 MVMObject *check = GET_REG(cur_op, 2).o;
