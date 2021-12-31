@@ -112,6 +112,9 @@ static MVMuint8 cmp_prim_spec(MVMThreadContext *tc, MVMSpeshStatsType *type_tupl
         if (wanted_prim_spec == MVM_STORAGE_SPEC_BP_INT) {
             return ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT;
         }
+        else if (wanted_prim_spec == MVM_STORAGE_SPEC_BP_UINT64) {
+            return ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_INT;
+        }
         else if (wanted_prim_spec == MVM_STORAGE_SPEC_BP_NUM) {
             return ss->can_box & MVM_STORAGE_SPEC_CAN_BOX_NUM;
         }
