@@ -144,6 +144,41 @@ static void spec_to_repr_data(MVMThreadContext *tc, MVMMultiDimArrayREPRData *re
                 }
             }
             break;
+        case MVM_STORAGE_SPEC_BP_UINT64:
+            switch (spec->bits) {
+                case 64:
+                    repr_data->slot_type = MVM_ARRAY_U64;
+                    repr_data->elem_size = sizeof(MVMuint64);
+                    break;
+                case 32:
+                    repr_data->slot_type = MVM_ARRAY_U32;
+                    repr_data->elem_size = sizeof(MVMuint32);
+                    break;
+                case 16:
+                    repr_data->slot_type = MVM_ARRAY_U16;
+                    repr_data->elem_size = sizeof(MVMuint16);
+                    break;
+                case 8:
+                    repr_data->slot_type = MVM_ARRAY_U8;
+                    repr_data->elem_size = sizeof(MVMuint8);
+                    break;
+                case 4:
+                    repr_data->slot_type = MVM_ARRAY_U4;
+                    repr_data->elem_size = 0;
+                    break;
+                case 2:
+                    repr_data->slot_type = MVM_ARRAY_U2;
+                    repr_data->elem_size = 0;
+                    break;
+                case 1:
+                    repr_data->slot_type = MVM_ARRAY_U1;
+                    repr_data->elem_size = 0;
+                    break;
+                default:
+                    MVM_exception_throw_adhoc(tc,
+                        "MVMMultiDimArray: Unsupported uint size");
+            }
+            break;
         case MVM_STORAGE_SPEC_BP_NUM:
             switch (spec->bits) {
                 case 64:
@@ -524,28 +559,28 @@ static void at_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *root
                     MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected num register");
                 break;
             case MVM_ARRAY_U64:
-                if (kind == MVM_reg_int64)
-                    value->i64 = (MVMint64)body->slots.u64[flat_index];
+                if (kind == MVM_reg_uint64)
+                    value->u64 = body->slots.u64[flat_index];
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected uint register");
                 break;
             case MVM_ARRAY_U32:
-                if (kind == MVM_reg_int64)
-                    value->i64 = (MVMint64)body->slots.u32[flat_index];
+                if (kind == MVM_reg_uint64)
+                    value->u64 = (MVMuint64)body->slots.u32[flat_index];
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected uint register");
                 break;
             case MVM_ARRAY_U16:
-                if (kind == MVM_reg_int64)
-                    value->i64 = (MVMint64)body->slots.u16[flat_index];
+                if (kind == MVM_reg_uint64)
+                    value->u64 = (MVMuint64)body->slots.u16[flat_index];
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected uint register");
                 break;
             case MVM_ARRAY_U8:
-                if (kind == MVM_reg_int64)
-                    value->i64 = (MVMint64)body->slots.u8[flat_index];
+                if (kind == MVM_reg_uint64)
+                    value->u64 = (MVMuint64)body->slots.u8[flat_index];
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArray: atpos expected uint register");
                 break;
             default:
                 MVM_exception_throw_adhoc(tc, "MultiDimArray: Unhandled slot type");
@@ -617,28 +652,28 @@ static void bind_pos_multidim(MVMThreadContext *tc, MVMSTable *st, MVMObject *ro
                     MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected num register");
                 break;
             case MVM_ARRAY_U64:
-                if (kind == MVM_reg_int64)
-                    body->slots.u64[flat_index] = value.i64;
+                if (kind == MVM_reg_uint64)
+                    body->slots.u64[flat_index] = value.u64;
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected uint register");
                 break;
             case MVM_ARRAY_U32:
-                if (kind == MVM_reg_int64)
-                    body->slots.u32[flat_index] = (MVMuint32)value.i64;
+                if (kind == MVM_reg_uint64)
+                    body->slots.u32[flat_index] = (MVMuint32)value.u64;
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected uint register");
                 break;
             case MVM_ARRAY_U16:
-                if (kind == MVM_reg_int64)
-                    body->slots.u16[flat_index] = (MVMuint16)value.i64;
+                if (kind == MVM_reg_uint64)
+                    body->slots.u16[flat_index] = (MVMuint16)value.u64;
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected uint register");
                 break;
             case MVM_ARRAY_U8:
-                if (kind == MVM_reg_int64)
-                    body->slots.u8[flat_index] = (MVMuint8)value.i64;
+                if (kind == MVM_reg_uint64)
+                    body->slots.u8[flat_index] = (MVMuint8)value.u64;
                 else
-                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected int register");
+                    MVM_exception_throw_adhoc(tc, "MultiDimArray: bindpos expected uint register");
                 break;
             default:
                 MVM_exception_throw_adhoc(tc, "MultiDimArray: Unhandled slot type");
