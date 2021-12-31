@@ -307,19 +307,19 @@ static char callback_handler(DCCallback *cb, DCArgs *cb_args, DCValue *cb_result
                 num_roots++;
                 break;
             case MVM_NATIVECALL_ARG_UCHAR:
-                args[i - 1].i64 = dcbArgUChar(cb_args);
+                args[i - 1].u64 = dcbArgUChar(cb_args);
                 break;
             case MVM_NATIVECALL_ARG_USHORT:
-                args[i - 1].i64 = dcbArgUShort(cb_args);
+                args[i - 1].u64 = dcbArgUShort(cb_args);
                 break;
             case MVM_NATIVECALL_ARG_UINT:
-                args[i - 1].i64 = dcbArgUInt(cb_args);
+                args[i - 1].u64 = dcbArgUInt(cb_args);
                 break;
             case MVM_NATIVECALL_ARG_ULONG:
-                args[i - 1].i64 = dcbArgULong(cb_args);
+                args[i - 1].u64 = dcbArgULong(cb_args);
                 break;
             case MVM_NATIVECALL_ARG_ULONGLONG:
-                args[i - 1].i64 = dcbArgULongLong(cb_args);
+                args[i - 1].u64 = dcbArgULongLong(cb_args);
                 break;
             default:
                 MVM_telemetry_interval_stop(tc, interval_id, "nativecall callback handler failed");
@@ -580,19 +580,19 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 break;
             }
             case MVM_NATIVECALL_ARG_UCHAR:
-                handle_arg("integer", cont_i, DCuchar, i64, dcArgChar, MVM_nativecall_unmarshal_uchar);
+                handle_arg("integer", cont_u, DCuchar, u64, dcArgChar, MVM_nativecall_unmarshal_uchar);
                 break;
             case MVM_NATIVECALL_ARG_USHORT:
-                handle_arg("integer", cont_i, DCushort, i64, dcArgShort, MVM_nativecall_unmarshal_ushort);
+                handle_arg("integer", cont_u, DCushort, u64, dcArgShort, MVM_nativecall_unmarshal_ushort);
                 break;
             case MVM_NATIVECALL_ARG_UINT:
-                handle_arg("integer", cont_i, DCuint, i64, dcArgInt, MVM_nativecall_unmarshal_uint);
+                handle_arg("integer", cont_u, DCuint, u64, dcArgInt, MVM_nativecall_unmarshal_uint);
                 break;
             case MVM_NATIVECALL_ARG_ULONG:
-                handle_arg("integer", cont_i, DCulong, i64, dcArgLong, MVM_nativecall_unmarshal_ulong);
+                handle_arg("integer", cont_u, DCulong, u64, dcArgLong, MVM_nativecall_unmarshal_ulong);
                 break;
             case MVM_NATIVECALL_ARG_ULONGLONG:
-                handle_arg("integer", cont_i, DCulonglong, i64, dcArgLongLong, MVM_nativecall_unmarshal_ulonglong);
+                handle_arg("integer", cont_u, DCulonglong, u64, dcArgLongLong, MVM_nativecall_unmarshal_ulonglong);
                 break;
             default:
                 MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
@@ -838,19 +838,19 @@ static void update_rws(MVMThreadContext *tc, void **free_rws, MVMint16 num_args,
                         MVM_6model_container_assign_n(tc, value, (MVMnum64)*(DCdouble *)free_rws[num_rws]);
                         break;
                     case MVM_NATIVECALL_ARG_UCHAR:
-                        MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCuchar *)free_rws[num_rws]);
+                        MVM_6model_container_assign_u(tc, value, (MVMint64)*(DCuchar *)free_rws[num_rws]);
                         break;
                     case MVM_NATIVECALL_ARG_USHORT:
-                        MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCushort *)free_rws[num_rws]);
+                        MVM_6model_container_assign_u(tc, value, (MVMint64)*(DCushort *)free_rws[num_rws]);
                         break;
                     case MVM_NATIVECALL_ARG_UINT:
-                        MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCuint *)free_rws[num_rws]);
+                        MVM_6model_container_assign_u(tc, value, (MVMint64)*(DCuint *)free_rws[num_rws]);
                         break;
                     case MVM_NATIVECALL_ARG_ULONG:
-                        MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCulong *)free_rws[num_rws]);
+                        MVM_6model_container_assign_u(tc, value, (MVMint64)*(DCulong *)free_rws[num_rws]);
                         break;
                     case MVM_NATIVECALL_ARG_ULONGLONG:
-                        MVM_6model_container_assign_i(tc, value, (MVMint64)*(DCulonglong *)free_rws[num_rws]);
+                        MVM_6model_container_assign_u(tc, value, (MVMint64)*(DCulonglong *)free_rws[num_rws]);
                         break;
                     case MVM_NATIVECALL_ARG_CPOINTER:
                         REPR(value)->box_funcs.set_int(tc, STABLE(value), value, OBJECT_BODY(value),
@@ -994,19 +994,19 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 }
                 case MVM_NATIVECALL_ARG_UCHAR:
-                    handle_arg("integer", cont_i, DCuchar, i64, dcArgChar, MVM_nativecall_unmarshal_uchar);
+                    handle_arg("integer", cont_u, DCuchar, u64, dcArgChar, MVM_nativecall_unmarshal_uchar);
                     break;
                 case MVM_NATIVECALL_ARG_USHORT:
-                    handle_arg("integer", cont_i, DCushort, i64, dcArgShort, MVM_nativecall_unmarshal_ushort);
+                    handle_arg("integer", cont_u, DCushort, u64, dcArgShort, MVM_nativecall_unmarshal_ushort);
                     break;
                 case MVM_NATIVECALL_ARG_UINT:
-                    handle_arg("integer", cont_i, DCuint, i64, dcArgInt, MVM_nativecall_unmarshal_uint);
+                    handle_arg("integer", cont_u, DCuint, u64, dcArgInt, MVM_nativecall_unmarshal_uint);
                     break;
                 case MVM_NATIVECALL_ARG_ULONG:
-                    handle_arg("integer", cont_i, DCulong, i64, dcArgLong, MVM_nativecall_unmarshal_ulong);
+                    handle_arg("integer", cont_u, DCulong, u64, dcArgLong, MVM_nativecall_unmarshal_ulong);
                     break;
                 case MVM_NATIVECALL_ARG_ULONGLONG:
-                    handle_arg("integer", cont_i, DCulonglong, i64, dcArgLongLong, MVM_nativecall_unmarshal_ulonglong);
+                    handle_arg("integer", cont_u, DCulonglong, u64, dcArgLongLong, MVM_nativecall_unmarshal_ulonglong);
                     break;
                 default:
                     MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke failed");
