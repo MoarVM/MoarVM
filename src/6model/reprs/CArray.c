@@ -41,6 +41,17 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info_hash) {
             }
             repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_NUMERIC;
         }
+        else if (ss->boxed_primitive == MVM_STORAGE_SPEC_BP_UINT64) {
+            if (ss->bits == 8 || ss->bits == 16 || ss->bits == 32 || ss->bits == 64)
+                repr_data->elem_size = ss->bits / 8;
+            else {
+                MVM_free(repr_data);
+                st->REPR_data = NULL;
+                MVM_exception_throw_adhoc(tc,
+                    "CArray representation can only have 8, 16, 32 or 64 bit unsigned integer elements");
+            }
+            repr_data->elem_kind = MVM_CARRAY_ELEM_KIND_NUMERIC;
+        }
         else if (ss->boxed_primitive == MVM_STORAGE_SPEC_BP_NUM) {
             if (ss->bits == 32 || ss->bits == 64)
                 repr_data->elem_size = ss->bits / 8;
@@ -262,6 +273,11 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
                 value->i64 = body->managed && index >= body->elems
                     ? 0
                     : REPR(repr_data->elem_type)->box_funcs.get_int(tc,
+                        STABLE(repr_data->elem_type), root, ptr);
+            else if (kind == MVM_reg_uint64)
+                value->u64 = body->managed && index >= body->elems
+                    ? 0
+                    : REPR(repr_data->elem_type)->box_funcs.get_uint(tc,
                         STABLE(repr_data->elem_type), root, ptr);
             else if (kind == MVM_reg_num64)
                 value->n64 = body->managed && index >= body->elems
