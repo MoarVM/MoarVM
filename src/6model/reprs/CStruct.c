@@ -180,6 +180,7 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMObject *repr_in
                 MVMint32  type_id    = REPR(type)->ID;
                 if (spec->inlineable == MVM_STORAGE_SPEC_INLINED &&
                         (spec->boxed_primitive == MVM_STORAGE_SPEC_BP_INT ||
+                         spec->boxed_primitive == MVM_STORAGE_SPEC_BP_UINT64 ||
                          spec->boxed_primitive == MVM_STORAGE_SPEC_BP_NUM)) {
                     /* It's a boxed int or num; pretty easy. It'll just live in the
                      * body of the struct. Instead of masking in i here (which
@@ -548,6 +549,14 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         case MVM_reg_int64: {
             if (attr_st)
                 result_reg->i64 = attr_st->REPR->box_funcs.get_int(tc, attr_st, root,
+                    ((char *)body->cstruct) + repr_data->struct_offsets[slot]);
+            else
+                MVM_exception_throw_adhoc(tc, "CStruct: invalid native get of object attribute");
+            break;
+        }
+        case MVM_reg_uint64: {
+            if (attr_st)
+                result_reg->u64 = attr_st->REPR->box_funcs.get_uint(tc, attr_st, root,
                     ((char *)body->cstruct) + repr_data->struct_offsets[slot]);
             else
                 MVM_exception_throw_adhoc(tc, "CStruct: invalid native get of object attribute");
