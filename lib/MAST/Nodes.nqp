@@ -112,6 +112,9 @@ sub type_to_local_type($t) {
     elsif $spec == 3 {
         7
     }
+    elsif $spec == 10 {
+        %uint_map{nqp::objprimbits($t)}
+    }
     else {
         nqp::die("Unknwon local type: " ~ $t.HOW.name($t) ~ ": " ~ $spec);
     }
@@ -536,7 +539,7 @@ class MAST::HandlerScope is MAST::Node {
 }
 
 sub get_typename($type) {
-    ["obj","int","num","str"][nqp::objprimspec($type)]
+    ["obj","int","num","str","","","","","","","uint"][nqp::objprimspec($type)]
 }
 
 class MoarVM::Handler {
