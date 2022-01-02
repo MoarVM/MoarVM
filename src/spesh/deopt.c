@@ -154,17 +154,25 @@ static void deopt_named_args_used(MVMThreadContext *tc, MVMFrame *f) {
 }
 
 /* Materialize an individual replaced object. */
-static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMObject ***materialized,
+static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMuint16 **materialized,
                                MVMuint16 info_idx, MVMuint16 target_reg) {
     MVMSpeshCandidate *cand = f->spesh_cand;
+    MVMObject *obj;
+
     if (!*materialized)
-        *materialized = MVM_calloc(MVM_VECTOR_ELEMS(cand->body.deopt_pea.materialize_info), sizeof(MVMObject *));
-    if (!(*materialized)[info_idx]) {
+        *materialized = MVM_calloc(MVM_VECTOR_ELEMS(cand->body.deopt_pea.materialize_info), sizeof(MVMuint16));
+
+    if ((*materialized)[info_idx]) {
+        /* Register indexes are offset by 1, so 0 can mean "uninitialized" */
+        obj = f->work[(*materialized)[info_idx] - 1].o;
+    }
+    else {
         MVMSpeshPEAMaterializeInfo *mi = &(cand->body.deopt_pea.materialize_info[info_idx]);
         MVMSTable *st = (MVMSTable *)cand->body.spesh_slots[mi->stable_sslot];
         MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
         MVMROOT2(tc, f, cand, {
-            MVMObject *obj = MVM_gc_allocate_object(tc, st);
+            obj = MVM_gc_allocate_object(tc, st);
+
             char *data = (char *)OBJECT_BODY(obj);
             MVMuint32 num_attrs = repr_data->num_attributes;
             MVMuint32 i;
@@ -195,13 +203,15 @@ static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMObject ***m
                     *((MVMObject **)(data + offset)) = value.o;
                 }
             }
-            (*materialized)[info_idx] = obj;
+            /* Store register index offset by 1, so 0 can indicate "uninitialized" */
+            (*materialized)[info_idx] = target_reg + 1;
         });
 #if MVM_LOG_DEOPTS
         fprintf(stderr, "    Materialized a %s\n", st->debug_name);
 #endif
     }
-    f->work[target_reg].o = (*materialized)[info_idx];
+
+    f->work[target_reg].o = obj;
 }
 
 /* Materialize all replaced objects that need to be at this deopt index. */
@@ -209,7 +219,7 @@ static void materialize_replaced_objects(MVMThreadContext *tc, MVMFrame *f, MVMi
     MVMuint32 i;
     MVMSpeshCandidate *cand = f->spesh_cand;
     MVMuint32 num_deopt_points = MVM_VECTOR_ELEMS(cand->body.deopt_pea.deopt_point);
-    MVMObject **materialized = NULL;
+    MVMuint16 *materialized = NULL;
     MVMROOT2(tc, f, cand, {
         for (i = 0; i < num_deopt_points; i++) {
             MVMSpeshPEADeoptPoint *dp = &(cand->body.deopt_pea.deopt_point[i]);
