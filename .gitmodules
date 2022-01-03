@@ -19,3 +19,4 @@
 [submodule "3rdparty/ryu"]
 	path = 3rdparty/ryu
 	url = https://github.com/MoarVM/ryu
+	ignore = untracked
