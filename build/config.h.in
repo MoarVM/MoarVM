@@ -105,6 +105,10 @@
 #define MVM_HAS_SIGNBIT
 #endif
 
+#if @use_mimalloc@
+#define MVM_USE_MIMALLOC
+#endif
+
 /* Should we translate \n to \r\n on output? */
 #define MVM_TRANSLATE_NEWLINE_OUTPUT @translate_newline_output@
 

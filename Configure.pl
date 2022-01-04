@@ -49,7 +49,7 @@ GetOptions(\%args, qw(
     prefix=s bindir=s libdir=s mastdir=s
     relocatable make-install asan ubsan tsan
     valgrind telemeh! dtrace show-autovect git-cache-dir=s
-    show-autovect-failed:s),
+    show-autovect-failed:s mimalloc!),
 
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 },
@@ -549,6 +549,32 @@ build::probe::has_isinf_and_isnan(\%config, \%defaults);
 build::probe::unaligned_access(\%config, \%defaults);
 build::probe::ptr_size(\%config, \%defaults);
 build::probe::stdatomic(\%config, \%defaults);
+
+$config{use_mimalloc} = $args{mimalloc};
+if (!defined $config{use_mimalloc}) {
+    if ($config{has_stdatomic}) {
+        print "Defaulting to mimalloc because you have <stdatomic.h>\n";
+        $config{use_mimalloc} = 1;
+    }
+    else {
+        print "Defaulting to libc malloc because <stdatomic.h> was not found.\n";
+        $config{use_mimalloc} = 0;
+    }
+}
+
+if ($config{use_mimalloc}) {
+    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/mimalloc/include'
+                             . ' ' . $defaults{ccinc} . '3rdparty/mimalloc/src';
+    $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/mimalloc\"\n"
+                       . "\t\$(CP) 3rdparty/mimalloc/include/*.h \"\$(DESTDIR)\$(PREFIX)/include/mimalloc\"\n";
+    push @hllincludes, 'mimalloc';
+    $config{mimalloc_include} = '@ccincsystem@3rdparty/mimalloc';
+    $config{mimalloc_object} = '3rdparty/mimalloc/src/static@obj@';
+}
+else {
+    $config{mimalloc_include} = "";
+    $config{mimalloc_object} = "";
+}
 
 my $archname = $Config{archname};
 if ($args{'jit'}) {
@@ -1083,6 +1109,18 @@ default.
 
 Toggle optimization and debug flags during compile and link. If nothing
 is specified the default is to optimize.
+
+=item --mimalloc
+
+=item --no-mimalloc
+
+Control whether we build with mimalloc or use the C library's malloc.
+
+mimalloc requires working C11 C<< <stdatomic> >>. We probe for this, and
+if found we default is to use mimalloc. If not found we default to the
+C library's malloc. Specify C<--no-mimalloc> to force use of the C library's
+malloc always. Specify C<--no-mimalloc> to force use of mimalloc, even if
+the probing thinks that it won't build.
 
 =item --os <os>
 
