@@ -40,6 +40,7 @@ PKGCONFIGDIR = @prefix@/share/pkgconfig
 CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
 CINCLUDES = @moar_cincludes@ \
             @ccinc@@shaincludedir@ \
+            @ccincsystem@3rdparty/mimalloc \
             @ccincsystem@3rdparty/tinymt \
             @ccincsystem@3rdparty/ryu \
             @ccincsystem@3rdparty/dynasm \
@@ -253,6 +254,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/platform/memmem32@obj@ \
           3rdparty/freebsd/memmem@obj@ \
           3rdparty/ryu/ryu/d2s@obj@ \
+          3rdparty/mimalloc/src/static@obj@ \
           src/platform/malloc_trim@obj@ \
           src/moar@obj@ \
           @platform@ \

@@ -23,6 +23,9 @@
 /* platform-specific setjmp override */
 #include <platform/setjmp.h>
 
+/* mimalloc needs to come early so other libs use it */
+#include <mimalloc.h>
+
 /* libuv
  * must precede atomic_ops.h so we get the ordering of Winapi headers right
  */

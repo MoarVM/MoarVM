@@ -1,5 +1,5 @@
 MVM_STATIC_INLINE void * MVM_malloc(size_t size) {
-    void *ptr = malloc(size);
+    void *ptr = mi_malloc(size);
 
     if (!ptr)
         MVM_panic_allocation_failed(size);
@@ -8,7 +8,7 @@ MVM_STATIC_INLINE void * MVM_malloc(size_t size) {
 }
 
 MVM_STATIC_INLINE void * MVM_calloc(size_t num, size_t size) {
-    void *ptr = calloc(num, size);
+    void *ptr = mi_calloc(num, size);
 
     if (!ptr)
         MVM_panic_allocation_failed(num * size);
@@ -17,7 +17,7 @@ MVM_STATIC_INLINE void * MVM_calloc(size_t num, size_t size) {
 }
 
 MVM_STATIC_INLINE void * MVM_realloc(void *p, size_t size) {
-    void *ptr = realloc(p, size);
+    void *ptr = mi_realloc(p, size);
 
     if (!ptr && size > 0)
         MVM_panic_allocation_failed(size);
@@ -26,7 +26,7 @@ MVM_STATIC_INLINE void * MVM_realloc(void *p, size_t size) {
 }
 
 MVM_STATIC_INLINE void * MVM_recalloc(void *p, size_t old_size, size_t size) {
-    void *ptr = realloc(p, size);
+    void *ptr = mi_realloc(p, size);
 
     if (size > 0) {
         if (!ptr)
@@ -40,7 +40,7 @@ MVM_STATIC_INLINE void * MVM_recalloc(void *p, size_t old_size, size_t size) {
 }
 
 MVM_STATIC_INLINE void MVM_free(void *p) {
-    free(p);
+    mi_free(p);
 }
 
 #define MVM_free_null(addr) do { \

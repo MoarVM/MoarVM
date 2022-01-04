@@ -258,6 +258,14 @@ $config{cincludes} = '' unless defined $config{cincludes};
 $config{moar_cincludes} = '' unless defined $config{moar_cincludes};
 $config{lincludes} = '' unless defined $config{lincludes};
 $config{install}   = '' unless defined $config{install};
+
+# mimalloc configuration
+$config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/mimalloc/include'
+                         . ' ' . $defaults{ccinc} . '3rdparty/mimalloc/src';
+$config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/mimalloc\"\n"
+                    . "\t\$(CP) 3rdparty/mimalloc/include/*.h \"\$(DESTDIR)\$(PREFIX)/include/mimalloc\"\n";
+push @hllincludes, 'mimalloc';
+
 if ($args{'has-libuv'}) {
     $defaults{-thirdparty}->{uv} = undef;
     unshift @{$config{usrlibs}}, 'uv';
@@ -461,7 +469,7 @@ if (not $args{static} and $config{prefix} ne '/usr') {
     push @ldflags, $config{ldrpath}             if !$args{relocatable};
 }
 push @ldflags, '-fsanitize=address'  if $args{asan};
-push @ldflags, '-fsanitize=thread'  if $args{tsan};
+push @ldflags, '-fsanitize=thread'   if $args{tsan};
 push @ldflags, $ENV{LDFLAGS}         if $ENV{LDFLAGS};
 $config{ldflags} = join ' ', @ldflags;
 
