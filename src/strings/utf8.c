@@ -620,15 +620,12 @@ char * MVM_string_utf8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *o
 /* Encodes the specified string to a UTF-8 C string. */
 char * MVM_string_utf8_encode_C_string(MVMThreadContext *tc, MVMString *str) {
     MVMuint64 output_size;
-    char * result = NULL;
     char * utf8_string = MVM_string_utf8_encode(tc, str, &output_size, 0);
     /* this is almost always called from error-handling code. Don't care if it
      * contains embedded NULs. XXX TODO: Make sure all uses of this free what it returns */
-    result = MVM_malloc(output_size + 1);
-    memcpy(result, utf8_string, output_size);
-    MVM_free(utf8_string);
-    result[output_size] = (char)0;
-    return result;
+    utf8_string = MVM_realloc(utf8_string, output_size + 1);
+    utf8_string[output_size] = (char)0;
+    return utf8_string;
 }
 
 /* Encodes the specified string to a UTF-8 C string if it is not NULL. */
