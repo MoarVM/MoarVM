@@ -135,6 +135,18 @@ stages:
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang --debug=3'
+         MVM_gcc_malloc:
+           IMAGE_NAME: 'ubuntu-20.04'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--cc=gcc --debug=3 --no-mimalloc'
+           CHECK_LEAKS: 'yes'
+         MVM_clang_malloc:
+           IMAGE_NAME: 'ubuntu-20.04'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--cc=clang --debug=3 --no-mimalloc'
+           CHECK_LEAKS: 'yes'
 
       pool:
         vmImage: $(IMAGE_NAME)

@@ -24,8 +24,16 @@
 /* platform-specific setjmp override */
 #include <platform/setjmp.h>
 
+#ifdef MVM_USE_MIMALLOC
+/* mimalloc needs to come early so other libs use it */
+#include <mimalloc.h>
+
+#define MVM_strdup mi_strdup
+#define MVM_strndup mi_strndup
+#else
 #define MVM_strdup strdup
 #define MVM_strndup strndup
+#endif
 
 /* libuv
  * must precede atomic_ops.h so we get the ordering of Winapi headers right
