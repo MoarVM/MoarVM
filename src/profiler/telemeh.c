@@ -203,7 +203,7 @@ MVM_PUBLIC void MVM_telemetry_interval_annotate_dynamic(uintptr_t subject, int i
     record->u.annotation_dynamic.intervalID = intervalID;
 
     /* Dynamic description arbitrarily limited for performance reasons. */
-    record->u.annotation_dynamic.description = strndup(description, 1024);
+    record->u.annotation_dynamic.description = MVM_strndup(description, 1024);
 }
 
 void calibrateTSC(FILE *outfile)

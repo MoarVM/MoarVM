@@ -24,6 +24,9 @@
 /* platform-specific setjmp override */
 #include <platform/setjmp.h>
 
+#define MVM_strdup strdup
+#define MVM_strndup strndup
+
 /* libuv
  * must precede atomic_ops.h so we get the ordering of Winapi headers right
  */
