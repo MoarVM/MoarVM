@@ -121,7 +121,7 @@ static MVMuint64 get_string_index(MVMThreadContext *tc, MVMHeapSnapshotState *ss
         &(col->alloc_strings_free), sizeof(char));
     col->strings_free[col->num_strings_free] = str_mode != STR_MODE_CONST;
     col->num_strings_free++;
-    col->strings[col->num_strings] = str_mode == STR_MODE_DUP ? mi_strdup(str) : str;
+    col->strings[col->num_strings] = str_mode == STR_MODE_DUP ? MVM_strdup(str) : str;
     return col->num_strings++;
 }
 

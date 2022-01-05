@@ -25,6 +25,8 @@
 
 /* mimalloc needs to come early so other libs use it */
 #include <mimalloc.h>
+#define MVM_strdup mi_strdup
+#define MVM_strndup mi_strndup
 
 /* libuv
  * must precede atomic_ops.h so we get the ordering of Winapi headers right
