@@ -1,4 +1,4 @@
-#!/usr/bin/env perl6
+#!/usr/bin/env raku
 use lib <lib tools/lib>;
 use Collation-Gram;
 use ArrayCompose;
@@ -311,8 +311,8 @@ spurt $out-file, @composed-arrays.join("\n");
 print qq:to/END/;
 Done writing $out-file.
 {'=' x 70}
-MAKE SURE TO RUN `perl6 CollationTestGen.raku --folder=MoarVM/UNIDATA/UCA/CollationTest --test-only --should-test ` to ensure there are ~74 failures only!
+MAKE SURE TO RUN `cd \$ROAST_DIR/S32-str; raku CollationTestGen.raku --folder=\$MOARVM_DIR/UNIDATA/UCA/CollationTest --test-only --should-test` to ensure there are ~74 failures only!
 
-Then paste those failures (if they're ok into CollationTestGen.raku in the \%todo variable.
+Then paste those failures (if they're ok into CollationTestGen.raku in the \$todo variable). If you get exactly 74 failures then you probably don't need to check anything
 {'=' x 70}
 END
