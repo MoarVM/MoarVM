@@ -43,7 +43,7 @@ sub _to_probe_dir {
 }
 
 sub compile {
-    my ($config, $leaf, $defines, $files) = @_;
+    my ($config, $leaf, $defines, $files, $extra_libs) = @_;
     my $restore = _to_probe_dir();
 
     my $cl_define = join ' ', map {$config->{ccdef} . $_} @$defines;
@@ -57,7 +57,9 @@ sub compile {
         push @objs, $obj;
     }
 
-    my $command = "$config->{ld} $ENV{LDFLAGS} $config->{ldout}$leaf @objs $config->{ldlibs} >$devnull 2>&1";
+    my $libs = join ' ', $config->{ldlibs}, @{$extra_libs // []};
+
+    my $command = "$config->{ld} $ENV{LDFLAGS} $config->{ldout}$leaf @objs $libs >$devnull 2>&1";
     system $command
         and return;
     return 1;
@@ -1079,6 +1081,63 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
 }
 EOT
+}
+
+sub stdatomic {
+    my ($config) = @_;
+
+    if ($config->{crossconf}) {
+        warn "Guessing :-(";
+        $config->{has_stdatomic} = 0;
+        return;
+    }
+
+    my $restore = _to_probe_dir();
+    _spew('try.c', <<'EOT');
+#include <stdlib.h>
+#include <stdatomic.h>
+
+/* mimalloc relies on behaviour that was buggy in the original C11 *spec*. See
+ * http://www.open-std.org/jtc1/sc22/wg14/www/docs/n1807.htm
+ * At least one compiler we've tried (clang version 7.0.1-8+rpi3+deb10u2) will
+ * fail to compile this probe because it implements C11 correctly. C11-as-was.
+ * It is unable to build mimalloc */
+
+int value (const _Atomic long long *ptr) {
+    return atomic_load(ptr);
+}
+
+/* on some 32 bit systems atomic operations on 64 bit values rely on a support
+ * library. */
+
+int main(int argc, char **argv) {
+    _Atomic long long probe = 42;
+    probe -= 6 * 7;
+    return value(&probe);
+}
+EOT
+
+    print ::dots('    probing stdatomic');
+
+    # gcc might need -latomic.
+    # (looks like Solaris Studio 12.5 and later needs libatomic.so)
+    for my $lib (undef, '-latomic') {
+        if (compile($config, 'try', undef, undef, $lib && [$lib])) {
+            if (!system './try') {
+                if ($lib) {
+                    print "YES, with $lib\n";
+                    $config->{ldlibs} .= " $lib";
+                }
+                else {
+                    print "YES\n";
+                }
+                $config->{has_stdatomic} = 1;
+                return;
+            }
+        }
+    }
+    print "NO\n";
+    return;
 }
 
 '00';

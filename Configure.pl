@@ -548,6 +548,7 @@ build::probe::substandard_trig(\%config, \%defaults);
 build::probe::has_isinf_and_isnan(\%config, \%defaults);
 build::probe::unaligned_access(\%config, \%defaults);
 build::probe::ptr_size(\%config, \%defaults);
+build::probe::stdatomic(\%config, \%defaults);
 
 my $archname = $Config{archname};
 if ($args{'jit'}) {
