@@ -261,7 +261,7 @@ void serializeTelemetryBufferRange(FILE *outfile, unsigned int serializationStar
                 break;
             case DynamicString:
                 fprintf(outfile,  "%15s ???  \"%s\" (%d)\n", " ", record->u.annotation_dynamic.description, record->u.annotation_dynamic.intervalID);
-                free(record->u.annotation_dynamic.description);
+                MVM_free(record->u.annotation_dynamic.description);
                 break;
         }
     }
