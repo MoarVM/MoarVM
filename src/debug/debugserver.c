@@ -3,9 +3,7 @@
 #define DEBUGSERVER_MAJOR_PROTOCOL_VERSION 1
 #define DEBUGSERVER_MINOR_PROTOCOL_VERSION 3
 
-#define bool int
-#define true TRUE
-#define false FALSE
+#include <stdbool.h>
 
 #include "cmp.h"
 #include "platform/socket.h"
