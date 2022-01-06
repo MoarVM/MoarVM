@@ -48,12 +48,11 @@ GetOptions(\%args, qw(
     build=s host=s big-endian jit! enable-jit
     prefix=s bindir=s libdir=s mastdir=s
     relocatable make-install asan ubsan tsan
-    valgrind telemeh dtrace show-autovect git-cache-dir=s
+    valgrind telemeh! dtrace show-autovect git-cache-dir=s
     show-autovect-failed:s),
 
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 },
-    'no-telemeh|notelemeh' => sub { $args{telemeh} = 0 }
 ) or die "See --help for further information\n";
 
 
