@@ -423,7 +423,7 @@ MVMString * MVM_file_readlink(MVMThreadContext *tc, MVMString *path) {
 
     MVM_free(path_s);
     result = MVM_string_utf8_c8_decode(tc, tc->instance->VMString, req.ptr, strlen(req.ptr));
-    MVM_free(req.ptr);
+    uv_fs_req_cleanup(&req);
 
     return result;
 }
