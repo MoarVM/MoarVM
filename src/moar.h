@@ -40,11 +40,28 @@
  */
 #include <uv.h>
 
+#ifdef MVM_USE_C11_ATOMICS
+#include <stdatomic.h>
+typedef atomic_uintptr_t AO_t;
+#ifdef __clang__
+/* clang and gcc disagree on rvalue semantics of atomic types
+ * clang refuses to implicitly assign the value of an atomic variable to the
+ * regular non-atomic type. Hence we need this: */
+#define AO_READ(v) atomic_load_explicit(&(v), memory_order_relaxed)
+
+#else
+#define AO_READ(v) (v)
+#endif
+/* clang also refuses to cast as (AO_t)(v), but doing this works for gcc and
+ * clang (and hopefully other compilers, when we get there) */
+#define AO_CAST(v) (uintptr_t)(v)
+#else
 /* libatomic_ops */
 #define AO_REQUIRE_CAS
 #include <atomic_ops.h>
 #define AO_READ(v) (v)
 #define AO_CAST(v) (AO_t)(v)
+#endif
 
 /* libffi or dynload/dyncall/dyncallback */
 #ifdef HAVE_LIBFFI
@@ -289,6 +306,51 @@ MVM_PUBLIC int MVM_exepath(char* buffer, size_t* size);
 MVM_PUBLIC int MVM_set_std_handles_to_nul(void);
 #endif
 
+#ifdef MVM_USE_C11_ATOMICS
+
+#define MVM_incr(addr) atomic_fetch_add((volatile AO_t *)(addr), 1)
+#define MVM_decr(addr) atomic_fetch_sub((volatile AO_t *)(addr), 1)
+#define MVM_add(addr, add) atomic_fetch_add((volatile AO_t *)(addr), (add))
+
+/* Returns non-zero for success. Use for both AO_t numbers and pointers. */
+MVM_STATIC_INLINE int
+MVM_trycas_AO(volatile AO_t *addr, uintptr_t old, const uintptr_t new) {
+    return atomic_compare_exchange_strong(addr, &old, new);
+}
+#define MVM_trycas(addr, old, new) MVM_trycas_AO((volatile AO_t *)(addr), AO_CAST(old), AO_CAST(new))
+
+
+/* Returns the old value dereferenced at addr.
+ * Strictly, as libatomic_ops documents it:
+ *      Atomically compare *addr to old_val, and replace *addr by new_val
+ *      if the first comparison succeeds; returns the original value of *addr;
+ *       cannot fail spuriously.
+ */
+MVM_STATIC_INLINE uintptr_t
+MVM_cas(volatile AO_t *addr, uintptr_t old, const uintptr_t new) {
+    /* If *addr == old then { does exchange, returns true }
+     * else { writes old value to &old, returns false }
+     * Hence if exchange happens, we return the old value because C11 doesn't
+     * overwrite &old. If exchange doesn't happen, C11 does overwrite. */
+    atomic_compare_exchange_strong(addr, &old, new);
+    return old;
+}
+
+/* Returns the old pointer value dereferenced at addr. Provided for a tiny bit of type safety. */
+#define MVM_casptr(addr, old, new) ((void *)MVM_cas((AO_t *)(addr), (uintptr_t)(old), (uintptr_t)(new)))
+
+/* Full memory barrier. */
+#define MVM_barrier() atomic_thread_fence(memory_order_seq_cst)
+
+/* Need to use these to assign to or read from any memory locations on
+ * which the other atomic operation macros are used... */
+#define MVM_store(addr, new) atomic_store((volatile AO_t *)(addr), AO_CAST(new))
+#define MVM_load(addr) atomic_load((volatile AO_t *)(addr))
+
+#else
+
+/* libatomic_ops */
+
 /* Seems that both 32 and 64 bit sparc need this crutch */
 #if defined(__s390__) || defined(__sparc__)
 AO_t AO_fetch_compare_and_swap_emulation(volatile AO_t *addr, AO_t old_val, AO_t new_val);
@@ -317,3 +379,5 @@ AO_t AO_fetch_compare_and_swap_emulation(volatile AO_t *addr, AO_t old_val, AO_t
  * which the other atomic operation macros are used... */
 #define MVM_store(addr, new) AO_store_full((volatile AO_t *)(addr), (AO_t)(new))
 #define MVM_load(addr) AO_load_full((volatile AO_t *)(addr))
+
+#endif
