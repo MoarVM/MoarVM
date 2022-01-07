@@ -126,8 +126,8 @@ static const MVMContainerSpec code_pair_spec = {
     NULL,
     code_pair_can_store,
     NULL, /* cas */
-    NULL, /* atomic_load */
-    NULL, /* atomic_store */
+    NULL, /* load_atomic */
+    NULL, /* store_atomic */
     0
 };
 
@@ -184,7 +184,7 @@ typedef struct {
     MVMCode *store;
     MVMCode *store_unchecked;
     MVMCode *cas;
-    MVMCode *atomic_store;
+    MVMCode *store_atomic;
 
     /* Retained for serialization purposes only. */
     MVMObject *attrs_class;
@@ -277,7 +277,7 @@ static void value_desc_cont_gc_mark_data(MVMThreadContext *tc, MVMSTable *st, MV
     MVM_gc_worklist_add(tc, worklist, &data->store);
     MVM_gc_worklist_add(tc, worklist, &data->store_unchecked);
     MVM_gc_worklist_add(tc, worklist, &data->cas);
-    MVM_gc_worklist_add(tc, worklist, &data->atomic_store);
+    MVM_gc_worklist_add(tc, worklist, &data->store_atomic);
     MVM_gc_worklist_add(tc, worklist, &data->attrs_class);
     MVM_gc_worklist_add(tc, worklist, &data->value_attr);
     MVM_gc_worklist_add(tc, worklist, &data->descriptor_attr);
@@ -292,7 +292,7 @@ static void value_desc_cont_serialize(MVMThreadContext *tc, MVMSTable *st, MVMSe
     MVM_serialization_write_ref(tc, writer, (MVMObject *)data->store);
     MVM_serialization_write_ref(tc, writer, (MVMObject *)data->store_unchecked);
     MVM_serialization_write_ref(tc, writer, (MVMObject *)data->cas);
-    MVM_serialization_write_ref(tc, writer, (MVMObject *)data->atomic_store);
+    MVM_serialization_write_ref(tc, writer, (MVMObject *)data->store_atomic);
     MVM_serialization_write_ref(tc, writer, data->attrs_class);
     MVM_serialization_write_str(tc, writer, data->value_attr);
     MVM_serialization_write_str(tc, writer, data->descriptor_attr);
@@ -303,7 +303,7 @@ static void value_desc_cont_deserialize(MVMThreadContext *tc, MVMSTable *st, MVM
     MVM_ASSIGN_REF(tc, &(st->header), data->store, MVM_serialization_read_ref(tc, reader));
     MVM_ASSIGN_REF(tc, &(st->header), data->store_unchecked, MVM_serialization_read_ref(tc, reader));
     MVM_ASSIGN_REF(tc, &(st->header), data->cas, MVM_serialization_read_ref(tc, reader));
-    MVM_ASSIGN_REF(tc, &(st->header), data->atomic_store, MVM_serialization_read_ref(tc, reader));
+    MVM_ASSIGN_REF(tc, &(st->header), data->store_atomic, MVM_serialization_read_ref(tc, reader));
     MVM_ASSIGN_REF(tc, &(st->header), data->attrs_class, MVM_serialization_read_ref(tc, reader));
     MVM_ASSIGN_REF(tc, &(st->header), data->value_attr, MVM_serialization_read_str(tc, reader));
     MVM_ASSIGN_REF(tc, &(st->header), data->descriptor_attr, MVM_serialization_read_str(tc, reader));
@@ -359,7 +359,7 @@ static void value_desc_cont_atomic_store(MVMThreadContext *tc, MVMObject *cont, 
             MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
     args_record->args.source[0].o = cont;
     args_record->args.source[1].o = value;
-    MVM_frame_dispatch_from_c(tc, data->atomic_store, args_record, NULL, MVM_RETURN_VOID);
+    MVM_frame_dispatch_from_c(tc, data->store_atomic, args_record, NULL, MVM_RETURN_VOID);
 }
 
 static const MVMContainerSpec value_desc_cont_spec = {
@@ -424,7 +424,7 @@ static void value_desc_cont_configure_container_spec(MVMThreadContext *tc, MVMST
         value = grab_one_value(tc, config, "atomic_store");
         if (!MVM_code_iscode(tc, value))
             MVM_exception_throw_adhoc(tc, "Container spec must be configured with a code handle");
-        MVM_ASSIGN_REF(tc, &(st->header), data->atomic_store, value);
+        MVM_ASSIGN_REF(tc, &(st->header), data->store_atomic, value);
         value = grab_one_value(tc, config, "attrs_class");
         MVM_ASSIGN_REF(tc, &(st->header), data->attrs_class, value);
         value = grab_one_value(tc, config, "value_attr");
@@ -704,8 +704,8 @@ static const MVMContainerSpec native_ref_spec = {
     NULL,
     native_ref_can_store,
     NULL, /* cas */
-    NULL, /* atomic_load */
-    NULL, /* atomic_store */
+    NULL, /* load_atomic */
+    NULL, /* store_atomic */
     1
 };
 
@@ -989,8 +989,8 @@ MVMObject * MVM_6model_container_atomic_load(MVMThreadContext *tc, MVMObject *co
     if (IS_CONCRETE(cont)) {
         MVMContainerSpec const *cs = cont->st->container_spec;
         if (cs) {
-            if (cs->atomic_load)
-                return cs->atomic_load(tc, cont);
+            if (cs->load_atomic)
+                return cs->load_atomic(tc, cont);
             else
                 MVM_exception_throw_adhoc(tc,
                     "A %s container does not know how to do an atomic load",
@@ -1013,8 +1013,8 @@ void MVM_6model_container_atomic_store(MVMThreadContext *tc, MVMObject *cont, MV
     if (IS_CONCRETE(cont)) {
         MVMContainerSpec const *cs = cont->st->container_spec;
         if (cs) {
-            if (cs->atomic_store)
-                cs->atomic_store(tc, cont, value);
+            if (cs->store_atomic)
+                cs->store_atomic(tc, cont, value);
             else
                 MVM_exception_throw_adhoc(tc,
                     "A %s container does not know how to do an atomic store",

@@ -6223,7 +6223,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(sp_atomicload_o): {
                 MVMObject *target = GET_REG(cur_op, 2).o;
-                GET_REG(cur_op, 0).o = target->st->container_spec->atomic_load(tc, target);
+                GET_REG(cur_op, 0).o = target->st->container_spec->load_atomic(tc, target);
                 cur_op += 4;
                 goto NEXT;
             }
@@ -6231,7 +6231,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *target = GET_REG(cur_op, 0).o;
                 MVMObject *value = GET_REG(cur_op, 2).o;
                 cur_op += 4;
-                target->st->container_spec->atomic_store(tc, target, value);
+                target->st->container_spec->store_atomic(tc, target, value);
                 goto NEXT;
             }
             OP(sp_add_I): {

@@ -2214,7 +2214,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov ARG2, aword WORK[target];
         | mov FUNCTION, OBJECT:ARG2->st;
         | mov FUNCTION, STABLE:FUNCTION->container_spec;
-        | mov FUNCTION, CONTAINERSPEC:FUNCTION->atomic_load;
+        | mov FUNCTION, CONTAINERSPEC:FUNCTION->load_atomic;
         | call FUNCTION;
         | mov WORK[result], RV
         break;
@@ -2227,7 +2227,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov ARG3, aword WORK[value];
         | mov FUNCTION, OBJECT:ARG2->st;
         | mov FUNCTION, STABLE:FUNCTION->container_spec;
-        | mov FUNCTION, CONTAINERSPEC:FUNCTION->atomic_store;
+        | mov FUNCTION, CONTAINERSPEC:FUNCTION->store_atomic;
         | call FUNCTION;
         break;
     }
