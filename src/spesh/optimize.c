@@ -1825,7 +1825,7 @@ static void optimize_container_atomic(MVMThreadContext *tc, MVMSpeshGraph *g,
                 ins->info = MVM_op_get_op(MVM_OP_sp_cas_o);
                 break;
             case MVM_OP_atomicstore_o:
-                if (!cs->atomic_store)
+                if (!cs->store_atomic)
                     return;
                 ins->info = MVM_op_get_op(MVM_OP_sp_atomicstore_o);
                 break;

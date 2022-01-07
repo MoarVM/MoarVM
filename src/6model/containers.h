@@ -57,8 +57,8 @@ struct MVMContainerSpec {
      * operation, and atomic store operation. */
     void (*cas) (MVMThreadContext *tc, MVMObject *cont, MVMObject *expected,
         MVMObject *value, MVMRegister *result);
-    MVMObject * (*atomic_load) (MVMThreadContext *tc, MVMObject *cont);
-    void (*atomic_store) (MVMThreadContext *tc, MVMObject *cont, MVMObject *value);
+    MVMObject * (*load_atomic) (MVMThreadContext *tc, MVMObject *cont);
+    void (*store_atomic) (MVMThreadContext *tc, MVMObject *cont, MVMObject *value);
 
     /* Set this to a non-zero value if a fetch promises to never invoke any
      * code. This means the VM knows it can safely decontainerize in places
