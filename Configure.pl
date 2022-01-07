@@ -556,6 +556,10 @@ if (!defined $config{use_mimalloc}) {
         print "Defaulting to mimalloc because you have <stdatomic.h>\n";
         $config{use_mimalloc} = 1;
     }
+    elsif ($config{cc} eq 'cl') {
+        print "Defaulting to mimalloc because you are using MSVC\n";
+        $config{use_mimalloc} = 1;
+    }
     else {
         print "Defaulting to libc malloc because <stdatomic.h> was not found.\n";
         $config{use_mimalloc} = 0;
@@ -1116,11 +1120,11 @@ is specified the default is to optimize.
 
 Control whether we build with mimalloc or use the C library's malloc.
 
-mimalloc requires working C11 C<< <stdatomic> >>. We probe for this, and
-if found we default is to use mimalloc. If not found we default to the
-C library's malloc. Specify C<--no-mimalloc> to force use of the C library's
-malloc always. Specify C<--no-mimalloc> to force use of mimalloc, even if
-the probing thinks that it won't build.
+mimalloc requires either MSVC or working C11 C<< <stdatomic> >>. We probe for
+this, and if found or using MSVC we default to use mimalloc. Otherwise we
+default to the C library's malloc. Specify C<--no-mimalloc> to force use of the
+C library's malloc always. Specify C<--mimalloc> to force use of mimalloc, even
+if the probing thinks that it won't build.
 
 =item --os <os>
 
