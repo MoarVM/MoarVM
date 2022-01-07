@@ -49,7 +49,7 @@ GetOptions(\%args, qw(
     prefix=s bindir=s libdir=s mastdir=s
     relocatable make-install asan ubsan tsan
     valgrind telemeh! dtrace show-autovect git-cache-dir=s
-    show-autovect-failed:s mimalloc!),
+    show-autovect-failed:s mimalloc! c11-atomics!),
 
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 },
@@ -272,7 +272,12 @@ else {
     push @hllincludes, 'libuv';
 }
 
-if ($args{'has-libatomic_ops'}) {
+$config{use_c11_atomics} = $args{'c11-atomics'} ? 1 : 0;
+
+if ($config{use_c11_atomics}) {
+    $defaults{-thirdparty}->{lao} = undef;
+}
+elsif ($args{'has-libatomic_ops'}) {
     $defaults{-thirdparty}->{lao} = undef;
     unshift @{$config{usrlibs}}, 'atomic_ops';
     setup_native_library('atomic_ops') if $config{pkgconfig_works};
@@ -1125,6 +1130,15 @@ this, and if found or using MSVC we default to use mimalloc. Otherwise we
 default to the C library's malloc. Specify C<--no-mimalloc> to force use of the
 C library's malloc always. Specify C<--mimalloc> to force use of mimalloc, even
 if the probing thinks that it won't build.
+
+=item --c11-atomics
+
+=item --no-c11-atomics
+
+Use C11 atomics instead of libatomic_ops for atomic operations. The default
+is currently C<--no-c11-atomics> - ie use libatomic_ops. If you set
+C<--c11-atomics> and your compiler does not support C11 atomics, your build
+will fail.
 
 =item --os <os>
 
