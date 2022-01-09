@@ -50,6 +50,11 @@ stages:
            RAKUDO_OPTIONS: '--relocatable'
            NQP_OPTIONS: '--backends=moar --relocatable'
            MOAR_OPTIONS: '--relocatable'
+         Mac_MVM_C11_atomics:
+           IMAGE_NAME: 'macOS-10.15'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--c11-atomics'
 
          Lin_MVM:
            IMAGE_NAME: 'ubuntu-20.04'
@@ -146,6 +151,18 @@ stages:
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang --debug=3 --no-mimalloc'
+           CHECK_LEAKS: 'yes'
+         MVM_gcc_c11_atomics:
+           IMAGE_NAME: 'ubuntu-20.04'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--cc=gcc --debug=3 --c11-atomics'
+           CHECK_LEAKS: 'yes'
+         MVM_clang_c11_atomics:
+           IMAGE_NAME: 'ubuntu-20.04'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--cc=clang --debug=3 --c11-atomics'
            CHECK_LEAKS: 'yes'
 
       pool:
