@@ -1057,7 +1057,7 @@ static AO_t * native_ref_as_atomic_i(MVMThreadContext *tc, MVMObject *cont) {
 
 MVMint64 MVM_6model_container_cas_i(MVMThreadContext *tc, MVMObject *cont,
                                     MVMint64 expected, MVMint64 value) {
-    return (MVMint64)MVM_cas(native_ref_as_atomic_i(tc, cont), (AO_t)expected, (AO_t)value);
+    return (MVMint64)MVM_cas(native_ref_as_atomic_i(tc, cont), AO_CAST(expected), AO_CAST(value));
 }
 
 MVMint64 MVM_6model_container_atomic_load_i(MVMThreadContext *tc, MVMObject *cont) {
@@ -1077,5 +1077,5 @@ MVMint64 MVM_6model_container_atomic_dec(MVMThreadContext *tc, MVMObject *cont) 
 }
 
 MVMint64 MVM_6model_container_atomic_add(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
-    return (MVMint64)MVM_add(native_ref_as_atomic_i(tc, cont), (AO_t)value);
+    return (MVMint64)MVM_add(native_ref_as_atomic_i(tc, cont), AO_CAST(value));
 }

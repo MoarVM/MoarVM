@@ -29,7 +29,7 @@ static MVMuint32 signal_one_thread(MVMThreadContext *tc, MVMThreadContext *to_si
     unsigned int had_suspend_request = 0;
     while (1) {
         AO_t current = MVM_load(&to_signal->gc_status);
-        switch (current) {
+        switch (AO_READ(current)) {
             case MVMGCStatus_NONE:
                 /* Try to set it from running to interrupted - the common case. */
                 if (MVM_cas(&to_signal->gc_status, MVMGCStatus_NONE,

@@ -43,6 +43,8 @@
 /* libatomic_ops */
 #define AO_REQUIRE_CAS
 #include <atomic_ops.h>
+#define AO_READ(v) (v)
+#define AO_CAST(v) (AO_t)(v)
 
 /* libffi or dynload/dyncall/dyncallback */
 #ifdef HAVE_LIBFFI

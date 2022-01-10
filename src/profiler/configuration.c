@@ -988,7 +988,7 @@ finish_main_loop:
     stats_slot = stats_position_for_value(NULL, entrypoint, result);
 
     if (stats_slot != -1) {
-        MVM_store(&prog->last_return_time[stats_slot], (AO_t)MVM_proc_time(tc));
+        MVM_store(&prog->last_return_time[stats_slot], AO_CAST(MVM_proc_time(tc)));
         MVM_incr(&prog->return_counts[stats_slot]);
     }
 
