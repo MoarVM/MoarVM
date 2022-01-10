@@ -278,7 +278,7 @@ MVMint32 MVM_thread_cleanup_threads_list(MVMThreadContext *tc, MVMThread **head)
     *head = NULL;
     while (this) {
         next = this->body.next;
-        switch (this->body.stage) {
+        switch (AO_READ(this->body.stage)) {
             case MVM_thread_stage_starting:
             case MVM_thread_stage_waiting:
             case MVM_thread_stage_started:
