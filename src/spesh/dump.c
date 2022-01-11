@@ -583,6 +583,8 @@ static void dump_callsite(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs) {
             append(ds, "obj");
         } else if (arg_type == MVM_CALLSITE_ARG_INT) {
             append(ds, "int");
+        } else if (arg_type == MVM_CALLSITE_ARG_UINT) {
+            append(ds, "uint");
         } else if (arg_type == MVM_CALLSITE_ARG_NUM) {
             append(ds, "num");
         } else if (arg_type == MVM_CALLSITE_ARG_STR) {

@@ -1634,6 +1634,10 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
                 cs->arg_flags[index] = MVM_CALLSITE_ARG_INT;
                 arguments_to_pass[index].i64 = argument->arguments[index].arg_u.i;
             }
+            else if (argument->arguments[index].arg_kind == MVM_reg_uint64) {
+                cs->arg_flags[index] = MVM_CALLSITE_ARG_UINT;
+                arguments_to_pass[index].u64 = argument->arguments[index].arg_u.i;
+            }
             else if (argument->arguments[index].arg_kind == MVM_reg_num64) {
                 cs->arg_flags[index] = MVM_CALLSITE_ARG_NUM;
                 arguments_to_pass[index].n64 = argument->arguments[index].arg_u.n;
@@ -2383,6 +2387,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
             MVMuint8 entry_count =
                 !!(entry & MVM_CALLSITE_ARG_OBJ)
                 + !!(entry & MVM_CALLSITE_ARG_INT)
+                + !!(entry & MVM_CALLSITE_ARG_UINT)
                 + !!(entry & MVM_CALLSITE_ARG_NUM)
                 + !!(entry & MVM_CALLSITE_ARG_STR)
                 + !!(entry & MVM_CALLSITE_ARG_NAMED)
@@ -2391,6 +2396,8 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
             if (entry & MVM_CALLSITE_ARG_OBJ)
                 cmp_write_str(ctx, "obj", 3);
             if (entry & MVM_CALLSITE_ARG_INT)
+                cmp_write_str(ctx, "int", 3);
+            if (entry & MVM_CALLSITE_ARG_UINT)
                 cmp_write_str(ctx, "int", 3);
             if (entry & MVM_CALLSITE_ARG_NUM)
                 cmp_write_str(ctx, "num", 3);

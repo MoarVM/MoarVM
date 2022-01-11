@@ -207,7 +207,8 @@ MVMObject * MVM_capture_arg_pos_o(MVMThreadContext *tc, MVMObject *capture_obj, 
     if (idx >= capture->body.callsite->num_pos)
         MVM_exception_throw_adhoc(tc, "Capture argument index (%u) out of range (0..^%u) for captureposarg", idx, capture->body.callsite->num_pos);
     if ((capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK) != MVM_CALLSITE_ARG_OBJ)
-        MVM_exception_throw_adhoc(tc, "Capture argument is not an object argument for captureposarg");
+        MVM_exception_throw_adhoc(tc, "Capture argument is not an object argument for captureposarg. Got %d instead",
+            (capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK));
     return capture->body.args[idx].o;
 }
 
@@ -236,7 +237,7 @@ MVMint64 MVM_capture_arg_pos_i(MVMThreadContext *tc, MVMObject *capture_obj, MVM
     MVMCapture *capture = validate_capture(tc, capture_obj);
     if (idx >= capture->body.callsite->num_pos)
         MVM_exception_throw_adhoc(tc, "Capture argument index (%u) out of range (0..^%u) for captureposarg_i", idx, capture->body.callsite->num_pos);
-    if ((capture->body.callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK) != MVM_CALLSITE_ARG_INT)
+    if (!(capture->body.callsite->arg_flags[idx] & (MVM_CALLSITE_ARG_INT | MVM_CALLSITE_ARG_UINT)))
         MVM_exception_throw_adhoc(tc, "Capture argument is not an integer argument for captureposarg_i");
     return capture->body.args[idx].i64;
 }

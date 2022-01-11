@@ -807,6 +807,35 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
     exit_single_user(tc, body);
 }
 
+static MVMuint16 slot_type_to_kind(MVMuint8 slot_type) {
+    switch (slot_type) {
+        case MVM_ARRAY_OBJ:
+            return MVM_reg_obj;
+            break;
+        case MVM_ARRAY_STR:
+            return MVM_reg_str;
+            break;
+        case MVM_ARRAY_I64:
+        case MVM_ARRAY_I32:
+        case MVM_ARRAY_I16:
+        case MVM_ARRAY_I8:
+            return MVM_reg_int64;
+            break;
+        case MVM_ARRAY_N64:
+        case MVM_ARRAY_N32:
+            return MVM_reg_num64;
+            break;
+        case MVM_ARRAY_U64:
+        case MVM_ARRAY_U32:
+        case MVM_ARRAY_U16:
+        case MVM_ARRAY_U8:
+            return MVM_reg_uint64;
+            break;
+        default:
+            abort(); /* never reached, silence compiler warnings */
+    }
+}
+
 static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest, MVMint64 s_offset, MVMint64 d_offset, MVMint64 elems) {
     MVMArrayBody     *s_body      = (MVMArrayBody *)OBJECT_BODY(src);
     MVMArrayBody     *d_body      = (MVMArrayBody *)OBJECT_BODY(dest);
@@ -816,7 +845,6 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
 
     if (elems > 0) {
         MVMint64  i;
-        MVMuint16 kind;
         MVMuint8 d_needs_barrier = dest->header.flags2 & MVM_CF_SECOND_GEN;
         if (s_repr_data
                 && s_repr_data->slot_type == d_repr_data->slot_type
@@ -832,36 +860,13 @@ static void copy_elements(MVMThreadContext *tc, MVMObject *src, MVMObject *dest,
             );
         }
         else {
-            switch (d_repr_data->slot_type) {
-                case MVM_ARRAY_OBJ:
-                    kind = MVM_reg_obj;
-                    break;
-                case MVM_ARRAY_STR:
-                    kind = MVM_reg_str;
-                    break;
-                case MVM_ARRAY_I64:
-                case MVM_ARRAY_I32:
-                case MVM_ARRAY_I16:
-                case MVM_ARRAY_I8:
-                    kind = MVM_reg_int64;
-                    break;
-                case MVM_ARRAY_N64:
-                case MVM_ARRAY_N32:
-                    kind = MVM_reg_num64;
-                    break;
-                case MVM_ARRAY_U64:
-                case MVM_ARRAY_U32:
-                case MVM_ARRAY_U16:
-                case MVM_ARRAY_U8:
-                    kind = MVM_reg_int64;
-                    break;
-                default:
-                    abort(); /* never reached, silence compiler warnings */
-            }
+            MVMuint16 target_kind = slot_type_to_kind(d_repr_data->slot_type);
+            MVMuint16 source_kind = slot_type_to_kind(s_repr_data->slot_type);
             for (i = 0; i < elems; i++) {
                 MVMRegister to_copy;
-                REPR(src)->pos_funcs.at_pos(tc, STABLE(src), src, s_body, s_offset + i, &to_copy, kind);
-                MVM_VMArray_bind_pos(tc, STABLE(dest), dest, d_body, d_offset + i, to_copy, kind);
+                REPR(src)->pos_funcs.at_pos(tc, STABLE(src), src, s_body, s_offset + i, &to_copy, source_kind);
+                /* actually should coerce between source_kind and target_kind here */
+                MVM_VMArray_bind_pos(tc, STABLE(dest), dest, d_body, d_offset + i, to_copy, target_kind);
             }
         }
     }

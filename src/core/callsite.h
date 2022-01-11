@@ -1,6 +1,6 @@
 /* Callsite argument flags. */
-#define MVM_CALLSITE_ARG_TYPE_MASK       15
-#define MVM_CALLSITE_ARG_NAMED_FLAT_MASK 31
+#define MVM_CALLSITE_ARG_TYPE_MASK       143
+#define MVM_CALLSITE_ARG_NAMED_FLAT_MASK 159
 typedef enum {
     /* Argument is an object. */
     MVM_CALLSITE_ARG_OBJ = 1,
@@ -22,6 +22,9 @@ typedef enum {
 
     /* Argument is flattened. What this means is up to the target. */
     MVM_CALLSITE_ARG_FLAT = 64,
+
+    /* Argument is a native integer, unsigned. */
+    MVM_CALLSITE_ARG_UINT = 128,
 } MVMCallsiteFlags;
 
 /* Callsites that are used within the VM. */
@@ -145,6 +148,8 @@ MVM_STATIC_INLINE const char * MVM_callsite_arg_type_name(MVMCallsiteFlags f) {
             return "str";
         case MVM_CALLSITE_ARG_INT:
             return "int";
+        case MVM_CALLSITE_ARG_UINT:
+            return "uint";
         case MVM_CALLSITE_ARG_NUM:
             return "num";
         default:
