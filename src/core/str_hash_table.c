@@ -29,18 +29,14 @@ MVMuint32 MVM_round_up_log_base2(MVMuint32 v) {
 MVM_STATIC_INLINE void hash_demolish_internal(MVMThreadContext *tc,
                                               struct MVMStrHashTableControl *control) {
     if (control->cur_items == 0 && control->max_items == 0) {
-        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(*control), control);
+        MVM_free(control);
         return;
     }
 
     size_t allocated_items = MVM_str_hash_allocated_items(control);
     size_t entries_size = control->entry_size * allocated_items;
-    size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
     char *start = (char *)control - entries_size;
-
-    size_t total_size
-        = entries_size + sizeof(struct MVMStrHashTableControl) + metadata_size;
-    MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, total_size, start);
+    MVM_free_at_safepoint(tc, start);
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -132,7 +128,7 @@ MVM_STATIC_INLINE struct MVMStrHashTableControl *hash_allocate_common(MVMThreadC
     assert(total_size == MVM_hash_round_size_up(total_size));
 
     struct MVMStrHashTableControl *control =
-        (struct MVMStrHashTableControl *) ((char *) MVM_fixed_size_alloc(tc, tc->instance->fsa, total_size) + entries_size);
+        (struct MVMStrHashTableControl *) ((char *) MVM_malloc(total_size) + entries_size);
 
     control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
@@ -170,7 +166,7 @@ void MVM_str_hash_build(MVMThreadContext *tc,
 
     struct MVMStrHashTableControl *control;
     if (!entries) {
-        control = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(*control));
+        control = MVM_malloc(sizeof(*control));
         /* cur_items and max_items both 0 signals that we only allocated a
          * control structure. */
         memset(control, 0, sizeof(*control));
@@ -342,7 +338,7 @@ static struct MVMStrHashTableControl *maybe_grow_hash(MVMThreadContext *tc,
         control->serial = 0;
         control->last_delete_at = 0;
 #endif
-        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(*control_orig), control_orig);
+        MVM_free_at_safepoint(tc, control_orig);
         return control;
     }
 
@@ -483,7 +479,7 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
             if (!MVM_trycas(&(hashtable->table), control, new_control)) {
                 /* Oh erk, a second thread has just executed this code on this
                  * hashtable, allocated a new control structure, and both it and
-                 * us have passed the old control structure back to the FSA.
+                 * us have freed the old control structure.
                  * So we have a double free pending at the next safe point, and
                  * who knows what else is racing uncontrolled on this hash.
                  * Bad programmer, no cookie. */

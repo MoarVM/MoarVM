@@ -2051,7 +2051,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
             : 1;
     else
         sstrands = 1;
-    pieces        = MVM_fixed_size_alloc(tc, tc->instance->fsa, bytes);
+    pieces        = MVM_malloc(bytes);
     num_pieces    = 0;
     total_graphs  = 0;
     total_strands = 0;
@@ -2092,7 +2092,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
         return pieces[0];
     /* We now know the total eventual number of graphemes. */
     if (total_graphs == 0) {
-        MVM_fixed_size_free(tc, tc->instance->fsa, bytes, pieces);
+        MVM_free(pieces);
         return tc->instance->str_consts.empty;
     }
     result->body.num_graphs = total_graphs;
@@ -2170,7 +2170,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
         }
     }
 
-    MVM_fixed_size_free(tc, tc->instance->fsa, bytes, pieces);
+    MVM_free(pieces);
     STRAND_CHECK(tc, result);
     /* if concat is stable and NFG_CHECK on, run a NFG_CHECK on it since it
      * should be properly constructed now */

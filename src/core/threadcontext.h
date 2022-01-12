@@ -155,9 +155,6 @@ struct MVMThreadContext {
     MVMuint32        gc_work_size;
     MVMuint32        gc_work_count;
 
-    /* Per-thread fixed size allocator state. */
-    MVMFixedSizeAllocThread *thread_fsa;
-
     /************************************************************************
      * Interpreter state
      ************************************************************************/

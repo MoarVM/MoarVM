@@ -1,18 +1,6 @@
 #ifdef MVM_VALGRIND_SUPPORT
 #  include <valgrind/memcheck.h>
 
-/* The redzone we will put in front of and after every
- * allocation from the fixed size allocator */
-#ifndef MVM_FSA_REDZONE_BYTES
-/* MUST take alignment into account here, so use a multiple of the
-   architecture's pointer size! */
-#define MVM_FSA_REDZONE_BYTES 8
-#endif
-
-#else
-
-#define MVM_FSA_REDZONE_BYTES 0
-
 #define VALGRIND_CREATE_MEMPOOL(pool, rzB, is_zeroed) do { } while (0)
 #define VALGRIND_CREATE_MEMPOOL_EXT(pool, rzB, is_zeroed, flags) do { } while (0)
 #define VALGRIND_DESTROY_MEMPOOL(pool)  do { } while (0)

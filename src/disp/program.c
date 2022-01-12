@@ -1706,8 +1706,7 @@ static MVMObject * resume_init_capture(MVMThreadContext *tc, MVMDispResumptionDa
     MVMDispProgramResumption *resumption = resume_data->resumption;
     MVMCallsite *callsite = resumption->init_callsite;
     rec_resumption->initial_resume_args = callsite->flag_count
-            ? MVM_fixed_size_alloc(tc, tc->instance->fsa,
-                callsite->flag_count * sizeof(MVMRegister))
+            ? MVM_malloc(callsite->flag_count * sizeof(MVMRegister))
             : NULL;
     for (MVMuint16 i = 0; i < callsite->flag_count; i++)
         rec_resumption->initial_resume_args[i] = MVM_disp_resume_get_init_arg(tc,
@@ -2705,8 +2704,7 @@ static void produce_resumption_init_values(MVMThreadContext *tc, compile_state *
     /* Allocate storage for the resumption init value sources according to
      * the callsite size. */
     MVMuint16 arg_count = init_capture->body.callsite->flag_count;
-    res->init_values = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            arg_count * sizeof(MVMDispProgramResumptionInitValue));
+    res->init_values = MVM_malloc(arg_count * sizeof(MVMDispProgramResumptionInitValue));
 
     /* Go through the capture and source each value. */
     for (MVMuint16 i = 0; i < arg_count; i++) {
@@ -3789,10 +3787,7 @@ void MVM_disp_program_destroy(MVMThreadContext *tc, MVMDispProgram *dp) {
     for (MVMuint32 i = 0; i < dp->num_resumptions; i++) {
         MVMDispProgramResumption *resumption = &(dp->resumptions[i]);
         if (resumption->init_values) {
-            MVMuint16 arg_count = resumption->init_callsite->flag_count;
-            MVM_fixed_size_free(tc, tc->instance->fsa,
-                arg_count * sizeof(MVMDispProgramResumptionInitValue),
-                resumption->init_values);
+            MVM_free(resumption->init_values);
         }
     }
     MVM_free(dp->resumptions);
@@ -3817,10 +3812,7 @@ void MVM_disp_program_recording_destroy(MVMThreadContext *tc, MVMDispProgramReco
         for (i = 0; i < MVM_VECTOR_ELEMS(rec->resumptions); i++) {
             MVMDispProgramRecordingResumption *resumption = &(rec->resumptions[i]);
             if (resumption->initial_resume_args) {
-                MVMCallsite *init_callsite = ((MVMCapture *)resumption->initial_resume_capture.capture)->body.callsite;
-                MVM_fixed_size_free(tc, tc->instance->fsa,
-                        init_callsite->flag_count * sizeof(MVMRegister),
-                        resumption->initial_resume_args);
+                MVM_free(resumption->initial_resume_args);
             }
             destroy_recording_capture(tc, &(resumption->initial_resume_capture));
         }

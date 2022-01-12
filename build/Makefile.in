@@ -114,7 +114,6 @@ OBJECTS1 = src/core/callsite@obj@ \
           src/core/nativecall_@nativecall_backend@@obj@ \
           src/core/continuation@obj@ \
           src/core/intcache@obj@ \
-          src/core/fixedsizealloc@obj@ \
           src/core/regionalloc@obj@ \
           src/debug/debugserver@obj@ \
           src/gen/config@obj@ \
@@ -300,7 +299,6 @@ HEADERS = src/moar.h \
           src/core/nativecall.h \
           src/core/continuation.h \
           src/core/intcache.h \
-          src/core/fixedsizealloc.h \
           src/core/regionalloc.h \
           src/debug/debugserver.h \
           src/io/io.h \

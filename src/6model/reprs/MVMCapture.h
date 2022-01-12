@@ -4,7 +4,7 @@
 struct MVMCaptureBody {
     /* The callsite. */
     MVMCallsite *callsite;
-    /* Argument buffer, which is allocated using the FSA. */
+    /* Argument buffer. */
     MVMRegister *args;
 };
 struct MVMCapture {

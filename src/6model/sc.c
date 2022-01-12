@@ -65,23 +65,22 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
 /* Makes an entry in all SCs list, the index of which is used to refer to
  * SCs in object headers. This must only be called while holding the SC
  * registry mutex. However, the all SCs list is read without the lock.
- * Thus we allocate memory using the FSA and free it at a safepoint. */
+ * Thus free allocated memory at a safepoint. */
 void MVM_sc_add_all_scs_entry(MVMThreadContext *tc, MVMSerializationContextBody *scb) {
     if (tc->instance->all_scs_next_idx == tc->instance->all_scs_alloc) {
         if (tc->instance->all_scs_next_idx == 0) {
             /* First time; allocate, and NULL first slot as it is
              * the "no SC" sentinel value. */
             tc->instance->all_scs_alloc = 32;
-            tc->instance->all_scs    = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-                tc->instance->all_scs_alloc * sizeof(MVMSerializationContextBody *));
+            tc->instance->all_scs    = MVM_malloc(tc->instance->all_scs_alloc * sizeof(MVMSerializationContextBody *));
             tc->instance->all_scs[0] = NULL;
             tc->instance->all_scs_next_idx++;
         }
         else {
             MVMuint32 orig_alloc = tc->instance->all_scs_alloc;
             tc->instance->all_scs_alloc += 32;
-            tc->instance->all_scs = MVM_fixed_size_realloc_at_safepoint(tc,
-                tc->instance->fsa, tc->instance->all_scs,
+            tc->instance->all_scs = MVM_realloc_at_safepoint(tc,
+                tc->instance->all_scs,
                 orig_alloc * sizeof(MVMSerializationContextBody *),
                 tc->instance->all_scs_alloc * sizeof(MVMSerializationContextBody *));
         }
@@ -92,12 +91,7 @@ void MVM_sc_add_all_scs_entry(MVMThreadContext *tc, MVMSerializationContextBody 
 }
 
 void MVM_sc_all_scs_destroy(MVMThreadContext *tc) {
-    MVM_fixed_size_free(
-        tc,
-        tc->instance->fsa,
-        tc->instance->all_scs_alloc * sizeof(MVMSerializationContextBody *),
-        tc->instance->all_scs
-    );
+    MVM_free(tc->instance->all_scs);
 }
 
 /* Given an SC, returns its unique handle. */

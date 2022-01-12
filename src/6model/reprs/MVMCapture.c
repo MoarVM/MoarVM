@@ -26,7 +26,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         : MVM_callsite_copy(tc, src_body->callsite);
     size_t arg_size = dest_body->callsite->flag_count * sizeof(MVMRegister);
     if (arg_size) {
-        dest_body->args = MVM_fixed_size_alloc(tc, tc->instance->fsa, arg_size);
+        dest_body->args = MVM_malloc(arg_size);
         memcpy(dest_body->args, src_body->args, arg_size);
     }
     else {
@@ -51,9 +51,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCapture *capture = (MVMCapture *)obj;
     if (capture->body.args)
-        MVM_fixed_size_free(tc, tc->instance->fsa,
-                capture->body.callsite->flag_count * sizeof(MVMRegister),
-                capture->body.args);
+        MVM_free(capture->body.args);
     if (capture->body.callsite && !capture->body.callsite->is_interned)
         MVM_callsite_destroy(capture->body.callsite);
 }
@@ -124,8 +122,7 @@ MVMObject * MVM_capture_from_args(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMCallsite *callsite = arg_info.callsite;
     MVMRegister *args;
     if (callsite->flag_count) {
-        args = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-                callsite->flag_count * sizeof(MVMRegister));
+        args = MVM_malloc(callsite->flag_count * sizeof(MVMRegister));
         MVMuint16 i;
         for (i = 0; i < callsite->flag_count; i++)
             args[i] = arg_info.source[arg_info.map[i]];
@@ -370,8 +367,7 @@ MVMObject * MVM_capture_drop_args(MVMThreadContext *tc, MVMObject *capture_obj, 
     /* Form a new arguments buffer, dropping the specified argument. */
     MVMRegister *new_args;
     if (new_callsite->flag_count) {
-        new_args = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            new_callsite->flag_count * sizeof(MVMRegister));
+        new_args = MVM_malloc(new_callsite->flag_count * sizeof(MVMRegister));
         MVMuint32 from, to = 0;
         for (from = 0; from < capture->body.callsite->flag_count; from++) {
             if (from < idx || from >= idx + count) {
@@ -417,8 +413,7 @@ MVMObject * MVM_capture_insert_arg(MVMThreadContext *tc, MVMObject *capture_obj,
             idx, kind);
 
     /* Form a new arguments buffer, dropping the specified argument. */
-    MVMRegister *new_args = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            new_callsite->flag_count * sizeof(MVMRegister));
+    MVMRegister *new_args = MVM_malloc(new_callsite->flag_count * sizeof(MVMRegister));
     MVMuint32 from, to = 0;
     for (from = 0; from < capture->body.callsite->flag_count; from++) {
         if (from == idx) {
@@ -472,8 +467,7 @@ MVMObject * MVM_capture_replace_arg(MVMThreadContext *tc, MVMObject *capture_obj
     new_callsite->arg_flags[idx] = kind;
 
     /* Form a new arguments buffer, replacing the specified argument. */
-    MVMRegister *new_args = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            callsite->flag_count * sizeof(MVMRegister));
+    MVMRegister *new_args = MVM_malloc(callsite->flag_count * sizeof(MVMRegister));
     MVMuint32 from = 0;
     for (from = 0; from < capture->body.callsite->flag_count; from++) {
         new_args[from] = capture->body.args[from];

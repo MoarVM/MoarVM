@@ -43,7 +43,7 @@ static MVMGrapheme32 lookup_synthetic(MVMThreadContext *tc, MVMCodepoint *codes,
 static MVMNFGTrieNode * twiddle_trie_node(MVMThreadContext *tc, MVMNFGTrieNode *current, MVMCodepoint *cur_code, MVMint32 codes_remaining, MVMGrapheme32 synthetic) {
     /* Make a new empty node, which we'll maybe copy some things from the
      * current node into. */
-    MVMNFGTrieNode *new_node = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMNFGTrieNode));
+    MVMNFGTrieNode *new_node = MVM_malloc(sizeof(MVMNFGTrieNode));
 
     /* If we've more codes remaining... */
     if (codes_remaining > 0) {
@@ -57,8 +57,7 @@ static MVMNFGTrieNode * twiddle_trie_node(MVMThreadContext *tc, MVMNFGTrieNode *
         if (idx >= 0) {
             /* Make a copy of the next_codes list. */
             size_t the_size = current->num_entries * sizeof(MVMNFGTrieNodeEntry);
-            MVMNFGTrieNodeEntry *new_next_codes = MVM_fixed_size_alloc(tc,
-                tc->instance->fsa, the_size);
+            MVMNFGTrieNodeEntry *new_next_codes = MVM_malloc(the_size);
             memcpy(new_next_codes, current->next_codes, the_size);
 
             /* Update the copy to point to the new child. */
@@ -68,8 +67,7 @@ static MVMNFGTrieNode * twiddle_trie_node(MVMThreadContext *tc, MVMNFGTrieNode *
              * existing child list at the next safe point. */
             new_node->num_entries = current->num_entries;
             new_node->next_codes  = new_next_codes;
-            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, the_size,
-                current->next_codes);
+            MVM_free_at_safepoint(tc, current->next_codes);
         }
 
         /* Otherwise, we're going to need to insert the new child into a
@@ -79,8 +77,7 @@ static MVMNFGTrieNode * twiddle_trie_node(MVMThreadContext *tc, MVMNFGTrieNode *
             MVMint32 orig_entries = current ? current->num_entries : 0;
             MVMint32 new_entries  = orig_entries + 1;
             size_t new_size       = new_entries * sizeof(MVMNFGTrieNodeEntry);
-            MVMNFGTrieNodeEntry *new_next_codes = MVM_fixed_size_alloc(tc,
-                tc->instance->fsa, new_size);
+            MVMNFGTrieNodeEntry *new_next_codes = MVM_malloc(new_size);
 
             /* Go through original entries, copying those that are for a lower
              * code point than the one we're inserting a child for. */
@@ -103,9 +100,7 @@ static MVMNFGTrieNode * twiddle_trie_node(MVMThreadContext *tc, MVMNFGTrieNode *
             new_node->num_entries = new_entries;
             new_node->next_codes  = new_next_codes;
             if (orig_entries)
-                MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
-                    orig_entries * sizeof(MVMNFGTrieNodeEntry),
-                    current->next_codes);
+                MVM_free_at_safepoint(tc, current->next_codes);
         }
 
         /* Always need to copy synthetic set on the existing node also;
@@ -129,8 +124,7 @@ static MVMNFGTrieNode * twiddle_trie_node(MVMThreadContext *tc, MVMNFGTrieNode *
 
     /* Free any existing node at next safe point, return the new one. */
     if (current)
-        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
-            sizeof(MVMNFGTrieNode), current);
+        MVM_free_at_safepoint(tc, current);
     return new_node;
 }
 static void add_synthetic_to_trie(MVMThreadContext *tc, MVMCodepoint *codes, MVMint32 num_codes, MVMGrapheme32 synthetic) {
@@ -153,10 +147,10 @@ static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MV
     if (nfg->num_synthetics % MVM_SYNTHETIC_GROW_ELEMS == 0) {
         size_t orig_size = nfg->num_synthetics * sizeof(MVMNFGSynthetic);
         size_t new_size  = (nfg->num_synthetics + MVM_SYNTHETIC_GROW_ELEMS) * sizeof(MVMNFGSynthetic);
-        MVMNFGSynthetic *new_synthetics = MVM_fixed_size_alloc(tc, tc->instance->fsa, new_size);
+        MVMNFGSynthetic *new_synthetics = MVM_malloc(new_size);
         if (orig_size) {
             memcpy(new_synthetics, nfg->synthetics, orig_size);
-            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, orig_size, nfg->synthetics);
+            MVM_free_at_safepoint(tc, nfg->synthetics);
         }
         nfg->synthetics = new_synthetics;
     }
@@ -198,8 +192,7 @@ static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MV
     }
 
 
-    synth->codes     = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-        num_codes * sizeof(MVMCodepoint));
+    synth->codes     = MVM_malloc(num_codes * sizeof(MVMCodepoint));
     memcpy(synth->codes, codes, (synth->num_codes * sizeof(MVMCodepoint)));
     synth->case_uc    = 0;
     synth->case_lc    = 0;
@@ -478,8 +471,8 @@ static void nfg_trie_node_destroy(MVMThreadContext *tc, MVMNFGTrieNode *node) {
         nfg_trie_node_destroy(tc, node->next_codes[i].node);
     }
     if (node->next_codes)
-        MVM_fixed_size_free(tc, tc->instance->fsa, node->num_entries * sizeof(MVMNFGTrieNodeEntry), node->next_codes);
-    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMNFGTrieNode), node);
+        MVM_free(node->next_codes);
+    MVM_free(node);
 }
 
 /* Free all memory allocated to hold synthetic graphemes. These are global
@@ -493,15 +486,8 @@ void MVM_nfg_destroy(MVMThreadContext *tc) {
 
     /* Free all synthetics. */
     if (nfg->synthetics) {
-        size_t used_synths_in_block = nfg->num_synthetics % MVM_SYNTHETIC_GROW_ELEMS;
-        size_t synths_to_free = used_synths_in_block
-            ? nfg->num_synthetics + (MVM_SYNTHETIC_GROW_ELEMS - used_synths_in_block)
-            : nfg->num_synthetics;
-
         for (i = 0; i < nfg->num_synthetics; i++) {
-            MVM_fixed_size_free(tc, tc->instance->fsa,
-                nfg->synthetics[i].num_codes * sizeof(MVMCodepoint),
-                nfg->synthetics[i].codes);
+            MVM_free(nfg->synthetics[i].codes);
             if (nfg->synthetics[i].case_uc != CASE_UNCHANGED)
                 MVM_free(nfg->synthetics[i].case_uc);
             if (nfg->synthetics[i].case_lc != CASE_UNCHANGED)
@@ -512,9 +498,7 @@ void MVM_nfg_destroy(MVMThreadContext *tc) {
                 MVM_free(nfg->synthetics[i].case_fc);
         }
 
-        MVM_fixed_size_free(tc, tc->instance->fsa,
-            synths_to_free * sizeof(MVMNFGSynthetic),
-            nfg->synthetics);
+        MVM_free(nfg->synthetics);
     }
 
     MVM_free(nfg);

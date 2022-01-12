@@ -368,17 +368,14 @@ static void log_one_allocation(MVMThreadContext *tc, MVMObject *obj, MVMProfileC
 
     /* No entry; create one. */
     if (pcn->num_alloc == pcn->alloc_alloc) {
-        size_t old_alloc = pcn->alloc_alloc;
         if (pcn->alloc_alloc == 0) {
             pcn->alloc_alloc++;
-            pcn->alloc = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-                    pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
+            pcn->alloc = MVM_malloc(pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
         }
         else {
             pcn->alloc_alloc *= 2;
-            pcn->alloc = MVM_fixed_size_realloc(tc, tc->instance->fsa,
+            pcn->alloc = MVM_realloc(
                     pcn->alloc,
-                    old_alloc * sizeof(MVMProfileAllocationCount),
                     pcn->alloc_alloc * sizeof(MVMProfileAllocationCount));
         }
     }
@@ -459,17 +456,14 @@ void MVM_profiler_log_gc_deallocate(MVMThreadContext *tc, MVMObject *object) {
 
         /* No entry; create one. */
         if (pgc->num_dealloc == pgc->alloc_dealloc) {
-            size_t old_alloc = pgc->alloc_dealloc;
             if (pgc->alloc_dealloc == 0) {
                 pgc->alloc_dealloc++;
-                pgc->deallocs = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-                        pgc->alloc_dealloc * sizeof(MVMProfileDeallocationCount));
+                pgc->deallocs = MVM_malloc(pgc->alloc_dealloc * sizeof(MVMProfileDeallocationCount));
             }
             else {
                 pgc->alloc_dealloc *= 2;
-                pgc->deallocs = MVM_fixed_size_realloc(tc, tc->instance->fsa,
+                pgc->deallocs = MVM_realloc(
                         pgc->deallocs,
-                        old_alloc * sizeof(MVMProfileDeallocationCount),
                         pgc->alloc_dealloc * sizeof(MVMProfileDeallocationCount));
             }
         }

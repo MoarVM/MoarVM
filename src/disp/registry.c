@@ -2,12 +2,10 @@
 
 /* Allocates a dispatcher table. */
 static MVMDispRegistryTable * allocate_table(MVMThreadContext *tc, MVMuint32 num_entries) {
-    MVMDispRegistryTable *table = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-            sizeof(MVMDispRegistryTable));
+    MVMDispRegistryTable *table = MVM_calloc(1, sizeof(MVMDispRegistryTable));
     table->num_dispatchers = 0;
     table->alloc_dispatchers = num_entries;
-    table->dispatchers = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-            table->alloc_dispatchers * sizeof(MVMDispDefinition *));
+    table->dispatchers = MVM_calloc(table->alloc_dispatchers, sizeof(MVMDispDefinition *));
     return table;
 }
 
@@ -37,11 +35,8 @@ static void grow_registry_if_needed(MVMThreadContext *tc) {
         reg->table = new_table;
 
         /* Free the previous table at the next safepoint. */
-        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
-                current_table->alloc_dispatchers * sizeof(MVMDispDefinition *),
-                current_table->dispatchers);
-        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa,
-                sizeof(MVMDispRegistryTable), current_table);
+        MVM_free_at_safepoint(tc, current_table->dispatchers);
+        MVM_free_at_safepoint(tc, current_table);
     }
 }
 
@@ -54,7 +49,7 @@ static void register_internal(MVMThreadContext *tc, MVMString *id, MVMObject *di
     MVMDispRegistry *reg = &(tc->instance->disp_registry);
 
     /* Allocate and populate the dispatch definition. */
-    MVMDispDefinition *def = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMDispDefinition));
+    MVMDispDefinition *def = MVM_malloc(sizeof(MVMDispDefinition));
     def->id = id;
     def->dispatch = dispatch;
     def->resume = resume != NULL && IS_CONCRETE(resume) ? resume : NULL;
@@ -180,11 +175,8 @@ void MVM_disp_registry_destroy(MVMThreadContext *tc) {
     MVMuint32 i;
     for (i = 0; i < table->alloc_dispatchers; i++)
         if (table->dispatchers[i])
-            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMDispDefinition),
-                    table->dispatchers[i]);
-    MVM_fixed_size_free(tc, tc->instance->fsa,
-            table->alloc_dispatchers * sizeof(MVMDispDefinition *),
-            table->dispatchers);
-    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMDispRegistryTable), table);
+            MVM_free(table->dispatchers[i]);
+    MVM_free(table->dispatchers);
+    MVM_free(table);
     uv_mutex_destroy(&reg->mutex_update);
 }

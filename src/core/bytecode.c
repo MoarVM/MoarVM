@@ -331,8 +331,7 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
     if (num == 0)
         return NULL;
 
-    extops = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-        num * sizeof(MVMExtOpRecord));
+    extops = MVM_calloc(num, sizeof(MVMExtOpRecord));
 
     pos = rs->extop_seg;
     for (i = 0; i < num; i++) {
@@ -348,7 +347,7 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
         /* Lookup name string. */
         if (name_idx >= cu->body.num_strings) {
             cleanup_all(rs);
-            MVM_fixed_size_free(tc, tc->instance->fsa, num * sizeof(MVMExtOpRecord), extops);
+            MVM_free(extops);
             MVM_exception_throw_adhoc(tc,
                     "String heap index beyond end of string heap");
         }
@@ -451,7 +450,7 @@ static MVMExtOpRecord * deserialize_extop_records(MVMThreadContext *tc, MVMCompU
 
             fail:
                 cleanup_all(rs);
-                MVM_fixed_size_free(tc, tc->instance->fsa, num * sizeof(MVMExtOpRecord), extops);
+                MVM_free(extops);
                 MVM_exception_throw_adhoc(tc, "Invalid operand descriptor");
             }
         }
@@ -819,9 +818,7 @@ MVM_NO_RETURN static void report_deserialize_callsites_violation(MVMThreadContex
             MVM_free_null(callsites[k]);
         }
     }
-    MVM_fixed_size_free(tc, tc->instance->fsa,
-                        sizeof(MVMCallsite *) * rs->expected_callsites,
-                        callsites);
+    MVM_free(callsites);
     MVM_exception_throw_adhoc(tc, "%s, violated by arg %d in callsite %d",
                               violation, j, i);
 }
@@ -835,8 +832,7 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
     /* Allocate space for callsites. */
     if (rs->expected_callsites == 0)
         return NULL;
-    callsites = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-        sizeof(MVMCallsite *) * rs->expected_callsites);
+    callsites = MVM_malloc(sizeof(MVMCallsite *) * rs->expected_callsites);
 
     /* Load callsites. */
     pos = rs->callsite_seg;
@@ -962,8 +958,7 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
     rs = dissect_bytecode(tc, cu);
 
     /* Allocate space for the strings heap; we deserialize it lazily. */
-    cu_body->strings = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-        rs->expected_strings * sizeof(MVMString *));
+    cu_body->strings = MVM_calloc(rs->expected_strings, sizeof(MVMString *));
     cu_body->num_strings = rs->expected_strings;
     cu_body->orig_strings = rs->expected_strings;
     cu_body->string_heap_fast_table = MVM_calloc(
@@ -992,7 +987,7 @@ void MVM_bytecode_unpack(MVMThreadContext *tc, MVMCompUnit *cu) {
 
     if (rs->hll_str_idx > rs->expected_strings) {
         MVM_free(cu_body->string_heap_fast_table);
-        MVM_fixed_size_free(tc, tc->instance->fsa, rs->expected_strings * sizeof(MVMString *), cu_body->strings);
+        MVM_free(cu_body->strings);
         MVM_exception_throw_adhoc(tc, "Unpacking bytecode: HLL name string index out of range: %d > %d", rs->hll_str_idx, rs->expected_strings);
     }
 

@@ -155,10 +155,8 @@ MVMInstance * MVM_vm_create_instance(void) {
     init_cond(instance->cond_blocked_can_continue, "GC thread unblock");
 
     /* Safe point free list. */
+    instance->free_at_safepoint = NULL;
     init_mutex(instance->mutex_free_at_safepoint, "safepoint free list");
-
-    /* Create fixed size allocator. */
-    instance->fsa = MVM_fixed_size_create(instance->main_thread);
 
     /* Set up REPR registry mutex. */
     init_mutex(instance->mutex_repr_registry, "REPR registry");
@@ -658,10 +656,6 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_cond_destroy(&instance->cond_blocked_can_continue);
     uv_mutex_destroy(&instance->mutex_gc_orchestrate);
 
-    /* Clean up safepoint free vector. */
-    MVM_VECTOR_DESTROY(instance->free_at_safepoint);
-    uv_mutex_destroy(&instance->mutex_free_at_safepoint);
-
     /* Clean up Hash of HLLConfig. */
     uv_mutex_destroy(&instance->mutex_hllconfigs);
     MVM_fixkey_hash_demolish(instance->main_thread, &instance->compiler_hll_configs);
@@ -680,8 +674,7 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     uv_mutex_destroy(&instance->mutex_extop_registry);
     MVM_fixkey_hash_demolish(instance->main_thread, &instance->extop_registry);
 
-    /* Clean up Hash of all known serialization contexts; all SCs list is in
-     * FSA space and so cleaned up with that. */
+    /* Clean up Hash of all known serialization contexts. */
     uv_mutex_destroy(&instance->mutex_sc_registry);
     MVM_str_hash_demolish(instance->main_thread, &instance->sc_weakhash);
 
@@ -749,12 +742,13 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up event loop mutex. */
     uv_mutex_destroy(&instance->mutex_event_loop);
 
+    /* Clean up safepoint free list. */
+    uv_mutex_destroy(&instance->mutex_free_at_safepoint);
+    MVM_alloc_safepoint(instance->main_thread);
+
     /* Destroy main thread contexts and thread list mutex. */
     MVM_tc_destroy(instance->main_thread);
     uv_mutex_destroy(&instance->mutex_threads);
-
-    /* Clean up fixed size allocator */
-    MVM_fixed_size_destroy(instance->fsa);
 
     uv_mutex_destroy(&instance->subscriptions.mutex_event_subscription);
 

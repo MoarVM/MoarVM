@@ -142,6 +142,17 @@ typedef double   MVMnum64;
 #  define MVM_USED_BY_JIT
 #endif
 
+/* Returns non-zero for success. Use for both AO_t numbers and pointers. */
+#ifdef MVM_USE_C11_ATOMICS
+MVM_STATIC_INLINE int
+MVM_trycas_AO(volatile AO_t *addr, uintptr_t old, const uintptr_t new) {
+    return atomic_compare_exchange_strong(addr, &old, new);
+}
+#define MVM_trycas(addr, old, new) MVM_trycas_AO((volatile AO_t *)(addr), AO_CAST(old), AO_CAST(new))
+#else
+#define MVM_trycas(addr, old, new) AO_compare_and_swap_full((volatile AO_t *)(addr), (AO_t)(old), (AO_t)(new))
+#endif
+
 /* Hashes */
 #define HASH_DEBUG_ITER 0
 #define MVM_HASH_RANDOMIZE 1
@@ -171,13 +182,12 @@ MVM_PUBLIC MVMint32 MVM_jit_support(void);
 #include "disp/inline_cache.h"
 #include "core/instance.h"
 #include "core/interp.h"
-#include "core/fixedsizealloc.h"
 #include "core/callsite.h"
+#include "core/alloc.h"
 #include "core/args.h"
 #include "disp/program.h"
 #include "disp/syscall.h"
 #include "disp/resume.h"
-#include "core/alloc.h"
 #include "core/frame.h"
 #include "core/callstack.h"
 #include "core/validation.h"
@@ -326,14 +336,6 @@ MVM_PUBLIC int MVM_set_std_handles_to_nul(void);
 #define MVM_decr(addr) atomic_fetch_sub((volatile AO_t *)(addr), 1)
 #define MVM_add(addr, add) atomic_fetch_add((volatile AO_t *)(addr), (add))
 
-/* Returns non-zero for success. Use for both AO_t numbers and pointers. */
-MVM_STATIC_INLINE int
-MVM_trycas_AO(volatile AO_t *addr, uintptr_t old, const uintptr_t new) {
-    return atomic_compare_exchange_strong(addr, &old, new);
-}
-#define MVM_trycas(addr, old, new) MVM_trycas_AO((volatile AO_t *)(addr), AO_CAST(old), AO_CAST(new))
-
-
 /* Returns the old value dereferenced at addr.
  * Strictly, as libatomic_ops documents it:
  *      Atomically compare *addr to old_val, and replace *addr by new_val
@@ -376,9 +378,6 @@ AO_t AO_fetch_compare_and_swap_emulation(volatile AO_t *addr, AO_t old_val, AO_t
 #define MVM_incr(addr) AO_fetch_and_add1_full((volatile AO_t *)(addr))
 #define MVM_decr(addr) AO_fetch_and_sub1_full((volatile AO_t *)(addr))
 #define MVM_add(addr, add) AO_fetch_and_add_full((volatile AO_t *)(addr), (AO_t)(add))
-
-/* Returns non-zero for success. Use for both AO_t numbers and pointers. */
-#define MVM_trycas(addr, old, new) AO_compare_and_swap_full((volatile AO_t *)(addr), (AO_t)(old), (AO_t)(new))
 
 /* Returns the old value dereferenced at addr. */
 #define MVM_cas(addr, old, new) AO_fetch_compare_and_swap_full((addr), (old), (new))

@@ -61,8 +61,7 @@ MVM_STATIC_INLINE void MVM_args_proc_setup(MVMThreadContext *tc, MVMArgProcConte
     MVMuint16 num_nameds = arg_info.callsite->flag_count - arg_info.callsite->num_pos;
     ctx->named_used_size = num_nameds;
     if (MVM_UNLIKELY(num_nameds > 64))
-        ctx->named_used.byte_array = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-                num_nameds);
+        ctx->named_used.byte_array = MVM_calloc(1, num_nameds);
     else
         ctx->named_used.bit_field = 0;
 }
@@ -70,8 +69,7 @@ MVM_STATIC_INLINE void MVM_args_proc_setup(MVMThreadContext *tc, MVMArgProcConte
 /* Clean up an arguments processing context. */
 MVM_STATIC_INLINE void MVM_args_proc_cleanup(MVMThreadContext *tc, MVMArgProcContext *ctx) {
     if (ctx->named_used_size > 64) {
-        MVM_fixed_size_free(tc, tc->instance->fsa, ctx->named_used_size,
-            ctx->named_used.byte_array);
+        MVM_free(ctx->named_used.byte_array);
         ctx->named_used_size = 0;
     }
 }

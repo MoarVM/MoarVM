@@ -41,6 +41,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_spesh_stats_destroy(tc, sfs->body.spesh_stats);
     MVM_free(sfs->body.spesh_stats);
     MVM_spesh_arg_guard_destroy(tc, sfs->body.spesh_arg_guard, 0);
+    MVM_free(sfs->body.spesh_candidates);
 }
 
 static const MVMStorageSpec storage_spec = {

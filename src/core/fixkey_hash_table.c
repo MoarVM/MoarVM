@@ -6,11 +6,8 @@ static void hash_demolish_internal(MVMThreadContext *tc,
                                    struct MVMFixKeyHashTableControl *control) {
     size_t allocated_items = MVM_fixkey_hash_allocated_items(control);
     size_t entries_size = sizeof(MVMString ***) * allocated_items;
-    size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
-    size_t total_size
-        = entries_size + sizeof(struct MVMFixKeyHashTableControl) + metadata_size;
     char *start = (char *)control - entries_size;
-    MVM_fixed_size_free(tc, tc->instance->fsa, total_size, start);
+    MVM_free(start);
 }
 
 /* Frees the entire contents of the hash, leaving you just the hashtable itself,
@@ -28,7 +25,7 @@ void MVM_fixkey_hash_demolish(MVMThreadContext *tc, MVMFixKeyHashTable *hashtabl
         while (bucket < entries_in_use) {
             if (*metadata) {
                 MVMString ***indirection = (MVMString ***) entry_raw;
-                MVM_fixed_size_free(tc, tc->instance->fsa, control->entry_size, *indirection);
+                MVM_free(*indirection);
             }
             ++bucket;
             ++metadata;
@@ -61,7 +58,7 @@ MVM_STATIC_INLINE struct MVMFixKeyHashTableControl *hash_allocate_common(MVMThre
     assert(total_size == MVM_hash_round_size_up(total_size));
 
     struct MVMFixKeyHashTableControl *control =
-        (struct MVMFixKeyHashTableControl *) ((char *)MVM_fixed_size_alloc(tc, tc->instance->fsa, total_size) + entries_size);
+        (struct MVMFixKeyHashTableControl *) ((char *)MVM_malloc(total_size) + entries_size);
 
     control->official_size_log2 = official_size_log2;
     control->max_items = max_items;
@@ -306,8 +303,8 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
     struct MVMFixKeyHashTableControl *control = hashtable->table;
     if (!control) {
         /* This isn't going to work. We don't know entry_size, so we can't even
-         * guess, because we would try allocate 0 bytes from the FSA, but then
-         * try to write a pointer into it. */
+         * guess, because we would try to allocate 0 bytes, but then try to write
+         * a pointer into it. */
         MVM_oops(tc, "Attempting insert on MVM_fixkey_hash without setting entry_size");
     }
     else if (MVM_UNLIKELY(control->cur_items >= control->max_items)) {
@@ -336,7 +333,7 @@ void *MVM_fixkey_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
             return indirection;
         }
 
-        MVMString **entry = MVM_fixed_size_alloc(tc, tc->instance->fsa, control->entry_size);
+        MVMString **entry = MVM_malloc(control->entry_size);
         /* and we then set *this* to NULL to signal to our caller that this is a
          * new allocation. */
         *entry = NULL;

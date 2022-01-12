@@ -1023,12 +1023,7 @@ void MVM_profile_instrumented_free_data(MVMThreadContext *tc) {
         MVM_VECTOR_DESTROY(ptd->staticframe_array);
         MVM_VECTOR_DESTROY(ptd->type_array);
         for (MVMuint32 i = 0; i < ptd->num_gcs; i++)
-            MVM_fixed_size_free(
-                tc,
-                tc->instance->fsa,
-                ptd->gcs[i].alloc_dealloc * sizeof(MVMProfileDeallocationCount),
-                ptd->gcs[i].deallocs
-            );
+            MVM_free(ptd->gcs[i].deallocs);
         MVM_free(ptd->gcs);
         MVM_free(ptd);
         tc->prof_data = NULL;

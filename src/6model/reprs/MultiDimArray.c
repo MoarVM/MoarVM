@@ -59,8 +59,7 @@ static MVMObject * allocate(MVMThreadContext *tc, MVMSTable *st) {
     MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
     if (repr_data) {
         MVMObject *obj = MVM_gc_allocate_object(tc, st);
-        ((MVMMultiDimArray *)obj)->body.dimensions = MVM_fixed_size_alloc_zeroed(tc,
-            tc->instance->fsa, repr_data->num_dimensions * sizeof(MVMint64));
+        ((MVMMultiDimArray *)obj)->body.dimensions = MVM_calloc(repr_data->num_dimensions, sizeof(MVMint64));
         return obj;
     }
     else {
@@ -249,8 +248,8 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
     if (src_body->slots.any) {
         size_t dim_size  = repr_data->num_dimensions * sizeof(MVMint64);
         size_t data_size = flat_size(repr_data, src_body->dimensions);
-        dest_body->dimensions = MVM_fixed_size_alloc(tc, tc->instance->fsa, dim_size);
-        dest_body->slots.any  = MVM_fixed_size_alloc(tc, tc->instance->fsa, data_size);
+        dest_body->dimensions = MVM_malloc(dim_size);
+        dest_body->slots.any  = MVM_malloc(data_size);
         memcpy(dest_body->dimensions, src_body->dimensions, dim_size);
         memcpy(dest_body->slots.any, src_body->slots.any, data_size);
     }
@@ -283,14 +282,9 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMMultiDimArray *arr = (MVMMultiDimArray *)obj;
-    MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)STABLE(obj)->REPR_data;
     if (arr->body.slots.any)
-        MVM_fixed_size_free(tc, tc->instance->fsa,
-            flat_size(repr_data, arr->body.dimensions),
-            arr->body.slots.any);
-    MVM_fixed_size_free(tc, tc->instance->fsa,
-        repr_data->num_dimensions * sizeof(MVMint64),
-        arr->body.dimensions);
+        MVM_free(arr->body.slots.any);
+    MVM_free(arr->body.dimensions);
 }
 
 /* Marks the representation data in an STable.*/
@@ -386,8 +380,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
         body->dimensions[i] = MVM_serialization_read_int(tc, reader);
 
     /* Allocate storage. */
-    body->slots.any = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-        flat_size(repr_data, body->dimensions));
+    body->slots.any = MVM_calloc(flat_elements(repr_data->num_dimensions, body->dimensions), repr_data->elem_size);
 
     /* Read in elements. */
     flat_elems = flat_elements(repr_data->num_dimensions, body->dimensions);
@@ -704,8 +697,7 @@ static void set_dimensions(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
          * real world use case, but we should ensure the VM is memory safe).
          */
         MVMMultiDimArrayBody *body = (MVMMultiDimArrayBody *)data;
-        size_t size = flat_size(repr_data, dimensions);
-        void *storage = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, size);
+        void *storage = MVM_calloc(flat_elements(repr_data->num_dimensions, dimensions), repr_data->elem_size);
         if (MVM_trycas(&(body->slots.any), NULL, storage)) {
             /* Now memory is in place, safe to un-zero dimensions. */
             memcpy(body->dimensions, dimensions, num_dimensions * sizeof(MVMint64));

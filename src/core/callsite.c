@@ -47,10 +47,8 @@ void MVM_callsite_initialize_common(MVMThreadContext *tc) {
     /* Initialize the intern storage. */
     MVMCallsiteInterns *interns = tc->instance->callsite_interns;
     interns->max_arity = MVM_INTERN_ARITY_SOFT_LIMIT - 1;
-    interns->by_arity = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-            MVM_INTERN_ARITY_SOFT_LIMIT * sizeof(MVMCallsite **));
-    interns->num_by_arity = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-            MVM_INTERN_ARITY_SOFT_LIMIT * sizeof(MVMuint32));
+    interns->by_arity = MVM_calloc(MVM_INTERN_ARITY_SOFT_LIMIT, sizeof(MVMCallsite **));
+    interns->num_by_arity = MVM_calloc(MVM_INTERN_ARITY_SOFT_LIMIT, sizeof(MVMuint32));
 
     /* Intern callsites.
      * If you add a callsite to this list, remember to add it to the check in
@@ -265,12 +263,12 @@ MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr,
         if (num_flags > interns->max_arity) {
             MVMuint32 prev_elems = interns->max_arity + 1;
             MVMuint32 new_elems = num_flags + 1;
-            interns->by_arity = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa,
+            interns->by_arity = MVM_realloc_at_safepoint(tc,
                     interns->by_arity,
                     prev_elems * sizeof(MVMCallsite **),
                     new_elems * sizeof(MVMCallsite **));
             memset(interns->by_arity + prev_elems, 0, (new_elems - prev_elems) * sizeof(MVMCallsite *));
-            interns->num_by_arity = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa,
+            interns->num_by_arity = MVM_realloc_at_safepoint(tc,
                     interns->num_by_arity,
                     prev_elems * sizeof(MVMuint32),
                     new_elems * sizeof(MVMuint32));
@@ -283,12 +281,11 @@ MVM_PUBLIC void MVM_callsite_intern(MVMThreadContext *tc, MVMCallsite **cs_ptr,
         MVMuint32 cur_size = interns->num_by_arity[num_flags];
         if (cur_size % MVM_INTERN_ARITY_GROW == 0) {
             interns->by_arity[num_flags] = cur_size != 0
-                ? MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa,
+                ? MVM_realloc_at_safepoint(tc,
                     interns->by_arity[num_flags],
                     cur_size * sizeof(MVMCallsite *),
                     (cur_size + MVM_INTERN_ARITY_GROW) * sizeof(MVMCallsite *))
-                : MVM_fixed_size_alloc(tc, tc->instance->fsa, 
-                    MVM_INTERN_ARITY_GROW * sizeof(MVMCallsite *));
+                : MVM_malloc(MVM_INTERN_ARITY_GROW * sizeof(MVMCallsite *));
         }
 
         /* Install the new callsite. */
@@ -354,17 +351,11 @@ void MVM_callsite_cleanup_interns(MVMInstance *instance) {
                 if (!is_common(callsite))
                     MVM_callsite_destroy(callsite);
             }
-            MVM_fixed_size_free(instance->main_thread, instance->fsa,
-                    callsite_count * sizeof(MVMCallsite *),
-                    callsites);
+            MVM_free(callsites);
         }
     }
-    MVM_fixed_size_free(instance->main_thread, instance->fsa,
-            interns->max_arity * sizeof(MVMCallsite **),
-            interns->by_arity);
-    MVM_fixed_size_free(instance->main_thread, instance->fsa,
-            interns->max_arity * sizeof(MVMuint32),
-            interns->num_by_arity);
+    MVM_free(interns->by_arity);
+    MVM_free(interns->num_by_arity);
     MVM_free(instance->callsite_interns);
 }
 

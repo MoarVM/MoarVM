@@ -68,12 +68,53 @@ MVM_STATIC_INLINE void MVM_free(void *p) {
     (addr) = NULL; \
 } while (0)
 
-MVM_STATIC_INLINE void MVM_free_at_safepoint(MVMThreadContext *tc, void *ptr) {
-    MVM_VECTOR_PUSH(tc->instance->free_at_safepoint, ptr);
+/* Entry in the "free at safe point" linked list. */
+struct MVMAllocSafepointFreeListEntry {
+    void                           *to_free;
+    MVMAllocSafepointFreeListEntry *next;
+};
+
+/* Race to add a piece of memory to be freed at the next global safe point.
+ * A global safe point is defined as one in which all threads, since we
+ * requested the freeing of the memory, have reached a safe point. */
+MVM_STATIC_INLINE void MVM_free_at_safepoint(MVMThreadContext *tc, void *to_free) {
+    MVMAllocSafepointFreeListEntry *orig;
+    MVMAllocSafepointFreeListEntry *to_add = MVM_malloc(sizeof(MVMAllocSafepointFreeListEntry));
+    to_add->to_free = to_free;
+    do {
+        orig = tc->instance->free_at_safepoint;
+        to_add->next = orig;
+    } while (!MVM_trycas(&(tc->instance->free_at_safepoint), orig, to_add));
 }
 
+MVM_STATIC_INLINE void * MVM_realloc_at_safepoint(MVMThreadContext *tc, void *p, size_t old_bytes, size_t new_bytes) {
+    void *allocd;
+#ifdef MVM_USE_MIMALLOC
+    /* mi_expand() is guaranteed to expand in-place or returns NULL if it can't,
+     * and therefore is safe to do right away (and not at a safepoint). */
+    allocd = mi_expand(p, new_bytes);
+    if (!allocd) {
+#endif
+        allocd = MVM_malloc(new_bytes);
+        memcpy(allocd, p, new_bytes > old_bytes ? old_bytes : new_bytes);
+        MVM_free_at_safepoint(tc, p);
+#ifdef MVM_USE_MIMALLOC
+    }
+#endif
+    return allocd;
+}
+
+/* Called when we're at a safepoint, to free everything queued up to be freed
+ * at the next safepoint. Assumes that it is only called on one thread at a
+ * time, while the world is stopped. */
 MVM_STATIC_INLINE void MVM_alloc_safepoint(MVMThreadContext *tc) {
-    /* No need to acquire mutex since we're in the GC when calling this. */
-    while (MVM_VECTOR_ELEMS(tc->instance->free_at_safepoint))
-        MVM_free(MVM_VECTOR_POP(tc->instance->free_at_safepoint));
+    MVMAllocSafepointFreeListEntry *cur, *next;
+    cur = tc->instance->free_at_safepoint;
+    while (cur) {
+        next = cur->next;
+        MVM_free(cur->to_free);
+        MVM_free(cur);
+        cur = next;
+    }
+    tc->instance->free_at_safepoint = NULL;
 }

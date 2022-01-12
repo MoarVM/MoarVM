@@ -24,13 +24,11 @@ static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu,
         if (extops[i].info == info) {
             MVMuint32 orig_size = target_cu->body.num_extops * sizeof(MVMExtOpRecord);
             MVMuint32 new_size = (target_cu->body.num_extops + 1) * sizeof(MVMExtOpRecord);
-            MVMExtOpRecord *new_extops = MVM_fixed_size_alloc(tc,
-                tc->instance->fsa, new_size);
+            MVMExtOpRecord *new_extops = MVM_malloc(new_size);
             memcpy(new_extops, target_cu->body.extops, orig_size);
             memcpy(&new_extops[target_cu->body.num_extops], &extops[i], sizeof(MVMExtOpRecord));
             if (target_cu->body.extops)
-                MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, orig_size,
-                   target_cu->body.extops);
+                MVM_free_at_safepoint(tc, target_cu->body.extops);
             target_cu->body.extops = new_extops;
             target_cu->body.num_extops++;
             uv_mutex_unlock(target_cu->body.inline_tweak_mutex);

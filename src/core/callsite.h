@@ -88,12 +88,11 @@ struct MVMCallsite {
 /* Interned callsites data structure. */
 struct MVMCallsiteInterns {
     /* 2-level array of pointers to callsites, first indexed by the arity,
-     * then callsite of that arity. Allocated via the FSA and freed at a
-     * safepoint if we grow beyond it. */
+     * then callsite of that arity. Freed at a safepoint if we grow beyond it. */
     MVMCallsite ***by_arity;
 
-    /* Number of callsites we have interned by each arity. Also allocated
-     * using the FSA and freed at a safepoint on growth. */
+    /* Number of callsites we have interned by each arity. Also freed at a safepoint
+     * on growth. */
     MVMuint32 *num_by_arity;
 
     /* The maximum interned arity so far (the element count of the above two
