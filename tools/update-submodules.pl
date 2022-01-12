@@ -11,7 +11,21 @@ use File::Spec;
 my $repo = shift @ARGV;
 chdir $repo;
 
-exit 0 if !-d '.git';
+if (-d ".git" || (exists $ENV{GIT_DIR} && -d $ENV{GIT_DIR})) {
+    # We assume a conventional git directory
+}
+elsif (-f '.git') {
+    # Also handle linked worktrees created by git-worktree:
+    # the hash of the initial commit in MoarVM
+    my $commit = '51481efadbf5bbebfc20767c07056bd2dfc2fabc';
+    my $out = exec_with_output(qw(git rev-parse --verify --quiet), "$commit^{commit}");
+    chomp $out;
+    exit 0
+        unless $out eq $commit;
+}
+else {
+    exit 0;
+}
 
 my $git_cache_dir;
 Getopt::Long::Configure("pass_through");
