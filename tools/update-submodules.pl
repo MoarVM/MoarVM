@@ -1,7 +1,7 @@
 #!/usr/bin/env perl
 # Copyright (C) 2009-2019 The Perl Foundation
 
-use 5.10.1;
+use 5.8.4;
 use strict;
 use warnings;
 use Getopt::Long;
@@ -104,12 +104,12 @@ print "OK\n";
 
 sub exec_with_output {
     my @command = @_;
-    open(my $handle, '-|', @command);
-    my $out;
-    while(<$handle>) {
-        $out .= $_;
-    }
-    close $handle;
+    open(my $handle, '-|', @command)
+        or die "piped open @command failed: $!";
+    local $/;
+    my $out = <$handle>;
+    close $handle
+        or die "piped close @command failed: $!";
     return $out;
 }
 
