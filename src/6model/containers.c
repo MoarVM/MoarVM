@@ -353,7 +353,7 @@ static MVMObject * value_desc_cont_atomic_load(MVMThreadContext *tc, MVMObject *
     return value ? value : tc->instance->VMNull;
 }
 
-void value_desc_cont_atomic_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *value) {
+static void value_desc_cont_atomic_store(MVMThreadContext *tc, MVMObject *cont, MVMObject *value) {
     MVMValueDescContainer *data = (MVMValueDescContainer *)STABLE(cont)->container_data;
     MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
             MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
