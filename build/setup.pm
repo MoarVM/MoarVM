@@ -293,7 +293,7 @@ my %TC_MINGW32 = (
 
     libdir                   => '@bindir@',
     ccshared                 => '',
-    ldshared                 => '-shared -Wl,--out-implib,lib$(notdir $@).a',
+    ldshared                 => '-shared -Wl,--out-implib,lib$(notdir $@).a -lbcrypt',
     moarshared_norelocatable => '',
     moarshared_relocatable   => '',
     ldrpath                  => '',
@@ -479,7 +479,7 @@ our %COMPILERS = (
 my %OS_WIN32 = (
     exe      => '.exe',
     defs     => [ qw( WIN32 AO_ASSUME_WINDOWS98 ) ],
-    syslibs  => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi userenv user32 ) ],
+    syslibs  => [ qw( shell32 ws2_32 mswsock rpcrt4 advapi32 psapi iphlpapi userenv user32 bcrypt ) ],
     platform => '$(PLATFORM_WIN32)',
 
     translate_newline_output => 1,

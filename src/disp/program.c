@@ -201,14 +201,14 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                 char *c_str = MVM_string_utf8_encode_C_string(tc,
                        op->resume.disp->id);
                 fprintf(stderr, "    Resume topmost dispatch if it is %s\n", c_str);
-                free(c_str);
+                MVM_free(c_str);
                 break;
             }
             case MVMDispOpcodeResumeCaller: {
                 char *c_str = MVM_string_utf8_encode_C_string(tc,
                        op->resume.disp->id);
                 fprintf(stderr, "    Resume caller dispatch if it is %s\n", c_str);
-                free(c_str);
+                MVM_free(c_str);
                 break;
             }
             case MVMDispOpcodeGuardResumeInitCallsite:

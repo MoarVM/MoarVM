@@ -54,13 +54,13 @@ static FILE *fopen_perhaps_with_pid(char *env_var, char *path, const char *mode)
         if (found_percents > 1) {
             result = MVM_platform_fopen(path, mode);
         } else {
-            char *fixed_path = malloc(path_length + 16);
+            char *fixed_path = MVM_malloc(path_length + 16);
             MVMint64 pid = MVM_proc_getpid(NULL);
             /* We make the brave assumption that
              * pids only go up to 16 characters. */
             snprintf(fixed_path, path_length + 16, path, pid);
             result = MVM_platform_fopen(fixed_path, mode);
-            free(fixed_path);
+            MVM_free(fixed_path);
         }
     } else {
         result = MVM_platform_fopen(path, mode);

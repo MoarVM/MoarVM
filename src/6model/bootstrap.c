@@ -339,7 +339,7 @@ static void add_meta_object(MVMThreadContext *tc, MVMObject *type_obj, char *nam
         /* Set name. */
         name_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, name);
         MVM_ASSIGN_REF(tc, &(meta_obj->header), ((MVMKnowHOWREPR *)meta_obj)->body.name, name_str);
-        type_obj->st->debug_name = strdup(name);
+        type_obj->st->debug_name = MVM_strdup(name);
     });
 }
 
