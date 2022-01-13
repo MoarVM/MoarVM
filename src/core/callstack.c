@@ -207,11 +207,12 @@ MVMCallStackFrame * MVM_callstack_allocate_frame(MVMThreadContext *tc, MVMuint32
 MVMCallStackHeapFrame * MVM_callstack_allocate_heap_frame(MVMThreadContext *tc,
         MVMuint32 work_size) {
     MVMFrame *frame = MVM_gc_allocate_frame(tc);
+    size_t frame_size_aligned = to_8_bytes(sizeof(MVMCallStackHeapFrame));
     tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_HEAP_FRAME,
-            sizeof(MVMCallStackHeapFrame) + work_size);
+            frame_size_aligned + work_size);
     MVMCallStackHeapFrame *allocated = (MVMCallStackHeapFrame *)tc->stack_top;
     allocated->frame = frame;
-    frame->work = (MVMRegister *)((char *)allocated + sizeof(MVMCallStackHeapFrame));
+    frame->work = (MVMRegister *)((char *)allocated + frame_size_aligned);
     frame->allocd_work = work_size;
     return allocated;
 }
@@ -299,10 +300,11 @@ MVMCallStackDispatchRecord * MVM_callstack_allocate_dispatch_record(MVMThreadCon
 /* Allocates a dispatch run record on the callstack. */
 MVMCallStackDispatchRun * MVM_callstack_allocate_dispatch_run(MVMThreadContext *tc,
         MVMuint32 num_temps) {
+    size_t record_size = to_8_bytes(sizeof(MVMCallStackDispatchRun));
     tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_DISPATCH_RUN,
-            sizeof(MVMCallStackDispatchRecord) + num_temps * sizeof(MVMRegister));
+            record_size + num_temps * sizeof(MVMRegister));
     MVMCallStackDispatchRun *record = (MVMCallStackDispatchRun *)tc->stack_top;
-    record->temps = (MVMRegister *)((char *)record + sizeof(MVMCallStackDispatchRun));
+    record->temps = (MVMRegister *)((char *)record + record_size);
     record->num_temps = num_temps;
     record->chosen_dp = NULL;
     record->resumption_state.disp = NULL;
@@ -326,7 +328,7 @@ MVMCallStackFlattening * MVM_callstack_allocate_flattening(MVMThreadContext *tc,
     /* Allocate. */
     size_t record_size = to_8_bytes(sizeof(MVMCallStackFlattening));
     size_t flags_size = to_8_bytes(num_args);
-    size_t nameds_size = (num_args - num_pos) * sizeof(MVMString *);
+    size_t nameds_size = to_8_bytes((num_args - num_pos) * sizeof(MVMString *));
     size_t args_size = num_args * sizeof(MVMRegister);
     tc->stack_top = allocate_record(tc, MVM_CALLSTACK_RECORD_FLATTENING,
             record_size + flags_size + nameds_size + args_size);
