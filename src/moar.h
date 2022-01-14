@@ -43,15 +43,29 @@
 #ifdef MVM_USE_C11_ATOMICS
 #include <stdatomic.h>
 typedef atomic_uintptr_t AO_t;
-#ifdef __clang__
+
 /* clang and gcc disagree on rvalue semantics of atomic types
  * clang refuses to implicitly assign the value of an atomic variable to the
- * regular non-atomic type. Hence we need this: */
+ * regular non-atomic type. Hence we need the following for clang.
+ * Whereas gcc permits reading them as normal variables.
+ *
+ * We can also use `atomic_load_explicit` on gcc, which keeps our code simpler.
+ * Curiously the affect is different on different architectures. (This might be
+ * a gcc bug, or just ambiguity in the C standard).
+ * Using `atomic_load_explicit` instead of a simple read has these changes:
+ *
+ * * sparc64 removes `membar` instructions
+ * * arm64 changes from LFAR to LDR (LDAR has load-acquire semantics)
+ *
+ * but x86_64 and ppc64 are unchanged.
+ *
+ * suggesting that the former platforms are treating the implicit read as
+ * `memory_order_seq_cst` but the latter as `memory_order_relaxed`
+ *
+ * The latter is what we want, and is cheaper, so be explicit.
+ */
 #define AO_READ(v) atomic_load_explicit(&(v), memory_order_relaxed)
 
-#else
-#define AO_READ(v) (v)
-#endif
 /* clang also refuses to cast as (AO_t)(v), but doing this works for gcc and
  * clang (and hopefully other compilers, when we get there) */
 #define AO_CAST(v) (uintptr_t)(v)
