@@ -22,7 +22,7 @@ const MVMint32 gb18030_two_byte_upper_bound[126] = {
 254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,254,160,
 160,160,160,160,160,159};
 
-MVMint32 gb18030_valid_check_len2(MVMint32 c_1, MVMint32 c_2) {
+static MVMint32 gb18030_valid_check_len2(MVMint32 c_1, MVMint32 c_2) {
     /* This function serves like a 'first stage check' of c_1 and c_2.
        It eliminates most of the invalid combinations of c_1 and c_2, 
        but for code simplicity and to avoid lots of if-else here,
@@ -33,7 +33,7 @@ MVMint32 gb18030_valid_check_len2(MVMint32 c_1, MVMint32 c_2) {
     return gb18030_two_byte_lower_bound[c_1] <= c_2 && c_2 <= gb18030_two_byte_upper_bound[c_1];
 }
 
-MVMint32 gb18030_valid_check_len4(MVMint32 c_1, MVMint32 c_2, MVMint32 c_3, MVMint32 c_4) {
+static MVMint32 gb18030_valid_check_len4(MVMint32 c_1, MVMint32 c_2, MVMint32 c_3, MVMint32 c_4) {
     if ((0x81 <= c_1 && c_1 <= 0x83) || (c_1 == 0x84 && c_2 == 0x30)) {
         return (0x30 <= c_2 && c_2 <= 0x39) && (0x81 <= c_3 && c_3 <= 0xfe) && (0x30 <= c_4 && c_4 <= 0x39);
     } else if (c_1 == 0x84 && c_2 == 0x31) {
@@ -42,7 +42,7 @@ MVMint32 gb18030_valid_check_len4(MVMint32 c_1, MVMint32 c_2, MVMint32 c_3, MVMi
     return 0;
 }
 
-MVMint32 gb18030_valid_check_len4_first2(MVMint32 c_1, MVMint32 c_2) {
+static MVMint32 gb18030_valid_check_len4_first2(MVMint32 c_1, MVMint32 c_2) {
     return (((0x81 <= c_1 && c_1 <= 0x83) || (c_1 == 0x84 && c_2 == 0x30)) && (0x30 <= c_2 && c_2 <= 0x39))	|| (c_1 == 0x84 && c_2 == 0x31);
 }
 

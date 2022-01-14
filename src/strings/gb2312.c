@@ -59,8 +59,8 @@ MVMString * MVM_string_gb2312_decode(MVMThreadContext *tc, const MVMObject *resu
 #define GB2312_DECODE_CODEPOINT_EXCEPTION -4
 #define GB2312_DECODE_CHINESE_CODEPOINT -5
 
-int gb2312_decode_handler(MVMThreadContext *tc, MVMint32 last_was_first_byte, 
-                          MVMuint16 codepoint, MVMuint16 last_codepoint, MVMGrapheme32 *out) {
+static int gb2312_decode_handler(MVMThreadContext *tc, MVMint32 last_was_first_byte,
+                                 MVMuint16 codepoint, MVMuint16 last_codepoint, MVMGrapheme32 *out) {
     MVMGrapheme32 graph;
     if (codepoint <= 127) {
         if (last_was_first_byte) {

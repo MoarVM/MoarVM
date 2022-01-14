@@ -1,6 +1,6 @@
 #define GB18030_NULL 0
 
-const MVMint32 gb18030_index_to_cp_len2_record[126][191]=
+static const MVMint32 gb18030_index_to_cp_len2_record[126][191]=
 {{19970,19972,19973,19974,19983,19986,19991,19999,20000,20001,20003,20006,20009,
 20014,20015,20017,20019,20021,20023,20028,20032,20033,20034,20036,20038,20042,
 20049,20053,20055,20058,20059,20066,20067,20068,20069,20071,20072,20074,20075,
@@ -1781,11 +1781,11 @@ const MVMint32 gb18030_index_to_cp_len2_record[126][191]=
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0}};
 
-const MVMint32 gb18030_len4_record_shift[32]={0,-1546,-2806,-4066,-5326,-6586,
+static const MVMint32 gb18030_len4_record_shift[32]={0,-1546,-2806,-4066,-5326,-6586,
 1,2,3,4,5,6,7,8,9,10,-41987,-43247,-44507,-45767,-47027,-48287,-49547,-50807,
 -52067,-53327,11,-59963,-61223,-62483,12,13};
 
-const MVMint32 gb18030_index_to_cp_len4_record[14][1260]={
+static const MVMint32 gb18030_index_to_cp_len4_record[14][1260]={
 {128,129,130,131,132,133,134,135,136,137,138,139,140,141,142,143,144,145,146,
 147,148,149,150,151,152,153,154,155,156,157,158,159,160,161,162,163,165,166,
 169,170,171,172,173,174,175,178,179,180,181,182,184,185,186,187,188,189,190,
@@ -3053,7 +3053,7 @@ const MVMint32 gb18030_index_to_cp_len4_record[14][1260]={
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0}};
 
-const MVMuint32 gb18030_cp_to_index_record[61339]={
+static const MVMuint32 gb18030_cp_to_index_record[61339]={
 0x0,0x1,0x2,0x3,0x4,0x5,0x6,0x7,0x8,0x9,0xa,0xb,0xc,0xd,0xe,0xf,0x10,0x11,
 0x12,0x13,0x14,0x15,0x16,0x17,0x18,0x19,0x1a,0x1b,0x1c,0x1d,0x1e,0x1f,
 0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,0x28,0x29,0x2a,0x2b,0x2c,0x2d,
@@ -10872,14 +10872,14 @@ const MVMuint32 gb18030_cp_to_index_record[61339]={
 0x8431a336,0x8431a337,0x8431a338,0x8431a339,0x8431a430,0x8431a431,0x8431a432,
 0x8431a433,0x8431a434,0x8431a435,0x8431a436,0x8431a437,0x8431a438,0x8431a439};
 
-MVMGrapheme32 gb18030_index_to_cp_len2(MVMuint8 byte1, MVMuint8 byte2) {
+static MVMGrapheme32 gb18030_index_to_cp_len2(MVMuint8 byte1, MVMuint8 byte2) {
     if (0x81 <= byte1 && byte1 <= 0xfe && 0x40 <= byte2 && byte2 <= 0xfe)
         return gb18030_index_to_cp_len2_record[byte1-0x81][byte2-0x40];
     else
         return 0;
 }
 
-MVMGrapheme32 gb18030_index_to_cp_len4(MVMuint8 byte1, MVMuint8 byte2, MVMuint8 byte3, MVMuint8 byte4) {
+static MVMGrapheme32 gb18030_index_to_cp_len4(MVMuint8 byte1, MVMuint8 byte2, MVMuint8 byte3, MVMuint8 byte4) {
     MVMint32 pos_1, pos_2;
     byte1 -= 0x81;
     byte2 -= 0x30;
@@ -10898,7 +10898,7 @@ MVMGrapheme32 gb18030_index_to_cp_len4(MVMuint8 byte1, MVMuint8 byte2, MVMuint8 
         return 0;
 }
 
-MVMint64 gb18030_cp_to_index(MVMGrapheme32 codepoint) {
+static MVMint64 gb18030_cp_to_index(MVMGrapheme32 codepoint) {
     MVMint64 result = 0;
     if (0 <= codepoint && codepoint <= 55295) {
         result = (MVMint64) gb18030_cp_to_index_record[codepoint];
