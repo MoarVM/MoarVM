@@ -756,9 +756,9 @@ static MVMStorageSpec get_elem_storage_spec(MVMThreadContext *tc, MVMSTable *st)
     return spec;
 }
 
-AO_t * pos_as_atomic_multidim(MVMThreadContext *tc, MVMSTable *st,
-                              MVMObject *root, void *data,
-                              MVMint64 num_indices, MVMint64 *indices) {
+static AO_t * pos_as_atomic_multidim(MVMThreadContext *tc, MVMSTable *st,
+                                     MVMObject *root, void *data,
+                                     MVMint64 num_indices, MVMint64 *indices) {
     MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)st->REPR_data;
     if (num_indices == repr_data->num_dimensions) {
         MVMMultiDimArrayBody *body = (MVMMultiDimArrayBody *)data;

@@ -553,8 +553,8 @@ static void write_code_ref(MVMThreadContext *tc, MVMSerializationWriter *writer,
     MVMint32  idx     = (MVMint32)MVM_sc_find_code_idx(tc, sc, code);
     write_locate_sc_and_index(tc, writer, sc_id, idx);
 }
-MVM_NO_RETURN void throw_closure_serialization_error(MVMThreadContext *tc, MVMCode *closure, const char *message) MVM_NO_RETURN_ATTRIBUTE;
-MVM_NO_RETURN void throw_closure_serialization_error(MVMThreadContext *tc, MVMCode *closure, const char *message) {
+static MVM_NO_RETURN void throw_closure_serialization_error(MVMThreadContext *tc, MVMCode *closure, const char *message) MVM_NO_RETURN_ATTRIBUTE;
+static MVM_NO_RETURN void throw_closure_serialization_error(MVMThreadContext *tc, MVMCode *closure, const char *message) {
     MVMString *file;
     MVMint32 line;
     MVMROOT(tc, closure, {

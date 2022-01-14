@@ -60,7 +60,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 }
 
 /* Called by the VM in order to free memory associated with this object. */
-void gc_free(MVMThreadContext *tc, MVMObject *obj) {
+static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMSpeshCandidate *candidate = (MVMSpeshCandidate *)obj;
     MVM_free(candidate->body.type_tuple);
     MVM_free(candidate->body.bytecode);
