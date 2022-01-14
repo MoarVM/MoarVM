@@ -116,7 +116,7 @@ MVM_STATIC_INLINE MVMint32 live_range_is_empty(LiveRange *range) {
 }
 
 /* allocate a new live range value by pointer-bumping */
-MVMint32 live_range_init(RegisterAllocator *alc) {
+static MVMint32 live_range_init(RegisterAllocator *alc) {
     MVMint32 idx = alc->values_num++;
     MVM_VECTOR_ENSURE_SIZE(alc->values, idx);
     alc->values[idx].spill_idx = UINT32_MAX;
@@ -216,7 +216,7 @@ static struct Hole * live_range_has_hole(LiveRange *value, MVMuint32 order_nr) {
 }
 
 
-UnionFind * value_set_find(UnionFind *sets, MVMint32 key) {
+static UnionFind * value_set_find(UnionFind *sets, MVMint32 key) {
     while (sets[key].key != key) {
         key = sets[key].key;
     }
@@ -224,7 +224,7 @@ UnionFind * value_set_find(UnionFind *sets, MVMint32 key) {
 }
 
 /* Merge the live ranges a and b, returning the first-defined of them */
-MVMint32 value_set_union(UnionFind *sets, LiveRange *values, MVMint32 a, MVMint32 b) {
+static MVMint32 value_set_union(UnionFind *sets, LiveRange *values, MVMint32 a, MVMint32 b) {
     /* dereference the sets to their roots */
     a = value_set_find(sets, a)->key;
     b = value_set_find(sets, b)->key;
@@ -251,8 +251,8 @@ MVM_STATIC_INLINE void heap_swap(MVMint32 *heap, MVMint32 a, MVMint32 b) {
 }
 
 /* Functions to maintain a heap of references to the live ranges */
-void live_range_heap_down(LiveRange *values, MVMint32 *heap, MVMint32 top, MVMint32 item,
-                          MVMint32 (*cmp)(LiveRange *values, MVMint32 a, MVMint32 b)) {
+static void live_range_heap_down(LiveRange *values, MVMint32 *heap, MVMint32 top, MVMint32 item,
+                                 MVMint32 (*cmp)(LiveRange *values, MVMint32 a, MVMint32 b)) {
     while (item < top) {
         MVMint32 left = item * 2 + 1;
         MVMint32 right = left + 1;
@@ -273,8 +273,8 @@ void live_range_heap_down(LiveRange *values, MVMint32 *heap, MVMint32 top, MVMin
     }
 }
 
-void live_range_heap_up(LiveRange *values, MVMint32 *heap, MVMint32 item,
-                        MVMint32 (*cmp)(LiveRange* values, MVMint32 a, MVMint32 b)) {
+static void live_range_heap_up(LiveRange *values, MVMint32 *heap, MVMint32 item,
+                               MVMint32 (*cmp)(LiveRange* values, MVMint32 a, MVMint32 b)) {
     while (item > 0) {
         MVMint32 parent = (item-1)/2;
         if (cmp(values, heap[parent], heap[item]) > 0) {
@@ -286,8 +286,8 @@ void live_range_heap_up(LiveRange *values, MVMint32 *heap, MVMint32 item,
     }
 }
 
-MVMint32 live_range_heap_pop(LiveRange *values, MVMint32 *heap, size_t *top,
-                             MVMint32 (*cmp)(LiveRange* values, MVMint32 a, MVMint32 b)) {
+static MVMint32 live_range_heap_pop(LiveRange *values, MVMint32 *heap, size_t *top,
+                                    MVMint32 (*cmp)(LiveRange* values, MVMint32 a, MVMint32 b)) {
     MVMint32 v = heap[0];
     MVMint32 t = --(*top);
     /* pop by swap and heap-down */
@@ -296,20 +296,20 @@ MVMint32 live_range_heap_pop(LiveRange *values, MVMint32 *heap, size_t *top,
     return v;
 }
 
-void live_range_heap_push(LiveRange *values, MVMint32 *heap, size_t *top, MVMint32 v,
-                          MVMint32 (*cmp)(LiveRange* values, MVMint32 a, MVMint32 b)) {
+static void live_range_heap_push(LiveRange *values, MVMint32 *heap, size_t *top, MVMint32 v,
+                                 MVMint32 (*cmp)(LiveRange* values, MVMint32 a, MVMint32 b)) {
     /* NB, caller should use MVM_ENSURE_SPACE prior to calling */
     MVMint32 t = (*top)++;
     heap[t] = v;
     live_range_heap_up(values, heap, t, cmp);
 }
 
-MVMuint32 live_range_heap_peek(LiveRange *values, MVMint32 *heap) {
+static MVMuint32 live_range_heap_peek(LiveRange *values, MVMint32 *heap) {
     return values[heap[0]].start;
 }
 
-void live_range_heapify(LiveRange *values, MVMint32 *heap, MVMint32 top,
-                        MVMint32 (*cmp)(LiveRange* values, MVMint32 a, MVMint32 b)) {
+static void live_range_heapify(LiveRange *values, MVMint32 *heap, MVMint32 top,
+                               MVMint32 (*cmp)(LiveRange* values, MVMint32 a, MVMint32 b)) {
     MVMint32 i = top, mid = top/2;
     while (i-- > mid) {
         live_range_heap_up(values, heap, i, cmp);
@@ -317,11 +317,11 @@ void live_range_heapify(LiveRange *values, MVMint32 *heap, MVMint32 top,
 }
 
 
-MVMint32 values_cmp_first_ref(LiveRange *values, MVMint32 a, MVMint32 b) {
+static MVMint32 values_cmp_first_ref(LiveRange *values, MVMint32 a, MVMint32 b) {
     return values[a].start - values[b].start;
 }
 
-MVMint32 values_cmp_last_ref(LiveRange *values, MVMint32 a, MVMint32 b) {
+static MVMint32 values_cmp_last_ref(LiveRange *values, MVMint32 a, MVMint32 b) {
     return values[a].end - values[b].end;
 }
 
@@ -332,7 +332,7 @@ MVM_STATIC_INLINE MVMJitTile * first_tile(MVMJitTileList *list, LiveRange *value
 /* TODO - this is an x86-ism, since x86 prefers to have the first operand an
  * input-output operand. So this might need revisiting when the register
  * allocator is ported. */
-MVMint8 try_preferred_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile *tile, MVMBitmap reg_perm) {
+static MVMint8 try_preferred_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTile *tile, MVMBitmap reg_perm) {
     /* Tile has at least one operand.
      * That operand is free.
      * It is also of the desired register class */
@@ -343,7 +343,7 @@ MVMint8 try_preferred_register(MVMThreadContext *tc, RegisterAllocator *alc, MVM
 }
 
 /* register assignment logic */
-MVMint8 allocate_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, LiveRange *value) {
+static MVMint8 allocate_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list, LiveRange *value) {
     MVMint8 reg_num = try_preferred_register(tc, alc, first_tile(list, value), value->reg_perm);
     if (reg_num < 0)
         reg_num = MVM_FFS(alc->reg_free & value->reg_perm) - 1;
@@ -352,12 +352,12 @@ MVMint8 allocate_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTi
     return reg_num;
 }
 
-void free_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMuint8 reg_num) {
+static void free_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMuint8 reg_num) {
     assert(!MVM_bitmap_get_low(alc->reg_free, reg_num));
     MVM_bitmap_set_low(&alc->reg_free, reg_num);
 }
 
-void assign_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
+static void assign_register(MVMThreadContext *tc, RegisterAllocator *alc, MVMJitTileList *list,
                      MVMint32 lv, MVMuint8 reg_num) {
     /* What to do here:
      * - update tiles using this live range to refer to this register
