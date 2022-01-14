@@ -23,7 +23,7 @@ MVMSpeshLog * MVM_spesh_log_create(MVMThreadContext *tc, MVMThread *target_threa
 
 /* Increments the used count and - if it hits the limit - sends the log off
  * to the worker thread and NULLs it out. */
-void send_log(MVMThreadContext *tc, MVMSpeshLog *sl) {
+static void send_log(MVMThreadContext *tc, MVMSpeshLog *sl) {
     if (tc->instance->spesh_blocking) {
         uv_mutex_t *block_mutex;
         uv_cond_t *block_condvar;
@@ -52,7 +52,7 @@ void send_log(MVMThreadContext *tc, MVMSpeshLog *sl) {
         tc->spesh_log = NULL;
     }
 }
-void commit_entry(MVMThreadContext *tc, MVMSpeshLog *sl) {
+static void commit_entry(MVMThreadContext *tc, MVMSpeshLog *sl) {
     sl->body.used++;
     if (sl->body.used == sl->body.limit)
         send_log(tc, sl);
@@ -91,7 +91,7 @@ static void log_param_type(MVMThreadContext *tc, MVMint32 cid, MVMuint16 arg_idx
     entry->param.arg_idx = arg_idx;
     commit_entry(tc, sl);
 }
-void log_parameter(MVMThreadContext *tc, MVMint32 cid, MVMuint16 arg_idx, MVMObject *param) {
+static void log_parameter(MVMThreadContext *tc, MVMint32 cid, MVMuint16 arg_idx, MVMObject *param) {
     MVMContainerSpec const *cs = STABLE(param)->container_spec;
     MVMROOT(tc, param, {
         log_param_type(tc, cid, arg_idx, param, MVM_SPESH_LOG_PARAMETER,

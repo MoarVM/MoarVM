@@ -307,7 +307,7 @@ static void collation_push_MVM_values (MVMThreadContext *tc, MVMCodepoint cp, co
  * Essentially the return value lets you know if it ended up pushing collation values for the last codepoint
  * in the sequence or if it only pushed collation values for fallback_cp
 */
-MVMint64 collation_add_keys_from_node (MVMThreadContext *tc, sub_node *last_node, collation_stack *stack, MVMCodepointIter *ci, char *name, MVMCodepoint fallback_cp, sub_node *first_node) {
+static int collation_add_keys_from_node (MVMThreadContext *tc, sub_node *last_node, collation_stack *stack, MVMCodepointIter *ci, char *name, MVMCodepoint fallback_cp, sub_node *first_node) {
     MVMint64 j;
     MVMint64 rtrn = 0;
     sub_node *choosen_node = NULL;
@@ -334,7 +334,7 @@ MVMint64 collation_add_keys_from_node (MVMThreadContext *tc, sub_node *last_node
     collation_push_MVM_values(tc, fallback_cp, stack, ci, name);
     return rtrn;
 }
-MVMint64 find_next_node (MVMThreadContext *tc, sub_node node, MVMCodepoint next_cp) {
+static MVMint64 find_next_node (MVMThreadContext *tc, sub_node node, MVMCodepoint next_cp) {
     MVMint64 next_min, next_max;
     MVMint64 i;
     /* There is nowhere else to go */
@@ -351,7 +351,7 @@ MVMint64 find_next_node (MVMThreadContext *tc, sub_node node, MVMCodepoint next_
     }
     return -1;
 }
-MVMint64 get_main_node (MVMThreadContext *tc, int cp, int range_min, int range_max) {
+static MVMint64 get_main_node (MVMThreadContext *tc, int cp, int range_min, int range_max) {
     MVMint64 i;
     MVMint64 rtrn = -1;
     /* Decrement range_min because binary search defaults to 1..* not 0..* */
@@ -452,7 +452,7 @@ static MVMint64 collation_push_cp (MVMThreadContext *tc, collation_stack *stack,
     }
     return num_cps_processed;
 }
-MVMint64 grab_from_stack(MVMThreadContext *tc, MVMCodepointIter *ci, collation_stack *stack, char *name) {
+static int grab_from_stack(MVMThreadContext *tc, MVMCodepointIter *ci, collation_stack *stack, char *name) {
     if (!MVM_string_ci_has_more(tc, ci))
         return 0;
     collation_push_cp(tc, stack, ci, NULL, 0, name);
@@ -947,7 +947,7 @@ void MVM_unicode_init(MVMThreadContext *tc) {
     }
     tc->instance->unicode_property_values_hashes = hash_array;
 }
-MVMint32 unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, const char *cname, MVMuint64 cname_length) {
+static MVMint32 unicode_cname_to_property_value_code(MVMThreadContext *tc, MVMint64 property_code, const char *cname, MVMuint64 cname_length) {
     char *out_str = NULL;
                                    /* number + dash + property_value + NULL */
     MVMuint64 out_str_length = length_of_num(property_code) + 1 + cname_length + 1;

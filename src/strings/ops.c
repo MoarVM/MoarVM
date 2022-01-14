@@ -1931,7 +1931,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
     return result;
 }
 /* Used in the MVM_string_join function. Moved here to simplify the code */
-void copy_to_32bit (MVMThreadContext *tc, MVMString *source,
+static void copy_to_32bit (MVMThreadContext *tc, MVMString *source,
     MVMString *dest, MVMint64 *position, MVMGraphemeIter *gi) {
     /* Add source. */
     switch (source->body.storage_type) {

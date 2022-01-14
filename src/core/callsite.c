@@ -141,7 +141,7 @@ void MVM_callsite_destroy(MVMCallsite *cs) {
 }
 
 /* Copies the named args of one callsite into another. */
-void copy_nameds(MVMThreadContext *tc, MVMCallsite *to, const MVMCallsite *from) {
+static void copy_nameds(MVMThreadContext *tc, MVMCallsite *to, const MVMCallsite *from) {
     if (from->arg_names) {
         MVMuint32 num_names = MVM_callsite_num_nameds(tc, from);
         size_t memory_area = num_names * sizeof(MVMString *);

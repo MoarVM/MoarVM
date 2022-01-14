@@ -336,7 +336,7 @@ void MVM_profile_log_thread_created(MVMThreadContext *tc, MVMThreadContext *chil
 }
 
 /* Logs one allocation, potentially scalar replaced. */
-void log_one_allocation(MVMThreadContext *tc, MVMObject *obj, MVMProfileCallNode *pcn, MVMuint8 replaced) {
+static void log_one_allocation(MVMThreadContext *tc, MVMObject *obj, MVMProfileCallNode *pcn, MVMuint8 replaced) {
     MVMObject *what = STABLE(obj)->WHAT;
     MVMuint32 i;
     MVMuint8 allocation_target;

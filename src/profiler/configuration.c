@@ -476,7 +476,7 @@ static void error_concreteness(MVMThreadContext *tc, MVMObject *object, MVMuint1
             MVM_repr_get_by_id(tc, reprid)->name, purpose, MVM_6model_get_debug_name(tc, object), REPR(object)->name);
 }
 
-MVMint16 stats_position_for_value(MVMThreadContext *tc, MVMuint8 entrypoint, MVMuint64 return_value) {
+static MVMint16 stats_position_for_value(MVMThreadContext *tc, MVMuint8 entrypoint, MVMuint64 return_value) {
     switch (entrypoint) {
         case MVM_PROGRAM_ENTRYPOINT_PROFILER_STATIC:
             if (return_value == MVM_CONFPROG_SF_RESULT_TO_BE_DETERMINED

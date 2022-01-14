@@ -53,7 +53,7 @@ static void next_oversize_region(MVMThreadContext *tc, size_t size) {
 }
 
 /* Gets the name of the callstack record type. */
-char * record_name(MVMuint8 kind) {
+static char * record_name(MVMuint8 kind) {
     switch (kind) {
         case MVM_CALLSTACK_RECORD_START: return "start";
         case MVM_CALLSTACK_RECORD_START_REGION: return "start region";
@@ -97,7 +97,7 @@ static MVMCallStackRecord * allocate_record(MVMThreadContext *tc, MVMuint8 kind,
 static MVMuint32 to_8_bytes(MVMuint32 num) {
     return (num + 8 - 1) & -8;
 }
-size_t record_size(MVMCallStackRecord *record) {
+static size_t record_size(MVMCallStackRecord *record) {
     switch (MVM_callstack_kind_ignoring_deopt(record)) {
         case MVM_CALLSTACK_RECORD_START:
             return sizeof(MVMCallStackStart);

@@ -742,8 +742,8 @@ char * MVM_spesh_dump(MVMThreadContext *tc, MVMSpeshGraph *g) {
 }
 
 /* Dumps a spesh stats type typle. */
-void dump_stats_type_tuple(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs,
-                           MVMSpeshStatsType *type_tuple, char *prefix) {
+static void dump_stats_type_tuple(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs,
+                                  MVMSpeshStatsType *type_tuple, char *prefix) {
     MVMuint32 j;
     for (j = 0; j < cs->flag_count; j++) {
         MVMObject *type = type_tuple[j].type;
@@ -764,7 +764,7 @@ void dump_stats_type_tuple(MVMThreadContext *tc, DumpStr *ds, MVMCallsite *cs,
 }
 
 /* Dumps the statistics associated with a particular callsite object. */
-void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCallsite *css) {
+static void dump_stats_by_callsite(MVMThreadContext *tc, DumpStr *ds, MVMSpeshStatsByCallsite *css) {
     MVMuint32 i, j, k;
 
     if (css->cs)

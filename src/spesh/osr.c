@@ -19,7 +19,7 @@ static MVMint32 get_osr_deopt_index(MVMThreadContext *tc, MVMSpeshCandidate *can
 }
 
 /* Does the jump into the optimized code. */
-void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
+static void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
     /* Ensure there is space for the work area. */
     if (specialized->body.work_size > tc->cur_frame->allocd_work ||
             specialized->body.env_size > tc->cur_frame->allocd_env) {

@@ -835,7 +835,7 @@ MVMuint32 get_new_toc_entry(MVMThreadContext *tc, MVMHeapDumpTableOfContents *to
     return i;
 }
 
-void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, char *name, char *start, size_t offset, size_t elem_size, size_t count, FILE* fh) {
+static void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, char *name, char *start, size_t offset, size_t elem_size, size_t count, FILE* fh) {
     char *pointer = (char *)start;
 
     ZSTD_CStream *cstream;
@@ -1371,7 +1371,7 @@ void snapshot_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollection
 }
 #endif /* heapsnapshot version 3 */
 
-void static_frames_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+static void static_frames_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i;
     MVMHeapDumpIndex *index = col->index;
     FILE *fh = col->fh;
@@ -1420,7 +1420,7 @@ void static_frames_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotColle
 }
 
 
-void string_heap_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+static void string_heap_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i;
     MVMHeapDumpIndex *index = col->index;
     FILE *fh = col->fh;
@@ -1479,7 +1479,7 @@ void string_heap_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollect
  * so that the parser can confidently skip to the exact middle of
  * the references table and parse it with two threads in parallel.
  */
-void references_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapDumpIndexSnapshotEntry *entry) {
+static void references_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapDumpIndexSnapshotEntry *entry) {
     MVMuint64 i;
     MVMuint64 halfway;
     FILE *fh = col->fh;
@@ -1574,7 +1574,7 @@ void references_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollecti
  * We also write a partial table after every snapshot so that if the process
  * crashes we still have a usable file.
  */
-void types_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+static void types_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMuint64 i;
     MVMHeapDumpIndex *index = col->index;
     FILE *fh = col->fh;
@@ -1620,7 +1620,7 @@ void types_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *c
  * This sizes table has three entries for each entry. The first one is the
  * size of the collectables table.
  */
-void collectables_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapDumpIndexSnapshotEntry *entry) {
+static void collectables_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapDumpIndexSnapshotEntry *entry) {
     MVMuint64 i;
     FILE *fh = col->fh;
     MVMHeapSnapshot *s = col->snapshot;
@@ -1679,7 +1679,7 @@ void collectables_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollec
 }
 
 
-void snapshot_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+static void snapshot_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMHeapDumpIndex *index = col->index;
     MVMuint64 i = col->snapshot_idx;
     MVMHeapDumpIndexSnapshotEntry *entry;
@@ -1705,7 +1705,7 @@ void snapshot_to_filehandle_ver2(MVMThreadContext *tc, MVMHeapSnapshotCollection
 
     /*entry->incremental_data = index->stringheap_size + index->types_size + index->staticframes_size;*/
 }
-void index_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+static void index_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     MVMHeapDumpIndex *index = col->index;
     FILE *fh = col->fh;
 
@@ -1818,7 +1818,7 @@ static void snapmeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCol
 }
 #endif
 
-void finish_collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
+static void finish_collection_to_filehandle(MVMThreadContext *tc, MVMHeapSnapshotCollection *col) {
     /*col->strings_written = 0;*/
     /*col->types_written = 0;*/
     /*col->static_frames_written = 0;*/

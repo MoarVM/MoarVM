@@ -114,7 +114,7 @@ static void go_to_first_inline(MVMThreadContext *tc, MVMSpeshFrameWalker *fw, MV
 }
 
 /* Moves one caller frame deeper, accounting for inlines. */
-MVMuint32 move_one_caller(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
+static MVMuint32 move_one_caller(MVMThreadContext *tc, MVMSpeshFrameWalker *fw) {
     MVMFrame *caller;
 
      /* Is there an inline to try and visit? If there is one, then

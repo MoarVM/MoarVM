@@ -99,7 +99,7 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
     MVMObject *val = MVM_repr_at_key_o((tc), (hash), key); \
     if (!MVM_is_null(tc, val)) (config)->member = MVM_repr_get_str(tc, val); \
 } while (0)
-void set_max_inline_size(MVMThreadContext *tc, MVMObject *config_hash, MVMHLLConfig *config) {
+static void set_max_inline_size(MVMThreadContext *tc, MVMObject *config_hash, MVMHLLConfig *config) {
     MVMROOT(tc, config_hash, {
         MVMString *key = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "max_inline_size");
         MVMObject *size = MVM_repr_at_key_o(tc, config_hash, key);

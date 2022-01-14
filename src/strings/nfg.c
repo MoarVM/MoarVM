@@ -18,7 +18,7 @@ static MVMint32 find_child_node_idx(MVMThreadContext *tc, const MVMNFGTrieNode *
 }
 
 /* Does a lookup in the trie for a synthetic for the specified codepoints. */
-MVMNFGTrieNode * find_child_node(MVMThreadContext *tc, const MVMNFGTrieNode *node, MVMCodepoint cp) {
+static MVMNFGTrieNode * find_child_node(MVMThreadContext *tc, const MVMNFGTrieNode *node, MVMCodepoint cp) {
     MVMint32 idx = find_child_node_idx(tc, node, cp);
     return idx >= 0 ? node->next_codes[idx].node : NULL;
 }

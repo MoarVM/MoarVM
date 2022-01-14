@@ -139,7 +139,7 @@ static void request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target);
 
 /* Breakpoint stuff */
-void normalize_filename(char *name) {
+static void normalize_filename(char *name) {
     /* On Windows, we sometimes see forward slashes, sometimes backslashes.
      * Normalize them to forward slash so we can reliably hit breakpoints. */
     char *cur_bs = strchr(name, '\\');
@@ -369,7 +369,7 @@ MVM_PUBLIC MVMint32 MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMui
 
 #define REQUIRE(field, message) do { if (!(data->fields_set & (field))) { data->parse_fail = 1; data->parse_fail_message = (message); return 0; }; accepted = accepted | (field); } while (0)
 
-MVMuint8 check_requirements(MVMThreadContext *tc, request_data *data) {
+static MVMuint8 check_requirements(MVMThreadContext *tc, request_data *data) {
     fields_set accepted = FS_id | FS_type;
 
     MVMuint8 allow_optional = 0;
@@ -1000,7 +1000,7 @@ static void send_is_execution_suspended_info(MVMThreadContext *dtc, cmp_ctx_t *c
     cmp_write_bool(ctx, result);
 }
 
-MVMuint8 setup_step(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMDebugSteppingMode mode, MVMThread *thread) {
+static MVMuint8 setup_step(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMDebugSteppingMode mode, MVMThread *thread) {
     MVMThread *to_do = thread ? thread : find_thread_by_id(dtc->instance, argument->thread_id);
     MVMThreadContext *tc;
 
@@ -2793,7 +2793,7 @@ static bool is_valid_num(cmp_object_t *obj, MVMnum64 *result) {
 #define CHECK(operation, message) do { if(!(operation)) { data->parse_fail = 1; data->parse_fail_message = (message); if (tc->instance->debugserver->debugspam_protocol) fprintf(stderr, "CMP error: %s; %s\n", cmp_strerror(ctx), message); return 0; } } while(0)
 #define FIELD_FOUND(field, duplicated_message) do { if(data->fields_set & (field)) { data->parse_fail = 1; data->parse_fail_message = duplicated_message;  return 0; }; field_to_set = (field); } while (0)
 
-MVMint8 skip_all_read_data(cmp_ctx_t *ctx, MVMuint32 size) {
+static MVMint8 skip_all_read_data(cmp_ctx_t *ctx, MVMuint32 size) {
     char dump[1024];
 
     while (size > 1024) {
@@ -2808,7 +2808,7 @@ MVMint8 skip_all_read_data(cmp_ctx_t *ctx, MVMuint32 size) {
     return 1;
 }
 
-MVMint8 skip_whole_object(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *data) {
+static MVMint8 skip_whole_object(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *data) {
     cmp_object_t obj;
     MVMuint32 obj_size = 0;
     MVMuint32 index;
@@ -2883,7 +2883,7 @@ MVMint8 skip_whole_object(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *da
     return 1;
 }
 
-MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *data) {
+static MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data *data) {
     MVMuint32 map_size = 0;
     MVMuint32 i;
     cmp_object_t obj;

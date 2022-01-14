@@ -633,7 +633,7 @@ static MVMObject * decont_result(MVMThreadContext *tc, MVMObject *result) {
         return result;
     }
 }
-void save_for_exit_handler(MVMThreadContext *tc, MVMObject *result) {
+static void save_for_exit_handler(MVMThreadContext *tc, MVMObject *result) {
     MVMFrameExtra *e = MVM_frame_extra(tc, tc->cur_frame);
     e->exit_handler_result = result;
 }

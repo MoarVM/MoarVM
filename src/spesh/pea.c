@@ -111,7 +111,7 @@ typedef struct {
 /* Turns a flattened-in STable into a register type to allocate, if possible.
  * Should it not be possible, returns a negative value. If passed NULL (which
  * indicates a reference type), then returns MVM_reg_obj. */
-MVMint32 flattened_type_to_register_kind(MVMThreadContext *tc, MVMSTable *st) {
+static MVMint32 flattened_type_to_register_kind(MVMThreadContext *tc, MVMSTable *st) {
     if (st) {
         const MVMStorageSpec *ss = st->REPR->get_storage_spec(tc, st);
         switch (ss->boxed_primitive) {

@@ -915,7 +915,7 @@ static void write_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
     memcpy(body->slots.u8 + (start + offset) * repr_data->elem_size, from, count);
 }
 
-MVMint64 read_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 offset, MVMuint64 count) {
+static MVMint64 read_buf(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 offset, MVMuint64 count) {
     MVMArrayREPRData *repr_data = (MVMArrayREPRData *)st->REPR_data;
     MVMArrayBody     *body      = (MVMArrayBody *)data;
     MVMint64 start = body->start;

@@ -1,7 +1,7 @@
 #include "moar.h"
 
 /* Gets the statistics for a static frame, creating them if needed. */
-MVMSpeshStats * stats_for(MVMThreadContext *tc, MVMStaticFrame *sf) {
+static MVMSpeshStats * stats_for(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMStaticFrameSpesh *spesh = sf->body.spesh;
     if (!spesh->body.spesh_stats)
         spesh->body.spesh_stats = MVM_calloc(1, sizeof(MVMSpeshStats));
@@ -9,7 +9,7 @@ MVMSpeshStats * stats_for(MVMThreadContext *tc, MVMStaticFrame *sf) {
 }
 
 /* Gets the stats by callsite, adding it if it's missing. */
-MVMuint32 by_callsite_idx(MVMThreadContext *tc, MVMSpeshStats *ss, MVMCallsite *cs) {
+static MVMuint32 by_callsite_idx(MVMThreadContext *tc, MVMSpeshStats *ss, MVMCallsite *cs) {
     /* See if we already have it. */
     MVMuint32 found;
     MVMuint32 n = ss->num_by_callsite;
@@ -29,8 +29,8 @@ MVMuint32 by_callsite_idx(MVMThreadContext *tc, MVMSpeshStats *ss, MVMCallsite *
 
 /* Checks if a type tuple is incomplete (no types logged for some passed
  * objects, or no decont type logged for a container type). */
-MVMint32 incomplete_type_tuple(MVMThreadContext *tc, MVMCallsite *cs,
-                               MVMSpeshStatsType *arg_types) {
+static MVMint32 incomplete_type_tuple(MVMThreadContext *tc, MVMCallsite *cs,
+                                      MVMSpeshStatsType *arg_types) {
     MVMuint32 i;
     for (i = 0; i < cs->flag_count; i++) {
         if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ) {
@@ -46,7 +46,7 @@ MVMint32 incomplete_type_tuple(MVMThreadContext *tc, MVMCallsite *cs,
 }
 
 /* Returns true if the callsite has no object arguments, false otherwise. */
-MVMint32 cs_without_object_args(MVMThreadContext *tc, MVMCallsite *cs) {
+static MVMint32 cs_without_object_args(MVMThreadContext *tc, MVMCallsite *cs) {
     MVMuint32 i;
     for (i = 0; i < cs->flag_count; i++)
         if (cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ)
@@ -56,8 +56,8 @@ MVMint32 cs_without_object_args(MVMThreadContext *tc, MVMCallsite *cs) {
 
 /* Gets the stats by type, adding it if it's missing. Frees arg_types. Returns
  * the index in the by type array, or -1 if unresolved. */
-MVMint32 by_type(MVMThreadContext *tc, MVMSpeshStats *ss, MVMuint32 callsite_idx,
-                  MVMSpeshStatsType *arg_types) {
+static MVMint32 by_type(MVMThreadContext *tc, MVMSpeshStats *ss, MVMuint32 callsite_idx,
+                        MVMSpeshStatsType *arg_types) {
     /* Resolve type by callsite level info. If this is the no-callsite
      * specialization there is nothing further to do. */
     MVMSpeshStatsByCallsite *css = &(ss->by_callsite[callsite_idx]);
@@ -113,8 +113,8 @@ MVMint32 by_type(MVMThreadContext *tc, MVMSpeshStats *ss, MVMuint32 callsite_idx
 }
 
 /* Get the stats by offset entry, adding it if it's missing. */
-MVMSpeshStatsByOffset * by_offset(MVMThreadContext *tc, MVMSpeshStatsByType *tss,
-                                  MVMuint32 bytecode_offset) {
+static MVMSpeshStatsByOffset * by_offset(MVMThreadContext *tc, MVMSpeshStatsByType *tss,
+                                         MVMuint32 bytecode_offset) {
     /* See if we already have it. */
     MVMuint32 found;
     MVMuint32 n = tss->num_by_offset;
@@ -133,8 +133,8 @@ MVMSpeshStatsByOffset * by_offset(MVMThreadContext *tc, MVMSpeshStatsByType *tss
 }
 
 /* Adds/increments the count of a certain type seen at the given offset. */
-void add_type_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
-                        MVMStaticFrame *sf, MVMObject *type, MVMuint8 concrete) {
+static void add_type_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
+                               MVMStaticFrame *sf, MVMObject *type, MVMuint8 concrete) {
     /* If we have it already, increment the count. */
     MVMuint32 found;
     MVMuint32 n = oss->num_types;
@@ -156,9 +156,9 @@ void add_type_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
 
 /* Adds/increments the count of a certain invocation target seen at the given
  * offset. */
-void add_invoke_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
-                          MVMStaticFrame *sf, MVMStaticFrame *target_sf,
-                          MVMint16 caller_is_outer) {
+static void add_invoke_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
+                                 MVMStaticFrame *sf, MVMStaticFrame *target_sf,
+                                 MVMint16 caller_is_outer) {
     /* If we have it already, increment the count. */
     MVMuint32 found;
     MVMuint32 n = oss->num_invokes;
@@ -182,8 +182,8 @@ void add_invoke_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
 }
 
 /* Adds/increments the count of a dispatch result seen at the given offset. */
-void add_dispatch_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
-                            MVMuint32 result_index) {
+static void add_dispatch_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
+                                   MVMuint32 result_index) {
     /* If we have it already, increment the count. */
     MVMuint32 found;
     MVMuint32 n = oss->num_dispatch_results;
@@ -204,8 +204,8 @@ void add_dispatch_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
 }
 
 /* Adds/increments the count of a type tuple seen at the given offset. */
-void add_type_tuple_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
-                              MVMStaticFrame *sf, MVMSpeshSimCallType *info) {
+static void add_type_tuple_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
+                                     MVMStaticFrame *sf, MVMSpeshSimCallType *info) {
     /* Compute type tuple size. */
     size_t tt_size = info->cs->flag_count * sizeof(MVMSpeshStatsType);
 
@@ -242,7 +242,7 @@ void add_type_tuple_at_offset(MVMThreadContext *tc, MVMSpeshStatsByOffset *oss,
 }
 
 /* Initializes the stack simulation. */
-void sim_stack_init(MVMThreadContext *tc, MVMSpeshSimStack *sims) {
+static void sim_stack_init(MVMThreadContext *tc, MVMSpeshSimStack *sims) {
     sims->used = 0;
     sims->limit = 32;
     sims->frames = MVM_malloc(sims->limit * sizeof(MVMSpeshSimStackFrame));
@@ -250,8 +250,8 @@ void sim_stack_init(MVMThreadContext *tc, MVMSpeshSimStack *sims) {
 }
 
 /* Pushes an entry onto the stack frame model. */
-void sim_stack_push(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMStaticFrame *sf,
-                    MVMSpeshStats *ss, MVMuint32 cid, MVMuint32 callsite_idx) {
+static void sim_stack_push(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMStaticFrame *sf,
+                           MVMSpeshStats *ss, MVMuint32 cid, MVMuint32 callsite_idx) {
     MVMSpeshSimStackFrame *frame;
     MVMCallsite *cs;
     if (sims->used == sims->limit) {
@@ -279,9 +279,9 @@ void sim_stack_push(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMStaticFrame
 
 /* Adds an entry to a sim frame's callsite type info list, for later
  * inclusion in the callsite stats. */
-void add_sim_call_type_info(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
-                            MVMuint32 bytecode_offset, MVMCallsite *cs,
-                            MVMSpeshStatsType *arg_types) {
+static void add_sim_call_type_info(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
+                                   MVMuint32 bytecode_offset, MVMCallsite *cs,
+                                   MVMSpeshStatsType *arg_types) {
     MVMSpeshSimCallType *info;
     if (simf->call_type_info_used == simf->call_type_info_limit) {
         simf->call_type_info_limit += 32;
@@ -295,9 +295,9 @@ void add_sim_call_type_info(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
 }
 
 /* Incorporate information collected into a sim stack frame. */
-void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
-                       MVMuint32 frame_depth, MVMSpeshSimStackFrame *caller,
-                       MVMObject *sf_updated) {
+static void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
+                              MVMuint32 frame_depth, MVMSpeshSimStackFrame *caller,
+                              MVMObject *sf_updated) {
     MVMSpeshStatsByType *tss;
     MVMint32 first_type_hit = 0;
 
@@ -388,7 +388,7 @@ void incorporate_stats(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf,
 }
 
 /* Pops the top frame from the sim stack. */
-void sim_stack_pop(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMObject *sf_updated) {
+static void sim_stack_pop(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMObject *sf_updated) {
     MVMSpeshSimStackFrame *simf;
     MVMuint32 frame_depth;
 
@@ -410,8 +410,8 @@ void sim_stack_pop(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMObject *sf_u
  * not on the top, searches to see if it's further down. If it is, then pops
  * off the top to reach it. If it's not found at all, returns NULL and does
  * nothing to the simulation stack. */
-MVMSpeshSimStackFrame * sim_stack_find(MVMThreadContext *tc, MVMSpeshSimStack *sims,
-                                       MVMuint32 cid, MVMObject *sf_updated) {
+static MVMSpeshSimStackFrame * sim_stack_find(MVMThreadContext *tc, MVMSpeshSimStack *sims,
+                                              MVMuint32 cid, MVMObject *sf_updated) {
     MVMuint32 found_at = sims->used;
     while (found_at != 0) {
         found_at--;
@@ -427,14 +427,14 @@ MVMSpeshSimStackFrame * sim_stack_find(MVMThreadContext *tc, MVMSpeshSimStack *s
 }
 
 /* Pops all the frames in the stack simulation and frees the frames storage. */
-void sim_stack_teardown(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMObject *sf_updated) {
+static void sim_stack_teardown(MVMThreadContext *tc, MVMSpeshSimStack *sims, MVMObject *sf_updated) {
     while (sims->used)
         sim_stack_pop(tc, sims, sf_updated);
     MVM_free(sims->frames);
 }
 
 /* Gets the parameter type slot from a simulation frame. */
-MVMSpeshStatsType * param_type(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf, MVMSpeshLogEntry *e) {
+static MVMSpeshStatsType * param_type(MVMThreadContext *tc, MVMSpeshSimStackFrame *simf, MVMSpeshLogEntry *e) {
     if (simf->arg_types) {
         MVMuint16 idx = e->param.arg_idx;
         MVMCallsite *cs = simf->ss->by_callsite[simf->callsite_idx].cs;
