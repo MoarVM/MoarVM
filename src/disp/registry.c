@@ -1,7 +1,7 @@
 #include "moar.h"
 
 /* Allocates a dispatcher table. */
-MVMDispRegistryTable * allocate_table(MVMThreadContext *tc, MVMuint32 num_entries) {
+static MVMDispRegistryTable * allocate_table(MVMThreadContext *tc, MVMuint32 num_entries) {
     MVMDispRegistryTable *table = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
             sizeof(MVMDispRegistryTable));
     table->num_dispatchers = 0;

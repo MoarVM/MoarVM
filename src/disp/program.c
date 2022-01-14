@@ -1697,7 +1697,7 @@ static void ensure_resume_ok(MVMThreadContext *tc, MVMCallStackDispatchRecord *r
 }
 
 /* Form a capture from the resume initialization arguments. */
-MVMObject * resume_init_capture(MVMThreadContext *tc, MVMDispResumptionData *resume_data,
+static MVMObject * resume_init_capture(MVMThreadContext *tc, MVMDispResumptionData *resume_data,
         MVMDispProgramRecordingResumption *rec_resumption) {
     MVMDispProgramResumption *resumption = resume_data->resumption;
     MVMCallsite *callsite = resumption->init_callsite;
@@ -1721,7 +1721,7 @@ MVMObject * resume_init_capture(MVMThreadContext *tc, MVMDispResumptionData *res
 
 /* Set up another level of dispatch resumption in the resumptions list. Used
  * for both the initial resume and falling back on the next resumption. */
-void push_resumption(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
+static void push_resumption(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         MVMDispResumptionData *resume_data) {
     MVMDispProgramRecordingResumption rec_resumption;
     rec_resumption.initial_resume_capture.transformation = MVMDispProgramRecordingResumeInitial;
@@ -1739,7 +1739,7 @@ void push_resumption(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
 }
 
 /* Record the initial resumption of a dispatch. */
-void record_resume(MVMThreadContext *tc, MVMObject *capture, MVMDispResumptionData *resume_data,
+static void record_resume(MVMThreadContext *tc, MVMObject *capture, MVMDispResumptionData *resume_data,
         MVMDispProgramRecordingResumeKind resume_kind) {
     /* Make sure we're in a dispatcher and that we didn't already call resume. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
@@ -3796,7 +3796,7 @@ void MVM_disp_program_destroy(MVMThreadContext *tc, MVMDispProgram *dp) {
 }
 
 /* Free the memory associated with a dispatch program recording. */
-void destroy_recording_capture(MVMThreadContext *tc, MVMDispProgramRecordingCapture *cap) {
+static void destroy_recording_capture(MVMThreadContext *tc, MVMDispProgramRecordingCapture *cap) {
     MVMuint32 i;
     for (i = 0; i < MVM_VECTOR_ELEMS(cap->captures); i++)
         destroy_recording_capture(tc, &(cap->captures[i]));
