@@ -74,7 +74,7 @@ static void read_one_packet(MVMThreadContext *tc, MVMIOSyncSocketData *data) {
     }
 }
 
-MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMuint64 bytes) {
+static MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVMuint64 bytes) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     char *use_last_packet = NULL;
     MVMuint16 use_last_packet_start = 0, use_last_packet_end = 0;
@@ -169,21 +169,21 @@ MVMint64 socket_read_bytes(MVMThreadContext *tc, MVMOSHandle *h, char **buf, MVM
 }
 
 /* Checks if EOF has been reached on the incoming data. */
-MVMint64 socket_eof(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 socket_eof(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     return data->eof;
 }
 
-void socket_flush(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 sync) {
+static void socket_flush(MVMThreadContext *tc, MVMOSHandle *h, MVMint32 sync) {
     /* A no-op for sockets; we don't buffer. */
 }
 
-void socket_truncate(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
+static void socket_truncate(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes) {
     MVM_exception_throw_adhoc(tc, "Cannot truncate a socket");
 }
 
 /* Writes the specified bytes to the stream. */
-MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMuint64 bytes) {
+static MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMuint64 bytes) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
     MVMint64 sent = 0;
     unsigned int interval_id;
@@ -460,7 +460,7 @@ static void socket_bind(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host, M
     }
 }
 
-MVMint64 socket_getport(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMint64 socket_getport(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
 
     struct sockaddr_storage name;

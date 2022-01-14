@@ -440,7 +440,7 @@ static void deferred_close_perform(MVMThreadContext *tc, uv_loop_t *loop, MVMObj
     }
 }
 
-MVMObject * get_async_task_handle(MVMThreadContext *tc, MVMOSHandle *h) {
+static MVMObject * get_async_task_handle(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOAsyncProcessData *handle_data = (MVMIOAsyncProcessData *)h->body.data;
     return handle_data->async_task;
 }
