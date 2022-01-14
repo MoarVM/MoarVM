@@ -1936,7 +1936,7 @@ static int eliminate_phi_dead_reads(MVMThreadContext *tc, MVMSpeshGraph *g, MVMS
         operand++;
     }
     if (num_operands != ins->info->num_operands)
-        ins->info = get_phi(tc, g, num_operands);
+        ins->info = MVM_spesh_graph_get_phi(tc, g, num_operands);
     if (num_operands <= 1) {
         MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
         return 0;

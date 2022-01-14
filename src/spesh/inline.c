@@ -1297,7 +1297,7 @@ static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 MVMuint32 num_rets = final_last_result_version - initial_last_result_version;
                 MVMuint32 i;
                 MVMSpeshIns *phi = MVM_spesh_alloc(tc, inliner, sizeof(MVMSpeshIns));
-                phi->info = get_phi(tc, inliner, num_rets + 1);
+                phi->info = MVM_spesh_graph_get_phi(tc, inliner, num_rets + 1);
                 phi->operands = MVM_spesh_alloc(tc, inliner, (1 + num_rets) * sizeof(MVMSpeshOperand));
                 phi->operands[0] = runbytecode_ins->operands[0];
                 MVM_spesh_get_facts(tc, inliner, phi->operands[0])->writer = phi;

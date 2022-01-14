@@ -1156,7 +1156,7 @@ static SSAVarInfo * initialize_ssa_var_info(MVMThreadContext *tc, MVMSpeshGraph 
     return var_info;
 }
 
-MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint32 nrargs) {
+MVMOpInfo *MVM_spesh_graph_get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint32 nrargs) {
     MVMOpInfo *result = NULL;
 
     /* Check number of args to phi isn't huge. */
@@ -1198,7 +1198,7 @@ MVMOpInfo *get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMuint32 nrargs) {
 /* Inserts SSA phi functions at the required places in the graph. */
 void MVM_spesh_graph_place_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMint32 n, MVMuint16 var) {
     MVMint32     i;
-    MVMOpInfo   *phi_op  = get_phi(tc, g, n + 1);
+    MVMOpInfo   *phi_op  = MVM_spesh_graph_get_phi(tc, g, n + 1);
     MVMSpeshIns *ins     = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     ins->info            = phi_op;
     ins->operands        = MVM_spesh_alloc(tc, g, phi_op->num_operands * sizeof(MVMSpeshOperand));
