@@ -1,7 +1,7 @@
 #include "moar.h"
 
 /* Checks if we have any existing specialization of this. */
-MVMint32 have_existing_specialization(MVMThreadContext *tc, MVMStaticFrame *sf,
+static MVMint32 have_existing_specialization(MVMThreadContext *tc, MVMStaticFrame *sf,
         MVMCallsite *cs, MVMSpeshStatsType *type_tuple) {
     MVMStaticFrameSpesh *sfs = sf->body.spesh;
     MVMuint32 i;
@@ -27,10 +27,10 @@ MVMint32 have_existing_specialization(MVMThreadContext *tc, MVMStaticFrame *sf,
 /* Adds a planned specialization, provided it doesn't already exist (this may
  * happen due to further data suggesting it being logged while it was being
  * produced). */
-void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind kind,
-                 MVMStaticFrame *sf, MVMSpeshStatsByCallsite *cs_stats,
-                 MVMSpeshStatsType *type_tuple, MVMSpeshStatsByType **type_stats,
-                 MVMuint32 num_type_stats) {
+static void add_planned(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMSpeshPlannedKind kind,
+                        MVMStaticFrame *sf, MVMSpeshStatsByCallsite *cs_stats,
+                        MVMSpeshStatsType *type_tuple, MVMSpeshStatsByType **type_stats,
+                        MVMuint32 num_type_stats) {
     MVMSpeshPlanned *p;
     if (sf->body.bytecode_size > MVM_SPESH_MAX_BYTECODE_SIZE ||
         have_existing_specialization(tc, sf, cs_stats->cs, type_tuple)) {
@@ -233,7 +233,7 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
 
 /* Considers the statistics of a given static frame and plans specializtions
  * to produce for it. */
-void plan_for_sf(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
+static void plan_for_sf(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
         MVMuint64 *in_certain_specialization, MVMuint64 *in_observed_specialization, MVMuint64 *in_osr_specialization) {
     MVMSpeshStats *ss = sf->body.spesh->body.spesh_stats;
     MVMuint32 threshold = MVM_spesh_threshold(tc, sf);
@@ -253,7 +253,7 @@ void plan_for_sf(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame *sf,
  * but sometimes it's misleading, and we end up with a planned specialization
  * of a callee having a lower maximum than the caller. Boost the depth of any
  * callees in such a situation. */
-void twiddle_stack_depths(MVMThreadContext *tc, MVMSpeshPlanned *planned, MVMuint32 num_planned) {
+static void twiddle_stack_depths(MVMThreadContext *tc, MVMSpeshPlanned *planned, MVMuint32 num_planned) {
     MVMuint32 i;
     if (num_planned < 2)
         return;
@@ -282,7 +282,7 @@ void twiddle_stack_depths(MVMThreadContext *tc, MVMSpeshPlanned *planned, MVMuin
 }
 
 /* Sorts the plan in descending order of maximum call depth. */
-void sort_plan(MVMThreadContext *tc, MVMSpeshPlanned *planned, MVMuint32 n) {
+static void sort_plan(MVMThreadContext *tc, MVMSpeshPlanned *planned, MVMuint32 n) {
     if (n >= 2) {
         MVMSpeshPlanned pivot = planned[n / 2];
         MVMuint32 i, j;

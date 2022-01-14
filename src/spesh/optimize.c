@@ -1163,7 +1163,7 @@ static void optimize_getlex_per_invocant(MVMThreadContext *tc, MVMSpeshGraph *g,
 
 /* Find the dispatch cache bytecode offset of the given instruction. Returns 0
  * if not found. */
-MVMuint32 find_cache_offset(MVMThreadContext *tc, MVMSpeshIns *ins) {
+static MVMuint32 find_cache_offset(MVMThreadContext *tc, MVMSpeshIns *ins) {
     MVMSpeshAnn *ann = ins->annotations;
     while (ann) {
         if (ann->type == MVM_SPESH_ANN_CACHED)
@@ -1177,7 +1177,7 @@ MVMuint32 find_cache_offset(MVMThreadContext *tc, MVMSpeshIns *ins) {
  * of operations culminating in the runbytecode instruction. It may be on the
  * runbytecode itself, if no guards were stacked up before it, but may also be
  * earlier (but always in the same basic block). */
-MVMint32 find_predeopt_index(MVMThreadContext *tc, MVMSpeshIns *ins) {
+static MVMint32 find_predeopt_index(MVMThreadContext *tc, MVMSpeshIns *ins) {
     while (ins) {
         MVMSpeshAnn *ann = ins->annotations;
         while (ann) {
@@ -1198,7 +1198,7 @@ MVMint32 find_predeopt_index(MVMThreadContext *tc, MVMSpeshIns *ins) {
 
 /* Given an instruction, finds the deopt target on it. Panics if there is not
  * one there. */
-void find_deopt_target_and_index(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
+static void find_deopt_target_and_index(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins,
         MVMuint32 *deopt_target_out, MVMuint32 *deopt_index_out) {
     MVMSpeshAnn *deopt_ann = ins->annotations;
     while (deopt_ann) {
@@ -1264,7 +1264,7 @@ static MVMSpeshStatsType * find_invokee_type_tuple(MVMThreadContext *tc,
 
 /* Sees if any static frames were logged for the dispatch at this location,
  * and if so checks if there was a stable one. */
-MVMStaticFrame * find_runbytecode_static_frame(MVMThreadContext *tc, MVMSpeshPlanned *p,
+static MVMStaticFrame * find_runbytecode_static_frame(MVMThreadContext *tc, MVMSpeshPlanned *p,
         MVMSpeshIns *ins, MVMuint32 cache_offset) {
     MVMuint32 i;
     MVMStaticFrame *best_result = NULL;
@@ -1434,7 +1434,7 @@ static void check_and_tweak_arg_guards(MVMThreadContext *tc, MVMSpeshGraph *g,
 
 /* Ties to optimize a runbytecode instruction by either pre-selecting a spesh
  * candidate or, if possible, inlining it. */
-void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
+static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         MVMSpeshIns *ins, MVMSpeshPlanned *p) {
     /* Make sure we can find the dispatch bytecode offset (used for both
      * looking up in the spesh log) and the pre-deopt index (for use with
