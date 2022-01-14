@@ -2,8 +2,8 @@
 
 #define FIXKEY_INITIAL_SIZE_LOG2 3
 
-void hash_demolish_internal(MVMThreadContext *tc,
-                            struct MVMFixKeyHashTableControl *control) {
+static void hash_demolish_internal(MVMThreadContext *tc,
+                                   struct MVMFixKeyHashTableControl *control) {
     size_t allocated_items = MVM_fixkey_hash_allocated_items(control);
     size_t entries_size = sizeof(MVMString ***) * allocated_items;
     size_t metadata_size = MVM_hash_round_size_up(allocated_items + 1);
