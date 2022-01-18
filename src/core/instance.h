@@ -221,10 +221,8 @@ struct MVMInstance {
     /* Fixed size allocator. */
     MVMFixedSizeAlloc *fsa;
 
-    /* Linked list of memory to free at the next safepoint, and a mutex to guard
-     * access to it. */
+    /* Linked list of memory to free at the next safepoint. */
     MVMAllocSafepointFreeListEntry *free_at_safepoint;
-    uv_mutex_t mutex_free_at_safepoint;
 
     /* Whether the --full-cleanup flag was passed. */
     MVMuint32 full_cleanup;

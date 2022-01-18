@@ -79,12 +79,23 @@ void MVM_6model_set_debug_name(MVMThreadContext *tc, MVMObject *type, MVMString 
     char *new_debug_name = name && MVM_string_graphs(tc, name)
         ? MVM_string_utf8_encode_C_string(tc, name)
         : NULL;
+    volatile AO_t *addr = (AO_t *)(&STABLE(type)->debug_name);
 
-    uv_mutex_lock(&(tc->instance->mutex_free_at_safepoint));
-    char *orig_debug_name = STABLE(type)->debug_name;
-    STABLE(type)->debug_name = new_debug_name;
-    uv_mutex_unlock(&(tc->instance->mutex_free_at_safepoint));
+    char *orig_debug_name = (char *)MVM_load(addr);
+    char *old_debug_name = MVM_casptr(addr, orig_debug_name, new_debug_name);
 
-    if (orig_debug_name)
-        MVM_free_at_safepoint(tc, orig_debug_name);
+    if (old_debug_name == orig_debug_name) {
+        /* new_debug_name is now swapped in place, and we now "own" the old
+           pointer. */
+        if (orig_debug_name)
+            MVM_free_at_safepoint(tc, orig_debug_name);
+    }
+    else {
+        /* Someone else raced us and won - they swapped their new pointer in
+         * place between `MVM_load` and `MVM_casptr`. Hence we still "own"
+         * new_debug_name, *and* no-one else has ever seen it, so it's safe to
+         * free it immediately. */
+        if (new_debug_name)
+            MVM_free(new_debug_name);
+    }
 }
