@@ -76,13 +76,15 @@ void MVM_6model_never_repossess(MVMThreadContext *tc, MVMObject *obj) {
 
 /* Set the debug name on a type. */
 void MVM_6model_set_debug_name(MVMThreadContext *tc, MVMObject *type, MVMString *name) {
-    char *orig_debug_name;
-    uv_mutex_lock(&(tc->instance->mutex_free_at_safepoint));
-    orig_debug_name = STABLE(type)->debug_name;
-    if (orig_debug_name)
-        MVM_free_at_safepoint(tc, orig_debug_name);
-    STABLE(type)->debug_name = name && MVM_string_graphs(tc, name)
+    char *new_debug_name = name && MVM_string_graphs(tc, name)
         ? MVM_string_utf8_encode_C_string(tc, name)
         : NULL;
+
+    uv_mutex_lock(&(tc->instance->mutex_free_at_safepoint));
+    char *orig_debug_name = STABLE(type)->debug_name;
+    STABLE(type)->debug_name = new_debug_name;
     uv_mutex_unlock(&(tc->instance->mutex_free_at_safepoint));
+
+    if (orig_debug_name)
+        MVM_free_at_safepoint(tc, orig_debug_name);
 }
