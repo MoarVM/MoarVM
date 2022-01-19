@@ -79,6 +79,23 @@ void MVM_6model_set_debug_name(MVMThreadContext *tc, MVMObject *type, MVMString 
     char *new_debug_name = name && MVM_string_graphs(tc, name)
         ? MVM_string_utf8_encode_C_string(tc, name)
         : NULL;
+
+#ifdef MVM_USE_C11_ATOMICS
+    /* clang insists on the cast. gcc is warning free either way. */
+    void *old_debug_name
+        = (void *) atomic_exchange_explicit((char * _Atomic *)&STABLE(type)->debug_name, new_debug_name, memory_order_relaxed);
+
+    if (old_debug_name)
+        MVM_free_at_safepoint(tc, old_debug_name);
+
+#else
+    /* libatomic_ops doesn't have any equivalent to atomic_exchange - all the
+     * "exchange" ops are compare-and-swap. We *could* use a while loop with
+     * the two APIs used here to emulate unconditional exchange, but as
+     * 1) we don't need that anywhere else in the codebase
+     * 2) for this use case, a "failed" swap can be handled immediately
+     * so we code things slightly differently:
+     */
     volatile AO_t *addr = (AO_t *)(&STABLE(type)->debug_name);
 
     char *orig_debug_name = (char *)MVM_load(addr);
@@ -98,4 +115,5 @@ void MVM_6model_set_debug_name(MVMThreadContext *tc, MVMObject *type, MVMString 
         if (new_debug_name)
             MVM_free(new_debug_name);
     }
+#endif
 }
