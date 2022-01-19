@@ -299,6 +299,13 @@ char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, M
                 str = MVM_string_utf8_encode_C_string(tc, value_str);
         }
 
+#ifdef MVM_USE_MIMALLOC
+        size_t str_len = strlen(str) + 1;
+        char *libc_str = malloc(str_len);
+        memcpy(libc_str, str, str_len);
+        MVM_free(str);
+#endif
+
         /* Set whether to free it or not. */
         if (free) {
             if (REPR(value)->ID == MVM_REPR_ID_MVMCStr)
@@ -309,7 +316,11 @@ char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, M
                 *free = 0;
         }
 
+#ifdef MVM_USE_MIMALLOC
+        return libc_str;
+#else
         return str;
+#endif
     }
     else {
         return NULL;

@@ -111,7 +111,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
     if (!repr_data)
         MVM_exception_throw_adhoc(tc, "CArray type must be composed before use");
 
-    body->storage = MVM_calloc(4, repr_data->elem_size);
+    body->storage = calloc(4, repr_data->elem_size);
     body->managed = 1;
 
     /* Don't need child_objs for numerics. */
@@ -132,7 +132,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
     if (src_body->managed) {
         MVMint32 alsize = src_body->allocated * repr_data->elem_size;
-        dest_body->storage = MVM_malloc(alsize);
+        dest_body->storage = malloc(alsize);
         memcpy(dest_body->storage, src_body->storage, alsize);
     }
     else {
@@ -156,7 +156,7 @@ static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
                 MVM_free( ((void **)body->storage)[i] );
             }
         }
-        MVM_free(body->storage);
+        free(body->storage);
     }
     if (body->child_objs)
         MVM_free(body->child_objs);
@@ -225,7 +225,7 @@ static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArray
         const size_t old_size = body->allocated * repr_data->elem_size;
         const size_t new_size = next_size * repr_data->elem_size;
 
-        body->storage = MVM_recalloc(body->storage, old_size, new_size);
+        body->storage = recalloc(body->storage, old_size, new_size);
     }
 
     is_complex = (repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CARRAY
