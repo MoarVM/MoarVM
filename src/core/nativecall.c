@@ -290,16 +290,7 @@ char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, M
         char *str;
         switch (type & MVM_NATIVECALL_ARG_TYPE_MASK) {
             case MVM_NATIVECALL_ARG_ASCIISTR:
-                str = MVM_string_ascii_encode_any(tc, value_str);
-#ifdef MVM_USE_MIMALLOC
-                {
-                    size_t str_len = strlen(str) + 1;
-                    char *libc_str = malloc(str_len);
-                    memcpy(libc_str, str, str_len);
-                    MVM_free(str);
-                    str = libc_str;
-                }
-#endif
+                str = MVM_string_ascii_encode_malloc(tc, value_str);
                 break;
             case MVM_NATIVECALL_ARG_UTF16STR:
                 str = MVM_string_utf16_encode(tc, value_str, 0);

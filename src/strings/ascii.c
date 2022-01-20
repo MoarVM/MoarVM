@@ -213,3 +213,42 @@ char * MVM_string_ascii_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *
 char * MVM_string_ascii_encode_any(MVMThreadContext *tc, MVMString *str) {
     return MVM_string_ascii_encode(tc, str, NULL, 0);
 }
+
+/* Encodes the specified string to ASCII using libc malloc.  */
+char * MVM_string_ascii_encode_malloc(MVMThreadContext *tc, MVMString *str) {
+    /* ASCII is a single byte encoding, but \r\n is a 2-byte grapheme, so we
+     * may have to resize as we go. */
+    MVMuint32      lengthu   = MVM_string_graphs(tc, str);
+
+    size_t         result_alloc = lengthu;
+    MVMuint8      *result = malloc(result_alloc + 1);
+    if (str->body.storage_type == MVM_STRING_GRAPHEME_ASCII) {
+        /* No encoding needed; directly copy. */
+        memcpy(result, str->body.storage.blob_ascii, lengthu);
+        result[lengthu] = 0;
+    }
+    else {
+        MVMuint32 i = 0;
+        MVMCodepointIter ci;
+        MVM_string_ci_init(tc, &ci, str, 0, 0);
+        while (MVM_string_ci_has_more(tc, &ci)) {
+            MVMCodepoint ord = MVM_string_ci_get_codepoint(tc, &ci);
+            if (i == result_alloc) {
+                result_alloc += 8;
+                result = realloc(result, result_alloc + 1);
+            }
+            if (0 <= ord && ord <= 127) {
+                result[i++] = (MVMuint8)ord;
+            }
+            else {
+                free(result);
+                MVM_exception_throw_adhoc(tc,
+                    "Error encoding ASCII string: could not encode codepoint %d",
+                    ord);
+            }
+        }
+        result[i] = 0;
+    }
+
+    return (char *)result;
+}
