@@ -380,6 +380,9 @@ static void bind_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void 
             if (kind == MVM_reg_int64)
                 REPR(repr_data->elem_type)->box_funcs.set_int(tc,
                     STABLE(repr_data->elem_type), root, ptr, value.i64);
+            else if (kind == MVM_reg_uint64)
+                REPR(repr_data->elem_type)->box_funcs.set_uint(tc,
+                    STABLE(repr_data->elem_type), root, ptr, value.u64);
             else if (kind == MVM_reg_num64)
                 REPR(repr_data->elem_type)->box_funcs.set_num(tc,
                     STABLE(repr_data->elem_type), root, ptr, value.n64);
