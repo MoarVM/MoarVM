@@ -364,9 +364,11 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_assign_i: return MVM_6model_container_assign_i;
     case MVM_OP_assign_n: return MVM_6model_container_assign_n;
     case MVM_OP_assign_s: return MVM_6model_container_assign_s;
+    case MVM_OP_assign_u: return MVM_6model_container_assign_u;
     case MVM_OP_decont_i: return MVM_6model_container_decont_i;
     case MVM_OP_decont_n: return MVM_6model_container_decont_n;
     case MVM_OP_decont_s: return MVM_6model_container_decont_s;
+    case MVM_OP_decont_u: return MVM_6model_container_decont_u;
     case MVM_OP_getrusage: return MVM_proc_getrusage;
     case MVM_OP_cpucores: return MVM_platform_cpu_count;
     case MVM_OP_freemem: return MVM_platform_free_memory;
@@ -682,6 +684,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_OP_setelemspos:
         case MVM_OP_splice:
         case MVM_OP_assign_i:
+        case MVM_OP_assign_u:
         case MVM_OP_assign_n:
         case MVM_OP_assign_s:
             type_operand = ins->operands[0];
@@ -719,6 +722,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
         case MVM_OP_decont_i:
         case MVM_OP_decont_n:
         case MVM_OP_decont_s:
+        case MVM_OP_decont_u:
             type_operand = ins->operands[1];
             break;
         case MVM_OP_box_i:
@@ -1163,6 +1167,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                 return 1;
             }
             case MVM_OP_decont_i:
+            case MVM_OP_decont_u:
             case MVM_OP_decont_n:
             case MVM_OP_decont_s: {
                 MVMSTable *st = ((MVMObject *)type_facts->type)->st;
@@ -1170,10 +1175,12 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                 MVMint16 obj = ins->operands[1].reg.orig;
 
                 MVMuint16 reg_type = op == MVM_OP_decont_i ? MVM_reg_int64
+                                   : op == MVM_OP_decont_u ? MVM_reg_uint64
                                    : op == MVM_OP_decont_n ? MVM_reg_num64
                                    :                         MVM_reg_str;
 
                 MVMuint16 ret_type = op == MVM_OP_decont_i ? MVM_JIT_RV_INT
+                                   : op == MVM_OP_decont_u ? MVM_JIT_RV_INT
                                    : op == MVM_OP_decont_n ? MVM_JIT_RV_NUM
                                    :                         MVM_JIT_RV_PTR;
 
@@ -1191,9 +1198,10 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                              { MVM_JIT_REG_VAL, { obj } },
                                              { MVM_JIT_REG_ADDR, { dst } } };
 
-                    function = reg_type == MVM_reg_int64 ? st->container_spec->fetch_i
-                             : reg_type == MVM_reg_num64 ? st->container_spec->fetch_n
-                             :                             st->container_spec->fetch_s;
+                    function = reg_type == MVM_reg_int64  ? st->container_spec->fetch_i
+                             : reg_type == MVM_reg_uint64 ? st->container_spec->fetch_u
+                             : reg_type == MVM_reg_num64  ? st->container_spec->fetch_n
+                             :                              st->container_spec->fetch_s;
 
                     jg_append_call_c(tc, jg, function, 3, args, MVM_JIT_RV_VOID, -1);
                     MVM_spesh_graph_add_comment(tc, iter->graph, ins, "JIT: devirtualized");;
@@ -1208,6 +1216,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                 return 1;
             }
             case MVM_OP_assign_i:
+            case MVM_OP_assign_u:
             case MVM_OP_assign_n:
             case MVM_OP_assign_s: {
                 MVMSTable *st = ((MVMObject *)type_facts->type)->st;
@@ -1215,6 +1224,7 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                 MVMint16 val = ins->operands[1].reg.orig;
 
                 MVMuint16 reg_type = op == MVM_OP_assign_i ? MVM_reg_int64
+                                   : op == MVM_OP_assign_u ? MVM_reg_uint64
                                    : op == MVM_OP_assign_n ? MVM_reg_num64
                                    :                         MVM_reg_str;
 
@@ -1231,9 +1241,10 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
 
                 if (!function) {
                     MVM_spesh_graph_add_comment(tc, iter->graph, ins, "JIT: devirtualized");;
-                    function = reg_type == MVM_reg_int64 ? (void *)st->container_spec->store_i
-                             : reg_type == MVM_reg_num64 ? (void *)st->container_spec->store_n
-                             :                             (void *)st->container_spec->store_s;
+                    function = reg_type == MVM_reg_int64  ? (void *)st->container_spec->store_i
+                             : reg_type == MVM_reg_uint64 ? (void *)st->container_spec->store_u
+                             : reg_type == MVM_reg_num64  ? (void *)st->container_spec->store_n
+                             :                              (void *)st->container_spec->store_s;
                 }
                 else {
                     MVM_spesh_graph_add_comment(tc, jg->sg, ins, "JIT: double-devirtualized");
@@ -1552,6 +1563,7 @@ skipdevirt:
         break;
     }
     case MVM_OP_assign_i:
+    case MVM_OP_assign_u:
     case MVM_OP_assign_n:
     case MVM_OP_assign_s: {
         MVMint16 target = ins->operands[0].reg.orig;
@@ -2457,9 +2469,11 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_hintfor:
     case MVM_OP_elems:
     case MVM_OP_decont_i:
+    case MVM_OP_decont_u:
     case MVM_OP_decont_n:
     case MVM_OP_decont_s:
     case MVM_OP_assign_i:
+    case MVM_OP_assign_u:
     case MVM_OP_assign_n:
     case MVM_OP_assign_s:
         if (!consume_reprop(tc, jg, iter, ins)) {
