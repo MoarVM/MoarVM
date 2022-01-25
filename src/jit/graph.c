@@ -359,6 +359,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_iscont_i: return MVM_6model_container_iscont_i;
     case MVM_OP_iscont_n: return MVM_6model_container_iscont_n;
     case MVM_OP_iscont_s: return MVM_6model_container_iscont_s;
+    case MVM_OP_iscont_u: return MVM_6model_container_iscont_u;
     case MVM_OP_isrwcont: return MVM_6model_container_iscont_rw;
     case MVM_OP_assign_i: return MVM_6model_container_assign_i;
     case MVM_OP_assign_n: return MVM_6model_container_assign_n;

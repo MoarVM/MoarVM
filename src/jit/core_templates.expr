@@ -2495,6 +2495,12 @@
       (carg (tc) ptr)
       (carg $1 ptr)) int_sz))
 
+(template: iscont_u
+  (call (^func MVM_6model_container_iscont_u)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)) int_sz))
+
 (template: decont_s!
   (callv (^func &MVM_6model_container_decont_s)
     (arglist
