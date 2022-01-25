@@ -1,0 +1,11 @@
+extraction:
+  cpp:
+    prepare:
+      packages: "libzstd-dev"
+    after_prepare:
+    - "export GNU_MAKE=make"
+    - "export GIT=true"
+    configure:
+      command: "perl Configure.pl"
+    index:
+      build_command: "$GNU_MAKE -j2 -s"
