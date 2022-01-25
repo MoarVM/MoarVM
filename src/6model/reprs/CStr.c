@@ -78,9 +78,10 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
 
     char *mvm_allocated_cstr  = MVM_string_utf8_encode_C_string(tc, orig);
 #ifdef MVM_USE_MIMALLOC
-    char *libc_allocated_cstr = malloc(strlen(mvm_allocated_cstr) + 1);
     /* Safe because MVM_string_utf8_encode_C_string is guaranteed to return a null-terminated string */
-    strcpy(libc_allocated_cstr, mvm_allocated_cstr);
+    size_t cstr_len = strlen(mvm_allocated_cstr) + 1;
+    char *libc_allocated_cstr = malloc(cstr_len);
+    memcpy(libc_allocated_cstr, mvm_allocated_cstr, cstr_len);
     MVM_free(mvm_allocated_cstr);
 
     body->cstr = libc_allocated_cstr;
