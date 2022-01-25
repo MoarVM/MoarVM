@@ -37,23 +37,6 @@ MVM_STATIC_INLINE void * MVM_realloc(void *p, size_t size) {
     return ptr;
 }
 
-/* This doesn't use any mimalloc functions because it's for use in NativeCall
- * code, where modules may be freeing or allocating memory and wouldn't be 
- * using mimalloc. */
-MVM_STATIC_INLINE void * recalloc(void *p, size_t old_size, size_t size) {
-    void *ptr = realloc(p, size);
-
-    if (size > 0) {
-        if (!ptr)
-            MVM_panic_allocation_failed(size);
-
-        if (size > old_size)
-            memset((char *)ptr + old_size, 0, size - old_size);
-    }
-
-    return ptr;
-}
-
 MVM_STATIC_INLINE void * MVM_recalloc(void *p, size_t old_size, size_t size) {
 #ifdef MVM_USE_MIMALLOC
     void *ptr = mi_realloc(p, size);

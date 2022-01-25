@@ -225,7 +225,8 @@ static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArray
         const size_t old_size = body->allocated * repr_data->elem_size;
         const size_t new_size = next_size * repr_data->elem_size;
 
-        body->storage = recalloc(body->storage, old_size, new_size);
+        body->storage = realloc(body->storage, new_size);
+        memset((char *)body->storage + old_size, 0, new_size - old_size);
     }
 
     is_complex = (repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_CARRAY
