@@ -5084,11 +5084,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(hllboolfor): {
-                MVMString   *hll     = GET_REG(cur_op, 4).s;
-                MVMHLLConfig *config = MVM_hll_get_config_for(tc, hll);
-                GET_REG(cur_op, 0).o = GET_REG(cur_op, 2).i64
+                MVMString    *hll     = GET_REG(cur_op, 4).s;
+                MVMHLLConfig *config  = MVM_hll_get_config_for(tc, hll);
+                MVMObject *bool_value = GET_REG(cur_op, 2).i64
                     ? config->true_value
                     : config->false_value;
+                if (!bool_value) {
+                    char *c_hll = MVM_string_utf8_encode_C_string(tc, hll);
+                    char *waste[] = { c_hll, NULL };
+                    MVM_exception_throw_adhoc_free(tc, waste, "Trying to hllboolfor a value, but '%s' doesn't have HLL bools", c_hll);
+                }
+                GET_REG(cur_op, 0).o = bool_value;
                 cur_op += 6;
                 goto NEXT;
             }
