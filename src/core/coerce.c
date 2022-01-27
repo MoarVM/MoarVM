@@ -1,5 +1,6 @@
 #include "moar.h"
 #include "ryu/ryu.h"
+#include <ctype.h>
 
 #if defined(_MSC_VER)
 #define strtoll _strtoi64
@@ -332,11 +333,133 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n) {
     return MVM_string_ascii_from_buf_nocheck(tc, blob, orig_len);
 }
 
-MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *s) {
-    char     *enc = MVM_string_ascii_encode_any(tc, s);
-    MVMint64  i   = strtoll(enc, NULL, 10);
-    MVM_free(enc);
-    return i;
+MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *str) {
+    MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
+    MVMint64       result = 0;
+    MVMint32       any = 0, negative = 0;
+
+    signed long long cutoff;
+    MVMint32  cutlim;
+
+    if (!strgraphs)
+        return result;
+
+/*-
+ * Copyright (c) 1990 The Regents of the University of California.
+ * All rights reserved.
+ *
+ * copied from https://github.com/gcc-mirror/gcc/blob/0c0f453c4af4880c522c8472c33eef42bee9eda1/libiberty/strtoll.c
+ * with minor modifications to simplify and work in MoarVM
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. [rescinded 22 July 1999]
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+    if (str->body.storage_type == MVM_STRING_GRAPHEME_ASCII) {
+        const MVMGraphemeASCII *s = str->body.storage.blob_ascii;
+        MVMStringIndex i = 0;
+        MVMGraphemeASCII c;
+        do {
+            c = *s++;
+        } while (i++ < strgraphs && isspace(c));
+
+        if (c == '-') {
+            negative = 1;
+            c = *s++;
+            i++;
+        } else if (c == '+') {
+            c = *s++;
+            i++;
+        }
+
+        cutoff = negative ? -(unsigned long long)LLONG_MIN : LLONG_MAX;
+        cutlim = cutoff % (unsigned long long)10;
+        cutoff /= (unsigned long long)10;
+
+        do {
+            if (isdigit(c))
+                c -= '0';
+            else
+                break;
+
+            if (any < 0 || result > cutoff || (result == cutoff && c > cutlim))
+                any = -1;
+            else {
+                any = 1;
+                result *= 10;
+                result += c;
+            }
+        } while (i++ < strgraphs && (c = *s++));
+
+        if (any < 0)
+            result = negative ? LLONG_MIN : LLONG_MAX;
+        else if (negative)
+            result = -result;
+    }
+    else {
+        MVMCodepointIter ci;
+        MVM_string_ci_init(tc, &ci, str, 0, 0);
+        MVMCodepoint ord;
+
+        do {
+            ord = MVM_string_ci_get_codepoint(tc, &ci);
+        } while (isspace(ord) && MVM_string_ci_has_more(tc, &ci));
+
+        if (ord == '-') {
+            negative = 1;
+            ord = MVM_string_ci_get_codepoint(tc, &ci);
+        }
+        else if (ord == '+') {
+            ord = MVM_string_ci_get_codepoint(tc, &ci);
+        }
+
+        cutoff = negative ? -(unsigned long long)LLONG_MIN : LLONG_MAX;
+        cutlim = cutoff % (unsigned long long)10;
+        cutoff /= (unsigned long long)10;
+
+        do {
+            if (isdigit(ord))
+                ord -= '0';
+            else
+                break;
+
+            if (any < 0 || result > cutoff || (result == cutoff && ord > cutlim))
+                any = -1;
+            else {
+                any = 1;
+                result *= 10;
+                result += ord;
+            }
+        } while (MVM_string_ci_has_more(tc, &ci) && (ord = MVM_string_ci_get_codepoint(tc, &ci)));
+
+        if (any < 0)
+            result = negative ? LLONG_MIN : LLONG_MAX;
+        else if (negative)
+            result = -result;
+    }
+
+    return result;
 }
 
 MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj) {
