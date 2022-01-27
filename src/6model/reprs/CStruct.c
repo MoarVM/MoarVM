@@ -422,7 +422,7 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 
     /* Allocate object body. */
     MVMCStructBody *body = (MVMCStructBody *)data;
-    body->cstruct = MVM_calloc(1, repr_data->struct_size > 0 ? repr_data->struct_size : 1);
+    body->cstruct = calloc(1, repr_data->struct_size > 0 ? repr_data->struct_size : 1);
 
     /* Allocate child obj array. */
     if (repr_data->num_child_objs > 0)
@@ -797,7 +797,7 @@ static void gc_cleanup(MVMThreadContext *tc, MVMSTable *st, void *data) {
     /* XXX For some reason, this causes crashes at the moment. Need to
      * work out why. */
     /*if (body->cstruct)
-        MVM_free(body->cstruct);*/
+        free(body->cstruct);*/
 }
 
 /* Called by the VM in order to free memory associated with this object. */
@@ -820,7 +820,7 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
     MVMCStructREPRData *repr_data = (MVMCStructREPRData *)st->REPR_data;
     MVMuint64 result = 0;
 
-    /* The allocated (or just-poisted-at) memory block */
+    /* The allocated (or just-pointed-at) memory block */
     /* TODO make sure when structs properly track "ownership" to
      *      not add this for "child" structs */
     result += repr_data->struct_size;

@@ -628,6 +628,37 @@ char * MVM_string_utf8_encode_C_string(MVMThreadContext *tc, MVMString *str) {
     return utf8_string;
 }
 
+/* Encodes the specified string to a UTF-8 C string. */
+char * MVM_string_utf8_encode_C_string_malloc(MVMThreadContext *tc, MVMString *str) {
+    MVMint64         length = MVM_string_graphs(tc, str);
+    /* Guesstimate that we'll be within 2 bytes for most chars most of the
+     * time, and give ourselves 4 bytes breathing space, plus 1 for the NUL. */
+    size_t           result_limit = 2 * length;
+    MVMuint8        *result = malloc(result_limit + 4 + 1);
+    size_t           result_pos = 0;
+
+    /* Iterate the codepoints and encode them. */
+    MVMCodepointIter ci;
+    MVM_string_ci_init(tc, &ci, str, 0, 0);
+    while (MVM_string_ci_has_more(tc, &ci)) {
+        MVMCodepoint cp = MVM_string_ci_get_codepoint(tc, &ci);
+        if (result_pos >= result_limit) {
+            result_limit *= 2;
+            result = realloc(result, result_limit + 4 + 1);
+        }
+        MVMint32 bytes = utf8_encode(result + result_pos, cp);
+        if (bytes)
+            result_pos += bytes;
+        else {
+            free(result);
+            MVM_string_utf8_throw_encoding_exception(tc, cp);
+        }
+    }
+
+    result[result_pos] = 0;
+    return (char *)result;
+}
+
 /* Encodes the specified string to a UTF-8 C string if it is not NULL. */
 char * MVM_string_utf8_maybe_encode_C_string(MVMThreadContext *tc, MVMString *str) {
     return str ? MVM_string_utf8_encode_C_string(tc, str) : NULL;

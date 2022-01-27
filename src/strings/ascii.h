@@ -4,3 +4,4 @@ MVM_PUBLIC MVMuint32 MVM_string_ascii_decodestream(MVMThreadContext *tc, MVMDeco
 MVM_PUBLIC char * MVM_string_ascii_encode_substr(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint64 start, MVMint64 length, MVMString *replacement, MVMint32 translate_newlines);
 MVM_PUBLIC char * MVM_string_ascii_encode(MVMThreadContext *tc, MVMString *str, MVMuint64 *output_size, MVMint32 translate_newlines);
 char * MVM_string_ascii_encode_any(MVMThreadContext *tc, MVMString *str);
+char * MVM_string_ascii_encode_malloc(MVMThreadContext *tc, MVMString *str);

@@ -777,7 +777,11 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     /* Free any memory that we need to. */
     if (free_strs)
         for (i = 0; i < num_strs; i++)
+#ifdef MVM_USE_MIMALLOC
+            free(free_strs[i]);
+#else
             MVM_free(free_strs[i]);
+#endif
 
     MVM_telemetry_interval_stop(tc, interval_id, "nativecall invoke");
 
