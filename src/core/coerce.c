@@ -382,22 +382,40 @@ MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *str) {
         MVMGraphemeASCII c;
         do {
             c = *s++;
-        } while (i++ < strgraphs && isspace(c));
+            ++i;
+            /* The original C code was processing a NUL terminated string, hence
+             * it could always be sure that it could read a value into c for
+             * which isspace(c) was false, and so for a string entirely
+             * whitespace this loop would terminate with c == 0 (without reading
+             * beyond the end) and the code below would behave correctly too.
+             *
+             * Instead we can use the length test to terminate the loop
+             * unconditionally just after we read the last character. This would
+             * be for strings which are entirely whitespace - eg " ", "  " etc.
+             * They all return 0, and we don't need to optimise their handling,
+             * so we simply drop through into the rest of the code with c == ' '
+             * for them. */
+        } while (i != strgraphs && isspace(c));
 
+        /* `i` counts how many octets we have read. Hence `i == strgraphs` at
+         * the point where `c` holds the final ASCII character of the string,
+         * and there is no more to read. */
         if (c == '-') {
             negative = 1;
+            if (i++ == strgraphs)
+                return 0;
             c = *s++;
-            i++;
         } else if (c == '+') {
+            if (i++ == strgraphs)
+                return 0;
             c = *s++;
-            i++;
         }
 
         cutoff = negative ? -(unsigned long long)LLONG_MIN : LLONG_MAX;
         cutlim = cutoff % (unsigned long long)10;
         cutoff /= (unsigned long long)10;
 
-        do {
+        while (1) {
             if (isdigit(c))
                 c -= '0';
             else
@@ -410,7 +428,10 @@ MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *str) {
                 result *= 10;
                 result += c;
             }
-        } while (i++ < strgraphs && (c = *s++));
+            if (i++ == strgraphs)
+                break;
+            c = *s++;
+        }
 
         if (any < 0)
             result = negative ? LLONG_MIN : LLONG_MAX;
@@ -428,9 +449,13 @@ MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *str) {
 
         if (ord == '-') {
             negative = 1;
+            if (!MVM_string_ci_has_more(tc, &ci))
+                return 0;
             ord = MVM_string_ci_get_codepoint(tc, &ci);
         }
         else if (ord == '+') {
+            if (!MVM_string_ci_has_more(tc, &ci))
+                return 0;
             ord = MVM_string_ci_get_codepoint(tc, &ci);
         }
 
@@ -438,7 +463,7 @@ MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *str) {
         cutlim = cutoff % (unsigned long long)10;
         cutoff /= (unsigned long long)10;
 
-        do {
+        while (1) {
             if (isdigit(ord))
                 ord -= '0';
             else
@@ -451,7 +476,10 @@ MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *str) {
                 result *= 10;
                 result += ord;
             }
-        } while (MVM_string_ci_has_more(tc, &ci) && (ord = MVM_string_ci_get_codepoint(tc, &ci)));
+            if (!MVM_string_ci_has_more(tc, &ci))
+                break;
+            ord = MVM_string_ci_get_codepoint(tc, &ci);
+        };
 
         if (any < 0)
             result = negative ? LLONG_MIN : LLONG_MAX;
