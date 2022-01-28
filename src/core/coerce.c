@@ -1,6 +1,5 @@
 #include "moar.h"
 #include "ryu/ryu.h"
-#include <ctype.h>
 
 #if defined(_MSC_VER)
 #define strtoll _strtoi64
@@ -395,7 +394,8 @@ MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *str) {
              * They all return 0, and we don't need to optimise their handling,
              * so we simply drop through into the rest of the code with c == ' '
              * for them. */
-        } while (i != strgraphs && isspace(c));
+            /* isspace(...) is any of "\t\n\v\f\r ", ie [9 .. 13, 32] */
+        } while (i != strgraphs && (c == ' ' || (c >= '\t' && c <= '\r')));
 
         /* `i` counts how many octets we have read. Hence `i == strgraphs` at
          * the point where `c` holds the final ASCII character of the string,
@@ -416,7 +416,7 @@ MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *str) {
         cutoff /= (unsigned long long)10;
 
         while (1) {
-            if (isdigit(c))
+            if (c >= '0' && c <= '9')
                 c -= '0';
             else
                 break;
@@ -445,7 +445,7 @@ MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *str) {
 
         do {
             ord = MVM_string_ci_get_codepoint(tc, &ci);
-        } while (isspace(ord) && MVM_string_ci_has_more(tc, &ci));
+        } while ((ord == ' ' || (ord >= '\t' && ord <= '\r')) && MVM_string_ci_has_more(tc, &ci));
 
         if (ord == '-') {
             negative = 1;
@@ -464,7 +464,7 @@ MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *str) {
         cutoff /= (unsigned long long)10;
 
         while (1) {
-            if (isdigit(ord))
+            if (ord >= '0' && ord <= '9')
                 ord -= '0';
             else
                 break;
