@@ -92,7 +92,6 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     MVM_serialization_write_int(tc, writer, body->convention);
     MVM_serialization_write_int(tc, writer, body->num_args);
     MVM_serialization_write_int(tc, writer, body->ret_type);
-    /* TODO ffi support */
     for (i = 0; i < body->num_args; i++) {
         MVM_serialization_write_int(tc, writer, body->arg_types[i]);
     }
@@ -109,31 +108,28 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMNativeCallBody *body = (MVMNativeCallBody *)data;
     MVMint16 i = 0;
-    if (reader->root.version >= 22) {
-        body->lib_name = MVM_serialization_read_cstr(tc, reader, NULL);
-        body->sym_name = MVM_serialization_read_cstr(tc, reader, NULL);
-        body->convention = MVM_serialization_read_int(tc, reader);
-        body->num_args = MVM_serialization_read_int(tc, reader);
-        body->ret_type = MVM_serialization_read_int(tc, reader);
-        body->arg_types = body->num_args ? MVM_malloc(body->num_args * sizeof(MVMint16)) : NULL;
-        body->arg_info  = body->num_args ? MVM_malloc(body->num_args * sizeof(MVMObject*)) : NULL;
-        /* TODO ffi support */
-        for (i = 0; i < body->num_args; i++) {
-            body->arg_types[i] = MVM_serialization_read_int(tc, reader);
-        }
-        for (i = 0; i < body->num_args; i++) {
-            body->arg_info[i] = MVM_serialization_read_ref(tc, reader);
-        }
-        body->resolve_lib_name = (MVMCode *)MVM_serialization_read_ref(tc, reader);
-        body->resolve_lib_name_arg = MVM_serialization_read_ref(tc, reader);
-#ifdef HAVE_LIBFFI
-        body->ffi_arg_types = MVM_malloc(sizeof(ffi_type *) * (body->num_args ? body->num_args : 1));
-        for (i = 0; i < body->num_args; i++) {
-            body->ffi_arg_types[i] = MVM_nativecall_get_ffi_type(tc, body->arg_types[i]);
-        }
-        body->ffi_ret_type = MVM_nativecall_get_ffi_type(tc, body->ret_type);
-#endif
+    body->lib_name = MVM_serialization_read_cstr(tc, reader, NULL);
+    body->sym_name = MVM_serialization_read_cstr(tc, reader, NULL);
+    body->convention = MVM_serialization_read_int(tc, reader);
+    body->num_args = MVM_serialization_read_int(tc, reader);
+    body->ret_type = MVM_serialization_read_int(tc, reader);
+    body->arg_types = body->num_args ? MVM_malloc(body->num_args * sizeof(MVMint16)) : NULL;
+    body->arg_info  = body->num_args ? MVM_malloc(body->num_args * sizeof(MVMObject*)) : NULL;
+    for (i = 0; i < body->num_args; i++) {
+        body->arg_types[i] = MVM_serialization_read_int(tc, reader);
     }
+    for (i = 0; i < body->num_args; i++) {
+        body->arg_info[i] = MVM_serialization_read_ref(tc, reader);
+    }
+    body->resolve_lib_name = (MVMCode *)MVM_serialization_read_ref(tc, reader);
+    body->resolve_lib_name_arg = MVM_serialization_read_ref(tc, reader);
+#ifdef HAVE_LIBFFI
+    body->ffi_arg_types = MVM_malloc(sizeof(ffi_type *) * (body->num_args ? body->num_args : 1));
+    for (i = 0; i < body->num_args; i++) {
+        body->ffi_arg_types[i] = MVM_nativecall_get_ffi_type(tc, body->arg_types[i]);
+    }
+    body->ffi_ret_type = MVM_nativecall_get_ffi_type(tc, body->ret_type);
+#endif
 }
 
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {

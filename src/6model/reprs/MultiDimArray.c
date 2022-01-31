@@ -451,11 +451,7 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     MVMint64 num_dims;
 
-    if (reader->root.version >= 19) {
-        num_dims = MVM_serialization_read_int(tc, reader);
-    } else {
-        num_dims = MVM_serialization_read_int64(tc, reader);
-    }
+    num_dims = MVM_serialization_read_int(tc, reader);
 
     if (num_dims > 0) {
         MVMMultiDimArrayREPRData *repr_data = (MVMMultiDimArrayREPRData *)MVM_malloc(sizeof(MVMMultiDimArrayREPRData));

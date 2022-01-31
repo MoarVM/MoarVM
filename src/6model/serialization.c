@@ -11,14 +11,13 @@
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
 #define CURRENT_VERSION 24
-#define MIN_VERSION     16
+#define MIN_VERSION     23
 
 /* Various sizes (in bytes). */
 #define HEADER_SIZE                 (4 * 18)
 #define DEP_TABLE_ENTRY_SIZE        8
 #define STABLES_TABLE_ENTRY_SIZE    12
 #define OBJECTS_TABLE_ENTRY_SIZE    8
-#define CLOSURES_TABLE_ENTRY_SIZE_v22 24
 #define CLOSURES_TABLE_ENTRY_SIZE   28
 #define CONTEXTS_TABLE_ENTRY_SIZE   16
 #define REPOS_TABLE_ENTRY_SIZE      16
@@ -1782,28 +1781,14 @@ MVM_STATIC_INLINE MVMSerializationContext * read_locate_sc_and_index(MVMThreadCo
     MVMuint32 sc_id;
     MVMuint32 packed;
 
-    if (reader->root.version >= 19) {
-        packed = MVM_serialization_read_int(tc, reader);
-    } else {
-        assert_can_read(tc, reader, 4);
-        packed = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-        *(reader->cur_read_offset) += 4;
-    }
+    packed = MVM_serialization_read_int(tc, reader);
 
     sc_id = packed >> PACKED_SC_SHIFT;
     if (sc_id != PACKED_SC_OVERFLOW) {
         *idx = packed & PACKED_SC_IDX_MASK;
     } else {
-        if (reader->root.version >= 19) {
-            sc_id = MVM_serialization_read_int(tc, reader);
-            *idx = MVM_serialization_read_int(tc, reader);
-        } else {
-            assert_can_read(tc, reader, 8);
-            sc_id = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-            *(reader->cur_read_offset) += 4;
-            *idx = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-            *(reader->cur_read_offset) += 4;
-        }
+        sc_id = MVM_serialization_read_int(tc, reader);
+        *idx = MVM_serialization_read_int(tc, reader);
     }
 
     return locate_sc(tc, reader, sc_id);
@@ -1845,13 +1830,7 @@ static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReade
     MVMint32 elems, i;
 
     /* Read the element count. */
-    if (reader->root.version >= 19) {
-        elems = MVM_serialization_read_int(tc, reader);
-    } else {
-        assert_can_read(tc, reader, 4);
-        elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-        *(reader->cur_read_offset) += 4;
-    }
+    elems = MVM_serialization_read_int(tc, reader);
 
     /* Read in the elements. */
     for (i = 0; i < elems; i++) {
@@ -1894,13 +1873,7 @@ static MVMObject * read_array_str(MVMThreadContext *tc, MVMSerializationReader *
     MVMint32 elems, i;
 
     /* Read the element count. */
-    if (reader->root.version >= 19) {
-        elems = MVM_serialization_read_int(tc, reader);
-    } else {
-        assert_can_read(tc, reader, 4);
-        elems = read_int32(*(reader->cur_read_buffer), *(reader->cur_read_offset));
-        *(reader->cur_read_offset) += 4;
-    }
+    elems = MVM_serialization_read_int(tc, reader);
 
     /* Read in the elements. */
     for (i = 0; i < elems; i++) {
@@ -2121,8 +2094,7 @@ static void check_and_dissect_input(MVMThreadContext *tc,
     if (reader->root.closures_table < prov_pos)
         fail_deserialize(tc, NULL, reader,
             "Corruption detected (Closures table starts before objects data ends)");
-    prov_pos = reader->root.closures_table + reader->root.num_closures *
-        (reader->root.version <= 22 ? CLOSURES_TABLE_ENTRY_SIZE_v22 : CLOSURES_TABLE_ENTRY_SIZE);
+    prov_pos = reader->root.closures_table + reader->root.num_closures * CLOSURES_TABLE_ENTRY_SIZE;
     if (prov_pos > data_end)
         fail_deserialize(tc, NULL, reader,
             "Corruption detected (Closures table overruns end of data)");
@@ -2349,22 +2321,14 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
     reader->cur_read_end         = &(reader->contexts_data_end);
 
     /* Deserialize lexicals. */
-    if (reader->root.version >= 19) {
-        syms = MVM_serialization_read_int(tc, reader);
-    } else {
-        syms = MVM_serialization_read_int64(tc, reader);
-    }
+    syms = MVM_serialization_read_int(tc, reader);
 
     for (i = 0; i < syms; i++) {
         MVMString   *sym = MVM_serialization_read_str(tc, reader);
         MVMRegister *lex = MVM_frame_lexical(tc, f, sym);
         switch (MVM_frame_lexical_primspec(tc, f, sym)) {
             case MVM_STORAGE_SPEC_BP_INT:
-                if (reader->root.version >= 19) {
-                    lex->i64 = MVM_serialization_read_int(tc, reader);
-                } else {
-                    lex->i64 = MVM_serialization_read_int64(tc, reader);
-                }
+                lex->i64 = MVM_serialization_read_int(tc, reader);
 
                 break;
             case MVM_STORAGE_SPEC_BP_NUM:
@@ -2408,8 +2372,7 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
  * later step). */
 static void deserialize_closure(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 i) {
     /* Calculate location of closure's table row. */
-    char *table_row = reader->root.closures_table +
-        i * (reader->root.version <= 22 ? CLOSURES_TABLE_ENTRY_SIZE_v22 : CLOSURES_TABLE_ENTRY_SIZE);
+    char *table_row = reader->root.closures_table + i * CLOSURES_TABLE_ENTRY_SIZE;
 
     /* Resolve the reference to the static code object. */
     MVMuint32  static_sc_id = read_int32(table_row, 0);
@@ -2435,10 +2398,8 @@ static void deserialize_closure(MVMThreadContext *tc, MVMSerializationReader *re
     }
 
     /* Set the name. */
-    if (reader->root.version >= 23) {
-        MVMString *name = read_string_from_heap(tc, reader, read_int32(table_row, 24));
-        MVM_ASSIGN_REF(tc, &(closure->header), ((MVMCode *)closure)->body.name, name);
-    }
+    MVMString *name = read_string_from_heap(tc, reader, read_int32(table_row, 24));
+    MVM_ASSIGN_REF(tc, &(closure->header), ((MVMCode *)closure)->body.name, name);
 
     /* If we have an outer context... */
     if (context_idx) {
@@ -2682,14 +2643,8 @@ static void deserialize_stable(MVMThreadContext *tc, MVMSerializationReader *rea
         MVM_repr_push_o(tc, lookup, st->WHAT);
     }
 
-    if (reader->root.version >= 18) {
-        st->debug_name = MVM_serialization_read_cstr(tc, reader, NULL);
-    } else {
-        st->debug_name = NULL;
-    }
-    if (reader->root.version >= 21) {
-        st->is_mixin_type = MVM_serialization_read_int(tc, reader);
-    }
+    st->debug_name = MVM_serialization_read_cstr(tc, reader, NULL);
+    st->is_mixin_type = MVM_serialization_read_int(tc, reader);
 
     /* If the REPR has a function to deserialize representation data, call it. */
     if (st->REPR->deserialize_repr_data)
