@@ -818,6 +818,22 @@ MVMuint8 MVM_bytecode_find_static_lexical_scref(MVMThreadContext *tc, MVMCompUni
     return 0;
 }
 
+MVM_NO_RETURN static void report_deserialize_callsites_violation(MVMThreadContext *tc, ReaderState *rs,
+                                                                 MVMCallsite **callsites, MVMuint32 i, MVMuint32 j, const char *violation) {
+    MVMuint32 k;
+    for (k = 0; k <= i; k++) {
+        if (!callsites[i]->is_interned) {
+            MVM_free(callsites[i]->arg_flags);
+            MVM_free_null(callsites[i]);
+        }
+    }
+    MVM_fixed_size_free(tc, tc->instance->fsa,
+                        sizeof(MVMCallsite *) * rs->expected_callsites,
+                        callsites);
+    MVM_exception_throw_adhoc(tc, "%s, violated by arg %d in callsite %d",
+                              violation, j, i);
+}
+
 /* Loads the callsites. */
 static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs) {
     MVMCallsite **callsites;
@@ -866,47 +882,20 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
             if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_FLAT) {
                 if (callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_NAMED) {
                     if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ)) {
-                        MVMuint32 k;
-                        for (k = 0; k <= i; k++) {
-                            if (!callsites[i]->is_interned) {
-                                MVM_free(callsites[i]->arg_flags);
-                                MVM_free_null(callsites[i]);
-                            }
-                        }
-                        MVM_fixed_size_free(tc, tc->instance->fsa,
-                            sizeof(MVMCallsite *) * rs->expected_callsites,
-                            callsites);
-                        MVM_exception_throw_adhoc(tc, "Flattened named args must be objects");
+                        report_deserialize_callsites_violation(tc, rs, callsites, i, j,
+                                                               "Flattened named args must be objects");
                     }
                     has_flattening = 1;
                     nameds_slots++;
                 }
                 else {
                     if (!(callsites[i]->arg_flags[j] & MVM_CALLSITE_ARG_OBJ)) {
-                        MVMuint32 k;
-                        for (k = 0; k <= i; k++) {
-                            if (!callsites[i]->is_interned) {
-                                MVM_free(callsites[i]->arg_flags);
-                                MVM_free_null(callsites[i]);
-                            }
-                        }
-                        MVM_fixed_size_free(tc, tc->instance->fsa,
-                            sizeof(MVMCallsite *) * rs->expected_callsites,
-                            callsites);
-                        MVM_exception_throw_adhoc(tc, "Flattened positional args must be objects");
+                        report_deserialize_callsites_violation(tc, rs, callsites, i, j,
+                                                               "Flattened positional args must be objects");
                     }
                     if (nameds_slots) {
-                        MVMuint32 k;
-                        for (k = 0; k <= i; k++) {
-                            if (!callsites[i]->is_interned) {
-                                MVM_free(callsites[i]->arg_flags);
-                                MVM_free_null(callsites[i]);
-                            }
-                        }
-                        MVM_fixed_size_free(tc, tc->instance->fsa,
-                            sizeof(MVMCallsite *) * rs->expected_callsites,
-                            callsites);
-                        MVM_exception_throw_adhoc(tc, "Flattened positional args must appear before named args");
+                        report_deserialize_callsites_violation(tc, rs, callsites, i, j,
+                                                               "Flattened positional args must appear before named args");
                     }
                     has_flattening = 1;
                     positionals++;
@@ -917,17 +906,8 @@ static MVMCallsite ** deserialize_callsites(MVMThreadContext *tc, MVMCompUnit *c
                 nameds_non_flattening++;
             }
             else if (nameds_slots) {
-                MVMuint32 k;
-                for (k = 0; k <= i; k++) {
-                    if (!callsites[i]->is_interned) {
-                        MVM_free(callsites[i]->arg_flags);
-                        MVM_free_null(callsites[i]);
-                    }
-                }
-                MVM_fixed_size_free(tc, tc->instance->fsa,
-                    sizeof(MVMCallsite *) * rs->expected_callsites,
-                        callsites);
-                MVM_exception_throw_adhoc(tc, "All positional args must appear before named args, violated by arg %d in callsite %d", j, i);
+                report_deserialize_callsites_violation(tc, rs, callsites, i, j,
+                                                       "All positional args must appear before named args");
             }
             else {
                 positionals++;
