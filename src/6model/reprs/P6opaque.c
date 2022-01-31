@@ -331,6 +331,14 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                 invalid_access_kind(tc, "native access", class_handle, name, "int64");
             break;
         }
+        case MVM_reg_uint64: {
+            if (attr_st)
+                result_reg->i64 = attr_st->REPR->box_funcs.get_uint(tc, attr_st, root,
+                    (char *)data + repr_data->attribute_offsets[slot]);
+            else
+                invalid_access_kind(tc, "native access", class_handle, name, "uint64");
+            break;
+        }
         case MVM_reg_num64: {
             if (attr_st)
                 result_reg->n64 = attr_st->REPR->box_funcs.get_num(tc, attr_st, root,
@@ -399,6 +407,15 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                     value_reg.i64);
             else
                 invalid_access_kind(tc, "native bind to", class_handle, name, "int64");
+            break;
+        }
+        case MVM_reg_uint64: {
+            if (attr_st)
+                attr_st->REPR->box_funcs.set_uint(tc, attr_st, root,
+                    (char *)data + repr_data->attribute_offsets[slot],
+                    value_reg.i64);
+            else
+                invalid_access_kind(tc, "native bind to", class_handle, name, "uint64");
             break;
         }
         case MVM_reg_num64: {

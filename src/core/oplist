@@ -762,8 +762,8 @@ objprimbits         w(int64) r(obj) :specializable
 objprimunsigned     w(int64) r(obj) :specializable
 ctxnt               w(obj) :pure :noinline
 DEPRECATED_6        w(obj) r(int16)
-DEPRECATED_7        w(obj) r(int8)
-DEPRECATED_8        w(obj) r(num32)
+bindattr_u          r(obj) r(obj) str r(uint64) int16 :specializable
+bindattrs_u         r(obj) r(obj) r(str) r(uint64) :specializable
 getlexref_i32       w(obj) rl(int32) :pure :noinline :useshll
 getlexref_i16       w(obj) rl(int16) :pure :noinline :useshll
 getlexref_i8        w(obj) rl(int8) :pure :noinline :useshll
@@ -775,9 +775,9 @@ coerce_ui           w(int64) r(uint64) :pure
 coerce_nu           w(uint64) r(num64) :pure
 coerce_un           w(num64) r(uint64) :pure
 decont_u            w(uint64) r(obj) :pure :invokish :maycausedeopt :specializable
-DEPRECATED_9        w(obj) r(uint64)
-DEPRECATED_10       w(obj) r(uint32)
 bnot_u              w(uint64) r(uint64) :pure :confprog
+getattr_u           w(uint64) r(obj) r(obj) str int16 :specializable
+getattrs_u          w(uint64) r(obj) r(obj) r(str) :specializable
 DEPRECATED_12       w(obj) r(uint8)
 getlexref_u         w(obj) rl(uint64) :pure :noinline :useshll
 getlexref_u32       w(obj) rl(uint32) :pure :noinline :useshll

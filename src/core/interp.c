@@ -1765,6 +1765,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 12;
                 goto NEXT;
             }
+            OP(bindattr_u): {
+                MVMObject *obj = GET_REG(cur_op, 0).o;
+                if (!IS_CONCRETE(obj))
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
+                REPR(obj)->attr_funcs.bind_attribute(tc,
+                    STABLE(obj), obj, OBJECT_BODY(obj),
+                    GET_REG(cur_op, 2).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 4)),
+                    GET_I16(cur_op, 10), GET_REG(cur_op, 8), MVM_reg_uint64);
+                MVM_SC_WB_OBJ(tc, obj);
+                cur_op += 12;
+                goto NEXT;
+            }
             OP(bindattr_n): {
                 MVMObject *obj = GET_REG(cur_op, 0).o;
                 if (!IS_CONCRETE(obj))
@@ -1809,6 +1821,18 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
                     -1, GET_REG(cur_op, 6), MVM_reg_int64);
+                MVM_SC_WB_OBJ(tc, obj);
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(bindattrs_u): {
+                MVMObject *obj = GET_REG(cur_op, 0).o;
+                if (!IS_CONCRETE(obj))
+                    MVM_exception_throw_adhoc(tc, "Cannot bind attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
+                REPR(obj)->attr_funcs.bind_attribute(tc,
+                    STABLE(obj), obj, OBJECT_BODY(obj),
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).s,
+                    -1, GET_REG(cur_op, 6), MVM_reg_uint64);
                 MVM_SC_WB_OBJ(tc, obj);
                 cur_op += 8;
                 goto NEXT;
@@ -1860,6 +1884,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 12;
                 goto NEXT;
             }
+            OP(getattr_u): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                if (!IS_CONCRETE(obj))
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
+                REPR(obj)->attr_funcs.get_attribute(tc,
+                    STABLE(obj), obj, OBJECT_BODY(obj),
+                    GET_REG(cur_op, 4).o, MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)),
+                    GET_I16(cur_op, 10), &GET_REG(cur_op, 0), MVM_reg_uint64);
+                cur_op += 12;
+                goto NEXT;
+            }
             OP(getattr_n): {
                 MVMObject *obj = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(obj))
@@ -1903,6 +1938,17 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     STABLE(obj), obj, OBJECT_BODY(obj),
                     GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
                     -1, &GET_REG(cur_op, 0), MVM_reg_int64);
+                cur_op += 8;
+                goto NEXT;
+            }
+            OP(getattrs_u): {
+                MVMObject *obj = GET_REG(cur_op, 2).o;
+                if (!IS_CONCRETE(obj))
+                    MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, obj));
+                REPR(obj)->attr_funcs.get_attribute(tc,
+                    STABLE(obj), obj, OBJECT_BODY(obj),
+                    GET_REG(cur_op, 4).o, GET_REG(cur_op, 6).s,
+                    -1, &GET_REG(cur_op, 0), MVM_reg_uint64);
                 cur_op += 8;
                 goto NEXT;
             }
@@ -6615,10 +6661,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             /* The compiler compiles faster if all deprecated are together and at the end
              * even though the op numbers are technically out of order. */
             OP(DEPRECATED_6):
-            OP(DEPRECATED_7):
-            OP(DEPRECATED_8):
-            OP(DEPRECATED_9):
-            OP(DEPRECATED_10):
             OP(DEPRECATED_12):
                 MVM_exception_throw_adhoc(tc, "The getregref_* ops were removed in MoarVM 2017.01.");
             OP(DEPRECATED_14):

@@ -710,8 +710,8 @@
 #define MVM_OP_objprimunsigned 706
 #define MVM_OP_ctxnt 707
 #define MVM_OP_DEPRECATED_6 708
-#define MVM_OP_DEPRECATED_7 709
-#define MVM_OP_DEPRECATED_8 710
+#define MVM_OP_bindattr_u 709
+#define MVM_OP_bindattrs_u 710
 #define MVM_OP_getlexref_i32 711
 #define MVM_OP_getlexref_i16 712
 #define MVM_OP_getlexref_i8 713
@@ -723,9 +723,9 @@
 #define MVM_OP_coerce_nu 719
 #define MVM_OP_coerce_un 720
 #define MVM_OP_decont_u 721
-#define MVM_OP_DEPRECATED_9 722
-#define MVM_OP_DEPRECATED_10 723
-#define MVM_OP_bnot_u 724
+#define MVM_OP_bnot_u 722
+#define MVM_OP_getattr_u 723
+#define MVM_OP_getattrs_u 724
 #define MVM_OP_DEPRECATED_12 725
 #define MVM_OP_getlexref_u 726
 #define MVM_OP_getlexref_u32 727
