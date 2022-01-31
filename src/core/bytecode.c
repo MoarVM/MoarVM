@@ -822,9 +822,9 @@ MVM_NO_RETURN static void report_deserialize_callsites_violation(MVMThreadContex
                                                                  MVMCallsite **callsites, MVMuint32 i, MVMuint32 j, const char *violation) {
     MVMuint32 k;
     for (k = 0; k <= i; k++) {
-        if (!callsites[i]->is_interned) {
-            MVM_free(callsites[i]->arg_flags);
-            MVM_free_null(callsites[i]);
+        if (!callsites[k]->is_interned) {
+            MVM_free(callsites[k]->arg_flags);
+            MVM_free_null(callsites[k]);
         }
     }
     MVM_fixed_size_free(tc, tc->instance->fsa,
