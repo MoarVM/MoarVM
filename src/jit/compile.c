@@ -38,7 +38,7 @@ static void debug_spill_map(MVMThreadContext *tc, MVMJitCompiler *cl) {
         return;
     MVM_spesh_debug_printf(tc, "JIT Spilled: %d offset %x\n", MVM_VECTOR_ELEMS(cl->spills), cl->spills_base);
     for (i = 0; i < MVM_VECTOR_ELEMS(cl->spills); i++) {
-        MVM_spesh_debug_printf(tc, "    r%d [%x] = %s\n", i, cl->spills_base + i * sizeof(MVMRegister),
+        MVM_spesh_debug_printf(tc, "    r%lu [%x] = %s\n", i, cl->spills_base + i * sizeof(MVMRegister),
                                MVM_register_type(cl->spills[i].reg_type));
     }
 }

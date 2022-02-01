@@ -1571,7 +1571,7 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
                 }
                 if (pointer->first_ins)
                     MVM_spesh_graph_add_comment(tc, g, pointer->first_ins,
-                        "inline of '%s' (%s) candidate %ld",
+                        "inline of '%s' (%s) candidate %d",
                         name_cstr, cuuid_cstr,
                         spesh_cand);
                 MVM_free(cuuid_cstr);
@@ -1588,7 +1588,7 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
                 char *cuuid_cstr = MVM_string_utf8_encode_C_string(tc, target_sf->body.cuuid);
                 char *name_cstr  = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
                 MVM_spesh_graph_add_comment(tc, g, ins,
-                    "could not inline '%s' (%s) candidate %ld: %s",
+                    "could not inline '%s' (%s) candidate %d: %s",
                     name_cstr, cuuid_cstr, spesh_cand, no_inline_reason);
                 if (no_inline_info)
                     MVM_spesh_graph_add_comment(tc, g, ins, "inline-preventing instruction: %s",
