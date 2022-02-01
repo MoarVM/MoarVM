@@ -362,6 +362,7 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_cached_get_grapheme(MVMThreadConte
     /* Most likely case is we are getting the next grapheme. When that happens
      * we will go directly to the end. */
     if (index == gic->last_location + 1) {
+        /* do nothing */
     }
     /* Second most likely is getting the cached grapheme */
     else if (index == gic->last_location) {

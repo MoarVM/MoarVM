@@ -2409,7 +2409,7 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
 
     /* Short circuit a case where the other conditionals won't speed it up */
     if (a->body.storage_type == MVM_STRING_STRAND || b->body.storage_type == MVM_STRING_STRAND) {
-
+        /* do nothing */
     }
     else if ((a->body.storage_type == MVM_STRING_GRAPHEME_8 || a->body.storage_type == MVM_STRING_GRAPHEME_ASCII)
           && (b->body.storage_type == MVM_STRING_GRAPHEME_8 || b->body.storage_type == MVM_STRING_GRAPHEME_ASCII)) {
