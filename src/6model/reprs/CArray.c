@@ -222,8 +222,8 @@ static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArray
         next_size = min_size;
 
     if (body->managed) {
-        const size_t old_size = body->allocated * repr_data->elem_size;
-        const size_t new_size = next_size * repr_data->elem_size;
+        const size_t old_size = (size_t) body->allocated * repr_data->elem_size;
+        const size_t new_size = (size_t) next_size * repr_data->elem_size;
 
         body->storage = realloc(body->storage, new_size);
         memset((char *)body->storage + old_size, 0, new_size - old_size);
@@ -237,8 +237,8 @@ static void expand(MVMThreadContext *tc, MVMCArrayREPRData *repr_data, MVMCArray
                || repr_data->elem_kind == MVM_CARRAY_ELEM_KIND_STRING);
 
     if (is_complex) {
-        const size_t old_size = body->allocated * sizeof(MVMObject *);
-        const size_t new_size = next_size * sizeof(MVMObject *);
+        const size_t old_size = (size_t) body->allocated * sizeof(MVMObject *);
+        const size_t new_size = (size_t) next_size * sizeof(MVMObject *);
 
         body->child_objs = (MVMObject **) MVM_recalloc(body->child_objs, old_size, new_size);
     }
@@ -468,7 +468,7 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
     MVMuint64 result = 0;
 
     /* The allocated (or just-pointed-at) memory block */
-    result += body->allocated * repr_data->elem_size;
+    result += (MVMuint64) body->allocated * repr_data->elem_size;
 
     /* The array we hold wrapper objects in */
     if (body->child_objs)

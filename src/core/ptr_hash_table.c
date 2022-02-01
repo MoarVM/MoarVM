@@ -106,7 +106,7 @@ MVM_STATIC_INLINE struct MVMPtrHashEntry *hash_insert_internal(MVMThreadContext 
                 } while (old_probe_distance);
 
                 MVMuint32 entries_to_move = find_me_a_gap - ls.metadata;
-                size_t size_to_move = ls.entry_size * entries_to_move;
+                size_t size_to_move = (size_t) ls.entry_size * entries_to_move;
                 /* When we had entries *ascending* this was
                  * memmove(entry_raw + sizeof(struct MVMPtrHashEntry), entry_raw,
                  *         sizeof(struct MVMPtrHashEntry) * entries_to_move);
@@ -338,7 +338,7 @@ uintptr_t MVM_ptr_hash_fetch_and_delete(MVMThreadContext *tc,
 
                 uint32_t entries_to_move = metadata_target - ls.metadata;
                 if (entries_to_move) {
-                    size_t size_to_move = ls.entry_size * entries_to_move;
+                    size_t size_to_move = (size_t) ls.entry_size * entries_to_move;
                     /* When we had entries *ascending* in memory, this was
                      * memmove(entry_raw, entry_raw + sizeof(struct MVMPtrHashEntry),
                      *         sizeof(struct MVMPtrHashEntry) * entries_to_move);
