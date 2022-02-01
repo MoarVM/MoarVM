@@ -11586,9 +11586,10 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_uint32 }
     },
     {
-        MVM_OP_DEPRECATED_11,
-        "DEPRECATED_11",
+        MVM_OP_bnot_u,
+        "bnot_u",
         2,
+        1,
         0,
         0,
         0,
@@ -11598,8 +11599,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_uint16 }
+        { MVM_operand_write_reg | MVM_operand_uint64, MVM_operand_read_reg | MVM_operand_uint64 }
     },
     {
         MVM_OP_DEPRECATED_12,
@@ -15294,7 +15294,7 @@ static const MVMuint8 MVM_op_allowed_in_confprog[] = {
     0x0, 0x0, 0x1C, 0x0,
     0x0, 0x0, 0x4, 0x0,
     0x0, 0x0, 0x0, 0x0,
-    0x0, 0x0, 0x0, 0x0,
+    0x0, 0x0, 0x10, 0x0,
     0x0, 0x0, 0x0, 0x0,
     0x0, 0x0, 0x0, 0x0,
     0x0, 0x0, 0x0, 0x2,

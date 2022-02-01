@@ -777,7 +777,7 @@ coerce_un           w(num64) r(uint64) :pure
 decont_u            w(uint64) r(obj) :pure :invokish :maycausedeopt :specializable
 DEPRECATED_9        w(obj) r(uint64)
 DEPRECATED_10       w(obj) r(uint32)
-DEPRECATED_11       w(obj) r(uint16)
+bnot_u              w(uint64) r(uint64) :pure :confprog
 DEPRECATED_12       w(obj) r(uint8)
 getlexref_u         w(obj) rl(uint64) :pure :noinline :useshll
 getlexref_u32       w(obj) rl(uint32) :pure :noinline :useshll

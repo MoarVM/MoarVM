@@ -3495,8 +3495,8 @@ BEGIN {
     161,
     66,
     153,
-    66,
-    145,
+    162,
+    161,
     66,
     137,
     66,
@@ -4449,6 +4449,7 @@ BEGIN {
     'coerce_nu', 719,
     'coerce_un', 720,
     'decont_u', 721,
+    'bnot_u', 724,
     'getlexref_u', 726,
     'getlexref_u32', 727,
     'getlexref_u16', 728,
@@ -5198,6 +5199,7 @@ BEGIN {
     'coerce_nu',
     'coerce_un',
     'decont_u',
+    'bnot_u',
     'getlexref_u',
     'getlexref_u32',
     'getlexref_u16',
@@ -10243,6 +10245,13 @@ BEGIN {
         my $bytecode := $frame.bytecode;
         my uint $elems := nqp::elems($bytecode);
         nqp::writeuint($bytecode, $elems, 721, 5);
+        my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
+        my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
+    },
+    'bnot_u', sub ($frame, $op0, $op1) {
+        my $bytecode := $frame.bytecode;
+        my uint $elems := nqp::elems($bytecode);
+        nqp::writeuint($bytecode, $elems, 724, 5);
         my uint $index0 := nqp::unbox_u($op0); nqp::writeuint($bytecode, nqp::add_i($elems, 2), $index0, 5);
         my uint $index1 := nqp::unbox_u($op1); nqp::writeuint($bytecode, nqp::add_i($elems, 4), $index1, 5);
     },

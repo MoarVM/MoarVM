@@ -694,6 +694,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = ~GET_REG(cur_op, 2).i64;
                 cur_op += 4;
                 goto NEXT;
+            OP(bnot_u):
+                GET_REG(cur_op, 0).u64 = ~GET_REG(cur_op, 2).u64;
+                cur_op += 4;
+                goto NEXT;
             OP(blshift_i):
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 << GET_REG(cur_op, 4).i64;
                 cur_op += 6;
@@ -6615,7 +6619,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(DEPRECATED_8):
             OP(DEPRECATED_9):
             OP(DEPRECATED_10):
-            OP(DEPRECATED_11):
             OP(DEPRECATED_12):
                 MVM_exception_throw_adhoc(tc, "The getregref_* ops were removed in MoarVM 2017.01.");
             OP(DEPRECATED_14):

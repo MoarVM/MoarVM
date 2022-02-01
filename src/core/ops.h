@@ -725,7 +725,7 @@
 #define MVM_OP_decont_u 721
 #define MVM_OP_DEPRECATED_9 722
 #define MVM_OP_DEPRECATED_10 723
-#define MVM_OP_DEPRECATED_11 724
+#define MVM_OP_bnot_u 724
 #define MVM_OP_DEPRECATED_12 725
 #define MVM_OP_getlexref_u 726
 #define MVM_OP_getlexref_u32 727
