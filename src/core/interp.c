@@ -4313,6 +4313,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)));
                 cur_op += 12;
                 goto NEXT;
+            OP(getattrref_u):
+                GET_REG(cur_op, 0).o = MVM_nativeref_attr_u(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
+                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 6)));
+                cur_op += 12;
+                goto NEXT;
             OP(getattrref_n):
                 GET_REG(cur_op, 0).o = MVM_nativeref_attr_n(tc,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
@@ -6661,7 +6667,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             /* The compiler compiles faster if all deprecated are together and at the end
              * even though the op numbers are technically out of order. */
             OP(DEPRECATED_6):
-            OP(DEPRECATED_12):
                 MVM_exception_throw_adhoc(tc, "The getregref_* ops were removed in MoarVM 2017.01.");
             OP(DEPRECATED_14):
                 MVM_exception_throw_adhoc(tc, "The asyncwritestr op was removed in MoarVM 2017.05.");

@@ -383,6 +383,12 @@ MVMObject * MVM_nativeref_attr_i(MVMThreadContext *tc, MVMObject *obj, MVMObject
         return attrref(tc, ref_type, obj, class_handle, name);
     MVM_exception_throw_adhoc(tc, "No int attribute reference type registered for current HLL");
 }
+MVMObject * MVM_nativeref_attr_u(MVMThreadContext *tc, MVMObject *obj, MVMObject *class_handle, MVMString *name) {
+    MVMObject *ref_type = MVM_hll_current(tc)->uint_attr_ref;
+    if (ref_type)
+        return attrref(tc, ref_type, obj, class_handle, name);
+    MVM_exception_throw_adhoc(tc, "No uint attribute reference type registered for current HLL");
+}
 MVMObject * MVM_nativeref_attr_n(MVMThreadContext *tc, MVMObject *obj, MVMObject *class_handle, MVMString *name) {
     MVMObject *ref_type = MVM_hll_current(tc)->num_attr_ref;
     if (ref_type)
@@ -506,6 +512,11 @@ MVMint64 MVM_nativeref_read_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj
     return MVM_repr_get_attr_i(tc, ref->body.u.attribute.obj,
         ref->body.u.attribute.class_handle, ref->body.u.attribute.name, MVM_NO_HINT);
 }
+MVMuint64 MVM_nativeref_read_attribute_u(MVMThreadContext *tc, MVMObject *ref_obj) {
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    return MVM_repr_get_attr_u(tc, ref->body.u.attribute.obj,
+        ref->body.u.attribute.class_handle, ref->body.u.attribute.name, MVM_NO_HINT);
+}
 MVMnum64 MVM_nativeref_read_attribute_n(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     return MVM_repr_get_attr_n(tc, ref->body.u.attribute.obj,
@@ -599,6 +610,13 @@ void MVM_nativeref_write_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj, M
     r.i64 = value;
     MVM_repr_bind_attr_inso(tc, ref->body.u.attribute.obj, ref->body.u.attribute.class_handle,
         ref->body.u.attribute.name, MVM_NO_HINT, r, MVM_reg_int64);
+}
+void MVM_nativeref_write_attribute_u(MVMThreadContext *tc, MVMObject *ref_obj, MVMint64 value) {
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVMRegister r;
+    r.i64 = value;
+    MVM_repr_bind_attr_inso(tc, ref->body.u.attribute.obj, ref->body.u.attribute.class_handle,
+        ref->body.u.attribute.name, MVM_NO_HINT, r, MVM_reg_uint64);
 }
 void MVM_nativeref_write_attribute_n(MVMThreadContext *tc, MVMObject *ref_obj, MVMnum64 value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;

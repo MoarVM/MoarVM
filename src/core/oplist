@@ -778,7 +778,7 @@ decont_u            w(uint64) r(obj) :pure :invokish :maycausedeopt :specializab
 bnot_u              w(uint64) r(uint64) :pure :confprog
 getattr_u           w(uint64) r(obj) r(obj) str int16 :specializable
 getattrs_u          w(uint64) r(obj) r(obj) r(str) :specializable
-DEPRECATED_12       w(obj) r(uint8)
+getattrref_u        w(obj) r(obj) r(obj) str int16 :pure :useshll
 getlexref_u         w(obj) rl(uint64) :pure :noinline :useshll
 getlexref_u32       w(obj) rl(uint32) :pure :noinline :useshll
 getlexref_u16       w(obj) rl(uint16) :pure :noinline :useshll

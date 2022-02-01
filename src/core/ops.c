@@ -11602,20 +11602,20 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_uint64, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_DEPRECATED_12,
-        "DEPRECATED_12",
-        2,
+        MVM_OP_getattrref_u,
+        "getattrref_u",
+        5,
+        1,
         0,
         0,
         0,
         0,
         0,
         0,
+        1,
         0,
         0,
-        0,
-        0,
-        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_uint8 }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_str, MVM_operand_int16 }
     },
     {
         MVM_OP_getlexref_u,

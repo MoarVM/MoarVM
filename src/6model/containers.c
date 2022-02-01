@@ -476,7 +476,7 @@ static void native_ref_fetch_u(MVMThreadContext *tc, MVMObject *cont, MVMRegiste
             res->u64 = MVM_nativeref_read_lex_i(tc, cont); /* covers unsigned as well */
             break;
         case MVM_NATIVEREF_ATTRIBUTE:
-            res->u64 = MVM_nativeref_read_attribute_i(tc, cont); /* FIXME needs get_attr_u */
+            res->u64 = MVM_nativeref_read_attribute_u(tc, cont);
             break;
         case MVM_NATIVEREF_POSITIONAL:
             res->u64 = MVM_nativeref_read_positional_u(tc, cont);
@@ -595,7 +595,7 @@ static void native_ref_store_u(MVMThreadContext *tc, MVMObject *cont, MVMuint64 
             MVM_nativeref_write_lex_i(tc, cont, value); /* FIXME need a MVM_nativeref_write_lex_u */
             break;
         case MVM_NATIVEREF_ATTRIBUTE:
-            MVM_nativeref_write_attribute_i(tc, cont, value); /* FIXME need a MVM_nativeref_write_attribute_u */
+            MVM_nativeref_write_attribute_u(tc, cont, value);
             break;
         case MVM_NATIVEREF_POSITIONAL:
             MVM_nativeref_write_positional_u(tc, cont, value);

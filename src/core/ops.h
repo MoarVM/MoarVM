@@ -726,7 +726,7 @@
 #define MVM_OP_bnot_u 722
 #define MVM_OP_getattr_u 723
 #define MVM_OP_getattrs_u 724
-#define MVM_OP_DEPRECATED_12 725
+#define MVM_OP_getattrref_u 725
 #define MVM_OP_getlexref_u 726
 #define MVM_OP_getlexref_u32 727
 #define MVM_OP_getlexref_u16 728

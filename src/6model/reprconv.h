@@ -110,6 +110,8 @@ MVM_PUBLIC MVMObject * MVM_repr_box_uint(MVMThreadContext *tc, MVMObject *type, 
 
 MVM_PUBLIC MVMint64    MVM_repr_get_attr_i(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
                                            MVMString *name, MVMint16 hint);
+MVM_PUBLIC MVMuint64   MVM_repr_get_attr_u(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+                                           MVMString *name, MVMint16 hint);
 MVM_PUBLIC MVMnum64    MVM_repr_get_attr_n(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
                                            MVMString *name, MVMint16 hint);
 MVM_PUBLIC MVMString * MVM_repr_get_attr_s(MVMThreadContext *tc, MVMObject *object, MVMObject *type,

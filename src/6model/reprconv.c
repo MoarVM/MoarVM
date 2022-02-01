@@ -714,6 +714,18 @@ MVM_PUBLIC MVMint64 MVM_repr_get_attr_i(MVMThreadContext *tc, MVMObject *object,
     return result_reg.i64;
 }
 
+MVM_PUBLIC MVMuint64 MVM_repr_get_attr_u(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
+                                           MVMString *name, MVMint16 hint) {
+    MVMRegister result_reg;
+    if (!IS_CONCRETE(object))
+        MVM_exception_throw_adhoc(tc, "Cannot look up attributes in a %s type object. Did you forget a '.new'?", MVM_6model_get_debug_name(tc, object));
+    REPR(object)->attr_funcs.get_attribute(tc,
+            STABLE(object), object, OBJECT_BODY(object),
+            type, name,
+            hint, &result_reg, MVM_reg_uint64);
+    return result_reg.u64;
+}
+
 MVM_PUBLIC MVMnum64 MVM_repr_get_attr_n(MVMThreadContext *tc, MVMObject *object, MVMObject *type,
                                            MVMString *name, MVMint16 hint) {
     MVMRegister result_reg;
