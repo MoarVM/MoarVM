@@ -413,7 +413,7 @@ static void fix_wval(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     if (dep >= 0 && (MVMuint16)dep < sourcecu->body.num_scs) {
         MVMSerializationContext *sc = MVM_sc_get_sc(tc, sourcecu, dep);
         if (sc) {
-            MVMuint16 otherdep;
+            MVMuint32 otherdep;
             for (otherdep = 0; otherdep < targetcu->body.num_scs; otherdep++) {
                 MVMSerializationContext *othersc = MVM_sc_get_sc(tc, targetcu, otherdep);
                 if (sc == othersc) {

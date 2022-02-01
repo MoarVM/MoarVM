@@ -1173,7 +1173,7 @@ static void release_all_handles(MVMThreadContext *dtc) {
 static MVMuint64 release_handles(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
     MVMDebugServerHandleTable *dht = dtc->instance->debugserver->handle_table;
 
-    MVMuint16 handle_index = 0;
+    MVMuint32 handle_index = 0;
     MVMuint16 id_index = 0;
     MVMuint16 handles_cleared = 0;
     for (handle_index = 0; handle_index < dht->used; handle_index++) {
@@ -2051,7 +2051,7 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
                 MVMP6opaqueNameMap *cur_map_entry = name_to_index_mapping;
 
                 while (cur_map_entry->class_key != NULL) {
-                    MVMuint16 i;
+                    MVMuint32 i;
                     MVMint64 slot;
                     char *class_name = MVM_6model_get_stable_debug_name(dtc, cur_map_entry->class_key->st);
 

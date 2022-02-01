@@ -1534,8 +1534,8 @@ void MVM_spesh_graph_mark(MVMThreadContext *tc, MVMSpeshGraph *g, MVMGCWorklist 
         MVM_gc_worklist_add(tc, worklist, &(g->spesh_slots[i]));
 
     /* Mark inlines. */
-    for (i = 0; i < g->num_inlines; i++)
-        MVM_gc_worklist_add(tc, worklist, &(g->inlines[i].sf));
+    for (MVMuint32 k = 0; k < g->num_inlines; k++)
+        MVM_gc_worklist_add(tc, worklist, &(g->inlines[k].sf));
 
     /* Mark spesh candidate. */
     if (g->cand)
@@ -1574,8 +1574,8 @@ void MVM_spesh_graph_describe(MVMThreadContext *tc, MVMSpeshGraph *g, MVMHeapSna
         MVM_profile_heap_add_collectable_rel_idx(tc, snapshot, g->spesh_slots[i], i);
 
     /* Mark inlines. */
-    for (i = 0; i < g->num_inlines; i++)
-        MVM_profile_heap_add_collectable_rel_idx(tc, snapshot, (MVMCollectable *)g->inlines[i].sf, i);
+    for (MVMuint32 k = 0; k < g->num_inlines; k++)
+        MVM_profile_heap_add_collectable_rel_idx(tc, snapshot, (MVMCollectable *)g->inlines[k].sf, k);
 }
 
 /* Destroys a spesh graph, deallocating all its associated memory. */
