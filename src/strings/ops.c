@@ -590,7 +590,7 @@ MVMint64 MVM_string_index(MVMThreadContext *tc, MVMString *Haystack, MVMString *
     if (start < 0 || H_graphs <= start)
         return -1;
 
-    if (H_graphs < n_graphs || n_graphs < 1)
+    if (H_graphs < n_graphs)
         return -1;
 
     /* Fast paths when storage types are identical. Uses memmem function, which
@@ -708,7 +708,7 @@ MVMint64 MVM_string_index_from_end(MVMThreadContext *tc, MVMString *Haystack, MV
     if (!H_graphs)
         return -1;
 
-    if (H_graphs < n_graphs || n_graphs < 1)
+    if (H_graphs < n_graphs)
         return -1;
 
     if (start == -1)
@@ -1235,7 +1235,7 @@ MVM_STATIC_INLINE MVMint64 string_equal_at_ignore_case_INTERNAL_loop(MVMThreadCo
             if (H_g != n_g)
                 return -1;
         }
-        else if (1 <= H_fc_cps) {
+        else {
             for (j = 0; j < H_fc_cps; j++) {
                 n_g = MVM_string_get_grapheme_at_nocheck(tc, needle_fc, i + n_offset);
                 H_g = H_result_cps[j];
@@ -1401,9 +1401,6 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
      * checks if it is at all possible for the needle grapheme number to be higher
      * than the Haystack */
     if (H_graphs * 3 < n_graphs)
-        return -1;
-
-    if (n_graphs < 1)
         return -1;
 
     MVMROOT(tc, Haystack, {

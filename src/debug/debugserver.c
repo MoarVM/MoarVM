@@ -2062,91 +2062,89 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
                         char * name = MVM_string_utf8_encode_C_string(dtc, cur_map_entry->names[i]);
 
                         slot = cur_map_entry->slots[i];
-                        if (slot >= 0) {
-                            MVMuint16 const offset = repr_data->attribute_offsets[slot];
-                            MVMSTable * const attr_st = repr_data->flattened_stables[slot];
-                            if (attr_st == NULL) {
-                                MVMObject *value = get_obj_at_offset(data, offset);
-                                char *value_debug_name = value ? MVM_6model_get_debug_name(dtc, value) : "VMNull";
+                        MVMuint16 const offset = repr_data->attribute_offsets[slot];
+                        MVMSTable * const attr_st = repr_data->flattened_stables[slot];
+                        if (attr_st == NULL) {
+                            MVMObject *value = get_obj_at_offset(data, offset);
+                            char *value_debug_name = value ? MVM_6model_get_debug_name(dtc, value) : "VMNull";
 
-                                if (vm->debugserver->debugspam_protocol)
-                                    fprintf(stderr, "Writing an object attribute\n");
+                            if (vm->debugserver->debugspam_protocol)
+                                fprintf(stderr, "Writing an object attribute\n");
 
-                                cmp_write_map(ctx, 7);
+                            cmp_write_map(ctx, 7);
 
-                                cmp_write_str(ctx, "name", 4);
-                                cmp_write_str(ctx, name, strlen(name));
+                            cmp_write_str(ctx, "name", 4);
+                            cmp_write_str(ctx, name, strlen(name));
 
-                                cmp_write_str(ctx, "class", 5);
-                                cmp_write_str(ctx, class_name, strlen(class_name));
+                            cmp_write_str(ctx, "class", 5);
+                            cmp_write_str(ctx, class_name, strlen(class_name));
 
-                                cmp_write_str(ctx, "kind", 4);
-                                cmp_write_str(ctx, "obj", 3);
+                            cmp_write_str(ctx, "kind", 4);
+                            cmp_write_str(ctx, "obj", 3);
 
-                                cmp_write_str(ctx, "handle", 6);
-                                cmp_write_integer(ctx, allocate_handle(dtc, value));
+                            cmp_write_str(ctx, "handle", 6);
+                            cmp_write_integer(ctx, allocate_handle(dtc, value));
 
-                                cmp_write_str(ctx, "type", 4);
-                                cmp_write_str(ctx, value_debug_name, strlen(value_debug_name));
+                            cmp_write_str(ctx, "type", 4);
+                            cmp_write_str(ctx, value_debug_name, strlen(value_debug_name));
 
-                                cmp_write_str(ctx, "concrete", 8);
-                                cmp_write_bool(ctx, !MVM_is_null(dtc, value) && IS_CONCRETE(value));
+                            cmp_write_str(ctx, "concrete", 8);
+                            cmp_write_bool(ctx, !MVM_is_null(dtc, value) && IS_CONCRETE(value));
 
-                                cmp_write_str(ctx, "container", 9);
-                                if (MVM_is_null(dtc, value))
-                                    cmp_write_bool(ctx, 0);
-                                else
-                                    cmp_write_bool(ctx, STABLE(value)->container_spec == NULL ? 0 : 1);
-                            }
-                            else {
-                                const MVMStorageSpec *attr_storage_spec = attr_st->REPR->get_storage_spec(dtc, attr_st);
+                            cmp_write_str(ctx, "container", 9);
+                            if (MVM_is_null(dtc, value))
+                                cmp_write_bool(ctx, 0);
+                            else
+                                cmp_write_bool(ctx, STABLE(value)->container_spec == NULL ? 0 : 1);
+                        }
+                        else {
+                            const MVMStorageSpec *attr_storage_spec = attr_st->REPR->get_storage_spec(dtc, attr_st);
 
-                                if (vm->debugserver->debugspam_protocol)
-                                    fprintf(stderr, "Writing a native attribute\n");
+                            if (vm->debugserver->debugspam_protocol)
+                                fprintf(stderr, "Writing a native attribute\n");
 
-                                cmp_write_map(ctx, 4);
+                            cmp_write_map(ctx, 4);
 
-                                cmp_write_str(ctx, "name", 4);
-                                cmp_write_str(ctx, name, strlen(name));
+                            cmp_write_str(ctx, "name", 4);
+                            cmp_write_str(ctx, name, strlen(name));
 
-                                cmp_write_str(ctx, "class", 5);
-                                cmp_write_str(ctx, class_name, strlen(class_name));
+                            cmp_write_str(ctx, "class", 5);
+                            cmp_write_str(ctx, class_name, strlen(class_name));
 
-                                cmp_write_str(ctx, "kind", 4);
+                            cmp_write_str(ctx, "kind", 4);
 
-                                switch (attr_storage_spec->boxed_primitive) {
-                                    case MVM_STORAGE_SPEC_BP_INT:
-                                        cmp_write_str(ctx, "int", 3);
-                                        cmp_write_str(ctx, "value", 5);
-                                        cmp_write_integer(ctx, attr_st->REPR->box_funcs.get_int(dtc, attr_st, target, (char *)data + offset));
-                                        break;
-                                    case MVM_STORAGE_SPEC_BP_NUM:
-                                        cmp_write_str(ctx, "num", 3);
-                                        cmp_write_str(ctx, "value", 5);
-                                        cmp_write_double(ctx, attr_st->REPR->box_funcs.get_num(dtc, attr_st, target, (char *)data + offset));
-                                        break;
-                                    case MVM_STORAGE_SPEC_BP_STR: {
-                                        MVMString * const s = attr_st->REPR->box_funcs.get_str(dtc, attr_st, target, (char *)data + offset);
-                                        char * str;
-                                        if (s)
-                                            str = MVM_string_utf8_encode_C_string(dtc, s);
-                                        cmp_write_str(ctx, "str", 3);
-                                        cmp_write_str(ctx, "value", 5);
-                                        if (s) {
-                                            cmp_write_str(ctx, str, strlen(str));
-                                            MVM_free(str);
-                                        }
-                                        else {
-                                            cmp_write_nil(ctx);
-                                        }
-                                        break;
+                            switch (attr_storage_spec->boxed_primitive) {
+                                case MVM_STORAGE_SPEC_BP_INT:
+                                    cmp_write_str(ctx, "int", 3);
+                                    cmp_write_str(ctx, "value", 5);
+                                    cmp_write_integer(ctx, attr_st->REPR->box_funcs.get_int(dtc, attr_st, target, (char *)data + offset));
+                                    break;
+                                case MVM_STORAGE_SPEC_BP_NUM:
+                                    cmp_write_str(ctx, "num", 3);
+                                    cmp_write_str(ctx, "value", 5);
+                                    cmp_write_double(ctx, attr_st->REPR->box_funcs.get_num(dtc, attr_st, target, (char *)data + offset));
+                                    break;
+                                case MVM_STORAGE_SPEC_BP_STR: {
+                                    MVMString * const s = attr_st->REPR->box_funcs.get_str(dtc, attr_st, target, (char *)data + offset);
+                                    char * str;
+                                    if (s)
+                                        str = MVM_string_utf8_encode_C_string(dtc, s);
+                                    cmp_write_str(ctx, "str", 3);
+                                    cmp_write_str(ctx, "value", 5);
+                                    if (s) {
+                                        cmp_write_str(ctx, str, strlen(str));
+                                        MVM_free(str);
                                     }
-                                    default:
-                                        cmp_write_str(ctx, "error", 5);
-                                        cmp_write_str(ctx, "value", 5);
-                                        cmp_write_str(ctx, "error", 5);
-                                        break;
+                                    else {
+                                        cmp_write_nil(ctx);
+                                    }
+                                    break;
                                 }
+                                default:
+                                    cmp_write_str(ctx, "error", 5);
+                                    cmp_write_str(ctx, "value", 5);
+                                    cmp_write_str(ctx, "error", 5);
+                                    break;
                             }
                         }
 

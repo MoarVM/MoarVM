@@ -1546,7 +1546,7 @@ static MVMSerializationContext * locate_sc(MVMThreadContext *tc, MVMSerializatio
     MVMSerializationContext *sc;
     if (sc_id == 0)
         sc = reader->root.sc;
-    else if (sc_id > 0 && sc_id - 1 < reader->root.num_dependencies)
+    else if (sc_id - 1 < reader->root.num_dependencies)
         sc = reader->root.dependent_scs[sc_id - 1];
     else
         fail_deserialize(tc, NULL, reader,
