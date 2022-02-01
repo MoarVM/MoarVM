@@ -465,7 +465,10 @@ MVMObject * MVM_capture_replace_arg(MVMThreadContext *tc, MVMObject *capture_obj
      * The callsite MUST be created after we allocated as it may contain named
      * arguments, i.e. contain pointers to strings which wouldn't get marked. */
     MVMCallsite *callsite = capture->body.callsite;
-    MVMCallsite *new_callsite = MVM_callsite_replace_positional(tc, capture->body.callsite, idx, kind);
+    if ((callsite->arg_flags[idx] & MVM_CALLSITE_ARG_TYPE_MASK) != kind)
+        MVM_exception_throw_adhoc(tc, "Cannot replace capture argument with different kind %d -> %d", callsite->arg_flags[idx], kind);
+
+    MVMCallsite *new_callsite = MVM_callsite_replace_positional(tc, callsite, idx, kind);
     new_callsite->arg_flags[idx] = kind;
 
     /* Form a new arguments buffer, replacing the specified argument. */
