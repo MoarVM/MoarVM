@@ -2276,6 +2276,20 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
                                 MVMint64 val = attr_st->REPR->box_funcs.get_int(tc, attr_st, obj, (char *)data + offset);
                                 fprintf(stderr, "=%"PRIi64, val);
                             }
+                            else if (attr_st->REPR->ID == MVM_REPR_ID_P6bigint) {
+                                MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)data + offset);
+                                if (MVM_BIGINT_IS_BIG(body)) {
+                                    mp_int *i = body->u.bigint;
+                                    const int bits = mp_count_bits(i);
+                                    char *str = MVM_calloc(1, bits / 8 + 1);
+                                    mp_to_radix(i, str, bits / 8, NULL, 10);
+                                    fprintf(stderr, "=%s (%s)", str, i->sign == MP_NEG ? "-" : "+");
+                                    MVM_free(str);
+                                }
+                                else {
+                                    fprintf(stderr, "=%"PRIi32" (small)", body->u.smallint.value);
+                                }
+                            }
                             else {
                                 fprintf(stderr, "[%d]=%s", repr_data->attribute_offsets[slot], MVM_6model_get_stable_debug_name(tc, attr_st));
                             }
