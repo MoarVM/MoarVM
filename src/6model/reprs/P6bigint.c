@@ -199,7 +199,18 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
 /* Serializes the bigint. */
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
-    if (MVM_BIGINT_IS_BIG(body)) {
+    if (!MVM_BIGINT_IS_BIG(body)) {
+        /* write the "is small" flag (true) */
+        MVM_serialization_write_int(tc, writer, 1);
+        MVM_serialization_write_int(tc, writer, body->u.smallint.value);
+    }
+    else if (mp_iszero(body->u.bigint)) {
+        /* To simplify the deserialization code, avoid writing out the bigint 0.
+         * Instead always write out the value 0 the "small" format. */
+        MVM_serialization_write_int(tc, writer, 1);
+        MVM_serialization_write_int(tc, writer, 0);
+    }
+    else {
         mp_err err;
         mp_int *i = body->u.bigint;
         int len;
@@ -224,11 +235,6 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
         MVM_serialization_write_int(tc, writer, 0);
         MVM_serialization_write_str(tc, writer, str);
         MVM_free(buf);
-    }
-    else {
-        /* write the "is small" flag (true) */
-        MVM_serialization_write_int(tc, writer, 1);
-        MVM_serialization_write_int(tc, writer, body->u.smallint.value);
     }
 }
 
