@@ -205,25 +205,28 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
         int len;
         char *buf;
         MVMString *str;
-        if ((err = mp_radix_size(i, 10, &len)) != MP_OKAY) {
+        if ((err = mp_radix_size(i, 32, &len)) != MP_OKAY) {
             MVM_exception_throw_adhoc(tc, "Error calculating the size of a big integer: %s", mp_error_to_string(err));
         }
         buf = (char *)MVM_malloc(len);
-        if ((err = mp_to_decimal(i, buf, len)) != MP_OKAY) {
+        /* Yes, with libtomath 1.2.0 the sizes of these parameters are
+         * inconsistent. It's fixed in their develop branch. */
+        size_t written;
+        if ((err = mp_to_radix(i, buf, len, &written, 32)) != MP_OKAY) {
             MVM_free(buf);
             MVM_exception_throw_adhoc(tc, "Error converting a big integer to a string: %s", mp_error_to_string(err));
         }
 
-        /* len - 1 because buf is \0-terminated */
-        str = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len - 1);
+        /* written - 1 because buf is \0-terminated */
+        str = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, written -1);
 
-        /* write the "is small" flag */
+        /* write the "is small" flag (false) */
         MVM_serialization_write_int(tc, writer, 0);
         MVM_serialization_write_str(tc, writer, str);
         MVM_free(buf);
     }
     else {
-        /* write the "is small" flag */
+        /* write the "is small" flag (true) */
         MVM_serialization_write_int(tc, writer, 1);
         MVM_serialization_write_int(tc, writer, body->u.smallint.value);
     }
@@ -250,7 +253,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
             MVM_free(buf);
             MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err));
         }
-        if ((err = mp_read_radix(body->u.bigint, buf, 10)) != MP_OKAY) {
+        if ((err = mp_read_radix(body->u.bigint, buf, reader->root.version <= 24 ? 10 : 32)) != MP_OKAY) {
             mp_clear(body->u.bigint);
             MVM_free(body->u.bigint);
             MVM_free(buf);
