@@ -65,6 +65,7 @@ MVMObject * MVM_nativeref_pos_u(MVMThreadContext *tc, MVMObject *obj, MVMint64 i
 MVMObject * MVM_nativeref_pos_n(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx);
 MVMObject * MVM_nativeref_pos_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx);
 MVMObject * MVM_nativeref_multidim_i(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices);
+MVMObject * MVM_nativeref_multidim_u(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices);
 MVMObject * MVM_nativeref_multidim_n(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices);
 MVMObject * MVM_nativeref_multidim_s(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices);
 MVMint64 MVM_nativeref_read_lex_i(MVMThreadContext *tc, MVMObject *ref);
@@ -79,6 +80,7 @@ MVMuint64 MVM_nativeref_read_positional_u(MVMThreadContext *tc, MVMObject *ref);
 MVMnum64 MVM_nativeref_read_positional_n(MVMThreadContext *tc, MVMObject *ref);
 MVMString * MVM_nativeref_read_positional_s(MVMThreadContext *tc, MVMObject *ref);
 MVMint64 MVM_nativeref_read_multidim_i(MVMThreadContext *tc, MVMObject *ref);
+MVMuint64 MVM_nativeref_read_multidim_u(MVMThreadContext *tc, MVMObject *ref);
 MVMnum64 MVM_nativeref_read_multidim_n(MVMThreadContext *tc, MVMObject *ref);
 MVMString * MVM_nativeref_read_multidim_s(MVMThreadContext *tc, MVMObject *ref);
 void MVM_nativeref_write_lex_i(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
@@ -93,6 +95,7 @@ void MVM_nativeref_write_positional_u(MVMThreadContext *tc, MVMObject *ref, MVMu
 void MVM_nativeref_write_positional_n(MVMThreadContext *tc, MVMObject *ref, MVMnum64 value);
 void MVM_nativeref_write_positional_s(MVMThreadContext *tc, MVMObject *ref, MVMString *value);
 void MVM_nativeref_write_multidim_i(MVMThreadContext *tc, MVMObject *ref, MVMint64 value);
+void MVM_nativeref_write_multidim_u(MVMThreadContext *tc, MVMObject *ref, MVMuint64 value);
 void MVM_nativeref_write_multidim_n(MVMThreadContext *tc, MVMObject *ref, MVMnum64 value);
 void MVM_nativeref_write_multidim_s(MVMThreadContext *tc, MVMObject *ref, MVMString *value);
 AO_t * MVM_nativeref_as_atomic_lex_i(MVMThreadContext *tc, MVMObject *ref_obj);

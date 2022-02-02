@@ -477,7 +477,7 @@
 #define MVM_OP_DEPRECATED_23 473
 #define MVM_OP_DEPRECATED_27 474
 #define MVM_OP_DEPRECATED_28 475
-#define MVM_OP_DEPRECATED_18 476
+#define MVM_OP_atposnd_u 476
 #define MVM_OP_seek_fh 477
 #define MVM_OP_lock_fh 478
 #define MVM_OP_unlock_fh 479
@@ -494,7 +494,7 @@
 #define MVM_OP_accept_sk 490
 #define MVM_OP_decodetocodes 491
 #define MVM_OP_encodefromcodes 492
-#define MVM_OP_DEPRECATED_17 493
+#define MVM_OP_multidimref_u 493
 #define MVM_OP_print 494
 #define MVM_OP_say 495
 #define MVM_OP_DEPRECATED_22 496
@@ -539,7 +539,7 @@
 #define MVM_OP_filereadable 535
 #define MVM_OP_filewritable 536
 #define MVM_OP_fileexecutable 537
-#define MVM_OP_DEPRECATED_19 538
+#define MVM_OP_atpos2d_u 538
 #define MVM_OP_capturenamedshash 539
 #define MVM_OP_read_fhb 540
 #define MVM_OP_write_fhb 541
@@ -591,9 +591,9 @@
 #define MVM_OP_watchfile 587
 #define MVM_OP_asyncconnect 588
 #define MVM_OP_asynclisten 589
-#define MVM_OP_DEPRECATED_14 590
+#define MVM_OP_bindposnd_u 590
 #define MVM_OP_asyncwritebytes 591
-#define MVM_OP_DEPRECATED_16 592
+#define MVM_OP_bindpos3d_u 592
 #define MVM_OP_asyncreadbytes 593
 #define MVM_OP_getlexstatic_o 594
 #define MVM_OP_getlexperinvtype_o 595
@@ -696,7 +696,7 @@
 #define MVM_OP_isrwcont 692
 #define MVM_OP_fc 693
 #define MVM_OP_DEPRECATED_25 694
-#define MVM_OP_DEPRECATED_21 695
+#define MVM_OP_atpos3d_u 695
 #define MVM_OP_encoderep 696
 #define MVM_OP_istty_fh 697
 #define MVM_OP_multidimref_i 698
@@ -704,7 +704,7 @@
 #define MVM_OP_multidimref_s 700
 #define MVM_OP_fileno_fh 701
 #define MVM_OP_asyncudp 702
-#define MVM_OP_DEPRECATED_15 703
+#define MVM_OP_bindpos2d_u 703
 #define MVM_OP_asyncwritebytesto 704
 #define MVM_OP_objprimbits 705
 #define MVM_OP_objprimunsigned 706

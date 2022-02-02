@@ -528,7 +528,7 @@ close_fh            r(obj)
 DEPRECATED_23       w(obj) r(str) r(str)
 DEPRECATED_27       w(str) r(str) r(str)
 DEPRECATED_28       r(str) r(str) r(str)
-DEPRECATED_18       w(int64) r(obj) r(str)
+atposnd_u           w(uint64) r(obj) r(obj) :pure :specializable
 seek_fh             r(obj) r(int64) r(int64)
 lock_fh             w(int64) r(obj) r(int64)
 unlock_fh           r(obj)
@@ -545,7 +545,7 @@ DEPRECATED_24       r(obj) r(str)
 accept_sk           w(obj) r(obj)
 decodetocodes       r(obj) r(str) r(int64) r(obj)
 encodefromcodes     r(obj) r(str) r(obj)
-DEPRECATED_17       r(obj) r(str)
+multidimref_u       w(obj) r(obj) r(obj) :pure :useshll
 print               r(str)
 say                 r(str) :confprog
 DEPRECATED_22       w(str) r(obj)
@@ -590,7 +590,7 @@ DEPRECATED_29       w(int64) r(obj) r(str) r(obj) r(obj) r(obj) r(obj) r(int64)
 filereadable        w(int64) r(str)
 filewritable        w(int64) r(str)
 fileexecutable      w(int64) r(str)
-DEPRECATED_19       w(int64) r(obj) r(str)
+atpos2d_u           w(uint64) r(obj) r(int64) r(int64) :pure :specializable
 capturenamedshash   w(obj) r(obj) :pure :useshll
 read_fhb            r(obj) r(obj) r(int64)
 write_fhb           r(obj) r(obj)
@@ -643,9 +643,9 @@ signal              w(obj) r(obj) r(obj) r(obj) r(obj) r(int64) r(obj)
 watchfile           w(obj) r(obj) r(obj) r(str) r(obj)
 asyncconnect        w(obj) r(obj) r(obj) r(str) r(int64) r(obj)
 asynclisten         w(obj) r(obj) r(obj) r(str) r(int64) r(int64) r(obj)
-DEPRECATED_14       w(obj) r(obj) r(obj) r(obj) r(str) r(obj)
+bindposnd_u         r(obj) r(obj) r(uint64) :specializable
 asyncwritebytes     w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
-DEPRECATED_16       w(obj) r(obj) r(obj) r(obj) r(obj)
+bindpos3d_u         r(obj) r(int64) r(int64) r(int64) r(uint64) :specializable
 asyncreadbytes      w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 getlexstatic_o      w(obj) r(str) :pure :noinline :specializable :cache
 getlexperinvtype_o  w(obj) r(str) :pure :logged :specializable
@@ -748,7 +748,7 @@ ctxcode             w(obj) r(obj)
 isrwcont            w(int64) r(obj) :pure :specializable
 fc                  w(str) r(str) :pure
 DEPRECATED_25       r(obj) r(obj)
-DEPRECATED_21       w(str) r(obj)
+atpos3d_u           w(uint64) r(obj) r(int64) r(int64) r(int64) :pure :specializable
 encoderep           w(obj) r(str) r(str) r(str) r(obj)
 istty_fh            w(int64) r(obj) :pure
 multidimref_i       w(obj) r(obj) r(obj) :pure :useshll
@@ -756,7 +756,7 @@ multidimref_n       w(obj) r(obj) r(obj) :pure :useshll
 multidimref_s       w(obj) r(obj) r(obj) :pure :useshll
 fileno_fh           w(int64) r(obj) :pure
 asyncudp            w(obj) r(obj) r(obj) r(str) r(int64) r(int64) r(obj)
-DEPRECATED_15       w(obj) r(obj) r(obj) r(obj) r(str) r(obj) r(str) r(int64)
+bindpos2d_u         r(obj) r(int64) r(int64) r(uint64) :specializable
 asyncwritebytesto   w(obj) r(obj) r(obj) r(obj) r(obj) r(obj) r(str) r(int64)
 objprimbits         w(int64) r(obj) :specializable
 objprimunsigned     w(int64) r(obj) :specializable

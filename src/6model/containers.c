@@ -482,7 +482,7 @@ static void native_ref_fetch_u(MVMThreadContext *tc, MVMObject *cont, MVMRegiste
             res->u64 = MVM_nativeref_read_positional_u(tc, cont);
             break;
         case MVM_NATIVEREF_MULTIDIM:
-            res->u64 = MVM_nativeref_read_multidim_i(tc, cont); /* FIXME needs at_pos_multidim_u */
+            res->u64 = MVM_nativeref_read_multidim_u(tc, cont);
             break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown native int reference kind");
@@ -601,7 +601,7 @@ static void native_ref_store_u(MVMThreadContext *tc, MVMObject *cont, MVMuint64 
             MVM_nativeref_write_positional_u(tc, cont, value);
             break;
         case MVM_NATIVEREF_MULTIDIM:
-            MVM_nativeref_write_multidim_i(tc, cont, value); /* FIXME need a MVM_nativeref_write_multidim_u */
+            MVM_nativeref_write_multidim_u(tc, cont, value);
             break;
         default:
             MVM_exception_throw_adhoc(tc, "Unknown native int reference kind");

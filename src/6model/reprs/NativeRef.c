@@ -453,6 +453,12 @@ MVMObject * MVM_nativeref_multidim_i(MVMThreadContext *tc, MVMObject *obj, MVMOb
         return md_posref(tc, ref_type, obj, indices);
     MVM_exception_throw_adhoc(tc, "No int multidim positional reference type registered for current HLL");
 }
+MVMObject * MVM_nativeref_multidim_u(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices) {
+    MVMObject *ref_type = MVM_hll_current(tc)->uint_multidim_ref;
+    if (ref_type)
+        return md_posref(tc, ref_type, obj, indices);
+    MVM_exception_throw_adhoc(tc, "No int multidim positional reference type registered for current HLL");
+}
 MVMObject * MVM_nativeref_multidim_n(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices) {
     MVMObject *ref_type = MVM_hll_current(tc)->num_multidim_ref;
     if (ref_type)
@@ -546,6 +552,10 @@ MVMString * MVM_nativeref_read_positional_s(MVMThreadContext *tc, MVMObject *ref
 MVMint64 MVM_nativeref_read_multidim_i(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     return MVM_repr_at_pos_multidim_i(tc, ref->body.u.multidim.obj, ref->body.u.multidim.indices);
+}
+MVMuint64 MVM_nativeref_read_multidim_u(MVMThreadContext *tc, MVMObject *ref_obj) {
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    return MVM_repr_at_pos_multidim_u(tc, ref->body.u.multidim.obj, ref->body.u.multidim.indices);
 }
 MVMnum64 MVM_nativeref_read_multidim_n(MVMThreadContext *tc, MVMObject *ref_obj) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
@@ -652,6 +662,10 @@ void MVM_nativeref_write_positional_s(MVMThreadContext *tc, MVMObject *ref_obj, 
 void MVM_nativeref_write_multidim_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint64 value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     MVM_repr_bind_pos_multidim_i(tc, ref->body.u.multidim.obj, ref->body.u.multidim.indices, value);
+}
+void MVM_nativeref_write_multidim_u(MVMThreadContext *tc, MVMObject *ref_obj, MVMuint64 value) {
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVM_repr_bind_pos_multidim_u(tc, ref->body.u.multidim.obj, ref->body.u.multidim.indices, value);
 }
 void MVM_nativeref_write_multidim_n(MVMThreadContext *tc, MVMObject *ref_obj, MVMnum64 value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;

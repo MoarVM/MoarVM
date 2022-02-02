@@ -4402,6 +4402,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
                 cur_op += 8;
                 goto NEXT;
+            OP(atpos2d_u):
+                GET_REG(cur_op, 0).u64 = MVM_repr_at_pos_2d_u(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
             OP(atpos2d_n):
                 GET_REG(cur_op, 0).n64 = MVM_repr_at_pos_2d_n(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64);
@@ -4419,6 +4424,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(atpos3d_i):
                 GET_REG(cur_op, 0).i64 = MVM_repr_at_pos_3d_i(tc, GET_REG(cur_op, 2).o,
+                    GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
+                cur_op += 10;
+                goto NEXT;
+            OP(atpos3d_u):
+                GET_REG(cur_op, 0).u64 = MVM_repr_at_pos_3d_u(tc, GET_REG(cur_op, 2).o,
                     GET_REG(cur_op, 4).i64, GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
                 cur_op += 10;
                 goto NEXT;
@@ -4442,6 +4452,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 6;
                 goto NEXT;
+            OP(atposnd_u):
+                GET_REG(cur_op, 0).u64 = MVM_repr_at_pos_multidim_u(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
             OP(atposnd_n):
                 GET_REG(cur_op, 0).n64 = MVM_repr_at_pos_multidim_n(tc,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
@@ -4461,6 +4476,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_repr_bind_pos_2d_i(tc, GET_REG(cur_op, 0).o,
                     GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
                     GET_REG(cur_op, 6).i64);
+                cur_op += 8;
+                goto NEXT;
+            OP(bindpos2d_u):
+                MVM_repr_bind_pos_2d_u(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).u64);
                 cur_op += 8;
                 goto NEXT;
             OP(bindpos2d_n):
@@ -4487,6 +4508,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).i64);
                 cur_op += 10;
                 goto NEXT;
+            OP(bindpos3d_u):
+                MVM_repr_bind_pos_3d_u(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
+                    GET_REG(cur_op, 6).i64, GET_REG(cur_op, 8).u64);
+                cur_op += 10;
+                goto NEXT;
             OP(bindpos3d_n):
                 MVM_repr_bind_pos_3d_n(tc, GET_REG(cur_op, 0).o,
                     GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64,
@@ -4508,6 +4535,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(bindposnd_i):
                 MVM_repr_bind_pos_multidim_i(tc, GET_REG(cur_op, 0).o,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).i64);
+                cur_op += 6;
+                goto NEXT;
+            OP(bindposnd_u):
+                MVM_repr_bind_pos_multidim_u(tc, GET_REG(cur_op, 0).o,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).u64);
                 cur_op += 6;
                 goto NEXT;
             OP(bindposnd_n):
@@ -4575,6 +4607,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(multidimref_i):
                 GET_REG(cur_op, 0).o = MVM_nativeref_multidim_i(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
+                cur_op += 6;
+                goto NEXT;
+            OP(multidimref_u):
+                GET_REG(cur_op, 0).o = MVM_nativeref_multidim_u(tc,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 6;
                 goto NEXT;
@@ -6668,20 +6705,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
              * even though the op numbers are technically out of order. */
             OP(DEPRECATED_6):
                 MVM_exception_throw_adhoc(tc, "The getregref_* ops were removed in MoarVM 2017.01.");
-            OP(DEPRECATED_14):
-                MVM_exception_throw_adhoc(tc, "The asyncwritestr op was removed in MoarVM 2017.05.");
-            OP(DEPRECATED_15):
-                MVM_exception_throw_adhoc(tc, "The asyncwritestrto op was removed in MoarVM 2017.05.");
-            OP(DEPRECATED_16):
-                MVM_exception_throw_adhoc(tc, "The asyncreadchars op was removed in MoarVM 2017.05.");
-            OP(DEPRECATED_17):
-                MVM_exception_throw_adhoc(tc, "The setencoding op was removed in MoarVM 2017.06.");
-            OP(DEPRECATED_18):
-                MVM_exception_throw_adhoc(tc, "The write_fhs op was removed in MoarVM 2017.06.");
-            OP(DEPRECATED_19):
-                MVM_exception_throw_adhoc(tc, "The say_fhs op was removed in MoarVM 2017.06.");
-            OP(DEPRECATED_21):
-                MVM_exception_throw_adhoc(tc, "The readlinechomp_fh op was removed in MoarVM 2017.06.");
             OP(DEPRECATED_22):
                 MVM_exception_throw_adhoc(tc, "The readall_fh op was removed in MoarVM 2017.06.");
             OP(DEPRECATED_23):
