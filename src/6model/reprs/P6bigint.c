@@ -243,6 +243,12 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
     st->size = sizeof(MVMP6bigint);
 }
 
+MVM_NO_RETURN static void report_deserialize_error(MVMThreadContext *tc, MVMP6bigintBody *body, const char *message) {
+    mp_clear(body->u.bigint);
+    MVM_free(body->u.bigint);
+    MVM_exception_throw_adhoc(tc, "Error converting a string to a big integer: %s", message);
+}
+
 /* Deserializes the bigint. */
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMP6bigintBody *body = (MVMP6bigintBody *)data;
@@ -250,7 +256,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     if (MVM_serialization_read_int(tc, reader) == 1) { /* Is it small int? */
         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
         body->u.smallint.value = MVM_serialization_read_int(tc, reader);
-    } else {  /* big int */
+    } else if (reader->root.version <= 24) {  /* big int (old format) */
         mp_err err;
         char *buf = MVM_string_ascii_encode_any(tc, MVM_serialization_read_str(tc, reader));
         body->u.bigint = MVM_malloc(sizeof(mp_int));
@@ -259,13 +265,83 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
             MVM_free(buf);
             MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err));
         }
-        if ((err = mp_read_radix(body->u.bigint, buf, reader->root.version <= 24 ? 10 : 32)) != MP_OKAY) {
-            mp_clear(body->u.bigint);
-            MVM_free(body->u.bigint);
-            MVM_free(buf);
-            MVM_exception_throw_adhoc(tc, "Error converting a string to a big integer: %s", mp_error_to_string(err));
-        }
+        err = mp_read_radix(body->u.bigint, buf, 10);
         MVM_free(buf);
+        if (err != MP_OKAY) {
+            report_deserialize_error(tc, body, mp_error_to_string(err));
+        }
+    } else {  /* big int (new format) */
+        MVMString *str = MVM_serialization_read_str(tc, reader);
+        MVMStringIndex strgraphs = MVM_string_graphs(tc, str);
+
+        if (!strgraphs)
+            MVM_exception_throw_adhoc(tc, "Error initializing a big integer: empty string");
+
+        MVMCodepointIter ci;
+        MVM_string_ci_init(tc, &ci, str, 0, 0);
+        mp_err err;
+        mp_sign neg;
+        mp_int *accumulator = body->u.bigint = MVM_malloc(sizeof(mp_int));
+
+        if ((err = mp_init(accumulator)) != MP_OKAY) {
+            MVM_free(accumulator);
+            MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err));
+        }
+
+        /* This code is roughly mp_read_radix inlined, using iterators, but
+         * less tolerant of whitepsace, leading '+' or zero.
+         * As we use iterators here, we don't have to allocate and free a
+         * tempory ASCII copy of the string. As we know we're base32, we can use
+         * mp_mul_2d instead of mp_mul_d. */
+        MVMCodepoint ord = MVM_string_ci_get_codepoint(tc, &ci);
+
+        if (ord == '-') {
+            neg = MP_NEG;
+            if (!MVM_string_ci_has_more(tc, &ci)) {
+                report_deserialize_error(tc, body, "'-' but no digits");
+            }
+            ord = MVM_string_ci_get_codepoint(tc, &ci);
+        }
+        else {
+            neg = MP_ZPOS;
+        }
+
+        /* Read in a base32 value, ASCII char by char... */
+        while (1) {
+            mp_digit digit;
+            if (ord >= '0' && ord <= '9')
+                digit = ord - '0';
+            else {
+                /* This maps ASCII uppercase to lowercase, and mangles 50% of
+                 * other (illegal) code points. But we're about to fault them...
+                 */
+                digit = ord | 0x20;
+                if (digit >= 'a' && digit <= 'v') {
+                    digit = digit - 'a' + 10;
+                }
+                else  {
+                    mp_clear(accumulator);
+                    MVM_free(accumulator);
+                    MVM_exception_throw_adhoc(tc, "Error converting a string to a big integer: illegal character %d", ord);
+                }
+            }
+
+            /* Multiply by 2**5 - ie 32 */
+            if ((err = mp_mul_2d(accumulator, 5, accumulator)) != MP_OKAY) {
+                report_deserialize_error(tc, body, mp_error_to_string(err));
+            }
+            if ((err = mp_add_d(accumulator, digit, accumulator)) != MP_OKAY) {
+                report_deserialize_error(tc, body, mp_error_to_string(err));
+            }
+
+            if (!MVM_string_ci_has_more(tc, &ci))
+                break;
+            ord = MVM_string_ci_get_codepoint(tc, &ci);
+        }
+
+        accumulator->sign = neg;
+        // XXX remove this
+        assert(!mp_iszero(body->u.bigint));
     }
 }
 
