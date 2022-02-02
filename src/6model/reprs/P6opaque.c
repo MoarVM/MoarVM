@@ -2299,8 +2299,11 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
                                     mp_int *i = body->u.bigint;
                                     const int bits = mp_count_bits(i);
                                     char *str = MVM_calloc(1, bits / 8 + 1);
-                                    mp_to_radix(i, str, bits / 8, NULL, 10);
-                                    fprintf(stderr, "=%s (%s)", str, i->sign == MP_NEG ? "-" : "+");
+                                    mp_err err = mp_to_radix(i, str, bits / 8, NULL, 10);
+                                    if (err != MP_OKAY)
+                                        fprintf(stderr, "Error getting the string representation of a big integer: %s", mp_error_to_string(err));
+                                    else
+                                        fprintf(stderr, "=%s (%s)", str, i->sign == MP_NEG ? "-" : "+");
                                     MVM_free(str);
                                 }
                                 else {
