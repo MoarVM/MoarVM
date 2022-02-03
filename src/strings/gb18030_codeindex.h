@@ -10887,7 +10887,7 @@ static MVMGrapheme32 gb18030_index_to_cp_len4(MVMuint8 byte1, MVMuint8 byte2, MV
     byte4 -= 0x30;
     pos_1 = byte1 * 10 + byte2;
     pos_2 = byte3 * 10 + byte4;
-    if (0 <= pos_1 && pos_1 <= 31 && 0 <= pos_2 && pos_2 <= 1259) {
+    if (pos_1 <= 31 && pos_2 <= 1259) {
         if (gb18030_len4_record_shift[pos_1] < 0) {
             return pos_2 - gb18030_len4_record_shift[pos_1];
         } else {
