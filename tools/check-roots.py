@@ -595,7 +595,6 @@ def check_code_for_unneeded_mvmroot(fun):
 def check_code_for_imbalanced_mvmroot(fun):
     for bb in fun.cfg.basic_blocks:
         for ins in bb.gimple:
-            hits = []
             if isinstance(ins, gcc.GimpleReturn):
                 cfs = collect_control_flows(bb, [], {})
 
