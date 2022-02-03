@@ -658,7 +658,7 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 goto NEXT;
             OP(const_i64):
                 GET_REG(cur_op, 0).i64 = MVM_BC_get_I64(cur_op, 2);
-                debugprint(DEBUG_LVL(TRACE), tc, "const_i64 %d into %d", MVM_BC_get_I64(cur_op, 2), GET_UI16(cur_op, 0));
+                debugprint(DEBUG_LVL(TRACE), tc, "const_i64 %ld into %d", MVM_BC_get_I64(cur_op, 2), GET_UI16(cur_op, 0));
                 cur_op += 10;
                 goto NEXT;
             OP(const_n64):
@@ -690,7 +690,7 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 goto NEXT;
             }
             OP(getattr_o):
-                debugprint(DEBUG_LVL(TRACE), tc, "struct select: %x", reg_base[REGISTER_STRUCT_SELECT].i64);
+                debugprint(DEBUG_LVL(TRACE), tc, "struct select: %lx", (unsigned long)reg_base[REGISTER_STRUCT_SELECT].i64);
                 if (reg_base[REGISTER_STRUCT_SELECT].i64 == StructSel_Nothing) {
                     debugprint(DEBUG_LVL(TRACE), tc, "getattr_o into %d", GET_UI16(cur_op, 0));
                 }
@@ -698,11 +698,11 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                     MVMuint16 field_select = GET_UI16(cur_op, 10);
                     if (field_select == FieldSel_staticframe) {
                         reg_base[REGISTER_STRUCT_ACCUMULATOR].any = tc->cur_frame->static_info;
-                        debugprint(DEBUG_LVL(TRACE), tc, "get a static frame into the struct accumulator: %x", tc->cur_frame->static_info);
+                        debugprint(DEBUG_LVL(TRACE), tc, "get a static frame into the struct accumulator: %p", (void *)tc->cur_frame->static_info);
                     }
                     else if (field_select == FieldSel_frame) {
                         reg_base[REGISTER_STRUCT_ACCUMULATOR].any = tc->cur_frame;
-                        debugprint(DEBUG_LVL(TRACE), tc, "get a frame into the struct accumulator: %x", tc->cur_frame);
+                        debugprint(DEBUG_LVL(TRACE), tc, "get a frame into the struct accumulator: %p", (void *)tc->cur_frame);
                     }
                     else {
                         fprintf(stderr, "NYI case of getattr_o on root struct hit\n");
@@ -712,11 +712,11 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
                 else {
                     debugprint(DEBUG_LVL(TRACE), tc, "getting the struct accumulator's field at offset 0x%x into register %d",
                             GET_UI16(cur_op, 10), GET_UI16(cur_op, 0));
-                    debugprint(DEBUG_LVL(TRACE), tc, "register %d contents before: 0x%x", GET_UI16(cur_op, 0), reg_base[GET_UI16(cur_op, 0)].any);
-                    debugprint(DEBUG_LVL(TRACE), tc, "register %d contents before: 0x%x", REGISTER_STRUCT_ACCUMULATOR, reg_base[REGISTER_STRUCT_ACCUMULATOR].any);
+                    debugprint(DEBUG_LVL(TRACE), tc, "register %d contents before: 0x%p", GET_UI16(cur_op, 0), reg_base[GET_UI16(cur_op, 0)].any);
+                    debugprint(DEBUG_LVL(TRACE), tc, "register %d contents before: 0x%p", REGISTER_STRUCT_ACCUMULATOR, reg_base[REGISTER_STRUCT_ACCUMULATOR].any);
                     reg_base[GET_UI16(cur_op, 0)].any =
                         *((void **)(((char *)reg_base[REGISTER_STRUCT_ACCUMULATOR].any) + GET_UI16(cur_op, 10)));
-                    debugprint(DEBUG_LVL(TRACE), tc, "register %d contents now: 0x%x", GET_UI16(cur_op, 0), reg_base[GET_UI16(cur_op, 0)].any);
+                    debugprint(DEBUG_LVL(TRACE), tc, "register %d contents now: 0x%p", GET_UI16(cur_op, 0), reg_base[GET_UI16(cur_op, 0)].any);
                     /*(char *)(&reg_base[REGISTER_STRUCT_ACCUMULATOR]) = (char *)*/
                 }
                 cur_op += 12;
@@ -857,11 +857,11 @@ MVMint64 MVM_confprog_run(MVMThreadContext *tc, void *subject, MVMuint8 entrypoi
             OP(index_s):
                 debugprint(DEBUG_LVL(TRACE), tc, "index_s into %d with %d and %d starting at %d",
                         GET_UI16(cur_op, 0), GET_UI16(cur_op, 2), GET_UI16(cur_op, 4), GET_UI16(cur_op, 6));
-                debugprint(DEBUG_LVL(TRACE), tc, "values %p and %p starting at %d",
+                debugprint(DEBUG_LVL(TRACE), tc, "values %p and %p starting at %ld",
                         GET_REG(cur_op, 2).s, GET_REG(cur_op, 4).s, GET_REG(cur_op, 6).i64);
                 GET_REG(cur_op, 0).i64 = MVM_string_index(tc,
                     STRING_OR_EMPTY(GET_REG(cur_op, 2).s), STRING_OR_EMPTY(GET_REG(cur_op, 4).s), GET_REG(cur_op, 6).i64);
-                debugprint(DEBUG_LVL(TRACE), tc, "index_s result: %d", GET_REG(cur_op, 0).i64);
+                debugprint(DEBUG_LVL(TRACE), tc, "index_s result: %ld", GET_REG(cur_op, 0).i64);
                 cur_op += 8;
                 goto NEXT;
             OP(eqat_s):

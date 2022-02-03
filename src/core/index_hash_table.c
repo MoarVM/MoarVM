@@ -136,7 +136,7 @@ MVM_STATIC_INLINE void hash_insert_internal(MVMThreadContext *tc,
                 } while (old_probe_distance);
 
                 MVMuint32 entries_to_move = find_me_a_gap - ls.metadata;
-                size_t size_to_move = ls.entry_size * entries_to_move;
+                size_t size_to_move = (size_t) ls.entry_size * entries_to_move;
                 /* When we had entries *ascending* this was
                  * memmove(entry_raw + sizeof(struct MVMIndexHashEntry), entry_raw,
                  *         sizeof(struct MVMIndexHashEntry) * entries_to_move);

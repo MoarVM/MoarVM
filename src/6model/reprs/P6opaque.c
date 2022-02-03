@@ -34,7 +34,7 @@ static MVMint64 try_get_slot(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_dat
         MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
             if (cur_map_entry->class_key == class_key) {
-                MVMuint16 i;
+                MVMuint32 i;
                 for (i = 0; i < cur_map_entry->num_attrs; i++) {
                     if (MVM_string_equal(tc, cur_map_entry->names[i], name)) {
                         return cur_map_entry->slots[i];
@@ -171,7 +171,7 @@ static void gc_mark_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMGCWorklist
     if (repr_data->name_to_index_mapping) {
         MVMP6opaqueNameMap *cur_map_entry = repr_data->name_to_index_mapping;
         while (cur_map_entry->class_key != NULL) {
-            MVMuint16 i;
+            MVMuint32 i;
             for (i = 0; i < cur_map_entry->num_attrs; i++) {
                 MVM_gc_worklist_add(tc, worklist, &cur_map_entry->names[i]);
             }
@@ -1144,7 +1144,8 @@ static void serialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializ
 
 /* Deserializes representation data. */
 static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
-    MVMuint16 i, j, num_classes;
+    MVMuint16 i, num_classes;
+    MVMuint32 j;
     MVMuint64 cur_offset;
     MVMint16 cur_initialize_slot, cur_gc_mark_slot, cur_gc_cleanup_slot;
 
@@ -1203,7 +1204,7 @@ static void deserialize_repr_data(MVMThreadContext *tc, MVMSTable *st, MVMSerial
     num_classes = (MVMuint16)MVM_serialization_read_int(tc, reader);
     repr_data->name_to_index_mapping = (MVMP6opaqueNameMap *)MVM_malloc((num_classes + 1) * sizeof(MVMP6opaqueNameMap));
     for (i = 0; i < num_classes; i++) {
-        MVMint32 num_attrs = 0;
+        MVMuint32 num_attrs = 0;
 
         MVM_ASSIGN_REF(tc, &(st->header), repr_data->name_to_index_mapping[i].class_key,
             MVM_serialization_read_ref(tc, reader));

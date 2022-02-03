@@ -298,7 +298,8 @@ static void bytecode_dump_frame_internal(MVMThreadContext *tc, MVMStaticFrame *f
             }
             else if (op_rw == MVM_operand_read_lex || op_rw == MVM_operand_write_lex) {
                 /* lexical operand */
-                MVMuint16 idx, frames, m;
+                MVMuint16 idx, frames;
+                MVMuint32 m;
                 MVMStaticFrame *applicable_frame = static_frame;
 
                 operand_size = 4;

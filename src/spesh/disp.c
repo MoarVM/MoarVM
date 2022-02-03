@@ -468,7 +468,7 @@ MVMOpInfo * MVM_spesh_disp_initialize_resumption_op_info(MVMThreadContext *tc,
 static void insert_resume_inits(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         MVMSpeshIns **insert_after, MVMDispProgram *dp, MVMSpeshOperand *orig_args,
         MVMSpeshOperand *temporaries, MVMint32 deopt_idx) {
-    MVMuint16 i;
+    MVMuint32 i;
     for (i = 0; i < dp->num_resumptions; i++) {
         /* Allocate the instruction. */
         MVMDispProgramResumption *dpr = &(dp->resumptions[i]);

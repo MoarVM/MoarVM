@@ -177,6 +177,7 @@ static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MV
             if (cached == codes[i] || MVM_UNICODE_PVALUE_GCB_PREPEND ==
                 (cached_GCB = MVM_unicode_codepoint_get_property_int(tc, (cached = codes[i]),
                     MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK))) {
+                /* do nothing */
             }
             else {
                 /* If we see an Extend then this is a degenerate without any

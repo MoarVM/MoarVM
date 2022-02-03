@@ -349,7 +349,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     goto cleanup;
                 if (pos_ins[idx]) { /* Dupe; weird. */
                     MVM_spesh_graph_add_comment(tc, g, ins,
-                            "bailed argument spesh: duplicate access to argument %ld", idx);
+                            "bailed argument spesh: duplicate access to argument %d", idx);
                     goto cleanup;
                 }
                 pos_ins[idx] = ins;
@@ -369,7 +369,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     goto cleanup;
                 if (pos_ins[idx]) { /* Dupe; weird. */
                     MVM_spesh_graph_add_comment(tc, g, ins,
-                            "bailed argument spesh: duplicate access to argument %ld", idx);
+                            "bailed argument spesh: duplicate access to argument %d", idx);
                     goto cleanup;
                 }
                 pos_ins[idx] = ins;
@@ -470,7 +470,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                         if (arg_type != MVM_CALLSITE_ARG_OBJ ||
                                 !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_INT)) {
                             MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
-                                    "bailed argument spesh: expected arg flag %ld to be int or box an int; type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
+                                    "bailed argument spesh: expected arg flag %d to be int or box an int; type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
                             goto cleanup;
                         }
                     break;
@@ -480,7 +480,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                         if (arg_type != MVM_CALLSITE_ARG_OBJ ||
                                 !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_UINT64)) {
                             MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
-                                    "bailed argument spesh: expected arg flag %ld to be int or box an int; type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
+                                    "bailed argument spesh: expected arg flag %d to be int or box an int; type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
                             goto cleanup;
                         }
                     break;
@@ -490,7 +490,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                         if (arg_type != MVM_CALLSITE_ARG_OBJ ||
                                 !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_NUM)) {
                             MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
-                                    "bailed argument spesh: expected arg flag %ld to be num or box a num", i);
+                                    "bailed argument spesh: expected arg flag %d to be num or box a num", i);
                             goto cleanup;
                         }
                     break;
@@ -500,7 +500,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                         if (arg_type != MVM_CALLSITE_ARG_OBJ ||
                                 !cmp_prim_spec(tc, type_tuple, i, MVM_STORAGE_SPEC_BP_STR)) {
                             MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
-                                    "bailed argument spesh: expected arg flag %ld to be str or box a str type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
+                                    "bailed argument spesh: expected arg flag %d to be str or box a str type at position was %s", i, type_tuple && type_tuple[i].type ? MVM_6model_get_debug_name(tc, type_tuple[i].type) : "null type tuple");
                             goto cleanup;
                         }
                     break;
@@ -510,7 +510,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                         arg_type != MVM_CALLSITE_ARG_NUM && arg_type != MVM_CALLSITE_ARG_STR &&
                         arg_type != MVM_CALLSITE_ARG_UINT) {
                         MVM_spesh_graph_add_comment(tc, g, pos_ins[i],
-                                "bailed argument spesh: expected arg flag %ld to be obj or int or num or str", i);
+                                "bailed argument spesh: expected arg flag %d to be obj or int or num or str", i);
                         goto cleanup;
                     }
                     break;
@@ -520,7 +520,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
             }
             else if (!pos_ins[i] && !param_sp_ins) {
                 MVM_spesh_graph_add_comment(tc, g, g->entry->first_ins,
-                        "bailed argument spesh: no positional arg fetch op found for %ld", i);
+                        "bailed argument spesh: no positional arg fetch op found for %d", i);
                 goto cleanup;
             }
         }

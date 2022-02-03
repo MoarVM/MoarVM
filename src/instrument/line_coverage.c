@@ -47,7 +47,7 @@ static void instrument_graph_with_breakpoints(MVMThreadContext *tc, MVMSpeshGrap
             continue;
         }
 
-        if (line_number >= 0 && line_number != last_line_number) {
+        if (line_number != last_line_number) {
             breakpoint_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
             breakpoint_ins->info        = MVM_op_get_op(MVM_OP_breakpoint);
             breakpoint_ins->operands    = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));

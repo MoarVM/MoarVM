@@ -101,7 +101,7 @@ MVMCompUnit * MVM_cu_map_from_file_handle(MVMThreadContext *tc, uv_file fd, MVMu
 /* Adds an extra callsite, needed due to an inlining, and returns its index. */
 MVMuint16 MVM_cu_callsite_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMCallsite *cs) {
     MVMuint16 found = 0;
-    MVMuint16 idx;
+    MVMuint32 idx;
 
     uv_mutex_lock(cu->body.inline_tweak_mutex);
 
