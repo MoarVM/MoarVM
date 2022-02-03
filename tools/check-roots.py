@@ -2,7 +2,7 @@ from __future__ import print_function
 import sys
 
 import gcc
-from gccutils import get_src_for_loc, pformat, cfg_to_dot, invoke_dot
+from gccutils import cfg_to_dot, invoke_dot
 
 # We'll implement this as a custom pass, to be called directly after the
 # builtin "cfg" pass, which generates the CFG:

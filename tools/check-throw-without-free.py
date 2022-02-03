@@ -2,7 +2,6 @@ from __future__ import print_function
 import sys
 
 import gcc
-from gccutils import get_src_for_loc, pformat, cfg_to_dot, invoke_dot
 
 # Need to add `-fplugin=python.so -fplugin-arg-python-script=tools/check-throw-without-free.py` to CFLAGS in the Makefile
 
