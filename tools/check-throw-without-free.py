@@ -37,16 +37,16 @@ def check_code_for_throw_without_free(fun):
 
                 for cf in cfs:
                     allocs = set()
-                    for bb in cf:
-                        for ins in bb.gimple:
-                            if isinstance(ins, gcc.GimpleCall):
-                                if isinstance(ins.fn, gcc.AddrExpr): # plain function call is AddrExpr, other things could be function pointers
-                                    if ins.fn.operand.name in alloc_funcs:
-                                        allocs.add(ins.lhs)
-                                    if ins.fn.operand.name in free_funcs:
-                                        if ins.args[0] in allocs: # there can be false positives because the lhs of the alloc and the argument to the free can get different temp names from gcc
-                                            allocs.remove(ins.args[0])
-                                    if ins.fn.operand.name == 'MVM_exception_throw_adhoc':
+                    for cf_bb in cf:
+                        for cf_ins in cf_bb.gimple:
+                            if isinstance(cf_ins, gcc.GimpleCall):
+                                if isinstance(cf_ins.fn, gcc.AddrExpr): # plain function call is AddrExpr, other things could be function pointers
+                                    if cf_ins.fn.operand.name in alloc_funcs:
+                                        allocs.add(cf_ins.lhs)
+                                    if cf_ins.fn.operand.name in free_funcs:
+                                        if cf_ins.args[0] in allocs: # there can be false positives because the lhs of the alloc and the argument to the free can get different temp names from gcc
+                                            allocs.remove(cf_ins.args[0])
+                                    if cf_ins.fn.operand.name == 'MVM_exception_throw_adhoc':
                                         if allocs:
                                             print('\nPossible missing free before a throw in ' + str(fun.decl.name) + ' at ' + str(cf[-2].gimple[-1].loc) + ', things that might need to be freed: ' + str(allocs) + '\n', file=sys.stderr)
 
