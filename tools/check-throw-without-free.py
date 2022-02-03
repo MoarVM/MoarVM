@@ -1,3 +1,6 @@
+from __future__ import print_function
+import sys
+
 import gcc
 from gccutils import get_src_for_loc, pformat, cfg_to_dot, invoke_dot
 
@@ -46,7 +49,7 @@ def check_code_for_throw_without_free(fun):
                                             allocs.remove(ins.args[0])
                                     if ins.fn.operand.name == 'MVM_exception_throw_adhoc':
                                         if allocs:
-                                            print('\nPossible missing free before a throw in ' + str(fun.decl.name) + ' at ' + str(cf[-2].gimple[-1].loc) + ', things that might need to be freed: ' + str(allocs) + '\n')
+                                            print('\nPossible missing free before a throw in ' + str(fun.decl.name) + ' at ' + str(cf[-2].gimple[-1].loc) + ', things that might need to be freed: ' + str(allocs) + '\n', file=sys.stderr)
 
 class CheckThrowWithoutFree(gcc.GimplePass):
     def execute(self, fun):

@@ -1,3 +1,6 @@
+from __future__ import print_function
+import sys
+
 import gcc
 from gccutils import get_src_for_loc, pformat, cfg_to_dot, invoke_dot
 
@@ -587,7 +590,7 @@ def check_code_for_unneeded_mvmroot(fun):
 
                 arg = ins.args[1].operand
                 if str(arg.type) in gen2_allocated_types:
-                    print('Unnecessary root for `' + arg.name + '` in ' + str(ins.loc))
+                    print('Unnecessary root for `' + arg.name + '` in ' + str(ins.loc), file=sys.stderr)
 
 def check_code_for_imbalanced_mvmroot(fun):
     for bb in fun.cfg.basic_blocks:
@@ -607,20 +610,20 @@ def check_code_for_imbalanced_mvmroot(fun):
                                         root_stack.append(arg)
                                     if ins.fn.operand.name == 'MVM_gc_root_temp_pop':
                                         if not root_stack:
-                                            print("Skipping function %s because of complicated rooting" % fun.decl.name)
+                                            print("Skipping function %s because of complicated rooting" % fun.decl.name, file=sys.stderr)
                                             return
                                         root_stack.pop()
                                     if ins.fn.operand.name == 'MVM_gc_root_temp_pop_n':
                                         if not root_stack or not isinstance(ins.args[1], gcc.Constant):
-                                            print("Skipping function %s because of complicated rooting" % fun.decl.name)
+                                            print("Skipping function %s because of complicated rooting" % fun.decl.name, file=sys.stderr)
                                             return
                                         for i in range(0, ins.args[1].constant):
                                             root_stack.pop()
                     if root_stack:
-                        print("Imbalanced temp root stack in " + str(fun.decl.name) + " at " + str(cf[-1].gimple[-1].loc) + " " + str(root_stack))
+                        print("Imbalanced temp root stack in " + str(fun.decl.name) + " at " + str(cf[-1].gimple[-1].loc) + " " + str(root_stack), file=sys.stderr)
 
 def check_code_for_var(fun, var, orig_initialized, warned={}):
-    #print('    ' + str(var.type) + ' ' + var.name)
+    #print('    ' + str(var.type) + ' ' + var.name, file=sys.stderr)
 
     for bb in fun.cfg.basic_blocks:
         for ins in bb.gimple:
@@ -658,13 +661,13 @@ def check_code_for_var(fun, var, orig_initialized, warned={}):
                                             rooted = True
                                     if ins.fn.operand.name == 'MVM_gc_root_temp_pop':
                                         if not root_stack:
-                                            print("Skipping function %s because of complicated rooting" % fun.decl.name)
+                                            print("Skipping function %s because of complicated rooting" % fun.decl.name, file=sys.stderr)
                                             return
                                         if arg_is_var(root_stack.pop(), var):
                                             rooted = False
                                     if ins.fn.operand.name == 'MVM_gc_root_temp_pop_n':
                                         if not root_stack or not isinstance(ins.args[1], gcc.Constant):
-                                            print("Skipping function %s because of complicated rooting" % fun.decl.name)
+                                            print("Skipping function %s because of complicated rooting" % fun.decl.name, file=sys.stderr)
                                             return
                                         for i in range(0, ins.args[1].constant):
                                             if arg_is_var(root_stack.pop(), var):
@@ -684,7 +687,7 @@ def check_code_for_var(fun, var, orig_initialized, warned={}):
                                     warning = 'Missing root for `' + var.name + '` in ' + str(missing[0]) + ' at ' + str(missing[0].loc) + ' used in ' + str(ins) + ' at ' + str(ins.loc)
                                     if not warning in warned:
                                         warned[warning] = 1
-                                        print(warning)
+                                        print(warning, file=sys.stderr)
                                     #dot = cfg_to_dot(fun.cfg)
                                     #invoke_dot(dot)
 
@@ -693,7 +696,7 @@ class CheckRoots(gcc.GimplePass):
         # (the CFG should be set up by this point, and the GIMPLE is not yet
         # in SSA form)
         if fun and fun.cfg:
-            #print(fun.decl.name + ':')
+            #print(fun.decl.name + ':', file=sys.stderr)
             for var in fun.decl.arguments:
                 if not var.is_artificial and str(var.type) in sixmodel_types:
                     check_code_for_var(fun, var, True)
