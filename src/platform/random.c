@@ -11,7 +11,7 @@
     #endif
 #endif
 /* Linux added getrandom to the kernel in 3.17 */
-#if defined(__linux__)
+#if defined(__linux__) || defined(__GNU__)
     #include <sys/syscall.h>
     #if defined(SYS_getrandom)
     /* With glibc you are supposed to declare _GNU_SOURCE to use the
@@ -78,7 +78,7 @@
             /* If using /dev/urandom fails (maybe we're in a chroot), on BSD's
              * use arc4random, which is likely seeded from the system's random
              * number generator */
-            #if defined(BSD)
+            #if defined(BSD) && !defined(__GNU__)
                 #include <stdlib.h>
                 arc4random_buf(out, size);
                 return 1;
