@@ -2,10 +2,14 @@
 
 /* Debug dumping, to figure out what we're recording and what programs we are
  * inferring from those recordings. */
-#define DUMP_RECORDINGS     0
-#define DUMP_PROGRAMS       0
+#ifndef MVM_DISP_DUMP_RECORDINGS
+#define MVM_DISP_DUMP_RECORDINGS     0
+#endif
+#ifndef MVM_DISP_DUMP_PROGRAMS
+#define MVM_DISP_DUMP_PROGRAMS       0
+#endif
 
-#if DUMP_RECORDINGS
+#if MVM_DISP_DUMP_RECORDINGS
 static void dump_recording_capture(MVMThreadContext *tc,
         MVMDispProgramRecordingCapture *capture, MVMuint32 indent,
         MVMDispProgramRecording *rec) {
@@ -170,9 +174,9 @@ static void dump_recording(MVMThreadContext *tc, MVMCallStackDispatchRecord *rec
 }
 #else
 #define dump_recording(tc, r) do {} while (0)
-#endif
+#endif /* MVM_DISP_DUMP_RECORDINGS */
 
-#if DUMP_PROGRAMS
+#if MVM_DISP_DUMP_PROGRAMS
 static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
     if (dp->first_args_temporary == dp->num_temporaries)
         fprintf(stderr, "Dispatch program %p (%d temporaries)\n", dp, dp->num_temporaries);
@@ -490,7 +494,7 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
 }
 #else
 #define dump_program(tc, dp) do {} while (0)
-#endif
+#endif /* MVM_DISP_DUMP_PROGRAMS */
 
 /* Run a dispatch callback, which will record a dispatch program. */
 static MVMFrame * find_calling_frame(MVMThreadContext *tc, MVMCallStackRecord *prev) {
