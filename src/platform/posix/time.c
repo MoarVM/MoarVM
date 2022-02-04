@@ -4,7 +4,7 @@
 #include <errno.h>
 #include <sys/time.h>
 
-#ifdef __MACH__
+#if defined(__APPLE__) && defined(__MACH__)
 #include <mach/clock.h>
 #include <mach/mach.h>
 #endif
@@ -14,7 +14,7 @@
 
 MVMuint64 MVM_platform_now(void)
 {
-#ifdef __MACH__ // OS X does not have clock_gettime, use clock_get_time
+#if defined(__APPLE__) && defined(__MACH__) // OS X does not have clock_gettime, use clock_get_time
     clock_serv_t    cclock;
     mach_timespec_t ts;
     host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
