@@ -644,16 +644,15 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
                 switch (primitive_type) {
                     case MVM_STORAGE_SPEC_BP_INT:
                         out_type = hll->int_box_type;
-                        if (repr_data->is_unsigned) {
-                            register_type = MVM_reg_uint64;
-                            box_op = MVM_OP_box_u;
-                            unbox_op = MVM_OP_decont_u;
-                        }
-                        else {
-                            register_type = MVM_reg_int64;
-                            box_op = MVM_OP_box_i;
-                            unbox_op = MVM_OP_decont_i;
-                        }
+                        register_type = MVM_reg_int64;
+                        box_op = MVM_OP_box_i;
+                        unbox_op = MVM_OP_decont_i;
+                        break;
+                    case MVM_STORAGE_SPEC_BP_UINT64:
+                        out_type = hll->int_box_type; /* UInt is just a subset, so box into Int */
+                        register_type = MVM_reg_uint64;
+                        box_op = MVM_OP_box_u;
+                        unbox_op = MVM_OP_decont_u;
                         break;
                     case MVM_STORAGE_SPEC_BP_NUM:
                         out_type = hll->num_box_type;
@@ -711,7 +710,7 @@ static void optimize_decont(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
                     MVM_spesh_usages_add_by_reg(tc, g, ss_temp, box_ins);
                     MVM_spesh_usages_add_by_reg(tc, g, val_temp, box_ins);
 
-                    MVM_spesh_graph_add_comment(tc, g, ins, "decont -> decont_* + box_*");
+                    MVM_spesh_graph_add_comment(tc, g, ins, "decont of %s -> %s + %s", stable->debug_name, ins->info->name, box_ins->info->name);
 
                     res_facts->type = out_type;
                     res_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
