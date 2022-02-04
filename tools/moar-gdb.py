@@ -69,7 +69,7 @@ PRETTY_WIDTH=50
 # reading bogus data from the gen2 pages.
 MVM_GEN2_PAGE_ITEMS = 256
 MVM_GEN2_BIN_BITS   = 3
-MVM_GEN2_BINS       = 32
+MVM_GEN2_BINS       = 40
 
 # This ought to give the same results as the equivalent code in gen2.
 def bucket_index_to_size(idx):
@@ -104,11 +104,11 @@ def shade_block(u, d):
         return halfblocks[2]
     elif u == d == False:
         return halfblocks[3]
-    elif u == d == None:
+    elif u is None and d is None:
         return halfblocks[4]
-    elif u == None and d == False or u == False and d == None:
+    elif u is None and d == False or u == False and d is None:
         return halfblocks[5]
-    elif u == None and d == True or u == True and d == None:
+    elif u is None and d == True or u == True and d is None:
         return halfblocks[6]
 
 
@@ -173,9 +173,7 @@ class MVMStringPPrinter(object):
     def stringify(self):
         stringtyp = str_t_info[int(self.val['body']['storage_type']) & 0b11]
         if stringtyp in ("blob_32", "blob_ascii", "blob_8"):
-            zero_reached = False
             data = self.val['body']['storage'][stringtyp]
-            i = 0
             pieces = []
             graphs = int(self.val['body']['num_graphs'])
             # XXX are the strings actually null-terminated, or do we have to
@@ -185,7 +183,7 @@ class MVMStringPPrinter(object):
                 try:
                     # ugh, unicode woes ...
                     pieces.append(chr(pdata))
-                except:
+                except Exception:
                     pieces.append("\\x%x" % pdata)
             return "".join(pieces)
         elif stringtyp == "strands":
@@ -408,7 +406,6 @@ class CommonHeapData(object):
             else:
                 self.number_objects += 1
         else:
-            REPR = None
             REPRname = "STable"
             debugname = "n/a"
             self.number_stables += 1
@@ -444,7 +441,6 @@ class CommonHeapData(object):
                 print(e)
                 print(e.traceback())
                 print(cursor.cast(gdb.lookup_type('MVMString').pointer()))
-                pass
 
         return size
 
@@ -469,7 +465,7 @@ class NurseryData(CommonHeapData):
         while cursor < self.allocation_offs:
             try:
                 size = self.analyze_single_object(cursor)
-            except:
+            except Exception:
                 print("while trying to analyze single object:");
                 traceback.print_exc()
                 print(stooge)
@@ -717,7 +713,7 @@ class OverflowData(CommonHeapData):
             for of_idx in range(num_overflows):
                 of_obj = g2a["overflows"][of_idx]
                 self.analyze_single_object(of_obj)
-        except:
+        except Exception:
             print("error while analyze_single_object or something");
 
     def summarize(self):
@@ -824,7 +820,6 @@ def mvmobject_lookup_function(val):
             return MVMObjectPPrinter(val, pointer)
         except Exception as e:
             print("couldn't cast this:", e)
-            pass
     return None
 
 def register_printers(objfile):
@@ -844,7 +839,7 @@ def register_commands(objfile):
 # We have to introduce our classes to gdb so that they can be used
 if __name__ == "__main__":
     the_objfile = gdb.current_objfile()
-    if the_objfile  == None:
+    if the_objfile is None:
         the_objfile = gdb.lookup_objfile("libmoar.so")
     register_printers(the_objfile)
     register_commands(the_objfile)

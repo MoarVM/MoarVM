@@ -1,5 +1,8 @@
+from __future__ import print_function
+import sys
+
 import gcc
-from gccutils import get_src_for_loc, pformat, cfg_to_dot, invoke_dot
+from gccutils import cfg_to_dot, invoke_dot
 
 # We'll implement this as a custom pass, to be called directly after the
 # builtin "cfg" pass, which generates the CFG:
@@ -587,40 +590,39 @@ def check_code_for_unneeded_mvmroot(fun):
 
                 arg = ins.args[1].operand
                 if str(arg.type) in gen2_allocated_types:
-                    print('Unnecessary root for `' + arg.name + '` in ' + str(ins.loc))
+                    print('Unnecessary root for `' + arg.name + '` in ' + str(ins.loc), file=sys.stderr)
 
 def check_code_for_imbalanced_mvmroot(fun):
     for bb in fun.cfg.basic_blocks:
         for ins in bb.gimple:
-            hits = []
             if isinstance(ins, gcc.GimpleReturn):
                 cfs = collect_control_flows(bb, [], {})
 
                 for cf in cfs:
                     root_stack = []
-                    for bb in cf:
-                        for ins in bb.gimple:
-                            if isinstance(ins, gcc.GimpleCall):
-                                if isinstance(ins.fn, gcc.AddrExpr): # plain function call is AddrExpr, other things could be function pointers
-                                    if ins.fn.operand.name == 'MVM_gc_root_temp_push':
-                                        arg = ins.args[1]
+                    for cf_bb in cf:
+                        for cf_ins in bb.gimple:
+                            if isinstance(cf_ins, gcc.GimpleCall):
+                                if isinstance(cf_ins.fn, gcc.AddrExpr): # plain function call is AddrExpr, other things could be function pointers
+                                    if cf_ins.fn.operand.name == 'MVM_gc_root_temp_push':
+                                        arg = cf_ins.args[1]
                                         root_stack.append(arg)
-                                    if ins.fn.operand.name == 'MVM_gc_root_temp_pop':
+                                    if cf_ins.fn.operand.name == 'MVM_gc_root_temp_pop':
                                         if not root_stack:
-                                            print("Skipping function %s because of complicated rooting" % fun.decl.name)
+                                            print("Skipping function %s because of complicated rooting" % fun.decl.name, file=sys.stderr)
                                             return
                                         root_stack.pop()
-                                    if ins.fn.operand.name == 'MVM_gc_root_temp_pop_n':
-                                        if not root_stack or not isinstance(ins.args[1], gcc.Constant):
-                                            print("Skipping function %s because of complicated rooting" % fun.decl.name)
+                                    if cf_ins.fn.operand.name == 'MVM_gc_root_temp_pop_n':
+                                        if not root_stack or not isinstance(cf_ins.args[1], gcc.Constant):
+                                            print("Skipping function %s because of complicated rooting" % fun.decl.name, file=sys.stderr)
                                             return
-                                        for i in range(0, ins.args[1].constant):
+                                        for i in range(0, cf_ins.args[1].constant):
                                             root_stack.pop()
                     if root_stack:
-                        print("Imbalanced temp root stack in " + str(fun.decl.name) + " at " + str(cf[-1].gimple[-1].loc) + " " + str(root_stack))
+                        print("Imbalanced temp root stack in " + str(fun.decl.name) + " at " + str(cf[-1].gimple[-1].loc) + " " + str(root_stack), file=sys.stderr)
 
 def check_code_for_var(fun, var, orig_initialized, warned={}):
-    #print('    ' + str(var.type) + ' ' + var.name)
+    #print('    ' + str(var.type) + ' ' + var.name, file=sys.stderr)
 
     for bb in fun.cfg.basic_blocks:
         for ins in bb.gimple:
@@ -635,56 +637,56 @@ def check_code_for_var(fun, var, orig_initialized, warned={}):
                     allocated_while_not_rooted = []
                     root_stack = []
                     initialized = orig_initialized
-                    for bb in cf:
-                        for ins in bb.gimple:
-                            if isinstance(ins, gcc.GimpleAssign):
-                                if ins.lhs == var:
-                                    if not (len(ins.rhs) == 1 and isinstance(ins.rhs[0], gcc.IntegerCst) and ins.rhs[0].constant == 0):
+                    for cf_bb in cf:
+                        for cf_ins in bb.gimple:
+                            if isinstance(cf_ins, gcc.GimpleAssign):
+                                if cf_ins.lhs == var:
+                                    if not (len(cf_ins.rhs) == 1 and isinstance(cf_ins.rhs[0], gcc.IntegerCst) and cf_ins.rhs[0].constant == 0):
                                         initialized = True
                                     allocated_while_not_rooted = []
-                            if isinstance(ins, gcc.GimpleCall):
-                                if isinstance(ins.fn, gcc.AddrExpr): # plain function call is AddrExpr, other things could be function pointers
-                                    if ins.fn.operand.name in ('MVM_serialization_write_ref', 'MVM_serialization_read_ref'):
+                            if isinstance(cf_ins, gcc.GimpleCall):
+                                if isinstance(cf_ins.fn, gcc.AddrExpr): # plain function call is AddrExpr, other things could be function pointers
+                                    if cf_ins.fn.operand.name in ('MVM_serialization_write_ref', 'MVM_serialization_read_ref'):
                                         # serialization code always allocates in gen2 directly
                                         return
-                                    if ins.fn.operand.name == 'MVM_gc_allocate_gen2_default_set':
+                                    if cf_ins.fn.operand.name == 'MVM_gc_allocate_gen2_default_set':
                                         allocating_in_gen2 = True
-                                    if ins.fn.operand.name == 'MVM_gc_allocate_gen2_default_clear':
+                                    if cf_ins.fn.operand.name == 'MVM_gc_allocate_gen2_default_clear':
                                         allocating_in_gen2 = False
-                                    if ins.fn.operand.name == 'MVM_gc_root_temp_push':
-                                        arg = ins.args[1]
+                                    if cf_ins.fn.operand.name == 'MVM_gc_root_temp_push':
+                                        arg = cf_ins.args[1]
                                         root_stack.append(arg)
                                         if arg_is_var(arg, var):
                                             rooted = True
-                                    if ins.fn.operand.name == 'MVM_gc_root_temp_pop':
+                                    if cf_ins.fn.operand.name == 'MVM_gc_root_temp_pop':
                                         if not root_stack:
-                                            print("Skipping function %s because of complicated rooting" % fun.decl.name)
+                                            print("Skipping function %s because of complicated rooting" % fun.decl.name, file=sys.stderr)
                                             return
                                         if arg_is_var(root_stack.pop(), var):
                                             rooted = False
-                                    if ins.fn.operand.name == 'MVM_gc_root_temp_pop_n':
-                                        if not root_stack or not isinstance(ins.args[1], gcc.Constant):
-                                            print("Skipping function %s because of complicated rooting" % fun.decl.name)
+                                    if cf_ins.fn.operand.name == 'MVM_gc_root_temp_pop_n':
+                                        if not root_stack or not isinstance(cf_ins.args[1], gcc.Constant):
+                                            print("Skipping function %s because of complicated rooting" % fun.decl.name, file=sys.stderr)
                                             return
-                                        for i in range(0, ins.args[1].constant):
+                                        for i in range(0, cf_ins.args[1].constant):
                                             if arg_is_var(root_stack.pop(), var):
                                                 rooted = False
-                                    if initialized and not allocating_in_gen2 and ins.fn.operand.name in allocators:
-                                        if ins.lhs != var and not (isinstance(ins.lhs, gcc.SsaName) and ins.lhs.var == var):
+                                    if initialized and not allocating_in_gen2 and cf_ins.fn.operand.name in allocators:
+                                        if cf_ins.lhs != var and not (isinstance(cf_ins.lhs, gcc.SsaName) and cf_ins.lhs.var == var):
                                             if not rooted:
-                                                allocated_while_not_rooted.append([ins, bb])
+                                                allocated_while_not_rooted.append([cf_ins, cf_bb])
                                                 continue
-                                if ins.lhs == var:
+                                if cf_ins.lhs == var:
                                     initialized = True
                                     allocated_while_not_rooted = []
                             hits = []
-                            ins.walk_tree(check_var, var, hits)
+                            cf_ins.walk_tree(check_var, var, hits)
                             if hits and not str(var.type) in gen2_allocated_types:
                                 for missing in allocated_while_not_rooted:
-                                    warning = 'Missing root for `' + var.name + '` in ' + str(missing[0]) + ' at ' + str(missing[0].loc) + ' used in ' + str(ins) + ' at ' + str(ins.loc)
+                                    warning = 'Missing root for `' + var.name + '` in ' + str(missing[0]) + ' at ' + str(missing[0].loc) + ' used in ' + str(cf_ins) + ' at ' + str(cf_ins.loc)
                                     if not warning in warned:
                                         warned[warning] = 1
-                                        print(warning)
+                                        print(warning, file=sys.stderr)
                                     #dot = cfg_to_dot(fun.cfg)
                                     #invoke_dot(dot)
 
@@ -693,7 +695,7 @@ class CheckRoots(gcc.GimplePass):
         # (the CFG should be set up by this point, and the GIMPLE is not yet
         # in SSA form)
         if fun and fun.cfg:
-            #print(fun.decl.name + ':')
+            #print(fun.decl.name + ':', file=sys.stderr)
             for var in fun.decl.arguments:
                 if not var.is_artificial and str(var.type) in sixmodel_types:
                     check_code_for_var(fun, var, True)
