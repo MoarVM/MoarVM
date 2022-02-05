@@ -601,7 +601,7 @@ def check_code_for_imbalanced_mvmroot(fun):
                 for cf in cfs:
                     root_stack = []
                     for cf_bb in cf:
-                        for cf_ins in bb.gimple:
+                        for cf_ins in cf_bb.gimple:
                             if isinstance(cf_ins, gcc.GimpleCall):
                                 if isinstance(cf_ins.fn, gcc.AddrExpr): # plain function call is AddrExpr, other things could be function pointers
                                     if cf_ins.fn.operand.name == 'MVM_gc_root_temp_push':
@@ -638,7 +638,7 @@ def check_code_for_var(fun, var, orig_initialized, warned={}):
                     root_stack = []
                     initialized = orig_initialized
                     for cf_bb in cf:
-                        for cf_ins in bb.gimple:
+                        for cf_ins in cf_bb.gimple:
                             if isinstance(cf_ins, gcc.GimpleAssign):
                                 if cf_ins.lhs == var:
                                     if not (len(cf_ins.rhs) == 1 and isinstance(cf_ins.rhs[0], gcc.IntegerCst) and cf_ins.rhs[0].constant == 0):
@@ -685,7 +685,7 @@ def check_code_for_var(fun, var, orig_initialized, warned={}):
                                 for missing in allocated_while_not_rooted:
                                     warning = 'Missing root for `' + var.name + '` in ' + str(missing[0]) + ' at ' + str(missing[0].loc) + ' used in ' + str(cf_ins) + ' at ' + str(cf_ins.loc)
                                     if not warning in warned:
-                                        warned[warning] = 1
+                                        warned[warning] = 1 # lgtm [py/modification-of-default-value]
                                         print(warning, file=sys.stderr)
                                     #dot = cfg_to_dot(fun.cfg)
                                     #invoke_dot(dot)
