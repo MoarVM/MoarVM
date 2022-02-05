@@ -287,7 +287,7 @@ static MVMint64 lock(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag) {
     }
     MVM_gc_mark_thread_unblocked(tc);
 
-    MVM_exception_throw_adhoc(tc, "Failed to lock filehandle: %d", GetLastError());
+    MVM_exception_throw_adhoc(tc, "Failed to lock filehandle: %lu", GetLastError());
 
     return 0;
 
@@ -316,7 +316,7 @@ static MVMint64 lock(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 flag) {
     } while (r == -1 && errno == EINTR);
 
     if (r == -1) {
-        MVM_exception_throw_adhoc(tc, "Failed to lock filehandle: %d", errno);
+        MVM_exception_throw_adhoc(tc, "Failed to lock filehandle: %lu", errno);
     }
 
     return 1;
@@ -345,7 +345,7 @@ static void unlock(MVMThreadContext *tc, MVMOSHandle *h) {
     }
     MVM_gc_mark_thread_unblocked(tc);
 
-    MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %d", GetLastError());
+    MVM_exception_throw_adhoc(tc, "Failed to unlock filehandle: %lu", GetLastError());
 #else
 
     struct flock l;

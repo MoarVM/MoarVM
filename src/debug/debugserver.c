@@ -3211,7 +3211,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMArgs arg_info) {
 
         error = WSAStartup(wVersionRequested, &wsaData);
         if (error != 0) {
-            MVM_panic(1, "Debugserver: WSAStartup failed with error: %n", error);
+            MVM_panic(1, "Debugserver: WSAStartup failed with error: %d", error);
         }
 #endif
 
