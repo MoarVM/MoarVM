@@ -543,7 +543,7 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
 
     if (block == NULL) {
 #if defined(_WIN32)
-        MVM_exception_throw_adhoc(tc, "Could not map file '%s' into memory: %d", filename, GetLastError());
+        MVM_exception_throw_adhoc(tc, "Could not map file '%s' into memory: %lu", filename, GetLastError());
 #else
         MVM_exception_throw_adhoc(tc, "Could not map file '%s' into memory: %s", filename, strerror(errno));
 #endif
