@@ -405,8 +405,8 @@ $config{lddebugflags} = sprintf $config{lddebugflags}, defined_or $args{debug}, 
 
 # generate CFLAGS
 my @cflags;
-push @cflags, '-std=c99' if $defaults{os} eq 'mingw32';
 push @cflags, $config{ccmiscflags};
+push @cflags, '-std=c99 -D__USE_MINGW_ANSI_STDIO=1' if $defaults{os} eq 'mingw32';
 push @cflags, $config{ccoptiflags}  if $args{optimize};
 push @cflags, $config{ccdebugflags} if $args{debug};
 push @cflags, $config{cc_covflags}  if $args{coverage};
