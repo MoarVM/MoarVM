@@ -1223,6 +1223,10 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                                     }
                                     break;
                                 }
+                                default:
+                                    MVM_spesh_graph_add_comment(tc, g, ins, "dispatch not compiled: unsupported NativeCall rw type %d",
+                                                    arg_types[j - 1] & MVM_NATIVECALL_ARG_TYPE_MASK);
+                                    return 0;
                             }
                         }
                     }
