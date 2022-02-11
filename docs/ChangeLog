@@ -1,3 +1,101 @@
+New in 2022.02
+
+Core:
++ Assure memory write order in native call race condition fix [4d411987]
++ Use faster itoa implementation [48f584c4]
++ Change nqp::radix(_I)? to return # chars converted [45f40826]
++ Ignore untracked changes in the ryu submodule [f4b4692a]
++ Correctly free memory allocated by libuv [781a4799]
++ Include stdbool.h instead of using our own defines [01c3e8f5]
++ Add bindpos_u op [4b404536]
++ Add atpos_u op [44204e89]
++ HLL uint_box_type [362d465a]
++ uint_*_ref HLL config entries [36ba6133]
++ New set-cur-hll-config-key syscall [28df31bb]
++ New atposref_u op [5abfbcff]
++ Let NativeRefs know if they are unsigned [4e429897]
++ fetch_u operation on containers [e298f6a8]
++ New iscont_u op [0e68f31c]
++ New assign_u op [502cd6fb]
++ captureargpos_u op [7c3ddaee]
++ Teach native_ref_store to distinguish between signed and unsigned ints
+  [0161b143]
++ Treat MVM_CALLSITE_ARG_(FLAT | NAMED) like FLAT_NAMED [9c2df858]
++ Free up MVM_CALLSITE_ARG_FLAT_NAMED flag [b1069f7c]
++ #include <assert.h> explicitly. [55be3aa2]
++ More preparations for fixing unsigned handling [90b24146][36a5fb4c][171ea9f4]
+  [3f616d7a][ba8bd0e9][4d003732]
++ Run `git submodule --quiet update --depth 1` if git is new enough. [677d1fd6]
++ Add mimalloc submodule, and default to mimalloc where possible [9f0a3bdb]
+  [0a8a66d5][8a5be0d9][e7388250][eaaeab54][248aa337][e306759e][1d779128]
++ Make value_desc_cont_atomic_store() static [1351cfe6]
++ Allocations for blocks of MVM registers needs to be 8 byte aligned [1850f91a]
++ Add missing static qualifiers to various private functions [d293c683]
+  [a641520f][38e66874][da372d13][ef4e19c5][5b477a6a][5e217e03][e0f92ab1]
+  [86ba1d5e][08bf3b61]
++ Support using C11 atomics as an alternative libatomic_ops [44696884]
+  [9ff22369][783bb2ac][48c67de8][777a18c4]
++ MVM_nativeref_lex_u for proper gelexref_u* [d4dab6eb]
++ Use appropriate (un)signed container ops for native call args [26e2cfad]
++ Fix argument unboxing treating all integers as signed [9239ed5f]
++ Use MVM_STORAGE_SPEC_BP_UINT64 for unsigned box targets [b34604a6]
++ Properly support uints in CArray [53e588e4]
++ Make C(PP)Struct and CUnion properly support uint attributes [06e1ebe3]
++ Properly support uint in MultiDimArrays [b585b5e3]
++ Fix "Wrong kind of access to numeric CArray" when binding into an uint CArray
+  [f1101b95]
++ Add an lgtm config file [9fb8ec91]
++ Use libc allocator functions for NativeCall [c6064d3b][2bf083bc][a1749f57]
+  [26ad34e8][20910161][d39f50d7]
++ Fix segfault in nqp::hllboolfor [6661662d]
++ Move the repeated code that frees callsites before exceptions to a function
+  [85fa90c4]
++ Fix a bug in `report_deserialize_callsites_violation` [03f023cc]
++ Remove all code for serialization versions earlier than 23 [e80869eb]
++ Remove all code for bytecode versions earlier than 7 [bee95459]
++ Implement unsigned native version of binary not op (bnot_u) [b7d2713b]
++ Teach MVM_dump_p6opaque debug function to dump bigints [a0a98d47]
++ Fix autoboxing of arguments treating unsigned ints as signed [3ff5b111]
++ Fix segfault after capture-replace-literal-arg with different kind [2abb4699]
++ Implement (bind|get)attrs?_u ops [d58fa57d]
++ Implement getattrref_u op [ea644a5b]
++ Fix autobox_uint finding negative Ints in the int cache [a851fcf4]
++ Proper uint support for multidim arrays. [ef270d7f]
++ Silence warning about ignoring return value from libtommath function
+  [c00abdf3]
++ Fix things found by lgtm.com [42060102][55c83c2a][6d1bd83c][80e262a6]
+  [94847eda]
++ Fix problems in GCC/GDB plugins found by lgtm.com [3d759ed5][b73b9570]
+  [de12679a][3773169d][0b16384d]
++ Fix more things found by lgtm.com [58d0d756][d968da89]
++ Make it possible turn dispatcher debugger with compiler options [72b313b2]
++ Fix some missing variable renames in GCC plugin [e58fc6d1]
+
+GC:
++ Fix possible access to fromspace in libffi native calls [38349ce4]
++ Fix possible access to fromspace after deopt materialization [2883ba75]
+
+JIT:
++ Jit iscont_u, missed in the recent uint work [7044d53c]
++ Jit some more missing `*_u` versions of ops [6a404765]
+
+Spesh:
++ Support boxed unsigned int primitives in argument spesh [f12bc422]
++ Fix speshed native calls with rw args assigning into wrong target [d783bf27]
++ Teach optimize_decont about UINT64 box type [4a3b98d5]
++ Fix spesh turning decont of a UIntLexRef into a decont_i [ed3cdd38]
++ Fix spesh breaking non-int/long rw args of native calls [280c709c]
+
+Strings:
++ Simplify MVM_string_utf8_encode_C_string [99e0a715]
++ Change Generate-Collation-Data.raku to use raku binary [1b1b7d59]
++ Manually implement simplified strtoll for coerce_si [b80996ff]
++ Avoid reading beyond the end of the string in MVM_coerce_s_i [ecfc0bc2]
++ Replace locale-"aware" <ctype.h> with ASCII-only code in MVM_coerce_s_i
+  [596be524]
++ Fix format strings for Win32 + set C99 for MinGW [dd978192]
++ Whoops, fix a wrong format string change [418711f0]
+
 New in 2021.12
 
 Core:
