@@ -507,6 +507,3 @@ MVM_STATIC_INLINE MVMCallStackRecord * MVM_callstack_prev_significant_record(
         prev = prev->prev;
     return prev;
 }
-
-/* Migration to callstack-based special return in Rakudo extops. */
-#define MVM_CALLSTACK_SPECIAL_RETURN 1
