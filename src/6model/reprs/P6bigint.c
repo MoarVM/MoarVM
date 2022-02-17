@@ -86,9 +86,10 @@ void MVM_p6bigint_store_as_mpz_t(MVMThreadContext *tc, MVMP6bigintBody *body, MV
     mpz_t *i = MVM_malloc(sizeof(mpz_t));
 #ifdef _MSC_VER
     mpz_init(*i);
-    mp_limb_t *l = mpz_limbs_write(*i, 1L);
-    l[0] = value;
-    mpz_limbs_finish(*i, value < 0 ? -1L : 1L);
+    MVMuint64 a = llabs(value);
+    mpz_import(*i, 1, 1, sizeof(value), 0, 0, &a);
+    if (value < 0)
+	mpz_neg(*i, *i);
 #else
     mpz_init_set_si(*i, value);
 #endif
