@@ -110,6 +110,8 @@ MVMInstance * MVM_vm_create_instance(void) {
     char *dynvar_log;
     int init_stat;
 
+    mp_set_memory_functions(MVM_malloc, MVM_gmp_realloc, MVM_gmp_free);
+
 #ifndef MVM_THREAD_LOCAL
     static uv_once_t key_once = UV_ONCE_INIT;
     uv_once(&key_once, make_uv_key);
