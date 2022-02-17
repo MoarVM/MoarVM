@@ -2299,7 +2299,7 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
                                     mpz_t *i = body->u.bigint;
                                     char *str = mpz_get_str(NULL, 10, *i);
                                     fprintf(stderr, "=%s (%s)", str, mpz_sgn(*i) == -1 ? "-" : "+");
-                                    MVM_free(str);
+                                    free(str);
                                 }
                                 else {
                                     fprintf(stderr, "=%"PRIi32" (small)", body->u.smallint.value);

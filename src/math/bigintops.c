@@ -650,7 +650,7 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
             for (int i = 0; i < len; i++)
                 buf[i] = toupper(buf[i]);
         MVMString *result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len);
-        MVM_free(buf);
+        free(buf);
         return result;
     }
     else {
@@ -668,7 +668,7 @@ MVMString * MVM_bigint_to_str(MVMThreadContext *tc, MVMObject *a, int base) {
                 for (int i = 0; i < len; i++)
                     buf[i] = toupper(buf[i]);
             MVMString *result = MVM_string_ascii_decode(tc, tc->instance->VMString, buf, len);
-            MVM_free(buf);
+            free(buf);
             mpz_clear(i);
             return result;
         }

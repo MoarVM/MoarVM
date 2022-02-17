@@ -206,7 +206,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
         /* write the "is small" flag */
         MVM_serialization_write_int(tc, writer, 0);
         MVM_serialization_write_str(tc, writer, str);
-        MVM_free(buf);
+        free(buf);
     }
     else {
         /* write the "is small" flag */
