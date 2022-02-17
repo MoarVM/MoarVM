@@ -37,6 +37,10 @@ MVM_STATIC_INLINE void * MVM_realloc(void *p, size_t size) {
     return ptr;
 }
 
+MVM_STATIC_INLINE void * MVM_gmp_realloc(void *p, size_t old_size, size_t new_size) {
+    return MVM_realloc(p, new_size);
+}
+
 MVM_STATIC_INLINE void * MVM_recalloc(void *p, size_t old_size, size_t size) {
 #ifdef MVM_USE_MIMALLOC
     void *ptr = mi_realloc(p, size);
@@ -61,6 +65,10 @@ MVM_STATIC_INLINE void MVM_free(void *p) {
 #else
     free(p);
 #endif
+}
+
+MVM_STATIC_INLINE void MVM_gmp_free(void *p, size_t size) {
+    MVM_free(p);
 }
 
 #define MVM_free_null(addr) do { \
