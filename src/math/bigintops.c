@@ -91,9 +91,10 @@ static void store_int64_result(MVMThreadContext *tc, MVMP6bigintBody *body, MVMi
         mpz_t *i = MVM_malloc(sizeof(mpz_t));
 #ifdef _MSC_VER
         mpz_init(*i);
-        mp_limb_t *l = mpz_limbs_write(*i, 1L);
-        l[0] = result;
-        mpz_limbs_finish(*i, result < 0 ? -1L : 1L);
+        MVMuint64 a = llabs(result);
+        mpz_import(*i, 1, 1, sizeof(result), 0, 0, &a);
+        if (result < 0)
+            mpz_neg(*i, *i);
 #else
         mpz_init_set_si(*i, result);
 #endif
