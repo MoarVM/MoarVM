@@ -304,6 +304,10 @@ my %TC_MINGW32 = (
             rule  => 'cd 3rdparty/dyncall && ./configure.bat /target-x86 /tool-gcc && $(MAKE) -f Makefile.embedded mingw32',
             clean => $TC_MSVC{-thirdparty}->{dc}->{clean},
         },
+        gmp => {
+            %TP_GMP,
+            rule  => 'cd 3rdparty/gmp && ./configure @gmpconf@ @crossconf@ && $(MAKE) && cp .libs/libgmp.a . && cd ..',
+        },
     },
 );
 
