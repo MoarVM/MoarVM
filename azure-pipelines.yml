@@ -235,6 +235,7 @@ stages:
           displayName: Build MoarVM (Mac)
         - pwsh: |
             ${{ variables.PWSH_DEV }}
+            rm -R -Force 3rdparty\gmp\SMP
             perl Configure.pl --prefix=..\$(INSTALL_DIR) $(MOAR_OPTIONS)
             gmake -j2 install
           failOnStderr: false
