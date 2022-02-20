@@ -326,6 +326,9 @@ if ($args{'has-gmp'}) {
         if exists $args{'enable-gmp-fat'};
     $defaults{-thirdparty}->{gmp} = undef;
     unshift @{$config{usrlibs}}, 'gmp';
+    if ($config{pkgconfig_works}) {
+        setup_native_library('libgmp');
+    }
     if (not $config{crossconf}) {
         if (index($config{cincludes}, '-I/usr/local/include') == -1) {
             $config{cincludes} = join(' ', $config{cincludes}, '-I/usr/local/include');
