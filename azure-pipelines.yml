@@ -235,6 +235,7 @@ stages:
           displayName: Build MoarVM (Mac)
         - pwsh: |
             ${{ variables.PWSH_DEV }}
+            C:\msys64\usr\bin\pacman -S --no-confirm gmp
             perl Configure.pl --prefix=..\$(INSTALL_DIR) $(MOAR_OPTIONS) --has-gmp
             gmake -j2 install
           failOnStderr: false
