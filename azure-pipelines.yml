@@ -235,6 +235,7 @@ stages:
           displayName: Build MoarVM (Mac)
         - pwsh: |
             ${{ variables.PWSH_DEV }}
+            autoreconf -i
             perl Configure.pl --prefix=..\$(INSTALL_DIR) $(MOAR_OPTIONS)
             rm -R -Force .\3rdparty\gmp\SMP
             gmake -j2 install
