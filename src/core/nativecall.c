@@ -322,7 +322,9 @@ char * MVM_nativecall_encode_string(MVMThreadContext *tc, MVMString *value_str, 
 }
 
 char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free, MVMint16 unmarshal_kind) {
-    return IS_CONCRETE(value) ? MVM_nativecall_encode_string(tc, MVM_repr_get_str(tc, value), type, free, unmarshal_kind, REPR(value)) : NULL;
+    return IS_CONCRETE(value)
+        ? MVM_nativecall_encode_string(tc, MVM_repr_get_str(tc, value), type, free, unmarshal_kind, REPR(value))
+        : NULL;
 }
 
 MVM_NO_RETURN static void unmarshal_error(MVMThreadContext *tc, char *desired_repr, MVMObject *value, MVMint16 unmarshal_kind) MVM_NO_RETURN_ATTRIBUTE;
