@@ -123,6 +123,11 @@ stages:
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--os=mingw32'
+         MVM_clang_mingw:
+           IMAGE_NAME: 'windows-2019'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--os=mingw32 --compiler=clang'
 #         MVM_coverage:
 #           IMAGE_NAME: 'ubuntu-22.04'
 #           RAKUDO_OPTIONS: ''
