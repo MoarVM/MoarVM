@@ -327,7 +327,7 @@ if ($args{'has-gmp'}) {
     $defaults{-thirdparty}->{gmp} = undef;
     unshift @{$config{usrlibs}}, 'gmp';
     if ($config{pkgconfig_works}) {
-        setup_native_library('libgmp');
+        setup_native_library('gmp');
     }
     if (not $config{crossconf}) {
         if (index($config{cincludes}, '-I/usr/local/include') == -1) {
