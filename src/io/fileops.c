@@ -250,7 +250,6 @@ MVMint64 MVM_file_isexecutable(MVMThreadContext *tc, MVMString *filename, MVMint
                 }
             }
             MVM_free(ext);
-            MVM_free(pext);
         }
     }
     return r;
