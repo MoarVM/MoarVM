@@ -1078,18 +1078,9 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                 case MVM_NATIVECALL_ARG_UTF8STR:
                 case MVM_NATIVECALL_ARG_UTF16STR:
                     {
-                        char *str;
-                        switch (arg_types[i] & MVM_NATIVECALL_ARG_TYPE_MASK) {
-                            case MVM_NATIVECALL_ARG_ASCIISTR:
-                                str = MVM_string_ascii_encode_any(tc, value);
-                                break;
-                            case MVM_NATIVECALL_ARG_UTF16STR:
-                                str = MVM_string_utf16_encode(tc, value, 0);
-                                break;
-                            default:
-                                str = MVM_string_utf8_encode_C_string(tc, value);
-                        }
-                        if (arg_types[i] & MVM_NATIVECALL_ARG_FREE_STR_MASK) {
+                        MVMint16 free = 0;
+                        char *str = MVM_nativecall_encode_string(tc, value, arg_types[i], &free, i, REPR(value));
+                        if (free) {
                             if (!free_strs)
                                 free_strs = (char**)alloca(num_args * sizeof(char *));
                             free_strs[num_strs] = str;
