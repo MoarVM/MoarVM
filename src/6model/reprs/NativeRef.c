@@ -651,10 +651,10 @@ void MVM_nativeref_write_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj, M
     MVM_repr_bind_attr_inso(tc, ref->body.u.attribute.obj, ref->body.u.attribute.class_handle,
         ref->body.u.attribute.name, MVM_NO_HINT, r, MVM_reg_int64);
 }
-void MVM_nativeref_write_attribute_u(MVMThreadContext *tc, MVMObject *ref_obj, MVMint64 value) {
+void MVM_nativeref_write_attribute_u(MVMThreadContext *tc, MVMObject *ref_obj, MVMuint64 value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     MVMRegister r;
-    r.i64 = value;
+    r.u64 = value;
     MVM_repr_bind_attr_inso(tc, ref->body.u.attribute.obj, ref->body.u.attribute.class_handle,
         ref->body.u.attribute.name, MVM_NO_HINT, r, MVM_reg_uint64);
 }
