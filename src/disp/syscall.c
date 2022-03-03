@@ -1065,8 +1065,10 @@ static void try_capture_lex_callers_impl(MVMThreadContext *tc, MVMArgs arg_info)
         if (((MVMCode *)code)->body.sf->body.outer == find->static_info) {
             MVMFrame *orig = tc->cur_frame;
             tc->cur_frame = find;
-            MVM_frame_capturelex(tc, code);
-            tc->cur_frame = orig;
+            MVMROOT(tc, orig, {
+                MVM_frame_capturelex(tc, code);
+                tc->cur_frame = orig;
+            });
             break;
         }
         find = find->caller;
