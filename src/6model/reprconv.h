@@ -84,6 +84,7 @@ MVM_PUBLIC MVMString * MVM_repr_shift_s(MVMThreadContext *tc, MVMObject *obj);
 MVM_PUBLIC MVMObject * MVM_repr_shift_o(MVMThreadContext *tc, MVMObject *obj);
 
 MVM_PUBLIC MVMint64    MVM_repr_at_key_i(MVMThreadContext *tc, MVMObject *obj, MVMString *key);
+MVM_PUBLIC MVMuint64   MVM_repr_at_key_u(MVMThreadContext *tc, MVMObject *obj, MVMString *key);
 MVM_PUBLIC MVMnum64    MVM_repr_at_key_n(MVMThreadContext *tc, MVMObject *obj, MVMString *key);
 MVM_PUBLIC MVMString * MVM_repr_at_key_s(MVMThreadContext *tc, MVMObject *obj, MVMString *key);
 MVM_PUBLIC MVMObject * MVM_repr_at_key_o(MVMThreadContext *tc, MVMObject *obj, MVMString *key);

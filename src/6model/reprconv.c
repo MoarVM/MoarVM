@@ -538,6 +538,19 @@ MVMint64 MVM_repr_at_key_i(MVMThreadContext *tc, MVMObject *obj, MVMString *key)
     return value.i64;
 }
 
+MVMuint64 MVM_repr_at_key_u(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
+    MVMRegister value;
+    if (REPR(obj)->ID == MVM_REPR_ID_MVMHash) {
+        MVMHash_at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+            (MVMObject *)key, &value, MVM_reg_uint64);
+    }
+    else {
+        REPR(obj)->ass_funcs.at_key(tc, STABLE(obj), obj, OBJECT_BODY(obj),
+                                (MVMObject *)key, &value, MVM_reg_uint64);
+    }
+    return value.u64;
+}
+
 MVMnum64 MVM_repr_at_key_n(MVMThreadContext *tc, MVMObject *obj, MVMString *key) {
     MVMRegister value;
     if (REPR(obj)->ID == MVM_REPR_ID_MVMHash) {
