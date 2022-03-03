@@ -592,7 +592,7 @@ static void native_ref_store_u(MVMThreadContext *tc, MVMObject *cont, MVMuint64 
         MVM_exception_throw_adhoc(tc, "This container does not reference a native integer");
     switch (repr_data->ref_kind) {
         case MVM_NATIVEREF_LEX:
-            MVM_nativeref_write_lex_i(tc, cont, value); /* FIXME need a MVM_nativeref_write_lex_u */
+            MVM_nativeref_write_lex_u(tc, cont, value);
             break;
         case MVM_NATIVEREF_ATTRIBUTE:
             MVM_nativeref_write_attribute_u(tc, cont, value);
