@@ -123,6 +123,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_capturehasnameds: return MVM_capture_has_nameds;
     case MVM_OP_return: return MVM_args_assert_void_return_ok;
     case MVM_OP_return_i: return MVM_args_set_result_int;
+    case MVM_OP_return_u: return MVM_args_set_result_uint;
     case MVM_OP_return_s: return MVM_args_set_result_str;
     case MVM_OP_return_o: return MVM_args_set_result_obj;
     case MVM_OP_return_n: return MVM_args_set_result_num;
@@ -130,6 +131,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_coerce_us: return MVM_coerce_u_s;
     case MVM_OP_coerce_ns: return MVM_coerce_n_s;
     case MVM_OP_coerce_si: return MVM_coerce_s_i;
+    case MVM_OP_coerce_su: return MVM_coerce_s_u;
     case MVM_OP_coerce_sn: return MVM_coerce_s_n;
     case MVM_OP_coerce_In: return MVM_bigint_to_num;
     case MVM_OP_coerce_nI: return MVM_bigint_from_num;
@@ -2588,6 +2590,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_coerce_sn:
     case MVM_OP_coerce_ns:
     case MVM_OP_coerce_si:
+    case MVM_OP_coerce_su:
     case MVM_OP_coerce_is:
     case MVM_OP_coerce_us:
     case MVM_OP_coerce_In: {
@@ -2596,7 +2599,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMJitCallArg args[] = {{ MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { src } } };
         MVMJitRVMode rv_mode = ((op == MVM_OP_coerce_sn || op == MVM_OP_coerce_In) ? MVM_JIT_RV_NUM :
-                                op == MVM_OP_coerce_si ? MVM_JIT_RV_INT :
+                                op == MVM_OP_coerce_si || op == MVM_OP_coerce_su ? MVM_JIT_RV_INT :
                                 MVM_JIT_RV_PTR);
         if (op == MVM_OP_coerce_ns) {
             args[1].type = MVM_JIT_REG_VAL_F;
@@ -3614,6 +3617,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_return_o:
     case MVM_OP_return_s:
     case MVM_OP_return_n:
+    case MVM_OP_return_u:
     case MVM_OP_return_i: {
         MVMint16 reg = ins->operands[0].reg.orig;
         MVMJitCallArg args[] = {{ MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
@@ -3920,6 +3924,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     case MVM_OP_sp_dispatch_v:
     case MVM_OP_sp_dispatch_i:
+    case MVM_OP_sp_dispatch_u:
     case MVM_OP_sp_dispatch_s:
     case MVM_OP_sp_dispatch_n:
     case MVM_OP_sp_dispatch_o: {
