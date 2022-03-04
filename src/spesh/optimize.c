@@ -2279,6 +2279,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_dispatch_n:
         case MVM_OP_dispatch_s:
         case MVM_OP_dispatch_i:
+        case MVM_OP_dispatch_u:
             MVM_spesh_disp_optimize(tc, g, bb, p, ins, &next_ins);
             break;
         case MVM_OP_sp_guard:
@@ -2293,6 +2294,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_sp_runbytecode_v:
         case MVM_OP_sp_runbytecode_o:
         case MVM_OP_sp_runbytecode_i:
+        case MVM_OP_sp_runbytecode_u:
         case MVM_OP_sp_runbytecode_n:
         case MVM_OP_sp_runbytecode_s: {
             MVMSpeshAnn *temps_ann = ins->annotations;
@@ -2313,11 +2315,13 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_sp_runnativecall_v:
         case MVM_OP_sp_runnativecall_o:
         case MVM_OP_sp_runnativecall_i:
+        case MVM_OP_sp_runnativecall_u:
         case MVM_OP_sp_runnativecall_n:
         case MVM_OP_sp_runnativecall_s:
         case MVM_OP_sp_runcfunc_v:
         case MVM_OP_sp_runcfunc_o:
         case MVM_OP_sp_runcfunc_i:
+        case MVM_OP_sp_runcfunc_u:
         case MVM_OP_sp_runcfunc_n:
         case MVM_OP_sp_runcfunc_s: {
             MVMSpeshAnn *temps_ann = ins->annotations;

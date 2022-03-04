@@ -558,6 +558,7 @@ void MVM_disp_inline_cache_setup(MVMThreadContext *tc, MVMStaticFrame *sf) {
                     break;
                 case MVM_OP_dispatch_v:
                 case MVM_OP_dispatch_i:
+                case MVM_OP_dispatch_u:
                 case MVM_OP_dispatch_n:
                 case MVM_OP_dispatch_s:
                 case MVM_OP_dispatch_o: {

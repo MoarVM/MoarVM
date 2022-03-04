@@ -144,6 +144,7 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             if (!same_hll && runbytecode_ins->info->opcode == MVM_OP_sp_runbytecode_o) {
                 switch (opcode) {
                     case MVM_OP_return_i:
+                    case MVM_OP_return_u:
                     case MVM_OP_return_n:
                     case MVM_OP_return_s:
                         *no_inline_reason = "target needs a return boxing and HLLs are different";
@@ -1158,6 +1159,25 @@ static void rewrite_int_return(MVMThreadContext *tc, MVMSpeshGraph *g,
             "Spesh inline: unhandled case (%s) of return_i", runbytecode_ins->info->name);
     }
 }
+static void rewrite_uint_return(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
+        MVMSpeshBB *runbytecode_bb, MVMSpeshIns *runbytecode_ins) {
+    switch (runbytecode_ins->info->opcode) {
+    case MVM_OP_sp_runbytecode_v:
+        MVM_spesh_manipulate_delete_ins(tc, g, return_bb, return_ins);
+        break;
+    case MVM_OP_sp_runbytecode_u:
+        return_to_op(tc, g, return_ins, runbytecode_ins->operands[0], MVM_OP_set);
+        break;
+    case MVM_OP_sp_runbytecode_o:
+        return_to_box(tc, g, return_bb, return_ins, runbytecode_ins->operands[0],
+            MVM_OP_hllboxtype_i, MVM_OP_box_u);
+        break;
+    default:
+        MVM_oops(tc,
+            "Spesh inline: unhandled case (%s) of return_i", runbytecode_ins->info->name);
+    }
+}
 static void rewrite_num_return(MVMThreadContext *tc, MVMSpeshGraph *g,
                         MVMSpeshBB *return_bb, MVMSpeshIns *return_ins,
                         MVMSpeshBB *runbytecode_bb, MVMSpeshIns *runbytecode_ins) {
@@ -1260,6 +1280,14 @@ static void rewrite_returns(MVMThreadContext *tc, MVMSpeshGraph *inliner,
                 tweak_succ(tc, inliner, bb, runbytecode_bb, runbytecode_bb->succ[0],
                     saw_return);
                 rewrite_int_return(tc, inliner, bb, ins, runbytecode_bb, runbytecode_ins);
+                saw_return = 1;
+                break;
+            case MVM_OP_return_u:
+                MVM_spesh_manipulate_insert_goto(tc, inliner, bb, ins,
+                    runbytecode_bb->succ[0]);
+                tweak_succ(tc, inliner, bb, runbytecode_bb, runbytecode_bb->succ[0],
+                    saw_return);
+                rewrite_uint_return(tc, inliner, bb, ins, runbytecode_bb, runbytecode_ins);
                 saw_return = 1;
                 break;
             case MVM_OP_return_n:

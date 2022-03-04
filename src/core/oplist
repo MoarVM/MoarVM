@@ -525,7 +525,7 @@ read_dir            w(str) r(obj)
 close_dir           r(obj)
 open_fh             w(obj) r(str) r(str)
 close_fh            r(obj)
-DEPRECATED_23       w(obj) r(str) r(str)
+dispatch_u       .d w(uint64) str callsite :cache :deoptallpoint :predeoptonepoint :maycausedeopt :specializable
 DEPRECATED_27       w(str) r(str) r(str)
 DEPRECATED_28       r(str) r(str) r(str)
 atposnd_u           w(uint64) r(obj) r(obj) :pure :specializable
@@ -541,14 +541,14 @@ getstderr           w(obj) :pure
 connect_sk          r(obj) r(str) r(int64) r(uint16)
 socket              w(obj) r(int64)
 bind_sk             r(obj) r(str) r(int64) r(uint16) r(int64)
-DEPRECATED_24       r(obj) r(str)
+coerce_su           w(uint64) r(str) :pure :confprog
 accept_sk           w(obj) r(obj)
 decodetocodes       r(obj) r(str) r(int64) r(obj)
 encodefromcodes     r(obj) r(str) r(obj)
 multidimref_u       w(obj) r(obj) r(obj) :pure :useshll
 print               r(str)
 say                 r(str) :confprog
-DEPRECATED_22       w(str) r(obj)
+return_u         .r r(uint64) :useshll
 tell_fh             w(int64) r(obj)
 stat                w(int64) r(str) r(int64)
 DEPRECATED_79       w(obj) r(obj) str
@@ -959,6 +959,7 @@ sp_istype           .s w(int64) r(obj) r(obj) sslot uint32 :pure :invokish :mayc
 # anything more optimal. These precalculate the inline cache slot.
 sp_dispatch_v    .s str callsite sslot uint32 :maycausedeopt :invokish
 sp_dispatch_i    .s w(int64) str callsite sslot uint32 :maycausedeopt :invokish
+sp_dispatch_u    .s w(uint64) str callsite sslot uint32 :maycausedeopt :invokish
 sp_dispatch_n    .s w(num64) str callsite sslot uint32 :maycausedeopt :invokish
 sp_dispatch_s    .s w(str) str callsite sslot uint32 :maycausedeopt :invokish
 sp_dispatch_o    .s w(obj) str callsite sslot uint32 :maycausedeopt :invokish
@@ -1083,6 +1084,7 @@ sp_bool_I        .s w(int64) r(obj) int16 :pure
 # preselected, or -1 if none wsa.
 sp_runbytecode_v .s r(obj) uint64 int16 :maycausedeopt :invokish
 sp_runbytecode_i .s w(int64) r(obj) uint64 int16 :maycausedeopt :invokish
+sp_runbytecode_u .s w(uint64) r(obj) uint64 int16 :maycausedeopt :invokish
 sp_runbytecode_n .s w(num64) r(obj) uint64 int16 :maycausedeopt :invokish
 sp_runbytecode_s .s w(str) r(obj) uint64 int16 :maycausedeopt :invokish
 sp_runbytecode_o .s w(obj) r(obj) uint64 int16 :maycausedeopt :invokish
@@ -1092,6 +1094,7 @@ sp_runbytecode_o .s w(obj) r(obj) uint64 int16 :maycausedeopt :invokish
 # they are interned).
 sp_runcfunc_v    .s r(obj) uint64
 sp_runcfunc_i    .s w(int64) r(obj) uint64
+sp_runcfunc_u    .s w(uint64) r(obj) uint64
 sp_runcfunc_n    .s w(num64) r(obj) uint64
 sp_runcfunc_s    .s w(str) r(obj) uint64
 sp_runcfunc_o    .s w(obj) r(obj) uint64
@@ -1103,6 +1106,7 @@ sp_runcfunc_o    .s w(obj) r(obj) uint64
 # several places though.
 sp_runnativecall_v .s          r(obj) uint64 :maycausedeopt :invokish
 sp_runnativecall_i .s w(int64) r(obj) uint64 :maycausedeopt :invokish
+sp_runnativecall_u .s w(uint64) r(obj) uint64 :maycausedeopt :invokish
 sp_runnativecall_n .s w(num64) r(obj) uint64 :maycausedeopt :invokish
 sp_runnativecall_s .s w(str)   r(obj) uint64 :maycausedeopt :invokish
 sp_runnativecall_o .s w(obj)   r(obj) uint64 :maycausedeopt :invokish

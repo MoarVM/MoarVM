@@ -3893,11 +3893,13 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                 ? MVM_RETURN_VOID
                 : op == MVM_OP_sp_runnativecall_i
                     ? MVM_RETURN_INT
-                    : op == MVM_OP_sp_runnativecall_s
-                        ? MVM_RETURN_STR
-                        : op == MVM_OP_sp_runnativecall_n
-                            ? MVM_RETURN_NUM
-                            : MVM_RETURN_OBJ;
+                    : op == MVM_OP_sp_runnativecall_u
+                        ? MVM_RETURN_UINT
+                        : op == MVM_OP_sp_runnativecall_s
+                            ? MVM_RETURN_STR
+                            : op == MVM_OP_sp_runnativecall_n
+                                ? MVM_RETURN_NUM
+                                : MVM_RETURN_OBJ;
         node->u.runnativecall.return_register = dst;
         node->u.runnativecall.rv_type         = body->ret_type;
         node->u.runnativecall.entry_point     = body->entry_point;
@@ -3941,11 +3943,13 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                 ? MVM_RETURN_VOID
                 : op == MVM_OP_sp_dispatch_i
                     ? MVM_RETURN_INT
-                    : op == MVM_OP_sp_dispatch_s
-                        ? MVM_RETURN_STR
-                        : op == MVM_OP_sp_dispatch_n
-                            ? MVM_RETURN_NUM
-                            : MVM_RETURN_OBJ;
+                    : op == MVM_OP_sp_dispatch_u
+                        ? MVM_RETURN_UINT
+                        : op == MVM_OP_sp_dispatch_s
+                            ? MVM_RETURN_STR
+                            : op == MVM_OP_sp_dispatch_n
+                                ? MVM_RETURN_NUM
+                                : MVM_RETURN_OBJ;
         node->u.dispatch.return_register = dst;
         node->u.dispatch.map             = &ins->operands[4 + start];
         node->u.dispatch.reentry_label   = reentry_label;

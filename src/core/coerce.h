@@ -8,6 +8,7 @@ MVMString * MVM_coerce_n_s(MVMThreadContext *tc, MVMnum64 n);
 
 /* Numification. */
 MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *s);
+MVMuint64 MVM_coerce_s_u(MVMThreadContext *tc, MVMString *s);
 MVMint64 MVM_coerce_simple_intify(MVMThreadContext *tc, MVMObject *obj);
 MVMObject* MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMint64 offset, MVMint64 flag);
 
