@@ -132,6 +132,7 @@
 (macro: ^one  () (const 1 int_sz))
 
 (macro: ^reg_int () (const (&QUOTE MVM_reg_int64) int_sz))
+(macro: ^reg_uint () (const (&QUOTE MVM_reg_uint64) int_sz))
 (macro: ^reg_num () (const (&QUOTE MVM_reg_num64) int_sz))
 (macro: ^reg_str () (const (&QUOTE MVM_reg_str)   int_sz))
 (macro: ^reg_obj () (const (&QUOTE MVM_reg_obj)   int_sz))

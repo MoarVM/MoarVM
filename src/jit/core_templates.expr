@@ -904,6 +904,17 @@
       (carg $3 ptr)
       (carg (^reg_int) int))))
 
+(template: bindattr_u
+  (callv (^func &MVM_repr_bind_attr_inso)
+    (arglist
+      (carg (tc) ptr)
+      (carg $0 ptr)
+      (carg $1 ptr)
+      (carg (^cu_string $2) ptr)
+      (carg $4 int)
+      (carg $3 ptr)
+      (carg (^reg_uint) int))))
+
 (template: bindattr_n
   (callv (^func &MVM_repr_bind_attr_inso)
     (arglist
@@ -990,6 +1001,15 @@
       (carg (^cu_string $3) ptr)
       (carg $4 int)) int_sz))
 
+(template: getattr_u
+  (call (^func &MVM_repr_get_attr_u)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg (^cu_string $3) ptr)
+      (carg $4 int)) int_sz))
+
 (template: getattr_n
   (calln (^func &MVM_repr_get_attr_n)
     (arglist
@@ -1019,6 +1039,15 @@
 
 (template: getattrs_i
   (call (^func &MVM_repr_get_attr_i)
+    (arglist
+      (carg (tc) ptr)
+      (carg $1 ptr)
+      (carg $2 ptr)
+      (carg $3 ptr)
+      (carg (const -1 int_sz) int)) int_sz))
+
+(template: getattrs_u
+  (call (^func &MVM_repr_get_attr_u)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
@@ -1115,6 +1144,17 @@
       (carg \$0 ptr)
       (carg (^reg_int) int))))
 
+(template: atpos_u!
+  (callv (^getf (^repr $1) MVMREPROps pos_funcs.at_pos)
+    (arglist
+      (carg (tc) ptr)
+      (carg (^stable $1) ptr)
+      (carg $1 ptr)
+      (carg (^body $1) ptr)
+      (carg $2 int)
+      (carg \$0 ptr)
+      (carg (^reg_uint) int))))
+
 (template: atpos_n!
   (callv (^getf (^repr $1) MVMREPROps pos_funcs.at_pos)
     (arglist
@@ -1164,6 +1204,22 @@
         (carg $1 ptr)
         (carg $2 ptr)
         (carg (^reg_int) int)))
+    (callv (^func &MVM_SC_WB_OBJ)
+      (arglist
+        (carg (tc) ptr)
+        (carg $0 ptr)))))
+
+(template: bindpos_u
+  (dov
+    (callv (^getf (^repr $0) MVMREPROps pos_funcs.bind_pos)
+      (arglist
+        (carg (tc) ptr)
+        (carg (^stable $0) ptr)
+        (carg $0 ptr)
+        (carg (^body $0) ptr)
+        (carg $1 ptr)
+        (carg $2 ptr)
+        (carg (^reg_uint) int)))
     (callv (^func &MVM_SC_WB_OBJ)
       (arglist
         (carg (tc) ptr)
@@ -2804,7 +2860,7 @@
       (carg (^body $1) ptr)
       (carg $2 ptr)
       (carg \$0 ptr)
-      (carg (const (&QUOTE MVM_reg_uint64) int_sz) int))))
+      (carg (^reg_uint) int))))
 
 (template: coerce_us
   (call (^func &MVM_coerce_u_s)
