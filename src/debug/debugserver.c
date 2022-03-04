@@ -1494,6 +1494,7 @@ static void debugserver_invocation_special_return(MVMThreadContext *tc, void *da
             break;
         }
         case MVM_RETURN_INT:
+        case MVM_RETURN_UINT: /* FIXME don't know what the debug client would need for uint */
             cmp_write_map(ctx, 5);
             cmp_write_str(ctx, "type", 4);
             cmp_write_int(ctx, MT_InvokeResult);

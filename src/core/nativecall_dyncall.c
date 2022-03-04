@@ -1220,6 +1220,10 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                         update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
                         MVM_args_set_dispatch_result_int(tc, tc->cur_frame, (MVMuint64)native_result);
                     }
+                    else if (tc->cur_frame->return_type == MVM_RETURN_UINT) {
+                        update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
+                        MVM_args_set_dispatch_result_uint(tc, tc->cur_frame, (MVMuint64)native_result);
+                    }
                     else {
                         result = MVM_nativecall_make_cpointer(tc, res_type, native_result);
                         update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
@@ -1257,35 +1261,35 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     MVMuint64 native_result = (DCuchar)dcCallChar(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
-                    MVM_args_set_dispatch_result_int(tc, tc->cur_frame, native_result);
+                    MVM_args_set_dispatch_result_uint(tc, tc->cur_frame, native_result);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_USHORT: {
                     MVMuint64 native_result = (DCushort)dcCallShort(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
-                    MVM_args_set_dispatch_result_int(tc, tc->cur_frame, native_result);
+                    MVM_args_set_dispatch_result_uint(tc, tc->cur_frame, native_result);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_UINT: {
                     MVMuint64 native_result = (DCuint)dcCallInt(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
-                    MVM_args_set_dispatch_result_int(tc, tc->cur_frame, native_result);
+                    MVM_args_set_dispatch_result_uint(tc, tc->cur_frame, native_result);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_ULONG: {
                     MVMuint64 native_result = (DCulong)dcCallLong(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
-                    MVM_args_set_dispatch_result_int(tc, tc->cur_frame, native_result);
+                    MVM_args_set_dispatch_result_uint(tc, tc->cur_frame, native_result);
                     break;
                 }
                 case MVM_NATIVECALL_ARG_ULONGLONG: {
                     MVMuint64 native_result = (DCulonglong)dcCallLongLong(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
                     update_rws(tc, free_rws, num_args, arg_types, args, interval_id);
-                    MVM_args_set_dispatch_result_int(tc, tc->cur_frame, native_result);
+                    MVM_args_set_dispatch_result_uint(tc, tc->cur_frame, native_result);
                     break;
                 }
                 default:
