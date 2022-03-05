@@ -1258,8 +1258,10 @@ static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                          { MVM_JIT_REG_VAL, { dst } },
                                          { reg_type == MVM_reg_num64 ? MVM_JIT_REG_VAL_F : MVM_JIT_REG_VAL, { val } } };
 
-                if (st->container_spec == NULL)
+                if (st->container_spec == NULL) {
+                    MVM_spesh_graph_add_comment(tc, jg->sg, ins, "JIT: not devirtualized (null container spec)");
                     goto skipdevirt;
+                }
 
                 function = MVM_container_devirtualize_store_for_jit(tc, st, reg_type);
 

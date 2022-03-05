@@ -572,16 +572,10 @@ void MVM_nativeref_write_lex_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint6
     MVMRegister *var = &(ref->body.u.lex.frame->env[ref->body.u.lex.env_idx]);
     switch (ref->body.u.lex.type) {
         case MVM_reg_uint8:
-            var->u8 = (MVMuint8)value;
-            break;
         case MVM_reg_uint16:
-            var->u16 = (MVMuint16)value;
-            break;
         case MVM_reg_uint32:
-            var->u32 = (MVMuint32)value;
-            break;
         case MVM_reg_uint64:
-            var->u64 = (MVMuint64)value;
+            MVM_exception_throw_adhoc("Attempting to MVM_nativeref_write_lex_i (%ld) to an unsigned variable", value);
             break;
         case MVM_reg_int8:
             var->i8 = (MVMint8)value;
@@ -594,6 +588,30 @@ void MVM_nativeref_write_lex_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint6
             break;
         default:
             var->i64 = value;
+            break;
+    }
+}
+void MVM_nativeref_write_lex_u(MVMThreadContext *tc, MVMObject *ref_obj, MVMuint64 value) {
+    MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
+    MVMRegister *var = &(ref->body.u.lex.frame->env[ref->body.u.lex.env_idx]);
+    switch (ref->body.u.lex.type) {
+        case MVM_reg_int8:
+        case MVM_reg_int16:
+        case MVM_reg_int32:
+        case MVM_reg_int64:
+            MVM_exception_throw_adhoc("Attempting to MVM_nativeref_write_lex_u (%lu) to a signed variable", value);
+            break;
+        case MVM_reg_uint8:
+            var->u8 = (MVMuint8)value;
+            break;
+        case MVM_reg_uint16:
+            var->u16 = (MVMuint16)value;
+            break;
+        case MVM_reg_uint32:
+            var->u32 = (MVMuint32)value;
+            break;
+        default:
+            var->u64 = value;
             break;
     }
 }
@@ -621,10 +639,10 @@ void MVM_nativeref_write_attribute_i(MVMThreadContext *tc, MVMObject *ref_obj, M
     MVM_repr_bind_attr_inso(tc, ref->body.u.attribute.obj, ref->body.u.attribute.class_handle,
         ref->body.u.attribute.name, MVM_NO_HINT, r, MVM_reg_int64);
 }
-void MVM_nativeref_write_attribute_u(MVMThreadContext *tc, MVMObject *ref_obj, MVMint64 value) {
+void MVM_nativeref_write_attribute_u(MVMThreadContext *tc, MVMObject *ref_obj, MVMuint64 value) {
     MVMNativeRef *ref = (MVMNativeRef *)ref_obj;
     MVMRegister r;
-    r.i64 = value;
+    r.u64 = value;
     MVM_repr_bind_attr_inso(tc, ref->body.u.attribute.obj, ref->body.u.attribute.class_handle,
         ref->body.u.attribute.name, MVM_NO_HINT, r, MVM_reg_uint64);
 }
