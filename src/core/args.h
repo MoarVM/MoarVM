@@ -40,6 +40,7 @@ typedef MVMuint8 MVMReturnType;
 #define MVM_RETURN_INT       2
 #define MVM_RETURN_NUM       4
 #define MVM_RETURN_STR       8
+#define MVM_RETURN_UINT     32
 /* When the thing returned to is "smart", like the debugserver,
  * set not only the return value but also the type depending on
  * which return_* op was used. */
@@ -120,11 +121,13 @@ void MVM_args_assert_nameds_used(MVMThreadContext *tc, MVMArgProcContext *ctx);
 /* Result setting. */
 void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 frameless);
 void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 frameless);
+void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 frameless);
 void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 frameless);
 void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 frameless);
 void MVM_args_assert_void_return_ok(MVMThreadContext *tc, MVMint32 frameless);
 void MVM_args_set_dispatch_result_obj(MVMThreadContext *tc, MVMFrame *target, MVMObject *result);
 void MVM_args_set_dispatch_result_int(MVMThreadContext *tc, MVMFrame *target, MVMint64 result);
+void MVM_args_set_dispatch_result_uint(MVMThreadContext *tc, MVMFrame *target, MVMuint64 result);
 void MVM_args_set_dispatch_result_num(MVMThreadContext *tc, MVMFrame *target, MVMnum64 result);
 void MVM_args_set_dispatch_result_str(MVMThreadContext *tc, MVMFrame *target, MVMString *result);
 

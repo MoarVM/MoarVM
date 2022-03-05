@@ -36,7 +36,7 @@ static void code_pair_fetch_i(MVMThreadContext *tc, MVMObject *cont, MVMRegister
 }
 
 static void code_pair_fetch_u(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {
-    code_pair_fetch_internal(tc, cont, res, MVM_RETURN_INT);
+    code_pair_fetch_internal(tc, cont, res, MVM_RETURN_UINT);
 }
 
 static void code_pair_fetch_n(MVMThreadContext *tc, MVMObject *cont, MVMRegister *res) {

@@ -1194,6 +1194,10 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                         update_rws(tc, values, num_args, arg_types, args, interval_id);
                         MVM_args_set_dispatch_result_int(tc, tc->cur_frame, (MVMuint64)ret);
                     }
+                    else if (tc->cur_frame->return_type == MVM_RETURN_UINT) {
+                        update_rws(tc, values, num_args, arg_types, args, interval_id);
+                        MVM_args_set_dispatch_result_uint(tc, tc->cur_frame, (MVMuint64)ret);
+                    }
                     else {
                         result = MVM_nativecall_make_cpointer(tc, res_type, ret);
 
@@ -1226,19 +1230,19 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                     break;
                 }
                 case MVM_NATIVECALL_ARG_UCHAR:
-                    handle_ret_and_rws(tc, unsigned char, ffi_arg, MVM_args_set_dispatch_result_int);
+                    handle_ret_and_rws(tc, unsigned char, ffi_arg, MVM_args_set_dispatch_result_uint);
                     break;
                 case MVM_NATIVECALL_ARG_USHORT:
-                    handle_ret_and_rws(tc, unsigned short, ffi_arg, MVM_args_set_dispatch_result_int);
+                    handle_ret_and_rws(tc, unsigned short, ffi_arg, MVM_args_set_dispatch_result_uint);
                     break;
                 case MVM_NATIVECALL_ARG_UINT:
-                    handle_ret_and_rws(tc, unsigned int, ffi_arg, MVM_args_set_dispatch_result_int);
+                    handle_ret_and_rws(tc, unsigned int, ffi_arg, MVM_args_set_dispatch_result_uint);
                     break;
                 case MVM_NATIVECALL_ARG_ULONG:
-                    handle_ret_and_rws(tc, unsigned long, ffi_arg, MVM_args_set_dispatch_result_int);
+                    handle_ret_and_rws(tc, unsigned long, ffi_arg, MVM_args_set_dispatch_result_uint);
                     break;
                 case MVM_NATIVECALL_ARG_ULONGLONG:
-                    handle_ret_and_rws(tc, unsigned long long, ffi_arg, MVM_args_set_dispatch_result_int);
+                    handle_ret_and_rws(tc, unsigned long long, ffi_arg, MVM_args_set_dispatch_result_uint);
                     break;
                 default:
                     MVM_gc_mark_thread_unblocked(tc);

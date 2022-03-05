@@ -691,6 +691,9 @@ void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 f
             case MVM_RETURN_INT:
                 target->return_value->i64 = MVM_repr_get_int(tc, decont_result(tc, result));
                 break;
+            case MVM_RETURN_UINT:
+                target->return_value->u64 = MVM_repr_get_uint(tc, decont_result(tc, result));
+                break;
             case MVM_RETURN_NUM:
                 target->return_value->n64 = MVM_repr_get_num(tc, decont_result(tc, result));
                 break;
@@ -716,6 +719,9 @@ void MVM_args_set_dispatch_result_obj(MVMThreadContext *tc, MVMFrame *target, MV
             break;
         case MVM_RETURN_INT:
             target->return_value->i64 = MVM_repr_get_int(tc, decont_result(tc, result));
+            break;
+        case MVM_RETURN_UINT:
+            target->return_value->u64 = MVM_repr_get_uint(tc, decont_result(tc, result));
             break;
         case MVM_RETURN_NUM:
             target->return_value->n64 = MVM_repr_get_num(tc, decont_result(tc, result));
@@ -750,6 +756,9 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
             case MVM_RETURN_INT:
                 target->return_value->i64 = result;
                 break;
+            case MVM_RETURN_UINT:
+                target->return_value->u64 = result;
+                break;
             case MVM_RETURN_NUM:
                 target->return_value->n64 = (MVMnum64)result;
                 break;
@@ -769,12 +778,82 @@ void MVM_args_set_result_int(MVMThreadContext *tc, MVMint64 result, MVMint32 fra
     }
 }
 
+void MVM_args_set_result_uint(MVMThreadContext *tc, MVMuint64 result, MVMint32 frameless) {
+    MVMFrame *target;
+    if (frameless) {
+        target = tc->cur_frame;
+    }
+    else {
+        if (MVM_spesh_log_is_caller_logging(tc))
+            MVM_spesh_log_return_type(tc, NULL);
+        else if (MVM_spesh_log_is_logging(tc))
+            MVM_spesh_log_return_to_unlogged(tc);
+        target = tc->cur_frame->caller;
+    }
+    if (target) {
+        switch (target->return_type) {
+            case MVM_RETURN_VOID:
+                if (tc->cur_frame->static_info->body.has_exit_handler)
+                    save_for_exit_handler(tc,
+                        MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, result));
+                break;
+            case MVM_RETURN_INT:
+                target->return_value->i64 = result;
+                break;
+            case MVM_RETURN_UINT:
+                target->return_value->u64 = result;
+                break;
+            case MVM_RETURN_NUM:
+                target->return_value->n64 = (MVMnum64)result;
+                break;
+            case MVM_RETURN_OBJ: {
+                /* dereference target first to avoid GC issue */
+                MVMRegister *return_value = (frameless ? tc->cur_frame : tc->cur_frame->caller)->return_value;
+                autobox_int(tc, target, result, return_value->o);
+                break;
+            }
+            case MVM_RETURN_ALLOMORPH:
+                target->return_type = MVM_RETURN_UINT;
+                target->return_value->u64 = result;
+                break;
+            default:
+                MVM_exception_throw_adhoc(tc, "Result return coercion from uint NYI; expects type %u", target->return_type);
+        }
+    }
+}
+
 void MVM_args_set_dispatch_result_int(MVMThreadContext *tc, MVMFrame *target, MVMint64 result) {
     switch (target->return_type) {
         case MVM_RETURN_VOID:
             break;
         case MVM_RETURN_INT:
             target->return_value->i64 = result;
+            break;
+        case MVM_RETURN_UINT:
+            target->return_value->u64 = result;
+            break;
+        case MVM_RETURN_NUM:
+            target->return_value->n64 = (MVMnum64)result;
+            break;
+        case MVM_RETURN_OBJ: {
+            MVMRegister *return_value = target->return_value; /* dereference target first to avoid GC issue */
+            autobox_int(tc, target, result, return_value->o);
+            break;
+        }
+        default:
+            MVM_exception_throw_adhoc(tc, "Result return coercion from int NYI; expects type %u", target->return_type);
+    }
+}
+
+void MVM_args_set_dispatch_result_uint(MVMThreadContext *tc, MVMFrame *target, MVMuint64 result) {
+    switch (target->return_type) {
+        case MVM_RETURN_VOID:
+            break;
+        case MVM_RETURN_INT:
+            target->return_value->i64 = result;
+            break;
+        case MVM_RETURN_UINT:
+            target->return_value->u64 = result;
             break;
         case MVM_RETURN_NUM:
             target->return_value->n64 = (MVMnum64)result;
@@ -814,6 +893,9 @@ void MVM_args_set_result_num(MVMThreadContext *tc, MVMnum64 result, MVMint32 fra
             case MVM_RETURN_INT:
                 target->return_value->i64 = (MVMint64)result;
                 break;
+            case MVM_RETURN_UINT:
+                target->return_value->u64 = (MVMuint64)result;
+                break;
             case MVM_RETURN_OBJ: {
                 /* dereference target first to avoid GC issue */
                 MVMRegister *return_value = (frameless ? tc->cur_frame : tc->cur_frame->caller)->return_value;
@@ -839,6 +921,9 @@ void MVM_args_set_dispatch_result_num(MVMThreadContext *tc, MVMFrame *target, MV
             break;
         case MVM_RETURN_INT:
             target->return_value->i64 = (MVMint64)result;
+            break;
+        case MVM_RETURN_UINT:
+            target->return_value->u64 = (MVMuint64)result;
             break;
         case MVM_RETURN_OBJ: {
             MVMRegister *return_value = target->return_value; /* dereference target first to avoid GC issue */

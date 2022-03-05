@@ -906,6 +906,9 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
                     case MVM_RETURN_INT:
                         result = MVM_repr_box_int(tc, hll->int_box_type, caller->return_value->i64);
                         break;
+                    case MVM_RETURN_UINT:
+                        result = MVM_repr_box_uint(tc, hll->int_box_type, caller->return_value->u64);
+                        break;
                     case MVM_RETURN_NUM:
                         result = MVM_repr_box_num(tc, hll->num_box_type, caller->return_value->n64);
                         break;

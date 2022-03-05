@@ -58,10 +58,12 @@ MVMCallsite * MVM_spesh_disp_callsite_for_dispatch_op(MVMuint16 opcode, MVMuint8
         case MVM_OP_sp_dispatch_v:
             return cu->body.callsites[GET_UI16(args, 4)];
         case MVM_OP_dispatch_i:
+        case MVM_OP_dispatch_u:
         case MVM_OP_dispatch_n:
         case MVM_OP_dispatch_s:
         case MVM_OP_dispatch_o:
         case MVM_OP_sp_dispatch_i:
+        case MVM_OP_sp_dispatch_u:
         case MVM_OP_sp_dispatch_n:
         case MVM_OP_sp_dispatch_s:
         case MVM_OP_sp_dispatch_o:
@@ -107,6 +109,7 @@ static void rewrite_to_sp_dispatch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSp
     switch (ins->info->opcode) {
         case MVM_OP_dispatch_v: new_ins_base_info = MVM_op_get_op(MVM_OP_sp_dispatch_v); break;
         case MVM_OP_dispatch_i: new_ins_base_info = MVM_op_get_op(MVM_OP_sp_dispatch_i); break;
+        case MVM_OP_dispatch_u: new_ins_base_info = MVM_op_get_op(MVM_OP_sp_dispatch_u); break;
         case MVM_OP_dispatch_n: new_ins_base_info = MVM_op_get_op(MVM_OP_sp_dispatch_n); break;
         case MVM_OP_dispatch_o: new_ins_base_info = MVM_op_get_op(MVM_OP_sp_dispatch_o); break;
         case MVM_OP_dispatch_s: new_ins_base_info = MVM_op_get_op(MVM_OP_sp_dispatch_s); break;
@@ -141,6 +144,7 @@ static MVMuint32 find_disp_op_first_real_arg(MVMThreadContext *tc, MVMSpeshIns *
     if (ins->info->opcode == MVM_OP_dispatch_v)
         return 2;
     assert(ins->info->opcode == MVM_OP_dispatch_i ||
+            ins->info->opcode == MVM_OP_dispatch_u ||
             ins->info->opcode == MVM_OP_dispatch_n ||
             ins->info->opcode == MVM_OP_dispatch_s ||
             ins->info->opcode == MVM_OP_dispatch_o);
@@ -994,6 +998,10 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                         emit_bi_op(tc, g, bb, &insert_after, MVM_OP_unbox_i, ins->operands[0],
                             temporaries[op->res_value.temp]);
                         break;
+                    case MVM_OP_dispatch_u:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_unbox_u, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
                     case MVM_OP_dispatch_n:
                         emit_bi_op(tc, g, bb, &insert_after, MVM_OP_unbox_n, ins->operands[0],
                             temporaries[op->res_value.temp]);
@@ -1023,6 +1031,10 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                     }
                     case MVM_OP_dispatch_i:
                         emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_si, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
+                    case MVM_OP_dispatch_u:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_su, ins->operands[0],
                             temporaries[op->res_value.temp]);
                         break;
                     case MVM_OP_dispatch_n:
@@ -1056,6 +1068,10 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                         emit_bi_op(tc, g, bb, &insert_after, MVM_OP_set, ins->operands[0],
                             temporaries[op->res_value.temp]);
                         break;
+                    case MVM_OP_dispatch_u:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_set, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
                     case MVM_OP_dispatch_n:
                         emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_in, ins->operands[0],
                             temporaries[op->res_value.temp]);
@@ -1085,6 +1101,10 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                     }
                     case MVM_OP_dispatch_i:
                         emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_ni, ins->operands[0],
+                            temporaries[op->res_value.temp]);
+                        break;
+                    case MVM_OP_dispatch_u:
+                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_coerce_nu, ins->operands[0],
                             temporaries[op->res_value.temp]);
                         break;
                     case MVM_OP_dispatch_n:
@@ -1127,6 +1147,9 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                         break;
                     case MVM_OP_dispatch_i:
                         base_op = MVM_op_get_op(MVM_OP_sp_runnativecall_i);
+                        break;
+                    case MVM_OP_dispatch_u:
+                        base_op = MVM_op_get_op(MVM_OP_sp_runnativecall_u);
                         break;
                     case MVM_OP_dispatch_n:
                         base_op = MVM_op_get_op(MVM_OP_sp_runnativecall_n);
@@ -1362,6 +1385,9 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                         break;
                     case MVM_OP_dispatch_i:
                         base_op = MVM_op_get_op(c ? MVM_OP_sp_runcfunc_i : MVM_OP_sp_runbytecode_i);
+                        break;
+                    case MVM_OP_dispatch_u:
+                        base_op = MVM_op_get_op(c ? MVM_OP_sp_runcfunc_u : MVM_OP_sp_runbytecode_u);
                         break;
                     case MVM_OP_dispatch_n:
                         base_op = MVM_op_get_op(c ? MVM_OP_sp_runcfunc_n : MVM_OP_sp_runbytecode_n);

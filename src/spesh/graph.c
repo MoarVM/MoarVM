@@ -161,17 +161,20 @@ static MVMint32 spesh_dispatchy(MVMuint16 opcode) {
 int MVM_spesh_graph_ins_ends_bb(MVMThreadContext *tc, const MVMOpInfo *info) {
     switch (info->opcode) {
     case MVM_OP_return_i:
+    case MVM_OP_return_u:
     case MVM_OP_return_n:
     case MVM_OP_return_s:
     case MVM_OP_return_o:
     case MVM_OP_return:
     case MVM_OP_dispatch_v:
     case MVM_OP_dispatch_i:
+    case MVM_OP_dispatch_u:
     case MVM_OP_dispatch_n:
     case MVM_OP_dispatch_s:
     case MVM_OP_dispatch_o:
     case MVM_OP_sp_dispatch_v:
     case MVM_OP_sp_dispatch_i:
+    case MVM_OP_sp_dispatch_u:
     case MVM_OP_sp_dispatch_n:
     case MVM_OP_sp_dispatch_s:
     case MVM_OP_sp_dispatch_o:

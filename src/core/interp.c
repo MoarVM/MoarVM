@@ -549,6 +549,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (MVM_frame_try_return(tc) == 0)
                     goto return_label;
                 goto NEXT;
+            OP(return_u):
+                MVM_args_set_result_uint(tc, GET_REG(cur_op, 0).u64,
+                    MVM_RETURN_CALLER_FRAME);
+                if (MVM_frame_try_return(tc) == 0)
+                    goto return_label;
+                goto NEXT;
             OP(return_n):
                 MVM_args_set_result_num(tc, GET_REG(cur_op, 0).n64,
                     MVM_RETURN_CALLER_FRAME);
@@ -949,6 +955,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(coerce_si):
                 GET_REG(cur_op, 0).i64 = MVM_coerce_s_i(tc, GET_REG(cur_op, 2).s);
+                cur_op += 4;
+                goto NEXT;
+            OP(coerce_su):
+                GET_REG(cur_op, 0).u64 = MVM_coerce_s_u(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
             OP(coerce_sn):
@@ -5396,6 +5406,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         tc->cur_frame->static_info, bytecode_offset);
                 goto NEXT;
             }
+            OP(dispatch_u): {
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
+                        cur_op, bytecode_start, tc->cur_frame);
+                MVMDispInlineCacheEntry *ice = *ice_ptr;
+                MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
+                MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
+                MVMuint16 *args = (MVMuint16 *)(cur_op + 8);
+                MVMuint32 bytecode_offset = (cur_op - bytecode_start) - 2;
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type  = MVM_RETURN_UINT;
+                cur_op += 8 + 2 * callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
+                ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args, tc->cur_frame->work,
+                        tc->cur_frame->static_info, bytecode_offset);
+                goto NEXT;
+            }
             OP(dispatch_n): {
                 MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
                         cur_op, bytecode_start, tc->cur_frame);
@@ -5798,6 +5824,23 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMuint16 *args = (MVMuint16 *)(cur_op + 14);
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                 tc->cur_frame->return_type  = MVM_RETURN_INT;
+                cur_op += 14 + 2 * callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
+                ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args, tc->cur_frame->work,
+                        sf, -1);
+                goto NEXT;
+            }
+            OP(sp_dispatch_u): {
+                MVMString *id = MVM_cu_string(tc, cu, GET_UI32(cur_op, 2));
+                MVMCallsite *callsite = cu->body.callsites[GET_UI16(cur_op, 6)];
+                MVMStaticFrame *sf = (MVMStaticFrame *)tc->cur_frame
+                        ->effective_spesh_slots[GET_UI16(cur_op, 8)];
+                MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get_spesh(sf,
+                        GET_UI32(cur_op, 10));
+                MVMDispInlineCacheEntry *ice = *ice_ptr;
+                MVMuint16 *args = (MVMuint16 *)(cur_op + 14);
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type  = MVM_RETURN_UINT;
                 cur_op += 14 + 2 * callsite->flag_count;
                 tc->cur_frame->return_address = cur_op;
                 ice->run_dispatch(tc, ice_ptr, ice, id, callsite, args, tc->cur_frame->work,
@@ -6468,6 +6511,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_frame_dispatch(tc, code, args, spesh_cand);
                 goto NEXT;
             }
+            OP(sp_runbytecode_u): {
+                MVMCode *code = (MVMCode *)GET_REG(cur_op, 2).o;
+                MVMint16 spesh_cand = GET_I16(cur_op, 12);
+                MVMArgs args = {
+                    .callsite = (MVMCallsite *)GET_UI64(cur_op, 4),
+                    .source = reg_base,
+                    .map = (MVMuint16 *)(cur_op + 14)
+                };
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type = MVM_RETURN_UINT;
+                cur_op += 14 + 2 * args.callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
+                MVM_frame_dispatch(tc, code, args, spesh_cand);
+                goto NEXT;
+            }
             OP(sp_runbytecode_n): {
                 MVMCode *code = (MVMCode *)GET_REG(cur_op, 2).o;
                 MVMint16 spesh_cand = GET_I16(cur_op, 12);
@@ -6540,6 +6598,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 code->body.func(tc, args);
                 goto NEXT;
             }
+            OP(sp_runcfunc_u): {
+                MVMCFunction *code = (MVMCFunction *)GET_REG(cur_op, 2).o;
+                MVMArgs args = {
+                    .callsite = (MVMCallsite *)GET_UI64(cur_op, 4),
+                    .source = reg_base,
+                    .map = (MVMuint16 *)(cur_op + 12)
+                };
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type = MVM_RETURN_UINT;
+                cur_op += 12 + 2 * args.callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
+                code->body.func(tc, args);
+                goto NEXT;
+            }
             OP(sp_runcfunc_n): {
                 MVMCFunction *code = (MVMCFunction *)GET_REG(cur_op, 2).o;
                 MVMArgs args = {
@@ -6606,6 +6678,21 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *result_type = GET_REG(cur_op, 12).o;
                 tc->cur_frame->return_value = &GET_REG(cur_op, 0);
                 tc->cur_frame->return_type = MVM_RETURN_INT;
+                cur_op += 12 + 2 * args.callsite->flag_count;
+                tc->cur_frame->return_address = cur_op;
+                MVM_nativecall_dispatch(tc, result_type, site, args);
+                goto NEXT;
+            }
+            OP(sp_runnativecall_u): {
+                MVMObject *site = GET_REG(cur_op, 2).o;
+                MVMArgs args = {
+                    .callsite = (MVMCallsite *)GET_UI64(cur_op, 4),
+                    .source = reg_base,
+                    .map = (MVMuint16 *)(cur_op + 12)
+                };
+                MVMObject *result_type = GET_REG(cur_op, 12).o;
+                tc->cur_frame->return_value = &GET_REG(cur_op, 0);
+                tc->cur_frame->return_type = MVM_RETURN_UINT;
                 cur_op += 12 + 2 * args.callsite->flag_count;
                 tc->cur_frame->return_address = cur_op;
                 MVM_nativecall_dispatch(tc, result_type, site, args);
@@ -6705,12 +6792,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
              * even though the op numbers are technically out of order. */
             OP(DEPRECATED_6):
                 MVM_exception_throw_adhoc(tc, "The getregref_* ops were removed in MoarVM 2017.01.");
-            OP(DEPRECATED_22):
-                MVM_exception_throw_adhoc(tc, "The readall_fh op was removed in MoarVM 2017.06.");
-            OP(DEPRECATED_23):
-                MVM_exception_throw_adhoc(tc, "The read_fhs op was removed in MoarVM 2017.06.");
-            OP(DEPRECATED_24):
-                MVM_exception_throw_adhoc(tc, "The setinputlinesep op was removed in MoarVM 2017.06.");
             OP(DEPRECATED_25):
                 MVM_exception_throw_adhoc(tc, "The setinputlineseps op was removed in MoarVM 2017.06.");
             OP(DEPRECATED_27):
