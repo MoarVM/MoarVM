@@ -575,7 +575,7 @@ void MVM_nativeref_write_lex_i(MVMThreadContext *tc, MVMObject *ref_obj, MVMint6
         case MVM_reg_uint16:
         case MVM_reg_uint32:
         case MVM_reg_uint64:
-            MVM_exception_throw_adhoc("Attempting to MVM_nativeref_write_lex_i (%ld) to an unsigned variable", value);
+            MVM_exception_throw_adhoc(tc, "Attempting to MVM_nativeref_write_lex_i (%ld) to an unsigned variable", value);
             break;
         case MVM_reg_int8:
             var->i8 = (MVMint8)value;
@@ -599,7 +599,7 @@ void MVM_nativeref_write_lex_u(MVMThreadContext *tc, MVMObject *ref_obj, MVMuint
         case MVM_reg_int16:
         case MVM_reg_int32:
         case MVM_reg_int64:
-            MVM_exception_throw_adhoc("Attempting to MVM_nativeref_write_lex_u (%lu) to a signed variable", value);
+            MVM_exception_throw_adhoc(tc, "Attempting to MVM_nativeref_write_lex_u (%lu) to a signed variable", value);
             break;
         case MVM_reg_uint8:
             var->u8 = (MVMuint8)value;
