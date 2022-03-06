@@ -1544,7 +1544,10 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         char *no_inline_reason = NULL;
         const MVMOpInfo *no_inline_info = NULL;
         MVMuint32 effective_size;
-        MVMSpeshGraph *inline_graph = MVM_spesh_inline_try_get_graph(tc, g,
+        /* Do not try to inline calls from inlined basic blocks! Otherwise the new inlinees would
+         * get added to the inlines table after the original inlinee which they are nested in and
+         * the frame walker would find the outer inlinee first, giving wrong results */
+        MVMSpeshGraph *inline_graph = bb->inlined ? NULL : MVM_spesh_inline_try_get_graph(tc, g,
             target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
             ins, &no_inline_reason, &effective_size, &no_inline_info);
         log_inline(tc, g, target_sf, inline_graph, effective_size, no_inline_reason,
@@ -1597,7 +1600,10 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
             }
         }
     }
-    else if (target_sf->body.bytecode_size < MVM_spesh_inline_get_max_size(tc, target_sf)) {
+    /* Do not try to inline calls from inlined basic blocks! Otherwise the new inlinees would
+     * get added to the inlines table after the original inlinee which they are nested in and
+     * the frame walker would find the outer inlinee first, giving wrong results */
+    else if (!bb->inlined && target_sf->body.bytecode_size < MVM_spesh_inline_get_max_size(tc, target_sf)) {
         /* Consider producing a candidate to inline. */
         char *no_inline_reason = NULL;
         const MVMOpInfo *no_inline_info = NULL;
