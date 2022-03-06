@@ -9,6 +9,10 @@
 #  define IS_SLASH(c)     ((c) == '/')
 #endif
 
+#ifndef PATH_MAX
+#  define PATH_MAX 2048
+#endif
+
 #ifdef _WIN32
 static wchar_t * UTF8ToUnicode(char *str)
 {
