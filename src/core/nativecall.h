@@ -129,6 +129,7 @@ unsigned long long  MVM_nativecall_unmarshal_ulonglong(MVMThreadContext *tc, MVM
 float               MVM_nativecall_unmarshal_float(MVMThreadContext *tc, MVMObject *value);
 double              MVM_nativecall_unmarshal_double(MVMThreadContext *tc, MVMObject *value);
 
+char * MVM_nativecall_encode_string(MVMThreadContext *tc, MVMString *value_str, MVMint16 type, MVMint16 *free, MVMint16 unmarshal_kind, const MVMREPROps *repr);
 char * MVM_nativecall_unmarshal_string(MVMThreadContext *tc, MVMObject *value, MVMint16 type, MVMint16 *free, MVMint16 unmarshal_kind);
 void * MVM_nativecall_unmarshal_cstruct(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind);
 void * MVM_nativecall_unmarshal_cppstruct(MVMThreadContext *tc, MVMObject *value, MVMint16 unmarshal_kind);
