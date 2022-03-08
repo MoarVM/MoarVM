@@ -652,12 +652,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 }
                 break;
             case MVM_OP_param_on_o:
-                if (found_idx != -1 && !(found_flag & MVM_CALLSITE_ARG_OBJ)) {
-                    MVM_spesh_graph_add_comment(tc, g, named_ins[i],
-                            "bailed argument spesh: unhandled coercion");
-                    goto cleanup;
-                }
-                break;
+                /* Everything can coerce to obj, so don't need to do anything, but leaving this
+                 * case here for completeness. */
             default:
                 break;
             }
