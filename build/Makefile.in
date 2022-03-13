@@ -41,7 +41,6 @@ CFLAGS    = @cflags@ @ccdef@MVM_TRACING=$(TRACING) @ccdef@MVM_CGOTO=$(CGOTO)
 CINCLUDES = @moar_cincludes@ \
             @ccinc@@shaincludedir@ \
             @mimalloc_include@ \
-            @ccincsystem@3rdparty/tinymt \
             @ccincsystem@3rdparty/ryu \
             @ccincsystem@3rdparty/dynasm \
             @ccincsystem@3rdparty/cmp \
@@ -302,6 +301,7 @@ HEADERS = src/moar.h \
           src/core/intcache.h \
           src/core/fixedsizealloc.h \
           src/core/regionalloc.h \
+          src/core/jfs64.h \
           src/debug/debugserver.h \
           src/io/io.h \
           src/io/eventloop.h \
@@ -721,10 +721,6 @@ tools/repr_size_table@exe@: tools/repr_size_table@obj@ @moarlib@ $(DLL_LIBS)
 	$(MSG) linking $@
 	$(CMD)@sharule@ $(NOOUT)
 
-@mtlib@: @mtobjects@
-	$(MSG) linking $@
-	$(CMD)@mtrule@ $(NOOUT)
-
 @cmplib@: @cmpobjects@
 	$(MSG) linking $@
 	$(CMD)@cmprule@ $(NOOUT)
@@ -754,7 +750,6 @@ realclean: clean
 	-$(RM) @laolib@ $(NOOUT) $(NOERR)
 	-$(CMD)@tomclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@shaclean@ $(NOOUT) $(NOERR)
-	-$(CMD)@mtclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@dcclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@cmpclean@ $(NOOUT) $(NOERR)
 	-$(RM) $(MINILUA) $(NOOUT) $(NOERR)

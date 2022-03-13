@@ -1,6 +1,6 @@
 #include "moar.h"
 #include "platform/random.h"
-#include "tinymt64.h"
+#include "core/jfs64.h"
 
 #define MANTISSA_BITS_IN_DOUBLE 53
 #define EXPONENT_SHIFT 52
@@ -1397,7 +1397,7 @@ MVMnum64 MVM_bigint_div_num(MVMThreadContext *tc, MVMObject *a, MVMObject *b) {
 }
 
 /* The below function is copied from libtommath and modified to use
- * tinymt64 as the source of randomness. As of LTM v1.1.0, mp_rand()
+ * jfs64 as the source of randomness. As of LTM v1.1.0, mp_rand()
  * uses sources of randomness that can't be seeded. Since we want to
  * be able to do that, for now just copy and modify.
  */
@@ -1421,12 +1421,12 @@ mp_err MVM_mp_rand(MVMThreadContext *tc, mp_int *a, int digits)
 
    /* TODO: We ensure that the highest digit is nonzero. Should this be removed? */
    while ((a->dp[digits - 1] & MP_MASK) == 0u) {
-      a->dp[digits - 1] = tinymt64_generate_uint64(tc->rand_state);
+      a->dp[digits - 1] = jfs64_generate_uint64(tc->rand_state);
    }
 
    a->used = digits;
    for (i = 0; i < digits; ++i) {
-      a->dp[i] = tinymt64_generate_uint64(tc->rand_state);
+      a->dp[i] = jfs64_generate_uint64(tc->rand_state);
       a->dp[i] &= MP_MASK;
    }
 
@@ -1465,7 +1465,7 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
 
     if (use_small_arithmetic) {
         if (MP_GEN_RANDOM_MAX >= (unsigned long)abs(smallint_max)) {
-            mp_digit result_int = tinymt64_generate_uint64(tc->rand_state);
+            mp_digit result_int = jfs64_generate_uint64(tc->rand_state);
             result_int = result_int % smallint_max;
             if (have_to_negate)
                 result_int *= -1;

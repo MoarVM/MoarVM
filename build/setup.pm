@@ -26,12 +26,6 @@ my %TP_TOM = (
     src  => [ '3rdparty/libtommath' ],
 );
 
-my %TP_MT = (
-    name => 'tinymt',
-    path => '3rdparty/tinymt',
-    src  => [ '3rdparty/tinymt' ],
-);
-
 my %TP_DC = (
     name  => 'dyncall_s',
     path  => '3rdparty/dyncall/dyncall',
@@ -77,7 +71,6 @@ our %THIRDPARTY = (
     lao => { %TP_LAO },
     tom => { %TP_TOM },
     sha => { %TP_SHA },
-    mt  => { %TP_MT },
     dc  => { %TP_DC },
     dcb => { %TP_DCB },
     dl  => { %TP_DL },
