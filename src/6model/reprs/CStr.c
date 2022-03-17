@@ -33,7 +33,11 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void set_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMString *value) {
     MVMCStrBody *body = (MVMCStrBody *)data;
     MVM_ASSIGN_REF(tc, &(root->header), body->orig, value);
+#ifdef MVM_USE_MIMALLOC
+    body->cstr = MVM_string_utf8_encode_C_string_malloc(tc, value);
+#else
     body->cstr = MVM_string_utf8_encode_C_string(tc, value);
+#endif
 }
 
 static MVMString * get_str(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
@@ -64,7 +68,11 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMCStr *cstr = (MVMCStr *)obj;
     if (obj && cstr->body.cstr)
+#ifdef MVM_USE_MIMALLOC
         free(cstr->body.cstr);
+#else
+        MVM_free(cstr->body.cstr);
+#endif
 }
 
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
@@ -76,17 +84,10 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     MVMCStrBody *body = (MVMCStrBody *)data;
     MVM_ASSIGN_REF(tc, &(root->header), body->orig, orig);
 
-    char *mvm_allocated_cstr  = MVM_string_utf8_encode_C_string(tc, orig);
 #ifdef MVM_USE_MIMALLOC
-    /* Safe because MVM_string_utf8_encode_C_string is guaranteed to return a null-terminated string */
-    size_t cstr_len = strlen(mvm_allocated_cstr) + 1;
-    char *libc_allocated_cstr = malloc(cstr_len);
-    memcpy(libc_allocated_cstr, mvm_allocated_cstr, cstr_len);
-    MVM_free(mvm_allocated_cstr);
-
-    body->cstr = libc_allocated_cstr;
+    body->cstr = MVM_string_utf8_encode_C_string_malloc(tc, orig);
 #else
-    body->cstr = mvm_allocated_cstr;
+    body->cstr = MVM_string_utf8_encode_C_string(tc, orig);
 #endif
 }
 
