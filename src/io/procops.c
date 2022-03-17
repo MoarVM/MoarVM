@@ -1099,11 +1099,11 @@ MVMint64 MVM_proc_rand_i(MVMThreadContext *tc) {
 
 /* generates a number between 0 and 1 */
 MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
-    return ((jfs64_generate_uint64(tc->rand_state) >> 11) / (double)(1L << 53));
+    return ((jfs64_generate_uint64(tc->rand_state) >> 11) * (1.0 / 9007199254740992.0));
 }
 
 MVMnum64 MVM_proc_randscale_n(MVMThreadContext *tc, MVMnum64 scale) {
-    return ((jfs64_generate_uint64(tc->rand_state) >> 11) / (double)(1L << 53)) * scale;
+    return ((jfs64_generate_uint64(tc->rand_state) >> 11) * (1.0 / 9007199254740992.0)) * scale;
 }
 
 /* seed random number generator */
