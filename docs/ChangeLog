@@ -1,3 +1,33 @@
+New in 2022.03
+
+Core:
++ Update libuv to version 1.43.0 [cc54203e]
++ Bump mimalloc to v2.0.5 [1b8b2e39]
++ The result of a getenv() call should not be freed [a78776ea]
++ Some nativeref optimizations and fixes [348f0927][fed7bb86][0f853f8f]
+  [28643799][f7891c8f][062fe30f]
++ Fix all returned native integers getting treated as signed [bb2fb105]
+  [535ff68b][345ec7d3]
++ Make rakudo available on the GNU Hurd [a9c0058d][0d584831][e96bab85]
++ Fix potential invalid free in nativecall [4bf970a9]
++ Add missing _u cases to disp program callsite code [b0723bcb]
++ Correctly allocate/free CStrs when using mimalloc [764fff9b]
+
+GC:
++ Root orig since MVM_frame_capturelex can allocate [df8d3bb9]
+
+JIT:
++ Restore jitting of sp_getarg_[inso] [91006ae5]
++ Jit even more *_u versions of ops [0ee1ca24]
+
+Spesh:
++ Fix frame walker finding wrong value after multi level inlining [059c013b]
++ Fix spesh of named uint parameters [482e284f]
++ Fix speshing of param_on_o [0b45dd48]
+
+Strings:
++ Add an MVM_nativecall_encode_string function [596b4215]
+
 New in 2022.02
 
 Core:
