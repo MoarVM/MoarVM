@@ -573,6 +573,7 @@ if (!defined $config{use_mimalloc}) {
 }
 
 if ($config{use_mimalloc}) {
+    $config{cflags} .= ' -DMI_SKIP_COLLECT_ON_EXIT';
     $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/mimalloc/include'
                              . ' ' . $defaults{ccinc} . '3rdparty/mimalloc/src';
     $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/mimalloc\"\n"
