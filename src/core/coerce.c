@@ -337,8 +337,8 @@ MVMint64 MVM_coerce_s_i(MVMThreadContext *tc, MVMString *str) {
     MVMint64       result = 0;
     MVMint32       any = 0, negative = 0;
 
-    signed long long cutoff;
-    MVMint32  cutlim;
+    MVMint64 cutoff;
+    MVMint32 cutlim;
 
     if (!strgraphs)
         return result;
@@ -495,8 +495,8 @@ MVMuint64 MVM_coerce_s_u(MVMThreadContext *tc, MVMString *str) {
     MVMuint64      result = 0;
     MVMint32       any = 0, negative = 0;
 
-    signed long long cutoff;
-    MVMint32  cutlim;
+    MVMuint64 cutoff;
+    MVMint32 cutlim;
 
     if (!strgraphs)
         return result;
@@ -505,7 +505,7 @@ MVMuint64 MVM_coerce_s_u(MVMThreadContext *tc, MVMString *str) {
  * Copyright (c) 1990 The Regents of the University of California.
  * All rights reserved.
  *
- * copied from https://github.com/gcc-mirror/gcc/blob/0c0f453c4af4880c522c8472c33eef42bee9eda1/libiberty/strtoll.c
+ * copied from https://github.com/gcc-mirror/gcc/blob/0c0f453c4af4880c522c8472c33eef42bee9eda1/libiberty/strtoull.c
  * with minor modifications to simplify and work in MoarVM
  *
  * Redistribution and use in source and binary forms, with or without
@@ -569,7 +569,7 @@ MVMuint64 MVM_coerce_s_u(MVMThreadContext *tc, MVMString *str) {
             c = *s++;
         }
 
-        cutoff = negative ? -(unsigned long long)LLONG_MIN : LLONG_MAX;
+        cutoff = (unsigned long long)LLONG_MAX;
         cutlim = cutoff % (unsigned long long)10;
         cutoff /= (unsigned long long)10;
 
@@ -617,7 +617,7 @@ MVMuint64 MVM_coerce_s_u(MVMThreadContext *tc, MVMString *str) {
             ord = MVM_string_ci_get_codepoint(tc, &ci);
         }
 
-        cutoff = negative ? -(unsigned long long)LLONG_MIN : LLONG_MAX;
+        cutoff = (unsigned long long)LLONG_MAX;
         cutlim = cutoff % (unsigned long long)10;
         cutoff /= (unsigned long long)10;
 
