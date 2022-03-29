@@ -1241,8 +1241,7 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                                     rw_operands[j] = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
                                     emit_bi_op(tc, g, bb, &insert_after, MVM_OP_decont_i, rw_operands[j], var);
 
-                                    callsite = MVM_callsite_drop_positional(tc, callsite, j);
-                                    callsite = MVM_callsite_insert_positional(tc, callsite, j, MVM_CALLSITE_ARG_INT);
+                                    callsite = MVM_callsite_replace_positional(tc, callsite, j, MVM_CALLSITE_ARG_INT);
                                     MVM_callsite_intern(tc, &callsite, 1, 0);
 
                                     if (has_return_value && var.reg.orig == rb_ins->operands[0].reg.orig) {
@@ -1262,8 +1261,7 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                                     rw_operands[j] = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_uint64);
                                     emit_bi_op(tc, g, bb, &insert_after, MVM_OP_decont_u, rw_operands[j], var);
 
-                                    callsite = MVM_callsite_drop_positional(tc, callsite, j);
-                                    callsite = MVM_callsite_insert_positional(tc, callsite, j, MVM_CALLSITE_ARG_UINT);
+                                    callsite = MVM_callsite_replace_positional(tc, callsite, j, MVM_CALLSITE_ARG_UINT);
                                     MVM_callsite_intern(tc, &callsite, 1, 0);
 
                                     if (has_return_value && var.reg.orig == rb_ins->operands[0].reg.orig) {
