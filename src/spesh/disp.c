@@ -632,6 +632,7 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
 
     /* Visit the ops of the dispatch program and translate them. */
     MVMSpeshIns *insert_after = ins;
+    MVMSpeshIns *orig_next = ins->next;
     MVMCallsite *callsite = NULL;
     MVMint32 skip_args = -1;
     for (i = 0; i < dp->num_ops; i++) {
@@ -1252,6 +1253,12 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                                 default:
                                     MVM_spesh_graph_add_comment(tc, g, ins, "dispatch not compiled: unsupported NativeCall rw type %d",
                                                     arg_types[j - 1] & MVM_NATIVECALL_ARG_TYPE_MASK);
+                                    /* Clean up the inserted guards */
+                                    ins = ins->next;
+                                    while (ins && ins != orig_next) {
+                                        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+                                        ins = ins->next;
+                                    }
                                     return 0;
                             }
                         }
