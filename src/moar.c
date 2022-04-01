@@ -756,6 +756,13 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
 
     /* Clear up VM instance memory. */
     MVM_free(instance);
+
+#ifdef MVM_USE_MIMALLOC
+    /* Ask mimalloc to release to the OS any already freed memory it's holding onto.
+     * This probably isn't strictly necessary, but might help in case any analyzers
+     * (e.g., valgrind, heaptrack) don't support mimalloc well. */
+    mi_collect(true);
+#endif
 }
 
 void MVM_vm_set_clargs(MVMInstance *instance, int argc, char **argv) {
