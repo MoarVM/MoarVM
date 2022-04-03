@@ -632,6 +632,7 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
 
     /* Visit the ops of the dispatch program and translate them. */
     MVMSpeshIns *insert_after = ins;
+    MVMSpeshIns *orig_next = ins->next;
     MVMCallsite *callsite = NULL;
     MVMint32 skip_args = -1;
     for (i = 0; i < dp->num_ops; i++) {
@@ -1230,6 +1231,8 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                     for (j = 1; j < callsite->flag_count; j++) { /* first arg is return type */
                         if ((arg_types[j - 1] & MVM_NATIVECALL_ARG_RW_MASK) == MVM_NATIVECALL_ARG_RW) {
                             switch (arg_types[j - 1] & MVM_NATIVECALL_ARG_TYPE_MASK) {
+                                case MVM_NATIVECALL_ARG_CHAR:
+                                case MVM_NATIVECALL_ARG_SHORT:
                                 case MVM_NATIVECALL_ARG_INT:
                                 case MVM_NATIVECALL_ARG_LONG:
                                 case MVM_NATIVECALL_ARG_LONGLONG: {
@@ -1238,8 +1241,27 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                                     rw_operands[j] = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
                                     emit_bi_op(tc, g, bb, &insert_after, MVM_OP_decont_i, rw_operands[j], var);
 
-                                    callsite = MVM_callsite_drop_positional(tc, callsite, j);
-                                    callsite = MVM_callsite_insert_positional(tc, callsite, j, MVM_CALLSITE_ARG_INT);
+                                    callsite = MVM_callsite_replace_positional(tc, callsite, j, MVM_CALLSITE_ARG_INT);
+                                    MVM_callsite_intern(tc, &callsite, 1, 0);
+
+                                    if (has_return_value && var.reg.orig == rb_ins->operands[0].reg.orig) {
+                                        rw_dummy = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
+                                        emit_bi_op(tc, g, bb, &insert_after, MVM_OP_set, rw_dummy, var);
+                                        has_rw_dummy = 1;
+                                    }
+                                    break;
+                                }
+                                case MVM_NATIVECALL_ARG_UCHAR:
+                                case MVM_NATIVECALL_ARG_USHORT:
+                                case MVM_NATIVECALL_ARG_UINT:
+                                case MVM_NATIVECALL_ARG_ULONG:
+                                case MVM_NATIVECALL_ARG_ULONGLONG: {
+                                    MVMSpeshOperand var = skip_args >= 0 ? args[skip_args + j] : temporaries[dp->first_args_temporary + j];
+                                    is_rw_operand[j] = 1;
+                                    rw_operands[j] = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_uint64);
+                                    emit_bi_op(tc, g, bb, &insert_after, MVM_OP_decont_u, rw_operands[j], var);
+
+                                    callsite = MVM_callsite_replace_positional(tc, callsite, j, MVM_CALLSITE_ARG_UINT);
                                     MVM_callsite_intern(tc, &callsite, 1, 0);
 
                                     if (has_return_value && var.reg.orig == rb_ins->operands[0].reg.orig) {
@@ -1252,6 +1274,12 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                                 default:
                                     MVM_spesh_graph_add_comment(tc, g, ins, "dispatch not compiled: unsupported NativeCall rw type %d",
                                                     arg_types[j - 1] & MVM_NATIVECALL_ARG_TYPE_MASK);
+                                    /* Clean up the inserted guards */
+                                    ins = ins->next;
+                                    while (ins && ins != orig_next) {
+                                        MVM_spesh_manipulate_delete_ins(tc, g, bb, ins);
+                                        ins = ins->next;
+                                    }
                                     return 0;
                             }
                         }
@@ -1295,7 +1323,10 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                         MVMSpeshOperand var = has_rw_dummy
                             ? rw_dummy
                             : skip_args >= 0 ? args[skip_args + j] : temporaries[dp->first_args_temporary + j];
-                        emit_bi_op(tc, g, bb->linear_next, &post_call_instructions, MVM_OP_assign_i,
+                        emit_bi_op(tc, g, bb->linear_next, &post_call_instructions,
+                            g->local_types[rw_operands[j].reg.orig] == MVM_reg_int64
+                                ? MVM_OP_assign_i
+                                : MVM_OP_assign_u,
                             var, rw_operands[j]);
                         MVM_spesh_usages_add_by_reg(tc, g, var, post_call_instructions);
                         MVM_spesh_manipulate_release_temp_reg(tc, g, rw_operands[j]);
