@@ -272,7 +272,9 @@ else {
     push @hllincludes, 'libuv';
 }
 
-$config{use_c11_atomics} = $args{'c11-atomics'} ? 1 : 0;
+$config{use_c11_atomics} = defined $args{'c11-atomics'}
+    ? $args{'c11-atomics'} ? 1 : 0
+    : 1; # default to on
 
 if ($config{use_c11_atomics}) {
     $defaults{-thirdparty}->{lao} = undef;
