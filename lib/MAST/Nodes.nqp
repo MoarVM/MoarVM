@@ -68,6 +68,9 @@ class MAST::Bytecode is repr('VMArray') is array_type(uint8) {
     method write_uint16(uint16 $i) {
         nqp::writeuint(self, nqp::elems(self), $i, 5);
     }
+    method write_uint16_at(uint16 $i, uint $pos) {
+        nqp::writeuint(self, $pos, $i, 5);
+    }
     method write_uint8(uint8 $i) {
         nqp::writeuint(self, nqp::elems(self), $i, 1);
     }
