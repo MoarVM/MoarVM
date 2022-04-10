@@ -272,9 +272,19 @@ else {
     push @hllincludes, 'libuv';
 }
 
+# we just need a minimal ldlibs configured for the stdatomic probe,
+# it will get overwritten later
+$config{ldlibs} = join ' ',
+    $config{lincludes},
+    (map { sprintf $config{ldusr}, $_; } @{$config{usrlibs}}),
+    (map { sprintf $config{ldsys}, $_; } @{$config{syslibs}});
+
+# probe for working stdatomic.h, also used by mimalloc
+build::probe::stdatomic(\%config, \%defaults);
+
 $config{use_c11_atomics} = defined $args{'c11-atomics'}
-    ? $args{'c11-atomics'} ? 1 : 0
-    : 1; # default to on
+    ? $args{'c11-atomics'}   ? 1 : 0
+    : $config{has_stdatomic} ? 1 : 0; # default to on if available
 
 if ($config{use_c11_atomics}) {
     $defaults{-thirdparty}->{lao} = undef;
@@ -556,7 +566,6 @@ build::probe::substandard_trig(\%config, \%defaults);
 build::probe::has_isinf_and_isnan(\%config, \%defaults);
 build::probe::unaligned_access(\%config, \%defaults);
 build::probe::ptr_size(\%config, \%defaults);
-build::probe::stdatomic(\%config, \%defaults);
 
 $config{use_mimalloc} = $args{mimalloc};
 if (!defined $config{use_mimalloc}) {
