@@ -1,3 +1,24 @@
+New in 2022.04
+
+Core:
++ Update libuv to version 1.44.1 (#1689) [2eb83739]
++ Fix sign comparison warnings in coerce_su implementation [3d65db97]
++ Mimalloc should only release memory to the OS at exit if --full-cleanup was
+  used [c77e1623]
++ Turn on C11 atomics by default [a3476e28]
++ Add write_uint16_at method to MAST::Bytecode [9b9b4763]
++ Use stdatomic probe in using c11 atomics decision [d7dee3a2]
+
+GC:
+
+JIT:
++ JIT atposref_u + getattrref_u [b2a91e6c]
+
+Spesh:
++ Fix mis-spesh of native calls [01e1d116][87040eaa][2319bba4]
+
+Strings:
+
 New in 2022.03
 
 Core:
