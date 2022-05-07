@@ -86,10 +86,34 @@ supported by the remote MoarVM instance.
 
 The MoarVM instance must disregard keys in a MessagePack object that it does
 not understand. For message types that it does not recognize, it must send a
-message of type "not recognized" (format defined below); the connection should
-be left intact by MoarVM, and the client can decide how to proceed.
+message of type "Message Type Not Understood" (format defined below); the
+connection should be left intact by MoarVM, and the client can decide how to
+proceed.
 
 ### Changes
+
+#### Version 1.3 ERRATA
+
+ * **No behavior changes**, only the following errata fixes in this doc.
+ * Fix name of message type to send as response if request message type is
+   not recognized in Versioning text above.
+ * Remove note that Error Processing Message (1) should not be sent if a
+   request is missing required keys; that's exactly what is sent in that case.
+ * Clarify that suspension of "all" threads actually refers to all *user*
+   threads (threads other than the spesh worker and the debug server itself).
+ * Note which specific error is sent if a thread ID is not recognized.
+ * Remove note that Step Out (22) requires a handle to step out of (it does
+   not; it requires exactly the same keys as the other Step requests).
+ * Fix a copy/paste typo in the description of Caller Context Request (30).
+ * Note that Find Method (35) has been unsupported (and returns an error if
+   requested) since `new-disp` landed.
+ * Note that Operation Unsuccessful (39) is not in current use, as Error
+   Processing Message (1) is used instead.
+ * Clarify in example that Object Positionals Request (42) requires a handle
+   of the object to be examined.
+ * Fill in description of Object Associatives Response (45).
+ * Correct names for messages types that did not match their enumerant names.
+ * Correct several minor typos.
 
 #### Version 1.3
 
@@ -129,9 +153,7 @@ ID correlates it with the message that was not understood.
 ### Error Processing Message (1)
 
 Sent only by MoarVM to indicate that a problem occurred with processing a
-message. The ID correlates it with the message that was not understood. This
-should not be sent when a message type is recognized but the object lacks
-required keys, or when the requested operation could not be performed. The
+message. The ID correlates it with the message that was not understood. The
 `reason` key should be a string explaining why.
 
     {
@@ -154,7 +176,8 @@ message from the client that was successfully processed.
 
 ### Is Execution Suspended Request (3)
 
-Sent by the client to ask the MoarVM instance if execution is currently
+Sent by the client to ask the MoarVM instance if execution of all user threads
+(threads other than the spesh worker and the debug server itself) is currently
 suspended.
 
     {
@@ -165,7 +188,8 @@ suspended.
 ### Is Execution Suspended Response (4)
 
 Response from the MoarVM instance, with the `suspended` key set to `true` if
-execution is currently suspended and `false` otherwise.
+execution is currently suspended on all user threads (threads other than the
+spesh worker and the debug server itself) and `false` otherwise.
 
     {
         "type": 4,
@@ -175,7 +199,8 @@ execution is currently suspended and `false` otherwise.
 
 ### Suspend All (5)
 
-Requests that all threads be suspended. Once this has happened, an Operation
+Requests that all user threads (threads other than the spesh worker and the
+debug server itself) be suspended. Once this has happened, an Operation
 Successful message will be sent. If all threads were already suspended, then
 nothing happens and an Operation Successful message will be sent.
 
@@ -200,8 +225,8 @@ nothing happens and an Operation Successful message will be sent.
 Requests that a specific thread be suspended, with the thread ID specified by
 the `thread` key. Once this has happened, an Operation Successful message will
 be sent. If the threads was already suspended, then nothing happens and an
-Operation Successful message will also be sent. An error will be reported if
-the thread ID is not recognized.
+Operation Successful message will also be sent. An Error Processing Message
+error will be reported if the thread ID is not recognized.
 
     {
         "type": 7,
@@ -211,10 +236,11 @@ the thread ID is not recognized.
 
 ### Resume One (8)
 
-Requests that a specific thread be resumed, with the thread ID specified by
-the `thread` key. Once this has happened, an Operation Successful message will
-be sent. If the thread was not suspended, then nothing happens and an
-Operation Successful message will be sent.
+Requests that a specific thread be resumed, with the thread ID specified by the
+`thread` key. Once this has happened, an Operation Successful message will be
+sent. If the thread was found but not suspended, then nothing happens and an
+Operation Successful message will be sent.  If the thread ID was not
+recognized, an Error Processing Message error will be sent.
 
     {
         "type": 8,
@@ -320,14 +346,14 @@ is the debug name of the type of the code object, or `nil` if there is none.
                 "line": 22,
                 "bytecode_file": "path/to/bytecode/file",
                 "name": "some-method",
-                "type": "Method" 
+                "type": "Method"
             },
             {
                 "file": "path/to/source/file",
                 "line": 12,
                 "bytecode_file": "path/to/bytecode/file",
                 "name": "",
-                "type": "Block" 
+                "type": "Block"
             },
             {
                 "file": "path/to/another/source/file",
@@ -379,7 +405,7 @@ notifications; the ID will match the breakpoint request.
 
 Sent by MoarVM whenever a breakpoint is hit. The ID will match that of the
 breakpoint request. The `frames` key will be `nil` if the `stacktrace` key of
-the breakpoint request was `false`. Otherwise, it will contain an arrary of
+the breakpoint request was `false`. Otherwise, it will contain an array of
 objects describing the stack frames, formatted as in the Thread Stack Trace
 Response message type.
 
@@ -448,15 +474,10 @@ invoked on must be suspended, and will be returned to suspended state after
 the step has taken place. A Step Completed message will be sent by MoarVM at
 that point.
 
-The client has to specify the frame to return to, because whether a calling
-frame should be skipped or not depends on whether it is a Block or Routine
-or similar. The client has to have this knowledge.
-
     {
         "type": 22,
         "id": $id,
-        "thread": 1,
-        "frame": 4321
+        "thread": 1
     }
 
 ### Step Completed (23)
@@ -530,7 +551,7 @@ Lexicals Response message.
         "handle": 1234
     }
 
-### Context Lexicals Respone (28)
+### Context Lexicals Response (28)
 
 Contains the results of introspecting a context. For natively typed values,
 the value is included directly in the response. For object lexicals, an
@@ -576,7 +597,7 @@ sent if there is no outer.
 
 ### Caller Context Request (30)
 
-Used by the client to gets a handle to the outer context of the one passed.
+Used by the client to gets a handle to the caller context of the one passed.
 A Handle Result message will be sent in response. The null handle (0) will be
 returned if there is no caller.
 
@@ -669,6 +690,10 @@ be hit and will be fired during this operation.
     }
 
 ### Find Method (35)
+
+**NOTE**: This request is no longer supported by newer MoarVM releases since
+the conversion to the new dispatch system (`new-disp`); current releases will
+send Error Processing Message instead of the following behavior.
 
 Used by the client to find a method on an object that it has a handle to. The
 handle to the method that results is returned in a Handle Result message, with
@@ -778,22 +803,23 @@ resolving methods, decontainerizing values, and invoking code.
                 "line": 22,
                 "bytecode_file": "path/to/bytecode/file",
                 "name": "some-method",
-                "type": "Method" 
+                "type": "Method"
             },
             {
                 "file": "path/to/source/file",
                 "line": 12,
                 "bytecode_file": "path/to/bytecode/file",
                 "name": "",
-                "type": "Block" 
+                "type": "Block"
             }
         ]
     }
 
 ### Operation Unsuccessful (39)
 
-A generic message sent by MoarVM if something went wrong while handling
-a request.
+A generic message sent by MoarVM if something went wrong while handling a
+request.  This message is not in current use; Error Processing Message (1)
+will be sent instead (as that includes a reason message).
 
     {
         "type": 39,
@@ -858,7 +884,8 @@ positional features, like an array.
 
     {
         "type": 42,
-        "id": $id
+        "id": $id,
+        "handle": 12345
     }
 
 ### Object Positionals Response (43)
@@ -908,7 +935,7 @@ Object contents:
          ]
      }
 
-### Associatives Request (44)
+### Object Associatives Request (44)
 
 Used by the client to get the contents of an object that has
 associative features, like a hash.
@@ -919,7 +946,11 @@ associative features, like a hash.
         "handle": 12345
     }
 
-### Associative Response (45)
+### Object Associatives Response (45)
+
+All associative `contents` are of `kind` "obj", and are sent as an outer map
+with string keys.  Each outer value is an inner map with `type`, `handle`,
+`concrete`, and `container` keys, similar to Object Positionals Response (43).
 
     {
         "type": 45,
@@ -953,7 +984,7 @@ Ask the debugserver to check if handles refer to the same object.
         ]
     }
 
-### Handle equivalence Response (47)
+### Handle Equivalence Response (47)
 
 For any object that is referred to by multiple handles from
 the request, return a list of all the handles that belong to
