@@ -844,6 +844,7 @@ MVM_PUBLIC void MVM_repr_atomic_bind_attr_o(MVMThreadContext *tc, MVMObject *obj
         OBJECT_BODY(object), type, name, MVM_reg_obj);
     MVM_store(target, value);
     MVM_gc_write_barrier(tc, (MVMCollectable *)object, (MVMCollectable *)value);
+    MVM_SC_WB_OBJ(tc, object);
 }
 
 MVM_PUBLIC MVMObject * MVM_repr_casattr_o(MVMThreadContext *tc, MVMObject *object,
@@ -853,5 +854,6 @@ MVM_PUBLIC MVMObject * MVM_repr_casattr_o(MVMThreadContext *tc, MVMObject *objec
         OBJECT_BODY(object), type, name, MVM_reg_obj);
     MVMObject *witness = (MVMObject *)MVM_casptr(target, expected, value);
     MVM_gc_write_barrier(tc, (MVMCollectable *)object, (MVMCollectable *)value);
+    MVM_SC_WB_OBJ(tc, object);
     return witness;
 }
