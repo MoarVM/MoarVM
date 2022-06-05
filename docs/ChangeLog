@@ -1,3 +1,19 @@
+New in 2022.06
+
+Core:
+
+Documentation:
++ Fix errata in docs/debug-server-protocol.md [99730293]
+
+GC:
++ Add missing SC write barriers to atomic attr bind and cas [a9fcd5a7]
+
+JIT:
+
+Spesh:
+
+Strings:
+
 New in 2022.04
 
 Core:
