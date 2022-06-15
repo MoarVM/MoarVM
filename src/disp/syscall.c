@@ -1197,7 +1197,7 @@ static MVMDispSysCall set_cur_hll_config_key = {
 /* code-bytecode-size */
 static void code_bytecode_size_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *obj = get_obj_arg(arg_info, 0);
-    MVMuint32 bytecode_size = ((MVMCode *)obj)->body->sf.bytecode_size;
+    MVMuint32 bytecode_size = ((MVMCode *)obj)->body.sf->body.bytecode_size;
     MVM_args_set_result_int(tc, bytecode_size, MVM_RETURN_CURRENT_FRAME);
 }
 static MVMDispSysCall code_bytecode_size = {
