@@ -1194,6 +1194,22 @@ static MVMDispSysCall set_cur_hll_config_key = {
     .expected_concrete = { 1, 0 },
 };
 
+/* code-bytecode-size */
+static void code_bytecode_size_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMObject *obj = get_obj_arg(arg_info, 0);
+    MVMuint32 bytecode_size = ((MVMCode *)obj)->body.sf->body.bytecode_size;
+    MVM_args_set_result_int(tc, bytecode_size, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall code_bytecode_size = {
+    .c_name = "code-bytecode-size",
+    .implementation = code_bytecode_size_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMCode },
+    .expected_concrete = { 1 },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -1278,6 +1294,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &has_type_check_cache);
     add_to_hash(tc, &code_is_stub);
     add_to_hash(tc, &set_cur_hll_config_key);
+    add_to_hash(tc, &code_bytecode_size);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
