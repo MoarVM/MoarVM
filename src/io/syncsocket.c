@@ -412,7 +412,7 @@ static void socket_connect(MVMThreadContext *tc, MVMOSHandle *h, MVMString *host
         MVM_free(dest);
         if (MVM_IS_SOCKET_ERROR(r)) {
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket connect");
-            throw_error(tc, s, "connect socket");
+            throw_error(tc, s, "connect to socket");
         }
     }
     else {
