@@ -83,13 +83,16 @@ void MVM_finalize_walk_queues(MVMThreadContext *tc, MVMuint8 gen) {
 }
 
 /* Try to run a finalization handler. Returns a true value if we do so */
+void reinstate_last_handler_result(MVMThreadContext *tc, void *data) {
+    tc->last_handler_result = *((MVMObject **)data);
+}
+void mark_last_handler_result(MVMThreadContext *tc, void *data, MVMGCWorklist *worklist) {
+    MVM_gc_worklist_add(tc, worklist, (MVMObject **)data);
+}
 void MVM_gc_finalize_run_handler(MVMThreadContext *tc) {
-    /* Make sure there is a current frame, that we aren't hanging on to an
-     * exception handler result (which the finalizer could overwrite), and
-     * that there's a HLL handler to run. */
+    /* Make sure there is a current frame and that there's a HLL handler
+     * to run. */
     if (!tc->cur_frame)
-        return;
-    if (tc->last_handler_result)
         return;
     MVMCode *handler = MVM_hll_current(tc)->finalize_handler;
     if (handler) {
@@ -100,6 +103,16 @@ void MVM_gc_finalize_run_handler(MVMThreadContext *tc) {
             while (tc->num_finalizing > 0)
                 MVM_repr_push_o(tc, drain, tc->finalizing[--tc->num_finalizing]);
         });
+
+        /* If there is a last exception handler result stored, put something
+         * in place to restore it, otherwise it may be overwritten during the
+         * execution of finalizers. */
+        if (tc->last_handler_result) {
+            MVMObject **preserved = MVM_callstack_allocate_special_return(tc,
+                reinstate_last_handler_result, reinstate_last_handler_result,
+                mark_last_handler_result, sizeof(MVMObject *));
+            *preserved = tc->last_handler_result;
+        }
 
         /* Invoke the handler. */
         MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
