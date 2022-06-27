@@ -62,7 +62,7 @@ static void fail(Validator *val, const char *msg, ...) {
 
     va_start(args, msg);
 
-    MVM_free(val->labels);
+    MVM_fixed_size_free(val->tc, val->tc->instance->fsa, val->bc_size, val->labels);
     MVM_exception_throw_adhoc_va(val->tc, msg, args);
 
     va_end(args);
@@ -553,7 +553,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     val->bc_size   = fb->bytecode_size;
     val->src_cur_op = fb->bytecode;
     val->src_bc_end = fb->bytecode + fb->bytecode_size;
-    val->labels    = MVM_calloc(1, fb->bytecode_size);
+    val->labels    = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, val->bc_size);
     val->cur_info  = NULL;
     val->cur_mark  = NULL;
     val->cur_instr = 0;
@@ -579,9 +579,11 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     val->bc_end = val->bc_start + fb->bytecode_size;
     val->cur_op = val->bc_start;
 
+    /*fprintf(stderr, "size of labels arr: %ld\n", fb->bytecode_size);*/
+
     while (val->cur_op < val->bc_end) {
         read_op(val);
-        if (val->cur_mark && val->cur_mark[0] == 's')
+        if (MVM_UNLIKELY(val->cur_mark && val->cur_mark[0] == 's'))
             fail(val, MSG(val, "Illegal appearance of spesh op"));
         if (val->cur_info->specializable)
             fb->specializable = 1;
@@ -605,7 +607,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     validate_final_return(val);
 
     /* Validation successful. Clear up instruction offsets. */
-    MVM_free(val->labels);
+    MVM_fixed_size_free(tc, tc->instance->fsa, fb->bytecode_size, val->labels);
 
     /* Mark frame validated. */
     static_frame->body.validated = 1;
