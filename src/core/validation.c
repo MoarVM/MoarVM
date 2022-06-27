@@ -503,8 +503,7 @@ static void validate_sequence(Validator *val) {
         type = val->cur_mark[0];
         id   = val->cur_mark[1];
 
-        if (val->cur_info->specializable)
-            val->frame->body.specializable = 1;
+        val->frame->body.specializable |= val->cur_info->specializable;
 
         switch (type) {
             case MARK_special:
@@ -586,8 +585,8 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
         read_op(val);
         if (MVM_UNLIKELY(val->cur_mark && val->cur_mark[0] == 's'))
             fail(val, MSG(val, "Illegal appearance of spesh op"));
-        if (val->cur_info->specializable)
-            fb->specializable = 1;
+
+        val->frame->body.specializable |= val->cur_info->specializable;
 
         switch (val->cur_mark[0]) {
             case MARK_regular:
