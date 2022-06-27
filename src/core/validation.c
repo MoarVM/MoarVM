@@ -12,6 +12,9 @@
 #define GET_I16(pc, idx)    *((MVMint16 *)(pc + idx))
 #define GET_UI16(pc, idx)   *((MVMuint16 *)(pc + idx))
 
+#define BF_GET(bf, pos, selector)  ((bf)[(pos) / 4] >> ((pos) % 4) & (1 << (selector)))
+#define BF_SET(bf, pos, selector)  ((bf)[(pos) / 4] |= (1 << (selector)) << ((pos) % 4))
+
 MVM_STATIC_INLINE MVMuint32 GET_UI32(const MVMuint8 *pc, MVMint32 idx) {
     MVMuint32 retval;
     memcpy(&retval, pc + idx, sizeof(retval));
@@ -39,7 +42,7 @@ typedef struct {
     MVMuint8         *bc_end;
     MVMuint8         *src_cur_op;
     MVMuint8         *src_bc_end;
-    MVMuint8         *labels;
+    MVMuint8         *labels; // 2 bits per entry
     MVMuint8         *cur_op;
     const MVMOpInfo  *cur_info;
     const char       *cur_mark;
@@ -62,7 +65,7 @@ static void fail(Validator *val, const char *msg, ...) {
 
     va_start(args, msg);
 
-    MVM_fixed_size_free(val->tc, val->tc->instance->fsa, val->bc_size, val->labels);
+    MVM_fixed_size_free(val->tc, val->tc->instance->fsa, 1 + val->bc_size / 4, val->labels);
     MVM_exception_throw_adhoc_va(val->tc, msg, args);
 
     va_end(args);
@@ -164,7 +167,7 @@ MVM_string_print(val->tc, val->cu->body.filename);
 printf(" %u %s %.2s\n", val->cur_instr, info->name, info->mark);
 #endif
 
-    val->labels[pos] |= MVM_BC_op_boundary;
+    BF_SET(val->labels, pos, MVM_BC_op_boundary);
     val->cur_info     = info;
     val->cur_mark     = MVM_op_get_mark(opcode);
     val->cur_op      += 2;
@@ -183,7 +186,7 @@ static void validate_branch_targets(Validator *val) {
     MVMuint32 pos, instr;
 
     for (pos = 0, instr = (MVMuint32)-1; pos < val->bc_size; pos++) {
-        MVMuint32 flag = val->labels[pos];
+        MVMuint32 flag = BF_GET(val->labels, pos, 3);
 
         if (flag & MVM_BC_op_boundary)
             instr++;
@@ -260,7 +263,7 @@ static void validate_literal_operand(Validator *val, MVMuint32 flags) {
             if (offset >= val->bc_size)
                 fail(val, MSG(val, "branch instruction offset %" PRIu32
                         " out of range 0..%" PRIu32), offset, val->bc_size - 1);
-            val->labels[offset] |= MVM_BC_branch_target;
+            BF_SET(val->labels, offset, MVM_BC_branch_target);
         }
     }
 
@@ -553,7 +556,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     val->bc_size   = fb->bytecode_size;
     val->src_cur_op = fb->bytecode;
     val->src_bc_end = fb->bytecode + fb->bytecode_size;
-    val->labels    = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, val->bc_size);
+    val->labels    = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, 1 + val->bc_size / 4);
     val->cur_info  = NULL;
     val->cur_mark  = NULL;
     val->cur_instr = 0;
@@ -578,8 +581,6 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
 #endif
     val->bc_end = val->bc_start + fb->bytecode_size;
     val->cur_op = val->bc_start;
-
-    /*fprintf(stderr, "size of labels arr: %ld\n", fb->bytecode_size);*/
 
     while (val->cur_op < val->bc_end) {
         read_op(val);
@@ -607,7 +608,7 @@ void MVM_validate_static_frame(MVMThreadContext *tc,
     validate_final_return(val);
 
     /* Validation successful. Clear up instruction offsets. */
-    MVM_fixed_size_free(tc, tc->instance->fsa, fb->bytecode_size, val->labels);
+    MVM_fixed_size_free(tc, tc->instance->fsa, 1 + fb->bytecode_size / 4, val->labels);
 
     /* Mark frame validated. */
     static_frame->body.validated = 1;
