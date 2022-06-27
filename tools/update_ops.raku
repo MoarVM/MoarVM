@@ -409,8 +409,34 @@ sub opcode_defines(@ops) {
     }
 }
 
+sub optimize_operand_flags(@op_s) {
+    my @opq = @op_s;
+    my @alls;
+    my $fullsize = 0;
+
+    while @opq {
+        my @to = @opq.shift.List;
+        note @to.raku.subst("MVM_operand_", "_", :g);
+        my @subs = @alls.rotor(@to.elems => 1 - @to.elems);
+        if @subs.first(* eq @to, :k) -> $offs {
+            note "                          found seq at offset $offs: @to.join(", ").subst("MVM_operand_", "_", :g)";
+            $fullsize += @to;
+        }
+        else {
+            @alls.append(@to);
+            note "alls is now {+@alls} elems: added @to.join(",").subst("MVM_operand_", "_", :g)";
+            $fullsize += @to;
+        }
+    }
+    say "$fullsize could have been {+@alls} instead";
+}
+
 # Creates the static array of opcode info.
 sub opcode_details(@ops) {
+    my @operands_seqs;
+    LEAVE {
+        optimize_operand_flags(@operands_seqs);
+    }
     (join "\n", gather {
         take "static const MVMOpInfo MVM_op_infos[] = \{";
         for @ops -> $op {
@@ -434,7 +460,7 @@ sub opcode_details(@ops) {
             take "        $($op.adverbs<specializable> ?? '1' !! '0'),";
             take "        $($op.adverbs<cache> ?? '1' !! '0'),";
             if $op.operands {
-                take "        \{ $op.operands.map(&operand_flags).join(', ') }";
+                take "        \{ { my $s = $op.operands.map(&operand_flags).List; @operands_seqs.push($s); $s.join(', ') } \}";
             }
             else { take "        \{ 0 }"; }
             take "    },"
