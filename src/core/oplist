@@ -99,7 +99,7 @@ bindlex_ns          str r(str) :noinline
 bindlex_no          str r(obj) :noinline
 getlex_ng           w(obj) r(str) :pure :noinline :useshll
 bindlex_ng          r(str) r(obj) :noinline :useshll
-getdynlex           w(obj) r(str) :pure :noinline :useshll
+getdynlex           w(obj) r(str) :pure :noinline :useshll :invokish :throwish
 binddynlex          r(str) r(obj) :noinline
 setlexvalue         r(obj) str r(obj) int16
 lexprimspec         w(int64) r(obj) r(str) :pure
@@ -575,7 +575,7 @@ loadext             r(str) r(str)
 backendconfig       w(obj) :pure :confprog
 getlexouter         w(obj) r(str) :pure :noinline :useshll
 getlexrel           w(obj) r(obj) r(str) :pure :useshll
-getlexreldyn        w(obj) r(obj) r(str) :pure :useshll
+getlexreldyn        w(obj) r(obj) r(str) :pure :useshll :invokish :throwish
 getlexrelcaller     w(obj) r(obj) r(str) :pure :useshll
 getlexcaller        w(obj) r(str) :pure :noinline :useshll
 bitand_s            w(str) r(str) r(str) :pure

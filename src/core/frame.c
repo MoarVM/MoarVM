@@ -1508,8 +1508,8 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
             vivify, found_frame);
 }
 
-MVMObject * MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpeshFrameWalker *fw,
-                                                  MVMString *name) {
+void MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpeshFrameWalker *fw,
+                                                  MVMString *name, MVMRegister *r) {
     MVMuint16 type;
     MVMFrame *found_frame;
     MVMRegister *lex_reg = MVM_frame_find_dynamic_using_frame_walker(tc, fw, name, &type,
@@ -1560,12 +1560,26 @@ MVMObject * MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpesh
                 MVM_exception_throw_adhoc(tc, "invalid register type in getdynlex: %d", type);
         }
     }
-    return result ? result : tc->instance->VMNull;
+    if (result) {
+        r->o = result;
+    }
+    else {
+        MVMCode *resolver = tc->cur_frame->static_info->body.cu->body.dynamic_resolver;
+        if (resolver) {
+            MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+                    MVM_callsite_get_common(tc, MVM_CALLSITE_ID_STR));
+            args_record->args.source[0].s = name;
+            MVM_frame_dispatch_from_c(tc, resolver, args_record, r, MVM_RETURN_OBJ);
+        }
+        else {
+            r->o = tc->instance->VMNull;
+        }
+    }
 }
-MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
+void MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame, MVMRegister *r) {
     MVMSpeshFrameWalker fw;
     MVM_spesh_frame_walker_init(tc, &fw, cur_frame, 0);
-    return MVM_frame_getdynlex_with_frame_walker(tc, &fw, name);
+    MVM_frame_getdynlex_with_frame_walker(tc, &fw, name, r);
 }
 
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame) {

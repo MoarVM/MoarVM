@@ -489,9 +489,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (MVM_UNLIKELY(tc->cur_frame->caller == 0)) {
                     MVM_exception_throw_adhoc(tc, "cannot call getdynlex without a caller frame");
                 }
-                GET_REG(cur_op, 0).o = MVM_frame_getdynlex(tc, GET_REG(cur_op, 2).s,
-                        tc->cur_frame->caller);
+                MVMRegister *r = &GET_REG(cur_op, 0);
+                MVMString *name = GET_REG(cur_op, 2).s;
                 cur_op += 4;
+                MVM_frame_getdynlex(tc, name, tc->cur_frame->caller, r);
                 goto NEXT;
             }
             OP(binddynlex): {
@@ -3569,9 +3570,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_exception_throw_adhoc(tc,
                         "getlexreldyn requires a concrete object with REPR MVMContext, got %s (%s)",
                         REPR(ctx)->name, MVM_6model_get_debug_name(tc, ctx));
-                GET_REG(cur_op, 0).o = MVM_context_dynamic_lookup(tc, (MVMContext *)ctx,
-                        GET_REG(cur_op, 4).s);
+                MVMRegister *r = &GET_REG(cur_op, 0);
+                MVMString *name = GET_REG(cur_op, 4).s;
                 cur_op += 6;
+                MVM_context_dynamic_lookup(tc, (MVMContext *)ctx, name, r);
                 goto NEXT;
             }
             OP(getlexrelcaller): {

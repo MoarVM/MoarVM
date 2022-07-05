@@ -150,12 +150,13 @@
       (carg (^reg_obj) int)
       (carg $1 ptr))))
 
-(template: getdynlex
-  (call (^func &MVM_frame_getdynlex)
+(template: getdynlex!
+  (callv (^func &MVM_frame_getdynlex)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
-      (carg (^caller) ptr)) ptr_sz))
+      (carg (^caller) ptr)
+      (carg \$0 ptr))))
 
 (template: binddynlex
   (callv (^func &MVM_frame_binddynlex)
