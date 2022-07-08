@@ -1294,14 +1294,12 @@ MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *
 }
 
 /* Finds a lexical in the outer frame, throwing if it's not there. */
-MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name) {
-    MVMRegister *r;
+void MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name, MVMRegister *result) {
+    int found;
     MVMROOT(tc, name, {
-        r = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer);
+        found = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer, result);
     });
-    if (MVM_LIKELY(r != NULL))
-        return r->o;
-    else {
+    if (MVM_UNLIKELY(!found)) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
@@ -1311,7 +1309,7 @@ MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString
 
 /* Looks up the address of the lexical with the specified name, starting with
  * the specified frame. Only works if it's an object lexical.  */
-MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
+int MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame, MVMRegister *r) {
     while (cur_frame != NULL) {
         if (cur_frame->static_info->body.num_lexicals) {
             MVMuint32 idx = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
@@ -1320,7 +1318,8 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
                     MVMRegister *result = &cur_frame->env[idx];
                     if (!result->o)
                         MVM_frame_vivify_lexical(tc, cur_frame, idx);
-                    return result;
+                    *r = *result;
+                    return 1;
                 }
                 else {
                     char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -1333,7 +1332,15 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
         }
         cur_frame = cur_frame->outer;
     }
-    return NULL;
+    MVMCode *resolver = tc->cur_frame->static_info->body.cu->body.resolver;
+    if (resolver) {
+        MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+                MVM_callsite_get_common(tc, MVM_CALLSITE_ID_STR));
+        args_record->args.source[0].s = name;
+        MVM_frame_dispatch_from_c(tc, resolver, args_record, r, MVM_RETURN_OBJ);
+        return 1;
+    }
+    return 0;
 }
 
 /* Performs some kind of lexical lookup using the frame walker. The exact walk

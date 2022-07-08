@@ -573,7 +573,7 @@ findsym             w(obj) r(str) r(str)
 dropsym             r(obj)
 loadext             r(str) r(str)
 backendconfig       w(obj) :pure :confprog
-getlexouter         w(obj) r(str) :pure :noinline :useshll
+getlexouter         w(obj) r(str) :pure :noinline :useshll :invokish :throwish
 getlexrel           w(obj) r(obj) r(str) :pure :useshll
 getlexreldyn        w(obj) r(obj) r(str) :pure :useshll :invokish :throwish
 getlexrelcaller     w(obj) r(obj) r(str) :pure :useshll
