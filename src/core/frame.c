@@ -1241,19 +1241,31 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
  * specified type. Non-existing object lexicals produce NULL, expected
  * (for better or worse) by various things. Otherwise, an error is thrown
  * if it does not exist. Incorrect type always throws. */
-MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type) {
+int MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMRegister *r) {
     MVMSpeshFrameWalker fw;
     MVM_spesh_frame_walker_init_for_outers(tc, &fw, tc->cur_frame);
     MVMRegister *res = MVM_frame_lexical_lookup_using_frame_walker(tc, &fw, name, type);
 
-    if (res == NULL && MVM_UNLIKELY(type != MVM_reg_obj)) {
-        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-        char *waste[] = { c_name, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
-            c_name);
+    if (res == NULL) {
+        MVMCode *resolver = tc->cur_frame->static_info->body.cu->body.resolver;
+        if (resolver) {
+            MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+                    MVM_callsite_get_common(tc, MVM_CALLSITE_ID_STR));
+            args_record->args.source[0].s = name;
+            MVM_frame_dispatch_from_c(tc, resolver, args_record, r, MVM_RETURN_OBJ);
+        }
+        else if (MVM_UNLIKELY(type != MVM_reg_obj)) {
+            char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+            char *waste[] = { c_name, NULL };
+            MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
+                c_name);
+        }
+        return 0;
     }
-
-    return res;
+    else {
+        *r = *res;
+        return 1;
+    }
 }
 
 /* Binds the specified value to the given lexical, finding it along the static
