@@ -509,6 +509,8 @@ static void optimize_not_i(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *
 static void optimize_div_i(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshIns *ins, MVMSpeshBB *bb) {
     MVMSpeshFacts *rhs_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);
 
+    // Division by a power-of-two can instead be implemented as a bit shift,
+    // which is a cheaper operation.
     if ((rhs_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) && rhs_facts->value.i > 0 && powerof2(rhs_facts->value.i))
     {
         MVMSpeshIns *nins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
