@@ -2496,15 +2496,13 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         write_object_features(dtc, ctx, 0, 0, 0);
     }
     else if (repr_id == MVM_REPR_ID_Semaphore && IS_CONCRETE(target)) {
-        MVMSemaphoreBody *body = (MVMSemaphoreBody *)OBJECT_BODY(target);
-
         slots += 1;
         slots += 3; /* features */
 
         cmp_write_map(ctx, slots);
 
         cmp_write_str(ctx, "semaphore_identity", 14);
-        cmp_write_int(ctx, (uintptr_t)body->sem);
+        cmp_write_int(ctx, MVM_repr_get_int(dtc, target));
 
         write_object_features(dtc, ctx, 0, 0, 0);
     }

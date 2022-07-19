@@ -627,8 +627,8 @@ currentthread       w(obj) :pure
 lock                r(obj)
 unlock              r(obj)
 semacquire          r(obj)
-semtryacquire       w(int64) r(obj)
-semrelease          r(obj)
+semtryacquire       w(uint64) r(obj) :pure
+semrelease          r(obj) :pure
 getlockcondvar      w(obj) r(obj) r(obj)
 condwait            r(obj)
 condsignalone       r(obj)

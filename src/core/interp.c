@@ -3835,7 +3835,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(semtryacquire): {
                 MVMObject *sem = GET_REG(cur_op, 2).o;
                 if (REPR(sem)->ID == MVM_REPR_ID_Semaphore && IS_CONCRETE(sem))
-                    GET_REG(cur_op, 0).i64 = MVM_semaphore_tryacquire(tc,
+                    GET_REG(cur_op, 0).u64 = MVM_semaphore_tryacquire(tc,
                         (MVMSemaphore *)sem);
                 else
                     MVM_exception_throw_adhoc(tc,
