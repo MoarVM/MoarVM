@@ -1,7 +1,12 @@
 /* Representation used for VM thread handles. */
 struct MVMSemaphoreBody {
+#ifdef MVM_HAS_C11_ATOMICS
+    volatile _Atomic(MVMuint64) count;
+    struct atomic_flag waits;
+#else
     volatile AO_t count;
     volatile AO_t waits;
+#endif
 };
 struct MVMSemaphore {
     MVMObject common;
