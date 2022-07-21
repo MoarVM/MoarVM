@@ -20,9 +20,10 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 /* Initializes a new instance. */
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
 #ifdef MVM_USE_C11_ATOMICS
-    MVMSemaphoreBody *body = &(MVMSemaphoreBody){ 0, ATOMIC_FLAG_INIT };
+    MVMSemaphoreBody *body = (MVMSemaphoreBody *)data;
     atomic_init(&body->count, 0);
-    memcpy(data, body, sizeof(*body));
+    atomic_thread_fence(memory_order_acquire);
+    atomic_flag_clear_explicit(&body->count, memory_order_release);
 #endif
 }
 
