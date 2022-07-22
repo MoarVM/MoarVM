@@ -163,7 +163,7 @@ static const MVMREPROps Semaphore_this_repr = {
 
 MVMuint64 MVM_semaphore_tryacquire(MVMThreadContext *tc, MVMSemaphore *sem) {
     MVMuint64 count, minus;
-    MVM_telemetry_timestamp(tc, "Semaphore.tryAcquire");
+    MVM_telemetry_timestamp(tc, "Semaphore.try_acquire");
 #ifdef MVM_USE_C11_ATOMICS
     count = atomic_load_explicit(&sem->body.count, memory_order_acquire);
     if ((minus = count))
@@ -178,8 +178,7 @@ MVMuint64 MVM_semaphore_tryacquire(MVMThreadContext *tc, MVMSemaphore *sem) {
 }
 
 void MVM_semaphore_acquire(MVMThreadContext *tc, MVMSemaphore *sem) {
-    unsigned int interval_id;
-    interval_id = MVM_telemetry_interval_start(tc, "Semaphore.acquire");
+    unsigned int interval_id = MVM_telemetry_interval_start(tc, "Semaphore.acquire");
     MVMROOT(tc, sem, {
         MVMuint64 count;
         MVM_gc_mark_thread_blocked(tc);
@@ -205,7 +204,7 @@ void MVM_semaphore_acquire(MVMThreadContext *tc, MVMSemaphore *sem) {
 
 void MVM_semaphore_release(MVMThreadContext *tc, MVMSemaphore *sem) {
     MVMuint64 count;
-    MVM_telemetry_timestamp(tc, "Semaphore.acquire");
+    MVM_telemetry_timestamp(tc, "Semaphore.release");
 #ifdef MVM_USE_C11_ATOMICS
     if ((count = atomic_load_explicit(&sem->body.count, memory_order_acquire)) == UINT64_MAX)
         MVM_exception_throw_adhoc(tc, "semaphore count must be no greater than %" PRIu64 "", UINT64_MAX);
