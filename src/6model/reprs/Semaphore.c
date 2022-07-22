@@ -185,9 +185,9 @@ void MVM_semaphore_acquire(MVMThreadContext *tc, MVMSemaphore *sem) {
         MVM_gc_mark_thread_blocked(tc);
 #ifdef MVM_USE_C11_ATOMICS
         while (atomic_flag_test_and_set_explicit(&sem->body.waits, memory_order_acquire))
-            MVM_thread_yield(tc);
+            atomic_thread_fence(memory_order_release), MVM_thread_yield(tc);
         while (!(count = atomic_load_explicit(&sem->body.count, memory_order_acquire)))
-            MVM_thread_yield(tc);
+            atomic_thread_fence(memory_order_release), MVM_thread_yield(tc);
         atomic_store_explicit(&sem->body.count, count - 1, memory_order_release);
         atomic_flag_clear_explicit(&sem->body.waits, memory_order_release);
 #else
