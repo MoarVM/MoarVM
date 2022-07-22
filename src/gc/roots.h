@@ -65,48 +65,48 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
 
 /* Macros related to rooting objects into the temporaries list, and
  * unrooting them afterwards. */
-#define MVMROOT(tc, obj_ref, block) do {\
+#define MVMROOT(tc, obj_ref, ...) do {\
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref)); \
-    block \
+    __VA_ARGS__ \
     MVM_gc_root_temp_pop(tc); \
  } while (0)
-#define MVMROOT2(tc, obj_ref1, obj_ref2, block) do {\
+#define MVMROOT2(tc, obj_ref1, obj_ref2, ...) do {\
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1)); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2)); \
-    block \
+    __VA_ARGS__ \
     MVM_gc_root_temp_pop_n(tc, 2); \
  } while (0)
-#define MVMROOT3(tc, obj_ref1, obj_ref2, obj_ref3, block) do {\
+#define MVMROOT3(tc, obj_ref1, obj_ref2, obj_ref3, ...) do {\
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1)); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2)); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3)); \
-    block \
+    __VA_ARGS__ \
     MVM_gc_root_temp_pop_n(tc, 3); \
  } while (0)
-#define MVMROOT4(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, block) do {\
+#define MVMROOT4(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, ...) do {\
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1)); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2)); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3)); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref4)); \
-    block \
+    __VA_ARGS__ \
     MVM_gc_root_temp_pop_n(tc, 4); \
  } while (0)
-#define MVMROOT5(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5, block) do {\
+#define MVMROOT5(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5, ...) do {\
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1)); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2)); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3)); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref4)); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref5)); \
-    block \
+    __VA_ARGS__ \
     MVM_gc_root_temp_pop_n(tc, 5); \
  } while (0)
-#define MVMROOT6(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5, obj_ref6, block) do {\
+#define MVMROOT6(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5, obj_ref6, ...) do {\
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1)); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2)); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3)); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref4)); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref5)); \
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref6)); \
-    block \
+    __VA_ARGS__ \
     MVM_gc_root_temp_pop_n(tc, 6); \
  } while (0)
