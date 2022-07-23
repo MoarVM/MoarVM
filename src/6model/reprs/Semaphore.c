@@ -22,23 +22,31 @@ static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, voi
 #ifdef MVM_USE_C11_ATOMICS
     MVMSemaphoreBody *body = (MVMSemaphoreBody *)data;
     atomic_init(&body->count, 0);
-    atomic_thread_fence(memory_order_acquire);
-    atomic_flag_clear_explicit(&body->count, memory_order_release);
+    atomic_flag_test_and_set_explicit(&body->waits, memory_order_relaxed);
 #endif
 }
 
 /* Copies the body of one object to another. */
-static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
-    MVMSemaphoreBody *body = (MVMSemaphoreBody *)dest;
+static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dst_root, void *dst) {
+    MVMSemaphoreBody *src_body = (MVMSemaphoreBody *)src;
+    MVMSemaphoreBody *dst_body = (MVMSemaphoreBody *)dst;
+    MVMuint32 waits;
+    MVMuint64 count;
 #ifdef MVM_USE_C11_ATOMICS
-    atomic_thread_fence(memory_order_acquire);
-    atomic_store_explicit(&body->count,
-        atomic_load_explicit(&((MVMSemaphore *)dest_root)->body.count, memory_order_relaxed),
-        memory_order_relaxed);
-    atomic_thread_fence(memory_order_release);
+    waits = (MVMuint32)atomic_flag_test_and_set_explicit(&src_body->waits, memory_order_acquire);
+    count = atomic_load_explicit(&src_body->count, memory_order_relaxed);
+    atomic_store_explicit(&dst_body->count, count, memory_order_relaxed);
+    if (waits)
+        atomic_flag_test_and_set_explicit(&dst_body->waits, memory_order_relaxed);
+    else
+        atomic_flag_clear_explicit(&dst_body->waits, memory_order_relaxed);
+    atomic_flag_clear_explicit(&src_body->waits, memory_order_release);
 #else
     MVM_barrier();
-    MVM_store(&body->count, MVM_load(&((MVMSemaphore *)dest_root)->body.count));
+    waits = MVM_load(&src_body->waits);
+    count = MVM_load(&src_body->count);
+    MVM_store(&dst_body->count, count);
+    MVM_store(&dst_body->waits, waits);
     MVM_barrier();
 #endif
 }
@@ -47,8 +55,10 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void set_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMuint64 value) {
     MVMSemaphoreBody *body = (MVMSemaphoreBody *)data;
 #ifdef MVM_USE_C11_ATOMICS
-    atomic_thread_fence(memory_order_acquire);
-    atomic_store_explicit(&body->count, value, memory_order_release);
+    atomic_flag_test_and_set_explicit(&body->waits, memory_order_acquire);
+    atomic_store_explicit(&body->count, value, memory_order_relaxed);
+    if (value)
+        atomic_flag_clear_explicit(&body->waits, memory_order_release);
 #else
     MVM_barrier();
     MVM_store(&body->count, value);
@@ -69,27 +79,11 @@ static MVMuint64 get_uint(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
 }
 /* Set up the Semaphore with its initial value. */
 static void set_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMint64 value) {
-    MVMSemaphoreBody *body = (MVMSemaphoreBody *)data;
-#ifdef MVM_USE_C11_ATOMICS
-    atomic_thread_fence(memory_order_acquire);
-    atomic_store_explicit(&body->count, (MVMuint64)value, memory_order_release);
-#else
-    MVM_barrier();
-    MVM_store(&body->count, (MVMuint64)value);
-#endif
+    set_uint(tc, st, root, data, (MVMuint64)value);
 }
 
 static MVMint64 get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
-    MVMSemaphoreBody *body = (MVMSemaphoreBody *)data;
-    MVMint64 count;
-#ifdef MVM_USE_C11_ATOMICS
-    count = (MVMint64)atomic_load_explicit(&body->count, memory_order_acquire);
-    atomic_thread_fence(memory_order_release);
-#else
-    count = (MVMint64)MVM_load(&body->count);
-    MVM_barrier();
-#endif
-    return count;
+    return (MVMint64)get_uint(tc, st, root, data);
 }
 
 static const MVMStorageSpec storage_spec = {
@@ -187,15 +181,19 @@ void MVM_semaphore_acquire(MVMThreadContext *tc, MVMSemaphore *sem) {
             atomic_thread_fence(memory_order_release), MVM_thread_yield(tc);
         while (!(count = atomic_load_explicit(&sem->body.count, memory_order_acquire)))
             atomic_thread_fence(memory_order_release), MVM_thread_yield(tc);
-        atomic_store_explicit(&sem->body.count, count - 1, memory_order_release);
-        atomic_flag_clear_explicit(&sem->body.waits, memory_order_release);
+        atomic_store_explicit(&sem->body.count, count -= 1, memory_order_release);
+        if (count)
+            atomic_flag_clear_explicit(&sem->body.waits, memory_order_release);
 #else
         while (MVM_cas(&sem->body.waits, 0, 1))
             MVM_thread_yield(tc);
-        while (MVM_barrier(), !(count = MVM_load(&sem->body.count)))
+        MVM_barrier();
+        while (!(count = MVM_load(&sem->body.count)))
             MVM_thread_yield(tc);
-        MVM_store(&sem->body.count, count - 1);
-        MVM_store(&sem->body.waits, 0);
+        MVM_store(&sem->body.count, count -= 1);
+        if (count)
+            MVM_store(&sem->body.waits, 0);
+        MVM_barrier();
 #endif
         MVM_gc_mark_thread_unblocked(tc);
     });
@@ -209,11 +207,13 @@ void MVM_semaphore_release(MVMThreadContext *tc, MVMSemaphore *sem) {
     if ((count = atomic_load_explicit(&sem->body.count, memory_order_acquire)) == UINT64_MAX)
         MVM_exception_throw_adhoc(tc, "semaphore count must be no greater than %" PRIu64 "", UINT64_MAX);
     atomic_store_explicit(&sem->body.count, count + 1, memory_order_release);
+    atomic_flag_clear_explicit(&sem->body.waits, memory_order_release);
 #else
     MVM_barrier();
     if ((count = MVM_load(&sem->body.count)) == UINT64_MAX)
         MVM_exception_throw_adhoc(tc, "semaphore count must be no greater than %" PRIu64 "", UINT64_MAX);
     MVM_store(&sem->body.count, count + 1);
     MVM_barrier();
+    MVM_store(&sem->body.waits, 0);
 #endif
 }
