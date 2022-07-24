@@ -899,15 +899,21 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                 MVMSpeshOperand constint = { .lit_i64 = dp->constants[op->load.idx].i64 };
                 emit_bi_op(tc, g, bb, &insert_after, MVM_OP_const_i64,
                     temporaries[op->load.temp], constint);
+                MVMSpeshFacts *f = MVM_spesh_get_facts(tc, g, temp);
+                f->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+                f->value.i = constint.lit_i64;
                 break;
             }
             case MVMDispOpcodeLoadConstantNum: {
                 MVMSpeshOperand temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_num64);
                 temporaries[op->load.temp] = temp;
                 MVM_VECTOR_PUSH(allocated_temps, temp);
-                MVMSpeshOperand constnum = { .lit_i64 = dp->constants[op->load.idx].n64 };
+                MVMSpeshOperand constnum = { .lit_n64 = dp->constants[op->load.idx].n64 };
                 emit_bi_op(tc, g, bb, &insert_after, MVM_OP_const_n64,
                     temporaries[op->load.temp], constnum);
+                MVMSpeshFacts *f = MVM_spesh_get_facts(tc, g, temp);
+                f->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+                f->value.n = constnum.lit_n64;
                 break;
             }
             case MVMDispOpcodeLoadAttributeObj: {
