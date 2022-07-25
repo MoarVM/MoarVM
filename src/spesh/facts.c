@@ -477,7 +477,8 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             break;
         case MVM_OP_box_s:
         case MVM_OP_box_i:
-        case MVM_OP_box_n: {
+        case MVM_OP_box_n:
+        case MVM_OP_box_u: {
                 MVMSpeshFacts *target_facts = &(g->facts[ins->operands[0].reg.orig][ins->operands[0].reg.i]);
                 create_facts(tc, g,
                     ins->operands[0].reg.orig, ins->operands[0].reg.i,

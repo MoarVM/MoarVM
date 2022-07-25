@@ -2187,7 +2187,8 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             break;
         case MVM_OP_box_i:
         case MVM_OP_box_n:
-        case MVM_OP_box_s: {
+        case MVM_OP_box_s:
+        case MVM_OP_box_u: {
             /* We'll lower these in a later pass, but we should preemptively
              * use the facts on the box type. */
             MVMSpeshFacts *type_facts = MVM_spesh_get_facts(tc, g, ins->operands[2]);

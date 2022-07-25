@@ -1125,9 +1125,10 @@ static void return_to_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *re
     target_facts = MVM_spesh_get_facts(tc, g, ver_target);
     target_facts->writer = box_ins;
     target_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE | MVM_SPESH_FACT_KNOWN_BOX_SRC;
+    // Note: we use hllboxtype_i for both box_i and box_u
     target_facts->type = box_op == MVM_OP_box_i ? g->sf->body.cu->body.hll_config->int_box_type :
                          box_op == MVM_OP_box_n ? g->sf->body.cu->body.hll_config->num_box_type :
-                         box_op == MVM_OP_box_u ? g->sf->body.cu->body.hll_config->uint_box_type :
+                         box_op == MVM_OP_box_u ? g->sf->body.cu->body.hll_config->int_box_type :
                                                   g->sf->body.cu->body.hll_config->str_box_type;
     MVM_spesh_usages_add_by_reg(tc, g, box_operands[1], box_ins);
     MVM_spesh_usages_add_by_reg(tc, g, box_operands[2], box_ins);
