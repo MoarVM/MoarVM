@@ -80,6 +80,10 @@ D: Many contributions to core ops, IO, strings, and build system
 N: Tokuhiro Matsuno
 D: Documentation patch
 
+N: Tom Browder
+U: tbrowder
+D: Build system macro fix
+
 N: Will "Coke" Coleda
 U: coke
 E: will@coleda.com
