@@ -1740,6 +1740,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_sp_bind_s:
     case MVM_OP_sp_bind_s_nowb:
     case MVM_OP_sp_bind_o:
+    case MVM_OP_sp_bind_o_nowb:
     case MVM_OP_sp_get_i64:
     case MVM_OP_sp_get_i32:
     case MVM_OP_sp_get_n:
