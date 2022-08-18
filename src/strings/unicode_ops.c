@@ -887,25 +887,32 @@ MVMuint32 MVM_unicode_get_case_change(MVMThreadContext *tc, MVMCodepoint codepoi
 static void generate_property_codes_by_names_aliases(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_property_keypairs;
 
-    MVM_uni_hash_build(tc, &tc->instance->property_codes_by_names_aliases, num_names);
+    uv_mutex_lock(&tc->instance->mutex_property_codes_hash_setup);
+    if (MVM_uni_hash_is_empty(tc, &tc->instance->property_codes_by_names_aliases)) {
+        MVM_uni_hash_build(tc, &tc->instance->property_codes_by_names_aliases, num_names);
 
-    while (num_names--) {
-        MVM_uni_hash_insert(tc, &tc->instance->property_codes_by_names_aliases,
-                            unicode_property_keypairs[num_names].name,
-                            unicode_property_keypairs[num_names].value);
-
+        while (num_names--) {
+            MVM_uni_hash_insert(tc, &tc->instance->property_codes_by_names_aliases,
+                                unicode_property_keypairs[num_names].name,
+                                unicode_property_keypairs[num_names].value);
+        }
     }
+    uv_mutex_unlock(&tc->instance->mutex_property_codes_hash_setup);
 }
 static void generate_property_codes_by_seq_names(MVMThreadContext *tc) {
     MVMuint32 num_names = num_unicode_seq_keypairs;
 
-    MVM_uni_hash_build(tc, &tc->instance->property_codes_by_seq_names, num_names);
+    uv_mutex_lock(&tc->instance->mutex_property_codes_hash_setup);
+    if (MVM_uni_hash_is_empty(tc, &tc->instance->property_codes_by_seq_names)) {
+        MVM_uni_hash_build(tc, &tc->instance->property_codes_by_seq_names, num_names);
 
-    while (num_names--) {
-        MVM_uni_hash_insert(tc, &tc->instance->property_codes_by_seq_names,
-                            uni_seq_pairs[num_names].name,
-                            uni_seq_pairs[num_names].value);
+        while (num_names--) {
+            MVM_uni_hash_insert(tc, &tc->instance->property_codes_by_seq_names,
+                                uni_seq_pairs[num_names].name,
+                                uni_seq_pairs[num_names].value);
+        }
     }
+    uv_mutex_unlock(&tc->instance->mutex_property_codes_hash_setup);
 }
 
 MVMint64 MVM_unicode_name_to_property_code(MVMThreadContext *tc, MVMString *name) {

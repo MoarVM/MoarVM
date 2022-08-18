@@ -253,6 +253,8 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->callsite_interns = MVM_calloc(1, sizeof(MVMCallsiteInterns));
     init_mutex(instance->mutex_callsite_interns, "callsite interns");
 
+    init_mutex(instance->mutex_property_codes_hash_setup, "unicode db lookup hashes");
+
     /* There's some callsites we statically use all over the place. Intern
      * them, so that spesh may end up optimizing more "internal" stuff. */
     MVM_callsite_initialize_common(instance->main_thread);
@@ -701,6 +703,8 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
     /* Clean up interned callsites */
     uv_mutex_destroy(&instance->mutex_callsite_interns);
     MVM_callsite_cleanup_interns(instance);
+
+    uv_mutex_destroy(&instance->mutex_property_codes_hash_setup);
 
     /* Clean up syscall registry. */
     MVM_fixkey_hash_demolish(instance->main_thread, &instance->syscalls);
