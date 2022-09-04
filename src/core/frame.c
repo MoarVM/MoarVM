@@ -1241,19 +1241,31 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
  * specified type. Non-existing object lexicals produce NULL, expected
  * (for better or worse) by various things. Otherwise, an error is thrown
  * if it does not exist. Incorrect type always throws. */
-MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type) {
+int MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMRegister *r) {
     MVMSpeshFrameWalker fw;
     MVM_spesh_frame_walker_init_for_outers(tc, &fw, tc->cur_frame);
     MVMRegister *res = MVM_frame_lexical_lookup_using_frame_walker(tc, &fw, name, type);
 
-    if (res == NULL && MVM_UNLIKELY(type != MVM_reg_obj)) {
-        char *c_name = MVM_string_utf8_encode_C_string(tc, name);
-        char *waste[] = { c_name, NULL };
-        MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
-            c_name);
+    if (res == NULL) {
+        MVMCode *resolver = tc->cur_frame->static_info->body.cu->body.resolver;
+        if (resolver) {
+            MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+                    MVM_callsite_get_common(tc, MVM_CALLSITE_ID_STR));
+            args_record->args.source[0].s = name;
+            MVM_frame_dispatch_from_c(tc, resolver, args_record, r, MVM_RETURN_OBJ);
+        }
+        else if (MVM_UNLIKELY(type != MVM_reg_obj)) {
+            char *c_name = MVM_string_utf8_encode_C_string(tc, name);
+            char *waste[] = { c_name, NULL };
+            MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
+                c_name);
+        }
+        return 0;
     }
-
-    return res;
+    else {
+        *r = *res;
+        return 1;
+    }
 }
 
 /* Binds the specified value to the given lexical, finding it along the static
@@ -1294,14 +1306,12 @@ MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *
 }
 
 /* Finds a lexical in the outer frame, throwing if it's not there. */
-MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name) {
-    MVMRegister *r;
+void MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name, MVMRegister *result) {
+    int found;
     MVMROOT(tc, name, {
-        r = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer);
+        found = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer, result);
     });
-    if (MVM_LIKELY(r != NULL))
-        return r->o;
-    else {
+    if (MVM_UNLIKELY(!found)) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };
         MVM_exception_throw_adhoc_free(tc, waste, "No lexical found with name '%s'",
@@ -1311,7 +1321,7 @@ MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString
 
 /* Looks up the address of the lexical with the specified name, starting with
  * the specified frame. Only works if it's an object lexical.  */
-MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
+int MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame, MVMRegister *r) {
     while (cur_frame != NULL) {
         if (cur_frame->static_info->body.num_lexicals) {
             MVMuint32 idx = MVM_get_lexical_by_name(tc, cur_frame->static_info, name);
@@ -1320,7 +1330,8 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
                     MVMRegister *result = &cur_frame->env[idx];
                     if (!result->o)
                         MVM_frame_vivify_lexical(tc, cur_frame, idx);
-                    return result;
+                    *r = *result;
+                    return 1;
                 }
                 else {
                     char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -1333,7 +1344,15 @@ MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString
         }
         cur_frame = cur_frame->outer;
     }
-    return NULL;
+    MVMCode *resolver = tc->cur_frame->static_info->body.cu->body.resolver;
+    if (resolver) {
+        MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+                MVM_callsite_get_common(tc, MVM_CALLSITE_ID_STR));
+        args_record->args.source[0].s = name;
+        MVM_frame_dispatch_from_c(tc, resolver, args_record, r, MVM_RETURN_OBJ);
+        return 1;
+    }
+    return 0;
 }
 
 /* Performs some kind of lexical lookup using the frame walker. The exact walk
@@ -1508,8 +1527,8 @@ MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString 
             vivify, found_frame);
 }
 
-MVMObject * MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpeshFrameWalker *fw,
-                                                  MVMString *name) {
+void MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpeshFrameWalker *fw,
+                                                  MVMString *name, MVMRegister *r) {
     MVMuint16 type;
     MVMFrame *found_frame;
     MVMRegister *lex_reg = MVM_frame_find_dynamic_using_frame_walker(tc, fw, name, &type,
@@ -1560,12 +1579,26 @@ MVMObject * MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpesh
                 MVM_exception_throw_adhoc(tc, "invalid register type in getdynlex: %d", type);
         }
     }
-    return result ? result : tc->instance->VMNull;
+    if (result) {
+        r->o = result;
+    }
+    else {
+        MVMCode *resolver = tc->cur_frame->static_info->body.cu->body.dynamic_resolver;
+        if (resolver) {
+            MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
+                    MVM_callsite_get_common(tc, MVM_CALLSITE_ID_STR));
+            args_record->args.source[0].s = name;
+            MVM_frame_dispatch_from_c(tc, resolver, args_record, r, MVM_RETURN_OBJ);
+        }
+        else {
+            r->o = tc->instance->VMNull;
+        }
+    }
 }
-MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame) {
+void MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame, MVMRegister *r) {
     MVMSpeshFrameWalker fw;
     MVM_spesh_frame_walker_init(tc, &fw, cur_frame, 0);
-    return MVM_frame_getdynlex_with_frame_walker(tc, &fw, name);
+    MVM_frame_getdynlex_with_frame_walker(tc, &fw, name, r);
 }
 
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame) {

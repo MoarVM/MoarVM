@@ -42,6 +42,7 @@ void MVM_spesh_log_entry(MVMThreadContext *tc, MVMint32 cid, MVMStaticFrame *sf,
         MVMArgs args);
 void MVM_spesh_log_osr(MVMThreadContext *tc);
 void MVM_spesh_log_type(MVMThreadContext *tc, MVMObject *value);
+void MVM_spesh_log_type_at(MVMThreadContext *tc, MVMObject *value, MVMuint8 *prev_op);
 void MVM_spesh_log_decont(MVMThreadContext *tc, MVMuint8 *prev_op, MVMObject *value);
 void MVM_spesh_log_bytecode_target(MVMThreadContext *tc, MVMint32 cid,
         MVMuint32 bytecode_offset, MVMCode *target);

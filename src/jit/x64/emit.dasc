@@ -621,8 +621,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov ARG1, TC;
         | mov ARG2, TMP5;
         | mov ARG3, aword WORK[name];
+        | lea ARG4, WORK[dst];
         | callp &MVM_context_dynamic_lookup;
-        | mov WORK[dst], RV;
         break;
     }
     case MVM_OP_getlexrelcaller: {
@@ -650,16 +650,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov ARG1, TC;
         | get_string ARG2, idx;
         | mov ARG3, MVM_reg_obj;
+        | lea ARG4, WORK[dst]
         | callp &MVM_frame_find_lexical_by_name;
         | test RV, RV;
-        | jz >1;
-        | mov RV, [RV];
-        | mov WORK[dst], RV;
-        | jmp >2;
-        |1:
+        | jnz >1;
         | get_vmnull TMP3;
         | mov WORK[dst], TMP3;
-        |2:
+        |1:
         break;
     }
     case MVM_OP_bindlex:
@@ -1989,12 +1986,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov ARG1, TC;
         | mov ARG2, aword WORK[name];
         | mov ARG3, MVM_reg_obj;
+        | lea ARG4, WORK[dst];
         | callp &MVM_frame_find_lexical_by_name;
         | test RV, RV;
-        | jz >1;
-        | mov RV, [RV];
+        | jnz >1;
+        | get_vmnull TMP3;
+        | mov WORK[dst], TMP3;
         |1:
-        | mov WORK[dst], RV;
         break;
     }
     case MVM_OP_paramnamesused:

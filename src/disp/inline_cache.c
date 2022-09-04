@@ -21,8 +21,9 @@ static MVMDispInlineCacheEntry unlinked_getlexstatic = { getlexstatic_initial };
 static MVMObject * getlexstatic_initial(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMString *name) {
     /* Do the lookup. */
-    MVMRegister *found = MVM_frame_find_lexical_by_name(tc, name, MVM_reg_obj);
-    MVMObject *result = found ? found->o : tc->instance->VMNull;
+    MVMRegister r;
+    int found = MVM_frame_find_lexical_by_name(tc, name, MVM_reg_obj, &r);
+    MVMObject *result = found ? r.o : tc->instance->VMNull;
 
     /* Set up result node and try to install it. */
     MVMStaticFrame *sf = tc->cur_frame->static_info;

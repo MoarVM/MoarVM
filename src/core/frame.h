@@ -155,10 +155,10 @@ MVM_PUBLIC void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code);
 MVM_PUBLIC void MVM_frame_capture_inner(MVMThreadContext *tc, MVMObject *code);
 MVM_PUBLIC MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code);
 MVM_PUBLIC MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint16 idx);
-MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type);
+MVM_PUBLIC int MVM_frame_find_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMRegister *result);
 MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 type, MVMRegister value);
-MVMObject * MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name);
-MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame);
+void MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name, MVMRegister *result);
+MVM_PUBLIC int MVM_frame_find_lexical_by_name_rel(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame, MVMRegister *result);
 MVMRegister * MVM_frame_lexical_lookup_using_frame_walker(MVMThreadContext *tc,
         MVMSpeshFrameWalker *fw, MVMString *name, MVMuint16 type);
 MVM_PUBLIC MVMRegister * MVM_frame_find_lexical_by_name_rel_caller(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_caller_frame);
@@ -166,9 +166,9 @@ MVMRegister * MVM_frame_find_dynamic_using_frame_walker(MVMThreadContext *tc,
         MVMSpeshFrameWalker *fw, MVMString *name, MVMuint16 *type, MVMFrame *initial_frame,
         MVMint32 vivify, MVMFrame **found_frame);
 MVMRegister * MVM_frame_find_contextual_by_name(MVMThreadContext *tc, MVMString *name, MVMuint16 *type, MVMFrame *cur_frame, MVMint32 vivify, MVMFrame **found_frame);
-MVMObject * MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpeshFrameWalker *fw,
-        MVMString *name);
-MVMObject * MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame);
+void MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpeshFrameWalker *fw,
+        MVMString *name, MVMRegister *result);
+void MVM_frame_getdynlex(MVMThreadContext *tc, MVMString *name, MVMFrame *cur_frame, MVMRegister *result);
 void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *value, MVMFrame *cur_frame);
 MVMRegister * MVM_frame_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name);
 MVM_PUBLIC MVMRegister * MVM_frame_try_get_lexical(MVMThreadContext *tc, MVMFrame *f, MVMString *name, MVMuint16 type);

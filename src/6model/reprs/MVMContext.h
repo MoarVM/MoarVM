@@ -42,7 +42,7 @@ MVMObject * MVM_context_lexicals_as_hash(MVMThreadContext *tc, MVMContext *ctx);
 MVMint64 MVM_context_lexical_primspec(MVMThreadContext *tc, MVMContext *ctx, MVMString *name);
 MVMObject * MVM_context_get_code(MVMThreadContext *tc, MVMContext *ctx);
 MVMObject * MVM_context_lexical_lookup(MVMThreadContext *tc, MVMContext *ctx, MVMString *name);
-MVMObject * MVM_context_dynamic_lookup(MVMThreadContext *tc, MVMContext *ctx, MVMString *name);
+void MVM_context_dynamic_lookup(MVMThreadContext *tc, MVMContext *ctx, MVMString *name, MVMRegister *result);
 MVMObject * MVM_context_caller_lookup(MVMThreadContext *tc, MVMContext *ctx, MVMString *name);
 
 /* Compatibility shim for Rakudo ext ops. */

@@ -137,6 +137,11 @@ struct MVMCompUnitBody {
      * frame inside of the compilation unit. */
     MVMObject *deserialize_frame_mutex;
 
+    /* Resolver to use for unknown lexicals, e.g. when running code at
+       BEGIN time. */
+    MVMCode *resolver;
+    MVMCode *dynamic_resolver;
+
     /* Version of the bytecode format we deserialized this comp unit from. */
     MVMuint16 bytecode_version;
 
