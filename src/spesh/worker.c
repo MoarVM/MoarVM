@@ -115,7 +115,7 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                             MVM_free(dump);
                         }
                         size_t before_print = MVM_spesh_debug_tell(tc);
-                        MVM_spesh_debug_printf(tc, "\nskip:%d\n\n", log_tell_before);
+                        MVM_spesh_debug_printf(tc, "\nskip:%lu\n\n", log_tell_before);
                         log_tell_before = before_print + 1;
                     }
                     if (overview_data) {
@@ -143,7 +143,7 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                             MVM_free(dump);
                         }
                         size_t before_print = MVM_spesh_debug_tell(tc);
-                        MVM_spesh_debug_printf(tc, "\nskip:%d\n\n", log_tell_before);
+                        MVM_spesh_debug_printf(tc, "\nskip:%lu\n\n", log_tell_before);
                         log_tell_before = before_print + 1;
                     }
 
@@ -167,7 +167,7 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                         GC_SYNC_POINT(tc);
                         if (MVM_spesh_debug_enabled(tc)) {
                             size_t before_print = MVM_spesh_debug_tell(tc);
-                            MVM_spesh_debug_printf(tc, "\nskip:%d\n\n", log_tell_before);
+                            MVM_spesh_debug_printf(tc, "\nskip:%lu\n\n", log_tell_before);
                             log_tell_before = before_print + 1;
                         }
                     }
