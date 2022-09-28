@@ -355,9 +355,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GC_SYNC_POINT(tc);
                 goto NEXT;
             }
-            OP(DEPRECATED_62):
-            OP(DEPRECATED_63):
-                MVM_exception_throw_adhoc(tc, "if_o/unless_o were superseded by the general dispatch mechanism");
             OP(jumplist): {
                 MVMint64 num_labels = MVM_BC_get_I64(cur_op, 0);
                 MVMint64 input = GET_REG(cur_op, 8).i64;
@@ -591,28 +588,58 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 == GET_REG(cur_op, 4).i64;
                 cur_op += 6;
                 goto NEXT;
+            OP(eq_u):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).u64 == GET_REG(cur_op, 4).u64;
+                cur_op += 6;
+                goto NEXT;
             OP(ne_i):
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 != GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            OP(ne_u):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).u64 != GET_REG(cur_op, 4).u64;
                 cur_op += 6;
                 goto NEXT;
             OP(lt_i):
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 <  GET_REG(cur_op, 4).i64;
                 cur_op += 6;
                 goto NEXT;
+            OP(lt_u):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).u64 <  GET_REG(cur_op, 4).u64;
+                cur_op += 6;
+                goto NEXT;
             OP(le_i):
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 <= GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            OP(le_u):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).u64 <= GET_REG(cur_op, 4).u64;
                 cur_op += 6;
                 goto NEXT;
             OP(gt_i):
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 >  GET_REG(cur_op, 4).i64;
                 cur_op += 6;
                 goto NEXT;
+            OP(gt_u):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).u64 >  GET_REG(cur_op, 4).u64;
+                cur_op += 6;
+                goto NEXT;
             OP(ge_i):
                 GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).i64 >= GET_REG(cur_op, 4).i64;
                 cur_op += 6;
                 goto NEXT;
+            OP(ge_u):
+                GET_REG(cur_op, 0).i64 = GET_REG(cur_op, 2).u64 >= GET_REG(cur_op, 4).u64;
+                cur_op += 6;
+                goto NEXT;
             OP(cmp_i): {
                 MVMint64 a = GET_REG(cur_op, 2).i64, b = GET_REG(cur_op, 4).i64;
+                GET_REG(cur_op, 0).i64 = (a > b) - (a < b);
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(cmp_u): {
+                MVMuint64 a = GET_REG(cur_op, 2).u64, b = GET_REG(cur_op, 4).u64;
                 GET_REG(cur_op, 0).i64 = (a > b) - (a < b);
                 cur_op += 6;
                 goto NEXT;
@@ -973,8 +1000,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).n64 = MVM_coerce_s_n(tc, GET_REG(cur_op, 2).s);
                 cur_op += 4;
                 goto NEXT;
-            OP(DEPRECATED_66):
-            OP(DEPRECATED_67):
             OP(DEPRECATED_68):
                 MVM_exception_throw_adhoc(tc, "Smart coercion ops are superseded by the general dispatch mechanism");
             OP(DEPRECATED_99):
@@ -6818,12 +6843,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_exception_throw_adhoc(tc, "The newlexotic op was removed in MoarVM 2017.08.");
             OP(DEPRECATED_34):
                 MVM_exception_throw_adhoc(tc, "The lexoticresult op was removed in MoarVM 2017.08.");
-            OP(DEPRECATED_35):
-                MVM_exception_throw_adhoc(tc, "The sec_n op was removed in MoarVM 2021.04.");
-            OP(DEPRECATED_36):
-                MVM_exception_throw_adhoc(tc, "The asec_n op was removed in MoarVM 2021.04.");
-            OP(DEPRECATED_37):
-                MVM_exception_throw_adhoc(tc, "The sech_n op was removed in MoarVM 2021.04.");
             OP(DEPRECATED_46):
                 MVM_exception_throw_adhoc(tc, "The time_i op was removed in MoarVM 2021.04.");
             OP(DEPRECATED_47):

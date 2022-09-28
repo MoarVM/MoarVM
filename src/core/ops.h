@@ -33,8 +33,8 @@
 #define MVM_OP_unless_s 29
 #define MVM_OP_if_s0 30
 #define MVM_OP_unless_s0 31
-#define MVM_OP_DEPRECATED_62 32
-#define MVM_OP_DEPRECATED_63 33
+#define MVM_OP_eq_u 32
+#define MVM_OP_ne_u 33
 #define MVM_OP_jumplist 34
 #define MVM_OP_getlex 35
 #define MVM_OP_bindlex 36
@@ -111,12 +111,12 @@
 #define MVM_OP_tan_n 107
 #define MVM_OP_atan_n 108
 #define MVM_OP_atan2_n 109
-#define MVM_OP_DEPRECATED_35 110
-#define MVM_OP_DEPRECATED_36 111
+#define MVM_OP_le_u 110
+#define MVM_OP_lt_u 111
 #define MVM_OP_sinh_n 112
 #define MVM_OP_cosh_n 113
 #define MVM_OP_tanh_n 114
-#define MVM_OP_DEPRECATED_37 115
+#define MVM_OP_ge_u 115
 #define MVM_OP_sqrt_n 116
 #define MVM_OP_log_n 117
 #define MVM_OP_exp_n 118
@@ -126,8 +126,8 @@
 #define MVM_OP_coerce_ns 122
 #define MVM_OP_coerce_si 123
 #define MVM_OP_coerce_sn 124
-#define MVM_OP_DEPRECATED_66 125
-#define MVM_OP_DEPRECATED_67 126
+#define MVM_OP_gt_u 125
+#define MVM_OP_cmp_u 126
 #define MVM_OP_DEPRECATED_99 127
 #define MVM_OP_DEPRECATED_100 128
 #define MVM_OP_DEPRECATED_101 129

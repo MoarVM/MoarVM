@@ -1686,6 +1686,14 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     case MVM_OP_gt_i:
     case MVM_OP_ge_i:
     case MVM_OP_cmp_i:
+        /* comparison (unsigned integer) */
+    case MVM_OP_eq_u:
+    case MVM_OP_ne_u:
+    case MVM_OP_lt_u:
+    case MVM_OP_le_u:
+    case MVM_OP_gt_u:
+    case MVM_OP_ge_u:
+    case MVM_OP_cmp_u:
         /* comparison (numbers) */
     case MVM_OP_eq_n:
     case MVM_OP_ne_n:

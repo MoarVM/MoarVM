@@ -220,6 +220,14 @@
 (template: ge_i (flagval (ge $1 $2)))
 (template: cmp_i (sub (flagval (gt $1 $2)) (flagval (lt $1 $2))))
 
+(template: eq_u (flagval (eq $1 $2)))
+(template: ne_u (flagval (ne $1 $2)))
+(template: lt_u (flagval (lt $1 $2)))
+(template: le_u (flagval (le $1 $2)))
+(template: gt_u (flagval (gt $1 $2)))
+(template: ge_u (flagval (ge $1 $2)))
+(template: cmp_u (sub (flagval (gt $1 $2)) (flagval (lt $1 $2))))
+
 (template: eq_n (flagval (eq $1 $2)))
 (template: ne_n (flagval (ne $1 $2)))
 (template: lt_n (flagval (lt $1 $2)))
