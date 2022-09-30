@@ -5,6 +5,10 @@
 #define snprintf _snprintf
 #endif
 
+#ifndef AI_NUMERICSERV
+#define AI_NUMERICSERV 0
+#endif
+
 /* Assumed maximum packet size. If ever changing this to something beyond a
  * 16-bit number, then make sure to change the receive offsets in the data
  * structure below. */
