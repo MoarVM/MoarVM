@@ -76,13 +76,44 @@ void MVM_6model_never_repossess(MVMThreadContext *tc, MVMObject *obj) {
 
 /* Set the debug name on a type. */
 void MVM_6model_set_debug_name(MVMThreadContext *tc, MVMObject *type, MVMString *name) {
-    char *orig_debug_name;
-    uv_mutex_lock(&(tc->instance->mutex_free_at_safepoint));
-    orig_debug_name = STABLE(type)->debug_name;
-    if (orig_debug_name)
-        MVM_free_at_safepoint(tc, orig_debug_name);
-    STABLE(type)->debug_name = name && MVM_string_graphs(tc, name)
+    char *new_debug_name = name && MVM_string_graphs(tc, name)
         ? MVM_string_utf8_encode_C_string(tc, name)
         : NULL;
-    uv_mutex_unlock(&(tc->instance->mutex_free_at_safepoint));
+
+#ifdef MVM_USE_C11_ATOMICS
+    /* clang insists on the cast. gcc is warning free either way. */
+    void *old_debug_name
+        = (void *) atomic_exchange_explicit((char * _Atomic *)&STABLE(type)->debug_name, new_debug_name, memory_order_relaxed);
+
+    if (old_debug_name)
+        MVM_free_at_safepoint(tc, old_debug_name);
+
+#else
+    /* libatomic_ops doesn't have any equivalent to atomic_exchange - all the
+     * "exchange" ops are compare-and-swap. We *could* use a while loop with
+     * the two APIs used here to emulate unconditional exchange, but as
+     * 1) we don't need that anywhere else in the codebase
+     * 2) for this use case, a "failed" swap can be handled immediately
+     * so we code things slightly differently:
+     */
+    volatile AO_t *addr = (AO_t *)(&STABLE(type)->debug_name);
+
+    char *orig_debug_name = (char *)MVM_load(addr);
+    char *old_debug_name = MVM_casptr(addr, orig_debug_name, new_debug_name);
+
+    if (old_debug_name == orig_debug_name) {
+        /* new_debug_name is now swapped in place, and we now "own" the old
+           pointer. */
+        if (orig_debug_name)
+            MVM_free_at_safepoint(tc, orig_debug_name);
+    }
+    else {
+        /* Someone else raced us and won - they swapped their new pointer in
+         * place between `MVM_load` and `MVM_casptr`. Hence we still "own"
+         * new_debug_name, *and* no-one else has ever seen it, so it's safe to
+         * free it immediately. */
+        if (new_debug_name)
+            MVM_free(new_debug_name);
+    }
+#endif
 }

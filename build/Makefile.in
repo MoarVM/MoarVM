@@ -263,6 +263,7 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
 HEADERS = src/moar.h \
           src/types.h \
           src/bithacks.h \
+          src/atomics.h \
           src/6model/6model.h \
           src/core/instance.h \
           src/core/threadcontext.h \
