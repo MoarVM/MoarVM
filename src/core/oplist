@@ -84,8 +84,8 @@ if_s                r(str) ins
 unless_s            r(str) ins
 if_s0               r(str) ins
 unless_s0           r(str) ins
-DEPRECATED_62       r(obj) ins
-DEPRECATED_63       r(obj) ins
+eq_u                w(int64) r(uint64) r(uint64) :pure :confprog
+ne_u                w(int64) r(uint64) r(uint64) :pure :confprog
 jumplist         :j int64 r(int64)
 getlex              w(`1) rl(`1) :pure :deoptonepoint :logged
 bindlex             wl(`1) r(`1)
@@ -162,12 +162,12 @@ acos_n              w(num64) r(num64) :pure
 tan_n               w(num64) r(num64) :pure
 atan_n              w(num64) r(num64) :pure
 atan2_n             w(num64) r(num64) r(num64) :pure
-DEPRECATED_35       w(num64) r(num64) :pure
-DEPRECATED_36       w(num64) r(num64) :pure
+le_u                w(int64) r(uint64) r(uint64) :pure :confprog
+lt_u                w(int64) r(uint64) r(uint64) :pure :confprog
 sinh_n              w(num64) r(num64) :pure
 cosh_n              w(num64) r(num64) :pure
 tanh_n              w(num64) r(num64) :pure
-DEPRECATED_37       w(num64) r(num64) :pure
+ge_u                w(int64) r(uint64) r(uint64) :pure :confprog
 sqrt_n              w(num64) r(num64) :pure
 log_n               w(num64) r(num64) :pure :confprog
 exp_n               w(num64) r(num64) :pure
@@ -177,8 +177,8 @@ coerce_is           w(str) r(int64) :pure :confprog
 coerce_ns           w(str) r(num64) :pure :confprog
 coerce_si           w(int64) r(str) :pure :confprog
 coerce_sn           w(num64) r(str) :pure :confprog
-DEPRECATED_66       w(num64) r(obj)
-DEPRECATED_67       w(str) r(obj)
+gt_u                w(int64) r(uint64) r(uint64) :pure :confprog
+cmp_u               w(int64) r(uint64) r(uint64) :pure :confprog
 DEPRECATED_99    +a callsite :predeoptonepoint
 DEPRECATED_100   *a int16 r(int64)
 DEPRECATED_101   *a int16 r(num64)

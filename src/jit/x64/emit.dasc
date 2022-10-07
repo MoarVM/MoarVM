@@ -1435,12 +1435,18 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov qword WORK[dst], TMP2;
         break;
     }
+    case MVM_OP_eq_u:
     case MVM_OP_eq_i:
     case MVM_OP_eqaddr:
+    case MVM_OP_ne_u:
     case MVM_OP_ne_i:
+    case MVM_OP_lt_u:
     case MVM_OP_lt_i:
+    case MVM_OP_le_u:
     case MVM_OP_le_i:
+    case MVM_OP_gt_u:
     case MVM_OP_gt_i:
+    case MVM_OP_ge_u:
     case MVM_OP_ge_i: {
         MVMint32 reg_a = ins->operands[0].reg.orig;
         MVMint32 reg_b = ins->operands[1].reg.orig;
@@ -1452,23 +1458,37 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
            register */
         switch(ins->info->opcode) {
         case MVM_OP_eqaddr:
+        case MVM_OP_eq_u:
         case MVM_OP_eq_i:
             | sete RVb;
             break;
+        case MVM_OP_ne_u:
         case MVM_OP_ne_i:
             | setne RVb;
             break;
         case MVM_OP_lt_i:
             | setl RVb;
             break;
+        case MVM_OP_lt_u:
+            | setb RVb;
+            break;
         case MVM_OP_le_i:
             | setle RVb;
+            break;
+        case MVM_OP_le_u:
+            | setbe RVb;
             break;
         case MVM_OP_gt_i:
             | setg RVb;
             break;
+        case MVM_OP_gt_u:
+            | seta RVb;
+            break;
         case MVM_OP_ge_i:
             | setge RVb;
+            break;
+        case MVM_OP_ge_u:
+            | setae RVb;
             break;
         }
         /* zero extend al (lower byte) to rax (whole register) */
@@ -1476,6 +1496,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[reg_a], RV;
         break;
     }
+    case MVM_OP_cmp_u :
     case MVM_OP_cmp_i : {
         MVMint32 reg_a = ins->operands[0].reg.orig;
         MVMint32 reg_b = ins->operands[1].reg.orig;
@@ -1485,9 +1506,22 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | cmp TMP1, WORK[reg_c];
         /* copy the right comparison bit to the lower byte of the rax
            register */
-        | setg TMP2b;
+        /* The braces are needed on the below if/else pairs. If they are omitted then
+         * for some reason cmp_i returns the right operand (unless run under valgrind).
+         * I don't understand it, but since it works with the braces... */
+        if (ins->info->opcode == MVM_OP_cmp_i) {
+            | setg TMP2b;
+        }
+        else {
+            | seta TMP2b;
+        }
         | movzx TMP2, TMP2b;
-        | setl TMP3b;
+        if (ins->info->opcode == MVM_OP_cmp_i) {
+            | setl TMP3b;
+        }
+        else {
+            | setb TMP3b;
+        }
         | movzx TMP3, TMP3b;
         | sub TMP2, TMP3;
         | mov WORK[reg_a], TMP2;
