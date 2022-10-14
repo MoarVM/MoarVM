@@ -1762,8 +1762,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov FUNCTION, STABLE:ARG2->REPR;
         | mov FUNCTION, REPR:FUNCTION->get_storage_spec;
         | call FUNCTION;
-        | cmp word STORAGESPEC:RV->boxed_primitive, 1;
-        | jne >1;
+        | movzx TMP6, word STORAGESPEC:RV->boxed_primitive;
+        | test TMP6, TMP6;
+        | jz >1;
         | movzx TMP6, byte STORAGESPEC:RV->is_unsigned;
         | mov WORK[dst], TMP6;
         | jmp >2;
