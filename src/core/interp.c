@@ -3363,6 +3363,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVM_file_chmod(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).i64);
                 cur_op += 4;
                 goto NEXT;
+            OP(chown_f):
+                MVM_file_chown(tc, GET_REG(cur_op, 0).s, GET_REG(cur_op, 2).i64, GET_REG(cur_op, 4).i64);
+                cur_op += 6;
+                goto NEXT;
             OP(exists_f):
                 GET_REG(cur_op, 0).i64 = MVM_file_exists(tc, GET_REG(cur_op, 2).s, 0);
                 cur_op += 4;
@@ -6825,8 +6829,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             /* The compiler compiles faster if all deprecated are together and at the end
              * even though the op numbers are technically out of order. */
-            OP(DEPRECATED_6):
-                MVM_exception_throw_adhoc(tc, "The getregref_* ops were removed in MoarVM 2017.01.");
             OP(DEPRECATED_25):
                 MVM_exception_throw_adhoc(tc, "The setinputlineseps op was removed in MoarVM 2017.06.");
             OP(DEPRECATED_27):

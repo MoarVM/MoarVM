@@ -200,6 +200,18 @@ void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag) {
     MVM_free(a);
 }
 
+void MVM_file_chown(MVMThreadContext *tc, MVMString *f, MVMint64 uid, MVMint64 gid) {
+    char * const a = MVM_string_utf8_c8_encode_C_string(tc, f);
+    uv_fs_t req;
+
+    if(uv_fs_chown(NULL, &req, a, uid, gid, NULL) < 0 ) {
+        MVM_free(a);
+        MVM_exception_throw_adhoc(tc, "Failed to set owner/group on path: %s", uv_strerror(req.result));
+    }
+
+    MVM_free(a);
+}
+
 MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f, MVMint32 use_lstat) {
     uv_fs_t req;
     char * const a = MVM_string_utf8_c8_encode_C_string(tc, f);

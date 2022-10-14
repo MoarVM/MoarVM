@@ -709,7 +709,7 @@
 #define MVM_OP_objprimbits 705
 #define MVM_OP_objprimunsigned 706
 #define MVM_OP_ctxnt 707
-#define MVM_OP_DEPRECATED_6 708
+#define MVM_OP_chown_f 708
 #define MVM_OP_bindattr_u 709
 #define MVM_OP_bindattrs_u 710
 #define MVM_OP_getlexref_i32 711

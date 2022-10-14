@@ -761,7 +761,7 @@ asyncwritebytesto   w(obj) r(obj) r(obj) r(obj) r(obj) r(obj) r(str) r(int64)
 objprimbits         w(int64) r(obj) :specializable
 objprimunsigned     w(int64) r(obj) :specializable
 ctxnt               w(obj) :pure :noinline
-DEPRECATED_6        w(obj) r(int16)
+chown_f             r(str) r(int64) r(int64)
 bindattr_u          r(obj) r(obj) str r(uint64) int16 :specializable
 bindattrs_u         r(obj) r(obj) r(str) r(uint64) :specializable
 getlexref_i32       w(obj) rl(int32) :pure :noinline :useshll
