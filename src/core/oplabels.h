@@ -709,7 +709,7 @@ static const void * const LABELS[] = {
     &&OP_objprimbits,
     &&OP_objprimunsigned,
     &&OP_ctxnt,
-    &&OP_DEPRECATED_6,
+    &&OP_chown_f,
     &&OP_bindattr_u,
     &&OP_bindattrs_u,
     &&OP_getlexref_i32,
