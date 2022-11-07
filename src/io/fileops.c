@@ -200,7 +200,7 @@ void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag) {
     MVM_free(a);
 }
 
-void MVM_file_chown(MVMThreadContext *tc, MVMString *f, MVMint64 uid, MVMint64 gid) {
+void MVM_file_chown(MVMThreadContext *tc, MVMString *f, MVMuint64 uid, MVMuint64 gid) {
     char * const a = MVM_string_utf8_c8_encode_C_string(tc, f);
     uv_fs_t req;
 
