@@ -11343,7 +11343,7 @@ static const MVMOpInfo MVM_op_infos[] = {
         0,
         0,
         0,
-        { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_int64, MVM_operand_read_reg | MVM_operand_int64 }
+        { MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_uint64, MVM_operand_read_reg | MVM_operand_uint64 }
     },
     {
         MVM_OP_bindattr_u,

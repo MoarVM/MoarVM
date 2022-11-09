@@ -30,7 +30,7 @@ void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString *dest);
 void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest);
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f);
 void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag);
-void MVM_file_chown(MVMThreadContext *tc, MVMString *f, MVMint64 uid, MVMint64 gid);
+void MVM_file_chown(MVMThreadContext *tc, MVMString *f, MVMuint64 uid, MVMuint64 gid);
 MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f, MVMint32 use_lstat);
 MVMint64 MVM_file_isreadable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat);
 MVMint64 MVM_file_iswritable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat);
