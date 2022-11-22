@@ -31,9 +31,6 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
     /* Set up the second generation allocator. */
     tc->gen2 = MVM_gc_gen2_create(instance);
 
-    /* The fixed size allocator also keeps pre-thread state. */
-    MVM_fixed_size_create_thread(tc);
-
     /* Allocate a call stack for the thread. */
     MVM_callstack_init(tc);
 
@@ -80,11 +77,10 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
     while (tc->active_handlers) {
         MVMActiveHandler *ah = tc->active_handlers;
         tc->active_handlers = ah->next_handler;
-        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMActiveHandler), ah);
+        MVM_free(ah);
     }
 
-    /* Free the native callback cache. Needs the fixed size allocator. */
-    /* (currently not. but might if MVMStrHash moves internally to the FSA.) */
+    /* Free the native callback cache. */
     MVM_str_hash_demolish(tc, &tc->native_callback_cache);
 
     /* Free specialization state. */
@@ -103,9 +99,6 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
 
     /* Destroy the second generation allocator. */
     MVM_gc_gen2_destroy(tc->instance, tc->gen2);
-
-    /* Destory the per-thread fixed size allocator state. */
-    MVM_fixed_size_destroy_thread(tc);
 
     /* Destroy the callstack, releasing all allocated memory. */
     MVM_callstack_destroy(tc);

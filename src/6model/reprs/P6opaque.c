@@ -143,7 +143,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     /* If we replaced the object body, free the replacement. */
     void *replaced = ((MVMP6opaque *)obj)->body.replaced;
     if (replaced)
-        MVM_fixed_size_free(tc, tc->instance->fsa, STABLE(obj)->size - sizeof(MVMObject), replaced);
+        MVM_free(replaced);
 }
 
 /* Marks the representation data in an STable.*/
@@ -1296,7 +1296,7 @@ static void allocate_replaced_body(MVMThreadContext *tc, MVMObject *obj, MVMSTab
     /* Allocate new memory. */
     size_t  new_size = new_type->size - sizeof(MVMObject);
     size_t  old_size = STABLE(obj)->size - sizeof(MVMObject);
-    void   *new = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, new_size);
+    void   *new      = MVM_calloc(1, new_size);
 
     /* Copy existing to new.
      * XXX Need more care here, as may have to re-barrier pointers. */
@@ -1305,7 +1305,7 @@ static void allocate_replaced_body(MVMThreadContext *tc, MVMObject *obj, MVMSTab
     /* Pointer switch, taking care of existing body issues. */
     if (body->replaced) {
         body->replaced = new;
-        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, old_size, old);
+        MVM_free_at_safepoint(tc, old);
     }
     else {
         body->replaced = new;

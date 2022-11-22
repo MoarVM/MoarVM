@@ -266,15 +266,12 @@ MVMint32 MVM_callstack_ensure_work_and_env_space(MVMThreadContext *tc, MVMuint32
         /* Allocate the extra space on the callstack. */
         region->alloc += diff;
 
-        /* If the environment size changed, then need to realloc using the
-         * FSA. */
+        /* If the environment size changed, then need to realloc. */
         if (new_env_size > cur_frame->allocd_env) {
-            MVMRegister *new_env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-                    new_env_size);
+            MVMRegister *new_env = MVM_calloc(1, new_env_size);
             if (cur_frame->allocd_env) {
                 memcpy(new_env, cur_frame->env, cur_frame->allocd_env);
-                MVM_fixed_size_free(tc, tc->instance->fsa, cur_frame->allocd_env,
-                    cur_frame->env);
+                MVM_free(cur_frame->env);
             }
             cur_frame->env = new_env;
         }
@@ -613,7 +610,7 @@ static void exit_heap_frame(MVMThreadContext *tc, MVMFrame *returner) {
         /* Preserve the extras if the frame has been used in a ctx operation
          * and marked with caller info. */
         if (!(e->caller_deopt_idx || e->caller_jit_position)) {
-            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
+            MVM_free_at_safepoint(tc, e);
             returner->extra = NULL;
         }
     }
@@ -797,7 +794,7 @@ MVMuint64 MVM_callstack_unwind_frame(MVMThreadContext *tc, MVMuint8 exceptional)
             case MVM_CALLSTACK_RECORD_FRAME: {
                 MVMFrame *frame = &(((MVMCallStackFrame *)tc->stack_top)->frame);
                 if (frame->extra)
-                    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), frame->extra);
+                    MVM_free(frame->extra);
                 exit_frame(tc, frame);
                 move_to_prev_record(tc);
                 break;

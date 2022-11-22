@@ -50,7 +50,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
         MVMActiveHandler *cur_ah = ctx->body.active_handlers;
         while (cur_ah != NULL) {
             MVMActiveHandler *next_ah = cur_ah->next_handler;
-            MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMActiveHandler), cur_ah);
+            MVM_free(cur_ah);
             cur_ah = next_ah;
         }
     }

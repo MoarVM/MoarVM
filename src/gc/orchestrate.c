@@ -187,8 +187,7 @@ static void finish_gc(MVMThreadContext *tc, MVMuint8 gen, MVMuint8 is_coordinato
         MVM_profile_heap_take_snapshot(tc);
 
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
-            "Thread %d run %d : Co-ordinator handling fixed-size allocator safepoint frees\n");
-        MVM_fixed_size_safepoint(tc, tc->instance->fsa);
+            "Thread %d run %d : Co-ordinator handling allocator safepoint frees\n");
         MVM_alloc_safepoint(tc);
         GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE,
             "Thread %d run %d : Co-ordinator signalling in-trays clear\n");

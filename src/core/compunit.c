@@ -115,13 +115,12 @@ MVMuint16 MVM_cu_callsite_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMCallsite
         /* Not known; let's add it. */
         size_t orig_size = cu->body.num_callsites * sizeof(MVMCallsite *);
         size_t new_size = (cu->body.num_callsites + 1) * sizeof(MVMCallsite *);
-        MVMCallsite **new_callsites = MVM_fixed_size_alloc(tc, tc->instance->fsa, new_size);
+        MVMCallsite **new_callsites = MVM_malloc(new_size);
         memcpy(new_callsites, cu->body.callsites, orig_size);
         idx = cu->body.num_callsites;
         new_callsites[idx] = cs->is_interned ? cs : MVM_callsite_copy(tc, cs);
         if (cu->body.callsites)
-            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, orig_size,
-                cu->body.callsites);
+            MVM_free_at_safepoint(tc, cu->body.callsites);
         cu->body.callsites = new_callsites;
         cu->body.num_callsites++;
     }
@@ -149,13 +148,12 @@ MVMuint32 MVM_cu_string_add(MVMThreadContext *tc, MVMCompUnit *cu, MVMString *st
         /* Not known; let's add it. */
         size_t orig_size = cu->body.num_strings * sizeof(MVMString *);
         size_t new_size = (cu->body.num_strings + 1) * sizeof(MVMString *);
-        MVMString **new_strings = MVM_fixed_size_alloc(tc, tc->instance->fsa, new_size);
+        MVMString **new_strings = MVM_malloc(new_size);
         memcpy(new_strings, cu->body.strings, orig_size);
         idx = cu->body.num_strings;
         new_strings[idx] = str;
         if (cu->body.strings)
-            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, orig_size,
-                cu->body.strings);
+            MVM_free_at_safepoint(tc, cu->body.strings);
         cu->body.strings = new_strings;
         cu->body.num_strings++;
     }

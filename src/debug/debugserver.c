@@ -187,7 +187,7 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
         if (table->files_used++ >= table->files_alloc) {
             MVMuint32 old_alloc = table->files_alloc;
             table->files_alloc *= 2;
-            table->files = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa, table->files,
+            table->files = MVM_realloc_at_safepoint(tc, table->files,
                     old_alloc * sizeof(MVMDebugServerBreakpointFileTable),
                     table->files_alloc * sizeof(MVMDebugServerBreakpointFileTable));
             memset((char *)(table->files + old_alloc), 0, (table->files_alloc - old_alloc) * sizeof(MVMDebugServerBreakpointFileTable) - 1);
@@ -206,7 +206,7 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
         found->filename_length = filename_len;
 
         found->lines_active_alloc = line_no + 32;
-        found->lines_active = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, found->lines_active_alloc * sizeof(MVMuint8));
+        found->lines_active = MVM_calloc(found->lines_active_alloc, sizeof(MVMuint8));
 
         *file_idx = table->files_used - 1;
 
@@ -220,7 +220,7 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
         found->lines_active_alloc *= 2;
         if (tc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "increasing line number table for %s from %u to %u slots\n", found->filename, old_size, found->lines_active_alloc);
-        found->lines_active = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa,
+        found->lines_active = MVM_realloc_at_safepoint(tc,
                 found->lines_active, old_size, found->lines_active_alloc);
         memset((char *)found->lines_active + old_size, 0, found->lines_active_alloc - old_size - 1);
     }
@@ -1052,13 +1052,12 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
      * the breakpoint information already exists */
     if (found->breakpoints_alloc == 0) {
         found->breakpoints_alloc = 4;
-        found->breakpoints = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa,
-                found->breakpoints_alloc * sizeof(MVMDebugServerBreakpointInfo));
+        found->breakpoints = MVM_calloc(found->breakpoints_alloc, sizeof(MVMDebugServerBreakpointInfo));
     }
     if (found->breakpoints_used++ >= found->breakpoints_alloc) {
         MVMuint32 old_alloc = found->breakpoints_alloc;
         found->breakpoints_alloc *= 2;
-        found->breakpoints = MVM_fixed_size_realloc_at_safepoint(tc, tc->instance->fsa, found->breakpoints,
+        found->breakpoints = MVM_realloc_at_safepoint(tc, found->breakpoints,
                 old_alloc * sizeof(MVMDebugServerBreakpointInfo),
                 found->breakpoints_alloc * sizeof(MVMDebugServerBreakpointInfo));
         if (tc->instance->debugserver->debugspam_protocol)
@@ -3464,7 +3463,7 @@ MVM_PUBLIC void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
     debugserver->breakpoints->files_alloc = 32;
     debugserver->breakpoints->files_used  = 0;
     debugserver->breakpoints->files       =
-        MVM_fixed_size_alloc_zeroed(tc, vm->fsa, debugserver->breakpoints->files_alloc * sizeof(MVMDebugServerBreakpointFileTable));
+        MVM_calloc(debugserver->breakpoints->files_alloc, sizeof(MVMDebugServerBreakpointFileTable));
 
     debugserver->event_id = 2;
     debugserver->port = port;

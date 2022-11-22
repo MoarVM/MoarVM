@@ -58,11 +58,10 @@ Not all the optimisations described above are in place yet. Starting with
  * delete yet, delete isn't implemented...
  *
  * The normal case is that the caller specify the `entry_size`, and the hash
- * will allocate memory for new entries using `MVM_fixed_size_alloc` (when
- * needed), and all the APIs return pointers to this memory, with the layer of
- * indirection completely hidden internally. `MVM_fixkey_hash_demolish` will
- * release all of the allocated blocks back to the FSA before freeing the hash
- * itself.
+ * will allocate memory for new entries (when needed), and all the APIs
+ * return pointers to this memory, with the layer of indirection completely
+ * hidden internally. `MVM_fixkey_hash_demolish` will release all of the
+ * allocated blocks before freeing the hash itself.
  *
  * It can be useful to indirect to static storage. Hence `entry_size == 0` is
  * treated as a special case (the allocated storage must be at least 1 pointer
@@ -84,7 +83,7 @@ struct MVMFixKeyHashTableControl {
     MVMHashNumItems cur_items;
     MVMHashNumItems max_items; /* hit this and we grow */
     /* size of the (real) entry.
-     * If non-zero, allocated with MVM_fixed_size_alloc
+     * If non-zero, allocated
      * If zero, see the comments above. */
     MVMuint16 entry_size;
     MVMuint8 official_size_log2;

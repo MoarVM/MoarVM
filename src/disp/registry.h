@@ -28,7 +28,7 @@ struct MVMDispRegistry {
     uv_mutex_t mutex_update;
 };
 struct MVMDispRegistryTable {
-    /* The table of dispatcher definitions, FSA allocated and safepoint
+    /* The table of dispatcher definitions, safepoint
      * reallocated (thus why not using MVM_VECTOR). */
     MVMDispDefinition **dispatchers;
 

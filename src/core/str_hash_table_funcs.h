@@ -100,7 +100,7 @@ MVM_STATIC_INLINE void MVM_str_hash_shallow_copy(MVMThreadContext *tc,
         MVM_oops(tc, "MVM_str_hash_shallow_copy called with a stale hashtable pointer");
     }
     if (control->cur_items == 0 && control->max_items == 0) {
-        struct MVMStrHashTableControl *empty = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(*empty));
+        struct MVMStrHashTableControl *empty = MVM_malloc(sizeof(*empty));
         memcpy(empty, control, sizeof(*empty));
         dest->table = empty;
     } else {
@@ -110,7 +110,7 @@ MVM_STATIC_INLINE void MVM_str_hash_shallow_copy(MVMThreadContext *tc,
         const char *start = (const char *)control - entries_size;
         size_t total_size
             = entries_size + sizeof(struct MVMStrHashTableControl) + metadata_size;
-        char *target = (char *) MVM_fixed_size_alloc(tc, tc->instance->fsa, total_size);
+        char *target = (char *) MVM_malloc(total_size);
         memcpy(target, start, total_size);
         dest->table = (struct MVMStrHashTableControl *)(target + entries_size);
     }

@@ -347,15 +347,13 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     MVM_spesh_graph_destroy(tc, sg);
 
     /* Create a new candidate list and copy any existing ones. Free memory
-     * using the FSA safepoint mechanism. */
+     * using the safepoint mechanism. */
     spesh = p->sf->body.spesh;
-    new_candidate_list = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-        (spesh->body.num_spesh_candidates + 1) * sizeof(MVMSpeshCandidate *));
+    new_candidate_list = MVM_malloc((spesh->body.num_spesh_candidates + 1) * sizeof(MVMSpeshCandidate *));
     if (spesh->body.num_spesh_candidates) {
         size_t orig_size = spesh->body.num_spesh_candidates * sizeof(MVMSpeshCandidate *);
         memcpy(new_candidate_list, spesh->body.spesh_candidates, orig_size);
-        MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, orig_size,
-            spesh->body.spesh_candidates);
+        MVM_free_at_safepoint(tc, spesh->body.spesh_candidates);
     }
     MVM_ASSIGN_REF(tc, &(spesh->common.header), new_candidate_list[spesh->body.num_spesh_candidates], candidate);
     spesh->body.spesh_candidates = new_candidate_list;

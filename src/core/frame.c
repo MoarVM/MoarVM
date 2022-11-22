@@ -129,10 +129,10 @@ static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *
 void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame) {
     MVM_args_proc_cleanup(tc, &frame->params);
     if (frame->env && !MVM_FRAME_IS_ON_CALLSTACK(tc, frame))
-        MVM_fixed_size_free(tc, tc->instance->fsa, frame->allocd_env, frame->env);
+        MVM_free(frame->env);
     if (frame->extra) {
         MVMFrameExtra *e = frame->extra;
-        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMFrameExtra), e);
+        MVM_free(e);
     }
 }
 
@@ -167,7 +167,7 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
      * is vivified to prevent the clone (which is what creates the correct
      * BEGIN/INIT semantics). */
     if (static_frame->body.env_size) {
-        frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, static_frame->body.env_size);
+        frame->env = MVM_calloc(1, static_frame->body.env_size);
         frame->allocd_env = static_frame->body.env_size;
         if (autoclose) {
             MVMROOT2(tc, frame, static_frame, {
@@ -267,7 +267,7 @@ static MVMFrame * allocate_unspecialized_frame(MVMThreadContext *tc,
         /* If we have an environment, that needs allocating separately for
          * heap-based frames. */
         if (env_size) {
-            frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
+            frame->env = MVM_calloc(1, env_size);
             frame->allocd_env = env_size;
         }
     }
@@ -313,7 +313,7 @@ static MVMFrame * allocate_specialized_frame(MVMThreadContext *tc,
         /* If we have an environment, that needs allocating separately for
          * heap-based frames. */
         if (env_size) {
-            frame->env = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, env_size);
+            frame->env = MVM_calloc(1, env_size);
             frame->allocd_env = env_size;
         }
     }
@@ -652,8 +652,7 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
              * out-live the callstack entry. */
             MVMuint32 env_size = cur_to_promote->allocd_env;
             if (env_size) {
-                MVMRegister *heap_env = MVM_fixed_size_alloc(tc,
-                        tc->instance->fsa, env_size);
+                MVMRegister *heap_env = MVM_malloc(env_size);
                 memcpy(heap_env, cur_to_promote->env, env_size);
                 cur_to_promote->env = heap_env;
             }
@@ -1717,7 +1716,7 @@ MVMuint16 MVM_frame_lexical_primspec(MVMThreadContext *tc, MVMFrame *f, MVMStrin
  * frame. This is used to hold data that only a handful of frames need. */
 MVMFrameExtra * MVM_frame_extra(MVMThreadContext *tc, MVMFrame *f) {
     if (!f->extra)
-        f->extra = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMFrameExtra));
+        f->extra = MVM_calloc(1, sizeof(MVMFrameExtra));
     return f->extra;
 }
 

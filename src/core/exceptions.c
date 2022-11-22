@@ -359,7 +359,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
 
     case MVM_EX_ACTION_INVOKE: {
         /* Create active handler record. */
-        MVMActiveHandler *ah = MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMActiveHandler));
+        MVMActiveHandler *ah = MVM_malloc(sizeof(MVMActiveHandler));
 
         /* Ensure we have an exception object. */
         MVMFrame *cur_frame = tc->cur_frame;
@@ -441,7 +441,7 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     }
     /* Clean up. */
     tc->active_handlers = ah->next_handler;
-    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMActiveHandler), ah);
+    MVM_free(ah);
 
     /* Do the unwinding as needed. */
     if (exception && exception->body.return_after_unwind) {
@@ -463,7 +463,7 @@ static void cleanup_active_handler(MVMThreadContext *tc, void *sr_data) {
 
     /* Clean up. */
     tc->active_handlers = ah->next_handler;
-    MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMActiveHandler), ah);
+    MVM_free(ah);
 }
 
 char * MVM_exception_backtrace_line(MVMThreadContext *tc, MVMFrame *cur_frame,

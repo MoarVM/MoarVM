@@ -52,7 +52,7 @@ MVM_STATIC_INLINE int MVM_fixkey_hash_is_empty(MVMThreadContext *tc,
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
  * Doesn't check if the key already exists. Use with care.
  * For entry_size != 0:
- * returns a pointer to memory allocated by the FSA, with the pointer to your
+ * returns a pointer to memory allocated, with the pointer to your
  * key written at the start.
  * For entry_size == 0 returns a pointer to the address for the indirection
  * pointer *within* the hash, which you should assign your static storage to.

@@ -47,10 +47,10 @@ static size_t max_typed_nodes(MVMCallsite *cs, MVMSpeshStatsType *types) {
 
 /* Allocates a spesh arg guard tree with the specified amounst of nodes. */
 static MVMSpeshArgGuard * allocate_tree(MVMThreadContext *tc, MVMuint32 total_nodes) {
-    /* Allocate as a single blob of memory from the FSA. */
+    /* Allocate as a single blob of memory. */
     size_t node_size = total_nodes * sizeof(MVMSpeshArgGuardNode);
     size_t size = sizeof(MVMSpeshArgGuard) + node_size;
-    MVMSpeshArgGuard *tree = MVM_fixed_size_alloc(tc, tc->instance->fsa, size);
+    MVMSpeshArgGuard *tree = MVM_malloc(size);
     tree->nodes = (MVMSpeshArgGuardNode *)((char *)tree + sizeof(MVMSpeshArgGuard));
     tree->used_nodes = 0;
     tree->num_nodes = total_nodes;
@@ -630,12 +630,10 @@ void MVM_spesh_arg_guard_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState 
  * to zero, the memory is freed immediately. */
 void MVM_spesh_arg_guard_destroy(MVMThreadContext *tc, MVMSpeshArgGuard *ag, MVMuint32 safe) {
     if (ag) {
-        size_t total_size = sizeof(MVMSpeshArgGuard) +
-            ag->num_nodes * sizeof(MVMSpeshArgGuardNode);
         if (safe)
-            MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, total_size, ag);
+            MVM_free_at_safepoint(tc, ag);
         else
-            MVM_fixed_size_free(tc, tc->instance->fsa, total_size, ag);
+            MVM_free(ag);
     }
 }
 

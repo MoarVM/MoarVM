@@ -15,8 +15,7 @@ MVM_STATIC_INLINE void mark_named_used(MVMArgProcContext *ctx, MVMuint32 idx) {
 
 /* An identity map is just an array { 0, 1, 2, ... }. */
 static MVMuint16 * create_identity_map(MVMThreadContext *tc, MVMuint32 size) {
-    MVMuint16 *map = MVM_fixed_size_alloc(tc, tc->instance->fsa,
-            size * sizeof(MVMuint16));
+    MVMuint16 *map = MVM_malloc(size * sizeof(MVMuint16));
     MVMuint32 i;
     for (i = 0; i < size; i++)
         map[i] = i;
@@ -34,13 +33,9 @@ void MVM_args_setup_identity_map(MVMThreadContext *tc) {
 
 /* Free memory associated with the identity map(s). */
 void MVM_args_destroy_identity_map(MVMThreadContext *tc) {
-    MVM_fixed_size_free(tc, tc->instance->fsa,
-            tc->instance->identity_arg_map_alloc * sizeof(MVMuint16),
-            tc->instance->identity_arg_map);
+    MVM_free(tc->instance->identity_arg_map);
     if (tc->instance->identity_arg_map != tc->instance->small_identity_arg_map)
-        MVM_fixed_size_free(tc, tc->instance->fsa,
-                MVM_ARGS_SMALL_IDENTITY_MAP_SIZE * sizeof(MVMuint16),
-                tc->instance->small_identity_arg_map);
+        MVM_free(tc->instance->small_identity_arg_map);
 }
 
 /* Perform flattening of arguments as provided, and return the resulting

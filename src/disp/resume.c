@@ -33,7 +33,7 @@ static MVMuint32 setup_resumption(MVMThreadContext *tc, MVMDispResumptionData *d
                 /* For the innermost (or only) one, we write into the record.
                  * For more, we need to allocate. */
                 MVMDispResumptionState *target = prev
-                    ? MVM_fixed_size_alloc(tc, tc->instance->fsa, sizeof(MVMDispResumptionState))
+                    ? MVM_malloc(sizeof(MVMDispResumptionState))
                     : state;
                 target->disp = dp->resumptions[i].disp;
                 target->state = tc->instance->VMNull;
@@ -373,7 +373,7 @@ void MVM_disp_resume_destroy_resumption_state(MVMThreadContext *tc,
     MVMDispResumptionState *current = res_state->next;
     while (current) {
         MVMDispResumptionState *next = current->next;
-        MVM_fixed_size_free(tc, tc->instance->fsa, sizeof(MVMDispResumptionState), current);
+        MVM_free(current);
         current = next;
     }
 }
