@@ -1,3 +1,28 @@
+New in 2022.12
+
+Core:
++ Protect the two property code lookup hashes being set up with a mutex
+  [9bc1beed]
++ Add fallback resolver [43e60db9][a6fbcf6b][35064bf9][c89c3ec8][5d0f92c6]
++ Add definition of AI_NUMERICSERV, fixes build on MacOS 10.6 for ppc 
+  [976c1168]
++ Add unsigned comparison ops (eq, ne, (l|g)(e|t)) [c77dc1d4]
++ Add chown op [c69534c6][a1cbb9c4]
++ Reset errno to error of latest call to mkdir [4089a869]
+
+Documentation:
+
+GC:
++ Remove the fixed size allocator (FSA) [2a8c494e]
+
+JIT:
+
+Spesh:
++ use correct format string in spesh log skip line [4575c474]
+
+Strings:
++ Use 2-char-at-a-time version of jeaiii's itoa [fd0cadbf]
+
 New in 2022.07
 
 Core:
