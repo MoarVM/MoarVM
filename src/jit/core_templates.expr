@@ -2205,6 +2205,11 @@
     (arglist
       (carg (tc) ptr)) int_sz))
 
+(template: rand_n
+  (calln (^func &MVM_proc_rand_n)
+    (arglist
+      (carg (tc) ptr))))
+
 (template: getenvhash
   (call (^func &MVM_proc_getenvhash)
     (arglist
