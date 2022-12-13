@@ -1015,6 +1015,7 @@ sub pthread_yield {
 #include <stdlib.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <string.h>
 
 int main(int argc, char **argv) {
 #ifdef _POSIX_PRIORITY_SCHEDULING
