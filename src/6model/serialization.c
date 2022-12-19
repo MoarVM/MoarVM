@@ -527,7 +527,16 @@ static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *wri
     MVM_serialization_write_int(tc, writer, elems);
 
     if (elems) {
-        MVMString **keys = MVM_malloc(sizeof(MVMString *) * elems);
+        MVMint32 is_malloced = 0;
+        MVMuint32 keys_size = sizeof(MVMString *) * elems;
+        MVMString **keys;
+        if (keys_size > 3000) {
+            keys = MVM_malloc(keys_size);
+            is_malloced = 1;
+        }
+        else {
+            keys = alloca(keys_size);
+        }
         MVMObject *iter = MVM_iter(tc, hash);
         MVMuint64 i = 0;
 
@@ -541,7 +550,8 @@ static void write_hash_str_var(MVMThreadContext *tc, MVMSerializationWriter *wri
             MVM_serialization_write_str(tc, writer, keys[i]);
             MVM_serialization_write_ref(tc, writer, MVM_repr_at_key_o(tc, hash, keys[i]));
         }
-        MVM_free(keys);
+        if (is_malloced)
+            MVM_free(keys);
     }
 }
 
