@@ -225,15 +225,16 @@ void SHA1_Digest(SHA1Context* context, unsigned char digest[SHA1_DIGEST_SIZE])
 void SHA1Final(SHA1Context *context, char *output)
 {
     unsigned char digest[20];
-    int i,j;
+    int i;
     char *c = output;
 
     SHA1_Digest(context, digest);
     
-    for (i = 0; i < SHA1_DIGEST_SIZE/4; i++) {
-        for (j = 0; j < 4; j++) {
-            sprintf(c,"%02X", digest[i*4+j]);
-            c += 2;
-        }
+    unsigned char *d   = digest;
+    const char    *hex = "0123456789ABCDEF";
+    for (i = 0; i < 20; i++) {
+        *c++ = hex[(*d >> 4) & 0xF];
+        *c++ = hex[(*d++)    & 0xF];
     }
+    *c = 0;
 }
