@@ -493,7 +493,8 @@ static void add_deopt_materializations_ins(MVMThreadContext *tc, MVMSpeshGraph *
  * and, perhaps, some guard eliminations. */
 static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs) {
     MVMSpeshBB **rpo = MVM_spesh_graph_reverse_postorder(tc, g);
-    MVMuint8 *seen = MVM_calloc(g->num_bbs, 1);
+    MVMuint8 *seen = alloca(g->num_bbs);
+    memset(seen, 0, g->num_bbs);
     MVMuint32 found_replaceable = 0;
     MVMuint32 ins_count = 0;
     MVMuint32 i;
@@ -506,7 +507,6 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
         for (j = 0; j < bb->num_pred; j++) {
             if (!seen[bb->pred[j]->rpo_idx]) {
                 pea_log("partial escape analysis not implemented for loops");
-                MVM_free(seen);
                 MVM_free(rpo);
                 return 0;
             }
@@ -705,7 +705,6 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
         seen[bb->rpo_idx] = 1;
     }
     MVM_free(rpo);
-    MVM_free(seen);
     return found_replaceable;
 }
 
