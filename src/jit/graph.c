@@ -348,6 +348,8 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_floor_n: return floor;
     case MVM_OP_pow_I: return MVM_bigint_pow;
     case MVM_OP_rand_I: return MVM_bigint_rand;
+    case MVM_OP_rand_i: return MVM_proc_rand_i;
+    case MVM_OP_rand_n: return MVM_proc_rand_n;
     case MVM_OP_abs_n: return fabs;
 #ifndef MVM_HAS_SUBSTANDARD_POW
     case MVM_OP_pow_n: return pow;
@@ -3329,6 +3331,15 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
                                  { MVM_JIT_REG_VAL, invocant } };
         jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, MVM_JIT_RV_INT, dst);
+        break;
+    }
+    case MVM_OP_rand_i:
+    case MVM_OP_rand_n: {
+        MVMint16 dst = ins->operands[0].reg.orig;
+        MVMint32 invocant = ins->operands[1].reg.orig;
+        MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, MVM_JIT_INTERP_TC },
+                                 { MVM_JIT_REG_VAL, invocant } };
+        jg_append_call_c(tc, jg, op_to_func(tc, op), 2, args, op == MVM_OP_rand_i ? MVM_JIT_RV_INT : MVM_JIT_RV_NUM, dst);
         break;
     }
     case MVM_OP_rand_I:
