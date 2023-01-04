@@ -702,11 +702,8 @@ char * MVM_string_utf8_c8_encode(MVMThreadContext *tc, MVMString *str, MVMuint64
 /* Encodes the specified string to a UTF-8 C-8 C string. */
 char * MVM_string_utf8_c8_encode_C_string(MVMThreadContext *tc, MVMString *str) {
     MVMuint64 output_size;
-    char *result;
-    char *utf8_string = MVM_string_utf8_c8_encode(tc, str, &output_size);
-    result = MVM_malloc(output_size + 1);
-    memcpy(result, utf8_string, output_size);
-    MVM_free(utf8_string);
-    result[output_size] = (char)0;
-    return result;
+    char * utf8_string = MVM_string_utf8_c8_encode(tc, str, &output_size);
+    utf8_string = MVM_realloc(utf8_string, output_size + 1);
+    utf8_string[output_size] = (char)0;
+    return utf8_string;
 }
