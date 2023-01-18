@@ -3580,7 +3580,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         MVMint16 dst     = ins->operands[0].reg.orig;
         MVMint16 obj     = ins->operands[1].reg.orig;
         MVMint16 class   = ins->operands[2].reg.orig;
-        MVMint16 name    = ins->operands[3].lit_str_idx;
+        MVMuint32 name   = ins->operands[3].lit_str_idx;
         MVMJitCallArg args[] = { { MVM_JIT_INTERP_VAR, { MVM_JIT_INTERP_TC } },
                                  { MVM_JIT_REG_VAL, { obj } },
                                  { MVM_JIT_REG_VAL, { class } },

@@ -371,7 +371,7 @@ static void fix_const_str(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     MVMCompUnit *cu = inlinee->sf->body.cu;
     MVMuint16 sslot;
     MVMSpeshOperand dest = to_fix->operands[0];
-    MVMuint16 str_idx = to_fix->operands[1].lit_str_idx;
+    MVMuint32 str_idx = to_fix->operands[1].lit_str_idx;
 
     sslot = MVM_spesh_add_spesh_slot_try_reuse(tc, inlinee, (MVMCollectable *)cu);
 
