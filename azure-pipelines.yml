@@ -130,16 +130,6 @@ stages:
 #           MOAR_OPTIONS: '--compiler=clang --coverage --optimize=0 --debug=3 --cc=clang'
 #           COVERAGE: 'yes'
 
-         MVM_Ub_20_gcc:
-           IMAGE_NAME: 'ubuntu-20.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc --debug=3'
-         MVM_Ub_20_clang:
-           IMAGE_NAME: 'ubuntu-20.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang --debug=3'
          MVM_gcc_malloc:
            IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
@@ -165,6 +155,17 @@ stages:
            MOAR_OPTIONS: '--cc=clang --debug=3 --no-c11-atomics'
            CHECK_LEAKS: 'yes'
 
+         # Backwards compatability jobs, using the oldest OS version that GH actions support
+         MVM_Ub_20_gcc:
+           IMAGE_NAME: 'ubuntu-20.04'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--cc=gcc --debug=3'
+         MVM_Ub_20_clang:
+           IMAGE_NAME: 'ubuntu-20.04'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--cc=clang --debug=3'
          Mac_11_MVM:
            IMAGE_NAME: 'macOS-11'
            RAKUDO_OPTIONS: ''
