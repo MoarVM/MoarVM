@@ -40,18 +40,18 @@ stages:
            MOAR_OPTIONS: '--relocatable'
 
          Mac_MVM:
-           IMAGE_NAME: 'macOS-10.15'
+           IMAGE_NAME: 'macOS-12'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
          Mac_MVM_reloc:
-           IMAGE_NAME: 'macOS-10.15'
+           IMAGE_NAME: 'macOS-12'
            RELOCATABLE: 'yes'
            RAKUDO_OPTIONS: '--relocatable'
            NQP_OPTIONS: '--backends=moar --relocatable'
            MOAR_OPTIONS: '--relocatable'
          Mac_MVM_no_C11_atomics:
-           IMAGE_NAME: 'macOS-10.15'
+           IMAGE_NAME: 'macOS-12'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-c11-atomics'
@@ -164,6 +164,12 @@ stages:
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang --debug=3 --no-c11-atomics'
            CHECK_LEAKS: 'yes'
+
+         Mac_11_MVM:
+           IMAGE_NAME: 'macOS-11'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: ''
 
       pool:
         vmImage: $(IMAGE_NAME)
