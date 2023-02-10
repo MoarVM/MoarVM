@@ -14,8 +14,8 @@ variables:
       Import-Module $devShell
       Enter-VsDevShell -VsInstallPath $installPath -SkipAutomaticLocation -DevCmdArguments "-arch=amd64"
     }
-  RAKUDO_CHECKOUT_TYPE: master
-  NQP_CHECKOUT_TYPE: master
+  RAKUDO_CHECKOUT_TYPE: main
+  NQP_CHECKOUT_TYPE: main
   MOAR_CHECKOUT_TYPE: "rev-$(Build.SourceVersion)-selfrepo"
   INSTALL_DIR: install
 
