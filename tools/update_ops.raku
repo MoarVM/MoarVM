@@ -51,16 +51,22 @@ class Op {
             CODE
         } else {
             my $is-dispatch = $!mark eq '.d';
+            my $is-single = $is-dispatch && $.name.ends-with("1");
             my @params = @!operands.map({self.generate_arg($_, $++)});
             @params.unshift('$frame');
-            @params.push('@arg-indices') if $is-dispatch;
+            @params.push('@arg-indices') if $is-dispatch && not $is-single;
+            @params.push('$arg-index') if $is-dispatch && $is-single;
             my $signature = @params.join(', ');
             my constant $prefix = "                ";
             my @operand-emitters = @!operands.map({ $prefix ~ self.generate_operand($_, $++, $offset)});
             if $is-dispatch {
-                @operand-emitters.push: $prefix ~ 'my int $arg-offset := $elems + ' ~ $offset ~ ';';
-                @operand-emitters.push: $prefix ~ 'for @arg-indices -> $offset { ' ~
-                    'nqp::writeuint($bytecode, $arg-offset, nqp::unbox_u($offset), 5); $arg-offset := $arg-offset + 2; }'
+                if $is-single {
+                    @operand-emitters.push: $prefix ~ 'nqp::writeuint($bytecode, $elems + ' ~ $offset ~ ', nqp::unbox_u($arg-index), 5);'
+                } else {
+                    @operand-emitters.push: $prefix ~ 'my int $arg-offset := $elems + ' ~ $offset ~ ';';
+                    @operand-emitters.push: $prefix ~ 'for @arg-indices -> $offset { ' ~
+                        'nqp::writeuint($bytecode, $arg-offset, nqp::unbox_u($offset), 5); $arg-offset := $arg-offset + 2; }'
+	            }
             }
             my $operands-code = @operand-emitters.join("\n");
             'sub (' ~ $signature ~ ') {' ~ ('
@@ -342,6 +348,7 @@ sub op_constants(@ops is copy) {
     my @counts;
     my @values;
     my $values_idx = 0;
+    my @bonus-generated-ops;
     @ops .= grep: {$_.mark ne '.s' and not $_.name.starts-with(any('sp_','prof_'))};
     for @ops -> $op {
         my $last_idx = $values_idx;
@@ -351,6 +358,9 @@ sub op_constants(@ops is copy) {
             $values_idx++;
         }
         @counts.push($values_idx - $last_idx);
+        if $op.mark eq '.d' {
+            @bonus-generated-ops.push: $op.clone(name => $op.name ~ "1");
+        }
     }
     @ops .= grep: {not $_.name.starts-with('DEPRECATED')};
     return (
@@ -368,7 +378,8 @@ BEGIN {
     MAST::Ops.WHO<@names> := nqp::list_s('~
         join(",\n    ", @ops.map({ "'$_.name()'" }))~');
     MAST::Ops.WHO<%generators> := nqp::hash('~
-        join(",\n    ", @ops.map({ "'$_.name()', $_.generator()" }))~');
+        join(",\n    ", @ops.map({ "'$_.name()', $_.generator()" })) ~",\n    "~
+        join(",\n    ", @bonus-generated-ops.map({ "'$_.name()', $_.generator()" }))~');
 }',
         Raku => '
 unit module MAST::Ops;
