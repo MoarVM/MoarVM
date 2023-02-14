@@ -194,6 +194,11 @@ stages:
         - script: |
             sudo apt-get update
             sudo apt-get install libzstd-dev valgrind
+            # The loop with libc-bin and glibc-tools are because catchsegv moved packages with Ubuntu 20.04 and again with 22.04
+            for pkg in libc-bin glibc-tools
+            do
+              sudo apt-get install -qy $pkg || true
+            done
           condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
           displayName: Install libzstd-dev and valgrind
 
