@@ -473,6 +473,7 @@ push @cflags, $config{cc_covflags}  if $args{coverage};
 push @cflags, $config{ccwarnflags};
 push @cflags, $config{ccdefflags};
 push @cflags, $config{ccshared}     unless $args{static};
+push @cflags, '-gdwarf-4'           if $config{cc} eq 'clang';
 push @cflags,
 $config{cc} eq 'clang'
     ? '-Rpass=loop-vectorize'
