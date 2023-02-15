@@ -49,7 +49,7 @@ GetOptions(\%args, qw(
     prefix=s bindir=s libdir=s mastdir=s
     relocatable make-install asan ubsan tsan
     valgrind telemeh! dtrace show-autovect git-cache-dir=s
-    show-autovect-failed:s mimalloc! c11-atomics!),
+    show-autovect-failed:s mimalloc! has-mimalloc c11-atomics!),
 
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
     'no-debug|nodebug' => sub { $args{debug} = 0 },
@@ -91,7 +91,7 @@ if ( $args{relocatable} && ($^O eq 'aix' || $^O eq 'openbsd') ) {
 }
 
 for (qw(coverage static big-endian has-libtommath has-sha has-libuv
-        has-libatomic_ops asan ubsan tsan valgrind dtrace show-vec)) {
+        has-libatomic_ops has-mimalloc asan ubsan tsan valgrind dtrace show-vec)) {
     $args{$_} = 0 unless defined $args{$_};
 }
 
@@ -397,6 +397,54 @@ else {
     $config{heapsnapformat} = 2;
 }
 
+$config{use_mimalloc} = $args{mimalloc};
+if (!defined $config{use_mimalloc}) {
+    if ($config{has_stdatomic}) {
+        print "Defaulting to mimalloc because you have <stdatomic.h>\n";
+        $config{use_mimalloc} = 1;
+    }
+    elsif ($config{cc} eq 'cl') {
+        print "Defaulting to mimalloc because you are using MSVC\n";
+        $config{use_mimalloc} = 1;
+    }
+    else {
+        print "Defaulting to libc malloc because <stdatomic.h> was not found.\n";
+        $config{use_mimalloc} = 0;
+    }
+}
+
+if ($config{use_mimalloc}) {
+    $config{cflags} .= ' -DMI_SKIP_COLLECT_ON_EXIT';
+    if ($args{'has-mimalloc'}) {
+        $config{mimalloc_include} = "";
+        $config{mimalloc_object} = "";
+        $defaults{-thirdparty}->{mimalloc} = undef;
+        unshift @{$config{usrlibs}}, 'mimalloc';
+        setup_native_library('mimalloc') if $config{pkgconfig_works};
+        if (not $config{crossconf}) {
+            if (index($config{cincludes}, '-I/usr/local/include') == -1) {
+                $config{cincludes} = join(' ', $config{cincludes}, '-I/usr/local/include');
+            }
+            if (index($config{lincludes}, '-L/usr/local/lib') == -1) {
+                $config{lincludes} = join(' ', $config{lincludes}, '-L/usr/local/lib');
+            }
+        }
+    }
+    else {
+        $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/mimalloc/include'
+                                 . ' ' . $defaults{ccinc} . '3rdparty/mimalloc/src';
+        $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/mimalloc\"\n"
+                           . "\t\$(CP) 3rdparty/mimalloc/include/*.h \"\$(DESTDIR)\$(PREFIX)/include/mimalloc\"\n";
+        push @hllincludes, 'mimalloc';
+        $config{mimalloc_include} = '@ccincsystem@3rdparty/mimalloc';
+        $config{mimalloc_object} = '3rdparty/mimalloc/src/static@obj@';
+    }
+}
+else {
+    $config{mimalloc_include} = "";
+    $config{mimalloc_object} = "";
+}
+
 # mangle library names
 $config{ldlibs} = join ' ',
     $config{lincludes},
@@ -566,37 +614,6 @@ build::probe::substandard_trig(\%config, \%defaults);
 build::probe::has_isinf_and_isnan(\%config, \%defaults);
 build::probe::unaligned_access(\%config, \%defaults);
 build::probe::ptr_size(\%config, \%defaults);
-
-$config{use_mimalloc} = $args{mimalloc};
-if (!defined $config{use_mimalloc}) {
-    if ($config{has_stdatomic}) {
-        print "Defaulting to mimalloc because you have <stdatomic.h>\n";
-        $config{use_mimalloc} = 1;
-    }
-    elsif ($config{cc} eq 'cl') {
-        print "Defaulting to mimalloc because you are using MSVC\n";
-        $config{use_mimalloc} = 1;
-    }
-    else {
-        print "Defaulting to libc malloc because <stdatomic.h> was not found.\n";
-        $config{use_mimalloc} = 0;
-    }
-}
-
-if ($config{use_mimalloc}) {
-    $config{cflags} .= ' -DMI_SKIP_COLLECT_ON_EXIT';
-    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/mimalloc/include'
-                             . ' ' . $defaults{ccinc} . '3rdparty/mimalloc/src';
-    $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/mimalloc\"\n"
-                       . "\t\$(CP) 3rdparty/mimalloc/include/*.h \"\$(DESTDIR)\$(PREFIX)/include/mimalloc\"\n";
-    push @hllincludes, 'mimalloc';
-    $config{mimalloc_include} = '@ccincsystem@3rdparty/mimalloc';
-    $config{mimalloc_object} = '3rdparty/mimalloc/src/static@obj@';
-}
-else {
-    $config{mimalloc_include} = "";
-    $config{mimalloc_object} = "";
-}
 
 my $archname = $Config{archname};
 if ($args{'jit'}) {
@@ -1297,6 +1314,8 @@ Build and install MoarVM in addition to configuring it.
 =item --has-dyncall
 
 =item --has-libffi
+
+=item --has-mimalloc
 
 =item --pkgconfig=/path/to/pkgconfig/executable
 
