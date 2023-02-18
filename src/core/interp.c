@@ -4019,12 +4019,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 12;
                 goto NEXT;
             OP(getlexstatic_o): {
+                MVMRegister *r = &GET_REG(cur_op, 0);
+                MVMString *name = GET_REG(cur_op, 2).s;
                 MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get(
                         cur_op, bytecode_start, tc->cur_frame);
-                MVMObject *found = (*ice_ptr)->run_getlexstatic(tc, ice_ptr,
-                        GET_REG(cur_op, 2).s);
-                GET_REG(cur_op, 0).o = found;
                 cur_op += 4;
+                if (!(*ice_ptr)->run_getlexstatic(tc, ice_ptr, name, r))
+                    r->o = tc->instance->VMNull;
                 goto NEXT;
             }
             OP(getlexperinvtype_o): {
@@ -5768,14 +5769,15 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(sp_getlexstatic_o): {
+                MVMRegister *r = &GET_REG(cur_op, 0);
+                MVMString *name = GET_REG(cur_op, 2).s;
                 MVMStaticFrame *sf = (MVMStaticFrame *)tc->cur_frame
                         ->effective_spesh_slots[GET_UI16(cur_op, 4)];
                 MVMDispInlineCacheEntry **ice_ptr = MVM_disp_inline_cache_get_spesh(sf,
                         GET_UI32(cur_op, 6));
-                MVMObject *found = (*ice_ptr)->run_getlexstatic(tc, ice_ptr,
-                        GET_REG(cur_op, 2).s);
-                GET_REG(cur_op, 0).o = found;
                 cur_op += 10;
+                if (!(*ice_ptr)->run_getlexstatic(tc, ice_ptr, name, r))
+                    r->o = tc->instance->VMNull;
                 goto NEXT;
             }
             OP(sp_assertparamcheck): {
