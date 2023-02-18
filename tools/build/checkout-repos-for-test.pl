@@ -50,7 +50,7 @@ sub checkout_rev {
     my ($name, $type, $downstream_file) = @_;
     my $back = cwd();
     if (($type eq 'master') or ($type eq 'main')) {
-        exec_and_check('git', 'clone', '--depth', 250, '--branch', $type, $repos{$name}, $name, "Cloning '$name' and checking out '$type' failed.");
+        exec_and_check('git', 'clone', '--depth', 500, '--branch', $type, $repos{$name}, $name, "Cloning '$name' and checking out '$type' failed.");
     }
     elsif ($type eq 'downstream') {
         die "Can't do downstream checkout for $name" unless $downstream_file;

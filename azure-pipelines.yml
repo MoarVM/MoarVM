@@ -14,8 +14,8 @@ variables:
       Import-Module $devShell
       Enter-VsDevShell -VsInstallPath $installPath -SkipAutomaticLocation -DevCmdArguments "-arch=amd64"
     }
-  RAKUDO_CHECKOUT_TYPE: master
-  NQP_CHECKOUT_TYPE: master
+  RAKUDO_CHECKOUT_TYPE: main
+  NQP_CHECKOUT_TYPE: main
   MOAR_CHECKOUT_TYPE: "rev-$(Build.SourceVersion)-selfrepo"
   INSTALL_DIR: install
 
@@ -40,30 +40,30 @@ stages:
            MOAR_OPTIONS: '--relocatable'
 
          Mac_MVM:
-           IMAGE_NAME: 'macOS-10.15'
+           IMAGE_NAME: 'macOS-12'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
          Mac_MVM_reloc:
-           IMAGE_NAME: 'macOS-10.15'
+           IMAGE_NAME: 'macOS-12'
            RELOCATABLE: 'yes'
            RAKUDO_OPTIONS: '--relocatable'
            NQP_OPTIONS: '--backends=moar --relocatable'
            MOAR_OPTIONS: '--relocatable'
          Mac_MVM_no_C11_atomics:
-           IMAGE_NAME: 'macOS-10.15'
+           IMAGE_NAME: 'macOS-12'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-c11-atomics'
 
          Lin_MVM:
-           IMAGE_NAME: 'ubuntu-20.04'
+           IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--debug=3'
            CHECK_LEAKS: 'yes'
          Lin_MVM_reloc:
-           IMAGE_NAME: 'ubuntu-20.04'
+           IMAGE_NAME: 'ubuntu-22.04'
            RELOCATABLE: 'yes'
            RAKUDO_OPTIONS: '--relocatable'
            NQP_OPTIONS: '--backends=moar --relocatable'
@@ -71,49 +71,49 @@ stages:
            CHECK_LEAKS: 'yes'
 
          MVM_gcc_njit:
-           IMAGE_NAME: 'ubuntu-20.04'
+           IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-jit --cc=gcc --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_gcc:
-           IMAGE_NAME: 'ubuntu-20.04'
+           IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=gcc --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_clang_njit:
-           IMAGE_NAME: 'ubuntu-20.04'
+           IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-jit --cc=clang --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_clang:
-           IMAGE_NAME: 'ubuntu-20.04'
+           IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_gcc_njit_libffi:
-           IMAGE_NAME: 'ubuntu-20.04'
+           IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --no-jit --cc=gcc --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_gcc_libffi:
-           IMAGE_NAME: 'ubuntu-20.04'
+           IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --cc=gcc --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_clang_njit_libffi:
-           IMAGE_NAME: 'ubuntu-20.04'
+           IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --no-jit --cc=clang --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_clang_libffi:
-           IMAGE_NAME: 'ubuntu-20.04'
+           IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --cc=clang --debug=3'
@@ -124,46 +124,53 @@ stages:
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--os=mingw32'
 #         MVM_coverage:
-#           IMAGE_NAME: 'ubuntu-20.04'
+#           IMAGE_NAME: 'ubuntu-22.04'
 #           RAKUDO_OPTIONS: ''
 #           NQP_OPTIONS: '--backends=moar'
 #           MOAR_OPTIONS: '--compiler=clang --coverage --optimize=0 --debug=3 --cc=clang'
 #           COVERAGE: 'yes'
 
-         MVM_Ub_18_gcc:
-           IMAGE_NAME: 'ubuntu-18.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc --debug=3'
-         MVM_Ub_18_clang:
-           IMAGE_NAME: 'ubuntu-18.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang --debug=3'
          MVM_gcc_malloc:
-           IMAGE_NAME: 'ubuntu-20.04'
+           IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=gcc --debug=3 --no-mimalloc'
            CHECK_LEAKS: 'yes'
          MVM_clang_malloc:
-           IMAGE_NAME: 'ubuntu-20.04'
+           IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang --debug=3 --no-mimalloc'
            CHECK_LEAKS: 'yes'
          MVM_gcc_no_c11_atomics:
-           IMAGE_NAME: 'ubuntu-20.04'
+           IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=gcc --debug=3 --no-c11-atomics'
            CHECK_LEAKS: 'yes'
          MVM_clang_no_c11_atomics:
-           IMAGE_NAME: 'ubuntu-20.04'
+           IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang --debug=3 --no-c11-atomics'
            CHECK_LEAKS: 'yes'
+
+         # Backwards compatability jobs, using the oldest OS version that GH actions support
+         MVM_Ub_20_gcc:
+           IMAGE_NAME: 'ubuntu-20.04'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--cc=gcc --debug=3'
+         MVM_Ub_20_clang:
+           IMAGE_NAME: 'ubuntu-20.04'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--cc=clang --debug=3'
+         Mac_11_MVM:
+           IMAGE_NAME: 'macOS-11'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: ''
 
       pool:
         vmImage: $(IMAGE_NAME)
@@ -187,6 +194,11 @@ stages:
         - script: |
             sudo apt-get update
             sudo apt-get install libzstd-dev valgrind
+            # The loop with libc-bin and glibc-tools are because catchsegv moved packages with Ubuntu 20.04 and again with 22.04
+            for pkg in libc-bin glibc-tools
+            do
+              sudo apt-get install -qy $pkg || true
+            done
           condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
           displayName: Install libzstd-dev and valgrind
 
