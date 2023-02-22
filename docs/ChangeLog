@@ -1,3 +1,32 @@
+New in 2023.02
+
+Core:
++ Avoid implicit function declarations in pthread_setname_np probe [9e6d9a8f]
++ Speedup creating sha1 digest string [8f90dc7c]
++ Bump mimalloc to v2.0.9 [d5430563]
++ Speedup VMArray's deserialize()... [a508c06b]
++ Update repo checking out script to also use 'main' [c9055873]
++ Add `--has-mimalloc` option to use system mimalloc [99479afe]
++ Update GitHub CI pipelines to track branch renames and OS deprecations
+  [d7721042][e4336c71][d1bc8ff8][87183069][165e8297][8a80d3c6][8ddf6702]
++ Work around "const_iX NYI" after getlexstatic_o with fallback resolver
+  [34bae78d]
+
+Documentation:
+
+GC:
+
+JIT:
++ Jit nqp::rand_(i|n) [6866ff81]
+
+Spesh:
++ Use right size for a lit_str_idx in JIT and spesh [6b456a6c]
+
+Strings:
++ Simplify MVM_string_utf8_c8_encode_C_string [a64765e7]
++ Simplify MVM_string_index [ada3b80b]
++ Update to Unicode 15.0 [ebefe261]
+
 New in 2022.12
 
 Core:
