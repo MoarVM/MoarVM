@@ -7586,20 +7586,20 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_uint64, MVM_operand_str, MVM_operand_callsite }
     },
     {
-        MVM_OP_DEPRECATED_27,
-        "DEPRECATED_27",
-        3,
+        MVM_OP_getattrsref_u,
+        "getattrsref_u",
+        4,
+        1,
         0,
         0,
         0,
         0,
         0,
         0,
+        1,
         0,
         0,
-        0,
-        0,
-        { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_str }
     },
     {
         MVM_OP_DEPRECATED_28,
@@ -11106,20 +11106,20 @@ static const MVMOpInfo MVM_op_infos[] = {
         { MVM_operand_write_reg | MVM_operand_str, MVM_operand_read_reg | MVM_operand_str }
     },
     {
-        MVM_OP_DEPRECATED_25,
-        "DEPRECATED_25",
+        MVM_OP_getlexref_nu,
+        "getlexref_nu",
         2,
+        1,
         0,
         0,
         0,
         0,
+        1,
+        0,
+        1,
         0,
         0,
-        0,
-        0,
-        0,
-        0,
-        { MVM_operand_read_reg | MVM_operand_obj, MVM_operand_read_reg | MVM_operand_obj }
+        { MVM_operand_write_reg | MVM_operand_obj, MVM_operand_str }
     },
     {
         MVM_OP_atpos3d_u,

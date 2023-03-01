@@ -345,6 +345,17 @@ MVMObject * MVM_nativeref_lex_name_i(MVMThreadContext *tc, MVMString *name) {
         return lexref_by_name(tc, ref_type, name, LEXREF_ANY_INT);
     MVM_exception_throw_adhoc(tc, "No int lexical reference type registered for current HLL");
 }
+MVMObject * MVM_nativeref_lex_name_u(MVMThreadContext *tc, MVMString *name) {
+    MVMObject *ref_type;
+    MVMROOT(tc, name, {
+        MVM_frame_force_to_heap(tc, tc->cur_frame);
+    });
+    ref_type = MVM_hll_current(tc)->uint_lex_ref;
+    if (ref_type)
+        /* LEXREF_ANY_INT will allow int8..int64 as well as uint8..uint64 */
+        return lexref_by_name(tc, ref_type, name, LEXREF_ANY_INT);
+    MVM_exception_throw_adhoc(tc, "No uint lexical reference type registered for current HLL");
+}
 MVMObject * MVM_nativeref_lex_name_n(MVMThreadContext *tc, MVMString *name) {
     MVMObject *ref_type;
     MVMROOT(tc, name, {

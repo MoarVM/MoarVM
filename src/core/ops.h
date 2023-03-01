@@ -475,7 +475,7 @@
 #define MVM_OP_open_fh 471
 #define MVM_OP_close_fh 472
 #define MVM_OP_dispatch_u 473
-#define MVM_OP_DEPRECATED_27 474
+#define MVM_OP_getattrsref_u 474
 #define MVM_OP_DEPRECATED_28 475
 #define MVM_OP_atposnd_u 476
 #define MVM_OP_seek_fh 477
@@ -695,7 +695,7 @@
 #define MVM_OP_ctxcode 691
 #define MVM_OP_isrwcont 692
 #define MVM_OP_fc 693
-#define MVM_OP_DEPRECATED_25 694
+#define MVM_OP_getlexref_nu 694
 #define MVM_OP_atpos3d_u 695
 #define MVM_OP_encoderep 696
 #define MVM_OP_istty_fh 697

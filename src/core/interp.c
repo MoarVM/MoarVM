@@ -4331,6 +4331,11 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)));
                 cur_op += 6;
                 goto NEXT;
+            OP(getlexref_nu):
+                GET_REG(cur_op, 0).o = MVM_nativeref_lex_name_u(tc,
+                    MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)));
+                cur_op += 6;
+                goto NEXT;
             OP(getlexref_nn):
                 GET_REG(cur_op, 0).o = MVM_nativeref_lex_name_n(tc,
                     MVM_cu_string(tc, cu, GET_UI32(cur_op, 2)));
@@ -4382,6 +4387,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(getattrsref_i):
                 GET_REG(cur_op, 0).o = MVM_nativeref_attr_i(tc,
+                    GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
+                    GET_REG(cur_op, 6).s);
+                cur_op += 8;
+                goto NEXT;
+            OP(getattrsref_u):
+                GET_REG(cur_op, 0).o = MVM_nativeref_attr_u(tc,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o,
                     GET_REG(cur_op, 6).s);
                 cur_op += 8;
@@ -6831,10 +6842,6 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             /* The compiler compiles faster if all deprecated are together and at the end
              * even though the op numbers are technically out of order. */
-            OP(DEPRECATED_25):
-                MVM_exception_throw_adhoc(tc, "The setinputlineseps op was removed in MoarVM 2017.06.");
-            OP(DEPRECATED_27):
-                MVM_exception_throw_adhoc(tc, "The slurp op was removed in MoarVM 2017.06.");
             OP(DEPRECATED_28):
                 MVM_exception_throw_adhoc(tc, "The spew op was removed in MoarVM 2017.06.");
             OP(DEPRECATED_29):

@@ -526,7 +526,7 @@ close_dir           r(obj)
 open_fh             w(obj) r(str) r(str)
 close_fh            r(obj)
 dispatch_u       .d w(uint64) str callsite :cache :deoptallpoint :predeoptonepoint :maycausedeopt :specializable
-DEPRECATED_27       w(str) r(str) r(str)
+getattrsref_u       w(obj) r(obj) r(obj) r(str) :pure :useshll
 DEPRECATED_28       r(str) r(str) r(str)
 atposnd_u           w(uint64) r(obj) r(obj) :pure :specializable
 seek_fh             r(obj) r(int64) r(int64)
@@ -747,7 +747,7 @@ numdimensions       w(int64) r(obj) :pure :specializable
 ctxcode             w(obj) r(obj)
 isrwcont            w(int64) r(obj) :pure :specializable
 fc                  w(str) r(str) :pure
-DEPRECATED_25       r(obj) r(obj)
+getlexref_nu        w(obj) str :pure :noinline :useshll
 atpos3d_u           w(uint64) r(obj) r(int64) r(int64) r(int64) :pure :specializable
 encoderep           w(obj) r(str) r(str) r(str) r(obj)
 istty_fh            w(int64) r(obj) :pure

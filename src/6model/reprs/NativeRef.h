@@ -54,6 +54,7 @@ MVMObject * MVM_nativeref_lex_u(MVMThreadContext *tc, MVMuint16 outers, MVMuint1
 MVMObject * MVM_nativeref_lex_n(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx);
 MVMObject * MVM_nativeref_lex_s(MVMThreadContext *tc, MVMuint16 outers, MVMuint16 idx);
 MVMObject * MVM_nativeref_lex_name_i(MVMThreadContext *tc, MVMString *name);
+MVMObject * MVM_nativeref_lex_name_u(MVMThreadContext *tc, MVMString *name);
 MVMObject * MVM_nativeref_lex_name_n(MVMThreadContext *tc, MVMString *name);
 MVMObject * MVM_nativeref_lex_name_s(MVMThreadContext *tc, MVMString *name);
 MVMObject * MVM_nativeref_attr_i(MVMThreadContext *tc, MVMObject *obj, MVMObject *class_handle, MVMString *name);

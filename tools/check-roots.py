@@ -184,6 +184,7 @@ allocators = [
 'MVM_nativeref_lex_i',
 'MVM_nativeref_lex_n',
 'MVM_nativeref_lex_name_i',
+'MVM_nativeref_lex_name_u',
 'MVM_nativeref_lex_name_n',
 'MVM_nativeref_lex_name_s',
 'MVM_nativeref_lex_s',

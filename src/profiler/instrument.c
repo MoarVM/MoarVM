@@ -270,6 +270,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_getlexref_n32:
             case MVM_OP_getlexref_s:
             case MVM_OP_getlexref_ni:
+            case MVM_OP_getlexref_nu:
             case MVM_OP_getlexref_nn:
             case MVM_OP_getlexref_ns:
             case MVM_OP_atposref_i:
@@ -279,6 +280,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_getattrref_n:
             case MVM_OP_getattrref_s:
             case MVM_OP_getattrsref_i:
+            case MVM_OP_getattrsref_u:
             case MVM_OP_getattrsref_n:
             case MVM_OP_getattrsref_s:
             case MVM_OP_nativecallcast:
