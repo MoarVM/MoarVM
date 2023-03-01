@@ -4707,7 +4707,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *type = GET_REG(cur_op, 2).o;
                 if (type) {
                     const MVMStorageSpec *ss = REPR(type)->get_storage_spec(tc, STABLE(type));
-                    GET_REG(cur_op, 0).i64 = ss->boxed_primitive == 1 ? ss->is_unsigned : 0;
+                    GET_REG(cur_op, 0).i64 = ss->boxed_primitive ? ss->is_unsigned : 0;
                 }
                 else {
                     GET_REG(cur_op, 0).i64 = 0;

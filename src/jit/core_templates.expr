@@ -2667,7 +2667,7 @@
     (nz $1)
     (let: (($ss (^storage_spec $1)))
       (if
-        (eq (^getf $ss MVMStorageSpec boxed_primitive) (^one))
+        (nz (^getf $ss MVMStorageSpec boxed_primitive))
         (^getf_ucast $ss MVMStorageSpec is_unsigned int_sz)
         (^zero)))
     (^zero)))
