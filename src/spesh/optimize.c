@@ -2575,7 +2575,7 @@ static void walk_set_looking_for_unbool(MVMThreadContext *tc, MVMSpeshGraph *g, 
         const MVMOpInfo *opinfo = user->info;
         MVMuint16 opcode = opinfo->opcode;
 
-        if (opcode == MVM_OP_sp_runcfunc_i) {
+        if (opcode == MVM_OP_sp_runcfunc_i || opcode == MVM_OP_sp_runcfunc_u) {
             MVMSpeshFacts *dispatch_facts = MVM_spesh_get_facts(tc, g, user->operands[1]);
             if (is_syscall(tc, dispatch_facts, MVM_disp_syscall_boolify_boxed_int_impl))
                 try_eliminate_one_box_unbox(tc, g, bb, box_ins, user);
@@ -2594,7 +2594,7 @@ static void try_eliminate_bool_unbool_pair(MVMThreadContext *tc, MVMSpeshGraph *
         const MVMOpInfo *opinfo = user->info;
         MVMuint16 opcode = opinfo->opcode;
 
-        if (opcode == MVM_OP_sp_runcfunc_i) {
+        if (opcode == MVM_OP_sp_runcfunc_i || opcode == MVM_OP_sp_runcfunc_u) {
             MVMSpeshFacts *dispatch_facts = MVM_spesh_get_facts(tc, g, user->operands[1]);
             if (is_syscall(tc, dispatch_facts, MVM_disp_syscall_boolify_boxed_int_impl))
                 try_eliminate_one_box_unbox(tc, g, bb, ins, user);

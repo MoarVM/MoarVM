@@ -3808,6 +3808,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     case MVM_OP_sp_runbytecode_v:
     case MVM_OP_sp_runbytecode_i:
+    case MVM_OP_sp_runbytecode_u:
     case MVM_OP_sp_runbytecode_s:
     case MVM_OP_sp_runbytecode_n:
     case MVM_OP_sp_runbytecode_o: {
@@ -3827,11 +3828,13 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                 ? MVM_RETURN_VOID
                 : op == MVM_OP_sp_runbytecode_i
                     ? MVM_RETURN_INT
-                    : op == MVM_OP_sp_runbytecode_s
-                        ? MVM_RETURN_STR
-                        : op == MVM_OP_sp_runbytecode_n
-                            ? MVM_RETURN_NUM
-                            : MVM_RETURN_OBJ;
+                    : op == MVM_OP_sp_runbytecode_u
+                        ? MVM_RETURN_UINT
+                        : op == MVM_OP_sp_runbytecode_s
+                            ? MVM_RETURN_STR
+                            : op == MVM_OP_sp_runbytecode_n
+                                ? MVM_RETURN_NUM
+                                : MVM_RETURN_OBJ;
         node->u.runbytecode.return_register = dst;
         node->u.runbytecode.map             = &ins->operands[3 + start];
         node->u.runbytecode.code_register   = code;
@@ -3844,6 +3847,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
     }
     case MVM_OP_sp_runcfunc_v:
     case MVM_OP_sp_runcfunc_i:
+    case MVM_OP_sp_runcfunc_u:
     case MVM_OP_sp_runcfunc_s:
     case MVM_OP_sp_runcfunc_n:
     case MVM_OP_sp_runcfunc_o: {
@@ -3862,11 +3866,13 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
                 ? MVM_RETURN_VOID
                 : op == MVM_OP_sp_runcfunc_i
                     ? MVM_RETURN_INT
-                    : op == MVM_OP_sp_runcfunc_s
-                        ? MVM_RETURN_STR
-                        : op == MVM_OP_sp_runcfunc_n
-                            ? MVM_RETURN_NUM
-                            : MVM_RETURN_OBJ;
+                    : op == MVM_OP_sp_runcfunc_u
+                        ? MVM_RETURN_UINT
+                        : op == MVM_OP_sp_runcfunc_s
+                            ? MVM_RETURN_STR
+                            : op == MVM_OP_sp_runcfunc_n
+                                ? MVM_RETURN_NUM
+                                : MVM_RETURN_OBJ;
         node->u.runccode.return_register = dst;
         node->u.runccode.code_register   = code;
         node->u.runccode.map             = &ins->operands[2 + start];
@@ -3877,6 +3883,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         break;
     }
     case MVM_OP_sp_runnativecall_v:
+    case MVM_OP_sp_runnativecall_u:
     case MVM_OP_sp_runnativecall_i: {
         int start = (op == MVM_OP_sp_runnativecall_v) ? 0 : 1;
         MVMint16 dst          = ins->operands[0].reg.orig;
