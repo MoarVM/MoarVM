@@ -770,6 +770,9 @@ static void optimize_container_check(MVMThreadContext *tc, MVMSpeshGraph *g,
                         case MVM_STORAGE_SPEC_BP_INT:
                             known_result = ins->info->opcode == MVM_OP_iscont_i;
                             break;
+                        case MVM_STORAGE_SPEC_BP_UINT64:
+                            known_result = ins->info->opcode == MVM_OP_iscont_u;
+                            break;
                         case MVM_STORAGE_SPEC_BP_NUM:
                             known_result = ins->info->opcode == MVM_OP_iscont_n;
                             break;
@@ -2099,6 +2102,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
             optimize_signedness_coerce(tc, g, bb, ins);
             break;
         case MVM_OP_coerce_in:
+        case MVM_OP_coerce_un:
             optimize_coerce(tc, g, bb, ins);
             break;
         case MVM_OP_islist:
@@ -2148,18 +2152,22 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_setelemspos:
         case MVM_OP_splice:
         case MVM_OP_bindattr_i:
+        case MVM_OP_bindattr_u:
         case MVM_OP_bindattr_n:
         case MVM_OP_bindattr_s:
         case MVM_OP_bindattr_o:
         case MVM_OP_bindattrs_i:
+        case MVM_OP_bindattrs_u:
         case MVM_OP_bindattrs_n:
         case MVM_OP_bindattrs_s:
         case MVM_OP_bindattrs_o:
         case MVM_OP_assign_i:
+        case MVM_OP_assign_u:
         case MVM_OP_assign_n:
             optimize_repr_op(tc, g, bb, ins, 0);
             break;
         case MVM_OP_atpos_i:
+        case MVM_OP_atpos_u:
         case MVM_OP_atpos_n:
         case MVM_OP_atpos_s:
         case MVM_OP_atpos_o:
@@ -2179,6 +2187,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_existskey:
         case MVM_OP_existspos:
         case MVM_OP_getattr_i:
+        case MVM_OP_getattr_u:
         case MVM_OP_getattr_n:
         case MVM_OP_getattr_s:
         case MVM_OP_getattr_o:
@@ -2255,6 +2264,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_iscont:
         case MVM_OP_isrwcont:
         case MVM_OP_iscont_i:
+        case MVM_OP_iscont_u:
         case MVM_OP_iscont_n:
         case MVM_OP_iscont_s:
             optimize_container_check(tc, g, bb, ins);

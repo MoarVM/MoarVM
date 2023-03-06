@@ -651,6 +651,7 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 g->sf->body.cu->body.hll_config->int_lex_ref);
             break;
+        case MVM_OP_getlexref_u:
         case MVM_OP_getlexref_u32:
         case MVM_OP_getlexref_u16:
         case MVM_OP_getlexref_u8:
@@ -697,6 +698,11 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             create_facts_with_type(tc, g,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 g->sf->body.cu->body.hll_config->int_pos_ref);
+            break;
+        case MVM_OP_atposref_u:
+            create_facts_with_type(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                g->sf->body.cu->body.hll_config->uint_pos_ref);
             break;
         case MVM_OP_atposref_n:
             create_facts_with_type(tc, g,
