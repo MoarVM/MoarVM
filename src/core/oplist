@@ -967,6 +967,7 @@ sp_dispatch_o    .s w(obj) str callsite sslot uint32 :maycausedeopt :invokish
 # Following are for fast, unchecked grabbing of args from the arg buffer.
 sp_getarg_o      .s w(obj) int16 :pure
 sp_getarg_i      .s w(int64) int16 :pure
+sp_getarg_u      .s w(uint64) int16 :pure
 sp_getarg_n      .s w(num64) int16 :pure
 sp_getarg_s      .s w(str) int16 :pure
 
@@ -987,6 +988,10 @@ sp_get_i64       .s w(int64) r(obj) int16 :pure
 sp_get_i32       .s w(int64) r(obj) int16 :pure
 sp_get_i16       .s w(int64) r(obj) int16 :pure
 sp_get_i8        .s w(int64) r(obj) int16 :pure
+sp_get_u64       .s w(uint64) r(obj) int16 :pure
+sp_get_u32       .s w(uint64) r(obj) int16 :pure
+sp_get_u16       .s w(uint64) r(obj) int16 :pure
+sp_get_u8        .s w(uint64) r(obj) int16 :pure
 sp_get_n         .s w(num64) r(obj) int16 :pure
 sp_get_s         .s w(str) r(obj) int16 :pure
 sp_bind_o        .s r(obj) int16 r(obj)
@@ -994,6 +999,10 @@ sp_bind_i64      .s r(obj) int16 r(int64)
 sp_bind_i32      .s r(obj) int16 r(int64)
 sp_bind_i16      .s r(obj) int16 r(int64)
 sp_bind_i8       .s r(obj) int16 r(int64)
+sp_bind_u64      .s r(obj) int16 r(uint64)
+sp_bind_u32      .s r(obj) int16 r(uint64)
+sp_bind_u16      .s r(obj) int16 r(uint64)
+sp_bind_u8       .s r(obj) int16 r(uint64)
 sp_bind_n        .s r(obj) int16 r(num64)
 sp_bind_s        .s r(obj) int16 r(str)
 sp_bind_s_nowb   .s r(obj) int16 r(str)
@@ -1006,15 +1015,19 @@ sp_p6oget_o      .s w(obj) r(obj) int16 :pure
 sp_p6ogetvt_o    .s w(obj) r(obj) int16 sslot
 sp_p6ogetvc_o    .s w(obj) r(obj) int16 sslot
 sp_p6oget_i      .s w(int64) r(obj) int16 :pure
+sp_p6oget_u      .s w(uint64) r(obj) int16 :pure
 sp_p6oget_n      .s w(num64) r(obj) int16 :pure
 sp_p6oget_s      .s w(str) r(obj) int16 :pure
 sp_p6oget_bi     .s w(int64) r(obj) int16 :pure
 sp_p6obind_o     .s r(obj) int16 r(obj)
 sp_p6obind_i     .s r(obj) int16 r(int64)
+sp_p6obind_u     .s r(obj) int16 r(uint64)
 sp_p6obind_n     .s r(obj) int16 r(num64)
 sp_p6obind_s     .s r(obj) int16 r(str)
 sp_p6oget_i32    .s w(int64) r(obj) int16 :pure
+sp_p6oget_u32    .s w(uint64) r(obj) int16 :pure
 sp_p6obind_i32   .s r(obj) int16 r(int64) :pure
+sp_p6obind_u32   .s r(obj) int16 r(uint64) :pure
 
 # Simple vivifying forms of attribute access; used when we know we don't
 # have any kind of mixin type. Offset is from start of the object's memory.
@@ -1028,8 +1041,10 @@ sp_getvc_o       .s w(obj) r(obj) int16 sslot
 # argument which is the type index in the integer cache; they do a lookup in
 # the integer cache before performing a box operation.
 sp_fastbox_i     .s w(obj) int16 sslot int16 r(int64) :pure
+sp_fastbox_u     .s w(obj) int16 sslot int16 r(uint64) :pure
 sp_fastbox_bi    .s w(obj) int16 sslot int16 r(int64) :pure
 sp_fastbox_i_ic  .s w(obj) int16 sslot int16 r(int64) int16 :pure
+sp_fastbox_u_ic  .s w(obj) int16 sslot int16 r(uint64) int16 :pure
 sp_fastbox_bi_ic .s w(obj) int16 sslot int16 r(int64) int16 :pure
 
 # Follow a pointer at an offset to an object and get/store a value there.

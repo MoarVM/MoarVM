@@ -460,8 +460,10 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
             break;
         case MVM_OP_sp_fastcreate:
         case MVM_OP_sp_fastbox_i:
+        case MVM_OP_sp_fastbox_u:
         case MVM_OP_sp_fastbox_bi:
         case MVM_OP_sp_fastbox_i_ic:
+        case MVM_OP_sp_fastbox_u_ic:
         case MVM_OP_sp_fastbox_bi_ic:
         case MVM_OP_sp_add_I:
         case MVM_OP_sp_sub_I:

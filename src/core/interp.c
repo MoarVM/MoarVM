@@ -5962,6 +5962,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             }
+            OP(sp_getarg_u): {
+                MVMArgs *args = &(tc->cur_frame->params.arg_info);
+                GET_REG(cur_op, 0).u64 = args->source[args->map[GET_UI16(cur_op, 2)]].u64;
+                cur_op += 4;
+                goto NEXT;
+            }
             OP(sp_getarg_n): {
                 MVMArgs *args = &(tc->cur_frame->params.arg_info);
                 GET_REG(cur_op, 0).n64 = args->source[args->map[GET_UI16(cur_op, 2)]].n64;
@@ -6010,6 +6016,22 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 GET_REG(cur_op, 0).i64 = *((MVMint8 *)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
                 cur_op += 6;
                 goto NEXT;
+            OP(sp_get_u64):
+                GET_REG(cur_op, 0).u64 = *((MVMuint64 *)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
+                cur_op += 6;
+                goto NEXT;
+            OP(sp_get_u32):
+                GET_REG(cur_op, 0).u64 = *((MVMuint32 *)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
+                cur_op += 6;
+                goto NEXT;
+            OP(sp_get_u16):
+                GET_REG(cur_op, 0).u64 = *((MVMuint16 *)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
+                cur_op += 6;
+                goto NEXT;
+            OP(sp_get_u8):
+                GET_REG(cur_op, 0).u64 = *((MVMuint8 *)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
+                cur_op += 6;
+                goto NEXT;
             OP(sp_get_n):
                 GET_REG(cur_op, 0).n64 = *((MVMnum64 *)((char *)GET_REG(cur_op, 2).o + GET_UI16(cur_op, 4)));
                 cur_op += 6;
@@ -6046,6 +6068,30 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_bind_i8): {
                 MVMObject *o     = GET_REG(cur_op, 0).o;
                 *((MVMint8 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_bind_u64): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                *((MVMuint64 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).u64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_bind_u32): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                *((MVMuint32 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).u64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_bind_u16): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                *((MVMuint16 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).u64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_bind_u8): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                *((MVMuint8 *)((char *)o + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).u64;
                 cur_op += 6;
                 goto NEXT;
             }
@@ -6110,6 +6156,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_p6oget_u): {
+                MVMObject *o     = GET_REG(cur_op, 2).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                GET_REG(cur_op, 0).u64 = *((MVMuint64 *)(data + GET_UI16(cur_op, 4)));
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_p6oget_n): {
                 MVMObject *o     = GET_REG(cur_op, 2).o;
                 char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
@@ -6149,6 +6202,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 6;
                 goto NEXT;
             }
+            OP(sp_p6obind_u): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                *((MVMint64 *)(data + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).u64;
+                cur_op += 6;
+                goto NEXT;
+            }
             OP(sp_p6obind_n): {
                 MVMObject *o     = GET_REG(cur_op, 0).o;
                 char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
@@ -6175,6 +6235,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 MVMObject *o     = GET_REG(cur_op, 0).o;
                 char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
                 *((MVMint32 *)(data + GET_UI16(cur_op, 2))) = (MVMint32)GET_REG(cur_op, 4).i64;
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_p6oget_u32): {
+                MVMObject *o     = GET_REG(cur_op, 2).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                GET_REG(cur_op, 0).u64 = *((MVMuint32 *)(data + GET_UI16(cur_op, 4)));
+                cur_op += 6;
+                goto NEXT;
+            }
+            OP(sp_p6obind_u32): {
+                MVMObject *o     = GET_REG(cur_op, 0).o;
+                char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
+                *((MVMuint32 *)(data + GET_UI16(cur_op, 2))) = (MVMuint32)GET_REG(cur_op, 4).u64;
                 cur_op += 6;
                 goto NEXT;
             }
@@ -6213,6 +6287,13 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 10;
                 goto NEXT;
             }
+            OP(sp_fastbox_u): {
+                MVMObject *obj = fastcreate(tc, cur_op);
+                *((MVMuint64 *)((char *)obj + GET_UI16(cur_op, 6))) = GET_REG(cur_op, 8).u64;
+                GET_REG(cur_op, 0).o = obj;
+                cur_op += 10;
+                goto NEXT;
+            }
             OP(sp_fastbox_bi): {
                 MVMObject *obj = fastcreate(tc, cur_op);
                 MVMP6bigintBody *body = (MVMP6bigintBody *)((char *)obj + GET_UI16(cur_op, 6));
@@ -6237,6 +6318,20 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 else {
                     MVMObject *obj = fastcreate(tc, cur_op);
                     *((MVMint64 *)((char *)obj + GET_UI16(cur_op, 6))) = value;
+                    GET_REG(cur_op, 0).o = obj;
+                }
+                cur_op += 12;
+                goto NEXT;
+            }
+            OP(sp_fastbox_u_ic): {
+                MVMuint64 value = GET_REG(cur_op, 8).u64;
+                if (value < 15) {
+                    MVMint16 slot = GET_UI16(cur_op, 10);
+                    GET_REG(cur_op, 0).o = tc->instance->int_const_cache->cache[slot][value + 1];
+                }
+                else {
+                    MVMObject *obj = fastcreate(tc, cur_op);
+                    *((MVMuint64 *)((char *)obj + GET_UI16(cur_op, 6))) = value;
                     GET_REG(cur_op, 0).o = obj;
                 }
                 cur_op += 12;

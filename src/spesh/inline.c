@@ -165,6 +165,7 @@ static int is_graph_inlineable(MVMThreadContext *tc, MVMSpeshGraph *inliner,
              * instruction, because we can't uninline in such a case. */
             else if (opcode == MVM_OP_sp_getarg_o ||
                     opcode == MVM_OP_sp_getarg_i ||
+                    opcode == MVM_OP_sp_getarg_u ||
                     opcode == MVM_OP_sp_getarg_n ||
                     opcode == MVM_OP_sp_getarg_s) {
                 if (ins->operands[1].lit_i16 >= MAX_ARGS_FOR_OPT) {
@@ -1368,6 +1369,7 @@ static void rewrite_args(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             switch (opcode) {
                 case MVM_OP_sp_getarg_o:
                 case MVM_OP_sp_getarg_i:
+                case MVM_OP_sp_getarg_u:
                 case MVM_OP_sp_getarg_n:
                 case MVM_OP_sp_getarg_s: {
                     MVMuint16 idx = ins->operands[1].lit_i16;
