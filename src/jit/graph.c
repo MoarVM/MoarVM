@@ -393,6 +393,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_getattrref_n: return MVM_nativeref_attr_n;
     case MVM_OP_getattrref_s: return MVM_nativeref_attr_s;
     case MVM_OP_getattrsref_i: return MVM_nativeref_attr_i;
+    case MVM_OP_getattrsref_u: return MVM_nativeref_attr_u;
     case MVM_OP_getattrsref_n: return MVM_nativeref_attr_n;
     case MVM_OP_getattrsref_s: return MVM_nativeref_attr_s;
     case MVM_OP_atposref_i: return MVM_nativeref_pos_i;
@@ -3600,6 +3601,7 @@ static MVMint32 consume_ins(MVMThreadContext *tc, MVMJitGraph *jg,
         break;
     }
     case MVM_OP_getattrsref_i:
+    case MVM_OP_getattrsref_u:
     case MVM_OP_getattrsref_n:
     case MVM_OP_getattrsref_s: {
         MVMint16 dst     = ins->operands[0].reg.orig;

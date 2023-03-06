@@ -675,6 +675,12 @@ static void add_bb_facts(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                 ins->operands[0].reg.orig, ins->operands[0].reg.i,
                 g->sf->body.cu->body.hll_config->int_attr_ref);
             break;
+        case MVM_OP_getattrref_u:
+        case MVM_OP_getattrsref_u:
+            create_facts_with_type(tc, g,
+                ins->operands[0].reg.orig, ins->operands[0].reg.i,
+                g->sf->body.cu->body.hll_config->uint_attr_ref);
+            break;
         case MVM_OP_getattrref_n:
         case MVM_OP_getattrsref_n:
             create_facts_with_type(tc, g,

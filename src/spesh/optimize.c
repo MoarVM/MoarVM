@@ -2183,6 +2183,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_getattr_s:
         case MVM_OP_getattr_o:
         case MVM_OP_getattrs_i:
+        case MVM_OP_getattrs_u:
         case MVM_OP_getattrs_n:
         case MVM_OP_getattrs_s:
         case MVM_OP_getattrs_o:
