@@ -2152,7 +2152,7 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_setelemspos:
         case MVM_OP_splice:
         case MVM_OP_bindattr_i:
-        case MVM_OP_bindattr_u:
+        //case MVM_OP_bindattr_u:
         case MVM_OP_bindattr_n:
         case MVM_OP_bindattr_s:
         case MVM_OP_bindattr_o:
