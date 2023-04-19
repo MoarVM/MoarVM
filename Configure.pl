@@ -684,6 +684,20 @@ print "\n", <<TERM, "\n";
   byte order: $order
 TERM
 
+print dots("Checking perl5 modules");
+eval { require ExtUtils::Command };
+if ($@ ne '') {
+    softfail("Missing ExtUtils::Command!\n" .
+    "    without the perl5 module ExtUtils::Command, 'make install' will fail.\n" .
+    "    In addition, since ExtUtil::Command is normally included in a\n" .
+    "    perl5 installation, you may have an incomplete one that also\n" .
+    "    misses some additional modules that are used in the configure\n" .
+    "    scripts of nqp and rakudo.");
+}
+else {
+    print "OK\n";
+}
+
 print dots('Configuring 3rdparty libs');
 
 my @thirdpartylibs;
