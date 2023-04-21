@@ -1,3 +1,20 @@
+New in 2023.04
+
+Core:
++ Fix nqp::objprimunsigned handling of unsigned or sized integers [6adfc376]
++ Warn about missing perl5 mods in Configure instead of exploding make install
+  [6589a170]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
+
 New in 2023.02
 
 Core:
