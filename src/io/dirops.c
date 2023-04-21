@@ -23,8 +23,8 @@ static int mkdir_p(MVMThreadContext *tc, char *pathname, MVMint64 mode) {
         if (!*p || IS_SLASH(*p)) {
             ch = *p;
             *p  = '\0';
-            created = (mkdir_error = uv_fs_mkdir(NULL, &req, pathname, mode, NULL) == 0
-                       || (mkdir_error == EEXIST
+            created = ((mkdir_error = uv_fs_mkdir(NULL, &req, pathname, mode, NULL)) == 0
+                       || (mkdir_error == UV_EEXIST
                            && uv_fs_stat(NULL, &req, pathname, NULL) == 0
                            && S_ISDIR(req.statbuf.st_mode)));
             if (!(*p = ch)) break;
