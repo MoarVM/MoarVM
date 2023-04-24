@@ -157,6 +157,8 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
 MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMOSHandle *handle = get_dirhandle(tc, oshandle, "readdir");
     uv_dir_t    *dir    = (uv_dir_t *)handle->body.data;
+    if (dir == NULL)
+        return tc->instance->str_consts.empty;
     int readdir_error   = 0;
     uv_fs_t     req;
 
