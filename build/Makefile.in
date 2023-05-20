@@ -461,6 +461,7 @@ HEADERS = src/moar.h \
           src/platform/memmem32.h
 
 UV_UNIX = 3rdparty/libuv/src/strscpy@obj@ \
+          3rdparty/libuv/src/strtok@obj@ \
           3rdparty/libuv/src/fs-poll@obj@ \
           3rdparty/libuv/src/inet@obj@ \
           3rdparty/libuv/src/uv-common@obj@ \
@@ -484,10 +485,7 @@ UV_UNIX = 3rdparty/libuv/src/strscpy@obj@ \
           3rdparty/libuv/src/unix/tty@obj@ \
           3rdparty/libuv/src/unix/udp@obj@
 
-UV_LINUX = 3rdparty/libuv/src/unix/linux-core@obj@ \
-           3rdparty/libuv/src/unix/linux-inotify@obj@ \
-           3rdparty/libuv/src/unix/linux-syscalls@obj@ \
-           3rdparty/libuv/src/unix/epoll@obj@ \
+UV_LINUX = 3rdparty/libuv/src/unix/linux@obj@ \
            3rdparty/libuv/src/unix/procfs-exepath@obj@ \
            3rdparty/libuv/src/unix/proctitle@obj@ \
            $(UV_UNIX)
