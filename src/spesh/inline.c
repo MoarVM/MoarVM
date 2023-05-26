@@ -474,6 +474,14 @@ static void rewrite_curcode(MVMThreadContext *tc, MVMSpeshGraph *g,
     MVM_spesh_usages_add_by_reg(tc, g, code_ref_reg, ins);
 }
 
+/* Make a callercode instruction turn into curcode so it refers to
+ * the inliner's code object */
+static void rewrite_callercode(MVMThreadContext *tc, MVMSpeshGraph *g,
+        MVMSpeshIns *ins, MVMuint16 num_locals) {
+    ins->operands[0].reg.orig += num_locals;
+    ins->info = MVM_op_get_op(MVM_OP_curcode);
+}
+
 /* Rewrites a lexical lookup to an outer to be done via. a register holding
  * the outer coderef. */
 static void rewrite_outer_lookup(MVMThreadContext *tc, MVMSpeshGraph *g,
@@ -641,6 +649,9 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             }
             else if (opcode == MVM_OP_curcode) {
                 rewrite_curcode(tc, inliner, ins, inliner->num_locals, code_ref_reg);
+            }
+            else if (opcode == MVM_OP_callercode) {
+                rewrite_callercode(tc, inliner, ins, inliner->num_locals);
             }
             else if (opcode == MVM_OP_sp_getlex_o && ins->operands[1].lex.outers > 0) {
                 rewrite_outer_lookup(tc, inliner, ins, inliner->num_locals,
