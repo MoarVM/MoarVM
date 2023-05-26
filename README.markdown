@@ -65,7 +65,7 @@ Some key features provided by MoarVM include:
 
 * Meta-object programming, using the 6model design
 * Precise, generational, and parallel GC
-* Unicode 13.1 support (Unicode Character Database, encodings, normalization)
+* Unicode 15 support (Unicode Character Database, encodings, normalization)
 * First-class code objects, lexical variables and closures
 * Exceptions
 * Continuations
