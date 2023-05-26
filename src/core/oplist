@@ -476,7 +476,7 @@ ctxouter            w(obj) r(obj) :pure
 ctxcaller           w(obj) r(obj) :pure
 ctxlexpad           w(obj) r(obj) :pure
 curcode             w(obj) :pure
-callercode          w(obj) :pure :noinline
+callercode          w(obj) :pure
 add_I               w(obj) r(obj) r(obj) r(obj) :pure
 sub_I               w(obj) r(obj) r(obj) r(obj) :pure
 mul_I               w(obj) r(obj) r(obj) r(obj) :pure
