@@ -1550,6 +1550,8 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         MVMSpeshGraph *inline_graph = bb->inlined ? NULL : MVM_spesh_inline_try_get_graph(tc, g,
             target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
             ins, &no_inline_reason, &effective_size, &no_inline_info);
+        if (tc->instance->spesh_inline_log && bb->inlined)
+            no_inline_reason = "refused to inline into an already inlined bb";
         log_inline(tc, g, target_sf, inline_graph, effective_size, no_inline_reason,
             0, no_inline_info);
         if (inline_graph) {
