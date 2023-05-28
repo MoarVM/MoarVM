@@ -232,6 +232,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             break;
         }
         case MVM_OP_unbox_i:
+        case MVM_OP_unbox_u:
         case MVM_OP_decont_i: {
             MVMint32 bits = repr_data->bits;
             MVMuint16 op = bits == 64 ? MVM_OP_sp_get_i64 :
@@ -254,6 +255,8 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             }
             break;
         }
+        default:
+            MVM_spesh_graph_add_comment(tc, g, ins, "NYI for P6int repr");
     }
 }
 /* Initializes the representation. */
