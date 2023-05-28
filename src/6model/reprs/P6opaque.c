@@ -1958,6 +1958,39 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             }
         }
         break;
+    case MVM_OP_unbox_u:
+        if (repr_data->unbox_uint_slot >= 0) {
+            MVMSTable *embedded_st = repr_data->flattened_stables[repr_data->unbox_uint_slot];
+            if (embedded_st->REPR->ID == MVM_REPR_ID_P6int) {
+                MVMP6intREPRData *intreprdata = (MVMP6intREPRData *)embedded_st->REPR_data;
+                MVMint32 bits = intreprdata->bits;
+                /* There is only support for two bit sizes, until more ops are added */
+                MVMuint16 op = bits == 64 ? MVM_OP_sp_p6oget_i :
+                            bits == 32 ? MVM_OP_sp_p6oget_i32 :
+                            0;
+                if (op > 0) {
+                    /* Lower into a direct memory read. */
+                    MVMSpeshOperand *orig_operands = ins->operands;
+
+                    MVM_spesh_graph_add_comment(tc, g, ins, "%s from a %s",
+                            ins->info->name,
+                            MVM_6model_get_stable_debug_name(tc, st));
+
+                    ins->info = MVM_op_get_op(op);
+                    ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                    ins->operands[0] = orig_operands[0];
+                    ins->operands[1] = orig_operands[1];
+                    ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_uint_slot];
+                }
+                else {
+                    MVM_spesh_graph_add_comment(tc, g, ins, "unbox uint slot p6int has unhandled bit size %d", bits);
+                }
+            }
+            else {
+                MVM_spesh_graph_add_comment(tc, g, ins, "unbox uint slot stable has unhandled reprid %d", embedded_st->REPR->ID);
+            }
+        }
+        break;
     case MVM_OP_unbox_i:
     case MVM_OP_decont_i:
         if (repr_data->unbox_int_slot >= 0) {
@@ -2018,6 +2051,9 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                     ins->operands[1] = orig_operands[1];
                     ins->operands[2].lit_i16 = repr_data->attribute_offsets[repr_data->unbox_int_slot];
                 }
+            }
+            else {
+                MVM_spesh_graph_add_comment(tc, g, ins, "unbox int slot stable has unhandled reprid %d", embedded_st->REPR->ID);
             }
         }
         break;
