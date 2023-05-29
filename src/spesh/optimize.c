@@ -1547,6 +1547,8 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         /* Do not try to inline calls from inlined basic blocks! Otherwise the new inlinees would
          * get added to the inlines table after the original inlinee which they are nested in and
          * the frame walker would find the outer inlinee first, giving wrong results */
+        /* Inicidentally, the rewrite_callercode function in inline.c also
+         * relies on "no nested inlines" */
         MVMSpeshGraph *inline_graph = bb->inlined ? NULL : MVM_spesh_inline_try_get_graph(tc, g,
             target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
             ins, &no_inline_reason, &effective_size, &no_inline_info);
