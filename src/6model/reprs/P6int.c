@@ -233,7 +233,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         }
         case MVM_OP_box_u: {
             if (repr_data->bits == 64 && !(st->mode_flags & MVM_FINALIZE_TYPE)) {
-                /* Turn into a sp_fastbox_i[_ic] instruction. */
+                /* Turn into a sp_fastbox_u[_ic] instruction. */
                 MVMint32 int_cache_type_idx = MVM_intcache_type_index(tc, st->WHAT);
                 MVMSpeshFacts *tgt_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
                 MVMSpeshOperand *orig_operands = ins->operands;

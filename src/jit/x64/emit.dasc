@@ -824,8 +824,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | callp &MVM_p6bigint_get_int64;
             | mov TMP3, RV;
             | 6:
-        } else if (op == MVM_OP_sp_p6oget_i32 || op == MVM_OP_sp_p6oget_u32) {
+        } else if (op == MVM_OP_sp_p6oget_i32) {
             | movsxd TMP3, dword [TMP2];
+        } else if (op == MVM_OP_sp_p6oget_u32) {
+            | mov TMP3, [TMP2];
         }
         else {
             /* the regular case */
@@ -858,7 +860,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | mov TMP2, aword WORK[val]; // reload value
             |2: // done
         }
-        if (op == MVM_OP_sp_bind_i32) {
+        if (op == MVM_OP_sp_bind_i32 || op == MVM_OP_sp_bind_u32) {
             | mov dword [TMP1+offset], TMP2d; // store value into body
         }
         else {
@@ -898,7 +900,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 offset = ins->operands[2].lit_i16;
         | mov TMP1, WORK[obj];            // object
         | mov RV, [TMP1+offset];   // get value from body
-        | cdqe;
+        if (op == MVM_OP_sp_get_i32) {
+            | cdqe;
+        }
         | mov WORK[dst], RV;
         break;
     }
@@ -951,7 +955,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | mov TMP2, qword [rbp-0x28]; // restore value
             |2: // done
         }
-        if (op == MVM_OP_sp_p6obind_i32) {
+        if (op == MVM_OP_sp_p6obind_i32 || op == MVM_OP_sp_p6obind_u32) {
             | mov dword [TMP3+offset], TMP2d; // store value into body
         }
         else {

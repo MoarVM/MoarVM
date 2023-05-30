@@ -2134,16 +2134,10 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                     if (MVM_BIGINT_IS_BIG(body)) {
                         mp_int *i = body->u.bigint;
                         const int bits = mp_count_bits(i);
-                        if (bits <= 63) {
+                        if (bits <= 64) {
                             value = mp_get_mag_ull(i);
                             have_value = 1;
                         }
-                        //else if (bits == 64
-                        //         && MP_NEG == i->sign
-                        //         && mp_get_mag_ull(i) == 9223372036854775808ULL) {
-                        //    value = -9223372036854775807ULL - 1;
-                        //    have_value = 1;
-                        //}
                     }
                     else {
                         value = body->u.smallint.value;

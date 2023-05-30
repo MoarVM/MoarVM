@@ -6205,7 +6205,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(sp_p6obind_u): {
                 MVMObject *o     = GET_REG(cur_op, 0).o;
                 char      *data  = MVM_p6opaque_real_data(tc, OBJECT_BODY(o));
-                *((MVMint64 *)(data + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).u64;
+                *((MVMuint64 *)(data + GET_UI16(cur_op, 2))) = GET_REG(cur_op, 4).u64;
                 cur_op += 6;
                 goto NEXT;
             }
