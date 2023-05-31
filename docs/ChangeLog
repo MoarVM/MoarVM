@@ -1,3 +1,21 @@
+New in 2023.05
+
+Core:
++ Update libuv to version 1.45.0 [5699d34a][6f4e09a7]
+
+Documentation:
++ mention we have unicode 15 [80559738]
+
+GC:
+
+JIT:
+
+Spesh:
++ log reason when not inlining into inlined bb [ab61b044]
++ callercode no longer prevents inlining [3b4d55a0][b9df871d]
+
+Strings:
+
 New in 2023.04
 
 Core:
