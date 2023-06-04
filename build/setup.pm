@@ -300,7 +300,7 @@ my %TC_MINGW64 = (
     -thirdparty => {
         dc => {
             %TP_DC,
-            rule  => 'cd 3rdparty/dyncall && ./configure.bat /target-x86 /tool-gcc && $(MAKE) -f Makefile.embedded mingw64',
+            rule  => 'cd 3rdparty/dyncall && ./configure.bat /target-x86 /tool-gcc && $(MAKE) -f Makefile.embedded mingw32',
             clean => $TC_MSVC{-thirdparty}->{dc}->{clean},
         },
     },
