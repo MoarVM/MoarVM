@@ -80,6 +80,7 @@ stages:
         - pwsh: |
             ${{ variables.PWSH_DEV }}
             perl Configure.pl --prefix=..\$(INSTALL_DIR) $(MOAR_OPTIONS)
+            type Makefile
             gmake -j2 install
           failOnStderr: false
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'
