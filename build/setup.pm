@@ -276,7 +276,7 @@ TERM
     },
 );
 
-my %TC_MINGW32 = (
+my %TC_MINGW64 = (
     %TC_GNU,
 
     make => 'gmake',
@@ -300,7 +300,7 @@ my %TC_MINGW32 = (
     -thirdparty => {
         dc => {
             %TP_DC,
-            rule  => 'cd 3rdparty/dyncall && ./configure.bat /target-x86 /tool-gcc && $(MAKE) -f Makefile.embedded mingw32',
+            rule  => 'cd 3rdparty/dyncall && ./configure.bat /target-x86 /tool-gcc && $(MAKE) -f Makefile.embedded mingw64',
             clean => $TC_MSVC{-thirdparty}->{dc}->{clean},
         },
     },
@@ -320,7 +320,7 @@ our %TOOLCHAINS = (
     bsd   => { %TC_BSD },
     darwin => { %TC_DARWIN },
     msvc  => { %TC_MSVC },
-    mingw32 => { %TC_MINGW32 },
+    mingw64 => { %TC_MINGW64 },
     cygwin => { %TC_CYGWIN },
 );
 
@@ -496,7 +496,7 @@ my %OS_WIN32 = (
 # ought to nest OS, toolchain and compiler in some order, to permit 'defs' and
 # similar to alternate and stack/merge.
 
-my %OS_MINGW32 = (
+my %OS_MINGW64 = (
     %OS_WIN32,
 
     defs => [ @{$OS_WIN32{defs}}, qw( _WIN32_WINNT=0x0602 ) ],
@@ -621,7 +621,7 @@ our %SYSTEMS = (
     solaris     => [ qw( posix posix gcc ),   { %OS_SOLARIS } ],
     win32       => [ qw( win32 msvc  cl ),    { %OS_WIN32 } ],
     cygwin      => [ qw( posix cygwin gcc ),  { %OS_WIN32 } ],
-    mingw32     => [ qw( win32 mingw32 gcc ), { %OS_MINGW32 } ],
+    mingw64     => [ qw( win32 mingw64 gcc ), { %OS_MINGW64 } ],
 );
 
 42;
