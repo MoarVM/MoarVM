@@ -596,7 +596,7 @@ unless ($config{crossconf}) {
                 print "YES\n";
 
                 $defaults{-thirdparty}->{dc}->{rule} =
-                    'cd 3rdparty/dyncall && ./configure.bat /target-x64 /tool-gcc && $(MAKE) COMPILE.C=$$(COMPILE.c) -f Makefile.embedded mingw64';
+                    'cd 3rdparty/dyncall && ./configure.bat /target-x64 /tool-gcc && $(MAKE) COMPILE.C=$$(COMPILE.c) -f Makefile.embedded mingw32';
             }
             else { print "NO\n" }
         }
