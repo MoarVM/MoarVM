@@ -83,7 +83,7 @@ stages:
             gmake -j2 install
           failOnStderr: false
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'
-          condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ), contains( variables['MOAR_OPTIONS'], 'mingw32' ))
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ), contains( variables['MOAR_OPTIONS'], 'mingw64' ))
           displayName: Build MoarVM (Windows, MinGW)
         - pwsh: |
             ${{ variables.PWSH_DEV }}
@@ -92,7 +92,7 @@ stages:
             nmake install
           failOnStderr: false
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'
-          condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ), not(contains( variables['MOAR_OPTIONS'], 'mingw32' )))
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ), not(contains( variables['MOAR_OPTIONS'], 'mingw64' )))
           displayName: Build MoarVM (Windows, MSVC)
 
         # Build NQP
