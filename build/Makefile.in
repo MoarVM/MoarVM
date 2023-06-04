@@ -527,8 +527,6 @@ UV_AIX = 3rdparty/libuv/src/unix/aix@obj@ \
 
 UV_OBJECTS = @uvobjects@
 
-TOM_OBJECTS = @tomobjects@
-
 THIRDPARTY = @thirdpartylibs@
 
 MINILUA = 3rdparty/dynasm/minilua@exe@
@@ -621,7 +619,7 @@ moar@exe@: $(MAIN_OBJECTS) @moar@
 
 libuv: @uvlib@
 
-$(MAIN_OBJECTS) $(OBJECTS): $(HEADERS)
+$(MAIN_OBJECTS) $(OBJECTS): @gmplib@ $(HEADERS)
 
 tracing:
 	$(MSG) enable tracing dispatch
@@ -709,9 +707,9 @@ tools/repr_size_table@exe@: tools/repr_size_table@obj@ @moarlib@ $(DLL_LIBS)
 	$(MSG) linking $@
 	$(CMD)@laorule@ $(NOOUT)
 
-@tomlib@: $(TOM_OBJECTS)
-	$(MSG) linking $@
-	$(CMD)@tomrule@ $(NOOUT)
+@gmplib@:
+	$(MSG) building $@...
+	$(CMD)@gmprule@ $(NOOUT)
 
 @shalib@: @shaobjects@
 	$(MSG) linking $@
@@ -748,11 +746,11 @@ realclean: clean
 	-$(CMD)@uvclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@laoclean@ $(NOOUT) $(NOERR)
 	-$(RM) @laolib@ $(NOOUT) $(NOERR)
-	-$(CMD)@tomclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@shaclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@mtclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@dcclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@cmpclean@ $(NOOUT) $(NOERR)
+	-$(CMD)@gmpclean@ $(NOOUT) $(NOERR)
 	-$(RM) $(MINILUA) $(NOOUT) $(NOERR)
 
 distclean: realclean

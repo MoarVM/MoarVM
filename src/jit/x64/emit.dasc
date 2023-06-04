@@ -120,7 +120,7 @@
 |.type U16, MVMuint16
 |.type U32, MVMuint32
 |.type U64, MVMuint64
-|.type MPINT, mp_int
+|.type MPZINT, mpz_t
 |.type MVMDISPINLINECACHEENTRY, MVMDispInlineCacheEntry
 |.type MVMDISPINLINECACHE, MVMDispInlineCache
 |.type CFUNCTION, MVMCFunction
@@ -1647,28 +1647,28 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         /* Handle result by opcode. */
         switch(ins->info->opcode) {
         case MVM_OP_eq_I:
-            | cmp RV, MP_EQ
-            | sete RVb;
+            | cmp RV, 0
+            | sete al;
             break;
         case MVM_OP_ne_I:
-            | cmp RV, MP_EQ
-            | setne RVb;
+            | cmp RV, 0
+            | setne al;
             break;
         case MVM_OP_lt_I:
-            | cmp RV, MP_LT
-            | sete RVb;
+            | cmp RV, -1
+            | sete al;
             break;
         case MVM_OP_le_I:
-            | cmp RV, MP_GT
-            | setne RVb;
+            | cmp RV, 1
+            | setne al;
             break;
         case MVM_OP_gt_I:
-            | cmp RV, MP_GT
-            | sete RVb;
+            | cmp RV, 1
+            | sete al;
             break;
         case MVM_OP_ge_I:
-            | cmp RV, MP_LT
-            | setne RVb;
+            | cmp RV, -1
+            | setne al;
             break;
         }
         /* zero extend al (lower byte) to rax (whole register) */
@@ -2395,7 +2395,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | mov ARG2, RV
             | add ARG2, offset
             | mov ARG3, TMP3
-            | callp &MVM_p6bigint_store_as_mp_int;
+            | callp &MVM_p6bigint_store_as_mpz_t;
             |4:
         }
         if (use_cache) {
@@ -2504,10 +2504,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov WORK[dst], TMP3;
         | jmp >2
         |1:
-        /* Bigint; check a->used for nonzero. */
-        | mov TMP4, [TMP1 + offset]
-        | mov TMP3d, dword MPINT:TMP4->used;
-        | test TMP3d, TMP3d;
+        /* Bigint; check mpz_size(a) for nonzero. */
+        | lea ARG1, [TMP1 + offset];
+        /* This callp clobbers registers but they are not read afterwards. */
+        | callp &mpz_size;
+        | mov TMP3, RV;
+        | test TMP3, TMP3;
         | setnz TMP3b;
         | movzx TMP3, TMP3b;
         | mov WORK[dst], TMP3;

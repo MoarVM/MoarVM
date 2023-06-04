@@ -39,18 +39,8 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
 
     /* Allocate temporary big integers. */
     for (i = 0; i < MVM_NUM_TEMP_BIGINTS; i++) {
-        tc->temp_bigints[i] = MVM_malloc(sizeof(mp_int));
-        mp_err err;
-        if ((err = mp_init(tc->temp_bigints[i])) != MP_OKAY) {
-            MVMint32 j;
-            for (j = 0; j < i; j++) {
-                mp_clear(tc->temp_bigints[j]);
-                MVM_free(tc->temp_bigints[j]);
-            }
-            MVM_free(tc->temp_bigints[i]);
-            MVM_tc_destroy(tc);
-            MVM_exception_throw_adhoc(parent, "Error creating a temporary big integer: %s", mp_error_to_string(err));
-        }
+        tc->temp_bigints[i] = MVM_malloc(sizeof(mpz_t));
+        mpz_init(*(tc->temp_bigints[i]));
     }
 
     /* Initialize last_payload, so we can be sure it's never NULL and don't
@@ -119,9 +109,12 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
 
     /* Free temporary working big integers. */
     for (i = 0; i < MVM_NUM_TEMP_BIGINTS; i++) {
-        mp_clear(tc->temp_bigints[i]);
+        mpz_clear(*tc->temp_bigints[i]);
         MVM_free(tc->temp_bigints[i]);
     }
+
+    /* Clean up gmp rand state. */
+    gmp_randclear(tc->gmp_rand_state);
 
     /* Free the thread context itself. */
     memset(tc, 0xfe, sizeof(MVMThreadContext));

@@ -7,9 +7,6 @@
 [submodule "3rdparty/dynasm"]
 	path = 3rdparty/dynasm
 	url = https://github.com/MoarVM/dynasm.git
-[submodule "3rdparty/libtommath"]
-	path = 3rdparty/libtommath
-	url = https://github.com/MoarVM/libtommath
 [submodule "3rdparty/cmp"]
 	path = 3rdparty/cmp
 	url = https://github.com/MoarVM/cmp.git
@@ -23,6 +20,10 @@
 [submodule "3rdparty/mimalloc"]
 	path = 3rdparty/mimalloc
 	url = https://github.com/microsoft/mimalloc.git
+	ignore = untracked
+[submodule "3rdparty/gmp"]
+	path = 3rdparty/gmp
+	url = https://github.com/ShiftMediaProject/gmp
 	ignore = untracked
 
 # adding `shallow = true` to each submodule would save about 12M on a

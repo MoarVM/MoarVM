@@ -3193,42 +3193,42 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(eq_I): {
                 MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
-                GET_REG(cur_op, 0).i64 = MP_EQ == MVM_bigint_cmp(tc, a, b);
+                GET_REG(cur_op, 0).i64 = 0 == MVM_bigint_cmp(tc, a, b);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(ne_I): {
                 MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
-                GET_REG(cur_op, 0).i64 = MP_EQ != MVM_bigint_cmp(tc, a, b);
+                GET_REG(cur_op, 0).i64 = 0 != MVM_bigint_cmp(tc, a, b);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(lt_I): {
                 MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
-                GET_REG(cur_op, 0).i64 = MP_LT == MVM_bigint_cmp(tc, a, b);
+                GET_REG(cur_op, 0).i64 = -1 == MVM_bigint_cmp(tc, a, b);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(le_I): {
                 MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
-                GET_REG(cur_op, 0).i64 = MP_GT != MVM_bigint_cmp(tc, a, b);
+                GET_REG(cur_op, 0).i64 = 1 != MVM_bigint_cmp(tc, a, b);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(gt_I): {
                 MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
-                GET_REG(cur_op, 0).i64 = MP_GT == MVM_bigint_cmp(tc, a, b);
+                GET_REG(cur_op, 0).i64 = 1 == MVM_bigint_cmp(tc, a, b);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(ge_I): {
                 MVMObject *a = GET_REG(cur_op, 2).o, *b = GET_REG(cur_op, 4).o;
-                GET_REG(cur_op, 0).i64 = MP_LT != MVM_bigint_cmp(tc, a, b);
+                GET_REG(cur_op, 0).i64 = -1 != MVM_bigint_cmp(tc, a, b);
                 cur_op += 6;
                 goto NEXT;
             }
             OP(bor_I): {
-                GET_REG(cur_op, 0).o = MVM_bigint_or(tc, GET_REG(cur_op, 6).o,
+                GET_REG(cur_op, 0).o = MVM_bigint_ior(tc, GET_REG(cur_op, 6).o,
                     GET_REG(cur_op, 2).o, GET_REG(cur_op, 4).o);
                 cur_op += 8;
                 goto NEXT;
@@ -6211,7 +6211,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     body->u.smallint.flag = MVM_BIGINT_32_FLAG;
                 }
                 else {
-                    MVM_p6bigint_store_as_mp_int(tc, body, value);
+                    MVM_p6bigint_store_as_mpz_t(tc, body, value);
                 }
                 GET_REG(cur_op, 0).o = obj;
                 cur_op += 10;
@@ -6245,7 +6245,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         body->u.smallint.flag = MVM_BIGINT_32_FLAG;
                     }
                     else {
-                        MVM_p6bigint_store_as_mp_int(tc, body, value);
+                        MVM_p6bigint_store_as_mpz_t(tc, body, value);
                     }
                     GET_REG(cur_op, 0).o = obj;
                 }
@@ -6517,7 +6517,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     result = (MVMint64)b->u.smallint.value != 0;
                 }
                 else if (b->u.smallint.flag != MVM_BIGINT_32_FLAG) {
-                    result = !mp_iszero(b->u.bigint);
+                    result = mpz_cmp_si(*b->u.bigint, 0L) != 0;
                 }
                 GET_REG(cur_op, 0).i64 = result;
                 cur_op += 6;

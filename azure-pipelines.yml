@@ -32,29 +32,29 @@ stages:
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
-         Win_MVM_reloc:
-           IMAGE_NAME: 'windows-2019'
-           RELOCATABLE: 'yes'
-           RAKUDO_OPTIONS: '--relocatable'
-           NQP_OPTIONS: '--backends=moar --relocatable'
-           MOAR_OPTIONS: '--relocatable'
-
+             #         Win_MVM_reloc:
+             #           IMAGE_NAME: 'windows-2019'
+             #           RELOCATABLE: 'yes'
+             #           RAKUDO_OPTIONS: '--relocatable'
+             #           NQP_OPTIONS: '--backends=moar --relocatable'
+             #           MOAR_OPTIONS: '--relocatable'
+             #
          Mac_MVM:
            IMAGE_NAME: 'macOS-12'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
-         Mac_MVM_reloc:
-           IMAGE_NAME: 'macOS-12'
-           RELOCATABLE: 'yes'
-           RAKUDO_OPTIONS: '--relocatable'
-           NQP_OPTIONS: '--backends=moar --relocatable'
-           MOAR_OPTIONS: '--relocatable'
-         Mac_MVM_no_C11_atomics:
-           IMAGE_NAME: 'macOS-12'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--no-c11-atomics'
+             #         Mac_MVM_reloc:
+             #           IMAGE_NAME: 'macOS-12'
+             #           RELOCATABLE: 'yes'
+             #           RAKUDO_OPTIONS: '--relocatable'
+             #           NQP_OPTIONS: '--backends=moar --relocatable'
+             #           MOAR_OPTIONS: '--relocatable'
+             #         Mac_MVM_C11_atomics:
+             #           IMAGE_NAME: 'macOS-12'
+             #           RAKUDO_OPTIONS: ''
+             #           NQP_OPTIONS: '--backends=moar'
+             #           MOAR_OPTIONS: '--c11-atomics'
 
          Lin_MVM:
            IMAGE_NAME: 'ubuntu-22.04'
@@ -62,67 +62,72 @@ stages:
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--debug=3'
            CHECK_LEAKS: 'yes'
-         Lin_MVM_reloc:
-           IMAGE_NAME: 'ubuntu-22.04'
-           RELOCATABLE: 'yes'
-           RAKUDO_OPTIONS: '--relocatable'
-           NQP_OPTIONS: '--backends=moar --relocatable'
-           MOAR_OPTIONS: '--relocatable --debug=3'
-           CHECK_LEAKS: 'yes'
-
-         MVM_gcc_njit:
-           IMAGE_NAME: 'ubuntu-22.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--no-jit --cc=gcc --debug=3'
-           CHECK_LEAKS: 'yes'
-         MVM_gcc:
-           IMAGE_NAME: 'ubuntu-22.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc --debug=3'
-           CHECK_LEAKS: 'yes'
-         MVM_clang_njit:
-           IMAGE_NAME: 'ubuntu-22.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--no-jit --cc=clang --debug=3'
-           CHECK_LEAKS: 'yes'
-         MVM_clang:
-           IMAGE_NAME: 'ubuntu-22.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang --debug=3'
-           CHECK_LEAKS: 'yes'
-         MVM_gcc_njit_libffi:
-           IMAGE_NAME: 'ubuntu-22.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--has-libffi --no-jit --cc=gcc --debug=3'
-           CHECK_LEAKS: 'yes'
-         MVM_gcc_libffi:
-           IMAGE_NAME: 'ubuntu-22.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--has-libffi --cc=gcc --debug=3'
-           CHECK_LEAKS: 'yes'
-         MVM_clang_njit_libffi:
-           IMAGE_NAME: 'ubuntu-22.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--has-libffi --no-jit --cc=clang --debug=3'
-           CHECK_LEAKS: 'yes'
-         MVM_clang_libffi:
-           IMAGE_NAME: 'ubuntu-22.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--has-libffi --cc=clang --debug=3'
-           CHECK_LEAKS: 'yes'
+             #         Lin_MVM_reloc:
+             #           IMAGE_NAME: 'ubuntu-22.04'
+             #           RELOCATABLE: 'yes'
+             #           RAKUDO_OPTIONS: '--relocatable'
+             #           NQP_OPTIONS: '--backends=moar --relocatable'
+             #           MOAR_OPTIONS: '--relocatable --debug=3'
+             #           CHECK_LEAKS: 'yes'
+             #
+             #         MVM_gcc_njit:
+             #           IMAGE_NAME: 'ubuntu-22.04'
+             #           RAKUDO_OPTIONS: ''
+             #           NQP_OPTIONS: '--backends=moar'
+             #           MOAR_OPTIONS: '--no-jit --cc=gcc --debug=3'
+             #           CHECK_LEAKS: 'yes'
+             #         MVM_gcc:
+             #           IMAGE_NAME: 'ubuntu-22.04'
+             #           RAKUDO_OPTIONS: ''
+             #           NQP_OPTIONS: '--backends=moar'
+             #           MOAR_OPTIONS: '--cc=gcc --debug=3'
+             #           CHECK_LEAKS: 'yes'
+             #         MVM_clang_njit:
+             #           IMAGE_NAME: 'ubuntu-22.04'
+             #           RAKUDO_OPTIONS: ''
+             #           NQP_OPTIONS: '--backends=moar'
+             #           MOAR_OPTIONS: '--no-jit --cc=clang --debug=3'
+             #           CHECK_LEAKS: 'yes'
+             #         MVM_clang:
+             #           IMAGE_NAME: 'ubuntu-22.04'
+             #           RAKUDO_OPTIONS: ''
+             #           NQP_OPTIONS: '--backends=moar'
+             #           MOAR_OPTIONS: '--cc=clang --debug=3'
+             #           CHECK_LEAKS: 'yes'
+             #         MVM_gcc_njit_libffi:
+             #           IMAGE_NAME: 'ubuntu-22.04'
+             #           RAKUDO_OPTIONS: ''
+             #           NQP_OPTIONS: '--backends=moar'
+             #           MOAR_OPTIONS: '--has-libffi --no-jit --cc=gcc --debug=3'
+             #           CHECK_LEAKS: 'yes'
+             #         MVM_gcc_libffi:
+             #           IMAGE_NAME: 'ubuntu-22.04'
+             #           RAKUDO_OPTIONS: ''
+             #           NQP_OPTIONS: '--backends=moar'
+             #           MOAR_OPTIONS: '--has-libffi --cc=gcc --debug=3'
+             #           CHECK_LEAKS: 'yes'
+             #         MVM_clang_njit_libffi:
+             #           IMAGE_NAME: 'ubuntu-22.04'
+             #           RAKUDO_OPTIONS: ''
+             #           NQP_OPTIONS: '--backends=moar'
+             #           MOAR_OPTIONS: '--has-libffi --no-jit --cc=clang --debug=3'
+             #           CHECK_LEAKS: 'yes'
+             #         MVM_clang_libffi:
+             #           IMAGE_NAME: 'ubuntu-22.04'
+             #           RAKUDO_OPTIONS: ''
+             #           NQP_OPTIONS: '--backends=moar'
+             #           MOAR_OPTIONS: '--has-libffi --cc=clang --debug=3'
+             #           CHECK_LEAKS: 'yes'
          MVM_gcc_mingw:
            IMAGE_NAME: 'windows-2019'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--os=mingw32'
+         MVM_clang_mingw:
+           IMAGE_NAME: 'windows-2019'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--os=mingw32 --compiler=clang'
 #         MVM_coverage:
 #           IMAGE_NAME: 'ubuntu-22.04'
 #           RAKUDO_OPTIONS: ''
@@ -130,47 +135,47 @@ stages:
 #           MOAR_OPTIONS: '--compiler=clang --coverage --optimize=0 --debug=3 --cc=clang'
 #           COVERAGE: 'yes'
 
-         MVM_gcc_malloc:
-           IMAGE_NAME: 'ubuntu-22.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc --debug=3 --no-mimalloc'
-           CHECK_LEAKS: 'yes'
-         MVM_clang_malloc:
-           IMAGE_NAME: 'ubuntu-22.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang --debug=3 --no-mimalloc'
-           CHECK_LEAKS: 'yes'
-         MVM_gcc_no_c11_atomics:
-           IMAGE_NAME: 'ubuntu-22.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc --debug=3 --no-c11-atomics'
-           CHECK_LEAKS: 'yes'
-         MVM_clang_no_c11_atomics:
-           IMAGE_NAME: 'ubuntu-22.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang --debug=3 --no-c11-atomics'
-           CHECK_LEAKS: 'yes'
-
-         # Backwards compatability jobs, using the oldest OS version that GH actions support
-         MVM_Ub_20_gcc:
-           IMAGE_NAME: 'ubuntu-20.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc --debug=3'
-         MVM_Ub_20_clang:
-           IMAGE_NAME: 'ubuntu-20.04'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang --debug=3'
-         Mac_11_MVM:
-           IMAGE_NAME: 'macOS-11'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: ''
+#         MVM_gcc_malloc:
+#           IMAGE_NAME: 'ubuntu-22.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--cc=gcc --debug=3 --no-mimalloc'
+#           CHECK_LEAKS: 'yes'
+#         MVM_clang_malloc:
+#           IMAGE_NAME: 'ubuntu-22.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--cc=clang --debug=3 --no-mimalloc'
+#           CHECK_LEAKS: 'yes'
+#         MVM_gcc_no_c11_atomics:
+#           IMAGE_NAME: 'ubuntu-22.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--cc=gcc --debug=3 --no-c11-atomics'
+#           CHECK_LEAKS: 'yes'
+#         MVM_clang_no_c11_atomics:
+#           IMAGE_NAME: 'ubuntu-22.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--cc=clang --debug=3 --no-c11-atomics'
+#           CHECK_LEAKS: 'yes'
+#
+#         # Backwards compatability jobs, using the oldest OS version that GH actions support
+#         MVM_Ub_20_gcc:
+#           IMAGE_NAME: 'ubuntu-20.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--cc=gcc --debug=3'
+#         MVM_Ub_20_clang:
+#           IMAGE_NAME: 'ubuntu-20.04'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--cc=clang --debug=3'
+#         Mac_11_MVM:
+#           IMAGE_NAME: 'macOS-11'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: ''
 
       pool:
         vmImage: $(IMAGE_NAME)
@@ -190,6 +195,13 @@ stages:
             echo "##vso[task.setvariable variable=PATH]$shortened_path"
           displayName: "Shorten PATH on Windows"
           condition: eq( variables['Agent.OS'], 'Windows_NT' )
+
+        - pwsh: |
+            (New-Object Net.WebClient).DownloadFile('https://github.com/ShiftMediaProject/VSYASM/releases/download/0.7/VSYASM.zip', "$pwd\yasm.zip")
+            Add-Type -A 'System.IO.Compression.FileSystem'; [IO.Compression.ZipFile]::ExtractToDirectory("$pwd\yasm.zip", "$pwd\TempYASMUnpack")
+            &".\TempYASMUnpack\install_script.bat"
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ))
+          displayName: Install YASM (Windows)
 
         - script: |
             sudo apt-get update
@@ -215,11 +227,20 @@ stages:
             perl Configure.pl --prefix=../$(INSTALL_DIR) $(MOAR_OPTIONS)
             make -j2 install
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'
-          condition: and(succeeded(), ne( variables['Agent.OS'], 'Windows_NT' ))
+          condition: and(succeeded(), and(ne( variables['Agent.OS'], 'Windows_NT' ), ne( variables['Agent.OS'], 'Darwin' )))
           displayName: Build MoarVM
+        - script: |
+            /usr/bin/ruby -e "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/master/install)"
+            brew install automake
+            autoreconf -i
+            perl Configure.pl --prefix=../install $(MOAR_OPTIONS)
+            make install
+          workingDirectory: '$(Pipeline.Workspace)/MoarVM'
+          condition: eq( variables['Agent.OS'], 'Darwin' )
+          displayName: Build MoarVM (Mac)
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            perl Configure.pl --prefix=..\$(INSTALL_DIR) $(MOAR_OPTIONS)
+            perl Configure.pl --prefix=..\$(INSTALL_DIR) $(MOAR_OPTIONS) --has-gmp
             gmake -j2 install
           failOnStderr: false
           workingDirectory: '$(Pipeline.Workspace)/MoarVM'

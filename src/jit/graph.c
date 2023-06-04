@@ -313,7 +313,7 @@ static void * op_to_func(MVMThreadContext *tc, MVMint16 opcode) {
     case MVM_OP_div_I: return MVM_bigint_div;
     case MVM_OP_neg_I: return MVM_bigint_neg;
     case MVM_OP_abs_I: return MVM_bigint_abs;
-    case MVM_OP_bor_I: return MVM_bigint_or;
+    case MVM_OP_bor_I: return MVM_bigint_ior;
     case MVM_OP_band_I: return MVM_bigint_and;
     case MVM_OP_bxor_I: return MVM_bigint_xor;
     case MVM_OP_mod_I: return MVM_bigint_mod;

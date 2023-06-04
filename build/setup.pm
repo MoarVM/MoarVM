@@ -20,10 +20,11 @@ my %TP_SHA = (
     src  => [ '3rdparty/sha1' ],
 );
 
-my %TP_TOM = (
-    name => 'tommath',
-    path => '3rdparty/libtommath',
-    src  => [ '3rdparty/libtommath' ],
+my %TP_GMP = (
+    name => 'gmp',
+    path => '3rdparty/gmp',
+    rule  => 'cd 3rdparty/gmp && sh .bootstrap && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' ./configure @gmpconf@ @crossconf@ && $(MAKE) && cp .libs/libgmp.a . && cd ..',
+    clean => 'cd 3rdparty/gmp && $(MAKE) clean && $(RM) libgmp.a fat.h',
 );
 
 my %TP_MT = (
@@ -75,7 +76,7 @@ my %TP_UV = (
 
 our %THIRDPARTY = (
     lao => { %TP_LAO },
-    tom => { %TP_TOM },
+    gmp => { %TP_GMP },
     sha => { %TP_SHA },
     mt  => { %TP_MT },
     dc  => { %TP_DC },
@@ -310,6 +311,10 @@ my %TC_MINGW32 = (
             rule  => 'cd 3rdparty/dyncall && ./configure.bat /target-x86 /tool-gcc && $(MAKE) -f Makefile.embedded mingw32',
             clean => $TC_MSVC{-thirdparty}->{dc}->{clean},
         },
+        gmp => {
+            %TP_GMP,
+            rule  => 'cd 3rdparty/gmp && ./configure @gmpconf@ @crossconf@ && $(MAKE) && cp .libs/libgmp.a . && cd ..',
+        },
     },
 );
 
@@ -491,6 +496,13 @@ my %OS_WIN32 = (
         uv => {
             %TP_UVDUMMY,
             src => [ qw( 3rdparty/libuv/src 3rdparty/libuv/src/win ) ],
+        },
+
+        gmp => {
+           name => 'gmp',
+           path => '3rdparty/gmp',
+           rule => 'cd 3rdparty/gmp/SMP && msbuild libgmp.vcxproj -p:Configuration=ReleaseDll -p:Platform=x64 -p:OutDir=..\output\ && cd ..\output && $(CP) lib/x64/* ../ && $(CP) include/*.h ../ && $(CP) bin/x64/*.dll ../',
+           clean => 'cd 3rdparty/gmp && $(MAKE) clean && $(RM) libgmp.a fat.h',
         },
     },
 );
