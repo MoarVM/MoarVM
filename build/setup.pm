@@ -621,7 +621,7 @@ our %SYSTEMS = (
     solaris     => [ qw( posix posix gcc ),   { %OS_SOLARIS } ],
     win32       => [ qw( win32 msvc  cl ),    { %OS_WIN32 } ],
     cygwin      => [ qw( posix cygwin gcc ),  { %OS_WIN32 } ],
-    mingw64     => [ qw( win32 mingw64 gcc ), { %OS_MINGW64 } ],
+    mingw64     => [ qw( win32 mingw32 gcc ), { %OS_MINGW64 } ],
 );
 
 42;
