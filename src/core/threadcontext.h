@@ -275,7 +275,7 @@ struct MVMThreadContext {
     MVMStrHashTable native_callback_cache;
 
     /* Random number generator state. */
-    MVMuint64 rand_state[2];
+    MVMuint64 rand_state[4];
 
     /* Temporary big integers for when we need to upgrade operands in order
      * to perform an operation. */

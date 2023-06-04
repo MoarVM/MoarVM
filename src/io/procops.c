@@ -1,7 +1,7 @@
 #include "moar.h"
 #include "platform/time.h"
 #include "platform/fork.h"
-#include "tinymt64.h"
+#include "core/jfs64.h"
 #include "bithacks.h"
 
 /* concatenating with "" ensures that only literal strings are accepted as argument. */
@@ -1094,22 +1094,21 @@ MVMint64 MVM_proc_getppid(MVMThreadContext *tc) {
 
 /* generates a random int64 */
 MVMint64 MVM_proc_rand_i(MVMThreadContext *tc) {
-    MVMuint64 result = tinymt64_generate_uint64(tc->rand_state);
-    return *(MVMint64 *)&result;
+    return (MVMint64)jfs64_generate_uint64(tc->rand_state);
 }
 
 /* generates a number between 0 and 1 */
 MVMnum64 MVM_proc_rand_n(MVMThreadContext *tc) {
-    return tinymt64_generate_double(tc->rand_state);
+    return ((jfs64_generate_uint64(tc->rand_state) >> 11) * (1.0 / 9007199254740992.0));
 }
 
 MVMnum64 MVM_proc_randscale_n(MVMThreadContext *tc, MVMnum64 scale) {
-    return tinymt64_generate_double(tc->rand_state) * scale;
+    return ((jfs64_generate_uint64(tc->rand_state) >> 11) * (1.0 / 9007199254740992.0)) * scale;
 }
 
 /* seed random number generator */
 void MVM_proc_seed(MVMThreadContext *tc, MVMint64 seed) {
-    tinymt64_init(tc->rand_state, (MVMuint64)seed);
+    jfs64_init(tc->rand_state, (MVMuint64)seed);
 }
 
 /* gets the system time since the epoch in nanoseconds */
