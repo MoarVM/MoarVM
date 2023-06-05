@@ -437,8 +437,8 @@ void MVM_spesh_candidate_discard_one(MVMThreadContext *tc, MVMStaticFrame *sf, M
     /* Copy the existing candidates, minus the one to remove, and regenerate the arg guards.
      * If there's only one it and the arg guards just get removed. */
     if (new_num > 0) {
-        new_cands_and_arg_guards = MVM_fixed_size_alloc_zeroed(tc, tc->instance->fsa, sizeof(MVMSpeshCandidatesAndArgGuards));
-        new_cands                = MVM_fixed_size_alloc(       tc, tc->instance->fsa, new_num * sizeof(MVMSpeshCandidate *));
+        new_cands_and_arg_guards = MVM_calloc(1, sizeof(MVMSpeshCandidatesAndArgGuards));
+        new_cands                = MVM_malloc(new_num * sizeof(MVMSpeshCandidate *));
 
         if (i == 0) { // Removing the head, so just copy the rest
             memcpy(new_cands, &cands_and_arg_guards->spesh_candidates[1], new_num * sizeof(MVMSpeshCandidate *));
@@ -461,8 +461,6 @@ void MVM_spesh_candidate_discard_one(MVMThreadContext *tc, MVMStaticFrame *sf, M
     spesh->body.spesh_cands_and_arg_guards = new_cands_and_arg_guards;
 
     MVM_spesh_arg_guard_destroy(tc, cands_and_arg_guards->spesh_arg_guard, 1);
-    MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, (new_num + 1) * sizeof(MVMSpeshCandidate *),
-        cands_and_arg_guards->spesh_candidates);
-    MVM_fixed_size_free_at_safepoint(tc, tc->instance->fsa, sizeof(MVMSpeshCandidatesAndArgGuards),
-        cands_and_arg_guards);
+    MVM_free_at_safepoint(tc, cands_and_arg_guards->spesh_candidates);
+    MVM_free_at_safepoint(tc, cands_and_arg_guards);
 }
