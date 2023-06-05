@@ -76,7 +76,7 @@ static mpz_t * force_bigint(MVMThreadContext *tc, const MVMP6bigintBody *body, i
     else {
         mpz_t *i = tc->temp_bigints[idx];
         mpz_set_si(*i, body->u.smallint.value);
-        return i;
+        return tc->temp_bigints[idx];
     }
 }
 
