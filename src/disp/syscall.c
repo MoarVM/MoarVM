@@ -1244,6 +1244,44 @@ MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall
     syscall->wrapper = (MVMCFunction *)code_obj;
     MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&(syscall->wrapper), "MoarVM syscall wrapper");
 }
+
+/* async-linux-connect */
+static void async_unix_connect_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMObject *queue      = get_obj_arg(arg_info, 0);
+    MVMObject *schedulee  = get_obj_arg(arg_info, 1);
+    MVMString *path       = get_str_arg(arg_info, 2);
+    MVMObject *async_type = get_obj_arg(arg_info, 3);
+    MVM_io_socket_connect_unix_async(tc, queue, schedulee, path, async_type);
+}
+static MVMDispSysCall async_unix_connect = {
+    .c_name = "async-unix-connect",
+    .implementation = async_unix_connect_impl,
+    .min_args = 4,
+    .max_args = 4,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_STR, MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_ConcBlockingQueue, 0, 0, MVM_REPR_ID_MVMAsyncTask },
+    .expected_concrete = { 1, 1, 1, 0 },
+};
+
+/* async-unix-listen */
+static void async_unix_listen_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMObject *queue      = get_obj_arg(arg_info, 0);
+    MVMObject *schedulee  = get_obj_arg(arg_info, 1);
+    MVMString *path       = get_str_arg(arg_info, 2);
+    MVMint32   backlog    = get_int_arg(arg_info, 3);
+    MVMObject *async_type = get_obj_arg(arg_info, 4);
+    MVM_io_socket_listen_unix_async(tc, queue, schedulee, path, backlog, async_type);
+}
+static MVMDispSysCall async_unix_listen = {
+    .c_name = "async-unix-listen",
+    .implementation = async_unix_listen_impl,
+    .min_args = 5,
+    .max_args = 5,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_STR, MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_ConcBlockingQueue, 0, 0, 0, MVM_REPR_ID_MVMAsyncTask },
+    .expected_concrete = { 1, 1, 1, 1, 0 },
+};
+
 void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     MVM_gc_allocate_gen2_default_set(tc);
     MVM_fixkey_hash_build(tc, &tc->instance->syscalls, 0);
@@ -1316,6 +1354,8 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &set_cur_hll_config_key);
     add_to_hash(tc, &code_bytecode_size);
     add_to_hash(tc, &set_compunit_resolver);
+    add_to_hash(tc, &async_unix_connect);
+    add_to_hash(tc, &async_unix_listen);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
