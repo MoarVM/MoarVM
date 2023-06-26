@@ -1,3 +1,20 @@
+New in 2023.06
+
+Core:
++ Fix Windows build [278af767]
++ Use JFS64 instead of TinyMT64 as our PRNG [1550dc7c][495d4f16]
++ Add ops for unix domain sockets [3df20182]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
+
 New in 2023.05
 
 Core:
