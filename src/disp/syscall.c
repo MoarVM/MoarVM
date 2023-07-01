@@ -1,4 +1,7 @@
 #include "moar.h"
+#ifndef _WIN32
+#include <unistd.h>
+#endif
 
 /* Since the boot-syscall dispatcher verifies the argument count and register
  * types, we can pull arguments out of the MVMArgs directly, without going via
@@ -1230,21 +1233,6 @@ static MVMDispSysCall set_compunit_resolver = {
     .expected_concrete = { 1, 1, 1 },
 };
 
-/* Add all of the syscalls into the hash. */
-MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
-    MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
-    syscall->name = name;
-    MVMDispSysCall **target = MVM_fixkey_hash_insert_nocheck(tc, &tc->instance->syscalls, name);
-    *target = syscall;
-    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&syscall->name, syscall->c_name);
-
-    MVMObject *BOOTCCode = tc->instance->boot_types.BOOTCCode;
-    MVMObject *code_obj = REPR(BOOTCCode)->allocate(tc, STABLE(BOOTCCode));
-    ((MVMCFunction *)code_obj)->body.func = syscall->implementation;
-    syscall->wrapper = (MVMCFunction *)code_obj;
-    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&(syscall->wrapper), "MoarVM syscall wrapper");
-}
-
 /* async-linux-connect */
 static void async_unix_connect_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *queue      = get_obj_arg(arg_info, 0);
@@ -1281,6 +1269,252 @@ static MVMDispSysCall async_unix_listen = {
     .expected_reprs = { MVM_REPR_ID_ConcBlockingQueue, 0, 0, 0, MVM_REPR_ID_MVMAsyncTask },
     .expected_concrete = { 1, 1, 1, 1, 0 },
 };
+
+/* file-stat */
+static void file_stat_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMString *filename = get_str_arg(arg_info, 0);
+    MVMint32  use_lstat = get_int_arg(arg_info, 1);
+    MVMStat   *stat_obj = (MVMStat *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStat);
+    uv_stat_t     *stat = MVM_calloc(1, sizeof(uv_stat_t));
+    stat_obj->body.exists  = MVM_file_info_with_error(tc, stat, filename, use_lstat) < 0 ? 0 : 1;
+    stat_obj->body.uv_stat = stat;
+    MVM_args_set_result_obj(tc, (MVMObject *)stat_obj, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall file_stat = {
+    .c_name = "file-stat",
+    .implementation = file_stat_impl,
+    .min_args = 2,
+    .max_args = 2,
+    .expected_kinds = { MVM_CALLSITE_ARG_STR, MVM_CALLSITE_ARG_INT },
+    .expected_reprs = { 0, 0 },
+    .expected_concrete = { 1, 1 },
+};
+
+/* stat-flags */
+static void stat_flags_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat   *stat_obj  = (MVMStat *)get_obj_arg(arg_info, 0);
+    MVMint32   stat_flag = get_int_arg(arg_info, 1);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64           r = -1;
+    switch (stat_flag) {
+        case MVM_STAT_EXISTS:             r = stat_obj->body.exists; break;
+
+        case MVM_STAT_FILESIZE:           r = file_stat->st_size; break;
+
+        case MVM_STAT_ISDIR:              r = (file_stat->st_mode & S_IFMT) == S_IFDIR; break;
+
+        case MVM_STAT_ISREG:              r = (file_stat->st_mode & S_IFMT) == S_IFREG; break;
+
+        case MVM_STAT_ISDEV:
+#ifdef _WIN32
+            r = (file_stat->st_mode & S_IFMT) == S_IFCHR;
+#else
+            r = (file_stat->st_mode & S_IFMT) == S_IFCHR || (file_stat->st_mode & S_IFMT) == S_IFBLK;
+#endif
+            break;
+
+        case MVM_STAT_CREATETIME:         r = file_stat->st_birthtim.tv_sec; break;
+
+        case MVM_STAT_ACCESSTIME:         r = file_stat->st_atim.tv_sec; break;
+
+        case MVM_STAT_MODIFYTIME:         r = file_stat->st_mtim.tv_sec; break;
+
+        case MVM_STAT_CHANGETIME:         r = file_stat->st_ctim.tv_sec; break;
+
+        case MVM_STAT_UID:                r = file_stat->st_uid; break;
+
+        case MVM_STAT_GID:                r = file_stat->st_gid; break;
+
+        case MVM_STAT_ISLNK:              r = (file_stat->st_mode & S_IFMT) == S_IFLNK; break;
+
+        case MVM_STAT_PLATFORM_DEV:       r = file_stat->st_dev; break;
+
+        case MVM_STAT_PLATFORM_INODE:     r = file_stat->st_ino; break;
+
+        case MVM_STAT_PLATFORM_MODE:      r = file_stat->st_mode; break;
+
+        case MVM_STAT_PLATFORM_NLINKS:    r = file_stat->st_nlink; break;
+
+        case MVM_STAT_PLATFORM_DEVTYPE:   r = file_stat->st_rdev; break;
+
+        case MVM_STAT_PLATFORM_BLOCKSIZE: r = file_stat->st_blksize; break;
+
+        case MVM_STAT_PLATFORM_BLOCKS:    r = file_stat->st_blocks; break;
+
+        default: break;
+    }
+    MVM_args_set_result_int(tc, r, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_flags = {
+    .c_name = "stat-flags",
+    .implementation = stat_flags_impl,
+    .min_args = 2,
+    .max_args = 2,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT },
+    .expected_reprs = { MVM_REPR_ID_MVMStat, 0 },
+    .expected_concrete = { 1, 1 },
+};
+
+/* stat-time */
+static void stat_time_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat   *stat_obj  = (MVMStat *)get_obj_arg(arg_info, 0);
+    MVMint32   stat_flag = get_int_arg(arg_info, 1);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    uv_timespec_t     ts;
+    switch (stat_flag) {
+        case MVM_STAT_CREATETIME: ts = file_stat->st_birthtim; break;
+
+        case MVM_STAT_ACCESSTIME: ts = file_stat->st_atim; break;
+
+        case MVM_STAT_MODIFYTIME: ts = file_stat->st_mtim; break;
+
+        case MVM_STAT_CHANGETIME: ts = file_stat->st_ctim; break;
+
+        default:
+            MVM_args_set_result_num(tc, -1, MVM_RETURN_CURRENT_FRAME);
+            return;
+    }
+    MVMnum64 time = ts.tv_sec + 1e-9 * (MVMnum64)ts.tv_nsec;
+    MVM_args_set_result_num(tc, time, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_time = {
+    .c_name = "stat-time",
+    .implementation = stat_time_impl,
+    .min_args = 2,
+    .max_args = 2,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT },
+    .expected_reprs = { MVM_REPR_ID_MVMStat, 0 },
+    .expected_concrete = { 1, 1 },
+};
+
+/* stat-is-readable */
+static void stat_is_readable_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64    readable;
+    if (stat_obj->body.exists) {
+#ifdef _WIN32
+        MVMint64 r = (file_stat->st_mode & S_IREAD);
+#else
+        MVMint64 r = (file_stat->st_mode & S_IROTH)
+                  || (file_stat->st_uid == geteuid() && (file_stat->st_mode & S_IRUSR))
+                  || (geteuid() == 0)
+                  || (MVM_are_we_group_member(tc, file_stat->st_gid) && (file_stat->st_mode & S_IRGRP));
+#endif
+        readable = r ? 1 : 0;
+    }
+    else {
+        readable = 0;
+    }
+    MVM_args_set_result_int(tc, readable, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_is_readable = {
+    .c_name = "stat-is-readable",
+    .implementation = stat_is_readable_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-is-writable */
+static void stat_is_writable_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64    writable;
+    if (stat_obj->body.exists) {
+#ifdef _WIN32
+        MVMint64 r = (file_stat->st_mode & S_IWRITE);
+#else
+        MVMint64 r = (file_stat->st_mode & S_IWOTH)
+                  || (file_stat->st_uid == geteuid() && (file_stat->st_mode & S_IWUSR))
+                  || (geteuid() == 0)
+                  || (MVM_are_we_group_member(tc, file_stat->st_gid) && (file_stat->st_mode & S_IWGRP));
+#endif
+        writable = r ? 1 : 0;
+    }
+    else {
+        writable = 0;
+    }
+    MVM_args_set_result_int(tc, writable, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_is_writable = {
+    .c_name = "stat-is-writable",
+    .implementation = stat_is_writable_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-is-executable */
+static void stat_is_executable_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64    executable;
+    if (stat_obj->body.exists) {
+#ifdef _WIN32
+        MVMint64 r = 0;
+        if ((file_stat->st_mode & S_IFMT) == S_IFDIR) {
+            r = 1;
+        }
+        else {
+            /* true if fileext is in PATHEXT=.COM;.EXE;.BAT;.CMD;.VBS;.VBE;.JS;.JSE;.WSF;.WSH;.MSC */
+            MVMint64 n = MVM_string_index_from_end(tc, stat_obj->body.filename, tc->instance->str_consts.dot, 0);
+            if (n >= 0) {
+                MVMString *fileext = MVM_string_substring(tc, stat_obj->body.filename, n, -1);
+                char *ext  = MVM_string_utf8_c8_encode_C_string(tc, fileext);
+                char *pext = getenv("PATHEXT");
+                int plen   = strlen(pext);
+                int i;
+                for (i = 0; i < plen; i++) {
+                    if (0 == stricmp(ext, pext++)) {
+                         r = 1;
+                         break;
+                    }
+                }
+                MVM_free(ext);
+            }
+        }
+#else
+        MVMint64 r = (file_stat->st_mode & S_IXOTH)
+                  || (file_stat->st_uid == geteuid() && (file_stat->st_mode & S_IXUSR))
+                  || (MVM_are_we_group_member(tc, file_stat->st_gid) && (file_stat->st_mode & S_IXGRP))
+                  || (geteuid() == 0 && (file_stat->st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)));
+#endif
+        executable = r ? 1 : 0;
+    }
+    else {
+        executable = 0;
+    }
+    MVM_args_set_result_int(tc, executable, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_is_executable = {
+    .c_name = "stat-is-executable",
+    .implementation = stat_is_executable_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* Add all of the syscalls into the hash. */
+MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
+    MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
+    syscall->name = name;
+    MVMDispSysCall **target = MVM_fixkey_hash_insert_nocheck(tc, &tc->instance->syscalls, name);
+    *target = syscall;
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&syscall->name, syscall->c_name);
+
+    MVMObject *BOOTCCode = tc->instance->boot_types.BOOTCCode;
+    MVMObject *code_obj = REPR(BOOTCCode)->allocate(tc, STABLE(BOOTCCode));
+    ((MVMCFunction *)code_obj)->body.func = syscall->implementation;
+    syscall->wrapper = (MVMCFunction *)code_obj;
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&(syscall->wrapper), "MoarVM syscall wrapper");
+}
 
 void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     MVM_gc_allocate_gen2_default_set(tc);
@@ -1356,6 +1590,12 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &set_compunit_resolver);
     add_to_hash(tc, &async_unix_connect);
     add_to_hash(tc, &async_unix_listen);
+    add_to_hash(tc, &file_stat);
+    add_to_hash(tc, &stat_flags);
+    add_to_hash(tc, &stat_time);
+    add_to_hash(tc, &stat_is_readable);
+    add_to_hash(tc, &stat_is_writable);
+    add_to_hash(tc, &stat_is_executable);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 

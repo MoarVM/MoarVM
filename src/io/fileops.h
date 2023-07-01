@@ -1,3 +1,5 @@
+#include <sys/types.h>
+
 #define MVM_FILE_FLOCK_SHARED        1       /* Shared lock. Read lock */
 #define MVM_FILE_FLOCK_EXCLUSIVE     2       /* Exclusive lock. Write lock. */
 #define MVM_FILE_FLOCK_TYPEMASK      0x000F  /* a mask of lock type */
@@ -31,6 +33,8 @@ void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest);
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f);
 void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag);
 void MVM_file_chown(MVMThreadContext *tc, MVMString *f, MVMuint64 uid, MVMuint64 gid);
+uv_stat_t MVM_file_info(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat);
+MVMint64 MVM_file_info_with_error(MVMThreadContext *tc, uv_stat_t *stat, MVMString *filename, MVMint32 use_lstat);
 MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f, MVMint32 use_lstat);
 MVMint64 MVM_file_isreadable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat);
 MVMint64 MVM_file_iswritable(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat);
@@ -40,3 +44,6 @@ MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig);
 void MVM_file_link(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath);
 void MVM_file_symlink(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath);
 MVMString * MVM_file_readlink(MVMThreadContext *tc, MVMString *path);
+#ifndef _WIN32
+MVMint64 MVM_are_we_group_member(MVMThreadContext *tc, gid_t group);
+#endif
