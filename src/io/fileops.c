@@ -27,6 +27,10 @@ static MVMint64 file_info_with_error(MVMThreadContext *tc, uv_stat_t* stat, MVMS
     return res;
 }
 
+MVMint64 MVM_file_info_with_error(MVMThreadContext *tc, uv_stat_t* stat, MVMString *filename, MVMint32 use_lstat) {
+    return file_info_with_error(tc, stat, filename, use_lstat);
+}
+
 static uv_stat_t file_info(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) {
     char * const a = MVM_string_utf8_c8_encode_C_string(tc, filename);
     uv_fs_t req;
@@ -41,6 +45,10 @@ static uv_stat_t file_info(MVMThreadContext *tc, MVMString *filename, MVMint32 u
 
     MVM_free(a);
     return req.statbuf;
+}
+
+uv_stat_t MVM_file_info(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) {
+    return file_info(tc, filename, use_lstat);
 }
 
 MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 status, MVMint32 use_lstat) {
@@ -296,6 +304,10 @@ static int are_we_group_member(MVMThreadContext *tc, gid_t group) {
     MVM_free(gids);
     return res;
 }
+MVMint64 MVM_are_we_group_member(MVMThreadContext *tc, gid_t group) {
+    return (MVMint64)are_we_group_member(tc, group);
+}
+
 #define FILE_IS(name, rwx) \
     MVMint64 MVM_file_is ## name (MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) { \
         uv_stat_t statbuf; \

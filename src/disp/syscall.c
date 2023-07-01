@@ -1230,21 +1230,6 @@ static MVMDispSysCall set_compunit_resolver = {
     .expected_concrete = { 1, 1, 1 },
 };
 
-/* Add all of the syscalls into the hash. */
-MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
-    MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
-    syscall->name = name;
-    MVMDispSysCall **target = MVM_fixkey_hash_insert_nocheck(tc, &tc->instance->syscalls, name);
-    *target = syscall;
-    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&syscall->name, syscall->c_name);
-
-    MVMObject *BOOTCCode = tc->instance->boot_types.BOOTCCode;
-    MVMObject *code_obj = REPR(BOOTCCode)->allocate(tc, STABLE(BOOTCCode));
-    ((MVMCFunction *)code_obj)->body.func = syscall->implementation;
-    syscall->wrapper = (MVMCFunction *)code_obj;
-    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&(syscall->wrapper), "MoarVM syscall wrapper");
-}
-
 /* async-linux-connect */
 static void async_unix_connect_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *queue      = get_obj_arg(arg_info, 0);
@@ -1281,6 +1266,520 @@ static MVMDispSysCall async_unix_listen = {
     .expected_reprs = { MVM_REPR_ID_ConcBlockingQueue, 0, 0, 0, MVM_REPR_ID_MVMAsyncTask },
     .expected_concrete = { 1, 1, 1, 1, 0 },
 };
+
+/* file-stat */
+static void file_stat_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMString *filename = get_str_arg(arg_info, 0);
+    MVMint32  use_lstat = get_int_arg(arg_info, 1);
+    MVMStat   *stat_obj = (MVMStat *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStat);
+    uv_stat_t     *stat = MVM_calloc(1, sizeof(uv_stat_t));
+    stat_obj->body.exists  = MVM_file_info_with_error(tc, stat, filename, use_lstat) < 0 ? 0 : 1;
+    stat_obj->body.uv_stat = stat;
+    MVM_args_set_result_obj(tc, (MVMObject *)stat_obj, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall file_stat = {
+    .c_name = "file-stat",
+    .implementation = file_stat_impl,
+    .min_args = 2,
+    .max_args = 2,
+    .expected_kinds = { MVM_CALLSITE_ARG_STR, MVM_CALLSITE_ARG_INT },
+    .expected_reprs = { 0, 0 },
+    .expected_concrete = { 1, 1 },
+};
+
+/* stat-exists */
+static void stat_exists_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    MVMint64   exists = stat_obj->body.exists;
+    MVM_args_set_result_int(tc, exists, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_exists = {
+    .c_name = "stat-exists",
+    .implementation = stat_exists_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-filesize */
+static void stat_filesize_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64    filesize = file_stat->st_size;
+    MVM_args_set_result_int(tc, filesize, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_filesize = {
+    .c_name = "stat-filesize",
+    .implementation = stat_filesize_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-is-dir */
+static void stat_is_dir_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64      is_dir = (file_stat->st_mode & S_IFMT) == S_IFDIR;
+    MVM_args_set_result_int(tc, is_dir, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_is_dir = {
+    .c_name = "stat-is-dir",
+    .implementation = stat_is_dir_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-is-reg */
+static void stat_is_reg_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64      is_reg = (file_stat->st_mode & S_IFMT) == S_IFREG;
+    MVM_args_set_result_int(tc, is_reg, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_is_reg = {
+    .c_name = "stat-is-reg",
+    .implementation = stat_is_reg_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-is-dev */
+static void stat_is_dev_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+#ifdef _WIN32
+    MVMint64     is_dev = (file_stat->st_mode & S_IFMT) == S_IFCHR;
+#else
+    MVMint64     is_dev = (file_stat->st_mode & S_IFMT) == S_IFCHR || (file_stat->st_mode & S_IFMT) == S_IFBLK;
+#endif
+    MVM_args_set_result_int(tc, is_dev, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_is_dev = {
+    .c_name = "stat-is-dev",
+    .implementation = stat_is_dev_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-create-time */
+static void stat_create_time_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64 create_time = file_stat->st_birthtim.tv_sec;
+    MVM_args_set_result_int(tc, create_time, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_create_time = {
+    .c_name = "stat-create-time",
+    .implementation = stat_create_time_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-create-time-num */
+static void stat_create_time_num_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    uv_timespec_t     ts = file_stat->st_birthtim;
+    MVMnum64 create_time = ts.tv_sec + 1e-9 * (MVMnum64)ts.tv_nsec;
+    MVM_args_set_result_num(tc, create_time, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_create_time_num = {
+    .c_name = "stat-create-time-num",
+    .implementation = stat_create_time_num_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-access-time */
+static void stat_access_time_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64 access_time = file_stat->st_atim.tv_sec;
+    MVM_args_set_result_int(tc, access_time, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_access_time = {
+    .c_name = "stat-access-time",
+    .implementation = stat_access_time_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-access-time-num */
+static void stat_access_time_num_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    uv_timespec_t     ts = file_stat->st_atim;
+    MVMnum64 access_time = ts.tv_sec + 1e-9 * (MVMnum64)ts.tv_nsec;
+    MVM_args_set_result_num(tc, access_time, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_access_time_num = {
+    .c_name = "stat-access-time-num",
+    .implementation = stat_access_time_num_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-modify-time */
+static void stat_modify_time_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64 modify_time = file_stat->st_mtim.tv_sec;
+    MVM_args_set_result_int(tc, modify_time, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_modify_time = {
+    .c_name = "stat-modify-time",
+    .implementation = stat_modify_time_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-modify-time-num */
+static void stat_modify_time_num_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    uv_timespec_t     ts = file_stat->st_mtim;
+    MVMnum64 modify_time = ts.tv_sec + 1e-9 * (MVMnum64)ts.tv_nsec;
+    MVM_args_set_result_num(tc, modify_time, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_modify_time_num = {
+    .c_name = "stat-modify-time-num",
+    .implementation = stat_modify_time_num_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-change-time */
+static void stat_change_time_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64 change_time = file_stat->st_ctim.tv_sec;
+    MVM_args_set_result_int(tc, change_time, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_change_time = {
+    .c_name = "stat-change-time",
+    .implementation = stat_change_time_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-change-time-num */
+static void stat_change_time_num_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    uv_timespec_t     ts = file_stat->st_ctim;
+    MVMnum64 change_time = ts.tv_sec + 1e-9 * (MVMnum64)ts.tv_nsec;
+    MVM_args_set_result_num(tc, change_time, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_change_time_num = {
+    .c_name = "stat-change-time-num",
+    .implementation = stat_change_time_num_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-uid */
+static void stat_uid_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64         uid = file_stat->st_uid;
+    MVM_args_set_result_int(tc, uid, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_uid = {
+    .c_name = "stat-uid",
+    .implementation = stat_uid_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-gid */
+static void stat_gid_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64         gid = file_stat->st_gid;
+    MVM_args_set_result_int(tc, gid, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_gid = {
+    .c_name = "stat-gid",
+    .implementation = stat_gid_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-is-link */
+static void stat_is_link_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64     is_link = (file_stat->st_mode & S_IFMT) == S_IFLNK;
+    MVM_args_set_result_int(tc, is_link, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_is_link = {
+    .c_name = "stat-is-link",
+    .implementation = stat_is_link_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-dev */
+static void stat_dev_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64         dev = file_stat->st_dev;
+    MVM_args_set_result_int(tc, dev, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_dev = {
+    .c_name = "stat-dev",
+    .implementation = stat_dev_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-inode */
+static void stat_inode_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64       inode = file_stat->st_ino;
+    MVM_args_set_result_int(tc, inode, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_inode = {
+    .c_name = "stat-inode",
+    .implementation = stat_inode_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-mode */
+static void stat_mode_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64        mode = file_stat->st_mode;
+    MVM_args_set_result_int(tc, mode, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_mode = {
+    .c_name = "stat-mode",
+    .implementation = stat_mode_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-nlinks */
+static void stat_nlinks_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64       nlink = file_stat->st_nlink;
+    MVM_args_set_result_int(tc, nlink, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_nlinks = {
+    .c_name = "stat-nlinks",
+    .implementation = stat_nlinks_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-devtype */
+static void stat_devtype_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64     devtype = file_stat->st_rdev;
+    MVM_args_set_result_int(tc, devtype, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_devtype = {
+    .c_name = "stat-devtype",
+    .implementation = stat_devtype_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-blocksize */
+static void stat_blocksize_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64   blocksize = file_stat->st_blksize;
+    MVM_args_set_result_int(tc, blocksize, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_blocksize = {
+    .c_name = "stat-blocksize",
+    .implementation = stat_blocksize_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-blocks */
+static void stat_blocks_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64      blocks = file_stat->st_blocks;
+    MVM_args_set_result_int(tc, blocks, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_blocks = {
+    .c_name = "stat-blocks",
+    .implementation = stat_blocks_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-is-readable */
+static void stat_is_readable_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64    readable;
+    if (stat_obj->body.exists) {
+        MVMint64 r = (file_stat->st_mode & S_IROTH)
+                  || (file_stat->st_uid == geteuid() && (file_stat->st_mode & S_IRUSR))
+                  || (geteuid() == 0)
+                  || (MVM_are_we_group_member(tc, file_stat->st_gid) && (file_stat->st_mode & S_IRGRP));
+        readable = r ? 1 : 0;
+    }
+    else {
+        readable = 0;
+    }
+    MVM_args_set_result_int(tc, readable, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_is_readable = {
+    .c_name = "stat-is-readable",
+    .implementation = stat_is_readable_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-is-writable */
+static void stat_is_writable_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64    writable;
+    if (stat_obj->body.exists) {
+        MVMint64 r = (file_stat->st_mode & S_IWOTH)
+                  || (file_stat->st_uid == geteuid() && (file_stat->st_mode & S_IWUSR))
+                  || (geteuid() == 0)
+                  || (MVM_are_we_group_member(tc, file_stat->st_gid) && (file_stat->st_mode & S_IWGRP));
+        writable = r ? 1 : 0;
+    }
+    else {
+        writable = 0;
+    }
+    MVM_args_set_result_int(tc, writable, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_is_writable = {
+    .c_name = "stat-is-writable",
+    .implementation = stat_is_writable_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* stat-is-executable */
+static void stat_is_executable_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    MVMint64    executable;
+    if (stat_obj->body.exists) {
+        MVMint64 r = (file_stat->st_mode & S_IXOTH)
+                  || (file_stat->st_uid == geteuid() && (file_stat->st_mode & S_IXUSR))
+                  || (MVM_are_we_group_member(tc, file_stat->st_gid) && (file_stat->st_mode & S_IXGRP))
+                  || (geteuid() == 0 && (file_stat->st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)));
+        executable = r ? 1 : 0;
+    }
+    else {
+        executable = 0;
+    }
+    MVM_args_set_result_int(tc, executable, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_is_executable = {
+    .c_name = "stat-is-executable",
+    .implementation = stat_is_executable_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMStat },
+    .expected_concrete = { 1 },
+};
+
+/* Add all of the syscalls into the hash. */
+MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
+    MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
+    syscall->name = name;
+    MVMDispSysCall **target = MVM_fixkey_hash_insert_nocheck(tc, &tc->instance->syscalls, name);
+    *target = syscall;
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&syscall->name, syscall->c_name);
+
+    MVMObject *BOOTCCode = tc->instance->boot_types.BOOTCCode;
+    MVMObject *code_obj = REPR(BOOTCCode)->allocate(tc, STABLE(BOOTCCode));
+    ((MVMCFunction *)code_obj)->body.func = syscall->implementation;
+    syscall->wrapper = (MVMCFunction *)code_obj;
+    MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)&(syscall->wrapper), "MoarVM syscall wrapper");
+}
 
 void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     MVM_gc_allocate_gen2_default_set(tc);
@@ -1356,6 +1855,33 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &set_compunit_resolver);
     add_to_hash(tc, &async_unix_connect);
     add_to_hash(tc, &async_unix_listen);
+    add_to_hash(tc, &file_stat);
+    add_to_hash(tc, &stat_exists);
+    add_to_hash(tc, &stat_filesize);
+    add_to_hash(tc, &stat_is_dir);
+    add_to_hash(tc, &stat_is_reg);
+    add_to_hash(tc, &stat_is_dev);
+    add_to_hash(tc, &stat_create_time);
+    add_to_hash(tc, &stat_create_time_num);
+    add_to_hash(tc, &stat_access_time);
+    add_to_hash(tc, &stat_access_time_num);
+    add_to_hash(tc, &stat_modify_time);
+    add_to_hash(tc, &stat_modify_time_num);
+    add_to_hash(tc, &stat_change_time);
+    add_to_hash(tc, &stat_change_time_num);
+    add_to_hash(tc, &stat_uid);
+    add_to_hash(tc, &stat_gid);
+    add_to_hash(tc, &stat_is_link);
+    add_to_hash(tc, &stat_dev);
+    add_to_hash(tc, &stat_inode);
+    add_to_hash(tc, &stat_mode);
+    add_to_hash(tc, &stat_nlinks);
+    add_to_hash(tc, &stat_devtype);
+    add_to_hash(tc, &stat_blocksize);
+    add_to_hash(tc, &stat_blocks);
+    add_to_hash(tc, &stat_is_readable);
+    add_to_hash(tc, &stat_is_writable);
+    add_to_hash(tc, &stat_is_executable);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 

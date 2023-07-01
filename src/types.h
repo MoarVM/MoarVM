@@ -334,3 +334,5 @@ typedef struct MVMDispSysCall MVMDispSysCall;
 typedef struct MVMDispSysCallHashEntry MVMDispSysCallHashEntry;
 typedef struct MVMTracked MVMTracked;
 typedef struct MVMTrackedBody MVMTrackedBody;
+typedef struct MVMStat MVMStat;
+typedef struct MVMStatBody MVMStatBody;
