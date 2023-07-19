@@ -1,3 +1,5 @@
+#include <sys/types.h>
+
 #define MVM_FILE_FLOCK_SHARED        1       /* Shared lock. Read lock */
 #define MVM_FILE_FLOCK_EXCLUSIVE     2       /* Exclusive lock. Write lock. */
 #define MVM_FILE_FLOCK_TYPEMASK      0x000F  /* a mask of lock type */
