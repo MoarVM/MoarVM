@@ -1,4 +1,5 @@
 #include "moar.h"
+#include <unistd.h>
 
 /* Since the boot-syscall dispatcher verifies the argument count and register
  * types, we can pull arguments out of the MVMArgs directly, without going via
