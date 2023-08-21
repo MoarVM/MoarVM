@@ -1,3 +1,19 @@
+New in 2023.08
+
+Core:
++ Fix incompatible function pointer types with clang16 [871f7bca]
++ Update libuv to version 1.46 [75fe055c]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
+
 New in 2023.06
 
 Core:
