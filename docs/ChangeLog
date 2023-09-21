@@ -1,3 +1,18 @@
+New in 2023.09
+
+Core:
++ Add stat repr and related syscalls [e149d3de]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
+
 New in 2023.08
 
 Core:
