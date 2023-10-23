@@ -1387,6 +1387,38 @@ static MVMDispSysCall stat_time = {
     .expected_concrete = { 1, 1 },
 };
 
+/* stat-time-nanos */
+static void stat_time_nanos_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMStat   *stat_obj  = (MVMStat *)get_obj_arg(arg_info, 0);
+    MVMint32   stat_flag = get_int_arg(arg_info, 1);
+    uv_stat_t *file_stat = stat_obj->body.uv_stat;
+    uv_timespec_t     ts;
+    switch (stat_flag) {
+        case MVM_STAT_CREATETIME: ts = file_stat->st_birthtim; break;
+
+        case MVM_STAT_ACCESSTIME: ts = file_stat->st_atim; break;
+
+        case MVM_STAT_MODIFYTIME: ts = file_stat->st_mtim; break;
+
+        case MVM_STAT_CHANGETIME: ts = file_stat->st_ctim; break;
+
+        default:
+            MVM_args_set_result_int(tc, -1, MVM_RETURN_CURRENT_FRAME);
+            return;
+    }
+    MVMint64 time = ts.tv_sec * 1000000000 + ts.tv_nsec;
+    MVM_args_set_result_int(tc, time, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall stat_time_nanos = {
+    .c_name = "stat-time-nanos",
+    .implementation = stat_time_nanos_impl,
+    .min_args = 2,
+    .max_args = 2,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT },
+    .expected_reprs = { MVM_REPR_ID_MVMStat, 0 },
+    .expected_concrete = { 1, 1 },
+};
+
 /* stat-is-readable */
 static void stat_is_readable_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
@@ -1593,6 +1625,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &file_stat);
     add_to_hash(tc, &stat_flags);
     add_to_hash(tc, &stat_time);
+    add_to_hash(tc, &stat_time_nanos);
     add_to_hash(tc, &stat_is_readable);
     add_to_hash(tc, &stat_is_writable);
     add_to_hash(tc, &stat_is_executable);
