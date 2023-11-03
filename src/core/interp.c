@@ -1372,10 +1372,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 4;
                 goto NEXT;
             OP(DEPRECATED_69):
-                MVM_exception_throw_adhoc(tc, "The invokewithcapture op superceded by the general dispatch mechanism");
+                MVM_exception_throw_adhoc(tc, "The invokewithcapture op superseded by the general dispatch mechanism");
             OP(DEPRECATED_60):
             OP(DEPRECATED_61):
-                MVM_exception_throw_adhoc(tc, "The multi-dispatch cache is superceded by the general dispatch mechanism");
+                MVM_exception_throw_adhoc(tc, "The multi-dispatch cache is superseded by the general dispatch mechanism");
             OP(null_s):
                 GET_REG(cur_op, 0).s = NULL;
                 cur_op += 2;
@@ -1663,7 +1663,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(DEPRECATED_76):
             OP(DEPRECATED_77):
             OP(DEPRECATED_78):
-                MVM_exception_throw_adhoc(tc, "Find method ops are superceded by the general dispatch mechanism");
+                MVM_exception_throw_adhoc(tc, "Find method ops are superseded by the general dispatch mechanism");
             OP(create): {
                 /* Ordering here matters. We write the object into the
                  * register before calling initialize. This is because
@@ -2792,7 +2792,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             }
             OP(DEPRECATED_90):
             OP(DEPRECATED_91):
-                MVM_exception_throw_adhoc(tc, "Dispatcher ops are superceded by the general dispatch mechanism");
+                MVM_exception_throw_adhoc(tc, "Dispatcher ops are superseded by the general dispatch mechanism");
             OP(assign): {
                 MVMObject *cont  = GET_REG(cur_op, 0).o;
                 MVMObject *obj = GET_REG(cur_op, 2).o;
@@ -3482,7 +3482,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(DEPRECATED_79):
             OP(DEPRECATED_80):
-                MVM_exception_throw_adhoc(tc, "Find method ops are superceded by the general dispatch mechanism");
+                MVM_exception_throw_adhoc(tc, "Find method ops are superseded by the general dispatch mechanism");
             OP(chdir):
                 MVM_dir_chdir(tc, GET_REG(cur_op, 0).s);
                 cur_op += 2;
@@ -3952,7 +3952,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(DEPRECATED_82):
-                MVM_exception_throw_adhoc(tc, "The multi-dispatch cache is superceded by the general dispatch mechanism");
+                MVM_exception_throw_adhoc(tc, "The multi-dispatch cache is superseded by the general dispatch mechanism");
             OP(ctxouterskipthunks): {
                 MVMObject *ctx = GET_REG(cur_op, 2).o;
                 if (!IS_CONCRETE(ctx) || REPR(ctx)->ID != MVM_REPR_ID_MVMContext)
@@ -5004,7 +5004,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 12;
                 goto NEXT;
             OP(DEPRECATED_92):
-                MVM_exception_throw_adhoc(tc, "Dispatcher ops are superceded by the general dispatch mechanism");
+                MVM_exception_throw_adhoc(tc, "Dispatcher ops are superseded by the general dispatch mechanism");
             OP(strfromname):
                 GET_REG(cur_op, 0).s = MVM_unicode_string_from_name(tc,
                     GET_REG(cur_op, 2).s);
@@ -5408,7 +5408,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             OP(DEPRECATED_93):
             OP(DEPRECATED_94):
-                MVM_exception_throw_adhoc(tc, "Dispatcher ops are superceded by the general dispatch mechanism");
+                MVM_exception_throw_adhoc(tc, "Dispatcher ops are superseded by the general dispatch mechanism");
             OP(time):
                 GET_REG(cur_op, 0).u64 = MVM_proc_time(tc);
                 cur_op += 2;
