@@ -499,7 +499,7 @@ my %OS_WIN32 = (
 my %OS_MINGW32 = (
     %OS_WIN32,
 
-    defs => [ @{$OS_WIN32{defs}}, qw( _WIN32_WINNT=0x0600 ) ],
+    defs => [ @{$OS_WIN32{defs}}, qw( _WIN32_WINNT=0x0602 ) ],
 );
 
 my %OS_POSIX = (
