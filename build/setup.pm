@@ -419,7 +419,10 @@ our %COMPILERS = (
         ld => 'link',
         as => 'ml64',
 
-        ccmiscflags  => '/nologo /MT /std:c17 /experimental:c11atomics',
+        # /wd9002 ignores invalid parameters, such as /experimental:c11atomics on older msvc
+        # toolchains. It can be removed when the /experimental flag is no longer needed for
+        # c11 atomics to work on newer msvc toolchains.
+        ccmiscflags  => '/nologo /MT /std:c17 /experimental:c11atomics /wd9002',
         ccwarnflags  => '',
         ccoptiflags  => '/Ox /GL /DNDEBUG',
         ccdebugflags => '/Zi',
