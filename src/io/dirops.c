@@ -1,10 +1,17 @@
 #include "moar.h"
 
+// Windows does not define the S_ISREG and S_ISDIR macros in stat.h, so we do.
+// We have to define _CRT_INTERNAL_NONSTDC_NAMES 1 before #including sys/stat.h
+// in order for Microsoft's stat.h to define names like S_IFMT, S_IFREG, and S_IFDIR,
+// rather than just defining _S_IFMT, _S_IFREG, and _S_IFDIR as it normally does.
+// See: https://stackoverflow.com/a/62371749/1772220
 #ifdef _WIN32
+#  define _CRT_INTERNAL_NONSTDC_NAMES 1
 #include <sys/stat.h>
+#  if !defined(S_ISDIR) && defined(S_IFMT) && defined(S_IFDIR)
+#    define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#  endif
 #  define IS_SLASH(c)     ((c) == L'\\' || (c) == L'/')
-#  define _S_ISTYPE(mode, mask)  (((mode) & _S_IFMT) == (mask))
-#  define S_ISDIR(mode) _S_ISTYPE((mode), _S_IFDIR)
 #else
 #  define IS_SLASH(c)     ((c) == '/')
 #endif
@@ -26,7 +33,7 @@ static int mkdir_p(MVMThreadContext *tc, char *pathname, MVMint64 mode) {
             created = ((mkdir_error = uv_fs_mkdir(NULL, &req, pathname, mode, NULL)) == 0
                        || (mkdir_error == UV_EEXIST
                            && uv_fs_stat(NULL, &req, pathname, NULL) == 0
-                          ));
+                           && S_ISDIR(req.statbuf.st_mode)));
             if (!(*p = ch)) break;
         }
 
