@@ -73,7 +73,7 @@ static int mkdir_p(MVMThreadContext *tc, char *pathname, MVMint64 mode) {
 
 /* Create a directory recursively. */
 void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
-    char * const pathname = MVM_process_path(tc, path);
+    char * const pathname = MVM_platform_path(tc, path);
 
     if (mkdir_p(tc, pathname, mode) == -1) {
         int mkdir_error = errno;
@@ -86,7 +86,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
 
 /* Remove a directory recursively. */
 void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
-    char * const pathname = MVM_process_path(tc, path);
+    char * const pathname = MVM_platform_path(tc, path);
     uv_fs_t req;
 
     if(uv_fs_rmdir(NULL, &req, pathname, NULL) < 0 ) {
@@ -120,7 +120,7 @@ int MVM_dir_chdir_C_string(MVMThreadContext *tc, const char *dirstring) {
 }
 /* Change directory. */
 void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {
-    const char *dirstring = MVM_process_path(tc, dir);
+    const char *dirstring = MVM_platform_path(tc, dir);
     int chdir_error = MVM_dir_chdir_C_string(tc, dirstring);
     MVM_free((void*)dirstring);
     if (chdir_error) {
@@ -188,7 +188,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
         wchar_t *wname;
         wchar_t *dir_name;
 
-        name  = MVM_process_path(tc, dirname);
+        name  = MVM_platform_path(tc, dirname);
         wname = UTF8ToUnicode(name);
         MVM_free(name);
 
@@ -227,7 +227,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
 
 #else
     {
-        char * const dir_name = MVM_process_path(tc, dirname);
+        char * const dir_name = MVM_platform_path(tc, dirname);
         DIR * const dir_handle = opendir(dir_name);
         int opendir_error = errno;
         MVM_free(dir_name);
