@@ -33,35 +33,25 @@ static char * UnicodeToUTF8(const wchar_t *str)
 
      return result;
 }
+#endif
 
-static int mkdir_p(MVMThreadContext *tc, wchar_t *pathname, MVMint64 mode) {
-    wchar_t *p = pathname, ch;
-#else
 static int mkdir_p(MVMThreadContext *tc, char *pathname, MVMint64 mode) {
     char *p = pathname, ch;
     uv_fs_t req;
     int mkdir_error = 0;
-#endif
     int created = 0;
 
     for (;; ++p)
         if (!*p || IS_SLASH(*p)) {
             ch = *p;
             *p  = '\0';
-#ifdef _WIN32
-            created = CreateDirectoryW(pathname, NULL);
-#else
             created = (mkdir(pathname, mode) == 0
                        || ( (mkdir_error = errno) == EEXIST
                        && uv_fs_stat(NULL, &req, pathname, NULL) == 0
-                       && S_ISDIR(req.statbuf.st_mode)));
-#endif
+                       ));
             if (!(*p = ch)) break;
         }
 
-#ifndef _WIN32
-    errno = mkdir_error; /* error reporting should use errno of latest mkdir */
-#endif
     if (!created) return -1;
 
     return 0;
@@ -69,43 +59,7 @@ static int mkdir_p(MVMThreadContext *tc, char *pathname, MVMint64 mode) {
 
 /* Create a directory recursively. */
 void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
-    char * const pathname = MVM_string_utf8_c8_encode_C_string(tc, path);
-
-#ifdef _WIN32
-    /* Must using UTF8ToUnicode for supporting CJK Windows file name. */
-    wchar_t *wpathname = UTF8ToUnicode(pathname);
-    int str_len = wcslen(wpathname);
-    MVM_free(pathname);
-
-    if (str_len > MAX_PATH) {
-        wchar_t  abs_dirname[4096]; /* 4096 should be enough for absolute path */
-        wchar_t *lpp_part;
-
-        /* You cannot use the "\\?\" prefix with a relative path,
-         * relative paths are always limited to a total of MAX_PATH characters.
-         * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
-        if (!GetFullPathNameW(wpathname, 4096, abs_dirname, &lpp_part)) {
-            MVM_free(wpathname);
-            MVM_exception_throw_adhoc(tc, "Directory path is wrong: %lu", GetLastError());
-        }
-
-        MVM_free(wpathname);
-
-        str_len  = wcslen(abs_dirname);
-        wpathname = (wchar_t *)MVM_malloc((str_len + 4) * sizeof(wchar_t));
-        wcscpy(wpathname, L"\\\\?\\");
-        wcscat(wpathname, abs_dirname);
-    }
-
-    if (mkdir_p(tc, wpathname, mode) == -1) {
-        DWORD error = GetLastError();
-        if (error != ERROR_ALREADY_EXISTS) {
-            MVM_free(wpathname);
-            MVM_exception_throw_adhoc(tc, "Failed to mkdir: %lu", error);
-        }
-    }
-    MVM_free(wpathname);
-#else
+    char * const pathname = MVM_process_path(tc, path);
 
     if (mkdir_p(tc, pathname, mode) == -1) {
         int mkdir_error = errno;
@@ -114,12 +68,11 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
     }
 
     MVM_free(pathname);
-#endif
 }
 
 /* Remove a directory recursively. */
 void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
-    char * const pathname = MVM_string_utf8_c8_encode_C_string(tc, path);
+    char * const pathname = MVM_process_path(tc, path);
     uv_fs_t req;
 
     if(uv_fs_rmdir(NULL, &req, pathname, NULL) < 0 ) {
@@ -153,7 +106,7 @@ int MVM_dir_chdir_C_string(MVMThreadContext *tc, const char *dirstring) {
 }
 /* Change directory. */
 void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {
-    const char *dirstring = MVM_string_utf8_c8_encode_C_string(tc, dir);
+    const char *dirstring = MVM_process_path(tc, dir);
     int chdir_error = MVM_dir_chdir_C_string(tc, dirstring);
     MVM_free((void*)dirstring);
     if (chdir_error) {
@@ -221,7 +174,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
         wchar_t *wname;
         wchar_t *dir_name;
 
-        name  = MVM_string_utf8_c8_encode_C_string(tc, dirname);
+        name  = MVM_process_path(tc, dirname);
         wname = UTF8ToUnicode(name);
         MVM_free(name);
 
@@ -260,7 +213,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
 
 #else
     {
-        char * const dir_name = MVM_string_utf8_c8_encode_C_string(tc, dirname);
+        char * const dir_name = MVM_process_path(tc, dirname);
         DIR * const dir_handle = opendir(dir_name);
         int opendir_error = errno;
         MVM_free(dir_name);

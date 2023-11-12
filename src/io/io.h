@@ -112,6 +112,7 @@ MVMint64 MVM_io_getport(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_set_buffer_size(MVMThreadContext *tc, MVMObject *oshandle, MVMint64 size);
 MVMObject * MVM_io_get_async_task_handle(MVMThreadContext *tc, MVMObject *oshandle);
 void MVM_io_flush_standard_handles(MVMThreadContext *tc);
+char * MVM_process_path(MVMThreadContext *tc, MVMString *path);
 
 #ifdef _WIN32
 int MVM_set_std_handle_to_nul(FILE* file, int fd, BOOL read, int std_handle_type);
