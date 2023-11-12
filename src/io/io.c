@@ -472,20 +472,19 @@ char* MVM_process_path(MVMThreadContext *tc, MVMString *path) {
 }
 
 int is_absolute_path(const char *path) {
-    // Check if path is NULL or too short to be an absolute path.
-    if (path == NULL || strlen(path) < 3) {
-        return 0; // Not an absolute path
+    if (path == NULL || strlen(path) == 0) {
+        return 0;
     }
 
-    // Check for drive letter format (e.g., "C:\")
-    if (isalpha(path[0]) && path[1] == ':' && path[2] == '\\') {
-        return 1; // Absolute path
+    if (path[0] == '/' || path[0] == '\\') {
+        return 1;
     }
 
-    // Check for UNC path (e.g., "\\network\share")
-    if (path[0] == '\\' && path[1] == '\\') {
-        return 1; // Absolute path
+#ifdef _WIN32
+    if (strlen(path) >= 3 && path[1] == ':' && path[2] == '\\') {
+        return 1;
     }
+#endif
 
-    return 0; // Not an absolute path
+    return 0;
 }
