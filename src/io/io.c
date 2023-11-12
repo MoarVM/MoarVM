@@ -435,7 +435,7 @@ int MVM_set_std_handle_to_nul(FILE *file, int fd, BOOL read, int std_handle_type
 }
 #endif
 
-char* MVM_process_path(MVMThreadContext *tc, MVMString *path) {
+char* MVM_platform_path(MVMThreadContext *tc, MVMString *path) {
     // Convert the MVMString to a C string first.
     char *original_path = MVM_string_utf8_c8_encode_C_string(tc, path);
 

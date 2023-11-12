@@ -46,7 +46,7 @@ static int mkdir_p(MVMThreadContext *tc, char *pathname, MVMint64 mode) {
 
 /* Create a directory recursively. */
 void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
-    char * const pathname = MVM_process_path(tc, path);
+    char * const pathname = MVM_platform_path(tc, path);
     int mkdir_error = 0;
 
     if ((mkdir_error = mkdir_p(tc, pathname, mode)) != 0) {
@@ -59,7 +59,7 @@ void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
 
 /* Remove a directory recursively. */
 void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
-    char * const pathname = MVM_process_path(tc, path);
+    char * const pathname = MVM_platform_path(tc, path);
     uv_fs_t req;
     int rmdir_error = 0;
 
@@ -88,7 +88,7 @@ MVMString * MVM_dir_cwd(MVMThreadContext *tc) {
 
 /* Change directory. */
 void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {
-    const char *dirstring = MVM_process_path(tc, dir);
+    const char *dirstring = MVM_platform_path(tc, dir);
     int chdir_error = uv_chdir(dirstring);
     MVM_free((void*)dirstring);
     if (chdir_error) {
@@ -143,7 +143,7 @@ MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
         result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
     }
 
-    char * const dir_name = MVM_process_path(tc, dirname);
+    char * const dir_name = MVM_platform_path(tc, dirname);
     opendir_error = uv_fs_opendir(NULL, &req, dir_name, NULL);
     MVM_free(dir_name);
 
