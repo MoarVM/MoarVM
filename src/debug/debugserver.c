@@ -956,7 +956,8 @@ static void send_thread_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data
         cmp_write_bool(ctx, cur_thread->body.app_lifetime);
 
         cmp_write_str(ctx, "suspended", 9);
-        cmp_write_bool(ctx, (MVM_load(&cur_thread->body.tc->gc_status) & MVMSUSPENDSTATUS_MASK) != MVMSuspendState_NONE);
+        AO_t curr_gc_status = MVM_load(&cur_thread->body.tc->gc_status);
+        cmp_write_bool(ctx, (curr_gc_status & MVMSUSPENDSTATUS_MASK) != MVMSuspendState_NONE);
 
         cmp_write_str(ctx, "num_locks", 9);
         cmp_write_integer(ctx, MVM_thread_lock_count(dtc, (MVMObject *)cur_thread));
