@@ -341,8 +341,7 @@ MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig) {
         /* We actually have a lib_path to consider. See if the filename is
          * absolute (XXX wants a platform abstraction, and doing better). */
         char *orig_cstr = MVM_process_path(tc, orig);
-        int  absolute   = orig_cstr[0] == '/' || orig_cstr[0] == '\\' ||
-                          (orig_cstr[1] == ':' && orig_cstr[2] == '\\');
+        int  absolute   = is_absolute_path(orig_cstr);
         if (absolute) {
             /* Nothing more to do; we have an absolute path. */
             MVM_free(orig_cstr);
