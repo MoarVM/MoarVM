@@ -435,7 +435,7 @@ static int resolve_open_mode(int *flag, const char *cp) {
 
 /* Opens a file, returning a synchronous file handle. */
 MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMString *mode) {
-    char * const fname = MVM_string_utf8_c8_encode_C_string(tc, filename);
+    char * const fname = MVM_process_path(tc, filename);
     int fd;
     int flag;
     STAT_t statbuf;
