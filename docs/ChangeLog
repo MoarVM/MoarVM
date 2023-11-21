@@ -1,3 +1,21 @@
+New in 2023.11
+
+Core:
++ Add syscall that returns stat times in integer nanoseconds [18604f69]
++ Update libuv to version 1.47.0 [9a6eabfe]
++ Bump minimum supported version to windows 8 [428b821d]
++ Prepare for msvc toolchain c11 atomics [030f8ad0][3e4b6ede]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
+
 New in 2023.10
 
 Core:
