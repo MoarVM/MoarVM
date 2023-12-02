@@ -20,67 +20,74 @@
 #  define PATH_MAX 2048
 #endif
 
+#define ERR_STR_MAX 1024
+
 static int mkdir_p(MVMThreadContext *tc, char *pathname, MVMint64 mode) {
     char *p = pathname, ch;
     uv_fs_t req;
     int mkdir_error = 0;
-    int created = 0;
 
     for (;; ++p)
         if (!*p || IS_SLASH(*p)) {
             ch = *p;
             *p  = '\0';
-            created = ((mkdir_error = uv_fs_mkdir(NULL, &req, pathname, mode, NULL)) == 0
-                       || (mkdir_error == UV_EEXIST
-                           && uv_fs_stat(NULL, &req, pathname, NULL) == 0
-                           && S_ISDIR(req.statbuf.st_mode)));
+            mkdir_error = uv_fs_mkdir(NULL, &req, pathname, mode, NULL);
+            uv_fs_req_cleanup(&req);
             if (!(*p = ch)) break;
         }
 
-    uv_fs_req_cleanup(&req);
 
-    if (!created) return -1;
-
-    return 0;
+    if (mkdir_error == 0 || (mkdir_error == UV_EEXIST
+                             && uv_fs_stat(NULL, &req, pathname, NULL) == 0
+                             && S_ISDIR(req.statbuf.st_mode))) {
+        uv_fs_req_cleanup(&req);
+        return 0;
+    }
+    else
+        return mkdir_error;
 }
 
 /* Create a directory recursively. */
 void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
     char * const pathname = MVM_platform_path(tc, path);
-    int mkdir_error = 0;
-
-    if ((mkdir_error = mkdir_p(tc, pathname, mode)) != 0) {
-        MVM_free(pathname);
-        MVM_exception_throw_adhoc(tc, "Failed to mkdir: %s", strerror(mkdir_error));
-    }
-
+    int mkdir_error = mkdir_p(tc, pathname, mode);
     MVM_free(pathname);
+
+    if (mkdir_error != 0) {
+        char *err = MVM_malloc(ERR_STR_MAX);
+        uv_strerror_r(mkdir_error, err, ERR_STR_MAX);
+        char *waste[] = { err, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to mkdir: %s", err);
+    }
 }
 
 /* Remove a directory recursively. */
 void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
     char * const pathname = MVM_platform_path(tc, path);
     uv_fs_t req;
-    int rmdir_error = 0;
-
-    if ((rmdir_error = uv_fs_rmdir(NULL, &req, pathname, NULL)) < 0 ) {
-        MVM_free(pathname);
-        uv_fs_req_cleanup(&req);
-        MVM_exception_throw_adhoc(tc, "Failed to rmdir: %s", uv_strerror(rmdir_error));
-    }
-
+    int rmdir_error = uv_fs_rmdir(NULL, &req, pathname, NULL);
     MVM_free(pathname);
     uv_fs_req_cleanup(&req);
+
+    if (rmdir_error != 0) {
+        char *err = MVM_malloc(ERR_STR_MAX);
+        uv_strerror_r(rmdir_error, err, ERR_STR_MAX);
+        char *waste[] = { err, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to rmdir: %s", err);
+    }
 }
 
 /* Get the current working directory. */
 MVMString * MVM_dir_cwd(MVMThreadContext *tc) {
     char path[PATH_MAX];
     size_t max_path = PATH_MAX;
-    int cwd_error = 0;
+    int cwd_error = uv_cwd(path, (size_t *)&max_path);
 
-    if ((cwd_error = uv_cwd(path, (size_t *)&max_path)) < 0) {
-        MVM_exception_throw_adhoc(tc, "Failed to determine cwd: %s", uv_strerror(cwd_error));
+    if (cwd_error < 0) {
+        char *err = MVM_malloc(ERR_STR_MAX);
+        uv_strerror_r(cwd_error, err, ERR_STR_MAX);
+        char *waste[] = { err, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to determine cwd: %s", err);
     }
 
     return MVM_string_utf8_c8_decode(tc, tc->instance->VMString, path, strlen(path));
@@ -91,16 +98,20 @@ void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {
     const char *dirstring = MVM_platform_path(tc, dir);
     int chdir_error = uv_chdir(dirstring);
     MVM_free((void*)dirstring);
-    if (chdir_error) {
-        MVM_exception_throw_adhoc(tc, "chdir failed: %s", uv_strerror(chdir_error));
+
+    if (chdir_error != 0) {
+        char *err = MVM_malloc(ERR_STR_MAX);
+        uv_strerror_r(chdir_error, err, ERR_STR_MAX);
+        char *waste[] = { err, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "chdir failed: %s", err);
     }
 }
 
 /* Frees data associated with the directory handle. */
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
-    uv_fs_t req;
     uv_dir_t *dir = (uv_dir_t *)d;
     if (dir) {
+        uv_fs_t req;
         uv_fs_closedir(NULL, &req, dir, NULL);
         uv_fs_req_cleanup(&req);
     }
@@ -136,22 +147,23 @@ static MVMOSHandle * get_dirhandle(MVMThreadContext *tc, MVMObject *oshandle, co
 
 /* Open a filehandle, returning a handle. */
 MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
-    MVMOSHandle  * result;
-    int opendir_error = 0;
+    char * const dir_name = MVM_platform_path(tc, dirname);
     uv_fs_t req;
+    int opendir_error = uv_fs_opendir(NULL, &req, dir_name, NULL);
+    MVM_free(dir_name);
+
+    if (opendir_error != 0) {
+        uv_fs_req_cleanup(&req);
+        char *err = MVM_malloc(ERR_STR_MAX);
+        uv_strerror_r(opendir_error, err, ERR_STR_MAX);
+        char *waste[] = { err, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to open dir: %s", err);
+    }
+
+    MVMOSHandle  * result;
     MVMROOT(tc, dirname, {
         result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
     });
-
-    char * const dir_name = MVM_platform_path(tc, dirname);
-    opendir_error = uv_fs_opendir(NULL, &req, dir_name, NULL);
-    MVM_free(dir_name);
-
-    if (opendir_error) {
-        uv_fs_req_cleanup(&req);
-        MVM_exception_throw_adhoc(tc, "Failed to open dir: %s", strerror(opendir_error));
-    }
-
     result->body.ops  = &op_table;
     result->body.data = req.ptr;
 
@@ -166,14 +178,13 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
     uv_dir_t    *dir    = (uv_dir_t *)handle->body.data;
     if (dir == NULL)
         return tc->instance->str_consts.empty;
-    int readdir_error   = 0;
-    uv_fs_t     req;
 
     uv_dirent_t dirent[1];
     dir->dirents = dirent;
     dir->nentries = 1;
 
-    readdir_error = uv_fs_readdir(NULL, &req, dir, NULL);
+    uv_fs_t req;
+    int readdir_error = uv_fs_readdir(NULL, &req, dir, NULL);
 
     if (readdir_error == 0 || readdir_error == 1) {
         MVMString *ret = (readdir_error == 0)
@@ -183,23 +194,27 @@ MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
         uv_fs_req_cleanup(&req);
         return ret;
     }
-
     uv_fs_req_cleanup(&req);
 
-    MVM_exception_throw_adhoc(tc, "Failed to read dirhandle: %s", strerror(readdir_error));
+    char *err = MVM_malloc(ERR_STR_MAX);
+    uv_strerror_r(readdir_error, err, ERR_STR_MAX);
+    char *waste[] = { err, NULL };
+    MVM_exception_throw_adhoc_free(tc, waste, "Failed to read dirhandle: %s", err);
 }
 
 void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
     MVMOSHandle *handle = get_dirhandle(tc, oshandle, "closedir");
     uv_dir_t    *dir    = (uv_dir_t *)handle->body.data;
-    int closedir_error  = 0;
-    uv_fs_t     req;
-
-    closedir_error = uv_fs_closedir(NULL, &req, dir, NULL);
-
+    uv_fs_t      req;
+    int closedir_error  = uv_fs_closedir(NULL, &req, dir, NULL);
     uv_fs_req_cleanup(&req);
+
     handle->body.data = NULL;
 
-    if (closedir_error != 0)
-        MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %s", strerror(closedir_error));
+    if (closedir_error != 0) {
+        char *err = MVM_malloc(ERR_STR_MAX);
+        uv_strerror_r(closedir_error, err, ERR_STR_MAX);
+        char *waste[] = { err, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to close dirhandle: %s", err);
+    }
 }
