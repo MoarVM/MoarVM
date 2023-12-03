@@ -6,6 +6,7 @@
 // rather than just defining _S_IFMT, _S_IFREG, and _S_IFDIR as it normally does.
 // See: https://stackoverflow.com/a/62371749/1772220
 #ifdef _WIN32
+#include "platform/time.h"
 #  define _CRT_INTERNAL_NONSTDC_NAMES 1
 #include <sys/stat.h>
 #  if !defined(S_ISDIR) && defined(S_IFMT) && defined(S_IFDIR)
@@ -66,6 +67,18 @@ void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
     char * const pathname = MVM_platform_path(tc, path);
     uv_fs_t req;
     int rmdir_error = uv_fs_rmdir(NULL, &req, pathname, NULL);
+#ifdef _WIN32
+    if (rmdir_error == ENOTEMPTY) {
+        uv_fs_req_cleanup(&req);
+        MVM_platform_sleep(0.1);
+        rmdir_error = uv_fs_rmdir(NULL, &req, pathname, NULL);
+        if (rmdir_error == ENOENT) {
+            // Did actually get deleted before we tried again.
+            uv_fs_req_cleanup(&req);
+            return;
+        }
+    }
+#endif
     MVM_free(pathname);
     uv_fs_req_cleanup(&req);
 
