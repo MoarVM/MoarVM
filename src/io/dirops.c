@@ -68,6 +68,7 @@ void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
     uv_fs_t req;
     int rmdir_error = uv_fs_rmdir(NULL, &req, pathname, NULL);
 #ifdef _WIN32
+    fprintf(stderr, "rmdir_error == %d, '%s'\n", rmdir_error, uv_strerror(rmdir_error));
     if (rmdir_error == UV_ENOTEMPTY ||
         rmdir_error == UV_EBUSY     ||
         rmdir_error == UV_EMFILE    ||
@@ -77,6 +78,7 @@ void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
         uv_fs_req_cleanup(&req);
         MVM_platform_sleep(0.1);
         rmdir_error = uv_fs_rmdir(NULL, &req, pathname, NULL);
+        fprintf(stderr, "second rmdir_error == %d, '%s'\n", rmdir_error, uv_strerror(rmdir_error));
         if (rmdir_error == UV_ENOENT) {
             // Did actually get deleted before we tried again.
             MVM_free(pathname);
