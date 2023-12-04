@@ -76,7 +76,7 @@ void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
         rmdir_error == UV_ENOTEMPTY ||
         rmdir_error == UV_EPERM) {
         uv_fs_req_cleanup(&req);
-        MVM_platform_sleep(0.1);
+        MVM_platform_sleep(0.5);
         rmdir_error = uv_fs_rmdir(NULL, &req, pathname, NULL);
         fprintf(stderr, "second rmdir_error == %d, '%s'\n", rmdir_error, uv_strerror(rmdir_error));
         if (rmdir_error == UV_ENOENT) {
