@@ -953,6 +953,7 @@ typedef struct {
     MVMuint8  *abs_addr;
     MVMuint32  rel_addr;
     void      *jit_return_label;
+    MVMObject *payload;
 } MVMUnwindData;
 static void mark_unwind_data(MVMThreadContext *tc, void *sr_data, MVMGCWorklist *worklist) {
     MVMUnwindData *ud  = (MVMUnwindData *)sr_data;
@@ -964,6 +965,7 @@ static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
     MVMuint8 *abs_addr = ud->abs_addr;
     MVMuint32 rel_addr = ud->rel_addr;
     void *jit_return_label = ud->jit_return_label;
+    tc->last_payload = ud->payload;
     MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL, jit_return_label);
 }
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
@@ -1019,6 +1021,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                 ud->abs_addr = abs_addr;
                 ud->rel_addr = rel_addr;
                 ud->jit_return_label = jit_return_label;
+                ud->payload = tc->last_payload;
                 cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
                 MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
                         MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
