@@ -1547,6 +1547,18 @@ void MVM_frame_getdynlex_with_frame_walker(MVMThreadContext *tc, MVMSpeshFrameWa
                     OBJECT_BODY(result), lex_reg->i64);
                 MVM_gc_root_temp_pop(tc);
                 break;
+            case MVM_reg_uint64:
+                result_type = (*tc->interp_cu)->body.hll_config->int_box_type;
+                if (!result_type)
+                    MVM_exception_throw_adhoc(tc, "missing int box type (for a uint)");
+                result = REPR(result_type)->allocate(tc, STABLE(result_type));
+                MVM_gc_root_temp_push(tc, (MVMCollectable **)&result);
+                if (REPR(result)->initialize)
+                    REPR(result)->initialize(tc, STABLE(result), result, OBJECT_BODY(result));
+                REPR(result)->box_funcs.set_uint(tc, STABLE(result), result,
+                    OBJECT_BODY(result), lex_reg->u64);
+                MVM_gc_root_temp_pop(tc);
+                break;
             case MVM_reg_num64:
                 result_type = (*tc->interp_cu)->body.hll_config->num_box_type;
                 if (!result_type)

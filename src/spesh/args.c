@@ -161,7 +161,7 @@ static void insert_getarg_and_box(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpe
                 unboxed_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_uint64);
                 box_op = MVM_OP_box_u;
                 hlltype_op = MVM_OP_hllboxtype_i;
-                fetch_op = MVM_OP_sp_getarg_i;
+                fetch_op = MVM_OP_sp_getarg_u;
                 break;
             case MVM_CALLSITE_ARG_NUM:
                 unboxed_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_num64);
@@ -685,7 +685,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
             case MVM_OP_param_rp_u:
             case MVM_OP_param_op_u:
                 if (arg_type == MVM_CALLSITE_ARG_UINT) {
-                    pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
+                    pos_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_u);
                 }
                 else {
                     pos_unbox(tc, g, pos_bb[i], pos_ins[i], MVM_op_get_op(MVM_OP_decont_u));
@@ -737,7 +737,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 else if (arg_type == MVM_CALLSITE_ARG_UINT) {
                     pos_box(tc, g, pos_bb[i], pos_ins[i],
                         MVM_op_get_op(MVM_OP_hllboxtype_i), MVM_op_get_op(MVM_OP_box_u),
-                        MVM_op_get_op(MVM_OP_sp_getarg_i), MVM_reg_uint64);
+                        MVM_op_get_op(MVM_OP_sp_getarg_u), MVM_reg_uint64);
                     pos_added[i] += 2;
                 }
                 else if (arg_type == MVM_CALLSITE_ARG_NUM) {
@@ -828,7 +828,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 break;
             case MVM_OP_param_rn_u:
                 if (found_flag & MVM_CALLSITE_ARG_UINT) {
-                    named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
+                    named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_u);
                     named_ins[i]->operands[1].lit_i16 = found_idx;
                     named_used_bit_field |= (MVMuint64)1 << cur_named;
                 }
@@ -887,7 +887,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     else if (found_flag & MVM_CALLSITE_ARG_UINT)
                         pos_box(tc, g, named_bb[i], named_ins[i],
                             MVM_op_get_op(MVM_OP_hllboxtype_i), MVM_op_get_op(MVM_OP_box_u),
-                            MVM_op_get_op(MVM_OP_sp_getarg_i), MVM_reg_uint64);
+                            MVM_op_get_op(MVM_OP_sp_getarg_u), MVM_reg_uint64);
                     else if (found_flag & MVM_CALLSITE_ARG_NUM)
                         pos_box(tc, g, named_bb[i], named_ins[i],
                             MVM_op_get_op(MVM_OP_hllboxtype_n), MVM_op_get_op(MVM_OP_box_n),
@@ -933,7 +933,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     MVM_spesh_manipulate_remove_successor(tc, named_bb[i], named_ins[i]->operands[2].ins_bb);
                 }
                 else if (found_flag & MVM_CALLSITE_ARG_UINT) {
-                    named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_i);
+                    named_ins[i]->info = MVM_op_get_op(MVM_OP_sp_getarg_u);
                     named_ins[i]->operands[1].lit_i16 = found_idx;
                     MVM_spesh_manipulate_insert_goto(tc, g, named_bb[i], named_ins[i],
                         named_ins[i]->operands[2].ins_bb);
@@ -1036,7 +1036,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     else if (found_flag & MVM_CALLSITE_ARG_UINT)
                         pos_box(tc, g, named_bb[i], named_ins[i],
                             MVM_op_get_op(MVM_OP_hllboxtype_i), MVM_op_get_op(MVM_OP_box_u),
-                            MVM_op_get_op(MVM_OP_sp_getarg_i), MVM_reg_uint64);
+                            MVM_op_get_op(MVM_OP_sp_getarg_u), MVM_reg_uint64);
                     else if (found_flag & MVM_CALLSITE_ARG_NUM)
                         pos_box(tc, g, named_bb[i], named_ins[i],
                             MVM_op_get_op(MVM_OP_hllboxtype_n), MVM_op_get_op(MVM_OP_box_n),

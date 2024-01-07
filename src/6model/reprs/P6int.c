@@ -231,6 +231,32 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
             }
             break;
         }
+        case MVM_OP_box_u: {
+            if (repr_data->bits == 64 && !(st->mode_flags & MVM_FINALIZE_TYPE)) {
+                /* Turn into a sp_fastbox_u[_ic] instruction. */
+                MVMint32 int_cache_type_idx = MVM_intcache_type_index(tc, st->WHAT);
+                MVMSpeshFacts *tgt_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+                MVMSpeshOperand *orig_operands = ins->operands;
+
+                MVM_spesh_graph_add_comment(tc, g, ins, "box_u into a %s",
+                        MVM_6model_get_stable_debug_name(tc, st));
+
+                ins->info = MVM_op_get_op(int_cache_type_idx < 0
+                        ? MVM_OP_sp_fastbox_u
+                        : MVM_OP_sp_fastbox_u_ic);
+                ins->operands = MVM_spesh_alloc(tc, g, 6 * sizeof(MVMSpeshOperand));
+                ins->operands[0] = orig_operands[0];
+                ins->operands[1].lit_i16 = st->size;
+                ins->operands[2].lit_i16 = MVM_spesh_add_spesh_slot(tc, g, (MVMCollectable *)st);
+                ins->operands[3].lit_i16 = offsetof(MVMP6int, body.value);
+                ins->operands[4] = orig_operands[1];
+                ins->operands[5].lit_i16 = (MVMint16)int_cache_type_idx;
+                MVM_spesh_usages_delete_by_reg(tc, g, orig_operands[2], ins);
+                tgt_facts->flags |= MVM_SPESH_FACT_KNOWN_TYPE | MVM_SPESH_FACT_CONCRETE;
+                tgt_facts->type = st->WHAT;
+            }
+            break;
+        }
         case MVM_OP_unbox_i:
         case MVM_OP_decont_i: {
             MVMint32 bits = repr_data->bits;
@@ -238,6 +264,29 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
                            bits == 32 ? MVM_OP_sp_get_i32 :
                            bits == 16 ? MVM_OP_sp_get_i16 :
                            bits == 8  ? MVM_OP_sp_get_i8  : 0;
+            if (op > 0) {
+                /* Lower into a direct memory read. */
+                MVMSpeshOperand *orig_operands = ins->operands;
+
+                MVM_spesh_graph_add_comment(tc, g, ins, "%s from a %s",
+                        ins->info->name,
+                        MVM_6model_get_stable_debug_name(tc, st));
+
+                ins->info = MVM_op_get_op(op);
+                ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+                ins->operands[0] = orig_operands[0];
+                ins->operands[1] = orig_operands[1];
+                ins->operands[2].lit_i16 = offsetof(MVMP6int, body.value);
+            }
+            break;
+        }
+        case MVM_OP_unbox_u:
+        case MVM_OP_decont_u: {
+            MVMint32 bits = repr_data->bits;
+            MVMuint16 op = bits == 64 ? MVM_OP_sp_get_u64 :
+                           bits == 32 ? MVM_OP_sp_get_u32 :
+                           bits == 16 ? MVM_OP_sp_get_u16 :
+                           bits == 8  ? MVM_OP_sp_get_u8  : 0;
             if (op > 0) {
                 /* Lower into a direct memory read. */
                 MVMSpeshOperand *orig_operands = ins->operands;

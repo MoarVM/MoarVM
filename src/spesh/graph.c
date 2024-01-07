@@ -180,16 +180,19 @@ int MVM_spesh_graph_ins_ends_bb(MVMThreadContext *tc, const MVMOpInfo *info) {
     case MVM_OP_sp_dispatch_o:
     case MVM_OP_sp_runbytecode_v:
     case MVM_OP_sp_runbytecode_i:
+    case MVM_OP_sp_runbytecode_u:
     case MVM_OP_sp_runbytecode_n:
     case MVM_OP_sp_runbytecode_s:
     case MVM_OP_sp_runbytecode_o:
     case MVM_OP_sp_runcfunc_v:
     case MVM_OP_sp_runcfunc_i:
+    case MVM_OP_sp_runcfunc_u:
     case MVM_OP_sp_runcfunc_n:
     case MVM_OP_sp_runcfunc_s:
     case MVM_OP_sp_runcfunc_o:
     case MVM_OP_sp_runnativecall_v:
     case MVM_OP_sp_runnativecall_i:
+    case MVM_OP_sp_runnativecall_u:
     case MVM_OP_sp_runnativecall_n:
     case MVM_OP_sp_runnativecall_s:
     case MVM_OP_sp_runnativecall_o:

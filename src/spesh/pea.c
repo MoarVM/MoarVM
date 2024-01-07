@@ -220,6 +220,7 @@ static void apply_transform(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *
                         ins->info = MVM_op_get_op(MVM_OP_null);
                         break;
                     case MVM_OP_sp_p6oget_i:
+                    case MVM_OP_sp_p6oget_u:
                         ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
                         ins->operands[1].lit_i16 = 0;
                         break;
@@ -583,11 +584,13 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     break;
                 }
                 case MVM_OP_sp_bind_i64:
+                case MVM_OP_sp_bind_u64:
                 case MVM_OP_sp_bind_n:
                 case MVM_OP_sp_bind_s:
                 case MVM_OP_sp_bind_s_nowb:
                 case MVM_OP_sp_bind_o:
                 case MVM_OP_sp_p6obind_i:
+                case MVM_OP_sp_p6obind_u:
                 case MVM_OP_sp_p6obind_n:
                 case MVM_OP_sp_p6obind_s:
                 case MVM_OP_sp_p6obind_o: {
@@ -597,6 +600,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     MVMSpeshPEAAllocation *alloc = target->pea.allocation;
                     if (allocation_tracked(alloc)) {
                         MVMint32 is_p6o_op = opcode == MVM_OP_sp_p6obind_i ||
+                            opcode == MVM_OP_sp_p6obind_u ||
                             opcode == MVM_OP_sp_p6obind_n ||
                             opcode == MVM_OP_sp_p6obind_s ||
                             opcode == MVM_OP_sp_p6obind_o;
@@ -627,6 +631,7 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
                     break;
                 }
                 case MVM_OP_sp_p6oget_i:
+                case MVM_OP_sp_p6oget_u:
                 case MVM_OP_sp_p6oget_n:
                 case MVM_OP_sp_p6oget_s:
                 case MVM_OP_sp_p6oget_o:

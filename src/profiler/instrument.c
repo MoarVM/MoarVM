@@ -48,6 +48,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
         while (ins) {
             switch (ins->info->opcode) {
             case MVM_OP_return_i:
+            case MVM_OP_return_u:
             case MVM_OP_return_n:
             case MVM_OP_return_s:
             case MVM_OP_return_o:
@@ -145,6 +146,7 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_loadbytecode:
             case MVM_OP_loadbytecodefh:
             case MVM_OP_multidimref_i:
+            case MVM_OP_multidimref_u:
             case MVM_OP_multidimref_n:
             case MVM_OP_multidimref_s:
             case MVM_OP_asyncudp:
@@ -270,15 +272,19 @@ static void instrument_graph(MVMThreadContext *tc, MVMSpeshGraph *g) {
             case MVM_OP_getlexref_n32:
             case MVM_OP_getlexref_s:
             case MVM_OP_getlexref_ni:
+            case MVM_OP_getlexref_nu:
             case MVM_OP_getlexref_nn:
             case MVM_OP_getlexref_ns:
             case MVM_OP_atposref_i:
+            case MVM_OP_atposref_u:
             case MVM_OP_atposref_n:
             case MVM_OP_atposref_s:
             case MVM_OP_getattrref_i:
+            case MVM_OP_getattrref_u:
             case MVM_OP_getattrref_n:
             case MVM_OP_getattrref_s:
             case MVM_OP_getattrsref_i:
+            case MVM_OP_getattrsref_u:
             case MVM_OP_getattrsref_n:
             case MVM_OP_getattrsref_s:
             case MVM_OP_nativecallcast:

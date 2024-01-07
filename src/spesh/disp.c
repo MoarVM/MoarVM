@@ -1196,6 +1196,14 @@ static int translate_dispatch_program(MVMThreadContext *tc, MVMSpeshGraph *g,
                             base_op = MVM_op_get_op(MVM_OP_sp_runnativecall_i);
                             box_return_value = 1;
                             break;
+                        case MVM_NATIVECALL_ARG_UCHAR:
+                        case MVM_NATIVECALL_ARG_USHORT:
+                        case MVM_NATIVECALL_ARG_UINT:
+                        case MVM_NATIVECALL_ARG_ULONG:
+                        case MVM_NATIVECALL_ARG_ULONGLONG:
+                            base_op = MVM_op_get_op(MVM_OP_sp_runnativecall_u);
+                            box_return_value = 1;
+                            break;
                     }
                 }
 
