@@ -241,8 +241,10 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     spesh_gc_point(tc);
 
     /* Perform the optimization and, if we're logging, dump out the result. */
+#if !MVM_HASH_PROTECT
     if (p->cs_stats->cs)
         MVM_spesh_args(tc, sg, p->cs_stats->cs, p->type_tuple);
+#endif
     spesh_gc_point(tc);
     MVM_spesh_facts_discover(tc, sg, p, 0);
     spesh_gc_point(tc);

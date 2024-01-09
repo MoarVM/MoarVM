@@ -1826,7 +1826,8 @@ static MVMObject * read_array_var(MVMThreadContext *tc, MVMSerializationReader *
 
 /* Reads in an hash with string keys and variant references. */
 static MVMObject * read_hash_str_var(MVMThreadContext *tc, MVMSerializationReader *reader) {
-    MVMObject *result = MVM_gc_allocate_object(tc, STABLE(tc->instance->boot_types.BOOTHash));
+    void *BOOTHash = tc->instance->boot_types.BOOTHash;
+    MVMObject *result = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
     MVMint32 elems, i;
 
     /* Read the element count. */

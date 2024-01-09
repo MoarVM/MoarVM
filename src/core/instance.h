@@ -573,4 +573,6 @@ struct MVMInstance {
      ************************************************************************/
 
     MVMEventSubscriptions subscriptions;
+
+    MVMuint8 hash_debug_enabled;
 };
