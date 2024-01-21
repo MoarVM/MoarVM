@@ -208,6 +208,9 @@ struct MVMThreadContext {
     /* Last payload made available in a payload-goto exception handler. */
     MVMObject *last_payload;
 
+    /* Handler the currently active CONTROL exception is unwinding to. */
+    MVMActiveHandler *active_control_handler;
+
     /************************************************************************
      * Specialization and JIT compilation
      ************************************************************************/

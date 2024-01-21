@@ -16,6 +16,9 @@ typedef void (* MVMSpecialReturn)(MVMThreadContext *tc, void *data);
 typedef void (* MVMSpecialReturnMark)(MVMThreadContext *tc, void *data,
                                       MVMGCWorklist *worklist);
 
+/* Function pointer called after an unwind finished. */
+typedef void (* MVMPostUnwind)(MVMThreadContext *tc);
+
 /* This represents an call frame, aka invocation record. It may exist either on
  * the heap, in which case its header will have the MVM_CF_FRAME flag set, or
  * in on a thread-local stack, in which case the collectable header will be
@@ -148,7 +151,8 @@ void MVM_frame_setup_deopt(MVMThreadContext *tc, MVMFrame *frame, MVMStaticFrame
 MVM_PUBLIC MVMuint64 MVM_frame_try_return(MVMThreadContext *tc);
 MVM_PUBLIC MVMuint64 MVM_frame_try_return_no_exit_handlers(MVMThreadContext *tc);
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
-                         MVMuint32 rel_addr, MVMObject *return_value, void *jit_return_label);
+                         MVMuint32 rel_addr, MVMObject *return_value,
+                         void *jit_return_label, MVMPostUnwind post_unwind_callback);
 MVM_PUBLIC void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame);
 MVM_PUBLIC MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code);
 MVM_PUBLIC void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code);

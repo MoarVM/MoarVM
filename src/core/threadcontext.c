@@ -57,6 +57,8 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
      * need to check. */
     tc->last_payload = instance->VMNull;
 
+    tc->active_control_handler = NULL;
+
     /* Note that the last assignment above is repeated in
      * MVM_6model_bootstrap because VMNull doesn't exist yet when the very
      * first tc is created. */

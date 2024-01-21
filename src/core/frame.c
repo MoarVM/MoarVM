@@ -953,6 +953,7 @@ typedef struct {
     MVMuint8  *abs_addr;
     MVMuint32  rel_addr;
     void      *jit_return_label;
+    MVMPostUnwind post_unwind_callback;
 } MVMUnwindData;
 static void mark_unwind_data(MVMThreadContext *tc, void *sr_data, MVMGCWorklist *worklist) {
     MVMUnwindData *ud  = (MVMUnwindData *)sr_data;
@@ -964,10 +965,12 @@ static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
     MVMuint8 *abs_addr = ud->abs_addr;
     MVMuint32 rel_addr = ud->rel_addr;
     void *jit_return_label = ud->jit_return_label;
-    MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL, jit_return_label);
+    MVMPostUnwind post_unwind_callback = ud->post_unwind_callback;
+    MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL, jit_return_label, post_unwind_callback);
 }
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
-                         MVMuint32 rel_addr, MVMObject *return_value, void *jit_return_label) {
+                         MVMuint32 rel_addr, MVMObject *return_value,
+                         void *jit_return_label, MVMPostUnwind post_unwind_callback) {
     /* Lazy deopt means that we might have located an exception handler in
      * optimized code, but then at the point we call MVM_callstack_unwind_frame we'll
      * end up deoptimizing it. That means the address here will be out of date.
@@ -1019,6 +1022,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                 ud->abs_addr = abs_addr;
                 ud->rel_addr = rel_addr;
                 ud->jit_return_label = jit_return_label;
+                ud->post_unwind_callback = post_unwind_callback;
                 cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
                 MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
                         MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));
@@ -1063,6 +1067,9 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
 
     if (return_value)
         MVM_args_set_result_obj(tc, return_value, 1);
+
+    if (post_unwind_callback)
+        post_unwind_callback(tc);
 }
 
 /* Gets a code object for a frame, lazily deserializing it if needed. */

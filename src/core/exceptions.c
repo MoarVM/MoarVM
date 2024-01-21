@@ -331,6 +331,13 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
  * an exception object already, it will be used; NULL can be passed if there
  * is not one, meaning it will be created if needed (based on the category
  * parameter; if ex_obj is passed, the category is not used). */
+static void cleanup_control_handler(MVMThreadContext *tc) {
+    if (tc->active_control_handler) {
+        MVM_free(tc->active_control_handler);
+        tc->active_control_handler = NULL;
+    }
+
+}
 static void unwind_after_handler(MVMThreadContext *tc, void *sr_data);
 static void cleanup_active_handler(MVMThreadContext *tc, void *sr_data);
 static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_obj,
@@ -346,13 +353,54 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         /* Deliberate fallthrough to unwind below. */
         MVM_FALLTHROUGH
 
-    case MVM_EX_ACTION_GOTO:
+    case MVM_EX_ACTION_GOTO: ;
+        MVMPostUnwind cch = NULL;
+        if (category == MVM_EX_CAT_RETURN) {
+            cch = &cleanup_control_handler;
+            MVMuint8 set_ach = 0;
+            if (tc->active_control_handler == NULL)
+                set_ach = 1;
+            else {
+                /* Search down the stack for a control handler. And see if ours or
+                 * the saved one is deeper in the stack. The deeper one wins. */
+                MVMCallStackIterator iter;
+                MVM_callstack_iter_frame_init(tc, &iter, tc->stack_top);
+                MVMuint8 frame_found = 0;
+                while (MVM_callstack_iter_move_next(tc, &iter)) {
+                    MVMFrame *cur_frame = MVM_callstack_iter_current_frame(tc, &iter);
+                    if (cur_frame == lh.frame) {
+                        lh.frame = tc->active_control_handler->frame;
+                        lh.handler = tc->active_control_handler->handler;
+                        lh.jit_handler = tc->active_control_handler->jit_handler;
+                        tc->last_payload = tc->active_control_handler->ex_obj;
+                        frame_found = 1;
+                        break;
+                    }
+                    else if (cur_frame == tc->active_control_handler->frame) {
+                        MVM_free(tc->active_control_handler);
+                        set_ach = 1;
+                        frame_found = 1;
+                        break;
+                    }
+                }
+                if (!frame_found) {
+                    MVM_panic(1, "Did not find CONTROL return frame");
+                }
+            }
+            if (set_ach) {
+                tc->active_control_handler = MVM_malloc(sizeof(MVMActiveHandler));
+                tc->active_control_handler->frame       = lh.frame;
+                tc->active_control_handler->handler     = lh.handler;
+                tc->active_control_handler->jit_handler = lh.jit_handler;
+                tc->active_control_handler->ex_obj      = payload;
+            }
+        }
         if (lh.jit_handler) {
             void **labels = lh.frame->spesh_cand->body.jitcode->labels;
             MVMuint8  *pc = lh.frame->spesh_cand->body.jitcode->bytecode;
-            MVM_frame_unwind_to(tc, lh.frame, pc, 0, NULL, labels[lh.jit_handler->goto_label]);
+            MVM_frame_unwind_to(tc, lh.frame, pc, 0, NULL, labels[lh.jit_handler->goto_label], cch);
         } else {
-            MVM_frame_unwind_to(tc, lh.frame, NULL, lh.handler->goto_offset, NULL, NULL);
+            MVM_frame_unwind_to(tc, lh.frame, NULL, lh.handler->goto_offset, NULL, NULL, cch);
         }
 
         break;
@@ -446,10 +494,10 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     /* Do the unwinding as needed. */
     if (exception && exception->body.return_after_unwind) {
         /* we can't very well return to our the unwod JIT address */
-        MVM_frame_unwind_to(tc, frame->caller, NULL, 0, tc->last_handler_result, NULL);
+        MVM_frame_unwind_to(tc, frame->caller, NULL, 0, tc->last_handler_result, NULL, NULL);
     }
     else {
-        MVM_frame_unwind_to(tc, frame, abs_address, goto_offset, NULL, jit_return_label);
+        MVM_frame_unwind_to(tc, frame, abs_address, goto_offset, NULL, jit_return_label, NULL);
     }
 }
 
@@ -828,7 +876,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
         MVM_exception_throw_adhoc(tc, "Can only resume the current exception");
 
     /* Unwind to the thrower of the exception; set PC and jit entry label. */
-    MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL, ex->body.jit_resume_label);
+    MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL, ex->body.jit_resume_label, NULL);
 }
 
 /* Panics and shuts down the VM. Don't do this unless it's something quite
