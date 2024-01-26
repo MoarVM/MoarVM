@@ -2691,7 +2691,9 @@
       (carg $1 ptr))))
 
 (template: lastexpayload
-  (^getf (tc) MVMThreadContext last_payload))
+  (if (nz (and (^getf (^frame) MVMFrame flags) (const (&QUOTE MVM_FRAME_FLAG_RETURNING) 1)))
+    (^getf (^getf (^frame) MVMFrame flags) MVMFrameExtra unwind_result)
+    (^getf (tc) MVMThreadContext last_payload)))
 
 (template: decoderaddbytes
   (dov

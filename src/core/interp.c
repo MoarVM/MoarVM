@@ -4914,7 +4914,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 goto NEXT;
             }
             OP(lastexpayload):
-                GET_REG(cur_op, 0).o = tc->last_payload;
+                if (tc->cur_frame->flags & MVM_FRAME_FLAG_RETURNING)
+                    GET_REG(cur_op, 0).o = tc->cur_frame->extra->unwind_result;
+                else
+                    GET_REG(cur_op, 0).o = tc->last_payload;
                 cur_op += 2;
                 goto NEXT;
             OP(cancelnotify):

@@ -5,6 +5,7 @@
 #define MVM_FRAME_FLAG_HLL_2            1 << 4
 #define MVM_FRAME_FLAG_HLL_3            1 << 5
 #define MVM_FRAME_FLAG_HLL_4            1 << 6
+#define MVM_FRAME_FLAG_RETURNING        1 << 7
 
 /* Function pointer type of special return handler. These are used to allow
  * return to be intercepted in some way, for things that need to do multiple
@@ -114,6 +115,11 @@ struct MVMFrameExtra {
      * we have a void caller, then we stash it here so we can pass it to the
      * exit handler. */
     MVMObject *exit_handler_result;
+
+    /* When calling an exit handler while returning to this frame we save the
+     * return value here. It's needed when the exit handler manages to escape
+     * the unwind (e.g. via a return). It will be retrieved by lastexpayload. */
+    MVMObject *unwind_result;
 };
 
 /* Checks if a frame is allocated on a call stack or on the heap. If it is on

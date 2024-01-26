@@ -423,6 +423,8 @@ void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist
         if (e->dynlex_cache_name)
             MVM_gc_worklist_add(tc, worklist, &e->dynlex_cache_name);
         MVM_gc_worklist_add(tc, worklist, &e->exit_handler_result);
+        if (cur_frame->flags & MVM_FRAME_FLAG_RETURNING)
+            MVM_gc_worklist_add(tc, worklist, &e->unwind_result);
     }
 
     /* Scan the registers. */
