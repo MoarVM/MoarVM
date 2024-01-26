@@ -1,3 +1,20 @@
+New in 2024.01
+
+Core:
++ Add a bunch of *_u stuff [f7753f07] [6c0271c1] [ec1649d5] [e1b2af27]
+  [eae59995] [594df3df] [274cb0f3] [06a7b2c9] [017e0429] [40d1ccd4] [86ed9a19]
+  [444feb52]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
+
 New in 2023.12
 
 Core:
