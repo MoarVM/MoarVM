@@ -8,6 +8,7 @@ static void mk_storage_spec(MVMThreadContext *tc, MVMuint16 bits, MVMStorageSpec
     spec->inlineable      = MVM_STORAGE_SPEC_INLINED;
     spec->boxed_primitive = MVM_STORAGE_SPEC_BP_NUM;
     spec->can_box         = MVM_STORAGE_SPEC_CAN_BOX_NUM;
+    spec->is_unsigned     = 0;
     switch (bits) {
         case 64: spec->align = ALIGNOF(MVMnum64); break;
         case 32: spec->align = ALIGNOF(MVMnum32); break;
