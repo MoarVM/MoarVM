@@ -14,13 +14,13 @@ static MVMint64 mp_get_int64(MVMThreadContext *tc, mp_int * a) {
      * but the negative max is -(2**63), which is 64 bits. */
     if (MP_NEG == a->sign) {
         if (bits > 64) {
-            MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", bits);
+            MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer. Did you mix int and Int or literals?", bits);
         }
         ++signed_max;
     }
     else {
         if (bits > 63) {
-            MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", bits);
+            MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer. Did you mix int and Int or literals?", bits);
         }
     }
 
@@ -28,7 +28,7 @@ static MVMint64 mp_get_int64(MVMThreadContext *tc, mp_int * a) {
 
     if (res > signed_max) {
         /* The mp_int was bigger than a signed result could be. */
-        MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", bits);
+        MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer. Did you mix int and Int or literals?", bits);
     }
 
     return MP_NEG == a->sign ? -res : res;
@@ -43,7 +43,7 @@ static MVMuint64 mp_get_uint64(MVMThreadContext *tc, mp_int * a) {
     const int bits = mp_count_bits(a);
 
     if (bits > 64) {
-        MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer", bits);
+        MVM_exception_throw_adhoc(tc, "Cannot unbox %d bit wide bigint into native integer. Did you mix int and Int or literals?", bits);
     }
 
     return mp_get_mag_ull(a);
