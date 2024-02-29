@@ -1,3 +1,22 @@
+New in 2024.02
+
+Core:
++ Fix uninitialized is_unsigned flag in P6num [a1a18e98]
++ Slightly optimize creating backtraces [6a9c523d]
++ Update libuv to version 1.48.0 [cc00279b]
++ Provide hint for why Rakudo tried to convert from Int to int, when it cannot.
+  [8320c9f4]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
+
 New in 2024.01
 
 Core:
