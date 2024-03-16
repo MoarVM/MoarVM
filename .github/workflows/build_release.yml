@@ -1,0 +1,110 @@
+name: Build MoarVM Releases
+
+# Create triggers the workflow on new tag's or branches
+on:
+  create: #[push, create, workflow_dispatch]
+    tags:
+    - 2[0-9]+.[0-1][0-1]'**'
+  # workflow_dispatch:
+
+jobs:
+  build_POSIX_MoarVM:
+    # Check https://github.com/actions/runner-images#available-images for available GihHub runners
+    strategy:
+      matrix:
+        posix-os: [ubuntu-22.04, ubuntu-20.04, macos-12, macos-13]
+        
+    runs-on: ${{ matrix.posix-os }}
+    if: github.event.ref_type == 'tag'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: 'true'
+          ref: ${{ github.event.ref }}
+
+      - name: Run "perl Configure.pl"
+        run: perl Configure.pl --debug --prefix MoarVM.${{matrix.posix-os}} --make-install --relocatable
+
+      - name: Run "make install"
+        run: make -j2 install
+
+      - name: Create TAR.GZ file
+        run: tar -cvzf MoarVM.${{matrix.posix-os}}.tar.gz MoarVM.${{matrix.posix-os}}
+        
+      - name: List my stuff
+        run: ls -l MoarVM.${{matrix.posix-os}}.tar.gz
+        
+      - name: Upload MoarVM ${{matrix.posix-os}} artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MoarVM.${{matrix.posix-os}}
+          path: MoarVM.${{matrix.posix-os}}.tar.gz
+          if-no-files-found: error
+          
+ 
+  build_Windows_MoarVM:
+    strategy:
+      matrix:
+        windows-os: [windows-2022, windows-2019]
+        
+    runs-on: ${{ matrix.windows-os }}
+    if: github.event.ref_type == 'tag'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-tags: 'true'
+          ref: ${{ github.event.ref }}
+        
+      - name: Setup VS Dev Environment
+        uses: compnerd/gha-setup-vsdevenv@v6
+
+      - name: Run "perl Configure.pl"
+        run: perl Configure.pl --debug --toolchain msvc --compiler cl --prefix MoarVM.${{matrix.windows-os}} --make-install --relocatable
+
+      - name: Run "nmake install"
+        run: |
+          set CL=/MP
+          nmake install
+
+      - name: Create TAR.GZ file
+        run: tar -cvzf MoarVM.${{matrix.windows-os}}.tar.gz MoarVM.${{matrix.windows-os}}
+        
+      - name: List my stuff
+        run: Get-ChildItem MoarVM.${{matrix.windows-os}}.tar.gz
+
+      - name: Upload MoarVM ${{matrix.windows-os}} artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MoarVM.${{matrix.windows-os}}
+          path: MoarVM.${{matrix.windows-os}}.tar.gz
+          if-no-files-found: error
+          
+    
+  release_MoarVM_artifacts:
+    needs: [build_POSIX_MoarVM, build_Windows_MoarVM]
+    runs-on: ubuntu-latest
+    
+    steps:
+    
+    - uses: actions/download-artifact@v4
+      with:
+        path: MoarVM_artifacts
+        
+    - name: List my stuff
+      run: ls -lAR
+      
+    - name: Release MoarVM releases
+      uses: ncipollo/release-action@v1
+      with:
+        # ncipollo/release-action needs a tag! Either a usual "GIT TAG" or an dedicated TAG, see below!
+        #tag: 2024.02 # set a TAG if you want a release to be build on GitHub _BUT_ do not provide a GIT TAG
+        draft: false
+        allowUpdates: true
+        artifactErrorsFailBuild: true
+        artifacts: "MoarVM_artifacts/MoarVM*/MoarVM*"
+        token: ${{ secrets.GITHUB_TOKEN }}
+        
