@@ -248,8 +248,8 @@ static MVMint32 search_frame_handlers_lex(MVMThreadContext *tc, MVMFrame *f,
             }
             if (skipping || !handler_can_handle(f, fh, cat, payload))
                 continue;
-            if (pc >= fh->start_offset &&
-                    pc <= fh->end_offset &&
+            if (((pc >= fh->start_offset && pc <= fh->end_offset) ||
+                    f->flags == MVM_FRAME_FLAG_EXIT_HAND_RUN) &&
                     !in_handler_stack(tc, fh, f)) {
                 if (skipping && f->static_info->body.is_thunk)
                     return 0;
