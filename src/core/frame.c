@@ -1012,6 +1012,23 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                 if (cur_frame == tc->thread_entry_frame)
                     MVM_exception_throw_adhoc(tc, "Thread entry point frame cannot have an exit handler");
 
+                /* It's possible for the exit handler to escape normal control
+                 * flow (e.g. via a &return). In that case instead of reaching
+                 * the handler this unwind targets, we would return to the
+                 * frame's return_address. To make things right, we tune the
+                 * unwind target frame's return address to point to the
+                 * handler. Also set that frames RETURNING flag and preserve
+                 * the return value, getlexpayload can then pick it up again. */
+                if (abs_addr)
+                    frame->return_address = abs_addr;
+                else if (rel_addr)
+                    frame->return_address = MVM_frame_effective_bytecode(frame) + rel_addr;
+                if (jit_return_label)
+                    frame->jit_entry_label = jit_return_label;
+                frame->flags |= MVM_FRAME_FLAG_RETURNING;
+                MVMFrameExtra *e = MVM_frame_extra(tc, frame);
+                e->unwind_result = tc->last_payload;
+
                 MVMHLLConfig *hll = MVM_hll_current(tc);
                 MVMUnwindData *ud = MVM_callstack_allocate_special_return(tc,
                         continue_unwind, NULL, mark_unwind_data, sizeof(MVMUnwindData));

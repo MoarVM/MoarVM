@@ -88,6 +88,7 @@
 /* type declarations */
 |.type REGISTER, MVMRegister
 |.type FRAME, MVMFrame
+|.type FRAMEEXTRA, MVMFrameExtra
 |.type ARGCTX, MVMArgProcContext
 |.type CALLSITE, MVMCallsite
 |.type CALLSITEPTR, MVMCallsite*
@@ -2220,7 +2221,15 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     }
     case MVM_OP_lastexpayload: {
         MVMint16 dst = ins->operands[0].reg.orig;
+        | mov TMP1, TC->cur_frame;
+        | test word FRAME:TMP1->flags, MVM_FRAME_FLAG_RETURNING;
+        | jnz >1;
         | mov TMP3, aword TC->last_payload;
+        | jmp >2;
+        |1:
+        | mov TMP1, aword FRAME:TMP1->extra;
+        | mov TMP3, aword FRAMEEXTRA:TMP1->unwind_result;
+        |2:
         | mov aword WORK[dst], TMP3;
         break;
     }
