@@ -63,7 +63,7 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
         .map = NULL
     };
     if (MVM_code_iscode(tc, invokee))
-        MVM_frame_dispatch(tc, (MVMCode *)invokee, args, -1);
+        MVM_frame_dispatch(tc, (MVMCode *)invokee, args, NULL);
     else
         ((MVMCFunction *)invokee)->body.func(tc, args);
 

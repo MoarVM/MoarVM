@@ -545,7 +545,7 @@ static void run_dispatch(MVMThreadContext *tc, MVMCallStackDispatchRecord *recor
         record->outcome.delegate_disp = NULL;
         record->outcome.delegate_capture = NULL;
         tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
-        MVM_frame_dispatch(tc, (MVMCode *)dispatch, dispatch_args, -1);
+        MVM_frame_dispatch(tc, (MVMCode *)dispatch, dispatch_args, NULL);
     }
     else {
         MVM_panic(1, "dispatch callback only supported as a MVMCFunction or MVMCode");
@@ -628,7 +628,7 @@ static void run_resume(MVMThreadContext *tc, MVMCallStackDispatchRecord *record,
         record->outcome.delegate_disp = NULL;
         record->outcome.delegate_capture = NULL;
         tc->cur_frame = find_calling_frame(tc, tc->stack_top->prev);
-        MVM_frame_dispatch(tc, (MVMCode *)resume, resume_args, -1);
+        MVM_frame_dispatch(tc, (MVMCode *)resume, resume_args, NULL);
     }
     else {
         MVM_panic(1, "resume callback only supported as a MVMCode");
@@ -3174,7 +3174,7 @@ MVMuint32 MVM_disp_program_record_end(MVMThreadContext *tc, MVMCallStackDispatch
                 default:
                     break;
             }
-            MVM_frame_dispatch(tc, record->outcome.code, record->outcome.args, -1);
+            MVM_frame_dispatch(tc, record->outcome.code, record->outcome.args, NULL);
             return 0;
         }
         case MVM_DISP_OUTCOME_CFUNCTION:
@@ -3578,7 +3578,7 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                             MVM_spesh_log_bytecode_target(tc, spesh_cid, bytecode_offset, code);
                     });
                 }
-                MVM_frame_dispatch(tc, code, invoke_args, -1);
+                MVM_frame_dispatch(tc, code, invoke_args, NULL);
                 goto accept;
             }
             OP(MVMDispOpcodeResultCFunction): {

@@ -95,6 +95,7 @@ static void perform_osr(MVMThreadContext *tc, MVMSpeshCandidate *specialized) {
 void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
     MVMStaticFrame *sf = tc->cur_frame->static_info;
     MVMStaticFrameSpesh *spesh = sf->body.spesh;
+    MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards = spesh->body.spesh_cands_and_arg_guards;
     MVMint32 num_cands = spesh->body.num_spesh_candidates;
     if (sf != tc->osr_hunt_static_frame || num_cands != tc->osr_hunt_num_spesh_candidates) {
         /* Provided OSR is enabled... */
@@ -103,10 +104,10 @@ void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
             if (!tc->cur_frame->extra || !tc->cur_frame->extra->caller_pos_needed) {
                 /* Check if there's a candidate available and install it if so. */
                 MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
-                    spesh->body.spesh_arg_guard,
+                    (cands_and_arg_guards ? cands_and_arg_guards->spesh_arg_guard : NULL),
                     tc->cur_frame->params.arg_info, NULL);
                 if (ag_result >= 0) {
-                    perform_osr(tc, spesh->body.spesh_candidates[ag_result]);
+                    perform_osr(tc, cands_and_arg_guards->spesh_candidates[ag_result]);
                 }
                 else {
 #if MVM_LOG_OSR

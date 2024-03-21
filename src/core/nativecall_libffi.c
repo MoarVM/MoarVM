@@ -205,7 +205,7 @@ static void callback_invoke(MVMThreadContext *tc, void *data) {
         .source = cid->args,
         .map = MVM_args_identity_map(tc, cid->cs)
     };
-    MVM_frame_dispatch(tc, cid->invokee, args, -1);
+    MVM_frame_dispatch(tc, cid->invokee, args, NULL);
 
     /* Ensure we exit interp after callback. */
     tc->thread_entry_frame = tc->cur_frame;
