@@ -1,3 +1,18 @@
+New in 2024.03
+
+Core:
++ Add a GitHub release build workflow (ubuntu, macos, windows) [2a60bd07]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
+
 New in 2024.02
 
 Core:
