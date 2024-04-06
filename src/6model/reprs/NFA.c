@@ -481,7 +481,6 @@ static MVMint32 in_done(MVMuint32 *done, MVMuint32 numdone, MVMuint32 st) {
 
 static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *target, MVMint64 offset, MVMint64 *total_fates_out) {
     MVMint64  eos     = MVM_string_graphs(tc, target);
-    MVMuint32 gen     = 1;
     MVMint64  numcur  = 0;
     MVMint64  numnext = 0;
     MVMint64  numdone = 0;
@@ -860,9 +859,8 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
             if (MVM_UNLIKELY(nfadeb)) fprintf(stderr,"\n");
         }
 
-        /* Move to next character and generation. */
+        /* Move to next character. */
         offset++;
-        gen++;
     }
     /* strip any literal lengths, leaving only fates */
     if (usedlonglit || nfadeb) {
