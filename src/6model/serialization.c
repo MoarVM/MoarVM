@@ -6,7 +6,7 @@
 #endif
 
 /* Whether we deserialize lazily or not. */
-#define MVM_SERIALIZATION_LAZY 1
+#define MVM_SERIALIZATION_LAZY 0
 
 /* Version of the serialization format that we are currently at and lowest
  * version we support. */
