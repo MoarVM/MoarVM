@@ -198,7 +198,7 @@ MVMSerializationContext * MVM_sc_get_sc_slow(MVMThreadContext *tc, MVMCompUnit *
 /* Checks if an SC is currently in the process of doing deserialization work. */
 MVM_STATIC_INLINE MVMint64 sc_working(MVMSerializationContext *sc) {
     MVMSerializationReader *sr = sc->body->sr;
-    return sr && sr->working;
+    return sr && MVM_load(&sr->working);
 }
 
 MVMuint8 MVM_sc_is_object_immediately_available(MVMThreadContext *tc, MVMSerializationContext *sc, MVMint64 idx) {
