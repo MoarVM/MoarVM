@@ -140,7 +140,7 @@ static char *twoway_memmem_uint32(const uint32_t *h, const uint32_t *z, const ui
 	else p = p0;
 
 	/* Periodic needle? */
-	if (memcmp(n, n+p, ms+1)) {
+	if (memcmp(n, n+p, (ms+1) * sizeof(uint32_t))) {
 		mem0 = 0;
 		p = MVM_MAX(ms, l-ms-1) + 1;
 	} else mem0 = l-p;
