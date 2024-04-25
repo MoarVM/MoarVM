@@ -1,3 +1,20 @@
+New in 2024.04
+
+Core:
++ Increase the size of the int-to-str cache to 65 [f2220d93]
++ Use atomic operations for on SerializationReader's working flag [d5dafa9b]
++ Fix memcmp call [47f518af]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
+
 New in 2024.03
 
 Core:
