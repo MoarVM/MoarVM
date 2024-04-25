@@ -91,8 +91,6 @@ static char * i64toa_jeaiii(int64_t i, char* b) {
 /* End code */
 
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
-    char buffer[20];
-    int len;
     /* See if we can hit the cache. */
     int cache = 0 <= i && i < MVM_INT_TO_STR_CACHE_SIZE;
     if (cache) {
@@ -101,24 +99,21 @@ MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
             return cached;
     }
     /* Otherwise, need to do the work; cache it if in range. */
-    len = i64toa_jeaiii(i, buffer) - buffer;
+    char *buffer = MVM_malloc(20);
+    int len = i64toa_jeaiii(i, buffer) - buffer;
     if (0 <= len) {
-        MVMString *result = NULL;
-        MVMGrapheme8 *blob = MVM_malloc(len);
-        memcpy(blob, buffer, len);
-        result = MVM_string_ascii_from_buf_nocheck(tc, blob, len);
+        MVMString *result = MVM_string_ascii_from_buf_nocheck(tc, (MVMGrapheme8 *)buffer, len);
         if (cache)
             tc->instance->int_to_str_cache[i] = result;
         return result;
     }
     else {
+        MVM_free(buffer);
         MVM_exception_throw_adhoc(tc, "Could not stringify integer (%"PRId64")", i);
     }
 }
 
 MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
-    char buffer[20];
-    int len;
     /* See if we can hit the cache. */
     int cache = i < MVM_INT_TO_STR_CACHE_SIZE;
     if (cache) {
@@ -127,17 +122,16 @@ MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
             return cached;
     }
     /* Otherwise, need to do the work; cache it if in range. */
-    len = u64toa_jeaiii(i, buffer) - buffer;
+    char *buffer = MVM_malloc(20);
+    int len = u64toa_jeaiii(i, buffer) - buffer;
     if (0 <= len) {
-        MVMString *result = NULL;
-        MVMGrapheme8 *blob = MVM_malloc(len);
-        memcpy(blob, buffer, len);
-        result = MVM_string_ascii_from_buf_nocheck(tc, blob, len);
+        MVMString *result = MVM_string_ascii_from_buf_nocheck(tc, (MVMGrapheme8 *)buffer, len);
         if (cache)
             tc->instance->int_to_str_cache[i] = result;
         return result;
     }
     else {
+        MVM_free(buffer);
         MVM_exception_throw_adhoc(tc, "Could not stringify integer (%"PRIu64")", i);
     }
 }
