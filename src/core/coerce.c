@@ -146,15 +146,16 @@ MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
 
 MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
     /* See if we can hit the cache. */
-    int cache = i < MVM_INT_TO_STR_CACHE_SIZE;
+    const int cache = i < MVM_INT_TO_STR_CACHE_SIZE;
     if (cache) {
         MVMString *cached = tc->instance->int_to_str_cache[i];
         if (cached)
             return cached;
     }
     /* Otherwise, need to do the work; cache it if in range. */
-    char *buffer = MVM_malloc(20);
-    int len = u64toa_jeaiii(i, buffer) - buffer;
+    const int msb = 64 - __builtin_clzll(i | 1);
+    char *buffer = MVM_malloc(mag[msb]);
+    const int len = u64toa_jeaiii(i, buffer) - buffer;
     if (0 <= len) {
         MVMString *result = MVM_string_ascii_from_buf_nocheck(tc, (MVMGrapheme8 *)buffer, len);
         if (cache)
