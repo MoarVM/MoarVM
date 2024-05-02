@@ -261,6 +261,16 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
                 : strand_len;
             MVMGrapheme8  *result_blob8 = result8 + result_pos;
             switch (MVM_string_gi_blob_type(tc, gi)) {
+            case MVM_STRING_IN_SITU_32: {
+                MVMStringIndex i;
+                MVMGrapheme32 *active_blob =
+                    MVM_string_gi_active_in_situ_32_pos(tc, gi);
+                MVM_VECTORIZE_LOOP
+                for (i = 0; i < to_copy; i++) {
+                    result_blob8[i] = active_blob[i];
+                }
+                break;
+            }
             case MVM_STRING_GRAPHEME_32: {
                 MVMStringIndex i;
                 MVMGrapheme32 *active_blob =
@@ -271,6 +281,13 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
                 }
                 break;
             }
+            case MVM_STRING_IN_SITU_8:
+                memcpy(
+                    result_blob8,
+                    MVM_string_gi_active_in_situ_8_pos(tc, gi),
+                    to_copy * sizeof(MVMGrapheme8)
+                );
+                break;
             case MVM_STRING_GRAPHEME_8:
             case MVM_STRING_GRAPHEME_ASCII: {
                 memcpy(
@@ -2437,9 +2454,23 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
             i++;
         }
     }
+    else if (a->body.storage_type == MVM_STRING_IN_SITU_8 || b->body.storage_type == MVM_STRING_IN_SITU_8) {
+        MVMGrapheme8  *a_blob8 = a->body.storage.in_situ_8;
+        MVMGrapheme8  *b_blob8 = b->body.storage.in_situ_8;
+        while (i < scanlen && a_blob8[i] == b_blob8[i]) {
+            i++;
+        }
+    }
     else if (a->body.storage_type == MVM_STRING_GRAPHEME_32 && b->body.storage_type == MVM_STRING_GRAPHEME_32) {
         MVMGrapheme32  *a_blob32 = a->body.storage.blob_32;
         MVMGrapheme32  *b_blob32 = b->body.storage.blob_32;
+        while (i < scanlen && a_blob32[i] == b_blob32[i]) {
+            i++;
+        }
+    }
+    else if (a->body.storage_type == MVM_STRING_IN_SITU_32 || b->body.storage_type == MVM_STRING_IN_SITU_32) {
+        MVMGrapheme32  *a_blob32 = a->body.storage.in_situ_32;
+        MVMGrapheme32  *b_blob32 = b->body.storage.in_situ_32;
         while (i < scanlen && a_blob32[i] == b_blob32[i]) {
             i++;
         }

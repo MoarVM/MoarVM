@@ -144,8 +144,14 @@ MVM_STATIC_INLINE MVMStringIndex MVM_string_gi_graphs_left_in_strand(MVMThreadCo
 MVM_STATIC_INLINE MVMGrapheme8 * MVM_string_gi_active_blob_8_pos(MVMThreadContext *tc, MVMGraphemeIter *gi) {
     return gi->active_blob.blob_8 + gi->pos;
 }
+MVM_STATIC_INLINE MVMGrapheme8 * MVM_string_gi_active_in_situ_8_pos(MVMThreadContext *tc, MVMGraphemeIter *gi) {
+    return gi->active_blob.in_situ_8 + gi->pos;
+}
 MVM_STATIC_INLINE MVMGrapheme32 * MVM_string_gi_active_blob_32_pos(MVMThreadContext *tc, MVMGraphemeIter *gi) {
     return gi->active_blob.blob_32 + gi->pos;
+}
+MVM_STATIC_INLINE MVMGrapheme32 * MVM_string_gi_active_in_situ_32_pos(MVMThreadContext *tc, MVMGraphemeIter *gi) {
+    return gi->active_blob.in_situ_32 + gi->pos;
 }
 MVM_STATIC_INLINE MVMuint16 MVM_string_gi_blob_type(MVMThreadContext *tc, MVMGraphemeIter *gi) {
     return gi->blob_type;
