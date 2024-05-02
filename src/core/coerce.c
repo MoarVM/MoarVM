@@ -89,18 +89,20 @@ static char * i64toa_jeaiii(int64_t i, char* b) {
 }
 
 /* End code */
-
+static const int mag[] = { 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10, 11, 11, 11, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 15, 15, 15, 16, 16, 16, 16, 17, 17, 17, 18, 18, 18, 19, 19, 19, 19, 20 };
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     /* See if we can hit the cache. */
-    int cache = 0 <= i && i < MVM_INT_TO_STR_CACHE_SIZE;
+    const int cache = 0 <= i && i < MVM_INT_TO_STR_CACHE_SIZE;
     if (cache) {
         MVMString *cached = tc->instance->int_to_str_cache[i];
         if (cached)
             return cached;
     }
     /* Otherwise, need to do the work; cache it if in range. */
-    char *buffer = MVM_malloc(20);
-    int len = i64toa_jeaiii(i, buffer) - buffer;
+    const int is_negative = i < 0;
+    const int msb = 64 - __builtin_clzll((is_negative ? -i : i) | 1);
+    char *buffer = MVM_malloc(mag[msb] + is_negative);
+    const int len = i64toa_jeaiii(i, buffer) - buffer;
     if (0 <= len) {
         MVMString *result = MVM_string_ascii_from_buf_nocheck(tc, (MVMGrapheme8 *)buffer, len);
         if (cache)
