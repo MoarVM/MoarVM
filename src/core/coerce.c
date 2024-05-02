@@ -4,6 +4,35 @@
 #if defined(_MSC_VER)
 #define strtoll _strtoi64
 #define snprintf _snprintf
+/* slightly adapted to use in MoarVM */
+//===-- int_lib.h - configuration header for compiler-rt  -----------------===//
+//
+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
+// See https://llvm.org/LICENSE.txt for license information.
+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
+//
+//===----------------------------------------------------------------------===//
+//
+// This file is a configuration header for compiler-rt.
+// This file is not part of the interface of this library.
+//
+//===----------------------------------------------------------------------===//
+#if defined(_M_ARM) || defined(_M_X64)
+static int __inline __builtin_clzll(uint64_t value) {
+  unsigned long leading_zero = 0;
+  if (_BitScanReverse64(&leading_zero, value))
+    return 63 - leading_zero;
+  return 63;
+}
+#else
+static int __inline __builtin_clzll(uint64_t value) {
+  uint32_t msh = (uint32_t)(value >> 32);
+  uint32_t lsh = (uint32_t)(value & 0xFFFFFFFF);
+  if (msh != 0)
+    return __builtin_clz(msh);
+  return 32 + __builtin_clz(lsh);
+}
+#endif
 #endif
 
 MVMint64 MVM_coerce_istrue_s(MVMThreadContext *tc, MVMString *str) {
