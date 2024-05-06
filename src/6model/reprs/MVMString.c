@@ -102,6 +102,9 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
             return sizeof(MVMGrapheme32) * body->num_graphs;
         case MVM_STRING_STRAND:
             return sizeof(MVMStringStrand) * body->num_strands;
+        case MVM_STRING_IN_SITU_8:
+        case MVM_STRING_IN_SITU_32:
+            return 0;
         default:
             return body->num_graphs;
     }
