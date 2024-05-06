@@ -903,10 +903,20 @@ MVMObject * MVM_coerce_sI(MVMThreadContext *tc, MVMString *s, MVMObject *type) {
         case MVM_STRING_GRAPHEME_8:
             memcpy(buf, s->body.storage.blob_8, sizeof(MVMGrapheme8) * s->body.num_graphs);
             break;
+        case MVM_STRING_IN_SITU_8:
+            memcpy(buf, s->body.storage.in_situ_8, sizeof(MVMGrapheme8) * s->body.num_graphs);
+            break;
         case MVM_STRING_GRAPHEME_32:
             for (i = 0; i < s->body.num_graphs; i++) {
                 buf[i] = can_fit_into_8bit(s->body.storage.blob_32[i])
                     ? s->body.storage.blob_32[i]
+                    : '?'; /* Add a filler bogus char if it can't fit */
+            }
+            break;
+        case MVM_STRING_IN_SITU_32:
+            for (i = 0; i < s->body.num_graphs; i++) {
+                buf[i] = can_fit_into_8bit(s->body.storage.in_situ_32[i])
+                    ? s->body.storage.in_situ_32[i]
                     : '?'; /* Add a filler bogus char if it can't fit */
             }
             break;
