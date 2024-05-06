@@ -228,6 +228,10 @@ static int string_can_be_8bit(MVMThreadContext *tc, MVMGraphemeIter *gi_orig, MV
             if (!MVM_string_buf32_can_fit_into_8bit(MVM_string_gi_active_blob_32_pos(tc, &gi), togo))
                 return 0;
         }
+        else if (MVM_string_gi_blob_type(tc, &gi) == MVM_STRING_IN_SITU_32) {
+            if (!MVM_string_buf32_can_fit_into_8bit(MVM_string_gi_active_in_situ_32_pos(tc, &gi), togo))
+                return 0;
+        }
         pos += togo;
         if (num_graphs == pos || !MVM_string_gi_has_more_strands_rep(tc, &gi)) {
             break;
@@ -333,10 +337,29 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
                     }
                     break;
                 }
+                case MVM_STRING_IN_SITU_8: {
+                    MVMGrapheme8  *active_blob =
+                        MVM_string_gi_active_in_situ_8_pos(tc, gi);
+                    MVMGrapheme32 *result_blob32 = result32 + result_pos;
+                    MVMStringIndex i;
+                    MVM_VECTORIZE_LOOP
+                    for (i = 0; i < to_copy; i++) {
+                        result_blob32[i] = active_blob[i];
+                    }
+                    break;
+                }
                 case MVM_STRING_GRAPHEME_32: {
                     memcpy(
                         result32 + result_pos,
                         MVM_string_gi_active_blob_32_pos(tc, gi),
+                        to_copy * sizeof(MVMGrapheme32)
+                    );
+                    break;
+                }
+                case MVM_STRING_IN_SITU_32: {
+                    memcpy(
+                        result32 + result_pos,
+                        MVM_string_gi_active_in_situ_32_pos(tc, gi),
                         to_copy * sizeof(MVMGrapheme32)
                     );
                     break;
