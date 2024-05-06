@@ -294,6 +294,7 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
         if (count <= 8) {
             memcpy(result->body.storage.in_situ_8, new_buffer, count * sizeof(MVMGrapheme8));
             result->body.storage_type    = MVM_STRING_IN_SITU_8;
+            MVM_free(new_buffer);
         } else {
             result->body.storage.blob_8  = new_buffer;
             result->body.storage_type    = MVM_STRING_GRAPHEME_8;
