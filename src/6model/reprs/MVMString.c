@@ -47,9 +47,12 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
                 dest_body->num_strands * sizeof(MVMStringStrand));
             break;
         case MVM_STRING_IN_SITU_8:
-        case MVM_STRING_IN_SITU_32:
             memcpy(dest_body->storage.in_situ_8, src_body->storage.in_situ_8,
                 src_body->num_graphs * sizeof(MVMGrapheme8));
+            break;
+        case MVM_STRING_IN_SITU_32:
+            memcpy(dest_body->storage.in_situ_32, src_body->storage.in_situ_32,
+                src_body->num_graphs * sizeof(MVMGrapheme32));
             break;
         default:
             MVM_exception_throw_adhoc(tc, "Internal string corruption");
