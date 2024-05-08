@@ -199,8 +199,14 @@ static void turn_32bit_into_8bit_unchecked(MVMThreadContext *tc, MVMString *str)
     MVMStringIndex i;
     MVMGrapheme8 *dest_buf = NULL;
     MVMStringIndex num_graphs = MVM_string_graphs_nocheck(tc, str);
-    str->body.storage_type   = MVM_STRING_GRAPHEME_8;
-    dest_buf = str->body.storage.blob_8 = MVM_malloc(str->body.num_graphs * sizeof(MVMGrapheme8));
+    if (num_graphs <= 8) {
+        str->body.storage_type   = MVM_STRING_IN_SITU_8;
+        dest_buf = str->body.storage.in_situ_8;
+    }
+    else {
+        str->body.storage_type   = MVM_STRING_GRAPHEME_8;
+        dest_buf = str->body.storage.blob_8 = MVM_malloc(str->body.num_graphs * sizeof(MVMGrapheme8));
+    }
     MVM_VECTORIZE_LOOP
     for (i = 0; i < num_graphs; i++) {
         dest_buf[i] = old_buf[i];
