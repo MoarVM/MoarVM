@@ -260,9 +260,15 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
 
     if (string_can_be_8bit(tc, gi, result_graphs)) {
         MVMStringIndex result_pos = 0;
-        result->body.storage_type = MVM_STRING_GRAPHEME_8;
-        result8 = result->body.storage.blob_8 =
-            MVM_malloc(result_graphs * sizeof(MVMGrapheme8));
+        if (result_graphs <= 8) {
+            result->body.storage_type = MVM_STRING_IN_SITU_8;
+            result8 = result->body.storage.in_situ_8;
+        }
+        else {
+            result->body.storage_type = MVM_STRING_GRAPHEME_8;
+            result8 = result->body.storage.blob_8 =
+                MVM_malloc(result_graphs * sizeof(MVMGrapheme8));
+        }
         while (1) {
             MVMStringIndex strand_len =
                 MVM_string_gi_graphs_left_in_strand(tc, gi);
@@ -383,16 +389,7 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
             MVM_string_gi_next_strand_rep(tc, gi);
         }
     }
-    if (result->body.num_graphs <= 8 && result->body.storage_type == MVM_STRING_GRAPHEME_8) {
-        MVMuint8 i;
-        MVMGrapheme8 *old = result->body.storage.blob_8;
-        for (i = 0; i < result->body.num_graphs; i++) {
-            result->body.storage.in_situ_8[i] = old[i];
-        }
-        result->body.storage_type    = MVM_STRING_IN_SITU_8;
-        MVM_free(old);
-    }
-    else if (result->body.num_graphs <= 2 && result->body.storage_type == MVM_STRING_GRAPHEME_32) {
+    if (result->body.num_graphs <= 2 && result->body.storage_type == MVM_STRING_GRAPHEME_32) {
         MVMuint8 i;
         MVMGrapheme32 *old = result->body.storage.blob_32;
         for (i = 0; i < result->body.num_graphs; i++) {
