@@ -83,6 +83,7 @@ struct MVMIOLockable {
 struct MVMIOIntrospection {
     MVMint64 (*is_tty) (MVMThreadContext *tc, MVMOSHandle *h);
     MVMint64 (*native_descriptor) (MVMThreadContext *tc, MVMOSHandle *h);
+    MVMint64 (*mvm_open_mode) (MVMThreadContext *tc, MVMOSHandle *h);
 };
 
 MVMint64 MVM_io_close(MVMThreadContext *tc, MVMObject *oshandle);

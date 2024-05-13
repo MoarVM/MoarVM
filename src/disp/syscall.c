@@ -1270,6 +1270,31 @@ static MVMDispSysCall async_unix_listen = {
     .expected_concrete = { 1, 1, 1, 1, 0 },
 };
 
+/* handle-open-mode */
+static void handle_open_mode_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMOSHandle *handle  = (MVMOSHandle *)get_obj_arg(arg_info, 0);
+
+    if (handle->body.ops->introspection && handle->body.ops->introspection->mvm_open_mode) {
+        MVMint64 open_mode = handle->body.ops->introspection->mvm_open_mode(tc, handle);
+
+        if (open_mode < 1)
+            MVM_exception_throw_adhoc(tc, "Incomprehensible open mode: %lld (valid modes are 1=RO|2=WO|3=RW)", open_mode);
+
+        MVM_args_set_result_int(tc, (MVMint64) open_mode, MVM_RETURN_CURRENT_FRAME);
+    } else {
+        MVM_exception_throw_adhoc(tc, "Incompatible handle type supplied");
+    }
+}
+static MVMDispSysCall handle_open_mode = {
+    .c_name = "handle-open-mode",
+    .implementation = handle_open_mode_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_MVMOSHandle },
+    .expected_concrete = { 1 },
+};
+
 /* file-stat */
 static void file_stat_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMString *filename = get_str_arg(arg_info, 0);
@@ -1622,6 +1647,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &set_compunit_resolver);
     add_to_hash(tc, &async_unix_connect);
     add_to_hash(tc, &async_unix_listen);
+    add_to_hash(tc, &handle_open_mode);
     add_to_hash(tc, &file_stat);
     add_to_hash(tc, &stat_flags);
     add_to_hash(tc, &stat_time);
