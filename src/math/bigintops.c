@@ -105,8 +105,12 @@ static void store_bigint_result(MVMP6bigintBody *body, mp_int *i) {
  * The following inverts the bits of a negative bigint, adds 1 to that, and
  * appends sign-bit extension DIGITs to it to give us a 2s complement
  * representation in memory.  Do not call it on positive bigints.
+ *
+ * The caller of this was passed `c` that was created via MVM_malloc() and mp_init() before
+ * eventually passing it here, but since it can't catch any of the below exceptions, we
+ * need to clean it up in that case.
  */
-static void grow_and_negate(MVMThreadContext *tc, const mp_int *a, int size, mp_int *b) {
+static void grow_and_negate(MVMThreadContext *tc, const mp_int *a, int size, mp_int *b, mp_int *c) {
     mp_err err;
     int i;
     /* Always add an extra DIGIT so we can tell positive values
@@ -116,6 +120,8 @@ static void grow_and_negate(MVMThreadContext *tc, const mp_int *a, int size, mp_
 
     b->sign = MP_ZPOS;
     if ((err = mp_grow(b, actual_size)) != MP_OKAY) {
+        mp_clear(c);
+        MVM_free(c);
         MVM_exception_throw_adhoc(tc, "Error growing a big integer: %s", mp_error_to_string(err));
     }
     b->used = actual_size;
@@ -130,10 +136,14 @@ static void grow_and_negate(MVMThreadContext *tc, const mp_int *a, int size, mp_
      * this on positive bigints.
      */
     if ((err = mp_add_d(b, 1, b)) != MP_OKAY) {
+        mp_clear(c);
+        MVM_free(c);
         MVM_exception_throw_adhoc(tc, "Error adding a digit to a big integer: %s", mp_error_to_string(err));
     }
 }
 
+/* The callers of this create `c` via MVM_malloc() and mp_init() before passing it here, but
+ * since they can't catch any of the below exceptions, we need to clean it up in that case. */
 static void two_complement_bitop(MVMThreadContext *tc, mp_int *a, mp_int *b, mp_int *c,
                                  mp_err (*mp_bitop)(const mp_int *, const mp_int *, mp_int *)) {
 
@@ -147,17 +157,21 @@ static void two_complement_bitop(MVMThreadContext *tc, mp_int *a, mp_int *b, mp_
     g = b;
     if (MP_NEG == a->sign) {
         if ((err = mp_init(&d)) != MP_OKAY) {
+            mp_clear(c);
+            MVM_free(c);
             MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err));
         }
-        grow_and_negate(tc, a, b->used, &d);
+        grow_and_negate(tc, a, b->used, &d, c);
         f = &d;
     }
     if (MP_NEG == b->sign) {
         if ((err = mp_init(&e)) != MP_OKAY) {
+            mp_clear(c);
+            MVM_free(c);
             mp_clear(&d);
             MVM_exception_throw_adhoc(tc, "Error initializing a big integer: %s", mp_error_to_string(err));
         }
-        grow_and_negate(tc, b, a->used, &e);
+        grow_and_negate(tc, b, a->used, &e, c);
         g = &e;
     }
     /* f and g now guaranteed to each point to positive bigints containing
@@ -181,18 +195,26 @@ static void two_complement_bitop(MVMThreadContext *tc, mp_int *a, mp_int *b, mp_
             c->dp[i] = (~c->dp[i]) & MP_MASK;
         }
         if ((err = mp_add_d(c, 1, c)) != MP_OKAY) {
+            mp_clear(c);
+            MVM_free(c);
             MVM_exception_throw_adhoc(tc, "Error adding a digit to a big integer: %s", mp_error_to_string(err));
         }
         if ((err = mp_neg(c, c)) != MP_OKAY) {
+            mp_clear(c);
+            MVM_free(c);
             MVM_exception_throw_adhoc(tc, "Error negating a big integer: %s", mp_error_to_string(err));
         }
     }
 }
 
+/* Both callers of this create `result` via MVM_malloc() and mp_init() before passing it here, but
+ * since they can't catch any of the below exceptions, we need to clean it up in that case. */
 static void two_complement_shl(MVMThreadContext *tc, mp_int *result, mp_int *value, MVMint64 count) {
     mp_err err;
     if (count >= 0) {
         if ((err = mp_mul_2d(value, count, result)) != MP_OKAY) {
+            mp_clear(result);
+            MVM_free(result);
             MVM_exception_throw_adhoc(tc, "Error in mp_mul_2d: %s", mp_error_to_string(err));
         }
     }
@@ -201,17 +223,25 @@ static void two_complement_shl(MVMThreadContext *tc, mp_int *result, mp_int *val
          * algorithm appears to work [citation needed]
          */
         if ((err = mp_add_d(value, 1, result)) != MP_OKAY) {
+            mp_clear(result);
+            MVM_free(result);
             MVM_exception_throw_adhoc(tc, "Error adding a digit to a big integer: %s", mp_error_to_string(err));
         }
         if ((err = mp_div_2d(result, -count, result, NULL)) != MP_OKAY) {
+            mp_clear(result);
+            MVM_free(result);
             MVM_exception_throw_adhoc(tc, "Error in mp_div_2d: %s", mp_error_to_string(err));
         }
         if ((err = mp_sub_d(result, 1, result)) != MP_OKAY) {
+            mp_clear(result);
+            MVM_free(result);
             MVM_exception_throw_adhoc(tc, "Error subtracting a digit from a big integer: %s", mp_error_to_string(err));
         }
     }
     else {
         if ((err = mp_div_2d(value, -count, result, NULL)) != MP_OKAY) {
+            mp_clear(result);
+            MVM_free(result);
             MVM_exception_throw_adhoc(tc, "Error in mp_div_2d: %s", mp_error_to_string(err));
         }
     }
@@ -1700,6 +1730,8 @@ MVMObject * MVM_bigint_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *st
 
     base = MVM_malloc(sizeof(mp_int));
     if ((err =  mp_init_u32(base, chars_really_converted)) != MP_OKAY) {
+        mp_clear(value);
+        MVM_free(value);
         MVM_free(base);
         MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
     }
