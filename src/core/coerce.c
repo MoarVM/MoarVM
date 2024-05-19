@@ -17,14 +17,27 @@
 // This file is not part of the interface of this library.
 //
 //===----------------------------------------------------------------------===//
+#if !defined(__clang__)
+#include <intrin.h>
+
+static int __inline __builtin_clz(uint32_t value) {
+  unsigned long leading_zero = 0;
+  if (_BitScanReverse(&leading_zero, value))
+    return 31 - leading_zero;
+  return 32;
+}
+
 #if defined(_M_ARM) || defined(_M_X64)
+
 static int __inline __builtin_clzll(uint64_t value) {
   unsigned long leading_zero = 0;
   if (_BitScanReverse64(&leading_zero, value))
     return 63 - leading_zero;
-  return 63;
+  return 64;
 }
+
 #else
+
 static int __inline __builtin_clzll(uint64_t value) {
   uint32_t msh = (uint32_t)(value >> 32);
   uint32_t lsh = (uint32_t)(value & 0xFFFFFFFF);
@@ -32,6 +45,8 @@ static int __inline __builtin_clzll(uint64_t value) {
     return __builtin_clz(msh);
   return 32 + __builtin_clz(lsh);
 }
+
+#endif
 #endif
 #endif
 
@@ -118,7 +133,7 @@ static char * i64toa_jeaiii(int64_t i, char* b) {
 }
 
 /* End code */
-static const int mag[] = { 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10, 11, 11, 11, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 15, 15, 15, 16, 16, 16, 16, 17, 17, 17, 18, 18, 18, 19, 19, 19, 19, 20 };
+static const int mag[] = { 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 6, 6, 6, 7, 7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10, 10, 11, 11, 11, 12, 12, 12, 13, 13, 13, 13, 14, 14, 14, 15, 15, 15, 16, 16, 16, 16, 17, 17, 17, 18, 18, 18, 19, 19, 19, 19, 20, 20 };
 MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     /* See if we can hit the cache. */
     const int cache = 0 <= i && i < MVM_INT_TO_STR_CACHE_SIZE;
@@ -130,7 +145,7 @@ MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     /* Otherwise, need to do the work; cache it if in range. */
     const int is_negative = i < 0;
     const int msb = 64 - __builtin_clzll((is_negative ? -i : i) | 1);
-    char *buffer = MVM_malloc(mag[msb] + is_negative);
+    char *buffer = MVM_malloc(mag[msb] + is_negative + 1);
     const int len = i64toa_jeaiii(i, buffer) - buffer;
     if (0 <= len) {
         MVMString *result = MVM_string_ascii_from_buf_nocheck(tc, (MVMGrapheme8 *)buffer, len);
@@ -154,7 +169,7 @@ MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
     }
     /* Otherwise, need to do the work; cache it if in range. */
     const int msb = 64 - __builtin_clzll(i | 1);
-    char *buffer = MVM_malloc(mag[msb]);
+    char *buffer = MVM_malloc(mag[msb] + 1);
     const int len = u64toa_jeaiii(i, buffer) - buffer;
     if (0 <= len) {
         MVMString *result = MVM_string_ascii_from_buf_nocheck(tc, (MVMGrapheme8 *)buffer, len);
