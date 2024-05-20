@@ -44,6 +44,9 @@ typedef struct {
     /* Did read already report EOF? */
     int eof_reported;
 
+    /* Did the open mode specify O_RDONLY, O_WRONLY, or O_RDWR? (ignores other mode settings) */
+    short open_mode;
+
     /* Output buffer, for buffered output. */
     char *output_buffer;
 
@@ -378,13 +381,26 @@ static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
     }
 }
 
+/* Used to recover the MVM open mode from the (simple) POSIX-based open mode flag */
+static MVMint64 mvm_open_mode(MVMThreadContext *tc, MVMOSHandle *h) {
+    MVMIOFileData *data = (MVMIOFileData *)h->body.data;
+
+    MVMint64 mvm_open_mode = -1;
+    switch(data->open_mode) {
+        case O_RDONLY: mvm_open_mode = 1; break;
+        case O_WRONLY: mvm_open_mode = 2; break;
+        case O_RDWR:   mvm_open_mode = 3; break;
+    }
+    return mvm_open_mode;
+}
+
 /* IO ops table, populated with functions. */
 static const MVMIOClosable      closable      = { closefh };
 static const MVMIOSyncReadable  sync_readable = { read_bytes, mvm_eof };
 static const MVMIOSyncWritable  sync_writable = { write_bytes, flush, truncatefh };
 static const MVMIOSeekable      seekable      = { seek, mvm_tell };
 static const MVMIOLockable      lockable      = { lock, unlock };
-static const MVMIOIntrospection introspection = { is_tty, mvm_fileno };
+static const MVMIOIntrospection introspection = { is_tty, mvm_fileno, mvm_open_mode };
 
 static const MVMIOOps op_table = {
     &closable,
@@ -403,8 +419,12 @@ static const MVMIOOps op_table = {
     gc_free
 };
 
-/* Builds POSIX flag from mode string. */
-static int resolve_open_mode(int *flag, const char *cp) {
+/*
+    Builds POSIX flag from mode string.
+    Because O_RDONLY is 0, we can't use bitwise logic on 'flag' when checking readonly/writeonly/readwrite.
+    So we store that initial determination in 'simple_flag'.
+*/
+static int resolve_open_mode(int *flag, short *simple_flag, const char *cp) {
     switch (*cp++) {
         case 'r': *flag = O_RDONLY; break;
         case '-': *flag = O_WRONLY; break;
@@ -418,6 +438,7 @@ static int resolve_open_mode(int *flag, const char *cp) {
         default:
         return 0;
     }
+    *simple_flag = *flag;
 
     for (;;) switch (*cp++) {
         case 0:
@@ -438,11 +459,12 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
     char * const fname = MVM_string_utf8_c8_encode_C_string(tc, filename);
     int fd;
     int flag;
+    short simple_flag;
     STAT_t statbuf;
 
     /* Resolve mode description to flags. */
     char * const fmode  = MVM_string_utf8_encode_C_string(tc, mode);
-    if (!resolve_open_mode(&flag, fmode)) {
+    if (!resolve_open_mode(&flag, &simple_flag, fmode)) {
         char *waste[] = { fname, fmode, NULL };
         MVM_exception_throw_adhoc_free(tc, waste,
             "Invalid open mode for file %s: %s", fname, fmode);
@@ -484,6 +506,8 @@ MVMObject * MVM_file_open_fh(MVMThreadContext *tc, MVMString *filename, MVMStrin
             tc->instance->boot_types.BOOTIO);
         data->fd          = fd;
         data->seekable    = MVM_platform_is_fd_seekable(fd);
+
+        data->open_mode   = simple_flag;
         result->body.ops  = &op_table;
         result->body.data = data;
         return (MVMObject *)result;
