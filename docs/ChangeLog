@@ -1,3 +1,24 @@
+New in 2024.05
+
+Core:
++ Cleanup variables in bigint ops error cases [dbdfb399]
++ Silence incorrect GCC warning [c9dd4dd9]
++ Provide some mechanisms for introspecting file mode [fe2080ac]
++ Attach the spawn_result when it contains an error code [f1173cb2]
+
+Documentation:
++ Update bytecode documentation [8ccb8775]
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
++ Just malloc instead of stack+malloc+memcpy when coercing int to string
+  [62e64677][c1eedd50]
+
 New in 2024.04
 
 Core:
