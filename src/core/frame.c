@@ -953,6 +953,7 @@ typedef struct {
     MVMuint8  *abs_addr;
     MVMuint32  rel_addr;
     void      *jit_return_label;
+    MVMuint8   exceptional;
 } MVMUnwindData;
 static void mark_unwind_data(MVMThreadContext *tc, void *sr_data, MVMGCWorklist *worklist) {
     MVMUnwindData *ud  = (MVMUnwindData *)sr_data;
@@ -963,11 +964,59 @@ static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
     MVMFrame *frame    = ud->frame;
     MVMuint8 *abs_addr = ud->abs_addr;
     MVMuint32 rel_addr = ud->rel_addr;
+    MVMuint32 ex       = ud->exceptional;
     void *jit_return_label = ud->jit_return_label;
-    MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL, jit_return_label);
+    MVM_frame_unwind_to(tc, frame, abs_addr, rel_addr, NULL, jit_return_label, ex);
 }
+
+MVMint8 MVM_frame_continue_conflicting_unwind(MVMThreadContext *tc, MVMFrame *up_to,
+        MVMuint8 exceptional) {
+    /* A conflicting unwind is one where the unwind continuation data is higher
+     * in the call stack than the other unwinds target frame (i.e. one unwind
+     * wound skip over the continuation data of the other). If that's the case
+     * we need to find out which unwind would unwind more of the stack, that's
+     * the winning unwind that should continue. */
+    MVMCallStackIterator iter;
+    MVM_callstack_iter_frame_or_special_init(tc, &iter, tc->stack_top);
+    MVMUnwindData *data = 0;
+
+    while (MVM_callstack_iter_move_next(tc, &iter)) {
+        MVMCallStackRecord *record = MVM_callstack_iter_current(tc, &iter);
+        if (!data) {
+            if (record->kind == MVM_CALLSTACK_RECORD_SPECIAL_RETURN) {
+                data = MVM_callstack_get_special_return_data(tc,
+                        record, &continue_unwind);
+                if (data && data->exceptional != exceptional) {
+                    // Not a conflicting unwind.
+                    return 0;
+                }
+            }
+            else if (MVM_callstack_iter_current_frame(tc, &iter) == up_to) {
+                // No conflicting unwind found.
+                return 0;
+            }
+        }
+        else {
+            MVMFrame *f = MVM_callstack_iter_current_frame(tc, &iter);
+            if (f == up_to) {
+                /* We've seen the other unwind target first, so ours will
+                 * unwind more. */
+                continue_unwind(tc, data);
+                return 1;
+            }
+            else if (f == data->frame) {
+                /* We've seen our unwind's target first, so the other will
+                 * unwind more. */
+                return 0;
+            }
+        }
+    }
+    MVM_panic(1, "Did not find expected unwind target frame.");
+}
+
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
-                         MVMuint32 rel_addr, MVMObject *return_value, void *jit_return_label) {
+                         MVMuint32 rel_addr, MVMObject *return_value,
+                         void *jit_return_label, MVMuint8 exceptional) {
     /* Lazy deopt means that we might have located an exception handler in
      * optimized code, but then at the point we call MVM_callstack_unwind_frame we'll
      * end up deoptimizing it. That means the address here will be out of date.
@@ -1019,6 +1068,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                 ud->abs_addr = abs_addr;
                 ud->rel_addr = rel_addr;
                 ud->jit_return_label = jit_return_label;
+                ud->exceptional = exceptional;
                 cur_frame->flags |= MVM_FRAME_FLAG_EXIT_HAND_RUN;
                 MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
                         MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_OBJ));

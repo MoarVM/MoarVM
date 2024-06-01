@@ -346,13 +346,21 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         /* Deliberate fallthrough to unwind below. */
         MVM_FALLTHROUGH
 
-    case MVM_EX_ACTION_GOTO:
-        if (lh.jit_handler) {
-            void **labels = lh.frame->spesh_cand->body.jitcode->labels;
-            MVMuint8  *pc = lh.frame->spesh_cand->body.jitcode->bytecode;
-            MVM_frame_unwind_to(tc, lh.frame, pc, 0, NULL, labels[lh.jit_handler->goto_label]);
-        } else {
-            MVM_frame_unwind_to(tc, lh.frame, NULL, lh.handler->goto_offset, NULL, NULL);
+    case MVM_EX_ACTION_GOTO: ;
+        if (category == MVM_EX_CAT_RETURN &&
+                MVM_frame_continue_conflicting_unwind(tc, lh.frame, 0)) {
+            /* There is a conflicting unwind that took precedence. */
+        }
+        else {
+            if (lh.jit_handler) {
+                void **labels = lh.frame->spesh_cand->body.jitcode->labels;
+                MVMuint8  *pc = lh.frame->spesh_cand->body.jitcode->bytecode;
+                MVM_frame_unwind_to(tc, lh.frame, pc, 0, NULL,
+                        labels[lh.jit_handler->goto_label], 0);
+            } else {
+                MVM_frame_unwind_to(tc, lh.frame, NULL,
+                        lh.handler->goto_offset, NULL, NULL, 0);
+            }
         }
 
         break;
@@ -446,10 +454,10 @@ static void unwind_after_handler(MVMThreadContext *tc, void *sr_data) {
     /* Do the unwinding as needed. */
     if (exception && exception->body.return_after_unwind) {
         /* we can't very well return to our the unwod JIT address */
-        MVM_frame_unwind_to(tc, frame->caller, NULL, 0, tc->last_handler_result, NULL);
+        MVM_frame_unwind_to(tc, frame->caller, NULL, 0, tc->last_handler_result, NULL, 1);
     }
     else {
-        MVM_frame_unwind_to(tc, frame, abs_address, goto_offset, NULL, jit_return_label);
+        MVM_frame_unwind_to(tc, frame, abs_address, goto_offset, NULL, jit_return_label, 1);
     }
 }
 
@@ -826,7 +834,7 @@ void MVM_exception_resume(MVMThreadContext *tc, MVMObject *ex_obj) {
         MVM_exception_throw_adhoc(tc, "Can only resume the current exception");
 
     /* Unwind to the thrower of the exception; set PC and jit entry label. */
-    MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL, ex->body.jit_resume_label);
+    MVM_frame_unwind_to(tc, target, ex->body.resume_addr, 0, NULL, ex->body.jit_resume_label, 1);
 }
 
 /* Panics and shuts down the VM. Don't do this unless it's something quite

@@ -416,6 +416,15 @@ void MVM_callstack_mark_detached(MVMThreadContext *tc, MVMCallStackRecord *stack
 void MVM_callstack_free_detached_regions(MVMThreadContext *tc, MVMCallStackRegion *first_region,
         MVMCallStackRecord *stack_top);
 void MVM_callstack_destroy(MVMThreadContext *tc);
+MVM_STATIC_INLINE void *MVM_callstack_get_special_return_data(MVMThreadContext *tc,
+        MVMCallStackRecord *record, MVMSpecialReturn special_return) {
+    if (record->kind == MVM_CALLSTACK_RECORD_SPECIAL_RETURN &&
+            ((MVMCallStackSpecialReturn*)record)->special_return == special_return) {
+        return (char *)record + sizeof(MVMCallStackSpecialReturn);
+    }
+    return 0;
+}
+
 MVM_STATIC_INLINE MVMuint8 MVM_callstack_kind_ignoring_deopt(MVMCallStackRecord *record) {
     return record->kind == MVM_CALLSTACK_RECORD_DEOPT_FRAME ? record->orig_kind : record->kind;
 }
@@ -448,6 +457,20 @@ MVM_STATIC_INLINE void MVM_callstack_iter_one_kind_init(MVMThreadContext *tc,
     iter->start = start;
     iter->current = NULL;
     iter->filter = 1 << kind;
+}
+
+/* Create an iterator over bytecode frames and special return frames  on the
+ * call stack. */
+MVM_STATIC_INLINE void MVM_callstack_iter_frame_or_special_init(
+        MVMThreadContext *tc, MVMCallStackIterator *iter,
+        MVMCallStackRecord *start) {
+    iter->start = start;
+    iter->current = NULL;
+    iter->filter = (1 << MVM_CALLSTACK_RECORD_FRAME |
+                    1 << MVM_CALLSTACK_RECORD_HEAP_FRAME |
+                    1 << MVM_CALLSTACK_RECORD_PROMOTED_FRAME |
+                    1 << MVM_CALLSTACK_RECORD_DEOPT_FRAME |
+                    1 << MVM_CALLSTACK_RECORD_SPECIAL_RETURN);
 }
 
 /* Create an iterator over bytecode frames on the call stack. */

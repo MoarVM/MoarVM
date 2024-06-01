@@ -62,7 +62,7 @@ MVMuint32 MVM_jit_code_get_active_deopt_idx(MVMThreadContext *tc, MVMJitCode *co
     return i;
 }
 
-MVMint32 MVM_jit_code_get_active_handlers(MVMThreadContext *tc, MVMJitCode *code, void *current_position, MVMuint32 i) {
+MVMuint32 MVM_jit_code_get_active_handlers(MVMThreadContext *tc, MVMJitCode *code, void *current_position, MVMuint32 i) {
     for (; i < code->num_handlers; i++) {
         void *start_label = code->labels[code->handlers[i].start_label];
         void *end_label   = code->labels[code->handlers[i].end_label];
