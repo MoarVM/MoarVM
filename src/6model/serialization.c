@@ -1271,18 +1271,11 @@ static void serialize_context(MVMThreadContext *tc, MVMSerializationWriter *writ
     for (i = 0; i < sf->body.num_lexicals; i++) {
         MVM_serialization_write_str(tc, writer, lexnames[i]);
         switch (sf->body.lexical_types[i]) {
-            case MVM_reg_int8:
-            case MVM_reg_int16:
-            case MVM_reg_int32:
-                MVM_gc_allocate_gen2_default_clear(tc);
-                MVM_exception_throw_adhoc(tc, "unsupported lexical type %s", MVM_reg_get_debug_name(tc, sf->body.lexical_types[i]));
-                break;
             case MVM_reg_int64:
                 MVM_serialization_write_int(tc, writer, frame->env[i].i64);
                 break;
-            case MVM_reg_num32:
-                MVM_gc_allocate_gen2_default_clear(tc);
-                MVM_exception_throw_adhoc(tc, "unsupported lexical type %s", MVM_reg_get_debug_name(tc, sf->body.lexical_types[i]));
+            case MVM_reg_uint64:
+                MVM_serialization_write_int(tc, writer, frame->env[i].u64);
                 break;
             case MVM_reg_num64:
                 MVM_serialization_write_num(tc, writer, frame->env[i].n64);
@@ -2329,7 +2322,9 @@ static void deserialize_context(MVMThreadContext *tc, MVMSerializationReader *re
         switch (MVM_frame_lexical_primspec(tc, f, sym)) {
             case MVM_STORAGE_SPEC_BP_INT:
                 lex->i64 = MVM_serialization_read_int(tc, reader);
-
+                break;
+            case MVM_STORAGE_SPEC_BP_UINT64:
+                lex->u64 = MVM_serialization_read_int(tc, reader);
                 break;
             case MVM_STORAGE_SPEC_BP_NUM:
                 lex->n64 = MVM_serialization_read_num(tc, reader);
