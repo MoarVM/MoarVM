@@ -79,7 +79,8 @@ stages:
           displayName: Build MoarVM
         - pwsh: |
             ${{ variables.PWSH_DEV }}
-            perl Configure.pl --prefix=..\$(INSTALL_DIR) $(MOAR_OPTIONS)
+            pacman -S mingw-w64-x86_64-libuv
+            perl Configure.pl --has-libuv --prefix=..\$(INSTALL_DIR) $(MOAR_OPTIONS)
             type Makefile
             gmake -j2 install
           failOnStderr: false
