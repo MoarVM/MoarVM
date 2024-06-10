@@ -175,13 +175,28 @@ static MVMint32 search_frame_handlers_lex(MVMThreadContext *tc, MVMFrame *f,
     MVMuint32 i;
     MVMuint32 skipping = *skip_first_inlinee;
     MVMFrameHandler *fhs = MVM_frame_effective_handlers(f);
+
+    /* When a LEAVE phaser is run during an unwind, there is no valid
+     * return_address set in the LEAVE phasers outer frame. (It's
+     * return_address is actually set to interp_cur_op, which is still the one
+     * that started the unwind in some unrelated frame.) Thus when a `return`
+     * in a LEAVE happens, the handler of the outer frame is missed, because
+     * `search_frame_handlers_lex()` validates that the `return_address` lies
+     * in the handlers area. Luckily there is a flag set on the LEAVE's outer
+     * frame: MVM_FRAME_FLAG_EXIT_HAND_RUN. We can simply check for that flag
+     * and ignore the frame handlers area. This is fine to do, because frames
+     * that have an exit handler attached can not be inlined.
+     */
+    MVMint32 fehr = f->flags == MVM_FRAME_FLAG_EXIT_HAND_RUN;
+
     if (f->spesh_cand && f->spesh_cand->body.jitcode && f->jit_entry_label) {
         MVMJitCode *jitcode = f->spesh_cand->body.jitcode;
         void *current_position = MVM_jit_code_get_current_position(tc, jitcode, f);
         MVMJitHandler    *jhs = jitcode->handlers;
-        for (i = MVM_jit_code_get_active_handlers(tc, jitcode, current_position, 0);
+
+        for (i = fehr ? 0 : MVM_jit_code_get_active_handlers(tc, jitcode, current_position, 0);
              i < jitcode->num_handlers;
-             i = MVM_jit_code_get_active_handlers(tc, jitcode, current_position, i+1)) {
+             i = fehr ? i+1 : MVM_jit_code_get_active_handlers(tc, jitcode, current_position, i+1)) {
             MVMFrameHandler *fh = &(fhs[i]);
             if (skip_all_inlinees && fh->inlinee >= 0)
                 continue;
@@ -248,8 +263,8 @@ static MVMint32 search_frame_handlers_lex(MVMThreadContext *tc, MVMFrame *f,
             }
             if (skipping || !handler_can_handle(f, fh, cat, payload))
                 continue;
-            if (pc >= fh->start_offset &&
-                    pc <= fh->end_offset &&
+            if (((pc >= fh->start_offset && pc <= fh->end_offset) ||
+                    fehr) &&
                     !in_handler_stack(tc, fh, f)) {
                 if (skipping && f->static_info->body.is_thunk)
                     return 0;
