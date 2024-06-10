@@ -465,7 +465,7 @@ $config{lddebugflags} = sprintf $config{lddebugflags}, defined_or $args{debug}, 
 
 # generate CFLAGS
 my @cflags;
-push @cflags, '-std=c99' if $defaults{os} eq 'mingw32';
+push @cflags, '-std=c99' if $defaults{os} eq 'mingw64';
 push @cflags, $config{ccmiscflags};
 push @cflags, $config{ccoptiflags}  if $args{optimize};
 push @cflags, $config{ccdebugflags} if $args{debug};
@@ -587,7 +587,7 @@ unless ($config{crossconf}) {
             print dots('    assuming x86'), "OK\n";
         }
     }
-    elsif ($defaults{os} eq 'mingw32' && $defaults{-toolchain} eq 'gnu') {
+    elsif ($defaults{os} eq 'mingw64' && $defaults{-toolchain} eq 'gnu') {
         print dots('    auto-detecting x64 toolchain');
         my $cc = $config{cc};
         my $msg = `$cc -dumpmachine 2>&1`;
@@ -779,7 +779,7 @@ TERM
 
 # make sure to link with the correct entry point */
 $config{mingw_unicode} = '';
-if ($config{os} eq 'mingw32') {
+if ($config{os} eq 'mingw64') {
     $config{mingw_unicode} = '-municode';
 }
 
@@ -842,7 +842,7 @@ sub setup_native {
             $os = 'win32';
         }
         elsif ($has_gmake && $has_gcc) {
-            $os = 'mingw32';
+            $os = 'mingw64';
         } else {
             $os = "";
         }
@@ -1190,7 +1190,7 @@ will fail.
 Set the operating system name which you are compiling to.
 
 Currently supported operating systems are C<posix>, C<linux>, C<darwin>,
-C<openbsd>, C<netbsd>, C<freebsd>, C<solaris>, C<win32>, and C<mingw32>.
+C<openbsd>, C<netbsd>, C<freebsd>, C<solaris>, C<win32>, and C<mingw64>.
 
 If not explicitly set, the option will be provided by the Perl runtime.
 In case of unknown operating systems, a POSIX userland is assumed.
