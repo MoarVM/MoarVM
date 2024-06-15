@@ -5,6 +5,8 @@ struct MVMGraphemeIter {
         MVMGrapheme32    *blob_32;
         MVMGraphemeASCII *blob_ascii;
         MVMGrapheme8     *blob_8;
+        MVMGrapheme8     in_situ_8[8];
+        MVMGrapheme32    in_situ_32[2];
         void             *any;
     } active_blob;
 
@@ -142,8 +144,14 @@ MVM_STATIC_INLINE MVMStringIndex MVM_string_gi_graphs_left_in_strand(MVMThreadCo
 MVM_STATIC_INLINE MVMGrapheme8 * MVM_string_gi_active_blob_8_pos(MVMThreadContext *tc, MVMGraphemeIter *gi) {
     return gi->active_blob.blob_8 + gi->pos;
 }
+MVM_STATIC_INLINE MVMGrapheme8 * MVM_string_gi_active_in_situ_8_pos(MVMThreadContext *tc, MVMGraphemeIter *gi) {
+    return gi->active_blob.in_situ_8 + gi->pos;
+}
 MVM_STATIC_INLINE MVMGrapheme32 * MVM_string_gi_active_blob_32_pos(MVMThreadContext *tc, MVMGraphemeIter *gi) {
     return gi->active_blob.blob_32 + gi->pos;
+}
+MVM_STATIC_INLINE MVMGrapheme32 * MVM_string_gi_active_in_situ_32_pos(MVMThreadContext *tc, MVMGraphemeIter *gi) {
+    return gi->active_blob.in_situ_32 + gi->pos;
 }
 MVM_STATIC_INLINE MVMuint16 MVM_string_gi_blob_type(MVMThreadContext *tc, MVMGraphemeIter *gi) {
     return gi->blob_type;
@@ -163,6 +171,10 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_gi_get_grapheme(MVMThreadContext *tc,
                     return gi->active_blob.blob_ascii[gi->pos++];
                 case MVM_STRING_GRAPHEME_8:
                     return gi->active_blob.blob_8[gi->pos++];
+                case MVM_STRING_IN_SITU_8:
+                    return gi->active_blob.in_situ_8[gi->pos++];
+                case MVM_STRING_IN_SITU_32:
+                    return gi->active_blob.in_situ_32[gi->pos++];
                 }
         }
         else if (gi->repetitions) {
@@ -196,6 +208,10 @@ MVM_STATIC_INLINE MVMGrapheme32 MVM_string_get_grapheme_at_nocheck(MVMThreadCont
             return a->body.storage.blob_ascii[index];
         case MVM_STRING_GRAPHEME_8:
             return a->body.storage.blob_8[index];
+        case MVM_STRING_IN_SITU_8:
+            return a->body.storage.in_situ_8[index];
+        case MVM_STRING_IN_SITU_32:
+            return a->body.storage.in_situ_32[index];
         case MVM_STRING_STRAND: {
             MVMGraphemeIter gi;
             MVM_string_gi_init(tc, &gi, a);

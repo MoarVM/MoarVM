@@ -145,16 +145,30 @@ MVMString * MVM_coerce_i_s(MVMThreadContext *tc, MVMint64 i) {
     /* Otherwise, need to do the work; cache it if in range. */
     const int is_negative = i < 0;
     const int msb = 64 - __builtin_clzll((is_negative ? -i : i) | 1);
-    char *buffer = MVM_malloc(mag[msb] + is_negative + 1);
+    const int max_size = mag[msb] + is_negative + 1;
+    char *buffer;
+    MVMString *result;
+    if (max_size <= 8) {
+        result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+        result->body.storage_type = MVM_STRING_IN_SITU_8;
+        buffer = (char *)result->body.storage.in_situ_8;
+    }
+    else {
+        buffer = MVM_malloc(max_size);
+    }
     const int len = i64toa_jeaiii(i, buffer) - buffer;
     if (0 <= len) {
-        MVMString *result = MVM_string_ascii_from_buf_nocheck(tc, (MVMGrapheme8 *)buffer, len);
+        if (max_size > 8)
+            result = MVM_string_ascii_from_buf_nocheck(tc, (MVMGrapheme8 *)buffer, len);
+        else
+            result->body.num_graphs = len;
         if (cache)
             tc->instance->int_to_str_cache[i] = result;
         return result;
     }
     else {
-        MVM_free(buffer);
+        if (max_size > 8)
+            MVM_free(buffer);
         MVM_exception_throw_adhoc(tc, "Could not stringify integer (%"PRId64")", i);
     }
 }
@@ -169,17 +183,31 @@ MVMString * MVM_coerce_u_s(MVMThreadContext *tc, MVMuint64 i) {
     }
     /* Otherwise, need to do the work; cache it if in range. */
     const int msb = 64 - __builtin_clzll(i | 1);
-    char *buffer = MVM_malloc(mag[msb] + 1);
-    const int len = u64toa_jeaiii(i, buffer) - buffer;
+    const int max_size = mag[msb] + 1;
+    char *buffer;
+    MVMString *result;
+    if (max_size <= 8) {
+        result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+        result->body.storage_type = MVM_STRING_IN_SITU_8;
+        buffer = (char *)result->body.storage.in_situ_8;
+    }
+    else {
+        buffer = MVM_malloc(max_size);
+    }
+    const int len = i64toa_jeaiii(i, buffer) - buffer;
     if (0 <= len) {
-        MVMString *result = MVM_string_ascii_from_buf_nocheck(tc, (MVMGrapheme8 *)buffer, len);
+        if (max_size > 8)
+            result = MVM_string_ascii_from_buf_nocheck(tc, (MVMGrapheme8 *)buffer, len);
+        else
+            result->body.num_graphs = len;
         if (cache)
             tc->instance->int_to_str_cache[i] = result;
         return result;
     }
     else {
-        MVM_free(buffer);
-        MVM_exception_throw_adhoc(tc, "Could not stringify integer (%"PRIu64")", i);
+        if (max_size > 8)
+            MVM_free(buffer);
+        MVM_exception_throw_adhoc(tc, "Could not stringify integer (%"PRId64")", i);
     }
 }
 
