@@ -51,9 +51,7 @@ will do all the work for you, including creating an `nqp-m`.
 
 ## Status
 
-MoarVM is currently in development. It can run all of the NQP test suite, all
-of the Rakudo sanity tests, and passes more spectests than any other
-Rakudo backend.
+MoarVM is the primary backend for the Rakudo compiler.
 
 Unlike the JVM or JS backend of NQP, the MoarVM repo is not integrated into the
 [NQP source repo](http://github.com/perl6/nqp) but instead can be pulled
