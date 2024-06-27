@@ -9,6 +9,9 @@ struct MVMHashEntry {
 
 struct MVMHashBody {
     MVMStrHashTable hashtable;
+#if MVM_HASH_PROTECT
+    uv_rwlock_t *rw_lock;
+#endif
 };
 struct MVMHash {
     MVMObject common;
