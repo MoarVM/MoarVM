@@ -2454,6 +2454,8 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     MVMStringIndex alen, blen, i = 0, scanlen;
     MVMGraphemeIter gi_a, gi_b;
 
+    MVMuint8 a_is_eight, b_is_eight, a_is_in_situ, b_is_in_situ;
+
     MVM_string_check_arg(tc, a, "compare");
     MVM_string_check_arg(tc, b, "compare");
 
@@ -2468,35 +2470,26 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
     /* Otherwise, need to scan them. */
     scanlen = blen < alen ? blen : alen;
 
+    a_is_eight = a->body.storage_type == MVM_STRING_GRAPHEME_8 || a->body.storage_type == MVM_STRING_GRAPHEME_ASCII || a->body.storage_type == MVM_STRING_IN_SITU_8;
+    b_is_eight = b->body.storage_type == MVM_STRING_GRAPHEME_8 || b->body.storage_type == MVM_STRING_GRAPHEME_ASCII || b->body.storage_type == MVM_STRING_IN_SITU_8;
+
+    a_is_in_situ = a->body.storage_type == MVM_STRING_IN_SITU_8 || a->body.storage_type == MVM_STRING_IN_SITU_32;
+    b_is_in_situ = b->body.storage_type == MVM_STRING_IN_SITU_8 || b->body.storage_type == MVM_STRING_IN_SITU_32;
+
     /* Short circuit a case where the other conditionals won't speed it up */
     if (a->body.storage_type == MVM_STRING_STRAND || b->body.storage_type == MVM_STRING_STRAND) {
         /* do nothing */
     }
-    else if ((a->body.storage_type == MVM_STRING_GRAPHEME_8 || a->body.storage_type == MVM_STRING_GRAPHEME_ASCII)
-          && (b->body.storage_type == MVM_STRING_GRAPHEME_8 || b->body.storage_type == MVM_STRING_GRAPHEME_ASCII)) {
-        MVMGrapheme8  *a_blob8 = a->body.storage.blob_8;
-        MVMGrapheme8  *b_blob8 = b->body.storage.blob_8;
+    else if (a_is_eight && b_is_eight) {
+        MVMGrapheme8  *a_blob8 = a_is_in_situ ? a->body.storage.in_situ_8 : a->body.storage.blob_8;
+        MVMGrapheme8  *b_blob8 = b_is_in_situ ? b->body.storage.in_situ_8 : b->body.storage.blob_8;
         while (i < scanlen && a_blob8[i] == b_blob8[i]) {
             i++;
         }
     }
-    else if (a->body.storage_type == MVM_STRING_IN_SITU_8 || b->body.storage_type == MVM_STRING_IN_SITU_8) {
-        MVMGrapheme8  *a_blob8 = a->body.storage.in_situ_8;
-        MVMGrapheme8  *b_blob8 = b->body.storage.in_situ_8;
-        while (i < scanlen && a_blob8[i] == b_blob8[i]) {
-            i++;
-        }
-    }
-    else if (a->body.storage_type == MVM_STRING_GRAPHEME_32 && b->body.storage_type == MVM_STRING_GRAPHEME_32) {
-        MVMGrapheme32  *a_blob32 = a->body.storage.blob_32;
-        MVMGrapheme32  *b_blob32 = b->body.storage.blob_32;
-        while (i < scanlen && a_blob32[i] == b_blob32[i]) {
-            i++;
-        }
-    }
-    else if (a->body.storage_type == MVM_STRING_IN_SITU_32 || b->body.storage_type == MVM_STRING_IN_SITU_32) {
-        MVMGrapheme32  *a_blob32 = a->body.storage.in_situ_32;
-        MVMGrapheme32  *b_blob32 = b->body.storage.in_situ_32;
+    else if (!a_is_eight && !b_is_eight) {
+        MVMGrapheme32  *a_blob32 = a_is_in_situ ? a->body.storage.in_situ_32 : a->body.storage.blob_32;
+        MVMGrapheme32  *b_blob32 = b_is_in_situ ? b->body.storage.in_situ_32 : b->body.storage.blob_32;
         while (i < scanlen && a_blob32[i] == b_blob32[i]) {
             i++;
         }
@@ -2509,8 +2502,14 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
             case MVM_STRING_GRAPHEME_ASCII:
                 blob8 = a->body.storage.blob_8;
                 break;
+            case MVM_STRING_IN_SITU_8:
+                blob8 = a->body.storage.in_situ_8;
+                break;
             case MVM_STRING_GRAPHEME_32:
                 blob32 = a->body.storage.blob_32;
+                break;
+            case MVM_STRING_IN_SITU_32:
+                blob32 = a->body.storage.in_situ_32;
                 break;
             default:
                 MVM_exception_throw_adhoc(tc,
@@ -2521,8 +2520,14 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
             case MVM_STRING_GRAPHEME_ASCII:
                 blob8 = b->body.storage.blob_8;
                 break;
+            case MVM_STRING_IN_SITU_8:
+                blob8 = b->body.storage.in_situ_8;
+                break;
             case MVM_STRING_GRAPHEME_32:
                 blob32 = b->body.storage.blob_32;
+                break;
+            case MVM_STRING_IN_SITU_32:
+                blob32 = b->body.storage.in_situ_32;
                 break;
             default:
                 MVM_exception_throw_adhoc(tc,
