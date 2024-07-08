@@ -1546,11 +1546,11 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         /* See if we'll be able to inline it. */
         char *no_inline_reason = NULL;
         const MVMOpInfo *no_inline_info = NULL;
-        MVMuint32 effective_size;
+        MVMuint32 effective_size = 0;
         /* Do not try to inline calls from inlined basic blocks! Otherwise the new inlinees would
          * get added to the inlines table after the original inlinee which they are nested in and
          * the frame walker would find the outer inlinee first, giving wrong results */
-        /* Inicidentally, the rewrite_callercode function in inline.c also
+        /* Incidentally, the rewrite_callercode function in inline.c also
          * relies on "no nested inlines" */
         MVMSpeshGraph *inline_graph = bb->inlined ? NULL : MVM_spesh_inline_try_get_graph(tc, g,
             target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
