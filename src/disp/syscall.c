@@ -1278,7 +1278,7 @@ static void handle_open_mode_impl(MVMThreadContext *tc, MVMArgs arg_info) {
         MVMint64 open_mode = handle->body.ops->introspection->mvm_open_mode(tc, handle);
 
         if (open_mode < 1)
-            MVM_exception_throw_adhoc(tc, "Incomprehensible open mode: %lld (valid modes are 1=RO|2=WO|3=RW)", open_mode);
+            MVM_exception_throw_adhoc(tc, "Incomprehensible open mode: %"PRId64" (valid modes are 1=RO|2=WO|3=RW)", open_mode);
 
         MVM_args_set_result_int(tc, (MVMint64) open_mode, MVM_RETURN_CURRENT_FRAME);
     } else {
