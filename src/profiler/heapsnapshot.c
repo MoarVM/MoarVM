@@ -851,7 +851,7 @@ static void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotColl
 
     MVMuint16 elem_size_to_write = elem_size;
 
-    size_t written_total = 0;
+    /*size_t written_total = 0;*/
     /*size_t original_total = count * elem_size;*/
 
     char *out_buffer = MVM_malloc(outSize);
@@ -908,7 +908,7 @@ static void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotColl
 
         if (outbuf.pos) {
             written = fwrite(outbuf.dst, sizeof(char), outbuf.pos, fh);
-            written_total += written;
+            /*written_total += written;*/
             outbuf.pos = 0;
         }
 
@@ -925,7 +925,7 @@ static void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotColl
 
         if (outbuf.pos) {
             written = fwrite(outbuf.dst, sizeof(char), outbuf.pos, fh);
-            written_total += written;
+            /*written_total += written;*/
             outbuf.pos = 0;
         }
     } while (return_value != 0 && !ZSTD_isError(return_value));
