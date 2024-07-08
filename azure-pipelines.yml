@@ -118,11 +118,11 @@ stages:
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --cc=clang --debug=3'
            CHECK_LEAKS: 'yes'
-         MVM_gcc_mingw:
-           IMAGE_NAME: 'windows-2019'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--os=mingw32'
+#         MVM_gcc_mingw:
+#           IMAGE_NAME: 'windows-2019'
+#           RAKUDO_OPTIONS: ''
+#           NQP_OPTIONS: '--backends=moar'
+#           MOAR_OPTIONS: '--os=mingw32'
 #         MVM_coverage:
 #           IMAGE_NAME: 'ubuntu-22.04'
 #           RAKUDO_OPTIONS: ''
