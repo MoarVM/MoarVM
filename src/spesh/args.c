@@ -318,7 +318,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
     MVMint32      named_used = 0;
     MVMint32      cs_flags   = cs->flag_count;
     MVMint32    named_passed = cs_flags - cs->num_pos;
-    MVMint32      cur_ins = 0;
 
     /* We use a bit field to track named argument use; on deopt we will put it
      * into the deoptimized frame. */
@@ -434,7 +433,6 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
             default:
                 break;
             }
-            cur_ins++;
             ins = ins->next;
         }
         bb = bb->linear_next;

@@ -1903,8 +1903,6 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         ? &static_info->body.instrumentation->debug_locals
         : NULL;
     if (num_lexicals || debug_locals) {
-        MVMuint64 lexical_index = 0;
-
         /* Count up total number of symbols; that is, the lexicals plus the
          * debug names where the names to not overlap with the lexicals. */
         MVMuint64 lexcount = static_info->body.num_lexicals;
@@ -1963,7 +1961,6 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
             MVM_free(c_key_name);
             if (dtc->instance->debugserver->debugspam_protocol)
                 fprintf(stderr, "wrote a lexical\n");
-            lexical_index++;
         };
 
         if (debug_locals) {

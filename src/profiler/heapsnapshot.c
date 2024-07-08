@@ -894,7 +894,6 @@ static void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotColl
 
 
     while (count > 0) {
-        size_t written;
         ZSTD_inBuffer inbuf;
 
         inbuf.src = pointer;
@@ -907,8 +906,7 @@ static void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotColl
         }
 
         if (outbuf.pos) {
-            written = fwrite(outbuf.dst, sizeof(char), outbuf.pos, fh);
-            /*written_total += written;*/
+            fwrite(outbuf.dst, sizeof(char), outbuf.pos, fh);
             outbuf.pos = 0;
         }
 
@@ -917,15 +915,12 @@ static void serialize_attribute_stream(MVMThreadContext *tc, MVMHeapSnapshotColl
     }
 
     do {
-        size_t written;
-
         if (ZSTD_isError(return_value = ZSTD_endStream(cstream, &outbuf))) {
             MVM_panic(1, "ZSTD compression error in heap snapshot: %s", ZSTD_getErrorName(return_value));
         }
 
         if (outbuf.pos) {
-            written = fwrite(outbuf.dst, sizeof(char), outbuf.pos, fh);
-            /*written_total += written;*/
+            fwrite(outbuf.dst, sizeof(char), outbuf.pos, fh);
             outbuf.pos = 0;
         }
     } while (return_value != 0 && !ZSTD_isError(return_value));

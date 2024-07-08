@@ -489,14 +489,13 @@ static void add_deopt_materializations_ins(MVMThreadContext *tc, MVMSpeshGraph *
     }
 }
 
-/* Performs the analysis phase of partial escape anslysis, figuring out what
+/* Performs the analysis phase of partial escape analysis, figuring out what
  * rewrites we can do on the graph to achieve scalar replacement of objects
  * and, perhaps, some guard eliminations. */
 static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs) {
     MVMSpeshBB **rpo = MVM_spesh_graph_reverse_postorder(tc, g);
     MVMuint8 *seen = MVM_calloc(g->num_bbs, 1);
     MVMuint32 found_replaceable = 0;
-    MVMuint32 ins_count = 0;
     MVMuint32 i;
     for (i = 0; i < g->num_bbs; i++) {
         MVMSpeshBB *bb = rpo[i];
@@ -704,7 +703,6 @@ static MVMuint32 analyze(MVMThreadContext *tc, MVMSpeshGraph *g, GraphState *gs)
             }
 
             ins = ins->next;
-            ins_count++;
         }
 
         seen[bb->rpo_idx] = 1;

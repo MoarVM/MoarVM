@@ -530,7 +530,6 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
     MVMint16 grab_a_done = 0, grab_b_done = 0;
     /* From 0 to 2 for primary, secondary, tertiary levels */
     MVMint16   level_a = 0,   level_b = 0;
-    MVMint64 skipped_a = 0, skipped_b = 0;
     /* This code sets up level_eval_settings based on the collation_mode */
     #define setmodeup(mode, level, Less, Same, More) {\
         if (collation_mode & mode) {\
@@ -605,12 +604,10 @@ MVMint64 MVM_unicode_string_compare(MVMThreadContext *tc, MVMString *a, MVMStrin
              * of a level separator so it is evaluated as the end of the string, causing the shorter string to win */
             if (stack_a.keys[pos_a].a[level_a] == collation_zero) {
                 pos_a++;
-                skipped_a++;
                 continue;
             }
             if (stack_b.keys[pos_b].a[level_b] == collation_zero) {
                 pos_b++;
-                skipped_b++;
                 continue;
             }
             /* If collation values are not equal */

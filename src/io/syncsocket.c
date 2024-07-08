@@ -189,7 +189,6 @@ static void socket_truncate(MVMThreadContext *tc, MVMOSHandle *h, MVMint64 bytes
 /* Writes the specified bytes to the stream. */
 static MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *buf, MVMuint64 bytes) {
     MVMIOSyncSocketData *data = (MVMIOSyncSocketData *)h->body.data;
-    MVMint64 sent = 0;
     unsigned int interval_id;
 
     interval_id = MVM_telemetry_interval_start(tc, "syncsocket.write_bytes");
@@ -204,7 +203,6 @@ static MVMint64 socket_write_bytes(MVMThreadContext *tc, MVMOSHandle *h, char *b
             MVM_telemetry_interval_stop(tc, interval_id, "syncsocket.write_bytes");
             throw_error(tc, r, "send data to socket");
         }
-        sent += r;
         buf += r;
         bytes -= r;
     }
