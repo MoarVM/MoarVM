@@ -92,7 +92,7 @@ The following environment variables are respected:\n\
     MVM_SPESH_NODELAY           Run dynamic optimization even for cold frames\n\
     MVM_SPESH_LIMIT             Limit the maximum number of specializations\n\
     MVM_JIT_DISABLE             Disables JITting to machine code\n\
-    MVM_JIT_EXPR_DISABLE        Disable advanced 'expression' JIT\n\
+    MVM_JIT_EXPR_ENABLE         Enable advanced 'expression' JIT\n\
     MVM_JIT_DEBUG               Add JIT debugging information to spesh log\n\
     MVM_JIT_PERF_MAP            Create a map file for the 'perf' profiler (linux only)\n\
     MVM_JIT_DUMP_BYTECODE       Dump bytecode in temporary directory\n\

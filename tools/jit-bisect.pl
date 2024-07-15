@@ -147,7 +147,7 @@ my $timeout = delete $OPTS{timeout};
 
 # start with a clean slate
 delete @ENV{qw(
-    MVM_JIT_EXPR_DISABLE
+    MVM_JIT_EXPR_ENABLE
     MVM_JIT_EXPR_LAST_FRAME
     MVM_JTI_EXPR_LAST_BB
     MVM_JIT_DISABLE
@@ -176,7 +176,7 @@ quietly { run_with(\@command, {}, $timeout) } or do {
 };
 quietly {
     run_with(\@command, {
-        ($OPTS{spesh} ? (MVM_SPESH_DISABLE => 1) : (MVM_JIT_EXPR_DISABLE => 1))
+        ($OPTS{spesh} ? (MVM_SPESH_DISABLE => 1) : ())
     }, $timeout)
 } and do {
     die "This program cannot be bisected: $?";
