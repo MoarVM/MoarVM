@@ -141,7 +141,7 @@ static MVMuint16 get_deopt_materialization_info(MVMThreadContext *tc, MVMSpeshGr
         return alloc->deopt_materialization_idx;
     }
     else {
-        MVMSpeshPEAMaterializeInfo mi;
+        MVMSpeshPEAMaterializeInfo mi = {0};
 
         /* Build up information about registers containing attribute data. */
         MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)alloc->type->st->REPR_data;
@@ -365,7 +365,7 @@ static MVMSpeshFacts * get_shadow_facts_c(MVMThreadContext *tc, GraphState *gs, 
 static MVMSpeshFacts * create_shadow_facts_h(MVMThreadContext *tc, GraphState *gs, MVMuint16 idx) {
     MVMSpeshFacts *facts = get_shadow_facts_h(tc, gs, idx);
     if (!facts) {
-        ShadowFact sf;
+        ShadowFact sf = {0};
         sf.is_hypothetical = 1;
         sf.hypothetical_reg_idx = idx;
         memset(&(sf.facts), 0, sizeof(MVMSpeshFacts));
