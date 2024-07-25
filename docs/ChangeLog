@@ -1,3 +1,20 @@
+New in 2024.07
+
+Core:
++ Fix returning from LEAVE to surrounding scope [2c866ae8]
++ Bump mimalloc to 2.1.7 [6d8a4c75]
+
+Documentation:
+
+GC:
+
+JIT:
++ Disable the expression jit by default
+
+Spesh:
+
+Strings:
+
 New in 2024.06
 
 Core:
