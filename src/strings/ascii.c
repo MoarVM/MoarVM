@@ -4,8 +4,14 @@
  * a result of the specified type. The type must have the MVMString REPR. */
 MVMString * MVM_string_ascii_decode(MVMThreadContext *tc, const MVMObject *result_type, const char *ascii, size_t bytes) {
     MVMString *result;
-    MVMGrapheme32 *buffer = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
+    MVMGrapheme32 *buffer;
     size_t i, result_graphs;
+
+    if (bytes == 0 && tc->instance->str_consts.empty) {
+        return tc->instance->str_consts.empty;
+    }
+
+    buffer = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
 
     result_graphs = 0;
     for (i = 0; i < bytes; i++) {
