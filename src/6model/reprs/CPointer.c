@@ -117,6 +117,36 @@ const MVMREPROps * MVMCPointer_initialize(MVMThreadContext *tc) {
     return &CPointer_this_repr;
 }
 
+static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMuint16             opcode    = ins->info->opcode;
+    switch (opcode) {
+    case MVM_OP_unbox_i: {
+        MVMSpeshFacts *facts = MVM_spesh_get_and_use_facts(tc, g, ins->operands[1]);
+        if (facts->flags & MVM_SPESH_FACT_CONCRETE) {
+            MVMSpeshOperand *orig_operands = ins->operands;
+#if MVM_PTR_SIZE == 4
+            ins->info = MVM_op_get_op(MVM_OP_sp_get_i32);
+#else
+            ins->info = MVM_op_get_op(MVM_OP_sp_get_i64);
+#endif
+            ins->operands = MVM_spesh_alloc(tc, g, 3 * sizeof(MVMSpeshOperand));
+            ins->operands[0] = orig_operands[0];
+            ins->operands[1] = orig_operands[1];
+            ins->operands[2].lit_i16 = offsetof(MVMCPointer, body.ptr);
+            MVM_spesh_graph_add_comment(tc, g, ins, "unbox_i into %s", ins->info->name);
+        }
+        else {
+            MVM_spesh_graph_add_comment(tc, g, ins, "no devirt: not known concrete");
+        }
+        break;
+    }
+    default:
+        MVM_spesh_graph_add_comment(tc, g, ins, "reprop %s unsupported in P6Opaque %s",
+                ins->info->name,
+                MVM_6model_get_stable_debug_name(tc, st));
+    }
+}
+
 static const MVMREPROps CPointer_this_repr = {
     type_object_for,
     MVM_gc_allocate_object,
@@ -150,7 +180,7 @@ static const MVMREPROps CPointer_this_repr = {
     NULL, /* gc_mark_repr_data */
     NULL, /* gc_free_repr_data */
     compose,
-    NULL, /* spesh */
+    spesh,
     "CPointer", /* name */
     MVM_REPR_ID_MVMCPointer,
     NULL, /* unmanaged_size */
