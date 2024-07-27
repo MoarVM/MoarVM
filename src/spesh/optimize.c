@@ -1145,8 +1145,8 @@ static void optimize_getlex_per_invocant(MVMThreadContext *tc, MVMSpeshGraph *g,
     }
     if (ann) {
         MVMuint32 i;
-        for (i = 0; i < p->num_type_stats; i++) {
-            MVMSpeshStatsByType *ts = p->type_stats[i];
+        for (i = 0; i < p->type_info.num_type_stats; i++) {
+            MVMSpeshStatsByType *ts = p->type_info.type_stats[i];
             MVMuint32 j;
             for (j = 0; j < ts->num_by_offset; j++) {
                 if (ts->by_offset[j].bytecode_offset == ann->data.bytecode_offset) {
@@ -1226,8 +1226,8 @@ static MVMSpeshStatsType * find_invokee_type_tuple(MVMThreadContext *tc,
     size_t tt_size = expect_cs->flag_count * sizeof(MVMSpeshStatsType);
 
     /* Now look for the best type tuple. */
-    for (i = 0; i < p->num_type_stats; i++) {
-        MVMSpeshStatsByType *ts = p->type_stats[i];
+    for (i = 0; i < p->type_info.num_type_stats; i++) {
+        MVMSpeshStatsByType *ts = p->type_info.type_stats[i];
         MVMuint32 j;
         for (j = 0; j < ts->num_by_offset; j++) {
             if (ts->by_offset[j].bytecode_offset == bytecode_offset) {
@@ -1276,8 +1276,8 @@ static MVMStaticFrame * find_runbytecode_static_frame(MVMThreadContext *tc, MVMS
     /* Now look for a stable invokee. */
     if (!p)
         return NULL;
-    for (i = 0; i < p->num_type_stats; i++) {
-        MVMSpeshStatsByType *ts = p->type_stats[i];
+    for (i = 0; i < p->type_info.num_type_stats; i++) {
+        MVMSpeshStatsByType *ts = p->type_info.type_stats[i];
         MVMuint32 j;
         for (j = 0; j < ts->num_by_offset; j++) {
             if (ts->by_offset[j].bytecode_offset == cache_offset) {
@@ -1434,7 +1434,7 @@ static void check_and_tweak_arg_guards(MVMThreadContext *tc, MVMSpeshGraph *g,
     }
 }
 
-/* Ties to optimize a runbytecode instruction by either pre-selecting a spesh
+/* Tries to optimize a runbytecode instruction by either pre-selecting a spesh
  * candidate or, if possible, inlining it. */
 static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
         MVMSpeshIns *ins, MVMSpeshPlanned *p) {
@@ -1532,9 +1532,10 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     }
 
     /* Try to find a specialization. */
-    MVMSpeshArgGuard *ag = target_sf->body.spesh->body.spesh_arg_guard;
-    MVMint16 spesh_cand = MVM_spesh_arg_guard_run_types(tc, ag, cs, stable_type_tuple);
-   if (spesh_cand >= 0) {
+    MVMSpeshCandidatesAndArgGuards *cands_and_arg_guards = target_sf->body.spesh->body.spesh_cands_and_arg_guards;
+    MVMSpeshArgGuard *ag = cands_and_arg_guards ? cands_and_arg_guards->spesh_arg_guard : NULL;
+    MVMint16 spesh_cand_idx = MVM_spesh_arg_guard_run_types(tc, ag, cs, stable_type_tuple);
+   if (spesh_cand_idx >= 0) {
        /* Found a candidate. Stack up any required guards. */
        if (need_guardsf)
            insert_static_frame_guard(tc, g, bb, ins, coderef_reg, target_sf,
@@ -1552,8 +1553,9 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
          * the frame walker would find the outer inlinee first, giving wrong results */
         /* Incidentally, the rewrite_callercode function in inline.c also
          * relies on "no nested inlines" */
+        MVMSpeshCandidate *spesh_cand = cands_and_arg_guards->spesh_candidates[spesh_cand_idx];
         MVMSpeshGraph *inline_graph = bb->inlined ? NULL : MVM_spesh_inline_try_get_graph(tc, g,
-            target_sf, target_sf->body.spesh->body.spesh_candidates[spesh_cand],
+            target_sf, spesh_cand,
             ins, &no_inline_reason, &effective_size, &no_inline_info);
         if (tc->instance->spesh_inline_log && bb->inlined)
             no_inline_reason = "refused to inline into an already inlined bb";
@@ -1567,7 +1569,7 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
             MVM_spesh_usages_add_unconditional_deopt_usage_by_reg(tc, g, coderef_reg);
             MVM_spesh_inline(tc, g, cs, args, bb, ins, inline_graph, target_sf,
                 coderef_reg, resume_init,
-                (MVMuint16)target_sf->body.spesh->body.spesh_candidates[spesh_cand]->body.bytecode_size);
+                (MVMuint16)spesh_cand->body.bytecode_size);
             optimize_bb(tc, g, optimize_from_bb, NULL);
 
             /* In debug mode, annotate what we inlined. */
@@ -1582,7 +1584,7 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
                     MVM_spesh_graph_add_comment(tc, g, pointer->first_ins,
                         "inline of '%s' (%s) candidate %d",
                         name_cstr, cuuid_cstr,
-                        spesh_cand);
+                        spesh_cand_idx);
                 MVM_free(cuuid_cstr);
                 MVM_free(name_cstr);
             }
@@ -1590,7 +1592,7 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
         else {
             /* Can't inline, but can still set the chosen spesh candidate in
              * the runbytecode instruction. */
-            selected->lit_i16 = spesh_cand;
+            selected->lit_i16 = MVM_spesh_add_spesh_slot_try_reuse(tc, g, (MVMCollectable *)spesh_cand);
 
             /* Maybe add inline blocking reason as a comment also. */
             if (MVM_spesh_debug_enabled(tc)) {
@@ -1598,7 +1600,7 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
                 char *name_cstr  = MVM_string_utf8_encode_C_string(tc, target_sf->body.name);
                 MVM_spesh_graph_add_comment(tc, g, ins,
                     "could not inline '%s' (%s) candidate %d: %s",
-                    name_cstr, cuuid_cstr, spesh_cand, no_inline_reason);
+                    name_cstr, cuuid_cstr, spesh_cand_idx, no_inline_reason);
                 if (no_inline_info)
                     MVM_spesh_graph_add_comment(tc, g, ins, "inline-preventing instruction: %s",
                         no_inline_info->name);

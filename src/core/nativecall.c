@@ -943,7 +943,7 @@ static void callback_invoke(MVMThreadContext *tc, void *data) {
     MVMCallStackArgsFromC *args_record = MVM_callstack_allocate_args_from_c(tc,
             MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ));
     args_record->args.source[0].o = body->resolve_lib_name_arg;
-    MVM_frame_dispatch(tc, body->resolve_lib_name, args_record->args, -1);
+    MVM_frame_dispatch(tc, body->resolve_lib_name, args_record->args, NULL);
 
     /* Ensure we exit interp after callback. */
     tc->thread_entry_frame = tc->cur_frame;

@@ -3305,9 +3305,9 @@ void MVM_jit_emit_runbytecode(MVMThreadContext *tc, MVMJitCompiler *compiler, MV
     | lea TMP6, [<5];
     | mov aword [rsp+0x30], TMP6;
     | lea ARG3, [rsp+0x20];
-    | mov ARG4, runcode->spesh_cand
+    | get_spesh_slot ARG4, runcode->spesh_cand
     |.else
-    | mov ARG3, runcode->spesh_cand
+    | get_spesh_slot ARG3, runcode->spesh_cand
     | mov64 TMP6, callsite;
     | mov aword [rsp], TMP6;
     | mov TMP6, TC->interp_reg_base;

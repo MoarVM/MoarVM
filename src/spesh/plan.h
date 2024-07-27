@@ -37,12 +37,15 @@ typedef enum {
     MVM_SPESH_PLANNED_OBSERVED_TYPES,
 
     /* A specialization based on analysis of various argument types that
-     * showed up. This may happen when one argument type is predcitable, but
+     * showed up. This may happen when one argument type is predictable, but
      * others are not. */
-    MVM_SPESH_PLANNED_DERIVED_TYPES
+    MVM_SPESH_PLANNED_DERIVED_TYPES,
+
+    /* An optimization has been deopted too many times, need to remove it. */
+    MVM_SPESH_PLANNED_REMOVE_OPT
 } MVMSpeshPlannedKind;
 
-/* An planned specialization that should be produced. */
+/* A planned specialization that should be produced. */
 struct MVMSpeshPlanned {
     /* What kind of specialization we're planning. */
     MVMSpeshPlannedKind kind;
@@ -55,23 +58,33 @@ struct MVMSpeshPlanned {
     /* The static frame with the code to specialize. */
     MVMStaticFrame *sf;
 
-    /* The callsite statistics entry that this specialization was planned as
-     * a result of (by extension, we find the callsite, if any). */
-    MVMSpeshStatsByCallsite *cs_stats;
+    union {
+        struct {
+            /* The callsite statistics entry that this specialization was planned as
+             * a result of (by extension, we find the callsite, if any). */
+            MVMSpeshStatsByCallsite *cs_stats;
 
-    /* The type tuple to produce the specialization for, if this is a type
-     * based specialization. NULL for certain specializations. The memory
-     * associated with this tuple will always have been allocated by the
-     * planner, not shared with the statistics structure, even if this is a
-     * specialization for an exactly observed type. */
-    MVMSpeshStatsType *type_tuple;
+            /* The type tuple to produce the specialization for, if this is a type
+             * based specialization. NULL for certain specializations. The memory
+             * associated with this tuple will always have been allocated by the
+             * planner, not shared with the statistics structure, even if this is a
+             * specialization for an exactly observed type. */
+            MVMSpeshStatsType *type_tuple;
 
-    /* Type statistics, if any, that the plan was formed based upon. */
-    MVMSpeshStatsByType **type_stats;
+            /* Type statistics, if any, that the plan was formed based upon. */
+            MVMSpeshStatsByType **type_stats;
 
-    /* Number of entries in the type_stats array. (For an observed type
-     * specialization, this would be 1.) */
-    MVMuint32 num_type_stats;
+            /* Number of entries in the type_stats array. (For an observed type
+             * specialization, this would be 1.) */
+            MVMuint32 num_type_stats;
+        } type_info;
+
+        struct {
+            /* The spesh candidate that's been deopted too many times, so it's going
+             * to be removed. */
+            MVMSpeshCandidate *spesh_cand;
+        } deopt_info;
+    };
 };
 
 MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_frames, MVMuint64 *certain_specialization, MVMuint64 *observed_specialization, MVMuint64 *osr_specialization);

@@ -240,6 +240,10 @@ static void begin_frame_deopt(MVMThreadContext *tc, MVMFrame *f, MVMuint32 deopt
      * in inlines then uninlining will take care of moving it out into the
      * frames where it belongs. */
     materialize_replaced_objects(tc, f, deopt_idx);
+
+    /* Log that this opt was deopted, we want to undo the
+     * optimization if this happens too many times. */
+    MVM_spesh_log_deopt(tc, f->static_info, f->spesh_cand);
 }
 
 /* Perform actions common to the deopt of a frame after we do any kind of

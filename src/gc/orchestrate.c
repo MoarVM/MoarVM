@@ -642,7 +642,7 @@ static int react_to_debugserver_request(MVMThreadContext *tc) {
             MVM_panic(MVM_exitcode_gcorch, "could not unblock/unsuspend thread");
         }
 
-        MVM_frame_dispatch(tc, invoke_target, *args, -1);
+        MVM_frame_dispatch(tc, invoke_target, *args, NULL);
 
         MVM_gc_mark_thread_blocked(tc);
     }
