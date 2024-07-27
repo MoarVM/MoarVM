@@ -263,6 +263,16 @@ const unsigned char * MVM_jit_actions(void) {
 | mov reg, OBJECTPTR:reg[idx];
 |.endmacro
 
+|.macro get_spesh_slot_keep, reg, reg_b, idx;
+| mov reg_b, TC->cur_frame;
+| mov reg_b, FRAME:reg_b->effective_spesh_slots;
+| mov reg, OBJECTPTR:reg_b[idx];
+|.endmacro
+
+|.macro get_spesh_slot_kept, reg, reg_b, idx;
+| mov reg, OBJECTPTR:reg_b[idx];
+|.endmacro
+
 |.macro get_vmnull, reg
 | mov reg, TC->instance;
 | mov reg, MVMINSTANCE:reg->VMNull;
@@ -312,6 +322,35 @@ const unsigned char * MVM_jit_actions(void) {
 |.endmacro
 
 |.define FRAME_NR, dword [rbp-0x20]
+
+/* Some ops store in the compiler struct what the temp registers
+ * have in them afterwards, and we can sometimes avoid a
+ * load from memory into register when loading a moar reg. */
+void load_work_into_tmp1(MVMJitCompiler *compiler, MVMint16 reg) {
+    MVMuint32 *contains = compiler->tmp_contains;
+    MVMuint32 *contents = compiler->tmp_contents;
+    if (contains[0] == HAS_REGISTER && contents[0] == reg) {
+        // nothing to do, yay
+    }
+    else if (contains[1] == HAS_REGISTER && contents[1] == reg) {
+        | mov TMP1, TMP2;
+    }
+    else if (contains[2] == HAS_REGISTER && contents[2] == reg) {
+        | mov TMP1, TMP3;
+    }
+    else if (contains[3] == HAS_REGISTER && contents[3] == reg) {
+        | mov TMP1, TMP4;
+    }
+    else if (contains[4] == HAS_REGISTER && contents[4] == reg) {
+        | mov TMP1, TMP5;
+    }
+    else if (contains[5] == HAS_REGISTER && contents[5] == reg) {
+        | mov TMP1, TMP6;
+    }
+    else {
+        | mov TMP1, WORK[reg];
+    }
+}
 
 /* A function prologue is always the same in x86 / x64, because
  * we do not provide variable arguments, instead arguments are provided
@@ -369,6 +408,22 @@ void MVM_jit_emit_epilogue(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJi
     | ret;
 }
 
+#define TMP_N_CONTAINS(n, thing) compiler->tmp_contains[n] = (thing); compiler->tmp_handled = 1;
+
+#define TMP1_CONTAINS(thing) do { TMP_N_CONTAINS(0, (thing)); } while (0)
+#define TMP2_CONTAINS(thing) do { TMP_N_CONTAINS(1, (thing)); } while (0)
+#define TMP3_CONTAINS(thing) do { TMP_N_CONTAINS(2, (thing)); } while (0)
+#define TMP4_CONTAINS(thing) do { TMP_N_CONTAINS(3, (thing)); } while (0)
+#define TMP5_CONTAINS(thing) do { TMP_N_CONTAINS(4, (thing)); } while (0)
+#define TMP6_CONTAINS(thing) do { TMP_N_CONTAINS(5, (thing)); } while (0)
+
+#define TMP1_CLEARED() do { TMP1_CONTAINS(HAS_WHATEVER); } while (0)
+#define TMP2_CLEARED() do { TMP2_CONTAINS(HAS_WHATEVER); } while (0)
+#define TMP3_CLEARED() do { TMP3_CONTAINS(HAS_WHATEVER); } while (0)
+#define TMP4_CLEARED() do { TMP4_CONTAINS(HAS_WHATEVER); } while (0)
+#define TMP5_CLEARED() do { TMP5_CONTAINS(HAS_WHATEVER); } while (0)
+#define TMP6_CLEARED() do { TMP6_CONTAINS(HAS_WHATEVER); } while (0)
+
 static MVMuint64 try_emit_gen2_ref(MVMThreadContext *tc, MVMJitCompiler *compiler,
                                    MVMJitGraph *jg, MVMObject *obj, MVMint16 reg) {
     if (!(obj->header.flags2 & MVM_CF_SECOND_GEN))
@@ -388,11 +443,23 @@ static void emit_fastcreate(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
                             MVMSpeshIns *ins) {
     MVMuint16 size     = ins->operands[1].lit_i16;
     MVMint16 spesh_idx = ins->operands[2].lit_i16;
+    MVMuint32 *contains = compiler->tmp_contains;
+    if (compiler->tmp_contains[0] == HAS_EFFECTIVE_SPESH_SLOTS) {
+        // fprintf(stderr, "fastcreate fused with tmp1\n");
+        | get_spesh_slot_kept r12, TMP1, spesh_idx;
+    }
+    else if (compiler->tmp_contains[1] == HAS_EFFECTIVE_SPESH_SLOTS) {
+        // fprintf(stderr, "fastcreate fused with tmp2\n");
+        | get_spesh_slot_kept r12, TMP2, spesh_idx;
+    }
+    else {
+        // fprintf(stderr, "fastcreate with contains: %d %d %d %d %d %d\n", contains[0], contains[1], contains[2], contains[3], contains[4], contains[5]);
+        | get_spesh_slot r12, spesh_idx;
+    }
     | mov ARG1, TC;
     | mov ARG2, size;
     | callp &MVM_gc_allocate_nursery;
-    | get_spesh_slot TMP1, spesh_idx;
-    | mov aword OBJECT:RV->st, TMP1;  // st is 64 bit (pointer)
+    | mov aword OBJECT:RV->st, r12;  // st is 64 bit (pointer)
     | mov word OBJECT:RV->header.size, size; // object size is 16 bit
     | mov TMP1d, dword TC->thread_id;  // thread id is 32 bit
     | mov dword OBJECT:RV->header.owner, TMP1d; // does this even work?
@@ -403,6 +470,9 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
                             MVMJitPrimitive * prim) {
     MVMSpeshIns *ins = prim->ins;
     MVMuint16 op = ins->info->opcode;
+
+    MVMint64 store_tmp1_to = -1;
+
     /* Quite a few of these opcodes are copies. Ultimately, I want to
      * move copies to their own node (MVMJitCopy or such), and reduce
      * the number of copies (and thereby increase the efficiency), but
@@ -415,20 +485,21 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint64 val = (op == MVM_OP_const_i64_16 ? (MVMint64)ins->operands[1].lit_i16 :
                         (MVMint64)ins->operands[1].lit_i32);
         | mov qword WORK[reg], val;
+        TMP1_CLEARED();
         break;
     }
     case MVM_OP_const_i64: {
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMint64 val = ins->operands[1].lit_i64;
         | mov64 TMP1, val;
-        | mov WORK[reg], TMP1;
+        store_tmp1_to = reg;
         break;
     }
     case MVM_OP_const_n64: {
         MVMint16 reg = ins->operands[0].reg.orig;
         MVMint64 valbytes = ins->operands[1].lit_i64;
         | mov64 TMP1, valbytes;
-        | mov WORK[reg], TMP1;
+        store_tmp1_to = reg;
         break;
     }
     case MVM_OP_inf:
@@ -445,45 +516,55 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         else if (op == MVM_OP_neginf)
             tmp.n64 = MVM_num_neginf(tc);
         | mov64 TMP1, tmp.i64;
-        | mov WORK[reg], TMP1;
+        store_tmp1_to = reg;
         break;
 #pragma GCC diagnostic pop
     }
     case MVM_OP_const_s: {
-         MVMint16 reg = ins->operands[0].reg.orig;
-         MVMuint32 idx = ins->operands[1].lit_str_idx;
-         MVMStaticFrame *sf = jg->sg->sf;
-         MVMString * s = MVM_cu_string(tc, sf->body.cu, idx);
-         if (!try_emit_gen2_ref(tc, compiler, jg, (MVMObject*)s, reg)) {
-             | get_string TMP1, idx;
-             | mov WORK[reg], TMP1;
-         }
-         break;
+        MVMint16 reg = ins->operands[0].reg.orig;
+        MVMuint32 idx = ins->operands[1].lit_str_idx;
+        MVMStaticFrame *sf = jg->sg->sf;
+        MVMString * s = MVM_cu_string(tc, sf->body.cu, idx);
+        if (!try_emit_gen2_ref(tc, compiler, jg, (MVMObject*)s, reg)) {
+           | get_string TMP1, idx;
+           store_tmp1_to = reg;
+        }
+        break;
     }
-    case MVM_OP_null:
+    case MVM_OP_null: {
+        MVMint16 reg = ins->operands[0].reg.orig;
+        if (!(compiler->tmp_contains[0] & HAS_VMNULL)) {
+            | get_vmnull TMP1;
+        }
+        | mov WORK[reg], TMP1;
+        TMP1_CONTAINS(HAS_VMNULL | HAS_REGISTER);
+        compiler->tmp_contents[1] = reg;
+        break;
+    }
     /* Runtime semantics of resumption setup are to null out a register to be
      * used for dispatch state, thus we compile it just like null. */
     case MVM_OP_sp_resumption: {
         MVMint16 reg = ins->operands[0].reg.orig;
         | get_vmnull TMP1;
-        | mov WORK[reg], TMP1;
+        store_tmp1_to = reg;
         break;
     }
     case MVM_OP_getwhat:
     case MVM_OP_getwho: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[obj];
+        load_work_into_tmp1(compiler, obj);
         | mov TMP1, OBJECT:TMP1->st;
         if (op == MVM_OP_getwho) {
             | mov TMP1, STABLE:TMP1->WHO;
             | get_vmnull TMP2;
             | test TMP1, TMP1;
             | cmovz TMP1, TMP2;
+            TMP2_CLEARED();
         } else {
             | mov TMP1, STABLE:TMP1->WHAT;
         }
-        | mov WORK[dst], TMP1;
+        store_tmp1_to = dst;
         break;
     }
     case MVM_OP_getlex:
@@ -495,7 +576,14 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 idx = ins->operands[1].lex.idx;
         MVMint16 out = ins->operands[1].lex.outers;
         MVMint16 i;
-        | mov TMP6, TC->cur_frame;
+        if (compiler->tmp_contains[0] == HAS_CUR_FRAME) {
+            | mov TMP6, TMP1;
+        } else if (compiler->tmp_contains[1] == HAS_CUR_FRAME) {
+            | mov TMP6, TMP2;
+        } else if (compiler->tmp_contains[5] != HAS_CUR_FRAME) {
+            | mov TMP6, TC->cur_frame;
+        }
+        TMP6_CLEARED();
         for (i = 0; i < out; i++) {
             /* I'm going to skip compiling the check whether the outer
              * node really exists, because if the code has run N times
@@ -510,6 +598,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         }
         /* get array of lexicals */
         | mov TMP5, FRAME:TMP6->env;
+        TMP5_CLEARED();
         /* read value */
         | mov TMP5, REGISTER:TMP5[idx];
         /* it seems that if at runtime, if the outer frame has been inlined,
@@ -545,10 +634,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         /* Resolve the frame. */
         | mov TMP6, WORK[via];
         | mov TMP6, CODE:TMP6->body.outer;
+        TMP6_CLEARED();
         for (i = 1; i < out; i++) /* From 1 as we are already at outer */
             | mov TMP6, FRAME:TMP6->outer;
         /* get array of lexicals */
         | mov TMP5, FRAME:TMP6->env;
+        TMP5_CLEARED();
         /* read value */
         | mov TMP5, REGISTER:TMP5[idx];
         if (op == MVM_OP_sp_getlexvia_o) {
@@ -576,18 +667,22 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 src = ins->operands[3].reg.orig;
         MVMint16 i;
         /* Resolve the frame. */
-        | mov TMP1, WORK[via];
+        load_work_into_tmp1(compiler, via);
+        TMP1_CLEARED();
+        /* bind the lexical, and write barrier if needed */
+        | mov TMP3, WORK[src]
+        TMP3_CLEARED();
         | mov TMP1, CODE:TMP1->body.outer;
         for (i = 1; i < out; i++) /* From 1 as we are already at outer */
             | mov TMP1, FRAME:TMP1->outer;
         /* get array of lexicals */
         | mov TMP2, FRAME:TMP1->env;
-        /* bind the lexical, and write barrier if needed */
-        | mov TMP3, WORK[src]
+        TMP2_CLEARED();
         | mov REGISTER:TMP2[idx], TMP3;
         if (op == MVM_OP_sp_bindlexvia_os) {
             | check_wb TMP1, TMP3, >2;
             | hit_wb TMP1, TMP3;
+            TMP3_CLEARED();
             |2:
         }
         break;
@@ -671,7 +766,14 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 out = ins->operands[0].lex.outers;
         MVMint16 src = ins->operands[1].reg.orig;
         MVMint16 i;
-        | mov TMP1, TC->cur_frame;
+        if (compiler->tmp_contains[2] == HAS_CUR_FRAME) {
+            | mov TMP1, TMP3;
+        } else if (compiler->tmp_contains[1] == HAS_CUR_FRAME) {
+            | mov TMP1, TMP2;
+        } else if (compiler->tmp_contains[0] != HAS_CUR_FRAME) {
+            | mov TMP1, TC->cur_frame;
+        }
+        | mov TMP3, WORK[src];
         for (i = 0; i < out; i++) {
             | mov TMP1, FRAME:TMP1->outer;
             sf = sf->body.outer;
@@ -680,7 +782,6 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
                          jg->sg->lexical_types :
                          sf->body.lexical_types);
         | mov TMP2, FRAME:TMP1->env;
-        | mov TMP3, WORK[src];
         | mov REGISTER:TMP2[idx], TMP3;
         if (lexical_types[idx] == MVM_reg_obj ||
             lexical_types[idx] == MVM_reg_str) {
@@ -694,7 +795,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 ctx = ins->operands[1].reg.orig;
         MVMint16 name = ins->operands[2].reg.orig;
-        | mov TMP1, WORK[ctx];
+        load_work_into_tmp1(compiler, ctx);
         | cmp_repr_id, TMP1, TMP2, MVM_REPR_ID_MVMContext;
         | jne >1;
         | test_type_object TMP1;
@@ -716,13 +817,22 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_sp_getarg_i: {
         MVMint32 reg = ins->operands[0].reg.orig;
         MVMuint16 idx = ins->operands[1].callsite_idx;
-        | mov TMP1, TC->cur_frame;
-        | mov TMP2, FRAME:TMP1->params.arg_info.map;
+        if (compiler->tmp_contains[0] == HAS_CUR_FRAME) {
+            | mov TMP3, TMP1;
+        } else if (compiler->tmp_contains[1] == HAS_CUR_FRAME) {
+            | mov TMP3, TMP2;
+        } else if (compiler->tmp_contains[2] != HAS_CUR_FRAME) {
+            | mov TMP3, TC->cur_frame;
+        }
+        | mov TMP2, FRAME:TMP3->params.arg_info.map;
         | mov TMP2w, U16:TMP2[idx];
         | movzx TMP2, TMP2w
-        | mov TMP1, FRAME:TMP1->params.arg_info.source;
+        | mov TMP1, FRAME:TMP3->params.arg_info.source;
         | mov TMP1, qword [TMP1 + TMP2 * 8];
-        | mov WORK[reg], TMP1;
+        TMP1_CLEARED();
+        TMP2_CLEARED();
+        TMP3_CONTAINS(HAS_CUR_FRAME);
+        store_tmp1_to = reg;
         break;
     }
     case MVM_OP_sp_p6oget_i:
@@ -741,8 +851,15 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 obj    = ins->operands[1].reg.orig;
         MVMint16 body = offsetof(MVMP6opaque, body);
         MVMint16 offset = ins->operands[2].lit_i16;
+        MVMuint8 use_tmp6_for_speshslots = 0;
+        if (compiler->tmp_contains[1] == HAS_EFFECTIVE_SPESH_SLOTS
+            && (op == MVM_OP_sp_p6ogetvt_o || op == MVM_OP_sp_getvt_o || op == MVM_OP_sp_p6ogetvc_o || op == MVM_OP_sp_getvc_o)) {
+            | mov TMP6, TMP2;
+            use_tmp6_for_speshslots = 1;
+            TMP6_CONTAINS(HAS_EFFECTIVE_SPESH_SLOTS);
+        }
         /* load address and object */
-        | mov TMP1, WORK[obj];
+        load_work_into_tmp1(compiler, obj);
         if (op == MVM_OP_sp_getvc_o || op == MVM_OP_sp_getvt_o) {
             | lea TMP2, [TMP1 + offset];
             body = 0; /* Offset is already from the start of the object */
@@ -772,7 +889,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | test TMP3, TMP3;
             | jnz >4;
             /* if null, vivify as type object from spesh slot */
-            | get_spesh_slot TMP3, spesh_idx;
+            if (use_tmp6_for_speshslots) {
+                // fprintf(stderr, "p6ogetvt_o or getvt_o fused effective_spesh_slots\n");
+                | get_spesh_slot_kept TMP3, TMP6, spesh_idx;
+            } else {
+                | get_spesh_slot TMP3, spesh_idx;
+            }
             if (!(spesh_value->flags2 & MVM_CF_SECOND_GEN)) {
                 /* need to hit write barrier? */
                 | check_wb TMP1, TMP3, >3;
@@ -793,7 +915,13 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | jnz >4;
             /* vivify as clone */
             | mov ARG1, TC;
-            | get_spesh_slot ARG2, spesh_idx;
+            if (use_tmp6_for_speshslots) {
+                // fprintf(stderr, "p6ogetvc_o or getvc_o fused effective_spesh_slots\n");
+                | get_spesh_slot_kept ARG2, TMP6, spesh_idx;
+            } else {
+                | get_spesh_slot ARG2, spesh_idx;
+            }
+
             | callp &MVM_repr_clone;
             | mov TMP3, RV;
             /* reload object and address */
@@ -838,6 +966,12 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         }
         /* store in local register */
         | mov WORK[dst], TMP3;
+        TMP1_CLEARED();
+        TMP2_CLEARED();
+        TMP3_CONTAINS(HAS_REGISTER);
+        TMP4_CLEARED();
+        TMP5_CLEARED();
+        compiler->tmp_contents[2] = dst;
         break;
     }
     case MVM_OP_sp_bind_i64:
@@ -851,7 +985,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 obj    = ins->operands[0].reg.orig;
         MVMint16 offset = ins->operands[1].lit_i16;
         MVMint16 val    = ins->operands[2].reg.orig;
-        | mov TMP1, WORK[obj];            // object
+        load_work_into_tmp1(compiler, obj);
         | mov TMP2, WORK[val];            // value
         if (op == MVM_OP_sp_bind_o || op == MVM_OP_sp_bind_s) {
             /* check if we should hit write barrier */
@@ -878,7 +1012,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 dst    = ins->operands[0].reg.orig;
         MVMint16 obj    = ins->operands[1].reg.orig;
         MVMint16 offset = ins->operands[2].lit_i16;
-        | mov TMP1, WORK[obj];             // object
+        load_work_into_tmp1(compiler, obj);
         | mov TMP2, qword [TMP1+offset];   // get value from body
         | mov WORK[dst], TMP2;
         break;
@@ -887,7 +1021,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 dst    = ins->operands[0].reg.orig;
         MVMint16 obj    = ins->operands[1].reg.orig;
         MVMint16 offset = ins->operands[2].lit_i16;
-        | mov TMP1, WORK[obj];             // object
+        load_work_into_tmp1(compiler, obj);
         | mov TMP2, qword [TMP1+offset];   // get value from body
         | test TMP2, TMP2;
         | jnz >1;
@@ -901,7 +1035,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 dst    = ins->operands[0].reg.orig;
         MVMint16 obj    = ins->operands[1].reg.orig;
         MVMint16 offset = ins->operands[2].lit_i16;
-        | mov TMP1, WORK[obj];            // object
+        load_work_into_tmp1(compiler, obj);
         | mov RV, [TMP1+offset];   // get value from body
         if (op == MVM_OP_sp_get_i32) {
             | cdqe;
@@ -925,7 +1059,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 dst    = ins->operands[0].reg.orig;
         MVMint16 obj    = ins->operands[1].reg.orig;
         MVMint16 offset = ins->operands[2].lit_i16;
-        | mov TMP1, WORK[obj];            // object
+        load_work_into_tmp1(compiler, obj);            // object
         | mov TMP3, qword [TMP1+offset];  // get value pointer from body
         | mov TMP2, qword [TMP3];         // deref the pointer
         | mov WORK[dst], TMP2;
@@ -941,7 +1075,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 obj    = ins->operands[0].reg.orig;
         MVMint16 offset = ins->operands[1].lit_i16;
         MVMint16 val    = ins->operands[2].reg.orig;
-        | mov TMP1, WORK[obj];            // object
+        load_work_into_tmp1(compiler, obj);            // object
         | mov TMP2, WORK[val];            // value
         | lea TMP3, P6OPAQUE:TMP1->body;  // body
         | cmp qword P6OBODY:TMP3->replaced, 0;
@@ -970,15 +1104,26 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_set: {
          MVMint32 reg1 = ins->operands[0].reg.orig;
          MVMint32 reg2 = ins->operands[1].reg.orig;
-         | mov TMP1, WORK[reg2];
+         load_work_into_tmp1(compiler, reg2);
          | mov WORK[reg1], TMP1;
+         TMP1_CONTAINS(HAS_REGISTER);
+         compiler->tmp_contents[0] = reg1;
          break;
     }
     case MVM_OP_sp_getspeshslot: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 spesh_idx = ins->operands[1].lit_i16;
-        | get_spesh_slot TMP1, spesh_idx;
+        if (compiler->tmp_contains[1] == HAS_EFFECTIVE_SPESH_SLOTS) {
+            // fprintf(stderr, "fused getspeshslot effective_spesh_slots\n");
+            | get_spesh_slot_kept TMP1, TMP2, spesh_idx;
+        }
+        else {
+            | get_spesh_slot_keep TMP1, TMP2, spesh_idx;
+        }
         | mov WORK[dst], TMP1;
+        TMP1_CONTAINS(HAS_REGISTER);
+        compiler->tmp_contents[0] = dst;
+        TMP2_CONTAINS(HAS_EFFECTIVE_SPESH_SLOTS);
         break;
     }
     case MVM_OP_ctx: {
@@ -992,7 +1137,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_ctxlexpad: {
         MVMint16 src = ins->operands[1].reg.orig;
         MVMint16 dst = ins->operands[0].reg.orig;
-        | mov TMP1, WORK[src];
+        load_work_into_tmp1(compiler, src);
         | test_type_object TMP1;
         | jnz >1;
         | cmp_repr_id TMP1, TMP2, MVM_REPR_ID_MVMContext;
@@ -1031,6 +1176,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         | mov TMP1, TC->cur_frame;
         | mov TMP1, aword FRAME:TMP1->code_ref;
         | mov aword WORK[dst], TMP1;
+        TMP1_CLEARED();
         break;
     }
     case MVM_OP_getcode: {
@@ -1064,7 +1210,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_isnull_s: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[src];
+        load_work_into_tmp1(compiler, src);
         | test TMP1, TMP1;
         | setz TMP2b;
         | movzx TMP2, TMP2b;
@@ -1274,7 +1420,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_bnot_i: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[src];
+        load_work_into_tmp1(compiler, src);
         | not TMP1;
         | mov WORK[dst], TMP1;
         break;
@@ -1282,7 +1428,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_neg_i: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[src];
+        load_work_into_tmp1(compiler, src);
         | neg TMP1;
         | mov WORK[dst], TMP1;
         break;
@@ -1290,7 +1436,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_abs_i: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[src];
+        load_work_into_tmp1(compiler, src);
         | neg TMP1;
         | cmovl TMP1, WORK[src];
         | mov WORK[dst], TMP1;
@@ -1309,7 +1455,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_extend_u8: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[src];
+        load_work_into_tmp1(compiler, src);
         | xor TMP2, TMP2;
         | mov TMP2b, TMP1b;
         | mov WORK[dst], TMP2;
@@ -1327,7 +1473,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_extend_u16: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[src];
+        load_work_into_tmp1(compiler, src);
         | xor TMP2, TMP2;
         | mov TMP2w, TMP1w;
         | mov WORK[dst], TMP2;
@@ -1344,7 +1490,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_extend_u32: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[src];
+        load_work_into_tmp1(compiler, src);
         | mov TMP2d, TMP1d;
         | mov WORK[dst], TMP1;
         break;
@@ -1353,7 +1499,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_trunc_i8: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[src];
+        load_work_into_tmp1(compiler, src);
         | xor TMP2, TMP2;
         | mov TMP2b, TMP1b;
         | mov WORK[dst], TMP2;
@@ -1363,7 +1509,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_trunc_i16: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[src];
+        load_work_into_tmp1(compiler, src);
         | xor TMP2, TMP2;
         | mov TMP2w, TMP1w;
         | mov WORK[dst], TMP2;
@@ -1373,7 +1519,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_trunc_i32: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[src];
+        load_work_into_tmp1(compiler, src);
         /* x86-64 auto-truncates the upper 32 bits when using registers in 32
          * bit mode */
         | mov TMP2d, TMP1d;
@@ -1422,8 +1568,8 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_coerce_ui: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[src];
-        | mov WORK[dst], TMP1;
+        load_work_into_tmp1(compiler, src);
+        store_tmp1_to = dst;
         break;
     }
     case MVM_OP_coerce_un:
@@ -1432,7 +1578,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 src = ins->operands[1].reg.orig;
         /* convert simple integer to double precision */
         if (op == MVM_OP_coerce_un) {
-            | mov TMP1, WORK[src];
+            load_work_into_tmp1(compiler, src);
             | test TMP1, TMP1;
             | jns >1;
             | and edi, 1;
@@ -1534,7 +1680,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint32 reg_a = ins->operands[0].reg.orig;
         MVMint32 reg_b = ins->operands[1].reg.orig;
         MVMint32 reg_c = ins->operands[2].reg.orig;
-        | mov TMP1, WORK[reg_b];
+        load_work_into_tmp1(compiler, reg_b);
         /* comparison result in the setting bits in the rflags register */
         | cmp TMP1, WORK[reg_c];
         /* copy the right comparison bit to the lower byte of the rax
@@ -1603,7 +1749,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_not_i: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 src = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[src];
+        load_work_into_tmp1(compiler, src);
         | test TMP1, TMP1;
         | setz TMP2b;
         | movzx TMP2, TMP2b;
@@ -1644,7 +1790,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
             | seta TMP1b;
         }
         | movzx TMP1, TMP1b;
-        | mov WORK[dst], TMP1;
+        store_tmp1_to = dst;
         break;
     }
     case MVM_OP_cmp_n: {
@@ -1809,7 +1955,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_isnonnull: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[obj];
+        load_work_into_tmp1(compiler, obj);
         | test TMP1, TMP1;
         | setnz TMP2b;
         | get_vmnull TMP3;
@@ -1865,7 +2011,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_isnull: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[obj];
+        load_work_into_tmp1(compiler, obj);
         | test TMP1, TMP1;
         | setz TMP2b;
         | get_vmnull TMP3;
@@ -1925,7 +2071,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     case MVM_OP_isconcrete: {
         MVMint16 dst = ins->operands[0].reg.orig;
         MVMint16 obj = ins->operands[1].reg.orig;
-        | mov TMP1, WORK[obj];
+        load_work_into_tmp1(compiler, obj);
         | test TMP1, TMP1;
         | jz >1;
         | test_type_object TMP1;
@@ -2308,7 +2454,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMHLLConfig *hll_config = (MVMHLLConfig*)jg->sg->sf->body.cu->body.hll_config;
         uintptr_t  true_value = (uintptr_t)hll_config->true_value;
         uintptr_t false_value = (uintptr_t)hll_config->false_value;
-        | mov TMP1, WORK[value];
+        load_work_into_tmp1(compiler, value);
         | test TMP1, TMP1;
         | jnz >1;
         | mov64 TMP1, false_value;
@@ -2316,7 +2462,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |1:
         | mov64 TMP1, true_value;
         |2:
-        | mov WORK[target], TMP1;
+        store_tmp1_to = target;
         break;
     }
     case MVM_OP_hllboolfor: {
@@ -2325,7 +2471,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMHLLConfig *hll_config = (MVMHLLConfig*)ins->operands[2].lit_i64;
         uintptr_t  true_value = (uintptr_t)hll_config->true_value;
         uintptr_t false_value = (uintptr_t)hll_config->false_value;
-        | mov TMP1, WORK[value];
+        load_work_into_tmp1(compiler, value);
         | test TMP1, TMP1;
         | jnz >1;
         | mov64 TMP1, false_value;
@@ -2333,7 +2479,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         |1:
         | mov64 TMP1, true_value;
         |2:
-        | mov WORK[target], TMP1;
+        store_tmp1_to = target;
         break;
     }
     case MVM_OP_newtype: {
@@ -2395,7 +2541,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         if (use_cache) {
             MVMObject **cache = tc->instance->int_const_cache->cache[ins->operands[5].lit_i16];
             MVMint16 dst = ins->operands[0].reg.orig;
-            | mov TMP1, WORK[val]
+            load_work_into_tmp1(compiler, val);
             | cmp TMP1, 14
             | jg >1
             | cmp TMP1, -1
@@ -2450,7 +2596,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMObject **cache = tc->instance->int_const_cache->cache[ins->operands[6].lit_i16];
 
         /* See if they're both smallint. */
-        | mov TMP1, WORK[a];
+        load_work_into_tmp1(compiler, a);
         | mov TMP2, WORK[b];
         | mov TMP4d, dword [TMP1 + offset];
         | cmp TMP4d, MVM_BIGINT_32_FLAG;
@@ -2528,7 +2674,7 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
         MVMint16 offset = ins->operands[2].lit_i16;
         MVMint16 val_offset = offset + 4;
         /* Is this a smallint? */
-        | mov TMP1, WORK[a];
+        load_work_into_tmp1(compiler, a);
         | mov TMP4d, dword [TMP1 + offset];
         | cmp TMP4d, MVM_BIGINT_32_FLAG;
         | jne >1;
@@ -2569,6 +2715,10 @@ void MVM_jit_emit_primitive(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJ
     }
     default:
         MVM_panic(1, "Can't JIT opcode <%s>", ins->info->name);
+    }
+
+    if (store_tmp1_to != -1) {
+        | mov WORK[store_tmp1_to], TMP1;
     }
 }
 
@@ -2985,7 +3135,7 @@ void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, M
                 | jnz =>(name);
             break;
         case MVM_OP_ifnonnull:
-            | mov TMP1, WORK[val];
+            load_work_into_tmp1(compiler, val);
             | test TMP1, TMP1;
             | jz >1;
             | get_vmnull TMP2;
@@ -2995,7 +3145,7 @@ void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, M
             |1:
             break;
         case MVM_OP_if_s:
-            | mov TMP1, WORK[val];
+            load_work_into_tmp1(compiler, val);
             | test TMP1, TMP1;
             | jz >1;
             | cmp dword STRING:TMP1->body.num_graphs, 0;
@@ -3004,7 +3154,7 @@ void MVM_jit_emit_block_branch(MVMThreadContext *tc, MVMJitCompiler *compiler, M
             |1:
             break;
         case MVM_OP_unless_s:
-            | mov TMP1, WORK[val];
+            load_work_into_tmp1(compiler, val);
             | test TMP1, TMP1;
             | jz =>(name);
             | cmp dword STRING:TMP1->body.num_graphs, 0;
@@ -3140,12 +3290,26 @@ void MVM_jit_emit_guard(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGr
     MVMint16 op        = guard->ins->info->opcode;
     MVMint16 obj       = guard->ins->operands[op == MVM_OP_sp_guardsf ? 0 : 1].reg.orig;
     /* load object and spesh slot value, except for those that don't need it */
-    | mov TMP1, WORK[obj];
+    load_work_into_tmp1(compiler, obj);
     if (op != MVM_OP_sp_guardjustconc && op != MVM_OP_sp_guardjusttype &&
             op != MVM_OP_sp_guardnonzero && op != MVM_OP_sp_guardhll &&
                 op != MVM_OP_sp_rebless) {
         MVMint16 spesh_idx = guard->ins->operands[op == MVM_OP_sp_guardsf ? 1 : 2].lit_i16;
-        | get_spesh_slot TMP2, spesh_idx;
+        if (compiler->tmp_contains[1] == HAS_EFFECTIVE_SPESH_SLOTS) {
+            // fprintf(stderr, "guard fused speshslots with tmp2\n");
+            | get_spesh_slot_kept TMP2, TMP2, spesh_idx;
+        }
+        else if (compiler->tmp_contains[2] == HAS_EFFECTIVE_SPESH_SLOTS) {
+            // fprintf(stderr, "guard fused speshslots with tmp3\n");
+            | get_spesh_slot_kept TMP2, TMP3, spesh_idx;
+        }
+        else if (compiler->tmp_contains[5] == HAS_EFFECTIVE_SPESH_SLOTS) {
+            // fprintf(stderr, "guard fused speshslots with tmp6\n");
+            | get_spesh_slot_kept TMP2, TMP6, spesh_idx;
+        }
+        else {
+            | get_spesh_slot TMP2, spesh_idx;
+        }
     }
     if (op == MVM_OP_sp_guard) {
         /* object in question should just match the type, so it shouldn't
@@ -3295,7 +3459,12 @@ void MVM_jit_emit_runbytecode(MVMThreadContext *tc, MVMJitCompiler *compiler, MV
     }
 
     | mov ARG1, TC;
-    | mov ARG2, aword WORK[runcode->code_register]
+    if (compiler->tmp_contains[0] == HAS_REGISTER && compiler->tmp_contents[0] == runcode->code_register) {
+        // fprintf(stderr, "jit fused runbytecode with getspeshslot before it\n");
+        | mov ARG2, TMP1
+    } else {
+        | mov ARG2, aword WORK[runcode->code_register]
+    }
     |.if WIN32
     | mov64 TMP6, callsite;
     | mov aword [rsp+0x20], TMP6;
@@ -3566,7 +3735,7 @@ void MVM_jit_emit_istype(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitG
 void MVM_jit_emit_jumplist(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg,
                            MVMJitJumpList *jumplist) {
     MVMint32 i;
-    | mov TMP1, WORK[jumplist->reg];
+    load_work_into_tmp1(compiler, jumplist->reg);
     | cmp TMP1, 0;
     | jl >2;
     | cmp TMP1, jumplist->num_labels;

@@ -10,6 +10,12 @@
 
 #define MVM_JIT_MAX_GLOBALS 1
 
+#define HAS_WHATEVER 0
+#define HAS_VMNULL 1
+#define HAS_REGISTER 2
+#define HAS_EFFECTIVE_SPESH_SLOTS 4
+#define HAS_CUR_FRAME 5
+
 struct MVMJitCompiler {
     dasm_State *dasm_handle;
     MVMJitGraph   *graph;
@@ -22,6 +28,11 @@ struct MVMJitCompiler {
     MVM_VECTOR_DECL(struct { MVMint8 reg_type; MVMint32 next; }, spills);
 
     void *dasm_globals[MVM_JIT_MAX_GLOBALS];
+
+    MVMuint32 tmp_contains[6];
+    MVMuint32 tmp_contents[6];
+
+    MVMuint8 tmp_handled;
 };
 
 /* Declarations for architecture-specific codegen stuff */

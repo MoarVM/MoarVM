@@ -70,6 +70,8 @@ void MVM_jit_compiler_deinit(MVMThreadContext *tc, MVMJitCompiler *cl) {
 
 MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     MVMJitCompiler cl;
+    memset(&cl.tmp_contains, 0, sizeof(cl.tmp_contains));
+    cl.tmp_handled = 0;
     MVMJitCode *code;
     MVMJitNode *node = jg->first_node;
 
@@ -78,6 +80,8 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     /* generate code */
     MVM_jit_emit_prologue(tc, &cl, jg);
     while (node) {
+        cl.tmp_handled = 0;
+
         switch(node->type) {
         case MVM_JIT_NODE_LABEL:
             MVM_jit_emit_label(tc, &cl, jg, node->u.label.name);
@@ -125,6 +129,11 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
             MVM_jit_emit_deopt_check(tc, &cl);
             break;
         }
+
+        if (!cl.tmp_handled) {
+            memset(&cl.tmp_contains, 0, sizeof(((MVMJitCompiler *)0)->tmp_contains));
+        }
+
         node = node->next;
     }
     MVM_jit_emit_epilogue(tc, &cl, jg);
