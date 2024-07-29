@@ -546,6 +546,15 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
                     b->body.storage.blob_32 + startb,
                     length * sizeof(MVMGrapheme32));
             break;
+        case MVM_STRING_IN_SITU_32:
+            if (b->body.storage_type == MVM_STRING_IN_SITU_32) {
+                assert(length <= 2);
+                return 0 == memcmp(
+                    a->body.storage.in_situ_32 + starta,
+                    b->body.storage.in_situ_32 + startb,
+                    length * sizeof(MVMGrapheme32));
+            }
+            break;
         case MVM_STRING_GRAPHEME_ASCII:
         case MVM_STRING_GRAPHEME_8:
             if (b->body.storage_type == MVM_STRING_GRAPHEME_ASCII ||
@@ -554,6 +563,15 @@ MVMint64 MVM_string_substrings_equal_nocheck(MVMThreadContext *tc, MVMString *a,
                     a->body.storage.blob_8 + starta,
                     b->body.storage.blob_8 + startb,
                     length);
+            break;
+        case MVM_STRING_IN_SITU_8:
+            if (b->body.storage_type == MVM_STRING_IN_SITU_8) {
+                assert(length <= 8);
+                return 0 == memcmp(
+                    a->body.storage.in_situ_8 + starta,
+                    b->body.storage.in_situ_8 + startb,
+                    length);
+            }
             break;
     }
 
