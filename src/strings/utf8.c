@@ -285,23 +285,38 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
 
     /* If we're lucky, we can fit our string in 8 bits per grapheme. */
     if (MVM_string_buf32_can_fit_into_8bit(buffer, count)) {
-        MVMGrapheme8 *new_buffer = MVM_malloc(sizeof(MVMGrapheme8) * count);
-        MVM_VECTORIZE_LOOP
-        for (ready = 0; ready < count; ready++) {
-            new_buffer[ready] = buffer[ready];
+        if (count <= 8) {
+            MVM_VECTORIZE_LOOP
+            for (ready = 0; ready < count; ready++) {
+                result->body.storage.in_situ_8[ready] = buffer[ready];
+            }
+            result->body.storage_type    = MVM_STRING_IN_SITU_8;
+        } else {
+            MVMGrapheme8 *new_buffer = MVM_malloc(sizeof(MVMGrapheme8) * count);
+            MVM_VECTORIZE_LOOP
+            for (ready = 0; ready < count; ready++) {
+                new_buffer[ready] = buffer[ready];
+            }
+            result->body.storage.blob_8  = new_buffer;
+            result->body.storage_type    = MVM_STRING_GRAPHEME_8;
         }
         MVM_free(buffer);
-        result->body.storage.blob_8  = new_buffer;
-        result->body.storage_type    = MVM_STRING_GRAPHEME_8;
     } else {
         /* just keep the same buffer as the MVMString's buffer.  Later
          * we can add heuristics to resize it if we have enough free
          * memory */
-        if (bufsize - count > 4) {
-            buffer = MVM_realloc(buffer, count * sizeof(MVMGrapheme32));
+        if (count <= 2) {
+            memcpy(result->body.storage.in_situ_32, buffer, count * sizeof(MVMGrapheme32));
+            result->body.storage_type    = MVM_STRING_IN_SITU_32;
+            MVM_free(buffer);
         }
-        result->body.storage.blob_32 = buffer;
-        result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+        else {
+            if (bufsize - count > 4) {
+                buffer = MVM_realloc(buffer, count * sizeof(MVMGrapheme32));
+            }
+            result->body.storage.blob_32 = buffer;
+            result->body.storage_type    = MVM_STRING_GRAPHEME_32;
+        }
     }
     result->body.num_graphs      = count;
 

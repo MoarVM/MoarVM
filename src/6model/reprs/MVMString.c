@@ -46,6 +46,14 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
             memcpy(dest_body->storage.strands, src_body->storage.strands,
                 dest_body->num_strands * sizeof(MVMStringStrand));
             break;
+        case MVM_STRING_IN_SITU_8:
+            memcpy(dest_body->storage.in_situ_8, src_body->storage.in_situ_8,
+                src_body->num_graphs * sizeof(MVMGrapheme8));
+            break;
+        case MVM_STRING_IN_SITU_32:
+            memcpy(dest_body->storage.in_situ_32, src_body->storage.in_situ_32,
+                src_body->num_graphs * sizeof(MVMGrapheme32));
+            break;
         default:
             MVM_exception_throw_adhoc(tc, "Internal string corruption");
     }
@@ -65,7 +73,8 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMString *str = (MVMString *)obj;
-    MVM_free(str->body.storage.any);
+    if (str->body.storage_type != MVM_STRING_IN_SITU_8 && str->body.storage_type != MVM_STRING_IN_SITU_32)
+        MVM_free(str->body.storage.any);
     str->body.num_graphs = str->body.num_strands = 0;
 }
 
@@ -96,6 +105,9 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
             return sizeof(MVMGrapheme32) * body->num_graphs;
         case MVM_STRING_STRAND:
             return sizeof(MVMStringStrand) * body->num_strands;
+        case MVM_STRING_IN_SITU_8:
+        case MVM_STRING_IN_SITU_32:
+            return 0;
         default:
             return body->num_graphs;
     }
