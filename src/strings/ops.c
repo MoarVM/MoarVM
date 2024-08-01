@@ -328,9 +328,15 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
     }
     else {
         MVMStringIndex result_pos = 0;
-        result->body.storage_type            = MVM_STRING_GRAPHEME_32;
-        result32 = result->body.storage.blob_32 =
-            result_graphs ? MVM_malloc(result_graphs * sizeof(MVMGrapheme32)) : NULL;
+        if (result_graphs <= 2) {
+            result->body.storage_type            = MVM_STRING_IN_SITU_32;
+            result32 = result->body.storage.in_situ_32;
+        }
+        else {
+            result->body.storage_type            = MVM_STRING_GRAPHEME_32;
+            result32 = result->body.storage.blob_32 =
+                MVM_malloc(result_graphs * sizeof(MVMGrapheme32));
+        }
         while (1) {
             MVMStringIndex strand_len = MVM_string_gi_graphs_left_in_strand(tc, gi);
             MVMStringIndex to_copy = result_graphs - result_pos < strand_len
@@ -388,15 +394,6 @@ static void iterate_gi_into_string(MVMThreadContext *tc, MVMGraphemeIter *gi, MV
             }
             MVM_string_gi_next_strand_rep(tc, gi);
         }
-    }
-    if (result->body.num_graphs <= 2 && result->body.storage_type == MVM_STRING_GRAPHEME_32) {
-        MVMuint8 i;
-        MVMGrapheme32 *old = result->body.storage.blob_32;
-        for (i = 0; i < result->body.num_graphs; i++) {
-            result->body.storage.in_situ_32[i] = old[i];
-        }
-        result->body.storage_type    = MVM_STRING_IN_SITU_32;
-        MVM_free(old);
     }
 }
 #define copy_strands_memcpy(BLOB_TYPE, SIZEOF_TYPE, STORAGE_TYPE) { \
