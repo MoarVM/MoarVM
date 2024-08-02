@@ -901,6 +901,13 @@ static void optimize_guard(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *b
                 || (opcode == MVM_OP_sp_guardjusttype && can_drop_typeobj_guard)) {
             turn_into_set = 1;
         }
+        else if (can_drop_type_guard && (opcode == MVM_OP_sp_guardconc || opcode == MVM_OP_sp_guardtype)) {
+            ins->info = MVM_op_get_op(opcode == MVM_OP_sp_guardconc ? MVM_OP_sp_guardjustconc : MVM_OP_sp_guardjusttype);
+            /* guard "just" conc/type take the uint32 argument where guard
+             * conc/type have their sslot arg */
+            ins->operands[2] = ins->operands[3];
+            MVM_spesh_use_facts(tc, g, facts);
+        }
     }
     if (turn_into_set) {
         MVM_spesh_turn_into_set(tc, g, ins);
