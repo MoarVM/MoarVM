@@ -2,6 +2,41 @@
 #include "internal.h"
 #include "platform/mmap.h"
 
+#if DEBUG_HELPERS
+
+typedef enum
+{
+  JIT_NOACTION = 0,
+  JIT_REGISTER_FN,
+  JIT_UNREGISTER_FN
+} jit_actions_t;
+
+struct jit_code_entry
+{
+  struct jit_code_entry *next_entry;
+  struct jit_code_entry *prev_entry;
+  const char *symfile_addr;
+  uint64_t symfile_size;
+};
+
+struct jit_descriptor
+{
+  uint32_t version;
+  /* This type should be jit_actions_t, but we use uint32_t
+     to be explicit about the bitwidth.  */
+  uint32_t action_flag;
+  struct jit_code_entry *relevant_entry;
+  struct jit_code_entry *first_entry;
+};
+
+/* GDB puts a breakpoint in this function.  */
+void __attribute__((noinline)) __jit_debug_register_code() { };
+
+/* Make sure to specify the version statically, because the
+   debugger may check the version before we can set it.  */
+struct jit_descriptor __jit_debug_descriptor = { 1, 0, 0, 0 };
+#endif
+
 
 void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg);
 void MVM_jit_compiler_deinit(MVMThreadContext *tc, MVMJitCompiler *compiler);
@@ -194,8 +229,33 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
         return NULL;
     }
 
-    /* Create code segment */
+
+#ifdef DEBUG_HELPERS
+    MVMuint32 size_of_code = sizeof(MVMJitCode) + 256 + sizeof(MVMint32);
+    code = MVM_calloc(1, size_of_code + sizeof(struct jit_code_entry));
+    char *name = (char *)(code + 1);
+    MVMint32 *line_number = (MVMint32*)((char *)(((char *)code) + sizeof(MVMJitCode) + 256));
+    struct jit_code_entry *entry = (struct jit_code_entry *)(((char *)code) + sizeof(MVMJitCode) + 256 + sizeof(MVMint32));
+
+    MVMStaticFrame *sf = jg->sg->sf;
+    MVMBytecodeAnnotation *ann = MVM_bytecode_resolve_annotation(tc, &sf->body, 0);
+    MVMCompUnit *cu = sf->body.cu;
+    MVMuint32          str_idx = ann ? ann->filename_string_heap_index : 0;
+    MVMint32           line_nr = ann ? ann->line_number : 1;
+    MVMString        *filename = cu->body.filename;
+    char        *filename_utf8 = "<unknown>";
+    // char               *result = MVM_calloc(1, 1024);
+    if (ann && str_idx < cu->body.num_strings)
+        filename = MVM_cu_string(tc, cu, str_idx);
+    if (filename) {
+        filename_utf8 = MVM_string_utf8_encode_C_string(tc, filename);
+        strncpy(name, filename_utf8, 255);
+        MVM_free(filename_utf8);
+    }
+    *line_number = line_nr;
+#else
     code = MVM_calloc(1, sizeof(MVMJitCode));
+#endif
 
     code->func_ptr   = (void (*)(MVMThreadContext*,MVMCompUnit*,void*)) memory;
     code->size       = codesize;
@@ -253,6 +313,19 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     code->num_inlines  = jg->inlines_num;
     code->inlines      = COPY_ARRAY(jg->inlines, jg->inlines_alloc);
 
+    #ifdef DEBUG_HELPERS
+    entry->symfile_addr = (char *)code;
+    entry->symfile_size = size_of_code;
+    entry->prev_entry = __jit_debug_descriptor.first_entry;
+    __jit_debug_descriptor.first_entry = entry;
+    if (entry->prev_entry)
+        entry->prev_entry->next_entry = entry;
+    __jit_debug_descriptor.relevant_entry = entry;
+    __jit_debug_descriptor.action_flag = JIT_REGISTER_FN;
+    __jit_debug_register_code();
+    __jit_debug_descriptor.action_flag = JIT_NOACTION;
+    __jit_debug_descriptor.relevant_entry = NULL;
+    #endif
 
     return code;
 }
