@@ -379,9 +379,9 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         /* Ensure we have an exception object. */
         MVMFrame *cur_frame = tc->cur_frame;
         if (ex_obj == NULL) {
-            MVMROOT3(tc, cur_frame, lh.frame, payload, {
+            MVMROOT3(tc, cur_frame, lh.frame, payload) {
                 ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
-            });
+            }
             ((MVMException *)ex_obj)->body.category = category;
             MVM_ASSIGN_REF(tc, &(ex_obj->header), ((MVMException *)ex_obj)->body.payload, payload);
         }
@@ -625,12 +625,12 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
     else
         MVM_exception_throw_adhoc(tc, "Op 'backtracestrings' needs an exception object");
 
-    MVMROOT(tc, ex, {
+    MVMROOT(tc, ex) {
         arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
 
         cur_frame = ex->body.origin;
 
-        MVMROOT2(tc, arr, cur_frame, {
+        MVMROOT2(tc, arr, cur_frame) {
             MVMuint32 count = 0;
             while (cur_frame != NULL) {
                 char *line = MVM_exception_backtrace_line(tc, cur_frame, count++,
@@ -641,8 +641,8 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
                 cur_frame = cur_frame->caller;
                 MVM_free(line);
             }
-        });
-    });
+        }
+    }
 
     return arr;
 }
@@ -651,7 +651,7 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
 void MVM_dump_backtrace(MVMThreadContext *tc) {
     MVMFrame *cur_frame = tc->cur_frame;
     MVMuint32 count = 0;
-    MVMROOT(tc, cur_frame, {
+    MVMROOT(tc, cur_frame) {
         while (cur_frame != NULL) {
             char *line = MVM_exception_backtrace_line(tc, cur_frame, count++,
                 *(tc->interp_cur_op));
@@ -659,7 +659,7 @@ void MVM_dump_backtrace(MVMThreadContext *tc) {
             MVM_free(line);
             cur_frame = cur_frame->caller;
         }
-    });
+    }
 }
 
 /* Panic over an unhandled exception throw by category. */
@@ -690,9 +690,9 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
     char *backtrace;
 
     /* If a debug session is running, notify the client. */
-    MVMROOT(tc, ex, {
+    MVMROOT(tc, ex) {
         MVM_debugserver_notify_unhandled_exception(tc, ex);
-    });
+    }
 
     /* If it's a control exception, try promoting it to a catch one; use
      * the category name. */
@@ -750,9 +750,9 @@ void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, 
 
 void MVM_exception_die(MVMThreadContext *tc, MVMString *str, MVMRegister *rr) {
     MVMException *ex;
-    MVMROOT(tc, str, {
+    MVMROOT(tc, str) {
         ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
-    });
+    }
     ex->body.category = MVM_EX_CAT_CATCH;
     MVM_ASSIGN_REF(tc, &(ex->common.header), ex->body.message, str);
     MVM_exception_throwobj(tc, MVM_EX_THROW_DYN, (MVMObject *)ex, rr);
@@ -769,9 +769,9 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
     /* The current frame will be assigned as the thrower of the exception, so
      * force it onto the heap before we begin (promoting it later would mean
      * outer handler search result would be outdated). */
-    MVMROOT(tc, ex_obj, {
+    MVMROOT(tc, ex_obj) {
         MVM_frame_force_to_heap(tc, tc->cur_frame);
-    });
+    }
 
     if (IS_CONCRETE(ex_obj) && REPR(ex_obj)->ID == MVM_REPR_ID_MVMException)
         ex = (MVMException *)ex_obj;
@@ -942,7 +942,7 @@ MVM_NO_RETURN void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char 
 
     /* Create and set up an exception object. */
     ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
-    MVMROOT(tc, ex, {
+    MVMROOT(tc, ex) {
         char      *c_message = MVM_malloc(1024);
         int        bytes     = vsnprintf(c_message, 1024, messageFormat, args);
         int        to_encode = bytes > 1024 ? 1024 : bytes;
@@ -964,7 +964,7 @@ MVM_NO_RETURN void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char 
             ex->body.origin = NULL;
         }
         ex->body.category = MVM_EX_CAT_CATCH;
-    });
+    }
 
     /* Try to locate a handler, so long as we're in the interpreter. */
     if (tc->interp_cur_op)

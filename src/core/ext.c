@@ -5,12 +5,12 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
     MVMDLLSym *sym;
     void (*init)(MVMThreadContext *);
 
-    MVMROOT2(tc, lib, ext, {
+    MVMROOT2(tc, lib, ext) {
         colon = MVM_string_ascii_decode_nt(
             tc, tc->instance->VMString, ":");
         prefix = MVM_string_concatenate(tc, lib, colon);
         name = MVM_string_concatenate(tc, prefix, ext);
-    });
+    }
 
     uv_mutex_lock(&tc->instance->mutex_ext_registry);
 
@@ -24,9 +24,9 @@ int MVM_ext_load(MVMThreadContext *tc, MVMString *lib, MVMString *ext) {
         return 0;
     }
 
-    MVMROOT(tc, name, {
+    MVMROOT(tc, name) {
         sym = (MVMDLLSym *)MVM_dll_find_symbol(tc, lib, ext);
-    });
+    }
     if (!sym) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
         char *waste[] = { c_name, NULL };

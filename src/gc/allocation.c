@@ -54,7 +54,7 @@ void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
  * and meta-object. */
 MVMSTable * MVM_gc_allocate_stable(MVMThreadContext *tc, const MVMREPROps *repr, MVMObject *how) {
     MVMSTable *st;
-    MVMROOT(tc, how, {
+    MVMROOT(tc, how) {
         st                = MVM_gc_allocate_zeroed(tc, sizeof(MVMSTable));
         st->header.flags1 = MVM_CF_STABLE;
         st->header.size   = sizeof(MVMSTable);
@@ -63,34 +63,34 @@ MVMSTable * MVM_gc_allocate_stable(MVMThreadContext *tc, const MVMREPROps *repr,
         st->type_cache_id = MVM_6model_next_type_cache_id(tc);
         st->debug_name    = NULL;
         MVM_ASSIGN_REF(tc, &(st->header), st->HOW, how);
-    });
+    }
     return st;
 }
 
 /* Allocates a new type object. */
 MVMObject * MVM_gc_allocate_type_object(MVMThreadContext *tc, MVMSTable *st) {
     MVMObject *obj;
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         obj                = MVM_gc_allocate_zeroed(tc, sizeof(MVMObject));
         obj->header.flags1 = MVM_CF_TYPE_OBJECT;
         obj->header.size   = sizeof(MVMObject);
         obj->header.owner  = tc->thread_id;
         MVM_ASSIGN_REF(tc, &(obj->header), obj->st, st);
-    });
+    }
     return obj;
 }
 
 /* Allocates a new object, and points it at the specified STable. */
 MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st) {
     MVMObject *obj;
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         obj               = MVM_gc_allocate_zeroed(tc, st->size);
         obj->header.size  = (MVMuint16)st->size;
         obj->header.owner = tc->thread_id;
         MVM_ASSIGN_REF(tc, &(obj->header), obj->st, st);
         if (st->mode_flags & MVM_FINALIZE_TYPE)
             MVM_gc_finalize_add_to_queue(tc, obj);
-    });
+    }
     return obj;
 }
 

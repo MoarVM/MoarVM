@@ -50,9 +50,9 @@ void MVM_continuation_control(MVMThreadContext *tc, MVMint64 protect,
      * allocation while we're slicing the stack frames off). */
     MVM_jit_code_trampoline(tc);
     MVMObject *cont;
-    MVMROOT2(tc, tag, code, {
+    MVMROOT2(tc, tag, code) {
         cont = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContinuation);
-    });
+    }
 
     /* Find the tag and slice the required regions off the callstack. */
     MVMActiveHandler *active_handler_at_reset;
@@ -151,9 +151,9 @@ void MVM_continuation_invoke(MVMThreadContext *tc, MVMContinuation *cont,
     /* Force current frames to heap if there are heap frames in the continuation,
      * to maintain the no heap -> stack invariant. */
     if (have_heap_frame) {
-        MVMROOT3(tc, cont, code, bottom_frame, {
+        MVMROOT3(tc, cont, code, bottom_frame) {
             MVM_frame_force_to_heap(tc, tc->cur_frame);
-        });
+        }
     }
 
     /* Switch caller of the root to current invoker. */

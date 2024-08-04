@@ -8,11 +8,11 @@ static const MVMREPROps MVMIter_this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st = MVM_gc_allocate_stable(tc, &MVMIter_this_repr, HOW);
 
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMIter);
-    });
+    }
 
     return st->WHAT;
 }
@@ -221,7 +221,7 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
     if (!IS_CONCRETE(target)) {
         MVM_exception_throw_adhoc(tc, "Cannot iterate over a %s type object", MVM_6model_get_debug_name(tc, target));
     }
-    MVMROOT(tc, target, {
+    MVMROOT(tc, target) {
         if (REPR(target)->ID == MVM_REPR_ID_VMArray) {
             iterator = (MVMIter *)MVM_repr_alloc_init(tc,
                 MVM_hll_current(tc)->array_iterator_type);
@@ -253,7 +253,7 @@ MVMObject * MVM_iter(MVMThreadContext *tc, MVMObject *target) {
             MVM_exception_throw_adhoc(tc, "Cannot iterate object with %s representation (%s)",
                 REPR(target)->name, MVM_6model_get_debug_name(tc, target));
         }
-    });
+    }
     return (MVMObject *)iterator;
 }
 

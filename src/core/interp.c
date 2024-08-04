@@ -1683,7 +1683,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
             OP(clone): {
                 MVMObject *value = GET_REG(cur_op, 2).o;
                 if (IS_CONCRETE(value)) {
-                    MVMROOT(tc, value, {
+                    MVMROOT(tc, value) {
                         MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
                         /* Ordering here matters. We write the object into the
                         * register before calling copy_to. This is because
@@ -1693,7 +1693,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         * in the register if it moved. */
                         GET_REG(cur_op, 0).o = cloned;
                         REPR(value)->copy_to(tc, STABLE(value), OBJECT_BODY(value), cloned, OBJECT_BODY(cloned));
-                    });
+                    }
                 }
                 else {
                     GET_REG(cur_op, 0).o = value;
@@ -2742,7 +2742,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (REPR(cr)->ID != MVM_REPR_ID_MVMCode)
                     MVM_exception_throw_adhoc(tc, "freshcoderef requires a coderef");
                 ncr = (MVMCode *)(GET_REG(cur_op, 0).o = MVM_repr_clone(tc, cr));
-                MVMROOT(tc, ncr, {
+                MVMROOT(tc, ncr) {
                     MVMStaticFrame *nsf;
                     if (!ncr->body.sf->body.fully_deserialized)
                         MVM_bytecode_finish_frame(tc, ncr->body.sf->body.cu, ncr->body.sf, 0);
@@ -2750,7 +2750,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                         (MVMObject *)ncr->body.sf);
                     MVM_ASSIGN_REF(tc, &(ncr->common.header), ncr->body.sf, nsf);
                     MVM_ASSIGN_REF(tc, &(ncr->common.header), ncr->body.sf->body.static_code, ncr);
-                });
+                }
                 cur_op += 4;
                 goto NEXT;
             }
@@ -3001,9 +3001,9 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (REPR(sc)->ID != MVM_REPR_ID_SCRef)
                     MVM_exception_throw_adhoc(tc, "Can only push an SCRef with pushcompsc");
                 if (MVM_is_null(tc, tc->compiling_scs)) {
-                    MVMROOT(tc, sc, {
+                    MVMROOT(tc, sc) {
                         tc->compiling_scs = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-                    });
+                    }
                 }
                 MVM_repr_unshift_o(tc, tc->compiling_scs, sc);
                 cur_op += 2;
@@ -4454,7 +4454,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 cur_op += 2;
                 goto NEXT;
             OP(setthreadname):
-                MVM_thread_set_self_name(tc, GET_REG(cur_op, 0).s); 
+                MVM_thread_set_self_name(tc, GET_REG(cur_op, 0).s);
                 cur_op += 2;
                 goto NEXT;
             OP(atpos2d_i):
@@ -5214,12 +5214,12 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
                 MVM_platform_decodelocaltime(tc, GET_REG(cur_op, 2).i64, decoded);
 
-                MVMROOT(tc, result, {
+                MVMROOT(tc, result) {
                     REPR(result)->pos_funcs.set_elems(tc, STABLE(result), result, OBJECT_BODY(result), 9);
                     for (i = 0; i < 9; i++) {
                         MVM_repr_bind_pos_i(tc, result, i, decoded[i]);
                     }
-                });
+                }
 
                 cur_op += 4;
                 goto NEXT;
@@ -6972,7 +6972,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                     /* Returning 1 from breakpoint_check means we should rewind
                      * the cur_op so we hit the same breakpoint again after
                      * invoked code returned, for example. */
-                    
+
                 }
                 goto NEXT;
             }
@@ -7040,7 +7040,7 @@ void MVM_interp_run_nested(MVMThreadContext *tc, void (*initial_invoke)(MVMThrea
     __attribute__((unused))
 #endif
     MVMCallStackRecord *csrecord;
-    MVMROOT2(tc, backup_cur_frame, backup_thread_entry_frame, {
+    MVMROOT2(tc, backup_cur_frame, backup_thread_entry_frame) {
         MVMuint32 backup_mark                   = MVM_gc_root_temp_mark(tc);
         jmp_buf backup_interp_jump;
         memcpy(backup_interp_jump, tc->interp_jump, sizeof(jmp_buf));
@@ -7068,7 +7068,7 @@ void MVM_interp_run_nested(MVMThreadContext *tc, void (*initial_invoke)(MVMThrea
 
         memcpy(tc->interp_jump, backup_interp_jump, sizeof(jmp_buf));
         MVM_gc_root_temp_mark_reset(tc, backup_mark);
-    });
+    }
 }
 
 void MVM_interp_enable_tracing() {

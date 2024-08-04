@@ -13,9 +13,9 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
     }
 
     /* Allocate. */
-    MVMROOT(tc, handle, {
+    MVMROOT(tc, handle) {
         sc = (MVMSerializationContext *)REPR(tc->instance->SCRef)->allocate(tc, STABLE(tc->instance->SCRef));
-        MVMROOT(tc, sc, {
+        MVMROOT(tc, sc) {
             /* Add to weak lookup hash. */
             uv_mutex_lock(&tc->instance->mutex_sc_registry);
             struct MVMSerializationContextWeakHashEntry *entry
@@ -56,8 +56,8 @@ MVMObject * MVM_sc_create(MVMThreadContext *tc, MVMString *handle) {
                 }
             }
             uv_mutex_unlock(&tc->instance->mutex_sc_registry);
-        });
-    });
+        }
+    }
 
     return (MVMObject *)sc;
 }

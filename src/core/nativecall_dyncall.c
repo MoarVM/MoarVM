@@ -470,9 +470,9 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
      * shall need, since later we may allocate a result and and move it. */
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
     if (MVM_UNLIKELY(!body->lib_handle)) {
-        MVMROOT3(tc, site, args, res_type, {
+        MVMROOT3(tc, site, args, res_type) {
             MVM_nativecall_restore_library(tc, body, site);
-        });
+        }
         body = MVM_nativecall_get_nc_body(tc, site);
     }
     MVMint16  num_args    = body->num_args;
@@ -600,7 +600,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
         }
     }
 
-    MVMROOT3(tc, args, res_type, result, {
+    MVMROOT3(tc, args, res_type, result) {
         MVM_gc_mark_thread_blocked(tc);
         if (result) {
             /* We are calling a C++ constructor so we hand back the invocant (THIS) we recorded earlier. */
@@ -740,7 +740,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                     MVM_exception_throw_adhoc(tc, "Internal error: unhandled dyncall return type");
             }
         }
-    });
+    }
 
     num_rws = 0;
     for (i = 0; i < num_args; i++) {
@@ -887,9 +887,9 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
      * shall need, since later we may allocate a result and and move it. */
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
     if (MVM_UNLIKELY(!body->lib_handle)) {
-        MVMROOT2(tc, site, res_type, {
+        MVMROOT2(tc, site, res_type) {
             MVM_nativecall_restore_library(tc, body, site);
-        });
+        }
         body = MVM_nativecall_get_nc_body(tc, site);
     }
     MVMint16  num_args    = body->num_args;
@@ -1110,7 +1110,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
         }
     }
 
-    MVMROOT2(tc, res_type, result, {
+    MVMROOT2(tc, res_type, result) {
         MVM_gc_mark_thread_blocked(tc);
         if (result) {
             /* We are calling a C++ constructor so we hand back the invocant (THIS) we recorded earlier. */
@@ -1290,7 +1290,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                         "in MVM_nativecall_dispatch", ret_type & MVM_NATIVECALL_ARG_TYPE_MASK);
             }
         }
-    });
+    }
 
 
     /* Free any memory that we need to. */

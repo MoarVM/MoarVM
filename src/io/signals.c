@@ -26,11 +26,11 @@ static void signal_cb(uv_signal_t *handle, int sig_num) {
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
     MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, si->work_idx);
     MVM_repr_push_o(tc, arr, t->body.schedulee);
-    MVMROOT2(tc, t, arr, {
+    MVMROOT2(tc, t, arr) {
         MVMObject *sig_num_boxed = MVM_repr_box_int(tc,
             tc->instance->boot_types.BOOTInt, sig_num);
         MVM_repr_push_o(tc, arr, sig_num_boxed);
-    });
+    }
     MVM_repr_push_o(tc, t->body.queue, arr);
 }
 
@@ -45,9 +45,9 @@ static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, 
 
     if (si->setup_notify_queue && si->setup_notify_schedulee) {
         MVMObject *arr;
-        MVMROOT(tc, async_task, {
+        MVMROOT(tc, async_task) {
             arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-        });
+        }
         MVM_repr_push_o(tc, arr, si->setup_notify_schedulee);
         MVM_repr_push_o(tc, si->setup_notify_queue, arr);
     }
@@ -285,14 +285,14 @@ MVMObject * MVM_io_get_signals(MVMThreadContext *tc) {
     }
 
     sig_arr = MVM_repr_alloc_init(tc, hll->slurpy_array_type);
-    MVMROOT(tc, sig_arr, {
+    MVMROOT(tc, sig_arr) {
         MVMint8 i;
         for (i = 0; i < NUM_SIG_WANTED; i++) {
             MVMObject *key      = NULL;
             MVMString *full_key = NULL;
             MVMObject *val      = NULL;
 
-            MVMROOT3(tc, key, full_key, val, {
+            MVMROOT3(tc, key, full_key, val) {
                 full_key = MVM_string_utf8_c8_decode(
                     tc, instance->VMString, SIG_WANTED[i], strlen(SIG_WANTED[i])
                 );
@@ -304,12 +304,12 @@ MVMObject * MVM_io_get_signals(MVMThreadContext *tc) {
 
                 MVM_repr_push_o(tc, sig_arr, key);
                 MVM_repr_push_o(tc, sig_arr, val);
-            });
+            }
         }
 
         populate_instance_valid_sigs(tc, sig_wanted_vals);
         instance->sig_arr = sig_arr;
-    });
+    }
 
     return sig_arr;
 }
@@ -348,9 +348,9 @@ MVMObject * MVM_io_signal_handle(
             "signal result type must have REPR AsyncTask");
 
     /* Create async task handle. */
-    MVMROOT4(tc, queue, schedulee, setup_notify_queue, setup_notify_schedulee, {
+    MVMROOT4(tc, queue, schedulee, setup_notify_queue, setup_notify_schedulee) {
         task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
-    });
+    }
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops      = &op_table;
@@ -361,9 +361,9 @@ MVMObject * MVM_io_signal_handle(
     task->body.data     = signal_info;
 
     /* Hand the task off to the event loop. */
-    MVMROOT(tc, task, {
+    MVMROOT(tc, task) {
         MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
-    });
+    }
 
     return (MVMObject *)task;
 }

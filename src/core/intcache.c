@@ -15,7 +15,7 @@ void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type) {
         }
     }
     if (right_slot != -1) {
-        MVMROOT(tc, type, {
+        MVMROOT(tc, type) {
             int val;
             for (val = -1; val < 15; val++) {
                 MVMObject *obj;
@@ -26,7 +26,7 @@ void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type) {
                     (MVMCollectable **)&tc->instance->int_const_cache->cache[type_index][val + 1],
                     "Boxed integer cache entry");
             }
-        });
+        }
         tc->instance->int_const_cache->types[type_index] = type;
         MVM_gc_root_add_permanent_desc(tc,
             (MVMCollectable **)&tc->instance->int_const_cache->types[type_index],

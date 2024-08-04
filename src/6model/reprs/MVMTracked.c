@@ -8,11 +8,11 @@ static const MVMREPROps MVMTracked_this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st = MVM_gc_allocate_stable(tc, &MVMTracked_this_repr, HOW);
 
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMTracked);
-    });
+    }
 
     return st->WHAT;
 }
@@ -87,9 +87,9 @@ static const MVMREPROps MVMTracked_this_repr = {
 MVMObject * MVM_tracked_create(MVMThreadContext *tc, MVMRegister value, MVMCallsiteFlags kind) {
     MVMObject *tracked;
     if (kind & (MVM_CALLSITE_ARG_OBJ | MVM_CALLSITE_ARG_STR)) {
-        MVMROOT(tc, value.o, {
+        MVMROOT(tc, value.o) {
             tracked = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTTracked);
-        });
+        }
     }
     else {
         tracked = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTTracked);

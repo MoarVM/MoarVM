@@ -126,9 +126,9 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
 }
 
 #define INIT_ENV() do { \
-    MVMROOT(tc, iter, { \
+    MVMROOT(tc, iter) { \
         MVMString * const equal = MVM_string_ascii_decode(tc, tc->instance->VMString, STR_WITH_LEN("=")); \
-        MVMROOT(tc, equal, { \
+        MVMROOT(tc, equal) { \
             MVMString *env_str = NULL; \
             MVMObject *iterval = NULL; \
             i = 0; \
@@ -140,8 +140,8 @@ MVMObject * MVM_proc_getenvhash(MVMThreadContext *tc) {
                 _env[i++] = MVM_string_utf8_c8_encode_C_string(tc, env_str); \
             } \
             _env[size] = NULL; \
-        }); \
-    }); \
+        } \
+    } \
 } while (0)
 
 #define FREE_ENV() do { \
@@ -216,23 +216,23 @@ static void on_write(uv_write_t *req, int status) {
     MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, wi->work_idx);
     MVM_repr_push_o(tc, arr, t->body.schedulee);
     if (status >= 0) {
-        MVMROOT2(tc, arr, t, {
+        MVMROOT2(tc, arr, t) {
             MVMObject *bytes_box = MVM_repr_box_int(tc,
                 tc->instance->boot_types.BOOTInt,
                 wi->buf.len);
             MVM_repr_push_o(tc, arr, bytes_box);
-        });
+        }
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
     }
     else {
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
-        MVMROOT2(tc, arr, t, {
+        MVMROOT2(tc, arr, t) {
             MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
                 tc->instance->VMString, uv_strerror(status));
             MVMObject *msg_box = MVM_repr_box_str(tc,
                 tc->instance->boot_types.BOOTStr, msg_str);
             MVM_repr_push_o(tc, arr, msg_box);
-        });
+        }
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
     MVM_io_eventloop_remove_active_work(tc, &(wi->work_idx));
@@ -267,11 +267,11 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     si                = spawn_task ? (SpawnInfo *)spawn_task->body.data : NULL;
     if (!si || !si->stdin_handle || (r = uv_write(wi->req, si->stdin_handle, &(wi->buf), 1, on_write)) < 0) {
         /* Error; need to notify. */
-        MVMROOT(tc, async_task, {
+        MVMROOT(tc, async_task) {
             MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
             MVM_repr_push_o(tc, arr, ((MVMAsyncTask *)async_task)->body.schedulee);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
-            MVMROOT(tc, arr, {
+            MVMROOT(tc, arr) {
                 MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
                     tc->instance->VMString, (si && si->stdin_handle
                         ? uv_strerror(r)
@@ -283,9 +283,9 @@ static void write_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                 MVMObject *msg_box = MVM_repr_box_str(tc,
                     tc->instance->boot_types.BOOTStr, msg_str);
                 MVM_repr_push_o(tc, arr, msg_box);
-            });
+            }
             MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
-        });
+        }
 
         /* Cleanup handle. */
         MVM_free_null(wi->req);
@@ -333,9 +333,9 @@ static MVMAsyncTask * write_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObjec
         MVM_exception_throw_adhoc(tc, "asyncwritebytes requires a native array of uint8 or int8");
 
     /* Create async task handle. */
-    MVMROOT4(tc, queue, schedulee, h, buffer, {
+    MVMROOT4(tc, queue, schedulee, h, buffer) {
         task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
-    });
+    }
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops  = &write_op_table;
@@ -345,9 +345,9 @@ static MVMAsyncTask * write_bytes(MVMThreadContext *tc, MVMOSHandle *h, MVMObjec
     task->body.data = wi;
 
     /* Hand the task off to the event loop. */
-    MVMROOT(tc, task, {
+    MVMROOT(tc, task) {
         MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
-    });
+    }
 
     return task;
 }
@@ -397,10 +397,10 @@ static MVMint64 close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
     SpawnInfo             *si          = spawn_task ? (SpawnInfo *)spawn_task->body.data : NULL;
     if (si && si->state == STATE_UNSTARTED) {
         MVMAsyncTask *task;
-        MVMROOT(tc, h, {
+        MVMROOT(tc, h) {
             task = (MVMAsyncTask *)MVM_repr_alloc_init(tc,
                 tc->instance->boot_types.BOOTAsync);
-        });
+        }
         task->body.ops  = &deferred_close_op_table;
         task->body.data = si;
         MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
@@ -408,10 +408,10 @@ static MVMint64 close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
     }
     if (si && si->stdin_handle) {
         MVMAsyncTask *task;
-        MVMROOT(tc, h, {
+        MVMROOT(tc, h) {
             task = (MVMAsyncTask *)MVM_repr_alloc_init(tc,
                 tc->instance->boot_types.BOOTAsync);
-        });
+        }
         task->body.ops  = &close_op_table;
         task->body.data = si->stdin_handle;
         MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
@@ -426,10 +426,10 @@ static void deferred_close_perform(MVMThreadContext *tc, uv_loop_t *loop, MVMObj
 
     if (si->state == STATE_UNSTARTED) {
         MVMAsyncTask *task;
-        MVMROOT(tc, h, {
+        MVMROOT(tc, h) {
             task = (MVMAsyncTask *)MVM_repr_alloc_init(tc,
                 tc->instance->boot_types.BOOTAsync);
-        });
+        }
         task->body.ops  = &deferred_close_op_table;
         task->body.data = si;
         MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
@@ -478,7 +478,7 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
     MVMOSHandle *os_handle;
     uv_mutex_t *mutex;
     if (!MVM_is_null(tc, done_cb)) {
-        MVMROOT(tc, done_cb, {
+        MVMROOT(tc, done_cb) {
             /* Get status. */
             MVMint64 status = (exit_status << 8) | term_signal;
 
@@ -488,13 +488,13 @@ static void async_spawn_on_exit(uv_process_t *req, MVMint64 exit_status, int ter
 
             /* Box and send along status. */
             MVM_repr_push_o(tc, arr, done_cb);
-            MVMROOT2(tc, arr, t, {
+            MVMROOT2(tc, arr, t) {
                 MVMObject *result_box = MVM_repr_box_int(tc,
                     tc->instance->boot_types.BOOTInt, status);
                 MVM_repr_push_o(tc, arr, result_box);
-            });
+            }
             MVM_repr_push_o(tc, t->body.queue, arr);
-        });
+        }
     }
 
     /* when invoked via MVMIOOps, close_stdin is already wrapped in a mutex */
@@ -559,13 +559,13 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
     MVMThreadContext *tc  = si->tc;
     MVMObject *arr;
     MVMAsyncTask *t;
-    MVMROOT(tc, callback, {
+    MVMROOT(tc, callback) {
         arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
         t = MVM_io_eventloop_get_active_work(tc, si->work_idx);
-    });
+    }
     MVM_repr_push_o(tc, arr, callback);
     if (nread >= 0) {
-        MVMROOT2(tc, t, arr, {
+        MVMROOT2(tc, t, arr) {
             /* Push the sequence number. */
             MVMObject *seq_boxed = MVM_repr_box_int(tc,
                 tc->instance->boot_types.BOOTInt, seq_number);
@@ -602,16 +602,16 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
                         MVM_panic(1, "Confused stopping reading async process handle");
                 }
             }
-        });
+        }
     }
     else if (nread == UV_EOF) {
-        MVMROOT2(tc, t, arr, {
+        MVMROOT2(tc, t, arr) {
             MVMObject *final = MVM_repr_box_int(tc,
                 tc->instance->boot_types.BOOTInt, seq_number);
             MVM_repr_push_o(tc, arr, final);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
-        });
+        }
         if (buf->base)
             MVM_free(buf->base);
         uv_close((uv_handle_t *)handle, NULL);
@@ -621,13 +621,13 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
     else {
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
-        MVMROOT2(tc, t, arr, {
+        MVMROOT2(tc, t, arr) {
             MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
                 tc->instance->VMString, uv_strerror(nread));
             MVMObject *msg_box = MVM_repr_box_str(tc,
                 tc->instance->boot_types.BOOTStr, msg_str);
             MVM_repr_push_o(tc, arr, msg_box);
-        });
+        }
         if (buf->base)
             MVM_free(buf->base);
         uv_close((uv_handle_t *)handle, NULL);
@@ -765,7 +765,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     if (spawn_result) {
         MVMObject *msg_box = NULL;
         si->state = STATE_DONE;
-        MVMROOT2(tc, async_task, msg_box, {
+        MVMROOT2(tc, async_task, msg_box) {
             char *error_str = MVM_malloc(128);
             MVMObject *error_cb;
             MVMString *msg_str;
@@ -784,15 +784,15 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
             error_cb = MVM_repr_at_key_o(tc, si->callbacks,
                 tc->instance->str_consts.error);
             if (!MVM_is_null(tc, error_cb)) {
-                MVMROOT(tc, error_cb, {
+                MVMROOT(tc, error_cb) {
                     MVMObject *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
                     MVM_repr_push_o(tc, arr, error_cb);
                     MVM_repr_push_o(tc, arr, msg_box);
-                    MVMROOT(tc, arr, {
+                    MVMROOT(tc, arr) {
                         MVM_repr_push_o(tc, arr, MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, spawn_result));
-                    });
+                    }
                     MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
-                });
+                }
             }
 
             if (si->pipe_stdout) {
@@ -821,7 +821,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                 close(si->stdin_to_close);
                 si->stdin_to_close = 0;
             }
-        });
+        }
 
         MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
     }
@@ -834,9 +834,9 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         si->state = STATE_STARTED;
 
         if (!MVM_is_null(tc, ready_cb)) {
-            MVMROOT2(tc, ready_cb, async_task, {
+            MVMROOT2(tc, ready_cb, async_task) {
                 MVMObject *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
-                MVMROOT(tc, arr, {
+                MVMROOT(tc, arr) {
                     MVMObject *pid;
                     MVMObject *handle_arr = MVM_repr_alloc_init(tc,
                         tc->instance->boot_types.BOOTIntArray);
@@ -851,8 +851,8 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                     pid = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, process->pid);
                     MVM_repr_push_o(tc, arr, pid);
                     MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
-                });
-            });
+                }
+            }
         }
     }
 }
@@ -1024,7 +1024,7 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMStri
     /* Encode CWD. */
     _cwd = MVM_string_utf8_c8_encode_C_string(tc, cwd);
 
-    MVMROOT3(tc, queue, env, callbacks, {
+    MVMROOT3(tc, queue, env, callbacks) {
         MVMIOAsyncProcessData *data;
 
         /* Encode environment. */
@@ -1040,9 +1040,9 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMStri
         handle->body.data = data;
 
         /* Create async task handle. */
-        MVMROOT(tc, handle, {
+        MVMROOT(tc, handle) {
             task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTAsync);
-        });
+        }
         MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
         task->body.ops  = &spawn_op_table;
         si              = MVM_calloc(1, sizeof(SpawnInfo));
@@ -1055,12 +1055,12 @@ MVMObject * MVM_proc_spawn_async(MVMThreadContext *tc, MVMObject *queue, MVMStri
         MVM_ASSIGN_REF(tc, &(task->common.header), si->callbacks, callbacks);
         task->body.data = si;
         MVM_ASSIGN_REF(tc, &(handle->common.header), data->async_task, task);
-    });
+    }
 
     /* Hand the task off to the event loop. */
-    MVMROOT(tc, handle, {
+    MVMROOT(tc, handle) {
         MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
-    });
+    }
 
     return (MVMObject *)handle;
 }
@@ -1134,7 +1134,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
     MVMObject            *clargs = instance->clargs;
     if (!clargs) {
         clargs = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
-        MVMROOT(tc, clargs, {
+        MVMROOT(tc, clargs) {
             const MVMint64 num_clargs = instance->num_clargs;
             MVMint64 count;
 
@@ -1153,7 +1153,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc) {
                     instance->boot_types.BOOTStr, string);
                 MVM_repr_push_o(tc, clargs, boxed_str);
             }
-        });
+        }
 
         instance->clargs = clargs;
     }

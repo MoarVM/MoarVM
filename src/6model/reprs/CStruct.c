@@ -396,11 +396,11 @@ static MVMint32 try_get_slot(MVMThreadContext *tc, MVMCStructREPRData *repr_data
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, &CStruct_this_repr, HOW);
 
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMCStruct);
-    });
+    }
 
     return st->WHAT;
 }
@@ -488,7 +488,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                 MVMObject *obj     = body->child_objs[real_slot];
                 if (!obj) {
                     /* No cached object. */
-                    MVMROOT(tc, root, {
+                    MVMROOT(tc, root) {
                         //make it if it's inlined
                         if (repr_data->attribute_locations[slot] & MVM_CSTRUCT_ATTR_INLINED) {
                             if (type == MVM_CSTRUCT_ATTR_CARRAY) {
@@ -528,18 +528,18 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                                     obj = MVM_nativecall_make_cpointer(tc, typeobj, cobj);
                                 }
                                 else if(type == MVM_CSTRUCT_ATTR_STRING) {
-                                    MVMROOT(tc, typeobj, {
+                                    MVMROOT(tc, typeobj) {
                                         MVMString *str = MVM_string_utf8_decode(tc, tc->instance->VMString,
                                             cobj, strlen(cobj));
                                         obj = MVM_repr_box_str(tc, typeobj, str);
-                                    });
+                                    }
                                 }
                             }
                             else {
                                 obj = typeobj;
                             }
                         }
-                    });
+                    }
                     MVM_ASSIGN_REF(tc, &(root->header), ((MVMCStruct*)root)->body.child_objs[real_slot], obj);
                     }
                 result_reg->o = obj;
@@ -643,7 +643,7 @@ static void bind_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                             break;
                         }
                         else
-                            cobj = ((MVMCStruct *)value)->body.cstruct; 
+                            cobj = ((MVMCStruct *)value)->body.cstruct;
                     }
                     else if (type == MVM_CSTRUCT_ATTR_CPPSTRUCT) {
                         if (REPR(value)->ID != MVM_REPR_ID_MVMCPPStruct)

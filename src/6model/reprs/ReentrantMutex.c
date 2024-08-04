@@ -19,11 +19,11 @@ static void initialize_mutex(MVMThreadContext *tc, MVMReentrantMutexBody *rm) {
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, &ReentrantMutex_this_repr, HOW);
 
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMReentrantMutex);
-    });
+    }
 
     return st->WHAT;
 }
@@ -142,11 +142,11 @@ void MVM_reentrantmutex_lock(MVMThreadContext *tc, MVMReentrantMutex *rm) {
         /* Not holding the lock; obtain it. */
         /*interval_id = MVM_telemetry_interval_start(tc, "ReentrantMutex obtains lock");*/
         /*MVM_telemetry_interval_annotate(rm->body.mutex, interval_id, "lock in question");*/
-        MVMROOT(tc, rm, {
+        MVMROOT(tc, rm) {
             MVM_gc_mark_thread_blocked(tc);
             uv_mutex_lock(rm->body.mutex);
             MVM_gc_mark_thread_unblocked(tc);
-        });
+        }
         MVM_store(&rm->body.holder_id, tc->thread_id);
         MVM_store(&rm->body.lock_count, 1);
         tc->num_locks++;
