@@ -28,6 +28,11 @@ MVM_STATIC_INLINE void MVM_gc_root_temp_push(MVMThreadContext *tc, MVMCollectabl
     }
 }
 
+MVM_STATIC_INLINE MVMuint8 __MVM_gc_root_temp_push_nonvoid(MVMThreadContext *tc, MVMCollectable **obj_ref) {
+    MVM_gc_root_temp_push(tc, obj_ref);
+    return 0;
+}
+
 /* Pop top root from the per-thread temporary roots stack. */
 MVM_STATIC_INLINE void MVM_gc_root_temp_pop(MVMThreadContext *tc) {
 #if MVM_TEMP_ROOT_DEBUG
@@ -63,54 +68,126 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc);
 void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame);
 void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 
+/* C preprocessor macros are basically the worst thing ever.
+ * So here's an explanation of the cool new root macro:
+ *
+ * We want the whole macro to expand to a "for ( ...; ...; ...)"
+ * line, so that
+ * 1. we can put a block afterwards as if our root macro were control flow
+ * 2. we can put code in the initialization part of the for loop body that
+ *    pushes the temp roots
+ * 3. we can put code in the step part of the for loop to pop the roots again
+ * 4. we can put code in the check part that makes sure the block only
+ *    runs the first time around.
+ *
+ * In order to have multiple statements in the initialization part of the for
+ * arguments list, we have to have a single statement that declares multiple
+ * variables and assigns values to them.
+ *
+ * We use a thin wrapper around the temp root push function that returns a
+ * value, since otherwise we get errors for not ignoring a void value.
+ *
+ * We have to make sure these variables we initialize for the sole purpose
+ * of calling MVM_gc_root_temp_push have unique names, so we combine __LINE__
+ * which has the line the macro was parsed at in it, and a manually provided
+ * index for each of the variables.
+ *
+ * Another thing we have to do is make sure these variables are not completely
+ * unused, since otherwise the compiler would also be unhappy.
+ */
+
+/* The specific rules of concatenation with ## force us to put one macro in
+ * between what we want to concat and the ## operator.
+ */
 #define __MVM__CONCAT_IMPL( x, y ) x##y
 #define __MVM__MACRO_CONCAT( x, y ) __MVM__CONCAT_IMPL( x, y )
 
+// The variable that we set to 0 after the for loop runs so it terminates
 #define __COOLROOT_VAR_NAME __MVM__MACRO_CONCAT(__coolroot_runned_, __LINE__)
 
-#define COOLROOT(tc, obj_ref) MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref));\
-    MVMuint8 __COOLROOT_VAR_NAME = 1;\
-    for (; __COOLROOT_VAR_NAME != 0; \
-    MVM_gc_root_temp_pop(tc), __COOLROOT_VAR_NAME = 0)
+// The variable we use to put the dummy return value from MVM_gc_root_temp_push
+#define __COOLROOT_PUSH_VAR_NAME __MVM__MACRO_CONCAT(__coolroot_dummy_var, __LINE__)
+#define __COOLROOT_PUSH_VAR(i) __MVM__MACRO_CONCAT(__COOLROOT_PUSH_VAR_NAME, i)
 
-#define COOLROOT2(tc, obj_ref1, obj_ref2) MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1));\
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2));\
-    MVMuint8 __COOLROOT_VAR_NAME = 1;\
-    for (; __COOLROOT_VAR_NAME != 0; \
+// The macro that generates a call to root_temp_push with the proper assignment
+#define __COOLROOT_PUSH(tc, i, obj_ref) __COOLROOT_PUSH_VAR(i) = __MVM_gc_root_temp_push_nonvoid(tc, (MVMCollectable **)&(obj_ref))
+
+#define COOLROOT(tc, obj_ref1) \
+    for (MVMuint8 __COOLROOT_VAR_NAME = 1, \
+            __COOLROOT_PUSH(tc, 1, obj_ref1); \
+        __COOLROOT_VAR_NAME != 0 && \
+            __COOLROOT_PUSH_VAR(1) == 0; \
+        MVM_gc_root_temp_pop(tc), \
+            __COOLROOT_VAR_NAME = 0)
+
+#define COOLROOT2(tc, obj_ref1, obj_ref2) \
+    for (MVMuint8 __COOLROOT_VAR_NAME = 1, \
+            __COOLROOT_PUSH(tc, 1, obj_ref1), \
+            __COOLROOT_PUSH(tc, 2, obj_ref2); \
+        __COOLROOT_VAR_NAME != 0 && \
+            __COOLROOT_PUSH_VAR(1) == 0 && \
+            __COOLROOT_PUSH_VAR(2) == 0 \
+        ; \
     MVM_gc_root_temp_pop_n(tc, 2), __COOLROOT_VAR_NAME = 0)
 
-#define COOLROOT3(tc, obj_ref1, obj_ref2, obj_ref3) MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1));\
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2));\
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3));\
-    MVMuint8 __COOLROOT_VAR_NAME = 1;\
-    for (; __COOLROOT_VAR_NAME != 0; \
+#define COOLROOT3(tc, obj_ref1, obj_ref2, obj_ref3) \
+    for (MVMuint8 __COOLROOT_VAR_NAME = 1, \
+            __COOLROOT_PUSH(tc, 1, obj_ref1), \
+            __COOLROOT_PUSH(tc, 2, obj_ref2), \
+            __COOLROOT_PUSH(tc, 3, obj_ref3); \
+        __COOLROOT_VAR_NAME != 0 && \
+            __COOLROOT_PUSH_VAR(1) == 0 && \
+            __COOLROOT_PUSH_VAR(2) == 0 && \
+            __COOLROOT_PUSH_VAR(3) == 0 \
+        ; \
     MVM_gc_root_temp_pop_n(tc, 3), __COOLROOT_VAR_NAME = 0)
 
-#define COOLROOT4(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4) MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1));\
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2));\
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3));\
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref4));\
-    MVMuint8 __COOLROOT_VAR_NAME = 1;\
-    for (; __COOLROOT_VAR_NAME != 0; \
+#define COOLROOT4(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4) \
+    for (MVMuint8 __COOLROOT_VAR_NAME = 1, \
+            __COOLROOT_PUSH(tc, 1, obj_ref1), \
+            __COOLROOT_PUSH(tc, 2, obj_ref2), \
+            __COOLROOT_PUSH(tc, 3, obj_ref3), \
+            __COOLROOT_PUSH(tc, 4, obj_ref3); \
+        __COOLROOT_VAR_NAME != 0 && \
+            __COOLROOT_PUSH_VAR(1) == 0 && \
+            __COOLROOT_PUSH_VAR(2) == 0 && \
+            __COOLROOT_PUSH_VAR(3) == 0 && \
+            __COOLROOT_PUSH_VAR(4) == 0 \
+        ; \
     MVM_gc_root_temp_pop_n(tc, 4), __COOLROOT_VAR_NAME = 0)
 
-#define COOLROOT5(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5) MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1));\
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2));\
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3));\
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref4));\
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref5));\
-    MVMuint8 __COOLROOT_VAR_NAME = 1;\
-    for (; __COOLROOT_VAR_NAME != 0; \
+#define COOLROOT5(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5) \
+    for (MVMuint8 __COOLROOT_VAR_NAME = 1, \
+            __COOLROOT_PUSH(tc, 1, obj_ref1), \
+            __COOLROOT_PUSH(tc, 2, obj_ref2), \
+            __COOLROOT_PUSH(tc, 3, obj_ref3), \
+            __COOLROOT_PUSH(tc, 4, obj_ref3), \
+            __COOLROOT_PUSH(tc, 5, obj_ref3); \
+        __COOLROOT_VAR_NAME != 0 && \
+            __COOLROOT_PUSH_VAR(1) == 0 && \
+            __COOLROOT_PUSH_VAR(2) == 0 && \
+            __COOLROOT_PUSH_VAR(3) == 0 && \
+            __COOLROOT_PUSH_VAR(4) == 0 && \
+            __COOLROOT_PUSH_VAR(5) == 0 \
+        ; \
     MVM_gc_root_temp_pop_n(tc, 5), __COOLROOT_VAR_NAME = 0)
 
-#define COOLROOT6(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5, obj_ref6) MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1));\
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2));\
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3));\
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref4));\
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref5));\
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref6));\
-    MVMuint8 __COOLROOT_VAR_NAME = 1;\
-    for (; __COOLROOT_VAR_NAME != 0; \
+#define COOLROOT6(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5, obj_ref6) \
+    for (MVMuint8 __COOLROOT_VAR_NAME = 1, \
+            __COOLROOT_PUSH(tc, 1, obj_ref1), \
+            __COOLROOT_PUSH(tc, 2, obj_ref2), \
+            __COOLROOT_PUSH(tc, 3, obj_ref3), \
+            __COOLROOT_PUSH(tc, 4, obj_ref3), \
+            __COOLROOT_PUSH(tc, 5, obj_ref3), \
+            __COOLROOT_PUSH(tc, 6, obj_ref4); \
+        __COOLROOT_VAR_NAME != 0 && \
+            __COOLROOT_PUSH_VAR(1) == 0 && \
+            __COOLROOT_PUSH_VAR(2) == 0 && \
+            __COOLROOT_PUSH_VAR(3) == 0 && \
+            __COOLROOT_PUSH_VAR(4) == 0 && \
+            __COOLROOT_PUSH_VAR(5) == 0 && \
+            __COOLROOT_PUSH_VAR(6) == 0 \
+        ; \
     MVM_gc_root_temp_pop_n(tc, 6), __COOLROOT_VAR_NAME = 0)
 
 
