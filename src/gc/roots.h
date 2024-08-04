@@ -113,7 +113,7 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
 // The macro that generates a call to root_temp_push with the proper assignment
 #define __MVMROOT_PUSH(tc, i, obj_ref) __MVMROOT_PUSH_VAR(i) = __MVM_gc_root_temp_push_nonvoid(tc, (MVMCollectable **)&(obj_ref))
 
-#define MVMROOT(tc, obj_ref1)  /* If you get "passed 3 arguments, but takes just 2" error, just put the block outside the MVMROOT and remove the ; or if you want to keep compatibility with older moar versions, write explicit MVM_gc_root_temp_push and _pop calls. */ \
+#define MVMROOT(tc, obj_ref1)  /* If you get "passed 3 arguments, but takes just 2" error, replace it with MVMROOT_OLD or if you want to keep compatibility with older moar versions, write explicit MVM_gc_root_temp_push and _pop calls. */ \
     for (MVMuint8 __MVMROOT_VAR_NAME = 1, \
             __MVMROOT_PUSH(tc, 1, obj_ref1); \
         __MVMROOT_VAR_NAME != 0 && \
@@ -121,7 +121,7 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
         MVM_gc_root_temp_pop(tc), \
             __MVMROOT_VAR_NAME = 0)
 
-#define MVMROOT2(tc, obj_ref1, obj_ref2)  /* If you get "passed 4 arguments, but takes just 3" error, just put the block outside the MVMROOT and remove the ; or if you want to keep compatibility with older moar versions, write explicit MVM_gc_root_temp_push and _pop calls. */ \
+#define MVMROOT2(tc, obj_ref1, obj_ref2)  /* If you get "passed 4 arguments, but takes just 3" error, replace it with MVMROOT_OLD or if you want to keep compatibility with older moar versions, write explicit MVM_gc_root_temp_push and _pop calls. */ \
     for (MVMuint8 __MVMROOT_VAR_NAME = 1, \
             __MVMROOT_PUSH(tc, 1, obj_ref1), \
             __MVMROOT_PUSH(tc, 2, obj_ref2); \
@@ -131,7 +131,7 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
         ; \
     MVM_gc_root_temp_pop_n(tc, 2), __MVMROOT_VAR_NAME = 0)
 
-#define MVMROOT3(tc, obj_ref1, obj_ref2, obj_ref3)  /* If you get "passed 5 arguments, but takes just 4" error, just put the block outside the MVMROOT and remove the ; or if you want to keep compatibility with older moar versions, write explicit MVM_gc_root_temp_push and _pop calls. */ \
+#define MVMROOT3(tc, obj_ref1, obj_ref2, obj_ref3)  /* If you get "passed 5 arguments, but takes just 4" error, replace it with MVMROOT_OLD or if you want to keep compatibility with older moar versions, write explicit MVM_gc_root_temp_push and _pop calls. */ \
     for (MVMuint8 __MVMROOT_VAR_NAME = 1, \
             __MVMROOT_PUSH(tc, 1, obj_ref1), \
             __MVMROOT_PUSH(tc, 2, obj_ref2), \
@@ -143,7 +143,7 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
         ; \
     MVM_gc_root_temp_pop_n(tc, 3), __MVMROOT_VAR_NAME = 0)
 
-#define MVMROOT4(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4)  /* If you get "passed 6 arguments, but takes just 5" error, just put the block outside the MVMROOT and remove the ; or if you want to keep compatibility with older moar versions, write explicit MVM_gc_root_temp_push and _pop calls. */ \
+#define MVMROOT4(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4)  /* If you get "passed 6 arguments, but takes just 5" error, replace it with MVMROOT_OLD or if you want to keep compatibility with older moar versions, write explicit MVM_gc_root_temp_push and _pop calls. */ \
     for (MVMuint8 __MVMROOT_VAR_NAME = 1, \
             __MVMROOT_PUSH(tc, 1, obj_ref1), \
             __MVMROOT_PUSH(tc, 2, obj_ref2), \
@@ -157,7 +157,7 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
         ; \
     MVM_gc_root_temp_pop_n(tc, 4), __MVMROOT_VAR_NAME = 0)
 
-#define MVMROOT5(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5)  /* If you get "passed 7 arguments, but takes just 6" error, just put the block outside the MVMROOT and remove the ; or if you want to keep compatibility with older moar versions, write explicit MVM_gc_root_temp_push and _pop calls. */ \
+#define MVMROOT5(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5)  /* If you get "passed 7 arguments, but takes just 6" error, replace it with MVMROOT_OLD or if you want to keep compatibility with older moar versions, write explicit MVM_gc_root_temp_push and _pop calls. */ \
     for (MVMuint8 __MVMROOT_VAR_NAME = 1, \
             __MVMROOT_PUSH(tc, 1, obj_ref1), \
             __MVMROOT_PUSH(tc, 2, obj_ref2), \
@@ -173,7 +173,7 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
         ; \
     MVM_gc_root_temp_pop_n(tc, 5), __MVMROOT_VAR_NAME = 0)
 
-#define MVMROOT6(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5, obj_ref6)  /* If you get "passed 8 arguments, but takes just 7" error, just put the block outside the MVMROOT and remove the ; or if you want to keep compatibility with older moar versions, write explicit MVM_gc_root_temp_push and _pop calls. */ \
+#define MVMROOT6(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5, obj_ref6)  /* If you get "passed 8 arguments, but takes just 7" error, replace it with MVMROOT_OLD or if you want to keep compatibility with older moar versions, write explicit MVM_gc_root_temp_push and _pop calls. */ \
     for (MVMuint8 __MVMROOT_VAR_NAME = 1, \
             __MVMROOT_PUSH(tc, 1, obj_ref1), \
             __MVMROOT_PUSH(tc, 2, obj_ref2), \
@@ -190,3 +190,49 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
             __MVMROOT_PUSH_VAR(6) == 0 \
         ; \
     MVM_gc_root_temp_pop_n(tc, 6), __MVMROOT_VAR_NAME = 0)
+
+#define MVMROOT_OLD(tc, obj_ref, block) do {\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref)); \
+    block \
+    MVM_gc_root_temp_pop(tc); \
+ } while (0)
+#define MVMROOT2_OLD(tc, obj_ref1, obj_ref2, block) do {\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1)); \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2)); \
+    block \
+    MVM_gc_root_temp_pop_n(tc, 2); \
+ } while (0)
+#define MVMROOT3_OLD(tc, obj_ref1, obj_ref2, obj_ref3, block) do {\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1)); \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2)); \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3)); \
+    block \
+    MVM_gc_root_temp_pop_n(tc, 3); \
+ } while (0)
+#define MVMROOT4_OLD(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, block) do {\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1)); \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2)); \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3)); \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref4)); \
+    block \
+    MVM_gc_root_temp_pop_n(tc, 4); \
+ } while (0)
+#define MVMROOT5_OLD(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5, block) do {\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1)); \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2)); \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3)); \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref4)); \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref5)); \
+    block \
+    MVM_gc_root_temp_pop_n(tc, 5); \
+ } while (0)
+#define MVMROOT6_OLD(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5, obj_ref6, block) do {\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1)); \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2)); \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3)); \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref4)); \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref5)); \
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref6)); \
+    block \
+    MVM_gc_root_temp_pop_n(tc, 6); \
+ } while (0)
