@@ -211,9 +211,9 @@ static const MVMIOOps op_table = {
 MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
     MVMOSHandle  * result;
     MVMIODirIter * const data   = MVM_calloc(1, sizeof(MVMIODirIter));
-    MVMROOT(tc, dirname, {
+    MVMROOT(tc, dirname) {
         result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-    });
+    }
 #ifdef _WIN32
     {
         char *name;

@@ -8,11 +8,11 @@ static const MVMREPROps Decoder_this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, &Decoder_this_repr, HOW);
 
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMDecoder);
-    });
+    }
 
     return st->WHAT;
 }
@@ -251,9 +251,9 @@ MVMString * MVM_decoder_take_chars(MVMThreadContext *tc, MVMDecoder *decoder, MV
                                    MVMint64 eof) {
     MVMString *result = NULL;
     enter_single_user(tc, decoder);
-    MVMROOT(tc, decoder, {
+    MVMROOT(tc, decoder) {
         result = MVM_string_decodestream_get_chars(tc, get_ds(tc, decoder), (MVMint32)chars, eof);
-    });
+    }
     exit_single_user(tc, decoder);
     return result;
 }
@@ -262,9 +262,9 @@ MVMString * MVM_decoder_take_chars(MVMThreadContext *tc, MVMDecoder *decoder, MV
 MVMString * MVM_decoder_take_all_chars(MVMThreadContext *tc, MVMDecoder *decoder) {
     MVMString *result = NULL;
     enter_single_user(tc, decoder);
-    MVMROOT(tc, decoder, {
+    MVMROOT(tc, decoder) {
         result = MVM_string_decodestream_get_all(tc, get_ds(tc, decoder));
-    });
+    }
     exit_single_user(tc, decoder);
     return result;
 }
@@ -273,9 +273,9 @@ MVMString * MVM_decoder_take_all_chars(MVMThreadContext *tc, MVMDecoder *decoder
 MVMString * MVM_decoder_take_available_chars(MVMThreadContext *tc, MVMDecoder *decoder) {
     MVMString *result = NULL;
     enter_single_user(tc, decoder);
-    MVMROOT(tc, decoder, {
+    MVMROOT(tc, decoder) {
         result = MVM_string_decodestream_get_available(tc, get_ds(tc, decoder));
-    });
+    }
     exit_single_user(tc, decoder);
     return result;
 }
@@ -287,11 +287,11 @@ MVMString * MVM_decoder_take_line(MVMThreadContext *tc, MVMDecoder *decoder,
     MVMDecodeStreamSeparators *sep_spec = get_sep_spec(tc, decoder);
     MVMString *result = NULL;
     enter_single_user(tc, decoder);
-    MVMROOT(tc, decoder, {
+    MVMROOT(tc, decoder) {
         result = incomplete_ok
             ? MVM_string_decodestream_get_until_sep_eof(tc, ds, sep_spec, (MVMint32)chomp)
             : MVM_string_decodestream_get_until_sep(tc, ds, sep_spec, (MVMint32)chomp);
-    });
+    }
     exit_single_user(tc, decoder);
     return result;
 }

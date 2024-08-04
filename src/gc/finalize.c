@@ -98,11 +98,11 @@ void MVM_gc_finalize_run_handler(MVMThreadContext *tc) {
     if (handler) {
         /* Drain the finalizing queue to an array. */
         MVMObject *drain;
-        MVMROOT(tc, handler, {
+        MVMROOT(tc, handler) {
             drain = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
             while (tc->num_finalizing > 0)
                 MVM_repr_push_o(tc, drain, tc->finalizing[--tc->num_finalizing]);
-        });
+        }
 
         /* If there is a last exception handler result stored, put something
          * in place to restore it, otherwise it may be overwritten during the

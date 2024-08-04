@@ -236,9 +236,9 @@ MVMuint32 MVM_spesh_frame_walker_get_lex(MVMThreadContext *tc, MVMSpeshFrameWalk
         *found_out = result;
         *found_kind_out = kind;
         if (vivify && kind == MVM_reg_obj && !result->o) {
-            MVMROOT(tc, cur_frame, {
+            MVMROOT(tc, cur_frame) {
                     MVM_frame_vivify_lexical(tc, cur_frame, index);
-                });
+                }
         }
         if (found_frame)
             *found_frame = cur_frame;
@@ -327,7 +327,7 @@ MVMObject * MVM_spesh_frame_walker_get_lexicals_hash(MVMThreadContext *tc, MVMSp
     MVMHLLConfig *hll = MVM_hll_current(tc);
     MVMObject *ctx_hash = MVM_repr_alloc_init(tc, hll->slurpy_hash_type);
     find_lex_info(tc, fw, &frame, &sf, &base_index);
-    MVMROOT3(tc, ctx_hash, frame, sf, {
+    MVMROOT3(tc, ctx_hash, frame, sf) {
         MVMString **lexnames = sf->body.lexical_names_list;
         MVMuint32 i;
         for (i = 0; i < sf->body.num_lexicals; i++) {
@@ -413,7 +413,7 @@ MVMObject * MVM_spesh_frame_walker_get_lexicals_hash(MVMThreadContext *tc, MVMSp
                             MVM_reg_get_debug_name(tc, type));
             }
         }
-    });
+    }
     return ctx_hash;
 }
 

@@ -54,7 +54,7 @@ static void boot_code_constant(MVMThreadContext *tc, MVMArgs arg_info) {
     MVM_args_proc_setup(tc, &arg_ctx, arg_info);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
     MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
-    MVMROOT(tc, capture, {
+    MVMROOT(tc, capture) {
         /* Get a capture dropping the first argument, which is the callee. */
         MVMObject *args_capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 0);
 
@@ -70,7 +70,7 @@ static void boot_code_constant(MVMThreadContext *tc, MVMArgs arg_info) {
             MVM_exception_throw_adhoc(tc,
                     "boot-code-constant dispatcher only works with MVMCode or MVMCFunction");
         }
-    });
+    }
 
     MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
 }
@@ -85,7 +85,7 @@ static void boot_foreign_code(MVMThreadContext *tc, MVMArgs arg_info) {
     MVM_args_proc_setup(tc, &arg_ctx, arg_info);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
     MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
-    MVMROOT(tc, capture, {
+    MVMROOT(tc, capture) {
         /* Get a capture dropping the first argument, which is the callee. */
         MVMObject *args_capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 0);
 
@@ -98,7 +98,7 @@ static void boot_foreign_code(MVMThreadContext *tc, MVMArgs arg_info) {
             MVM_exception_throw_adhoc(tc,
                     "boot-foreign-code dispatcher only works with MVMNativeCall, got %s", REPR(code)->name);
         }
-    });
+    }
 
     MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
 }
@@ -116,14 +116,14 @@ static void boot_code(MVMThreadContext *tc, MVMArgs arg_info) {
     MVM_args_proc_setup(tc, &arg_ctx, arg_info);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
     MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
-    MVMROOT(tc, capture, {
+    MVMROOT(tc, capture) {
         /* Get a capture dropping the first argument, which is the callee. */
         MVMObject *args_capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 0);
 
-        MVMROOT(tc, args_capture, {
+        MVMROOT(tc, args_capture) {
             /* Work out what the callee is, and set us up to invoke it. */
             MVMObject *code = MVM_capture_arg_pos_o(tc, capture, 0);
-            MVMROOT(tc, code, {
+            MVMROOT(tc, code) {
                 MVMObject *tracked_code = MVM_disp_program_record_track_arg(tc, capture, 0);
                 if (REPR(code)->ID == MVM_REPR_ID_MVMCode && IS_CONCRETE(code)) {
                     MVM_disp_program_record_tracked_code(tc, tracked_code, args_capture);
@@ -135,9 +135,9 @@ static void boot_code(MVMThreadContext *tc, MVMArgs arg_info) {
                     MVM_exception_throw_adhoc(tc,
                             "boot-code dispatcher only works with MVMCode or MVMCFunction");
                 }
-            });
-        });
-    });
+            }
+        }
+    }
 
     MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
 }
@@ -169,9 +169,9 @@ static void boot_syscall(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* Drop the name from the args capture, and then check them. */
     MVMObject *args_capture;
-    MVMROOT(tc, name, {
+    MVMROOT(tc, name) {
         args_capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 0);
-    });
+    }
     MVMCallsite *cs = ((MVMCapture *)args_capture)->body.callsite;
     if (MVM_callsite_has_nameds(tc, cs)) {
         char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -212,10 +212,10 @@ static void boot_syscall(MVMThreadContext *tc, MVMArgs arg_info) {
                 MVMuint32 expected = syscall->expected_reprs[i];
                 MVMuint32 got = REPR(MVM_capture_arg_pos_o(tc, args_capture, i))->ID;
                 if (expected == got) {
-                    MVMROOT2(tc, name, args_capture, {
+                    MVMROOT2(tc, name, args_capture) {
                         MVM_disp_program_record_guard_type(tc,
                                 MVM_disp_program_record_track_arg(tc, args_capture, i));
-                    });
+                    }
                 }
                 else {
                     char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -229,10 +229,10 @@ static void boot_syscall(MVMThreadContext *tc, MVMArgs arg_info) {
             }
             if (syscall->expected_concrete[i]) {
                 if (IS_CONCRETE(MVM_capture_arg_pos_o(tc, args_capture, i))) {
-                    MVMROOT2(tc, name, args_capture, {
+                    MVMROOT2(tc, name, args_capture) {
                         MVM_disp_program_record_guard_concreteness(tc,
                                 MVM_disp_program_record_track_arg(tc, args_capture, i));
-                    });
+                    }
                 }
                 else {
                     char *c_name = MVM_string_utf8_encode_C_string(tc, name);
@@ -302,9 +302,9 @@ static void lang_call(MVMThreadContext *tc, MVMArgs arg_info) {
     /* Obtain and guard on the first argument of the capture, which is the
      * thing to invoke. */
     MVMObject *tracked_invokee;
-    MVMROOT(tc, capture, {
+    MVMROOT(tc, capture) {
          tracked_invokee = MVM_disp_program_record_track_arg(tc, capture, 0);
-    });
+    }
     MVM_disp_program_record_guard_type(tc, tracked_invokee);
 
     /* If it's a VM code object or a VM function, we'll delegate to the
@@ -364,9 +364,9 @@ static void lang_meth_call(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* If the invocant has an associated HLL and method dispatcher, delegate there. */
     MVMObject *tracked_invocant;
-    MVMROOT(tc, capture, {
+    MVMROOT(tc, capture) {
          tracked_invocant = MVM_disp_program_record_track_arg(tc, capture, 0);
-    });
+    }
     MVMObject *invocant = MVM_capture_arg_pos_o(tc, capture, 0);
     MVMHLLConfig *hll = STABLE(invocant)->hll_owner;
     if (hll && hll->method_call_dispatcher) {
@@ -380,15 +380,15 @@ static void lang_meth_call(MVMThreadContext *tc, MVMArgs arg_info) {
      * on the invocant, add a guard. */
     MVM_disp_program_record_guard_type(tc, tracked_invocant);
     MVMObject *HOW;
-    MVMROOT2(tc, capture, invocant, {
+    MVMROOT2(tc, capture, invocant) {
         HOW = MVM_6model_get_how(tc, STABLE(invocant));
-    });
+    }
     if (REPR(HOW)->ID == MVM_REPR_ID_KnowHOWREPR && IS_CONCRETE(HOW)) {
         MVMObject *methods = ((MVMKnowHOWREPR *)HOW)->body.methods;
         MVMString *method_name = MVM_capture_arg_pos_s(tc, capture, 1);
         MVMObject *method = MVM_repr_at_key_o(tc, methods, method_name);
         if (IS_CONCRETE(method)) {
-            MVMROOT2(tc, capture, method, {
+            MVMROOT2(tc, capture, method) {
                 /* Method found. Guard on the name. */
                 MVMObject *tracked_name = MVM_disp_program_record_track_arg(tc, capture, 1);
                 MVM_disp_program_record_guard_literal(tc, tracked_name);
@@ -403,7 +403,7 @@ static void lang_meth_call(MVMThreadContext *tc, MVMArgs arg_info) {
                         args_capture, 0, MVM_CALLSITE_ARG_OBJ, method_reg);
                 MVM_disp_program_record_delegate(tc, tc->instance->str_consts.lang_call,
                         del_capture);
-            });
+            }
         }
         else {
             MVM_disp_program_record_delegate(tc,
@@ -439,10 +439,10 @@ static void lang_find_meth(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *invocant = MVM_capture_arg_pos_o(tc, capture, 0);
     MVMHLLConfig *hll = STABLE(invocant)->hll_owner;
     if (hll && hll->find_method_dispatcher) {
-        MVMROOT(tc, capture, {
+        MVMROOT(tc, capture) {
             MVMObject *tracked_invocant = MVM_disp_program_record_track_arg(tc, capture, 0);
             MVM_disp_program_record_guard_hll(tc, tracked_invocant);
-        });
+        }
         MVM_disp_program_record_delegate(tc, hll->find_method_dispatcher, capture);
         return;
     }
@@ -450,23 +450,23 @@ static void lang_find_meth(MVMThreadContext *tc, MVMArgs arg_info) {
     /* Obtain and guard on the first argument of the capture, which is the
      * invocant of the method call, and then also on the name and the
      * exception flag. */
-    MVMROOT(tc, capture, {
+    MVMROOT(tc, capture) {
         MVMObject *tracked_invocant = MVM_disp_program_record_track_arg(tc, capture, 0);
         MVM_disp_program_record_guard_type(tc, tracked_invocant);
         for (MVMuint8 i = 1; i <= 2; i++) {
             MVMObject *tracked_arg = MVM_disp_program_record_track_arg(tc, capture, i);
             MVM_disp_program_record_guard_literal(tc, tracked_arg);
         }
-    });
+    }
 
 
     /* Otherwise if it's a KnowHOW, then look in its method table (this is how
      * method dispatch bottoms out in the VM). */
     MVMint64 exceptional = MVM_capture_arg_pos_i(tc, capture, 2);
     MVMObject *HOW;
-    MVMROOT2(tc, capture, invocant, {
+    MVMROOT2(tc, capture, invocant) {
         HOW = MVM_6model_get_how(tc, STABLE(invocant));
-    });
+    }
     if (REPR(HOW)->ID == MVM_REPR_ID_KnowHOWREPR && IS_CONCRETE(HOW)) {
         MVMObject *methods = ((MVMKnowHOWREPR *)HOW)->body.methods;
         MVMString *method_name = MVM_capture_arg_pos_s(tc, capture, 1);
@@ -563,9 +563,9 @@ static void boot_boolify(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* Always guard on the type of the object being tested. */
     MVMObject *tracked_object;
-    MVMROOT(tc, capture, {
+    MVMROOT(tc, capture) {
          tracked_object = MVM_disp_program_record_track_arg(tc, capture, 0);
-    });
+    }
     MVM_disp_program_record_guard_type(tc, tracked_object);
 
     /* Now go on the boolification protocol value of the object. */
@@ -653,10 +653,10 @@ static void lang_hllize(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* Guard on the type's HLL (something later may strengthen it, if it is
      * doing a type mapping). */
-    MVMROOT(tc, capture, {
+    MVMROOT(tc, capture) {
         MVM_disp_program_record_guard_hll(tc,
                 MVM_disp_program_record_track_arg(tc, capture, 0));
-    });
+    }
 
     MVMCallsite *cs = ((MVMCapture *)capture)->body.callsite;
 
@@ -665,10 +665,10 @@ static void lang_hllize(MVMThreadContext *tc, MVMArgs arg_info) {
         hll = MVM_disp_program_record_get_hll(tc);
     }
     else {
-        MVMROOT(tc, capture, {
+        MVMROOT(tc, capture) {
             MVM_disp_program_record_guard_literal(tc,
                 MVM_disp_program_record_track_arg(tc, capture, 1));
-        });
+        }
         MVMRegister name;
         MVMCallsiteFlags name_kind;
         MVM_capture_arg_pos(tc, capture, 1, &name, &name_kind);
@@ -711,10 +711,10 @@ static void lang_isinvokable(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* Guard on the type, as that's how we make our decision about either
      * the outcome or where to delegate. */
-    MVMROOT(tc, capture, {
+    MVMROOT(tc, capture) {
         MVM_disp_program_record_guard_type(tc,
                 MVM_disp_program_record_track_arg(tc, capture, 0));
-    });
+    }
 
     /* Get the value, and ensure it's an object (natives are certainly not
      * invokable). */

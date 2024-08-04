@@ -14,10 +14,10 @@ void MVM_spesh_log_initialize_thread(MVMThreadContext *tc, MVMint32 main_thread)
 /* Creates a spesh log for the specified target thread. */
 MVMSpeshLog * MVM_spesh_log_create(MVMThreadContext *tc, MVMThread *target_thread) {
     MVMSpeshLog *result;
-    MVMROOT(tc, target_thread, {
+    MVMROOT(tc, target_thread) {
         result = (MVMSpeshLog *)MVM_repr_alloc_init(tc, tc->instance->SpeshLog);
         MVM_ASSIGN_REF(tc, &(result->common.header), result->body.thread, target_thread);
-    });
+    }
     return result;
 }
 
@@ -32,13 +32,13 @@ static void send_log(MVMThreadContext *tc, MVMSpeshLog *sl) {
         block_condvar = sl->body.block_condvar = MVM_malloc(sizeof(uv_cond_t));
         uv_cond_init(sl->body.block_condvar);
         uv_mutex_lock(sl->body.block_mutex);
-        MVMROOT(tc, sl, {
+        MVMROOT(tc, sl) {
             MVM_repr_push_o(tc, tc->instance->spesh_queue, (MVMObject *)sl);
             MVM_gc_mark_thread_blocked(tc);
             while (!MVM_load(&(sl->body.completed)))
                 uv_cond_wait(block_condvar, block_mutex);
             MVM_gc_mark_thread_unblocked(tc);
-        });
+        }
         uv_mutex_unlock(sl->body.block_mutex);
     }
     else {
@@ -93,12 +93,12 @@ static void log_param_type(MVMThreadContext *tc, MVMint32 cid, MVMuint16 arg_idx
 }
 static void log_parameter(MVMThreadContext *tc, MVMint32 cid, MVMuint16 arg_idx, MVMObject *param) {
     MVMContainerSpec const *cs = STABLE(param)->container_spec;
-    MVMROOT(tc, param, {
+    MVMROOT(tc, param) {
         log_param_type(tc, cid, arg_idx, param, MVM_SPESH_LOG_PARAMETER,
             cs && IS_CONCRETE(param) && cs->fetch_never_invokes
                 ? cs->can_store(tc, param)
                 : 0);
-    });
+    }
     if (tc->spesh_log && IS_CONCRETE(param)) {
         if (cs && cs->fetch_never_invokes && REPR(param)->ID != MVM_REPR_ID_NativeRef) {
             MVMRegister r;

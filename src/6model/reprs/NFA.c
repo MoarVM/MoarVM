@@ -8,11 +8,11 @@ static const MVMREPROps NFA_this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st = MVM_gc_allocate_stable(tc, &NFA_this_repr, HOW);
 
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMNFA);
-    });
+    }
 
     return st->WHAT;
 }
@@ -378,7 +378,7 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
     MVMNFABody *nfa;
     MVMint64    i, j, num_states;
 
-    MVMROOT2(tc, states, nfa_type, {
+    MVMROOT2(tc, states, nfa_type) {
         /* Create NFA object. */
         nfa_obj = MVM_repr_alloc_init(tc, nfa_type);
         nfa = (MVMNFABody *)OBJECT_BODY(nfa_obj);
@@ -462,7 +462,7 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
                 cur_edge++;
             }
         }
-    });
+    }
 
     sort_states_and_add_synth_cp_node(tc, nfa);
 

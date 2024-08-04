@@ -10,11 +10,11 @@
 
 #define add_entry(tc, hash, name, value) do { \
     MVMString * const key = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, (name)); \
-    MVMROOT(tc, key, { \
+    MVMROOT(tc, key) { \
         MVMString * const value_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, (value)); \
         MVMObject * const boxed_value = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, value_str); \
         MVM_repr_bind_key_o(tc, hash, key, boxed_value); \
-    }); \
+    } \
 } while (0)
 
 MVMObject *MVM_backend_config(MVMThreadContext *tc) {
@@ -23,9 +23,9 @@ MVMObject *MVM_backend_config(MVMThreadContext *tc) {
         return config;
 
     config = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-    MVMROOT(tc, config, {
+    MVMROOT(tc, config) {
 @backendconfig@
-    });
+    }
     tc->instance->cached_backend_config = config;
 
     return config;

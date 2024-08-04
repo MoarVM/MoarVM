@@ -8,11 +8,11 @@ static const MVMREPROps MVMCapture_this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st = MVM_gc_allocate_stable(tc, &MVMCapture_this_repr, HOW);
 
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMCapture);
-    });
+    }
 
     return st->WHAT;
 }
@@ -319,13 +319,13 @@ MVMObject * MVM_capture_get_nameds(MVMThreadContext *tc, MVMObject *capture) {
     /* Set up an args processing context and use the standard slurpy args
      * handler to extract all nameds */
     MVMObject *result;
-    MVMROOT(tc, capture, {
+    MVMROOT(tc, capture) {
         MVMArgs capture_args = MVM_capture_to_args(tc, capture);
         MVMArgProcContext capture_ctx;
         MVM_args_proc_setup(tc, &capture_ctx, capture_args);
         result = MVM_args_slurpy_named(tc, &capture_ctx);
         MVM_args_proc_cleanup(tc, &capture_ctx);
-    });
+    }
     return result;
 }
 
@@ -357,9 +357,9 @@ MVMObject * MVM_capture_drop_args(MVMThreadContext *tc, MVMObject *capture_obj, 
     /* Allocate a new capture before we begin; this is the only GC allocation
      * we do. */
     MVMObject *new_capture;
-    MVMROOT(tc, capture, {
+    MVMROOT(tc, capture) {
         new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
-    });
+    }
 
     /* We need a callsite without the arguments that are being dropped. */
     MVMCallsite *new_callsite = MVM_callsite_drop_positionals(tc, capture->body.callsite, idx, count);
@@ -397,16 +397,16 @@ MVMObject * MVM_capture_insert_arg(MVMThreadContext *tc, MVMObject *capture_obj,
     /* Allocate a new capture before we begin; this is the only GC allocation
      * we do. */
     MVMObject *new_capture;
-    MVMROOT(tc, capture, {
+    MVMROOT(tc, capture) {
         if (kind & (MVM_CALLSITE_ARG_OBJ | MVM_CALLSITE_ARG_STR)) {
-            MVMROOT(tc, value.o, {
+            MVMROOT(tc, value.o) {
                 new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
-            });
+            }
         }
         else {
             new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
         }
-    });
+    }
 
     /* We need a callsite with the argument that is being inserted. */
     MVMCallsite *new_callsite = MVM_callsite_insert_positional(tc, capture->body.callsite,
@@ -445,16 +445,16 @@ MVMObject * MVM_capture_replace_arg(MVMThreadContext *tc, MVMObject *capture_obj
     /* Allocate a new capture before we begin; this is the only GC allocation
      * we do. */
     MVMObject *new_capture;
-    MVMROOT(tc, capture, {
+    MVMROOT(tc, capture) {
         if (kind & (MVM_CALLSITE_ARG_OBJ | MVM_CALLSITE_ARG_STR)) {
-            MVMROOT(tc, value.o, {
+            MVMROOT(tc, value.o) {
                 new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
-            });
+            }
         }
         else {
             new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
         }
-    });
+    }
 
     /* We need a new callsite with the argument flag replaced.
      * The callsite MUST be created after we allocated as it may contain named

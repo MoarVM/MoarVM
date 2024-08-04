@@ -141,7 +141,7 @@ static void code_pair_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
 
 static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *st, MVMObject *config) {
     CodePairContData *data = (CodePairContData *)st->container_data;
-    MVMROOT2(tc, config, st, {
+    MVMROOT2(tc, config, st) {
         MVMString *fetch = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "fetch");
 
         if (!MVM_repr_exists_key(tc, config, fetch))
@@ -159,7 +159,7 @@ static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *
         if (!MVM_code_iscode(tc, store_code))
             MVM_exception_throw_adhoc(tc, "Container spec 'code_pair' must be configured with a code handle");
         MVM_ASSIGN_REF(tc, &(st->header), data->store_code, store_code);
-    });
+    }
 }
 
 static MVMContainerConfigurer CodePairContainerConfigurer = {
@@ -241,25 +241,25 @@ static void value_desc_cont_store(MVMThreadContext *tc, MVMObject *cont, MVMObje
 
 static void value_desc_cont_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
     MVMObject *boxed;
-    MVMROOT(tc, cont, {
+    MVMROOT(tc, cont) {
         boxed = MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, value);
-    });
+    }
     value_desc_cont_store(tc, cont, boxed);
 }
 
 static void value_desc_cont_store_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 value) {
     MVMObject *boxed;
-    MVMROOT(tc, cont, {
+    MVMROOT(tc, cont) {
         boxed = MVM_repr_box_num(tc, MVM_hll_current(tc)->num_box_type, value);
-    });
+    }
     value_desc_cont_store(tc, cont, boxed);
 }
 
 static void value_desc_cont_store_s(MVMThreadContext *tc, MVMObject *cont, MVMString *value) {
     MVMObject *boxed;
-    MVMROOT(tc, cont, {
+    MVMROOT(tc, cont) {
         boxed = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, value);
-    });
+    }
     value_desc_cont_store(tc, cont, boxed);
 }
 
@@ -398,16 +398,16 @@ static void value_desc_cont_set_container_spec(MVMThreadContext *tc, MVMSTable *
 
 static MVMObject * grab_one_value(MVMThreadContext *tc, MVMObject *config, const char *key) {
     MVMString *key_str;
-    MVMROOT(tc, config, {
+    MVMROOT(tc, config) {
         key_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, key);
-    });
+    }
     if (!MVM_repr_exists_key(tc, config, key_str))
         MVM_exception_throw_adhoc(tc, "Container spec must be configured with a '%s'", key);
     return MVM_repr_at_key_o(tc, config, key_str);
 }
 static void value_desc_cont_configure_container_spec(MVMThreadContext *tc, MVMSTable *st, MVMObject *config) {
     MVMValueDescContainer *data = (MVMValueDescContainer *)st->container_data;
-    MVMROOT2(tc, st, config, {
+    MVMROOT2(tc, st, config) {
         MVMObject *value;
         value = grab_one_value(tc, config, "store");
         if (!MVM_code_iscode(tc, value))
@@ -431,7 +431,7 @@ static void value_desc_cont_configure_container_spec(MVMThreadContext *tc, MVMST
         MVM_ASSIGN_REF(tc, &(st->header), data->value_attr, MVM_repr_get_str(tc, value));
         value = grab_one_value(tc, config, "descriptor_attr");
         MVM_ASSIGN_REF(tc, &(st->header), data->descriptor_attr, MVM_repr_get_str(tc, value));
-    });
+    }
     calculate_attr_offsets(tc, st, data);
 }
 
