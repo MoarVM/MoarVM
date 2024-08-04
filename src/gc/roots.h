@@ -147,7 +147,7 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
             __COOLROOT_PUSH(tc, 1, obj_ref1), \
             __COOLROOT_PUSH(tc, 2, obj_ref2), \
             __COOLROOT_PUSH(tc, 3, obj_ref3), \
-            __COOLROOT_PUSH(tc, 4, obj_ref3); \
+            __COOLROOT_PUSH(tc, 4, obj_ref4); \
         __COOLROOT_VAR_NAME != 0 && \
             __COOLROOT_PUSH_VAR(1) == 0 && \
             __COOLROOT_PUSH_VAR(2) == 0 && \
@@ -161,8 +161,8 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
             __COOLROOT_PUSH(tc, 1, obj_ref1), \
             __COOLROOT_PUSH(tc, 2, obj_ref2), \
             __COOLROOT_PUSH(tc, 3, obj_ref3), \
-            __COOLROOT_PUSH(tc, 4, obj_ref3), \
-            __COOLROOT_PUSH(tc, 5, obj_ref3); \
+            __COOLROOT_PUSH(tc, 4, obj_ref4), \
+            __COOLROOT_PUSH(tc, 5, obj_ref5); \
         __COOLROOT_VAR_NAME != 0 && \
             __COOLROOT_PUSH_VAR(1) == 0 && \
             __COOLROOT_PUSH_VAR(2) == 0 && \
@@ -177,9 +177,9 @@ void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWork
             __COOLROOT_PUSH(tc, 1, obj_ref1), \
             __COOLROOT_PUSH(tc, 2, obj_ref2), \
             __COOLROOT_PUSH(tc, 3, obj_ref3), \
-            __COOLROOT_PUSH(tc, 4, obj_ref3), \
-            __COOLROOT_PUSH(tc, 5, obj_ref3), \
-            __COOLROOT_PUSH(tc, 6, obj_ref4); \
+            __COOLROOT_PUSH(tc, 4, obj_ref4), \
+            __COOLROOT_PUSH(tc, 5, obj_ref5), \
+            __COOLROOT_PUSH(tc, 6, obj_ref6); \
         __COOLROOT_VAR_NAME != 0 && \
             __COOLROOT_PUSH_VAR(1) == 0 && \
             __COOLROOT_PUSH_VAR(2) == 0 && \
