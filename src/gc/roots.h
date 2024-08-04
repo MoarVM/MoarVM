@@ -63,6 +63,57 @@ void MVM_gc_root_gen2_cleanup(MVMThreadContext *tc);
 void MVM_gc_root_add_frame_roots_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *start_frame);
 void MVM_gc_root_add_frame_registers_to_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMFrame *frame);
 
+#define __MVM__CONCAT_IMPL( x, y ) x##y
+#define __MVM__MACRO_CONCAT( x, y ) __MVM__CONCAT_IMPL( x, y )
+
+#define __COOLROOT_VAR_NAME __MVM__MACRO_CONCAT(__coolroot_runned_, __LINE__)
+
+#define COOLROOT(tc, obj_ref) MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref));\
+    MVMuint8 __COOLROOT_VAR_NAME = 1;\
+    for (; __COOLROOT_VAR_NAME != 0; \
+    MVM_gc_root_temp_pop(tc), __COOLROOT_VAR_NAME = 0)
+
+#define COOLROOT2(tc, obj_ref1, obj_ref2) MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1));\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2));\
+    MVMuint8 __COOLROOT_VAR_NAME = 1;\
+    for (; __COOLROOT_VAR_NAME != 0; \
+    MVM_gc_root_temp_pop_n(tc, 2), __COOLROOT_VAR_NAME = 0)
+
+#define COOLROOT3(tc, obj_ref1, obj_ref2, obj_ref3) MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1));\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2));\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3));\
+    MVMuint8 __COOLROOT_VAR_NAME = 1;\
+    for (; __COOLROOT_VAR_NAME != 0; \
+    MVM_gc_root_temp_pop_n(tc, 3), __COOLROOT_VAR_NAME = 0)
+
+#define COOLROOT4(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4) MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1));\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2));\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3));\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref4));\
+    MVMuint8 __COOLROOT_VAR_NAME = 1;\
+    for (; __COOLROOT_VAR_NAME != 0; \
+    MVM_gc_root_temp_pop_n(tc, 4), __COOLROOT_VAR_NAME = 0)
+
+#define COOLROOT5(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5) MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1));\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2));\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3));\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref4));\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref5));\
+    MVMuint8 __COOLROOT_VAR_NAME = 1;\
+    for (; __COOLROOT_VAR_NAME != 0; \
+    MVM_gc_root_temp_pop_n(tc, 5), __COOLROOT_VAR_NAME = 0)
+
+#define COOLROOT6(tc, obj_ref1, obj_ref2, obj_ref3, obj_ref4, obj_ref5, obj_ref6) MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref1));\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref2));\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref3));\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref4));\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref5));\
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&(obj_ref6));\
+    MVMuint8 __COOLROOT_VAR_NAME = 1;\
+    for (; __COOLROOT_VAR_NAME != 0; \
+    MVM_gc_root_temp_pop_n(tc, 6), __COOLROOT_VAR_NAME = 0)
+
+
 /* Macros related to rooting objects into the temporaries list, and
  * unrooting them afterwards. */
 #define MVMROOT(tc, obj_ref, block) do {\

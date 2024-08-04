@@ -576,9 +576,9 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
 
     /* Form an argument capture. */
     MVMObject *capture;
-    MVMROOT(tc, update_sf, {
+    COOLROOT(tc, update_sf) {
         capture = MVM_capture_from_args(tc, arg_info);
-    });
+    }
 
     /* Push a dispatch recording frame onto the callstack; this is how we'll
      * keep track of the current recording state. */
@@ -1752,9 +1752,9 @@ static void record_resume(MVMThreadContext *tc, MVMObject *capture, MVMDispResum
     /* Set up the resumptions list and populate the initial entry (list as we
      * may fall back to resumptions of enclosing dispatchers). */
     MVM_VECTOR_INIT(record->rec.resumptions, 1);
-    MVMROOT(tc, capture, {
+    COOLROOT(tc, capture) {
         push_resumption(tc, record, resume_data);
-    });
+    }
 
     /* Record the kind of dispatch resumption we're doing, and then delegate to
      * the appropriate `resume` dispatcher callback. */
@@ -3571,12 +3571,12 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 record->chosen_dp = dp;
                 MVMCode *code = (MVMCode *)record->temps[op.res_code.temp_invokee].o;
                 if (spesh_cid) {
-                    MVMROOT(tc, code, {
+                    COOLROOT(tc, code) {
                         MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
                             bytecode_offset, dp_index);
                         if (tc->spesh_log) /* Log may have filled from previous entry */
                             MVM_spesh_log_bytecode_target(tc, spesh_cid, bytecode_offset, code);
-                    });
+                    }
                 }
                 MVM_frame_dispatch(tc, code, invoke_args, -1);
                 goto accept;
