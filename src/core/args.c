@@ -666,7 +666,7 @@ void MVM_args_set_result_obj(MVMThreadContext *tc, MVMObject *result, MVMint32 f
         target = tc->cur_frame;
     }
     else {
-        COOLROOT(tc, result) {
+        MVMROOT(tc, result) {
             if (MVM_spesh_log_is_caller_logging(tc))
                 MVM_spesh_log_return_type(tc, result);
             else if (MVM_spesh_log_is_logging(tc))
@@ -937,12 +937,12 @@ void MVM_args_set_result_str(MVMThreadContext *tc, MVMString *result, MVMint32 f
     }
     else {
         if (MVM_spesh_log_is_caller_logging(tc)) {
-            COOLROOT(tc, result) {
+            MVMROOT(tc, result) {
                 MVM_spesh_log_return_type(tc, NULL);
             }
         }
         else if (MVM_spesh_log_is_logging(tc)) {
-            COOLROOT(tc, result) {
+            MVMROOT(tc, result) {
                 MVM_spesh_log_return_to_unlogged(tc);
             }
         }

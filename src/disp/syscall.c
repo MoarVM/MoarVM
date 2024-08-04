@@ -751,7 +751,7 @@ static void capture_pos_args_impl(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* Set up an args processing context and use the standard slurpy args
      * handler to extract all positionals. */
-    COOLROOT(tc, capture) {
+    MVMROOT(tc, capture) {
         MVMArgs capture_args = MVM_capture_to_args(tc, capture);
         MVMArgProcContext capture_ctx;
         MVM_args_proc_setup(tc, &capture_ctx, capture_args);
@@ -1061,14 +1061,14 @@ static MVMDispSysCall try_capture_lex = {
 static void try_capture_lex_callers_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *code = get_obj_arg(arg_info, 0);
     MVMFrame *find;
-    COOLROOT(tc, code) {
+    MVMROOT(tc, code) {
         find = MVM_frame_force_to_heap(tc, tc->cur_frame);
     }
     while (find) {
         if (((MVMCode *)code)->body.sf->body.outer == find->static_info) {
             MVMFrame *orig = tc->cur_frame;
             tc->cur_frame = find;
-            COOLROOT(tc, orig) {
+            MVMROOT(tc, orig) {
                 MVM_frame_capturelex(tc, code);
                 tc->cur_frame = orig;
             }

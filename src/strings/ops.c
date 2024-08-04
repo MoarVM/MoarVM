@@ -78,7 +78,7 @@ static char * NFG_checker (MVMThreadContext *tc, MVMString *orig, char *varname)
     MVMString *renorm = NULL;
     MVMStringIndex orig_graphs = MVM_string_graphs(tc, orig),
                    renorm_graphs = -1;
-    COOLROOT2(tc, orig, renorm) {
+    MVMROOT2(tc, orig, renorm) {
         renorm = re_nfg(tc, orig);
         renorm_graphs = MVM_string_graphs(tc, renorm);
     }
@@ -441,7 +441,7 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
     else {
         size_t i;
         MVMint32 common_storage_type = orig->body.storage.strands[0].blob_string->body.storage_type;
-        COOLROOT(tc, orig) {
+        MVMROOT(tc, orig) {
             result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
             result->body.num_graphs = MVM_string_graphs(tc, orig);
             for (i = 1; i < orig->body.num_strands; i++) {
@@ -836,7 +836,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
 
     /* Construct a result; how we efficiently do so will vary based on the
      * input string. */
-    COOLROOT(tc, a) {
+    MVMROOT(tc, a) {
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         result->body.num_graphs = end_pos - start_pos;
         if (a->body.storage_type != MVM_STRING_STRAND && result->body.num_graphs > 8) {
@@ -917,10 +917,10 @@ static MVMuint32 final_strand_match_with_repetition_count(MVMThreadContext *tc, 
             MVMStringStrand *sb = &(b->body.storage.strands[0]);
             if (sa->end - sa->start == sb->end - sb->start) {
                 MVMString *a_strand, *b_strand;
-                COOLROOT(tc, b) {
+                MVMROOT(tc, b) {
                     a_strand = string_from_strand_at_index(tc, a, a->body.num_strands - 1);
                 }
-                COOLROOT(tc, a_strand) {
+                MVMROOT(tc, a_strand) {
                     b_strand = string_from_strand_at_index(tc, b, 0);
                 }
                 if (MVM_string_equal(tc, a_strand, b_strand))
@@ -961,7 +961,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             MVM_string_get_grapheme_at_nocheck(tc, a, a->body.num_graphs - 1),
             MVM_string_get_grapheme_at_nocheck(tc, b, 0)
         };
-        COOLROOT2(tc, a, b) {
+        MVMROOT2(tc, a, b) {
         /* If both are not synthetics, we can can pass those values unchanged
          * instead of iterating by codepoint */
         if (0 <= last_a_first_b[0] && 0 <= last_a_first_b[1]) {
@@ -1002,7 +1002,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
              total_graphs, MAX_GRAPHEMES);
 
     /* Otherwise, we'll assemble a result string. */
-    COOLROOT4(tc, a, b, renormalized_section, result) {
+    MVMROOT4(tc, a, b, renormalized_section, result) {
 
         /* Allocate it. */
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
@@ -1037,15 +1037,15 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             MVMString *effective_a = a;
             MVMString *effective_b = b;
             if (MVM_STRING_MAX_STRANDS < strands_a + strands_b) {
-                COOLROOT(tc, result) {
+                MVMROOT(tc, result) {
                     if (strands_b <= strands_a) {
-                        COOLROOT(tc, effective_b) {
+                        MVMROOT(tc, effective_b) {
                             effective_a = collapse_strands(tc, effective_a);
                         }
                         strands_a   = 1;
                     }
                     else {
-                        COOLROOT(tc, effective_a) {
+                        MVMROOT(tc, effective_a) {
                             effective_b = collapse_strands(tc, effective_b);
                         }
                         strands_b   = 1;
@@ -1167,7 +1167,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
              agraphs, count, MAX_GRAPHEMES);
 
     /* Now build a result string with the repetition set. */
-    COOLROOT(tc, a) {
+    MVMROOT(tc, a) {
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         result->body.num_graphs      = agraphs * count;
         result->body.storage_type    = MVM_STRING_STRAND;
@@ -1177,7 +1177,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
                 copy_strands(tc, a, 0, result, 0, 1);
             }
             else {
-                COOLROOT(tc, result) {
+                MVMROOT(tc, result) {
                     a = collapse_strands(tc, a);
                 }
                 result->body.storage.strands[0].blob_string = a;
@@ -1340,7 +1340,7 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
      * can't assume too much. If optimizing this be careful */
     if (H_graphs < H_offset)
         return 0;
-    COOLROOT(tc, Haystack) {
+    MVMROOT(tc, Haystack) {
         needle_fc = ignorecase ? MVM_string_fc(tc, needle) : needle;
     }
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
@@ -1399,7 +1399,7 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
     }
     /* If the needle is a strand, flatten it, otherwise use the original string */
     if (needle->body.storage_type == MVM_STRING_STRAND) {
-        COOLROOT(tc, Haystack) {
+        MVMROOT(tc, Haystack) {
             flat_needle = collapse_strands(tc, needle);
         }
     }
@@ -1463,7 +1463,7 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
     if (H_graphs * 3 < n_graphs)
         return -1;
 
-    COOLROOT(tc, Haystack) {
+    MVMROOT(tc, Haystack) {
         needle_fc = ignorecase ? MVM_string_fc(tc, needle) : needle;
     }
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
@@ -1878,7 +1878,7 @@ MVMObject * MVM_string_encode_to_buf_config(MVMThreadContext *tc, MVMString *s, 
 
     /* At least find_encoding may allocate on first call, so root just
      * in case. */
-    COOLROOT2(tc, buf, s) {
+    MVMROOT2(tc, buf, s) {
         const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, enc_name);
         encoded = (MVMuint8 *)MVM_string_encode_config(tc, s, 0, MVM_string_graphs_nocheck(tc, s), &output_size,
             encoding_flag, replacement, 0, config);
@@ -1932,7 +1932,7 @@ MVMString * MVM_string_decode_from_buf_config(MVMThreadContext *tc, MVMObject *b
         MVM_exception_throw_adhoc(tc, "encode requires a native int array");
 
     /* Decode. */
-    COOLROOT(tc, buf) {
+    MVMROOT(tc, buf) {
         encoding_flag = MVM_string_find_encoding(tc, enc_name);
     }
     return MVM_string_decode_config(tc, tc->instance->VMString,
@@ -1952,7 +1952,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
     MVM_string_check_arg(tc, separator, "split separator");
     MVM_string_check_arg(tc, input, "split input");
 
-    COOLROOT3(tc, input, separator, result) {
+    MVMROOT3(tc, input, separator, result) {
         result = MVM_repr_alloc_init(tc, hll->slurpy_array_type);
         start = 0;
         end = MVM_string_graphs_nocheck(tc, input);
@@ -1969,7 +1969,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
             length = sep_length ? (index == (MVMStringIndex)-1 ? end : index) - start : 1;
             if (0 < length || (sep_length && length == 0)) {
                 portion = MVM_string_substring(tc, input, start, length);
-                COOLROOT(tc, portion) {
+                MVMROOT(tc, portion) {
                     MVMObject *pobj = MVM_repr_alloc_init(tc, hll->str_box_type);
                     MVM_repr_set_str(tc, pobj, portion);
                     MVM_repr_push_o(tc, result, pobj);
@@ -2097,7 +2097,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     }
 
     /* Allocate result. */
-    COOLROOT2(tc, separator, input) {
+    MVMROOT2(tc, separator, input) {
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
     }
 
@@ -2157,7 +2157,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     }
     result->body.num_graphs = total_graphs;
 
-    COOLROOT2(tc, result, separator) {
+    MVMROOT2(tc, result, separator) {
     /* If the separator and pieces are all strands, and there are
      * on average at least 16 graphemes in each of the strands. */
     if (all_strands && total_strands <  MVM_STRING_MAX_STRANDS
@@ -2184,7 +2184,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
        piece or if we have less than for pieces and more than 150 graphemes per piece */
     else if (total_strands <  MVM_STRING_MAX_STRANDS && (300 < num_pieces/total_graphs || (num_pieces < 4 && 150 < num_pieces/total_graphs))) {
         MVMString *result = NULL;
-        COOLROOT(tc, result) {
+        MVMROOT(tc, result) {
             if (sgraphs) {
                 i = 0;
                 result = MVM_string_concatenate(tc, pieces[i++], separator);
@@ -2431,7 +2431,7 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
         while (spos_l < s->body.num_graphs)
             rbuffer[--rpos_l] = s->body.storage.blob_8[spos_l++];
 
-        COOLROOT(tc, s) {
+        MVMROOT(tc, s) {
             res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         }
         res->body.storage_type    = s->body.storage_type;

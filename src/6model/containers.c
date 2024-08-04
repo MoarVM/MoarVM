@@ -141,7 +141,7 @@ static void code_pair_set_container_spec(MVMThreadContext *tc, MVMSTable *st) {
 
 static void code_pair_configure_container_spec(MVMThreadContext *tc, MVMSTable *st, MVMObject *config) {
     CodePairContData *data = (CodePairContData *)st->container_data;
-    COOLROOT2(tc, config, st) {
+    MVMROOT2(tc, config, st) {
         MVMString *fetch = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "fetch");
 
         if (!MVM_repr_exists_key(tc, config, fetch))
@@ -241,7 +241,7 @@ static void value_desc_cont_store(MVMThreadContext *tc, MVMObject *cont, MVMObje
 
 static void value_desc_cont_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 value) {
     MVMObject *boxed;
-    COOLROOT(tc, cont) {
+    MVMROOT(tc, cont) {
         boxed = MVM_repr_box_int(tc, MVM_hll_current(tc)->int_box_type, value);
     }
     value_desc_cont_store(tc, cont, boxed);
@@ -249,7 +249,7 @@ static void value_desc_cont_store_i(MVMThreadContext *tc, MVMObject *cont, MVMin
 
 static void value_desc_cont_store_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 value) {
     MVMObject *boxed;
-    COOLROOT(tc, cont) {
+    MVMROOT(tc, cont) {
         boxed = MVM_repr_box_num(tc, MVM_hll_current(tc)->num_box_type, value);
     }
     value_desc_cont_store(tc, cont, boxed);
@@ -257,7 +257,7 @@ static void value_desc_cont_store_n(MVMThreadContext *tc, MVMObject *cont, MVMnu
 
 static void value_desc_cont_store_s(MVMThreadContext *tc, MVMObject *cont, MVMString *value) {
     MVMObject *boxed;
-    COOLROOT(tc, cont) {
+    MVMROOT(tc, cont) {
         boxed = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, value);
     }
     value_desc_cont_store(tc, cont, boxed);
@@ -398,7 +398,7 @@ static void value_desc_cont_set_container_spec(MVMThreadContext *tc, MVMSTable *
 
 static MVMObject * grab_one_value(MVMThreadContext *tc, MVMObject *config, const char *key) {
     MVMString *key_str;
-    COOLROOT(tc, config) {
+    MVMROOT(tc, config) {
         key_str = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, key);
     }
     if (!MVM_repr_exists_key(tc, config, key_str))
@@ -407,7 +407,7 @@ static MVMObject * grab_one_value(MVMThreadContext *tc, MVMObject *config, const
 }
 static void value_desc_cont_configure_container_spec(MVMThreadContext *tc, MVMSTable *st, MVMObject *config) {
     MVMValueDescContainer *data = (MVMValueDescContainer *)st->container_data;
-    COOLROOT2(tc, st, config) {
+    MVMROOT2(tc, st, config) {
         MVMObject *value;
         value = grab_one_value(tc, config, "store");
         if (!MVM_code_iscode(tc, value))

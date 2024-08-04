@@ -15,7 +15,7 @@ void MVM_intcache_for(MVMThreadContext *tc, MVMObject *type) {
         }
     }
     if (right_slot != -1) {
-        COOLROOT(tc, type) {
+        MVMROOT(tc, type) {
             int val;
             for (val = -1; val < 15; val++) {
                 MVMObject *obj;

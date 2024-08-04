@@ -79,10 +79,10 @@ unoptimized) path for boxing strings:
         MVMString *val
     ) {
         MVMObject *res;
-        MVMROOT(tc, val, {
+        MVMROOT(tc, val) {
             res = MVM_repr_alloc_init(tc, type);
             MVM_repr_set_str(tc, res, val);
-        });
+        }
         return res;
     }
 
@@ -97,5 +97,5 @@ considers and updates, thus ensuring that even if the allocation of the box
 triggers garbage collection, this code won’t end up with an old `val` pointer.
 
 There is also an `MVMROOT2`, `MVMROOT3`, and `MVMROOT4` macro to root 2, 3, or 4
-things at once, which saves an indentation level (and possibly a little work, but
-C compilers are probably smart enough these days for it not to matter).
+things at once, up to 6, which saves an indentation level (and possibly a little
+work, but C compilers are probably smart enough these days for it not to matter).

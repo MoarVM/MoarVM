@@ -251,7 +251,7 @@ static void two_complement_shl(MVMThreadContext *tc, mp_int *result, mp_int *val
 MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MVMObject *source) { \
     MVMP6bigintBody *bb; \
     MVMObject *result; \
-    COOLROOT(tc, source) { \
+    MVMROOT(tc, source) { \
         result = MVM_repr_alloc_init(tc, result_type);\
     } \
     bb = get_bigint_body(tc, result); \
@@ -292,7 +292,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
     MVMObject *result; \
     mp_err err; \
     mp_int *ia, *ib, *ic; \
-    COOLROOT2(tc, a, b) { \
+    MVMROOT2(tc, a, b) { \
         result = MVM_repr_alloc_init(tc, result_type);\
     } \
     ba = get_bigint_body(tc, a); \
@@ -343,7 +343,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
     if (MVM_BIGINT_IS_BIG(ba) || MVM_BIGINT_IS_BIG(bb)) { \
         mp_err err; \
         mp_int *ia, *ib, *ic; \
-        COOLROOT2(tc, a, b) { \
+        MVMROOT2(tc, a, b) { \
             result = MVM_repr_alloc_init(tc, result_type);\
         } \
         ba = get_bigint_body(tc, a); \
@@ -382,7 +382,7 @@ MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MV
 #define MVM_BIGINT_BINARY_OP_2(opname, SMALLINT_OP) \
 MVMObject * MVM_bigint_##opname(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b) { \
     MVMObject *result; \
-    COOLROOT2(tc, a, b) { \
+    MVMROOT2(tc, a, b) { \
         result = MVM_repr_alloc_init(tc, result_type);\
     } \
     {\
@@ -427,7 +427,7 @@ MVM_BIGINT_BINARY_OP(lcm)
 MVMObject *MVM_bigint_gcd(MVMThreadContext *tc, MVMObject *result_type, MVMObject *a, MVMObject *b) {
     MVMObject       *result;
 
-    COOLROOT2(tc, a, b) {
+    MVMROOT2(tc, a, b) {
         result = MVM_repr_alloc_init(tc, result_type);
     }
 
@@ -494,7 +494,7 @@ MVMObject * MVM_bigint_mod(MVMThreadContext *tc, MVMObject *result_type, MVMObje
 
     MVMObject *result;
 
-    COOLROOT2(tc, a, b) {
+    MVMROOT2(tc, a, b) {
         result = MVM_repr_alloc_init(tc, result_type);
     }
 
@@ -549,7 +549,7 @@ MVMObject *MVM_bigint_div(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
         return a;
     }
 
-    COOLROOT2(tc, a, b) {
+    MVMROOT2(tc, a, b) {
         result = MVM_repr_alloc_init(tc, result_type);
     }
 
@@ -707,7 +707,7 @@ MVMObject *MVM_bigint_shl(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
     MVMP6bigintBody *bb;
     MVMObject       *result;
 
-    COOLROOT(tc, a) {
+    MVMROOT(tc, a) {
         result = MVM_repr_alloc_init(tc, result_type);
     }
 
@@ -752,7 +752,7 @@ MVMObject *MVM_bigint_shr(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
     MVMP6bigintBody *bb;
     MVMObject       *result;
 
-    COOLROOT(tc, a) {
+    MVMROOT(tc, a) {
         result = MVM_repr_alloc_init(tc, result_type);
     }
 
@@ -786,7 +786,7 @@ MVMObject *MVM_bigint_not(MVMThreadContext *tc, MVMObject *result_type, MVMObjec
     MVMP6bigintBody *bb;
     MVMObject       *result;
 
-    COOLROOT(tc, a) {
+    MVMROOT(tc, a) {
         result = MVM_repr_alloc_init(tc, result_type);
     }
 
@@ -840,7 +840,7 @@ MVMObject *MVM_bigint_expmod(MVMThreadContext *tc, MVMObject *result_type, MVMOb
         MVM_exception_throw_adhoc(tc, "Error creating a big integer: %s", mp_error_to_string(err));
     }
 
-    COOLROOT3(tc, a, b, c) {
+    MVMROOT3(tc, a, b, c) {
         result = MVM_repr_alloc_init(tc, result_type);
     }
 
@@ -886,7 +886,7 @@ MVMObject * MVM_coerce_sI(MVMThreadContext *tc, MVMString *s, MVMObject *type) {
     int is_malloced = 0;
     MVMStringIndex i;
     MVMObject *a;
-    COOLROOT(tc, s) {
+    MVMROOT(tc, s) {
         a = MVM_repr_alloc_init(tc, type);
     }
     if (s->body.num_graphs < 120) {
@@ -945,7 +945,7 @@ MVMObject * MVM_bigint_from_bigint(MVMThreadContext *tc, MVMObject *result_type,
     MVMP6bigintBody *r_body;
     MVMObject       *result;
 
-    COOLROOT(tc, a) {
+    MVMROOT(tc, a) {
         result = MVM_repr_alloc_init(tc, result_type);
     }
 
@@ -1474,7 +1474,7 @@ mp_err MVM_mp_rand(MVMThreadContext *tc, mp_int *a, int digits)
 }
 
 
-/* 
+/*
     The old version of LibTomMath has it publically defined the new one not,
     so we can take the (non)existance as a marker.
  */
@@ -1510,7 +1510,7 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
             if (have_to_negate)
                 result_int *= -1;
 
-            COOLROOT2(tc, type, b) {
+            MVMROOT2(tc, type, b) {
                 result = MVM_repr_alloc_init(tc, type);
             }
 
@@ -1526,7 +1526,7 @@ MVMObject * MVM_bigint_rand(MVMThreadContext *tc, MVMObject *type, MVMObject *b)
         mp_int *rnd = MVM_malloc(sizeof(mp_int));
         mp_int *max = force_bigint(tc, bb, 0);
 
-        COOLROOT2(tc, type, b) {
+        MVMROOT2(tc, type, b) {
             result = MVM_repr_alloc_init(tc, type);
         }
 

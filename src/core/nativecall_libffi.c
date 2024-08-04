@@ -486,7 +486,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
      * shall need, since later we may allocate a result and and move it. */
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
     if (MVM_UNLIKELY(!body->lib_handle)) {
-        COOLROOT3(tc, site, args, res_type) {
+        MVMROOT3(tc, site, args, res_type) {
             MVM_nativecall_restore_library(tc, body, site);
         }
         body = MVM_nativecall_get_nc_body(tc, site);
@@ -616,7 +616,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     }
 
 
-    COOLROOT3(tc, args, res_type, result) {
+    MVMROOT3(tc, args, res_type, result) {
         MVM_gc_mark_thread_blocked(tc);
         if (result) {
             /* We are calling a C++ constructor so we hand back the invocant (THIS) we recorded earlier. */
@@ -859,7 +859,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
      * shall need, since later we may allocate a result and and move it. */
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
     if (MVM_UNLIKELY(!body->lib_handle)) {
-        COOLROOT2(tc, site, res_type) {
+        MVMROOT2(tc, site, res_type) {
             MVM_nativecall_restore_library(tc, body, site);
         }
         body = MVM_nativecall_get_nc_body(tc, site);
@@ -1103,7 +1103,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
     }
 
 
-    COOLROOT2(tc, res_type, result) {
+    MVMROOT2(tc, res_type, result) {
         MVM_gc_mark_thread_blocked(tc);
         if (result) {
             /* We are calling a C++ constructor so we hand back the invocant (THIS) we recorded earlier. */

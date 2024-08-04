@@ -539,7 +539,7 @@ MVMint8 MVM_nativecall_build(MVMThreadContext *tc, MVMObject *site, MVMString *l
 static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec, MVMObject *target_type, void *cpointer_body) {
     MVMObject *result = NULL;
 
-    COOLROOT2(tc, target_spec, target_type) {
+    MVMROOT2(tc, target_spec, target_type) {
         switch (REPR(target_type)->ID) {
             case MVM_REPR_ID_P6opaque: {
                 const MVMStorageSpec *ss = REPR(target_spec)->get_storage_spec(tc, STABLE(target_spec));

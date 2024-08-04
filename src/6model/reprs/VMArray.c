@@ -26,7 +26,7 @@ static void exit_single_user(MVMThreadContext *tc, MVMArrayBody *arr) {
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable        *st = MVM_gc_allocate_stable(tc, &VMArray_this_repr, HOW);
 
-    COOLROOT(tc, st) {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVMArrayREPRData *repr_data = (MVMArrayREPRData *)MVM_malloc(sizeof(MVMArrayREPRData));
 

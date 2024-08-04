@@ -27,7 +27,7 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
 
     /* Ensure the frame is fully deserialized. */
     if (!static_frame_body->fully_deserialized) {
-        COOLROOT(tc, static_frame) {
+        MVMROOT(tc, static_frame) {
             MVM_bytecode_finish_frame(tc, cu, static_frame, 0);
         }
     }
@@ -46,7 +46,7 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
     static_frame_body->work_size = sizeof(MVMRegister) * static_frame_body->num_locals;
 
     /* Validate the bytecode. */
-    COOLROOT(tc, static_frame) {
+    MVMROOT(tc, static_frame) {
         MVM_validate_static_frame(tc, static_frame);
     }
 
@@ -85,7 +85,7 @@ static void prepare_and_verify_static_frame(MVMThreadContext *tc, MVMStaticFrame
  * profiling. */
 static void instrumentation_level_barrier(MVMThreadContext *tc, MVMStaticFrame *static_frame) {
     MVMCompUnit *cu = static_frame->body.cu;
-    COOLROOT2(tc, static_frame, cu) {
+    MVMROOT2(tc, static_frame, cu) {
         /* Obtain mutex, so we don't end up with instrumentation races. */
         MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
 
@@ -144,7 +144,7 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
         MVMObject *code_ref, MVMint32 autoclose) {
     MVMFrame *frame;
 
-    COOLROOT2(tc, static_frame, code_ref) {
+    MVMROOT2(tc, static_frame, code_ref) {
         /* Ensure the frame is fully deserialized. */
         if (!static_frame->body.fully_deserialized) {
             MVM_reentrantmutex_lock(tc,
@@ -170,7 +170,7 @@ static MVMFrame * create_context_only(MVMThreadContext *tc, MVMStaticFrame *stat
         frame->env = MVM_calloc(1, static_frame->body.env_size);
         frame->allocd_env = static_frame->body.env_size;
         if (autoclose) {
-            COOLROOT2(tc, frame, static_frame) {
+            MVMROOT2(tc, frame, static_frame) {
                 MVMuint16 i;
                 MVMuint16 num_lexicals = static_frame->body.num_lexicals;
                 for (i = 0; i < num_lexicals; i++) {
@@ -224,7 +224,7 @@ static MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
     }
 
     /* If not, fake up a frame See if it also needs an outer. */
-    COOLROOT(tc, needed) {
+    MVMROOT(tc, needed) {
         result = create_context_only(tc, needed, (MVMObject *)needed->body.static_code, 1);
     }
     if (needed->body.outer) {
@@ -237,7 +237,7 @@ static MVMFrame * autoclose(MVMThreadContext *tc, MVMStaticFrame *needed) {
         }
         else {
             /* Otherwise, recursively auto-close. */
-            COOLROOT(tc, result) {
+            MVMROOT(tc, result) {
                 MVMFrame *ac = autoclose(tc, needed->body.outer);
                 MVM_ASSIGN_REF(tc, &(result->header), result->outer, ac);
             }
@@ -258,7 +258,7 @@ static MVMFrame * allocate_unspecialized_frame(MVMThreadContext *tc,
     if (heap) {
         /* Allocate frame on the heap. The callstack record includes space
          * for the work registers and ->work will have been set up already. */
-        COOLROOT(tc, static_frame) {
+        MVMROOT(tc, static_frame) {
             if (tc->cur_frame)
                 MVM_frame_force_to_heap(tc, tc->cur_frame);
             frame = MVM_callstack_allocate_heap_frame(tc, work_size)->frame;
@@ -300,7 +300,7 @@ static MVMFrame * allocate_specialized_frame(MVMThreadContext *tc,
     if (heap) {
         /* Allocate frame on the heap. The callstack record includes space
          * for the work registers and ->work will have been set up already. */
-        COOLROOT2(tc, static_frame, spesh_cand) {
+        MVMROOT2(tc, static_frame, spesh_cand) {
             if (tc->cur_frame)
                 MVM_frame_force_to_heap(tc, tc->cur_frame);
             frame = MVM_callstack_allocate_heap_frame(tc, work_size)->frame;
@@ -360,7 +360,7 @@ static void setup_state_vars(MVMThreadContext *tc, MVMStaticFrame *static_frame)
     MVMRegister *state     = NULL;
     MVMint64     state_act = 0; /* 0 = none so far, 1 = first time, 2 = later */
     MVMint64 i;
-    COOLROOT(tc, frame) {
+    MVMROOT(tc, frame) {
         for (i = 0; i < numlex; i++) {
             if (flags[i] == 2) {
                 redo_state:
@@ -461,7 +461,7 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
          * before, or never at the current instrumentation level; check and
          * handle this situation if so. */
         if (MVM_UNLIKELY(static_frame->body.instrumentation_level != tc->instance->instrumentation_level)) {
-            COOLROOT2(tc, static_frame, code) {
+            MVMROOT2(tc, static_frame, code) {
                 instrumentation_level_barrier(tc, static_frame);
             }
         }
@@ -506,7 +506,7 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
         }
         else if (static_frame->body.outer) {
             /* Auto-close, and cache it in the static frame. */
-            COOLROOT3(tc, static_frame, code, static_code) {
+            MVMROOT3(tc, static_frame, code, static_code) {
                 MVM_frame_force_to_heap(tc, tc->cur_frame);
                 outer = autoclose(tc, static_frame->body.outer);
                 MVM_ASSIGN_REF(tc, &(static_code->common.header),
@@ -524,7 +524,7 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
     if (spesh_cand >= 0) {
         MVMSpeshCandidate *chosen_cand = spesh->body.spesh_candidates[spesh_cand];
         if (static_frame->body.allocate_on_heap) {
-            COOLROOT4(tc, static_frame, code, outer, chosen_cand) {
+            MVMROOT4(tc, static_frame, code, outer, chosen_cand) {
                 frame = allocate_specialized_frame(tc, static_frame, chosen_cand, 1);
             }
         }
@@ -550,7 +550,7 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
     else {
         MVMint32 on_heap = static_frame->body.allocate_on_heap;
         if (on_heap) {
-            COOLROOT3(tc, static_frame, code, outer) {
+            MVMROOT3(tc, static_frame, code, outer) {
                 frame = allocate_unspecialized_frame(tc, static_frame, 1);
             }
         }
@@ -572,14 +572,14 @@ void MVM_frame_dispatch(MVMThreadContext *tc, MVMCode *code, MVMArgs args, MVMin
             if (spesh->body.spesh_entries_recorded++ < MVM_SPESH_LOG_LOGGED_ENOUGH) {
                 MVMint32 id = ++tc->spesh_cid;
                 frame->spesh_correlation_id = id;
-                COOLROOT3(tc, static_frame, code, outer) {
+                MVMROOT3(tc, static_frame, code, outer) {
                     if (on_heap) {
-                        COOLROOT(tc, frame) {
+                        MVMROOT(tc, frame) {
                             MVM_spesh_log_entry(tc, id, static_frame, args);
                         }
                     }
                     else {
-                        COOLROOT2(tc, frame->caller, frame->static_info) {
+                        MVMROOT2(tc, frame->caller, frame->static_info) {
                             MVM_spesh_log_entry(tc, id, static_frame, args);
                         }
                     }
@@ -638,7 +638,7 @@ MVMFrame * MVM_frame_move_to_heap(MVMThreadContext *tc, MVMFrame *frame) {
     MVMCallStackIterator iter;
     MVM_callstack_iter_frame_init(tc, &iter, tc->stack_top);
     MVM_CHECK_CALLER_CHAIN(tc, cur_to_promote);
-    COOLROOT4(tc, new_cur_frame, update_caller, cur_to_promote, result) {
+    MVMROOT4(tc, new_cur_frame, update_caller, cur_to_promote, result) {
         while (MVM_callstack_iter_move_next(tc, &iter)) {
             /* Check this isn't already a heap or promoted frame; if it is, we're
              * done. */
@@ -780,7 +780,7 @@ MVMFrame * MVM_frame_debugserver_move_to_heap(MVMThreadContext *debug_tc,
     MVMCallStackIterator iter;
     MVM_callstack_iter_frame_init(owner, &iter, owner->stack_top);
     MVM_CHECK_CALLER_CHAIN(owner, cur_to_promote);
-    COOLROOT4(debug_tc, new_cur_frame, update_caller, cur_to_promote, result) {
+    MVMROOT4(debug_tc, new_cur_frame, update_caller, cur_to_promote, result) {
         while (MVM_callstack_iter_move_next(owner, &iter)) {
             /* Check this isn't already a heap or promoted frame; if it is, we're
              * done. */
@@ -900,7 +900,7 @@ MVMuint64 MVM_frame_try_return(MVMThreadContext *tc) {
                 result = tc->instance->VMNull;
         }
         else {
-            COOLROOT(tc, cur_frame) {
+            MVMROOT(tc, cur_frame) {
                 switch (caller->return_type) {
                     case MVM_RETURN_INT:
                         result = MVM_repr_box_int(tc, hll->int_box_type, caller->return_value->i64);
@@ -1003,7 +1003,7 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
 
                 /* Force the frame onto the heap, since we'll reference it from the
                  * unwind data. */
-                COOLROOT3(tc, frame, cur_frame, return_value) {
+                MVMROOT3(tc, frame, cur_frame, return_value) {
                     frame = MVM_frame_force_to_heap(tc, frame);
                     cur_frame = tc->cur_frame;
                 }
@@ -1044,18 +1044,18 @@ void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_ad
                     if (abs_addr)
                         caller->return_address = abs_addr;
                     else if (rel_addr)
-                        caller->return_address = MVM_frame_effective_bytecode(caller) + rel_addr; 
+                        caller->return_address = MVM_frame_effective_bytecode(caller) + rel_addr;
                     if (jit_return_label)
                         caller->jit_entry_label = jit_return_label;
                 }
                 if (MVM_FRAME_IS_ON_CALLSTACK(tc, frame)) {
-                    COOLROOT(tc, return_value) {
+                    MVMROOT(tc, return_value) {
                         if (!MVM_callstack_unwind_frame(tc, 1))
                             MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
                     }
                 }
                 else {
-                    COOLROOT2(tc, return_value, frame) {
+                    MVMROOT2(tc, return_value, frame) {
                         if (!MVM_callstack_unwind_frame(tc, 1))
                             MVM_panic(1, "Internal error: Unwound entire stack and missed handler");
                     }
@@ -1083,7 +1083,7 @@ MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code) {
                 MVM_exception_throw_adhoc(tc,
                     "SC not yet resolved; lookup failed");
 
-            COOLROOT(tc, code) {
+            MVMROOT(tc, code) {
                 resolved = MVM_sc_get_object(tc, sc, sf->body.code_obj_sc_idx);
             }
 
@@ -1102,7 +1102,7 @@ void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
     if (MVM_UNLIKELY(REPR(code)->ID != MVM_REPR_ID_MVMCode))
         MVM_exception_throw_adhoc(tc,
             "Can only perform capturelex on object with representation MVMCode");
-    COOLROOT(tc, code) {
+    MVMROOT(tc, code) {
         captured = MVM_frame_force_to_heap(tc, tc->cur_frame);
     }
     MVM_ASSIGN_REF(tc, &(code->header), ((MVMCode*)code)->body.outer, captured);
@@ -1124,12 +1124,12 @@ void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code) {
  */
 void MVM_frame_capture_inner(MVMThreadContext *tc, MVMObject *code) {
     MVMFrame *outer;
-    COOLROOT(tc, code) {
+    MVMROOT(tc, code) {
         MVMStaticFrame *sf_outer = ((MVMCode*)code)->body.sf->body.outer;
-        COOLROOT(tc, sf_outer) {
+        MVMROOT(tc, sf_outer) {
             outer = create_context_only(tc, sf_outer, (MVMObject *)sf_outer->body.static_code, 1);
         }
-        COOLROOT(tc, outer) {
+        MVMROOT(tc, outer) {
             MVMFrame *outer_outer = autoclose(tc, sf_outer->body.outer);
             MVM_ASSIGN_REF(tc, &(outer->header), outer->outer, outer_outer);
         }
@@ -1147,9 +1147,9 @@ MVMObject * MVM_frame_takeclosure(MVMThreadContext *tc, MVMObject *code) {
         MVM_exception_throw_adhoc(tc,
             "Can only perform takeclosure on object with representation MVMCode");
 
-    COOLROOT(tc, code) {
+    MVMROOT(tc, code) {
         closure = (MVMCode *)REPR(code)->allocate(tc, STABLE(code));
-        COOLROOT(tc, closure) {
+        MVMROOT(tc, closure) {
             captured = MVM_frame_force_to_heap(tc, tc->cur_frame);
         }
     }
@@ -1211,7 +1211,7 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
             if (sc == NULL)
                 MVM_exception_throw_adhoc(tc,
                     "SC not yet resolved; lookup failed");
-            COOLROOT2(tc, f, effective_sf) {
+            MVMROOT2(tc, f, effective_sf) {
                 resolved = MVM_sc_get_object(tc, sc, objid);
             }
             MVM_ASSIGN_REF(tc, &(effective_sf->common.header),
@@ -1228,7 +1228,7 @@ MVMObject * MVM_frame_vivify_lexical(MVMThreadContext *tc, MVMFrame *f, MVMuint1
     }
     else if (flag == 1) {
         MVMObject *viv;
-        COOLROOT(tc, f) {
+        MVMROOT(tc, f) {
             viv = MVM_repr_clone(tc, static_env[effective_idx].o);
             MVM_ASSIGN_REF(tc, &(f->header), f->env[idx].o, viv);
         }
@@ -1310,7 +1310,7 @@ MVM_PUBLIC void MVM_frame_bind_lexical_by_name(MVMThreadContext *tc, MVMString *
 /* Finds a lexical in the outer frame, throwing if it's not there. */
 void MVM_frame_find_lexical_by_name_outer(MVMThreadContext *tc, MVMString *name, MVMRegister *result) {
     int found;
-    COOLROOT(tc, name) {
+    MVMROOT(tc, name) {
         found = MVM_frame_find_lexical_by_name_rel(tc, name, tc->cur_frame->outer, result);
     }
     if (MVM_UNLIKELY(!found)) {
@@ -1619,7 +1619,7 @@ void MVM_frame_binddynlex(MVMThreadContext *tc, MVMString *name, MVMObject *valu
     MVMuint16 type;
     MVMFrame *found_frame;
     MVMRegister *lex_reg;
-    COOLROOT2(tc, name, value) {
+    MVMROOT2(tc, name, value) {
         lex_reg = MVM_frame_find_contextual_by_name(tc, name, &type, cur_frame, 0, &found_frame);
     }
     if (!lex_reg) {

@@ -54,7 +54,7 @@ void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
  * and meta-object. */
 MVMSTable * MVM_gc_allocate_stable(MVMThreadContext *tc, const MVMREPROps *repr, MVMObject *how) {
     MVMSTable *st;
-    COOLROOT(tc, how) {
+    MVMROOT(tc, how) {
         st                = MVM_gc_allocate_zeroed(tc, sizeof(MVMSTable));
         st->header.flags1 = MVM_CF_STABLE;
         st->header.size   = sizeof(MVMSTable);
@@ -70,7 +70,7 @@ MVMSTable * MVM_gc_allocate_stable(MVMThreadContext *tc, const MVMREPROps *repr,
 /* Allocates a new type object. */
 MVMObject * MVM_gc_allocate_type_object(MVMThreadContext *tc, MVMSTable *st) {
     MVMObject *obj;
-    COOLROOT(tc, st) {
+    MVMROOT(tc, st) {
         obj                = MVM_gc_allocate_zeroed(tc, sizeof(MVMObject));
         obj->header.flags1 = MVM_CF_TYPE_OBJECT;
         obj->header.size   = sizeof(MVMObject);
@@ -83,7 +83,7 @@ MVMObject * MVM_gc_allocate_type_object(MVMThreadContext *tc, MVMSTable *st) {
 /* Allocates a new object, and points it at the specified STable. */
 MVMObject * MVM_gc_allocate_object(MVMThreadContext *tc, MVMSTable *st) {
     MVMObject *obj;
-    COOLROOT(tc, st) {
+    MVMROOT(tc, st) {
         obj               = MVM_gc_allocate_zeroed(tc, st->size);
         obj->header.size  = (MVMuint16)st->size;
         obj->header.owner = tc->thread_id;

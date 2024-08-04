@@ -17,7 +17,7 @@ MVMObject * MVM_repr_alloc_init(MVMThreadContext *tc, MVMObject *type) {
     MVMObject *obj = REPR(type)->allocate(tc, STABLE(type));
 
     if (REPR(obj)->initialize) {
-        COOLROOT(tc, obj) {
+        MVMROOT(tc, obj) {
             REPR(obj)->initialize(tc, STABLE(obj), obj, OBJECT_BODY(obj));
         }
     }
@@ -72,7 +72,7 @@ void MVM_repr_set_dimensions(MVMThreadContext *tc, MVMObject *obj, MVMObject *di
 
 MVM_PUBLIC MVMObject * MVM_repr_pos_slice(MVMThreadContext *tc, MVMObject *src, MVMint64 start, MVMint64 end) {
     MVMObject *dest = NULL;
-    COOLROOT(tc, src) {
+    MVMROOT(tc, src) {
         dest = MVM_repr_alloc_init(tc, src);
         REPR(src)->pos_funcs.slice(tc, STABLE(src), src, OBJECT_BODY(src), dest, start, end);
     }
@@ -735,7 +735,7 @@ MVMObject * MVM_repr_box_num(MVMThreadContext *tc, MVMObject *type, MVMnum64 val
 
 MVMObject * MVM_repr_box_str(MVMThreadContext *tc, MVMObject *type, MVMString *val) {
     MVMObject *res;
-    COOLROOT(tc, val) {
+    MVMROOT(tc, val) {
         res = MVM_repr_alloc_init(tc, type);
         MVM_repr_set_str(tc, res, val);
     }

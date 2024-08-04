@@ -27,7 +27,7 @@ static void mk_storage_spec(MVMThreadContext *tc, MVMuint16 bits, MVMuint16 is_u
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, &P6int_this_repr, HOW);
 
-    COOLROOT(tc, st) {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVMP6intREPRData *repr_data = (MVMP6intREPRData *)MVM_malloc(sizeof(MVMP6intREPRData));
 

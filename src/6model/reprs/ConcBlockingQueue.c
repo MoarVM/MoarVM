@@ -8,7 +8,7 @@ static const MVMREPROps ConcBlockingQueue_this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, &ConcBlockingQueue_this_repr, HOW);
 
-    COOLROOT(tc, st) {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMConcBlockingQueue);
@@ -118,7 +118,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
         MVMConcBlockingQueueNode *peeked;
         unsigned int interval_id;
         interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.at_pos");
-        COOLROOT(tc, root) {
+        MVMROOT(tc, root) {
             MVM_gc_mark_thread_blocked(tc);
             uv_mutex_lock(&body->head_lock);
             MVM_gc_mark_thread_unblocked(tc);
@@ -155,7 +155,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
     add = MVM_calloc(1, sizeof(MVMConcBlockingQueueNode));
 
     interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.push");
-    COOLROOT2(tc, root, to_add) {
+    MVMROOT2(tc, root, to_add) {
         MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&body->tail_lock);
         MVM_gc_mark_thread_unblocked(tc);
@@ -167,7 +167,7 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
     uv_mutex_unlock(&body->tail_lock);
 
     if (orig_elems == 0) {
-        COOLROOT(tc, root) {
+        MVMROOT(tc, root) {
             MVM_gc_mark_thread_blocked(tc);
             uv_mutex_lock(&body->head_lock);
             MVM_gc_mark_thread_unblocked(tc);
@@ -201,7 +201,7 @@ static void unshift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     /* We'll need to hold both the head and the tail lock, in case head == tail
      * and push would update tail->next - without the tail lock, this could
      * race. Ensure that we lock in the same order */
-    COOLROOT2(tc, root, to_add) {
+    MVMROOT2(tc, root, to_add) {
         MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&cbq->tail_lock);
         uv_mutex_lock(&cbq->head_lock);
@@ -235,7 +235,7 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
         MVM_exception_throw_adhoc(tc, "Can only shift objects from a ConcBlockingQueue");
 
     interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.shift");
-    COOLROOT(tc, root) {
+    MVMROOT(tc, root) {
         MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&body->head_lock);
         MVM_gc_mark_thread_unblocked(tc);
@@ -338,7 +338,7 @@ MVMObject * MVM_concblockingqueue_poll(MVMThreadContext *tc, MVMConcBlockingQueu
     unsigned int interval_id;
 
     interval_id = MVM_telemetry_interval_start(tc, "ConcBlockingQueue.poll");
-    COOLROOT(tc, cbq) { /* No need to root result as VMNull is always in gen2 */
+    MVMROOT(tc, cbq) { /* No need to root result as VMNull is always in gen2 */
         MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&body->head_lock);
         MVM_gc_mark_thread_unblocked(tc);

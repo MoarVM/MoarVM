@@ -379,7 +379,7 @@ static void run_handler(MVMThreadContext *tc, LocatedHandler lh, MVMObject *ex_o
         /* Ensure we have an exception object. */
         MVMFrame *cur_frame = tc->cur_frame;
         if (ex_obj == NULL) {
-            COOLROOT3(tc, cur_frame, lh.frame, payload) {
+            MVMROOT3(tc, cur_frame, lh.frame, payload) {
                 ex_obj = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
             }
             ((MVMException *)ex_obj)->body.category = category;
@@ -625,12 +625,12 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
     else
         MVM_exception_throw_adhoc(tc, "Op 'backtracestrings' needs an exception object");
 
-    COOLROOT(tc, ex) {
+    MVMROOT(tc, ex) {
         arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
 
         cur_frame = ex->body.origin;
 
-        COOLROOT2(tc, arr, cur_frame) {
+        MVMROOT2(tc, arr, cur_frame) {
             MVMuint32 count = 0;
             while (cur_frame != NULL) {
                 char *line = MVM_exception_backtrace_line(tc, cur_frame, count++,
@@ -651,7 +651,7 @@ MVMObject * MVM_exception_backtrace_strings(MVMThreadContext *tc, MVMObject *ex_
 void MVM_dump_backtrace(MVMThreadContext *tc) {
     MVMFrame *cur_frame = tc->cur_frame;
     MVMuint32 count = 0;
-    COOLROOT(tc, cur_frame) {
+    MVMROOT(tc, cur_frame) {
         while (cur_frame != NULL) {
             char *line = MVM_exception_backtrace_line(tc, cur_frame, count++,
                 *(tc->interp_cur_op));
@@ -690,7 +690,7 @@ static void panic_unhandled_ex(MVMThreadContext *tc, MVMException *ex) {
     char *backtrace;
 
     /* If a debug session is running, notify the client. */
-    COOLROOT(tc, ex) {
+    MVMROOT(tc, ex) {
         MVM_debugserver_notify_unhandled_exception(tc, ex);
     }
 
@@ -750,7 +750,7 @@ void MVM_exception_throwcat(MVMThreadContext *tc, MVMuint8 mode, MVMuint32 cat, 
 
 void MVM_exception_die(MVMThreadContext *tc, MVMString *str, MVMRegister *rr) {
     MVMException *ex;
-    COOLROOT(tc, str) {
+    MVMROOT(tc, str) {
         ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
     }
     ex->body.category = MVM_EX_CAT_CATCH;
@@ -769,7 +769,7 @@ void MVM_exception_throwobj(MVMThreadContext *tc, MVMuint8 mode, MVMObject *ex_o
     /* The current frame will be assigned as the thrower of the exception, so
      * force it onto the heap before we begin (promoting it later would mean
      * outer handler search result would be outdated). */
-    COOLROOT(tc, ex_obj) {
+    MVMROOT(tc, ex_obj) {
         MVM_frame_force_to_heap(tc, tc->cur_frame);
     }
 
@@ -942,7 +942,7 @@ MVM_NO_RETURN void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char 
 
     /* Create and set up an exception object. */
     ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
-    COOLROOT(tc, ex) {
+    MVMROOT(tc, ex) {
         char      *c_message = MVM_malloc(1024);
         int        bytes     = vsnprintf(c_message, 1024, messageFormat, args);
         int        to_encode = bytes > 1024 ? 1024 : bytes;

@@ -580,7 +580,7 @@ MVM_PUBLIC void MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc,
 
         uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
 
-        COOLROOT(tc, ex) {
+        MVMROOT(tc, ex) {
             request_all_threads_suspend(tc, ctx, NULL);
         }
 
@@ -784,7 +784,7 @@ static void request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
 
     uv_mutex_lock(&vm->mutex_threads);
     cur_thread = vm->threads;
-    COOLROOT(dtc, cur_thread) {
+    MVMROOT(dtc, cur_thread) {
         while (cur_thread) {
             if (cur_thread != dtc->thread_obj) {
                 AO_t current = MVM_load(&cur_thread->body.tc->gc_status);
@@ -1331,7 +1331,7 @@ static MVMuint64 request_hll_symbol_data(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
 
     MVMString *hll_name_str = NULL;
     MVMString *key_str = NULL;
-    
+
     if (argument->fields_set & FS_hll) {
         hll_name_str = MVM_string_utf8_decode(dtc, vm->VMString, argument->hll, strlen(argument->hll));
     }
@@ -1345,7 +1345,7 @@ static MVMuint64 request_hll_symbol_data(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
     if (!(vm->hll_syms) || !IS_CONCRETE(vm->hll_syms)) {
         if (dtc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "No HLL syms hash found in instance ?!?\n");
-        
+
         MVM_gc_root_temp_pop_n(dtc, 2);
         return 1;
     }
@@ -1777,7 +1777,7 @@ static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, c
     }
 
     if (argument->type == MT_ContextHandle) {
-        COOLROOT(dtc, cur_frame) {
+        MVMROOT(dtc, cur_frame) {
             if (MVM_FRAME_IS_ON_CALLSTACK(dtc, cur_frame)) {
                 cur_frame = MVM_frame_debugserver_move_to_heap(dtc, to_do->body.tc, cur_frame);
             }

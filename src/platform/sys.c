@@ -28,7 +28,7 @@ MVMObject * MVM_platform_uname(MVMThreadContext *tc) {
     if ((error = uv_os_uname(&uname)) != 0)
         MVM_exception_throw_adhoc(tc, "Unable to uname: %s", uv_strerror(error));
 
-    COOLROOT(tc, result) {
+    MVMROOT(tc, result) {
         result = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTStrArray);
 
         MVM_repr_push_s(

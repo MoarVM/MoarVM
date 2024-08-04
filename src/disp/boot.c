@@ -54,7 +54,7 @@ static void boot_code_constant(MVMThreadContext *tc, MVMArgs arg_info) {
     MVM_args_proc_setup(tc, &arg_ctx, arg_info);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
     MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
-    COOLROOT(tc, capture) {
+    MVMROOT(tc, capture) {
         /* Get a capture dropping the first argument, which is the callee. */
         MVMObject *args_capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 0);
 
@@ -85,7 +85,7 @@ static void boot_foreign_code(MVMThreadContext *tc, MVMArgs arg_info) {
     MVM_args_proc_setup(tc, &arg_ctx, arg_info);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
     MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
-    COOLROOT(tc, capture) {
+    MVMROOT(tc, capture) {
         /* Get a capture dropping the first argument, which is the callee. */
         MVMObject *args_capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 0);
 
@@ -116,14 +116,14 @@ static void boot_code(MVMThreadContext *tc, MVMArgs arg_info) {
     MVM_args_proc_setup(tc, &arg_ctx, arg_info);
     MVM_args_checkarity(tc, &arg_ctx, 1, 1);
     MVMObject *capture = MVM_args_get_required_pos_obj(tc, &arg_ctx, 0);
-    COOLROOT(tc, capture) {
+    MVMROOT(tc, capture) {
         /* Get a capture dropping the first argument, which is the callee. */
         MVMObject *args_capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 0);
 
-        COOLROOT(tc, args_capture) {
+        MVMROOT(tc, args_capture) {
             /* Work out what the callee is, and set us up to invoke it. */
             MVMObject *code = MVM_capture_arg_pos_o(tc, capture, 0);
-            COOLROOT(tc, code) {
+            MVMROOT(tc, code) {
                 MVMObject *tracked_code = MVM_disp_program_record_track_arg(tc, capture, 0);
                 if (REPR(code)->ID == MVM_REPR_ID_MVMCode && IS_CONCRETE(code)) {
                     MVM_disp_program_record_tracked_code(tc, tracked_code, args_capture);
@@ -169,7 +169,7 @@ static void boot_syscall(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* Drop the name from the args capture, and then check them. */
     MVMObject *args_capture;
-    COOLROOT(tc, name) {
+    MVMROOT(tc, name) {
         args_capture = MVM_disp_program_record_capture_drop_arg(tc, capture, 0);
     }
     MVMCallsite *cs = ((MVMCapture *)args_capture)->body.callsite;
@@ -212,7 +212,7 @@ static void boot_syscall(MVMThreadContext *tc, MVMArgs arg_info) {
                 MVMuint32 expected = syscall->expected_reprs[i];
                 MVMuint32 got = REPR(MVM_capture_arg_pos_o(tc, args_capture, i))->ID;
                 if (expected == got) {
-                    COOLROOT2(tc, name, args_capture) {
+                    MVMROOT2(tc, name, args_capture) {
                         MVM_disp_program_record_guard_type(tc,
                                 MVM_disp_program_record_track_arg(tc, args_capture, i));
                     }
@@ -229,7 +229,7 @@ static void boot_syscall(MVMThreadContext *tc, MVMArgs arg_info) {
             }
             if (syscall->expected_concrete[i]) {
                 if (IS_CONCRETE(MVM_capture_arg_pos_o(tc, args_capture, i))) {
-                    COOLROOT2(tc, name, args_capture) {
+                    MVMROOT2(tc, name, args_capture) {
                         MVM_disp_program_record_guard_concreteness(tc,
                                 MVM_disp_program_record_track_arg(tc, args_capture, i));
                     }
@@ -302,7 +302,7 @@ static void lang_call(MVMThreadContext *tc, MVMArgs arg_info) {
     /* Obtain and guard on the first argument of the capture, which is the
      * thing to invoke. */
     MVMObject *tracked_invokee;
-    COOLROOT(tc, capture) {
+    MVMROOT(tc, capture) {
          tracked_invokee = MVM_disp_program_record_track_arg(tc, capture, 0);
     }
     MVM_disp_program_record_guard_type(tc, tracked_invokee);
@@ -364,7 +364,7 @@ static void lang_meth_call(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* If the invocant has an associated HLL and method dispatcher, delegate there. */
     MVMObject *tracked_invocant;
-    COOLROOT(tc, capture) {
+    MVMROOT(tc, capture) {
          tracked_invocant = MVM_disp_program_record_track_arg(tc, capture, 0);
     }
     MVMObject *invocant = MVM_capture_arg_pos_o(tc, capture, 0);
@@ -380,7 +380,7 @@ static void lang_meth_call(MVMThreadContext *tc, MVMArgs arg_info) {
      * on the invocant, add a guard. */
     MVM_disp_program_record_guard_type(tc, tracked_invocant);
     MVMObject *HOW;
-    COOLROOT2(tc, capture, invocant) {
+    MVMROOT2(tc, capture, invocant) {
         HOW = MVM_6model_get_how(tc, STABLE(invocant));
     }
     if (REPR(HOW)->ID == MVM_REPR_ID_KnowHOWREPR && IS_CONCRETE(HOW)) {
@@ -388,7 +388,7 @@ static void lang_meth_call(MVMThreadContext *tc, MVMArgs arg_info) {
         MVMString *method_name = MVM_capture_arg_pos_s(tc, capture, 1);
         MVMObject *method = MVM_repr_at_key_o(tc, methods, method_name);
         if (IS_CONCRETE(method)) {
-            COOLROOT2(tc, capture, method) {
+            MVMROOT2(tc, capture, method) {
                 /* Method found. Guard on the name. */
                 MVMObject *tracked_name = MVM_disp_program_record_track_arg(tc, capture, 1);
                 MVM_disp_program_record_guard_literal(tc, tracked_name);
@@ -439,7 +439,7 @@ static void lang_find_meth(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *invocant = MVM_capture_arg_pos_o(tc, capture, 0);
     MVMHLLConfig *hll = STABLE(invocant)->hll_owner;
     if (hll && hll->find_method_dispatcher) {
-        COOLROOT(tc, capture) {
+        MVMROOT(tc, capture) {
             MVMObject *tracked_invocant = MVM_disp_program_record_track_arg(tc, capture, 0);
             MVM_disp_program_record_guard_hll(tc, tracked_invocant);
         }
@@ -450,7 +450,7 @@ static void lang_find_meth(MVMThreadContext *tc, MVMArgs arg_info) {
     /* Obtain and guard on the first argument of the capture, which is the
      * invocant of the method call, and then also on the name and the
      * exception flag. */
-    COOLROOT(tc, capture) {
+    MVMROOT(tc, capture) {
         MVMObject *tracked_invocant = MVM_disp_program_record_track_arg(tc, capture, 0);
         MVM_disp_program_record_guard_type(tc, tracked_invocant);
         for (MVMuint8 i = 1; i <= 2; i++) {
@@ -464,7 +464,7 @@ static void lang_find_meth(MVMThreadContext *tc, MVMArgs arg_info) {
      * method dispatch bottoms out in the VM). */
     MVMint64 exceptional = MVM_capture_arg_pos_i(tc, capture, 2);
     MVMObject *HOW;
-    COOLROOT2(tc, capture, invocant) {
+    MVMROOT2(tc, capture, invocant) {
         HOW = MVM_6model_get_how(tc, STABLE(invocant));
     }
     if (REPR(HOW)->ID == MVM_REPR_ID_KnowHOWREPR && IS_CONCRETE(HOW)) {
@@ -563,7 +563,7 @@ static void boot_boolify(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* Always guard on the type of the object being tested. */
     MVMObject *tracked_object;
-    COOLROOT(tc, capture) {
+    MVMROOT(tc, capture) {
          tracked_object = MVM_disp_program_record_track_arg(tc, capture, 0);
     }
     MVM_disp_program_record_guard_type(tc, tracked_object);
@@ -653,7 +653,7 @@ static void lang_hllize(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* Guard on the type's HLL (something later may strengthen it, if it is
      * doing a type mapping). */
-    COOLROOT(tc, capture) {
+    MVMROOT(tc, capture) {
         MVM_disp_program_record_guard_hll(tc,
                 MVM_disp_program_record_track_arg(tc, capture, 0));
     }
@@ -665,7 +665,7 @@ static void lang_hllize(MVMThreadContext *tc, MVMArgs arg_info) {
         hll = MVM_disp_program_record_get_hll(tc);
     }
     else {
-        COOLROOT(tc, capture) {
+        MVMROOT(tc, capture) {
             MVM_disp_program_record_guard_literal(tc,
                 MVM_disp_program_record_track_arg(tc, capture, 1));
         }
@@ -711,7 +711,7 @@ static void lang_isinvokable(MVMThreadContext *tc, MVMArgs arg_info) {
 
     /* Guard on the type, as that's how we make our decision about either
      * the outcome or where to delegate. */
-    COOLROOT(tc, capture) {
+    MVMROOT(tc, capture) {
         MVM_disp_program_record_guard_type(tc,
                 MVM_disp_program_record_track_arg(tc, capture, 0));
     }

@@ -18,7 +18,7 @@ int MVM_dll_load(MVMThreadContext *tc, MVMString *name, MVMString *path) {
         return 0;
     }
 
-    COOLROOT2(tc, name, path) {
+    MVMROOT2(tc, name, path) {
         path = MVM_file_in_libpath(tc, path);
     }
 

@@ -10,12 +10,12 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *updated_static_frames = MVM_repr_alloc_init(tc,
         tc->instance->boot_types.BOOTArray);
     MVMObject *newly_seen_static_frames;
-    COOLROOT(tc, updated_static_frames) {
+    MVMROOT(tc, updated_static_frames) {
         newly_seen_static_frames = MVM_repr_alloc_init(tc,
             tc->instance->boot_types.BOOTArray);
     }
     MVMObject *previous_static_frames;
-    COOLROOT2(tc, updated_static_frames, newly_seen_static_frames) {
+    MVMROOT2(tc, updated_static_frames, newly_seen_static_frames) {
         previous_static_frames = MVM_repr_alloc_init(tc,
             tc->instance->boot_types.BOOTArray);
     }
@@ -26,7 +26,7 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
 
     tc->instance->speshworker_thread_id = tc->thread_obj->body.thread_id;
 
-    COOLROOT3(tc, updated_static_frames, newly_seen_static_frames, previous_static_frames) {
+    MVMROOT3(tc, updated_static_frames, newly_seen_static_frames, previous_static_frames) {
         size_t log_tell_before = 0;
         while (1) {
             MVMObject *log_obj;
@@ -53,7 +53,7 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                 if (spesh_overview_event) {
                     MVMuint64 now_time = uv_hrtime();
 
-                    COOLROOT(tc, log_obj) {
+                    MVMROOT(tc, log_obj) {
                         overview_subscription_packet = MVM_repr_alloc(tc, spesh_overview_event);
                     }
                     MVM_gc_root_temp_push(tc, (MVMCollectable **)&overview_subscription_packet);
@@ -85,7 +85,7 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                 if (overview_data) {
                     overview_data[4] = sl->body.thread->body.tc->thread_id;
                 }
-                COOLROOT(tc, sl) {
+                MVMROOT(tc, sl) {
                     MVMThreadContext *stc;
                     MVMuint32 i;
                     MVMuint32 n;

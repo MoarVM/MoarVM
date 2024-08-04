@@ -556,7 +556,7 @@ static MVM_NO_RETURN void throw_closure_serialization_error(MVMThreadContext *tc
 static MVM_NO_RETURN void throw_closure_serialization_error(MVMThreadContext *tc, MVMCode *closure, const char *message) {
     MVMString *file;
     MVMint32 line;
-    COOLROOT(tc, closure) {
+    MVMROOT(tc, closure) {
         MVM_gc_enter_from_allocator(tc); /* opportunity for creating a heap snapshot for debugging */
     }
     MVM_code_location_out(tc, (MVMObject *)closure, &file, &line);
@@ -2474,7 +2474,7 @@ static MVMObject *read_param_intern(MVMThreadContext *tc, MVMSerializationReader
     MVMObject *params = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
     MVM_repr_push_o(tc, params, ptype);
     MVMint32 i;
-    COOLROOT(tc, params) {
+    MVMROOT(tc, params) {
         for (i = 0; i < num_params; i++) {
             MVMObject *param = read_obj_ref(tc, reader);
             MVM_repr_push_o(tc, params, param);
@@ -2742,7 +2742,7 @@ MVMObject * MVM_serialization_demand_object(MVMThreadContext *tc, MVMSerializati
     /* Obtain lock and check we didn't lose a race to deserialize this
      * object. */
     MVMSerializationReader *sr = sc->body->sr;
-    COOLROOT(tc, sc) {
+    MVMROOT(tc, sc) {
         MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
     }
     if (sc->body->root_objects[idx]) {
@@ -2753,7 +2753,7 @@ MVMObject * MVM_serialization_demand_object(MVMThreadContext *tc, MVMSerializati
     if ((MVMuint64)idx < sr->root.sc->body->num_param_intern_lookup && sr->root.sc->body->param_intern_lookup[idx]) {
         MVMint32 type_idx, st_idx;
         MVMObject *params;
-        COOLROOT(tc, sc) {
+        MVMROOT(tc, sc) {
             params = read_param_intern(tc, sr, sr->root.sc->body->param_intern_lookup[idx] - 1, &type_idx, &st_idx);
         }
         MVMObject *ptype = MVM_repr_shift_o(tc, params);
@@ -2773,7 +2773,7 @@ MVMObject * MVM_serialization_demand_object(MVMThreadContext *tc, MVMSerializati
     MVM_gc_allocate_gen2_default_set(tc);
 
     /* Stub the object. */
-    COOLROOT(tc, sc) {
+    MVMROOT(tc, sc) {
         stub_object(tc, sr, idx);
 
         /* Add to worklist and process as needed. */
@@ -2796,7 +2796,7 @@ MVMSTable * MVM_serialization_demand_stable(MVMThreadContext *tc, MVMSerializati
     /* Obtain lock and ensure we didn't lose a race to deserialize this
      * STable. */
     MVMSerializationReader *sr = sc->body->sr;
-    COOLROOT(tc, sc) {
+    MVMROOT(tc, sc) {
         MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
     }
     if (sc->body->root_stables[idx]) {
@@ -2809,7 +2809,7 @@ MVMSTable * MVM_serialization_demand_stable(MVMThreadContext *tc, MVMSerializati
         sr->root.sc->body->param_intern_st_lookup[idx] = 0; /* prevent endless recursion */
         MVMint32 type_idx, st_idx;
         MVMObject *params;
-        COOLROOT(tc, sc) {
+        MVMROOT(tc, sc) {
             params = read_param_intern(tc, sr, intern_idx - 1, &type_idx, &st_idx);
         }
         MVMObject *ptype = MVM_repr_shift_o(tc, params);
@@ -2830,7 +2830,7 @@ MVMSTable * MVM_serialization_demand_stable(MVMThreadContext *tc, MVMSerializati
     MVM_gc_allocate_gen2_default_set(tc);
 
     /* Stub the STable. */
-    COOLROOT(tc, sc) {
+    MVMROOT(tc, sc) {
         stub_stable(tc, sr, idx);
 
         /* Add to worklist and process as needed. */
@@ -2853,7 +2853,7 @@ MVMObject * MVM_serialization_demand_code(MVMThreadContext *tc, MVMSerialization
     /* Obtain lock and ensure we didn't lose a race to deserialize this
      * code object. */
     MVMSerializationReader *sr = sc->body->sr;
-    COOLROOT(tc, sc) {
+    MVMROOT(tc, sc) {
         MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)sc->body->mutex);
     }
     if (!MVM_is_null(tc, MVM_repr_at_pos_o(tc, sr->codes_list, idx))) {
@@ -2866,7 +2866,7 @@ MVMObject * MVM_serialization_demand_code(MVMThreadContext *tc, MVMSerialization
     MVM_incr(&sr->working);
     MVM_gc_allocate_gen2_default_set(tc);
 
-    COOLROOT(tc, sc) {
+    MVMROOT(tc, sc) {
         /* Deserialize the code object. */
         deserialize_closure(tc, sr, idx - sr->num_static_codes);
 
@@ -2938,9 +2938,9 @@ static void repossess(MVMThreadContext *tc, MVMSerializationReader *reader, MVMi
          * and reference it from the conflicts list. Push the original (about to
          * be overwritten) object reference too. */
         if (MVM_sc_get_obj_sc(tc, orig_obj) != orig_sc) {
-            COOLROOT(tc, orig_obj) {
+            MVMROOT(tc, orig_obj) {
                 MVMObject *backup = NULL;
-                COOLROOT(tc, backup) {
+                MVMROOT(tc, backup) {
                     if (IS_CONCRETE(orig_obj)) {
                         backup = REPR(orig_obj)->allocate(tc, STABLE(orig_obj));
                         REPR(orig_obj)->copy_to(tc, STABLE(orig_obj), OBJECT_BODY(orig_obj), backup, OBJECT_BODY(backup));

@@ -334,7 +334,7 @@ static MVMint32 try_get_slot(MVMThreadContext *tc, MVMCUnionREPRData *repr_data,
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, &CUnion_this_repr, HOW);
 
-    COOLROOT(tc, st) {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMCUnion);
@@ -426,7 +426,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                 MVMObject *obj     = body->child_objs[real_slot];
                 if (!obj) {
                     /* No cached object. */
-                    COOLROOT(tc, root) {
+                    MVMROOT(tc, root) {
                         if (repr_data->attribute_locations[slot] & MVM_CUNION_ATTR_INLINED) {
                             if (type == MVM_CUNION_ATTR_CSTRUCT) {
                                 obj = MVM_nativecall_make_cstruct(tc, typeobj,
@@ -460,7 +460,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                                     obj = MVM_nativecall_make_cpointer(tc, typeobj, cobj);
                                 }
                                 else if(type == MVM_CUNION_ATTR_STRING) {
-                                    COOLROOT(tc, typeobj) {
+                                    MVMROOT(tc, typeobj) {
                                         MVMString *str = MVM_string_utf8_decode(tc, tc->instance->VMString,
                                             cobj, strlen(cobj));
                                         obj = MVM_repr_box_str(tc, typeobj, str);

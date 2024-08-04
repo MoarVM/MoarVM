@@ -201,7 +201,7 @@ static void compose(MVMThreadContext *tc, MVMArgs arg_info) {
         MVMObject *attr_info = REPR(BOOTHash)->allocate(tc, STABLE(BOOTHash));
         MVMKnowHOWAttributeREPR *attribute = (MVMKnowHOWAttributeREPR *)
             MVM_repr_at_pos_o(tc, attributes, i);
-        COOLROOT2(tc, attr_info, attribute) {
+        MVMROOT2(tc, attr_info, attribute) {
             if (REPR((MVMObject *)attribute)->ID != MVM_REPR_ID_KnowHOWAttributeREPR)
                 MVM_exception_throw_adhoc(tc, "KnowHOW attributes must use KnowHOWAttributeREPR");
 
@@ -332,7 +332,7 @@ static void add_meta_object(MVMThreadContext *tc, MVMObject *type_obj, char *nam
 
     /* Create meta-object. */
     meta_obj = MVM_repr_alloc_init(tc, STABLE(tc->instance->KnowHOW)->HOW);
-    COOLROOT(tc, meta_obj) {
+    MVMROOT(tc, meta_obj) {
         /* Put it in place. */
         MVM_ASSIGN_REF(tc, &(STABLE(type_obj)->header), STABLE(type_obj)->HOW, meta_obj);
 
@@ -435,7 +435,7 @@ static void create_KnowHOWAttribute(MVMThreadContext *tc) {
 
     /* Create meta-object. */
     meta_obj = MVM_repr_alloc_init(tc, STABLE(tc->instance->KnowHOW)->HOW);
-    COOLROOT(tc, meta_obj) {
+    MVMROOT(tc, meta_obj) {
         /* Add methods. */
         add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "new", attr_new);
         add_knowhow_how_method(tc, (MVMKnowHOWREPR *)meta_obj, "compose", attr_compose);
@@ -466,13 +466,13 @@ static MVMObject * boot_typed_array(MVMThreadContext *tc, char *name, MVMObject 
     MVMInstance  *instance  = tc->instance;
     const MVMREPROps *repr  = MVM_repr_get_by_id(tc, MVM_REPR_ID_VMArray);
     MVMObject  *array = repr->type_object_for(tc, NULL);
-    COOLROOT(tc, array) {
+    MVMROOT(tc, array) {
         /* Give it a meta-object. */
         add_meta_object(tc, array, name);
 
         /* Now need to compose it with the specified type. */
         repr_info = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-        COOLROOT(tc, repr_info) {
+        MVMROOT(tc, repr_info) {
             MVMObject *arr_info = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
             MVM_repr_bind_key_o(tc, arr_info, instance->str_consts.type, type);
             MVM_repr_bind_key_o(tc, repr_info, instance->str_consts.array, arr_info);

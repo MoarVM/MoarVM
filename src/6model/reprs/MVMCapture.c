@@ -8,7 +8,7 @@ static const MVMREPROps MVMCapture_this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st = MVM_gc_allocate_stable(tc, &MVMCapture_this_repr, HOW);
 
-    COOLROOT(tc, st) {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMCapture);
@@ -319,7 +319,7 @@ MVMObject * MVM_capture_get_nameds(MVMThreadContext *tc, MVMObject *capture) {
     /* Set up an args processing context and use the standard slurpy args
      * handler to extract all nameds */
     MVMObject *result;
-    COOLROOT(tc, capture) {
+    MVMROOT(tc, capture) {
         MVMArgs capture_args = MVM_capture_to_args(tc, capture);
         MVMArgProcContext capture_ctx;
         MVM_args_proc_setup(tc, &capture_ctx, capture_args);
@@ -357,7 +357,7 @@ MVMObject * MVM_capture_drop_args(MVMThreadContext *tc, MVMObject *capture_obj, 
     /* Allocate a new capture before we begin; this is the only GC allocation
      * we do. */
     MVMObject *new_capture;
-    COOLROOT(tc, capture) {
+    MVMROOT(tc, capture) {
         new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
     }
 
@@ -397,9 +397,9 @@ MVMObject * MVM_capture_insert_arg(MVMThreadContext *tc, MVMObject *capture_obj,
     /* Allocate a new capture before we begin; this is the only GC allocation
      * we do. */
     MVMObject *new_capture;
-    COOLROOT(tc, capture) {
+    MVMROOT(tc, capture) {
         if (kind & (MVM_CALLSITE_ARG_OBJ | MVM_CALLSITE_ARG_STR)) {
-            COOLROOT(tc, value.o) {
+            MVMROOT(tc, value.o) {
                 new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
             }
         }
@@ -445,9 +445,9 @@ MVMObject * MVM_capture_replace_arg(MVMThreadContext *tc, MVMObject *capture_obj
     /* Allocate a new capture before we begin; this is the only GC allocation
      * we do. */
     MVMObject *new_capture;
-    COOLROOT(tc, capture) {
+    MVMROOT(tc, capture) {
         if (kind & (MVM_CALLSITE_ARG_OBJ | MVM_CALLSITE_ARG_STR)) {
-            COOLROOT(tc, value.o) {
+            MVMROOT(tc, value.o) {
                 new_capture = MVM_repr_alloc(tc, tc->instance->boot_types.BOOTCapture);
             }
         }

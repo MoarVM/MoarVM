@@ -8,7 +8,7 @@ static const MVMREPROps CArray_this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st = MVM_gc_allocate_stable(tc, &CArray_this_repr, HOW);
 
-    COOLROOT(tc, st) {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMCArray);
@@ -308,7 +308,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
                 /* If not, we need to produce and cache it. */
                 else {
                     void **storage = (void **)body->storage;
-                    COOLROOT(tc, root) {
+                    MVMROOT(tc, root) {
                         MVMObject **child_objs = body->child_objs;
                         MVMObject *wrapped = make_wrapper(tc, st, storage[index]);
                         MVM_ASSIGN_REF(tc, &(root->header), child_objs[index], wrapped);
@@ -335,7 +335,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
                 /* No cached object, but non-NULL pointer in array. Construct object,
                  * put it in the cache and return it. */
                 else if (storage[index]) {
-                    COOLROOT(tc, root) {
+                    MVMROOT(tc, root) {
                         MVMObject **child_objs = body->child_objs;
                         MVMObject *wrapped = make_wrapper(tc, st, storage[index]);
                         MVM_ASSIGN_REF(tc, &(root->header), child_objs[index], wrapped);

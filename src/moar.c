@@ -781,7 +781,7 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
     MVMString *speshoverviewevent;
     MVMString *startup_time;
 
-    COOLROOT2(tc, queue, config) {
+    MVMROOT2(tc, queue, config) {
         if (!IS_CONCRETE(config)) {
             MVM_exception_throw_adhoc(tc, "vmeventsubscribe requires a concrete configuration hash (got a %s type object)", MVM_6model_get_debug_name(tc, config));
         }
@@ -797,9 +797,9 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
         }
 
         gcevent = MVM_string_utf8_decode(tc, tc->instance->VMString, "gcevent", 7);
-        COOLROOT(tc, gcevent) {
+        MVMROOT(tc, gcevent) {
             speshoverviewevent = MVM_string_utf8_decode(tc, tc->instance->VMString, "speshoverviewevent", 18);
-            COOLROOT(tc, speshoverviewevent) {
+            MVMROOT(tc, speshoverviewevent) {
                 startup_time = MVM_string_utf8_decode(tc, tc->instance->VMString, "startup_time", 12);
             }
         }
@@ -836,8 +836,8 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
 
         if (MVM_repr_exists_key(tc, config, startup_time)) {
             /* Value is ignored, it will just be overwritten. */
-            MVMObject *value = NULL; 
-            COOLROOT3(tc, gcevent, speshoverviewevent, startup_time) {
+            MVMObject *value = NULL;
+            MVMROOT3(tc, gcevent, speshoverviewevent, startup_time) {
                     value = MVM_repr_box_num(tc, tc->instance->boot_types.BOOTNum, tc->instance->subscriptions.vm_startup_now);
             }
 

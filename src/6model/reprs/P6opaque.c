@@ -52,7 +52,7 @@ static MVMint64 try_get_slot(MVMThreadContext *tc, MVMP6opaqueREPRData *repr_dat
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st = MVM_gc_allocate_stable(tc, &P6opaque_this_repr, HOW);
 
-    COOLROOT(tc, st) {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = 0; /* Is updated later. */
@@ -280,7 +280,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                         MVMObject *value = repr_data->auto_viv_values[slot];
                         if (value != NULL) {
                             if (IS_CONCRETE(value)) {
-                                COOLROOT2(tc, value, root) {
+                                MVMROOT2(tc, value, root) {
                                     MVMObject *cloned = REPR(value)->allocate(tc, STABLE(value));
                                     /* Ordering here matters. We write the object into the
                                     * register before calling copy_to. This is because
@@ -310,7 +310,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                 }
             }
             else {
-                COOLROOT2(tc, root, attr_st) {
+                MVMROOT2(tc, root, attr_st) {
                     /* Need to produce a boxed version of this attribute. */
                     MVMObject *cloned = attr_st->REPR->allocate(tc, attr_st);
 

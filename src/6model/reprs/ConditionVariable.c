@@ -8,7 +8,7 @@ static const MVMREPROps ConditionVariable_this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, &ConditionVariable_this_repr, HOW);
 
-    COOLROOT(tc, st) {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMConditionVariable);
@@ -106,7 +106,7 @@ MVMObject * MVM_conditionvariable_from_lock(MVMThreadContext *tc, MVMReentrantMu
     if (REPR(type)->ID != MVM_REPR_ID_ConditionVariable)
         MVM_exception_throw_adhoc(tc, "Condition variable must have ConditionVariable REPR");
 
-    COOLROOT(tc, lock) {
+    MVMROOT(tc, lock) {
         cv = (MVMConditionVariable *)MVM_gc_allocate_object(tc, STABLE(type));
     }
     cv->body.condvar = MVM_malloc(sizeof(uv_cond_t));
@@ -137,7 +137,7 @@ void MVM_conditionvariable_wait(MVMThreadContext *tc, MVMConditionVariable *cv) 
     MVM_store(&rm->body.holder_id, 0);
     MVM_store(&rm->body.lock_count, 0);
 
-    COOLROOT2(tc, cv, rm) {
+    MVMROOT2(tc, cv, rm) {
         MVM_gc_mark_thread_blocked(tc);
         uv_cond_wait(cv->body.condvar, rm->body.mutex);
         MVM_gc_mark_thread_unblocked(tc);

@@ -8,7 +8,7 @@ static const MVMREPROps MVMContext_this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st = MVM_gc_allocate_stable(tc, &MVMContext_this_repr, HOW);
 
-    COOLROOT(tc, st) {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMContext);
@@ -298,7 +298,7 @@ MVMObject * MVM_context_from_frame(MVMThreadContext *tc, MVMFrame *f) {
     MVMObject *ctx;
     f = MVM_frame_force_to_heap(tc, f);
     snapshot_frame_callees(tc, f);
-    COOLROOT(tc, f) {
+    MVMROOT(tc, f) {
         ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
         MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);
         ((MVMContext *)ctx)->body.traversable = 1;
@@ -311,7 +311,7 @@ MVMObject * MVM_context_from_frame(MVMThreadContext *tc, MVMFrame *f) {
 MVMObject * MVM_context_from_frame_non_traversable(MVMThreadContext *tc, MVMFrame *f) {
     MVMObject *ctx;
     f = MVM_frame_force_to_heap(tc, f);
-    COOLROOT(tc, f) {
+    MVMROOT(tc, f) {
         ctx = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
         MVM_ASSIGN_REF(tc, &(ctx->header), ((MVMContext *)ctx)->body.context, f);
     }
@@ -348,7 +348,7 @@ MVMObject * MVM_context_apply_traversal(MVMThreadContext *tc, MVMContext *ctx, M
     if (traversal_exists(tc, ctx->body.context, new_traversals, new_num_traversals)) {
         /* Yes, make a new context object and return it. */
         MVMContext *result;
-        COOLROOT(tc, ctx) {
+        MVMROOT(tc, ctx) {
             result = (MVMContext *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTContext);
         }
         MVM_ASSIGN_REF(tc, &(result->common.header), result->body.context, ctx->body.context);
