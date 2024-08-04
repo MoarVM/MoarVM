@@ -11,6 +11,9 @@
 .gcccheck
 tools/check.mk
 
+# cached files, for example the clangd index
+.cache/
+
 # Releases
 MoarVM-*
 
@@ -53,6 +56,8 @@ src/gen/
 *.profdata
 # GCC Gcov files
 *.gcov
+# GCC stackusage files
+*.su
 # Callgrind files
 callgrind.out.*
 
