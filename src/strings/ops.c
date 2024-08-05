@@ -1024,6 +1024,16 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             result->body.num_strands = a->body.num_strands;
         }
 
+        /* Fast path for the case when we have two IN_SITU_8 strings and the total size of the result would still fit
+         * in an IN_SITU_8 (which happens pretty frequently when building Rakudo). */
+        else if (is_concat_stable == 1 && total_graphs <= 8 &&
+                 a->body.storage_type == MVM_STRING_IN_SITU_8 && b->body.storage_type == MVM_STRING_IN_SITU_8)
+        {
+            result->body.storage_type = MVM_STRING_IN_SITU_8;
+            memcpy(result->body.storage.in_situ_8          , a->body.storage.in_situ_8, agraphs);
+            memcpy(result->body.storage.in_situ_8 + agraphs, b->body.storage.in_situ_8, bgraphs);
+        }
+
         /* Otherwise, construct a new strand string. */
         else {
             /* See if we have too many strands between the two. If so, we will
