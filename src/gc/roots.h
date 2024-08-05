@@ -11,7 +11,7 @@ MVM_PUBLIC void MVM_gc_root_temp_push_slow(MVMThreadContext *tc, MVMCollectable 
 /* Fast-path case of pushing a root onto the per-thread temporary roots. */
 MVM_STATIC_INLINE void MVM_gc_root_temp_push(MVMThreadContext *tc, MVMCollectable **obj_ref) {
     /* If debugging, ensure the root is not null. */
-#ifdef MVM_TEMP_ROOT_DEBUG
+#if MVM_TEMP_ROOT_DEBUG
     if (obj_ref == NULL)
         MVM_panic(MVM_exitcode_gcroots, "Illegal attempt to add null object address as a temporary root");
 #endif
