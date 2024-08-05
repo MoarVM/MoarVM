@@ -36,3 +36,6 @@ struct MVMDispSysCall {
 void MVM_disp_syscall_setup(MVMThreadContext *tc);
 MVMDispSysCall * MVM_disp_syscall_find(MVMThreadContext *tc, MVMString *name);
 void MVM_disp_syscall_boolify_boxed_int_impl(MVMThreadContext *tc, MVMArgs arg_info);
+void MVM_disp_syscall_boolify_using_elems_impl(MVMThreadContext *tc, MVMArgs arg_info);
+void MVM_disp_syscall_boolify_iter_impl(MVMThreadContext *tc, MVMArgs arg_info);
+void MVM_disp_syscall_boolify_boxed_str_impl(MVMThreadContext *tc, MVMArgs arg_info);

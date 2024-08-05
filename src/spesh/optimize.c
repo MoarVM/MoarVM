@@ -2058,6 +2058,52 @@ static void analyze_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, 
     }
 }
 
+static MVMuint8 optimize_runcfunc(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins, MVMSpeshFacts *callee_facts, MVMCFunction *cfunc) {
+    if (cfunc->body.func == MVM_disp_syscall_boolify_boxed_int_impl) {
+        // MVM_spesh_graph_add_comment(tc, g, ins, "would have turned this call into spesh ins...");
+        MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+        ins->info = MVM_op_get_op(MVM_OP_unbox_i);
+        ins->operands[1] = ins->operands[3];
+        MVM_spesh_graph_add_comment(tc, g, ins, "specialized from runcfunc MVM_disp_syscall_boolify_boxed_int_impl");
+    }
+    else if (cfunc->body.func == MVM_disp_syscall_boolify_using_elems_impl) {
+        MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+        ins->info = MVM_op_get_op(MVM_OP_elems);
+        ins->operands[1] = ins->operands[3];
+        MVM_spesh_graph_add_comment(tc, g, ins, "specialized from runcfunc MVM_disp_syscall_boolify_using_elems_impl");
+    }
+    else if (cfunc->body.func == MVM_disp_syscall_boolify_iter_impl) {
+        MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+        ins->info = MVM_op_get_op(MVM_OP_sp_boolify_iter);
+        ins->operands[1] = ins->operands[3];
+        MVM_spesh_graph_add_comment(tc, g, ins, "specialized from runcfunc MVM_disp_syscall_boolify_iter_impl");
+    }
+    else if (cfunc->body.func == MVM_disp_syscall_boolify_boxed_str_impl) {
+        MVMSpeshOperand val_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
+        MVMSpeshOperand result = ins->operands[0];
+
+        MVM_spesh_usages_delete_by_reg(tc, g, ins->operands[1], ins);
+
+        ins->info = MVM_op_get_op(MVM_OP_unbox_s);
+        ins->operands[1] = ins->operands[3];
+        ins->operands[0] = val_temp;
+
+        MVMSpeshIns *istrue = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
+        istrue->info = MVM_op_get_op(MVM_OP_istrue_s);
+        istrue->operands = MVM_spesh_alloc(tc, g, 2 * sizeof(MVMSpeshOperand));
+        istrue->operands[0] = result;
+        MVM_spesh_usages_add_by_reg(tc, g, val_temp, istrue);
+        istrue->operands[1] = val_temp;
+        MVM_spesh_manipulate_insert_ins(tc, bb, ins, istrue);
+
+        MVM_spesh_get_facts(tc, g, result)->writer = istrue;
+        MVM_spesh_get_facts(tc, g, val_temp)->writer = ins;
+
+        MVM_spesh_graph_add_comment(tc, g, ins, "specialized from runcfunc MVM_disp_syscall_boolify_boxed_str_impl");
+    }
+    return 0;
+}
+
 static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
                         MVMSpeshPlanned *p) {
     /* Look for instructions that are interesting to optimize. */
@@ -2339,7 +2385,21 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_sp_runnativecall_i:
         case MVM_OP_sp_runnativecall_u:
         case MVM_OP_sp_runnativecall_n:
-        case MVM_OP_sp_runnativecall_s:
+        case MVM_OP_sp_runnativecall_s: {
+            MVMSpeshAnn *temps_ann = ins->annotations;
+            if (temps_ann && temps_ann->type == MVM_SPESH_ANN_DELAYED_TEMPS)
+                ins->annotations = temps_ann->next;
+            else
+                temps_ann = NULL;
+            if (temps_ann) {
+                MVMint32 i = 0;
+                while (temps_ann->data.temps_to_release[i].lit_i64 != -1)
+                    MVM_spesh_manipulate_release_temp_reg(tc, g,
+                        temps_ann->data.temps_to_release[i++]);
+                MVM_free(temps_ann->data.temps_to_release);
+            }
+            break;
+        }
         case MVM_OP_sp_runcfunc_v:
         case MVM_OP_sp_runcfunc_o:
         case MVM_OP_sp_runcfunc_i:
@@ -2358,6 +2418,20 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
                         temps_ann->data.temps_to_release[i++]);
                 MVM_free(temps_ann->data.temps_to_release);
             }
+
+            MVMuint16 callee_operand = ins->info->opcode == MVM_OP_sp_runcfunc_v ? 0 : 1;
+
+            MVMSpeshFacts *callee_facts = MVM_spesh_get_facts(tc, g, ins->operands[callee_operand]);
+
+            if (callee_facts->flags & MVM_SPESH_FACT_KNOWN_VALUE) {
+                if (callee_facts->value.o != NULL && REPR(callee_facts->value.o)->ID == MVM_REPR_ID_MVMCFunction) {
+                    MVMCFunction *func = (MVMCFunction *)callee_facts->value.o;
+                    if (optimize_runcfunc(tc, g, bb, ins, callee_facts, func)) {
+                        MVM_spesh_use_facts(tc, g, callee_facts);
+                    }
+                }
+            }
+
             break;
         }
         case MVM_OP_prof_enter:

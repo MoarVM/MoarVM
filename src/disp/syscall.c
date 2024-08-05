@@ -656,14 +656,14 @@ static MVMDispSysCall boolify_boxed_num = {
 };
 
 /* boolify-boxed-str */
-static void boolify_boxed_str_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+void MVM_disp_syscall_boolify_boxed_str_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *obj = get_obj_arg(arg_info, 0);
     MVMString *unboxed = REPR(obj)->box_funcs.get_str(tc, STABLE(obj), obj, OBJECT_BODY(obj));
     MVM_args_set_result_int(tc, MVM_coerce_istrue_s(tc, unboxed), MVM_RETURN_CURRENT_FRAME);
 }
 static MVMDispSysCall boolify_boxed_str = {
     .c_name = "boolify-boxed-str",
-    .implementation = boolify_boxed_str_impl,
+    .implementation = MVM_disp_syscall_boolify_boxed_str_impl,
     .min_args = 1,
     .max_args = 1,
     .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
@@ -698,13 +698,13 @@ static MVMDispSysCall boolify_boxed_str_with_zero_false = {
 };
 
 /* boolify-iter */
-static void boolify_iter_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+void MVM_disp_syscall_boolify_iter_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *obj = get_obj_arg(arg_info, 0);
     MVM_args_set_result_int(tc, MVM_iter_istrue(tc, (MVMIter *)obj), MVM_RETURN_CURRENT_FRAME);
 }
 static MVMDispSysCall boolify_iter = {
     .c_name = "boolify-iter",
-    .implementation = boolify_iter_impl,
+    .implementation = MVM_disp_syscall_boolify_iter_impl,
     .min_args = 1,
     .max_args = 1,
     .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
@@ -713,13 +713,13 @@ static MVMDispSysCall boolify_iter = {
 };
 
 /* boolify-using-elems */
-static void boolify_using_elems_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+void MVM_disp_syscall_boolify_using_elems_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *obj = get_obj_arg(arg_info, 0);
     MVM_args_set_result_int(tc, MVM_repr_elems(tc, obj) != 0, MVM_RETURN_CURRENT_FRAME);
 }
 static MVMDispSysCall boolify_using_elems = {
     .c_name = "boolify-using-elems",
-    .implementation = boolify_using_elems_impl,
+    .implementation = MVM_disp_syscall_boolify_using_elems_impl,
     .min_args = 1,
     .max_args = 1,
     .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
