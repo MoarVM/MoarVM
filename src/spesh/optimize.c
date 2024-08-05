@@ -934,6 +934,50 @@ static void optimize_signedness_coerce(MVMThreadContext *tc, MVMSpeshGraph *g, M
     MVM_spesh_turn_into_set(tc, g, ins);
 }
 
+/* If we have optimized a slurpy arguments get, we may have a fastcreate for a
+ * hash along with the elems that tries to figure its size out in the same BB.
+ */
+static MVMuint8 optimize_elems(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+    MVMSpeshFacts *facts = MVM_spesh_get_facts(tc, g, ins->operands[1]);
+
+    if (facts->flags & MVM_SPESH_FACT_KNOWN_TYPE && facts->writer &&
+        (facts->writer->info->opcode == MVM_OP_create || facts->writer->info->opcode == MVM_OP_sp_fastcreate)) {
+
+        MVMSpeshIns *ptr = ins->prev;
+        while (ptr && facts->writer != ptr) {
+            /* Shouldn't have an op that uses our value at all */
+            for (MVMuint16 op = 0; op < ptr->info->num_operands; op++) {
+                MVMuint16 operand_rw = ptr->info->operands[op] & MVM_operand_rw_mask;
+                if (operand_rw == MVM_operand_read_reg || operand_rw == MVM_operand_write_reg) {
+                    if (ptr->operands[op].reg.orig == ins->operands[1].reg.orig) {
+                        MVM_spesh_graph_add_comment(tc, g, ptr, "touched our register, couldn't better elems!");
+                        return 0;
+                    }
+                }
+            }
+            ptr = ptr->prev;
+        }
+
+        if (ptr == facts->writer) {
+            /* Cool, we made it to our writer, and no other ops were touching
+             * our object! */
+            MVM_spesh_usages_delete(tc, g, facts, ins);
+            MVMSpeshFacts *result_facts = MVM_spesh_get_facts(tc, g, ins->operands[0]);
+            MVM_spesh_use_facts(tc, g, facts);
+            ins->info = MVM_op_get_op(MVM_OP_const_i64_16);
+            ins->operands[1].lit_i16 = 0;
+            result_facts->flags |= MVM_SPESH_FACT_KNOWN_VALUE;
+            result_facts->value.i = 0;
+            MVM_spesh_facts_depend(tc, g, result_facts, facts);
+            MVM_spesh_graph_add_comment(tc, g, facts->writer, "elems on this was removed later in this BB");
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+
 /* If we know the type of a significant operand, we might try to specialize by
  * representation. */
 static void optimize_repr_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb,
@@ -2177,6 +2221,11 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_unipvalcode:
             optimize_uniprop_ops(tc, g, bb, ins);
             break;
+        case MVM_OP_elems:
+            if (!optimize_elems(tc, g, bb, ins)) {
+                optimize_repr_op(tc, g, bb, ins, 1);
+            }
+            break;
         case MVM_OP_unshift_i:
         case MVM_OP_unshift_n:
         case MVM_OP_unshift_s:
@@ -2221,7 +2270,6 @@ static void optimize_bb_switch(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshB
         case MVM_OP_atkey_n:
         case MVM_OP_atkey_s:
         case MVM_OP_atkey_o:
-        case MVM_OP_elems:
         case MVM_OP_shift_i:
         case MVM_OP_shift_n:
         case MVM_OP_shift_s:
