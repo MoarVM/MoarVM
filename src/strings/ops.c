@@ -1034,6 +1034,14 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             memcpy(result->body.storage.in_situ_8 + agraphs, b->body.storage.in_situ_8, bgraphs);
         }
 
+        /* Fast path for the case when we know we have just one grapheme in each of the two strings. The possible
+         * combinations of the storage types of the two strings is pretty high, so just put into an MVM_STRING_IN_SITU_32. */
+        else if (is_concat_stable == 1 && total_graphs == 2) {
+            result->body.storage_type = MVM_STRING_IN_SITU_32;
+            result->body.storage.in_situ_32[0] = MVM_string_get_grapheme_at_nocheck(tc, a, 0);
+            result->body.storage.in_situ_32[1] = MVM_string_get_grapheme_at_nocheck(tc, b, 0);
+        }
+
         /* Otherwise, construct a new strand string. */
         else {
             /* See if we have too many strands between the two. If so, we will
