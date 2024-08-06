@@ -6,10 +6,16 @@
 MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, const MVMObject *result_type,
                                      char *latin1_c, size_t bytes) {
     MVMuint8  *latin1 = (MVMuint8 *)latin1_c;
-    MVMString *result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
+    MVMString *result;
     size_t i, k, result_graphs;
 
     MVMuint8 writing_32bit = 0;
+
+    if (bytes == 0 && tc->instance->str_consts.empty) {
+        return tc->instance->str_consts.empty;
+    }
+
+    result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
 
     result->body.storage_type   = MVM_STRING_GRAPHEME_8;
     result->body.storage.blob_8 = MVM_malloc(sizeof(MVMint8) * bytes);
