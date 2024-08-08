@@ -3035,6 +3035,23 @@ MVMuint64 MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
     MVMuint64 hash = 0;
     MVMStringIndex s_len = MVM_string_graphs_nocheck(tc, s);
     switch (s->body.storage_type) {
+        case MVM_STRING_IN_SITU_8: {
+            size_t i;
+            MVMJenHashGraphemeView gv;
+            siphash sh;
+            siphashinit(&sh, s_len * sizeof(MVMGrapheme32), key);
+            for (i = 0; i + 1 < s_len;) {
+                gv.graphs[0] = MVM_MAYBE_TO_LITTLE_ENDIAN_32(s->body.storage.in_situ_8[i++]);
+                gv.graphs[1] = MVM_MAYBE_TO_LITTLE_ENDIAN_32(s->body.storage.in_situ_8[i++]);
+                siphashadd64bits(&sh, gv.u64);
+            }
+            /* If there is a final 32 bit grapheme pass it through, otherwise
+             * pass through 0. */
+            hash = siphashfinish_32bits(&sh,
+                i < s_len
+                    ? MVM_MAYBE_TO_LITTLE_ENDIAN_32(s->body.storage.in_situ_8[i]) : 0);
+            break;
+        }
         case MVM_STRING_GRAPHEME_8:
         case MVM_STRING_GRAPHEME_ASCII: {
             size_t i;
@@ -3057,6 +3074,13 @@ MVMuint64 MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
         case MVM_STRING_GRAPHEME_32: {
             hash = siphash24(
                 (MVMuint8*)s->body.storage.blob_32,
+                s_len * sizeof(MVMGrapheme32),
+                key);
+            break;
+        }
+        case MVM_STRING_IN_SITU_32: {
+            hash = siphash24(
+                (MVMuint8*)s->body.storage.in_situ_32,
                 s_len * sizeof(MVMGrapheme32),
                 key);
             break;
