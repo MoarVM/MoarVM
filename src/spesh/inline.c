@@ -325,7 +325,9 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadConte
      * is inlineable as we can get rid of many :noinline ops (especially in
      * the args specialization). */
     MVMSpeshGraph *ig = MVM_spesh_graph_create(tc, target_sf, 0, 1);
+#if !MVM_HASH_PROTECT
     MVM_spesh_args(tc, ig, cs, type_tuple);
+#endif
     MVMROOT(tc, target_sf, {
         MVM_spesh_facts_discover(tc, ig, NULL, 0);
         MVM_spesh_optimize(tc, ig, NULL);

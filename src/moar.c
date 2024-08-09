@@ -323,6 +323,12 @@ MVMInstance * MVM_vm_create_instance(void) {
             instance->jit_debug_enabled = 1;
     }
 
+    {
+        char *hash_debug = getenv("MVM_HASH_DEBUG");
+        if (hash_debug && hash_debug[0])
+            instance->hash_debug_enabled = 1;
+    }
+
 #if linux
     {
         char *jit_perf_map = getenv("MVM_JIT_PERF_MAP");
@@ -836,7 +842,7 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
 
         if (MVM_repr_exists_key(tc, config, startup_time)) {
             /* Value is ignored, it will just be overwritten. */
-            MVMObject *value = NULL; 
+            MVMObject *value = NULL;
             MVMROOT3(tc, gcevent, speshoverviewevent, startup_time, {
                     value = MVM_repr_box_num(tc, tc->instance->boot_types.BOOTNum, tc->instance->subscriptions.vm_startup_now);
             });
