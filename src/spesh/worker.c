@@ -10,15 +10,15 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *updated_static_frames = MVM_repr_alloc_init(tc,
         tc->instance->boot_types.BOOTArray);
     MVMObject *newly_seen_static_frames;
-    MVMROOT(tc, updated_static_frames, {
+    MVMROOT(tc, updated_static_frames) {
         newly_seen_static_frames = MVM_repr_alloc_init(tc,
             tc->instance->boot_types.BOOTArray);
-    });
+    }
     MVMObject *previous_static_frames;
-    MVMROOT2(tc, updated_static_frames, newly_seen_static_frames, {
+    MVMROOT2(tc, updated_static_frames, newly_seen_static_frames) {
         previous_static_frames = MVM_repr_alloc_init(tc,
             tc->instance->boot_types.BOOTArray);
-    });
+    }
 
 #ifdef MVM_HAS_PTHREAD_SETNAME_NP
     pthread_setname_np(pthread_self(), "spesh optimizer");
@@ -26,7 +26,7 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
 
     tc->instance->speshworker_thread_id = tc->thread_obj->body.thread_id;
 
-    MVMROOT3(tc, updated_static_frames, newly_seen_static_frames, previous_static_frames, {
+    MVMROOT3(tc, updated_static_frames, newly_seen_static_frames, previous_static_frames) {
         size_t log_tell_before = 0;
         while (1) {
             MVMObject *log_obj;
@@ -53,9 +53,9 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                 if (spesh_overview_event) {
                     MVMuint64 now_time = uv_hrtime();
 
-                    MVMROOT(tc, log_obj, {
+                    MVMROOT(tc, log_obj) {
                         overview_subscription_packet = MVM_repr_alloc(tc, spesh_overview_event);
-                    });
+                    }
                     MVM_gc_root_temp_push(tc, (MVMCollectable **)&overview_subscription_packet);
 
                     MVM_repr_pos_set_elems(tc, overview_subscription_packet, 15);
@@ -85,7 +85,7 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                 if (overview_data) {
                     overview_data[4] = sl->body.thread->body.tc->thread_id;
                 }
-                MVMROOT(tc, sl, {
+                MVMROOT(tc, sl) {
                     MVMThreadContext *stc;
                     MVMuint32 i;
                     MVMuint32 n;
@@ -224,7 +224,7 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                         sl->body.entries = NULL;
                         MVM_free(entries);
                     }
-                });
+                }
 
             }
             else if (MVM_is_null(tc, log_obj)) {
@@ -260,7 +260,7 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
 
             work_sequence_number++;
         }
-    });
+    }
 }
 
 /* Not thread safe per instance, but normally only used when instance is still

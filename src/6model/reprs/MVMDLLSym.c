@@ -5,11 +5,11 @@ static const MVMREPROps MVMDLLSym_this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st = MVM_gc_allocate_stable(tc, &MVMDLLSym_this_repr, HOW);
 
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMDLLSym);
-    });
+    }
 
     return st->WHAT;
 }
@@ -45,12 +45,12 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 const MVMREPROps * MVMDLLSym_initialize(MVMThreadContext *tc) {
     MVMSTable *st = MVM_gc_allocate_stable(tc, &MVMDLLSym_this_repr, NULL);
 
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         MVMObject *WHAT = MVM_gc_allocate_type_object(tc, st);
         tc->instance->raw_types.RawDLLSym = WHAT;
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, WHAT);
         st->size = sizeof(MVMDLLSym);
-    });
+    }
 
     MVM_gc_root_add_permanent_desc(tc,
         (MVMCollectable **)&tc->instance->raw_types.RawDLLSym,

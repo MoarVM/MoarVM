@@ -259,7 +259,7 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                         STABLE(((MVMObject *)dp->gc_constants[op->arg_guard.checkee]))->debug_name);
                 break;
             case MVMDispOpcodeGuardArgLiteralStr: {
-                char *c_str = MVM_string_utf8_encode_C_string(tc, 
+                char *c_str = MVM_string_utf8_encode_C_string(tc,
                         ((MVMString *)dp->gc_constants[op->arg_guard.checkee]));
                 fprintf(stderr, "    Guard arg %d (literal string '%s')\n",
                         op->arg_guard.arg_idx, c_str);
@@ -320,7 +320,7 @@ static void dump_program(MVMThreadContext *tc, MVMDispProgram *dp) {
                         STABLE(((MVMObject *)dp->gc_constants[op->temp_guard.checkee]))->debug_name);
                 break;
             case MVMDispOpcodeGuardTempLiteralStr: {
-                char *c_str = MVM_string_utf8_encode_C_string(tc, 
+                char *c_str = MVM_string_utf8_encode_C_string(tc,
                         ((MVMString *)dp->gc_constants[op->temp_guard.checkee]));
                 fprintf(stderr, "    Guard temp %d (literal string '%s')\n",
                         op->temp_guard.temp, c_str);
@@ -576,9 +576,9 @@ void MVM_disp_program_run_dispatch(MVMThreadContext *tc, MVMDispDefinition *disp
 
     /* Form an argument capture. */
     MVMObject *capture;
-    MVMROOT(tc, update_sf, {
+    MVMROOT(tc, update_sf) {
         capture = MVM_capture_from_args(tc, arg_info);
-    });
+    }
 
     /* Push a dispatch recording frame onto the callstack; this is how we'll
      * keep track of the current recording state. */
@@ -1046,7 +1046,7 @@ MVMObject * MVM_disp_program_record_track_attr(MVMThreadContext *tc, MVMObject *
     /* Ensure the tracked value is an object type. */
     if (((MVMTracked *)tracked_in)->body.kind != MVM_CALLSITE_ARG_OBJ)
         MVM_exception_throw_adhoc(tc, "Can only use dispatcher-track-attr on a tracked object");
-    
+
     /* Resolve the tracked value. */
     MVMCallStackDispatchRecord *record = MVM_callstack_find_topmost_dispatch_recording(tc);
     MVMuint32 value_index = find_tracked_value_index(tc, &(record->rec), tracked_in);
@@ -1752,9 +1752,9 @@ static void record_resume(MVMThreadContext *tc, MVMObject *capture, MVMDispResum
     /* Set up the resumptions list and populate the initial entry (list as we
      * may fall back to resumptions of enclosing dispatchers). */
     MVM_VECTOR_INIT(record->rec.resumptions, 1);
-    MVMROOT(tc, capture, {
+    MVMROOT(tc, capture) {
         push_resumption(tc, record, resume_data);
-    });
+    }
 
     /* Record the kind of dispatch resumption we're doing, and then delegate to
      * the appropriate `resume` dispatcher callback. */
@@ -3571,12 +3571,12 @@ MVMint64 MVM_disp_program_run(MVMThreadContext *tc, MVMDispProgram *dp,
                 record->chosen_dp = dp;
                 MVMCode *code = (MVMCode *)record->temps[op.res_code.temp_invokee].o;
                 if (spesh_cid) {
-                    MVMROOT(tc, code, {
+                    MVMROOT(tc, code) {
                         MVM_spesh_log_dispatch_resolution_for_correlation_id(tc, spesh_cid,
                             bytecode_offset, dp_index);
                         if (tc->spesh_log) /* Log may have filled from previous entry */
                             MVM_spesh_log_bytecode_target(tc, spesh_cid, bytecode_offset, code);
-                    });
+                    }
                 }
                 MVM_frame_dispatch(tc, code, invoke_args, -1);
                 goto accept;

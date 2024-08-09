@@ -105,9 +105,9 @@ static void dispatch_monomorphic(MVMThreadContext *tc,
     record->arg_info.source = source;
     record->arg_info.map = arg_indices;
     MVMint64 outcome;
-    MVMROOT2(tc, id, sf, {
+    MVMROOT2(tc, id, sf) {
         outcome = MVM_disp_program_run(tc, dp, record, cid, bytecode_offset, 0);
-    });
+    }
     if (!outcome) {
         /* Dispatch program failed. Remove this record and then record a new
          * dispatch program. */
@@ -136,9 +136,9 @@ static void dispatch_monomorphic_flattening(MVMThreadContext *tc,
                 dp->num_temporaries);
         record->arg_info = flat_record->arg_info;
         MVMint64 outcome;
-        MVMROOT2(tc, id, sf, {
+        MVMROOT2(tc, id, sf) {
             outcome = MVM_disp_program_run(tc, dp, record, cid, bytecode_offset, 0);
-        });
+        }
         if (outcome) {
             /* It matches, so we're ready to continue. */
             return;
@@ -176,9 +176,9 @@ static void dispatch_polymorphic(MVMThreadContext *tc,
     MVMint32 i;
     for (i = entry->num_dps - 1; i >= 0; i--) {
         MVMint64 outcome;
-        MVMROOT2(tc, id, sf, {
+        MVMROOT2(tc, id, sf) {
             outcome = MVM_disp_program_run(tc, entry->dps[i], record, cid, bytecode_offset, i);
-        });
+        }
         if (outcome)
             return;
     }
@@ -212,9 +212,9 @@ static void dispatch_polymorphic_flattening(MVMThreadContext *tc,
     for (i = entry->num_dps - 1; i >= 0; i--) {
         if (flat_record->arg_info.callsite == entry->flattened_css[i]) {
             MVMint64 outcome;
-            MVMROOT2(tc, id, sf, {
+            MVMROOT2(tc, id, sf) {
                 outcome = MVM_disp_program_run(tc, entry->dps[i], record, cid, bytecode_offset, i);
-            });
+            }
             if (outcome)
                 return;
         }

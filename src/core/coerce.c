@@ -808,17 +808,17 @@ MVMObject * MVM_radix(MVMThreadContext *tc, MVMint64 radix, MVMString *str, MVMi
 
     /* initialize the object */
     result = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
-    MVMROOT(tc, result, {
+    MVMROOT(tc, result) {
         MVMObject *box_type = MVM_hll_current(tc)->int_box_type;
-        MVMROOT(tc, box_type, {
+        MVMROOT(tc, box_type) {
             MVMObject *boxed = MVM_repr_box_int(tc, box_type, value);
             MVM_repr_push_o(tc, result, boxed);
             boxed = MVM_repr_box_int(tc, box_type, chars_really_converted);
             MVM_repr_push_o(tc, result, boxed);
             boxed = MVM_repr_box_int(tc, box_type, pos);
             MVM_repr_push_o(tc, result, boxed);
-        });
-    });
+        }
+    }
 
     return result;
 }

@@ -78,10 +78,10 @@ static char * NFG_checker (MVMThreadContext *tc, MVMString *orig, char *varname)
     MVMString *renorm = NULL;
     MVMStringIndex orig_graphs = MVM_string_graphs(tc, orig),
                    renorm_graphs = -1;
-    MVMROOT2(tc, orig, renorm, {
+    MVMROOT2(tc, orig, renorm) {
         renorm = re_nfg(tc, orig);
         renorm_graphs = MVM_string_graphs(tc, renorm);
-    });
+    }
     if (MVM_DEBUG_NFG_STRICT || orig_graphs != renorm_graphs) {
         MVMGraphemeIter orig_gi, renorm_gi;
         MVMint64 index = 0;
@@ -441,7 +441,7 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
     else {
         size_t i;
         MVMint32 common_storage_type = orig->body.storage.strands[0].blob_string->body.storage_type;
-        MVMROOT(tc, orig, {
+        MVMROOT(tc, orig) {
             result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
             result->body.num_graphs = MVM_string_graphs(tc, orig);
             for (i = 1; i < orig->body.num_strands; i++) {
@@ -465,7 +465,7 @@ static MVMString * collapse_strands(MVMThreadContext *tc, MVMString *orig) {
                     iterate_gi_into_string(tc, &gi, result, orig, 0);
                 }
             }
-        });
+        }
     }
 #if (MVM_DEBUG_STRANDS || MVM_DEBUG_NFG)
     if (!MVM_string_equal(tc, result, orig))
@@ -836,7 +836,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
 
     /* Construct a result; how we efficiently do so will vary based on the
      * input string. */
-    MVMROOT(tc, a, {
+    MVMROOT(tc, a) {
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         result->body.num_graphs = end_pos - start_pos;
         if (a->body.storage_type != MVM_STRING_STRAND && result->body.num_graphs > 8) {
@@ -870,7 +870,7 @@ MVMString * MVM_string_substring(MVMThreadContext *tc, MVMString *a, MVMint64 of
             MVM_string_gi_move_to(tc, &gi, start_pos);
             iterate_gi_into_string(tc, &gi, result, a, start_pos);
         }
-    });
+    }
 
     STRAND_CHECK(tc, result);
     return result;
@@ -917,12 +917,12 @@ static MVMuint32 final_strand_match_with_repetition_count(MVMThreadContext *tc, 
             MVMStringStrand *sb = &(b->body.storage.strands[0]);
             if (sa->end - sa->start == sb->end - sb->start) {
                 MVMString *a_strand, *b_strand;
-                MVMROOT(tc, b, {
+                MVMROOT(tc, b) {
                     a_strand = string_from_strand_at_index(tc, a, a->body.num_strands - 1);
-                });
-                MVMROOT(tc, a_strand, {
+                }
+                MVMROOT(tc, a_strand) {
                     b_strand = string_from_strand_at_index(tc, b, 0);
-                });
+                }
                 if (MVM_string_equal(tc, a_strand, b_strand))
                     return b->body.storage.strands[0].repetitions + 1;
             }
@@ -961,7 +961,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             MVM_string_get_grapheme_at_nocheck(tc, a, a->body.num_graphs - 1),
             MVM_string_get_grapheme_at_nocheck(tc, b, 0)
         };
-        MVMROOT2(tc, a, b, {
+        MVMROOT2(tc, a, b) {
         /* If both are not synthetics, we can can pass those values unchanged
          * instead of iterating by codepoint */
         if (0 <= last_a_first_b[0] && 0 <= last_a_first_b[1]) {
@@ -985,7 +985,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             renormalized_section = MVM_unicode_codepoints_c_array_to_nfg_string(tc, last_a_first_b_codes, a_codes + b_codes);
             consumed_a = 1; consumed_b = 1;
         }
-        });
+        }
         if (renormalized_section) {
             if (agraphs == consumed_a && bgraphs == consumed_b) {
                 NFG_CHECK_CONCAT(tc, renormalized_section, a, b, "renormalized_section");
@@ -1002,7 +1002,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
              total_graphs, MAX_GRAPHEMES);
 
     /* Otherwise, we'll assemble a result string. */
-    MVMROOT4(tc, a, b, renormalized_section, result, {
+    MVMROOT4(tc, a, b, renormalized_section, result) {
 
         /* Allocate it. */
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
@@ -1055,20 +1055,20 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
             MVMString *effective_a = a;
             MVMString *effective_b = b;
             if (MVM_STRING_MAX_STRANDS < strands_a + strands_b) {
-                MVMROOT(tc, result, {
+                MVMROOT(tc, result) {
                     if (strands_b <= strands_a) {
-                        MVMROOT(tc, effective_b, {
+                        MVMROOT(tc, effective_b) {
                             effective_a = collapse_strands(tc, effective_a);
-                        });
+                        }
                         strands_a   = 1;
                     }
                     else {
-                        MVMROOT(tc, effective_a, {
+                        MVMROOT(tc, effective_a) {
                             effective_b = collapse_strands(tc, effective_b);
-                        });
+                        }
                         strands_b   = 1;
                     }
-                });
+                }
             }
             /* Assemble the result. */
             result->body.num_strands = strands_a + strands_b + (renormalized_section_graphs ? 1 : 0);
@@ -1148,7 +1148,7 @@ MVMString * MVM_string_concatenate(MVMThreadContext *tc, MVMString *a, MVMString
     if (is_concat_stable == 1 || (is_concat_stable == 0 && renormalized_section)) {
         NFG_CHECK_CONCAT(tc, result, a, b, "'result'");
     }
-    });
+    }
     if (is_concat_stable == 1 || (is_concat_stable == 0 && renormalized_section))
         return result;
     /* If it's regional indicator (is_concat_stable == 2) */
@@ -1185,7 +1185,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
              agraphs, count, MAX_GRAPHEMES);
 
     /* Now build a result string with the repetition set. */
-    MVMROOT(tc, a, {
+    MVMROOT(tc, a) {
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
         result->body.num_graphs      = agraphs * count;
         result->body.storage_type    = MVM_STRING_STRAND;
@@ -1195,9 +1195,9 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
                 copy_strands(tc, a, 0, result, 0, 1);
             }
             else {
-                MVMROOT(tc, result, {
+                MVMROOT(tc, result) {
                     a = collapse_strands(tc, a);
-                });
+                }
                 result->body.storage.strands[0].blob_string = a;
                 MVM_gc_write_barrier(tc, (MVMCollectable *)result, (MVMCollectable *)a);
                 result->body.storage.strands[0].start       = 0;
@@ -1212,7 +1212,7 @@ MVMString * MVM_string_repeat(MVMThreadContext *tc, MVMString *a, MVMint64 count
         }
         result->body.storage.strands[0].repetitions = count - 1;
         result->body.num_strands = 1;
-    });
+    }
     /* If string a is not stable under concatenation, we need to create a flat
      * string and ensure it is normalized */
     if (!MVM_nfg_is_concat_stable(tc, a, a))
@@ -1358,9 +1358,9 @@ static MVMint64 string_equal_at_ignore_case(MVMThreadContext *tc, MVMString *Hay
      * can't assume too much. If optimizing this be careful */
     if (H_graphs < H_offset)
         return 0;
-    MVMROOT(tc, Haystack, {
+    MVMROOT(tc, Haystack) {
         needle_fc = ignorecase ? MVM_string_fc(tc, needle) : needle;
-    });
+    }
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
     if (Haystack->body.storage_type == MVM_STRING_STRAND) {
         MVMGraphemeIter_cached H_gic;
@@ -1417,9 +1417,9 @@ static MVMint64 knuth_morris_pratt_string_index (MVMThreadContext *tc, MVMString
     }
     /* If the needle is a strand, flatten it, otherwise use the original string */
     if (needle->body.storage_type == MVM_STRING_STRAND) {
-        MVMROOT(tc, Haystack, {
+        MVMROOT(tc, Haystack) {
             flat_needle = collapse_strands(tc, needle);
-        });
+        }
     }
     else {
         flat_needle = needle;
@@ -1481,9 +1481,9 @@ static MVMint64 string_index_ignore_case(MVMThreadContext *tc, MVMString *Haysta
     if (H_graphs * 3 < n_graphs)
         return -1;
 
-    MVMROOT(tc, Haystack, {
+    MVMROOT(tc, Haystack) {
         needle_fc = ignorecase ? MVM_string_fc(tc, needle) : needle;
-    });
+    }
     n_fc_graphs = MVM_string_graphs(tc, needle_fc);
     /* brute force for now. horrible, yes. halp. */
     if (is_gic) {
@@ -1896,11 +1896,11 @@ MVMObject * MVM_string_encode_to_buf_config(MVMThreadContext *tc, MVMString *s, 
 
     /* At least find_encoding may allocate on first call, so root just
      * in case. */
-    MVMROOT2(tc, buf, s, {
+    MVMROOT2(tc, buf, s) {
         const MVMuint8 encoding_flag = MVM_string_find_encoding(tc, enc_name);
         encoded = (MVMuint8 *)MVM_string_encode_config(tc, s, 0, MVM_string_graphs_nocheck(tc, s), &output_size,
             encoding_flag, replacement, 0, config);
-    });
+    }
 
     /* Stash the encoded data in the VMArray. */
     if (((MVMArray *)buf)->body.slots.any) {
@@ -1950,9 +1950,9 @@ MVMString * MVM_string_decode_from_buf_config(MVMThreadContext *tc, MVMObject *b
         MVM_exception_throw_adhoc(tc, "encode requires a native int array");
 
     /* Decode. */
-    MVMROOT(tc, buf, {
+    MVMROOT(tc, buf) {
         encoding_flag = MVM_string_find_encoding(tc, enc_name);
-    });
+    }
     return MVM_string_decode_config(tc, tc->instance->VMString,
         (char *)(((MVMArray *)buf)->body.slots.i8 + ((MVMArray *)buf)->body.start),
         ((MVMArray *)buf)->body.elems * elem_size,
@@ -1970,7 +1970,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
     MVM_string_check_arg(tc, separator, "split separator");
     MVM_string_check_arg(tc, input, "split input");
 
-    MVMROOT3(tc, input, separator, result, {
+    MVMROOT3(tc, input, separator, result) {
         result = MVM_repr_alloc_init(tc, hll->slurpy_array_type);
         start = 0;
         end = MVM_string_graphs_nocheck(tc, input);
@@ -1987,11 +1987,11 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
             length = sep_length ? (index == (MVMStringIndex)-1 ? end : index) - start : 1;
             if (0 < length || (sep_length && length == 0)) {
                 portion = MVM_string_substring(tc, input, start, length);
-                MVMROOT(tc, portion, {
+                MVMROOT(tc, portion) {
                     MVMObject *pobj = MVM_repr_alloc_init(tc, hll->str_box_type);
                     MVM_repr_set_str(tc, pobj, portion);
                     MVM_repr_push_o(tc, result, pobj);
-                });
+                }
             }
             start += length + sep_length;
             /* Gather an empty string if the delimiter is found at the end. */
@@ -2001,7 +2001,7 @@ MVMObject * MVM_string_split(MVMThreadContext *tc, MVMString *separator, MVMStri
                 MVM_repr_push_o(tc, result, pobj);
             }
         }
-    });
+    }
 
     return result;
 }
@@ -2115,9 +2115,9 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     }
 
     /* Allocate result. */
-    MVMROOT2(tc, separator, input, {
+    MVMROOT2(tc, separator, input) {
         result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    });
+    }
 
     /* Take a first pass through the string, counting up length and the total
      * number of strands we encounter as well as building a flat array of the
@@ -2175,7 +2175,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     }
     result->body.num_graphs = total_graphs;
 
-    MVMROOT2(tc, result, separator, {
+    MVMROOT2(tc, result, separator) {
     /* If the separator and pieces are all strands, and there are
      * on average at least 16 graphemes in each of the strands. */
     if (all_strands && total_strands <  MVM_STRING_MAX_STRANDS
@@ -2202,7 +2202,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
        piece or if we have less than for pieces and more than 150 graphemes per piece */
     else if (total_strands <  MVM_STRING_MAX_STRANDS && (300 < num_pieces/total_graphs || (num_pieces < 4 && 150 < num_pieces/total_graphs))) {
         MVMString *result = NULL;
-        MVMROOT(tc, result, {
+        MVMROOT(tc, result) {
             if (sgraphs) {
                 i = 0;
                 result = MVM_string_concatenate(tc, pieces[i++], separator);
@@ -2220,7 +2220,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
                     result = MVM_string_concatenate(tc, result, pieces[i++]);
                 }
             }
-        });
+        }
         return result;
     }
     else {
@@ -2255,7 +2255,7 @@ MVMString * MVM_string_join(MVMThreadContext *tc, MVMString *separator, MVMObjec
     if (concats_stable) {
         NFG_CHECK(tc, result, "MVM_string_join");
     }
-    });
+    }
     return concats_stable ? result : re_nfg(tc, result);
 }
 
@@ -2449,9 +2449,9 @@ MVMString * MVM_string_flip(MVMThreadContext *tc, MVMString *s) {
         while (spos_l < s->body.num_graphs)
             rbuffer[--rpos_l] = s->body.storage.blob_8[spos_l++];
 
-        MVMROOT(tc, s, {
+        MVMROOT(tc, s) {
             res = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-        });
+        }
         res->body.storage_type    = s->body.storage_type;
         res->body.storage.blob_8  = rbuffer;
         break;

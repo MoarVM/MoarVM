@@ -15,18 +15,18 @@ static void setup_work(MVMThreadContext *tc) {
     MVMConcBlockingQueue *queue = (MVMConcBlockingQueue *)tc->instance->event_loop_todo_queue;
     MVMObject *task_obj;
 
-    MVMROOT(tc, queue, {
+    MVMROOT(tc, queue) {
         while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
             MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
             MVM_ASSERT_NOT_FROMSPACE(tc, task);
             if (task->body.state == MVM_ASYNC_TASK_STATE_NEW) {
-                MVMROOT(tc, task, {
+                MVMROOT(tc, task) {
                     task->body.ops->setup(tc, tc->instance->event_loop, task_obj, task->body.data);
                     task->body.state = MVM_ASYNC_TASK_STATE_SETUP;
-                });
+                }
             }
         }
-    });
+    }
 }
 
 /* Performs an async emit permit grant on the loop. */
@@ -34,7 +34,7 @@ static void permit_work(MVMThreadContext *tc) {
     MVMConcBlockingQueue *queue = (MVMConcBlockingQueue *)tc->instance->event_loop_permit_queue;
     MVMObject *task_arr;
 
-    MVMROOT(tc, queue, {
+    MVMROOT(tc, queue) {
         while (!MVM_is_null(tc, task_arr = MVM_concblockingqueue_poll(tc, queue))) {
             MVMObject *task_obj = MVM_repr_at_pos_o(tc, task_arr, 0);
             MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
@@ -45,7 +45,7 @@ static void permit_work(MVMThreadContext *tc) {
                 task->body.ops->permit(tc, tc->instance->event_loop, task_obj, task->body.data, channel, permit);
             }
         }
-    });
+    }
 }
 
 /* Performs an async cancellation on the loop. */
@@ -53,19 +53,19 @@ static void cancel_work(MVMThreadContext *tc) {
     MVMConcBlockingQueue *queue = (MVMConcBlockingQueue *)tc->instance->event_loop_cancel_queue;
     MVMObject *task_obj;
 
-    MVMROOT(tc, queue, {
+    MVMROOT(tc, queue) {
         while (!MVM_is_null(tc, task_obj = MVM_concblockingqueue_poll(tc, queue))) {
             MVMAsyncTask *task = (MVMAsyncTask *)task_obj;
             MVM_ASSERT_NOT_FROMSPACE(tc, task);
             if (task->body.state == MVM_ASYNC_TASK_STATE_SETUP) {
-                MVMROOT(tc, task, {
+                MVMROOT(tc, task) {
                     if (task->body.ops->cancel)
                         task->body.ops->cancel(tc, tc->instance->event_loop, task_obj, task->body.data);
-                });
+                }
             }
             task->body.state = MVM_ASYNC_TASK_STATE_CANCELLED;
         }
-    });
+    }
 }
 
 /* Fired whenever we were signalled that there is a new task or a new
@@ -156,11 +156,11 @@ void MVM_io_eventloop_start(MVMThreadContext *tc) {
 
 /* Adds a work item into the event loop work queue. */
 void MVM_io_eventloop_queue_work(MVMThreadContext *tc, MVMObject *work) {
-    MVMROOT(tc, work, {
+    MVMROOT(tc, work) {
         MVM_io_eventloop_start(tc);
         MVM_repr_push_o(tc, tc->instance->event_loop_todo_queue, work);
         uv_async_send(tc->instance->event_loop_wakeup);
-    });
+    }
 }
 
 /* Permits an asynchronous task to emit more events. This is used to provide a
@@ -170,11 +170,11 @@ void MVM_io_eventloop_permit(MVMThreadContext *tc, MVMObject *task_obj,
     if (REPR(task_obj)->ID == MVM_REPR_ID_MVMOSHandle)
         task_obj = MVM_io_get_async_task_handle(tc, task_obj);
     if (REPR(task_obj)->ID == MVM_REPR_ID_MVMAsyncTask) {
-        MVMROOT(tc, task_obj, {
+        MVMROOT(tc, task_obj) {
             MVMObject *channel_box = NULL;
             MVMObject *permits_box = NULL;
             MVMObject *arr = NULL;
-            MVMROOT3(tc, channel_box, permits_box, arr, {
+            MVMROOT3(tc, channel_box, permits_box, arr) {
                 channel_box = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, channel);
                 permits_box = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, permits);
                 arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
@@ -184,8 +184,8 @@ void MVM_io_eventloop_permit(MVMThreadContext *tc, MVMObject *task_obj,
                 MVM_io_eventloop_start(tc);
                 MVM_repr_push_o(tc, tc->instance->event_loop_permit_queue, arr);
                 uv_async_send(tc->instance->event_loop_wakeup);
-            });
-        });
+            }
+        }
     }
     else {
         MVM_exception_throw_adhoc(tc, "Can only permit an AsyncTask handle");
@@ -203,11 +203,11 @@ void MVM_io_eventloop_cancel_work(MVMThreadContext *tc, MVMObject *task_obj,
             MVM_ASSIGN_REF(tc, &(task_obj->header), task->body.cancel_notify_schedulee,
                 notify_schedulee);
         }
-        MVMROOT(tc, task_obj, {
+        MVMROOT(tc, task_obj) {
             MVM_io_eventloop_start(tc);
             MVM_repr_push_o(tc, tc->instance->event_loop_cancel_queue, task_obj);
             uv_async_send(tc->instance->event_loop_wakeup);
-        });
+        }
     }
     else {
         MVM_exception_throw_adhoc(tc, "Can only cancel an AsyncTask handle");
@@ -299,7 +299,7 @@ void MVM_io_eventloop_destroy(MVMThreadContext *tc) {
 
         /* Not sure we can always do this */
         uv_loop_close(instance->event_loop);
-       
+
         MVM_free_null(instance->event_loop_wakeup);
         MVM_free_null(instance->event_loop);
     }

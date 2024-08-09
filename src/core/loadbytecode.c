@@ -111,7 +111,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
     }
 
     /* Otherwise, load from disk. */
-    MVMROOT(tc, filename, {
+    MVMROOT(tc, filename) {
         char *c_filename = MVM_string_utf8_c8_encode_C_string(tc, filename);
         MVMCompUnit *cu = MVM_cu_map_from_file(tc, c_filename, 1);
         cu->body.filename = filename;
@@ -122,7 +122,7 @@ void MVM_load_bytecode(MVMThreadContext *tc, MVMString *filename) {
         MVMString **key = MVM_fixkey_hash_insert_nocheck(tc, &tc->instance->loaded_compunits, filename);
         MVM_gc_root_add_permanent_desc(tc, (MVMCollectable **)key,
                                        "Loaded compilation unit filename");
-    });
+    }
 
 LEAVE:
     MVM_tc_clear_ex_release_mutex(tc);
@@ -134,14 +134,14 @@ void MVM_load_bytecode_fh(MVMThreadContext *tc, MVMObject *oshandle, MVMString *
     if (REPR(oshandle)->ID != MVM_REPR_ID_MVMOSHandle)
         MVM_exception_throw_adhoc(tc, "loadbytecodefh requires an object with REPR MVMOSHandle");
 
-    MVMROOT(tc, filename, {
+    MVMROOT(tc, filename) {
         MVMuint64 pos = MVM_io_tell(tc, oshandle);
         cu = MVM_cu_map_from_file_handle(tc, MVM_io_fileno(tc, oshandle), pos);
         cu->body.filename = filename;
         MVM_gc_write_barrier_hit(tc, (MVMCollectable *)cu);
 
         run_comp_unit(tc, cu);
-    });
+    }
 }
 
 /* Callback after running deserialize code to run the load code. */

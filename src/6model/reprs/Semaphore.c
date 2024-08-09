@@ -8,11 +8,11 @@ static const MVMREPROps Semaphore_this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, &Semaphore_this_repr, HOW);
 
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMSemaphore);
-    });
+    }
 
     return st->WHAT;
 }
@@ -123,11 +123,11 @@ MVMint64 MVM_semaphore_tryacquire(MVMThreadContext *tc, MVMSemaphore *sem) {
 void MVM_semaphore_acquire(MVMThreadContext *tc, MVMSemaphore *sem) {
     unsigned int interval_id;
     interval_id = MVM_telemetry_interval_start(tc, "Semaphore.acquire");
-    MVMROOT(tc, sem, {
+    MVMROOT(tc, sem) {
         MVM_gc_mark_thread_blocked(tc);
         uv_sem_wait(sem->body.sem);
         MVM_gc_mark_thread_unblocked(tc);
-    });
+    }
     MVM_telemetry_interval_stop(tc, interval_id, "Semaphore.acquire");
 }
 

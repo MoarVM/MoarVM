@@ -636,7 +636,7 @@ void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames) {
     MVMint64 elems = MVM_repr_elems(tc, check_frames);
     MVMSTable *check_frames_st = STABLE(check_frames);
     void *check_frames_data = OBJECT_BODY(check_frames);
-    MVMROOT(tc, check_frames, {
+    MVMROOT(tc, check_frames) {
         MVMint64 insert_pos = 0;
         MVMint64 i;
         for (i = 0; i < elems; i++) {
@@ -644,7 +644,7 @@ void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames) {
             MVM_VMArray_at_pos(tc, check_frames_st, check_frames, check_frames_data,
                     i, &sf_reg, MVM_reg_obj);
             MVMStaticFrame *sf = (MVMStaticFrame *)sf_reg.o;
-            MVMROOT(tc, sf, {
+            MVMROOT(tc, sf) {
                 MVMStaticFrameSpesh *spesh = sf->body.spesh;
                 MVMSpeshStats *ss = spesh->body.spesh_stats;
                 MVMuint32 removed = 0;
@@ -691,10 +691,10 @@ void MVM_spesh_stats_cleanup(MVMThreadContext *tc, MVMObject *check_frames) {
                     MVM_VMArray_bind_pos(tc, check_frames_st, check_frames,
                             check_frames_data, insert_pos++, sf_reg, MVM_reg_obj);
                 }
-            });
+            }
         }
         MVM_repr_pos_set_elems(tc, check_frames, insert_pos);
-    });
+    }
 }
 
 void MVM_spesh_stats_gc_mark(MVMThreadContext *tc, MVMSpeshStats *ss, MVMGCWorklist *worklist) {

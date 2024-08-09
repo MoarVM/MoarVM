@@ -44,11 +44,11 @@ MVM_STATIC_INLINE size_t indices_to_flat_index(MVMThreadContext *tc, MVMint64 nu
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, &MultiDimArray_this_repr, HOW);
 
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMMultiDimArray);
-    });
+    }
 
     return st->WHAT;
 }

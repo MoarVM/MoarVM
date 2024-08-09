@@ -8,11 +8,11 @@ static const MVMREPROps NativeRef_this_repr;
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, &NativeRef_this_repr, HOW);
 
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMNativeRef);
-    });
+    }
 
     return st->WHAT;
 }
@@ -205,9 +205,9 @@ void MVM_nativeref_ensure(MVMThreadContext *tc, MVMObject *type, MVMuint16 wantp
 static MVMObject * lex_ref(MVMThreadContext *tc, MVMObject *type, MVMFrame *f,
                            MVMuint16 env_idx, MVMuint16 reg_type) {
     MVMNativeRef *ref;
-    MVMROOT(tc, f, {
+    MVMROOT(tc, f) {
         ref = (MVMNativeRef *)MVM_gc_allocate_object(tc, STABLE(type));
-    });
+    }
     MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.lex.frame, f);
     ref->body.u.lex.env_idx = env_idx;
     ref->body.u.lex.type = reg_type;
@@ -336,9 +336,9 @@ static MVMObject * lexref_by_name(MVMThreadContext *tc, MVMObject *type, MVMStri
 }
 MVMObject * MVM_nativeref_lex_name_i(MVMThreadContext *tc, MVMString *name) {
     MVMObject *ref_type;
-    MVMROOT(tc, name, {
+    MVMROOT(tc, name) {
         MVM_frame_force_to_heap(tc, tc->cur_frame);
-    });
+    }
     ref_type = MVM_hll_current(tc)->int_lex_ref;
     if (ref_type)
         /* LEXREF_ANY_INT will allow int8..int64 as well as uint8..uint64 */
@@ -347,9 +347,9 @@ MVMObject * MVM_nativeref_lex_name_i(MVMThreadContext *tc, MVMString *name) {
 }
 MVMObject * MVM_nativeref_lex_name_u(MVMThreadContext *tc, MVMString *name) {
     MVMObject *ref_type;
-    MVMROOT(tc, name, {
+    MVMROOT(tc, name) {
         MVM_frame_force_to_heap(tc, tc->cur_frame);
-    });
+    }
     ref_type = MVM_hll_current(tc)->uint_lex_ref;
     if (ref_type)
         /* LEXREF_ANY_INT will allow int8..int64 as well as uint8..uint64 */
@@ -358,9 +358,9 @@ MVMObject * MVM_nativeref_lex_name_u(MVMThreadContext *tc, MVMString *name) {
 }
 MVMObject * MVM_nativeref_lex_name_n(MVMThreadContext *tc, MVMString *name) {
     MVMObject *ref_type;
-    MVMROOT(tc, name, {
+    MVMROOT(tc, name) {
         MVM_frame_force_to_heap(tc, tc->cur_frame);
-    });
+    }
     ref_type = MVM_hll_current(tc)->num_lex_ref;
     if (ref_type)
         return lexref_by_name(tc, ref_type, name, MVM_reg_num64);
@@ -368,9 +368,9 @@ MVMObject * MVM_nativeref_lex_name_n(MVMThreadContext *tc, MVMString *name) {
 }
 MVMObject * MVM_nativeref_lex_name_s(MVMThreadContext *tc, MVMString *name) {
     MVMObject *ref_type;
-    MVMROOT(tc, name, {
+    MVMROOT(tc, name) {
         MVM_frame_force_to_heap(tc, tc->cur_frame);
-    });
+    }
     ref_type = MVM_hll_current(tc)->str_lex_ref;
     if (ref_type)
         return lexref_by_name(tc, ref_type, name, MVM_reg_str);
@@ -380,12 +380,12 @@ MVMObject * MVM_nativeref_lex_name_s(MVMThreadContext *tc, MVMString *name) {
 /* Creation of native references for attributes. */
 static MVMObject * attrref(MVMThreadContext *tc, MVMObject *type, MVMObject *obj, MVMObject *class_handle, MVMString *name) {
     MVMNativeRef *ref;
-    MVMROOT3(tc, obj, class_handle, name, {
+    MVMROOT3(tc, obj, class_handle, name) {
         ref = (MVMNativeRef *)MVM_gc_allocate_object(tc, STABLE(type));
         MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.attribute.obj, obj);
         MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.attribute.class_handle, class_handle);
         MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.attribute.name, name);
-    });
+    }
     return (MVMObject *)ref;
 }
 MVMObject * MVM_nativeref_attr_i(MVMThreadContext *tc, MVMObject *obj, MVMObject *class_handle, MVMString *name) {
@@ -416,11 +416,11 @@ MVMObject * MVM_nativeref_attr_s(MVMThreadContext *tc, MVMObject *obj, MVMObject
 /* Creation of native references for positionals. */
 static MVMObject * posref(MVMThreadContext *tc, MVMObject *type, MVMObject *obj, MVMint64 idx) {
     MVMNativeRef *ref;
-    MVMROOT(tc, obj, {
+    MVMROOT(tc, obj) {
         ref = (MVMNativeRef *)MVM_gc_allocate_object(tc, STABLE(type));
         MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.positional.obj, obj);
         ref->body.u.positional.idx = idx;
-    });
+    }
     return (MVMObject *)ref;
 }
 MVMObject * MVM_nativeref_pos_i(MVMThreadContext *tc, MVMObject *obj, MVMint64 idx) {
@@ -451,11 +451,11 @@ MVMObject * MVM_nativeref_pos_s(MVMThreadContext *tc, MVMObject *obj, MVMint64 i
 /* Creation of native references for multi-dimensional positionals. */
 static MVMObject * md_posref(MVMThreadContext *tc, MVMObject *type, MVMObject *obj, MVMObject *indices) {
     MVMNativeRef *ref;
-    MVMROOT2(tc, obj, indices, {
+    MVMROOT2(tc, obj, indices) {
         ref = (MVMNativeRef *)MVM_gc_allocate_object(tc, STABLE(type));
         MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.multidim.obj, obj);
         MVM_ASSIGN_REF(tc, &(ref->common.header), ref->body.u.multidim.indices, indices);
-    });
+    }
     return (MVMObject *)ref;
 }
 MVMObject * MVM_nativeref_multidim_i(MVMThreadContext *tc, MVMObject *obj, MVMObject *indices) {

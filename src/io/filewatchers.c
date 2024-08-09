@@ -14,7 +14,7 @@ static void on_changed(uv_fs_event_t *handle, const char *filename, int events, 
     MVMObject        *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
     MVMAsyncTask     *t   = MVM_io_eventloop_get_active_work(tc, wi->work_idx);
     MVM_repr_push_o(tc, arr, t->body.schedulee);
-    MVMROOT2(tc, t, arr, {
+    MVMROOT2(tc, t, arr) {
         MVMObject *filename_boxed;
         MVMObject *rename_boxed;
         if (filename) {
@@ -33,7 +33,7 @@ static void on_changed(uv_fs_event_t *handle, const char *filename, int events, 
             events == UV_RENAME ? 1 : 0);
         MVM_repr_push_o(tc, arr, rename_boxed);
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
-    });
+    }
     MVM_repr_push_o(tc, t->body.queue, arr);
 }
 
@@ -51,20 +51,20 @@ static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, 
     uv_fs_event_init(loop, &wi->handle);
     if ((r = uv_fs_event_start(&wi->handle, on_changed, wi->path, 0)) != 0) {
         /* Error; need to notify. */
-        MVMROOT(tc, async_task, {
+        MVMROOT(tc, async_task) {
             MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
             MVM_repr_push_o(tc, arr, ((MVMAsyncTask *)async_task)->body.schedulee);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
             MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
-            MVMROOT(tc, arr, {
+            MVMROOT(tc, arr) {
                 MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
                     tc->instance->VMString, uv_strerror(r));
                 MVMObject *msg_box = MVM_repr_box_str(tc,
                     tc->instance->boot_types.BOOTStr, msg_str);
                 MVM_repr_push_o(tc, arr, msg_box);
-            });
+            }
             MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
-        });
+        }
     }
 }
 
@@ -110,9 +110,9 @@ MVMObject * MVM_io_file_watch(MVMThreadContext *tc, MVMObject *queue,
     }
 
     /* Create async task handle. */
-    MVMROOT2(tc, queue, schedulee, {
+    MVMROOT2(tc, queue, schedulee) {
         task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
-    });
+    }
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
     MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
     task->body.ops   = &op_table;
@@ -121,9 +121,9 @@ MVMObject * MVM_io_file_watch(MVMThreadContext *tc, MVMObject *queue,
     task->body.data  = watch_info;
 
     /* Hand the task off to the event loop. */
-    MVMROOT(tc, task, {
+    MVMROOT(tc, task) {
         MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
-    });
+    }
 
     return (MVMObject *)task;
 }

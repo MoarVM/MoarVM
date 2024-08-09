@@ -15,10 +15,10 @@ void MVM_6model_parametric_setup(MVMThreadContext *tc, MVMObject *type, MVMObjec
     /* For now, we use a simple pairwise array, with parameters and the type
      * that is based on those parameters interleaved. It does make resolution
      * O(n), so we might like to do some hash in the future. */
-    MVMROOT2(tc, st, parameterizer, {
+    MVMROOT2(tc, st, parameterizer) {
         MVMObject *lookup = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
         MVM_ASSIGN_REF(tc, &(st->header), st->paramet.ric.lookup, lookup);
-    });
+    }
 
      /* Store the parameterizer. (Note, we do this after the allocation
       * above, since the array allocation may cause GC, but we didn't mark
@@ -56,7 +56,7 @@ static void finish_parameterizing(MVMThreadContext *tc, void *sr_data) {
      * the table won't be bitten.
      * We may trigger garbage collection while holding the lock, so we need
      * to mark the thread as blocked for GC while waiting for the lock. */
-    MVMROOT2(tc, parameters, parametric_type, {
+    MVMROOT2(tc, parameters, parametric_type) {
         MVM_gc_mark_thread_blocked(tc);
         uv_mutex_lock(&tc->instance->mutex_parameterization_add);
         MVM_gc_mark_thread_unblocked(tc);
@@ -68,15 +68,15 @@ static void finish_parameterizing(MVMThreadContext *tc, void *sr_data) {
         }
         else {
             MVMObject *copy = MVM_repr_clone(tc, parametric_type->st->paramet.ric.lookup);
-            MVMROOT(tc, copy, {
+            MVMROOT(tc, copy) {
                 MVM_repr_push_o(tc, copy, parameters);
                 MVM_repr_push_o(tc, copy, prd->result->o);
-            });
+            }
             MVM_ASSIGN_REF(tc, &(parametric_type->st->header),
                 parametric_type->st->paramet.ric.lookup, copy);
         }
         uv_mutex_unlock(&tc->instance->mutex_parameterization_add);
-    });
+    }
 }
 static void mark_parameterize_sr_data(MVMThreadContext *tc, void *sr_data, MVMGCWorklist *worklist) {
     ParameterizeReturnData *prd = (ParameterizeReturnData *)sr_data;

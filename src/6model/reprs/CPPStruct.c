@@ -107,9 +107,9 @@ static void compute_allocation_strategy(MVMThreadContext *tc, MVMSTable *st,
                                         MVMObject *repr_info, MVMCPPStructREPRData *repr_data) {
     /* Compute index mapping table and get flat list of attributes. */
     MVMObject *flat_list;
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         flat_list = index_mapping_and_flat_list(tc, repr_info, repr_data, st);
-    });
+    }
 
     /* If we have no attributes in the index mapping, then just the header. */
     if (repr_data->name_to_index_mapping[0].class_key == NULL) {
@@ -378,11 +378,11 @@ static MVMint32 try_get_slot(MVMThreadContext *tc, MVMCPPStructREPRData *repr_da
 static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     MVMSTable *st  = MVM_gc_allocate_stable(tc, &CPPStruct_this_repr, HOW);
 
-    MVMROOT(tc, st, {
+    MVMROOT(tc, st) {
         MVMObject *obj = MVM_gc_allocate_type_object(tc, st);
         MVM_ASSIGN_REF(tc, &(st->header), st->WHAT, obj);
         st->size = sizeof(MVMCPPStruct);
-    });
+    }
 
     return st->WHAT;
 }
@@ -472,7 +472,7 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                     /* No cached object. */
                     void *cobj = get_ptr_at_offset(body->cppstruct, repr_data->struct_offsets[slot]);
                     if (cobj) {
-                        MVMROOT(tc, root, {
+                        MVMROOT(tc, root) {
                             if (type == MVM_CPPSTRUCT_ATTR_CARRAY) {
                                 obj = MVM_nativecall_make_carray(tc, typeobj, cobj);
                             }
@@ -501,13 +501,13 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                                 obj = MVM_nativecall_make_cpointer(tc, typeobj, cobj);
                             }
                             else if(type == MVM_CPPSTRUCT_ATTR_STRING) {
-                                MVMROOT(tc, typeobj, {
+                                MVMROOT(tc, typeobj) {
                                     MVMString *str = MVM_string_utf8_decode(tc, tc->instance->VMString,
                                         cobj, strlen(cobj));
                                     obj = MVM_repr_box_str(tc, typeobj, str);
-                                });
+                                }
                             }
-                        });
+                        }
                         MVM_ASSIGN_REF(tc, &(root->header), body->child_objs[real_slot], obj);
                     }
                     else {

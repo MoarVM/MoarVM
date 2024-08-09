@@ -781,7 +781,7 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
     MVMString *speshoverviewevent;
     MVMString *startup_time;
 
-    MVMROOT2(tc, queue, config, {
+    MVMROOT2(tc, queue, config) {
         if (!IS_CONCRETE(config)) {
             MVM_exception_throw_adhoc(tc, "vmeventsubscribe requires a concrete configuration hash (got a %s type object)", MVM_6model_get_debug_name(tc, config));
         }
@@ -797,12 +797,12 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
         }
 
         gcevent = MVM_string_utf8_decode(tc, tc->instance->VMString, "gcevent", 7);
-        MVMROOT(tc, gcevent, {
+        MVMROOT(tc, gcevent) {
             speshoverviewevent = MVM_string_utf8_decode(tc, tc->instance->VMString, "speshoverviewevent", 18);
-            MVMROOT(tc, speshoverviewevent, {
+            MVMROOT(tc, speshoverviewevent) {
                 startup_time = MVM_string_utf8_decode(tc, tc->instance->VMString, "startup_time", 12);
-            });
-        });
+            }
+        }
 
         if (MVM_repr_exists_key(tc, config, gcevent)) {
             MVMObject *value = MVM_repr_at_key_o(tc, config, gcevent);
@@ -836,10 +836,10 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
 
         if (MVM_repr_exists_key(tc, config, startup_time)) {
             /* Value is ignored, it will just be overwritten. */
-            MVMObject *value = NULL; 
-            MVMROOT3(tc, gcevent, speshoverviewevent, startup_time, {
+            MVMObject *value = NULL;
+            MVMROOT3(tc, gcevent, speshoverviewevent, startup_time) {
                     value = MVM_repr_box_num(tc, tc->instance->boot_types.BOOTNum, tc->instance->subscriptions.vm_startup_now);
-            });
+            }
 
             if (MVM_is_null(tc, value)) {
                 uv_mutex_unlock(&tc->instance->subscriptions.mutex_event_subscription);
@@ -847,7 +847,7 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
             }
             MVM_repr_bind_key_o(tc, config, startup_time, value);
         }
-    });
+    }
 
     uv_mutex_unlock(&tc->instance->subscriptions.mutex_event_subscription);
 }

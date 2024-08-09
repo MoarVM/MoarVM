@@ -607,9 +607,9 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
         return;
 
     /* Acquire the update mutex on the CompUnit. */
-    MVMROOT(tc, sf, {
+    MVMROOT(tc, sf) {
         MVM_reentrantmutex_lock(tc, (MVMReentrantMutex *)cu->body.deserialize_frame_mutex);
-    });
+    }
 
     /* Ensure no other thread has done this for us in the mean time. */
     if (sf->body.fully_deserialized) {
@@ -752,9 +752,9 @@ void MVM_bytecode_finish_frame(MVMThreadContext *tc, MVMCompUnit *cu,
                 MVM_exception_throw_adhoc(tc, "SC not yet resolved; lookup failed");
             }
             MVMObject *wval;
-            MVMROOT(tc, sf, {
+            MVMROOT(tc, sf) {
                 wval = MVM_sc_get_object(tc, sc, read_int32(pos, 8));
-            });
+            }
             MVM_ASSIGN_REF(tc, &(sf->common.header), sf->body.static_env[lex_idx].o, wval);
         }
         pos += FRAME_SLV_SIZE;

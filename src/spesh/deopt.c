@@ -170,7 +170,7 @@ static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMuint16 **ma
         MVMSpeshPEAMaterializeInfo *mi = &(cand->body.deopt_pea.materialize_info[info_idx]);
         MVMSTable *st = (MVMSTable *)cand->body.spesh_slots[mi->stable_sslot];
         MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)st->REPR_data;
-        MVMROOT2(tc, f, cand, {
+        MVMROOT2(tc, f, cand) {
             obj = MVM_gc_allocate_object(tc, st);
 
             char *data = (char *)OBJECT_BODY(obj);
@@ -205,7 +205,7 @@ static void materialize_object(MVMThreadContext *tc, MVMFrame *f, MVMuint16 **ma
             }
             /* Store register index offset by 1, so 0 can indicate "uninitialized" */
             (*materialized)[info_idx] = target_reg + 1;
-        });
+        }
 #if MVM_LOG_DEOPTS
         fprintf(stderr, "    Materialized a %s\n", st->debug_name);
 #endif
@@ -220,13 +220,13 @@ static void materialize_replaced_objects(MVMThreadContext *tc, MVMFrame *f, MVMi
     MVMSpeshCandidate *cand = f->spesh_cand;
     MVMuint32 num_deopt_points = MVM_VECTOR_ELEMS(cand->body.deopt_pea.deopt_point);
     MVMuint16 *materialized = NULL;
-    MVMROOT2(tc, f, cand, {
+    MVMROOT2(tc, f, cand) {
         for (i = 0; i < num_deopt_points; i++) {
             MVMSpeshPEADeoptPoint *dp = &(cand->body.deopt_pea.deopt_point[i]);
             if (dp->deopt_point_idx == deopt_index)
                 materialize_object(tc, f, &materialized, dp->materialize_info_idx, dp->target_reg);
         }
-    });
+    }
     MVM_free(materialized);
 }
 
@@ -270,8 +270,8 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_idx) {
 #if MVM_LOG_DEOPTS
         fprintf(stderr, "    Will deopt %u -> %u\n", deopt_offset, deopt_target);
 #endif
-        MVMFrame *top_frame; 
-        MVMROOT(tc, f, {
+        MVMFrame *top_frame;
+        MVMROOT(tc, f) {
             begin_frame_deopt(tc, f, deopt_idx);
 
             /* Perform any uninlining. */
@@ -288,7 +288,7 @@ void MVM_spesh_deopt_one(MVMThreadContext *tc, MVMuint32 deopt_idx) {
                 /* No uninlining, so we know the top frame didn't change. */
                 top_frame = f;
             }
-        });
+        }
 
         /* Move the program counter of the interpreter. */
         *(tc->interp_cur_op)         = top_frame->static_info->body.bytecode + deopt_target;
@@ -410,7 +410,7 @@ void MVM_spesh_deopt_during_unwind(MVMThreadContext *tc) {
         MVMuint32 deopt_offset = MVM_spesh_deopt_bytecode_pos(spesh_cand->body.deopts[deopt_idx * 2 + 1]);
 
         MVMFrame *top_frame;
-        MVMROOT(tc, frame, {
+        MVMROOT(tc, frame) {
             begin_frame_deopt(tc, frame, deopt_idx);
 
             /* Potentially need to uninline. This leaves the top frame being the
@@ -423,7 +423,7 @@ void MVM_spesh_deopt_during_unwind(MVMThreadContext *tc) {
             else {
                 top_frame = frame;
             }
-        });
+        }
 
         /* Rewrite return address in the current top frame and sync current
          * frame. */

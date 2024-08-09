@@ -19,18 +19,18 @@ MVMObject * MVM_thread_new(MVMThreadContext *tc, MVMObject *invokee, MVMint64 ap
     interval_id = MVM_telemetry_interval_start(tc, "spawning a new thread off of me");
 
     /* Create the Thread object and stash code to run and lifetime. */
-    MVMROOT(tc, invokee, {
+    MVMROOT(tc, invokee) {
         thread = (MVMThread *)MVM_repr_alloc_init(tc, tc->instance->Thread);
-    });
+    }
     thread->body.stage = MVM_thread_stage_unstarted;
     MVM_ASSIGN_REF(tc, &(thread->common.header), thread->body.invokee, invokee);
     thread->body.app_lifetime = app_lifetime;
 
     /* Try to create the new threadcontext. Can throw if libuv can't
      * create a loop for it for some reason (i.e. too many open files) */
-    MVMROOT(tc, thread, {
+    MVMROOT(tc, thread) {
         child_tc = MVM_tc_create(tc, tc->instance);
-    });
+    }
 
     /* Set up the new threadcontext a little. */
     child_tc->thread_obj = thread;
@@ -175,9 +175,9 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
                 /* Another thread decided we'll GC now. Release mutex, and
                  * do the GC, making sure thread_obj and child are marked. */
                 uv_mutex_unlock(&tc->instance->mutex_threads);
-                MVMROOT2(tc, thread_obj, child, {
+                MVMROOT2(tc, thread_obj, child) {
                     GC_SYNC_POINT(tc);
-                });
+                }
             }
         }
 
@@ -363,7 +363,7 @@ void MVM_thread_set_self_name(MVMThreadContext *tc, MVMString *name) {
     MVMuint64 name_length = MVM_string_graphs(tc, name);
     MVMint16 acceptable_length = name_length > 15 ? 15 : name_length;
     MVMuint8 success = 0;
-    MVMROOT(tc, name, {
+    MVMROOT(tc, name) {
     while (acceptable_length > 0 && !success) {
             MVMString *substring = MVM_string_substring(tc, name, 0, acceptable_length);
             char *c_name = MVM_string_utf8_c8_encode_C_string(tc, substring);
@@ -377,6 +377,6 @@ void MVM_thread_set_self_name(MVMThreadContext *tc, MVMString *name) {
             MVM_free(c_name);
             acceptable_length--;
         }
-    });
+    }
     #endif
 }

@@ -14,7 +14,7 @@ variables:
       Import-Module $devShell
       Enter-VsDevShell -VsInstallPath $installPath -SkipAutomaticLocation -DevCmdArguments "-arch=amd64"
     }
-  RAKUDO_CHECKOUT_TYPE: main
+  RAKUDO_CHECKOUT_TYPE: rev-7c3db0041-https://github.com/rakudo/rakudo
   NQP_CHECKOUT_TYPE: main
   MOAR_CHECKOUT_TYPE: "rev-$(Build.SourceVersion)-selfrepo"
   INSTALL_DIR: install

@@ -100,12 +100,12 @@ MVMHLLConfig *MVM_hll_get_config_for(MVMThreadContext *tc, MVMString *name) {
     if (!MVM_is_null(tc, val)) (config)->member = MVM_repr_get_str(tc, val); \
 } while (0)
 static void set_max_inline_size(MVMThreadContext *tc, MVMObject *config_hash, MVMHLLConfig *config) {
-    MVMROOT(tc, config_hash, {
+    MVMROOT(tc, config_hash) {
         MVMString *key = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, "max_inline_size");
         MVMObject *size = MVM_repr_at_key_o(tc, config_hash, key);
         if (!MVM_is_null(tc, size))
             config->max_inline_size = MVM_repr_get_int(tc, size);
-    });
+    }
 }
 void MVM_hll_set_config_key(MVMThreadContext *tc, MVMHLLConfig *hll, MVMString *key, MVMObject *value) {
     hll->uint_box_type = value;
@@ -121,7 +121,7 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
     }
 
     /* MVM_string_utf8_decode() can potentially allocate, and hence gc. */
-    MVMROOT(tc, config_hash, {
+    MVMROOT(tc, config_hash) {
             check_config_key(tc, config_hash, "int_box", int_box_type, config);
             check_config_key(tc, config_hash, "uint_box", uint_box_type, config);
             check_config_key(tc, config_hash, "num_box", num_box_type, config);
@@ -192,7 +192,7 @@ MVMObject * MVM_hll_set_config(MVMThreadContext *tc, MVMString *name, MVMObject 
             MVM_gc_allocate_gen2_default_set(tc);
             MVM_intcache_for(tc, config->int_box_type);
             MVM_gc_allocate_gen2_default_clear(tc);
-        });
+        }
 
     return config_hash;
 }
@@ -222,9 +222,9 @@ MVMObject * MVM_hll_sym_get(MVMThreadContext *tc, MVMString *hll, MVMString *sym
     uv_mutex_lock(&tc->instance->mutex_hll_syms);
     hash = MVM_repr_at_key_o(tc, syms, hll);
     if (MVM_is_null(tc, hash)) {
-        MVMROOT2(tc, hll, syms, {
+        MVMROOT2(tc, hll, syms) {
             hash = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTHash);
-        });
+        }
         MVM_repr_bind_key_o(tc, syms, hll, hash);
         result = tc->instance->VMNull;
     }
