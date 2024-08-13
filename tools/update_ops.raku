@@ -253,13 +253,13 @@ sub MAIN($file = "src/core/oplist") {
     $nf.close;
 
     # Generate a Raku Ops file into the tools directory
-    my $pf = open("tools/lib/MAST/Ops.pm", :w);
+    my $pf = open("tools/lib/MAST/Ops.rakumod", :w);
     $pf.say("# This file is generated from $file by tools/update_ops.raku.");
     $pf.say("");
     $pf.say(%op_constants<Raku>);
     $pf.close;
 
-    say "Wrote src/core/ops.h, src/core/ops.c, src/core/oplabels.h, tools/lib/MAST/Ops.pm, and lib/MAST/Ops.nqp";
+    say "Wrote src/core/ops.h, src/core/ops.c, src/core/oplabels.h, tools/lib/MAST/Ops.rakumod, and lib/MAST/Ops.nqp";
 }
 
 # Parses ops and produces a bunch of Op objects.
@@ -485,7 +485,7 @@ sub opcode_details(@ops) {
 # we can leave them out of the MVM_op_infos array that has
 # data used all over the place, thus saving a little bit of
 # memory.
-# 
+#
 # We foolishly(?) rely on the first op to not have a mark
 sub mark_spans(@ops) {
     my %current;
