@@ -243,7 +243,7 @@ sub MAIN($file = "src/core/oplist") {
     $lf.say(op_labels(@ops));
     $lf.close;
 
-    my %op_constants = op_constants(@ops);
+    my %op_constants = NQP => op_constants(@ops, "NQP"), Raku => op_constants(@ops, "Raku");
 
     # Generate NQP Ops file.
     my $nf = open("lib/MAST/Ops.nqp", :w);
@@ -337,12 +337,22 @@ my $value_map = {
 };
 
 # Generates MAST::Ops constants module.
-sub op_constants(@ops is copy) {
+sub op_constants(@ops is copy, $mode = "Raku") {
     my @offsets;
     my @counts;
     my @values;
     my $values_idx = 0;
-    @ops .= grep: {$_.mark ne '.s' and not $_.name.starts-with(any('sp_','prof_'))};
+
+    # For the Raku module, we also include sp_ ops so that spesh dumps can
+    # be read by tools with information about the ops from these modules.
+    # The NQP module on the other hand is used by the compiler itself and also
+    # contains code to write moar bytecode blobs. We never write sp_ or
+    # similar ops to moar bytecode files, though, and the validator would
+    # reject them if we did.
+    if $mode eq "NQP" {
+        @ops .= grep: {$_.mark ne '.s' and not $_.name.starts-with(any('sp_','prof_'))};
+    }
+
     for @ops -> $op {
         my $last_idx = $values_idx;
         @offsets.push($values_idx);
@@ -353,8 +363,8 @@ sub op_constants(@ops is copy) {
         @counts.push($values_idx - $last_idx);
     }
     @ops .= grep: {not $_.name.starts-with('DEPRECATED')};
-    return (
-        NQP => '
+    if $mode eq "NQP" {
+        return '
 class MAST::Ops {}
 BEGIN {
     MAST::Ops.WHO<@offsets> := nqp::list_i('~
@@ -369,8 +379,10 @@ BEGIN {
         join(",\n    ", @ops.map({ "'$_.name()'" }))~');
     MAST::Ops.WHO<%generators> := nqp::hash('~
         join(",\n    ", @ops.map({ "'$_.name()', $_.generator()" }))~');
-}',
-        Raku => '
+}';
+    }
+    elsif $mode eq "Raku" {
+        return '
 unit module MAST::Ops;
 our %flags is export = ('~
     join(",\n    ", $value_map.pairs.sort(*.value).map({ $_.perl }) )~');
@@ -385,7 +397,10 @@ our %codes is export = '~
 our @names is export = '~
     join(",\n    ", @ops.map({ "'$_.name()'" }))~';
 ',
-        ).hash;
+    }
+    else {
+        die "Unknown mode for op_constants sub used: $mode - expected NQP or Raku.";
+    }
 }
 
 # Generate labels for cgoto dispatch
