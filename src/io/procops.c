@@ -788,7 +788,9 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                     MVMObject *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
                     MVM_repr_push_o(tc, arr, error_cb);
                     MVM_repr_push_o(tc, arr, msg_box);
-                    MVM_repr_push_o(tc, arr, MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, spawn_result));
+                    MVMROOT(tc, arr, {
+                        MVM_repr_push_o(tc, arr, MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, spawn_result));
+                    });
                     MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
                 });
             }
