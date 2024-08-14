@@ -25,7 +25,7 @@
 
 =end pod
 
-use lib ~$?FILE.path.parent.child("lib");
+use lib ~$?FILE.IO.parent.child("lib");
 
 use MAST::Ops;
 
@@ -50,7 +50,11 @@ my $ann_num = 0;
 # shall gracefully invent a starting point.
 my $last_ins = "\"out of nowhere\"";
 
+my @comments_queued;
+
 my %bb_map;
+
+my %bb_fh_gotos;
 
 my @connections;
 my %bb_connections;
@@ -68,26 +72,32 @@ constant @bb_colors = ((((1 .. *) X* 0.618033988749895) X% 1.0) .map(*.fmt("%.5f
                       Z~ (((0, -1 ... *) X* 0.0618033988749895) X% 0.05 + 0.95) .map(*.fmt("%.5f ")))
                       X~ "0.9900";
 
+my $unparsed_line_idx = 0;
 for lines() -> $_ is copy {
     when / ^ '      ' <!before '['> $<opname>=[<[a..z I 0..9 _]>+] \s+
             [ $<argument>=[
               | r \s* $<regnum>=[<.digit>+] \s* '(' \s* $<regver>=[<.digit>+] \s* ')'
-              | liti <.digit>+ '(' ~ ')' <-[)]>+
+              | "lit" u? "i" <.digit>+ '(' ~ ')' <-[)]>+
               | litn <.digit>+ '(' ~ ')' <-[)]>+
               | lits '(' .*? ')'
               | lex '(' .*? ')'
               | sslot '(' <digit>+ ')'
               | BB '(' <digit>+ ')'
-              | coderef '(' ~ ')' <-[)]>+
+              | coderef '(' ~ ')' [<-[)]>+ " (closure)" ]
               | callsite '(' ~ ')' <-[)]>+
               | '<nyi>'
               | '<nyi(lit)>'
-            ] ]* % [',' \s*] [\s* '(' <-[)]>+ ')']? \s* $ / {
+            ] ]* % [',' \s*]
+	    [\s* '(' <-[)]>+ ')']? # i don't remember what this used to be for?
+	    \s*
+	    ["# " "[" ~ "]" $<commentnum>=[<-[\]]>+] $<commenttext>=[\N+]]?
+	    $ / {
         say "";
         say "    \"{$<opname>}_{$insnum}\" ";
         print "    [";
 
-        if $<opname> eq "set" | "decont" {
+        my $opname = $<opname>.Str;
+        if $opname eq "set" | "decont" {
             print "shape=Mrecord ";
         }
 
@@ -182,9 +192,25 @@ for lines() -> $_ is copy {
 
         print "    label=\"{ @labelparts.join(" | ") }\" rank=$insnum";
 
-        $insnum++;
-
         say "    ];";
+
+        if $<commentnum> && $<commenttext> {
+            @comments_queued.push: %( num => $<commentnum>.Str, text => $<commenttext>.Str );
+        }
+
+        for @comments_queued.rotor(2=>-1, :partial) -> ($prev_c, $next_c?) {
+            say "        \"comment_$($prev_c<num>)\" [shape=Mrecord fillcolor=lightgrey label=\"$prev_c<num> | $($prev_c<text>)\"];";
+            with $next_c {
+                say "        \"comment_$($prev_c<num>)\" -> \"comment_$($next_c<num>)\";";
+            }
+            else {
+                say "        \"comment_$($prev_c<num>)\" -> \"{$opname}_{$insnum}\";";
+            }
+        }
+
+        @comments_queued = Empty;
+
+        $insnum++;
 
         say "";
         if $previous_ins ~~ / entry / {
@@ -199,6 +225,9 @@ for lines() -> $_ is copy {
         }
         say "";
         say "";
+    }
+    when / ^ '      # ' '[' ~ ']' $<commentnum>=[<-[\]]>+] \s* $<commenttext>=[\N+] $ / {
+        @comments_queued.push: %( num => $<commentnum>.Str, text => $<commenttext>.Str );
     }
     when / ^ '  BB ' $<bbnum>=[<.digit>+] ' (' ~ ')' $<addr>=<[0..9 a..f x]>+ ':' $ / {
         %bb_map{~$<bbnum>} = ~$<addr>;
@@ -220,8 +249,7 @@ for lines() -> $_ is copy {
         $current_bb = ~$<addr>;
         $last_ins = "\"entry_$<addr>\"";
 
-        @bb_overview.push: "    \"bb_ov_$<addr>\" [fillcolor=\"@bb_colors[+$<bbnum>]\",color=black,style=filled,label=\"$<bbnum>\"];";
-        @bb_overview.push: "    \"bb_ov_d_$<addr>\" [fillcolor=\"@bb_colors[+$<bbnum>]\",color=black,style=filled,label=\"$<bbnum>\"];";
+        @bb_overview.push: %( addr => $<addr>, bbnum => +$<bbnum> );
     }
     when / ^ '    ' 'Successors: ' [$<succ>=[<.digit>+]]* % ', ' $ / {
         %bb_connections{$current_bb} = @<succ>>>.Str;
@@ -229,7 +257,11 @@ for lines() -> $_ is copy {
     when / ^ '      ' '[Annotation: ' $<annotation>=[<[a..z A..Z 0..9 \ ]>+] $<rest>=<-[\]]>+ / {
         my $previous_ins = $last_ins;
         $last_ins = "\"annotation_{$current_bb}_{$<annotation>}_{$ann_num++}\"";
-        say "    $last_ins [label=\"{$<annotation>} {$<rest>}\" shape=cds];";
+        my $rest = $<rest>;
+        say "    $last_ins [label=\"{$<annotation>} {$rest}\" shape=cds];";
+        if $<annotation> ~~ / "FH Goto" / {
+            %bb_fh_gotos{$current_bb}.push: ~$rest.comb(/\d+/);
+        }
         if $last_ins ~~ / entry / {
             say "    $previous_ins -> $last_ins [style=dotted];";
         } else {
@@ -264,7 +296,7 @@ for lines() -> $_ is copy {
     when / ^ '    ' \d+ [ 'spesh slots' | 'log values'] / { }
     when / ^ '    ' \s* [\d+]+ %% \s+ / { }
     default {
-        say "    unparsed_line_$((state $)++) [label=\"{$_}\"];";
+        say "    unparsed_line_$($unparsed_line_idx++) [label=\"{$_}\"];";
     }
 }
 
@@ -298,22 +330,36 @@ for @delayed_writer_connections -> $conn {
 }
 
 for %bb_connections.kv -> $k, $v {
+    # Make a little flag at the 0 BB to show that this is the CFG
+    if %bb_map{$k} == 0 { say "\"Control Flow Graph\" -> \"bb_ov_$k\";" }
     # bb 0 is special and has successors that it won't jump to.
     #note "marking successors for block $k";
     #note $v.perl;
     #note "";
     next unless @$v;
-    my @candidates = do %bb_map{$k} == "0"
-        ?? %bb_map{@$v}
-        !! %bb_map{$v[*-1]};
-    for @candidates -> $cand {
+    #my @candidates = do %bb_map{$k} == "0"
+    #    ?? %bb_map{@$v}
+    #    !! %bb_map{$v[*-1]};
+    my @candidates = %bb_map{@$v};
+    for @candidates.kv -> $i, $cand {
         say "    \"exit_$k\" -> \"entry_$cand\" [style=dotted];";
-        say "    \"bb_ov_$k\" -> \"bb_ov_$cand\";";
+        say "    \"bb_ov_$k\" -> \"bb_ov_$cand\"$( $i == 0 ?? "" !! "[style=dashed]" );";
     }
-    once say "\"Control Flow Graph\" -> \"bb_ov_$k\";";
 }
 
-.say for @bb_overview;
+for @connections {
+    say "    \"bb_ov_$($_.<source_block>)\" -> \"bb_ov_$(%bb_map{.<target_block>} )\" [style=dotted];";
+}
+
+for @bb_overview -> $/ {
+    if %bb_fh_gotos{$<addr>} -> $fhs {
+        my $label = $fhs.map("FH " ~ *).join(" | ") ~ " | " ~ $<bbnum>;
+        say "    \"bb_ov_$<addr>\" [fillcolor=\"@bb_colors[+$<bbnum>]\",color=black,style=filled,shape=Mrecord,label=\"$label\"];";
+    } else {
+        say "    \"bb_ov_$<addr>\" [fillcolor=\"@bb_colors[+$<bbnum>]\",color=black,style=filled,label=\"$<bbnum>\"];";
+    }
+    say "    \"bb_ov_d_$<addr>\" [fillcolor=\"@bb_colors[+$<bbnum>]\",color=black,style=filled,label=\"$<bbnum>\"];";
+}
 
 say '}';
 
