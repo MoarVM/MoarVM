@@ -225,12 +225,12 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         before = MVM_spesh_dump(tc, sg);
         sg->facts = facts;
         MVM_spesh_debug_printf(tc,
-            "Specialization of '%s' (cuid: %s)\n\n", c_name, c_cuid);
-        MVM_spesh_debug_printf(tc, "Before:\n%s", before);
+            "Specialization of '%s' (cuid: %s)\n\nBefore:\n", c_name, c_cuid);
+        MVM_spesh_debug_puts(tc, before);
         MVM_free(c_name);
         MVM_free(c_cuid);
         MVM_free(before);
-        fflush(tc->instance->spesh_log_fh);
+        MVM_spesh_debug_flush(tc);
         start_time = uv_hrtime();
     }
 
@@ -315,7 +315,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     if (MVM_spesh_debug_enabled(tc)) {
         char *after = MVM_spesh_dump(tc, sg);
         end_time = uv_hrtime();
-        MVM_spesh_debug_printf(tc, "After:\n%s", after);
+        MVM_spesh_debug_puts(tc, "After:\n");
+        MVM_spesh_debug_puts(tc, after);
         MVM_spesh_debug_printf(tc,
             "Specialization took %" PRIu64 "us (total %" PRIu64"us)\n",
             (spesh_time - start_time) / 1000,
@@ -330,9 +331,9 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
                                        candidate->body.jitcode->size);
             }
         }
-        MVM_spesh_debug_printf(tc, "\n========\n\n");
+        MVM_spesh_debug_puts(tc, "\n========\n\n");
         MVM_free(after);
-        fflush(tc->instance->spesh_log_fh);
+        MVM_spesh_debug_flush(tc);
     }
 
     /* Calculate work environment taking JIT spill area into account. */
@@ -379,7 +380,7 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         char *guard_dump = MVM_spesh_dump_arg_guard(tc, p->sf,
                 (MVMSpeshArgGuard *)MVM_load(&p->sf->body.spesh->body.spesh_arg_guard));
         MVM_spesh_debug_printf(tc, "%s========\n\n", guard_dump);
-        fflush(tc->instance->spesh_log_fh);
+        MVM_spesh_debug_flush(tc);
         MVM_free(guard_dump);
     }
 

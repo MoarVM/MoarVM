@@ -1,5 +1,11 @@
 #include "moar.h"
 
+
+#if MVM_USE_ZSTD
+#define ZSTD_STATIC_LINKING_ONLY
+#include <zstd.h>
+#endif
+
 /* The specialization worker thread receives logs from other threads about
  * calls and types that showed up at runtime. It uses this to produce
  * specialized versions of code. */
@@ -25,6 +31,18 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
 #endif
 
     tc->instance->speshworker_thread_id = tc->thread_obj->body.thread_id;
+
+#if MVM_USE_ZSTD
+    if (MVM_spesh_debug_enabled(tc)) {
+        char *message = "This is a zstd compressed MoarVM Spesh Log.";
+        char dst[4096];
+        size_t written = ZSTD_writeSkippableFrame(
+            dst, 4096,
+            message, strlen(message), 1);
+
+        fwrite(dst, sizeof(char), written, tc->instance->spesh_log_fh);
+    }
+#endif
 
     MVMROOT3(tc, updated_static_frames, newly_seen_static_frames, previous_static_frames) {
         size_t log_tell_before = 0;
@@ -111,11 +129,14 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                         for (i = 0; i < n; i++) {
                             char *dump = MVM_spesh_dump_stats(tc, (MVMStaticFrame* )
                                 MVM_repr_at_pos_o(tc, updated_static_frames, i));
-                            MVM_spesh_debug_printf(tc, "%s==========\n\n", dump);
+                            MVM_spesh_debug_puts(tc, dump);
+                            MVM_spesh_debug_puts(tc, "==========\n\n");
                             MVM_free(dump);
                         }
                         size_t before_print = MVM_spesh_debug_tell(tc);
+#if !MVM_USE_ZSTD
                         MVM_spesh_debug_printf(tc, "\nskip:%lu\n\n", log_tell_before);
+#endif
                         log_tell_before = before_print + 1;
                     }
                     if (overview_data) {
@@ -139,11 +160,14 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                         for (i = 0; i < n; i++) {
                             char *dump = MVM_spesh_dump_planned(tc,
                                 &(tc->instance->spesh_plan->planned[i]));
-                            MVM_spesh_debug_printf(tc, "%s==========\n\n", dump);
+                            MVM_spesh_debug_puts(tc, dump);
+                            MVM_spesh_debug_puts(tc, "==========\n\n");
                             MVM_free(dump);
                         }
                         size_t before_print = MVM_spesh_debug_tell(tc);
+#if !MVM_USE_ZSTD
                         MVM_spesh_debug_printf(tc, "\nskip:%lu\n\n", log_tell_before);
+#endif
                         log_tell_before = before_print + 1;
                     }
 
@@ -167,7 +191,9 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                         GC_SYNC_POINT(tc);
                         if (MVM_spesh_debug_enabled(tc)) {
                             size_t before_print = MVM_spesh_debug_tell(tc);
-                            MVM_spesh_debug_printf(tc, "\nskip:%lu\n\n", log_tell_before);
+#if !MVM_USE_ZSTD
+                        MVM_spesh_debug_printf(tc, "\nskip:%lu\n\n", log_tell_before);
+#endif
                             log_tell_before = before_print + 1;
                         }
                     }
