@@ -1,4 +1,5 @@
 void MVM_spesh_debug_printf(MVMThreadContext *tc, const char *format, ...);
+void MVM_spesh_debug_puts(MVMThreadContext *tc, char *text);
 void MVM_spesh_debug_flush(MVMThreadContext *tc);
 size_t MVM_spesh_debug_tell(MVMThreadContext *tc);
 
