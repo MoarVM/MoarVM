@@ -379,7 +379,8 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     if (MVM_spesh_debug_enabled(tc)) {
         char *guard_dump = MVM_spesh_dump_arg_guard(tc, p->sf,
                 (MVMSpeshArgGuard *)MVM_load(&p->sf->body.spesh->body.spesh_arg_guard));
-        MVM_spesh_debug_printf(tc, "%s========\n\n", guard_dump);
+        MVM_spesh_debug_puts(tc, guard_dump);
+        MVM_spesh_debug_puts(tc, "========\n\n");
         MVM_spesh_debug_flush(tc);
         MVM_free(guard_dump);
     }

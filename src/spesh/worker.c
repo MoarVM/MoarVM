@@ -33,7 +33,7 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
     tc->instance->speshworker_thread_id = tc->thread_obj->body.thread_id;
 
 #if MVM_USE_ZSTD
-    if (MVM_spesh_debug_enabled(tc)) {
+    if (MVM_spesh_debug_enabled(tc) && tc->instance->spesh_log_zstd) {
         char *message = "This is a zstd compressed MoarVM Spesh Log.";
         char dst[4096];
         size_t written = ZSTD_writeSkippableFrame(

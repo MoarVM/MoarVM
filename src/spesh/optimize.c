@@ -37,7 +37,9 @@ static void log_inline(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *t
     }
     if (inline_graph && MVM_spesh_debug_enabled(tc)) {
         char *dump = MVM_spesh_dump(tc, inline_graph);
-        MVM_spesh_debug_printf(tc, "Inlining graph\n%s\n", dump);
+        MVM_spesh_debug_printf(tc, "Inlining graph\n");
+        MVM_spesh_debug_puts(tc, dump);
+        MVM_spesh_debug_printf(tc, "\n");
         MVM_free(dump);
     }
 }

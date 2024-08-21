@@ -305,6 +305,7 @@ struct MVMInstance {
     MVMint8 spesh_pea_enabled;
     MVMint8 spesh_nodelay;
     MVMint8 spesh_blocking;
+    MVMint8 spesh_log_zstd;
 
     /* Number of specializations produced, and limit on number of
      * specializations (zero if no limit). */

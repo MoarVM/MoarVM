@@ -398,10 +398,12 @@ else {
 if ($config{pkgconfig_works} && has_native_library('libzstd', '1.0.0')) {
     setup_native_library('libzstd');
     $config{heapsnapformat} = 3;
+    $config{has_zstd} = 1;
 }
 else {
-    print "did not find libzstd; will not use heap snapshot format version 3\n";
+    print "did not find libzstd; will not use heap snapshot format version 3; no compressed spesh logs\n";
     $config{heapsnapformat} = 2;
+    $config{has_zstd} = 0;
 }
 
 $config{use_mimalloc} = $args{mimalloc};
@@ -460,7 +462,7 @@ $config{ldlibs} = join ' ',
 $config{ldlibs} = ' -lasan ' . $config{ldlibs} if $args{asan} && $^O ne 'darwin' && $config{cc} ne 'clang';
 $config{ldlibs} = ' -lubsan ' . $config{ldlibs} if $args{ubsan} and $^O ne 'darwin';
 $config{ldlibs} = ' -ltsan ' . $config{ldlibs} if $args{tsan} and $^O ne 'darwin';
-$config{ldlibs} = $config{ldlibs} . ' -lzstd ' if $config{heapsnapformat} == 3;
+$config{ldlibs} = $config{ldlibs} . ' -lzstd ' if $config{has_zstd};
 # macro defs
 $config{ccdefflags} = join ' ', map { $config{ccdef} . $_ } @{$config{defs}};
 
@@ -510,6 +512,7 @@ push @cflags, '-DMVM_DTRACE_SUPPORT' if $args{dtrace};
 push @cflags, '-DHAVE_TELEMEH' if $args{telemeh};
 push @cflags, '-DWORDS_BIGENDIAN' if $config{be}; # 3rdparty/sha1 needs it and it isnt set on mips;
 push @cflags, '-DMVM_HEAPSNAPSHOT_FORMAT=' . $config{heapsnapformat};
+push @cflags, '-DMVM_USE_ZSTD=' . $config{has_zstd};
 push @cflags, $ENV{CFLAGS} if $ENV{CFLAGS};
 push @cflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
 
