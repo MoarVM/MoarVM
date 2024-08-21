@@ -12,6 +12,12 @@
 #  define TRACING_USAGE ""
 #endif
 
+#if MVM_USE_ZSTD
+#  define ZST_EXTENSION_USAGE "(supply .zst extension for compressed)"
+#else
+#  define ZST_EXTENSION_USAGE ""
+#endif
+
 #ifdef HAVE_TELEMEH
 #  define TELEMEH_USAGE "    MVM_TELEMETRY_LOG           Log internal events at high precision to this file\n"
 #else
@@ -88,7 +94,7 @@ The following environment variables are respected:\n\
     MVM_SPESH_OSR_DISABLE       Disables on-stack replacement\n\
     MVM_SPESH_PEA_DISABLE       Disables partial escape analysis and related optimizations\n\
     MVM_SPESH_BLOCKING          Blocks log-sending thread while specializer runs\n\
-    MVM_SPESH_LOG               Specifies a dynamic optimizer log file\n\
+    MVM_SPESH_LOG               Specifies a dynamic optimizer log file" ZST_EXTENSION_USAGE "\n\
     MVM_SPESH_NODELAY           Run dynamic optimization even for cold frames\n\
     MVM_SPESH_LIMIT             Limit the maximum number of specializations\n\
     MVM_JIT_DISABLE             Disables JITting to machine code\n\

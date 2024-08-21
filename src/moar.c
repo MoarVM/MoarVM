@@ -4,6 +4,7 @@
 #include "platform/random.h"
 #include "platform/time.h"
 #include "platform/mmap.h"
+#include <string.h>
 #if defined(_MSC_VER)
 #define snprintf _snprintf
 #endif
@@ -31,10 +32,11 @@
 
 static void setup_std_handles(MVMThreadContext *tc);
 
-static FILE *fopen_perhaps_with_pid(char *env_var, char *path, const char *mode) {
+static FILE *fopen_perhaps_with_pid(char *env_var, char *path, const char *mode, MVMuint8 *is_zst) {
     FILE *result;
+    MVMuint64 path_length = strlen(path);
+
     if (strstr(path, "%d")) {
-        MVMuint64 path_length = strlen(path);
         MVMuint64 found_percents = 0;
         MVMuint64 i;
 
@@ -66,8 +68,13 @@ static FILE *fopen_perhaps_with_pid(char *env_var, char *path, const char *mode)
         result = MVM_platform_fopen(path, mode);
     }
 
-    if (result)
+    if (result) {
+        if (is_zst && path_length > 4 && (strcmp(path + (path_length - 4), ".zst") == 0)) {
+            *is_zst = 1;
+        }
+
         return result;
+    }
     fprintf(stderr, "MoarVM: Failed to open file `%s` given via `%s`: %s\n",
         path, env_var, strerror(errno));
     exit(1);
@@ -263,9 +270,16 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* Spesh enable/disable and debugging configurations. */
     spesh_log = getenv("MVM_SPESH_LOG");
-    if (spesh_log && spesh_log[0])
+    if (spesh_log && spesh_log[0]) {
+        MVMuint8 is_zst = 0;
         instance->spesh_log_fh
-            = fopen_perhaps_with_pid("MVM_SPESH_LOG", spesh_log, "w");
+            = fopen_perhaps_with_pid("MVM_SPESH_LOG", spesh_log, "w", &is_zst);
+#if MVM_USE_ZSTD
+        if (instance->spesh_log_fh && is_zst) {
+            instance->spesh_log_zstd = 1;
+        }
+#endif
+    }
     spesh_disable = getenv("MVM_SPESH_DISABLE");
     if (!spesh_disable || !spesh_disable[0]) {
         instance->spesh_enabled = 1;
@@ -397,7 +411,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Various kinds of debugging that can be enabled. */
     dynvar_log = getenv("MVM_DYNVAR_LOG");
     if (dynvar_log && dynvar_log[0]) {
-        instance->dynvar_log_fh = fopen_perhaps_with_pid("MVM_DYNVAR_LOG", dynvar_log, "w");
+        instance->dynvar_log_fh = fopen_perhaps_with_pid("MVM_DYNVAR_LOG", dynvar_log, "w", NULL);
         fprintf(instance->dynvar_log_fh, "+ x 0 0 0 0 0 %"PRIu64"\n", uv_hrtime());
         fflush(instance->dynvar_log_fh);
         instance->dynvar_log_lasttime = uv_hrtime();
@@ -422,7 +436,7 @@ MVMInstance * MVM_vm_create_instance(void) {
         instance->coverage_logging = 1;
         instance->instrumentation_level++;
         if (coverage_log[0])
-            instance->coverage_log_fh = fopen_perhaps_with_pid("MVM_COVERAGE_LOG", coverage_log, "a");
+            instance->coverage_log_fh = fopen_perhaps_with_pid("MVM_COVERAGE_LOG", coverage_log, "a", NULL);
         else
             instance->coverage_log_fh = stderr;
 
@@ -836,7 +850,7 @@ void MVM_vm_event_subscription_configure(MVMThreadContext *tc, MVMObject *queue,
 
         if (MVM_repr_exists_key(tc, config, startup_time)) {
             /* Value is ignored, it will just be overwritten. */
-            MVMObject *value = NULL; 
+            MVMObject *value = NULL;
             MVMROOT3(tc, gcevent, speshoverviewevent, startup_time, {
                     value = MVM_repr_box_num(tc, tc->instance->boot_types.BOOTNum, tc->instance->subscriptions.vm_startup_now);
             });
