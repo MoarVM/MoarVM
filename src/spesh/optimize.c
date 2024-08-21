@@ -45,6 +45,7 @@ static void log_inline(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *t
         MVM_ds_append(&ds, "Inlining graph\n");
         MVM_spesh_dump_to_ds(tc, inline_graph, &ds);
         MVM_ds_append(&ds, "\n");
+        MVM_ds_append_null(&ds);
         MVM_spesh_debug_puts(tc, ds.buffer);
         MVM_free(ds.buffer);
     }
