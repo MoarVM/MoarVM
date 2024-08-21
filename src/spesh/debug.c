@@ -1,19 +1,19 @@
 #include "moar.h"
 #include <stdarg.h>
 
-MVM_THREAD_LOCAL char spesh_debug_buffer[2048];
+MVM_THREAD_LOCAL char spesh_debug_buffer[4096];
 
 #if MVM_USE_ZSTD
 #include "zstd.h"
 
-MVM_THREAD_LOCAL char spesh_debug_cmpbuffer[2048];
+MVM_THREAD_LOCAL char spesh_debug_cmpbuffer[4096];
 MVM_THREAD_LOCAL MVMuint64 uncompressed_tell = 0;
 #endif
 
 void MVM_spesh_debug_printf(MVMThreadContext *tc, const char *format, ...) {
     va_list list;
     va_start(list, format);
-    vsnprintf(spesh_debug_buffer, 2048, format, list);
+    vsnprintf(spesh_debug_buffer, 4096, format, list);
     va_end(list);
 
     MVM_spesh_debug_puts(tc, spesh_debug_buffer);
@@ -36,7 +36,7 @@ void MVM_spesh_debug_puts(MVMThreadContext *tc, char *text) {
 
         char *target = spesh_debug_cmpbuffer;
 
-        if (compress_bound >= 2048) {
+        if (compress_bound >= 4096) {
             target = MVM_malloc(compress_bound);
         }
 
@@ -52,7 +52,7 @@ void MVM_spesh_debug_puts(MVMThreadContext *tc, char *text) {
 
         fwrite(target, sizeof(char), compressed_size, tc->instance->spesh_log_fh);
 
-        if (compress_bound >= 2048) {
+        if (compress_bound >= 4096) {
             MVM_free(target);
         }
 #endif

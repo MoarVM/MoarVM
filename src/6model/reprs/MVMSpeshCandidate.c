@@ -1,3 +1,4 @@
+#define MVM_INTERNAL_HELPERS
 #include "moar.h"
 
 /* This representation's function pointer table. */
@@ -210,6 +211,17 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
         if (spesh_produced > tc->instance->spesh_limit)
             return;
 
+    MVMDumpStr ds;
+    if (MVM_spesh_debug_enabled(tc)) {
+        ds.alloc  = 8192 * 2;
+        ds.buffer = MVM_malloc(ds.alloc);
+    }
+    else {
+        ds.alloc  = 0;
+        ds.buffer = NULL;
+    }
+    ds.pos    = 0;
+
     /* Produce the specialization graph and, if we're logging, dump it out
      * pre-transformation. */
 #if MVM_GC_DEBUG
@@ -217,20 +229,15 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 #endif
     sg = MVM_spesh_graph_create(tc, p->sf, 0, 1);
     if (MVM_spesh_debug_enabled(tc)) {
-        char *c_name = MVM_string_utf8_encode_C_string(tc, p->sf->body.name);
-        char *c_cuid = MVM_string_utf8_encode_C_string(tc, p->sf->body.cuuid);
         MVMSpeshFacts **facts = sg->facts;
-        char *before;
+        MVM_ds_append(&ds, "Specialization of '");
+        MVM_ds_append_str(tc, &ds, p->sf->body.name);
+        MVM_ds_append(&ds,"' (cuid: ");
+        MVM_ds_append_str(tc, &ds, p->sf->body.cuuid);
+        MVM_ds_append(&ds, ")\n\nBefore:\n");
         sg->facts = NULL;
-        before = MVM_spesh_dump(tc, sg);
+        MVM_spesh_dump_to_ds(tc, sg, &ds);
         sg->facts = facts;
-        MVM_spesh_debug_printf(tc,
-            "Specialization of '%s' (cuid: %s)\n\nBefore:\n", c_name, c_cuid);
-        MVM_spesh_debug_puts(tc, before);
-        MVM_free(c_name);
-        MVM_free(c_cuid);
-        MVM_free(before);
-        MVM_spesh_debug_flush(tc);
         start_time = uv_hrtime();
     }
 
@@ -313,26 +320,24 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     }
 
     if (MVM_spesh_debug_enabled(tc)) {
-        char *after = MVM_spesh_dump(tc, sg);
+        MVM_ds_append(&ds, "After:\n");
+        MVM_spesh_dump_to_ds(tc, sg, &ds);
         end_time = uv_hrtime();
-        MVM_spesh_debug_puts(tc, "After:\n");
-        MVM_spesh_debug_puts(tc, after);
-        MVM_spesh_debug_printf(tc,
+        MVM_ds_appendf(&ds,
             "Specialization took %" PRIu64 "us (total %" PRIu64"us)\n",
             (spesh_time - start_time) / 1000,
             (end_time - start_time) / 1000);
 
         if (tc->instance->jit_enabled) {
-            MVM_spesh_debug_printf(tc,
+            MVM_ds_appendf(&ds,
                 "JIT was %ssuccessful and compilation took %" PRIu64 "us\n",
                 candidate->body.jitcode ? "" : "not ", (end_time - jit_time) / 1000);
             if (candidate->body.jitcode) {
-                MVM_spesh_debug_printf(tc, "    Bytecode size: %" PRIu64 " byte\n",
+                MVM_ds_appendf(&ds, "    Bytecode size: %" PRIu64 " byte\n",
                                        candidate->body.jitcode->size);
             }
         }
-        MVM_spesh_debug_puts(tc, "\n========\n\n");
-        MVM_free(after);
+        MVM_ds_append(&ds, "\n========\n\n");
         MVM_spesh_debug_flush(tc);
     }
 
@@ -377,12 +382,13 @@ void MVM_spesh_candidate_add(MVMThreadContext *tc, MVMSpeshPlanned *p) {
 
     /* If we're logging, dump the updated arg guards also. */
     if (MVM_spesh_debug_enabled(tc)) {
-        char *guard_dump = MVM_spesh_dump_arg_guard(tc, p->sf,
-                (MVMSpeshArgGuard *)MVM_load(&p->sf->body.spesh->body.spesh_arg_guard));
-        MVM_spesh_debug_puts(tc, guard_dump);
-        MVM_spesh_debug_puts(tc, "========\n\n");
+        MVM_spesh_dump_arg_guard(tc, p->sf,
+                (MVMSpeshArgGuard *)MVM_load(&p->sf->body.spesh->body.spesh_arg_guard), &ds);
+        MVM_ds_append(&ds, "========\n\n");
+        MVM_ds_append_null(&ds);
+        MVM_spesh_debug_puts(tc, ds.buffer);
+        MVM_free(ds.buffer);
         MVM_spesh_debug_flush(tc);
-        MVM_free(guard_dump);
     }
 
 #if MVM_GC_DEBUG
