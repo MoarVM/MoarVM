@@ -1,3 +1,4 @@
+#define MVM_INTERNAL_HELPERS
 #include "moar.h"
 
 static void optimize_bigint_bool_op(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins);
@@ -36,11 +37,16 @@ static void log_inline(MVMThreadContext *tc, MVMSpeshGraph *g, MVMStaticFrame *t
         MVM_free(c_cuid_t);
     }
     if (inline_graph && MVM_spesh_debug_enabled(tc)) {
-        char *dump = MVM_spesh_dump(tc, inline_graph);
-        MVM_spesh_debug_printf(tc, "Inlining graph\n");
-        MVM_spesh_debug_puts(tc, dump);
-        MVM_spesh_debug_printf(tc, "\n");
-        MVM_free(dump);
+        MVMDumpStr ds;
+        ds.alloc  = 4096;
+        ds.buffer = MVM_malloc(ds.alloc);
+        ds.pos    = 0;
+
+        MVM_ds_append(&ds, "Inlining graph\n");
+        MVM_spesh_dump_to_ds(tc, inline_graph, &ds);
+        MVM_ds_append(&ds, "\n");
+        MVM_spesh_debug_puts(tc, ds.buffer);
+        MVM_free(ds.buffer);
     }
 }
 

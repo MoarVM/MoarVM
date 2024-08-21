@@ -1,3 +1,4 @@
+#define MVM_INTERNAL_HELPERS
 #include "moar.h"
 
 
@@ -121,18 +122,26 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                             updated_static_frames, &newly_seen, &updated);
                     n = MVM_repr_elems(tc, updated_static_frames);
                     if (MVM_spesh_debug_enabled(tc)) {
-                        MVM_spesh_debug_printf(tc,
+                        MVMDumpStr ds;
+                        ds.alloc  = 8192;
+                        ds.buffer = MVM_malloc(ds.alloc);
+                        ds.pos    = 0;
+
+                        MVM_ds_appendf(&ds,
                             "Statistics Updated\n"
                             "==================\n"
                             "%d frames had their statistics updated in %dus.\n\n",
                             (int)n, (int)((uv_hrtime() - start_time) / 1000));
                         for (i = 0; i < n; i++) {
-                            char *dump = MVM_spesh_dump_stats(tc, (MVMStaticFrame* )
-                                MVM_repr_at_pos_o(tc, updated_static_frames, i));
-                            MVM_spesh_debug_puts(tc, dump);
-                            MVM_spesh_debug_puts(tc, "==========\n\n");
-                            MVM_free(dump);
+                            MVM_spesh_dump_stats(tc, (MVMStaticFrame* )
+                                MVM_repr_at_pos_o(tc, updated_static_frames, i),
+                                &ds);
+                            MVM_ds_append(&ds, "==========\n\n");
                         }
+                        MVM_ds_append_null(&ds);
+                        MVM_spesh_debug_puts(tc, ds.buffer);
+                        MVM_free(ds.buffer);
+
                         size_t before_print = MVM_spesh_debug_tell(tc);
 #if !MVM_USE_ZSTD
                         MVM_spesh_debug_printf(tc, "\nskip:%lu\n\n", log_tell_before);
@@ -151,19 +160,26 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                     start_time = uv_hrtime();
                     tc->instance->spesh_plan = MVM_spesh_plan(tc, updated_static_frames, &certain_spesh, &observed_spesh, &osr_spesh);
                     if (MVM_spesh_debug_enabled(tc)) {
+                        MVMDumpStr ds;
+                        ds.alloc  = 8192;
+                        ds.buffer = MVM_malloc(ds.alloc);
+                        ds.pos    = 0;
+
                         n = tc->instance->spesh_plan->num_planned;
-                        MVM_spesh_debug_printf(tc,
+                        MVM_ds_appendf(&ds,
                             "Specialization Plan\n"
                             "===================\n"
                             "%u specialization(s) will be produced (planned in %dus).\n\n",
                             n, (int)((uv_hrtime() - start_time) / 1000));
                         for (i = 0; i < n; i++) {
-                            char *dump = MVM_spesh_dump_planned(tc,
-                                &(tc->instance->spesh_plan->planned[i]));
-                            MVM_spesh_debug_puts(tc, dump);
-                            MVM_spesh_debug_puts(tc, "==========\n\n");
-                            MVM_free(dump);
+                            MVM_spesh_dump_planned(tc,
+                                &(tc->instance->spesh_plan->planned[i]),
+                                &ds);
+                            MVM_ds_append(&ds, "==========\n\n");
                         }
+                        MVM_ds_append_null(&ds);
+                        MVM_spesh_debug_puts(tc, ds.buffer);
+                        MVM_free(ds.buffer);
                         size_t before_print = MVM_spesh_debug_tell(tc);
 #if !MVM_USE_ZSTD
                         MVM_spesh_debug_printf(tc, "\nskip:%lu\n\n", log_tell_before);
