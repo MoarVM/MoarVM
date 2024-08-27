@@ -13,6 +13,8 @@
 #define DECODE_NOT_EOF  0
 #define DECODE_EOF      1
 
+static MVMString * get_all_in_buffer(MVMThreadContext *tc, MVMDecodeStream *ds);
+
 /* Creates a new decoding stream. */
 MVMDecodeStream * MVM_string_decodestream_create(MVMThreadContext *tc, MVMint32 encoding,
         MVMint64 abs_byte_pos, MVMint32 translate_newlines) {
@@ -334,6 +336,34 @@ MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStr
         return NULL;
     }
 }
+MVMString * MVM_string_decodestream_get_up_to_chars(MVMThreadContext *tc, MVMDecodeStream *ds,
+                                                    MVMint32 chars) {
+    MVMuint32 missing;
+
+    /* If we request nothing, give empty string. */
+    if (chars == 0)
+        return tc->instance->str_consts.empty;
+
+    /* If we don't already have enough chars, try and decode more. */
+    missing = missing_chars(tc, ds, chars);
+    ds->result_size_guess = missing;
+    if (missing)
+        run_decode(tc, ds, &missing, NULL, DECODE_NOT_EOF);
+
+    /* If we've got enough, assemble a string. Otherwise, flag EOF and retry,
+     * falling back to returning what's available. */
+    MVMuint32 still_missing = missing_chars(tc, ds, chars);
+    if (still_missing == 0) {
+        return take_chars(tc, ds, chars, 0);
+    }
+    else if (still_missing < (MVMuint32)chars) {
+        return get_all_in_buffer(tc, ds);
+    }
+    else {
+        return NULL;
+    }
+}
+
 
 /* Gets characters up until one of the specified separators is encountered. If
  * we do not encounter it, returns 0. This may mean more input buffers are needed
