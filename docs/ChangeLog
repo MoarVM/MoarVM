@@ -1,3 +1,26 @@
+New in 2024.08
+
+Core:
++ include sp_ and prof_ ops in tools/lib/MAST/Ops.pm [70756c46]
+
+Documentation:
+
+GC:
++ fix check for root debug mode [39b9b88c]
++ Add missing MVMROOT to spawn_setup [5e52422f]
+
+JIT:
+
+Spesh:
++ freshen up graph_spesh.raku [17c62f12]
+
+Strings:
++ Store short strings inside string's body [143b5059]
++ Iterate graphemes into in_situ_32 string if able [c7da7396]
++ Fast path for concatenating two in_situ_8 strings [f1108304]
++ Fast path for concatenating two one-grapheme strings [08ee6c8e]
++ Add fast path for calculating hash of in_situ_strings
+
 New in 2024.07
 
 Core:
