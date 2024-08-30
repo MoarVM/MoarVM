@@ -158,6 +158,7 @@ MVM_trycas_AO(volatile AO_t *addr, uintptr_t old, const uintptr_t new) {
 #define MVM_HASH_RANDOMIZE 1
 #define MVM_HASH_MAX_PROBE_DISTANCE 255
 #define MVM_HASH_INITIAL_BITS_IN_METADATA 5
+#define MVM_HASH_PROTECT 1
 
 typedef MVMuint32 MVMHashNumItems;
 typedef MVMuint64 MVMHashv;

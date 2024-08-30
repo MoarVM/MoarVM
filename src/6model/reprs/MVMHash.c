@@ -23,6 +23,69 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
     return st->WHAT;
 }
 
+#if MVM_HASH_PROTECT
+static void try_read_lock(MVMThreadContext *tc, char *op, void *data, MVMObject *key_obj) {
+    MVMHashBody *body = (MVMHashBody *)data;
+    if (tc->instance->hash_debug_enabled) {
+        char *key = key_obj == NULL
+                     ? "<nokey>"
+                     : MVM_string_utf8_encode_C_string(tc, key_obj);
+        fprintf(stderr, ">>> try read lock by '%s', key='%s' body=%p, LOCK %p\n", op, key, body, body->rw_lock);
+        if (key_obj != NULL) MVM_free(key);
+    }
+
+    int code;
+    if ((code = uv_rwlock_tryrdlock(body->rw_lock)) != 0) {
+        fprintf(stderr, "Operation '%s' cannot obtain read lock for VMHash; error code=%d\n", op, code);
+        MVM_dump_backtrace(tc);
+        abort();
+    }
+}
+
+static void try_write_lock(MVMThreadContext *tc, char *op, void *data, MVMObject *key_obj) {
+    MVMHashBody *body = (MVMHashBody *)data;
+    if (tc->instance->hash_debug_enabled) {
+        char *key = key_obj == NULL
+                     ? "<nokey>"
+                     : MVM_string_utf8_encode_C_string(tc, key_obj);
+        fprintf(stderr, ">>> try write lock by '%s', key='%s' body=%p, LOCK %p\n", op, key, body, body->rw_lock);
+        if (key_obj != NULL) MVM_free(key);
+    }
+
+    int code;
+    if ((code = uv_rwlock_trywrlock(body->rw_lock)) != 0) {
+        fprintf(stderr, "Operation '%s' cannot obtain write lock for VMHash; error code=%d\n", op, code);
+        MVM_dump_backtrace(tc);
+        abort();
+    }
+}
+
+static void read_unlock(MVMThreadContext *tc, char *op, void *data, MVMObject *key_obj) {
+    MVMHashBody *body = (MVMHashBody *)data;
+    if (tc->instance->hash_debug_enabled) {
+        char *key = key_obj == NULL
+                     ? "<nokey>"
+                     : MVM_string_utf8_encode_C_string(tc, key_obj);
+        fprintf(stderr, "<<< read unlock by '%s', key='%s' body=%p, LOCK %p\n", op, key, body, body->rw_lock);
+        if (key_obj != NULL) MVM_free(key);
+    }
+    uv_rwlock_rdunlock(body->rw_lock);
+}
+
+static void write_unlock(MVMThreadContext *tc, char *op, void *data, MVMObject *key_obj) {
+    MVMHashBody *body = (MVMHashBody *)data;
+    if (tc->instance->hash_debug_enabled) {
+        char *key = key_obj == NULL
+                     ? "<nokey>"
+                     : MVM_string_utf8_encode_C_string(tc, key_obj);
+        fprintf(stderr, "<<< write unlock by '%s', key='%s' body=%p, LOCK %p\n", op, key, body, body->rw_lock);
+        if (key_obj != NULL) MVM_free(key);
+    }
+    uv_rwlock_wrunlock(body->rw_lock);
+}
+
+#endif
+
 /* Copies the body of one object to another. */
 static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *dest_root, void *dest) {
     MVMHashBody *src_body  = (MVMHashBody *)src;
@@ -30,6 +93,11 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 
     MVMStrHashTable *src_hashtable = &(src_body->hashtable);
     MVMStrHashTable *dest_hashtable = &(dest_body->hashtable);
+
+#if MVM_HASH_PROTECT
+    try_read_lock(tc, "copy_to", src, NULL);
+    try_write_lock(tc, "copy_to", dest, NULL);
+#endif
 
     if (dest_hashtable->table) {
         /* copy_to is, on reference types, only ever used as part of clone, and
@@ -45,6 +113,11 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
         MVM_gc_write_barrier(tc, &(dest_root->header), &(entry->hash_handle.key->common.header));
         iterator = MVM_str_hash_next_nocheck(tc, src_hashtable, iterator);
     }
+
+#if MVM_HASH_PROTECT
+    read_unlock(tc, "copy_to", src, NULL);
+    write_unlock(tc, "copy_to", dest, NULL);
+#endif
 }
 
 /* Adds held objects to the GC worklist. */
@@ -56,6 +129,10 @@ static void MVMHash_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVM
     /* Aren't holding anything, nothing to do. */
     if (elems == 0)
         return;
+
+#if MVM_HASH_PROTECT
+    try_read_lock(tc, "gc_mark", data, NULL);
+#endif
 
     MVM_gc_worklist_presize_for(tc, worklist, 2 * elems);
     if (worklist->include_gen2) {
@@ -77,12 +154,28 @@ static void MVMHash_gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVM
             iterator = MVM_str_hash_next_nocheck(tc, hashtable, iterator);
         }
     }
+#if MVM_HASH_PROTECT
+    read_unlock(tc, "gc_mark", data, NULL);
+#endif
 }
 
 /* Called by the VM in order to free memory associated with this object. */
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMHash *h = (MVMHash *)obj;
     MVMStrHashTable *hashtable = &(h->body.hashtable);
+
+#if MVM_HASH_PROTECT
+    if (tc->instance->hash_debug_enabled) {
+        fprintf(stderr, "destroying RW-lock for %s|%llx of %s %p; lock=%p\n",
+                obj->st->debug_name,
+                MVM_gc_object_id(tc, obj),
+                obj->st->REPR->name,
+                &((MVMHash *)obj)->body,
+                ((MVMHash *)obj)->body.rw_lock);
+    }
+    uv_rwlock_destroy(h->body.rw_lock);
+    MVM_free(h->body.rw_lock);
+#endif
 
     MVM_str_hash_demolish(tc, hashtable);
 }
@@ -91,17 +184,29 @@ void MVMHash_at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
     MVMHashBody   *body = (MVMHashBody *)data;
     MVMStrHashTable *hashtable = &(body->hashtable);
 
+#if MVM_HASH_PROTECT
+    try_read_lock(tc, "at_key", data, key_obj);
+#endif
+
     if (MVM_UNLIKELY(kind != MVM_reg_obj))
         MVM_exception_throw_adhoc(tc,
             "MVMHash representation does not support native type storage");
 
     MVMHashEntry *entry = MVM_str_hash_fetch(tc, hashtable, (MVMString *)key_obj);
     result->o = entry != NULL ? entry->value : tc->instance->VMNull;
+
+#if MVM_HASH_PROTECT
+    read_unlock(tc, "at_key", data, key_obj);
+#endif
 }
 
 void MVMHash_bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj, MVMRegister value, MVMuint16 kind) {
     MVMHashBody   *body = (MVMHashBody *)data;
     MVMStrHashTable *hashtable = &(body->hashtable);
+
+#if MVM_HASH_PROTECT
+    try_write_lock(tc, "bind_key", data, key_obj);
+#endif
 
     MVMString *key = (MVMString *)key_obj;
     if (!MVM_str_hash_key_is_valid(tc, key)) {
@@ -121,25 +226,53 @@ void MVMHash_bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
         entry->hash_handle.key = key;
         MVM_gc_write_barrier(tc, &(root->header), &(key->common.header));
     }
+
+#if MVM_HASH_PROTECT
+    write_unlock(tc, "bind_key", data, key_obj);
+#endif
 }
+
 static MVMuint64 elems(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     MVMHashBody *body = (MVMHashBody *)data;
-    return MVM_str_hash_count(tc, &(body->hashtable));}
+
+#if MVM_HASH_PROTECT
+    try_read_lock(tc, "elems", data, NULL);
+#endif
+    MVMuint64 elems = MVM_str_hash_count(tc, &(body->hashtable));
+#if MVM_HASH_PROTECT
+    read_unlock(tc, "elems", data, NULL);
+#endif
+    return elems;
+}
 
 static MVMint64 exists_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj) {
     MVMHashBody   *body = (MVMHashBody *)data;
+#if MVM_HASH_PROTECT
+    try_read_lock(tc, "exists_key", data, key_obj);
+#endif
     /* key_obj checked in MVM_str_hash_fetch */
     MVMStrHashTable *hashtable = &(body->hashtable);
     MVMHashEntry *entry = MVM_str_hash_fetch(tc, hashtable, (MVMString *)key_obj);
+
+#if MVM_HASH_PROTECT
+    read_unlock(tc, "exists_key", data, key_obj);
+#endif
     return entry != NULL;
 }
 
 static void delete_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMObject *key_obj) {
     MVMHashBody *body = (MVMHashBody *)data;
+#if MVM_HASH_PROTECT
+    try_write_lock(tc, "delete_key", data, key_obj);
+#endif
     MVMString *key = get_string_key(tc, key_obj);
     MVMStrHashTable *hashtable = &(body->hashtable);
 
     MVM_str_hash_delete(tc, hashtable, key);
+
+#if MVM_HASH_PROTECT
+    write_unlock(tc, "delete_key", data, key_obj);
+#endif
 }
 
 static MVMStorageSpec get_value_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
@@ -175,6 +308,9 @@ static void compose(MVMThreadContext *tc, MVMSTable *st, MVMObject *info) {
 /* Deserialize the representation. */
 static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMSerializationReader *reader) {
     MVMHashBody *body = (MVMHashBody *)data;
+#if MVM_HASH_PROTECT
+    try_write_lock(tc, "deserialize", data, NULL);
+#endif
     MVMStrHashTable *hashtable = &(body->hashtable);
     if (MVM_str_hash_entry_size(tc, hashtable)) {
         /* This should be unreachable. As clarified by @jnthn:
@@ -200,6 +336,9 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
             MVM_ASSIGN_REF(tc, &(root->header), entry->value, value);
         } while (++i < elems);
     }
+#if MVM_HASH_PROTECT
+    write_unlock(tc, "deserialize", data, NULL);
+#endif
 }
 
 /* Serialize the representation. */
@@ -209,6 +348,9 @@ static int cmp_strings(const void *s1, const void *s2) {
 }
 static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
     MVMHashBody *body = (MVMHashBody *)data;
+#if MVM_HASH_PROTECT
+    try_read_lock(tc, "serialize", data, NULL);
+#endif
     MVMStrHashTable *hashtable = &(body->hashtable);
     MVMuint64 elems = MVM_str_hash_count(tc, hashtable);
     MVMString **keys = MVM_malloc(sizeof(MVMString *) * elems);
@@ -228,6 +370,9 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
         MVM_serialization_write_ref(tc, writer, entry->value);
     }
     MVM_free(keys);
+#if MVM_HASH_PROTECT
+    read_unlock(tc, "serialize", data, NULL);
+#endif
 }
 
 /* Set the size of the STable. */
@@ -237,6 +382,7 @@ static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSeri
 
 /* Bytecode specialization for this REPR. */
 static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpeshBB *bb, MVMSpeshIns *ins) {
+#if !MVM_HASH_PROTECT
     switch (ins->info->opcode) {
     case MVM_OP_create: {
         if (!(st->mode_flags & MVM_FINALIZE_TYPE)) {
@@ -257,6 +403,7 @@ static void spesh(MVMThreadContext *tc, MVMSTable *st, MVMSpeshGraph *g, MVMSpes
         break;
     }
     }
+#endif
 }
 
 static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data) {
@@ -265,6 +412,24 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
     return MVM_str_hash_allocated_size(tc, &(body->hashtable));
 }
 
+#if MVM_HASH_PROTECT
+static MVMObject * gc_allocate(MVMThreadContext *tc, MVMSTable *st) {
+    MVMObject *obj = MVM_gc_allocate_object(tc, st);
+    uv_rwlock_t *rw_lock = MVM_malloc(sizeof(uv_rwlock_t));
+    uv_rwlock_init(rw_lock);
+    ((MVMHash *)obj)->body.rw_lock = rw_lock;
+    if (tc->instance->hash_debug_enabled) {
+        fprintf(stderr, "initialized RW-lock %s|%llx of %s %p; lock=%p\n",
+                obj->st->debug_name,
+                MVM_gc_object_id(tc, obj),
+                obj->st->REPR->name,
+                &((MVMHash *)obj)->body,
+                rw_lock);
+    }
+    return obj;
+}
+#endif
+
 /* Initializes the representation. */
 const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
     return &MVMHash_this_repr;
@@ -272,7 +437,11 @@ const MVMREPROps * MVMHash_initialize(MVMThreadContext *tc) {
 
 static const MVMREPROps MVMHash_this_repr = {
     type_object_for,
+#if MVM_HASH_PROTECT
+    gc_allocate, /* serialization.c relies on this and the next line */
+#else
     MVM_gc_allocate_object, /* serialization.c relies on this and the next line */
+#endif
     NULL, /* initialize */
     copy_to,
     MVM_REPR_DEFAULT_ATTR_FUNCS,

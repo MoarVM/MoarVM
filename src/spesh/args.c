@@ -401,7 +401,9 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 param_sp_bb = bb;
                 break;
             case MVM_OP_param_sn:
+#if !MVM_HASH_PROTECT
                 param_sn_ins = ins;
+#endif
                 param_sn_bb = bb;
                 break;
             case MVM_OP_usecapture:
@@ -1080,6 +1082,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
             }
         }
 
+#if !MVM_HASH_PROTECT
         /* If we have a slurpy hash... */
         if (param_sn_ins) {
             /* Construct it as a hash. */
@@ -1105,6 +1108,7 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     if (!(named_used_bit_field & ((MVMuint64)1 << i)))
                         slurp_named_arg(tc, g, param_sn_bb, param_sn_ins, i);
         }
+#endif
 
         /* If we have a slurpy array ... */
         if (param_sp_ins) {
