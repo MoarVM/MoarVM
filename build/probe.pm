@@ -1122,12 +1122,12 @@ EOT
 
     # gcc might need -latomic.
     # (looks like Solaris Studio 12.5 and later needs libatomic.so)
-    for my $lib (undef, '-latomic') {
-        if (compile($config, 'try', undef, undef, $lib && [$lib])) {
+    for my $lib (undef, 'atomic') {
+        if (compile($config, 'try', undef, undef, $lib && ['-l' . $lib])) {
             if (!system './try') {
                 if ($lib) {
                     print "YES, with $lib\n";
-                    $config->{ldlibs} .= " $lib";
+                    push @{$config->{usrlibs}}, $lib;
                 }
                 else {
                     print "YES\n";
