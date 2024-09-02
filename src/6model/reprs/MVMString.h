@@ -46,7 +46,8 @@ struct MVMStringBody {
         MVMStringStrand  *strands;
         MVMGrapheme8     in_situ_8[8];
         MVMGrapheme32    in_situ_32[2];
-        void             *any;
+        MVMuint64        any;
+        void             *any_ptr;
     } storage;
     MVMuint16 storage_type;
     MVMuint16 num_strands;

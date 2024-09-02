@@ -7,7 +7,8 @@ struct MVMGraphemeIter {
         MVMGrapheme8     *blob_8;
         MVMGrapheme8     in_situ_8[8];
         MVMGrapheme32    in_situ_32[2];
-        void             *any;
+        MVMuint64        any;
+        void             *any_ptr;
     } active_blob;
 
     /* The type of blob we have. */

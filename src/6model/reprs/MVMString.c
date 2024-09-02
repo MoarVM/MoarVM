@@ -74,7 +74,7 @@ static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorkli
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMString *str = (MVMString *)obj;
     if (str->body.storage_type != MVM_STRING_IN_SITU_8 && str->body.storage_type != MVM_STRING_IN_SITU_32)
-        MVM_free(str->body.storage.any);
+        MVM_free(str->body.storage.any_ptr);
     str->body.num_graphs = str->body.num_strands = 0;
 }
 
