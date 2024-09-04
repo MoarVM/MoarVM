@@ -67,6 +67,12 @@ static void code_pair_store_i(MVMThreadContext *tc, MVMObject *cont, MVMint64 va
     code_pair_store_internal(tc, cont, r, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_INT));
 }
 
+static void code_pair_store_u(MVMThreadContext *tc, MVMObject *cont, MVMuint64 value) {
+    MVMRegister r;
+    r.u64 = value;
+    code_pair_store_internal(tc, cont, r, MVM_callsite_get_common(tc, MVM_CALLSITE_ID_OBJ_INT));
+}
+
 static void code_pair_store_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 value) {
     MVMRegister r;
     r.n64 = value;
@@ -114,7 +120,7 @@ static const MVMContainerSpec code_pair_spec = {
     code_pair_fetch_s,
     code_pair_store,
     code_pair_store_i,
-    (void *)code_pair_store_i, /* FIXME need a code_pair_store_u but lacking tests showing this need */
+    code_pair_store_u,
     code_pair_store_n,
     code_pair_store_s,
     code_pair_store,
