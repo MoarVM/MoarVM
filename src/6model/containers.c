@@ -253,6 +253,14 @@ static void value_desc_cont_store_i(MVMThreadContext *tc, MVMObject *cont, MVMin
     value_desc_cont_store(tc, cont, boxed);
 }
 
+static void value_desc_cont_store_u(MVMThreadContext *tc, MVMObject *cont, MVMuint64 value) {
+    MVMObject *boxed;
+    MVMROOT(tc, cont, {
+        boxed = MVM_repr_box_uint(tc, MVM_hll_current(tc)->uint_box_type, value);
+    });
+    value_desc_cont_store(tc, cont, boxed);
+}
+
 static void value_desc_cont_store_n(MVMThreadContext *tc, MVMObject *cont, MVMnum64 value) {
     MVMObject *boxed;
     MVMROOT(tc, cont, {
@@ -377,7 +385,7 @@ static const MVMContainerSpec value_desc_cont_spec = {
     value_desc_cont_fetch_s,
     value_desc_cont_store,
     value_desc_cont_store_i,
-    (void *)value_desc_cont_store_i, /* FIXME need a value_desc_cont_store_u but lacking tests showing this need */
+    value_desc_cont_store_u,
     value_desc_cont_store_n,
     value_desc_cont_store_s,
     value_desc_cont_store_unchecked,
