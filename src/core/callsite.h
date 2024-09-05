@@ -40,6 +40,7 @@ typedef enum {
     MVM_CALLSITE_ID_INT_INT,
     MVM_CALLSITE_ID_OBJ_OBJ_STR,
     MVM_CALLSITE_ID_OBJ_OBJ_OBJ,
+    MVM_CALLSITE_ID_OBJ_UINT,
 } MVMCommonCallsiteID;
 
 /* A callsite entry is just one of the above flags. */
