@@ -115,6 +115,26 @@ MVMInstance * MVM_vm_create_instance(void) {
     uv_once(&key_once, make_uv_key);
 #endif
 
+#ifdef HAVE_TELEMEH
+    if (getenv("MVM_TELEMETRY_LOG")) {
+        char path[256];
+        FILE *fp;
+        snprintf(path, 255, "%s.%d", getenv("MVM_TELEMETRY_LOG"),
+#ifdef _WIN32
+             _getpid()
+#else
+             getpid()
+#endif
+             );
+        fp = MVM_platform_fopen(path, "w");
+        if (fp) {
+            MVM_telemetry_init(fp);
+            // telemeh_inited = 1;
+            /* interval_id = */ MVM_telemetry_interval_start(0, "moarvm startup");
+        }
+    }
+#endif
+
     /* Set up instance data structure. */
     instance = MVM_calloc(1, sizeof(MVMInstance));
 
@@ -602,6 +622,15 @@ void MVM_vm_exit(MVMInstance *instance) {
         fprintf(instance->dynvar_log_fh, "- x 0 0 0 0 %"PRId64" %"PRIu64" %"PRIu64"\n", instance->dynvar_log_lasttime, uv_hrtime(), uv_hrtime());
         fclose(instance->dynvar_log_fh);
     }
+
+#ifdef HAVE_TELEMEH
+    if (getenv("MVM_TELEMETRY_LOG")) {
+        if (MVM_telemetry_interval_start((void *)instance, "moarvm teardown") != 0) {
+            // MVM_telemetry_interval_stop(0, interval_id, "moarvm teardown");
+            MVM_telemetry_finish();
+        }
+    }
+#endif
 
     /* And, we're done. */
     exit(0);
