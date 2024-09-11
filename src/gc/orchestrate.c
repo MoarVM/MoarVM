@@ -666,6 +666,8 @@ static int react_to_debugserver_request(MVMThreadContext *tc) {
 void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from interrupt\n");
 
+    fprintf(stderr, "gc enter from interrupt for %p\n", tc);
+    MVM_dump_backtrace(tc);
 
     if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
         if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
