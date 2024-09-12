@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "uv.h"
 
 /* This representation's function pointer table. */
 static const MVMREPROps NFA_this_repr;
@@ -479,6 +480,8 @@ static MVMint32 in_done(MVMuint32 *done, MVMuint32 numdone, MVMuint32 st) {
     return 0;
 }
 
+MVMuint64 last_nfa_sample_time;
+
 static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *target, MVMint64 offset, MVMint64 *total_fates_out) {
     MVMint64  eos     = MVM_string_graphs(tc, target);
     MVMint64  numcur  = 0;
@@ -493,6 +496,23 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
      * grapheme. */
     MVMGraphemeIter_cached gic;
     int nfadeb = tc->instance->nfa_debug_enabled;
+    unsigned int interval = 0;
+
+    /* 1e9 time is 1 second, so 2e7 would sample 50 times per second */
+    if (last_nfa_sample_time < uv_hrtime() - 2e7) {
+        interval = MVM_telemetry_interval_start(tc, "sampling NFA run");
+        if (interval) {
+            MVM_telemetry_interval_annotate((uintptr_t)target->body.storage.any_ptr, interval, "this string (storage ptr)");
+            MVM_telemetry_interval_annotate((uintptr_t)nfa->states, interval, "this nfa (states ptr)");
+            MVM_telemetry_interval_annotate((uintptr_t)target->body.num_graphs, interval, "this many graphemes in it");
+            MVM_telemetry_interval_annotate((uintptr_t)offset, interval, "start nfa at this offset");
+            last_nfa_sample_time = uv_hrtime();
+        }
+        else {
+            /* if telemeh is off, no need to have a correct "last sample" time. */
+            last_nfa_sample_time = 0xffffffffffffffff;
+        }
+    }
 
     /* Obtain or (re)allocate "done states", "current states" and "next
      * states" arrays. */
@@ -869,6 +889,12 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
             if (MVM_UNLIKELY(nfadeb)) fprintf(stderr, "  %08llx\n", (long long unsigned int)fates[i]);
             fates[i] &= 0xffffff;
         }
+    }
+
+    if (interval) {
+        MVM_telemetry_interval_annotate((uintptr_t)offset, interval, "ended nfa at position");
+        MVM_telemetry_interval_annotate((uintptr_t)total_fates, interval, "this many fates returned");
+        MVM_telemetry_interval_stop(tc, interval, "nfa run finished");
     }
 
     *total_fates_out = total_fates;

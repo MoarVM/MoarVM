@@ -8,6 +8,7 @@
 
 /* Creates a compilation unit from a byte array. */
 MVMCompUnit * MVM_cu_from_bytes(MVMThreadContext *tc, MVMuint8 *bytes, MVMuint32 size) {
+    unsigned int interval = MVM_telemetry_interval_start(tc, "compunit from bytes");
     /* Create compilation unit data structure. Allocate it in gen2 always, so
      * it will never move (the JIT relies on this). */
     MVMCompUnit *cu;
@@ -16,6 +17,7 @@ MVMCompUnit * MVM_cu_from_bytes(MVMThreadContext *tc, MVMuint8 *bytes, MVMuint32
     cu->body.data_start = bytes;
     cu->body.data_size  = size;
     MVM_gc_allocate_gen2_default_clear(tc);
+    MVM_telemetry_interval_annotate((uintptr_t)size, interval, "size of compunit");
 
     /* Process the input. */
     MVM_bytecode_unpack(tc, cu);
@@ -24,6 +26,8 @@ MVMCompUnit * MVM_cu_from_bytes(MVMThreadContext *tc, MVMuint8 *bytes, MVMuint32
      * barrier on it. */
     cu->body.hll_config = MVM_hll_get_config_for(tc, cu->body.hll_name);
     MVM_gc_write_barrier_hit(tc, (MVMCollectable *)cu);
+
+    MVM_telemetry_interval_stop(tc, interval, "unpacked and returned");
 
     return cu;
 }
