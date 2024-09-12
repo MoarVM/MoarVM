@@ -499,7 +499,7 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     unsigned int interval = 0;
 
     /* 1e9 time is 1 second, so 2e7 would sample 50 times per second */
-    if (last_nfa_sample_time < uv_hrtime() - 2e7) {
+    if (last_nfa_sample_time != 0xffffffffffffffff && last_nfa_sample_time < uv_hrtime() - 2e7) {
         interval = MVM_telemetry_interval_start(tc, "sampling NFA run");
         if (interval) {
             MVM_telemetry_interval_annotate((uintptr_t)target->body.storage.any_ptr, interval, "this string (storage ptr)");

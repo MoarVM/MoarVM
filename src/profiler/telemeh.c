@@ -238,7 +238,7 @@ static void serializeTelemetryBufferRange(FILE *outfile, unsigned int serializat
     for(i = serializationStart; i < serializationEnd; i++) {
         struct TelemetryRecord *record = &recordBuffer[i];
 
-        fprintf(outfile, "%10" PRIxPTR " ", record->threadID);
+        fprintf(outfile, "%11" PRIxPTR " ", record->threadID);
 
         switch(record->recordType) {
             case Calibration:
@@ -285,7 +285,7 @@ static void serializeTelemetryBuffer(FILE *outfile)
 static void backgroundSerialization(void *outfile)
 {
     while(continueBackgroundSerialization) {
-        MVM_sleep(500);
+        MVM_sleep(250);
         serializeTelemetryBuffer((FILE *)outfile);
     }
 

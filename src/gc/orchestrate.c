@@ -427,6 +427,9 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
     } else {
         interval_id = MVM_telemetry_interval_start(tc, "start minor collection");
     }
+    if (interval_id) {
+        MVM_telemetry_interval_annotate((uintptr_t)tc->nursery_alloc_limit - (uintptr_t)tc->nursery_alloc, interval_id, "this much space left in nursery before");
+    }
 
     if (is_coordinator)
         start_time = uv_hrtime();
@@ -484,6 +487,9 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         MVM_repr_push_o(tc, tc->instance->subscriptions.subscription_queue, instance);
     }
 
+    if (interval_id) {
+        MVM_telemetry_interval_annotate((uintptr_t)tc->nursery_alloc_limit - (uintptr_t)tc->nursery_alloc, interval_id, "this much space left in nursery after");
+    }
     MVM_telemetry_interval_stop(tc, interval_id, "finished run_gc");
 }
 
