@@ -618,8 +618,8 @@ void MVM_gc_enter_from_allocator(MVMThreadContext *tc) {
         MVM_gc_enter_from_interrupt(tc);
     }
 
-    fprintf(stderr, "gc finished for %p\n", tc);
-    MVM_dump_backtrace(tc);
+    /*fprintf(stderr, "gc finished for %p\n", tc);
+    MVM_dump_backtrace(tc);*/
 }
 
 /* This is called when a thread hits an interrupt at a GC safe point.

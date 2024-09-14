@@ -287,6 +287,7 @@ static void backgroundSerialization(void *outfile)
     while(continueBackgroundSerialization) {
         MVM_sleep(250);
         serializeTelemetryBuffer((FILE *)outfile);
+        fflush((FILE*)outfile);
     }
 
     fclose((FILE *)outfile);
