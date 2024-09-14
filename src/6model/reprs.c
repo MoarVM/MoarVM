@@ -11,6 +11,9 @@ MVMuint64 MVM_REPR_DEFAULT_ELEMS(MVMThreadContext *tc, MVMSTable *st, MVMObject 
 GCC_DIAG_ON(return-type)
 MVM_NO_RETURN static void die_no_attrs(MVMThreadContext *tc, const char *repr_name, const char *debug_name) MVM_NO_RETURN_ATTRIBUTE;
 static void die_no_attrs(MVMThreadContext *tc, const char *repr_name, const char *debug_name) {
+    fprintf(stderr, "throwing exception: This representation (%s) does not support attribute storage (for type %s)\n", repr_name, debug_name);
+    MVM_dump_backtrace(tc);
+    fflush(stderr);
     MVM_exception_throw_adhoc(tc,
         "This representation (%s) does not support attribute storage (for type %s)", repr_name, debug_name);
 }
