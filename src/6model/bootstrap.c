@@ -611,6 +611,7 @@ static void string_consts(MVMThreadContext *tc) {
     string_creator(boolify_boxed_str_with_zero_false, "boolify-boxed-str-with-zero-false");
     string_creator(boolify_iter, "boolify-iter");
     string_creator(boolify_using_elems, "boolify-using-elems");
+    string_creator(pty, "pty");
 }
 
 /* Drives the overall bootstrap process. */
