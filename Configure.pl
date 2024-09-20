@@ -515,7 +515,23 @@ push @cflags, $ENV{CPPFLAGS} if $ENV{CPPFLAGS};
 # #ifdef _GNU_SOURCE/#endif.
 push @cflags, '-D_GNU_SOURCE' unless $args{'has-libuv'};
 
+# If there is a -ffile-prefix-map, it must not go into the moar config,
+# since it's meant to be for making builds reproducible.
+
+@cflags = uniq(@cflags);
+
+my @silent_cflags;
+@cflags = map {
+    if ($_ =~ /(-ffile-prefix-map=[^=]+?=[^-]+?)(?:\s-|$)/) {
+        my $fullflag = $1;
+        push @silent_cflags, $fullflag;
+        $_ =~ s/$fullflag//;
+    }
+    $_;
+    } @cflags;
+
 $config{cflags} = join ' ', uniq(@cflags);
+$config{silent_cflags} = join ' ', uniq(@silent_cflags);
 
 # generate LDFLAGS
 my @ldflags = ($config{ldmiscflags});
@@ -676,7 +692,7 @@ my $order = $config{be} ? 'big endian' : 'little endian';
 # dump configuration
 print "\n", <<TERM, "\n";
         make: $config{make}
-     compile: $config{cc} $config{cflags}
+     compile: $config{cc} $config{cflags} $config{silent_cflags}
     includes: $config{cincludes} $config{moar_cincludes}
         link: $config{ld} $config{ldflags}
         libs: $config{ldlibs}
@@ -1071,6 +1087,7 @@ sub write_backend_config {
     $config{backendconfig} = '';
     for my $k (sort keys %config) {
         next if $k eq 'backendconfig';
+        next if $k eq "silent_cflags";
         my $v = $config{$k};
 
         if (ref($v) eq 'ARRAY') {
