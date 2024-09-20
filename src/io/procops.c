@@ -4,6 +4,17 @@
 #include "core/jfs64.h"
 #include "bithacks.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <termios.h>
+
 /* concatenating with "" ensures that only literal strings are accepted as argument. */
 #define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
 
@@ -20,6 +31,48 @@ extern char **environ;
 #else
 #include <stdlib.h>
 #endif
+
+void make_pty(int *fd_pty, int *fd_tty) {
+    // TODO: How do we properly error?
+    int ret;
+
+    *fd_pty = posix_openpt(O_RDWR);
+    if (*fd_pty < 0) {
+        printf("Error in posix_openpt: %i\n", errno);
+        exit(1);
+    }
+
+    if (grantpt(*fd_pty) < 0) {
+        printf("Error in grantpt: %i\n", errno);
+        exit(1);
+    }
+
+    if (unlockpt(*fd_pty) < 0) {
+        printf("Error in grantpt: %i\n", errno);
+        exit(1);
+    }
+
+    int path_tty_size = 40;
+    char *path_tty = MVM_calloc(path_tty_size, sizeof(char *));
+    // There is no ptsname_r on OpenBSD.
+    while ((ret = ptsname_r(*fd_pty, path_tty, path_tty_size)) == ERANGE) {
+        path_tty_size *= 2;
+        path_tty = MVM_realloc(path_tty, path_tty_size * sizeof(char *));
+    }
+    if (ret != 0) {
+        printf("Error in ptsname_r: %i\n", ret);
+        exit(1);
+    }
+
+    *fd_tty = open(path_tty, O_RDWR | O_NOCTTY);
+    if (*fd_tty < 0) {
+        printf("Error in open of tty device: %i\n", errno);
+        exit(1);
+    }
+
+    MVM_free(path_tty);
+}
+
 
 #ifdef _WIN32
 static wchar_t * ANSIToUnicode(MVMuint16 acp, const char *str)
@@ -688,74 +741,135 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     unsigned int interval_id = MVM_telemetry_interval_start(tc, "procasync.spawn_setup");
 
     /* Create input/output handles as needed. */
-    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.write)) {
+    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty)) {
+        int fd_pty, fd_tty;
+        make_pty(&fd_pty, &fd_tty);
+        process_stdio[0].flags   = UV_INHERIT_FD;
+        process_stdio[0].data.fd = fd_tty;
+        process_stdio[1].flags   = UV_INHERIT_FD;
+        process_stdio[1].data.fd = fd_tty;
+        process_stdio[2].flags   = UV_INHERIT_FD;
+        process_stdio[2].data.fd = fd_tty;
+
+        int res;
+        size_t exec_path_size = 4096;
+        char *exec_path = (char*)MVM_calloc(exec_path_size, sizeof(char));
+        res = uv_exepath(exec_path, &exec_path_size);
+        while (res < 0 && exec_path_size < 4096*8) {
+            exec_path_size *= 2;
+            exec_path = (char*)MVM_realloc(exec_path, exec_path_size * sizeof(char));
+            res = uv_exepath(exec_path, &exec_path_size);
+        }
+        if (res < 0) {
+            fprintf(stderr, "ERROR: Could not retrieve executable path.\n");
+            // TODO: How do we suitably error out?
+        }
+
+        int argc = 0;
+        while (si->args[argc] != 0)
+            argc++;
+
+        char **args = (char**)MVM_calloc(argc+2, sizeof(char*));
+        args[0] = exec_path;
+        args[1] = (char *)MVM_calloc(strlen("--pty-spawn-helper=") + strlen(si->prog) + 1, sizeof(char));
+        strcpy(args[1], "--pty-spawn-helper=");
+        strcat(args[1], si->prog);
+        for(int c = 1; si->args[c] != 0; c++)
+            args[c+1] = si->args[c];
+        args[argc+1] = 0;
+
+        MVM_free(si->args[0]);
+        MVM_free(si->args);
+        si->args = args;
+
+        MVM_free(si->prog);
+        si->prog = exec_path;
+
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(loop, pipe, 0);
+        uv_pipe_open(pipe, fd_pty);
         pipe->data = si;
-        process_stdio[0].flags       = UV_CREATE_PIPE | UV_READABLE_PIPE;
-        process_stdio[0].data.stream = (uv_stream_t *)pipe;
         si->stdin_handle             = (uv_stream_t *)pipe;
         si->had_stdin_handle         = 1;
-    }
-    else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdin_fd)) {
-        process_stdio[0].flags   = UV_INHERIT_FD;
-        process_stdio[0].data.fd = (int)MVM_repr_get_int(tc,
-            MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stdin_fd));
-        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdin_fd_close))
-            si->stdin_to_close = process_stdio[0].data.fd;
-    }
-    else {
-        process_stdio[0].flags   = UV_INHERIT_FD;
-        process_stdio[0].data.fd = 0;
-    }
-    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.merge_bytes)) {
+
         si->pipe_stdout = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(loop, si->pipe_stdout, 0);
+        uv_pipe_open(si->pipe_stdout, fd_pty);
         si->pipe_stdout->data = si;
-        process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-        process_stdio[1].data.stream = (uv_stream_t *)si->pipe_stdout;
-        si->pipe_stderr = MVM_malloc(sizeof(uv_pipe_t));
-        uv_pipe_init(loop, si->pipe_stderr, 0);
-        si->pipe_stderr->data = si;
-        process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-        process_stdio[2].data.stream = (uv_stream_t *)si->pipe_stderr;
-        si->merge = 1;
-        si->using += 2;
+        si->using++;
+
+        fprintf(stderr, "In spawn setup!\n");
     }
     else {
-        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_bytes)) {
+        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.write)) {
+            uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
+            uv_pipe_init(loop, pipe, 0);
+            pipe->data = si;
+            process_stdio[0].flags       = UV_CREATE_PIPE | UV_READABLE_PIPE;
+            process_stdio[0].data.stream = (uv_stream_t *)pipe;
+            si->stdin_handle             = (uv_stream_t *)pipe;
+            si->had_stdin_handle         = 1;
+        }
+        else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdin_fd)) {
+            process_stdio[0].flags   = UV_INHERIT_FD;
+            process_stdio[0].data.fd = (int)MVM_repr_get_int(tc,
+                MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stdin_fd));
+            if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdin_fd_close))
+                si->stdin_to_close = process_stdio[0].data.fd;
+        }
+        else {
+            process_stdio[0].flags   = UV_INHERIT_FD;
+            process_stdio[0].data.fd = 0;
+        }
+        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.merge_bytes)) {
             si->pipe_stdout = MVM_malloc(sizeof(uv_pipe_t));
             uv_pipe_init(loop, si->pipe_stdout, 0);
             si->pipe_stdout->data = si;
             process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
             process_stdio[1].data.stream = (uv_stream_t *)si->pipe_stdout;
-            si->using++;
-        }
-        else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_fd)) {
-            process_stdio[1].flags   = UV_INHERIT_FD;
-            process_stdio[1].data.fd = (int)MVM_repr_get_int(tc,
-                MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stdout_fd));
-        }
-        else {
-            process_stdio[1].flags   = UV_INHERIT_FD;
-            process_stdio[1].data.fd = 1;
-        }
-        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_bytes)) {
             si->pipe_stderr = MVM_malloc(sizeof(uv_pipe_t));
             uv_pipe_init(loop, si->pipe_stderr, 0);
             si->pipe_stderr->data = si;
             process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
             process_stdio[2].data.stream = (uv_stream_t *)si->pipe_stderr;
-            si->using++;
-        }
-        else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_fd)) {
-            process_stdio[2].flags   = UV_INHERIT_FD;
-            process_stdio[2].data.fd = (int)MVM_repr_get_int(tc,
-                MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stderr_fd));
+            si->merge = 1;
+            si->using += 2;
         }
         else {
-            process_stdio[2].flags   = UV_INHERIT_FD;
-            process_stdio[2].data.fd = 2;
+            if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_bytes)) {
+                si->pipe_stdout = MVM_malloc(sizeof(uv_pipe_t));
+                uv_pipe_init(loop, si->pipe_stdout, 0);
+                si->pipe_stdout->data = si;
+                process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+                process_stdio[1].data.stream = (uv_stream_t *)si->pipe_stdout;
+                si->using++;
+            }
+            else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_fd)) {
+                process_stdio[1].flags   = UV_INHERIT_FD;
+                process_stdio[1].data.fd = (int)MVM_repr_get_int(tc,
+                    MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stdout_fd));
+            }
+            else {
+                process_stdio[1].flags   = UV_INHERIT_FD;
+                process_stdio[1].data.fd = 1;
+            }
+            if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_bytes)) {
+                si->pipe_stderr = MVM_malloc(sizeof(uv_pipe_t));
+                uv_pipe_init(loop, si->pipe_stderr, 0);
+                si->pipe_stderr->data = si;
+                process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+                process_stdio[2].data.stream = (uv_stream_t *)si->pipe_stderr;
+                si->using++;
+            }
+            else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_fd)) {
+                process_stdio[2].flags   = UV_INHERIT_FD;
+                process_stdio[2].data.fd = (int)MVM_repr_get_int(tc,
+                    MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stderr_fd));
+            }
+            else {
+                process_stdio[2].flags   = UV_INHERIT_FD;
+                process_stdio[2].data.fd = 2;
+            }
         }
     }
 
@@ -1304,4 +1418,30 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
 
     return pid;
 
+}
+
+void MVM_proc_pty_spawn(char *prog, char *argv[]) {
+    // When this is called, we can assume that the STDIO handles have already all been
+    // mapped to the pseudo TTY FD.
+
+    // Put ourself into a new session and process group, making us session
+    // and process group leader.
+    int sid = setsid();
+    if (sid < 0) {
+        printf("Error in setsid: %s\n", strerror(errno));
+        exit(1);
+    }
+
+    // Make our dear terminal the controlling terminal.
+    int ret = ioctl(STDIN_FILENO, TIOCSCTTY);
+    if (ret < 0) {
+        printf("Error in ioctl TIOCSCTTY: %s\n", strerror(errno));
+        exit(1);
+    }
+
+    printf("IN SPAWN HELPER: Running prog: %s\n", prog);
+    for (int c = 0; argv[c] != 0; c++)
+        printf("Arg %i: %s\n", c, argv[c]);
+
+    execv(prog, argv);
 }

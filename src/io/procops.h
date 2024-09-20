@@ -27,6 +27,7 @@ MVMObject * MVM_proc_clargs(MVMThreadContext *tc);
 MVMString * MVM_executable_name(MVMThreadContext *tc);
 void MVM_proc_getrusage(MVMThreadContext *tc, MVMObject *result);
 MVMint64 MVM_proc_fork(MVMThreadContext *tc);
+void MVM_proc_pty_spawn(char *prog, char *argv[]);
 
 #ifdef _WIN32
 #include <wchar.h>
