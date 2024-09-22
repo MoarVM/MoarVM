@@ -2153,7 +2153,7 @@ static void resolve_dependencies(MVMThreadContext *tc, MVMSerializationReader *r
         MVMString *handle = read_string_from_heap(tc, reader, read_int32(table_pos, 0));
         MVMSerializationContext *sc;
         sc = MVM_sc_find_by_handle(tc, handle);
-        if (sc == NULL) {
+        if (sc == NULL && reader->fake_mode == 0) {
             MVMString *desc = read_string_from_heap(tc, reader, read_int32(table_pos, 4));
             char *cname = MVM_string_utf8_c8_encode_C_string(tc, desc);
             char *cdesc = NULL;
@@ -3081,6 +3081,7 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
     /* Allocate and set up reader. */
     MVMSerializationReader *reader = MVM_calloc(1, sizeof(MVMSerializationReader));
     reader->root.sc          = sc;
+    reader->fake_mode = sc->body->fake_mode;
 
     /* If we've been given a NULL string heap, use that of the current
      * compilation unit. */
@@ -3147,14 +3148,16 @@ void MVM_serialization_deserialize(MVMThreadContext *tc, MVMSerializationContext
      * deserialize our own versions of things. */
     collect_param_interns(tc, reader);
 
-    /* If we're repossessing STables and objects from other SCs, then first
-      * get those raw objects into our root set. Note we do all the STables,
-      * then all the objects, since the objects may, post-repossession, refer
-      * to a repossessed STable. */
-     for (i = 0; i < reader->root.num_repos; i++)
-        repossess(tc, reader, i, repo_conflicts, 1);
-     for (i = 0; i < reader->root.num_repos; i++)
-        repossess(tc, reader, i, repo_conflicts, 0);
+    if (!sc->body->fake_mode) {
+        /* If we're repossessing STables and objects from other SCs, then first
+        * get those raw objects into our root set. Note we do all the STables,
+        * then all the objects, since the objects may, post-repossession, refer
+        * to a repossessed STable. */
+        for (i = 0; i < reader->root.num_repos; i++)
+            repossess(tc, reader, i, repo_conflicts, 1);
+        for (i = 0; i < reader->root.num_repos; i++)
+            repossess(tc, reader, i, repo_conflicts, 0);
+    }
 
     /* Enter the work loop to deal with the things we immediately need to
      * handle in order to complete repossession object deserialization. */

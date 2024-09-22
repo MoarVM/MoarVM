@@ -4,6 +4,8 @@
 #include "platform/random.h"
 #include "platform/time.h"
 #include "platform/mmap.h"
+#include <stdio.h>
+#include <stdlib.h>
 #if defined(_MSC_VER)
 #define snprintf _snprintf
 #endif
@@ -518,6 +520,327 @@ void MVM_vm_run_bytecode(MVMInstance *instance, MVMuint8 *bytes, MVMuint32 size)
     MVM_interp_run(tc, toplevel_initial_invoke, cu->body.main_frame, NULL);
 }
 
+/* TODO move code to other places to not need copypastes */
+
+/* Some constants. */
+#define HEADER_SIZE                 92
+#define MIN_BYTECODE_VERSION        7
+#define MAX_BYTECODE_VERSION        7
+#define FRAME_HEADER_SIZE           (11 * 4 + 3 * 2 + 4)
+#define FRAME_HANDLER_SIZE          (4 * 4 + 2 * 2)
+#define FRAME_SLV_SIZE              (2 * 2 + 2 * 4)
+#define FRAME_DEBUG_NAME_SIZE       (2 + 4)
+#define SCDEP_HEADER_OFFSET         12
+#define EXTOP_HEADER_OFFSET         20
+#define FRAME_HEADER_OFFSET         28
+#define CALLSITE_HEADER_OFFSET      36
+#define STRING_HEADER_OFFSET        44
+#define SCDATA_HEADER_OFFSET        52
+#define BYTECODE_HEADER_OFFSET      60
+#define ANNOTATION_HEADER_OFFSET    68
+#define HLL_NAME_HEADER_OFFSET      76
+#define SPECIAL_FRAME_HEADER_OFFSET 80
+
+/* Frame flags. */
+#define FRAME_FLAG_EXIT_HANDLER     1
+#define FRAME_FLAG_IS_THUNK         2
+#define FRAME_FLAG_NO_INLINE        8
+
+#define HEADER_SIZE                 (4 * 18)
+#define DEP_TABLE_ENTRY_SIZE        8
+#define STABLES_TABLE_ENTRY_SIZE    12
+#define OBJECTS_TABLE_ENTRY_SIZE    8
+#define CLOSURES_TABLE_ENTRY_SIZE   28
+#define CONTEXTS_TABLE_ENTRY_SIZE   16
+#define REPOS_TABLE_ENTRY_SIZE      16
+
+/* For the packed format, for "small" values of si and idx */
+#define OBJECTS_TABLE_ENTRY_SC_MASK     0x7FF
+#define OBJECTS_TABLE_ENTRY_SC_IDX_MASK 0x000FFFFF
+#define OBJECTS_TABLE_ENTRY_SC_MAX      0x7FE
+#define OBJECTS_TABLE_ENTRY_SC_IDX_MAX  0x000FFFFF
+#define OBJECTS_TABLE_ENTRY_SC_SHIFT    20
+#define OBJECTS_TABLE_ENTRY_SC_OVERFLOW 0x7FF
+#define OBJECTS_TABLE_ENTRY_IS_CONCRETE 0x80000000
+
+#define PACKED_SC_IDX_MASK  0x000FFFFF
+#define PACKED_SC_MAX       0xFFE
+#define PACKED_SC_IDX_MAX   0x000FFFFF
+#define PACKED_SC_SHIFT     20
+#define PACKED_SC_OVERFLOW  ((unsigned)0xFFF)
+
+static MVMuint32 read_uint32(MVMuint8 *src) {
+#ifdef MVM_BIGENDIAN
+    MVMuint32 value;
+    size_t i;
+    MVMuint8 *destbytes = (MVMuint8 *)&value;
+    for (i = 0; i < 4; i++)
+         destbytes[4 - i - 1] = src[i];
+    return value;
+#else
+    return *((MVMuint32 *)src);
+#endif
+}
+/* Reads an int32 from a buffer. */
+static MVMint32 read_int32(const MVMuint8 *buffer, size_t offset) {
+    MVMint32 value;
+    memcpy(&value, buffer + offset, 4);
+#ifdef MVM_BIGENDIAN
+    switch_endian((char *)&value, 4);
+#endif
+    return value;
+}
+
+
+/* copies memory dependent on endianness */
+static void memcpy_endian(void *dest, MVMuint8 *src, size_t size) {
+#ifdef MVM_BIGENDIAN
+    size_t i;
+    MVMuint8 *destbytes = (MVMuint8 *)dest;
+    for (i = 0; i < size; i++)
+        destbytes[size - i - 1] = src[i];
+#else
+    memcpy(dest, src, size);
+#endif
+}
+
+/* Reads an uint16 from a buffer. */
+static MVMuint16 read_int16(MVMuint8 *buffer, size_t offset) {
+    MVMuint16 value;
+    memcpy_endian(&value, buffer + offset, 2);
+    return value;
+}
+
+/* Reads an uint8 from a buffer. */
+static MVMuint8 read_int8(MVMuint8 *buffer, size_t offset) {
+    return buffer[offset];
+}
+
+static void hxdmp(MVMuint8 *data, MVMuint32 amount, const char *nl) {
+    MVMuint32 idx = 0;
+    for (idx = 0; idx < amount; idx += 16) {
+        fprintf(stderr, "%06x:  ", idx);
+        for (MVMuint8 subidx = 0; subidx < 16; subidx++) {
+            if (idx + subidx < amount) {
+                fprintf(stderr, "%02x", data[idx + subidx]);
+            }
+            else {
+                fputs("  ", stderr);
+            }
+            if (subidx % 2 == 1) {
+                fputs(" ", stderr);
+            }
+            if (subidx % 8 == 7) {
+                fputs(" ", stderr);
+            }
+        }
+        fputs(" | ", stderr);
+        for (MVMuint8 subidx = 0; subidx < 16; subidx++) {
+            if (idx + subidx < amount) {
+                MVMuint8 bit = data[idx + subidx];
+                if (bit >= ' ' && bit <= '~') {
+                    fputc(bit, stderr);
+                }
+                else {
+                    fputc('.', stderr);
+                }
+            }
+        }
+        if (idx + 16 < amount) {
+            fputs(nl, stderr);
+        }
+    }
+}
+
+/* Describes the current reader state. */
+typedef struct {
+    /* General info. */
+    MVMuint32 version;
+
+    /* The string heap. */
+    MVMuint8  *string_seg;
+    MVMuint32  expected_strings;
+
+    /* The SC dependencies segment. */
+    MVMuint32  expected_scs;
+    MVMuint8  *sc_seg;
+
+    /* The extension ops segment. */
+    MVMuint8 *extop_seg;
+    MVMuint32 expected_extops;
+
+    /* The frame segment. */
+    MVMuint32  expected_frames;
+    MVMuint8  *frame_seg;
+    MVMuint16 *frame_outer_fixups;
+
+    /* The callsites segment. */
+    MVMuint8  *callsite_seg;
+    MVMuint32  expected_callsites;
+
+    /* The bytecode segment. */
+    MVMuint32  bytecode_size;
+    MVMuint8  *bytecode_seg;
+
+    /* The annotations segment */
+    MVMuint8  *annotation_seg;
+    MVMuint32  annotation_size;
+
+    /* HLL name string index */
+    MVMuint32  hll_str_idx;
+
+    /* The limit we can not read beyond. */
+    MVMuint8 *read_limit;
+
+    /* Array of frames. */
+    MVMStaticFrame **frames;
+
+    /* Special frame indexes */
+    MVMuint32  mainline_frame;
+    MVMuint32  main_frame;
+    MVMuint32  load_frame;
+    MVMuint32  deserialize_frame;
+
+} ReaderState;
+
+/* Cleans up reader state. */
+static void cleanup_all(ReaderState *rs) {
+    MVM_free(rs->frames);
+    MVM_free(rs->frame_outer_fixups);
+    MVM_free(rs);
+}
+
+/* Ensures we can read a certain amount of bytes without overrunning the end
+ * of the stream. */
+MVM_STATIC_INLINE void ensure_can_read(MVMThreadContext *tc, MVMCompUnit *cu, ReaderState *rs, MVMuint8 *pos, MVMuint32 size) {
+    if (pos + size > rs->read_limit) {
+        cleanup_all(rs);
+        MVM_exception_throw_adhoc(tc, "Read past end of bytecode stream");
+    }
+}
+
+/* Dissects the bytecode stream and hands back a reader pointing to the
+ * various parts of it. */
+static ReaderState * dissect_bytecode(MVMThreadContext *tc, MVMCompUnit *cu) {
+    MVMCompUnitBody *cu_body = &cu->body;
+    ReaderState *rs = NULL;
+    MVMuint32 version, offset, size;
+
+    /* Sanity checks. */
+    if (cu_body->data_size < HEADER_SIZE)
+        MVM_exception_throw_adhoc(tc, "Bytecode stream shorter than header");
+    if (memcmp(cu_body->data_start, "MOARVM\r\n", 8) != 0)
+        MVM_exception_throw_adhoc(tc, "Bytecode stream corrupt (missing magic string)");
+    version = read_int32(cu_body->data_start, 8);
+    if (version < MIN_BYTECODE_VERSION)
+        MVM_exception_throw_adhoc(tc, "Bytecode stream version too low");
+    if (version > MAX_BYTECODE_VERSION)
+        MVM_exception_throw_adhoc(tc, "Bytecode stream version too high");
+
+    /* Allocate reader state. */
+    rs = (ReaderState *)MVM_calloc(1, sizeof(ReaderState));
+    rs->version = version;
+    rs->read_limit = cu_body->data_start + cu_body->data_size;
+    cu->body.bytecode_version = version;
+
+    /* Locate SC dependencies segment. */
+    offset = read_int32(cu_body->data_start, SCDEP_HEADER_OFFSET);
+    if (offset > cu_body->data_size) {
+        cleanup_all(rs);
+        MVM_exception_throw_adhoc(tc, "Serialization contexts segment starts after end of stream");
+    }
+    rs->sc_seg       = cu_body->data_start + offset;
+    rs->expected_scs = read_int32(cu_body->data_start, SCDEP_HEADER_OFFSET + 4);
+
+    /* Locate extension ops segment. */
+    offset = read_int32(cu_body->data_start, EXTOP_HEADER_OFFSET);
+    if (offset > cu_body->data_size) {
+        cleanup_all(rs);
+        MVM_exception_throw_adhoc(tc, "Extension ops segment starts after end of stream");
+    }
+    rs->extop_seg       = cu_body->data_start + offset;
+    rs->expected_extops = read_int32(cu_body->data_start, EXTOP_HEADER_OFFSET + 4);
+
+    /* Locate frames segment. */
+    offset = read_int32(cu_body->data_start, FRAME_HEADER_OFFSET);
+    if (offset > cu_body->data_size) {
+        cleanup_all(rs);
+        MVM_exception_throw_adhoc(tc, "Frames segment starts after end of stream");
+    }
+    rs->frame_seg       = cu_body->data_start + offset;
+    rs->expected_frames = read_int32(cu_body->data_start, FRAME_HEADER_OFFSET + 4);
+
+    /* Locate callsites segment. */
+    offset = read_int32(cu_body->data_start, CALLSITE_HEADER_OFFSET);
+    if (offset > cu_body->data_size) {
+        cleanup_all(rs);
+        MVM_exception_throw_adhoc(tc, "Callsites segment starts after end of stream");
+    }
+    rs->callsite_seg       = cu_body->data_start + offset;
+    rs->expected_callsites = read_int32(cu_body->data_start, CALLSITE_HEADER_OFFSET + 4);
+
+    /* Locate strings segment. */
+    offset = read_int32(cu_body->data_start, STRING_HEADER_OFFSET);
+    if (offset > cu_body->data_size) {
+        cleanup_all(rs);
+        MVM_exception_throw_adhoc(tc, "Strings segment starts after end of stream");
+    }
+    rs->string_seg       = cu_body->data_start + offset;
+    rs->expected_strings = read_int32(cu_body->data_start, STRING_HEADER_OFFSET + 4);
+
+    /* Get SC data, if any. */
+    offset = read_int32(cu_body->data_start, SCDATA_HEADER_OFFSET);
+    size = read_int32(cu_body->data_start, SCDATA_HEADER_OFFSET + 4);
+    if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
+        cleanup_all(rs);
+        MVM_exception_throw_adhoc(tc, "Serialized data segment overflows end of stream");
+    }
+    if (offset) {
+        cu_body->serialized = cu_body->data_start + offset;
+        cu_body->serialized_size = size;
+    }
+
+    /* Locate bytecode segment. */
+    offset = read_int32(cu_body->data_start, BYTECODE_HEADER_OFFSET);
+    size = read_int32(cu_body->data_start, BYTECODE_HEADER_OFFSET + 4);
+    if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
+        cleanup_all(rs);
+        MVM_exception_throw_adhoc(tc, "Bytecode segment overflows end of stream");
+    }
+    rs->bytecode_seg  = cu_body->data_start + offset;
+    rs->bytecode_size = size;
+
+    /* Locate annotations segment. */
+    offset = read_int32(cu_body->data_start, ANNOTATION_HEADER_OFFSET);
+    size = read_int32(cu_body->data_start, ANNOTATION_HEADER_OFFSET + 4);
+    if (offset > cu_body->data_size || offset + size > cu_body->data_size) {
+        cleanup_all(rs);
+        MVM_exception_throw_adhoc(tc, "Annotation segment overflows end of stream");
+    }
+    rs->annotation_seg  = cu_body->data_start + offset;
+    rs->annotation_size = size;
+
+    /* Locate HLL name */
+    rs->hll_str_idx = read_int32(cu_body->data_start, HLL_NAME_HEADER_OFFSET);
+
+    /* Locate special frame indexes. Note, they are 0 for none, and the
+     * index + 1 if there is one. */
+    rs->mainline_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET);
+
+    rs->main_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET + 4);
+    rs->load_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET + 8);
+    rs->deserialize_frame = read_int32(cu_body->data_start, SPECIAL_FRAME_HEADER_OFFSET + 12);
+    if (rs->mainline_frame > rs->expected_frames
+            || rs->main_frame > rs->expected_frames
+            || rs->load_frame > rs->expected_frames
+            || rs->deserialize_frame > rs->expected_frames) {
+        cleanup_all(rs);
+        MVM_exception_throw_adhoc(tc, "Special frame index out of bounds");
+    }
+
+    return rs;
+}
+
 /* Loads bytecode from the specified file name and dumps it. */
 void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
     /* Map the compilation unit into memory and dissect it. */
@@ -561,24 +884,163 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
     size_t offset = (intptr_t)bytecode_start - (intptr_t)block;
 
     MVMCompUnit      *cu = MVM_cu_map_from_file_handle(tc, fd, offset);
-    char *dump = MVM_bytecode_dump(tc, cu);
-    size_t dumplen = strlen(dump);
-    size_t position = 0;
 
-    /* libuv already set up stdout to be nonblocking, but it can very well be
-     * we encounter EAGAIN (Resource temporarily unavailable), so we need to
-     * loop over our buffer, which can be quite big.
-     *
-     * The CORE.setting.moarvm has - as of writing this - about 32 megs of
-     * output from dumping.
-     */
-    while (position < dumplen) {
-        size_t written = write(1, dump + position, dumplen - position);
-        if (written > 0)
-            position += written;
+    if (getenv("MVM_DUMP_MODE")) {
+        MVMThreadContext *tc = instance->main_thread;
+        tc->interp_cu = &cu;
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable**)&cu, "compunit to dump");
+        MVMSerializationContext *sc = (MVMSerializationContext*)MVM_sc_create(tc, instance->str_consts.empty);
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable**)&sc, "sc of provided moar file");
+        MVMObject *code_list = MVM_gc_allocate_object(tc, STABLE(instance->boot_types.BOOTArray));
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable**)&code_list, "empty list of code objects");
+        MVMObject *rc_list = MVM_gc_allocate_object(tc, STABLE(instance->boot_types.BOOTArray));
+        MVM_gc_root_add_permanent_desc(tc, (MVMCollectable**)&rc_list, "list for repo conflicts");
+        sc->body->fake_mode = 1;
+        MVM_serialization_deserialize(tc, sc, instance->VMNull, code_list, rc_list, NULL);
+        MVMSerializationReader *sr = sc->body->sr;
+        MVMCompUnitBody *cubody = &cu->body;
+        MVMuint8 *root = cubody->data_start;
+
+        ReaderState *rs = dissect_bytecode(tc, cu);
+
+        fprintf(stderr, "Reader Version: %d\n", sr->root.version);
+        fprintf(stderr, "Bytecode File Parts:\n");
+        fprintf(stderr, "  Section               %7s  %6s\n", "offset", "length");
+        fprintf(stderr, "  SC Dependencies:      %7lx  %6lx  (%d dependencies)\n",  (MVMuint8 *)rs->sc_seg - root, rs->extop_seg - rs->sc_seg, sr->root.num_dependencies);
+        fprintf(stderr, "  Extension Ops:        %7lx  %6lx  (%d extops)\n",        (MVMuint8 *)rs->extop_seg - root, rs->frame_seg - rs->extop_seg, rs->expected_extops);
+        fprintf(stderr, "  Frames Data:          %7lx  %6lx  (%d frames)\n",        (MVMuint8 *)rs->frame_seg - root, rs->callsite_seg - rs->frame_seg, rs->expected_frames);
+        fprintf(stderr, "  Callsites:            %7lx  %6lx  (%d callsites)\n",     (MVMuint8 *)rs->callsite_seg - root, rs->string_seg - rs->callsite_seg, rs->expected_callsites);
+        fprintf(stderr, "  String heap:          %7lx  %6lx  (%d strings)\n",       (MVMuint8 *)rs->string_seg - root, cubody->serialized - rs->string_seg, rs->expected_strings);
+        fprintf(stderr, "  Serialization Data:   %7lx  %6lx\n",                     (MVMuint8 *)cubody->serialized - root, rs->bytecode_seg - cubody->serialized);
+        fprintf(stderr, "  Bytecode:             %7lx  %6lx\n",                     (MVMuint8 *)rs->bytecode_seg - root, rs->annotation_seg - rs->bytecode_seg);
+        fprintf(stderr, "  Annotations:          %7lx  %6lx\n",                     (MVMuint8 *)rs->annotation_seg - root, root + cubody->data_size - (MVMuint8*)sr->root.dependencies_table);
+        fprintf(stderr, "  End of File:          %7x\n",                                        cubody->data_size);
+        fprintf(stderr, "\n");
+        fprintf(stderr, "Serialization Roots (starts at %lx):\n", (MVMuint8*)sr->data - root);
+        fprintf(stderr, "  Section               %7s  %6s\n", "offset", "length");
+        fprintf(stderr, "  Dependencies Table:   %7lx  %6lx  (%d dependencies)\n", (MVMuint8 *)sr->root.dependencies_table - root, sr->root.stables_table - sr->root.dependencies_table, sr->root.num_dependencies);
+        fprintf(stderr, "  STables Table:        %7lx  %6lx  (%d stables)\n", (MVMuint8 *)sr->root.stables_table - root, sr->root.stables_data - sr->root.stables_table, sr->root.num_stables);
+        fprintf(stderr, "  STable Data:          %7lx  %6lx\n", (MVMuint8 *)sr->root.stables_data - root, sr->root.objects_table - sr->root.stables_data);
+        fprintf(stderr, "  Objects Table:        %7lx  %6lx  (%d objects)\n", (MVMuint8 *)sr->root.objects_table - root, sr->root.objects_data - sr->root.objects_table, sr->root.num_objects);
+        fprintf(stderr, "  Objects Data:         %7lx  %6lx\n", (MVMuint8 *)sr->root.objects_data - root, sr->root.closures_table - sr->root.objects_data);
+        fprintf(stderr, "  Closures Table:       %7lx  %6lx  (%d closures)\n", (MVMuint8 *)sr->root.closures_table - root, sr->root.contexts_table - sr->root.closures_table, sr->root.num_closures);
+        fprintf(stderr, "  Contexts Table:       %7lx  %6lx  (%d contexts)\n", (MVMuint8 *)sr->root.contexts_table - root, sr->root.contexts_data - sr->root.contexts_table, sr->root.num_contexts);
+        fprintf(stderr, "  Contexts Data:        %7lx  %6lx\n", (MVMuint8 *)sr->root.contexts_data - root, sr->root.repos_table - sr->root.contexts_data);
+        fprintf(stderr, "  Repossessions Table:  %7lx  %6lx  (%d repros)\n", (MVMuint8 *)sr->root.repos_table - root, sr->root.param_interns_data - sr->root.repos_table, sr->root.num_repos);
+        fprintf(stderr, "  Param Interns Table:  %7lx  %6lx  (%d interns)\n", (MVMuint8 *)sr->root.param_interns_data - root, sr->param_interns_data_end - sr->root.param_interns_data, sr->root.num_param_interns);
+        fprintf(stderr, "  End of data:          %7lx\n", (MVMuint8 *)sr->param_interns_data_end - root);
+
+        fprintf(stderr, "Pre String Heap Data:\n  ");
+        hxdmp(cu->body.data_start, cu->body.string_heap_start - cu->body.data_start, "\n  ");
+
+        char **strings = MVM_calloc(cu->body.num_strings, sizeof(char *));
+        fprintf(stderr, "Step One: String Heap\n");
+        fprintf(stderr, "String Heap starts at %lx has %u strings in it.\n", cu->body.string_heap_start - cu->body.data_start, cu->body.num_strings);
+        MVMuint8 *limit = cu->body.string_heap_read_limit;
+        MVMuint32 str_idx = 0;
+        for (MVMuint8 *str_pos = cu->body.string_heap_start; str_idx < cu->body.num_strings;) {
+            if (str_pos + 4 < limit) {
+                MVMuint32 bytes = read_uint32(str_pos) >> 1;
+                fprintf(stderr, "String % 4d at offs %6lx\n", str_idx, str_pos + 4 - cu->body.string_heap_start);
+                fputs("  ", stderr);
+                MVMuint64 amount = bytes + (bytes & 3 ? 4 - (bytes & 3) : 0);
+                hxdmp(str_pos + 4, amount, "\n  ");
+                fputc('\n', stderr);
+                strings[str_idx] = MVM_calloc(amount + 1, sizeof(char));
+                strncpy(strings[str_idx], (char *)(str_pos + 4), amount);
+                str_pos += 4 + amount;
+                str_idx++;
+            }
+            else {
+                fprintf(stderr, "oops, ran out of the string heap ...");
+            }
+        }
+
+        char **stables_reprs = MVM_calloc(sc->body->num_stables, sizeof(char *));
+
+        fprintf(stderr, "Step Two: STables\n");
+        MVMint32 previous_reprdata_offset = 0;
+        for (MVMuint32 stidx = 0; stidx < sc->body->num_stables; stidx++) {
+            // MVMSTable *st = MVM_serialization_demand_stable(tc, sc, stidx);
+            MVMuint8 *st_table_row = (MVMuint8*)sr->root.stables_table + stidx * STABLES_TABLE_ENTRY_SIZE;
+            MVMint32 repr_stridx = read_int32(st_table_row, 0);
+            MVMint32 reprdata_offset = read_int32(st_table_row, 8);
+
+            if (previous_reprdata_offset != 0) {
+                /*fprintf(stderr, "... dumping from %x for %x to %x\n",
+                        previous_reprdata_offset,
+                        reprdata_offset - previous_reprdata_offset,
+                        reprdata_offset);*/
+                fputs("    ", stderr);
+                hxdmp((MVMuint8 *)sr->root.stables_data + previous_reprdata_offset, reprdata_offset - previous_reprdata_offset, "\n    ");
+                fputs("\n", stderr);
+            }
+
+            if (stidx < sc->body->num_param_intern_st_lookup && sc->body->param_intern_st_lookup[stidx]) {
+                fprintf(stderr, "% 3d.: (ST %s +param) %lx\n", stidx, strings[repr_stridx - 1], st_table_row - root);
+            }
+            else {
+                fprintf(stderr, "% 3d.: (ST %s) %lx\n", stidx, strings[repr_stridx - 1], st_table_row - root);
+            }
+            fprintf(stderr, "   reprdata at offset %lx\n", sr->root.stables_data - sr->data + reprdata_offset);
+            stables_reprs[stidx] = strings[repr_stridx - 1];
+            previous_reprdata_offset = reprdata_offset;
+        }
+        char *reprdata_offset = sr->stables_data_end;
+        fputs("    ", stderr);
+        hxdmp((MVMuint8 *)sr->root.stables_data + previous_reprdata_offset,  reprdata_offset - (sr->root.stables_data + previous_reprdata_offset), "\n    ");
+        fputs("\n", stderr);
+
+        fprintf(stderr, "Step Three: Objects\n");
+        fputs("  ", stderr);
+        hxdmp((MVMuint8 *)sr->root.objects_table, sr->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE, "\n  ");
+        //MVMuint8 * obj_table_row = (MVMuint8*)sr->root.objects_table + objidx * OBJECTS_TABLE_ENTRY_SIZE;
+        //for (MVMint32 objidx = 0; objidx < sr->root.num_objects; objidx++) {
+        //    MVMuint32 si;        /* The SC in the dependencies table, + 1 */
+        //    MVMuint32 si_idx;    /* The index in that SC */
+        //
+        //    if (objidx % 200 == 0)
+        //        fprintf(stderr, "OBJIDX Conc?  SC num  SCIDX\n");
+        //
+        //    MVMuint8 * obj_table_row = (MVMuint8*)sr->root.objects_table + objidx * OBJECTS_TABLE_ENTRY_SIZE;
+        //    const MVMuint32 packed = read_int32(obj_table_row, 0);
+        //
+        //    MVMuint8 isconcrete = packed & OBJECTS_TABLE_ENTRY_IS_CONCRETE;
+        //
+        //    si = (packed >> OBJECTS_TABLE_ENTRY_SC_SHIFT) & OBJECTS_TABLE_ENTRY_SC_MASK;
+        //    if (si == OBJECTS_TABLE_ENTRY_SC_OVERFLOW) {
+        //        const char *const overflow_data
+        //            = sr->root.objects_data + read_int32(obj_table_row, 4) - 8;
+        //        si = read_int32(overflow_data, 0);
+        //        si_idx = read_int32(overflow_data, 4);
+        //    } else {
+        //        si_idx = packed & OBJECTS_TABLE_ENTRY_SC_IDX_MASK;
+        //    }
+        //
+        //    fprintf(stderr, "  %4x:  %s  %4d  %4d    %s\n", objidx, isconcrete ? "O" : "T", si, si_idx, si == 0 ? stables_reprs[si_idx] : "");
+        //}
+
     }
+    else {
+        char *dump = MVM_bytecode_dump(tc, cu);
+        size_t dumplen = strlen(dump);
+        size_t position = 0;
 
-    MVM_free(dump);
+        /* libuv already set up stdout to be nonblocking, but it can very well be
+        * we encounter EAGAIN (Resource temporarily unavailable), so we need to
+        * loop over our buffer, which can be quite big.
+        *
+        * The CORE.setting.moarvm has - as of writing this - about 32 megs of
+        * output from dumping.
+        */
+        while (position < dumplen) {
+            size_t written = write(1, dump + position, dumplen - position);
+            if (written > 0)
+                position += written;
+        }
+
+        MVM_free(dump);
+    }
 }
 
 /* Exits the process as quickly as is gracefully possible, respecting that
