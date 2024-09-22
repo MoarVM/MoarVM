@@ -118,6 +118,10 @@ struct MVMSerializationReader {
      * indicates when it should be. */
     char      *data;
     MVMuint32  data_needs_free;
+
+    /* When dumping a CompUnit, we may not want to read dependent files
+     * off the disk, so we ignore errors as much as we can. */
+    MVMuint8 fake_mode;
 };
 
 /* Represents the serialization writer and the various functions available

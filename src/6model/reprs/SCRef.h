@@ -56,6 +56,8 @@ struct MVMSerializationContextBody {
 
     /* Reentrant mutex protecting lazy deserialization of the SC. */
     MVMObject *mutex;
+
+    MVMuint8 fake_mode;
 };
 
 struct MVMSerializationContext {
