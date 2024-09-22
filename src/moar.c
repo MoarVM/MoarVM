@@ -619,35 +619,35 @@ static MVMuint8 read_int8(MVMuint8 *buffer, size_t offset) {
 static void hxdmp(MVMuint8 *data, MVMuint32 amount, const char *nl) {
     MVMuint32 idx = 0;
     for (idx = 0; idx < amount; idx += 16) {
-        fprintf(stderr, "%06x:  ", idx);
+        fprintf(stdout, "%06x:  ", idx);
         for (MVMuint8 subidx = 0; subidx < 16; subidx++) {
             if (idx + subidx < amount) {
-                fprintf(stderr, "%02x", data[idx + subidx]);
+                fprintf(stdout, "%02x", data[idx + subidx]);
             }
             else {
-                fputs("  ", stderr);
+                fputs("  ", stdout);
             }
             if (subidx % 2 == 1) {
-                fputs(" ", stderr);
+                fputs(" ", stdout);
             }
             if (subidx % 8 == 7) {
-                fputs(" ", stderr);
+                fputs(" ", stdout);
             }
         }
-        fputs(" | ", stderr);
+        fputs(" | ", stdout);
         for (MVMuint8 subidx = 0; subidx < 16; subidx++) {
             if (idx + subidx < amount) {
                 MVMuint8 bit = data[idx + subidx];
                 if (bit >= ' ' && bit <= '~') {
-                    fputc(bit, stderr);
+                    fputc(bit, stdout);
                 }
                 else {
-                    fputc('.', stderr);
+                    fputc('.', stdout);
                 }
             }
         }
         if (idx + 16 < amount) {
-            fputs(nl, stderr);
+            fputs(nl, stdout);
         }
     }
 }
@@ -903,62 +903,125 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
 
         ReaderState *rs = dissect_bytecode(tc, cu);
 
-        fprintf(stderr, "Reader Version: %d\n", sr->root.version);
-        fprintf(stderr, "Bytecode File Parts:\n");
-        fprintf(stderr, "  Section               %7s  %6s\n", "offset", "length");
-        fprintf(stderr, "  SC Dependencies:      %7lx  %6lx  (%d dependencies)\n",  (MVMuint8 *)rs->sc_seg - root, rs->extop_seg - rs->sc_seg, sr->root.num_dependencies);
-        fprintf(stderr, "  Extension Ops:        %7lx  %6lx  (%d extops)\n",        (MVMuint8 *)rs->extop_seg - root, rs->frame_seg - rs->extop_seg, rs->expected_extops);
-        fprintf(stderr, "  Frames Data:          %7lx  %6lx  (%d frames)\n",        (MVMuint8 *)rs->frame_seg - root, rs->callsite_seg - rs->frame_seg, rs->expected_frames);
-        fprintf(stderr, "  Callsites:            %7lx  %6lx  (%d callsites)\n",     (MVMuint8 *)rs->callsite_seg - root, rs->string_seg - rs->callsite_seg, rs->expected_callsites);
-        fprintf(stderr, "  String heap:          %7lx  %6lx  (%d strings)\n",       (MVMuint8 *)rs->string_seg - root, cubody->serialized - rs->string_seg, rs->expected_strings);
-        fprintf(stderr, "  Serialization Data:   %7lx  %6lx\n",                     (MVMuint8 *)cubody->serialized - root, rs->bytecode_seg - cubody->serialized);
-        fprintf(stderr, "  Bytecode:             %7lx  %6lx\n",                     (MVMuint8 *)rs->bytecode_seg - root, rs->annotation_seg - rs->bytecode_seg);
-        fprintf(stderr, "  Annotations:          %7lx  %6lx\n",                     (MVMuint8 *)rs->annotation_seg - root, root + cubody->data_size - (MVMuint8*)sr->root.dependencies_table);
-        fprintf(stderr, "  End of File:          %7x\n",                                        cubody->data_size);
-        fprintf(stderr, "\n");
-        fprintf(stderr, "Serialization Roots (starts at %lx):\n", (MVMuint8*)sr->data - root);
-        fprintf(stderr, "  Section               %7s  %6s\n", "offset", "length");
-        fprintf(stderr, "  Dependencies Table:   %7lx  %6lx  (%d dependencies)\n", (MVMuint8 *)sr->root.dependencies_table - root, sr->root.stables_table - sr->root.dependencies_table, sr->root.num_dependencies);
-        fprintf(stderr, "  STables Table:        %7lx  %6lx  (%d stables)\n", (MVMuint8 *)sr->root.stables_table - root, sr->root.stables_data - sr->root.stables_table, sr->root.num_stables);
-        fprintf(stderr, "  STable Data:          %7lx  %6lx\n", (MVMuint8 *)sr->root.stables_data - root, sr->root.objects_table - sr->root.stables_data);
-        fprintf(stderr, "  Objects Table:        %7lx  %6lx  (%d objects)\n", (MVMuint8 *)sr->root.objects_table - root, sr->root.objects_data - sr->root.objects_table, sr->root.num_objects);
-        fprintf(stderr, "  Objects Data:         %7lx  %6lx\n", (MVMuint8 *)sr->root.objects_data - root, sr->root.closures_table - sr->root.objects_data);
-        fprintf(stderr, "  Closures Table:       %7lx  %6lx  (%d closures)\n", (MVMuint8 *)sr->root.closures_table - root, sr->root.contexts_table - sr->root.closures_table, sr->root.num_closures);
-        fprintf(stderr, "  Contexts Table:       %7lx  %6lx  (%d contexts)\n", (MVMuint8 *)sr->root.contexts_table - root, sr->root.contexts_data - sr->root.contexts_table, sr->root.num_contexts);
-        fprintf(stderr, "  Contexts Data:        %7lx  %6lx\n", (MVMuint8 *)sr->root.contexts_data - root, sr->root.repos_table - sr->root.contexts_data);
-        fprintf(stderr, "  Repossessions Table:  %7lx  %6lx  (%d repros)\n", (MVMuint8 *)sr->root.repos_table - root, sr->root.param_interns_data - sr->root.repos_table, sr->root.num_repos);
-        fprintf(stderr, "  Param Interns Table:  %7lx  %6lx  (%d interns)\n", (MVMuint8 *)sr->root.param_interns_data - root, sr->param_interns_data_end - sr->root.param_interns_data, sr->root.num_param_interns);
-        fprintf(stderr, "  End of data:          %7lx\n", (MVMuint8 *)sr->param_interns_data_end - root);
+        fprintf(stdout, "Reader Version: %d\n", sr->root.version);
+        fprintf(stdout, "Bytecode File Parts:\n");
+        fprintf(stdout, "  Section               %7s  %6s\n", "offset", "length");
+        fprintf(stdout, "  SC Dependencies:      %7lx  %6lx  (%d dependencies)\n",  (MVMuint8 *)rs->sc_seg - root, rs->extop_seg - rs->sc_seg, sr->root.num_dependencies);
+        fprintf(stdout, "  Extension Ops:        %7lx  %6lx  (%d extops)\n",        (MVMuint8 *)rs->extop_seg - root, rs->frame_seg - rs->extop_seg, rs->expected_extops);
+        fprintf(stdout, "  Frames Data:          %7lx  %6lx  (%d frames)\n",        (MVMuint8 *)rs->frame_seg - root, rs->callsite_seg - rs->frame_seg, rs->expected_frames);
+        fprintf(stdout, "  Callsites:            %7lx  %6lx  (%d callsites)\n",     (MVMuint8 *)rs->callsite_seg - root, rs->string_seg - rs->callsite_seg, rs->expected_callsites);
+        fprintf(stdout, "  String heap:          %7lx  %6lx  (%d strings)\n",       (MVMuint8 *)rs->string_seg - root, cubody->serialized - rs->string_seg, rs->expected_strings);
+        fprintf(stdout, "  Serialization Data:   %7lx  %6lx\n",                     (MVMuint8 *)cubody->serialized - root, rs->bytecode_seg - cubody->serialized);
+        fprintf(stdout, "  Bytecode:             %7lx  %6lx\n",                     (MVMuint8 *)rs->bytecode_seg - root, rs->annotation_seg - rs->bytecode_seg);
+        fprintf(stdout, "  Annotations:          %7lx  %6lx\n",                     (MVMuint8 *)rs->annotation_seg - root, root + cubody->data_size - (MVMuint8*)sr->root.dependencies_table);
+        fprintf(stdout, "  End of File:          %7x\n",                                        cubody->data_size);
+        fprintf(stdout, "\n");
+        fprintf(stdout, "Serialization Roots (starts at %lx):\n", (MVMuint8*)sr->data - root);
+        fprintf(stdout, "  Section               %7s  %6s\n", "offset", "length");
+        fprintf(stdout, "  Dependencies Table:   %7lx  %6lx  (%d dependencies)\n", (MVMuint8 *)sr->root.dependencies_table - root, sr->root.stables_table - sr->root.dependencies_table, sr->root.num_dependencies);
+        fprintf(stdout, "  STables Table:        %7lx  %6lx  (%d stables)\n", (MVMuint8 *)sr->root.stables_table - root, sr->root.stables_data - sr->root.stables_table, sr->root.num_stables);
+        fprintf(stdout, "  STable Data:          %7lx  %6lx\n", (MVMuint8 *)sr->root.stables_data - root, sr->root.objects_table - sr->root.stables_data);
+        fprintf(stdout, "  Objects Table:        %7lx  %6lx  (%d objects)\n", (MVMuint8 *)sr->root.objects_table - root, sr->root.objects_data - sr->root.objects_table, sr->root.num_objects);
+        fprintf(stdout, "  Objects Data:         %7lx  %6lx\n", (MVMuint8 *)sr->root.objects_data - root, sr->root.closures_table - sr->root.objects_data);
+        fprintf(stdout, "  Closures Table:       %7lx  %6lx  (%d closures)\n", (MVMuint8 *)sr->root.closures_table - root, sr->root.contexts_table - sr->root.closures_table, sr->root.num_closures);
+        fprintf(stdout, "  Contexts Table:       %7lx  %6lx  (%d contexts)\n", (MVMuint8 *)sr->root.contexts_table - root, sr->root.contexts_data - sr->root.contexts_table, sr->root.num_contexts);
+        fprintf(stdout, "  Contexts Data:        %7lx  %6lx\n", (MVMuint8 *)sr->root.contexts_data - root, sr->root.repos_table - sr->root.contexts_data);
+        fprintf(stdout, "  Repossessions Table:  %7lx  %6lx  (%d repros)\n", (MVMuint8 *)sr->root.repos_table - root, sr->root.param_interns_data - sr->root.repos_table, sr->root.num_repos);
+        fprintf(stdout, "  Param Interns Table:  %7lx  %6lx  (%d interns)\n", (MVMuint8 *)sr->root.param_interns_data - root, sr->param_interns_data_end - sr->root.param_interns_data, sr->root.num_param_interns);
+        fprintf(stdout, "  End of data:          %7lx\n", (MVMuint8 *)sr->param_interns_data_end - root);
 
-        fprintf(stderr, "Pre String Heap Data:\n  ");
-        hxdmp(cu->body.data_start, cu->body.string_heap_start - cu->body.data_start, "\n  ");
+        fprintf(stdout, "Start of File Data:\n  ");
+        hxdmp(root, rs->sc_seg - root, "\n  "); fputs("\n", stdout);
+
+        fprintf(stdout, "SC Dependencies:      %7lx\n  ", (MVMuint8 *)rs->sc_seg - root);
+        hxdmp((MVMuint8 *)rs->sc_seg,  rs->extop_seg - rs->sc_seg, "\n  "); fputs("\n", stdout);
+        fprintf(stdout, "Extension Ops:        %7lx\n  ", (MVMuint8 *)rs->extop_seg - root);
+        hxdmp((MVMuint8 *)rs->extop_seg, rs->frame_seg - rs->extop_seg, "\n  ");
+        fputs("\n", stdout);
+
+        /*fprintf(stdout, "Frames Data:          %7lx\n  ", (MVMuint8 *)rs->frame_seg - root);
+        hxdmp((MVMuint8 *)rs->frame_seg,  rs->callsite_seg - rs->frame_seg, "\n  ");
+        fputs("\n", stdout);*/
+        fprintf(stdout, "Frames (%d frames):\n", cubody->num_frames);
+        fprintf(stdout, "  %5s  %5s   %7s   %6s   %4s  %4s  %4s  %4s  %5s  %5s\n",
+                                        "idx", "outr", "bc pos", "bc len", "#loc", "#lex", "#ant", "#hnd", "cuuid", "name");
+        char *emptystr = "";
+        for (MVMuint32 fidx = 0; fidx < cubody->num_frames; fidx++) {
+            MVMStaticFrameBody *f = &((MVMCode *)cubody->coderefs[fidx])->body.sf->body;
+            char *name = emptystr;
+            char *outercuuid = emptystr;
+            if (f->name->body.num_graphs > 0) {
+                name = MVM_string_utf8_c8_encode_C_string(tc, f->name);
+            }
+            char *cuuid = MVM_string_utf8_c8_encode_C_string(tc, f->cuuid);
+            if (f->outer)
+                outercuuid = MVM_string_utf8_c8_encode_C_string(tc, f->outer->body.cuuid);
+            fprintf(stdout, "  %5u  %5s   %7lx   %6x   %4u  %4u  %4u  %4u  %5s  '%s'\n",
+                    fidx, outercuuid, f->orig_bytecode - rs->bytecode_seg, f->bytecode_size,
+                    f->num_locals, f->num_lexicals, f->num_annotations, f->num_handlers,
+                    cuuid, name);
+            if (name != emptystr)
+                MVM_free(name);
+            MVM_free(cuuid);
+            if (outercuuid != emptystr)
+                MVM_free(outercuuid);
+        }
+
+        fprintf(stdout, "Callsites:            %7lx\n  ", (MVMuint8 *)rs->callsite_seg - root);
+        hxdmp((MVMuint8 *)rs->callsite_seg,  rs->string_seg - rs->callsite_seg, "\n  "); fputs("\n", stdout);
+        fprintf(stdout, "Bytecode:             %7lx\n  ", (MVMuint8 *)rs->bytecode_seg - root);
+
+        MVMuint8 *previous_bytecode_offset = rs->bytecode_seg;
+        for (MVMuint32 fidx = 0; fidx < cubody->num_frames; fidx++) {
+            MVMStaticFrameBody *f = &((MVMCode *)cubody->coderefs[fidx])->body.sf->body;
+            if (previous_bytecode_offset != 0) {
+                hxdmp(previous_bytecode_offset, f->orig_bytecode - previous_bytecode_offset, "\n    ");
+                fputs("\n", stdout);
+            }
+
+            char *name = emptystr;
+            if (f->name->body.num_graphs > 0) {
+                name = MVM_string_utf8_c8_encode_C_string(tc, f->name);
+            }
+            char *cuuid = MVM_string_utf8_c8_encode_C_string(tc, f->cuuid);
+            fprintf(stdout, "  Frame %5d at offset %6lx (cuuid: %6s) '%s'\n    ", fidx, f->orig_bytecode - rs->bytecode_seg, cuuid, name);
+            if (name != emptystr)
+                MVM_free(name);
+            MVM_free(cuuid);
+
+            previous_bytecode_offset = f->orig_bytecode;
+        }
+        hxdmp((MVMuint8 *)rs->bytecode_seg, rs->annotation_seg - rs->bytecode_seg, "\n  "); fputs("\n", stdout);
+        fprintf(stdout, "Annotations:          %7lx\n  ", (MVMuint8 *)rs->annotation_seg - root);
+        hxdmp((MVMuint8 *)rs->annotation_seg, cubody->data_size - (((MVMuint8*)rs->annotation_seg - root)), "\n  "); fputs("\n", stdout);
+
 
         char **strings = MVM_calloc(cu->body.num_strings, sizeof(char *));
-        fprintf(stderr, "Step One: String Heap\n");
-        fprintf(stderr, "String Heap starts at %lx has %u strings in it.\n", cu->body.string_heap_start - cu->body.data_start, cu->body.num_strings);
+        fprintf(stdout, "String Heap starts at %lx has %u strings in it.\n", cu->body.string_heap_start - cu->body.data_start, cu->body.num_strings);
         MVMuint8 *limit = cu->body.string_heap_read_limit;
         MVMuint32 str_idx = 0;
         for (MVMuint8 *str_pos = cu->body.string_heap_start; str_idx < cu->body.num_strings;) {
             if (str_pos + 4 < limit) {
                 MVMuint32 bytes = read_uint32(str_pos) >> 1;
-                fprintf(stderr, "String % 4d at offs %6lx\n", str_idx, str_pos + 4 - cu->body.string_heap_start);
-                fputs("  ", stderr);
+                fprintf(stdout, "  String % 4d at offs %6lx\n", str_idx, str_pos + 4 - cu->body.string_heap_start);
+                fputs("    ", stdout);
                 MVMuint64 amount = bytes + (bytes & 3 ? 4 - (bytes & 3) : 0);
-                hxdmp(str_pos + 4, amount, "\n  ");
-                fputc('\n', stderr);
+                hxdmp(str_pos + 4, amount, "\n    ");
+                fputc('\n', stdout);
                 strings[str_idx] = MVM_calloc(amount + 1, sizeof(char));
                 strncpy(strings[str_idx], (char *)(str_pos + 4), amount);
                 str_pos += 4 + amount;
                 str_idx++;
             }
             else {
-                fprintf(stderr, "oops, ran out of the string heap ...");
+                fprintf(stdout, "oops, ran out of the string heap ...");
             }
         }
 
+
         char **stables_reprs = MVM_calloc(sc->body->num_stables, sizeof(char *));
 
-        fprintf(stderr, "Step Two: STables\n");
+        fprintf(stdout, "Step Two: STables\n");
         MVMint32 previous_reprdata_offset = 0;
         for (MVMuint32 stidx = 0; stidx < sc->body->num_stables; stidx++) {
             // MVMSTable *st = MVM_serialization_demand_stable(tc, sc, stidx);
@@ -967,32 +1030,32 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
             MVMint32 reprdata_offset = read_int32(st_table_row, 8);
 
             if (previous_reprdata_offset != 0) {
-                /*fprintf(stderr, "... dumping from %x for %x to %x\n",
+                /*fprintf(stdout, "... dumping from %x for %x to %x\n",
                         previous_reprdata_offset,
                         reprdata_offset - previous_reprdata_offset,
                         reprdata_offset);*/
-                fputs("    ", stderr);
+                fputs("    ", stdout);
                 hxdmp((MVMuint8 *)sr->root.stables_data + previous_reprdata_offset, reprdata_offset - previous_reprdata_offset, "\n    ");
-                fputs("\n", stderr);
+                fputs("\n", stdout);
             }
 
             if (stidx < sc->body->num_param_intern_st_lookup && sc->body->param_intern_st_lookup[stidx]) {
-                fprintf(stderr, "% 3d.: (ST %s +param) %lx\n", stidx, strings[repr_stridx - 1], st_table_row - root);
+                fprintf(stdout, "% 3d.: (ST %s +param) %lx\n", stidx, strings[repr_stridx - 1], st_table_row - root);
             }
             else {
-                fprintf(stderr, "% 3d.: (ST %s) %lx\n", stidx, strings[repr_stridx - 1], st_table_row - root);
+                fprintf(stdout, "% 3d.: (ST %s) %lx\n", stidx, strings[repr_stridx - 1], st_table_row - root);
             }
-            fprintf(stderr, "   reprdata at offset %lx\n", sr->root.stables_data - sr->data + reprdata_offset);
+            fprintf(stdout, "   reprdata at offset %lx\n", sr->root.stables_data - sr->data + reprdata_offset);
             stables_reprs[stidx] = strings[repr_stridx - 1];
             previous_reprdata_offset = reprdata_offset;
         }
         char *reprdata_offset = sr->stables_data_end;
-        fputs("    ", stderr);
+        fputs("    ", stdout);
         hxdmp((MVMuint8 *)sr->root.stables_data + previous_reprdata_offset,  reprdata_offset - (sr->root.stables_data + previous_reprdata_offset), "\n    ");
-        fputs("\n", stderr);
+        fputs("\n", stdout);
 
-        fprintf(stderr, "Step Three: Objects\n");
-        fputs("  ", stderr);
+        fprintf(stdout, "Step Three: Objects\n");
+        fputs("  ", stdout);
         hxdmp((MVMuint8 *)sr->root.objects_table, sr->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE, "\n  ");
         //MVMuint8 * obj_table_row = (MVMuint8*)sr->root.objects_table + objidx * OBJECTS_TABLE_ENTRY_SIZE;
         //for (MVMint32 objidx = 0; objidx < sr->root.num_objects; objidx++) {
@@ -1000,7 +1063,7 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
         //    MVMuint32 si_idx;    /* The index in that SC */
         //
         //    if (objidx % 200 == 0)
-        //        fprintf(stderr, "OBJIDX Conc?  SC num  SCIDX\n");
+        //        fprintf(stdout, "OBJIDX Conc?  SC num  SCIDX\n");
         //
         //    MVMuint8 * obj_table_row = (MVMuint8*)sr->root.objects_table + objidx * OBJECTS_TABLE_ENTRY_SIZE;
         //    const MVMuint32 packed = read_int32(obj_table_row, 0);
@@ -1017,7 +1080,7 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
         //        si_idx = packed & OBJECTS_TABLE_ENTRY_SC_IDX_MASK;
         //    }
         //
-        //    fprintf(stderr, "  %4x:  %s  %4d  %4d    %s\n", objidx, isconcrete ? "O" : "T", si, si_idx, si == 0 ? stables_reprs[si_idx] : "");
+        //    fprintf(stdout, "  %4x:  %s  %4d  %4d    %s\n", objidx, isconcrete ? "O" : "T", si, si_idx, si == 0 ? stables_reprs[si_idx] : "");
         //}
 
     }
