@@ -809,6 +809,26 @@ if ($args{'enable-jit'}) {
     print("You can use --no-jit to build without jit.");
 }
 
+if (!$failed && $args{asan}) {
+    print "\n", <<ASANTERM;
+
+    !!  Attention  !!  Attention  !!
+
+You have built moarvm with ASAN (address sanitizer) turned on.
+In order to successfully build nqp and rakudo, you need to set this environment
+variable, since moarvm doesn't fully clean up on shutdown by default.
+
+    export ASAN_OPTIONS=detect_leaks=0
+
+For more information about available asan options, you can run moar with
+
+    export ASAN_OPTIONS=help=1
+
+in your environment.
+
+ASANTERM
+}
+
 print "\n", $failed ? <<TERM1 : <<TERM2;
 Configuration FAIL. You can try to salvage the generated Makefile.
 TERM1
