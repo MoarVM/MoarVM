@@ -254,9 +254,8 @@ int wmain(int argc, wchar_t *wargv[])
                 args[argc - argi] = 0;
                 for (int argj = 1; argi + argj < argc; argj++)
                     args[argj] = argv[argi + argj];
-                // Will not return.
+                // Will not return if all goes well.
                 MVM_proc_pty_spawn(prog, args);
-                fprintf(stderr, "ERROR: Failed to spawn \"%s\".\n", prog);
                 return EXIT_FAILURE;
             }
 
