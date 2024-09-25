@@ -54,6 +54,8 @@ void make_pty(int *fd_pty, int *fd_tty) {
 
     int path_tty_size = 40;
     char *path_tty = MVM_calloc(path_tty_size, sizeof(char *));
+    // Apple and linux both have ptsname_r.
+    // Use TIOCGPTPEER. (see man ioctl_tty) Where is that available?
     // There is no ptsname_r on OpenBSD.
     while ((ret = ptsname_r(*fd_pty, path_tty, path_tty_size)) == ERANGE) {
         path_tty_size *= 2;
@@ -663,7 +665,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
             MVM_telemetry_interval_stop(tc, interval_id, "async_read done");
         }
     }
-    else if (nread == UV_EOF) {
+    else if (nread == UV_EOF || nread == UV_EIO && MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty)) {
         MVMROOT2(tc, t, arr) {
             MVMObject *final = MVM_repr_box_int(tc,
                 tc->instance->boot_types.BOOTInt, seq_number);
@@ -732,6 +734,8 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
 
+    int fd_pty, fd_tty;
+
     /* Add to work in progress. */
     SpawnInfo *si = (SpawnInfo *)data;
     si->tc        = tc;
@@ -742,7 +746,6 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 
     /* Create input/output handles as needed. */
     if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty)) {
-        int fd_pty, fd_tty;
         make_pty(&fd_pty, &fd_tty);
         process_stdio[0].flags   = UV_INHERIT_FD;
         process_stdio[0].data.fd = fd_tty;
@@ -886,6 +889,10 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     /* Attach data, spawn, report any error. */
     process->data = si;
     spawn_result  = uv_spawn(loop, process, &process_options);
+
+    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty)) {
+        close(fd_tty);
+    }
     if (spawn_result) {
         MVMObject *msg_box = NULL;
         si->state = STATE_DONE;
@@ -1421,6 +1428,7 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
 }
 
 void MVM_proc_pty_spawn(char *prog, char *argv[]) {
+    // TODO: Somehow need to close the fd_pty (master FD in the client).
     // When this is called, we can assume that the STDIO handles have already all been
     // mapped to the pseudo TTY FD.
 
