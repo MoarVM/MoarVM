@@ -1,3 +1,25 @@
+New in 2024.09
+
+Core:
++ When -latomic is needed, don't lose the libs entry [6ed6986b]
++ Hand-Apply fix to minilua for CVE-2014-5461 [570db261]
++ Fix NAN/INFINITY definitions to work on Windows 11 SDK [b7750ec2]
++ We don't have to account for "start" in size calculation ...
+
+Documentation:
+
+GC:
++ A re-imagining of the MVMROOT macros [ac82e446]
+
+JIT:
+
+Spesh:
++ When guarding conc or type and type is known, guard just conc/type [abab265d]
+
+Strings:
++ latin1.c and ascii.c can return str_consts.empty for 0-length string [2a0dc7f1]
++ Split string's "any" union field into "any" and "any_ptr" [f14712b6]
+
 New in 2024.08
 
 Core:
