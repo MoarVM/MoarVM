@@ -33,7 +33,6 @@ extern char **environ;
 #endif
 
 char *make_pty(int *fd_pty, int *fd_tty) {
-    // TODO: How do we properly error?
     int ret;
     char *error_str;
 
@@ -767,66 +766,71 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     /* Create input/output handles as needed. */
     if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty)) {
         error_str = make_pty(&fd_pty, &fd_tty);
-        if (!error_str) {
-            process_stdio[0].flags   = UV_INHERIT_FD;
-            process_stdio[0].data.fd = fd_tty;
-            process_stdio[1].flags   = UV_INHERIT_FD;
-            process_stdio[1].data.fd = fd_tty;
-            process_stdio[2].flags   = UV_INHERIT_FD;
-            process_stdio[2].data.fd = fd_tty;
+        if (error_str)
+            goto spawn_setup_error;
 
-            int res;
-            size_t exec_path_size = 4096;
-            char *exec_path = (char*)MVM_calloc(exec_path_size, sizeof(char));
+        process_stdio[0].flags   = UV_INHERIT_FD;
+        process_stdio[0].data.fd = fd_tty;
+        process_stdio[1].flags   = UV_INHERIT_FD;
+        process_stdio[1].data.fd = fd_tty;
+        process_stdio[2].flags   = UV_INHERIT_FD;
+        process_stdio[2].data.fd = fd_tty;
+
+        int res;
+        size_t exec_path_size = 4096;
+        char *exec_path = (char*)MVM_calloc(exec_path_size, sizeof(char));
+        res = uv_exepath(exec_path, &exec_path_size);
+        while (res < 0 && exec_path_size < 4096*8) {
+            exec_path_size *= 2;
+            exec_path = (char*)MVM_realloc(exec_path, exec_path_size * sizeof(char));
             res = uv_exepath(exec_path, &exec_path_size);
-            while (res < 0 && exec_path_size < 4096*8) {
-                exec_path_size *= 2;
-                exec_path = (char*)MVM_realloc(exec_path, exec_path_size * sizeof(char));
-                res = uv_exepath(exec_path, &exec_path_size);
-            }
-            if (res < 0) {
-                fprintf(stderr, "ERROR: Could not retrieve executable path.\n");
-                // TODO: How do we suitably error out?
-            }
-
-            int argc = 0;
-            while (si->args[argc] != 0)
-                argc++;
-
-            char **args = (char**)MVM_calloc(argc+2, sizeof(char*));
-
-            args[0] = exec_path;
-
-            // 24 = strlen("--pty-spawn-helper=") + 3 fd digits + separator + trailing 0
-            int args1len = 24 + strlen(si->prog);
-            args[1] = (char *)MVM_calloc(args1len, sizeof(char));
-            snprintf(args[1], args1len, "--pty-spawn-helper=%03i|%s", fd_pty, si->prog);
-
-            for(int c = 1; si->args[c] != 0; c++)
-                args[c+1] = si->args[c];
-
-            args[argc+1] = 0;
-
-            MVM_free(si->args[0]);
-            MVM_free(si->args);
-            si->args = args;
-
-            MVM_free(si->prog);
-            si->prog = exec_path;
-
-            uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
-            uv_pipe_init(loop, pipe, 0);
-            uv_pipe_open(pipe, fd_pty);
-            pipe->data = si;
-            si->stdin_handle             = (uv_stream_t *)pipe;
-            si->had_stdin_handle         = 1;
-
-            si->pipe_stdout = MVM_malloc(sizeof(uv_pipe_t));
-            uv_pipe_init(loop, si->pipe_stdout, 0);
-            uv_pipe_open(si->pipe_stdout, fd_pty);
-            si->pipe_stdout->data = si;
-            si->using++;
         }
+        if (res < 0) {
+            close(fd_pty);
+            close(fd_tty);
+            error_str = MVM_malloc(128);
+            snprintf(error_str, 127, "Error retrieving our own executable path: %s (error code %i)",
+                    uv_strerror(res), res);
+            goto spawn_setup_error;
+        }
+
+        int argc = 0;
+        while (si->args[argc] != 0)
+            argc++;
+
+        char **args = (char**)MVM_calloc(argc+2, sizeof(char*));
+
+        args[0] = exec_path;
+
+        // 24 = strlen("--pty-spawn-helper=") + 3 fd digits + separator + trailing 0
+        int args1len = 24 + strlen(si->prog);
+        args[1] = (char *)MVM_calloc(args1len, sizeof(char));
+        snprintf(args[1], args1len, "--pty-spawn-helper=%03i|%s", fd_pty, si->prog);
+
+        for(int c = 1; si->args[c] != 0; c++)
+            args[c+1] = si->args[c];
+
+        args[argc+1] = 0;
+
+        MVM_free(si->args[0]);
+        MVM_free(si->args);
+        si->args = args;
+
+        MVM_free(si->prog);
+        si->prog = exec_path;
+
+        uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
+        uv_pipe_init(loop, pipe, 0);
+        uv_pipe_open(pipe, fd_pty);
+        pipe->data = si;
+        si->stdin_handle             = (uv_stream_t *)pipe;
+        si->had_stdin_handle         = 1;
+
+        si->pipe_stdout = MVM_malloc(sizeof(uv_pipe_t));
+        uv_pipe_init(loop, si->pipe_stdout, 0);
+        uv_pipe_open(si->pipe_stdout, fd_pty);
+        si->pipe_stdout->data = si;
+        si->using++;
     }
     else {
         if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.write)) {
@@ -901,33 +905,34 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         }
     }
 
-    if (!error_str) {
-        /* Set up process start info. */
-        process_options.stdio       = process_stdio;
-        process_options.file        = si->prog;
-        process_options.args        = si->args;
-        process_options.cwd         = si->cwd;
-        process_options.flags       = UV_PROCESS_WINDOWS_HIDE | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
-        process_options.env         = si->env;
-        process_options.stdio_count = 3;
-        process_options.exit_cb     = async_spawn_on_exit;
+    /* Set up process start info. */
+    process_options.stdio       = process_stdio;
+    process_options.file        = si->prog;
+    process_options.args        = si->args;
+    process_options.cwd         = si->cwd;
+    process_options.flags       = UV_PROCESS_WINDOWS_HIDE | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+    process_options.env         = si->env;
+    process_options.stdio_count = 3;
+    process_options.exit_cb     = async_spawn_on_exit;
 
-        /* Attach data, spawn, report any error. */
-        process->data = si;
-        spawn_result  = uv_spawn(loop, process, &process_options);
+    /* Attach data, spawn, report any error. */
+    process->data = si;
+    spawn_result  = uv_spawn(loop, process, &process_options);
 
-        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty)) {
-            close(fd_tty);
-        }
+    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty))
+        close(fd_tty);
 
-        if (spawn_result) {
-            error_str = MVM_malloc(128);
-            snprintf(error_str, 127, "Failed to spawn process %s: %s (error code %"PRId64")",
-                    si->prog, uv_strerror(spawn_result), spawn_result);
-        }
+    if (spawn_result) {
+        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty))
+            close(fd_pty);
+        error_str = MVM_malloc(128);
+        snprintf(error_str, 127, "Failed to spawn process %s: %s (error code %"PRId64")",
+                si->prog, uv_strerror(spawn_result), spawn_result);
+        goto spawn_setup_error;
     }
 
     if (error_str) {
+spawn_setup_error:
         MVMObject *msg_box = NULL;
         si->state = STATE_DONE;
 
