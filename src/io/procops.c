@@ -802,10 +802,10 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 
         args[0] = exec_path;
 
-        // 24 = strlen("--pty-spawn-helper=") + 3 fd digits + separator + trailing 0
-        int args1len = 24 + strlen(si->prog);
+        // 26 = strlen("--pty-spawn-helper=") + 5 fd digits + separator + trailing 0
+        int args1len = 26 + strlen(si->prog);
         args[1] = (char *)MVM_calloc(args1len, sizeof(char));
-        snprintf(args[1], args1len, "--pty-spawn-helper=%03i|%s", fd_pty, si->prog);
+        snprintf(args[1], args1len, "--pty-spawn-helper=%05i|%s", fd_pty, si->prog);
 
         for(int c = 1; si->args[c] != 0; c++)
             args[c+1] = si->args[c];
@@ -1468,7 +1468,7 @@ void MVM_proc_pty_spawn(char *prog, char *argv[]) {
 
     // Close the PTY FD which we - as the child - have no business with.
     int fd_pty = atoi(prog);
-    prog += 4;
+    prog += 6;
     close(fd_pty);
 
     // Put ourself into a new session and process group, making us session
