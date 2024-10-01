@@ -468,6 +468,10 @@ static MVMint64 close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOAsyncProcessData *handle_data = (MVMIOAsyncProcessData *)h->body.data;
     MVMAsyncTask          *spawn_task  = (MVMAsyncTask *)handle_data->async_task;
     SpawnInfo             *si          = spawn_task ? (SpawnInfo *)spawn_task->body.data : NULL;
+    if (si && MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty)) {
+        // Stdin and stdout use the same FD. So we must not close as there might still be data on stdout.
+        return 0;
+    }
     if (si && si->state == STATE_UNSTARTED) {
         MVMAsyncTask *task;
         MVMROOT(tc, h) {
