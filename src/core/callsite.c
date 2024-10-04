@@ -343,7 +343,8 @@ static int is_common(MVMCallsite *cs) {
            cs == &obj_num_callsite      ||
            cs == &int_int_callsite      ||
            cs == &obj_obj_str_callsite  ||
-           cs == &obj_obj_obj_callsite;
+           cs == &obj_obj_obj_callsite  ||
+           cs == &obj_uint_callsite;
 }
 void MVM_callsite_cleanup_interns(MVMInstance *instance) {
     MVMCallsiteInterns *interns = instance->callsite_interns;
