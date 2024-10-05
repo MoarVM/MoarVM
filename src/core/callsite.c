@@ -20,6 +20,9 @@ static MVMCallsite    obj_obj_callsite = { obj_obj_arg_flags, 2, 2, 2, 0, 0, NUL
 static MVMCallsiteEntry obj_int_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                             MVM_CALLSITE_ARG_INT };
 static MVMCallsite    obj_int_callsite = { obj_int_flags, 2, 2, 2, 0, 0, NULL };
+static MVMCallsiteEntry obj_uint_flags[] = { MVM_CALLSITE_ARG_OBJ,
+                                            MVM_CALLSITE_ARG_UINT };
+static MVMCallsite    obj_uint_callsite = { obj_uint_flags, 2, 2, 2, 0, 0, NULL };
 
 static MVMCallsiteEntry obj_num_flags[] = { MVM_CALLSITE_ARG_OBJ,
                                             MVM_CALLSITE_ARG_NUM };
@@ -66,6 +69,8 @@ void MVM_callsite_initialize_common(MVMThreadContext *tc) {
     MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &obj_int_callsite;
     MVM_callsite_intern(tc, &ptr, 0, 1);
+    ptr = &obj_uint_callsite;
+    MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &obj_num_callsite;
     MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &obj_str_callsite;
@@ -103,6 +108,8 @@ MVM_PUBLIC MVMCallsite * MVM_callsite_get_common(MVMThreadContext *tc, MVMCommon
             return &obj_obj_str_callsite;
         case MVM_CALLSITE_ID_OBJ_OBJ_OBJ:
             return &obj_obj_obj_callsite;
+        case MVM_CALLSITE_ID_OBJ_UINT:
+            return &obj_uint_callsite;
         default:
             MVM_exception_throw_adhoc(tc, "get_common_callsite: id %d unknown", id);
     }
@@ -336,7 +343,8 @@ static int is_common(MVMCallsite *cs) {
            cs == &obj_num_callsite      ||
            cs == &int_int_callsite      ||
            cs == &obj_obj_str_callsite  ||
-           cs == &obj_obj_obj_callsite;
+           cs == &obj_obj_obj_callsite  ||
+           cs == &obj_uint_callsite;
 }
 void MVM_callsite_cleanup_interns(MVMInstance *instance) {
     MVMCallsiteInterns *interns = instance->callsite_interns;
