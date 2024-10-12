@@ -960,7 +960,23 @@ char * MVM_spesh_dump_planned(MVMThreadContext *tc, MVMSpeshPlanned *p) {
     return ds.buffer;
 }
 
-const char * MVM_register_type(MVMint8 reg_type);
+static const char *register_type(MVMint8 reg_type) {
+    switch (reg_type) {
+    case MVM_reg_int8: return "int8";
+    case MVM_reg_int16: return "int16";
+    case MVM_reg_int32: return "int32";
+    case MVM_reg_int64: return "int64";
+    case MVM_reg_num32: return "num32";
+    case MVM_reg_num64: return "num64";
+    case MVM_reg_str: return "str";
+    case MVM_reg_obj: return "obj";
+    case MVM_reg_uint8: return "uint8";
+    case MVM_reg_uint16: return "uint16";
+    case MVM_reg_uint32: return "uint32";
+    case MVM_reg_uint64: return "uint64";
+    default: return "unknown";
+    }
+}
 
 #ifdef DEBUG_HELPERS
 char * MVM_spesh_dump_register_layout(MVMThreadContext *tc, MVMFrame *f) {
