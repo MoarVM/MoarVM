@@ -16,7 +16,7 @@
 
 static MVMint64 file_info_with_error(MVMThreadContext *tc, uv_stat_t* stat, MVMString *filename, MVMint32 use_lstat) {
     char * const a = MVM_string_utf8_c8_encode_C_string(tc, filename);
-    uv_fs_t req;
+    uv_fs_t req = {0};
 
     MVMint64 res = use_lstat
       ? uv_fs_lstat(NULL, &req, a, NULL)
