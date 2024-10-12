@@ -1034,7 +1034,7 @@ char * MVM_spesh_dump_register_layout(MVMThreadContext *tc, MVMFrame *f) {
     for (MVMuint16 loc_idx = 0; loc_idx < num_locals; loc_idx++) {
         MVMuint16 type = local_types[loc_idx];
 
-        appendf(&ds, "  %3u: (%7s) ", loc_idx, MVM_register_type(type));
+        appendf(&ds, "  %3u: (%7s) ", loc_idx, register_type(type));
 
         if (type == MVM_reg_obj) {
             MVMObject *ov = f->work[loc_idx].o;
