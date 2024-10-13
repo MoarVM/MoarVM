@@ -476,7 +476,8 @@ static void run_gc(MVMThreadContext *tc, MVMuint8 what_to_do) {
         uv_mutex_lock(&tc->instance->mutex_threads);
         cur_thread = tc->instance->threads;
         while (cur_thread) {
-            data[8] += cur_thread->body.tc->num_gen2roots;
+            if (cur_thread->body.tc)
+                data[8] += cur_thread->body.tc->num_gen2roots;
             cur_thread = cur_thread->body.next;
         }
         uv_mutex_unlock(&tc->instance->mutex_threads);
