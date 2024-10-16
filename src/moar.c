@@ -930,12 +930,12 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
         fprintf(stdout, "  Param Interns Table:  %7lx  %6lx  (%d interns)\n", (MVMuint8 *)sr->root.param_interns_data - root, sr->param_interns_data_end - sr->root.param_interns_data, sr->root.num_param_interns);
         fprintf(stdout, "  End of data:          %7lx\n", (MVMuint8 *)sr->param_interns_data_end - root);
 
-        fprintf(stdout, "Start of File Data:\n  ");
+        fprintf(stdout, "\nStart of File Data:\n  ");
         hxdmp(root, rs->sc_seg - root, "\n  "); fputs("\n", stdout);
 
-        fprintf(stdout, "SC Dependencies:      %7lx\n  ", (MVMuint8 *)rs->sc_seg - root);
+        fprintf(stdout, "\nSC Dependencies:      %7lx\n  ", (MVMuint8 *)rs->sc_seg - root);
         hxdmp((MVMuint8 *)rs->sc_seg,  rs->extop_seg - rs->sc_seg, "\n  "); fputs("\n", stdout);
-        fprintf(stdout, "Extension Ops:        %7lx\n  ", (MVMuint8 *)rs->extop_seg - root);
+        fprintf(stdout, "\nExtension Ops:        %7lx\n  ", (MVMuint8 *)rs->extop_seg - root);
         hxdmp((MVMuint8 *)rs->extop_seg, rs->frame_seg - rs->extop_seg, "\n  ");
         fputs("\n", stdout);
 
@@ -946,6 +946,7 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
         fprintf(stdout, "  %5s  %5s   %7s   %6s   %4s  %4s  %4s  %4s  %5s  %5s\n",
                                         "idx", "outr", "bc pos", "bc len", "#loc", "#lex", "#ant", "#hnd", "cuuid", "name");
         char *emptystr = "";
+        MVMuint8 *prev_bc_pos = rs->bytecode_seg;
         for (MVMuint32 fidx = 0; fidx < cubody->num_frames; fidx++) {
             MVMStaticFrameBody *f = &((MVMCode *)cubody->coderefs[fidx])->body.sf->body;
             char *name = emptystr;
@@ -956,8 +957,8 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
             char *cuuid = MVM_string_utf8_c8_encode_C_string(tc, f->cuuid);
             if (f->outer)
                 outercuuid = MVM_string_utf8_c8_encode_C_string(tc, f->outer->body.cuuid);
-            fprintf(stdout, "  %5u  %5s   %7lx   %6x   %4u  %4u  %4u  %4u  %5s  '%s'\n",
-                    fidx, outercuuid, f->orig_bytecode - rs->bytecode_seg, f->bytecode_size,
+            fprintf(stdout, "  %5u  %5s  +%7lx   %6x   %4u  %4u  %4u  %4u  %5s  '%s'\n",
+                    fidx, outercuuid, f->orig_bytecode - prev_bc_pos, f->bytecode_size,
                     f->num_locals, f->num_lexicals, f->num_annotations, f->num_handlers,
                     cuuid, name);
             if (name != emptystr)
@@ -965,11 +966,12 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
             MVM_free(cuuid);
             if (outercuuid != emptystr)
                 MVM_free(outercuuid);
+            prev_bc_pos = f->orig_bytecode;
         }
 
-        fprintf(stdout, "Callsites:            %7lx\n  ", (MVMuint8 *)rs->callsite_seg - root);
-        hxdmp((MVMuint8 *)rs->callsite_seg,  rs->string_seg - rs->callsite_seg, "\n  "); fputs("\n", stdout);
-        fprintf(stdout, "Bytecode:             %7lx\n  ", (MVMuint8 *)rs->bytecode_seg - root);
+        fprintf(stdout, "\nCallsites:            %7lx\n  ", (MVMuint8 *)rs->callsite_seg - root);
+        hxdmp((MVMuint8 *)rs->callsite_seg,  rs->string_seg - rs->callsite_seg, "\n  "); fputs("\n\n", stdout);
+        fprintf(stdout, "Bytecode:             %7lx", (MVMuint8 *)rs->bytecode_seg - root);
 
         MVMuint8 *previous_bytecode_offset = rs->bytecode_seg;
         for (MVMuint32 fidx = 0; fidx < cubody->num_frames; fidx++) {
@@ -991,25 +993,32 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
 
             previous_bytecode_offset = f->orig_bytecode;
         }
-        hxdmp((MVMuint8 *)rs->bytecode_seg, rs->annotation_seg - rs->bytecode_seg, "\n  "); fputs("\n", stdout);
+        hxdmp((MVMuint8 *)previous_bytecode_offset, rs->annotation_seg - previous_bytecode_offset, "\n    "); fputs("\n\n", stdout);
         fprintf(stdout, "Annotations:          %7lx\n  ", (MVMuint8 *)rs->annotation_seg - root);
-        hxdmp((MVMuint8 *)rs->annotation_seg, cubody->data_size - (((MVMuint8*)rs->annotation_seg - root)), "\n  "); fputs("\n", stdout);
+        hxdmp((MVMuint8 *)rs->annotation_seg, cubody->data_size - (((MVMuint8*)rs->annotation_seg - root)), "\n  "); fputs("\n\n", stdout);
 
 
         char **strings = MVM_calloc(cu->body.num_strings, sizeof(char *));
         fprintf(stdout, "String Heap starts at %lx has %u strings in it.\n", cu->body.string_heap_start - cu->body.data_start, cu->body.num_strings);
         MVMuint8 *limit = cu->body.string_heap_read_limit;
         MVMuint32 str_idx = 0;
+        MVMuint8 *prev_str_pos = cu->body.string_heap_start;
         for (MVMuint8 *str_pos = cu->body.string_heap_start; str_idx < cu->body.num_strings;) {
             if (str_pos + 4 < limit) {
                 MVMuint32 bytes = read_uint32(str_pos) >> 1;
-                fprintf(stdout, "  String % 4d at offs %6lx\n", str_idx, str_pos + 4 - cu->body.string_heap_start);
+                fprintf(stdout, "  String % 4d at offs +%6lx\n", str_idx, (str_pos - prev_str_pos) + 4);
                 fputs("    ", stdout);
                 MVMuint64 amount = bytes + (bytes & 3 ? 4 - (bytes & 3) : 0);
-                hxdmp(str_pos + 4, amount, "\n    ");
+                if (amount > 0) {
+                    hxdmp(str_pos + 4, amount, "\n    ");
+                }
+                else {
+                    fputs("(zero bytes)", stdout);
+                }
                 fputc('\n', stdout);
                 strings[str_idx] = MVM_calloc(amount + 1, sizeof(char));
                 strncpy(strings[str_idx], (char *)(str_pos + 4), amount);
+                prev_str_pos = str_pos;
                 str_pos += 4 + amount;
                 str_idx++;
             }
@@ -1021,7 +1030,7 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
 
         char **stables_reprs = MVM_calloc(sc->body->num_stables, sizeof(char *));
 
-        fprintf(stdout, "Step Two: STables\n");
+        fprintf(stdout, "\nSTables (\"types\"):\n");
         MVMint32 previous_reprdata_offset = 0;
         for (MVMuint32 stidx = 0; stidx < sc->body->num_stables; stidx++) {
             // MVMSTable *st = MVM_serialization_demand_stable(tc, sc, stidx);
@@ -1029,7 +1038,7 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
             MVMint32 repr_stridx = read_int32(st_table_row, 0);
             MVMint32 reprdata_offset = read_int32(st_table_row, 8);
 
-            if (previous_reprdata_offset != 0) {
+            if (stidx > 0) {
                 /*fprintf(stdout, "... dumping from %x for %x to %x\n",
                         previous_reprdata_offset,
                         reprdata_offset - previous_reprdata_offset,
@@ -1039,14 +1048,20 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
                 fputs("\n", stdout);
             }
 
+            stables_reprs[stidx] = strings[repr_stridx - 1];
+
             if (stidx < sc->body->num_param_intern_st_lookup && sc->body->param_intern_st_lookup[stidx]) {
-                fprintf(stdout, "% 3d.: (ST %s +param) %lx\n", stidx, strings[repr_stridx - 1], st_table_row - root);
+                fprintf(stdout, "  - (ST %s +param)\n", stables_reprs[stidx]);
             }
             else {
-                fprintf(stdout, "% 3d.: (ST %s) %lx\n", stidx, strings[repr_stridx - 1], st_table_row - root);
+                fprintf(stdout, "  - (ST %s)\n", stables_reprs[stidx]);
             }
-            fprintf(stdout, "   reprdata at offset %lx\n", sr->root.stables_data - sr->data + reprdata_offset);
-            stables_reprs[stidx] = strings[repr_stridx - 1];
+            if (stidx > 0) {
+                fprintf(stdout, "   reprdata offset +%x\n", reprdata_offset - previous_reprdata_offset);
+            }
+            else {
+                fprintf(stdout, "   reprdata offset +%x\n", 0);
+            }
             previous_reprdata_offset = reprdata_offset;
         }
         char *reprdata_offset = sr->stables_data_end;
@@ -1054,16 +1069,23 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
         hxdmp((MVMuint8 *)sr->root.stables_data + previous_reprdata_offset,  reprdata_offset - (sr->root.stables_data + previous_reprdata_offset), "\n    ");
         fputs("\n", stdout);
 
-        fprintf(stdout, "Step Three: Objects\n");
+        fprintf(stdout, "\nObjects Table:\n");
         fputs("  ", stdout);
         hxdmp((MVMuint8 *)sr->root.objects_table, sr->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE, "\n  ");
+
+        fprintf(stdout, "\n\nObjects Data:\n");
+        fputs("  ", stdout);
+        hxdmp((MVMuint8 *)sr->root.objects_data, sr->root.closures_table - sr->root.objects_data, "\n  ");
+
+
+
         //MVMuint8 * obj_table_row = (MVMuint8*)sr->root.objects_table + objidx * OBJECTS_TABLE_ENTRY_SIZE;
         //for (MVMint32 objidx = 0; objidx < sr->root.num_objects; objidx++) {
         //    MVMuint32 si;        /* The SC in the dependencies table, + 1 */
         //    MVMuint32 si_idx;    /* The index in that SC */
         //
         //    if (objidx % 200 == 0)
-        //        fprintf(stdout, "OBJIDX Conc?  SC num  SCIDX\n");
+        //        fprintf(stdout, "OBJIDX Conc?  SC#  SCIDX\n");
         //
         //    MVMuint8 * obj_table_row = (MVMuint8*)sr->root.objects_table + objidx * OBJECTS_TABLE_ENTRY_SIZE;
         //    const MVMuint32 packed = read_int32(obj_table_row, 0);
@@ -1072,8 +1094,8 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
         //
         //    si = (packed >> OBJECTS_TABLE_ENTRY_SC_SHIFT) & OBJECTS_TABLE_ENTRY_SC_MASK;
         //    if (si == OBJECTS_TABLE_ENTRY_SC_OVERFLOW) {
-        //        const char *const overflow_data
-        //            = sr->root.objects_data + read_int32(obj_table_row, 4) - 8;
+        //        MVMuint8 * overflow_data
+        //            = (MVMuint8*)(sr->root.objects_data + read_int32(obj_table_row, 4) - 8);
         //        si = read_int32(overflow_data, 0);
         //        si_idx = read_int32(overflow_data, 4);
         //    } else {
@@ -1082,7 +1104,6 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
         //
         //    fprintf(stdout, "  %4x:  %s  %4d  %4d    %s\n", objidx, isconcrete ? "O" : "T", si, si_idx, si == 0 ? stables_reprs[si_idx] : "");
         //}
-
     }
     else {
         char *dump = MVM_bytecode_dump(tc, cu);
