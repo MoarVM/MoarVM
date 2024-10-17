@@ -4,6 +4,7 @@
 #include "platform/random.h"
 #include "platform/time.h"
 #include "platform/mmap.h"
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #if defined(_MSC_VER)
@@ -546,7 +547,6 @@ void MVM_vm_run_bytecode(MVMInstance *instance, MVMuint8 *bytes, MVMuint32 size)
 #define FRAME_FLAG_IS_THUNK         2
 #define FRAME_FLAG_NO_INLINE        8
 
-#define HEADER_SIZE                 (4 * 18)
 #define DEP_TABLE_ENTRY_SIZE        8
 #define STABLES_TABLE_ENTRY_SIZE    12
 #define OBJECTS_TABLE_ENTRY_SIZE    8
@@ -591,6 +591,14 @@ static MVMint32 read_int32(const MVMuint8 *buffer, size_t offset) {
     return value;
 }
 
+static MVMuint16 read_uint16(const char *buffer, size_t offset) {
+    MVMuint16 value;
+    memcpy(&value, buffer + offset, 2);
+#ifdef MVM_BIGENDIAN
+    switch_endian((char *)&value, 2);
+#endif
+    return value;
+}
 
 /* copies memory dependent on endianness */
 static void memcpy_endian(void *dest, MVMuint8 *src, size_t size) {
@@ -650,6 +658,172 @@ static void hxdmp(MVMuint8 *data, MVMuint32 amount, const char *nl) {
             fputs(nl, stdout);
         }
     }
+}
+
+MVM_STATIC_INLINE void read_locate_sc_and_index(MVMThreadContext *tc, MVMSerializationReader *reader, MVMint32 *idx, MVMint32 *sc_id) {
+    MVMuint32 packed;
+
+    packed = MVM_serialization_read_int(tc, reader);
+
+    *sc_id = packed >> PACKED_SC_SHIFT;
+    if (*sc_id != PACKED_SC_OVERFLOW) {
+        *idx = packed & PACKED_SC_IDX_MASK;
+    } else {
+        *sc_id = MVM_serialization_read_int(tc, reader);
+        *idx = MVM_serialization_read_int(tc, reader);
+    }
+}
+
+/* Possible reference types we can serialize. */
+#define REFVAR_NULL                 1
+#define REFVAR_OBJECT               2
+#define REFVAR_VM_NULL              3
+#define REFVAR_VM_INT               4
+#define REFVAR_VM_NUM               5
+#define REFVAR_VM_STR               6
+#define REFVAR_VM_ARR_VAR           7
+#define REFVAR_VM_ARR_STR           8
+#define REFVAR_VM_ARR_INT           9
+#define REFVAR_VM_HASH_STR_VAR      10
+#define REFVAR_STATIC_CODEREF       11
+#define REFVAR_CLONED_CODEREF       12
+#define REFVAR_SC_REF               13
+
+#define STRING_HEAP_LOC_MAX             0x7FFFFFFF
+#define STRING_HEAP_LOC_PACKED_MAX      0x00007FFF
+#define STRING_HEAP_LOC_PACKED_OVERFLOW 0x00008000
+#define STRING_HEAP_LOC_PACKED_LOW_MASK 0x0000FFFF
+#define STRING_HEAP_LOC_PACKED_SHIFT    16
+
+#define STABLE_BOOLIFICATION_SPEC_MODE_MASK 0x0F
+#define STABLE_HAS_CONTAINER_SPEC           0x10
+#define STABLE_HAS_INVOCATION_SPEC          0x20
+#define STABLE_HAS_HLL_OWNER                0x40
+#define STABLE_HAS_HLL_ROLE                 0x80
+
+/* Read the reference type discriminator from the buffer. */
+MVM_STATIC_INLINE MVMuint8 read_discrim(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    return *(*(reader->cur_read_buffer) + *(reader->cur_read_offset));
+}
+
+MVMuint32 fake_read_str_ref(MVMThreadContext *tc, MVMSerializationReader *reader) {
+    MVMuint32 offset = read_uint16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+    *(reader->cur_read_offset) += 2;
+    if (offset & STRING_HEAP_LOC_PACKED_OVERFLOW) {
+        offset ^= STRING_HEAP_LOC_PACKED_OVERFLOW;
+        offset <<= STRING_HEAP_LOC_PACKED_SHIFT;
+        offset |= read_uint16(*(reader->cur_read_buffer), *(reader->cur_read_offset));
+        *(reader->cur_read_offset) += 2;
+    }
+    return offset;
+}
+
+/* Reading function for references. */
+MVMuint8 fake_serialization_read_ref(MVMThreadContext *tc, MVMSerializationReader *reader, char *nl, char **stables_reprs) {
+    assert(tc->allocate_in_gen2);
+
+    MVMint32 sc_id = 0;
+    MVMint32 idx   = 0;
+
+    /* Read the discriminator. */
+    const int discrim_size = 1;
+    const MVMuint8 discrim = read_discrim(tc, reader);
+    *(reader->cur_read_offset) += discrim_size;
+
+    /* Decide what to do based on it. */
+    switch (discrim) {
+        case REFVAR_NULL:
+            fputs("real null", stdout);
+            return true;
+        case REFVAR_OBJECT:
+            read_locate_sc_and_index(tc, reader, &idx, &sc_id);
+            fprintf(stdout, "sc %3d idx %3d", sc_id, idx);
+            return true;
+        case REFVAR_VM_NULL:
+            fputs("VMNull", stdout);
+            return true;
+        case REFVAR_VM_INT: {
+            MVMint64 value;
+            value = MVM_serialization_read_int(tc, reader);
+            fprintf(stdout, "vm int (0x%4ld)", value);
+            return true;
+        }
+        case REFVAR_VM_NUM: {
+            MVMnum64 value = MVM_serialization_read_num(tc, reader);
+            fprintf(stdout, "vm num (0x%4f)", value);
+            return true;
+        }
+        case REFVAR_VM_STR: {
+            MVMuint32 offset = fake_read_str_ref(tc, reader);
+            fprintf(stdout, "str at %d", offset);
+            return true;
+        }
+        case REFVAR_VM_ARR_VAR: {
+            MVMuint32 elems = MVM_serialization_read_int(tc, reader);
+            MVMuint32 i;
+
+            char *longer_nl = MVM_malloc(strlen(nl) + 3);
+            memset(longer_nl, ' ', strlen(nl) + 2);
+            longer_nl[strlen(nl) + 2] = '\0';
+            longer_nl[0] = '\n';
+
+            fprintf(stdout, "Array of %d elems:%s", elems, longer_nl);
+
+            for (i = 0; i < elems; i++) {
+                if (!fake_serialization_read_ref(tc, reader, longer_nl, stables_reprs)) {
+                    return false;
+                }
+                fputs(longer_nl, stdout);
+            }
+
+            MVM_free(longer_nl);
+
+            return true;
+        }
+        case REFVAR_VM_ARR_STR:
+            fprintf(stdout, "dunno lol vm arr str");
+            break;
+        case REFVAR_VM_ARR_INT:
+            fprintf(stdout, "dunno lol vm arr int");
+            break;
+        case REFVAR_VM_HASH_STR_VAR: {
+            MVMuint32 elems = MVM_serialization_read_int(tc, reader);
+            MVMuint32 i;
+
+            char *longer_nl = MVM_malloc(strlen(nl) + 3);
+            memset(longer_nl, ' ', strlen(nl) + 2);
+            longer_nl[strlen(nl) + 2] = '\0';
+            longer_nl[0] = '\n';
+
+            fprintf(stdout, "Hash of %d pairs:%s", elems, longer_nl);
+
+            for (i = 0; i < elems; i++) {
+                MVMuint32 offset = fake_read_str_ref(tc, reader);
+                fprintf(stdout, "key: str at %d; value: ", offset);
+
+                if (!fake_serialization_read_ref(tc, reader, longer_nl, stables_reprs)) {
+                    return false;
+                }
+                fputs(longer_nl, stdout);
+            }
+
+            MVM_free(longer_nl);
+
+            return true;
+        }
+        case REFVAR_STATIC_CODEREF:
+        case REFVAR_CLONED_CODEREF:
+            fprintf(stdout, "dunno lol static or cloned code ref");
+            break;
+        case REFVAR_SC_REF: {
+            MVMuint32 offset = fake_read_str_ref(tc, reader);
+            fprintf(stdout, "scref: str at %d", offset);
+            return true;
+        }
+        default:
+            fprintf(stdout, "no idea what this discrim is :(");
+    }
+    return false;
 }
 
 /* Describes the current reader state. */
@@ -906,7 +1080,7 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
         fprintf(stdout, "Reader Version: %d\n", sr->root.version);
         fprintf(stdout, "Bytecode File Parts:\n");
         fprintf(stdout, "  Section               %7s  %6s\n", "offset", "length");
-        fprintf(stdout, "  SC Dependencies:      %7lx  %6lx  (%d dependencies)\n",  (MVMuint8 *)rs->sc_seg - root, rs->extop_seg - rs->sc_seg, sr->root.num_dependencies);
+        fprintf(stdout, "  SC Dependencies:      %7lx  %6lx  (%d dependencies)\n",  (MVMuint8 *)rs->sc_seg - root, rs->extop_seg - rs->sc_seg, rs->expected_scs);
         fprintf(stdout, "  Extension Ops:        %7lx  %6lx  (%d extops)\n",        (MVMuint8 *)rs->extop_seg - root, rs->frame_seg - rs->extop_seg, rs->expected_extops);
         fprintf(stdout, "  Frames Data:          %7lx  %6lx  (%d frames)\n",        (MVMuint8 *)rs->frame_seg - root, rs->callsite_seg - rs->frame_seg, rs->expected_frames);
         fprintf(stdout, "  Callsites:            %7lx  %6lx  (%d callsites)\n",     (MVMuint8 *)rs->callsite_seg - root, rs->string_seg - rs->callsite_seg, rs->expected_callsites);
@@ -935,6 +1109,7 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
 
         fprintf(stdout, "\nSC Dependencies:      %7lx\n  ", (MVMuint8 *)rs->sc_seg - root);
         hxdmp((MVMuint8 *)rs->sc_seg,  rs->extop_seg - rs->sc_seg, "\n  "); fputs("\n", stdout);
+
         fprintf(stdout, "\nExtension Ops:        %7lx\n  ", (MVMuint8 *)rs->extop_seg - root);
         hxdmp((MVMuint8 *)rs->extop_seg, rs->frame_seg - rs->extop_seg, "\n  ");
         fputs("\n", stdout);
@@ -1027,16 +1202,55 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
             }
         }
 
+        char     **orig_read_buffer         = sr->cur_read_buffer;
+        MVMint32  *orig_read_offset         = sr->cur_read_offset;
+        char     **orig_read_end            = sr->cur_read_end;
 
         char **stables_reprs = MVM_calloc(sc->body->num_stables, sizeof(char *));
+        MVMuint8 *obj_is_concrete = MVM_calloc(sc->body->num_objects, sizeof(char));
+        MVMuint32 *objects_stables = MVM_calloc(sc->body->num_objects, sizeof(MVMuint32));
+
+        for (MVMuint32 stidx = 0; stidx < sc->body->num_stables; stidx++) {
+            MVMuint8 *st_table_row = (MVMuint8*)sr->root.stables_table + stidx * STABLES_TABLE_ENTRY_SIZE;
+            MVMint32 repr_stridx = read_int32(st_table_row, 0);
+            stables_reprs[stidx] = strings[repr_stridx - 1];
+        }
+
+        for (MVMint32 objidx = 0; objidx < sr->root.num_objects; objidx++) {
+            MVMuint32 si;        /* The SC in the dependencies table, + 1 */
+            MVMuint32 si_idx;    /* The index in that SC */
+
+            MVMuint8 * obj_table_row = (MVMuint8*)sr->root.objects_table + objidx * OBJECTS_TABLE_ENTRY_SIZE;
+            const MVMuint32 packed = read_int32(obj_table_row, 0);
+
+            MVMuint8 isconcrete = packed & OBJECTS_TABLE_ENTRY_IS_CONCRETE;
+
+            si = (packed >> OBJECTS_TABLE_ENTRY_SC_SHIFT) & OBJECTS_TABLE_ENTRY_SC_MASK;
+            if (si == OBJECTS_TABLE_ENTRY_SC_OVERFLOW) {
+                MVMint32 si_idx_offs = read_int32(obj_table_row, 4);
+                MVMuint8 * overflow_data
+                    = (MVMuint8*)(sr->root.objects_data + si_idx_offs - 8);
+                si = read_int32(overflow_data, 0);
+                si_idx = read_int32(overflow_data, 4);
+            } else {
+                si_idx = packed & OBJECTS_TABLE_ENTRY_SC_IDX_MASK;
+            }
+
+            if (si == 0)
+                objects_stables[objidx] = si_idx;
+            obj_is_concrete[objidx] = isconcrete;
+        }
+
 
         fprintf(stdout, "\nSTables (\"types\"):\n");
         MVMint32 previous_reprdata_offset = 0;
         for (MVMuint32 stidx = 0; stidx < sc->body->num_stables; stidx++) {
-            // MVMSTable *st = MVM_serialization_demand_stable(tc, sc, stidx);
             MVMuint8 *st_table_row = (MVMuint8*)sr->root.stables_table + stidx * STABLES_TABLE_ENTRY_SIZE;
             MVMint32 repr_stridx = read_int32(st_table_row, 0);
-            MVMint32 reprdata_offset = read_int32(st_table_row, 8);
+            //MVMint32 stable_data_offset = read_int32(st_table_row, 4);
+            //MVMint32 reprdata_offset = read_int32(st_table_row, 4);
+            MVMint32 reprdata_offset = read_int32(st_table_row, 4);
+            MVMint32 second_offset = read_int32(st_table_row, 8);
 
             if (stidx > 0) {
                 /*fprintf(stdout, "... dumping from %x for %x to %x\n",
@@ -1051,19 +1265,191 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
             stables_reprs[stidx] = strings[repr_stridx - 1];
 
             if (stidx < sc->body->num_param_intern_st_lookup && sc->body->param_intern_st_lookup[stidx]) {
-                fprintf(stdout, "  - (ST %s +param)\n", stables_reprs[stidx]);
+                fprintf(stdout, "\n  - (ST %s +param)\n", stables_reprs[stidx]);
             }
             else {
-                fprintf(stdout, "  - (ST %s)\n", stables_reprs[stidx]);
+                fprintf(stdout, "\n  - (ST %s)\n", stables_reprs[stidx]);
             }
             if (stidx > 0) {
-                fprintf(stdout, "   reprdata offset +%x\n", reprdata_offset - previous_reprdata_offset);
+                fprintf(stdout, "   stabledata offset +%3x  reprdata offset  %3x\n", reprdata_offset - previous_reprdata_offset, second_offset - reprdata_offset);
             }
             else {
-                fprintf(stdout, "   reprdata offset +%x\n", 0);
+                fprintf(stdout, "   stabledata offset +%3x  reprdata offset  %3x\n", 0, second_offset);
             }
-            previous_reprdata_offset = reprdata_offset;
+
+            MVMint32 offs = reprdata_offset;
+            sr->cur_read_buffer = &sr->root.stables_data;
+            sr->cur_read_offset = &offs;
+            sr->cur_read_end    = &sr->stables_data_end;
+
+            /* Read locate sc and index for HOW */
+            MVMint32 sc_id = 0;
+            MVMint32 idx = 0;
+            MVMint32 elems, i;
+
+            MVMuint8 cont = 1;
+
+            read_locate_sc_and_index(tc,    sr, &idx, &sc_id);
+            fprintf(stdout, "     HOW:  sc %3d idx %3d", sc_id, idx);
+
+            read_locate_sc_and_index(tc,    sr, &idx, &sc_id);
+            fprintf(stdout, "  WHAT: sc %3d idx %3d\n", sc_id, idx);
+
+            fprintf(stdout, "     WHO:  ");
+            fake_serialization_read_ref(tc, sr, "\n      ", stables_reprs);
+            fprintf(stdout, "\n");
+
+            fprintf(stdout, "     Legacy method cache (ignored): ");
+            fake_serialization_read_ref(tc, sr, "\n      ", stables_reprs);
+            fprintf(stdout, "\n");
+
+            elems = MVM_serialization_read_int(tc, sr);
+            fprintf(stdout, "     Type Check Cache: %d entries\n      ", elems);
+
+            for (i = 0; i < elems && cont; i++) {
+                cont = fake_serialization_read_ref(tc, sr, "\n        ", stables_reprs);
+                fputs("\n      ", stdout);
+            }
+            fprintf(stdout, "\n");
+
+            if (!cont)
+                goto do_reprdata_now;
+
+            MVMuint8 mode_flags = *(*(sr->cur_read_buffer) + *(sr->cur_read_offset));
+            MVMuint8 flags = 0;
+            *(sr->cur_read_offset) += 1;
+
+            if (mode_flags & MVM_PARAMETRIC_TYPE) {
+                fputs("     flags: is parametric\n", stdout);
+            }
+            else if (mode_flags & MVM_PARAMETERIZED_TYPE) {
+                fputs("     flags: is pamareterized\n", stdout);
+            }
+
+            flags = *(*(sr->cur_read_buffer) + *(sr->cur_read_offset));
+            *(sr->cur_read_offset) += 1;
+            mode_flags = flags & 0xF;
+            if (mode_flags != 0xF) {
+                fputs("     boolification spec: ", stdout);
+                cont = fake_serialization_read_ref(tc, sr, "\n      ", stables_reprs);
+                fputs("\n", stdout);
+            }
+
+            if (!cont)
+                goto do_reprdata_now;
+
+            if (flags & STABLE_HAS_CONTAINER_SPEC) {
+                MVMuint32 offset = fake_read_str_ref(tc, sr);
+                fprintf(stdout, "     container spec: %s\n", strings[offset + 1]);
+                cont = false;
+                goto do_reprdata_now;
+            }
+
+            if (flags & STABLE_HAS_INVOCATION_SPEC) {
+                fputs("has invocation spec, but shouldn't! not reading this...\n", stdout);
+                cont = false;
+                goto do_reprdata_now;
+            }
+
+            /* HLL owner. */
+            if (flags & STABLE_HAS_HLL_OWNER) {
+                fputs("     hll owner: ", stdout);
+                fprintf(stdout, "stridx %d", fake_read_str_ref(tc, sr));
+                fputs("\n", stdout);
+            }
+
+            /* HLL role. */
+            if (flags & STABLE_HAS_HLL_ROLE) {
+                fprintf(stdout, "     hll role: %ld", MVM_serialization_read_int(tc, sr));
+            }
+
+            /* If it's a parametric type... */
+            if (mode_flags & MVM_PARAMETRIC_TYPE || mode_flags & MVM_PARAMETERIZED_TYPE) {
+                fprintf(stdout, "     not reading parametric stuff\n");
+                cont = false;
+                goto do_reprdata_now;
+            }
+
+do_reprdata_now:
+
+
+            if (stidx > 0) {
+                /*fprintf(stdout, "... dumping from %x for %x to %x\n",
+                        previous_reprdata_offset,
+                        reprdata_offset - previous_reprdata_offset,
+                        reprdata_offset);*/
+                fputs("    ", stdout);
+                hxdmp((MVMuint8 *)sr->root.stables_data + previous_reprdata_offset, second_offset - previous_reprdata_offset, "\n    ");
+                fputs("\n", stdout);
+            }
+
+
+
+            offs = second_offset;
+            sr->cur_read_buffer = &sr->root.stables_data;
+            sr->cur_read_offset = &offs;
+            sr->cur_read_end    = &sr->stables_data_end;
+
+            if (strncmp(stables_reprs[stidx], "P6opaque", 8) == 0) {
+                MVMuint16 num_attributes = (MVMuint16)MVM_serialization_read_int(tc, sr);
+                fprintf(stdout, "     Attributes: %d\n", num_attributes);
+                for (MVMuint16 attridx = 0; attridx < num_attributes; attridx++) {
+                    if (MVM_serialization_read_int(tc, sr)) {
+                        read_locate_sc_and_index(tc,    sr, &idx, &sc_id);
+                        fprintf(stdout, "      %4d: sc %3d idx %3d\n", attridx, sc_id, idx);
+                    }
+                }
+                if (MVM_serialization_read_int(tc, sr))
+                    fputs("     multiple inheritance\n", stdout);
+                if (MVM_serialization_read_int(tc, sr)) {
+                    fputs("     autoviv:\n", stdout);
+                    for (MVMuint16 attridx = 0; attridx < num_attributes; attridx++) {
+                        fprintf(stdout, "       %4d: ", attridx);
+                        fake_serialization_read_ref(tc, sr, "\n        ", stables_reprs);
+                        fputs("\n", stdout);
+                    }
+                }
+
+                fprintf(stdout, "      unbox slots: %ld %ld %ld %ld\n", MVM_serialization_read_int(tc, sr), sr->root.version >= 24 ? MVM_serialization_read_int(tc, sr) : -1, MVM_serialization_read_int(tc, sr), MVM_serialization_read_int(tc, sr));
+                if (MVM_serialization_read_int(tc, sr)) {
+                    for (i = 0; i < num_attributes; i++) {
+                        MVMuint16 repr_id = MVM_serialization_read_int(tc, sr);
+                        MVMuint16 slot = MVM_serialization_read_int(tc, sr);
+                        fprintf(stdout, "       %4d: %4d\n", repr_id, slot);
+                    }
+                }
+
+                MVMuint16 num_classes = MVM_serialization_read_int(tc, sr);
+                if (num_classes)
+                    fprintf(stdout, "      Mapping of class + name to slots:\n");
+                for (i = 0; i < num_classes; i++) {
+                    fprintf(stdout, "    %4d: ", i);
+                    cont = fake_serialization_read_ref(tc, sr, "\n        ", stables_reprs);
+                    if (!cont)
+                        goto outta_here;
+                    fputs("\n", stdout);
+
+                    MVMuint32 num_attrs = MVM_serialization_read_int(tc, sr);
+                    for (MVMuint32 j = 0; j < num_attrs; j++) {
+                        MVMuint32 stridx = fake_read_str_ref(tc, sr);
+                        MVMint64 slot = (MVMuint16)MVM_serialization_read_int(tc, sr);
+                        fprintf(stdout, "        %s: %ld\n", strings[stridx - 1], slot);
+                    }
+                }
+outta_here:
+                /*dummy*/num_attributes=0;
+            }
+            /*else if (strncmp(stables_reprs[stidx], "P6Opaque", 8) == 0) {
+
+            }*/
+
+            previous_reprdata_offset = second_offset;
         }
+
+        sr->cur_read_buffer     = orig_read_buffer;
+        sr->cur_read_offset     = orig_read_offset;
+        sr->cur_read_end        = orig_read_end;
+
         char *reprdata_offset = sr->stables_data_end;
         fputs("    ", stdout);
         hxdmp((MVMuint8 *)sr->root.stables_data + previous_reprdata_offset,  reprdata_offset - (sr->root.stables_data + previous_reprdata_offset), "\n    ");
@@ -1074,36 +1460,67 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
         hxdmp((MVMuint8 *)sr->root.objects_table, sr->root.num_objects * OBJECTS_TABLE_ENTRY_SIZE, "\n  ");
 
         fprintf(stdout, "\n\nObjects Data:\n");
-        fputs("  ", stdout);
+        /*fputs("  ", stdout);
         hxdmp((MVMuint8 *)sr->root.objects_data, sr->root.closures_table - sr->root.objects_data, "\n  ");
+        fputs("\n\n", stdout);
+        */
 
+#define THING_CONTINUATION -1
+#define THING_SI -2
+#define THING_SI_IDX -3
+#define THING_OBJDATA_OFFS -4
 
+        MVMint8 *thing_at_pos = MVM_calloc(sr->root.closures_table - sr->root.objects_data, 1);
 
-        //MVMuint8 * obj_table_row = (MVMuint8*)sr->root.objects_table + objidx * OBJECTS_TABLE_ENTRY_SIZE;
-        //for (MVMint32 objidx = 0; objidx < sr->root.num_objects; objidx++) {
-        //    MVMuint32 si;        /* The SC in the dependencies table, + 1 */
-        //    MVMuint32 si_idx;    /* The index in that SC */
-        //
-        //    if (objidx % 200 == 0)
-        //        fprintf(stdout, "OBJIDX Conc?  SC#  SCIDX\n");
-        //
-        //    MVMuint8 * obj_table_row = (MVMuint8*)sr->root.objects_table + objidx * OBJECTS_TABLE_ENTRY_SIZE;
-        //    const MVMuint32 packed = read_int32(obj_table_row, 0);
-        //
-        //    MVMuint8 isconcrete = packed & OBJECTS_TABLE_ENTRY_IS_CONCRETE;
-        //
-        //    si = (packed >> OBJECTS_TABLE_ENTRY_SC_SHIFT) & OBJECTS_TABLE_ENTRY_SC_MASK;
-        //    if (si == OBJECTS_TABLE_ENTRY_SC_OVERFLOW) {
-        //        MVMuint8 * overflow_data
-        //            = (MVMuint8*)(sr->root.objects_data + read_int32(obj_table_row, 4) - 8);
-        //        si = read_int32(overflow_data, 0);
-        //        si_idx = read_int32(overflow_data, 4);
-        //    } else {
-        //        si_idx = packed & OBJECTS_TABLE_ENTRY_SC_IDX_MASK;
-        //    }
-        //
-        //    fprintf(stdout, "  %4x:  %s  %4d  %4d    %s\n", objidx, isconcrete ? "O" : "T", si, si_idx, si == 0 ? stables_reprs[si_idx] : "");
-        //}
+        MVMuint64 prev_outputted_offs;
+
+        for (MVMint32 objidx = 0; objidx < sr->root.num_objects; objidx++) {
+            MVMuint32 si;        /* The SC in the dependencies table, + 1 */
+            MVMuint32 si_idx;
+
+            MVMuint8 * obj_table_row = (MVMuint8*)sr->root.objects_table + objidx * OBJECTS_TABLE_ENTRY_SIZE;
+            const MVMuint32 packed = read_int32(obj_table_row, 0);
+
+            MVMuint8 isconcrete = packed & OBJECTS_TABLE_ENTRY_IS_CONCRETE;
+
+            MVMuint32 obj_data_offset;
+            MVMuint8 is_overflow = 0;
+
+            si = (packed >> OBJECTS_TABLE_ENTRY_SC_SHIFT) & OBJECTS_TABLE_ENTRY_SC_MASK;
+            if (si == OBJECTS_TABLE_ENTRY_SC_OVERFLOW) {
+                MVMint32 si_idx_offs = read_int32(obj_table_row, 4);
+                MVMuint8 * overflow_data
+                    = (MVMuint8*)(sr->root.objects_data + si_idx_offs - 8);
+                memset(thing_at_pos + si_idx_offs - 8, -1, 8);
+                thing_at_pos[si_idx_offs - 8] = THING_SI;
+                thing_at_pos[si_idx_offs - 4] = THING_SI_IDX;
+                si = read_int32(overflow_data, 0);
+                si_idx = read_int32(overflow_data, 4);
+                obj_data_offset = si_idx_offs;
+                is_overflow = 1;
+            } else {
+                si_idx = packed & OBJECTS_TABLE_ENTRY_SC_IDX_MASK;
+                obj_data_offset = read_int32(obj_table_row, 4);
+                thing_at_pos[obj_data_offset] = THING_OBJDATA_OFFS;
+                is_overflow = 0;
+            }
+
+            fprintf(stdout, " Object %5d  -  SC %3d IDX %5d (overflow %d) conc %d\n  ", objidx, si, si_idx, is_overflow, isconcrete);
+
+            if (objidx > 0) {
+                hxdmp((MVMuint8 *)sr->root.objects_data + prev_outputted_offs, obj_data_offset - prev_outputted_offs, "\n  ");
+                fputs("\n", stdout);
+            }
+
+            prev_outputted_offs = obj_data_offset;
+
+            // fprintf(stdout, "  %4x:  %s  %4d  %4d    %s\n", objidx, isconcrete ? "O" : "T", si, si_idx, si == 0 ? stables_reprs[si_idx] : "");
+        }
+        hxdmp((MVMuint8 *)sr->root.objects_data + prev_outputted_offs, sr->root.closures_table - sr->root.objects_data - prev_outputted_offs, "\n  ");
+        fputs("\n", stdout);
+
+        /*fprintf(stdout, "\nThing at Pos:\n  ");
+        hxdmp((MVMuint8*)thing_at_pos, sr->root.closures_table - sr->root.objects_data, "\n  ");*/
     }
     else {
         char *dump = MVM_bytecode_dump(tc, cu);
