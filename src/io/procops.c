@@ -32,7 +32,22 @@ extern char **environ;
 #include <stdlib.h>
 #endif
 
-char *make_pty(int *fd_pty, int *fd_tty) {
+char *resize_pty(int *fd_pty, int cols, int rows) {
+    struct winsize winp;
+    winp.ws_col = cols;
+    winp.ws_row = rows;
+    winp.ws_xpixel = 0;
+    winp.ws_ypixel = 0;
+    if (ioctl(*fd_pty, TIOCSWINSZ, &winp) < 0) {
+        char *error_str = MVM_malloc(128);
+        snprintf(error_str, 127, "Error in TIOCSWINSZ: %s (error code %i)",
+                strerror(errno), errno);
+        return error_str;
+    }
+    return NULL;
+}
+
+char *make_pty(int *fd_pty, int *fd_tty, int cols, int rows) {
     int ret;
     char *error_str;
 
@@ -90,8 +105,16 @@ char *make_pty(int *fd_pty, int *fd_tty) {
 
     MVM_free(path_tty);
 
+    error_str = resize_pty(fd_pty, cols, rows);
+    if (error_str) {
+        close(*fd_pty);
+        close(*fd_tty);
+        return error_str;
+    }
+
     return NULL;
 }
+
 
 
 #ifdef _WIN32
@@ -769,7 +792,16 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 
     /* Create input/output handles as needed. */
     if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty)) {
-        error_str = make_pty(&fd_pty, &fd_tty);
+        MVMint64 cols = 80;
+        MVMint64 rows = 24;
+        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty_cols))
+            cols = MVM_repr_get_int(tc,
+                MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.pty_cols));
+        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty_rows))
+            rows = MVM_repr_get_int(tc,
+                MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.pty_rows));
+
+        error_str = make_pty(&fd_pty, &fd_tty, cols, rows);
         if (error_str)
             goto spawn_setup_error;
 

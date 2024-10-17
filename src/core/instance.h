@@ -109,6 +109,8 @@ struct MVMStringConsts {
     MVMString *boolify_using_elems;
     MVMString *variadic;
     MVMString *pty;
+    MVMString *pty_cols;
+    MVMString *pty_rows;
 };
 
 struct MVMEventSubscriptions {
