@@ -126,7 +126,7 @@ static void at_pos(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *d
         peeked = body->head->next;
         value->o = peeked ? peeked->value : tc->instance->VMNull;
         uv_mutex_unlock(&body->head_lock);
-        MVM_telemetry_interval_stop(tc, interval_id, "ConcBlockingQueue.at_pos");
+        MVM_telemetry_interval_stop((MVMThreadContext*)(peeked ? 1L : 0L), interval_id, "ConcBlockingQueue.at_pos peeked?");
     }
     else {
         value->o = tc->instance->VMNull;
@@ -175,8 +175,9 @@ static void push(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *dat
         uv_cond_signal(&body->head_cond);
         uv_mutex_unlock(&body->head_lock);
     }
-    MVM_telemetry_interval_annotate(orig_elems, interval_id, "this many items in it");
-    MVM_telemetry_interval_stop(tc, interval_id, "ConcBlockingQueue.push");
+    if (orig_elems > 0)
+        MVM_telemetry_interval_annotate(orig_elems, interval_id, "this many items in it before");
+    MVM_telemetry_interval_stop((MVMThreadContext *)value.o, interval_id, "ConcBlockingQueue.push pushed object");
 }
 
 /* Push to front of the queue - this should be an exceptional case, it has less
@@ -358,6 +359,6 @@ MVMObject * MVM_concblockingqueue_poll(MVMThreadContext *tc, MVMConcBlockingQueu
 
     uv_mutex_unlock(&body->head_lock);
 
-    MVM_telemetry_interval_stop(tc, interval_id, "ConcBlockingQueue.poll");
+    MVM_telemetry_interval_stop((MVMThreadContext *)result, interval_id, "ConcBlockingQueue.poll result");
     return result;
 }
