@@ -559,12 +559,16 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
     MVMThreadContext *tc  = si->tc;
     MVMObject *arr;
     MVMAsyncTask *t;
+    unsigned int interval_id = MVM_telemetry_interval_start(tc, "async_read");
+    MVM_telemetry_interval_annotate((uintptr_t)handle, interval_id, "this uv_stream_t");
+    MVM_telemetry_interval_annotate((uintptr_t)seq_number, interval_id, "sequence number");
     MVMROOT(tc, callback) {
         arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
         t = MVM_io_eventloop_get_active_work(tc, si->work_idx);
     }
     MVM_repr_push_o(tc, arr, callback);
     if (nread >= 0) {
+        MVM_telemetry_interval_annotate((uintptr_t)nread, interval_id, "number bytes read");
         MVMROOT2(tc, t, arr) {
             /* Push the sequence number. */
             MVMObject *seq_boxed = MVM_repr_box_int(tc,
@@ -592,6 +596,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
             /* Update permit count, stop reading if we run out. */
             if (*permit > 0) {
                 (*permit)--;
+                MVM_telemetry_interval_annotate((uintptr_t)*permit, interval_id, "permits are now");
                 if (*permit == 0) {
                     uv_read_stop(handle);
                     if (handle == (uv_stream_t *)si->pipe_stdout)
@@ -602,6 +607,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
                         MVM_panic(1, "Confused stopping reading async process handle");
                 }
             }
+            MVM_telemetry_interval_stop(tc, interval_id, "async_read done");
         }
     }
     else if (nread == UV_EOF) {
@@ -617,6 +623,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
         uv_close((uv_handle_t *)handle, NULL);
         if (--si->using == 0)
             MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
+        MVM_telemetry_interval_stop(tc, interval_id, "async_read EOF & closed");
     }
     else {
         MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTInt);
@@ -633,6 +640,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
         uv_close((uv_handle_t *)handle, NULL);
         if (--si->using == 0)
             MVM_io_eventloop_remove_active_work(tc, &(si->work_idx));
+        MVM_telemetry_interval_stop(tc, interval_id, "async_read error & closed");
     }
     MVM_repr_push_o(tc, t->body.queue, arr);
 }
@@ -676,6 +684,8 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     si->tc        = tc;
     si->work_idx  = MVM_io_eventloop_add_active_work(tc, async_task);
     si->using     = 1;
+
+    unsigned int interval_id = MVM_telemetry_interval_start(tc, "procasync.spawn_setup");
 
     /* Create input/output handles as needed. */
     if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.write)) {
@@ -765,6 +775,9 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     if (spawn_result) {
         MVMObject *msg_box = NULL;
         si->state = STATE_DONE;
+
+        MVM_telemetry_interval_stop(tc, interval_id, "spawn errored");
+
         MVMROOT2(tc, async_task, msg_box) {
             char *error_str = MVM_malloc(128);
             MVMObject *error_cb;
@@ -854,6 +867,12 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                 }
             }
         }
+        MVM_telemetry_interval_annotate((uintptr_t)si->pipe_stderr, interval_id, "stderr handle");
+        MVM_telemetry_interval_annotate((uintptr_t)si->pipe_stdout, interval_id, "stdout handle");
+        MVM_telemetry_interval_annotate((uintptr_t)process->pid, interval_id, "PID");
+
+        MVM_telemetry_interval_annotate((uintptr_t)handle, interval_id, "MVMOSHandle");
+        MVM_telemetry_interval_stop(tc, interval_id, "spawn success");
     }
 }
 
