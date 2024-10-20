@@ -153,8 +153,8 @@ MVM_PUBLIC unsigned int MVM_telemetry_interval_start(MVMThreadContext *threadID,
     if (!telemetry_active) { return 0; }
 
     record = newRecord();
-    MVM_incr(&intervalIDCounter);
-    intervalID = MVM_load(&intervalIDCounter);
+    unsigned int old = MVM_incr(&intervalIDCounter);
+    intervalID = old + 1;
     READ_TSC(record->u.interval.time);
 
     record->recordType = IntervalStart;
@@ -214,7 +214,7 @@ static void calibrateTSC(FILE *outfile)
     startTime = uv_hrtime();
     READ_TSC(startTsc)
 
-    MVM_sleep(1000);
+    MVM_sleep(100);
 
     endTime = uv_hrtime();
     READ_TSC(endTsc)
@@ -238,7 +238,7 @@ static void serializeTelemetryBufferRange(FILE *outfile, unsigned int serializat
     for(i = serializationStart; i < serializationEnd; i++) {
         struct TelemetryRecord *record = &recordBuffer[i];
 
-        fprintf(outfile, "%10" PRIxPTR " ", record->threadID);
+        fprintf(outfile, "%11" PRIxPTR " ", record->threadID);
 
         switch(record->recordType) {
             case Calibration:
@@ -279,26 +279,16 @@ static void serializeTelemetryBuffer(FILE *outfile)
         serializeTelemetryBufferRange(outfile, serializationStart, serializationEnd);
     }
 
+    fflush(outfile);
     lastSerializedIndex = serializationEnd;
 }
 
 static void backgroundSerialization(void *outfile)
 {
-    while(continueBackgroundSerialization) {
-        MVM_sleep(500);
-        serializeTelemetryBuffer((FILE *)outfile);
-    }
-
-    fclose((FILE *)outfile);
-}
-
-MVM_PUBLIC void MVM_telemetry_init(FILE *outfile)
-{
-    struct TelemetryRecord *calibrationRecord;
+        struct TelemetryRecord *calibrationRecord;
     struct TelemetryRecord *epochRecord;
-    int threadCreateError;
 
-    telemetry_active = 1;
+    pthread_setname_np(pthread_self(), "telemetrylog");
 
     calibrateTSC(outfile);
 
@@ -311,6 +301,20 @@ MVM_PUBLIC void MVM_telemetry_init(FILE *outfile)
     epochRecord->recordType = Epoch;
 
     beginningEpoch = epochRecord->u.epoch.time;
+
+    while(continueBackgroundSerialization) {
+        MVM_sleep(100);
+        serializeTelemetryBuffer((FILE *)outfile);
+    }
+
+    fclose((FILE *)outfile);
+}
+
+MVM_PUBLIC void MVM_telemetry_init(FILE *outfile)
+{
+    int threadCreateError;
+
+    telemetry_active = 1;
 
     threadCreateError = uv_thread_create((uv_thread_t *)&backgroundSerializationThread, backgroundSerialization, (void *)outfile);
     if (threadCreateError != 0)  {
