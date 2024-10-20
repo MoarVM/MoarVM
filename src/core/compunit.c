@@ -38,6 +38,8 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename, M
     uv_fs_t req;
     char *waste[2] = { free_filename ? (char *)filename : NULL, NULL };
 
+    unsigned long interval_id = MVM_telemetry_interval_start(tc, "map cu from file");
+
     /* Ensure the file exists, and get its size. */
     if (uv_fs_stat(NULL, &req, filename, NULL) < 0) {
         MVM_exception_throw_adhoc_free(tc, waste, "While looking for '%s': %s", filename, uv_strerror(req.result));
@@ -49,6 +51,9 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename, M
     if ((fd = uv_fs_open(NULL, &req, filename, O_RDONLY, 0, NULL)) < 0) {
         MVM_exception_throw_adhoc_free(tc, waste, "While trying to open '%s': %s", filename, uv_strerror(req.result));
     }
+
+    MVM_telemetry_interval_annotate((uintptr_t)fd, interval_id, "this handle");
+    MVM_telemetry_interval_annotate((uintptr_t)size, interval_id, "this size");
 
     if ((block = MVM_platform_map_file(fd, &handle, (size_t)size, 0)) == NULL) {
         /* FIXME: check errno or GetLastError() */
@@ -66,6 +71,9 @@ MVMCompUnit * MVM_cu_map_from_file(MVMThreadContext *tc, const char *filename, M
     cu = MVM_cu_from_bytes(tc, (MVMuint8 *)block, (MVMuint32)size);
     cu->body.handle = handle;
     cu->body.deallocate = MVM_DEALLOCATE_UNMAP;
+
+    MVM_telemetry_interval_stop(tc, interval_id, "done mapping");
+
     return cu;
 }
 
@@ -77,12 +85,17 @@ MVMCompUnit * MVM_cu_map_from_file_handle(MVMThreadContext *tc, uv_file fd, MVMu
     MVMuint64    size;
     uv_fs_t req;
 
+    unsigned long interval_id = MVM_telemetry_interval_start(tc, "map cu from file handle");
+    MVM_telemetry_interval_annotate((uintptr_t)handle, interval_id, "this handle");
+
     /* Ensure the file exists, and get its size. */
     if (uv_fs_fstat(NULL, &req, fd, NULL) < 0) {
         MVM_exception_throw_adhoc(tc, "Trying to stat: %s", uv_strerror(req.result));
     }
 
     size = req.statbuf.st_size;
+
+    MVM_telemetry_interval_annotate((uintptr_t)size, interval_id, "this size");
 
     if ((block = MVM_platform_map_file(fd, &handle, (size_t)size, 0)) == NULL) {
         /* FIXME: check errno or GetLastError() */
@@ -95,6 +108,7 @@ MVMCompUnit * MVM_cu_map_from_file_handle(MVMThreadContext *tc, uv_file fd, MVMu
     cu = MVM_cu_from_bytes(tc, (MVMuint8 *)block, (MVMuint32)size);
     cu->body.handle = handle;
     cu->body.deallocate = MVM_DEALLOCATE_UNMAP;
+    MVM_telemetry_interval_stop(tc, interval_id, "done mapping");
     return cu;
 }
 
