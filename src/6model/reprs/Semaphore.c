@@ -115,8 +115,9 @@ static const MVMREPROps Semaphore_this_repr = {
 
 MVMint64 MVM_semaphore_tryacquire(MVMThreadContext *tc, MVMSemaphore *sem) {
     int r;
-    MVM_telemetry_timestamp(tc, "Semaphore.tryAcquire");
+    unsigned int interval_id = MVM_telemetry_interval_start(tc, "Semaphore.tryAcquire");
     r = uv_sem_trywait(sem->body.sem);
+    MVM_telemetry_interval_stop((MVMThreadContext*)(uintptr_t)r, interval_id, "tryAcquire result");
     return !r;
 }
 
