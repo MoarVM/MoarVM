@@ -50,12 +50,20 @@ void MVM_load_bytecode_buffer(MVMThreadContext *tc, MVMObject *buf) {
     )
         MVM_exception_throw_adhoc(tc, "loadbytecodebuffer requires a native int8 or uint8 array to read from");
 
+    unsigned long interval_id = MVM_telemetry_interval_start(tc, "loadbytecodebuffer");
+
     /* MVMCompUnit expects the data to be non-GC managed as it usually comes straight from a file */
     data_size = ((MVMArray *)buf)->body.elems;
+
+    MVM_telemetry_interval_annotate((uintptr_t)data_size, interval_id, "this size");
+
     data_start = MVM_malloc(data_size);
     memcpy(data_start, (MVMuint8 *)(((MVMArray *)buf)->body.slots.i8 + ((MVMArray *)buf)->body.start), data_size);
 
     cu = MVM_cu_from_bytes(tc, data_start, data_size);
+
+    MVM_telemetry_interval_stop(tc, interval_id, "done mapping");
+
     run_comp_unit(tc, cu);
 }
 void MVM_load_bytecode_buffer_to_cu(MVMThreadContext *tc, MVMObject *buf, MVMRegister *res) {
@@ -74,12 +82,20 @@ void MVM_load_bytecode_buffer_to_cu(MVMThreadContext *tc, MVMObject *buf, MVMReg
     )
         MVM_exception_throw_adhoc(tc, "loadbytecodebuffer requires a native int8 or uint8 array to read from");
 
+    unsigned long interval_id = MVM_telemetry_interval_start(tc, "buffertocu");
+
     /* MVMCompUnit expects the data to be non-GC managed as it usually comes straight from a file */
     data_size = ((MVMArray *)buf)->body.elems;
+
+    MVM_telemetry_interval_annotate((uintptr_t)data_size, interval_id, "this size");
+
     data_start = MVM_malloc(data_size);
     memcpy(data_start, (MVMuint8 *)(((MVMArray *)buf)->body.slots.i8 + ((MVMArray *)buf)->body.start), data_size);
 
     cu = MVM_cu_from_bytes(tc, data_start, data_size);
+
+    MVM_telemetry_interval_stop(tc, interval_id, "done mapping");
+
     cu->body.deallocate = MVM_DEALLOCATE_FREE;
     res->o = (MVMObject *)cu;
 
