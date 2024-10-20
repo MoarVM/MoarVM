@@ -1582,6 +1582,52 @@ static MVMDispSysCall stat_is_executable = {
     .expected_concrete = { 1 },
 };
 
+/* telemetry-interval-start */
+static void telemetry_interval_start_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    unsigned long interval_id = MVM_telemetry_interval_start(tc, (const char *)(get_int_arg(arg_info, 0) % 4096));
+    MVM_args_set_result_int(tc, interval_id, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall telemetry_interval_start = {
+    .c_name = "telemetry-interval-start",
+    .implementation = telemetry_interval_start_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_INT },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
+/* telemetry-interval-start */
+static void telemetry_interval_stop_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVM_telemetry_interval_stop(tc, get_int_arg(arg_info, 0), (const char *)(get_int_arg(arg_info, 1) % 4096));
+    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall telemetry_interval_stop = {
+    .c_name = "telemetry-interval-stop",
+    .implementation = telemetry_interval_stop_impl,
+    .min_args = 2,
+    .max_args = 2,
+    .expected_kinds = { MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_INT },
+    .expected_reprs = { 0, 0 },
+    .expected_concrete = { 1, 1 },
+};
+
+/* telemetry-interval-annotate */
+static void telemetry_interval_annotate_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    char *dyn_str = MVM_string_utf8_encode_C_string(tc, get_str_arg(arg_info, 2));
+    MVM_telemetry_interval_annotate_dynamic(get_int_arg(arg_info, 1), get_int_arg(arg_info, 0), dyn_str);
+    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall telemetry_interval_annotate = {
+    .c_name = "telemetry-interval-annotate",
+    .implementation = telemetry_interval_annotate_impl,
+    .min_args = 3,
+    .max_args = 3,
+    .expected_kinds = { MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_STR },
+    .expected_reprs = { 0, 0, 0 },
+    .expected_concrete = { 1, 1, 1 },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -1680,6 +1726,9 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &stat_is_writable);
     add_to_hash(tc, &stat_is_executable);
     add_to_hash(tc, &all_thread_bt);
+    add_to_hash(tc, &telemetry_interval_start);
+    add_to_hash(tc, &telemetry_interval_stop);
+    add_to_hash(tc, &telemetry_interval_annotate);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
