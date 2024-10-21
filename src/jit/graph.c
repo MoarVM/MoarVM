@@ -664,7 +664,7 @@ static void jg_sc_wb(MVMThreadContext *tc, MVMJitGraph *jg, MVMSpeshOperand chec
 static MVMint32 consume_reprop(MVMThreadContext *tc, MVMJitGraph *jg,
                                MVMSpeshIterator *iter, MVMSpeshIns *ins) {
     MVMint16 op = ins->info->opcode;
-    MVMSpeshOperand type_operand;
+    MVMSpeshOperand type_operand = {0};
     MVMSpeshFacts *type_facts = 0;
     MVMint32 alternative = 0;
 
