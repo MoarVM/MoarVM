@@ -4,6 +4,17 @@
 #include "core/jfs64.h"
 #include "bithacks.h"
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <fcntl.h>
+#include <errno.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <termios.h>
+
 /* concatenating with "" ensures that only literal strings are accepted as argument. */
 #define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
 
@@ -20,6 +31,91 @@ extern char **environ;
 #else
 #include <stdlib.h>
 #endif
+
+char *resize_pty(int *fd_pty, int cols, int rows) {
+    struct winsize winp;
+    winp.ws_col = cols;
+    winp.ws_row = rows;
+    winp.ws_xpixel = 0;
+    winp.ws_ypixel = 0;
+    if (ioctl(*fd_pty, TIOCSWINSZ, &winp) < 0) {
+        char *error_str = MVM_malloc(128);
+        snprintf(error_str, 127, "Error in TIOCSWINSZ: %s (error code %i)",
+                strerror(errno), errno);
+        return error_str;
+    }
+    return NULL;
+}
+
+char *make_pty(int *fd_pty, int *fd_tty, int cols, int rows) {
+    int ret;
+    char *error_str;
+
+    *fd_pty = posix_openpt(O_RDWR);
+    if (*fd_pty < 0) {
+        error_str = MVM_malloc(128);
+        snprintf(error_str, 127, "Error in posix_openpt: %s (error code %i)",
+                strerror(errno), errno);
+        return error_str;
+    }
+
+    if (grantpt(*fd_pty) < 0) {
+        close(*fd_pty);
+        error_str = MVM_malloc(128);
+        snprintf(error_str, 127, "Error in grantpt: %s (error code %i)",
+                strerror(errno), errno);
+        return error_str;
+    }
+
+    if (unlockpt(*fd_pty) < 0) {
+        close(*fd_pty);
+        error_str = MVM_malloc(128);
+        snprintf(error_str, 127, "Error in unlockpt: %s (error code %i)",
+                strerror(errno), errno);
+        return error_str;
+    }
+
+    int path_tty_size = 40;
+    char *path_tty = MVM_calloc(path_tty_size, sizeof(char *));
+    // Apple and linux both have ptsname_r.
+    // Use TIOCGPTPEER. (see man ioctl_tty) Where is that available?
+    // There is no ptsname_r on OpenBSD.
+    while ((ret = ptsname_r(*fd_pty, path_tty, path_tty_size)) == ERANGE) {
+        path_tty_size *= 2;
+        path_tty = MVM_realloc(path_tty, path_tty_size * sizeof(char *));
+    }
+    if (ret != 0) {
+        MVM_free(path_tty);
+        close(*fd_pty);
+        error_str = MVM_malloc(128);
+        snprintf(error_str, 127, "Error in ptsname_r: %s (error code %i)",
+                strerror(errno), errno);
+        return error_str;
+    }
+
+    *fd_tty = open(path_tty, O_RDWR | O_NOCTTY);
+    if (*fd_tty < 0) {
+        MVM_free(path_tty);
+        close(*fd_pty);
+        error_str = MVM_malloc(128);
+        snprintf(error_str, 127, "Error in open of tty device: %s (error code %i)",
+                strerror(errno), errno);
+        return error_str;
+    }
+
+    MVM_free(path_tty);
+
+    error_str = resize_pty(fd_pty, cols, rows);
+    if (error_str) {
+        close(*fd_pty);
+        close(*fd_tty);
+        return error_str;
+    }
+
+    return NULL;
+}
+
+
 
 #ifdef _WIN32
 static wchar_t * ANSIToUnicode(MVMuint16 acp, const char *str)
@@ -395,6 +491,10 @@ static MVMint64 close_stdin(MVMThreadContext *tc, MVMOSHandle *h) {
     MVMIOAsyncProcessData *handle_data = (MVMIOAsyncProcessData *)h->body.data;
     MVMAsyncTask          *spawn_task  = (MVMAsyncTask *)handle_data->async_task;
     SpawnInfo             *si          = spawn_task ? (SpawnInfo *)spawn_task->body.data : NULL;
+    if (si && MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty)) {
+        // Stdin and stdout use the same FD. So we must not close as there might still be data on stdout.
+        return 0;
+    }
     if (si && si->state == STATE_UNSTARTED) {
         MVMAsyncTask *task;
         MVMROOT(tc, h) {
@@ -604,7 +704,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
             }
         }
     }
-    else if (nread == UV_EOF) {
+    else if (nread == UV_EOF || (nread == UV_EIO && MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty))) {
         MVMROOT2(tc, t, arr) {
             MVMObject *final = MVM_repr_box_int(tc,
                 tc->instance->boot_types.BOOTInt, seq_number);
@@ -665,11 +765,14 @@ static MVMint64 get_pipe_fd(MVMThreadContext *tc, uv_pipe_t *pipe) {
 }
 static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
     MVMint64 spawn_result;
+    char *error_str = NULL;
 
     /* Process info setup. */
     uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
+
+    int fd_pty, fd_tty;
 
     /* Add to work in progress. */
     SpawnInfo *si = (SpawnInfo *)data;
@@ -678,74 +781,153 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     si->using     = 1;
 
     /* Create input/output handles as needed. */
-    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.write)) {
+    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty)) {
+        MVMint64 cols = 80;
+        MVMint64 rows = 24;
+        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty_cols))
+            cols = MVM_repr_get_int(tc,
+                MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.pty_cols));
+        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty_rows))
+            rows = MVM_repr_get_int(tc,
+                MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.pty_rows));
+
+        error_str = make_pty(&fd_pty, &fd_tty, cols, rows);
+        if (error_str)
+            goto spawn_setup_error;
+
+        process_stdio[0].flags   = UV_INHERIT_FD;
+        process_stdio[0].data.fd = fd_tty;
+        process_stdio[1].flags   = UV_INHERIT_FD;
+        process_stdio[1].data.fd = fd_tty;
+        process_stdio[2].flags   = UV_INHERIT_FD;
+        process_stdio[2].data.fd = fd_tty;
+
+        int res;
+        size_t exec_path_size = 4096;
+        char *exec_path = (char*)MVM_calloc(exec_path_size, sizeof(char));
+        res = uv_exepath(exec_path, &exec_path_size);
+        while (res < 0 && exec_path_size < 4096*8) {
+            exec_path_size *= 2;
+            exec_path = (char*)MVM_realloc(exec_path, exec_path_size * sizeof(char));
+            res = uv_exepath(exec_path, &exec_path_size);
+        }
+        if (res < 0) {
+            close(fd_pty);
+            close(fd_tty);
+            error_str = MVM_malloc(128);
+            snprintf(error_str, 127, "Error retrieving our own executable path: %s (error code %i)",
+                    uv_strerror(res), res);
+            goto spawn_setup_error;
+        }
+
+        int argc = 0;
+        while (si->args[argc] != 0)
+            argc++;
+
+        char **args = (char**)MVM_calloc(argc+2, sizeof(char*));
+
+        args[0] = exec_path;
+
+        // 26 = strlen("--pty-spawn-helper=") + 5 fd digits + separator + trailing 0
+        int args1len = 26 + strlen(si->prog);
+        args[1] = (char *)MVM_calloc(args1len, sizeof(char));
+        snprintf(args[1], args1len, "--pty-spawn-helper=%05i|%s", fd_pty, si->prog);
+
+        for(int c = 1; si->args[c] != 0; c++)
+            args[c+1] = si->args[c];
+
+        args[argc+1] = 0;
+
+        MVM_free(si->args[0]);
+        MVM_free(si->args);
+        si->args = args;
+
+        MVM_free(si->prog);
+        si->prog = exec_path;
+
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(loop, pipe, 0);
+        uv_pipe_open(pipe, fd_pty);
         pipe->data = si;
-        process_stdio[0].flags       = UV_CREATE_PIPE | UV_READABLE_PIPE;
-        process_stdio[0].data.stream = (uv_stream_t *)pipe;
         si->stdin_handle             = (uv_stream_t *)pipe;
         si->had_stdin_handle         = 1;
-    }
-    else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdin_fd)) {
-        process_stdio[0].flags   = UV_INHERIT_FD;
-        process_stdio[0].data.fd = (int)MVM_repr_get_int(tc,
-            MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stdin_fd));
-        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdin_fd_close))
-            si->stdin_to_close = process_stdio[0].data.fd;
-    }
-    else {
-        process_stdio[0].flags   = UV_INHERIT_FD;
-        process_stdio[0].data.fd = 0;
-    }
-    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.merge_bytes)) {
+
         si->pipe_stdout = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(loop, si->pipe_stdout, 0);
+        uv_pipe_open(si->pipe_stdout, fd_pty);
         si->pipe_stdout->data = si;
-        process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-        process_stdio[1].data.stream = (uv_stream_t *)si->pipe_stdout;
-        si->pipe_stderr = MVM_malloc(sizeof(uv_pipe_t));
-        uv_pipe_init(loop, si->pipe_stderr, 0);
-        si->pipe_stderr->data = si;
-        process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
-        process_stdio[2].data.stream = (uv_stream_t *)si->pipe_stderr;
-        si->merge = 1;
-        si->using += 2;
+        si->using++;
     }
     else {
-        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_bytes)) {
+        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.write)) {
+            uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
+            uv_pipe_init(loop, pipe, 0);
+            pipe->data = si;
+            process_stdio[0].flags       = UV_CREATE_PIPE | UV_READABLE_PIPE;
+            process_stdio[0].data.stream = (uv_stream_t *)pipe;
+            si->stdin_handle             = (uv_stream_t *)pipe;
+            si->had_stdin_handle         = 1;
+        }
+        else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdin_fd)) {
+            process_stdio[0].flags   = UV_INHERIT_FD;
+            process_stdio[0].data.fd = (int)MVM_repr_get_int(tc,
+                MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stdin_fd));
+            if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdin_fd_close))
+                si->stdin_to_close = process_stdio[0].data.fd;
+        }
+        else {
+            process_stdio[0].flags   = UV_INHERIT_FD;
+            process_stdio[0].data.fd = 0;
+        }
+        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.merge_bytes)) {
             si->pipe_stdout = MVM_malloc(sizeof(uv_pipe_t));
             uv_pipe_init(loop, si->pipe_stdout, 0);
             si->pipe_stdout->data = si;
             process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
             process_stdio[1].data.stream = (uv_stream_t *)si->pipe_stdout;
-            si->using++;
-        }
-        else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_fd)) {
-            process_stdio[1].flags   = UV_INHERIT_FD;
-            process_stdio[1].data.fd = (int)MVM_repr_get_int(tc,
-                MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stdout_fd));
-        }
-        else {
-            process_stdio[1].flags   = UV_INHERIT_FD;
-            process_stdio[1].data.fd = 1;
-        }
-        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_bytes)) {
             si->pipe_stderr = MVM_malloc(sizeof(uv_pipe_t));
             uv_pipe_init(loop, si->pipe_stderr, 0);
             si->pipe_stderr->data = si;
             process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
             process_stdio[2].data.stream = (uv_stream_t *)si->pipe_stderr;
-            si->using++;
-        }
-        else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_fd)) {
-            process_stdio[2].flags   = UV_INHERIT_FD;
-            process_stdio[2].data.fd = (int)MVM_repr_get_int(tc,
-                MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stderr_fd));
+            si->merge = 1;
+            si->using += 2;
         }
         else {
-            process_stdio[2].flags   = UV_INHERIT_FD;
-            process_stdio[2].data.fd = 2;
+            if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_bytes)) {
+                si->pipe_stdout = MVM_malloc(sizeof(uv_pipe_t));
+                uv_pipe_init(loop, si->pipe_stdout, 0);
+                si->pipe_stdout->data = si;
+                process_stdio[1].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+                process_stdio[1].data.stream = (uv_stream_t *)si->pipe_stdout;
+                si->using++;
+            }
+            else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stdout_fd)) {
+                process_stdio[1].flags   = UV_INHERIT_FD;
+                process_stdio[1].data.fd = (int)MVM_repr_get_int(tc,
+                    MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stdout_fd));
+            }
+            else {
+                process_stdio[1].flags   = UV_INHERIT_FD;
+                process_stdio[1].data.fd = 1;
+            }
+            if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_bytes)) {
+                si->pipe_stderr = MVM_malloc(sizeof(uv_pipe_t));
+                uv_pipe_init(loop, si->pipe_stderr, 0);
+                si->pipe_stderr->data = si;
+                process_stdio[2].flags       = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
+                process_stdio[2].data.stream = (uv_stream_t *)si->pipe_stderr;
+                si->using++;
+            }
+            else if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.stderr_fd)) {
+                process_stdio[2].flags   = UV_INHERIT_FD;
+                process_stdio[2].data.fd = (int)MVM_repr_get_int(tc,
+                    MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.stderr_fd));
+            }
+            else {
+                process_stdio[2].flags   = UV_INHERIT_FD;
+                process_stdio[2].data.fd = 2;
+            }
         }
     }
 
@@ -762,16 +944,26 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     /* Attach data, spawn, report any error. */
     process->data = si;
     spawn_result  = uv_spawn(loop, process, &process_options);
+
+    if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty))
+        close(fd_tty);
+
     if (spawn_result) {
+        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty))
+            close(fd_pty);
+        error_str = MVM_malloc(128);
+        snprintf(error_str, 127, "Failed to spawn process %s: %s (error code %"PRId64")",
+                si->prog, uv_strerror(spawn_result), spawn_result);
+        goto spawn_setup_error;
+    }
+
+    if (error_str) {
+spawn_setup_error:
         MVMObject *msg_box = NULL;
         si->state = STATE_DONE;
         MVMROOT2(tc, async_task, msg_box) {
-            char *error_str = MVM_malloc(128);
             MVMObject *error_cb;
             MVMString *msg_str;
-
-            snprintf(error_str, 127, "Failed to spawn process %s: %s (error code %"PRId64")",
-                    si->prog, uv_strerror(spawn_result), spawn_result);
 
             msg_str = MVM_string_ascii_decode_nt(tc,
                 tc->instance->VMString, error_str);
@@ -1285,4 +1477,35 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
 
     return pid;
 
+}
+
+void MVM_proc_pty_spawn(char *prog, char *argv[]) {
+    // When this is called, we can assume that the STDIO handles have already all been
+    // mapped to the pseudo TTY FD.
+
+    // Close the PTY FD which we - as the child - have no business with.
+    int fd_pty = atoi(prog);
+    prog += 6;
+    close(fd_pty);
+
+    // Put ourself into a new session and process group, making us session
+    // and process group leader.
+    int sid = setsid();
+    if (sid < 0) {
+        fprintf(stderr, "Error in setsid: %s\n", strerror(errno));
+        exit(1);
+    }
+
+    // Make our dear terminal the controlling terminal.
+    int ret = ioctl(STDIN_FILENO, TIOCSCTTY);
+    if (ret < 0) {
+        fprintf(stderr, "Error in ioctl TIOCSCTTY: %s\n", strerror(errno));
+        exit(1);
+    }
+
+    // Does not return.
+    execvp(prog, argv);
+
+    fprintf(stderr, "Spawn helper failed to spawn process %s: %s (error code %i)\n",
+            prog, strerror(errno), errno);
 }
