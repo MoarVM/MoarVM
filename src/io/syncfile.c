@@ -72,6 +72,8 @@ static MVMint64 mvm_fileno(MVMThreadContext *tc, MVMOSHandle *h) {
 /* Performs a write, either because a buffer filled or because we are not
  * buffering output. */
 static void perform_write(MVMThreadContext *tc, MVMIOFileData *data, char *buf, MVMint64 bytes) {
+    unsigned int interval_id = MVM_telemetry_interval_start(tc, "syncfile.perform_write");
+    MVMuint64 loops = 0;
     MVMint64 bytes_written = 0;
     MVM_gc_mark_thread_blocked(tc);
     while (bytes > 0) {
@@ -88,10 +90,15 @@ static void perform_write(MVMThreadContext *tc, MVMIOFileData *data, char *buf, 
         bytes_written += r;
         buf += r;
         bytes -= r;
+        loops++;
     }
     MVM_gc_mark_thread_unblocked(tc);
     data->byte_position += bytes_written;
     data->known_writable = 1;
+    if (loops > 1)
+        MVM_telemetry_interval_annotate(loops, interval_id, "looped this many times");
+    MVM_telemetry_interval_annotate(bytes_written, interval_id, "this many bytes written");
+    MVM_telemetry_interval_stop((MVMThreadContext*)(uintptr_t)data->fd, interval_id, "syncfile.perform_write FD");
 }
 
 /* Flushes any existing output buffer and clears use back to 0. */

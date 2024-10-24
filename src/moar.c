@@ -115,6 +115,25 @@ MVMInstance * MVM_vm_create_instance(void) {
     uv_once(&key_once, make_uv_key);
 #endif
 
+#ifdef HAVE_TELEMEH
+    if (getenv("MVM_TELEMETRY_LOG")) {
+        char path[256];
+        FILE *fp;
+        snprintf(path, 255, "%s.%d", getenv("MVM_TELEMETRY_LOG"),
+#ifdef _WIN32
+             _getpid()
+#else
+             getpid()
+#endif
+             );
+        fp = MVM_platform_fopen(path, "w");
+        if (fp) {
+            MVM_telemetry_init(fp);
+            MVM_telemetry_interval_start(0, "moarvm startup");
+        }
+    }
+#endif
+
     /* Set up instance data structure. */
     instance = MVM_calloc(1, sizeof(MVMInstance));
 
@@ -603,6 +622,13 @@ void MVM_vm_exit(MVMInstance *instance) {
         fclose(instance->dynvar_log_fh);
     }
 
+#ifdef HAVE_TELEMEH
+    if (getenv("MVM_TELEMETRY_LOG")) {
+        MVM_telemetry_interval_stop(0, 1, "moarvm teardown");
+        MVM_telemetry_finish();
+    }
+#endif
+
     /* And, we're done. */
     exit(0);
 }
@@ -760,6 +786,13 @@ void MVM_vm_destroy_instance(MVMInstance *instance) {
      * This probably isn't strictly necessary, but might help in case any analyzers
      * (e.g., valgrind, heaptrack) don't support mimalloc well. */
     mi_collect(true);
+#endif
+
+#ifdef HAVE_TELEMEH
+    if (getenv("MVM_TELEMETRY_LOG")) {
+        MVM_telemetry_interval_stop(0, 1, "moarvm teardown");
+        MVM_telemetry_finish();
+    }
 #endif
 }
 

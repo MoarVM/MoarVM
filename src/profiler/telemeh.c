@@ -153,8 +153,8 @@ MVM_PUBLIC unsigned int MVM_telemetry_interval_start(MVMThreadContext *threadID,
     if (!telemetry_active) { return 0; }
 
     record = newRecord();
-    MVM_incr(&intervalIDCounter);
-    intervalID = MVM_load(&intervalIDCounter);
+    unsigned int old = MVM_incr(&intervalIDCounter);
+    intervalID = old + 1;
     READ_TSC(record->u.interval.time);
 
     record->recordType = IntervalStart;
@@ -214,7 +214,7 @@ static void calibrateTSC(FILE *outfile)
     startTime = uv_hrtime();
     READ_TSC(startTsc)
 
-    MVM_sleep(1000);
+    MVM_sleep(100);
 
     endTime = uv_hrtime();
     READ_TSC(endTsc)
@@ -238,7 +238,7 @@ static void serializeTelemetryBufferRange(FILE *outfile, unsigned int serializat
     for(i = serializationStart; i < serializationEnd; i++) {
         struct TelemetryRecord *record = &recordBuffer[i];
 
-        fprintf(outfile, "%10" PRIxPTR " ", record->threadID);
+        fprintf(outfile, "%11" PRIxPTR " ", record->threadID);
 
         switch(record->recordType) {
             case Calibration:
@@ -248,16 +248,28 @@ static void serializeTelemetryBufferRange(FILE *outfile, unsigned int serializat
                 fprintf(outfile, "Epoch counter: %lld\n", record->u.epoch.time);
                 break;
             case TimeStamp:
-                fprintf(outfile, "%15lld -|-  \"%s\"\n", record->u.timeStamp.time - beginningEpoch, record->u.timeStamp.description);
+                if ((uintptr_t)record->u.timeStamp.description < 4096)
+                    fprintf(outfile, "%15lld -|-  \"custom #%lu\"\n", record->u.timeStamp.time - beginningEpoch, (MVMuint64)record->u.timeStamp.description);
+                else
+                    fprintf(outfile, "%15lld -|-  \"%s\"\n", record->u.timeStamp.time - beginningEpoch, record->u.timeStamp.description);
                 break;
             case IntervalStart:
-                fprintf(outfile, "%15lld (-   \"%s\" (%d)\n", record->u.interval.time - beginningEpoch, record->u.interval.description, record->u.interval.intervalID);
+                if ((uintptr_t)record->u.interval.description < 4096)
+                    fprintf(outfile, "%15lld (-   \"custom #%lu\" (%d)\n", record->u.interval.time - beginningEpoch, (MVMuint64)record->u.interval.description, record->u.interval.intervalID);
+                else
+                    fprintf(outfile, "%15lld (-   \"%s\" (%d)\n", record->u.interval.time - beginningEpoch, record->u.interval.description, record->u.interval.intervalID);
                 break;
             case IntervalEnd:
-                fprintf(outfile, "%15lld  -)  \"%s\" (%d)\n", record->u.interval.time - beginningEpoch, record->u.interval.description, record->u.interval.intervalID);
+                if ((uintptr_t)record->u.interval.description < 4096)
+                    fprintf(outfile, "%15lld  -)  \"custom #%lu\" (%d)\n", record->u.interval.time - beginningEpoch, (MVMuint64)record->u.interval.description, record->u.interval.intervalID);
+                else
+                    fprintf(outfile, "%15lld  -)  \"%s\" (%d)\n", record->u.interval.time - beginningEpoch, record->u.interval.description, record->u.interval.intervalID);
                 break;
             case IntervalAnnotation:
-                fprintf(outfile,  "%15s ???  \"%s\" (%d)\n", " ", record->u.annotation.description, record->u.annotation.intervalID);
+                if ((uintptr_t)record->u.annotation.description < 4096)
+                    fprintf(outfile,  "%15s ???  \"custom #%lu\" (%d)\n", " ", (MVMuint64)record->u.annotation.description, record->u.annotation.intervalID);
+                else
+                    fprintf(outfile,  "%15s ???  \"%s\" (%d)\n", " ", record->u.annotation.description, record->u.annotation.intervalID);
                 break;
             case DynamicString:
                 fprintf(outfile,  "%15s ???  \"%s\" (%d)\n", " ", record->u.annotation_dynamic.description, record->u.annotation_dynamic.intervalID);
@@ -279,26 +291,22 @@ static void serializeTelemetryBuffer(FILE *outfile)
         serializeTelemetryBufferRange(outfile, serializationStart, serializationEnd);
     }
 
+    fflush(outfile);
     lastSerializedIndex = serializationEnd;
 }
 
 static void backgroundSerialization(void *outfile)
 {
-    while(continueBackgroundSerialization) {
-        MVM_sleep(500);
-        serializeTelemetryBuffer((FILE *)outfile);
-    }
-
-    fclose((FILE *)outfile);
-}
-
-MVM_PUBLIC void MVM_telemetry_init(FILE *outfile)
-{
     struct TelemetryRecord *calibrationRecord;
     struct TelemetryRecord *epochRecord;
-    int threadCreateError;
 
-    telemetry_active = 1;
+    pthread_setname_np(pthread_self(), "telemetrylog");
+
+    epochRecord = newRecord();
+    READ_TSC(epochRecord->u.epoch.time)
+    epochRecord->recordType = Epoch;
+
+    beginningEpoch = epochRecord->u.epoch.time;
 
     calibrateTSC(outfile);
 
@@ -310,7 +318,21 @@ MVM_PUBLIC void MVM_telemetry_init(FILE *outfile)
     READ_TSC(epochRecord->u.epoch.time)
     epochRecord->recordType = Epoch;
 
-    beginningEpoch = epochRecord->u.epoch.time;
+    MVMuint8 has_serialized_one = 0;
+    while(continueBackgroundSerialization || has_serialized_one == 0) {
+        MVM_sleep(500);
+        serializeTelemetryBuffer((FILE *)outfile);
+        has_serialized_one = 1;
+    }
+
+    fclose((FILE *)outfile);
+}
+
+MVM_PUBLIC void MVM_telemetry_init(FILE *outfile)
+{
+    int threadCreateError;
+
+    telemetry_active = 1;
 
     threadCreateError = uv_thread_create((uv_thread_t *)&backgroundSerializationThread, backgroundSerialization, (void *)outfile);
     if (threadCreateError != 0)  {
@@ -323,7 +345,8 @@ MVM_PUBLIC void MVM_telemetry_init(FILE *outfile)
 MVM_PUBLIC void MVM_telemetry_finish()
 {
     continueBackgroundSerialization = 0;
-    uv_thread_join(&backgroundSerializationThread);
+    if (backgroundSerializationThread)
+        uv_thread_join(&backgroundSerializationThread);
 }
 
 #else
