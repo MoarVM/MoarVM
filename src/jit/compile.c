@@ -112,6 +112,13 @@ static void MVM_jit_setup_unwind_info(MVMThreadContext *tc, MVMJitCode *code, MV
 
     ui->CountOfUnwindCodes = p; // 11 ops, array size rounded up to 12, not that it matters
 
+    // Thanks gdb x/8i for giving me the correct offsets!
+    ui->UnwindCodesArray[0].code.OffsetInProlog = 0x17;
+    ui->UnwindCodesArray[2].code.OffsetInProlog = 0x13;
+    ui->UnwindCodesArray[4].code.OffsetInProlog = 0x0f;
+    ui->UnwindCodesArray[6].code.OffsetInProlog = 0x0b;
+    ui->UnwindCodesArray[9].code.OffsetInProlog = 0x01;
+
     ui->SizeOfProlog = (uintptr_t)code->labels[0] - (uintptr_t)code->func_ptr;
     ui->Flags = 0; // No chained unwind info, no exception handler
     ui->Version = 1;
@@ -124,8 +131,14 @@ static void MVM_jit_setup_unwind_info(MVMThreadContext *tc, MVMJitCode *code, MV
     ft->EndAddress = code->size;
     ft->UnwindInfoAddress = (uintptr_t)ui;
 
+    fprintf(stderr, "trying to send function table\n");
+
     if (!RtlAddFunctionTable(ft, 1, ft->BeginAddress)) {
+        fprintf(stderr, "not successful!\n");
         MVM_oops(tc, "Could not add a function table for jitted code.");
+    }
+    else {
+        fprintf(stderr, "success!\n");
     }
 #endif
 }
