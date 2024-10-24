@@ -1,5 +1,12 @@
 #include "moar.h"
 
+/*
+ * When trying to make a spesh graph to inline from an unspecialized static
+ * frame, we run MVM_spesh_optimize, which can lead to another attempt to
+ * create a graph the same way. Don't do that!
+ */
+#define SPESH_UNSPECIALIZED_INLINE_RECURSION_DEPTH_LIMIT 3
+
 /* Ensures that a given compilation unit has access to the specified extop. */
 static void demand_extop(MVMThreadContext *tc, MVMCompUnit *target_cu,
         MVMCompUnit *source_cu, const MVMOpInfo *info) {
@@ -320,11 +327,18 @@ MVMSpeshGraph * MVM_spesh_inline_try_get_graph_from_unspecialized(MVMThreadConte
     if (!is_static_frame_inlineable(tc, inliner, target_sf, no_inline_reason))
         return NULL;
 
+    if (inliner->recursion_depth > SPESH_UNSPECIALIZED_INLINE_RECURSION_DEPTH_LIMIT) {
+        *no_inline_reason = "Recursion depth limit reached";
+        return NULL;
+    }
+
     /* Build the spesh graph from bytecode, transform args, do facts discovery
      * (setting usage counts) and optimize. We do this before checking if it
      * is inlineable as we can get rid of many :noinline ops (especially in
      * the args specialization). */
     MVMSpeshGraph *ig = MVM_spesh_graph_create(tc, target_sf, 0, 1);
+    /* When running MVM_spesh_optimize, don't recurse deeply into inline_try_get_graph_from_unspecialized. */
+    ig->recursion_depth = inliner->recursion_depth + 1;
     MVM_spesh_args(tc, ig, cs, type_tuple);
     MVMROOT(tc, target_sf) {
         MVM_spesh_facts_discover(tc, ig, NULL, 0);
