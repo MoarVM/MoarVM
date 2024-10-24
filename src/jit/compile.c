@@ -89,6 +89,8 @@ static void MVM_jit_setup_unwind_info(MVMThreadContext *tc, MVMJitCode *code, MV
 
     MVMuint8 p = 0;
 
+    fprintf(stderr, "creating unwind info into struct at %p, array at %p\n", ui, &ui->UnwindCodesArray[0]);
+
     ui->UnwindCodesArray[p++].code.UnwindOpcode = UWOP_SAVE_NONVOL; // mov [rbp-0x18], WORK (aka rbx aka 3)
     ui->UnwindCodesArray[p  ].code.OperationInfo = 3;
     ui->UnwindCodesArray[p++].u32 = 0x18 / 8;
@@ -119,7 +121,7 @@ static void MVM_jit_setup_unwind_info(MVMThreadContext *tc, MVMJitCode *code, MV
     ui->UnwindCodesArray[6].code.OffsetInProlog = 0x0b;
     ui->UnwindCodesArray[9].code.OffsetInProlog = 0x01;
 
-    ui->SizeOfProlog = (uintptr_t)code->labels[0] - (uintptr_t)code->func_ptr;
+    ui->SizeOfProlog = 0x36;
     ui->Flags = 0; // No chained unwind info, no exception handler
     ui->Version = 1;
     ui->FrameRegister = 5; // we have a frame register, and it's rbp (aka 5)
@@ -131,7 +133,7 @@ static void MVM_jit_setup_unwind_info(MVMThreadContext *tc, MVMJitCode *code, MV
     ft->EndAddress = code->size;
     ft->UnwindInfoAddress = (uintptr_t)ui;
 
-    fprintf(stderr, "trying to send function table\n");
+    fprintf(stderr, "trying to send function table; runtime function struct at %p, unwind info address in struct is %p\n", ft, ft->UnwindInfoAddress);
 
     if (!RtlAddFunctionTable(ft, 1, ft->BeginAddress)) {
         fprintf(stderr, "not successful!\n");
