@@ -318,9 +318,11 @@ static void backgroundSerialization(void *outfile)
     READ_TSC(epochRecord->u.epoch.time)
     epochRecord->recordType = Epoch;
 
-    while(continueBackgroundSerialization) {
-        MVM_sleep(100);
+    MVMuint8 has_serialized_one = 0;
+    while(continueBackgroundSerialization || has_serialized_one == 0) {
+        MVM_sleep(500);
         serializeTelemetryBuffer((FILE *)outfile);
+        has_serialized_one = 1;
     }
 
     fclose((FILE *)outfile);
