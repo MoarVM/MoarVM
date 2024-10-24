@@ -552,6 +552,7 @@ install: all
 	$(MKPATH) "$(DESTDIR)$(LIBDIR)"
 	$(RM_F) "$(DESTDIR)$(LIBDIR)/@moar@"
 	$(CP) @moar@ @impinst@ "$(DESTDIR)$(LIBDIR)"
+	$(CP) tools/libmoar.so-gdb.py "$(DESTDIR)$(LIBDIR)"
 	$(MKPATH) "$(DESTDIR)$(MASTDIR)"
 	$(CP) lib/MAST/Nodes.nqp "$(DESTDIR)$(MASTDIR)"
 	$(CP) lib/MAST/Ops.nqp "$(DESTDIR)$(MASTDIR)"
