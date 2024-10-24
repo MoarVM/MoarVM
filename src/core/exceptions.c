@@ -857,6 +857,9 @@ MVM_NO_RETURN void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) 
     vfprintf(stderr, messageFormat, args);
     va_end(args);
     fputc('\n', stderr);
+    /* Make sure we flush the telemetry buffer before exiting. */
+    MVM_telemetry_timestamp(NULL, "moarvm paniced.");
+    MVM_telemetry_finish();
     if (crash_on_error)
         abort();
     else
@@ -881,6 +884,9 @@ MVM_NO_RETURN void MVM_oops(MVMThreadContext *tc, const char *messageFormat, ...
     vfprintf(stderr, messageFormat, args);
     va_end(args);
     fputc('\n', stderr);
+
+    MVM_telemetry_timestamp(tc, "moarvm oopsed.");
+    MVM_telemetry_finish();
 
     /* Our caller is seriously buggy if tc is NULL */
     if (!tc)
