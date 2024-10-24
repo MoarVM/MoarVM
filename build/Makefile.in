@@ -678,7 +678,7 @@ $(MINILUA): 3rdparty/dynasm/minilua.c
 
 .tile.h:
 	$(MSG) Building tile tables from $<
-	$(CMD)$(PERL) -Itools/ tools/tiler-table-generator.pl -o $@ $<
+	$(CMD)env PERL_HASH_SEED=0 $(PERL) -Itools/ tools/tiler-table-generator.pl -o $@ $<
 
 src/jit/x64/emit@obj@: src/jit/x64/emit.c $(DYNASM_HEADERS)
 
