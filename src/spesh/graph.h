@@ -119,6 +119,18 @@ struct MVMSpeshGraph {
 
     /* Stored in comment annotations to give an ordering of comments */
     MVMuint32 next_annotation_idx;
+
+    /* When creating graphs for inline candidates, track how deep we've
+     * recursed, so we don't infinitely recurse.
+     *
+     * This limit should only cause try_get_graph_from_unspecialized to not
+     * recurse deeply, since after an inline graph is created and merged into
+     * the inlinee, we run optimize over it again and re-encounter ops that
+     * may lead to inline attemps, like runbytecode.
+     *
+     * See also SPESH_UNSPECIALIZED_INLINE_RECURSION_DEPTH_LIMIT.
+     */
+    MVMuint16 recursion_depth;
 };
 
 /* A temporary register, added to support transformations. */
