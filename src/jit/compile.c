@@ -2,6 +2,46 @@
 #include "internal.h"
 #include "platform/mmap.h"
 
+// slightly strange definition of the mvm jit platform macro
+// makes us do this funny thing here
+#define MVM_JIT_PLATFORM_POSIX 1
+#define MVM_JIT_PLATFORM_WIN32 2
+
+#if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_WIN32
+#include <winnt.h>
+
+typedef struct UNWIND_CODE {
+    MVMuint8 OffsetInProlog;
+    MVMuint8 UnwindOpcode : 4;
+    MVMuint8 OperationInfo : 4;
+} UNWIND_CODE;
+
+typedef union UNWIND_SLOT {
+    UNWIND_CODE code;
+    MVMuint32 u32;
+} UNWIND_SLOT;
+
+typedef struct UNWIND_INFO {
+    MVMuint8   Version : 3;
+    MVMuint8   Flags : 5;
+    MVMuint8   SizeOfProlog;
+    MVMuint8   CountOfUnwindCodes;
+    MVMuint8   FrameRegister : 4;
+    MVMuint8   FrameRegisterOffsetScaled : 4;
+    /* must be an even number of entries. */
+    UNWIND_SLOT UnwindCodesArray[];
+    /* There is space for extra stuff at the end here but it's optional and
+     * we don't need it, so we don't put it in the struct either. */
+} UNWIND_INFO;
+
+#define UWOP_PUSH_NONVOL 0
+#define UWOP_ALLOC_LARGE 1
+#define UWOP_ALLOC_SMALL 2
+#define UWOP_SET_FPREG 3
+#define UWOP_SAVE_NONVOL 4
+
+#endif
+
 
 void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *compiler, MVMJitGraph *jg);
 void MVM_jit_compiler_deinit(MVMThreadContext *tc, MVMJitCompiler *compiler);
@@ -41,6 +81,53 @@ static void debug_spill_map(MVMThreadContext *tc, MVMJitCompiler *cl) {
         MVM_spesh_debug_printf(tc, "    r%u [%lx] = %s\n", i, cl->spills_base + i * sizeof(MVMRegister),
                                MVM_register_type(cl->spills[i].reg_type));
     }
+}
+
+static void MVM_jit_setup_unwind_info(MVMThreadContext *tc, MVMJitCode *code, MVMJitCompiler *cl, MVMJitGraph *jg) {
+#if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_WIN32
+    UNWIND_INFO *ui = MVM_calloc(1, sizeof(UNWIND_INFO) + 12 * sizeof(UNWIND_CODE));
+
+    MVMuint8 p = 0;
+
+    ui->UnwindCodesArray[p++].code.UnwindOpcode = UWOP_SAVE_NONVOL; // mov [rbp-0x18], WORK (aka rbx aka 3)
+    ui->UnwindCodesArray[p  ].code.OperationInfo = 3;
+    ui->UnwindCodesArray[p++].u32 = 0x18 / 8;
+
+    ui->UnwindCodesArray[p++].code.UnwindOpcode = UWOP_SAVE_NONVOL; // mov [rbp-0x10], CU (aka rbx aka r13)
+    ui->UnwindCodesArray[p  ].code.OperationInfo = 13;
+    ui->UnwindCodesArray[p++].u32 = 0x10 / 8;
+
+    ui->UnwindCodesArray[p++].code.UnwindOpcode = UWOP_SAVE_NONVOL; // mov [rbp-0x10], TC (aka rbx aka r14)
+    ui->UnwindCodesArray[p  ].code.OperationInfo = 14;
+    ui->UnwindCodesArray[p++].u32 = 0x08 / 8;
+
+    ui->UnwindCodesArray[p++].code.UnwindOpcode = UWOP_ALLOC_LARGE; // sub rsp, 0x100 (aka allocate 256 bytes on stack)
+    ui->UnwindCodesArray[p  ].code.OperationInfo = 0; // "small" large allocation
+    ui->UnwindCodesArray[p++].u32 = 0x100 / 8; // one slot with the size divided by 8
+
+    ui->UnwindCodesArray[p++].code.UnwindOpcode = UWOP_SET_FPREG; // mov rbp, rsp
+
+    ui->UnwindCodesArray[p++].code.UnwindOpcode = UWOP_PUSH_NONVOL; // push rbp (aka 5)
+    ui->UnwindCodesArray[p++].code.OperationInfo = 5;
+
+    ui->CountOfUnwindCodes = p; // 11 ops, array size rounded up to 12, not that it matters
+
+    ui->SizeOfProlog = (uintptr_t)code->labels[0] - (uintptr_t)code->func_ptr;
+    ui->Flags = 0; // No chained unwind info, no exception handler
+    ui->Version = 1;
+    ui->FrameRegister = 5; // we have a frame register, and it's rbp (aka 5)
+    ui->FrameRegisterOffsetScaled = 0; // our frame register is not offset compared to rsp
+
+    PRUNTIME_FUNCTION ft = MVM_calloc(1, sizeof(RUNTIME_FUNCTION));
+
+    ft->BeginAddress = 0;
+    ft->EndAddress = code->size;
+    ft->UnwindInfoAddress = (uintptr_t)ui;
+
+    if (!RtlAddFunctionTable(ft, 1, ft->BeginAddress)) {
+        MVM_oops(tc, "Could not add a function table for jitted code.");
+    }
+#endif
 }
 
 void MVM_jit_compiler_init(MVMThreadContext *tc, MVMJitCompiler *cl, MVMJitGraph *jg) {
@@ -253,6 +340,8 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     code->num_inlines  = jg->inlines_num;
     code->inlines      = COPY_ARRAY(jg->inlines, jg->inlines_alloc);
 
+    /* Create unwind information for whatever target(s) is (are) appropriate. */
+    MVM_jit_setup_unwind_info(tc, code, cl, jg);
 
     return code;
 }
