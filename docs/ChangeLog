@@ -1,3 +1,21 @@
+New in 2024.10
+
+Core:
++ Update libuv to version 1.49.0 [3ac5fa66]
++ Give containers explicit uint store funcs [1b4f6d91][c331b005]
+
+Documentation:
++ Output a very visible notice when building with asan [d2c12b97]
+
+GC:
+
+JIT:
+
+Spesh:
++ Add debug helper to dump locals vars [6f925f25][b2844989][824436eb]
+
+Strings:
+
 New in 2024.09
 
 Core:
