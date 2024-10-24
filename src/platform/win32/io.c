@@ -19,7 +19,7 @@ static wchar_t * UTF8ToUnicode(const char *str)
      return result;
 }
 
-MVMint64 MVM_platform_lseek(int fd, MVMint64 offset, int origin)
+MVM_PUBLIC MVMint64 MVM_platform_lseek(int fd, MVMint64 offset, int origin)
 {
     HANDLE hf;
     LARGE_INTEGER li;
@@ -45,7 +45,7 @@ MVMint64 MVM_platform_lseek(int fd, MVMint64 offset, int origin)
     return li.QuadPart;
 }
 
-int MVM_platform_unlink(const char *pathname) {
+MVM_PUBLIC int MVM_platform_unlink(const char *pathname) {
     /* Must using UTF8ToUnicode for supporting CJK Windows file name. */
     wchar_t *wpathname = UTF8ToUnicode(pathname);
     int str_len = wcslen(wpathname);
@@ -112,7 +112,7 @@ int MVM_platform_unlink(const char *pathname) {
     return 0;
 }
 
-int MVM_platform_fsync(int fd) {
+MVM_PUBLIC int MVM_platform_fsync(int fd) {
     if (FlushFileBuffers((HANDLE)_get_osfhandle(fd)))
         return 0;
     errno = GetLastError();
@@ -121,7 +121,7 @@ int MVM_platform_fsync(int fd) {
     return -1;
 }
 
-int MVM_platform_open(const char *pathname, int flags, ...) {
+MVM_PUBLIC int MVM_platform_open(const char *pathname, int flags, ...) {
     va_list args;
     wchar_t *wpathname = UTF8ToUnicode(pathname);
     int res;
@@ -137,7 +137,7 @@ int MVM_platform_open(const char *pathname, int flags, ...) {
     return res;
 }
 
-FILE *MVM_platform_fopen(const char *pathname, const char *mode) {
+MVM_PUBLIC FILE *MVM_platform_fopen(const char *pathname, const char *mode) {
     wchar_t *wpathname = UTF8ToUnicode(pathname);
     wchar_t *wmode     = UTF8ToUnicode(mode);
     FILE    *res       = _wfopen(wpathname, wmode);
