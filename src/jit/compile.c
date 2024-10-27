@@ -129,9 +129,16 @@ static void MVM_jit_setup_unwind_info(MVMThreadContext *tc, MVMJitCode *code, MV
 
     PRUNTIME_FUNCTION ft = MVM_calloc(1, sizeof(RUNTIME_FUNCTION));
 
-    ft->BeginAddress = 0;
-    ft->EndAddress = code->size;
-    ft->UnwindInfoAddress = (MVMuint64)ui;
+    // Random big alignment for good luck
+    MVMuint64 common_base = ((MVMuint64)ui < (MVMuint64)code->func_ptr ? (MVMuint64)ui : (MVMuint64)code->func_ptr) & ~0xfff;
+    MVMuint64 relative_func_begin = (MVMuint64)code->func_ptr - common_base;
+    MVMuint64 relative_ui_address = (MVMuint64)ui - common_base;
+
+    fprintf(stderr, "64bit base address is %lu / relative func begin %lu / relative ui addr %lu\n", common_base, relative_func_begin, relative_ui_address);
+
+    ft->BeginAddress = relative_func_begin;
+    ft->EndAddress = relative_func_begin + code->size;
+    ft->UnwindInfoAddress = (MVMuint64)relative_ui_address;
 
     fprintf(stderr, "trying to send function table; runtime function struct at %p, unwind info address in struct is %p\n", ft, ft->UnwindInfoAddress);
 
