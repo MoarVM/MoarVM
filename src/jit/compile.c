@@ -84,7 +84,7 @@ static void debug_spill_map(MVMThreadContext *tc, MVMJitCompiler *cl) {
 }
 
 static void MVM_jit_setup_unwind_info(MVMThreadContext *tc, MVMJitCode *code) {
-#if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_WIN32 || 1
+#if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_WIN32
     UNWIND_INFO *ui = MVM_calloc(1, sizeof(UNWIND_INFO) + 12 * sizeof(UNWIND_CODE));
 
     MVMuint8 p = 0;
