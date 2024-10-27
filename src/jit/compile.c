@@ -131,7 +131,7 @@ static void MVM_jit_setup_unwind_info(MVMThreadContext *tc, MVMJitCode *code, MV
 
     ft->BeginAddress = 0;
     ft->EndAddress = code->size;
-    ft->UnwindInfoAddress = (uintptr_t)ui;
+    ft->UnwindInfoAddress = (MVMuint64)ui;
 
     fprintf(stderr, "trying to send function table; runtime function struct at %p, unwind info address in struct is %p\n", ft, ft->UnwindInfoAddress);
 
