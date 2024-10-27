@@ -151,15 +151,15 @@ static void MVM_jit_setup_unwind_info(MVMThreadContext *tc, MVMJitCode *code) {
     ft->EndAddress = relative_func_begin + code->size;
     ft->UnwindInfoAddress = (MVMuint64)relative_ui_address;
 
-    fprintf(stderr, "trying to send function table; runtime function struct at %p, unwind info address in struct is %p\n", ft, ft->UnwindInfoAddress);
+    // fprintf(stderr, "trying to send function table; runtime function struct at %p, unwind info address in struct is %p\n", ft, ft->UnwindInfoAddress);
 
     if (!RtlAddFunctionTable(ft, 1, common_base)) {
-        fprintf(stderr, "not successful!\n");
+        // fprintf(stderr, "not successful!\n");
         MVM_oops(tc, "Could not add a function table for jitted code.");
     }
-    else {
-        fprintf(stderr, "success!\n");
-    }
+    // else {
+    //    fprintf(stderr, "success!\n");
+    // }
 #endif
 }
 
