@@ -40,6 +40,15 @@ typedef struct UNWIND_INFO {
 #define UWOP_SET_FPREG 3
 #define UWOP_SAVE_NONVOL 4
 
+typedef struct {
+    unsigned long BeginAddress;
+    unsigned long EndAddress;
+    union {
+        unsigned long UnwindInfoAddress;
+        unsigned long UnwindData;
+    };
+} FUNCTION_ENTRY;
+
 #endif
 
 
@@ -85,26 +94,26 @@ static void debug_spill_map(MVMThreadContext *tc, MVMJitCompiler *cl) {
 
 static void MVM_jit_setup_unwind_info(MVMThreadContext *tc, MVMJitCode *code) {
 #if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_WIN32
-    UNWIND_INFO *ui = MVM_calloc(1, sizeof(UNWIND_INFO) + 12 * sizeof(UNWIND_CODE));
+    UNWIND_INFO *ui = MVM_calloc(1, sizeof(UNWIND_INFO) + 12 * sizeof(UNWIND_SLOT));
 
     MVMuint8 p = 0;
 
-    fprintf(stderr, "creating unwind info into struct at %p, array at %p\n", ui, &ui->UnwindCodesArray[0]);
+    // fprintf(stderr, "creating unwind info into struct at %p, array at %p\n", ui, &ui->UnwindCodesArray[0]);
 
-    ui->UnwindCodesArray[p++].code.UnwindOpcode = UWOP_SAVE_NONVOL; // mov [rbp-0x18], WORK (aka rbx aka 3)
-    ui->UnwindCodesArray[p  ].code.OperationInfo = 3;
+    ui->UnwindCodesArray[p  ].code.UnwindOpcode = UWOP_SAVE_NONVOL; // mov [rbp-0x18], WORK (aka rbx aka 3)
+    ui->UnwindCodesArray[p++].code.OperationInfo = 3;
     ui->UnwindCodesArray[p++].u32 = 0x18 / 8;
 
-    ui->UnwindCodesArray[p++].code.UnwindOpcode = UWOP_SAVE_NONVOL; // mov [rbp-0x10], CU (aka rbx aka r13)
-    ui->UnwindCodesArray[p  ].code.OperationInfo = 13;
+    ui->UnwindCodesArray[p  ].code.UnwindOpcode = UWOP_SAVE_NONVOL; // mov [rbp-0x10], CU (aka rbx aka r13)
+    ui->UnwindCodesArray[p++].code.OperationInfo = 13;
     ui->UnwindCodesArray[p++].u32 = 0x10 / 8;
 
-    ui->UnwindCodesArray[p++].code.UnwindOpcode = UWOP_SAVE_NONVOL; // mov [rbp-0x10], TC (aka rbx aka r14)
-    ui->UnwindCodesArray[p  ].code.OperationInfo = 14;
+    ui->UnwindCodesArray[p  ].code.UnwindOpcode = UWOP_SAVE_NONVOL; // mov [rbp-0x10], TC (aka rbx aka r14)
+    ui->UnwindCodesArray[p++].code.OperationInfo = 14;
     ui->UnwindCodesArray[p++].u32 = 0x08 / 8;
 
-    ui->UnwindCodesArray[p++].code.UnwindOpcode = UWOP_ALLOC_LARGE; // sub rsp, 0x100 (aka allocate 256 bytes on stack)
-    ui->UnwindCodesArray[p  ].code.OperationInfo = 0; // "small" large allocation
+    ui->UnwindCodesArray[p  ].code.UnwindOpcode = UWOP_ALLOC_LARGE; // sub rsp, 0x100 (aka allocate 256 bytes on stack)
+    ui->UnwindCodesArray[p++].code.OperationInfo = 0; // "small" large allocation
     ui->UnwindCodesArray[p++].u32 = 0x100 / 8; // one slot with the size divided by 8
 
     ui->UnwindCodesArray[p++].code.UnwindOpcode = UWOP_SET_FPREG; // mov rbp, rsp
@@ -113,6 +122,8 @@ static void MVM_jit_setup_unwind_info(MVMThreadContext *tc, MVMJitCode *code) {
     ui->UnwindCodesArray[p++].code.OperationInfo = 5;
 
     ui->CountOfUnwindCodes = p; // 11 ops, array size rounded up to 12, not that it matters
+
+    // fprintf(stderr, "p is %d here\n", p);
 
     // Thanks gdb x/8i for giving me the correct offsets!
     ui->UnwindCodesArray[0].code.OffsetInProlog = 0x17;
@@ -127,14 +138,14 @@ static void MVM_jit_setup_unwind_info(MVMThreadContext *tc, MVMJitCode *code) {
     ui->FrameRegister = 5; // we have a frame register, and it's rbp (aka 5)
     ui->FrameRegisterOffsetScaled = 0; // our frame register is not offset compared to rsp
 
-    PRUNTIME_FUNCTION ft = MVM_calloc(1, sizeof(RUNTIME_FUNCTION));
+    FUNCTION_ENTRY *ft = MVM_calloc(1, sizeof(FUNCTION_ENTRY));
 
     // Random big alignment for good luck
     MVMuint64 common_base = ((MVMuint64)ui < (MVMuint64)code->func_ptr ? (MVMuint64)ui : (MVMuint64)code->func_ptr) & ~0xfff;
     MVMuint64 relative_func_begin = (MVMuint64)code->func_ptr - common_base;
     MVMuint64 relative_ui_address = (MVMuint64)ui - common_base;
 
-    fprintf(stderr, "64bit base address is %lu / relative func begin %lu / relative ui addr %lu\n", common_base, relative_func_begin, relative_ui_address);
+    // fprintf(stderr, "64bit base address is %lu / relative func begin %lu / relative ui addr %lu\n", common_base, relative_func_begin, relative_ui_address);
 
     ft->BeginAddress = relative_func_begin;
     ft->EndAddress = relative_func_begin + code->size;
