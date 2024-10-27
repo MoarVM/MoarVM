@@ -83,8 +83,8 @@ static void debug_spill_map(MVMThreadContext *tc, MVMJitCompiler *cl) {
     }
 }
 
-static void MVM_jit_setup_unwind_info(MVMThreadContext *tc, MVMJitCode *code, MVMJitCompiler *cl, MVMJitGraph *jg) {
-#if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_WIN32
+static void MVM_jit_setup_unwind_info(MVMThreadContext *tc, MVMJitCode *code) {
+#if MVM_JIT_PLATFORM == MVM_JIT_PLATFORM_WIN32 || 1
     UNWIND_INFO *ui = MVM_calloc(1, sizeof(UNWIND_INFO) + 12 * sizeof(UNWIND_CODE));
 
     MVMuint8 p = 0;
@@ -265,6 +265,9 @@ MVMJitCode * MVM_jit_compile_graph(MVMThreadContext *tc, MVMJitGraph *jg) {
     }
 #endif
 
+    /* Create unwind information for whatever target(s) is (are) appropriate. */
+    MVM_jit_setup_unwind_info(tc, code);
+
     /* Logging for insight */
     if (MVM_jit_bytecode_dump_enabled(tc) && code)
         MVM_jit_dump_bytecode(tc, code);
@@ -361,9 +364,6 @@ MVMJitCode * MVM_jit_compiler_assemble(MVMThreadContext *tc, MVMJitCompiler *cl,
     code->handlers     = COPY_ARRAY(jg->handlers, jg->handlers_alloc);
     code->num_inlines  = jg->inlines_num;
     code->inlines      = COPY_ARRAY(jg->inlines, jg->inlines_alloc);
-
-    /* Create unwind information for whatever target(s) is (are) appropriate. */
-    MVM_jit_setup_unwind_info(tc, code, cl, jg);
 
     return code;
 }
