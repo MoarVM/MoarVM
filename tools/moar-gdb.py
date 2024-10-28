@@ -359,7 +359,7 @@ class CommonHeapData(object):
     opaq_histogram = None
     arrstr_hist    = None
     arrusg_hist    = None
-    
+
     string_histogram = None
 
     generation     = None
@@ -843,3 +843,11 @@ if __name__ == "__main__":
         the_objfile = gdb.lookup_objfile("libmoar.so")
     register_printers(the_objfile)
     register_commands(the_objfile)
+    try:
+        jitreader_path = the_objfile.filename.replace("libmoar", "libmoar-jitreader")
+    except Exception:
+        print("couldn't come up with a path for the jitreader plugin ...")
+    try:
+        gdb.execute("jit-reader-load " + jitreader_path)
+    except Exception:
+        print(f"Could not load libmoar-jitreader.so from {str(jitreader_path)}, not a problem though")
