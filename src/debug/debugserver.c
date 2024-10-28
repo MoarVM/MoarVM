@@ -636,19 +636,18 @@ static MVMThread *find_thread_by_id(MVMInstance *vm, MVMuint32 id) {
     return cur_thread;
 }
 
-static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
-    MVMThread *to_do = thread ? thread : find_thread_by_id(dtc->instance, argument->thread_id);
-    MVMThreadContext *tc = to_do ? to_do->body.tc : NULL;
+MVMint32 MVM_debugserver_request_thread_suspends(MVMThreadContext *requester_tc, MVMThread *to_do, MVMuint64 limit_attempts) {
+    MVM_gc_mark_thread_blocked(requester_tc);
+    MVMThreadContext *tc = to_do->body.tc;
+    MVMuint8 status = -1;
 
-    if (!tc)
-        return 1;
+    MVMuint8 unlimited_attempts = limit_attempts == 0;
 
-    MVM_gc_mark_thread_blocked(dtc);
-
-    while (1) {
+    while (unlimited_attempts || limit_attempts-- != 0) {
         /* Is the thread currently doing completely ordinary code execution? */
         if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
                 == MVMGCStatus_NONE) {
+            status = 0;
             break;
         }
         /* Is the thread in question currently blocked, i.e. spending time in
@@ -657,16 +656,30 @@ static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
          * it'll suspend execution. */
         if (MVM_cas(&tc->gc_status, MVMGCStatus_UNABLE, MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST)
                 == MVMGCStatus_UNABLE) {
+            status = 0;
             break;
         }
         /* Was the thread faster than us? For example by running into
          * a breakpoint, completing a step, or encountering an
          * unhandled exception? If so, we're done here. */
         if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
+            status = 0;
             break;
         }
         MVM_platform_thread_yield();
     }
+
+    return status;
+}
+
+static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread) {
+    MVMThread *to_do = thread ? thread : find_thread_by_id(dtc->instance, argument->thread_id);
+    MVMThreadContext *tc = to_do ? to_do->body.tc : NULL;
+
+    if (!tc)
+        return -1;
+
+    MVM_debugserver_request_thread_suspends(dtc, to_do, 0);
 
     if (argument && argument->type == MT_SuspendOne)
         communicate_success(tc, ctx, argument);
@@ -694,7 +707,7 @@ static void request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
             AO_t current = MVM_load(&cur_thread->body.tc->gc_status);
             if (current == MVMGCStatus_NONE || current == MVMGCStatus_UNABLE) {
                 MVMint32 result = request_thread_suspends(dtc, ctx, argument, cur_thread);
-                if (result == 1) {
+                if (result == -1) {
                     success = 0;
                     break;
                 }
@@ -719,7 +732,7 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
     AO_t current;
 
     if (!tc) {
-        return 1;
+        return -1;
     }
 
     current = MVM_load(&tc->gc_status);
@@ -727,7 +740,7 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
     if (current != (MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED)
             && (current & MVMSUSPENDSTATUS_MASK) != MVMSuspendState_SUSPEND_REQUEST) {
         fprintf(stderr, "wrong state to resume from: %zu\n", MVM_load(&tc->gc_status));
-        return 1;
+        return -1;
     }
 
     MVM_gc_mark_thread_blocked(dtc);
@@ -768,7 +781,7 @@ static MVMint32 request_thread_resumes(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
 
     MVM_gc_mark_thread_unblocked(dtc);
 
-    if (is_one)
+    if (ctx && is_one)
         communicate_success(tc, ctx, argument);
 
     if (tc->instance->debugserver->debugspam_protocol)
@@ -792,7 +805,7 @@ static void request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
                         current == (MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST) ||
                         current == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST) ||
                         current == (MVMGCStatus_STOLEN | MVMSuspendState_SUSPEND_REQUEST)) {
-                    if (request_thread_resumes(dtc, ctx, argument, cur_thread)) {
+                    if (request_thread_resumes(dtc, ctx, argument, cur_thread) != 0) {
                         if (vm->debugserver->debugspam_protocol)
                             fprintf(stderr, "failure to resume thread %u\n", cur_thread->body.thread_id);
                         success = 0;
@@ -808,12 +821,112 @@ static void request_all_threads_resume(MVMThreadContext *dtc, cmp_ctx_t *ctx, re
     uv_cond_broadcast(&vm->debugserver->tell_threads);
     uv_mutex_unlock(&vm->debugserver->mutex_cond);
 
-    if (success)
-        communicate_success(dtc, ctx, argument);
-    else
-        communicate_error(dtc, ctx, argument);
+    if (ctx) {
+        if (success)
+            communicate_success(dtc, ctx, argument);
+        else
+            communicate_error(dtc, ctx, argument);
+    }
 
     uv_mutex_unlock(&vm->mutex_threads);
+}
+
+MVM_PUBLIC MVMuint64 MVM_dump_all_backtraces(MVMThreadContext *dtc, MVMuint64 is_harmless) {
+    MVMInstance *inst = dtc->instance;
+    MVMuint32 remaining_uninterrupted = 0;
+    MVMuint32 remaining_interrupted = 0;
+    MVMuint32 attempts_so_far = 0;
+    MVMThread *cur_thread = dtc->instance->threads;
+
+    MVMThread *own_thread = dtc->thread_obj;
+
+    if (inst->debugserver == NULL && is_harmless == 1) {
+        fprintf(stderr, "you need to call MVM_debugserver_partial_init(tc) before you can call MVM_debugserver_request_all_backtraces with is_harmless == 1");
+        return -2;
+    }
+
+    char threadname[16] = {0};
+
+#if MVM_HAS_PTHREAD_SETNAME_NP
+    pthread_getname_np((pthread_t)dtc->thread_obj->body.native_thread_id, threadname, 16);
+#endif
+
+    fprintf(stderr, "\n==========\nThread %d (%s) %s\n\n\n",
+        dtc->thread_id,
+        threadname[0] ? threadname : "no name set",
+        is_harmless ? "requested backtrace dump" : "requested orderly crash");
+
+    do {
+        remaining_uninterrupted = 0;
+        uv_mutex_lock(&inst->mutex_threads);
+        cur_thread = inst->threads;
+        while (cur_thread) {
+            if (cur_thread != own_thread && is_thread_id_eligible(inst, cur_thread->body.thread_id)) {
+                AO_t current = MVM_load(&cur_thread->body.tc->gc_status);
+                if (current == MVMGCStatus_NONE || current == MVMGCStatus_UNABLE) {
+                    MVMint32 result = MVM_debugserver_request_thread_suspends(dtc, cur_thread, 10);
+                    MVM_gc_mark_thread_unblocked(dtc);
+                    if (result != 0) {
+                        remaining_uninterrupted++;
+                    }
+                }
+            }
+            cur_thread = cur_thread->body.next;
+        }
+        uv_mutex_unlock(&inst->mutex_threads);
+        attempts_so_far++;
+    } while (remaining_uninterrupted > 0 && attempts_so_far < 10000);
+
+    if (remaining_uninterrupted > 0) {
+        MVM_oops(dtc, "Could not suspend all threads in order to get them to dump tracebacks. %d threads still running.", remaining_uninterrupted);
+    }
+
+    /* Now that all threads have been asked to not execute any more moar code,
+     * we can relatively safely dump their backtraces. */
+    uv_mutex_lock(&inst->mutex_threads);
+    cur_thread = inst->threads;
+    while (cur_thread) {
+        if (is_thread_id_eligible(inst, cur_thread->body.thread_id)) {
+            #if MVM_HAS_PTHREAD_SETNAME_NP
+            threadname[0] = '\0';
+            pthread_getname_np((pthread_t)cur_thread->body.native_thread_id, threadname, 16);
+            #endif
+
+            fprintf(stderr, "Thread %u (0x%lx)%s%s%s: Backtrace\n",
+                cur_thread->body.thread_id,
+                cur_thread->body.native_thread_id,
+                threadname[0] ? " (" : "",
+                threadname[0] ? threadname : "",
+                threadname[0] ? ")" : "");
+            if (cur_thread->body.tc) {
+                if (cur_thread->body.tc->cur_frame) {
+                    MVM_dump_backtrace(cur_thread->body.tc);
+                }
+                else {
+                    fprintf(stderr, "... has no code frame\n");
+                }
+            }
+            else
+                fprintf(stderr, "... has no ThreadContext?\n");
+            fprintf(stderr, "\n");
+
+            if (is_harmless && cur_thread != own_thread) {
+                /* Wake thread back up. */
+                MVMint32 result = request_thread_resumes(dtc, NULL, NULL, cur_thread);
+                if (result != 0) {
+                    remaining_interrupted++;
+                }
+            }
+        }
+        cur_thread = cur_thread->body.next;
+    }
+    uv_mutex_unlock(&inst->mutex_threads);
+
+    if (remaining_interrupted > 0) {
+        return -remaining_interrupted;
+    }
+
+    return 0;
 }
 
 static void write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMThread *thread) {
@@ -895,10 +1008,10 @@ static MVMint32 request_thread_stacktrace(MVMThreadContext *dtc, cmp_ctx_t *ctx,
     MVMThread *to_do = thread ? thread : find_thread_by_id(dtc->instance, argument->thread_id);
 
     if (!to_do)
-        return 1;
+        return -1;
 
     if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
-        return 1;
+        return -1;
     }
 
     cmp_write_map(ctx, 3);
@@ -3314,7 +3427,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMArgs arg_info) {
                     send_thread_info(tc, &ctx, &argument);
                     break;
                 case MT_ThreadStackTraceRequest:
-                    if (request_thread_stacktrace(tc, &ctx, &argument, NULL)) {
+                    if (request_thread_stacktrace(tc, &ctx, &argument, NULL) != 0) {
                         communicate_error(tc, &ctx, &argument);
                     }
                     break;
@@ -3434,13 +3547,10 @@ static void debugserver_worker(MVMThreadContext *tc, MVMArgs arg_info) {
         exit(1); \
     } \
 } while (0)
-MVM_PUBLIC void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
+MVM_PUBLIC void MVM_debugserver_partial_init(MVMThreadContext *tc) {
     MVMInstance *vm = tc->instance;
     MVMDebugServerData *debugserver = MVM_calloc(1, sizeof(MVMDebugServerData));
-    MVMObject *worker_entry_point;
     int init_stat;
-
-    tc->instance->instrumentation_level++; /* So we insert breakpoint instructions. */
 
     init_mutex(debugserver->mutex_cond, "debug server orchestration");
     init_mutex(debugserver->mutex_network_send, "debug server network socket lock");
@@ -3464,7 +3574,6 @@ MVM_PUBLIC void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
         MVM_calloc(debugserver->breakpoints->files_alloc, sizeof(MVMDebugServerBreakpointFileTable));
 
     debugserver->event_id = 2;
-    debugserver->port = port;
 
     if (getenv("MDS_NETWORK")) {
         debugspam_network = 1;
@@ -3477,6 +3586,15 @@ MVM_PUBLIC void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
     }
 
     vm->debugserver = debugserver;
+}
+MVM_PUBLIC void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port) {
+    MVMObject *worker_entry_point;
+
+    tc->instance->instrumentation_level++; /* So we insert breakpoint instructions. */
+
+    MVM_debugserver_partial_init(tc);
+
+    tc->instance->debugserver->port = port;
 
     worker_entry_point = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTCCode);
     ((MVMCFunction *)worker_entry_point)->body.func = debugserver_worker;

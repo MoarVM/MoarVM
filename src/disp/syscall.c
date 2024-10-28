@@ -1506,6 +1506,30 @@ static MVMDispSysCall stat_is_writable = {
     .expected_concrete = { 1 },
 };
 
+/* all-thread-bt */
+static void all_thread_bt_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMint64 is_harmless = arg_info.callsite->num_pos == 0 || get_int_arg(arg_info, 0) == 0;
+
+    if (!tc->instance->debugserver) {
+        MVM_debugserver_partial_init(tc);
+    }
+    MVM_dump_all_backtraces(tc, is_harmless);
+
+    if (!is_harmless)
+        exit(2);
+
+    MVM_args_set_result_int(tc, 0, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall all_thread_bt = {
+    .c_name = "all-thread-bt",
+    .implementation = all_thread_bt_impl,
+    .min_args = 0,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_INT },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 1 },
+};
+
 /* stat-is-executable */
 static void stat_is_executable_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMStat    *stat_obj = (MVMStat *)get_obj_arg(arg_info, 0);
@@ -1655,6 +1679,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &stat_is_readable);
     add_to_hash(tc, &stat_is_writable);
     add_to_hash(tc, &stat_is_executable);
+    add_to_hash(tc, &all_thread_bt);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 

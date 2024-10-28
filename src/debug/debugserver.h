@@ -145,12 +145,15 @@ struct MVMDebugServerData {
 };
 
 MVM_PUBLIC void MVM_debugserver_init(MVMThreadContext *tc, MVMuint32 port);
+MVM_PUBLIC void MVM_debugserver_partial_init(MVMThreadContext *tc);
 MVM_PUBLIC void MVM_debugserver_mark_handles(MVMThreadContext *tc, MVMGCWorklist *worklist, MVMHeapSnapshotState *snapshot);
 
 MVM_PUBLIC void MVM_debugserver_notify_thread_creation(MVMThreadContext *tc);
 MVM_PUBLIC void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc);
 
 MVM_PUBLIC void MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc, MVMException *ex);
+
+MVM_PUBLIC MVMuint64 MVM_dump_all_backtraces(MVMThreadContext *dtc, MVMuint64 is_harmless);
 
 MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filename, MVMuint32 filename_len, MVMuint32 line_no,  MVMuint32 *file_idx);
 MVM_PUBLIC MVMint32 MVM_debugserver_breakpoint_check(MVMThreadContext *tc, MVMuint32 file_idx, MVMuint32 line_no);
