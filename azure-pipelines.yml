@@ -65,13 +65,13 @@ stages:
            IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--debug=3'
+           MOAR_OPTIONS: '--debug=3 --gdb'
            CHECK_LEAKS: 'yes'
          Lin_MVM_reloc:
            IMAGE_NAME: 'ubuntu-22.04'
            RELOCATABLE: 'yes'
            RAKUDO_OPTIONS: '--relocatable'
-           NQP_OPTIONS: '--backends=moar --relocatable'
+           NQP_OPTIONS: '--backends=moar --relocatable --gdb'
            MOAR_OPTIONS: '--relocatable --debug=3'
            CHECK_LEAKS: 'yes'
 
@@ -139,25 +139,25 @@ stages:
            IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc --debug=3 --no-mimalloc'
+           MOAR_OPTIONS: '--cc=gcc --debug=3 --no-mimalloc --gdb'
            CHECK_LEAKS: 'yes'
          MVM_clang_malloc:
            IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang --debug=3 --no-mimalloc'
+           MOAR_OPTIONS: '--cc=clang --debug=3 --no-mimalloc --gdb'
            CHECK_LEAKS: 'yes'
          MVM_gcc_no_c11_atomics:
            IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=gcc --debug=3 --no-c11-atomics'
+           MOAR_OPTIONS: '--cc=gcc --debug=3 --no-c11-atomics --gdb'
            CHECK_LEAKS: 'yes'
          MVM_clang_no_c11_atomics:
            IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: '--cc=clang --debug=3 --no-c11-atomics'
+           MOAR_OPTIONS: '--cc=clang --debug=3 --no-c11-atomics --gdb'
            CHECK_LEAKS: 'yes'
 
          # Backwards compatability jobs, using the oldest OS version that GH actions support
@@ -193,14 +193,14 @@ stages:
 
         - script: |
             sudo apt-get update
-            sudo apt-get install libzstd-dev valgrind
+            sudo apt-get install libzstd-dev valgrind gdb
             # The loop with libc-bin and glibc-tools are because catchsegv moved packages with Ubuntu 20.04 and again with 22.04
             for pkg in libc-bin glibc-tools
             do
               sudo apt-get install -qy $pkg || true
             done
           condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ))
-          displayName: Install libzstd-dev and valgrind
+          displayName: Install libzstd-dev, gdb and valgrind
 
         - checkout: self
           path: selfrepo
