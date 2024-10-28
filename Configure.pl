@@ -48,7 +48,7 @@ GetOptions(\%args, qw(
     build=s host=s big-endian jit! enable-jit
     prefix=s bindir=s libdir=s mastdir=s
     relocatable make-install asan ubsan tsan
-    valgrind telemeh! dtrace show-autovect git-cache-dir=s
+    valgrind gdb telemeh! dtrace show-autovect git-cache-dir=s
     show-autovect-failed:s mimalloc! has-mimalloc c11-atomics!),
 
     'no-optimize|nooptimize' => sub { $args{optimize} = 0 },
@@ -91,7 +91,7 @@ if ( $args{relocatable} && ($^O eq 'aix' || $^O eq 'openbsd') ) {
 }
 
 for (qw(coverage static big-endian has-libtommath has-sha has-libuv
-        has-libatomic_ops has-mimalloc asan ubsan tsan valgrind dtrace show-vec)) {
+        has-libatomic_ops has-mimalloc asan ubsan tsan valgrind gdb dtrace show-vec)) {
     $args{$_} = 0 unless defined $args{$_};
 }
 
@@ -173,7 +173,7 @@ if ($^O eq 'darwin') {
     unless ($gnu_toolchain) {
         # When XCode toolchain is used then force use of XCode's make if
         # available.
-        $config{make} = '/usr/bin/make' if -x '/usr/bin/make'; 
+        $config{make} = '/usr/bin/make' if -x '/usr/bin/make';
     }
 
     # Here are the tools that seem to cause trouble.
@@ -462,6 +462,14 @@ $config{ccdebugflags} = sprintf $config{ccdebugflags}, defined_or $args{debug}, 
 $config{ldoptiflags}  = sprintf $config{ldoptiflags},  defined_or $args{optimize}, 1 if $config{ldoptiflags}  =~ /%s/;
 $config{lddebugflags} = sprintf $config{lddebugflags}, defined_or $args{debug},    3 if $config{lddebugflags} =~ /%s/;
 
+$config{extrainstalldeps} = '';
+$config{jitreader_obj} = '';
+
+if (exists $args{'gdb'} && $args{'jit'} == 1) {
+    $config{extrainstalldeps} .= ' @moarjitreaderdll@';
+    $config{jitreader_obj} = 'tools/moar-gdb-jitreader.o';
+    $config{install}   .= "\t\$(CP) \@moarjitreaderdll\@ \"\$(DESTDIR)\$(LIBDIR)\"\n";
+}
 
 # generate CFLAGS
 my @cflags;
@@ -541,6 +549,8 @@ if (not $args{static} and $config{prefix} ne '/usr') {
 # setup library names
 $config{moarlib} = sprintf $config{lib}, $NAME;
 $config{moardll} = sprintf $config{dll}, $NAME;
+
+$config{moarjitreaderdll} = sprintf $config{dll}, 'moar-jitreader';
 
 # setup flags for shared builds
 unless ($args{static}) {
@@ -1145,7 +1155,7 @@ __END__
                    [--static] [--prefix <path>] [--relocatable]
                    [--has-libtommath] [--has-sha] [--has-libuv]
                    [--has-libatomic_ops]
-                   [--asan] [--ubsan] [--tsan] [--no-jit]
+                   [--asan] [--ubsan] [--tsan] [--gdb] [--no-jit]
                    [--telemeh] [--git-cache-dir <path>]
 
     ./Configure.pl --build <build-triple> --host <host-triple>
@@ -1279,6 +1289,10 @@ A full list of options is displayed if you set C<TSAN_OPTIONS> to C<help=1>.
 =item --valgrind
 
 Include Valgrind Client Requests for moarvm's own memory allocators.
+
+=item --gdb
+
+Compile a GDB Jit Debug Info Reader and install it into the system.
 
 =item --dtrace
 

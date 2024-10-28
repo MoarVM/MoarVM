@@ -257,7 +257,8 @@ OBJECTS2 = src/6model/reprs/MVMDLLSym@obj@ \
           src/platform/malloc_trim@obj@ \
           src/moar@obj@ \
           @platform@ \
-          @jit_obj@
+          @jit_obj@ \
+		  @jitreader_obj@
 
 HEADERS = src/moar.h \
           src/types.h \
@@ -545,7 +546,7 @@ all: moar@exe@ pkgconfig/moar.pc
 .SUFFIXES: .c @obj@ .i @asm@ .dasc .expr .tile .h
 .PHONY: clean realclean install lib all help test reconfig clangcheck gcccheck libuv tracing cgoto switch no-tracing no-cgoto distclean release sandwich
 
-install: all
+install: all @extrainstalldeps@
 	$(MKPATH) "$(DESTDIR)$(BINDIR)"
 	$(CP) moar@exe@ "$(DESTDIR)$(BINDIR)"
 	$(CHMOD) 755 "$(DESTDIR)$(BINDIR)/moar@exe@"
@@ -702,6 +703,9 @@ tools/repr_size_table@exe@: tools/repr_size_table@obj@ @moarlib@ $(DLL_LIBS)
 	$(MSG) Building $@
 	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MINGW_UNICODE) $< @moarlib@ $(DLL_LIBS)
 
+@moarjitreaderdll@: tools/moar-gdb-jitreader.o
+	$(MSG) linking $@
+	$(CMD)$(LD) @ldshared@ @ldout@$@ $<
 
 @uvlib@: $(UV_OBJECTS)
 	$(MSG) linking $@
