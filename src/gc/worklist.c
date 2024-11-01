@@ -6,7 +6,11 @@ MVMGCWorklist * MVM_gc_worklist_create(MVMThreadContext *tc, MVMuint8 include_ge
     worklist->items = 0;
     worklist->alloc = MVM_GC_WORKLIST_START_SIZE;
     worklist->list  = MVM_malloc(worklist->alloc * sizeof(MVMCollectable **));
-    worklist->include_gen2 = include_gen2;
+    worklist->include_gen2 = !!include_gen2;
+    worklist->nursery_address_hack_active = 0;
+    #ifdef MVM_USE_MIMALLOC
+    worklist->nursery_address_hack_active = tc->nursery_heap != NULL;
+    #endif
     return worklist;
 }
 

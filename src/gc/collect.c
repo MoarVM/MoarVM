@@ -1,4 +1,5 @@
 #include "moar.h"
+#include <time.h>
 
 /* Combines a piece of work that will be passed to another thread with the
  * ID of the target thread to pass it to. */
@@ -31,6 +32,9 @@ MVMuint32 MVM_gc_new_thread_nursery_size(MVMInstance *i) {
 
 /* Does a garbage collection run. Exactly what it does is configured by the
  * couple of arguments that it takes.
+ *
+ * The is_own_tc argument specifies if the thread running the code owns the
+ * Thread Context passed as the tc argument.
  *
  * The what_to_do argument specifies where it should look for things to add
  * to the worklist: everywhere, just at thread local stuff, or just in the
@@ -99,7 +103,23 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         }
         else {
             MVM_free(old_fromspace);
-            tc->nursery_tospace = MVM_calloc(1, tc->nursery_tospace_size);
+            #ifdef MVM_USE_MIMALLOC
+            mi_heap_t *heap_to_use = MVM_get_running_threads_context()->nursery_heap;
+            if (heap_to_use != NULL) {
+                tc->nursery_tospace = mi_heap_calloc(heap_to_use, 1, tc->nursery_tospace_size);
+                if (!tc->nursery_tospace) {
+                    MVM_oops(tc, "allocation for tospace returned null wtf");
+                }
+                if (tc->nursery_tospace < MVM_NURSERY_ARENA_POS || tc->nursery_tospace > MVM_NURSERY_ARENA_LIMIT) {
+                    MVM_oops(tc, "allocation for tospace returned something outside the arena???");
+                }
+            }
+            else {
+                tc->nursery_tospace = MVM_calloc(1, tc->nursery_tospace_size);
+            }
+            #else
+            tc->nursery_tospace     = MVM_calloc(1, tc->nursery_tospace_size);
+            #endif
         }
 
         /* Reset nursery allocation pointers to the new tospace. */
@@ -167,6 +187,15 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
     MVMCollectable    *new_addr;
     MVMuint32          gen2count;
 
+    MVMuint8 nursery_address_trick_active = 0;
+    #ifdef MVM_USE_MIMALLOC
+    /*if (tc->nursery_heap != NULL) {
+        nursery_address_trick_active = 1;
+        fprintf(stderr, "yay nursery trick is on line!\n");
+    }*/
+    nursery_address_trick_active = worklist->nursery_address_hack_active;
+    #endif
+
     /* Grab the second generation allocator; we may move items into the
      * old generation. */
     gen2 = tc->gen2;
@@ -184,6 +213,11 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
 
         /* If it's in the second generation and we're only doing a nursery,
          * collection, we have nothing to do. */
+        /*if (nursery_address_trick_active) {
+            item_gen2 = !((uintptr_t)item >= (uintptr_t)MVM_NURSERY_ARENA_POS && (uintptr_t)item < (uintptr_t)MVM_NURSERY_ARENA_LIMIT);
+            fprintf(stderr, "%p gen2? %d\n", item, item_gen2);
+        }
+        else*/
         item_gen2 = item->flags2 & MVM_CF_SECOND_GEN;
         if (item_gen2) {
             if (gen == MVMGCGenerations_Nursery)
@@ -755,7 +789,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *executing_thread, MVMTh
             }
         }
     }
-    
+
     /* Also need to consider overflows. */
     for (i = 0; i < gen2->num_overflows; i++) {
         if (gen2->overflows[i]) {

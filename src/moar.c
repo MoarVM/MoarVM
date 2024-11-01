@@ -118,6 +118,29 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up instance data structure. */
     instance = MVM_calloc(1, sizeof(MVMInstance));
 
+#ifdef MVM_USE_MIMALLOC
+    #define NURSERY_ARENA_SIZE 0x10000000
+    #define NURSERY_ARENA_POS (void *)NURSERY_ARENA_SIZE
+    void *nursery_location = MVM_platform_try_alloc_page_at_exactly(NURSERY_ARENA_POS, NURSERY_ARENA_SIZE, MVM_PAGE_READ | MVM_PAGE_WRITE);
+    if (nursery_location != NURSERY_ARENA_POS) {
+        MVM_platform_unmap_file(nursery_location, NULL, NURSERY_ARENA_SIZE);
+    }
+    else if (nursery_location != NULL) {
+        mi_arena_id_t nursery_arena = 0;
+        if (!mi_manage_os_memory_ex(
+            NURSERY_ARENA_POS, NURSERY_ARENA_SIZE,
+            0, 0, 0, -1,
+            true, &nursery_arena)) {
+            MVM_platform_unmap_file(NURSERY_ARENA_POS, NULL, NURSERY_ARENA_SIZE);
+        }
+        else {
+            fprintf(stderr, "nursery arena and heap are set up!\n");
+            instance->nursery_arena = nursery_arena;
+            instance->nursery_heap = mi_heap_new_in_arena(nursery_arena);
+        }
+    }
+#endif
+
     /* Create the main thread's ThreadContext and stash it. */
     instance->main_thread = MVM_tc_create(NULL, instance);
 

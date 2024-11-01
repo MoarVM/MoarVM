@@ -4,6 +4,14 @@
 #define MVM_NUM_TEMP_BIGINTS 3
 #include "tommath.h"
 
+/* If we can get the memory management to grant us this wish,
+ * only nurseries will ever live in the memory area starting
+ * at this position, ending at twice its position. */
+#define MVM_NURSERY_ARENA_SIZE 0x10000000
+#define MVM_NURSERY_ARENA_POS ((void *)MVM_NURSERY_ARENA_SIZE)
+#define MVM_NURSERY_ARENA_LIMIT (void *)((char *)MVM_NURSERY_ARENA_POS + MVM_NURSERY_ARENA_SIZE)
+
+
 /* Possible values for the thread execution interrupt flag. */
 typedef enum {
     /* Indicates that the thread is currently executing, and should
@@ -316,6 +324,11 @@ struct MVMThreadContext {
     int nested_interpreter;
 
     MVMArgs *mark_args;
+
+    /* Memory Management bits */
+#ifdef MVM_USE_MIMALLOC
+    mi_heap_t *nursery_heap;
+#endif
 };
 
 MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance);

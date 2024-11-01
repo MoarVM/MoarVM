@@ -50,6 +50,18 @@ void *MVM_platform_alloc_pages(size_t size, int page_mode)
     return block;
 }
 
+void *MVM_platform_try_alloc_page_at_exactly(void *addr, size_t size, int page_mode)
+{
+    int prot_mode = page_mode_to_prot_mode(page_mode);
+    void *block = mmap(addr, size, prot_mode, MVM_MAP_ANON | MAP_FIXED_NOREPLACE | MAP_PRIVATE, -1, 0);
+
+    if (block == MAP_FAILED)
+        return NULL;
+
+    return block;
+}
+
+
 int MVM_platform_set_page_mode(void * block, size_t size, int page_mode) {
     int prot_mode = page_mode_to_prot_mode(page_mode);
     return mprotect(block, size, prot_mode) == 0;

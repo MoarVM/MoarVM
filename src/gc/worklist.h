@@ -25,7 +25,11 @@ struct MVMGCWorklist {
     MVMuint32 alloc;
 
     /* Whether we should include gen2 entries. */
-    MVMuint8 include_gen2;
+    MVMuint8 include_gen2 : 1;
+
+    /* Whether we can rely on only addresses between MVM_NURSERY_ARENA_POS and
+     * MVM_NURSERY_ARENA_LIMIT to be in a nursery. */
+    MVMuint8 nursery_address_hack_active : 1;
 };
 
 /* Some macros for doing stuff fast with worklists, defined to look like
@@ -66,10 +70,18 @@ struct MVMGCWorklist {
 #define MVM_gc_worklist_add_object_no_include_gen2_nocheck(tc, worklist, item) \
     MVM_gc_worklist_add(tc, worklist, item)
 #else
+#ifdef MVM_USE_MIMALLOC
+#define MVM_ITEM_IS_SECOND_GEN(worklist, item) \
+    (worklist->nursery_address_hack_active \
+        ? !((uintptr_t)(*item) >= (uintptr_t)MVM_NURSERY_ARENA_POS && (uintptr_t)(*item) < (uintptr_t)MVM_NURSERY_ARENA_LIMIT) \
+        : (*item)->flags2 & MVM_CF_SECOND_GEN)
+#else
+#define MVM_ITEM_IS_SECOND_GEN(worklist, item) ((*item)->flags2 & MVM_CF_SECOND_GEN)
+#endif
 #define MVM_gc_worklist_add(tc, worklist, item) \
     do { \
         MVMCollectable **item_to_add = (MVMCollectable **)(item);\
-        if (*item_to_add && (worklist->include_gen2 || !((*item_to_add)->flags2 & MVM_CF_SECOND_GEN))) { \
+        if (*item_to_add && (worklist->include_gen2 || !MVM_ITEM_IS_SECOND_GEN(worklist, item_to_add))) { \
             if (worklist->items == worklist->alloc) \
                 MVM_gc_worklist_add_slow(tc, worklist, item_to_add); \
             else \
@@ -82,7 +94,7 @@ struct MVMGCWorklist {
  * is True before calling this macro. */
 #define MVM_gc_worklist_add_include_gen2_nocheck(tc, worklist, item) \
 do { \
-    worklist->list[worklist->items++] = (MVMCollectable**)item; \
+    worklist->list[worklist->items++] = (MVMCollectable**)(item); \
 } while (0)
 /* Assumes worklist->include_gen2 is False. Also assumes there is enough space
  * in worklist->items.
@@ -90,14 +102,14 @@ do { \
  * is False before calling this macro. */
 #define MVM_gc_worklist_add_no_include_gen2_nocheck(tc, worklist, item) \
 do { \
-    if (*item && !( (*(MVMCollectable**)item)->flags2 & MVM_CF_SECOND_GEN)) { \
+    if (*item && !MVM_ITEM_IS_SECOND_GEN(worklist, (MVMCollectable **)(item)) ) { \
         worklist->list[worklist->items++] = (MVMCollectable**)item; \
     } \
 } while (0)
 #define MVM_gc_worklist_add_object_no_include_gen2_nocheck(tc, worklist, object) \
 do { \
-    if (*object && !( (*object)->header.flags2 & MVM_CF_SECOND_GEN)) { \
-        worklist->list[worklist->items++] = (MVMCollectable**)object; \
+    if (*object && !MVM_ITEM_IS_SECOND_GEN(worklist, (MVMCollectable **)(object))) { \
+        worklist->list[worklist->items++] = (MVMCollectable**)(object); \
     } \
 } while (0)
 #endif
