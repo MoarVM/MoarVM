@@ -53,7 +53,7 @@ void *MVM_platform_alloc_pages(size_t size, int page_mode)
 void *MVM_platform_try_alloc_page_at_exactly(void *addr, size_t size, int page_mode)
 {
     int prot_mode = page_mode_to_prot_mode(page_mode);
-    void *block = mmap(addr, size, prot_mode, MVM_MAP_ANON | MAP_FIXED_NOREPLACE | MAP_PRIVATE, -1, 0);
+    void *block = mmap(addr, size, prot_mode, MVM_MAP_ANON | MAP_FIXED_NOREPLACE | MAP_PRIVATE | MAP_NORESERVE, -1, 0);
 
     if (block == MAP_FAILED)
         return NULL;

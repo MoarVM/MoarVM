@@ -70,7 +70,7 @@ struct MVMGCWorklist {
 #define MVM_gc_worklist_add_object_no_include_gen2_nocheck(tc, worklist, item) \
     MVM_gc_worklist_add(tc, worklist, item)
 #else
-#ifdef MVM_USE_MIMALLOC
+#if MVM_USE_NURSERY_ARENA
 #define MVM_ITEM_IS_SECOND_GEN(worklist, item) \
     (worklist->nursery_address_hack_active \
         ? !((uintptr_t)(*item) >= (uintptr_t)MVM_NURSERY_ARENA_POS && (uintptr_t)(*item) < (uintptr_t)MVM_NURSERY_ARENA_LIMIT) \

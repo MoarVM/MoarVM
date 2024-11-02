@@ -103,16 +103,16 @@ void MVM_gc_collect(MVMThreadContext *tc, MVMuint8 what_to_do, MVMuint8 gen) {
         }
         else {
             MVM_free(old_fromspace);
-            #ifdef MVM_USE_MIMALLOC
+            #if MVM_USE_NURSERY_ARENA
             mi_heap_t *heap_to_use = MVM_get_running_threads_context()->nursery_heap;
             if (heap_to_use != NULL) {
                 tc->nursery_tospace = mi_heap_calloc(heap_to_use, 1, tc->nursery_tospace_size);
                 if (!tc->nursery_tospace) {
                     MVM_oops(tc, "allocation for tospace returned null wtf");
                 }
-                if (tc->nursery_tospace < MVM_NURSERY_ARENA_POS || tc->nursery_tospace > MVM_NURSERY_ARENA_LIMIT) {
-                    MVM_oops(tc, "allocation for tospace returned something outside the arena???");
-                }
+                /*if (tc->nursery_tospace < MVM_NURSERY_ARENA_POS || tc->nursery_tospace > MVM_NURSERY_ARENA_LIMIT) {
+                    MVM_oops(tc, "allocation for tospace returned something outside the arena??? heap to use was %p", heap_to_use);
+                }*/
             }
             else {
                 tc->nursery_tospace = MVM_calloc(1, tc->nursery_tospace_size);
@@ -187,8 +187,8 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
     MVMCollectable    *new_addr;
     MVMuint32          gen2count;
 
-    MVMuint8 nursery_address_trick_active = 0;
-    #ifdef MVM_USE_MIMALLOC
+    MVMuint8 nursery_address_trick_active;
+    #if MVM_USE_NURSERY_ARENA
     /*if (tc->nursery_heap != NULL) {
         nursery_address_trick_active = 1;
         fprintf(stderr, "yay nursery trick is on line!\n");
@@ -213,12 +213,14 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
 
         /* If it's in the second generation and we're only doing a nursery,
          * collection, we have nothing to do. */
-        /*if (nursery_address_trick_active) {
+        if (nursery_address_trick_active) {
             item_gen2 = !((uintptr_t)item >= (uintptr_t)MVM_NURSERY_ARENA_POS && (uintptr_t)item < (uintptr_t)MVM_NURSERY_ARENA_LIMIT);
-            fprintf(stderr, "%p gen2? %d\n", item, item_gen2);
+            // MVMuint8 item_gen2_from_flag = !!(item->flags2 & MVM_CF_SECOND_GEN);
+            /*if (item_gen2 != item_gen2_from_flag)
+                fprintf(stderr, "%p gen2? %d != %d\n", item, item_gen2, item_gen2_from_flag);*/
         }
-        else*/
-        item_gen2 = item->flags2 & MVM_CF_SECOND_GEN;
+        else
+            item_gen2 = !!(item->flags2 & MVM_CF_SECOND_GEN);
         if (item_gen2) {
             if (gen == MVMGCGenerations_Nursery)
                 continue;

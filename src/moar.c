@@ -110,6 +110,30 @@ MVMInstance * MVM_vm_create_instance(void) {
     char *dynvar_log;
     int init_stat;
 
+    fprintf(stderr, "test allocation gives %p\n", mi_calloc(1, 64));
+    fprintf(stderr, "test allocation gives %p\n", mi_calloc(1, 64));
+
+#if MVM_USE_NURSERY_ARENA
+    mi_arena_id_t nursery_arena = 0;
+    if (getenv("MVM_NO_NURSERY_RANGE") == 0) {
+        void *nursery_location = MVM_platform_try_alloc_page_at_exactly(MVM_NURSERY_ARENA_POS, MVM_NURSERY_ARENA_SIZE, MVM_PAGE_READ | MVM_PAGE_WRITE);
+        if (nursery_location != MVM_NURSERY_ARENA_POS) {
+            MVM_platform_unmap_file(nursery_location, NULL, MVM_NURSERY_ARENA_SIZE);
+        }
+        else if (nursery_location != NULL) {
+            fprintf(stderr, "going to manage memory at %p with mimalloc\n", nursery_location);
+            if (!mi_manage_os_memory_ex(
+                MVM_NURSERY_ARENA_POS, MVM_NURSERY_ARENA_SIZE,
+                0, 0, 0, -1,
+                true, &nursery_arena)) {
+                fprintf(stderr, "that didn't work...\n");
+                MVM_platform_unmap_file(nursery_location, NULL, MVM_NURSERY_ARENA_SIZE);
+            }
+        }
+    }
+#endif
+
+
 #ifndef MVM_THREAD_LOCAL
     static uv_once_t key_once = UV_ONCE_INIT;
     uv_once(&key_once, make_uv_key);
@@ -118,26 +142,14 @@ MVMInstance * MVM_vm_create_instance(void) {
     /* Set up instance data structure. */
     instance = MVM_calloc(1, sizeof(MVMInstance));
 
-#ifdef MVM_USE_MIMALLOC
-    #define NURSERY_ARENA_SIZE 0x10000000
-    #define NURSERY_ARENA_POS (void *)NURSERY_ARENA_SIZE
-    void *nursery_location = MVM_platform_try_alloc_page_at_exactly(NURSERY_ARENA_POS, NURSERY_ARENA_SIZE, MVM_PAGE_READ | MVM_PAGE_WRITE);
-    if (nursery_location != NURSERY_ARENA_POS) {
-        MVM_platform_unmap_file(nursery_location, NULL, NURSERY_ARENA_SIZE);
-    }
-    else if (nursery_location != NULL) {
-        mi_arena_id_t nursery_arena = 0;
-        if (!mi_manage_os_memory_ex(
-            NURSERY_ARENA_POS, NURSERY_ARENA_SIZE,
-            0, 0, 0, -1,
-            true, &nursery_arena)) {
-            MVM_platform_unmap_file(NURSERY_ARENA_POS, NULL, NURSERY_ARENA_SIZE);
-        }
-        else {
-            fprintf(stderr, "nursery arena and heap are set up!\n");
-            instance->nursery_arena = nursery_arena;
-            instance->nursery_heap = mi_heap_new_in_arena(nursery_arena);
-        }
+#if MVM_USE_NURSERY_ARENA
+    instance->nursery_arena = nursery_arena;
+    if (nursery_arena) {
+        instance->nursery_heap = mi_heap_new_in_arena(nursery_arena);
+        fprintf(stderr, "took arena %d, made a heap %p\n", nursery_arena, instance->nursery_heap);
+
+        /* create mimalloc heap for this tc */
+        /*instance->main_thread->nursery_heap = instance->nursery_heap;*/
     }
 #endif
 
@@ -493,6 +505,11 @@ static void setup_std_handles(MVMThreadContext *tc) {
 /* This callback is passed to the interpreter code. It takes care of making
  * the initial invocation. */
 static void toplevel_initial_invoke(MVMThreadContext *tc, void *data) {
+    #if MVM_USE_NURSERY_ARENA
+    if (tc->instance->nursery_arena)
+        tc->nursery_heap = mi_heap_new_in_arena(tc->instance->nursery_arena);
+    #endif
+
     /* Create initial frame, which sets up all of the interpreter state also. */
     MVM_frame_dispatch_zero_args(tc, ((MVMStaticFrame *)data)->body.static_code);
 }

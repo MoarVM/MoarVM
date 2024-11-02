@@ -56,22 +56,11 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
     MVMObject *invokee = thread->body.invokee;
     thread->body.invokee = NULL;
 
-    /* Set up GC nursery. We only allocate tospace initially, and allocate
-     * fromspace the first time this thread GCs, provided it ever does. */
-    tc->nursery_tospace_size = MVM_gc_new_thread_nursery_size(tc->instance);
-    #ifdef MVM_USE_MIMALLOC
-    tc->nursery_heap = mi_heap_new_in_arena(tc->instance->nursery_arena);
-    if (tc->nursery_heap != NULL) {
-        tc->nursery_tospace     = mi_heap_calloc(tc->nursery_heap, 1, tc->nursery_tospace_size);
+    /* create mimalloc heap for this tc */
+    if (tc->instance->nursery_arena) {
+        fprintf(stderr, "initial thread invoke creates a nursery_heap!\n");
+        tc->nursery_heap = mi_heap_new_in_arena(tc->instance->nursery_arena);
     }
-    else {
-        tc->nursery_tospace     = MVM_calloc(1, tc->nursery_tospace_size);
-    }
-    #else
-    tc->nursery_tospace     = MVM_calloc(1, tc->nursery_tospace_size);
-    #endif
-    tc->nursery_alloc       = tc->nursery_tospace;
-    tc->nursery_alloc_limit = (char *)tc->nursery_alloc + tc->nursery_tospace_size;
 
     /* Create initial frame, which sets up all of the interpreter state also. */
     MVMArgs args = {
