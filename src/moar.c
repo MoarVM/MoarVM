@@ -110,8 +110,8 @@ MVMInstance * MVM_vm_create_instance(void) {
     char *dynvar_log;
     int init_stat;
 
-    fprintf(stderr, "test allocation gives %p\n", mi_calloc(1, 64));
-    fprintf(stderr, "test allocation gives %p\n", mi_calloc(1, 64));
+    // fprintf(stderr, "test allocation gives %p\n", mi_calloc(1, 64));
+    // fprintf(stderr, "test allocation gives %p\n", mi_calloc(1, 64));
 
 #if MVM_USE_NURSERY_ARENA
     mi_arena_id_t nursery_arena = 0;
@@ -121,12 +121,12 @@ MVMInstance * MVM_vm_create_instance(void) {
             MVM_platform_unmap_file(nursery_location, NULL, MVM_NURSERY_ARENA_SIZE);
         }
         else if (nursery_location != NULL) {
-            fprintf(stderr, "going to manage memory at %p with mimalloc\n", nursery_location);
+            // fprintf(stderr, "going to manage memory at %p with mimalloc\n", nursery_location);
             if (!mi_manage_os_memory_ex(
                 MVM_NURSERY_ARENA_POS, MVM_NURSERY_ARENA_SIZE,
                 0, 0, 0, -1,
                 true, &nursery_arena)) {
-                fprintf(stderr, "that didn't work...\n");
+                // fprintf(stderr, "that didn't work...\n");
                 MVM_platform_unmap_file(nursery_location, NULL, MVM_NURSERY_ARENA_SIZE);
             }
         }
@@ -146,7 +146,7 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->nursery_arena = nursery_arena;
     if (nursery_arena) {
         instance->nursery_heap = mi_heap_new_in_arena(nursery_arena);
-        fprintf(stderr, "took arena %d, made a heap %p\n", nursery_arena, instance->nursery_heap);
+        // fprintf(stderr, "took arena %d, made a heap %p\n", nursery_arena, instance->nursery_heap);
 
         /* create mimalloc heap for this tc */
         /*instance->main_thread->nursery_heap = instance->nursery_heap;*/

@@ -58,7 +58,7 @@ static void thread_initial_invoke(MVMThreadContext *tc, void *data) {
 
     /* create mimalloc heap for this tc */
     if (tc->instance->nursery_arena) {
-        fprintf(stderr, "initial thread invoke creates a nursery_heap!\n");
+        // fprintf(stderr, "initial thread invoke creates a nursery_heap!\n");
         tc->nursery_heap = mi_heap_new_in_arena(tc->instance->nursery_arena);
     }
 

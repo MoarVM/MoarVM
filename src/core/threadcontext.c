@@ -17,13 +17,13 @@ MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance
     #if MVM_USE_NURSERY_ARENA
     if (parent && parent->nursery_heap) {
         tc->nursery_tospace     = mi_heap_calloc(parent->nursery_heap, 1, tc->nursery_tospace_size);
-        fprintf(stderr, "created nursery for new tc with parent's nursery_heap\n");
+        // fprintf(stderr, "created nursery for new tc with parent's nursery_heap\n");
     }
     else if (instance->nursery_heap) {
         tc->nursery_tospace     = mi_heap_calloc(instance->nursery_heap, 1, tc->nursery_tospace_size);
-        fprintf(stderr, "created nursery for new tc with instance's nursery_heap\n");
+        // fprintf(stderr, "created nursery for new tc with instance's nursery_heap\n");
     } else {
-        fprintf(stderr, "created nursery for new tc with normal calloc\n");
+        // fprintf(stderr, "created nursery for new tc with normal calloc\n");
         tc->nursery_tospace     = MVM_calloc(1, tc->nursery_tospace_size);
     }
     /*if (!((uintptr_t)(tc->nursery_tospace) >= (uintptr_t)MVM_NURSERY_ARENA_POS && (uintptr_t)(tc->nursery_tospace) < (uintptr_t)MVM_NURSERY_ARENA_LIMIT)) {
