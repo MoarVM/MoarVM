@@ -3406,7 +3406,7 @@ static void debugserver_worker(MVMThreadContext *tc, MVMArgs arg_info) {
                     break;
                 default: /* Unknown command or NYI */
                     if (tc->instance->debugserver->debugspam_protocol)
-                        fprintf(stderr, "unknown command type (or NYI)\n");
+                        fprintf(stderr, "unknown command type (or NYI) with number %d\n", argument.type);
                     cmp_write_map(&ctx, 2);
                     cmp_write_conststr(&ctx, "id");
                     cmp_write_integer(&ctx, argument.id);
