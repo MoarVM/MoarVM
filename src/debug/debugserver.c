@@ -2442,6 +2442,8 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
             case MVM_STRING_GRAPHEME_ASCII: cmp_write_conststr(ctx, "graphemeASCII"); break;
             case MVM_STRING_GRAPHEME_8:     cmp_write_conststr(ctx, "grapheme8"); break;
             case MVM_STRING_STRAND:         cmp_write_conststr(ctx, "strands"); break;
+            case MVM_STRING_IN_SITU_8:      cmp_write_conststr(ctx, "in_situ8"); break;
+            case MVM_STRING_IN_SITU_32:     cmp_write_conststr(ctx, "in_situ32"); break;
             default: cmp_write_conststr(ctx, "???");
         }
 
