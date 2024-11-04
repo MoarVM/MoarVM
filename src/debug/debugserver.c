@@ -8,6 +8,8 @@
 #include "cmp.h"
 #include "platform/socket.h"
 
+#define cmp_write_conststr(ctx, string) cmp_write_str(ctx, string, strlen(string))
+
 typedef enum {
     MT_MessageTypeNotUnderstood,
     MT_ErrorProcessingMessage,
@@ -274,13 +276,13 @@ static MVMuint8 breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFil
             if (ctx) {
                 uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
                 cmp_write_map(ctx, 4);
-                cmp_write_str(ctx, "id", 2);
+                cmp_write_conststr(ctx, "id");
                 cmp_write_integer(ctx, info->breakpoint_id);
-                cmp_write_str(ctx, "type", 4);
+                cmp_write_conststr(ctx, "type");
                 cmp_write_integer(ctx, MT_BreakpointNotification);
-                cmp_write_str(ctx, "thread", 6);
+                cmp_write_conststr(ctx, "thread");
                 cmp_write_integer(ctx, tc->thread_id);
-                cmp_write_str(ctx, "frames", 6);
+                cmp_write_conststr(ctx, "frames");
                 if (info->send_backtrace) {
                     write_stacktrace_frames(tc, ctx, tc->thread_obj);
                 } else {
@@ -301,13 +303,13 @@ static void step_point_hit(MVMThreadContext *tc) {
 
     uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
     cmp_write_map(ctx, 4);
-    cmp_write_str(ctx, "id", 2);
+    cmp_write_conststr(ctx, "id");
     cmp_write_integer(ctx, tc->step_message_id);
-    cmp_write_str(ctx, "type", 4);
+    cmp_write_conststr(ctx, "type");
     cmp_write_integer(ctx, MT_StepCompleted);
-    cmp_write_str(ctx, "thread", 6);
+    cmp_write_conststr(ctx, "thread");
     cmp_write_integer(ctx, tc->thread_id);
-    cmp_write_str(ctx, "frames", 6);
+    cmp_write_conststr(ctx, "frames");
     write_stacktrace_frames(tc, ctx, tc->thread_obj);
     uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
 
@@ -501,9 +503,9 @@ static void communicate_error(MVMThreadContext *tc, cmp_ctx_t *ctx, request_data
         if (tc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "communicating an error\n");
         cmp_write_map(ctx, 2);
-        cmp_write_str(ctx, "id", 2);
+        cmp_write_conststr(ctx, "id");
         cmp_write_integer(ctx, argument->id);
-        cmp_write_str(ctx, "type", 4);
+        cmp_write_conststr(ctx, "type");
         cmp_write_integer(ctx, MT_ErrorProcessingMessage);
     }
 }
@@ -513,9 +515,9 @@ static void communicate_success(MVMThreadContext *tc, cmp_ctx_t *ctx, request_da
         if (tc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "communicating success\n");
         cmp_write_map(ctx, 2);
-        cmp_write_str(ctx, "id", 2);
+        cmp_write_conststr(ctx, "id");
         cmp_write_integer(ctx, argument->id);
-        cmp_write_str(ctx, "type", 4);
+        cmp_write_conststr(ctx, "type");
         cmp_write_integer(ctx, MT_OperationSuccessful);
     }
 }
@@ -532,18 +534,18 @@ MVM_PUBLIC void MVM_debugserver_notify_thread_creation(MVMThreadContext *tc) {
         tc->instance->debugserver->event_id += 2;
 
         cmp_write_map(ctx, 5);
-        cmp_write_str(ctx, "id", 2);
+        cmp_write_conststr(ctx, "id");
         cmp_write_integer(ctx, event_id);
-        cmp_write_str(ctx, "type", 4);
+        cmp_write_conststr(ctx, "type");
         cmp_write_integer(ctx, MT_ThreadStarted);
 
-        cmp_write_str(ctx, "thread", 6);
+        cmp_write_conststr(ctx, "thread");
         cmp_write_integer(ctx, tc->thread_obj->body.thread_id);
 
-        cmp_write_str(ctx, "native_id", 9);
+        cmp_write_conststr(ctx, "native_id");
         cmp_write_integer(ctx, tc->thread_obj->body.native_thread_id);
 
-        cmp_write_str(ctx, "app_lifetime", 12);
+        cmp_write_conststr(ctx, "app_lifetime");
         cmp_write_integer(ctx, tc->thread_obj->body.app_lifetime);
 
         uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
@@ -561,12 +563,12 @@ MVM_PUBLIC void MVM_debugserver_notify_thread_destruction(MVMThreadContext *tc) 
         tc->instance->debugserver->event_id += 2;
 
         cmp_write_map(ctx, 3);
-        cmp_write_str(ctx, "id", 2);
+        cmp_write_conststr(ctx, "id");
         cmp_write_integer(ctx, event_id);
-        cmp_write_str(ctx, "type", 4);
+        cmp_write_conststr(ctx, "type");
         cmp_write_integer(ctx, MT_ThreadEnded);
 
-        cmp_write_str(ctx, "thread", 6);
+        cmp_write_conststr(ctx, "thread");
         cmp_write_integer(ctx, tc->thread_obj->body.thread_id);
 
         uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
@@ -588,18 +590,18 @@ MVM_PUBLIC void MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc,
         tc->instance->debugserver->event_id += 2;
 
         cmp_write_map(ctx, 5);
-        cmp_write_str(ctx, "id", 2);
+        cmp_write_conststr(ctx, "id");
         cmp_write_integer(ctx, event_id);
-        cmp_write_str(ctx, "type", 4);
+        cmp_write_conststr(ctx, "type");
         cmp_write_integer(ctx, MT_UnhandledException);
 
-        cmp_write_str(ctx, "handle", 6);
+        cmp_write_conststr(ctx, "handle");
         cmp_write_integer(ctx, allocate_handle(tc, (MVMObject *)ex));
 
-        cmp_write_str(ctx, "thread", 6);
+        cmp_write_conststr(ctx, "thread");
         cmp_write_integer(ctx, tc->thread_obj->body.thread_id);
 
-        cmp_write_str(ctx, "frames", 6);
+        cmp_write_conststr(ctx, "frames");
         write_stacktrace_frames(tc, ctx, tc->thread_obj);
 
         uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
@@ -865,18 +867,18 @@ static void write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMTh
         MVM_free(annot);
 
         cmp_write_map(ctx, 5);
-        cmp_write_str(ctx, "file", 4);
+        cmp_write_conststr(ctx, "file");
         cmp_write_str(ctx, tmp1, tmp1 ? strlen(tmp1) : 0);
-        cmp_write_str(ctx, "line", 4);
+        cmp_write_conststr(ctx, "line");
         cmp_write_integer(ctx, line_number);
-        cmp_write_str(ctx, "bytecode_file", 13);
+        cmp_write_conststr(ctx, "bytecode_file");
         if (bc_filename)
             cmp_write_str(ctx, filename_c, strlen(filename_c));
         else
             cmp_write_nil(ctx);
-        cmp_write_str(ctx, "name", 4);
+        cmp_write_conststr(ctx, "name");
         cmp_write_str(ctx, name_c, name_c ? strlen(name_c) : 0);
-        cmp_write_str(ctx, "type", 4);
+        cmp_write_conststr(ctx, "type");
         cmp_write_str(ctx, debugname, strlen(debugname));
 
         if (bc_filename)
@@ -902,11 +904,11 @@ static MVMint32 request_thread_stacktrace(MVMThreadContext *dtc, cmp_ctx_t *ctx,
     }
 
     cmp_write_map(ctx, 3);
-    cmp_write_str(ctx, "id", 2);
+    cmp_write_conststr(ctx, "id");
     cmp_write_integer(ctx, argument->id);
-    cmp_write_str(ctx, "type", 4);
+    cmp_write_conststr(ctx, "type");
     cmp_write_integer(ctx, MT_ThreadStackTraceResponse);
-    cmp_write_str(ctx, "frames", 6);
+    cmp_write_conststr(ctx, "frames");
 
     write_stacktrace_frames(dtc, ctx, to_do);
 
@@ -926,11 +928,11 @@ static void send_thread_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data
     }
 
     cmp_write_map(ctx, 3);
-    cmp_write_str(ctx, "id", 2);
+    cmp_write_conststr(ctx, "id");
     cmp_write_integer(ctx, argument->id);
-    cmp_write_str(ctx, "type", 4);
+    cmp_write_conststr(ctx, "type");
     cmp_write_integer(ctx, MT_ThreadListResponse);
-    cmp_write_str(ctx, "threads", 7);
+    cmp_write_conststr(ctx, "threads");
 
     cmp_write_array(ctx, threadcount);
 
@@ -946,24 +948,24 @@ static void send_thread_info(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data
 
         cmp_write_map(ctx, 5 + (threadname != NULL && strlen(threadname)));
 
-        cmp_write_str(ctx, "thread", 6);
+        cmp_write_conststr(ctx, "thread");
         cmp_write_integer(ctx, cur_thread->body.thread_id);
 
-        cmp_write_str(ctx, "native_id", 9);
+        cmp_write_conststr(ctx, "native_id");
         cmp_write_integer(ctx, cur_thread->body.native_thread_id);
 
-        cmp_write_str(ctx, "app_lifetime", 12);
+        cmp_write_conststr(ctx, "app_lifetime");
         cmp_write_bool(ctx, cur_thread->body.app_lifetime);
 
-        cmp_write_str(ctx, "suspended", 9);
+        cmp_write_conststr(ctx, "suspended");
         AO_t curr_gc_status = MVM_load(&cur_thread->body.tc->gc_status);
         cmp_write_bool(ctx, (curr_gc_status & MVMSUSPENDSTATUS_MASK) != MVMSuspendState_NONE);
 
-        cmp_write_str(ctx, "num_locks", 9);
+        cmp_write_conststr(ctx, "num_locks");
         cmp_write_integer(ctx, MVM_thread_lock_count(dtc, (MVMObject *)cur_thread));
 
         if (threadname != NULL && strlen(threadname)) {
-            cmp_write_str(ctx, "name", 4);
+            cmp_write_conststr(ctx, "name");
             cmp_write_str(ctx, threadname, strlen(threadname));
         }
         MVM_free(threadname);
@@ -993,11 +995,11 @@ static void send_is_execution_suspended_info(MVMThreadContext *dtc, cmp_ctx_t *c
     uv_mutex_unlock(&vm->mutex_threads);
 
     cmp_write_map(ctx, 3);
-    cmp_write_str(ctx, "id", 2);
+    cmp_write_conststr(ctx, "id");
     cmp_write_integer(ctx, argument->id);
-    cmp_write_str(ctx, "type", 4);
+    cmp_write_conststr(ctx, "type");
     cmp_write_integer(ctx, MT_IsExecutionSuspendedResponse);
-    cmp_write_str(ctx, "suspended", 9);
+    cmp_write_conststr(ctx, "suspended");
     cmp_write_bool(ctx, result);
 }
 
@@ -1080,11 +1082,11 @@ void MVM_debugserver_add_breakpoint(MVMThreadContext *tc, cmp_ctx_t *ctx, reques
     found->lines_active[argument->line] = 1;
 
     cmp_write_map(ctx, 3);
-    cmp_write_str(ctx, "id", 2);
+    cmp_write_conststr(ctx, "id");
     cmp_write_integer(ctx, argument->id);
-    cmp_write_str(ctx, "type", 4);
+    cmp_write_conststr(ctx, "type");
     cmp_write_integer(ctx, MT_SetBreakpointConfirmation);
-    cmp_write_str(ctx, "line", 4);
+    cmp_write_conststr(ctx, "line");
     cmp_write_integer(ctx, argument->line);
 
     uv_mutex_unlock(&debugserver->mutex_breakpoints);
@@ -1222,11 +1224,11 @@ static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target) {
 static MVMuint64 allocate_and_send_handle(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMObject *target) {
     MVMuint64 id = allocate_handle(dtc, target);
     cmp_write_map(ctx, 3);
-    cmp_write_str(ctx, "id", 2);
+    cmp_write_conststr(ctx, "id");
     cmp_write_integer(ctx, argument->id);
-    cmp_write_str(ctx, "type", 4);
+    cmp_write_conststr(ctx, "type");
     cmp_write_integer(ctx, MT_HandleResult);
-    cmp_write_str(ctx, "handle", 6);
+    cmp_write_conststr(ctx, "handle");
     cmp_write_integer(ctx, id);
 
     return id;
@@ -1292,11 +1294,11 @@ static void send_handle_equivalence_classes(MVMThreadContext *dtc, cmp_ctx_t *ct
 
     /* Send the header of the message */
     cmp_write_map(ctx, 3);
-    cmp_write_str(ctx, "id", 2);
+    cmp_write_conststr(ctx, "id");
     cmp_write_integer(ctx, argument->id);
-    cmp_write_str(ctx, "type", 4);
+    cmp_write_conststr(ctx, "type");
     cmp_write_integer(ctx, MT_HandleEquivalenceResponse);
-    cmp_write_str(ctx, "classes", 7);
+    cmp_write_conststr(ctx, "classes");
 
     /* Now we can write out the classes by following the representant
      * chain until we find one whose representant is itself. */
@@ -1362,13 +1364,13 @@ static MVMuint64 request_hll_symbol_data(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
 
         cmp_write_map(ctx, 3);
 
-        cmp_write_str(ctx, "type", 4);
+        cmp_write_conststr(ctx, "type");
         cmp_write_integer(ctx, MT_HLLSymbolResponse);
 
-        cmp_write_str(ctx, "id", 2);
+        cmp_write_conststr(ctx, "id");
         cmp_write_integer(ctx, argument->id);
 
-        cmp_write_str(ctx, "keys", 4);
+        cmp_write_conststr(ctx, "keys");
         cmp_write_array(ctx, num_hlls);
         while (!MVM_str_hash_at_end(dtc, hashtable, iterator)) {
             MVMHashEntry *current = MVM_str_hash_current_nocheck(dtc, hashtable, iterator);
@@ -1406,13 +1408,13 @@ static MVMuint64 request_hll_symbol_data(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
 
         cmp_write_map(ctx, 3);
 
-        cmp_write_str(ctx, "type", 4);
+        cmp_write_conststr(ctx, "type");
         cmp_write_integer(ctx, MT_HLLSymbolResponse);
 
-        cmp_write_str(ctx, "id", 2);
+        cmp_write_conststr(ctx, "id");
         cmp_write_integer(ctx, argument->id);
 
-        cmp_write_str(ctx, "keys", 4);
+        cmp_write_conststr(ctx, "keys");
         cmp_write_array(ctx, num_keys);
         while (!MVM_str_hash_at_end(dtc, hashtable, iterator)) {
             MVMHashEntry *current = MVM_str_hash_current_nocheck(dtc, hashtable, iterator);
@@ -1463,61 +1465,61 @@ static void debugserver_invocation_special_return(MVMThreadContext *tc, void *da
     switch (tc->cur_frame->return_type) {
         case MVM_RETURN_VOID:
             cmp_write_map(ctx, 4);
-            cmp_write_str(ctx, "type", 4);
+            cmp_write_conststr(ctx, "type");
             cmp_write_int(ctx, MT_InvokeResult);
-            cmp_write_str(ctx, "id", 2);
+            cmp_write_conststr(ctx, "id");
             cmp_write_int(ctx, data->id);
-            cmp_write_str(ctx, "crashed", 7);
+            cmp_write_conststr(ctx, "crashed");
             cmp_write_false(ctx);
-            cmp_write_str(ctx, "kind", 4);
-            cmp_write_str(ctx, "void", 4);
+            cmp_write_conststr(ctx, "kind");
+            cmp_write_conststr(ctx, "void");
             break;
         case MVM_RETURN_OBJ: {
             char *typename = MVM_6model_get_debug_name(tc, data->return_target.o);
             cmp_write_map(ctx, 8);
-            cmp_write_str(ctx, "type", 4);
+            cmp_write_conststr(ctx, "type");
             cmp_write_int(ctx, MT_InvokeResult);
-            cmp_write_str(ctx, "id", 2);
+            cmp_write_conststr(ctx, "id");
             cmp_write_int(ctx, data->id);
-            cmp_write_str(ctx, "crashed", 7);
+            cmp_write_conststr(ctx, "crashed");
             cmp_write_false(ctx);
-            cmp_write_str(ctx, "kind", 4);
-            cmp_write_str(ctx, "obj", 3);
-            cmp_write_str(ctx, "handle", 6);
+            cmp_write_conststr(ctx, "kind");
+            cmp_write_conststr(ctx, "obj");
+            cmp_write_conststr(ctx, "handle");
             cmp_write_int(ctx, allocate_handle(tc, data->return_target.o));
-            cmp_write_str(ctx, "obj_type", 8);
+            cmp_write_conststr(ctx, "obj_type");
             cmp_write_str(ctx, typename, strlen(typename));
-            cmp_write_str(ctx, "concrete", 8);
+            cmp_write_conststr(ctx, "concrete");
             cmp_write_bool(ctx, IS_CONCRETE(data->return_target.o));
-            cmp_write_str(ctx, "container", 9);
+            cmp_write_conststr(ctx, "container");
             cmp_write_bool(ctx, STABLE(data->return_target.o)->container_spec == NULL ? 0 : 1);
             break;
         }
         case MVM_RETURN_INT:
         case MVM_RETURN_UINT: /* FIXME don't know what the debug client would need for uint */
             cmp_write_map(ctx, 5);
-            cmp_write_str(ctx, "type", 4);
+            cmp_write_conststr(ctx, "type");
             cmp_write_int(ctx, MT_InvokeResult);
-            cmp_write_str(ctx, "id", 2);
+            cmp_write_conststr(ctx, "id");
             cmp_write_int(ctx, data->id);
-            cmp_write_str(ctx, "crashed", 7);
+            cmp_write_conststr(ctx, "crashed");
             cmp_write_false(ctx);
-            cmp_write_str(ctx, "kind", 4);
-            cmp_write_str(ctx, "int", 3);
-            cmp_write_str(ctx, "value", 5);
+            cmp_write_conststr(ctx, "kind");
+            cmp_write_conststr(ctx, "int");
+            cmp_write_conststr(ctx, "value");
             cmp_write_int(ctx, data->return_target.i64);
             break;
         case MVM_RETURN_NUM:
             cmp_write_map(ctx, 5);
-            cmp_write_str(ctx, "type", 4);
+            cmp_write_conststr(ctx, "type");
             cmp_write_int(ctx, MT_InvokeResult);
-            cmp_write_str(ctx, "id", 2);
+            cmp_write_conststr(ctx, "id");
             cmp_write_int(ctx, data->id);
-            cmp_write_str(ctx, "crashed", 7);
+            cmp_write_conststr(ctx, "crashed");
             cmp_write_false(ctx);
-            cmp_write_str(ctx, "kind", 4);
-            cmp_write_str(ctx, "num", 3);
-            cmp_write_str(ctx, "value", 5);
+            cmp_write_conststr(ctx, "kind");
+            cmp_write_conststr(ctx, "num");
+            cmp_write_conststr(ctx, "value");
             cmp_write_float(ctx, data->return_target.n64);
             break;
         case MVM_RETURN_STR: {
@@ -1525,17 +1527,17 @@ static void debugserver_invocation_special_return(MVMThreadContext *tc, void *da
             char *str_result = MVM_string_utf8_encode_C_string(tc, data->return_target.s);
             MVMuint64 handle = allocate_handle(tc, (MVMObject *)data->return_target.s);
             cmp_write_map(ctx, 6);
-            cmp_write_str(ctx, "type", 4);
+            cmp_write_conststr(ctx, "type");
             cmp_write_int(ctx, MT_InvokeResult);
-            cmp_write_str(ctx, "id", 2);
+            cmp_write_conststr(ctx, "id");
             cmp_write_int(ctx, data->id);
-            cmp_write_str(ctx, "crashed", 7);
+            cmp_write_conststr(ctx, "crashed");
             cmp_write_false(ctx);
-            cmp_write_str(ctx, "kind", 4);
-            cmp_write_str(ctx, "str", 3);
-            cmp_write_str(ctx, "value", 5);
+            cmp_write_conststr(ctx, "kind");
+            cmp_write_conststr(ctx, "str");
+            cmp_write_conststr(ctx, "value");
             cmp_write_str(ctx, str_result, strlen(str_result));
-            cmp_write_str(ctx, "handle", 6);
+            cmp_write_conststr(ctx, "handle");
             cmp_write_int(ctx, handle);
             MVM_free(str_result);
             break;
@@ -1603,14 +1605,14 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
 
         cmp_write_map(ctx, 3);
 
-        cmp_write_str(ctx, "id", 2);
+        cmp_write_conststr(ctx, "id");
         cmp_write_integer(ctx, argument->id);
 
-        cmp_write_str(ctx, "type", 4);
+        cmp_write_conststr(ctx, "type");
         cmp_write_integer(ctx, MT_ErrorProcessingMessage);
 
-        cmp_write_str(ctx, "reason", 6);
-        cmp_write_str(ctx, "execution not halted at a break/step point", 42);
+        cmp_write_conststr(ctx, "reason");
+        cmp_write_conststr(ctx, "execution not halted at a break/step point");
 
         return 2;
     }
@@ -1831,33 +1833,33 @@ static void write_one_context_lexical(MVMThreadContext *dtc, cmp_ctx_t *ctx, con
 
         cmp_write_map(ctx, 5);
 
-        cmp_write_str(ctx, "kind", 4);
-        cmp_write_str(ctx, "obj", 3);
+        cmp_write_conststr(ctx, "kind");
+        cmp_write_conststr(ctx, "obj");
 
-        cmp_write_str(ctx, "handle", 6);
+        cmp_write_conststr(ctx, "handle");
         cmp_write_integer(ctx, allocate_handle(dtc, result->o));
 
         debugname = MVM_6model_get_debug_name(dtc, result->o);
 
-        cmp_write_str(ctx, "type", 4);
+        cmp_write_conststr(ctx, "type");
         cmp_write_str(ctx, debugname, strlen(debugname));
 
-        cmp_write_str(ctx, "concrete", 8);
+        cmp_write_conststr(ctx, "concrete");
         cmp_write_bool(ctx, IS_CONCRETE(result->o));
 
-        cmp_write_str(ctx, "container", 9);
+        cmp_write_conststr(ctx, "container");
         cmp_write_bool(ctx, STABLE(result->o)->container_spec == NULL ? 0 : 1);
     } else {
         cmp_write_map(ctx, 2);
 
-        cmp_write_str(ctx, "kind", 4);
+        cmp_write_conststr(ctx, "kind");
         cmp_write_str(ctx,
                 lextype == MVM_reg_int64 ? "int" :
                 lextype == MVM_reg_num32 ? "num" :
                 lextype == MVM_reg_str   ? "str" :
                 "???", 3);
 
-        cmp_write_str(ctx, "value", 5);
+        cmp_write_conststr(ctx, "value");
         if (lextype == MVM_reg_int64) {
             cmp_write_integer(ctx, result->i64);
         } else if (lextype == MVM_reg_num64) {
@@ -1919,12 +1921,12 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         }
 
         cmp_write_map(ctx, 3);
-        cmp_write_str(ctx, "id", 2);
+        cmp_write_conststr(ctx, "id");
         cmp_write_integer(ctx, argument->id);
-        cmp_write_str(ctx, "type", 4);
+        cmp_write_conststr(ctx, "type");
         cmp_write_integer(ctx, MT_ContextLexicalsResponse);
 
-        cmp_write_str(ctx, "lexicals", 8);
+        cmp_write_conststr(ctx, "lexicals");
         cmp_write_map(ctx, lexcount);
 
         if (dtc->instance->debugserver->debugspam_protocol)
@@ -1980,12 +1982,12 @@ static MVMint32 request_context_lexicals(MVMThreadContext *dtc, cmp_ctx_t *ctx, 
         }
     } else {
         cmp_write_map(ctx, 3);
-        cmp_write_str(ctx, "id", 2);
+        cmp_write_conststr(ctx, "id");
         cmp_write_integer(ctx, argument->id);
-        cmp_write_str(ctx, "type", 4);
+        cmp_write_conststr(ctx, "type");
         cmp_write_integer(ctx, MT_ContextLexicalsResponse);
 
-        cmp_write_str(ctx, "lexicals", 8);
+        cmp_write_conststr(ctx, "lexicals");
         cmp_write_map(ctx, 0);
     }
     if (dtc->instance->debugserver->debugspam_protocol)
@@ -2019,12 +2021,12 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
         fprintf(stderr, "writing attributes of a %s\n", MVM_6model_get_debug_name(dtc, target));
 
     cmp_write_map(ctx, 3);
-    cmp_write_str(ctx, "id", 2);
+    cmp_write_conststr(ctx, "id");
     cmp_write_integer(ctx, argument->id);
-    cmp_write_str(ctx, "type", 4);
+    cmp_write_conststr(ctx, "type");
     cmp_write_integer(ctx, MT_ObjectAttributesResponse);
 
-    cmp_write_str(ctx, "attributes", 10);
+    cmp_write_conststr(ctx, "attributes");
 
     if (REPR(target)->ID == MVM_REPR_ID_P6opaque) {
         MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)STABLE(target)->REPR_data;
@@ -2071,25 +2073,25 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
 
                             cmp_write_map(ctx, 7);
 
-                            cmp_write_str(ctx, "name", 4);
+                            cmp_write_conststr(ctx, "name");
                             cmp_write_str(ctx, name, strlen(name));
 
-                            cmp_write_str(ctx, "class", 5);
+                            cmp_write_conststr(ctx, "class");
                             cmp_write_str(ctx, class_name, strlen(class_name));
 
-                            cmp_write_str(ctx, "kind", 4);
-                            cmp_write_str(ctx, "obj", 3);
+                            cmp_write_conststr(ctx, "kind");
+                            cmp_write_conststr(ctx, "obj");
 
-                            cmp_write_str(ctx, "handle", 6);
+                            cmp_write_conststr(ctx, "handle");
                             cmp_write_integer(ctx, allocate_handle(dtc, value));
 
-                            cmp_write_str(ctx, "type", 4);
+                            cmp_write_conststr(ctx, "type");
                             cmp_write_str(ctx, value_debug_name, strlen(value_debug_name));
 
-                            cmp_write_str(ctx, "concrete", 8);
+                            cmp_write_conststr(ctx, "concrete");
                             cmp_write_bool(ctx, !MVM_is_null(dtc, value) && IS_CONCRETE(value));
 
-                            cmp_write_str(ctx, "container", 9);
+                            cmp_write_conststr(ctx, "container");
                             if (MVM_is_null(dtc, value))
                                 cmp_write_bool(ctx, 0);
                             else
@@ -2103,23 +2105,23 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
 
                             cmp_write_map(ctx, 4);
 
-                            cmp_write_str(ctx, "name", 4);
+                            cmp_write_conststr(ctx, "name");
                             cmp_write_str(ctx, name, strlen(name));
 
-                            cmp_write_str(ctx, "class", 5);
+                            cmp_write_conststr(ctx, "class");
                             cmp_write_str(ctx, class_name, strlen(class_name));
 
-                            cmp_write_str(ctx, "kind", 4);
+                            cmp_write_conststr(ctx, "kind");
 
                             switch (attr_storage_spec->boxed_primitive) {
                                 case MVM_STORAGE_SPEC_BP_INT:
-                                    cmp_write_str(ctx, "int", 3);
-                                    cmp_write_str(ctx, "value", 5);
+                                    cmp_write_conststr(ctx, "int");
+                                    cmp_write_conststr(ctx, "value");
                                     cmp_write_integer(ctx, attr_st->REPR->box_funcs.get_int(dtc, attr_st, target, (char *)data + offset));
                                     break;
                                 case MVM_STORAGE_SPEC_BP_NUM:
-                                    cmp_write_str(ctx, "num", 3);
-                                    cmp_write_str(ctx, "value", 5);
+                                    cmp_write_conststr(ctx, "num");
+                                    cmp_write_conststr(ctx, "value");
                                     cmp_write_double(ctx, attr_st->REPR->box_funcs.get_num(dtc, attr_st, target, (char *)data + offset));
                                     break;
                                 case MVM_STORAGE_SPEC_BP_STR: {
@@ -2127,8 +2129,8 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
                                     char * str;
                                     if (s)
                                         str = MVM_string_utf8_encode_C_string(dtc, s);
-                                    cmp_write_str(ctx, "str", 3);
-                                    cmp_write_str(ctx, "value", 5);
+                                    cmp_write_conststr(ctx, "str");
+                                    cmp_write_conststr(ctx, "value");
                                     if (s) {
                                         cmp_write_str(ctx, str, strlen(str));
                                         MVM_free(str);
@@ -2139,9 +2141,9 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
                                     break;
                                 }
                                 default:
-                                    cmp_write_str(ctx, "error", 5);
-                                    cmp_write_str(ctx, "value", 5);
-                                    cmp_write_str(ctx, "error", 5);
+                                    cmp_write_conststr(ctx, "error");
+                                    cmp_write_conststr(ctx, "value");
+                                    cmp_write_conststr(ctx, "error");
                                     break;
                             }
                         }
@@ -2156,7 +2158,7 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
         else {
             if (vm->debugserver->debugspam_protocol)
                 fprintf(stderr, "This class isn't composed yet!\n");
-            cmp_write_str(ctx, "error: not composed yet", 22);
+            cmp_write_conststr(ctx, "error: not composed yet");
             return 0;
         }
     } else {
@@ -2167,11 +2169,11 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
     return 1;
 }
 static void write_object_features(MVMThreadContext *tc, cmp_ctx_t *ctx, MVMuint8 attributes, MVMuint8 positional, MVMuint8 associative) {
-    cmp_write_str(ctx, "attr_features", 13);
+    cmp_write_conststr(ctx, "attr_features");
     cmp_write_bool(ctx, attributes);
-    cmp_write_str(ctx, "pos_features", 12);
+    cmp_write_conststr(ctx, "pos_features");
     cmp_write_bool(ctx, positional);
-    cmp_write_str(ctx, "ass_features", 12);
+    cmp_write_conststr(ctx, "ass_features");
     cmp_write_bool(ctx, associative);
 }
 static void write_vmarray_slot_type(MVMThreadContext *tc, cmp_ctx_t *ctx, MVMuint8 slot_type) {
@@ -2237,12 +2239,12 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     }
 
     cmp_write_map(ctx, 3);
-    cmp_write_str(ctx, "id", 2);
+    cmp_write_conststr(ctx, "id");
     cmp_write_integer(ctx, argument->id);
-    cmp_write_str(ctx, "type", 4);
+    cmp_write_conststr(ctx, "type");
     cmp_write_integer(ctx, MT_ObjectMetadataResponse);
 
-    cmp_write_str(ctx, "metadata", 8);
+    cmp_write_conststr(ctx, "metadata");
 
     if (IS_CONCRETE(target)) {
         slots++;
@@ -2264,20 +2266,20 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         slots += 3; /* features */
         cmp_write_map(ctx, slots);
 
-        cmp_write_str(ctx, "p6opaque_pos_delegate_slot", 21);
+        cmp_write_conststr(ctx, "p6opaque_pos_delegate_slot");
         cmp_write_int(ctx, repr_data->pos_del_slot);
-        cmp_write_str(ctx, "p6opaque_ass_delegate_slot", 21);
+        cmp_write_conststr(ctx, "p6opaque_ass_delegate_slot");
         cmp_write_int(ctx, repr_data->ass_del_slot);
 
-        cmp_write_str(ctx, "p6opaque_unbox_int_slot", 23);
+        cmp_write_conststr(ctx, "p6opaque_unbox_int_slot");
         cmp_write_int(ctx, repr_data->unbox_int_slot);
-        cmp_write_str(ctx, "p6opaque_unbox_num_slot", 23);
+        cmp_write_conststr(ctx, "p6opaque_unbox_num_slot");
         cmp_write_int(ctx, repr_data->unbox_num_slot);
-        cmp_write_str(ctx, "p6opaque_unbox_str_slot", 23);
+        cmp_write_conststr(ctx, "p6opaque_unbox_str_slot");
         cmp_write_int(ctx, repr_data->unbox_str_slot);
 
         if (IS_CONCRETE(target)) {
-            cmp_write_str(ctx, "p6opaque_body_replaced", 22);
+            cmp_write_conststr(ctx, "p6opaque_body_replaced");
             cmp_write_bool(ctx, !!body->replaced);
         }
 
@@ -2285,7 +2287,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
         /* TODO maybe output additional unbox slots, too? */
 
-        /*cmp_write_str(ctx, "storage_spec", 12);*/
+        /*cmp_write_conststr(ctx, "storage_spec");*/
         /*write_storage_spec(dtc, ctx, repr_data->storage_spec);*/
     }
     else if (repr_id == MVM_REPR_ID_VMArray) {
@@ -2298,13 +2300,13 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         slots += 3; /* features */
         cmp_write_map(ctx, slots);
 
-        cmp_write_str(ctx, "vmarray_elem_size", 17);
+        cmp_write_conststr(ctx, "vmarray_elem_size");
         cmp_write_int(ctx, repr_data->elem_size);
 
-        cmp_write_str(ctx, "vmarray_slot_type", 17);
+        cmp_write_conststr(ctx, "vmarray_slot_type");
         write_vmarray_slot_type(dtc, ctx, repr_data->slot_type);
 
-        cmp_write_str(ctx, "vmarray_elem_type", 17);
+        cmp_write_conststr(ctx, "vmarray_elem_type");
         if (debugname)
             cmp_write_str(ctx, debugname, strlen(debugname));
         else
@@ -2313,11 +2315,11 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         if (IS_CONCRETE(target)) {
             MVMArrayBody *body = (MVMArrayBody *)OBJECT_BODY(target);
 
-            cmp_write_str(ctx, "positional_elems", 16);
+            cmp_write_conststr(ctx, "positional_elems");
             cmp_write_int(ctx, body->elems);
-            cmp_write_str(ctx, "vmarray_start", 13);
+            cmp_write_conststr(ctx, "vmarray_start");
             cmp_write_int(ctx, body->start);
-            cmp_write_str(ctx, "vmarray_ssize", 13);
+            cmp_write_conststr(ctx, "vmarray_ssize");
             cmp_write_int(ctx, body->ssize);
         }
 
@@ -2335,7 +2337,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
             /* FIXME. What stats should we generate? Some are O(1),
              * some are O(n) (like mean probe length, and its SD) */
-            cmp_write_str(ctx, "mvmhash_num_items", 17);
+            cmp_write_conststr(ctx, "mvmhash_num_items");
             cmp_write_int(ctx, MVM_str_hash_count(dtc, hashtable));
         }
 
@@ -2356,26 +2358,26 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
         cmp_write_map(ctx, slots);
 
-        cmp_write_str(ctx, "frame_on_heap", 13);
+        cmp_write_conststr(ctx, "frame_on_heap");
         cmp_write_bool(ctx, !MVM_FRAME_IS_ON_CALLSTACK(dtc, frame));
 
-        cmp_write_str(ctx, "frame_work_size", 15);
+        cmp_write_conststr(ctx, "frame_work_size");
         cmp_write_int(ctx, frame->allocd_work);
-        cmp_write_str(ctx, "frame_env_size", 15);
+        cmp_write_conststr(ctx, "frame_env_size");
         cmp_write_int(ctx, frame->allocd_env);
 
-        cmp_write_str(ctx, "frame_name", 10);
+        cmp_write_conststr(ctx, "frame_name");
         cmp_write_str(ctx, name, strlen(name));
-        cmp_write_str(ctx, "frame_cuuid", 11);
+        cmp_write_conststr(ctx, "frame_cuuid");
         cmp_write_str(ctx, cuuid, strlen(cuuid));
 
-        cmp_write_str(ctx, "frame_num_locals", 16);
+        cmp_write_conststr(ctx, "frame_num_locals");
         cmp_write_int(ctx, frame->static_info->body.num_locals);
 
-        cmp_write_str(ctx, "frame_num_lexicals", 18);
+        cmp_write_conststr(ctx, "frame_num_lexicals");
         cmp_write_int(ctx, frame->static_info->body.num_lexicals);
 
-        cmp_write_str(ctx, "callsite_flags", 14);
+        cmp_write_conststr(ctx, "callsite_flags");
         cmp_write_array(ctx, flag_count);
 
         for (flag_idx = 0; flag_idx < flag_count; flag_idx++) {
@@ -2390,25 +2392,25 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
                 + !!(entry & MVM_CALLSITE_ARG_FLAT);
             cmp_write_array(ctx, entry_count ? entry_count : 0);
             if (entry & MVM_CALLSITE_ARG_OBJ)
-                cmp_write_str(ctx, "obj", 3);
+                cmp_write_conststr(ctx, "obj");
             if (entry & MVM_CALLSITE_ARG_INT)
-                cmp_write_str(ctx, "int", 3);
+                cmp_write_conststr(ctx, "int");
             if (entry & MVM_CALLSITE_ARG_UINT)
-                cmp_write_str(ctx, "int", 3);
+                cmp_write_conststr(ctx, "int");
             if (entry & MVM_CALLSITE_ARG_NUM)
-                cmp_write_str(ctx, "num", 3);
+                cmp_write_conststr(ctx, "num");
             if (entry & MVM_CALLSITE_ARG_STR)
-                cmp_write_str(ctx, "str", 3);
+                cmp_write_conststr(ctx, "str");
             if (entry & MVM_CALLSITE_ARG_FLAT) {
                 if (entry & MVM_CALLSITE_ARG_NAMED)
-                    cmp_write_str(ctx, "flat&named", 10);
+                    cmp_write_conststr(ctx, "flat&named");
                 else
-                    cmp_write_str(ctx, "flat", 4);
+                    cmp_write_conststr(ctx, "flat");
             }
             else if (entry & MVM_CALLSITE_ARG_NAMED)
-                    cmp_write_str(ctx, "named", 5);
+                    cmp_write_conststr(ctx, "named");
             if (!entry_count)
-                cmp_write_str(ctx, "nothing", 7);
+                cmp_write_conststr(ctx, "nothing");
         }
 
 
@@ -2431,40 +2433,40 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
         cmp_write_map(ctx, slots);
 
-        cmp_write_str(ctx, "string_value", 12);
+        cmp_write_conststr(ctx, "string_value");
         cmp_write_str(ctx, value, strlen(value));
 
-        cmp_write_str(ctx, "string_storage_kind", 19);
+        cmp_write_conststr(ctx, "string_storage_kind");
         switch (string->body.storage_type) {
-            case MVM_STRING_GRAPHEME_32:    cmp_write_str(ctx, "grapheme32", 10); break;
-            case MVM_STRING_GRAPHEME_ASCII: cmp_write_str(ctx, "graphemeASCII", 13); break;
-            case MVM_STRING_GRAPHEME_8:     cmp_write_str(ctx, "grapheme8", 9); break;
-            case MVM_STRING_STRAND:         cmp_write_str(ctx, "strands", 7); break;
-            default: cmp_write_str(ctx, "???", 3);
+            case MVM_STRING_GRAPHEME_32:    cmp_write_conststr(ctx, "grapheme32"); break;
+            case MVM_STRING_GRAPHEME_ASCII: cmp_write_conststr(ctx, "graphemeASCII"); break;
+            case MVM_STRING_GRAPHEME_8:     cmp_write_conststr(ctx, "grapheme8"); break;
+            case MVM_STRING_STRAND:         cmp_write_conststr(ctx, "strands"); break;
+            default: cmp_write_conststr(ctx, "???");
         }
 
         if (string->body.storage_type == MVM_STRING_STRAND) {
             MVMuint16 num_strands = string->body.num_strands;
             MVMuint16 strand_idx;
-            cmp_write_str(ctx, "string_strand_count", 19);
+            cmp_write_conststr(ctx, "string_strand_count");
             cmp_write_int(ctx, num_strands);
 
-            cmp_write_str(ctx, "string_strand_starts", 20);
+            cmp_write_conststr(ctx, "string_strand_starts");
             cmp_write_array(ctx, num_strands);
             for (strand_idx = 0; strand_idx < num_strands; strand_idx++) {
                 cmp_write_int(ctx, string->body.storage.strands[strand_idx].start);
             }
-            cmp_write_str(ctx, "string_strand_ends", 18);
+            cmp_write_conststr(ctx, "string_strand_ends");
             cmp_write_array(ctx, num_strands);
             for (strand_idx = 0; strand_idx < num_strands; strand_idx++) {
                 cmp_write_int(ctx, string->body.storage.strands[strand_idx].end);
             }
-            cmp_write_str(ctx, "string_strand_repetitions", 25);
+            cmp_write_conststr(ctx, "string_strand_repetitions");
             cmp_write_array(ctx, num_strands);
             for (strand_idx = 0; strand_idx < num_strands; strand_idx++) {
                 cmp_write_int(ctx, string->body.storage.strands[strand_idx].repetitions);
             }
-            cmp_write_str(ctx, "string_strand_target_length", 27);
+            cmp_write_conststr(ctx, "string_strand_target_length");
             cmp_write_array(ctx, num_strands);
             for (strand_idx = 0; strand_idx < num_strands; strand_idx++) {
                 cmp_write_int(ctx, string->body.storage.strands[strand_idx].blob_string->body.num_graphs);
@@ -2483,11 +2485,11 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
         cmp_write_map(ctx, slots);
 
-        cmp_write_str(ctx, "mutex_identity", 14);
+        cmp_write_conststr(ctx, "mutex_identity");
         cmp_write_int(ctx, (uintptr_t)body->mutex);
-        cmp_write_str(ctx, "mutex_holder", 12);
+        cmp_write_conststr(ctx, "mutex_holder");
         cmp_write_int(ctx, MVM_load(&body->holder_id));
-        cmp_write_str(ctx, "mutex_lock_count", 16);
+        cmp_write_conststr(ctx, "mutex_lock_count");
         cmp_write_int(ctx, MVM_load(&body->lock_count));
 
         write_object_features(dtc, ctx, 0, 0, 0);
@@ -2500,7 +2502,7 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
         cmp_write_map(ctx, slots);
 
-        cmp_write_str(ctx, "semaphore_identity", 14);
+        cmp_write_conststr(ctx, "semaphore_identity");
         cmp_write_int(ctx, (uintptr_t)body->sem);
 
         write_object_features(dtc, ctx, 0, 0, 0);
@@ -2510,21 +2512,21 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     }
 
     if (REPR(target)->unmanaged_size && IS_CONCRETE(target)) {
-        cmp_write_str(ctx, "unmanaged_size", 14);
+        cmp_write_conststr(ctx, "unmanaged_size");
         cmp_write_int(ctx, REPR(target)->unmanaged_size(dtc, STABLE(target), OBJECT_BODY(target)));
     }
 
     if (IS_CONCRETE(target)) {
-        cmp_write_str(ctx, "size", 4);
+        cmp_write_conststr(ctx, "size");
         cmp_write_int(ctx, target->header.size);
     }
 
-    cmp_write_str(ctx, "repr_name", 9);
+    cmp_write_conststr(ctx, "repr_name");
     cmp_write_str(ctx, REPR(target)->name, strlen(REPR(target)->name));
 
     {
         char *debug_name = MVM_6model_get_debug_name(dtc, target);
-        cmp_write_str(ctx, "debug_name", 10);
+        cmp_write_conststr(ctx, "debug_name");
         cmp_write_str(ctx, debug_name, strlen(debug_name));
     }
 
@@ -2547,18 +2549,18 @@ static MVMint32 request_object_positionals(MVMThreadContext *dtc, cmp_ctx_t *ctx
         MVMuint64 index;
 
         cmp_write_map(ctx, 5);
-        cmp_write_str(ctx, "id", 2);
+        cmp_write_conststr(ctx, "id");
         cmp_write_integer(ctx, argument->id);
-        cmp_write_str(ctx, "type", 4);
+        cmp_write_conststr(ctx, "type");
         cmp_write_integer(ctx, MT_ObjectPositionalsResponse);
 
-        cmp_write_str(ctx, "kind", 4);
+        cmp_write_conststr(ctx, "kind");
         kind = write_vmarray_slot_kind(dtc, ctx, repr_data->slot_type);
 
-        cmp_write_str(ctx, "start", 5);
+        cmp_write_conststr(ctx, "start");
         cmp_write_int(ctx, 0);
 
-        cmp_write_str(ctx, "contents", 8);
+        cmp_write_conststr(ctx, "contents");
         cmp_write_array(ctx, body->elems);
 
         for (index = 0; index < body->elems; index++) {
@@ -2571,16 +2573,16 @@ static MVMint32 request_object_positionals(MVMThreadContext *dtc, cmp_ctx_t *ctx
                     char *value_debug_name = value ? MVM_6model_get_debug_name(dtc, value) : "VMNull";
                     cmp_write_map(ctx, 4);
 
-                    cmp_write_str(ctx, "handle", 6);
+                    cmp_write_conststr(ctx, "handle");
                     cmp_write_integer(ctx, allocate_handle(dtc, value));
 
-                    cmp_write_str(ctx, "type", 4);
+                    cmp_write_conststr(ctx, "type");
                     cmp_write_str(ctx, value_debug_name, strlen(value_debug_name));
 
-                    cmp_write_str(ctx, "concrete", 8);
+                    cmp_write_conststr(ctx, "concrete");
                     cmp_write_bool(ctx, !MVM_is_null(dtc, value) && IS_CONCRETE(value));
 
-                    cmp_write_str(ctx, "container", 9);
+                    cmp_write_conststr(ctx, "container");
                     if (MVM_is_null(dtc, value))
                         cmp_write_bool(ctx, 0);
                     else
@@ -2628,15 +2630,15 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
         MVMuint64 count = MVM_str_hash_count(dtc, hashtable);
 
         cmp_write_map(ctx, 4);
-        cmp_write_str(ctx, "id", 2);
+        cmp_write_conststr(ctx, "id");
         cmp_write_integer(ctx, argument->id);
-        cmp_write_str(ctx, "type", 4);
+        cmp_write_conststr(ctx, "type");
         cmp_write_integer(ctx, MT_ObjectAssociativesResponse);
 
-        cmp_write_str(ctx, "kind", 4);
-        cmp_write_str(ctx, "obj", 3);
+        cmp_write_conststr(ctx, "kind");
+        cmp_write_conststr(ctx, "obj");
 
-        cmp_write_str(ctx, "contents", 8);
+        cmp_write_conststr(ctx, "contents");
         cmp_write_map(ctx, count);
 
         MVMStrHashIterator iterator = MVM_str_hash_first(dtc, hashtable);
@@ -2650,16 +2652,16 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
 
             cmp_write_map(ctx, 4);
 
-            cmp_write_str(ctx, "handle", 6);
+            cmp_write_conststr(ctx, "handle");
             cmp_write_integer(ctx, allocate_handle(dtc, value));
 
-            cmp_write_str(ctx, "type", 4);
+            cmp_write_conststr(ctx, "type");
             cmp_write_str(ctx, value_debug_name, strlen(value_debug_name));
 
-            cmp_write_str(ctx, "concrete", 8);
+            cmp_write_conststr(ctx, "concrete");
             cmp_write_bool(ctx, !MVM_is_null(dtc, value) && IS_CONCRETE(value));
 
-            cmp_write_str(ctx, "container", 9);
+            cmp_write_conststr(ctx, "container");
             if (MVM_is_null(dtc, value))
                 cmp_write_bool(ctx, 0);
             else
@@ -3278,13 +3280,13 @@ static void debugserver_worker(MVMThreadContext *tc, MVMArgs arg_info) {
                     fprintf(stderr, "failed to parse this message: %s\n", argument.parse_fail_message);
                 cmp_write_map(&ctx, 3);
 
-                cmp_write_str(&ctx, "id", 2);
+                cmp_write_conststr(&ctx, "id");
                 cmp_write_integer(&ctx, argument.id);
 
-                cmp_write_str(&ctx, "type", 4);
+                cmp_write_conststr(&ctx, "type");
                 cmp_write_integer(&ctx, MT_ErrorProcessingMessage);
 
-                cmp_write_str(&ctx, "reason", 6);
+                cmp_write_conststr(&ctx, "reason");
                 cmp_write_str(&ctx, argument.parse_fail_message, strlen(argument.parse_fail_message));
                 MVM_platform_close_socket(clientsocket);
                 uv_mutex_unlock(&vm->debugserver->mutex_network_send);
@@ -3404,9 +3406,9 @@ static void debugserver_worker(MVMThreadContext *tc, MVMArgs arg_info) {
                     if (tc->instance->debugserver->debugspam_protocol)
                         fprintf(stderr, "unknown command type (or NYI)\n");
                     cmp_write_map(&ctx, 2);
-                    cmp_write_str(&ctx, "id", 2);
+                    cmp_write_conststr(&ctx, "id");
                     cmp_write_integer(&ctx, argument.id);
-                    cmp_write_str(&ctx, "type", 4);
+                    cmp_write_conststr(&ctx, "type");
                     cmp_write_integer(&ctx, 0);
                     break;
             }
