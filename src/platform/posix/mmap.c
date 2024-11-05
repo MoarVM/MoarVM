@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <string.h>
 #include <sys/mman.h>
 #include "moar.h"
 #include "platform/mmap.h"
@@ -45,7 +46,7 @@ void *MVM_platform_alloc_pages(size_t size, int page_mode)
     void *block = mmap(NULL, size, prot_mode, MVM_MAP_ANON | MAP_PRIVATE, -1, 0);
 
     if (block == MAP_FAILED)
-        MVM_panic(1, "MVM_platform_alloc_pages failed: %d", errno);
+        MVM_panic(1, "MVM_platform_alloc_pages failed: %d (%s)", errno, strerror(errno));
 
     return block;
 }

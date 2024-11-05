@@ -42,8 +42,12 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     /* The ThreadContext has already been destroyed by the GC. */
     MVMReentrantMutex *rm = (MVMReentrantMutex *)obj;
-    if (rm->body.lock_count)
-        MVM_panic(1, "Tried to garbage-collect a locked mutex");
+    if (rm->body.lock_count) {
+        if (tc->instance->full_cleanup)
+            MVM_panic(1, "Tried to garbage-collect a locked mutex (likely cause: --full-cleanup option used, and a thread was holding a lock when the program exited)");
+        else
+            MVM_panic(1, "Tried to garbage-collect a locked mutex");
+    }
     if (rm->body.mutex) { /* Cope with incomplete object initialization */
         uv_mutex_destroy(rm->body.mutex);
         MVM_free(rm->body.mutex);

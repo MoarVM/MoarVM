@@ -1167,7 +1167,7 @@ MVMOpInfo *MVM_spesh_graph_get_phi(MVMThreadContext *tc, MVMSpeshGraph *g, MVMui
 
     /* Check number of args to phi isn't huge. */
     if (nrargs > 0xFFFF)
-        MVM_panic(1, "Spesh: SSA calculation failed; cannot allocate enormous PHI node");
+        MVM_panic(1, "Spesh: SSA calculation failed; cannot allocate enormous PHI node (likely cause: bug in MoarVM. you can try re-running with MVM_SPESH_DISABLE=1 in your environment)");
 
     /* Up to 64 args, almost every number is represented, but after that
      * we have a sparse array through which we must search. */

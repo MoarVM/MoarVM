@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "uv.h"
 
 /* Asynchronous I/O, timers, file system notifications and signal handlers
  * have their callbacks processed by this event loop. Its job is mostly to
@@ -117,13 +118,15 @@ void MVM_io_eventloop_start(MVMThreadContext *tc) {
     if (!instance->event_loop) {
         /* The underlying loop structure that will handle all IO events. */
         instance->event_loop              = MVM_malloc(sizeof(uv_loop_t));
-        if (uv_loop_init(instance->event_loop) < 0)
-            MVM_panic(1, "Unable to initialize event loop");
+        int loop_init_retval;
+        if ((loop_init_retval = uv_loop_init(instance->event_loop)) < 0)
+            MVM_panic(1, "Unable to initialize event loop (%s)", uv_strerror(loop_init_retval));
 
         /* The async signal handler for waking up the thread */
         instance->event_loop_wakeup       = MVM_malloc(sizeof(uv_async_t));
-        if (uv_async_init(instance->event_loop, instance->event_loop_wakeup, async_handler) != 0)
-            MVM_panic(1, "Unable to initialize async wake-up handle for event loop");
+        int async_init_retval;
+        if ((async_init_retval = uv_async_init(instance->event_loop, instance->event_loop_wakeup, async_handler)) != 0)
+            MVM_panic(1, "Unable to initialize async wake-up handle for event loop (%s)", uv_strerror(async_init_retval));
 
         /* Create various bits of state the async event loop thread needs. */
         instance->event_loop_todo_queue   = MVM_repr_alloc_init(tc,
@@ -188,7 +191,7 @@ void MVM_io_eventloop_permit(MVMThreadContext *tc, MVMObject *task_obj,
         }
     }
     else {
-        MVM_exception_throw_adhoc(tc, "Can only permit an AsyncTask handle");
+        MVM_exception_throw_adhoc(tc, "Can only permit an AsyncTask handle or MVMOSHandle, not a %s", MVM_6model_get_debug_name(tc, task_obj));
     }
 }
 
@@ -210,7 +213,7 @@ void MVM_io_eventloop_cancel_work(MVMThreadContext *tc, MVMObject *task_obj,
         }
     }
     else {
-        MVM_exception_throw_adhoc(tc, "Can only cancel an AsyncTask handle");
+        MVM_exception_throw_adhoc(tc, "Can only cancel an AsyncTask handle, not a %s", MVM_6model_get_debug_name(tc, task_obj));
     }
 }
 
@@ -237,7 +240,7 @@ MVMAsyncTask * MVM_io_eventloop_get_active_work(MVMThreadContext *tc, int work_i
     if (work_idx >= 0 && work_idx < (int)MVM_repr_elems(tc, tc->instance->event_loop_active)) {
         MVMObject *task_obj = MVM_repr_at_pos_o(tc, tc->instance->event_loop_active, work_idx);
         if (REPR(task_obj)->ID != MVM_REPR_ID_MVMAsyncTask)
-            MVM_panic(1, "non-AsyncTask fetched from eventloop active work list");
+            MVM_panic(1, "non-AsyncTask fetched from eventloop active work list (got a %s)", MVM_6model_get_debug_name(tc, task_obj));
         MVM_ASSERT_NOT_FROMSPACE(tc, task_obj);
         return (MVMAsyncTask *)task_obj;
     }

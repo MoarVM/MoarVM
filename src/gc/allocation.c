@@ -44,7 +44,7 @@ void * MVM_gc_allocate_nursery(MVMThreadContext *tc, size_t size) {
         tc->nursery_alloc = (char *)tc->nursery_alloc + size;
     }
     else {
-        MVM_panic(MVM_exitcode_gcalloc, "Cannot allocate 0 bytes of memory in the nursery");
+        MVM_oops(tc, "Cannot allocate 0 bytes of memory in the nursery (likely cause: bug in MoarVM?)");
     }
 
     return allocated;

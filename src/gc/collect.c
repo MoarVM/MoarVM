@@ -226,7 +226,7 @@ static void process_worklist(MVMThreadContext *tc, MVMGCWorklist *worklist, Work
         /* If it's in to-space but *ahead* of our copy offset then it's an
            out-of-date pointer and we have some kind of corruption. */
         if (item >= (MVMCollectable *)tc->nursery_alloc && item < (MVMCollectable *)tc->nursery_alloc_limit)
-            MVM_panic(1, "Heap corruption detected: pointer %p to past fromspace", item);
+            MVM_panic(1, "Heap corruption detected: pointer %p to past fromspace (likely cause: usage of things that are not thread-safe? memory corruption? bug in MoarVM?)", item);
 
         /* At this point, we didn't already see the object, which means we
          * need to take some action. Go on the generation... */
@@ -432,7 +432,7 @@ static void push_work_to_thread_in_tray(MVMThreadContext *tc, MVMuint32 target, 
             }
         } while ((t = t->body.next));
         if (!target_tc)
-            MVM_panic(MVM_exitcode_gcnursery, "Internal error: invalid thread ID %d in GC work pass", target);
+            MVM_panic(MVM_exitcode_gcnursery, "Internal error: invalid thread ID %d in GC work pass (likely cause: doing things that are not thread-safe)", target);
     }
 
     /* Pass the work, chaining any other in-tray entries for the thread
@@ -455,7 +455,7 @@ static void pass_work_item(MVMThreadContext *tc, WorkToPass *wtp, MVMCollectable
 
     /* Find any existing thread work passing list for the target. */
     if (target == 0)
-        MVM_panic(MVM_exitcode_gcnursery, "Internal error: zeroed target thread ID in work pass");
+        MVM_panic(MVM_exitcode_gcnursery, "Internal error: zeroed target thread ID in work pass (likely cause: doing things that are not thread-safe)");
     for (j = 0; j < wtp->num_target_threads; j++) {
         if (wtp->target_work[j].target == target) {
             target_info = &wtp->target_work[j];
@@ -755,7 +755,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *executing_thread, MVMTh
             }
         }
     }
-    
+
     /* Also need to consider overflows. */
     for (i = 0; i < gen2->num_overflows; i++) {
         if (gen2->overflows[i]) {
@@ -778,7 +778,7 @@ void MVM_gc_collect_free_gen2_unmarked(MVMThreadContext *executing_thread, MVMTh
 #endif
                 }
                 else {
-                    MVM_panic(MVM_exitcode_gcnursery, "Internal error: gen2 overflow contains non-object");
+                    MVM_panic(MVM_exitcode_gcnursery, "Internal error: gen2 overflow contains non-object (likely cause: bug in MoarVM)");
                 }
                 MVM_free(col);
                 gen2->overflows[i] = NULL;

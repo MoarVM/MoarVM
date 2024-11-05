@@ -1543,7 +1543,7 @@ static void debugserver_invocation_special_return(MVMThreadContext *tc, void *da
             break;
         }
         default:
-            MVM_panic(1, "Debugserver: Did not understand return type of invoked frame.");
+            MVM_panic(1, "Debugserver: Did not understand return type %d of invoked frame.", tc->cur_frame->return_type);
     }
 
     uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);

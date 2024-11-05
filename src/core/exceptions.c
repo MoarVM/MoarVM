@@ -1,4 +1,7 @@
 #include "moar.h"
+#include <stdint.h>
+#include <math.h>
+#include <time.h>
 
 #ifdef _MSC_VER
 #define snprintf _snprintf
@@ -337,7 +340,7 @@ static LocatedHandler search_for_handler_from(MVMThreadContext *tc, MVMFrame *f,
             }
             return lh;
         default:
-            MVM_panic(1, "Unhandled exception throw mode %d", (int)mode);
+            MVM_oops(tc, "Unhandled exception throw mode %d", (int)mode);
     }
 }
 
@@ -863,8 +866,42 @@ MVM_NO_RETURN void MVM_panic(MVMint32 exitCode, const char *messageFormat, ...) 
         exit(exitCode);
 }
 
-MVM_NO_RETURN void MVM_panic_allocation_failed(size_t len) {
-    MVM_panic(1, "Memory allocation failed; could not allocate %"MVM_PRSz" bytes", len);
+/* If we can, try to oops instead of panic, but don't
+ * recurse forever if it fails. */
+MVMuint8 already_erroring_out = 0;
+
+#define panic_or_oops(messageFormat, ...) do { if (was_already_erroring_out) MVM_panic(1, messageFormat, __VA_ARGS__); MVM_oops(MVM_get_running_threads_context(), messageFormat, __VA_ARGS__); } while (0)
+
+MVM_NO_RETURN void MVM_error_allocation_failed(size_t num, size_t len) {
+    MVMuint8 was_already_erroring_out = already_erroring_out;
+    already_erroring_out = 1;
+    if (num > 1) {
+        /* allocation size near the limit of the numeric type points at the
+         * possibility of a numeric overflow.
+         * Calling MVM_oops is probably safe. */
+        if (len >= SIZE_MAX - 16 * 1024 * 1024 || num >= SIZE_MAX - 16 * 1024 * 1024) {
+            panic_or_oops("Memory allocation failed; could not allocate %"MVM_PRSz" entries of %"MVM_PRSz" bytes each (likely cause: overflow in size calculation?)", num, len);
+        }
+        /* Allocation of more than 2**40 bytes, probably not intentional. */
+        if (log2(len) + log2(num) >= 40) {
+            panic_or_oops("Memory allocation failed; could not allocate %"MVM_PRSz" entries of %"MVM_PRSz" bytes each (likely cause: logic error causing an unreasonably big memory allocation?)", num, len);
+        }
+        /* If asking for a small allocation failed, we're probably running out of memory. Not Good! Panic rather than oops. */
+        if (log2(len) + log2(num) <= 6)
+            MVM_panic(1, "Memory allocation failed; could not allocate %"MVM_PRSz" entries of %"MVM_PRSz" bytes each (likely cause: ran out of memory. maybe infinite recursion or loop?)", num, len);
+        MVM_panic(1, "Memory allocation failed; could not allocate %"MVM_PRSz" entries of %"MVM_PRSz" bytes each", num, len);
+    }
+    else {
+        if (len >= SIZE_MAX - 16 * 1024 * 1024) {
+            panic_or_oops("Memory allocation failed; could not allocate %"MVM_PRSz" bytes (likely cause: overflow in size calculation?)", len);
+        }
+        if (log2(len) >= 40) {
+            panic_or_oops("Memory allocation failed; could not allocate %"MVM_PRSz" bytes (likely cause: logic error causing an unreasonably big memory allocation?)", len);
+        }
+        if (log2(len) + log2(num) <= 6)
+            MVM_panic(1, "Memory allocation failed; could not allocate %"MVM_PRSz" bytes (likely cause: ran out of memory. maybe infinite recursion or loop?)", len);
+        MVM_panic(1, "Memory allocation failed; could not allocate %"MVM_PRSz" bytes", len);
+    }
 }
 
 /* A kinder MVM_panic() that doesn't assume our memory is corrupted (but does kill the

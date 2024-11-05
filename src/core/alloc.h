@@ -6,7 +6,7 @@ MVM_STATIC_INLINE void * MVM_malloc(size_t size) {
 #endif
 
     if (!ptr)
-        MVM_panic_allocation_failed(size);
+        MVM_error_allocation_failed(1, size);
 
     return ptr;
 }
@@ -19,7 +19,7 @@ MVM_STATIC_INLINE void * MVM_calloc(size_t num, size_t size) {
 #endif
 
     if (!ptr)
-        MVM_panic_allocation_failed(num * size);
+        MVM_error_allocation_failed(num, size);
 
     return ptr;
 }
@@ -32,7 +32,7 @@ MVM_STATIC_INLINE void * MVM_realloc(void *p, size_t size) {
 #endif
 
     if (!ptr && size > 0)
-        MVM_panic_allocation_failed(size);
+        MVM_error_allocation_failed(1, size);
 
     return ptr;
 }
@@ -46,7 +46,7 @@ MVM_STATIC_INLINE void * MVM_recalloc(void *p, size_t old_size, size_t size) {
 
     if (size > 0) {
         if (!ptr)
-            MVM_panic_allocation_failed(size);
+            MVM_error_allocation_failed(1, size);
 
         if (size > old_size)
             memset((char *)ptr + old_size, 0, size - old_size);

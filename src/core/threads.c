@@ -1,4 +1,5 @@
 #include "moar.h"
+#include "uv.h"
 
 /* Temporary structure for passing data to thread start. */
 typedef struct {
@@ -183,12 +184,13 @@ void MVM_thread_run(MVMThreadContext *tc, MVMObject *thread_obj) {
 
         /* Do the actual thread creation. */
         status = uv_thread_create(&child->body.thread, start_thread, ts);
-        if (status < 0)
-            MVM_panic(MVM_exitcode_compunit, "Could not spawn thread: errorcode %d", status);
+        if (status < 0) {
+            MVM_panic(MVM_exitcode_compunit, "Could not spawn thread: errorcode %d (%s)", status, uv_strerror(status));
+        }
     }
     else {
         MVM_exception_throw_adhoc(tc,
-            "Thread handle passed to run must have representation MVMThread");
+            "Thread handle passed to run must have representation MVMThread (got %s)", MVM_6model_get_debug_name(tc, thread_obj));
     }
 }
 

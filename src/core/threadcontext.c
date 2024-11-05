@@ -133,12 +133,12 @@ void MVM_tc_destroy(MVMThreadContext *tc) {
  * simple flag (an AO_t) that will be cleared on release. */
 void MVM_tc_set_ex_release_mutex(MVMThreadContext *tc, uv_mutex_t *mutex) {
     if (tc->ex_release_mutex)
-        MVM_exception_throw_adhoc(tc, "Internal error: multiple ex_release_mutex");
+        MVM_exception_throw_adhoc(tc, "Internal error: multiple ex_release_mutex (likely cause: bug in MoarVM)");
     tc->ex_release_mutex = mutex;
 }
 void MVM_tc_set_ex_release_atomic(MVMThreadContext *tc, AO_t *flag) {
     if (tc->ex_release_mutex)
-        MVM_exception_throw_adhoc(tc, "Internal error: multiple ex_release_mutex");
+        MVM_exception_throw_adhoc(tc, "Internal error: multiple ex_release_mutex (likely cause: bug in MoarVM)");
     tc->ex_release_mutex = (uv_mutex_t *)((uintptr_t)flag | 1);
 }
 void MVM_tc_release_ex_release_mutex(MVMThreadContext *tc) {
