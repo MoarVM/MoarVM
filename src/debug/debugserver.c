@@ -1,7 +1,8 @@
 #include "moar.h"
+#include <string.h>
 
 #define DEBUGSERVER_MAJOR_PROTOCOL_VERSION 1
-#define DEBUGSERVER_MINOR_PROTOCOL_VERSION 3
+#define DEBUGSERVER_MINOR_PROTOCOL_VERSION 4
 
 #include <stdbool.h>
 
@@ -61,6 +62,8 @@ typedef enum {
     MT_HandleEquivalenceResponse,
     MT_HLLSymbolRequest,
     MT_HLLSymbolResponse,
+    MT_LoadedFilesRequest,
+    MT_FileLoadedNotification,
 } message_type;
 
 typedef enum {
@@ -102,6 +105,7 @@ typedef enum {
     FS_arguments    = 1024,
     FS_name       = 2048,
     FS_hll        = 4096,
+    FS_start_watching = 8192,
 } fields_set;
 
 typedef struct {
@@ -133,12 +137,16 @@ typedef struct {
 
     char *hll;
 
+    MVMuint8 start_watching;
+
     fields_set fields_set;
 } request_data;
 
 static void write_stacktrace_frames(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMThread *thread);
 static void request_all_threads_suspend(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument);
 static MVMuint64 allocate_handle(MVMThreadContext *dtc, MVMObject *target);
+
+void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_len);
 
 /* Breakpoint stuff */
 static void normalize_filename(char *name) {
@@ -206,6 +214,8 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
             fprintf(stderr, "created new file entry at %u for %s\n", table->files_used - 1, found->filename);
 
         found->filename_length = filename_len;
+
+        notify_new_file(tc, filename, filename_len);
 
         found->lines_active_alloc = line_no + 32;
         found->lines_active = MVM_calloc(found->lines_active_alloc, sizeof(MVMuint8));
@@ -439,6 +449,7 @@ static MVMuint8 check_requirements(MVMThreadContext *tc, request_data *data) {
             break;
 
         case MT_HLLSymbolRequest:
+        case MT_LoadedFilesRequest:
             allow_optional = 1;
             break;
 
@@ -607,6 +618,74 @@ MVM_PUBLIC void MVM_debugserver_notify_unhandled_exception(MVMThreadContext *tc,
         uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
 
         MVM_gc_enter_from_interrupt(tc);
+    }
+}
+
+static MVMint32 request_thread_suspends(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument, MVMThread *thread);
+
+void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_len) {
+    MVMDebugServerData *debugserver = tc->instance->debugserver;
+    cmp_ctx_t *ctx = NULL;
+
+    if (!debugserver)
+        return;
+
+    if (debugserver->messagepack_data) {
+        ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
+    }
+
+    if (ctx) {
+        if (debugserver->loaded_file_event_id != 0) {
+            uv_mutex_lock(&debugserver->mutex_network_send);
+
+            cmp_write_map(ctx, 4 + (debugserver->backtrace_on_new_file ? 1 : 0));
+            cmp_write_conststr(ctx, "id");
+            cmp_write_integer(ctx, debugserver->loaded_file_event_id);
+            cmp_write_conststr(ctx, "type");
+            cmp_write_integer(ctx, MT_FileLoadedNotification);
+            cmp_write_conststr(ctx, "thread");
+            cmp_write_integer(ctx, tc->thread_id);
+            cmp_write_conststr(ctx, "filename");
+            cmp_write_str(ctx, filename, filename_len);
+
+            if (debugserver->backtrace_on_new_file) {
+                cmp_write_conststr(ctx, "frames");
+                write_stacktrace_frames(tc, ctx, tc->thread_obj);
+            }
+
+            uv_mutex_unlock(&debugserver->mutex_network_send);
+
+            if (debugserver->stop_on_new_file == 1) {
+                MVMint64 attempts = 10000;
+                while (attempts-- > 0) {
+                    if (MVM_cas(&tc->gc_status, MVMGCStatus_NONE, MVMGCStatus_NONE | MVMSuspendState_SUSPEND_REQUEST)
+                            == MVMGCStatus_NONE) {
+                        break;
+                    }
+                    /* If there is already a suspend request, we don't have to do anything. */
+                    if (MVM_load(&tc->gc_status) == (MVMGCStatus_NONE | MVMSuspendState_SUSPEND_REQUEST)) {
+                        break;
+                    }
+                    /* Maybe we are already interrupted so that we join a GC run. */
+                    /* If we have the suspend request flag already set, do nothing. */
+                    if (MVM_load(&tc->gc_status) == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)) {
+                        break;
+                    }
+                    /* Store the suspend request flag. */
+                    if (MVM_cas(&tc->gc_status, MVMGCStatus_INTERRUPT, MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)
+                            == (MVMGCStatus_INTERRUPT | MVMSuspendState_SUSPEND_REQUEST)) {
+                        break;
+                    }
+                }
+                if (attempts == 0) {
+                    /* It's not a reason to panic or oops when this
+                     * doesn't succeed for some reason, but do log
+                     * if debugspam is on. */
+                    if (tc->instance->debugserver->debugspam_protocol)
+                        fprintf(stderr, "thread %u couldn't suspend to react to a new file being created.\n", tc->thread_id);
+                }
+            }
+        }
     }
 }
 
@@ -1435,6 +1514,36 @@ static void send_handle_equivalence_classes(MVMThreadContext *dtc, cmp_ctx_t *ct
     MVM_free(representant);
     MVM_free(objects);
     MVM_free(counts);
+}
+
+static void send_loaded_files(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
+    MVMDebugServerData *debugserver = dtc->instance->debugserver;
+
+    if (argument->fields_set & FS_start_watching) {
+        debugserver->loaded_file_event_id = argument->start_watching ? argument->id : 0;
+    }
+    if (argument->fields_set & FS_stacktrace) {
+        debugserver->backtrace_on_new_file = argument->stacktrace;
+    }
+    if (argument->fields_set & FS_suspend) {
+        debugserver->stop_on_new_file = argument->suspend;
+    }
+
+    cmp_write_map(ctx, 3);
+    cmp_write_conststr(ctx, "id");
+    cmp_write_integer(ctx, argument->id);
+    cmp_write_conststr(ctx, "type");
+    cmp_write_integer(ctx, MT_FileLoadedNotification);
+    cmp_write_conststr(ctx, "filenames");
+
+    cmp_write_array(ctx, debugserver->breakpoints->files_used);
+
+    for (MVMuint32 file_idx = 0; file_idx < debugserver->breakpoints->files_used; file_idx++) {
+        MVMDebugServerBreakpointFileTable *filetable = &debugserver->breakpoints->files[file_idx];
+        cmp_write_map(ctx, 1);
+        cmp_write_conststr(ctx, "path");
+        cmp_write_str(ctx, filetable->filename, filetable->filename_length);
+    }
 }
 
 static MVMuint64 request_hll_symbol_data(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
@@ -3078,6 +3187,10 @@ static MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_
             FIELD_FOUND(FS_arguments, "arguments field duplicated");
             type_to_parse = 4;
         }
+        else if (strncmp(key_str, "start_watching", 14) == 0) {
+            FIELD_FOUND(FS_start_watching, "start_watching field duplicated");
+            type_to_parse = 1;
+        }
         else {
             if (tc->instance->debugserver->debugspam_protocol)
                 fprintf(stderr, "the hell is a %s?\n", key_str);
@@ -3113,6 +3226,9 @@ static MVMint32 parse_message_map(MVMThreadContext *tc, cmp_ctx_t *ctx, request_
                     break;
                 case FS_stacktrace:
                     data->stacktrace = result;
+                    break;
+                case FS_start_watching:
+                    data->start_watching = result;
                     break;
                 default:
                     data->parse_fail = 1;
@@ -3514,6 +3630,9 @@ static void debugserver_worker(MVMThreadContext *tc, MVMArgs arg_info) {
                     break;
                 case MT_HLLSymbolRequest:
                     COMMUNICATE_ERROR(request_hll_symbol_data(tc, &ctx, &argument));
+                    break;
+                case MT_LoadedFilesRequest:
+                    send_loaded_files(tc, &ctx, &argument);
                     break;
                 default: /* Unknown command or NYI */
                     if (tc->instance->debugserver->debugspam_protocol)
