@@ -32,13 +32,13 @@ extern char **environ;
 #include <stdlib.h>
 #endif
 
-char *resize_pty(int *fd_pty, int cols, int rows) {
+char *resize_pty_fd(int fd_pty, int cols, int rows) {
     struct winsize winp;
     winp.ws_col = cols;
     winp.ws_row = rows;
     winp.ws_xpixel = 0;
     winp.ws_ypixel = 0;
-    if (ioctl(*fd_pty, TIOCSWINSZ, &winp) < 0) {
+    if (ioctl(fd_pty, TIOCSWINSZ, &winp) < 0) {
         char *error_str = MVM_malloc(128);
         snprintf(error_str, 127, "Error in TIOCSWINSZ: %s (error code %i)",
                 strerror(errno), errno);
@@ -105,7 +105,7 @@ char *make_pty(int *fd_pty, int *fd_tty, int cols, int rows) {
 
     MVM_free(path_tty);
 
-    error_str = resize_pty(fd_pty, cols, rows);
+    error_str = resize_pty_fd(*fd_pty, cols, rows);
     if (error_str) {
         close(*fd_pty);
         close(*fd_tty);
@@ -1496,6 +1496,30 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
 
     return pid;
 
+}
+
+char *MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h, int cols, int rows) {
+    MVMIOAsyncProcessData *handle_data = (MVMIOAsyncProcessData *)h->body.data;
+    MVMAsyncTask          *spawn_task  = (MVMAsyncTask *)handle_data->async_task;
+    SpawnInfo             *si          = spawn_task ? (SpawnInfo *)spawn_task->body.data : NULL;
+    if (!si || !MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty)) {
+        char *error_str = MVM_malloc(128);
+        snprintf(error_str, 127, "The given OS handle is not a PTY.");
+        return error_str;
+    }
+    if (si && si->stdin_handle) {
+        int ret;
+        uv_os_fd_t fd;
+        if ((ret = uv_fileno((uv_handle_t *)si->stdin_handle, &fd)) != 0) {
+            char *error_str = MVM_malloc(128);
+            snprintf(error_str, 127, "Retrieving an FD from the given OS handle failed: %s (error code %i)",
+                    uv_strerror(ret), ret);
+            return error_str;
+        }
+
+        return resize_pty_fd(fd, cols, rows);
+    }
+    return NULL;
 }
 
 void MVM_proc_pty_spawn(char *prog, char *argv[]) {
