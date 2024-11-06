@@ -1233,7 +1233,7 @@ static MVMDispSysCall set_compunit_resolver = {
     .expected_concrete = { 1, 1, 1 },
 };
 
-/* async-linux-connect */
+/* async-unix-connect */
 static void async_unix_connect_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *queue      = get_obj_arg(arg_info, 0);
     MVMObject *schedulee  = get_obj_arg(arg_info, 1);
@@ -1558,6 +1558,28 @@ static MVMDispSysCall stat_is_executable = {
     .expected_concrete = { 1 },
 };
 
+/* pty-resize */
+static void pty_resize_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    MVMOSHandle *handle  = (MVMOSHandle *)get_obj_arg(arg_info, 0);
+    MVMint32 cols = get_int_arg(arg_info, 1);
+    MVMint32 rows = get_int_arg(arg_info, 2);
+    char *error_str = MVM_proc_resize_pty(tc, handle, cols, rows);
+    if (error_str) {
+        char *waste[] = { error_str, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "%s", error_str);
+    }
+    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall pty_resize = {
+    .c_name = "pty-resize",
+    .implementation = pty_resize_impl,
+    .min_args = 3,
+    .max_args = 3,
+    .expected_kinds    = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_INT, MVM_CALLSITE_ARG_INT },
+    .expected_reprs    = { MVM_REPR_ID_MVMOSHandle, 0, 0 },
+    .expected_concrete = { 1, 1, 1 },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -1655,6 +1677,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &stat_is_readable);
     add_to_hash(tc, &stat_is_writable);
     add_to_hash(tc, &stat_is_executable);
+    add_to_hash(tc, &pty_resize);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
