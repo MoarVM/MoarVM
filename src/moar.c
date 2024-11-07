@@ -115,7 +115,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
 #if MVM_USE_NURSERY_ARENA
     mi_arena_id_t nursery_arena = 0;
-    if (getenv("MVM_NO_NURSERY_RANGE") == 0) {
+    if (getenv("MVM_NO_NURSERY_RANGE")) {
         void *nursery_location = MVM_platform_try_alloc_page_at_exactly(MVM_NURSERY_ARENA_POS, MVM_NURSERY_ARENA_SIZE, MVM_PAGE_READ | MVM_PAGE_WRITE);
         if (nursery_location != MVM_NURSERY_ARENA_POS) {
             MVM_platform_unmap_file(nursery_location, NULL, MVM_NURSERY_ARENA_SIZE);
