@@ -2674,6 +2674,9 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
             iterator = MVM_str_hash_next_nocheck(dtc, hashtable, iterator);
         }
     }
+    else {
+        return 1;
+    }
 
     return 0;
 }
