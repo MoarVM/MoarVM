@@ -2544,6 +2544,22 @@ static MVMint32 request_object_positionals(MVMThreadContext *dtc, cmp_ctx_t *ctx
         return 1;
     }
 
+    if (REPR(target)->ID == MVM_REPR_ID_P6opaque) {
+        MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)STABLE(target)->REPR_data;
+        void *data = OBJECT_BODY(target);
+        if (repr_data->pos_del_slot != -1) {
+            data = MVM_p6opaque_real_data(dtc, data);
+            MVMObject *del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->pos_del_slot]);
+
+            /* Create a whole new handle for the delegate, then recurse. */
+            MVMuint32 new_handle_id = allocate_handle(dtc, del);
+            argument->handle_id = new_handle_id;
+            return request_object_positionals(dtc, ctx, argument);
+        }
+
+        return 1;
+    }
+
     if (REPR(target)->ID == MVM_REPR_ID_VMArray) {
         MVMArrayBody *body = (MVMArrayBody *)OBJECT_BODY(target);
         MVMArrayREPRData *repr_data = (MVMArrayREPRData *)STABLE(target)->REPR_data;
@@ -2627,8 +2643,28 @@ static MVMint32 request_object_associatives(MVMThreadContext *dtc, cmp_ctx_t *ct
         return 1;
     }
 
+    MVMStrHashTable *target_table = NULL;
     if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
-        MVMStrHashTable *hashtable = &(((MVMHashBody *)OBJECT_BODY(target))->hashtable);
+        target_table = &(((MVMHashBody *)OBJECT_BODY(target))->hashtable);
+    }
+    else if (REPR(target)->ID == MVM_REPR_ID_P6opaque) {
+        MVMP6opaqueREPRData *repr_data = (MVMP6opaqueREPRData *)STABLE(target)->REPR_data;
+        void *data = OBJECT_BODY(target);
+        if (repr_data->ass_del_slot != -1) {
+            data = MVM_p6opaque_real_data(dtc, data);
+            MVMObject *del = get_obj_at_offset(data, repr_data->attribute_offsets[repr_data->ass_del_slot]);
+
+            /* Create a whole new handle for the delegate, then recurse. */
+            MVMuint32 new_handle_id = allocate_handle(dtc, del);
+            argument->handle_id = new_handle_id;
+            return request_object_associatives(dtc, ctx, argument);
+        }
+
+        return 1;
+    }
+
+    if (REPR(target)->ID == MVM_REPR_ID_MVMHash) {
+        MVMStrHashTable *hashtable = target_table;
         MVMuint64 count = MVM_str_hash_count(dtc, hashtable);
 
         cmp_write_map(ctx, 4);
