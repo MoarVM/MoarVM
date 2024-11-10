@@ -3520,6 +3520,10 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
                 if (tc->instance->full_cleanup) {
                     MVM_vm_destroy_instance(tc->instance);
                 }
+                else if (tc->instance->debugserver) {
+                    MVM_io_flush_standard_handles(tc);
+                    MVM_debugserver_notify_thread_destruction(tc);
+                }
                 else {
                     MVM_io_flush_standard_handles(tc);
                 }

@@ -586,15 +586,22 @@ void MVM_vm_dump_file(MVMInstance *instance, const char *filename) {
  * will be able to do it much more swiftly than we could. This is typically
  * not the right thing for embedding; see MVM_vm_destroy_instance for that. */
 void MVM_vm_exit(MVMInstance *instance) {
+    /* Send a "stop working" signal to spesh ASAP */
+    if (instance->spesh_enabled)
+        MVM_spesh_worker_stop(instance->main_thread);
+
     /* Join any foreground threads and flush standard handles. */
     MVM_thread_join_foreground(instance->main_thread);
     MVM_io_flush_standard_handles(instance->main_thread);
+
+    if (instance->debugserver) {
+        MVM_debugserver_notify_thread_destruction(instance->main_thread);
+    }
 
     /* Close any spesh or jit log. */
     if (instance->spesh_log_fh) {
         /* Need to properly shut down spesh, otherwise we may segfault trying
          * to write to a closed file handle before we exit completely */
-        MVM_spesh_worker_stop(instance->main_thread);
         MVM_spesh_worker_join(instance->main_thread);
         fclose(instance->spesh_log_fh);
     }
