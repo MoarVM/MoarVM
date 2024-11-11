@@ -1460,7 +1460,8 @@ MVMSpeshGraph * MVM_spesh_graph_create_from_cand(MVMThreadContext *tc, MVMStatic
 
     g->spesh_slots       = MVM_malloc(g->alloc_spesh_slots * sizeof(MVMCollectable *));
 
-    memcpy(g->spesh_slots, cand->body.spesh_slots, sizeof(MVMCollectable *) * g->num_spesh_slots);
+    if (cand->body.spesh_slots != NULL)
+        memcpy(g->spesh_slots, cand->body.spesh_slots, sizeof(MVMCollectable *) * g->num_spesh_slots);
 
     /* Ensure the frame is validated, since we'll rely on this. */
     if (!sf->body.validated) {
