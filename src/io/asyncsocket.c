@@ -458,8 +458,7 @@ static MVMint64 socket_handle(MVMThreadContext *tc, MVMOSHandle *h) {
 static const MVMIOClosable      closable       = { close_socket };
 static const MVMIOAsyncReadable async_readable = { read_bytes };
 static const MVMIOAsyncWritable async_writable = { write_bytes };
-static const MVMIOIntrospection introspection  = { socket_is_tty,
-                                                   socket_handle };
+static const MVMIOIntrospection introspection  = { socket_is_tty, socket_handle, NULL };
 static const MVMIOOps op_table = {
     &closable,
     NULL,
