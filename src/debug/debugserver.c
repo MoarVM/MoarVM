@@ -301,17 +301,19 @@ static MVMuint8 breakpoint_hit(MVMThreadContext *tc, MVMDebugServerBreakpointFil
 static void step_point_hit(MVMThreadContext *tc) {
     cmp_ctx_t *ctx = (cmp_ctx_t*)tc->instance->debugserver->messagepack_data;
 
-    uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
-    cmp_write_map(ctx, 4);
-    cmp_write_conststr(ctx, "id");
-    cmp_write_integer(ctx, tc->step_message_id);
-    cmp_write_conststr(ctx, "type");
-    cmp_write_integer(ctx, MT_StepCompleted);
-    cmp_write_conststr(ctx, "thread");
-    cmp_write_integer(ctx, tc->thread_id);
-    cmp_write_conststr(ctx, "frames");
-    write_stacktrace_frames(tc, ctx, tc->thread_obj);
-    uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
+    if (ctx) {
+        uv_mutex_lock(&tc->instance->debugserver->mutex_network_send);
+        cmp_write_map(ctx, 4);
+        cmp_write_conststr(ctx, "id");
+        cmp_write_integer(ctx, tc->step_message_id);
+        cmp_write_conststr(ctx, "type");
+        cmp_write_integer(ctx, MT_StepCompleted);
+        cmp_write_conststr(ctx, "thread");
+        cmp_write_integer(ctx, tc->thread_id);
+        cmp_write_conststr(ctx, "frames");
+        write_stacktrace_frames(tc, ctx, tc->thread_obj);
+        uv_mutex_unlock(&tc->instance->debugserver->mutex_network_send);
+    }
 
     tc->step_mode = MVMDebugSteppingMode_NONE;
     tc->step_mode_frame = NULL;
