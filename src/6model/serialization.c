@@ -1683,7 +1683,7 @@ MVMint64 MVM_serialization_read_int(MVMThreadContext *tc, MVMSerializationReader
     }
 
     /* Having pieced the (unsigned) value back together, sign extend it:  */
-    result = result << (64 - 4 - 8 * need);
+    result = (MVMuint64)result << (64 - 4 - 8 * need);
     result = result >> (64 - 4 - 8 * need);
 
     *(reader->cur_read_offset) += need + 1;
