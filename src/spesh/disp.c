@@ -1645,8 +1645,9 @@ int MVM_spesh_disp_optimize(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpeshBB *
                     }
                 }
             }
-            qsort(outcome_hits, MVM_VECTOR_ELEMS(outcome_hits), sizeof(OutcomeHitCount),
-                compare_hits);
+            if (outcome_hits != NULL)
+                qsort(outcome_hits, MVM_VECTOR_ELEMS(outcome_hits), sizeof(OutcomeHitCount),
+                    compare_hits);
             MVMint32 selected_outcome = -1;
             if (MVM_VECTOR_ELEMS(outcome_hits) == 0) {
                 MVM_spesh_graph_add_comment(tc, g, ins, p
