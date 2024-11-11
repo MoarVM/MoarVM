@@ -163,7 +163,8 @@ int MVM_ext_register_extop(MVMThreadContext *tc, const char *cname,
     entry->info.uses_cache   = 0;
     entry->info.may_cause_deopt = 0;
     entry->info.specializable = spesh ? 1 : 0;
-    memcpy(entry->info.operands, operands, num_operands);
+    if (operands != NULL)
+        memcpy(entry->info.operands, operands, num_operands);
     memset(entry->info.operands + num_operands, 0,
             MVM_MAX_OPERANDS - num_operands);
     entry->spesh      = spesh;
