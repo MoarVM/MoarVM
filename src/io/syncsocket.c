@@ -511,7 +511,8 @@ static const MVMIOSockety             sockety = { socket_connect,
                                                   socket_accept,
                                                   socket_getport };
 static const MVMIOIntrospection introspection = { socket_is_tty,
-                                                  socket_handle };
+                                                  socket_handle,
+                                                  NULL };
 
 static const MVMIOOps op_table = {
     &closable,
