@@ -2170,6 +2170,67 @@ static MVMint32 request_object_attributes(MVMThreadContext *dtc, cmp_ctx_t *ctx,
 
     return 1;
 }
+
+static void write_callsite_map(MVMThreadContext *tc, cmp_ctx_t *ctx, MVMCallsite *cs) {
+    MVMCallsiteEntry *cse = cs->arg_flags;
+    MVMuint16 flag_idx;
+    MVMuint16 flag_count = cs->flag_count;
+
+    MVMuint16 nameds_count = 0;
+
+    MVMuint8 has_nameds = MVM_callsite_has_nameds(tc, cs);
+
+    cmp_write_map(ctx, 1 + has_nameds);
+
+    cmp_write_conststr(ctx, "callsite_flags");
+    cmp_write_array(ctx, flag_count);
+
+    for (flag_idx = 0; flag_idx < flag_count; flag_idx++) {
+        MVMCallsiteEntry entry = cse[flag_idx];
+        MVMuint8 entry_count =
+            !!(entry & MVM_CALLSITE_ARG_OBJ)
+            + !!(entry & MVM_CALLSITE_ARG_INT)
+            + !!(entry & MVM_CALLSITE_ARG_UINT)
+            + !!(entry & MVM_CALLSITE_ARG_NUM)
+            + !!(entry & MVM_CALLSITE_ARG_STR)
+            + !!(entry & MVM_CALLSITE_ARG_NAMED)
+            + !!(entry & MVM_CALLSITE_ARG_FLAT)
+            + !!(entry & MVM_CALLSITE_ARG_LITERAL);
+        cmp_write_array(ctx, entry_count ? entry_count : 0);
+        if (entry & MVM_CALLSITE_ARG_OBJ)
+            cmp_write_conststr(ctx, "obj");
+        if (entry & MVM_CALLSITE_ARG_INT)
+            cmp_write_conststr(ctx, "int");
+        if (entry & MVM_CALLSITE_ARG_UINT)
+            cmp_write_conststr(ctx, "uint");
+        if (entry & MVM_CALLSITE_ARG_NUM)
+            cmp_write_conststr(ctx, "num");
+        if (entry & MVM_CALLSITE_ARG_STR)
+            cmp_write_conststr(ctx, "str");
+        if (entry & MVM_CALLSITE_ARG_FLAT)
+            cmp_write_conststr(ctx, "flat");
+        if (entry & MVM_CALLSITE_ARG_NAMED) {
+            cmp_write_conststr(ctx, "named");
+            nameds_count++;
+        }
+        if (entry & MVM_CALLSITE_ARG_LITERAL) {
+            cmp_write_conststr(ctx, "literal");
+        }
+        if (!entry_count)
+            cmp_write_conststr(ctx, "nothing");
+    }
+
+    if (has_nameds) {
+        cmp_write_conststr(ctx, "arg_names");
+        cmp_write_array(ctx, nameds_count);
+        for (MVMuint16 named_idx = 0; named_idx < nameds_count; named_idx++) {
+            char *name = MVM_string_utf8_encode_C_string(tc, cs->arg_names[named_idx]);
+            cmp_write_str(ctx, name, strlen(name));
+            MVM_free(name);
+        }
+    }
+}
+
 static void write_object_features(MVMThreadContext *tc, cmp_ctx_t *ctx, MVMuint8 attributes, MVMuint8 positional, MVMuint8 associative) {
     cmp_write_conststr(ctx, "attr_features");
     cmp_write_bool(ctx, attributes);
@@ -2349,9 +2410,6 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         MVMFrame *frame = ((MVMContext *)target)->body.context;
         MVMArgProcContext *argctx = &frame->params;
         MVMCallsite *cs =  argctx->arg_info.callsite;
-        MVMCallsiteEntry *cse = cs->arg_flags;
-        MVMuint16 flag_idx;
-        MVMuint16 flag_count = cs->flag_count;
         char *name = MVM_string_utf8_encode_C_string(dtc, frame->static_info->body.name);
         char *cuuid = MVM_string_utf8_encode_C_string(dtc, frame->static_info->body.cuuid);
 
@@ -2379,43 +2437,8 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
         cmp_write_conststr(ctx, "frame_num_lexicals");
         cmp_write_int(ctx, frame->static_info->body.num_lexicals);
 
-        cmp_write_conststr(ctx, "callsite_flags");
-        cmp_write_array(ctx, flag_count);
-
-        for (flag_idx = 0; flag_idx < flag_count; flag_idx++) {
-            MVMCallsiteEntry entry = cse[flag_idx];
-            MVMuint8 entry_count =
-                !!(entry & MVM_CALLSITE_ARG_OBJ)
-                + !!(entry & MVM_CALLSITE_ARG_INT)
-                + !!(entry & MVM_CALLSITE_ARG_UINT)
-                + !!(entry & MVM_CALLSITE_ARG_NUM)
-                + !!(entry & MVM_CALLSITE_ARG_STR)
-                + !!(entry & MVM_CALLSITE_ARG_NAMED)
-                + !!(entry & MVM_CALLSITE_ARG_FLAT);
-            cmp_write_array(ctx, entry_count ? entry_count : 0);
-            if (entry & MVM_CALLSITE_ARG_OBJ)
-                cmp_write_conststr(ctx, "obj");
-            if (entry & MVM_CALLSITE_ARG_INT)
-                cmp_write_conststr(ctx, "int");
-            if (entry & MVM_CALLSITE_ARG_UINT)
-                cmp_write_conststr(ctx, "int");
-            if (entry & MVM_CALLSITE_ARG_NUM)
-                cmp_write_conststr(ctx, "num");
-            if (entry & MVM_CALLSITE_ARG_STR)
-                cmp_write_conststr(ctx, "str");
-            if (entry & MVM_CALLSITE_ARG_FLAT) {
-                if (entry & MVM_CALLSITE_ARG_NAMED)
-                    cmp_write_conststr(ctx, "flat&named");
-                else
-                    cmp_write_conststr(ctx, "flat");
-            }
-            else if (entry & MVM_CALLSITE_ARG_NAMED)
-                    cmp_write_conststr(ctx, "named");
-            if (!entry_count)
-                cmp_write_conststr(ctx, "nothing");
-        }
-
-
+        cmp_write_conststr(ctx, "callsite");
+        write_callsite_map(dtc, ctx, cs);
 
         MVM_free(name);
         MVM_free(cuuid);
@@ -2511,6 +2534,20 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
 
         write_object_features(dtc, ctx, 0, 0, 0);
     }
+    else if (repr_id == MVM_REPR_ID_MVMCapture) {
+        MVMCaptureBody *body = (MVMCaptureBody *)OBJECT_BODY(target);
+
+        slots += 1;
+        slots += 3; /* features */
+
+        cmp_write_map(ctx, slots);
+
+        MVMCallsite *cs = body->callsite;
+
+        write_callsite_map(dtc, ctx, cs);
+
+        write_object_features(dtc, ctx, 0, 1, 0);
+    }
     else {
         cmp_write_map(ctx, slots);
     }
@@ -2537,6 +2574,25 @@ static MVMint32 request_object_metadata(MVMThreadContext *dtc, cmp_ctx_t *ctx, r
     return 0;
 }
 
+static void write_object_positional_entry(MVMThreadContext *dtc, cmp_ctx_t *ctx, MVMObject *value) {
+    char *value_debug_name = value ? MVM_6model_get_debug_name(dtc, value) : "VMNull";
+    cmp_write_map(ctx, 4);
+
+    cmp_write_conststr(ctx, "handle");
+    cmp_write_integer(ctx, allocate_handle(dtc, value));
+
+    cmp_write_conststr(ctx, "type");
+    cmp_write_str(ctx, value_debug_name, strlen(value_debug_name));
+
+    cmp_write_conststr(ctx, "concrete");
+    cmp_write_bool(ctx, !MVM_is_null(dtc, value) && IS_CONCRETE(value));
+
+    cmp_write_conststr(ctx, "container");
+    if (MVM_is_null(dtc, value))
+        cmp_write_bool(ctx, 0);
+    else
+        cmp_write_bool(ctx, STABLE(value)->container_spec == NULL ? 0 : 1);
+}
 static MVMint32 request_object_positionals(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
     MVMObject *target = argument->handle_id
         ? find_handle_target(dtc, argument->handle_id)
@@ -2590,23 +2646,7 @@ static MVMint32 request_object_positionals(MVMThreadContext *dtc, cmp_ctx_t *ctx
             switch (kind) {
                 case MVM_reg_obj: {
                     MVMObject *value = target_reg.o;
-                    char *value_debug_name = value ? MVM_6model_get_debug_name(dtc, value) : "VMNull";
-                    cmp_write_map(ctx, 4);
-
-                    cmp_write_conststr(ctx, "handle");
-                    cmp_write_integer(ctx, allocate_handle(dtc, value));
-
-                    cmp_write_conststr(ctx, "type");
-                    cmp_write_str(ctx, value_debug_name, strlen(value_debug_name));
-
-                    cmp_write_conststr(ctx, "concrete");
-                    cmp_write_bool(ctx, !MVM_is_null(dtc, value) && IS_CONCRETE(value));
-
-                    cmp_write_conststr(ctx, "container");
-                    if (MVM_is_null(dtc, value))
-                        cmp_write_bool(ctx, 0);
-                    else
-                        cmp_write_bool(ctx, STABLE(value)->container_spec == NULL ? 0 : 1);
+                    write_object_positional_entry(dtc, ctx, value);
                     break;
                 }
                 case MVM_reg_int64: {
@@ -2628,6 +2668,54 @@ static MVMint32 request_object_positionals(MVMThreadContext *dtc, cmp_ctx_t *ctx
         }
 
         return 0;
+    }
+    else if (REPR(target)->ID == MVM_REPR_ID_MVMCapture) {
+        MVMCaptureBody *body = (MVMCaptureBody *)OBJECT_BODY(target);
+
+        MVMCallsite *cs = body->callsite;
+
+        MVMCallsiteEntry *cse = cs->arg_flags;
+        MVMuint16 flag_idx;
+        MVMuint16 flag_count = cs->flag_count;
+
+        cmp_write_map(ctx, 5);
+        cmp_write_conststr(ctx, "id");
+        cmp_write_integer(ctx, argument->id);
+        cmp_write_conststr(ctx, "type");
+        cmp_write_integer(ctx, MT_ObjectPositionalsResponse);
+
+        cmp_write_conststr(ctx, "kind");
+        cmp_write_conststr(ctx, "callsite");
+
+        cmp_write_conststr(ctx, "callsite");
+        write_callsite_map(dtc, ctx, cs);
+
+        cmp_write_conststr(ctx, "contents");
+        cmp_write_array(ctx, flag_count);
+
+        for (flag_idx = 0; flag_idx < flag_count; flag_idx++) {
+            MVMCallsiteEntry entry = cse[flag_idx];
+            if (entry & MVM_CALLSITE_ARG_OBJ) {
+                write_object_positional_entry(dtc, ctx, body->args[flag_idx].o);
+            }
+            else if (entry & MVM_CALLSITE_ARG_INT) {
+                cmp_write_integer(ctx, body->args[flag_idx].i64);
+            }
+            else if (entry & MVM_CALLSITE_ARG_UINT)
+                cmp_write_uinteger(ctx, body->args[flag_idx].u64);
+            else if (entry & MVM_CALLSITE_ARG_NUM)
+                cmp_write_double(ctx, body->args[flag_idx].n64);
+            else if (entry & MVM_CALLSITE_ARG_STR) {
+                char *c_value = MVM_string_utf8_encode_C_string(dtc, body->args[flag_idx].s);
+                cmp_write_str(ctx, c_value, strlen(c_value));
+                MVM_free(c_value);
+                break;
+            }
+            else {
+                cmp_write_nil(ctx);
+            }
+        }
+
     }
 
     return 1;
