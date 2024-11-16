@@ -1,5 +1,5 @@
 /* MinGW x64 BUGFIX: Pass a NULL argument instead of the frame pointer to the
- * setjmp implementation to make the JIT not choke on exceptions on MinGW. 
+ * setjmp implementation to make the JIT not choke on exceptions on MinGW.
  * cygx++ for fix */
 #ifdef __MINGW32__
 #  ifndef USE_NO_MINGW_SETJMP_TWO_ARGS
@@ -23,5 +23,7 @@
 #    elif defined _M_ARM64
 #      define MVM_setjmp(BUF) do { setjmp((BUF)); tc->interp_jump[0] = 0; } while (0)
 #    endif
+#  else
+#    define MVM_setjmp setjmp
 #  endif
 #endif
