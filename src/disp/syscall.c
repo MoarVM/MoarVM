@@ -1628,6 +1628,25 @@ static MVMDispSysCall telemetry_interval_annotate = {
     .expected_concrete = { 1, 1, 1 },
 };
 
+/* telemetry-interval-annotate */
+static void is_debugserver_running_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+    if (tc->instance->debugserver) {
+        MVM_args_set_result_int(tc, tc->instance->debugserver->messagepack_data ? 2 : 1, MVM_RETURN_CURRENT_FRAME);
+    }
+    else {
+        MVM_args_set_result_int(tc, 0, MVM_RETURN_CURRENT_FRAME);
+    }
+}
+static MVMDispSysCall is_debugserver_running = {
+    .c_name = "is-debugserver-running",
+    .implementation = is_debugserver_running_impl,
+    .min_args = 0,
+    .max_args = 0,
+    .expected_kinds = { },
+    .expected_reprs = { },
+    .expected_concrete = { },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -1729,6 +1748,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &telemetry_interval_start);
     add_to_hash(tc, &telemetry_interval_stop);
     add_to_hash(tc, &telemetry_interval_annotate);
+    add_to_hash(tc, &is_debugserver_running);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
