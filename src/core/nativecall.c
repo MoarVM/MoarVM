@@ -597,7 +597,9 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                     (char *)cpointer_body);
                 }
                 else
-                    MVM_exception_throw_adhoc(tc, "Internal error: unhandled target type");
+                    MVM_exception_throw_adhoc(tc, "Internal error: in nativecast, trying to cast a pointer to a %s (REPR %s) of spec %s (REPR %s) that is not able to box an int, num, or str.",
+                        MVM_6model_get_debug_name(tc, target_type), REPR(target_type)->name,
+                        MVM_6model_get_debug_name(tc, target_spec), REPR(target_spec)->name);
 
                 break;
             }
@@ -675,7 +677,9 @@ static MVMObject * nativecall_cast(MVMThreadContext *tc, MVMObject *target_spec,
                 break;
             }
             default:
-                MVM_exception_throw_adhoc(tc, "Internal error: unhandled target type");
+                MVM_exception_throw_adhoc(tc, "Internal error: in nativecast, trying to cast a pointer to a %s (REPR %s) of spec %s (REPR %s).",
+                        MVM_6model_get_debug_name(tc, target_type), REPR(target_type)->name,
+                        MVM_6model_get_debug_name(tc, target_spec), REPR(target_spec)->name);
         }
     }
 
