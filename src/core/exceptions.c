@@ -1,4 +1,9 @@
 #include "moar.h"
+#include <alloca.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #ifdef _MSC_VER
 #define snprintf _snprintf
@@ -894,6 +899,276 @@ MVM_NO_RETURN void MVM_oops(MVMThreadContext *tc, const char *messageFormat, ...
 
     MVM_dump_backtrace(tc);
     fputc('\n', stderr);
+    exit(1);
+}
+
+static void find_references_to(MVMThreadContext *tc, MVMHeapSnapshotCollection *col, MVMHeapSnapshot *ss, MVMuint64 target_coll_idx, MVMint16 recursion_limit, MVMint16 recursion_counter, FILE *dot_out) {
+    MVM_VECTOR_DECL(MVMuint64, matching_ref_idxs);
+    MVM_VECTOR_INIT(matching_ref_idxs, 64);
+    MVMuint64 lowest_ref_idx = 0;
+    MVMuint64 highest_ref_idx = 0;
+
+    char *prefix = alloca(recursion_counter * 4 + 1);
+    memset(prefix, ' ', recursion_counter * 4);
+    prefix[recursion_counter * 4] = '\0';
+    prefix[recursion_counter * 4 - 1] = '|';
+
+    if (dot_out) {
+        MVMuint64 coll_idx = target_coll_idx;
+
+        MVMuint64 collkind = ss->collectables[coll_idx].kind;
+        MVMuint8 type_is = 0;
+
+        fprintf(dot_out, "  \"coll_%lu\" [shape=record,label=\"{ ", coll_idx);
+
+        switch (collkind) {
+            case MVM_SNAPSHOT_COL_KIND_OBJECT:
+                fprintf(dot_out, "object");
+                type_is = 1;
+                break;
+            case MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT:
+                fprintf(dot_out, "type_object");
+                type_is = 2;
+                break;
+            case MVM_SNAPSHOT_COL_KIND_STABLE:
+                fprintf(dot_out, "s_table");
+                break;
+            case MVM_SNAPSHOT_COL_KIND_FRAME:
+                fprintf(dot_out, "frame");
+                type_is = 3;
+                break;
+            case MVM_SNAPSHOT_COL_KIND_PERM_ROOTS:
+                fprintf(dot_out, "permanent_roots");
+                break;
+            case MVM_SNAPSHOT_COL_KIND_INSTANCE_ROOTS:
+                fprintf(dot_out, "instance_roots");
+                break;
+            case MVM_SNAPSHOT_COL_KIND_CSTACK_ROOTS:
+                fprintf(dot_out, "c_stack_roots");
+                break;
+            case MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS:
+                fprintf(dot_out, "thread_roots");
+                break;
+            case MVM_SNAPSHOT_COL_KIND_ROOT:
+                fprintf(dot_out, "absolute_root");
+                break;
+            case MVM_SNAPSHOT_COL_KIND_INTERGEN_ROOTS:
+                fprintf(dot_out, "inter_generational_roots");
+                break;
+            case MVM_SNAPSHOT_COL_KIND_CALLSTACK_ROOTS:
+                fprintf(dot_out, "callstack_roots");
+                break;
+            default:
+                fprintf(dot_out, "unk");
+                break;
+        }
+
+        if (type_is == 1 || type_is == 2) {
+            MVMHeapSnapshotType *type = &col->types[ss->collectables[coll_idx].type_or_frame_index];
+            fprintf(dot_out, " | \\\"%s (REPR %s)\\\"", col->strings[type->type_name], col->strings[type->repr_name]);
+        }
+
+        if (type_is == 3) {
+            MVMHeapSnapshotStaticFrame *sf = &col->static_frames[ss->collectables[coll_idx].type_or_frame_index];
+            fprintf(dot_out, " | %u ", ss->collectables[coll_idx].type_or_frame_index);
+        }
+
+        fprintf(dot_out, "}\"];\n");
+    }
+
+    for (MVMuint64 ref_idx = 0; ref_idx < ss->num_references; ref_idx++) {
+        if (ss->references[ref_idx].collectable_index == target_coll_idx) {
+            MVM_VECTOR_PUSH(matching_ref_idxs, ref_idx);
+            if (lowest_ref_idx == 0) { lowest_ref_idx = ref_idx; }
+            highest_ref_idx = ref_idx;
+            // fprintf(stderr, "reference %ld to our object found\n", ref_idx);
+        }
+    }
+    // fprintf(stderr, "looked through %ld refs, bounds are %ld : %ld\n", ss->num_references, lowest_ref_idx, highest_ref_idx);
+    for (MVMuint64 coll_idx = 0; coll_idx < ss->num_collectables; coll_idx++) {
+        MVMuint8 has_seen = 0;
+        MVMuint8 is_interesting_for_recursion = 0;
+        MVMuint64 ref_st = ss->collectables[coll_idx].refs_start;
+        MVMuint64 ref_ed = ref_st + ss->collectables[coll_idx].num_refs;
+        /* Completely to the left */
+        if (ref_ed < lowest_ref_idx) {
+            continue;
+        }
+        /* Completely to the right */
+        if (ref_st > highest_ref_idx) {
+            continue;
+        }
+
+        for (MVMuint64 other_ref_idx = 0; other_ref_idx < MVM_VECTOR_ELEMS(matching_ref_idxs); other_ref_idx++) {
+            MVMuint64 matching_ref_idx = matching_ref_idxs[other_ref_idx];
+            if (matching_ref_idx >= ref_st && matching_ref_idx < ref_ed) {
+                MVMuint64 its_ref_idx = matching_ref_idxs[other_ref_idx] - ref_st;
+
+                if (!has_seen) {
+                    fprintf(stderr, "%s collectable %ld refers to our object (%ld):\n", prefix, coll_idx, target_coll_idx);
+                    MVMuint64 collkind = ss->collectables[coll_idx].kind;
+                    MVMuint8 type_is = 0;
+
+                    switch (collkind) {
+                        case MVM_SNAPSHOT_COL_KIND_OBJECT:
+                            fprintf(stderr, "%s  This collectable is a OBJECT\n", prefix);
+                            is_interesting_for_recursion = 1;
+                            type_is = 1;
+                            break;
+                        case MVM_SNAPSHOT_COL_KIND_TYPE_OBJECT:
+                            fprintf(stderr, "%s  This collectable is a TYPE_OBJECT\n", prefix);
+                            type_is = 2;
+                            break;
+                        case MVM_SNAPSHOT_COL_KIND_STABLE:
+                            fprintf(stderr, "%s  This collectable is a STABLE\n", prefix);
+                            break;
+                        case MVM_SNAPSHOT_COL_KIND_FRAME:
+                            fprintf(stderr, "%s  This collectable is a FRAME\n", prefix);
+                            is_interesting_for_recursion = 1;
+                            type_is = 3;
+                            break;
+                        case MVM_SNAPSHOT_COL_KIND_PERM_ROOTS:
+                            fprintf(stderr, "%s  This collectable is a PERM_ROOTS\n", prefix);
+                            break;
+                        case MVM_SNAPSHOT_COL_KIND_INSTANCE_ROOTS:
+                            fprintf(stderr, "%s  This collectable is a INSTANCE_ROOTS\n", prefix);
+                            break;
+                        case MVM_SNAPSHOT_COL_KIND_CSTACK_ROOTS:
+                            fprintf(stderr, "%s  This collectable is a CSTACK_ROOTS\n", prefix);
+                            is_interesting_for_recursion = 2;
+                            break;
+                        case MVM_SNAPSHOT_COL_KIND_THREAD_ROOTS:
+                            fprintf(stderr, "%s  This collectable is a THREAD_ROOTS\n", prefix);
+                            is_interesting_for_recursion = 2;
+                            break;
+                        case MVM_SNAPSHOT_COL_KIND_ROOT:
+                            fprintf(stderr, "%s  This collectable is a ROOT\n", prefix);
+                            break;
+                        case MVM_SNAPSHOT_COL_KIND_INTERGEN_ROOTS:
+                            fprintf(stderr, "%s  This collectable is a INTERGEN_ROOTS\n", prefix);
+                            is_interesting_for_recursion = 2;
+                            break;
+                        case MVM_SNAPSHOT_COL_KIND_CALLSTACK_ROOTS:
+                            fprintf(stderr, "%s  This collectable is a CALLSTACK_ROOTS\n", prefix);
+                            is_interesting_for_recursion = 2;
+                            break;
+                        default:
+                            fprintf(stderr, "%s  No idea what this collectable is (%ld).\n", prefix, collkind);
+                            break;
+                    }
+
+                    if (type_is == 1 || type_is == 2) {
+                        MVMHeapSnapshotType *type = &col->types[ss->collectables[coll_idx].type_or_frame_index];
+                        fprintf(stderr, "%s  Its type is %s (REPR %s)\n", prefix, col->strings[type->type_name], col->strings[type->repr_name]);
+                    }
+                    else if (type_is == 3) {
+                        MVMHeapSnapshotStaticFrame *sf = &col->static_frames[ss->collectables[coll_idx].type_or_frame_index];
+                        fprintf(stderr, "%s  The frame is '%s' (cuid %s) at %s:%u\n", prefix, col->strings[sf->name], col->strings[sf->cuid], col->strings[sf->file], sf->line);
+                    }
+                }
+
+                MVMuint64 desc = ss->references[matching_ref_idx].description;
+                MVMuint64 descval = desc >> MVM_SNAPSHOT_REF_KIND_BITS;
+                MVMuint16 desctype = desc & ((1 << MVM_SNAPSHOT_REF_KIND_BITS) - 1);
+                if (desctype == MVM_SNAPSHOT_REF_KIND_INDEX) {
+                    fprintf(stderr, "%s   with its %ldth reference: its %ldth positional.\n", prefix, its_ref_idx, descval);
+                    if (dot_out && coll_idx != 0)
+                        fprintf(dot_out, "  \"coll_%lu\" -> \"coll_%lu\" [label=\"%ld pos\"];\n", coll_idx, target_coll_idx, descval);
+                }
+                else if (desctype == MVM_SNAPSHOT_REF_KIND_STRING) {
+                    fprintf(stderr, "%s   with its %ldth reference: its %s.\n", prefix, its_ref_idx, col->strings[descval]);
+                    if (dot_out && coll_idx != 0)
+                        fprintf(dot_out, "  \"coll_%lu\" -> \"coll_%lu\" [label=\"%s\"];\n", coll_idx, target_coll_idx, col->strings[descval]);
+                }
+                else {
+                    fprintf(stderr, "%s   with its %ldth reference (no idea what kind of reference).\n", prefix, its_ref_idx);
+                    if (dot_out && coll_idx != 0)
+                        fprintf(dot_out, "  \"coll_%lu\" -> \"coll_%lu\";\n", coll_idx, target_coll_idx);
+                }
+
+                has_seen++;
+            }
+        }
+
+        if (has_seen) {
+            if ((recursion_counter < recursion_limit && is_interesting_for_recursion)
+                || (is_interesting_for_recursion == 2)) {
+                fprintf(stderr, "%s    ---- Looking for things pointing to this object ----\n", prefix);
+                find_references_to(tc, col, ss, coll_idx, recursion_limit, recursion_counter + 1, dot_out);
+                fprintf(stderr, "%s    ---- done ----\n\n", prefix);
+            }
+        }
+    }
+
+    MVM_VECTOR_DESTROY(matching_ref_idxs);
+}
+
+
+/* Like MVM_oops, but we try hard to get some additional information. */
+MVM_NO_RETURN void MVM_oops_with_blame(MVMThreadContext *tc, MVMObject *blame, const char *messageFormat, ...) {
+    va_list args;
+    fprintf(stderr, "MoarVM oops%s: ",
+            !tc ? " with NULL tc" :
+            (MVMObject *) tc->thread_obj == tc->instance->spesh_thread
+            ? " in spesh thread" :
+            (MVMObject *) tc->thread_obj == tc->instance->event_loop_thread
+            ? " in event loop thread" : "");
+    va_start(args, messageFormat);
+    vfprintf(stderr, messageFormat, args);
+    va_end(args);
+    fputc('\n', stderr);
+
+    /* Our caller is seriously buggy if tc is NULL */
+    if (!tc)
+        abort();
+
+    /* We want to look at other threads, too. Get them to stop doing what
+     * they're doing ASAP so we get a better idea of what was happening
+     * at the time of the crash. */
+    if (!tc->instance->debugserver) {
+        MVM_debugserver_partial_init(tc);
+    }
+    /* With argument 0, threads are not woken up after dumping backtrace. */
+    MVM_dump_all_backtraces(tc, 0);
+
+    fputc('\n', stderr);
+
+    if (blame) {
+        fprintf(stderr, "\nTrying to get some additional information about the involved object...\n");
+
+        fprintf(stderr, "Object %p is a %s (REPR %s) It was created by thread %d.\n",
+            blame, MVM_6model_get_debug_name(tc, blame), REPR(blame)->name, blame->header.owner
+        );
+
+        MVMPtrHashTable *seen;
+        MVMHeapSnapshotCollection *col = MVM_profile_heap_make_in_memory_snapshot(tc, &seen);
+        MVMHeapSnapshot *ss = col->snapshot;
+
+        struct MVMPtrHashEntry *entry = MVM_ptr_hash_fetch(tc, seen, blame);
+
+        if (!entry) {
+            fprintf(stderr, "Could not find a path to the given object.\n");
+        }
+        else if (entry->value) {
+            char *fname = strdup("moarvm_oops.XXXXXX.dot");
+            int dot_fd = mkstemps(fname, 4);
+            FILE *oops_dot = NULL;
+            if (dot_fd != -1) {
+                oops_dot = fdopen(dot_fd, "w");
+                fprintf(oops_dot, "digraph G {\n");
+            }
+
+            find_references_to(tc, col, ss, entry->value, 3, 0, oops_dot);
+
+            if (dot_fd != -1) {
+                fprintf(oops_dot, "}\n");
+                fclose(oops_dot);
+                close(dot_fd);
+                fprintf(stderr, "graphviz dot file stored at %s\n\n    dot -Tx11 %s\n\n", fname, fname);
+            }
+        }
+    }
+
     exit(1);
 }
 

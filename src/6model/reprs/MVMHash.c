@@ -95,7 +95,7 @@ void MVMHash_at_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *
         MVM_exception_throw_adhoc(tc,
             "MVMHash representation does not support native type storage");
 
-    MVMHashEntry *entry = MVM_str_hash_fetch(tc, hashtable, (MVMString *)key_obj);
+    MVMHashEntry *entry = MVM_str_hash_fetch_blame(tc, hashtable, (MVMString *)key_obj, root);
     result->o = entry != NULL ? entry->value : tc->instance->VMNull;
 }
 
@@ -111,11 +111,11 @@ void MVMHash_bind_key(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void
         MVM_exception_throw_adhoc(tc,
             "MVMHash representation does not support native type storage");
 
-    if (!MVM_str_hash_entry_size(tc, hashtable)) {
+    if (!MVM_str_hash_entry_size_blame(tc, hashtable, root)) {
         MVM_str_hash_build(tc, hashtable, sizeof(MVMHashEntry), 0);
     }
 
-    MVMHashEntry *entry = MVM_str_hash_lvalue_fetch_nocheck(tc, hashtable, key);
+    MVMHashEntry *entry = MVM_str_hash_lvalue_fetch_nocheck_blame(tc, hashtable, key, root);
     MVM_ASSIGN_REF(tc, &(root->header), entry->value, value.o);
     if (!entry->hash_handle.key) {
         entry->hash_handle.key = key;
