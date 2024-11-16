@@ -1642,9 +1642,9 @@ static MVMDispSysCall is_debugserver_running = {
     .implementation = is_debugserver_running_impl,
     .min_args = 0,
     .max_args = 0,
-    .expected_kinds = { },
-    .expected_reprs = { },
-    .expected_concrete = { },
+    .expected_kinds = { 0 },
+    .expected_reprs = { 0 },
+    .expected_concrete = { 0 },
 };
 
 /* Add all of the syscalls into the hash. */
