@@ -1,9 +1,4 @@
 #include "moar.h"
-#include <alloca.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
 
 #ifdef _MSC_VER
 #define snprintf _snprintf
@@ -908,7 +903,7 @@ static void find_references_to(MVMThreadContext *tc, MVMHeapSnapshotCollection *
     MVMuint64 lowest_ref_idx = 0;
     MVMuint64 highest_ref_idx = 0;
 
-    char *prefix = alloca(recursion_counter * 4 + 1);
+    char *prefix = MVM_malloc(recursion_counter * 4 + 1);
     memset(prefix, ' ', recursion_counter * 4);
     prefix[recursion_counter * 4] = '\0';
     prefix[recursion_counter * 4 - 1] = '|';
@@ -1100,6 +1095,7 @@ static void find_references_to(MVMThreadContext *tc, MVMHeapSnapshotCollection *
         }
     }
 
+    MVM_free(prefix);
     MVM_VECTOR_DESTROY(matching_ref_idxs);
 }
 
