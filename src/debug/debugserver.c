@@ -645,7 +645,12 @@ void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_le
             cmp_write_integer(ctx, MT_FileLoadedNotification);
             cmp_write_conststr(ctx, "thread");
             cmp_write_integer(ctx, tc->thread_id);
-            cmp_write_conststr(ctx, "filename");
+
+            cmp_write_conststr(ctx, "filenames");
+
+            cmp_write_array(ctx, 1);
+            cmp_write_map(ctx, 1);
+            cmp_write_conststr(ctx, "path");
             cmp_write_str(ctx, filename, filename_len);
 
             if (debugserver->backtrace_on_new_file) {
