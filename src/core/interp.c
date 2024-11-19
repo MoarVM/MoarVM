@@ -183,7 +183,7 @@ void MVM_interp_run(MVMThreadContext *tc, void (*initial_invoke)(MVMThreadContex
 
     /* Set jump point, for if we arrive back in the interpreter from an
      * exception thrown from C code. */
-    setjmp(tc->interp_jump);
+    MVM_setjmp(tc->interp_jump);
 
 #if !MVM_CGOTO
     /* Enter runloop. */
