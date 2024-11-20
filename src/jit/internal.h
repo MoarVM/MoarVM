@@ -1,6 +1,22 @@
 /* Internal header for the MoarVM JIT compiler. Probably best not to use it
  * outside the JIT */
 
+#ifdef MVM_USE_MIMALLOC
+#define DASM_M_GROW(ctx, t, p, sz, need) \
+  do { \
+    size_t _sz = (sz), _need = (need); \
+    if (_sz < _need) { \
+      if (_sz < 16) _sz = 16; \
+      while (_sz < _need) _sz += _sz; \
+      (p) = (t *)mi_realloc((p), _sz); \
+      if ((p) == NULL) exit(1); \
+      (sz) = _sz; \
+    } \
+  } while(0)
+
+#define DASM_M_FREE(ctx, p, sz)	mi_free(p)
+#endif
+
 /* Override dynasm state definitions, so that we can use our own compiler
  * with register allocation structures etc. */
 #define Dst_DECL MVMJitCompiler *compiler
