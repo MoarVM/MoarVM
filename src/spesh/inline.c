@@ -610,7 +610,7 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
             MVMSpeshDeoptUseEntry *due = inliner->facts[i][j].usage.deopt_users;
             while (due) {
                 if ((MVMuint32)due->deopt_idx == impl_deopt_idx) {
-                    MVMSpeshOperand o;
+                    MVMSpeshOperand o = {0};
                     o.reg.orig = i;
                     o.reg.i = j;
                     MVM_VECTOR_PUSH(regs_for_deopt, o);
@@ -803,7 +803,7 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     orig_deopt_pea_mat_infos = MVM_VECTOR_ELEMS(inliner->deopt_pea.materialize_info);
     for (i = 0; i < MVM_VECTOR_ELEMS(inlinee->deopt_pea.materialize_info); i++) {
         MVMSpeshPEAMaterializeInfo mi_orig = inlinee->deopt_pea.materialize_info[i];
-        MVMSpeshPEAMaterializeInfo mi_new;
+        MVMSpeshPEAMaterializeInfo mi_new = {0};
         mi_new.stable_sslot = mi_orig.stable_sslot + inliner->num_spesh_slots;
         mi_new.num_attr_regs = mi_orig.num_attr_regs;
         if (mi_new.num_attr_regs) {
@@ -818,7 +818,7 @@ static MVMSpeshBB * merge_graph(MVMThreadContext *tc, MVMSpeshGraph *inliner,
     }
     for (i = 0; i < MVM_VECTOR_ELEMS(inlinee->deopt_pea.deopt_point); i++) {
         MVMSpeshPEADeoptPoint dp_orig = inlinee->deopt_pea.deopt_point[i];
-        MVMSpeshPEADeoptPoint dp_new;
+        MVMSpeshPEADeoptPoint dp_new = {0};
         dp_new.deopt_point_idx = dp_orig.deopt_point_idx + inliner->num_deopt_addrs;
         dp_new.materialize_info_idx = dp_orig.materialize_info_idx + orig_deopt_pea_mat_infos;
         dp_new.target_reg = dp_orig.target_reg + inliner->num_locals;
