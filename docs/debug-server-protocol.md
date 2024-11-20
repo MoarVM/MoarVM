@@ -1083,6 +1083,14 @@ along for the thread that encounters the new file.
 Response to a Loaded Files Request, as well as notification when new files
 show up later on.
 
+Filename entries that were created not from a corresponding annotation being
+encountered but from requesting a breakpoint to be installed will have the
+"pending" key in addition to the "path" key.
+
+Creating a file by requesting a breakpoint does not cause a notification to
+be sent out, but the same file later being encountered will cause such a
+notification.
+
 Initial response:
 
     {
@@ -1093,6 +1101,7 @@ Initial response:
             { "path": "gen/moar/CORE.c.setting" },
             { "path": "NQP::src/how/Archetypes.nqp" },
             { "path": "SETTING::src/core.c/List.rakumod" },
+            { "path": "lib/ACME/Foobar.rakumod", "pending": True },
         ]
     }
 

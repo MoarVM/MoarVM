@@ -68,6 +68,13 @@ struct MVMDebugServerBreakpointFileTable {
     MVMDebugServerBreakpointInfo *breakpoints;
     MVMuint32 breakpoints_alloc;
     MVMuint32 breakpoints_used;
+
+    /* When a breakpoint is added for a file that is not loaded yet, we create
+     * an entry in the files table, but the filename is completely arbitrary
+     * and is not guaranteed to ever show up.
+     * Therefore, we put a flag here to store if we actually saw the file for
+     * real, or were only asked to include it. */
+    MVMuint8 really_loaded;
 };
 
 struct MVMDebugServerBreakpointTable {

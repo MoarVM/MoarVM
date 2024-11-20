@@ -215,7 +215,13 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
 
         found->filename_length = filename_len;
 
-        notify_new_file(tc, filename, filename_len);
+        /* We only call this from the debugserver if we're reacting to a set breakpoint
+         * request, in which case we must not tell the client that a new file has been
+         * loaded. */
+        if (tc->instance->debugserver->thread_id != tc->thread_id) {
+            notify_new_file(tc, filename, filename_len);
+            found->really_loaded = 1;
+        }
 
         found->lines_active_alloc = line_no + 32;
         found->lines_active = MVM_calloc(found->lines_active_alloc, sizeof(MVMuint8));
@@ -225,6 +231,17 @@ MVM_PUBLIC void MVM_debugserver_register_line(MVMThreadContext *tc, char *filena
         found->breakpoints = NULL;
         found->breakpoints_alloc = 0;
         found->breakpoints_used = 0;
+    }
+    else {
+        /* We might have had a not-really-loaded entry before, so update
+        * the flag if we're called from a code-running thread.
+        * That will also be the correct time to send a notification. */
+        if (tc->instance->debugserver->thread_id != tc->thread_id) {
+            if (!found->really_loaded) {
+                found->really_loaded = 1;
+                notify_new_file(tc, found->filename, found->filename_length);
+            }
+        }
     }
 
     if (found->lines_active_alloc < line_no + 1) {
@@ -1545,9 +1562,14 @@ static void send_loaded_files(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_dat
 
     for (MVMuint32 file_idx = 0; file_idx < debugserver->breakpoints->files_used; file_idx++) {
         MVMDebugServerBreakpointFileTable *filetable = &debugserver->breakpoints->files[file_idx];
-        cmp_write_map(ctx, 1);
+
+        cmp_write_map(ctx, filetable->really_loaded ? 1 : 2);
         cmp_write_conststr(ctx, "path");
         cmp_write_str(ctx, filetable->filename, filetable->filename_length);
+        if (!filetable->really_loaded) {
+            cmp_write_conststr(ctx, "pending");
+            cmp_write_bool(ctx, 1);
+        }
     }
 }
 
