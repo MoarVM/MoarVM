@@ -901,8 +901,9 @@ static MVMObject * concatenate_outputs(MVMThreadContext *tc, MVMSerializationWri
     /* Put repossessions table in place, and set location/rows in header. */
     write_int32(output, 56, offset);
     write_int32(output, 60, writer->root.num_repos);
-    memcpy(output + offset, writer->root.repos_table,
-        writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE);
+    if (writer->root.repos_table != NULL)
+        memcpy(output + offset, writer->root.repos_table,
+            writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE);
     offset += MVM_ALIGN_SECTION(writer->root.num_repos * REPOS_TABLE_ENTRY_SIZE);
 
     /* Put parameterized type intern data in place. */
