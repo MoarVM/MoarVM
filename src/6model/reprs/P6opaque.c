@@ -2445,12 +2445,17 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
                                 if (MVM_BIGINT_IS_BIG(body)) {
                                     mp_int *i = body->u.bigint;
                                     const int bits = mp_count_bits(i);
-                                    char *str = MVM_calloc(1, bits / 8 + 1);
-                                    mp_err err = mp_to_radix(i, str, bits / 8, NULL, 10);
+                                    /* With hexadecimal digits eight bits translates to 2 characters.
+                                     * Not exactly sure why 4 extra seems to be the right magic number,
+                                     * but anything shorter still overflowed. */
+                                    /* This puts a - in between 0x and the number, but this is just a
+                                     * debug helper, so does it really matter? */
+                                    char *str = MVM_calloc(1, bits / 4 + 4);
+                                    mp_err err = mp_to_radix(i, str, bits / 4 + 3, NULL, 16);
                                     if (err != MP_OKAY)
                                         fprintf(stderr, "Error getting the string representation of a big integer: %s", mp_error_to_string(err));
                                     else
-                                        fprintf(stderr, "=%s (%s)", str, i->sign == MP_NEG ? "-" : "+");
+                                        fprintf(stderr, "=0x%s", str);
                                     MVM_free(str);
                                 }
                                 else {
