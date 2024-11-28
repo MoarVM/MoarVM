@@ -60,7 +60,9 @@ import traceback # debugging
 str_t_info = {0: 'blob_32',
               1: 'blob_ascii',
               2: 'blob_8',
-              3: 'strands'}
+              3: 'strands',
+              4: 'in_situ_8',
+              5: 'in_situ_32'}
 
 # How big to make the histograms and such
 PRETTY_WIDTH=50
