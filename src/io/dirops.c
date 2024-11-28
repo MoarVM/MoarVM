@@ -1,9 +1,16 @@
 #include "moar.h"
-#ifndef _WIN32
-#include <dirent.h>
-#endif
 
+// Windows does not define the S_ISREG and S_ISDIR macros in stat.h, so we do.
+// We have to define _CRT_INTERNAL_NONSTDC_NAMES 1 before #including sys/stat.h
+// in order for Microsoft's stat.h to define names like S_IFMT, S_IFREG, and S_IFDIR,
+// rather than just defining _S_IFMT, _S_IFREG, and _S_IFDIR as it normally does.
+// See: https://stackoverflow.com/a/62371749/1772220
 #ifdef _WIN32
+#  define _CRT_INTERNAL_NONSTDC_NAMES 1
+#include <sys/stat.h>
+#  if !defined(S_ISDIR) && defined(S_IFMT) && defined(S_IFDIR)
+#    define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
+#  endif
 #  define IS_SLASH(c)     ((c) == L'\\' || (c) == L'/')
 #else
 #  define IS_SLASH(c)     ((c) == '/')
@@ -13,179 +20,100 @@
 #  define PATH_MAX 2048
 #endif
 
-#ifdef _WIN32
-static wchar_t * UTF8ToUnicode(char *str)
-{
-     const int         len = MultiByteToWideChar(CP_UTF8, 0, str, -1, NULL, 0);
-     wchar_t * const result = (wchar_t *)MVM_malloc(len * sizeof(wchar_t));
+#define ERR_STR_MAX 1024
 
-     MultiByteToWideChar(CP_UTF8, 0, str, -1, result, len);
-
-     return result;
-}
-
-static char * UnicodeToUTF8(const wchar_t *str)
-{
-     const int       len = WideCharToMultiByte(CP_UTF8, 0, str, -1, NULL, 0, NULL, NULL);
-     char * const result = (char *)MVM_malloc(len * sizeof(char));
-
-     WideCharToMultiByte(CP_UTF8, 0, str, -1, result, len, NULL, NULL);
-
-     return result;
-}
-
-static int mkdir_p(MVMThreadContext *tc, wchar_t *pathname, MVMint64 mode) {
-    wchar_t *p = pathname, ch;
-#else
 static int mkdir_p(MVMThreadContext *tc, char *pathname, MVMint64 mode) {
     char *p = pathname, ch;
     uv_fs_t req;
     int mkdir_error = 0;
-#endif
-    int created = 0;
 
     for (;; ++p)
         if (!*p || IS_SLASH(*p)) {
             ch = *p;
             *p  = '\0';
-#ifdef _WIN32
-            created = CreateDirectoryW(pathname, NULL);
-#else
-            created = (mkdir(pathname, mode) == 0
-                       || ( (mkdir_error = errno) == EEXIST
-                       && uv_fs_stat(NULL, &req, pathname, NULL) == 0
-                       && S_ISDIR(req.statbuf.st_mode)));
-#endif
+            mkdir_error = uv_fs_mkdir(NULL, &req, pathname, mode, NULL);
+            uv_fs_req_cleanup(&req);
             if (!(*p = ch)) break;
         }
 
-#ifndef _WIN32
-    errno = mkdir_error; /* error reporting should use errno of latest mkdir */
-#endif
-    if (!created) return -1;
 
-    return 0;
+    if (mkdir_error == 0 || (mkdir_error == UV_EEXIST
+                             && uv_fs_stat(NULL, &req, pathname, NULL) == 0
+                             && S_ISDIR(req.statbuf.st_mode))) {
+        uv_fs_req_cleanup(&req);
+        return 0;
+    }
+    else
+        return mkdir_error;
 }
 
 /* Create a directory recursively. */
 void MVM_dir_mkdir(MVMThreadContext *tc, MVMString *path, MVMint64 mode) {
-    char * const pathname = MVM_string_utf8_c8_encode_C_string(tc, path);
-
-#ifdef _WIN32
-    /* Must using UTF8ToUnicode for supporting CJK Windows file name. */
-    wchar_t *wpathname = UTF8ToUnicode(pathname);
-    int str_len = wcslen(wpathname);
+    char * const pathname = MVM_platform_path(tc, path);
+    int mkdir_error = mkdir_p(tc, pathname, mode);
     MVM_free(pathname);
 
-    if (str_len > MAX_PATH) {
-        wchar_t  abs_dirname[4096]; /* 4096 should be enough for absolute path */
-        wchar_t *lpp_part;
-
-        /* You cannot use the "\\?\" prefix with a relative path,
-         * relative paths are always limited to a total of MAX_PATH characters.
-         * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
-        if (!GetFullPathNameW(wpathname, 4096, abs_dirname, &lpp_part)) {
-            MVM_free(wpathname);
-            MVM_exception_throw_adhoc(tc, "Directory path is wrong: %lu", GetLastError());
-        }
-
-        MVM_free(wpathname);
-
-        str_len  = wcslen(abs_dirname);
-        wpathname = (wchar_t *)MVM_malloc((str_len + 4) * sizeof(wchar_t));
-        wcscpy(wpathname, L"\\\\?\\");
-        wcscat(wpathname, abs_dirname);
+    if (mkdir_error != 0) {
+        char *err = MVM_malloc(ERR_STR_MAX);
+        uv_strerror_r(mkdir_error, err, ERR_STR_MAX);
+        char *waste[] = { err, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to mkdir: %s", err);
     }
-
-    if (mkdir_p(tc, wpathname, mode) == -1) {
-        DWORD error = GetLastError();
-        if (error != ERROR_ALREADY_EXISTS) {
-            MVM_free(wpathname);
-            MVM_exception_throw_adhoc(tc, "Failed to mkdir: %lu", error);
-        }
-    }
-    MVM_free(wpathname);
-#else
-
-    if (mkdir_p(tc, pathname, mode) == -1) {
-        int mkdir_error = errno;
-        MVM_free(pathname);
-        MVM_exception_throw_adhoc(tc, "Failed to mkdir: %s", strerror(mkdir_error));
-    }
-
-    MVM_free(pathname);
-#endif
 }
 
 /* Remove a directory recursively. */
 void MVM_dir_rmdir(MVMThreadContext *tc, MVMString *path) {
-    char * const pathname = MVM_string_utf8_c8_encode_C_string(tc, path);
+    char * const pathname = MVM_platform_path(tc, path);
     uv_fs_t req;
-
-    if(uv_fs_rmdir(NULL, &req, pathname, NULL) < 0 ) {
-        MVM_free(pathname);
-        MVM_exception_throw_adhoc(tc, "Failed to rmdir: %s", uv_strerror(req.result));
-    }
-
+    int rmdir_error = uv_fs_rmdir(NULL, &req, pathname, NULL);
     MVM_free(pathname);
+    uv_fs_req_cleanup(&req);
+
+    if (rmdir_error != 0) {
+        char *err = MVM_malloc(ERR_STR_MAX);
+        uv_strerror_r(rmdir_error, err, ERR_STR_MAX);
+        char *waste[] = { err, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to rmdir: %s", err);
+    }
 }
 
 /* Get the current working directory. */
 MVMString * MVM_dir_cwd(MVMThreadContext *tc) {
-#ifdef _WIN32
-    char path[MAX_PATH];
-    size_t max_path = MAX_PATH;
-    int r;
-#else
     char path[PATH_MAX];
     size_t max_path = PATH_MAX;
-    int r;
-#endif
+    int cwd_error = uv_cwd(path, (size_t *)&max_path);
 
-    if ((r = uv_cwd(path, (size_t *)&max_path)) < 0) {
-        MVM_exception_throw_adhoc(tc, "Failed to determine cwd: %s", uv_strerror(r));
+    if (cwd_error < 0) {
+        char *err = MVM_malloc(ERR_STR_MAX);
+        uv_strerror_r(cwd_error, err, ERR_STR_MAX);
+        char *waste[] = { err, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to determine cwd: %s", err);
     }
 
     return MVM_string_utf8_c8_decode(tc, tc->instance->VMString, path, strlen(path));
 }
-int MVM_dir_chdir_C_string(MVMThreadContext *tc, const char *dirstring) {
-    return uv_chdir(dirstring);
-}
+
 /* Change directory. */
 void MVM_dir_chdir(MVMThreadContext *tc, MVMString *dir) {
-    const char *dirstring = MVM_string_utf8_c8_encode_C_string(tc, dir);
-    int chdir_error = MVM_dir_chdir_C_string(tc, dirstring);
+    const char *dirstring = MVM_platform_path(tc, dir);
+    int chdir_error = uv_chdir(dirstring);
     MVM_free((void*)dirstring);
-    if (chdir_error) {
-        MVM_exception_throw_adhoc(tc, "chdir failed: %s", uv_strerror(chdir_error));
+
+    if (chdir_error != 0) {
+        char *err = MVM_malloc(ERR_STR_MAX);
+        uv_strerror_r(chdir_error, err, ERR_STR_MAX);
+        char *waste[] = { err, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "chdir failed: %s", err);
     }
 }
 
-/* Structure to keep track of directory iteration state. */
-typedef struct {
-#ifdef _WIN32
-    wchar_t *dir_name;
-    HANDLE   dir_handle;
-#else
-    DIR     *dir_handle;
-#endif
-} MVMIODirIter;
-
 /* Frees data associated with the directory handle. */
 static void gc_free(MVMThreadContext *tc, MVMObject *h, void *d) {
-    MVMIODirIter *data = (MVMIODirIter *)d;
-    if (data) {
-#ifdef _WIN32
-        if (data->dir_name)
-            MVM_free(data->dir_name);
-
-        if (data->dir_handle)
-            FindClose(data->dir_handle);
-#else
-        if (data->dir_handle)
-            closedir(data->dir_handle);
-#endif
-        MVM_free(data);
+    uv_dir_t *dir = (uv_dir_t *)d;
+    if (dir) {
+        uv_fs_t req;
+        uv_fs_closedir(NULL, &req, dir, NULL);
+        uv_fs_req_cleanup(&req);
     }
 }
 
@@ -207,79 +135,6 @@ static const MVMIOOps op_table = {
     gc_free
 };
 
-/* Open a filehandle, returning a handle. */
-MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
-    MVMOSHandle  * result;
-    MVMIODirIter * const data   = MVM_calloc(1, sizeof(MVMIODirIter));
-    MVMROOT(tc, dirname) {
-        result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
-    }
-#ifdef _WIN32
-    {
-        char *name;
-        int str_len;
-        wchar_t *wname;
-        wchar_t *dir_name;
-
-        name  = MVM_string_utf8_c8_encode_C_string(tc, dirname);
-        wname = UTF8ToUnicode(name);
-        MVM_free(name);
-
-        str_len = wcslen(wname);
-
-        if (str_len > MAX_PATH - 2) { // the length of later appended '\*' is 2
-            wchar_t  abs_dirname[4096]; /* 4096 should be enough for absolute path */
-            wchar_t *lpp_part;
-
-            /* You cannot use the "\\?\" prefix with a relative path,
-             * relative paths are always limited to a total of MAX_PATH characters.
-             * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365247%28v=vs.85%29.aspx */
-            if (!GetFullPathNameW(wname, 4096, abs_dirname, &lpp_part)) {
-                MVM_free(data);
-                MVM_free(wname);
-                MVM_exception_throw_adhoc(tc, "Directory path is wrong: %lu", GetLastError());
-            }
-            MVM_free(wname);
-
-            str_len  = wcslen(abs_dirname);
-            dir_name = (wchar_t *)MVM_malloc((str_len + 7) * sizeof(wchar_t));
-            wcscpy(dir_name, L"\\\\?\\");
-            wcscat(dir_name, abs_dirname);
-        } else {
-            dir_name = (wchar_t *)MVM_malloc((str_len + 3) * sizeof(wchar_t));
-            wcscpy(dir_name, wname);
-            MVM_free(wname);
-        }
-
-        wcscat(dir_name, L"\\*");     /* Three characters are for the "\*" plus NULL appended.
-                                       * see http://msdn.microsoft.com/en-us/library/windows/desktop/aa365200%28v=vs.85%29.aspx */
-
-        data->dir_name   = dir_name;
-        data->dir_handle = INVALID_HANDLE_VALUE;
-    }
-
-#else
-    {
-        char * const dir_name = MVM_string_utf8_c8_encode_C_string(tc, dirname);
-        DIR * const dir_handle = opendir(dir_name);
-        int opendir_error = errno;
-        MVM_free(dir_name);
-
-        if (!dir_handle) {
-            MVM_free(data);
-            MVM_exception_throw_adhoc(tc, "Failed to open dir: %s", strerror(opendir_error));
-        }
-
-        data->dir_handle = dir_handle;
-    }
-#endif
-
-    result->body.ops  = &op_table;
-    result->body.data = data;
-
-    return (MVMObject *)result;
-}
-
 /* Casts to a handle, checking it's a directory handle along the way. */
 static MVMOSHandle * get_dirhandle(MVMThreadContext *tc, MVMObject *oshandle, const char *msg) {
     MVMOSHandle *handle = (MVMOSHandle *)oshandle;
@@ -290,80 +145,77 @@ static MVMOSHandle * get_dirhandle(MVMThreadContext *tc, MVMObject *oshandle, co
     return handle;
 }
 
+/* Open a filehandle, returning a handle. */
+MVMObject * MVM_dir_open(MVMThreadContext *tc, MVMString *dirname) {
+    char * const dir_name = MVM_platform_path(tc, dirname);
+    uv_fs_t req;
+
+    int opendir_error = uv_fs_opendir(NULL, &req, dir_name, NULL);
+    MVM_free(dir_name);
+
+    if (opendir_error != 0) {
+        uv_fs_req_cleanup(&req);
+        char *err = MVM_malloc(ERR_STR_MAX);
+        uv_strerror_r(opendir_error, err, ERR_STR_MAX);
+        char *waste[] = { err, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to open dir: %s", err);
+    }
+
+    MVMOSHandle  * result;
+    MVMROOT(tc, dirname) {
+        result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
+    }
+    result->body.ops  = &op_table;
+    result->body.data = req.ptr;
+
+    uv_fs_req_cleanup(&req);
+
+    return (MVMObject *)result;
+}
+
 /* Reads a directory entry from a directory. */
 MVMString * MVM_dir_read(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMOSHandle  *handle = get_dirhandle(tc, oshandle, "readdir");
-    MVMIODirIter *data   = (MVMIODirIter *)handle->body.data;
-#ifdef _WIN32
-    MVMString *result;
-    WIN32_FIND_DATAW ffd;
-    char *dir_str;
-
-    if (!data->dir_handle) {
-        MVM_exception_throw_adhoc(tc, "Cannot read a closed dir handle.");
-    }
-    else if (data->dir_handle == INVALID_HANDLE_VALUE) {
-        HANDLE hFind = FindFirstFileW(data->dir_name, &ffd);
-
-        if (hFind == INVALID_HANDLE_VALUE) {
-            MVM_exception_throw_adhoc(tc, "read from dirhandle failed: %lu", GetLastError());
-        }
-
-        data->dir_handle = hFind;
-        dir_str = UnicodeToUTF8(ffd.cFileName);
-        result = MVM_string_utf8_c8_decode(tc, tc->instance->VMString, dir_str, strlen(dir_str));
-        MVM_free(dir_str);
-        return result;
-    }
-    else if (FindNextFileW(data->dir_handle, &ffd) != 0)  {
-        dir_str = UnicodeToUTF8(ffd.cFileName);
-        result  = MVM_string_decode(tc, tc->instance->VMString, dir_str, strlen(dir_str),
-                                    MVM_encoding_type_utf8_c8);
-        MVM_free(dir_str);
-        return result;
-    } else {
+    MVMOSHandle *handle = get_dirhandle(tc, oshandle, "readdir");
+    uv_dir_t    *dir    = (uv_dir_t *)handle->body.data;
+    if (dir == NULL)
         return tc->instance->str_consts.empty;
-    }
-#else
 
-    struct dirent *entry;
-    errno = 0; /* must reset errno so we won't check old errno */
+    uv_dirent_t dirent[1];
+    dir->dirents = dirent;
+    dir->nentries = 1;
 
-    if (!data->dir_handle) {
-        MVM_exception_throw_adhoc(tc, "Cannot read a closed dir handle.");
-    }
+    uv_fs_t req;
+    int readdir_error = uv_fs_readdir(NULL, &req, dir, NULL);
 
-    entry = readdir(data->dir_handle);
-
-    if (errno == 0) {
-        MVMString *ret = (entry == NULL)
+    if (readdir_error == 0 || readdir_error == 1) {
+        MVMString *ret = (readdir_error == 0)
                        ? tc->instance->str_consts.empty
-                       : MVM_string_decode(tc, tc->instance->VMString, entry->d_name,
-                               strlen(entry->d_name), MVM_encoding_type_utf8_c8);
+                       : MVM_string_decode(tc, tc->instance->VMString, (char *)dirent[0].name,
+                               strlen(dirent[0].name), MVM_encoding_type_utf8_c8);
+        uv_fs_req_cleanup(&req);
         return ret;
     }
+    uv_fs_req_cleanup(&req);
 
-    MVM_exception_throw_adhoc(tc, "Failed to read dirhandle: %s", strerror(errno));
-#endif
+    char *err = MVM_malloc(ERR_STR_MAX);
+    uv_strerror_r(readdir_error, err, ERR_STR_MAX);
+    char *waste[] = { err, NULL };
+    MVM_exception_throw_adhoc_free(tc, waste, "Failed to read dirhandle: %s", err);
 }
 
 void MVM_dir_close(MVMThreadContext *tc, MVMObject *oshandle) {
-    MVMOSHandle  *handle = get_dirhandle(tc, oshandle, "readdir");
-    MVMIODirIter *data   = (MVMIODirIter *)handle->body.data;
+    MVMOSHandle *handle = get_dirhandle(tc, oshandle, "closedir");
+    uv_dir_t    *dir    = (uv_dir_t *)handle->body.data;
+    uv_fs_t      req;
+    int closedir_error  = uv_fs_closedir(NULL, &req, dir, NULL);
+    uv_fs_req_cleanup(&req);
 
-#ifdef _WIN32
-    if (data->dir_name) {
-        MVM_free_null(data->dir_name);
-    }
+    handle->body.data = NULL;
 
-    if (data->dir_handle != INVALID_HANDLE_VALUE) {
-        if (!FindClose(data->dir_handle))
-            MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %lu", GetLastError());
+    if (closedir_error != 0) {
+        char *err = MVM_malloc(ERR_STR_MAX);
+        uv_strerror_r(closedir_error, err, ERR_STR_MAX);
+        char *waste[] = { err, NULL };
+        MVM_exception_throw_adhoc_free(tc, waste, "Failed to close dirhandle: %s", err);
     }
-    data->dir_handle = NULL;
-#else
-    if (closedir(data->dir_handle) == -1)
-        MVM_exception_throw_adhoc(tc, "Failed to close dirhandle: %s", strerror(errno));
-    data->dir_handle = NULL;
-#endif
 }

@@ -434,3 +434,60 @@ int MVM_set_std_handle_to_nul(FILE *file, int fd, BOOL read, int std_handle_type
     return 1;
 }
 #endif
+
+char* MVM_platform_path(MVMThreadContext *tc, MVMString *path) {
+    // Convert the MVMString to a C string first.
+    char *original_path = MVM_string_utf8_c8_encode_C_string(tc, path);
+
+#ifdef _WIN32
+    // Add prefix if:
+    // * It is an absolute path
+    // * It doesn't already start with \\?\
+    // * It is at least MAX_PATH in length
+    if (is_absolute_path(original_path) == 1 && strlen(original_path) > MAX_PATH && strncmp(original_path, "\\\\?\\", 4) != 0) {
+
+        // Allocate memory for the new path. Add extra space for "\\?\" and the null terminator.
+        size_t new_length = strlen(original_path) + 4 + 1;
+
+        char *new_path = (char *)MVM_malloc(new_length);
+
+        // Copy "\\?\" prefix.
+        strcpy(new_path, "\\\\?\\");
+
+        // Copy the rest of the path, converting '/' to '\'.
+        char *new_path_ptr = new_path + 4;
+        char *original_path_ptr = original_path;
+        while (*original_path_ptr != '\0') {
+            *new_path_ptr++ = (*original_path_ptr == '/') ? '\\' : *original_path_ptr;
+            original_path_ptr++;
+        }
+
+        // Null terminate the new string.
+        *new_path_ptr = '\0';
+
+        // Free the original path string and use new path.
+        MVM_free(original_path);
+        original_path = new_path;
+    }
+#endif
+
+    return original_path;
+}
+
+int is_absolute_path(const char *path) {
+    if (path == NULL || strlen(path) == 0) {
+        return 0;
+    }
+
+    if (path[0] == '/' || path[0] == '\\') {
+        return 1;
+    }
+
+#ifdef _WIN32
+    if (strlen(path) >= 3 && path[1] == ':' && path[2] == '\\') {
+        return 1;
+    }
+#endif
+
+    return 0;
+}

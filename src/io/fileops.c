@@ -15,7 +15,7 @@
 #endif
 
 static MVMint64 file_info_with_error(MVMThreadContext *tc, uv_stat_t* stat, MVMString *filename, MVMint32 use_lstat) {
-    char * const a = MVM_string_utf8_c8_encode_C_string(tc, filename);
+    char * const a = MVM_platform_path(tc, filename);
     uv_fs_t req;
 
     MVMint64 res = use_lstat
@@ -32,7 +32,7 @@ MVMint64 MVM_file_info_with_error(MVMThreadContext *tc, uv_stat_t* stat, MVMStri
 }
 
 static uv_stat_t file_info(MVMThreadContext *tc, MVMString *filename, MVMint32 use_lstat) {
-    char * const a = MVM_string_utf8_c8_encode_C_string(tc, filename);
+    char * const a = MVM_platform_path(tc, filename);
     uv_fs_t req;
 
     if ((use_lstat
@@ -59,7 +59,7 @@ MVMint64 MVM_file_stat(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
         case MVM_STAT_EXISTS:             r = MVM_file_exists(tc, filename, use_lstat); break;
 
         case MVM_STAT_FILESIZE: {
-                char * const a = MVM_string_utf8_c8_encode_C_string(tc, filename);
+                char * const a = MVM_platform_path(tc, filename);
                 uv_fs_t req;
 
                 if ((use_lstat
@@ -142,8 +142,8 @@ MVMnum64 MVM_file_time(MVMThreadContext *tc, MVMString *filename, MVMint64 statu
 
 /* copy a file from one to another */
 void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString * dest) {
-    char * const a = MVM_string_utf8_c8_encode_C_string(tc, src);
-    char * const b = MVM_string_utf8_c8_encode_C_string(tc, dest);
+    char * const a = MVM_platform_path(tc, src);
+    char * const b = MVM_platform_path(tc, dest);
     uv_fs_t req;
 
     if(uv_fs_copyfile(NULL, &req, a, b, 0, NULL) < 0) {
@@ -158,8 +158,8 @@ void MVM_file_copy(MVMThreadContext *tc, MVMString *src, MVMString * dest) {
 
 /* rename one file to another. */
 void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
-    char * const a = MVM_string_utf8_c8_encode_C_string(tc, src);
-    char * const b = MVM_string_utf8_c8_encode_C_string(tc, dest);
+    char * const a = MVM_platform_path(tc, src);
+    char * const b = MVM_platform_path(tc, dest);
     uv_fs_t req;
 
     if(uv_fs_rename(NULL, &req, a, b, NULL) < 0 ) {
@@ -173,17 +173,8 @@ void MVM_file_rename(MVMThreadContext *tc, MVMString *src, MVMString *dest) {
 }
 
 void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
-    char * const a = MVM_string_utf8_c8_encode_C_string(tc, f);
+    char * const a = MVM_platform_path(tc, f);
 
-#ifdef _WIN32
-    const int r = MVM_platform_unlink(a);
-
-    if( r < 0 && errno != ENOENT) {
-        MVM_free(a);
-        MVM_exception_throw_adhoc(tc, "Failed to delete file: %d", errno);
-    }
-
-#else
     uv_fs_t req;
     const int r = uv_fs_unlink(NULL, &req, a, NULL);
 
@@ -192,12 +183,11 @@ void MVM_file_delete(MVMThreadContext *tc, MVMString *f) {
         MVM_exception_throw_adhoc(tc, "Failed to delete file: %s", uv_strerror(req.result));
     }
 
-#endif
     MVM_free(a);
 }
 
 void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag) {
-    char * const a = MVM_string_utf8_c8_encode_C_string(tc, f);
+    char * const a = MVM_platform_path(tc, f);
     uv_fs_t req;
 
     if(uv_fs_chmod(NULL, &req, a, flag, NULL) < 0 ) {
@@ -209,7 +199,7 @@ void MVM_file_chmod(MVMThreadContext *tc, MVMString *f, MVMint64 flag) {
 }
 
 void MVM_file_chown(MVMThreadContext *tc, MVMString *f, MVMuint64 uid, MVMuint64 gid) {
-    char * const a = MVM_string_utf8_c8_encode_C_string(tc, f);
+    char * const a = MVM_platform_path(tc, f);
     uv_fs_t req;
 
     if(uv_fs_chown(NULL, &req, a, uid, gid, NULL) < 0 ) {
@@ -222,7 +212,7 @@ void MVM_file_chown(MVMThreadContext *tc, MVMString *f, MVMuint64 uid, MVMuint64
 
 MVMint64 MVM_file_exists(MVMThreadContext *tc, MVMString *f, MVMint32 use_lstat) {
     uv_fs_t req;
-    char * const a = MVM_string_utf8_c8_encode_C_string(tc, f);
+    char * const a = MVM_platform_path(tc, f);
     const MVMint64 result = (use_lstat
       ? uv_fs_lstat(NULL, &req, a, NULL)
       :  uv_fs_stat(NULL, &req, a, NULL)
@@ -350,9 +340,8 @@ MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig) {
     if (lib_path) {
         /* We actually have a lib_path to consider. See if the filename is
          * absolute (XXX wants a platform abstraction, and doing better). */
-        char *orig_cstr = MVM_string_utf8_c8_encode_C_string(tc, orig);
-        int  absolute   = orig_cstr[0] == '/' || orig_cstr[0] == '\\' ||
-                          (orig_cstr[1] == ':' && orig_cstr[2] == '\\');
+        char *orig_cstr = MVM_platform_path(tc, orig);
+        int  absolute   = is_absolute_path(orig_cstr);
         if (absolute) {
             /* Nothing more to do; we have an absolute path. */
             MVM_free(orig_cstr);
@@ -406,8 +395,8 @@ MVMString * MVM_file_in_libpath(MVMThreadContext *tc, MVMString *orig) {
 
 void MVM_file_link(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath) {
     uv_fs_t req;
-    char * const oldpath_s = MVM_string_utf8_c8_encode_C_string(tc, oldpath);
-    char * const newpath_s = MVM_string_utf8_c8_encode_C_string(tc, newpath);
+    char * const oldpath_s = MVM_platform_path(tc, oldpath);
+    char * const newpath_s = MVM_platform_path(tc, newpath);
 
     if (uv_fs_link(NULL, &req, oldpath_s, newpath_s, NULL)) {
         MVM_free(oldpath_s);
@@ -421,8 +410,8 @@ void MVM_file_link(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath)
 
 void MVM_file_symlink(MVMThreadContext *tc, MVMString *oldpath, MVMString *newpath) {
     uv_fs_t req;
-    char * const oldpath_s = MVM_string_utf8_c8_encode_C_string(tc, oldpath);
-    char * const newpath_s = MVM_string_utf8_c8_encode_C_string(tc, newpath);
+    char * const oldpath_s = MVM_platform_path(tc, oldpath);
+    char * const newpath_s = MVM_platform_path(tc, newpath);
 
     if (uv_fs_symlink(NULL, &req, oldpath_s, newpath_s, 0, NULL)) {
         MVM_free(oldpath_s);
@@ -438,7 +427,7 @@ MVMString * MVM_file_readlink(MVMThreadContext *tc, MVMString *path) {
     uv_fs_t req;
     MVMString *result;
 
-    char * const path_s = MVM_string_utf8_c8_encode_C_string(tc, path);
+    char * const path_s = MVM_platform_path(tc, path);
     if (uv_fs_readlink(NULL, &req, path_s, NULL) < 0) {
         MVM_free(path_s);
         MVM_exception_throw_adhoc(tc, "Failed to readlink file: %s", uv_strerror(req.result));
