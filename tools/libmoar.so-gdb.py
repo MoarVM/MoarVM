@@ -1244,7 +1244,7 @@ def string_from_cu(cu, index):
         data = (strheap + 4).string("utf-8", "backslashreplace", entrysize)
         return data
     else:
-        return gdb.printing.make_visualizer(strp.dereference()).to_string()
+        return gdb.printing.make_visualizer(strp.dereference()).stringify()
 
 def resolve_annotation(sfb, offset):
     if not (sfb["num_annotations"] > 0 and offset > 0 and offset < sfb["bytecode_size"]):
