@@ -176,8 +176,10 @@ class MVMStringPPrinter(object):
             data = self.val['body']['storage'][stringtyp]
             pieces = []
             graphs = int(self.val['body']['num_graphs'])
-            # XXX are the strings actually null-terminated, or do we have to
-            # XXX check the graphs attribute?
+            truncated = 0
+            if graphs > 5000:
+                truncated = graphs - 5000
+                graphs = 5000
             for i in range(graphs):
                 pdata = int((data + i).dereference())
                 try:
@@ -185,6 +187,8 @@ class MVMStringPPrinter(object):
                     pieces.append(chr(pdata))
                 except Exception:
                     pieces.append("\\x%x" % pdata)
+            if truncated:
+                pieces.append("... (truncated " + str(truncated) + " graphemes)")
             return "".join(pieces)
         elif stringtyp == "strands":
             # XXX here be dragons and/or wrong code
