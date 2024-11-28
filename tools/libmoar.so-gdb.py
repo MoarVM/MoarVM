@@ -180,6 +180,61 @@ def prettify_size(num):
         result = rest + "." + result
     return result[:-1]
 
+def mvmstr_to_str(val, start=0, strlen=None):
+    stringtyp = str_t_info[int(val['body']['storage_type'])]
+    if stringtyp in ("blob_32", "blob_ascii", "blob_8", "in_situ_8", "in_situ_32"):
+        data = val['body']['storage'][stringtyp]
+        pieces = []
+        graphs = int(val['body']['num_graphs'])
+        truncated = 0
+
+        graphs = graphs - start
+        if strlen is not None and strlen > graphs:
+            graphs = strlen
+
+        if graphs > 5000 :
+            truncated = graphs - 5000
+            graphs = 5000
+
+        for i in range(graphs):
+            pdata = int(data[i])
+            if pdata < 0:
+                pieces.append("\\s{-%x}" % (-pdata))
+            else:
+                try:
+                    # ugh, unicode woes ...
+                    pieces.append(chr(pdata))
+                except Exception:
+                    pieces.append("\\x%x" % pdata)
+        if truncated:
+            pieces.append("... (truncated " + str(truncated) + " graphemes)")
+        return "".join(pieces)
+    elif stringtyp == "strands":
+        data = val['body']['storage'][stringtyp]
+        pieces = []
+        for p in range(val['body']['num_strands']):
+            strand = data[p]
+            graphs_one = int(strand['end']) - int(strand['start'])
+            graphs_all = graphs_one * int(strand['repetitions'])
+
+            if graphs_all < start:
+                start -= graphs_all
+                continue
+
+            str_one = mvmstr_to_str(strand['blob_string'])
+            str_full = str_one * int(strand['repetitions'])
+
+            pieces.append(str_full[start:])
+            start = 0
+            if strlen is not None:
+                if strlen < len(pieces[-1]):
+                    pieces[-1] = pieces[-1][:strlen]
+                    break
+                strlen -= len(pieces[-1])
+
+        return "".join(pieces)
+
+
 class MVMStringPPrinter(object):
     """Whenever gdb encounters an MVMString or an MVMString*, this class gets
     instantiated and its to_string method tries its best to print out the
@@ -189,55 +244,8 @@ class MVMStringPPrinter(object):
         self.pointer = pointer
 
     def stringify(self):
-        stringtyp = str_t_info[int(self.val['body']['storage_type']) & 0b11]
-        if stringtyp in ("blob_32", "blob_ascii", "blob_8"):
-            data = self.val['body']['storage'][stringtyp]
-            pieces = []
-            graphs = int(self.val['body']['num_graphs'])
-            truncated = 0
-            if graphs > 5000:
-                truncated = graphs - 5000
-                graphs = 5000
-            for i in range(graphs):
-                pdata = int((data + i).dereference())
-                try:
-                    # ugh, unicode woes ...
-                    pieces.append(chr(pdata))
-                except Exception:
-                    pieces.append("\\x%x" % pdata)
-            if truncated:
-                pieces.append("... (truncated " + str(truncated) + " graphemes)")
-            return "".join(pieces)
-        elif stringtyp == "strands":
-            # XXX here be dragons and/or wrong code
-            # XXX This is still true now
-
-            # i = 0
-            # pieces = []
-            # data = self.val['body']['storage']['strands']
-            # end_reached = False
-            # previous_index = 0
-            # previous_string = None
-            # while not end_reached:
-                # strand_data = (data + i).dereference()
-                # if strand_data['blob_string'] == 0:
-                    # end_reached = True
-                    # pieces.append(previous_string[1:-1])
-                # else:
-                    # the_string = strand_data['blob_string'].dereference()
-                    # if previous_string is not None:
-                        # pieces.append(
-                            # str(previous_string)[1:-1][
-                                # int(strand_data['start']) :
-                                # int(strand_data['end']) - previous_index]
-                            # )
-                    # previous_string = str(the_string)
-                    # previous_index = int(strand_data['end'])
-                # i = i + 1
-            # return "r(" + ")(".join(pieces) + ")"
-            return None
-        else:
-            return "string of type " + stringtyp
+        # stringtyp = str_t_info[int(self.val['body']['storage_type']) & 0b11]
+        return mvmstr_to_str(self.val)
 
     def to_string(self):
         result = self.stringify()
@@ -1236,7 +1244,7 @@ def string_from_cu(cu, index):
         data = (strheap + 4).string("utf-8", "backslashreplace", entrysize)
         return data
     else:
-        return gdb.printing.make_visualizer(strp.dereference()).to_string()
+        return gdb.printing.make_visualizer(strp.dereference()).stringify()
 
 def resolve_annotation(sfb, offset):
     if not (sfb["num_annotations"] > 0 and offset > 0 and offset < sfb["bytecode_size"]):
