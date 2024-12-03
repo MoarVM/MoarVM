@@ -2519,13 +2519,6 @@ MVMint64 MVM_string_compare(MVMThreadContext *tc, MVMString *a, MVMString *b) {
         while (i < scanlen && a_blob8[i] == b_blob8[i]) {
             i++;
         }
-        if (i < scanlen){
-            MVMGrapheme8 g_a = a_blob8[i];
-            MVMGrapheme8 g_b = b_blob8[i];
-            return g_a < g_b ? -1 :
-                   g_b < g_a ?  1 :
-                                0 ;
-        }
     }
     else if (!a_is_eight && !b_is_eight) {
         MVMGrapheme32  *a_blob32 = a_is_in_situ ? a->body.storage.in_situ_32 : a->body.storage.blob_32;
