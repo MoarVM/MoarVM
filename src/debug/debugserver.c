@@ -1131,7 +1131,7 @@ static MVMuint8 setup_step(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *
     }
 
     tc = to_do->body.tc;
-    tc->step_mode_frame = tc->cur_frame;
+    tc->step_mode_frame = MVM_frame_force_to_heap(tc, tc->cur_frame);
     tc->step_message_id = argument->id;
     tc->step_mode_line_no = tc->cur_line_no;
     tc->step_mode_file_idx = tc->cur_file_idx;
