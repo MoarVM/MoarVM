@@ -440,10 +440,11 @@ char* MVM_platform_path(MVMThreadContext *tc, MVMString *path) {
     char *original_path = MVM_string_utf8_c8_encode_C_string(tc, path);
 
 #ifdef _WIN32
-    // Add prefix if:
-    // * It is an absolute path
-    // * It doesn't already start with \\?\
-    // * It is at least MAX_PATH in length
+    /* Add prefix if:
+       * It is an absolute path
+       * It doesn't already start with \\?\
+       * It is at least MAX_PATH in length
+    */
     if (is_absolute_path(original_path) == 1 && strlen(original_path) > MAX_PATH && strncmp(original_path, "\\\\?\\", 4) != 0) {
 
         // Allocate memory for the new path. Add extra space for "\\?\" and the null terminator.
