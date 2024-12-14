@@ -1,3 +1,42 @@
+New in 2024.12
+
+Core:
++ Update libuv to version 1.49.2 [00ad43bb]
++ Add missing mode initializers to socket function pointer structs [740aa3b9]
++ all-thread-bt syscall: dump backtraces, optionally exit [33c9996a]
++ Initialize telemeh in MVM_vm_create_instance [b45eac44]
++ add telemetry output to queue, semaphore, and procops [3e74bea7]
++ Allow user code to send to telemetry log [a02ec774]
++ telemetry: output mapping CUs from files/bytes/buffer [c6e4ea8b]
++ telemetry: output something when oops or panic [e3a1790d]
++ telemetry: ensure at least one batch is serialized [eb383b95]
++ Explicitly cast to unsigned during a sign-extending shift [b9416a2f]
++ Only memcpy operands of extop if it is not NULL [6faec356]
++ Fix longjmp on Windows [2891ad5b][b9461e90][275348bc]
++ More UBSAN fixes [79edc97f][6242cbb5][c5cd090c]
++ Fix MVM_dump_p6opaque debug helper for bigints [c3629fb7]
++ Windows long path support revival [54a16387][dc99016a][f56e6b95][612aa25d]
+  [efd9632a][db9984b0][cf3a8945][fb6e5231][704065a9][7f7757e9]
++ Fix a compile warning on cl / Windows [e851fcff]
++ Difference fast path when comparing 8-bit strings [aff9c1c9]
++ add "is-debugserver-running" syscall [32a8500a]
++ debugserver: prevent GC oops when stepping past a gc run [f6d81f99]
+
+Documentation:
++ Update release guide to align with current practice. [fd9da869]
+
+GC:
++ vmeventsubscribe: don't crash in gc run [939e64dc]
+
+JIT:
+
+Spesh:
++ spesh: don't deeply recurse into inline attempts [a041dd10]
++ Only memcpy spesh_slots if it is not NULL [20e180d8]
++ Only qsort outcome_hits if it is not NULL [d03de65b]
+
+Strings:
+
 New in 2024.10
 
 Core:
