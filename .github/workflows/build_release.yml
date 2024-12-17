@@ -22,6 +22,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-tags: 'true'
+          persist-credentials: false
           ref: ${{ github.event.ref }}
 
       - name: Run "perl Configure.pl"
@@ -57,6 +58,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-tags: 'true'
+          persist-credentials: false
           ref: ${{ github.event.ref }}
         
       - name: Setup VS Dev Environment
