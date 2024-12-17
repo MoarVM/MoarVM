@@ -892,7 +892,7 @@ MVM_PUBLIC MVMuint64 MVM_dump_all_backtraces(MVMThreadContext *dtc, MVMuint64 is
             pthread_getname_np((pthread_t)cur_thread->body.native_thread_id, threadname, 16);
             #endif
 
-            fprintf(stderr, "Thread %u (0x%lx)%s%s%s: Backtrace\n",
+            fprintf(stderr, "Thread %u (0x%"PRIx64")%s%s%s: Backtrace\n",
                 cur_thread->body.thread_id,
                 cur_thread->body.native_thread_id,
                 threadname[0] ? " (" : "",
