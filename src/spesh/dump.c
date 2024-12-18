@@ -1047,7 +1047,10 @@ char * MVM_spesh_dump_register_layout(MVMThreadContext *tc, MVMFrame *f) {
             appendf(&ds, "%p ", f->work[loc_idx].s);
         }
         else if (type == MVM_reg_int64) {
-            appendf(&ds, "0x%lx ", f->work[loc_idx].i64);
+            appendf(&ds, "%s0x%"PRIx64" ", f->work[loc_idx].i64 < 0 ? "-" : "", f->work[loc_idx].u64);
+        }
+        else if (type == MVM_reg_uint64) {
+            appendf(&ds, "0x%"PRIx64" ", f->work[loc_idx].u64);
         }
 
         for (MVMuint16 inl_idx = 0; inl_idx < num_inlines; inl_idx++) {
