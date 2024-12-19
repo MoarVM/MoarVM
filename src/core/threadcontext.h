@@ -316,6 +316,17 @@ struct MVMThreadContext {
     int nested_interpreter;
 
     MVMArgs *mark_args;
+
+    /* Tiny cache to reduce the need to encode the same filename string
+     * repeatedly in the coverage log. */
+    char *last_coverage_encoded_filename;
+    /* This always comes directly out of a CU, so as long as we only use it for
+     * direct comparison with a definitely-real string and never to look into
+     * what it was, this is safe to not root for the GC. */
+    MVMString *last_coverage_filename_string;
+    /* Additionally, if the filename matches and the line number matches,
+     * no need to output a line at all. */
+    MVMuint32 last_coverage_line_number;
 };
 
 MVMThreadContext * MVM_tc_create(MVMThreadContext *parent, MVMInstance *instance);

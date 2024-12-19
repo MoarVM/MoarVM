@@ -308,15 +308,27 @@ void MVM_breakpoint_instrument(MVMThreadContext *tc, MVMStaticFrame *sf) {
 
 void MVM_line_coverage_report(MVMThreadContext *tc, MVMString *filename, MVMuint32 line_number, MVMuint16 cache_slot, char *cache) {
     if (tc->instance->coverage_control == 2 || (!tc->instance->coverage_control && cache[cache_slot] == 0)) {
-        char *encoded_filename;
+        char *encoded_filename = NULL;
         char composed_line[256];
+
+        if (filename == tc->last_coverage_filename_string) {
+            if (tc->last_coverage_line_number == line_number)
+                return;
+            encoded_filename = tc->last_coverage_encoded_filename;
+        }
+        else {
+            encoded_filename = MVM_string_utf8_encode_C_string(tc, filename);
+            MVM_free(tc->last_coverage_encoded_filename);
+            tc->last_coverage_encoded_filename = encoded_filename;
+            tc->last_coverage_filename_string = filename;
+        }
 
         cache[cache_slot] = 1;
 
-        encoded_filename = MVM_string_utf8_encode_C_string(tc, filename);
+        tc->last_coverage_line_number = line_number;
+
         if (snprintf(composed_line, 255, "HIT  %s  %d\n", encoded_filename, line_number) > 0) {
             fputs(composed_line, tc->instance->coverage_log_fh);
         }
-        MVM_free(encoded_filename);
     }
 }
