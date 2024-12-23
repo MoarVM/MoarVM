@@ -39,6 +39,83 @@ static const MVMStorageSpec storage_spec = {
     0,                          /* is_unsigned */
 };
 
+/* These two functions were taken from string_copying(7). */
+/* This code is in the public domain. */
+/* Slightly modified to change size_t to ssize_t. */
+
+ssize_t
+strtcpy(char *restrict dst, const char *restrict src, ssize_t dsize)
+{
+    bool    trunc;
+    ssize_t  dlen, slen;
+
+    if (dsize == 0) {
+        errno = ENOBUFS;
+        return -1;
+    }
+
+    slen = strnlen(src, dsize);
+    trunc = (slen == dsize);
+    dlen = slen - trunc;
+
+    stpcpy(mempcpy(dst, src, dlen), "");
+    if (trunc)
+        errno = E2BIG;
+    return trunc ? -1 : slen;
+}
+
+char *
+stpecpy(char *dst, char end[0], const char *restrict src)
+{
+    ssize_t  dlen;
+
+    if (dst == NULL)
+        return NULL;
+
+    dlen = strtcpy(dst, src, end - dst);
+    return (dlen == -1) ? NULL : dst + dlen;
+}
+
+/* We can't actually serialize an exception, but what we can do is give a
+ * better error message than just "this type can't be serialized". */
+static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerializationWriter *writer) {
+    MVMExceptionBody *body = (MVMExceptionBody *)data;
+
+    char *ex_message = NULL;
+    if (body->message)
+        ex_message = MVM_string_utf8_c8_encode_C_string(tc, body->message);
+
+    /* The limit for formatted strings in exception_throw_adhoc is 4096, so
+     * there's no need to have a bigger buffer for just a part of our message. */
+    char *full_backtrace_string = MVM_calloc(1, 3072);
+    char *end = full_backtrace_string + 3072;
+    char *bts_ptr = full_backtrace_string;
+
+    char *waste[] = {full_backtrace_string, ex_message, NULL};
+
+    MVMFrame *cur_frame;
+
+    cur_frame = body->origin;
+
+    MVMuint32 count = 0;
+    while (cur_frame != NULL && bts_ptr != NULL) {
+        char *line = MVM_exception_backtrace_line(tc, cur_frame, count++,
+            body->throw_address);
+
+        bts_ptr = stpecpy(bts_ptr, end, "\n  ");
+        bts_ptr = stpecpy(bts_ptr, end, line);
+
+        cur_frame = cur_frame->caller;
+        MVM_free(line);
+    }
+
+    MVM_exception_throw_adhoc_free(tc, waste,
+        "While trying to serialize precompiled objects, encountered an Exception object.\n"
+        "Exception objects cannot be serialized.\n"
+        "  Exception Message: %s\n"
+        "  Original Backtrace:"
+        "%s%s\n\n", ex_message ? ex_message : "(no message)", full_backtrace_string, bts_ptr == NULL ? " [...]" : "");
+}
 
 /* Gets the storage specification for this representation. */
 static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *st) {
@@ -67,7 +144,7 @@ static const MVMREPROps MVMException_this_repr = {
     MVM_REPR_DEFAULT_ELEMS,
     get_storage_spec,
     NULL, /* change_type */
-    NULL, /* serialize */
+    serialize, /* serialize */
     NULL, /* deserialize */
     NULL, /* serialize_repr_data */
     NULL, /* deserialize_repr_data */

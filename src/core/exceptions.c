@@ -922,6 +922,8 @@ MVM_NO_RETURN void MVM_exception_throw_adhoc_free(MVMThreadContext *tc, char **w
 /* Throws an ad-hoc (untyped) exception, taking a NULL-terminated array of
  * char pointers to deallocate after message construction. */
 MVM_NO_RETURN void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char **waste, const char *messageFormat, va_list args) {
+    const int max_message_length = 4096;
+
     LocatedHandler lh;
     MVMException *ex;
     const char *special = !tc ? " with NULL tc"
@@ -949,9 +951,9 @@ MVM_NO_RETURN void MVM_exception_throw_adhoc_free_va(MVMThreadContext *tc, char 
     /* Create and set up an exception object. */
     ex = (MVMException *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTException);
     MVMROOT(tc, ex) {
-        char      *c_message = MVM_malloc(1024);
-        int        bytes     = vsnprintf(c_message, 1024, messageFormat, args);
-        int        to_encode = bytes > 1024 ? 1024 : bytes;
+        char      *c_message = MVM_malloc(max_message_length);
+        int        bytes     = vsnprintf(c_message, max_message_length, messageFormat, args);
+        int        to_encode = bytes > max_message_length ? max_message_length : bytes;
         MVMString *message   = MVM_string_utf8_decode(tc, tc->instance->VMString, c_message, to_encode);
         MVM_free(c_message);
 
