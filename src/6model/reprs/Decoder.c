@@ -252,7 +252,7 @@ MVMString * MVM_decoder_take_chars(MVMThreadContext *tc, MVMDecoder *decoder, MV
     MVMString *result = NULL;
     enter_single_user(tc, decoder);
     MVMROOT(tc, decoder) {
-        result = MVM_string_decodestream_get_chars(tc, get_ds(tc, decoder), (MVMint32)chars, eof);
+        result = MVM_string_decodestream_get_chars(tc, get_ds(tc, decoder), chars, eof);
     }
     exit_single_user(tc, decoder);
     return result;

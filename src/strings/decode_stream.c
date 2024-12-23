@@ -27,7 +27,7 @@ MVMDecodeStream * MVM_string_decodestream_create(MVMThreadContext *tc, MVMint32 
 }
 
 /* Adds another byte buffer into the decoding stream. */
-void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds, MVMuint8 *bytes, MVMint32 length) {
+void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds, MVMuint8 *bytes, MVMint64 length) {
     if (length > 0) {
         MVMDecodeStreamBytes *new_bytes = MVM_calloc(1, sizeof(MVMDecodeStreamBytes));
         new_bytes->bytes  = bytes;
@@ -45,7 +45,7 @@ void MVM_string_decodestream_add_bytes(MVMThreadContext *tc, MVMDecodeStream *ds
 }
 
 /* Adds another char result buffer into the decoding stream. */
-void MVM_string_decodestream_add_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 *chars, MVMint32 length) {
+void MVM_string_decodestream_add_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMGrapheme32 *chars, MVMint64 length) {
     MVMDecodeStreamChars *new_chars;
     if (ds->chars_reuse) {
         new_chars = ds->chars_reuse;
@@ -74,7 +74,7 @@ static void free_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMDecodeStrea
 }
 
 /* Throws away byte buffers no longer needed. */
-void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMDecodeStreamBytes *bytes, MVMint32 pos) {
+void MVM_string_decodestream_discard_to(MVMThreadContext *tc, MVMDecodeStream *ds, const MVMDecodeStreamBytes *bytes, MVMint64 pos) {
     while (ds->bytes_head != bytes) {
         MVMDecodeStreamBytes *discard = ds->bytes_head;
         ds->abs_byte_pos += discard->length - ds->bytes_head_pos;
@@ -306,7 +306,7 @@ static MVMString * take_chars(MVMThreadContext *tc, MVMDecodeStream *ds, MVMint3
     return result;
 }
 MVMString * MVM_string_decodestream_get_chars(MVMThreadContext *tc, MVMDecodeStream *ds,
-                                              MVMint32 chars, MVMint64 eof) {
+                                              MVMint64 chars, MVMint64 eof) {
     MVMuint32 missing;
 
     /* If we request nothing, give empty string. */
@@ -497,7 +497,7 @@ static MVMString * get_all_in_buffer(MVMThreadContext *tc, MVMDecodeStream *ds) 
     /* Otherwise, need to assemble all the things. */
     else {
         /* Calculate length. */
-        MVMint32 length = 0, pos = 0;
+        MVMint64 length = 0, pos = 0;
         MVMDecodeStreamChars *cur_chars = ds->chars_head;
         while (cur_chars) {
             if (cur_chars == ds->chars_head)
@@ -516,7 +516,7 @@ static MVMString * get_all_in_buffer(MVMThreadContext *tc, MVMDecodeStream *ds) 
         while (cur_chars) {
             MVMDecodeStreamChars *next_chars = cur_chars->next;
             if (cur_chars == ds->chars_head) {
-                MVMint32 to_copy = ds->chars_head->length - ds->chars_head_pos;
+                MVMint64 to_copy = ds->chars_head->length - ds->chars_head_pos;
                 memcpy(result->body.storage.blob_32 + pos, cur_chars->chars + ds->chars_head_pos,
                     to_copy * sizeof(MVMGrapheme32));
                 pos += to_copy;
@@ -555,7 +555,7 @@ MVMString * MVM_string_decodestream_get_available(MVMThreadContext *tc, MVMDecod
 }
 
 /* Checks if we have the number of bytes requested. */
-MVMint64 MVM_string_decodestream_have_bytes(MVMThreadContext *tc, const MVMDecodeStream *ds, MVMint32 bytes) {
+MVMint64 MVM_string_decodestream_have_bytes(MVMThreadContext *tc, const MVMDecodeStream *ds, MVMint64 bytes) {
     MVMDecodeStreamBytes *cur_bytes = ds->bytes_head;
     MVMint32 found = 0;
     while (cur_bytes) {
@@ -585,7 +585,7 @@ MVMint64 MVM_string_decodestream_bytes_available(MVMThreadContext *tc, const MVM
 /* Copies up to the requested number of bytes into the supplied buffer, and
  * returns the number of bytes we actually copied. Takes from from the start
  * of the stream. */
-MVMint64 MVM_string_decodestream_bytes_to_buf(MVMThreadContext *tc, MVMDecodeStream *ds, MVMuint8 **buf, MVMint32 bytes) {
+MVMint64 MVM_string_decodestream_bytes_to_buf(MVMThreadContext *tc, MVMDecodeStream *ds, MVMuint8 **buf, MVMint64 bytes) {
     MVMint32 taken = 0;
     *buf = NULL;
     while (taken < bytes && ds->bytes_head) {
