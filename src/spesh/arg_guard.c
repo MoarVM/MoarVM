@@ -510,8 +510,13 @@ MVMint32 MVM_spesh_arg_guard_run(MVMThreadContext *tc, MVMSpeshArgGuard *ag,
                 break;
             case MVM_SPESH_GUARD_OP_RESULT:
                 return agn->result;
+            default:
+                MVM_oops(tc, "Unknown spesh arg guard opcode %d reached", agn->op);
         }
-    } while (current_node != 0);
+    } while (current_node != 0 && current_node < ag->num_nodes);
+    if (current_node >= ag->num_nodes) {
+        MVM_oops(tc, "Spesh arg guard program jumped out of bounds: index %u is above %u", current_node, ag->num_nodes);
+    }
     return -1;
 }
 
