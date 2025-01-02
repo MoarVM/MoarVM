@@ -180,7 +180,7 @@ def prettify_size(num):
         result = rest + "." + result
     return result[:-1]
 
-def mvmstr_to_str(val, start=0, strlen=None):
+def mvmstr_to_str(val, start=0, strlen=None, truncate=5000):
     stringtyp = str_t_info[int(val['body']['storage_type'])]
     if stringtyp in ("blob_32", "blob_ascii", "blob_8", "in_situ_8", "in_situ_32"):
         data = val['body']['storage'][stringtyp]
@@ -192,9 +192,9 @@ def mvmstr_to_str(val, start=0, strlen=None):
         if strlen is not None and strlen > graphs:
             graphs = strlen
 
-        if graphs > 5000 :
-            truncated = graphs - 5000
-            graphs = 5000
+        if graphs > truncate :
+            truncated = graphs - truncate
+            graphs = truncate
 
         for i in range(graphs):
             pdata = int(data[i])
@@ -212,17 +212,22 @@ def mvmstr_to_str(val, start=0, strlen=None):
     elif stringtyp == "strands":
         data = val['body']['storage'][stringtyp]
         pieces = []
+        #print(f"building strands with {start=} {strlen=}")
         for p in range(val['body']['num_strands']):
             strand = data[p]
+            #print("strand ", p, "start", strand['start'], "end", strand['end'])
             graphs_one = int(strand['end']) - int(strand['start'])
-            graphs_all = graphs_one * int(strand['repetitions'])
+            graphs_all = graphs_one
+            if int(strand['repetitions']) > 0:
+                graphs_all = graphs_one * (int(strand['repetitions']) + 1)
 
             if graphs_all < start:
                 start -= graphs_all
+                #print("skipping over this strand, start is now ")
                 continue
 
             str_one = mvmstr_to_str(strand['blob_string'])
-            str_full = str_one * int(strand['repetitions'])
+            str_full = str_one * (int(strand['repetitions']) + 1)
 
             pieces.append(str_full[start:])
             start = 0
@@ -232,8 +237,12 @@ def mvmstr_to_str(val, start=0, strlen=None):
                     break
                 strlen -= len(pieces[-1])
 
-        return "".join(pieces)
+        output = "".join(pieces)
 
+        if len(output) > truncate:
+            return output[:truncate] + "... (truncated " + str(len(output) - truncate) + " graphemes)"
+        else:
+            return output
 
 class MVMStringPPrinter(object):
     """Whenever gdb encounters an MVMString or an MVMString*, this class gets
@@ -1275,6 +1284,46 @@ def resolve_annotation(sfb, offset):
 
     return (fn, ln)
 
+def parse_callsite(cs):
+    num_flags = cs["flag_count"]
+    flags = cs["arg_flags"]
+
+    args = []
+    name_idx = 0
+
+    for i in range(num_flags):
+        flagvar = int(flags[i])
+        arg_type_masked = flagvar & 143
+        arg_named_flat_masked = flagvar & 159
+
+        namestr = None
+
+        if flagvar & 32: # MVM_CALLSITE_ARG_NAMED
+            namestr = mvmstr_to_str(cs["arg_names"][name_idx])
+            name_idx += 1
+
+        typname = ""
+
+        if arg_type_masked == 1: # MVM_CALLSITE_ARG_OBJ
+            typname = "obj"
+            accessor = lambda u: u["o"]
+        elif arg_type_masked == 2: # MVM_CALLSITE_ARG_INT
+            typname = "int"
+            accessor = lambda u: u["i64"]
+        elif arg_type_masked == 4: # MVM_CALLSITE_ARG_NUM
+            typname = "num"
+            accessor = lambda u: u["n64"]
+        elif arg_type_masked == 8: # MVM_CALLSITE_ARG_STR
+            typname = "str"
+            accessor = lambda u: u["s"].dereference()
+        elif arg_type_masked == 128: # MVM_CALLSITE_ARG_UINT
+            typname = "uint"
+            accessor = lambda u: u["u64"]
+
+        args.append(((namestr + "=" if namestr else "") + (typname or "???"), accessor, [namestr, typname, flagvar, arg_type_masked]))
+
+    return args
+
 class MoarBtCommands(gdb.Command):
     """Commands to look at a moar-level backtrace."""
     def __init__(self):
@@ -1284,6 +1333,11 @@ class MoarBtCommands(gdb.Command):
         tc = find_tc()
 
         stack_idx = 0
+
+        stooge_t = gdb.lookup_symbol("MVMObjectStooge")[0].type.strip_typedefs()
+        stoogep_t = stooge_t.pointer()
+        mvmstr_t = gdb.lookup_symbol("MVMString")[0].type
+        mvmstrp_t = mvmstr_t.pointer()
 
         cur_frame = tc["cur_frame"]
         while int(cur_frame) != 0:
@@ -1300,10 +1354,72 @@ class MoarBtCommands(gdb.Command):
 
             offs = int(cur_op) - int(bc)
             fn, ln = resolve_annotation(sfb, offs)
+
+            callsite = cur_frame["params"]["arg_info"]["callsite"]
+            csinfo = parse_callsite(callsite)
+
+            param_vals = [
+                cur_frame["params"]["arg_info"]["source"][
+                    cur_frame["params"]["arg_info"]["map"][i]
+                ] for i in range(len(csinfo))]
+
+            infoparts = []
+
+            for i in range(len(csinfo)):
+                # info = csinfo[i][0]
+                subpart = csinfo[i][1](param_vals[i])
+                typename = csinfo[i][2][1]
+                argname = csinfo[i][2][0]
+
+                string_of_subpart = None
+
+                #print("adding arg of", typename, argname, repr(subpart))
+                if typename == "obj":
+                    flags1 = int(subpart["header"]["flags1"])
+                    if flags1 & 2: # MVM_CF_STABLE
+                        is_obj = False
+                        pass
+                    elif flags1 & 1: # MVM_CF_TYPE_OBJECT
+                        is_obj = True
+                        is_concrete = False
+                    elif flags1 & 4: # MVM_CF_FRAME
+                        is_obj = False
+                    else:
+                        is_obj = True
+                        is_concrete = True
+
+                    if is_obj:
+                        reprname = subpart["st"]["REPR"]["name"].string()
+                        if reprname == "P6str" and is_concrete:
+                            #print("casting to p6str? before:")
+                            #print(repr(subpart), repr(subpart.type))
+                            subpart = subpart.cast(stoogep_t)["data"].cast(mvmstrp_t)
+                            #print(repr(subpart), repr(subpart.type))
+                            #print("trying to mvmstr_to_str this:", repr(mvmstr_to_str(subpart)))
+                            string_of_subpart = "((MVMString *)" + hex(int(subpart)) + ")=" + repr(mvmstr_to_str(subpart, truncate=128))
+                        elif int(subpart["st"]["debug_name"]) != 0:
+                            typename = reprname + "#" + subpart["st"]["debug_name"].string()
+                            if is_concrete:
+                                typename = typename + ".new"
+
+                if string_of_subpart is None:
+                    string_of_subpart = gdb.printing.make_visualizer(subpart).to_string()
+                if string_of_subpart is None:
+                    string_of_subpart = "<???>"
+
+                infoparts.append(
+                    (argname + "=" if argname else "")
+                    + typename
+                    + "("
+                    + string_of_subpart
+                    + ")")
+
+            csinfo_str = "args=(" + ", ".join(infoparts) + ")"
+
             if fn is not None and ln is not None:
-                print(cur_frame, name, fn, ":", ln)
+                print(cur_frame, name, csinfo_str, fn, ":", ln)
             else:
-                print(cur_frame, name, "<unknown>:1")
+                print(cur_frame, name, csinfo_str, "<unknown>:1")
 
             stack_idx += 1
             cur_frame = cur_frame["caller"]
