@@ -939,9 +939,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
     _gc_seq_num = None
 
-    _db = None
-    _object_movements = {}
-
     class _EXP:
         tid = lambda _: ["tid", gdb.selected_thread().ptid_string]
         gdb_eval = lambda _, sub, code, pytype: lambda: [sub, pytype(gdb.parse_and_eval(code))]
@@ -950,57 +947,9 @@ class MakeExecutionDatabaseCommand(gdb.Command):
     _prev_thread = None
     _prev_thread_str = None
 
-    def _register_event(self, event, exprs):
-        rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
-        rr_tick  = int(gdb.execute("when-ticks", False, True).replace("Current tick: ", "").replace("\n", ""))
-        rr_pos = str(rr_tick)
-        expr_data = dict(rre=rr_event, rrt=rr_tick, event=event)
-        for expr in exprs:
-            if isinstance(expr, list):
-                key, value = expr
-            elif isinstance(expr, typing.Callable):
-                key, value = expr()
-            expr_data[key] = value
-
-        before_del = expr_data.copy()
-
-        if expr_data["subject"]:
-            sk_data = self._db["subjects"][expr_data["subject_kind"]]
-            if expr_data["subject"] not in sk_data:
-                sk_data[expr_data["subject"]] = subjdata = dict(events=[])
-            else:
-                subjdata = sk_data[expr_data["subject"]]
-            subjdata["events"].append(before_del)
-
-        #for k in self._prev_tl_entry:
-        #    if k in expr_data and self._prev_tl_entry[k] == expr_data[k]:
-        #        del expr_data[k]
-
-        self._db["timeline"][rr_pos] = expr_data
-        self._prev_tl_entry = before_del
-
-        return before_del
-
-    def _register_event_array(self, table_name, exprs):
-        # rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
-        rr_tick  = int(gdb.execute("when-ticks", False, True).replace("Current tick: ", "").replace("\n", ""))
-
-        table = self._db['subjects'][table_name]
-
-        for expr in exprs:
-            if isinstance(expr, list):
-                key, value = expr
-            elif isinstance(expr, typing.Callable):
-                key, value = expr()
-            table[key].append(value)
-        table["rr_tick"].append(rr_tick)
-
-        return None
-
     def _register_event_sql(self, table_name, exprs):
         rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
         rr_tick  = int(gdb.execute("when-ticks", False, True).replace("Current tick: ", "").replace("\n", ""))
-        #print(rr_event, rr_tick)
 
         row = {}
         for expr in exprs:
@@ -1014,22 +963,12 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
         colnames = ', '.join([":" + n for n in row.keys()])
         query = f"INSERT INTO {table_name} VALUES ({colnames});"
-        #print(query)
-        #print(row)
         self._db_cur.execute(query, row)
         self._db_conn.commit()
 
         return row
 
     def _register_object_movement(self):
-        #t = gdb.selected_thread()
-        #if t is self._prev_thread:
-        #    tid = self._prev_thread_str
-        #else:
-        #    tid = t.ptid_string
-        #    self._prev_thread = t
-        #    self._prev_thread_str = tid
-
         to_addr   = int(gdb.parse_and_eval("(uintptr_t)new_addr"))
         from_addr = int(gdb.parse_and_eval("(uintptr_t)item"))
 
@@ -1037,8 +976,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         self._db_cur.execute(query, (from_addr, to_addr))
         self._db_conn.commit()
 
-        #self._object_movements[self._gc_seq_num].append(from_addr)
-        #self._object_movements[self._gc_seq_num].append(to_addr)
 
     def setup(self):
         import sqlite3
@@ -1058,34 +995,6 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 #    gdb.Breakpoint("MVM_frame_dispatch")
 
         print(time.strftime("%H:%M:%S"), " - starting")
-
-        #sfs_schema = pa.schema([
-        #    ('rr_tick', pa.uint64()),
-        #    ('addr', pa.uint64()),
-        #    ('compunit', pa.uint64()),
-        #    ('bytecode_addr', pa.uint64()),
-        #    ('event', pa.string()),
-        #    ])
-
-        #cus_schema = pa.schema([
-        #    ('rr_event', pa.uint64()),
-        #    ('addr', pa.uint64()),
-        #    ('mapped_addr', pa.uint64()),
-        #    ('event', pa.string()),
-        #    ])
-
-        #moves_schema = pa.schema([
-        #    ('gc_seq_nr', pa.uint32()),
-        #    ('pre_addr', pa.uint64()),
-        #    ('post_addr', pa.uint64()),
-        #    ])
-
-        #calls_schema = pa.schema([
-        #    ('rr_tick', pa.uint64()),
-        #    ('sf_addr', pa.uint64()),
-        #    ('bytecode_addr', pa.uint64()),
-        #    ('tc_addr', pa.uint64()),
-        #])
 
         self._db_file = tempfile.NamedTemporaryFile(prefix="moar-gdb-rrdb-", suffix=".sqlite3", delete=False)
         self._db_file.close()
@@ -1164,68 +1073,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
         self._db_conn.commit()
 
-        #vus_tbl = {
-        #    "tc": array.array('Q'),
-        #    "rr_tick": array.array('Q'),
-        #    "data_addr": array.array('Q'),
-        #}
-
-        #sfs_tbl = {
-        #    "rr_tick": array.array('Q'),
-        #    "bytecode": array.array('Q'),
-        #    "compunit": array.array('Q'),
-        #    "sf": array.array('Q'),
-        #    "cuuid": [],
-        #    "name": [],
-        #}
-
-        #spesh_bytecode_tbl = {
-        #    "rr_tick": array.array('Q'),
-        #    "sf": array.array('Q'),
-        #    "bytecode": array.array('Q'),
-        #    "size": array.array('L'),
-        #}
-
-        #calls_tbl = {
-        #    "rr_tick": array.array('Q'),
-        #    "bytecode_addr": array.array('Q'),
-        #    "frame": array.array('Q'),
-        #}
-
-        #gcs_tbl = {
-        #    "tc": array.array('Q'),
-        #    "rr_tick": array.array('Q'),
-        #    "gc_seq_number": array.array('L'),
-        #    "is_full": array.array('B'),
-        #}
-
-        #worklist_runs_tbl = {
-        #    "tc": array.array('Q'),
-        #    "rr_tick": array.array('Q'),
-        #    "nursery_alloc": array.array('Q'),
-        #    "nursery_alloc_limit": array.array('Q'),
-        #    "nursery_fromspace": array.array('Q'),
-        #    "nursery_tospace": array.array('Q'),
-        #}
-
-
         EXP = self._EXP()
-        self._db = dict(
-            timeline={},
-            subjects=dict(
-                gcs=None,
-                sfs=None,
-                spesh_bytecode=None,
-                calls=None,
-                cus=None,
-                worklist_runs=None,
-            ),
-            object_movements={},
-        )
-        self._prev_tl_entry = {}
-        #self._object_movements = self._db["object_movements"]
-
-        execution_db = self._db
 
         self._disabled_breakpoints = []
         self._created_breakpoints = []
@@ -1334,11 +1182,124 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         finally:
             self.teardown()
 
-        #with tempfile.NamedTemporaryFile(mode="wb", prefix="moar_gdb_", suffix="_rrdb.pkl", delete=False) as ntf:
-        #    import pickle
-        #    pickle.dump(self._db, ntf)
-        #    ntf.close()
-        #    print("rrdb pickle file can be found at ", ntf.name)
+def find_tc():
+    frame = gdb.selected_frame()
+    found_tcs = []
+
+    while frame is not None:
+        tc_value = frame.read_var("tc")
+        if tc_value.is_optimized_out:
+            pass
+        elif int(tc_value) < 0xffffff:
+            # sometimes tc is 0x0, sometimes it's a random very low value
+            # this happens when the code is optimized to not have the tc
+            # immediately available at the exact spot we're at.
+            pass
+        else:
+            found_tcs.append(tc_value)
+
+        frame = frame.older()
+
+    #for tc in found_tcs:
+    #    print(" found a TC with value", hex(tc))
+
+    return found_tcs[0]
+
+def frame_effective_bytecode(frame):
+    spesh_cand = frame["spesh_cand"]
+    if int(spesh_cand) != 0:
+        if int(spesh_cand["body"]["jitcode"]) != 0:
+            return spesh_cand["body"]["jitcode"]["bytecode"]
+        return spesh_cand["body"]["bytecode"]
+    return frame["static_info"]["body"]["bytecode"]
+
+def string_from_cu(cu, index):
+    strp = cu["body"]["strings"][index]
+
+    uint32_t = gdb.lookup_symbol("MVMuint32")[0].type.strip_typedefs()
+    uint32p_t = uint32_t.pointer()
+
+    if int(strp) == 0:
+        # not decoded yet, have to do it in here
+        strheap = cu["body"]["string_heap_start"]
+        found_idx = 0
+        while found_idx < index:
+            entrysize = int(int(strheap.cast(uint32p_t).dereference()) // 2)
+            if entrysize & 3:
+                entrysize += 4 - (entrysize & 3)
+            strheap = strheap + (int(entrysize) + 4)
+            found_idx += 1
+
+        size_and_flag = int(strheap.cast(uint32p_t).dereference())
+        entrysize = size_and_flag // 2
+
+        data = (strheap + 4).string("utf-8", "backslashreplace", entrysize)
+        return data
+    else:
+        return gdb.printing.make_visualizer(strp.dereference()).to_string()
+
+def resolve_annotation(sfb, offset):
+    if not (sfb["num_annotations"] > 0 and offset > 0 and offset < sfb["bytecode_size"]):
+        return (None, None)
+
+    uint32_t = gdb.lookup_symbol("MVMuint32")[0].type.strip_typedefs()
+    uint32p_t = uint32_t.pointer()
+
+    ann_offs = 0
+    cur_anno = sfb["annotations_data"]
+    p_cur_anno = None
+    for i in range(0, sfb["num_annotations"]):
+        ann_offs = int(cur_anno.cast(uint32p_t).dereference())
+
+        if ann_offs > offset:
+            break
+
+        p_cur_anno = cur_anno
+        cur_anno += 12
+
+    if p_cur_anno is not None:
+        cur_anno = p_cur_anno
+
+    fnshi = int((cur_anno + 4).cast(uint32p_t).dereference())
+    ln    = int((cur_anno + 8).cast(uint32p_t).dereference())
+
+    fn = string_from_cu(sfb["cu"], fnshi)
+
+    return (fn, ln)
+
+class MoarBtCommands(gdb.Command):
+    """Commands to look at a moar-level backtrace."""
+    def __init__(self):
+        super(MoarBtCommands, self).__init__("moar bt", gdb.COMMAND_STACK, prefix=True)
+
+    def invoke(self, arg, from_tty):
+        tc = find_tc()
+
+        stack_idx = 0
+
+        cur_frame = tc["cur_frame"]
+        while int(cur_frame) != 0:
+            sfb = cur_frame["static_info"]["body"]
+
+            name = sfb["name"].dereference()
+
+            bc = frame_effective_bytecode(cur_frame)
+
+            if stack_idx == 0:
+                cur_op = tc["interp_cur_op"].dereference()
+            else:
+                cur_op = cur_frame["return_address"]
+
+            offs = int(cur_op) - int(bc)
+            fn, ln = resolve_annotation(sfb, offs)
+            if fn is not None and ln is not None:
+                print(cur_frame, name, fn, ":", ln)
+            else:
+                print(cur_frame, name, "<unknown>:1")
+
+            stack_idx += 1
+            cur_frame = cur_frame["caller"]
+
 
 def str_lookup_function(val):
     if str(val.type) == "MVMString":
@@ -1369,10 +1330,12 @@ commands = []
 def register_commands(objfile):
     commands.append(MoarCommands())
 
-    commands.append(AnalyzeHeapCommand())
-    print("command moar heap registered")
-    commands.append(DiffHeapCommand())
-    print("command moar diff-heap registered")
+    # currently the analyze and diff heap commands don't work
+    #commands.append(AnalyzeHeapCommand())
+    #print("command moar heap registered")
+    #commands.append(DiffHeapCommand())
+    #print("command moar diff-heap registered")
+
     commands.append(MakeExecutionDatabaseCommand())
     print("command moar rrdb registered")
 
@@ -1380,6 +1343,9 @@ def register_commands(objfile):
     commands.append(MoarBreakInterpRunCommands())
     commands.append(MoarBreakExceptionAdhoc())
     print("moar break commands registered")
+
+    commands.append(MoarBtCommands())
+    print("moar bt commands registered")
 
 # We have to introduce our classes to gdb so that they can be used
 if __name__ == "__main__":
