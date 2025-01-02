@@ -2415,7 +2415,7 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
                                 else
                                     fprintf(stderr, "<already seen>");
                             }
-                            if (value != NULL && REPR(value)->ID == MVM_REPR_ID_MVMCode) {
+                            else if (value != NULL && REPR(value)->ID == MVM_REPR_ID_MVMCode) {
                                 MVMCode *code = (MVMCode*)value;
                                 MVMStaticFrame *sf = code->body.sf;
                                 fprintf(
@@ -2427,12 +2427,22 @@ static void dump_p6opaque(MVMThreadContext *tc, MVMObject *obj, int nested) {
                                     sf->body.cuuid  ? MVM_string_utf8_maybe_encode_C_string(tc, sf->body.cuuid)  : "<null>"
                                 );
                             }
+                            else if (value != NULL) {
+                                fprintf(stderr, "=%s (%s) %p", value->st->REPR->name, value->st->debug_name, value);
+                            }
                         }
                         else {
                             if (attr_st->REPR->ID == MVM_REPR_ID_P6str) {
                                 MVMString *str = (MVMString *)get_obj_at_offset(data, offset);
                                 char * const c_str = str ? MVM_string_utf8_encode_C_string(tc, str) : "<null>";
-                                fprintf(stderr, "='%s'", c_str);
+                                unsigned long orig_len = strlen(c_str);
+                                if (orig_len > 256) {
+                                    c_str[256] = 0;
+                                    fprintf(stderr, "='%s'(...%lu bytes)", c_str, orig_len);
+                                }
+                                else {
+                                    fprintf(stderr, "='%s'", c_str);
+                                }
                                 if (str)
                                     MVM_free(c_str);
                             }
