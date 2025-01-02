@@ -20,12 +20,13 @@
 #
 # - A semi-functional pretty-printer for MVMString and MVMString*
 # - A non-working pretty-printer for MVMObject in general
-# - A command "moar-heap" that walks the nursery and gen2 and displays
+# - A command "moar heap" that walks the nursery and gen2 and displays
 #   statistics about the REPRs found in them, as well as a display of
 #   the fragmentation of the gen2 pages.
-# - A command "diff-moar-heap" that diffs (so far only) the two last
+# - A command "moar diff-heap" that diffs (so far only) the two last
 #   snapshots of the nursery, or whatever snapshot number you supply
 #   as the argument.
+# - A group of commands "moar break" for commonly useful breakpoints.
 
 # Here's the TODO list:
 #
@@ -160,6 +161,13 @@ def generate_hilbert(amount):
     return hilbert_coords
 
 hilbert_coords = generate_hilbert(MVM_GEN2_PAGE_ITEMS)
+
+# Declaration of the "moar" command group.
+class MoarCommands(gdb.Command):
+    """Group of commands related to MoarVM."""
+    def __init__(self):
+        super(MoarCommands, self).__init__("moar", gdb.COMMAND_NONE, prefix=True)
+
 
 # Sizes are easier to read if they have .s in them.
 def prettify_size(num):
@@ -762,7 +770,7 @@ class AnalyzeHeapCommand(gdb.Command):
     """Analyze the nursery and gen2 of MoarVM's garbage collector corresponding
     to the current tc, or the tc you pass as the first argument"""
     def __init__(self):
-        super(AnalyzeHeapCommand, self).__init__("moar-heap", gdb.COMMAND_DATA)
+        super(AnalyzeHeapCommand, self).__init__("moar heap", gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
         tc = gdb.selected_frame().read_var(arg if arg else "tc")
@@ -804,7 +812,7 @@ class AnalyzeHeapCommand(gdb.Command):
 class DiffHeapCommand(gdb.Command):
     """Display the difference between two snapshots of the nursery."""
     def __init__(self):
-        super(DiffHeapCommand, self).__init__("diff-moar-heap", gdb.COMMAND_DATA)
+        super(DiffHeapCommand, self).__init__("moar diff-heap", gdb.COMMAND_DATA)
 
     def invoke(self, arg, from_tty):
         if arg != "":
@@ -817,6 +825,41 @@ class DiffHeapCommand(gdb.Command):
             pos2 = -2
         assert len(nursery_memory) > max(pos1, pos2)
         nursery_memory[pos2].diff(nursery_memory[pos1])
+
+class MoarBreakCommands(gdb.Command):
+    """Group of commands to set breakpoints at useful MoarVM functions."""
+    _break_spec = ""
+    def __init__(self):
+        super(MoarBreakCommands, self).__init__("moar break", gdb.COMMAND_BREAKPOINTS, prefix=True)
+
+    def invoke(self, arg, from_tty):
+        return gdb.Breakpoint(self._break_spec)
+
+class MoarBreakInterpRunCommands(MoarBreakCommands):
+    """Set a breakpoint at MVM_interp_run."""
+    def __init__(self):
+        super(MoarBreakCommands, self).__init__("moar break interp-run", gdb.COMMAND_BREAKPOINTS)
+        self._break_spec = "MVM_interp_run"
+
+class MoarBreakExceptionAdhoc(MoarBreakCommands):
+    """Set a breakpoint at MVM_exception_throw_adhoc."""
+    def __init__(self):
+        super(MoarBreakCommands, self).__init__("moar break exception-adhoc", gdb.COMMAND_BREAKPOINTS)
+        self._break_spec = "MVM_exception_throw_adhoc"
+
+#
+# moar rrdb implementation
+# ========================
+#
+# when running moar under `rr replay` we can make a little database of
+# interestang events, as well as information about objects by their address
+# which could then be used by different commands.
+#
+# The database is currently created as an sqlite3 database which is filled
+# with data from breakpoints automatically set up at "strategic places".
+#
+# As of right now, the data is not utilised by any commands here.
+#
 
 class AutoResumingBreakpoint(gdb.Breakpoint):
     def stop(self):
@@ -840,7 +883,6 @@ class PointInTimeRecordingBreakpoint(AutoResumingBreakpoint):
         self._extras = _the_extra
         return self
 
-
 class ArrayEntryRecordingBreakpoint(AutoResumingBreakpoint):
     def __init__(self, medbc, table_name, exprs, *args):
         super(ArrayEntryRecordingBreakpoint, self).__init__(*args)
@@ -858,6 +900,22 @@ class ArrayEntryRecordingBreakpoint(AutoResumingBreakpoint):
         self._extras = _the_extra
         return self
 
+class SQLRecordingBreakpoint(AutoResumingBreakpoint):
+    def __init__(self, medbc, table_name, exprs, *args):
+        super(SQLRecordingBreakpoint, self).__init__(*args)
+        self._medbc = medbc # MakeExecutionDatabaseCommand
+        self._table_name = table_name
+        self._exprs = exprs
+        self._extras = None
+
+    def _hit_breakpoint_action(self):
+        created_event = self._medbc._register_event_sql(self._table_name, self._exprs)
+        if self._extras is not None:
+            self._extras(created_event)
+
+    def _extra(self, _the_extra):
+        self._extras = _the_extra
+        return self
 
 class ObjectMovementRecordingBreakpoint(AutoResumingBreakpoint):
     def __init__(self, medbc, *args):
@@ -874,7 +932,7 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
     Only makes sense to run inside a "rr replay" session."""
     def __init__(self):
-        super(MakeExecutionDatabaseCommand, self).__init__("moar-rrdb", gdb.COMMAND_DATA)
+        super(MakeExecutionDatabaseCommand, self).__init__("moar rrdb", gdb.COMMAND_DATA)
 
     _disabled_breakpoints = None
     _created_breakpoints = None
@@ -939,35 +997,65 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
         return None
 
+    def _register_event_sql(self, table_name, exprs):
+        rr_event = int(gdb.execute("when", False, True).replace("Completed event: ", "").replace("\n", ""))
+        rr_tick  = int(gdb.execute("when-ticks", False, True).replace("Current tick: ", "").replace("\n", ""))
+        #print(rr_event, rr_tick)
+
+        row = {}
+        for expr in exprs:
+            if isinstance(expr, list):
+                key, value = expr
+            elif isinstance(expr, typing.Callable):
+                key, value = expr()
+            row[key] = value
+        row["rr_tick"] = rr_tick
+        row["rr_event"] = rr_event
+
+        colnames = ', '.join([":" + n for n in row.keys()])
+        query = f"INSERT INTO {table_name} VALUES ({colnames});"
+        #print(query)
+        #print(row)
+        self._db_cur.execute(query, row)
+        self._db_conn.commit()
+
+        return row
+
     def _register_object_movement(self):
-        t = gdb.selected_thread()
-        if t is self._prev_thread:
-            tid = self._prev_thread_str
-        else:
-            tid = t.ptid_string
-            self._prev_thread = t
-            self._prev_thread_str = tid
+        #t = gdb.selected_thread()
+        #if t is self._prev_thread:
+        #    tid = self._prev_thread_str
+        #else:
+        #    tid = t.ptid_string
+        #    self._prev_thread = t
+        #    self._prev_thread_str = tid
 
         to_addr   = int(gdb.parse_and_eval("(uintptr_t)new_addr"))
         from_addr = int(gdb.parse_and_eval("(uintptr_t)item"))
 
-        self._object_movements[self._gc_seq_num].append(from_addr)
-        self._object_movements[self._gc_seq_num].append(to_addr)
+        query = "INSERT INTO object_movements VALUES (?, ?);"
+        self._db_cur.execute(query, (from_addr, to_addr))
+        self._db_conn.commit()
+
+        #self._object_movements[self._gc_seq_num].append(from_addr)
+        #self._object_movements[self._gc_seq_num].append(to_addr)
 
     def setup(self):
+        import sqlite3
+
         def store_seq_num(ev):
             prev = self._gc_seq_num
             self._gc_seq_num = int(gdb.parse_and_eval("tc->instance->gc_seq_number"))
 
-            if self._gc_seq_num not in self._object_movements:
-                self._object_movements[self._gc_seq_num] = array.array("Q")
+            #if self._gc_seq_num not in self._object_movements:
+            #    self._object_movements[self._gc_seq_num] = array.array("Q")
 
             if prev is not None and prev // 20 != self._gc_seq_num // 20:
                 print(time.strftime("%H:%M:%S"), " - reached gc run ", self._gc_seq_num)
-                for s in self._db["subjects"]:
-                    print("            - ", s, " has ", len(list(self._db["subjects"][s].items())[0][1]), " entries")
-                if self._gc_seq_num == 60:
-                    gdb.Breakpoint("MVM_frame_dispatch")
+                #for s in self._db["subjects"]:
+                #    print("            - ", s, " has ", len(list(self._db["subjects"][s].items())[0][1]), " entries")
+                #if self._gc_seq_num == 60:
+                #    gdb.Breakpoint("MVM_frame_dispatch")
 
         print(time.strftime("%H:%M:%S"), " - starting")
 
@@ -999,67 +1087,143 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         #    ('tc_addr', pa.uint64()),
         #])
 
-        cus_tbl = {
-            "tc": array.array('Q'),
-            "rr_tick": array.array('Q'),
-            "data_addr": array.array('Q'),
-        }
+        self._db_file = tempfile.NamedTemporaryFile(prefix="moar-gdb-rrdb-", suffix=".sqlite3", delete=False)
+        self._db_file.close()
+        self._db_conn = sqlite3.connect(self._db_file.name, autocommit=False)
+        self._db_cur = self._db_conn.cursor()
 
-        sfs_tbl = {
-            "rr_tick": array.array('Q'),
-            "bytecode": array.array('Q'),
-            "compunit": array.array('Q'),
-            "sf": array.array('Q'),
-            "cuuid": [],
-            "name": [],
-        }
+        print("sqlite3 file can be found at ", self._db_file.name)
 
-        spesh_bytecode_tbl = {
-            "rr_tick": array.array('Q'),
-            "sf": array.array('Q'),
-            "bytecode": array.array('Q'),
-            "size": array.array('L'),
-        }
+        self._db_cur.execute("""
+            create table compunits (
+                tc integer,
+                rr_tick integer,
+                rr_event integer,
+                data_addr integer
+            );
+        """)
 
-        calls_tbl = {
-            "rr_tick": array.array('Q'),
-            "bytecode_addr": array.array('Q'),
-            "frame": array.array('Q'),
-        }
+        self._db_cur.execute("""
+            create table staticframes (
+                rr_tick integer,
+                rr_event integer,
+                bytecode integer,
+                compunit_data_addr integer,
+                sf_addr integer,
+                cuuid varchar,
+                name varchar
+            );
+        """)
 
-        gcs_tbl = {
-            "tc": array.array('Q'),
-            "rr_tick": array.array('Q'),
-            "gc_seq_number": array.array('L'),
-            "is_full": array.array('B'),
-        }
+        self._db_cur.execute("""
+            create table spesh_bytecode (
+                rr_tick integer,
+                rr_event integer,
+                sf_addr integer,
+                bytecode_addr integer,
+                size integer
+            );
+        """)
 
-        worklist_runs_tbl = {
-            "tc": array.array('Q'),
-            "rr_tick": array.array('Q'),
-            "nursery_alloc": array.array('Q'),
-            "nursery_alloc_limit": array.array('Q'),
-            "nursery_fromspace": array.array('Q'),
-            "nursery_tospace": array.array('Q'),
-        }
+        self._db_cur.execute("""
+            create table gcs (
+                tc integer,
+                rr_tick integer,
+                rr_event integer,
+                gc_seq_number integer,
+                is_full integer
+            );
+        """)
 
-        print(gcs_tbl)
+        self._db_cur.execute("""
+            create table worklist_runs (
+                tc integer,
+                rr_tick integer,
+                rr_event integer,
+                nursery_alloc integer,
+                nursery_alloc_limit integer,
+                nursery_tospace integer,
+                nursery_fromspace integer
+            );
+        """)
+
+        self._db_cur.execute("""
+            create table object_movements (
+                to_addr integer,
+                from_addr integer
+            );
+        """)
+
+        self._db_cur.execute("""
+            create table sc_code (
+                sf_addr integer,
+                sc_addr integer,
+                idx integer
+            );
+        """)
+
+        self._db_conn.commit()
+
+        #vus_tbl = {
+        #    "tc": array.array('Q'),
+        #    "rr_tick": array.array('Q'),
+        #    "data_addr": array.array('Q'),
+        #}
+
+        #sfs_tbl = {
+        #    "rr_tick": array.array('Q'),
+        #    "bytecode": array.array('Q'),
+        #    "compunit": array.array('Q'),
+        #    "sf": array.array('Q'),
+        #    "cuuid": [],
+        #    "name": [],
+        #}
+
+        #spesh_bytecode_tbl = {
+        #    "rr_tick": array.array('Q'),
+        #    "sf": array.array('Q'),
+        #    "bytecode": array.array('Q'),
+        #    "size": array.array('L'),
+        #}
+
+        #calls_tbl = {
+        #    "rr_tick": array.array('Q'),
+        #    "bytecode_addr": array.array('Q'),
+        #    "frame": array.array('Q'),
+        #}
+
+        #gcs_tbl = {
+        #    "tc": array.array('Q'),
+        #    "rr_tick": array.array('Q'),
+        #    "gc_seq_number": array.array('L'),
+        #    "is_full": array.array('B'),
+        #}
+
+        #worklist_runs_tbl = {
+        #    "tc": array.array('Q'),
+        #    "rr_tick": array.array('Q'),
+        #    "nursery_alloc": array.array('Q'),
+        #    "nursery_alloc_limit": array.array('Q'),
+        #    "nursery_fromspace": array.array('Q'),
+        #    "nursery_tospace": array.array('Q'),
+        #}
+
 
         EXP = self._EXP()
         self._db = dict(
             timeline={},
             subjects=dict(
-                gcs=gcs_tbl,
-                sfs=sfs_tbl,
-                spesh_bytecode=spesh_bytecode_tbl,
-                calls=calls_tbl,
-                cus=cus_tbl,
-                worklist_runs=worklist_runs_tbl,
+                gcs=None,
+                sfs=None,
+                spesh_bytecode=None,
+                calls=None,
+                cus=None,
+                worklist_runs=None,
             ),
             object_movements={},
         )
         self._prev_tl_entry = {}
-        self._object_movements = self._db["object_movements"]
+        #self._object_movements = self._db["object_movements"]
 
         execution_db = self._db
 
@@ -1072,18 +1236,18 @@ class MakeExecutionDatabaseCommand(gdb.Command):
                 bp.enabled = False
                 self._disabled_breakpoints.append(bp)
 
-        cbp.append(ArrayEntryRecordingBreakpoint(self, "gcs", [
+        cbp.append(SQLRecordingBreakpoint(self, "gcs", [
             EXP.gdb_eval("tc", "tc", int),
             EXP.gdb_eval("gc_seq_number", "tc->instance->gc_seq_number", int),
             EXP.gdb_eval("is_full", "tc->instance->gc_full_collect", int),
             ], "run_gc"))
 
-        cbp.append(ArrayEntryRecordingBreakpoint(self, "cus", [
+        cbp.append(SQLRecordingBreakpoint(self, "compunits", [
             EXP.gdb_eval("tc", "tc", int),
             EXP.gdb_eval("data_addr", "cu->body.data_start", int),
             ], "run_comp_unit"))
 
-        cbp.append(ArrayEntryRecordingBreakpoint(self, "worklist_runs", [
+        cbp.append(SQLRecordingBreakpoint(self, "worklist_runs", [
             EXP.gdb_eval("tc", "tc", int),
             EXP.gdb_eval("nursery_alloc", "tc->nursery_alloc", int),
             EXP.gdb_eval("nursery_alloc_limit", "tc->nursery_alloc_limit", int),
@@ -1096,8 +1260,8 @@ class MakeExecutionDatabaseCommand(gdb.Command):
 
         cbp.append(ObjectMovementRecordingBreakpoint(self, "src/gc/collect.c:" + forwarder_update_lineno))
 
-        gdb.execute("list MVM_frame_dispatch", False, True)
-        dispatch_trampoline_lineno = gdb.execute("search MVM_jit_code_trampoline(tc);", False, True).split("\t")[0]
+        #gdb.execute("list MVM_frame_dispatch", False, True)
+        #dispatch_trampoline_lineno = gdb.execute("search MVM_jit_code_trampoline(tc);", False, True).split("\t")[0]
 
         #cbp.append(ArrayEntryRecordingBreakpoint(self, "calls", [
         #    #EXP.gdb_eval("tc", "tc", int),
@@ -1105,28 +1269,33 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         #    EXP.gdb_eval("frame", "frame", int),
         #    ], "src/core/frame.c:" + dispatch_trampoline_lineno))
 
-        print("trying to find a line in MVM_frame_move_to_heap")
-        gdb.execute("list MVM_frame_move_to_heap", False, True)
-        get_to_promote_sf_lineno = gdb.execute("search MVMStaticFrame *sf = cur_to_promote->static_info;", False, True).split("\t")[0]
-        print("oh well")
+        #print("trying to find a line in MVM_frame_move_to_heap")
+        #gdb.execute("list MVM_frame_move_to_heap", False, True)
+        #get_to_promote_sf_lineno = gdb.execute("search MVMStaticFrame *sf = cur_to_promote->static_info;", False, True).split("\t")[0]
+        #print("oh well")
 
         gdb.execute("list MVM_spesh_candidate_add", False, True)
         free_speshcode_lineno = gdb.execute("search MVM_free.sc.;", False, True).split("\t")[0]
 
-        cbp.append(ArrayEntryRecordingBreakpoint(self, "spesh_bytecode", [
-            EXP.gdb_eval("sf", "p->sf", int),
-            EXP.gdb_eval("bytecode", "sc->bytecode", int),
+        cbp.append(SQLRecordingBreakpoint(self, "spesh_bytecode", [
+            EXP.gdb_eval("sf_addr", "p->sf", int),
+            EXP.gdb_eval("bytecode_addr", "sc->bytecode", int),
             EXP.gdb_eval("size", "sc->bytecode_size", int),
             ], "src/6model/reprs/MVMSpeshCandidate.c:" + free_speshcode_lineno))
 
-        cbp.append(ArrayEntryRecordingBreakpoint(self, "sfs", [
+        cbp.append(SQLRecordingBreakpoint(self, "staticframes", [
             EXP.gdb_eval("bytecode", "static_frame->body.bytecode", int),
-            EXP.gdb_eval("compunit", "static_frame->body.cu", int),
-            EXP.gdb_eval("sf", "static_frame", int),
+            EXP.gdb_eval("compunit_data_addr", "static_frame->body.cu->body.data_start", int),
+            EXP.gdb_eval("sf_addr", "static_frame", int),
             EXP.gdb_eval("cuuid", "MVM_string_utf8_encode_C_string(tc, static_frame->body.cuuid)", lambda v: v.string()),
             EXP.gdb_eval("name", "MVM_string_utf8_encode_C_string(tc, static_frame->body.name)", lambda v: v.string()),
             ], "MVM_validate_static_frame"))
 
+        #cbp.append(SQLRecordingBreakpoint(self, "sc_code", [
+        #    EXP.gdb_eval("sc_addr", "sc->body", int),
+        #    EXP.gdb_eval("sf_addr", "code->body.static_frame", int),
+        #    EXP.gdb_eval("idx", "idx", int),
+        #    ], "MVM_sc_set_code"))
 
         # sf->body.fully_deserialized = 1;
 
@@ -1165,12 +1334,11 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         finally:
             self.teardown()
 
-        with tempfile.NamedTemporaryFile(mode="wb", prefix="moar_gdb_", suffix="_rrdb.pkl", delete=False) as ntf:
-            import pickle
-            pickle.dump(self._db, ntf)
-            ntf.close()
-
-            print("rrdb pickle file can be found at ", ntf.name)
+        #with tempfile.NamedTemporaryFile(mode="wb", prefix="moar_gdb_", suffix="_rrdb.pkl", delete=False) as ntf:
+        #    import pickle
+        #    pickle.dump(self._db, ntf)
+        #    ntf.close()
+        #    print("rrdb pickle file can be found at ", ntf.name)
 
 def str_lookup_function(val):
     if str(val.type) == "MVMString":
@@ -1199,12 +1367,19 @@ def register_printers(objfile):
 
 commands = []
 def register_commands(objfile):
+    commands.append(MoarCommands())
+
     commands.append(AnalyzeHeapCommand())
-    print("moar-heap registered")
+    print("command moar heap registered")
     commands.append(DiffHeapCommand())
-    print("diff-moar-heap registered")
+    print("command moar diff-heap registered")
     commands.append(MakeExecutionDatabaseCommand())
-    print("moar-rrdb registered")
+    print("command moar rrdb registered")
+
+    commands.append(MoarBreakCommands())
+    commands.append(MoarBreakInterpRunCommands())
+    commands.append(MoarBreakExceptionAdhoc())
+    print("moar break commands registered")
 
 # We have to introduce our classes to gdb so that they can be used
 if __name__ == "__main__":
