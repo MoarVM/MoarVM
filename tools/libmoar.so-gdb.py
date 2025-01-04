@@ -1088,6 +1088,17 @@ class MakeExecutionDatabaseCommand(gdb.Command):
             );
         """)
 
+        self._db_cur.execute("""
+            create table meta_info (
+                key varchar,
+                value varchar
+            );
+        """)
+
+        self._db_cur.execute("""
+            insert into meta_info VALUES (:key, :value)
+        """, {"key":"info inferiors", "value": gdb.execute("info inferiors", False, True)})
+
         self._db_conn.commit()
 
         EXP = self._EXP()
