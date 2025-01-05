@@ -422,7 +422,7 @@ stages:
     - task: PublishBuildArtifacts@1
       inputs:
         pathToPublish: '$(Pipeline.Workspace)/sarif'
-        ArtifactName: GCC-15-fanalyzer-sarif-results
+        ArtifactName: CodeAnalysisLogs
       condition: succeededOrFailed()
       displayName: Publish sarif logs as build artifact
 
