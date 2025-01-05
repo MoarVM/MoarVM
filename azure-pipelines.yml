@@ -382,8 +382,8 @@ stages:
     - task: Cache@2
       displayName: "load cached GCC-15"
       inputs:
-        key: 'gcc|15|fanalyzer|2025-01'
-        path: build_fresh_gcc
+        key: 'gcc|15|fanalyzer|2025-01-05'
+        path: gcc_objdir
         cacheHitVar: GCC_CACHE_RESTORED
 
     - script: |
