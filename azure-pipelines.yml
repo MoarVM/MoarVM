@@ -395,25 +395,26 @@ stages:
       condition: eq( variables['GCC_CACHE_RESTORED'], 'false' )
       displayName: Build GCC from "trunk"
 
-    #- script: |
-    #    sudo make -j2 install
-    #  workingDirectory: gcc_objdir
-    #  displayName: Install GCC-15 to system
+    - script: |
+        sudo make -j2 install
+      workingDirectory: gcc_objdir
+      displayName: Install GCC-15 to system
 
-    #- checkout: self
-    #  path: selfrepo
-    #  displayName: Checkout script repo
+    - checkout: self
+      path: selfrepo
+      displayName: Checkout script repo
 
-    #- script: |
-    #    env CFLAGS="-fanalyzer -fdiagnostics-add-output=sarif:file=analyzer.sarif" perl Configure.pl --prefix=install --cc=gcc-15
-    #    make -j1
-    #  condition: succeeded()
-    #  displayName: Build MoarVM with -fanalyzer
+    - script: |
+        env CFLAGS="-fanalyzer -fdiagnostics-add-output=sarif:file=analyzer.sarif" perl Configure.pl --prefix=install --cc=gcc-15
+        make -j1
+      condition: succeeded()
+      workingDirectory: '$(Pipeline.Workspace)/selfrepo'
+      displayName: Build MoarVM with -fanalyzer
 
-    #- task: PublishBuildArtifacts@1
-    #  inputs:
-    #    pathToPublish: '$(Pipeline.Workspace)/analyzer.sarif'
-    #    ArtifactName: GCC-15-fanalyzer-sarif-results
-    #  condition: succeededOrFailed()
-    #  displayName: Publish sarif logs as build artifact
+    - task: PublishBuildArtifacts@1
+      inputs:
+        pathToPublish: '$(Pipeline.Workspace)/selfrepo/analyzer.sarif'
+        ArtifactName: GCC-15-fanalyzer-sarif-results
+      condition: succeededOrFailed()
+      displayName: Publish sarif logs as build artifact
 
