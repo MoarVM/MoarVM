@@ -384,15 +384,14 @@ stages:
       displayName: Checkout script repo
 
     - script: |
-        env CFLAGS="-fanalyzer -fdiagnostics-add-output=sarif:file=analyzer.sarif" perl Configure.pl --prefix=../install --cc=gcc-15
+        env CFLAGS="-fanalyzer -fdiagnostics-add-output=sarif:file=analyzer.sarif" perl Configure.pl --prefix=install --cc=gcc-15
         make -j1
-      workingDirectory: '$(Pipeline.Workspace)/MoarVM'
       condition: succeeded()
       displayName: Build MoarVM with -fanalyzer
 
     - task: PublishBuildArtifacts@1
       inputs:
-        pathToPublish: '$(Pipeline.Workspace)/MoarVM/analyzer.sarif'
+        pathToPublish: '$(Pipeline.Workspace)/analyzer.sarif'
         ArtifactName: GCC-15-fanalyzer-sarif-results
       condition: succeededOrFailed()
       displayName: Publish sarif logs as build artifact
