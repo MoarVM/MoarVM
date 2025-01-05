@@ -390,7 +390,7 @@ stages:
         git clone -b trunk --depth=1 git://gcc.gnu.org/git/gcc.git build_fresh_gcc
         mkdir gcc_objdir
         cd gcc_objdir
-        ../build_fresh_gcc/configure --enable-languages=c
+        ../build_fresh_gcc/configure --enable-languages=c --disable-multilib
         make -j3
       condition: eq( variables['GCC_CACHE_RESTORED'], 'false' )
       displayName: Build GCC from "trunk"
