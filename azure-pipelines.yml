@@ -376,7 +376,7 @@ stages:
     - script: |
         sudo apt-get update
         sudo apt-get install build-essential libzstd-dev
-        sudo apt-get build-dep gcc
+        sudo apt-get install libgmp3-dev libmpc-dev libmpfr-dev bison flex libisl-dev
       displayName: install some prereq packages
 
     - task: Cache@2
