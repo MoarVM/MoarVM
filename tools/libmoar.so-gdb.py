@@ -3,11 +3,9 @@
 # GDB will automatically load this module when you attach to the binary moar.
 # but first you'll have to tell gdb that it's okay to load it. gdb will instruct
 # you on how to do that.
-# If it doesn't, you may need to copy or symlink this script right next to the
-# moar binary in install/bin.
-#
-#     cd /path/to/install/bin
-#     ln -s path/to/moarvm/tools/moar-gdb.py
+# The MoarVM Makefile puts libmoar.so-gdb.py next to the libmoar.so file, which
+# should cause GDB to find it and tell you if you need a setting to make it
+# actually activate.
 
 # If you're developing/extending/changing this script, or if you're getting
 # python exception messages, this command will be very helpful:
@@ -27,6 +25,7 @@
 #   snapshots of the nursery, or whatever snapshot number you supply
 #   as the argument.
 # - A group of commands "moar break" for commonly useful breakpoints.
+# - A command "moar bt" that shows a backtrace including each frame's arguments.
 
 # Here's the TODO list:
 #
@@ -52,16 +51,10 @@ from collections import defaultdict
 from itertools import chain
 import math
 import random
-#import blessings
 import sys
 import time
 import typing
-import array
-import struct
-import pathlib
 import tempfile
-
-import json
 
 import traceback # debugging
 
@@ -180,6 +173,13 @@ def prettify_size(num):
         result = rest + "." + result
     return result[:-1]
 
+#                  _   _                   _     _
+#     _ __ _ _ ___| |_| |_ _  _   _ __ _ _(_)_ _| |_ ___ _ _ ___
+#    | '_ \ '_/ -_)  _|  _| || | | '_ \ '_| | ' \  _/ -_) '_(_-<
+#    | .__/_| \___|\__|\__|\_, | | .__/_| |_|_||_\__\___|_| /__/
+#    |_|                   |__/  |_|
+
+
 def mvmstr_to_str(val, start=0, strlen=None, truncate=5000):
     stringtyp = str_t_info[int(val['body']['storage_type'])]
     if stringtyp in ("blob_32", "blob_ascii", "blob_8", "in_situ_8", "in_situ_32"):
@@ -199,6 +199,7 @@ def mvmstr_to_str(val, start=0, strlen=None, truncate=5000):
         for i in range(graphs):
             pdata = int(data[i])
             if pdata < 0:
+                # XXX synthetics currently not supported
                 pieces.append("\\s{-%x}" % (-pdata))
             else:
                 try:
@@ -212,18 +213,18 @@ def mvmstr_to_str(val, start=0, strlen=None, truncate=5000):
     elif stringtyp == "strands":
         data = val['body']['storage'][stringtyp]
         pieces = []
-        #print(f"building strands with {start=} {strlen=}")
         for p in range(val['body']['num_strands']):
+            # XXX probably a good idea to test thoroughly and see that nothing is off-by-one etc
             strand = data[p]
-            #print("strand ", p, "start", strand['start'], "end", strand['end'])
             graphs_one = int(strand['end']) - int(strand['start'])
             graphs_all = graphs_one
             if int(strand['repetitions']) > 0:
                 graphs_all = graphs_one * (int(strand['repetitions']) + 1)
 
+
+            # current strand is completely before the spot we're starting at
             if graphs_all < start:
                 start -= graphs_all
-                #print("skipping over this strand, start is now ")
                 continue
 
             str_one = mvmstr_to_str(strand['blob_string'])
@@ -252,17 +253,13 @@ class MVMStringPPrinter(object):
         self.val = val
         self.pointer = pointer
 
-    def stringify(self):
-        # stringtyp = str_t_info[int(self.val['body']['storage_type']) & 0b11]
-        return mvmstr_to_str(self.val)
-
     def to_string(self):
         result = self.stringify()
         if result:
             if self.pointer:
-                return "pointer to '" + self.stringify() + "'"
+                return "(MVMString *)'" + mvmstr_to_str(self.val) + "'"
             else:
-                return "'" + self.stringify() + "'"
+                return "(MVMString)'" + mvmstr_to_str(self.val) + "'"
         else:
             return None
 
@@ -291,6 +288,18 @@ class MVMObjectPPrinter(object):
             return "pointer to " + self.stringify()
         else:
             return self.stringify()
+
+#                                                _           _
+#      _ __  ___ _ __  ___ _ _ _  _   __ ___ _ _| |_ ___ _ _| |_
+#     | '  \/ -_) '  \/ _ \ '_| || | / _/ _ \ ' \  _/ -_) ' \  _|
+#     |_|_|_\___|_|_|_\___/_|  \_, | \__\___/_||_\__\___|_||_\__|
+#                              |__/
+#                     _         _
+#      __ _ _ _  __ _| |_  _ __(_)___
+#     / _` | ' \/ _` | | || (_-< (_-<
+#     \__,_|_||_\__,_|_|\_, /__/_/__/
+#                       |__/
+#
 
 def show_histogram(hist, sort="value", multiply=False):
     """In the context of this function, a histogram is a hash from an object
@@ -783,6 +792,12 @@ class HeapData(object):
 
 nursery_memory = []
 
+#                                                                    _
+#     _ __  ___ _ __  ___ _ _ _  _   __ ___ _ __  _ __  __ _ _ _  __| |___
+#    | '  \/ -_) '  \/ _ \ '_| || | / _/ _ \ '  \| '  \/ _` | ' \/ _` (_-<
+#    |_|_|_\___|_|_|_\___/_|  \_, | \__\___/_|_|_|_|_|_\__,_|_||_\__,_/__/
+#                             |__/
+
 class AnalyzeHeapCommand(gdb.Command):
     """Analyze the nursery and gen2 of MoarVM's garbage collector corresponding
     to the current tc, or the tc you pass as the first argument"""
@@ -843,6 +858,13 @@ class DiffHeapCommand(gdb.Command):
         assert len(nursery_memory) > max(pos1, pos2)
         nursery_memory[pos2].diff(nursery_memory[pos1])
 
+#                         _   _                                            _
+#     _____ _____ __ _  _| |_(_)___ _ _    __ ___ _ __  _ __  __ _ _ _  __| |___
+#    / -_) \ / -_) _| || |  _| / _ \ ' \  / _/ _ \ '  \| '  \/ _` | ' \/ _` (_-<
+#    \___/_\_\___\__|\_,_|\__|_\___/_||_| \__\___/_|_|_|_|_|_\__,_|_||_\__,_/__/
+#
+
+
 class MoarBreakCommands(gdb.Command):
     """Group of commands to set breakpoints at useful MoarVM functions."""
     _break_spec = ""
@@ -864,9 +886,11 @@ class MoarBreakExceptionAdhoc(MoarBreakCommands):
         super(MoarBreakCommands, self).__init__("moar break exception-adhoc", gdb.COMMAND_BREAKPOINTS)
         self._break_spec = "MVM_exception_throw_adhoc"
 
+#     __  __             __   ____  __   ___ ___ ___  ___
+#    |  \/  |___  __ _ _ \ \ / /  \/  | | _ \ _ \   \| _ )
+#    | |\/| / _ \/ _` | '_\ V /| |\/| | |   /   / |) | _ \
+#    |_|  |_\___/\__,_|_|  \_/ |_|  |_| |_|_\_|_\___/|___/
 #
-# moar rrdb implementation
-# ========================
 #
 # when running moar under `rr replay` we can make a little database of
 # interestang events, as well as information about objects by their address
@@ -1210,6 +1234,13 @@ class MakeExecutionDatabaseCommand(gdb.Command):
         finally:
             self.teardown()
 
+#     _             _   _                                                     _
+#    | |__  __ _ __| |_| |_ _ _ __ _ __ ___   __ ___ _ __  _ __  __ _ _ _  __| |___
+#    | '_ \/ _` / _| / /  _| '_/ _` / _/ -_) / _/ _ \ '  \| '  \/ _` | ' \/ _` (_-<
+#    |_.__/\__,_\__|_\_\\__|_| \__,_\__\___| \__\___/_|_|_|_|_|_\__,_|_||_\__,_/__/
+#
+
+
 def find_tc():
     frame = gdb.selected_frame()
     found_tcs = []
@@ -1435,6 +1466,11 @@ class MoarBtCommands(gdb.Command):
             stack_idx += 1
             cur_frame = cur_frame["caller"]
 
+#                  _   _                   _     _
+#     _ __ _ _ ___| |_| |_ _  _   _ __ _ _(_)_ _| |_ ___ _ _ ___
+#    | '_ \ '_/ -_)  _|  _| || | | '_ \ '_| | ' \  _/ -_) '_(_-<
+#    | .__/_| \___|\__|\__|\_, | | .__/_| |_|_||_\__\___|_| /__/
+#    |_|                   |__/  |_|
 
 def str_lookup_function(val):
     if str(val.type) == "MVMString":
@@ -1489,7 +1525,9 @@ if __name__ == "__main__":
         try:
             the_objfile = gdb.lookup_objfile("libmoar.so")
         except:
-            print("GDB doesn't know about 'libmoar.so' yet; maybe you need to run the program a little until it's loaded.")
+            print("GDB doesn't know about 'libmoar.so' yet; maybe you need to run the program a little until it's loaded:")
+            print("    break MVM_interp_run")
+            print("    c")
     if the_objfile:
         register_printers(the_objfile)
     register_commands(the_objfile)
