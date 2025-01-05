@@ -363,6 +363,7 @@ stages:
           displayName: Check for memory leaks
 
 - stage: Analysis
+  dependsOn: []
   jobs:
   - job: GCC_fanalyzer
     pool:
