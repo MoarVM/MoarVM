@@ -374,9 +374,9 @@ stages:
 
     steps:
     - script: |
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt update
-        sudo apt-get install gcc-15
+        sudo add-apt-repository ppa:ubuntu-toolchain-r/ppa
+        sudo apt-get update
+        sudo apt-get gcc-15
       displayName: get GCC-15 for analyzer with SARIF
 
     - checkout: self
