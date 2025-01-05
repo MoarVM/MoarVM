@@ -374,8 +374,8 @@ stages:
 
     steps:
     - script: |
-        apt-get update
-        apt-get install build-essential libzstd-dev
+        sudo apt-get update
+        sudo apt-get install build-essential libzstd-dev
       displayName: get GCC-15 for analyzer with SARIF
 
     - task: Cache@2
@@ -398,8 +398,8 @@ stages:
       displayName: Build GCC-15
 
     - script: |
-        cd gcc_objdir
-        make -j2 install
+        sudo make -j2 install
+      workingDirectory: gcc_objdir
       displayName: Install GCC-15 to system
 
     - checkout: self
