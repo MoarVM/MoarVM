@@ -376,10 +376,10 @@ stages:
 
     steps:
     - script: |
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test
-        sudo apt-get update
-        sudo apt-get install gcc-15
-        sudo apt-get install build-essential libzstd-dev
+        add-apt-repository ppa:ubuntu-toolchain-r/test
+        apt-get update
+        apt-get install gcc-15
+        apt-get install build-essential libzstd-dev
       displayName: get GCC-15 for analyzer with SARIF
 
     - checkout: self
