@@ -376,7 +376,7 @@ stages:
     - script: |
         sudo apt-get update
         sudo apt-get install build-essential libzstd-dev
-      displayName: get GCC-15 for analyzer with SARIF
+      displayName: install some prereq packages
 
     - task: Cache@2
       displayName: "load cached GCC-15"
@@ -386,16 +386,13 @@ stages:
         cacheHitVar: GCC_CACHE_RESTORED
 
     - script: |
-        git clone git://gcc.gnu.org/git/gcc.git build_fresh_gcc
-        cd build_fresh_gcc
-        git checkout gcc-15
-        cd ..
+        git clone -b trunk --depth=1 git://gcc.gnu.org/git/gcc.git build_fresh_gcc
         mkdir gcc_objdir
         cd gcc_objdir
         ../build_fresh_gcc/configure --enable-languages=c
         make -j3
       condition: eq( variables['GCC_CACHE_RESTORED'], 'false' )
-      displayName: Build GCC-15
+      displayName: Build GCC from "trunk"
 
     - script: |
         sudo make -j2 install
