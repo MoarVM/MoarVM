@@ -383,7 +383,7 @@ stages:
       displayName: "load cached GCC-15"
       inputs:
         key: 'gcc|15|fanalyzer|2025-01-05'
-        path: gcc_objdir
+        path: '$(Pipeline.Workspace)/gcc_objdir'
         cacheHitVar: GCC_CACHE_RESTORED
 
     - script: |
@@ -415,6 +415,7 @@ stages:
 
     - script: |
         echo "hey there"
+        cd ..
       workingDirectory: $(Pipeline.Workspace)
       displayName: This do-nothing step is crucial.
 
