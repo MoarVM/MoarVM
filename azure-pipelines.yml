@@ -405,15 +405,22 @@ stages:
       displayName: Checkout script repo
 
     - script: |
-        env CFLAGS="-fanalyzer -fdiagnostics-add-output=sarif:file=analyzer.sarif" perl Configure.pl --prefix=install --cc=gcc-15
-        make -j1
+        env CFLAGS="-fanalyzer -fdiagnostics-add-output=sarif" perl Configure.pl --prefix=install --cc=gcc-15
+        make -j2
+        mkdir ../sarif
+        mv *.sarif ../sarif
       condition: succeeded()
       workingDirectory: '$(Pipeline.Workspace)/selfrepo'
       displayName: Build MoarVM with -fanalyzer
 
+    - script: |
+        echo "hey there"
+      workingDirectory: $(Pipeline.Workspace)
+      displayName: This do-nothing step is crucial.
+
     - task: PublishBuildArtifacts@1
       inputs:
-        pathToPublish: '$(Pipeline.Workspace)/selfrepo/analyzer.sarif'
+        pathToPublish: '$(Pipeline.Workspace)/sarif'
         ArtifactName: GCC-15-fanalyzer-sarif-results
       condition: succeededOrFailed()
       displayName: Publish sarif logs as build artifact
