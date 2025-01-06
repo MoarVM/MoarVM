@@ -266,10 +266,50 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
         try_get_slot(tc, repr_data, class_handle, name);
     if (slot >= 0) {
         MVMSTable *attr_st = repr_data->flattened_stables[slot];
-        switch (kind) {
-        case MVM_reg_obj:
-        {
-            if (!attr_st) {
+        if (attr_st) {
+            switch (kind) {
+            case MVM_reg_obj: {
+                MVMROOT2(tc, root, attr_st) {
+                    /* Need to produce a boxed version of this attribute. */
+                    MVMObject *cloned = attr_st->REPR->allocate(tc, attr_st);
+
+                    /* Ordering here matters too. see comments above */
+                    result_reg->o = cloned;
+                    attr_st->REPR->copy_to(tc, attr_st,
+                        (char *)MVM_p6opaque_real_data(tc, OBJECT_BODY(root)) + repr_data->attribute_offsets[slot],
+                        cloned, OBJECT_BODY(cloned));
+                }
+                break;
+            }
+            case MVM_reg_int64: {
+                result_reg->i64 = attr_st->REPR->box_funcs.get_int(tc, attr_st, root,
+                    (char *)data + repr_data->attribute_offsets[slot]);
+                break;
+            }
+            case MVM_reg_uint64: {
+                result_reg->i64 = attr_st->REPR->box_funcs.get_uint(tc, attr_st, root,
+                    (char *)data + repr_data->attribute_offsets[slot]);
+                break;
+            }
+            case MVM_reg_num64: {
+                result_reg->n64 = attr_st->REPR->box_funcs.get_num(tc, attr_st, root,
+                    (char *)data + repr_data->attribute_offsets[slot]);
+                break;
+            }
+            case MVM_reg_str: {
+                result_reg->s = attr_st->REPR->box_funcs.get_str(tc, attr_st, root,
+                    (char *)data + repr_data->attribute_offsets[slot]);
+                break;
+            }
+            default: {
+                MVM_exception_throw_adhoc(tc, "P6opaque: invalid kind in attribute lookup in %s", MVM_6model_get_stable_debug_name(tc, st));
+            }
+            }
+        }
+        else {
+            switch (kind) {
+            case MVM_reg_obj:
+            {
                 MVMObject *result = get_obj_at_offset(data, repr_data->attribute_offsets[slot]);
                 if (result) {
                     result_reg->o = result;
@@ -308,56 +348,28 @@ static void get_attribute(MVMThreadContext *tc, MVMSTable *st, MVMObject *root,
                         result_reg->o = tc->instance->VMNull;
                     }
                 }
+                break;
             }
-            else {
-                MVMROOT2(tc, root, attr_st) {
-                    /* Need to produce a boxed version of this attribute. */
-                    MVMObject *cloned = attr_st->REPR->allocate(tc, attr_st);
-
-                    /* Ordering here matters too. see comments above */
-                    result_reg->o = cloned;
-                    attr_st->REPR->copy_to(tc, attr_st,
-                        (char *)MVM_p6opaque_real_data(tc, OBJECT_BODY(root)) + repr_data->attribute_offsets[slot],
-                        cloned, OBJECT_BODY(cloned));
-                }
-            }
-            break;
-        }
-        case MVM_reg_int64: {
-            if (attr_st)
-                result_reg->i64 = attr_st->REPR->box_funcs.get_int(tc, attr_st, root,
-                    (char *)data + repr_data->attribute_offsets[slot]);
-            else
+            case MVM_reg_int64: {
                 invalid_access_kind(tc, "native access", class_handle, name, "int64");
-            break;
-        }
-        case MVM_reg_uint64: {
-            if (attr_st)
-                result_reg->i64 = attr_st->REPR->box_funcs.get_uint(tc, attr_st, root,
-                    (char *)data + repr_data->attribute_offsets[slot]);
-            else
+                break;
+            }
+            case MVM_reg_uint64: {
                 invalid_access_kind(tc, "native access", class_handle, name, "uint64");
-            break;
-        }
-        case MVM_reg_num64: {
-            if (attr_st)
-                result_reg->n64 = attr_st->REPR->box_funcs.get_num(tc, attr_st, root,
-                    (char *)data + repr_data->attribute_offsets[slot]);
-            else
+                break;
+            }
+            case MVM_reg_num64: {
                 invalid_access_kind(tc, "native access", class_handle, name, "num64");
-            break;
-        }
-        case MVM_reg_str: {
-            if (attr_st)
-                result_reg->s = attr_st->REPR->box_funcs.get_str(tc, attr_st, root,
-                    (char *)data + repr_data->attribute_offsets[slot]);
-            else
+                break;
+            }
+            case MVM_reg_str: {
                 invalid_access_kind(tc, "native access", class_handle, name, "str");
-            break;
-        }
-        default: {
-            MVM_exception_throw_adhoc(tc, "P6opaque: invalid kind in attribute lookup in %s", MVM_6model_get_stable_debug_name(tc, st));
-        }
+                break;
+            }
+            default: {
+                MVM_exception_throw_adhoc(tc, "P6opaque: invalid kind in attribute lookup in %s", MVM_6model_get_stable_debug_name(tc, st));
+            }
+            }
         }
     }
     else {
