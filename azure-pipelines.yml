@@ -394,14 +394,15 @@ stages:
         make -j3
       condition: eq( variables['GCC_CACHE_RESTORED'], 'false' )
       displayName: Build GCC from "trunk"
+      workingDirectory:  '$(Pipeline.Workspace)/'
 
     - script: |
         sudo make -j2 install
-      workingDirectory: gcc_objdir
+      workingDirectory:  '$(Pipeline.Workspace)/gcc_objdir'
       displayName: Install GCC-15 to system
 
     - checkout: self
-      path: selfrepo
+      path: '$(Pipeline.Workspace)/selfrepo'
       displayName: Checkout script repo
 
     - script: |
