@@ -386,8 +386,20 @@ stages:
         path: '$(Pipeline.Workspace)/gcc_objdir'
         cacheHitVar: GCC_CACHE_RESTORED
 
+    - task: Cache@2
+      displayName: "load cached GCC-15 source checkout"
+      inputs:
+        key: 'gcc|source|15|fanalyzer|2025-01-05'
+        path: '$(Pipeline.Workspace)/build_fresh_gcc'
+        cacheHitVar: GCC_SOURCE_CACHE_RESTORED
+
     - script: |
         git clone -b trunk --depth=1 git://gcc.gnu.org/git/gcc.git build_fresh_gcc
+      displayName: Check out GCC sources
+      condition: eq( variables['GCC_SOURCE_CACHE_RESTORED'], 'false' )
+      workingDirectory:  '$(Pipeline.Workspace)/'
+
+    - script: |
         mkdir gcc_objdir
         cd gcc_objdir
         ../build_fresh_gcc/configure --enable-languages=c --disable-multilib --program-suffix=-15 --disable-gcov --disable-bootstrap
