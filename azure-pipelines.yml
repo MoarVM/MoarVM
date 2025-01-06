@@ -426,12 +426,6 @@ stages:
       workingDirectory: '$(Pipeline.Workspace)/selfrepo'
       displayName: Build MoarVM with -fanalyzer
 
-    - script: |
-        echo "hey there"
-        cd ..
-      workingDirectory: $(Pipeline.Workspace)
-      displayName: This do-nothing step is crucial.
-
     - task: PublishBuildArtifacts@1
       inputs:
         pathToPublish: '$(Pipeline.Workspace)/sarif'
