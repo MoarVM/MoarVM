@@ -149,24 +149,23 @@ MVM_STATIC_INLINE uint64_t siphashfinish_32bits (siphash *sh, const uint32_t src
 MVM_STATIC_INLINE uint64_t siphashfinish (siphash *sh, const uint8_t *src, size_t src_sz) {
     union SipHash64_union t = { 0 };
     switch (src_sz) {
-        /* Falls through */
         case 7: t.u8[6] = src[6];
-        /* Falls through */
+        MVM_FALLTHROUGH
         case 6: t.u8[5] = src[5];
-        /* Falls through */
+        MVM_FALLTHROUGH
         case 5: t.u8[4] = src[4];
 #if defined(MVM_CAN_UNALIGNED_INT32)
             t.u32 = *((uint32_t*)src);
             break;
 #else
-        /* Falls through */
+        MVM_FALLTHROUGH
 #endif
         case 4: t.u8[3] = src[3];
-        /* Falls through */
+        MVM_FALLTHROUGH
         case 3: t.u8[2] = src[2];
-        /* Falls through */
+        MVM_FALLTHROUGH
         case 2: t.u8[1] = src[1];
-        /* Falls through */
+        MVM_FALLTHROUGH
         case 1: t.u8[0] = src[0];
     }
     return siphashfinish_last_part(sh, t.u64);
