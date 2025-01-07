@@ -66,23 +66,28 @@ stages:
            MOAR_OPTIONS: '--relocatable'
 
          Mac_MVM:
-           IMAGE_NAME: 'macOS-13'
+           IMAGE_NAME: 'macOS-14'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
          Mac_MVM_reloc:
-           IMAGE_NAME: 'macOS-13'
+           IMAGE_NAME: 'macOS-14'
            RELOCATABLE: 'yes'
            RAKUDO_OPTIONS: '--relocatable'
            NQP_OPTIONS: '--backends=moar --relocatable'
            MOAR_OPTIONS: '--relocatable'
          Mac_MVM_no_C11_atomics:
-           IMAGE_NAME: 'macOS-13'
+           IMAGE_NAME: 'macOS-14'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-c11-atomics'
-         Mac_12_MVM:
-           IMAGE_NAME: 'macOS-12'
+         Mac_13_MVM:
+           IMAGE_NAME: 'macOS-13'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: ''
+         Mac_15_MVM:
+           IMAGE_NAME: 'macOS-15'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
@@ -205,23 +210,24 @@ stages:
       timeoutInMinutes: 180
       steps:
 
-        - ${{ if eq(os, 'Win') }}:
-          - pwsh: |
-              # Windows has a maximum PATH variable length of 2048 (depending on
-              # how it's accessed). The length of PATH in AzureCI is already
-              # really tight. We'll run into the limit when we add Java and the
-              # MS BuildTools to the path.
-              # To work around this, we remove a bunch of stuff we won't need
-              # from PATH here.
-              $shortened_path = "$(PATH)" -replace ';[^;]*(SeleniumWebDrivers|SQL Server|Mercurial|Amazon|mysql|\\sbt\\|NSIS|Windows Performance Toolkit|php|Subversion)[^;]*(?=(;|$))', ''
-              echo "##vso[task.setvariable variable=PATH]$shortened_path"
-            displayName: "Shorten PATH on Windows"
+        - pwsh: |
+            # Windows has a maximum PATH variable length of 2048 (depending on
+            # how it's accessed). The length of PATH in AzureCI is already
+            # really tight. We'll run into the limit when we add Java and the
+            # MS BuildTools to the path.
+            # To work around this, we remove a bunch of stuff we won't need
+            # from PATH here.
+            $shortened_path = "$(PATH)" -replace ';[^;]*(SeleniumWebDrivers|SQL Server|Mercurial|Amazon|mysql|\\sbt\\|NSIS|Windows Performance Toolkit|php|Subversion)[^;]*(?=(;|$))', ''
+            echo "##vso[task.setvariable variable=PATH]$shortened_path"
+          displayName: "Shorten PATH on Windows"
+          condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
-          - task: Cache@2
-            displayName: "load cached location of devshell dll"
-            inputs:
-              key: '"where is devshell on" | "$(IMAGE_NAME)"'
-              path: ../where_is_devshell/
+        - task: Cache@2
+          displayName: "load cached location of devshell dll"
+          inputs:
+            key: '"where is devshell on" | "$(IMAGE_NAME)"'
+            path: ../where_is_devshell/
+          condition: eq( variables['Agent.OS'], 'Windows_NT' )
 
         - script: |
             sudo apt-get update
@@ -272,28 +278,30 @@ stages:
             ${{ variables.PWSH_DEV }}
             perl Configure.pl --prefix=../$(INSTALL_DIR) $(NQP_OPTIONS) --make-install
           workingDirectory: '$(Pipeline.Workspace)/nqp'
-          condition: and(succeeded(), ne( variables['Agent.OS'], 'Linux' ) )
-          displayName: Build NQP
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ) )
+          displayName: Build NQP (Windows)
         - script: |
             export SEGFAULT_SIGNALS="all"
-            catchsegv perl Configure.pl --prefix=../$(INSTALL_DIR) $(NQP_OPTIONS) --make-install
+            CATCHSEGV=$(which catchsegv)
+            $CATCHSEGV perl Configure.pl --prefix=../$(INSTALL_DIR) $(NQP_OPTIONS) --make-install
           workingDirectory: '$(Pipeline.Workspace)/nqp'
-          condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ) )
-          displayName: Build NQP (Linux)
+          condition: and(succeeded(), ne( variables['Agent.OS'], 'Windows_NT' ) )
+          displayName: Build NQP
 
         # Build Rakudo
         - pwsh: |
             ${{ variables.PWSH_DEV }}
             perl Configure.pl --prefix=../$(INSTALL_DIR) $(RAKUDO_OPTIONS) --make-install
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
-          condition: and(succeeded(), ne( variables['Agent.OS'], 'Linux' ) )
-          displayName: Build Rakudo
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ) )
+          displayName: Build Rakudo (Windows)
         - script: |
             export SEGFAULT_SIGNALS="all"
-            catchsegv perl Configure.pl --prefix=../$(INSTALL_DIR) $(RAKUDO_OPTIONS) --make-install
+            CATCHSEGV=$(which catchsegv)
+            $CATCHSEGV perl Configure.pl --prefix=../$(INSTALL_DIR) $(RAKUDO_OPTIONS) --make-install
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
-          condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ) )
-          displayName: Build Rakudo (Linux)
+          condition: and(succeeded(), ne( variables['Agent.OS'], 'Windows_NT' ) )
+          displayName: Build Rakudo
 
         # TODO: Should use "install moved" instead of "install-moved". But `prove` currently fails with an executable path that contains a space.
         - pwsh: |
@@ -306,14 +314,15 @@ stages:
         # Test NQP
         - script: prove -j2 -r -e ../$(INSTALL_DIR)/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
           workingDirectory: '$(Pipeline.Workspace)/nqp'
-          condition: and(succeeded(), ne( variables['Agent.OS'], 'Linux' ) )
-          displayName: Test NQP
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ) )
+          displayName: Test NQP (Windows)
         - script: |
             export SEGFAULT_SIGNALS="all"
-            catchsegv prove -j2 -r -e ../$(INSTALL_DIR)/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
+            CATCHSEGV=$(which catchsegv)
+            $CATCHSEGV prove -j2 -r -e ../$(INSTALL_DIR)/bin/nqp t/nqp t/hll t/qregex t/p5regex t/qast t/moar t/serialization t/nativecall t/concurrency
           workingDirectory: '$(Pipeline.Workspace)/nqp'
-          condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ) )
-          displayName: Test NQP (Linux)
+          condition: and(succeeded(), ne( variables['Agent.OS'], 'Windows_NT' ) )
+          displayName: Test NQP
 
         # Test Rakudo
         - pwsh: |
@@ -321,14 +330,15 @@ stages:
             $install_path = Resolve-Path ../$(INSTALL_DIR)/bin/
             prove -j2 -e "$($install_path.Path)raku" -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
-          condition: and(succeeded(), ne( variables['Agent.OS'], 'Linux' ) )
-          displayName: Test Rakudo
+          condition: and(succeeded(), eq( variables['Agent.OS'], 'Windows_NT' ) )
+          displayName: Test Rakudo (Windows)
         - script: |
             export SEGFAULT_SIGNALS="all"
-            catchsegv prove -j2 -e ../$(INSTALL_DIR)/bin/raku -vlr t
+            CATCHSEGV=$(which catchsegv)
+            $CATCHSEGV prove -j2 -e ../$(INSTALL_DIR)/bin/raku -vlr t
           workingDirectory: '$(Pipeline.Workspace)/rakudo'
-          condition: and(succeeded(), eq( variables['Agent.OS'], 'Linux' ) )
-          displayName: Test Rakudo (Linux)
+          condition: and(succeeded(), ne( variables['Agent.OS'], 'Windows_NT' ) )
+          displayName: Test Rakudo
 
         - publish: $(Pipeline.Workspace)/$(INSTALL_DIR)
           condition: and(succeeded(), eq( variables['RELOCATABLE'], 'yes' ))
