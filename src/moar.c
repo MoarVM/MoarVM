@@ -328,7 +328,7 @@ MVMInstance * MVM_vm_create_instance(void) {
 
     /* JIT environment/logging setup. */
     jit_disable = getenv("MVM_JIT_DISABLE");
-    if (!jit_disable || !jit_disable[0])
+    if (MVM_jit_support() && (!jit_disable || !jit_disable[0]))
         instance->jit_enabled = 1;
 
     jit_expr_enable = getenv("MVM_JIT_EXPR_ENABLE");
