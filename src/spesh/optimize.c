@@ -1539,7 +1539,7 @@ static void optimize_runbytecode(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     }
 
     /* Try to find a specialization. */
-    MVMSpeshArgGuard *ag = target_sf->body.spesh->body.spesh_arg_guard;
+    MVMSpeshArgGuard *ag = (MVMSpeshArgGuard *)MVM_load(&target_sf->body.spesh->body.spesh_arg_guard);
     MVMint16 spesh_cand = MVM_spesh_arg_guard_run_types(tc, ag, cs, stable_type_tuple);
    if (spesh_cand >= 0) {
        /* Found a candidate. Stack up any required guards. */

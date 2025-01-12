@@ -103,7 +103,7 @@ void MVM_spesh_osr_poll_for_result(MVMThreadContext *tc) {
             if (!tc->cur_frame->extra || !tc->cur_frame->extra->caller_pos_needed) {
                 /* Check if there's a candidate available and install it if so. */
                 MVMint32 ag_result = MVM_spesh_arg_guard_run(tc,
-                    spesh->body.spesh_arg_guard,
+                    (MVMSpeshArgGuard *)MVM_load(&spesh->body.spesh_arg_guard),
                     tc->cur_frame->params.arg_info, NULL);
                 if (ag_result >= 0) {
                     perform_osr(tc, spesh->body.spesh_candidates[ag_result]);

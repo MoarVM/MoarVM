@@ -4,7 +4,8 @@
 
 struct MVMStaticFrameSpeshBody {
     /* Specialization argument guard tree, for selecting a specialization. */
-    MVMSpeshArgGuard *spesh_arg_guard;
+    /* This is a pointer to MVMSpeshArgGuard, but we access it atomically. */
+    AO_t spesh_arg_guard;
 
     /* Specializations array, if there are any. Candidates themselves never
      * move in memory; the array of pointers to them is managed using the

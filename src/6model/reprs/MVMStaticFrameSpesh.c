@@ -26,7 +26,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 static void gc_mark(MVMThreadContext *tc, MVMSTable *st, void *data, MVMGCWorklist *worklist) {
     MVMStaticFrameSpeshBody *body = (MVMStaticFrameSpeshBody *)data;
     MVM_spesh_stats_gc_mark(tc, body->spesh_stats, worklist);
-    MVM_spesh_arg_guard_gc_mark(tc, body->spesh_arg_guard, worklist);
+    MVM_spesh_arg_guard_gc_mark(tc, (MVMSpeshArgGuard *)MVM_load(&body->spesh_arg_guard), worklist);
     if (body->num_spesh_candidates) {
         MVMuint32 i;
         for (i = 0; i < body->num_spesh_candidates; i++) {
@@ -40,7 +40,7 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVMStaticFrameSpesh *sfs = (MVMStaticFrameSpesh *)obj;
     MVM_spesh_stats_destroy(tc, sfs->body.spesh_stats);
     MVM_free(sfs->body.spesh_stats);
-    MVM_spesh_arg_guard_destroy(tc, sfs->body.spesh_arg_guard, 0);
+    MVM_spesh_arg_guard_destroy(tc, (MVMSpeshArgGuard *)MVM_load(&sfs->body.spesh_arg_guard), 0);
     MVM_free(sfs->body.spesh_candidates);
 }
 
