@@ -105,6 +105,12 @@ stages:
            NQP_OPTIONS: '--backends=moar --relocatable'
            MOAR_OPTIONS: '--relocatable --debug=3'
            CHECK_LEAKS: 'yes'
+         Lin_MVM_arm:
+           IMAGE_NAME: 'ubuntu-22.04-arm'
+           RAKUDO_OPTIONS: ''
+           NQP_OPTIONS: '--backends=moar'
+           MOAR_OPTIONS: '--debug=3'
+           CHECK_LEAKS: 'yes'
 
          MVM_gcc_njit:
            IMAGE_NAME: 'ubuntu-22.04'
