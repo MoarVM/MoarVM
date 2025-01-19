@@ -53,12 +53,14 @@ stages:
     - job: T
       strategy:
        matrix:
-         Win_MVM:
+         # The Windows job names start with '_' so they are lexicographically first. They usually
+         # take the longest to run, so this way we get better pipelining among all the jobs.
+         _Win_MVM:
            IMAGE_NAME: 'windows-2019'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
-         Win_MVM_reloc:
+         _Win_MVM_reloc:
            IMAGE_NAME: 'windows-2019'
            RELOCATABLE: 'yes'
            RAKUDO_OPTIONS: '--relocatable'
