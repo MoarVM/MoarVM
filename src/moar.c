@@ -144,14 +144,13 @@ MVMInstance * MVM_vm_create_instance(void) {
     instance->subscriptions.vm_startup_now = MVM_proc_time(instance->main_thread);
 
 #if MVM_HASH_RANDOMIZE
-    /* Get the 128-bit hashSecret */
-    MVM_getrandom(instance->main_thread, instance->hashSecrets, sizeof(MVMuint64) * 2);
+    /* Get the 64-bit hashSeed */
+    MVM_getrandom(instance->main_thread, &instance->hashSeed, sizeof(MVMuint64));
     /* Just in case MVM_getrandom didn't work, XOR it with some (poorly) randomized data */
-    instance->hashSecrets[0] ^= ptr_hash_64_to_64((uintptr_t)instance);
-    instance->hashSecrets[1] ^= MVM_proc_getpid(instance->main_thread) * MVM_platform_now();
+    instance->hashSeed ^= ptr_hash_64_to_64((uintptr_t)instance);
+    instance->hashSeed ^= MVM_proc_getpid(instance->main_thread) * MVM_platform_now();
 #else
-    instance->hashSecrets[0] = 0;
-    instance->hashSecrets[1] = 0;
+    instance->hashSeed = RAPID_SEED;
 #endif
     instance->main_thread->thread_id = 1;
 

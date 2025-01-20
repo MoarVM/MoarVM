@@ -1,3 +1,4 @@
+#include "rapidhash/rapidhash.h"
 #include "platform/memmem.h"
 #include "platform/memmem32.h"
 #include "moar.h"
@@ -3020,97 +3021,61 @@ MVMString * MVM_string_chr(MVMThreadContext *tc, MVMint64 cp) {
     return s;
 }
 
-/* Takes a string and computes a hash code for it, storing it in the hash code
- * cache field of the string. */
-typedef union {
-    MVMuint32 graphs[2];
-    MVMuint64 u64;
-} MVMJenHashGraphemeView;
-
-/* To force little endian representation on big endian machines, set
- * MVM_HASH_FORCE_LITTLE_ENDIAN in strings/siphash/csiphash.h
- * If this isn't set, MVM_MAYBE_TO_LITTLE_ENDIAN_32 does nothing (the default).
- * This would mainly be useful for debugging or if there were some other reason
- * someone cared that hashes were identical on different endian platforms */
 MVMuint64 MVM_string_compute_hash_code(MVMThreadContext *tc, MVMString *s) {
-#if defined(MVM_HASH_FORCE_LITTLE_ENDIAN)
-    const MVMuint64 key[2] = {
-        MVM_MAYBE_TO_LITTLE_ENDIAN_64(tc->instance->hashSecrets[0]),
-        MVM_MAYBE_TO_LITTLE_ENDIAN_64(tc->instance->hashSecrets[1])
-    };
-#else
-    const MVMuint64 *key = tc->instance->hashSecrets;
-#endif
+    const MVMuint64 seed = tc->instance->hashSeed;
     MVMuint64 hash = 0;
+    MVMGrapheme32 g = 0;
     MVMStringIndex s_len = MVM_string_graphs_nocheck(tc, s);
+    if (s_len == 0) {
+        return s->body.cached_hash_code = rapidhash_withSeed(&g, sizeof(MVMGrapheme32), seed);
+    }
+    /* We can't hash the string storage all at once, because then the same string with a different
+     * storage_type would hash differently. Rapidhash doesn't have the concept of just adding data
+     * to the hash state, so hash the first grapheme with the instance's seed and then just keep
+     * feeding the hash back in as the seed for the rest of the graphemes. */
     switch (s->body.storage_type) {
-        case MVM_STRING_IN_SITU_8: {
-            size_t i;
-            MVMJenHashGraphemeView gv;
-            siphash sh;
-            siphashinit(&sh, s_len * sizeof(MVMGrapheme32), key);
-            for (i = 0; i + 1 < s_len;) {
-                gv.graphs[0] = MVM_MAYBE_TO_LITTLE_ENDIAN_32(s->body.storage.in_situ_8[i++]);
-                gv.graphs[1] = MVM_MAYBE_TO_LITTLE_ENDIAN_32(s->body.storage.in_situ_8[i++]);
-                siphashadd64bits(&sh, gv.u64);
+        case MVM_STRING_IN_SITU_8:
+            g = (MVMGrapheme32)s->body.storage.in_situ_8[0];
+            hash = rapidhash_withSeed(&g, sizeof(MVMGrapheme32), seed);
+            for (size_t i = 1; i < s_len; i++) {
+                g = (MVMGrapheme32)s->body.storage.in_situ_8[i];
+                hash = rapidhash_withSeed(&g, sizeof(MVMGrapheme32), hash);
             }
-            /* If there is a final 32 bit grapheme pass it through, otherwise
-             * pass through 0. */
-            hash = siphashfinish_32bits(&sh,
-                i < s_len
-                    ? MVM_MAYBE_TO_LITTLE_ENDIAN_32(s->body.storage.in_situ_8[i]) : 0);
             break;
-        }
         case MVM_STRING_GRAPHEME_8:
-        case MVM_STRING_GRAPHEME_ASCII: {
-            size_t i;
-            MVMJenHashGraphemeView gv;
-            siphash sh;
-            siphashinit(&sh, s_len * sizeof(MVMGrapheme32), key);
-            for (i = 0; i + 1 < s_len;) {
-                gv.graphs[0] = MVM_MAYBE_TO_LITTLE_ENDIAN_32(s->body.storage.blob_8[i++]);
-                gv.graphs[1] = MVM_MAYBE_TO_LITTLE_ENDIAN_32(s->body.storage.blob_8[i++]);
-                siphashadd64bits(&sh, gv.u64);
+        case MVM_STRING_GRAPHEME_ASCII:
+            g = (MVMGrapheme32)s->body.storage.blob_8[0];
+            hash = rapidhash_withSeed(&g, sizeof(MVMGrapheme32), seed);
+            for (size_t i = 1; i < s_len; i++) {
+                g = (MVMGrapheme32)s->body.storage.blob_8[i];
+                hash = rapidhash_withSeed(&g, sizeof(MVMGrapheme32), hash);
             }
-            /* If there is a final 32 bit grapheme pass it through, otherwise
-             * pass through 0. */
-            hash = siphashfinish_32bits(&sh,
-                i < s_len
-                    ? MVM_MAYBE_TO_LITTLE_ENDIAN_32(s->body.storage.blob_8[i]) : 0);
             break;
-        }
-#if !defined(MVM_HASH_FORCE_LITTLE_ENDIAN)
-        case MVM_STRING_GRAPHEME_32: {
-            hash = siphash24(
-                (MVMuint8*)s->body.storage.blob_32,
-                s_len * sizeof(MVMGrapheme32),
-                key);
+        case MVM_STRING_GRAPHEME_32:
+            g = s->body.storage.blob_32[0];
+            hash = rapidhash_withSeed(&g, sizeof(MVMGrapheme32), seed);
+            for (size_t i = 1; i < s_len; i++) {
+                g = s->body.storage.blob_32[i];
+                hash = rapidhash_withSeed(&g, sizeof(MVMGrapheme32), hash);
+            }
             break;
-        }
-        case MVM_STRING_IN_SITU_32: {
-            hash = siphash24(
-                (MVMuint8*)s->body.storage.in_situ_32,
-                s_len * sizeof(MVMGrapheme32),
-                key);
+        case MVM_STRING_IN_SITU_32:
+            g = s->body.storage.in_situ_32[0];
+            hash = rapidhash_withSeed(&g, sizeof(MVMGrapheme32), seed);
+            for (size_t i = 1; i < s_len; i++) {
+                g = s->body.storage.in_situ_32[i];
+                hash = rapidhash_withSeed(&g, sizeof(MVMGrapheme32), hash);
+            }
             break;
-        }
-#endif
         default: {
-            siphash sh;
             MVMGraphemeIter gi;
-            MVMJenHashGraphemeView gv;
-            size_t i;
-            siphashinit(&sh, s_len * sizeof(MVMGrapheme32), key);
             MVM_string_gi_init(tc, &gi, s);
-            for (i = 0; i + 1 < s_len; i += 2) {
-                gv.graphs[0] = MVM_MAYBE_TO_LITTLE_ENDIAN_32(MVM_string_gi_get_grapheme(tc, &gi));
-                gv.graphs[1] = MVM_MAYBE_TO_LITTLE_ENDIAN_32(MVM_string_gi_get_grapheme(tc, &gi));
-                siphashadd64bits(&sh, gv.u64);
+            g = MVM_string_gi_get_grapheme(tc, &gi);
+            hash = rapidhash_withSeed(&g, sizeof(MVMGrapheme32), seed);
+            for (size_t i = 1; i < s_len; i++) {
+                g = MVM_string_gi_get_grapheme(tc, &gi);
+                hash = rapidhash_withSeed(&g, sizeof(MVMGrapheme32), hash);
             }
-            hash = siphashfinish_32bits(&sh,
-                i < s_len
-                    ? MVM_MAYBE_TO_LITTLE_ENDIAN_32(MVM_string_gi_get_grapheme(tc, &gi))
-                    : 0);
             break;
         }
     }
