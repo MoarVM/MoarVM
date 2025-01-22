@@ -2846,32 +2846,114 @@ MVMint64 MVM_string_find_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString
     if (offset < 0 || offset >= length)
         return end;
 
-    MVM_string_gi_init(tc, &gi, s);
-    MVM_string_gi_move_to(tc, &gi, offset);
-    switch (cclass) {
-        case MVM_CCLASS_WHITESPACE:
-            for (pos = offset; pos < end; pos++) {
-                MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-                MVMCodepoint cp = 0 <= g ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
-                if (MVM_CP_is_White_Space(cp))
-                    return pos;
+    switch (s->body.storage_type) {
+        case MVM_STRING_IN_SITU_8:
+            switch (cclass) {
+                case MVM_CCLASS_WHITESPACE:
+                    for (pos = offset; pos < end; pos++) {
+                        MVMCodepoint cp = (MVMCodepoint)s->body.storage.in_situ_8[pos];
+                        if (MVM_CP_is_White_Space(cp))
+                            return pos;
+                    }
+                    break;
+                case MVM_CCLASS_NEWLINE:
+                    for (pos = offset; pos < end; pos++) {
+                        MVMCodepoint cp = (MVMCodepoint)s->body.storage.in_situ_8[pos];
+                        if (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
+                            cp == 0x85 || MVM_CP_is_gencat_name_Zl(cp) || MVM_CP_is_gencat_name_Zp(cp))
+                            return pos;
+                    }
+                    break;
+                default:
+                    for (pos = offset; pos < end; pos++) {
+                        MVMGrapheme32 g = (MVMGrapheme32)s->body.storage.in_situ_8[pos];
+                        if (MVM_string_grapheme_is_cclass(tc, cclass, g) > 0)
+                            return pos;
+                    }
             }
             break;
-        case MVM_CCLASS_NEWLINE:
-            for (pos = offset; pos < end; pos++) {
-                MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-                MVMCodepoint cp = 0 <= g ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
-                if (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
-                    cp == 0x85 || MVM_CP_is_gencat_name_Zl(cp) || MVM_CP_is_gencat_name_Zp(cp))
-                    return pos;
+        case MVM_STRING_GRAPHEME_8:
+        case MVM_STRING_GRAPHEME_ASCII:
+            switch (cclass) {
+                case MVM_CCLASS_WHITESPACE:
+                    for (pos = offset; pos < end; pos++) {
+                        MVMCodepoint cp = (MVMCodepoint)s->body.storage.blob_8[pos];
+                        if (MVM_CP_is_White_Space(cp))
+                            return pos;
+                    }
+                    break;
+                case MVM_CCLASS_NEWLINE:
+                    for (pos = offset; pos < end; pos++) {
+                        MVMCodepoint cp = (MVMCodepoint)s->body.storage.blob_8[pos];
+                        if (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
+                            cp == 0x85 || MVM_CP_is_gencat_name_Zl(cp) || MVM_CP_is_gencat_name_Zp(cp))
+                            return pos;
+                    }
+                    break;
+                default:
+                    for (pos = offset; pos < end; pos++) {
+                        MVMGrapheme32 g = (MVMGrapheme32)s->body.storage.blob_8[pos];
+                        if (MVM_string_grapheme_is_cclass(tc, cclass, g) > 0)
+                            return pos;
+                    }
+            }
+            break;
+        case MVM_STRING_GRAPHEME_32:
+            switch (cclass) {
+                case MVM_CCLASS_WHITESPACE:
+                    for (pos = offset; pos < end; pos++) {
+                        MVMGrapheme32 g = (MVMGrapheme32)s->body.storage.blob_32[pos];
+                        MVMCodepoint cp = 0 <= g ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
+                        if (MVM_CP_is_White_Space(cp))
+                            return pos;
+                    }
+                    break;
+                case MVM_CCLASS_NEWLINE:
+                    for (pos = offset; pos < end; pos++) {
+                        MVMGrapheme32 g = (MVMGrapheme32)s->body.storage.blob_32[pos];
+                        MVMCodepoint cp = 0 <= g ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
+                        if (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
+                            cp == 0x85 || MVM_CP_is_gencat_name_Zl(cp) || MVM_CP_is_gencat_name_Zp(cp))
+                            return pos;
+                    }
+                    break;
+                default:
+                    for (pos = offset; pos < end; pos++) {
+                        MVMGrapheme32 g = (MVMGrapheme32)s->body.storage.blob_32[pos];
+                        if (MVM_string_grapheme_is_cclass(tc, cclass, g) > 0)
+                            return pos;
+                    }
             }
             break;
         default:
-            for (pos = offset; pos < end; pos++) {
-                MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
-                if (MVM_string_grapheme_is_cclass(tc, cclass, g) > 0)
-                    return pos;
+            MVM_string_gi_init(tc, &gi, s);
+            MVM_string_gi_move_to(tc, &gi, offset);
+            switch (cclass) {
+                case MVM_CCLASS_WHITESPACE:
+                    for (pos = offset; pos < end; pos++) {
+                        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+                        MVMCodepoint cp = 0 <= g ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
+                        if (MVM_CP_is_White_Space(cp))
+                            return pos;
+                    }
+                    break;
+                case MVM_CCLASS_NEWLINE:
+                    for (pos = offset; pos < end; pos++) {
+                        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+                        MVMCodepoint cp = 0 <= g ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
+                        if (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
+                            cp == 0x85 || MVM_CP_is_gencat_name_Zl(cp) || MVM_CP_is_gencat_name_Zp(cp))
+                            return pos;
+                    }
+                    break;
+                default:
+                    for (pos = offset; pos < end; pos++) {
+                        MVMGrapheme32 g = MVM_string_gi_get_grapheme(tc, &gi);
+                        if (MVM_string_grapheme_is_cclass(tc, cclass, g) > 0)
+                            return pos;
+                    }
             }
+            break;
     }
 
     return end;
