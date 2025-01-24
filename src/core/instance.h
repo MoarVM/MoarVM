@@ -569,6 +569,17 @@ struct MVMInstance {
     MVMuint64 hashSecrets[2];
 
     /************************************************************************
+     * Memory Management Stuff
+     ************************************************************************/
+#ifdef MVM_USE_MIMALLOC
+    mi_arena_id_t nursery_arena;
+    mi_heap_t *nursery_heap;
+#else
+    int nursery_arena;
+    int *nursery_heap;
+#endif
+
+    /************************************************************************
      * VM Event subscription
      ************************************************************************/
 
