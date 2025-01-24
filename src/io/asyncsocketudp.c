@@ -495,7 +495,7 @@ static void setup_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     int r;
     if ((r = uv_udp_init(loop, udp_handle)) >= 0) {
         if (ssi->bind_addr)
-            r = uv_udp_bind(udp_handle, ssi->bind_addr, 0);
+            r = uv_udp_bind(udp_handle, ssi->bind_addr, ssi->flags & 4 ? UV_UDP_REUSEADDR : 0);
         if (r >= 0 && (ssi->flags & 1))
             r = uv_udp_set_broadcast(udp_handle, 1);
     }
