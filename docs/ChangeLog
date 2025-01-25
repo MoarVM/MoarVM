@@ -1,3 +1,30 @@
+New in 2025.01
+
+Core:
+   * [caf97bf0] Fix MVM_setjmp on 32bit Windows
+   * [df1715d6] Micro-optimize P6opaque's get_attribute() (#1884)
+   * [7d15fcab] Remove temporary define for migrating Rakudo extops (#1671)
+   * [4f183bc0] Fix OS-is-windows check that doesn't work in this file
+   * [9a1aebb3] Use correct fallthrough annotation (#1885)
+   * [fa5bfd92] Port over "cache devshell dll location" from rakudo CI
+   * [1c2ea87e] Install gdb extension (#1848)
+
+Documentation:
+   * [8102c510] beautify release_guide.md
+
+JIT:
+   * [dd98cb2e] Don't try to enable the JIT unless it's possible (#1887)
+
+Spesh:
+   * [52d3452e] Guard against out-of-bounds jumps in spesh arg guard program.
+
+CI:
+   * [777294c4] Maybe the order jobs are started is alphabetical?
+   * [c1d1f60e] Fix format specifiers clang on OSX complains about
+   * [1f5bf409] GH Actions: Remove the deprecated macos-12 runner
+   * [afc8354b] Do not persist tokens in CI artifacts
+   * [6f3f53c4] Change comment style because gcc complains
+
 New in 2024.12
 
 Core:
@@ -387,7 +414,7 @@ Core:
 + Protect the two property code lookup hashes being set up with a mutex
   [9bc1beed]
 + Add fallback resolver [43e60db9][a6fbcf6b][35064bf9][c89c3ec8][5d0f92c6]
-+ Add definition of AI_NUMERICSERV, fixes build on MacOS 10.6 for ppc 
++ Add definition of AI_NUMERICSERV, fixes build on MacOS 10.6 for ppc
   [976c1168]
 + Add unsigned comparison ops (eq, ne, (l|g)(e|t)) [c77dc1d4]
 + Add chown op [c69534c6][a1cbb9c4]
