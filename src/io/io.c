@@ -443,9 +443,9 @@ char* MVM_platform_path(MVMThreadContext *tc, MVMString *path) {
     /* Add prefix if:
        * It is an absolute path
        * It doesn't already start with \\?\
-       * It is at least MAX_PATH in length
+       * It is at least MAX_PATH in length, strlen excludes \0, MAX_PATH includes \0, thus >=
     */
-    if (is_absolute_path(original_path) == 1 && strlen(original_path) > MAX_PATH && strncmp(original_path, "\\\\?\\", 4) != 0) {
+    if (is_absolute_path(original_path) == 1 && strlen(original_path) >= MAX_PATH && strncmp(original_path, "\\\\?\\", 4) != 0) {
 
         // Allocate memory for the new path. Add extra space for "\\?\" and the null terminator.
         size_t new_length = strlen(original_path) + 4 + 1;
