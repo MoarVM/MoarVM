@@ -92,6 +92,10 @@ proceed.
 
 ### Changes
 
+#### Version 1.4
+
+ * Add Loaded Files Request (50) and File Loaded Notification (51).
+
 #### Version 1.3 ERRATA
 
  * **No behavior changes**, only the following errata fixes in this doc.
@@ -1045,5 +1049,72 @@ Response will be emitted.
         "keys": [
             "one",
             "two",
+        ]
+    }
+
+### Loaded Files Request (50)
+
+In order to reliably set breakpoints, the filename supplied to the breakpoint
+command needs to match what is in the annotation exactly.
+
+This command allows a debug client to ask what file names have been
+seen so far.
+
+With the "start_watching" key set to True, notifications when a new
+filename is seen will be sent with File Loaded Notification type and the
+id of this request.
+
+With "suspend", the thread that first encounters the new filename will
+suspend itself.
+
+With "stacktrace", the notifications will also immediately send a stacktrace
+along for the thread that encounters the new file.
+
+    {
+        "type": 50,
+        "id": $id,
+        "start_watching": True,
+        "suspend": False,
+        "stacktrace": False,
+    }
+
+### File Loaded Notification (51)
+
+Response to a Loaded Files Request, as well as notification when new files
+show up later on.
+
+Filename entries that were created not from a corresponding annotation being
+encountered but from requesting a breakpoint to be installed will have the
+"pending" key in addition to the "path" key.
+
+Creating a file by requesting a breakpoint does not cause a notification to
+be sent out, but the same file later being encountered will cause such a
+notification.
+
+Initial response:
+
+    {
+        "type": 51,
+        "id": $id,
+        "filenames": [
+            { "path": "src/vm/moar/ModuleLoader.nqp" },
+            { "path": "gen/moar/CORE.c.setting" },
+            { "path": "NQP::src/how/Archetypes.nqp" },
+            { "path": "SETTING::src/core.c/List.rakumod" },
+            { "path": "lib/ACME/Foobar.rakumod", "pending": True },
+        ]
+    }
+
+Notification:
+
+    {
+        "type": 51,
+        "id": $id,
+        "thread": 1,
+        "filenames": [
+            { "path": "src/Perl6/Metamodel/PrivateMethodContainer.nqp" },
+        ],
+        "frames": [
+            ...
         ]
     }
