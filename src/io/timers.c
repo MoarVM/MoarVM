@@ -7,6 +7,10 @@ typedef struct {
     uv_timer_t *handle;
     MVMThreadContext *tc;
     int work_idx;
+
+    /* In order to correct for clock drift in repeating timers, we adjust the
+     * repeat interval based on the last time our callback ran. */
+    MVMuint64 now_at_prev_callback;
 } TimerInfo;
 
 /* Frees the timer's handle memory. */
@@ -28,6 +32,29 @@ static void timer_cb(uv_timer_t *handle) {
         uv_close((uv_handle_t *)ti->handle, free_timer);
         MVM_io_eventloop_remove_active_work(tc, &(ti->work_idx));
     }
+    else if (ti->repeat) {
+        /* To counteract drift, we adjust the time based on the current time. */
+        MVMuint64 prev_now = ti->now_at_prev_callback;
+        MVMuint64 actually_passed = uv_now(handle->loop) - prev_now;
+        MVMint64 diff = actually_passed - ti->repeat;
+        if (diff * 2 > ti->repeat) {
+            /* We must have missed our tick for some reason.
+             * We will just pretend the timing was correct and not
+             * change anything. */
+            diff = 0;
+        }
+        else if (diff * -2 < -(MVMint64)ti->repeat) {
+            /* From the code in libuv's timer.c I think the timer callback
+             * can not be invoked if uv_now is not >= the due time, and the
+             * "clamped timeout" that is used is based on timeout + loop->time.
+             * In any case, even though this should not be possible, it's
+             * probably safe to just do nothing, if it becomes
+             * possible later down the line. */
+             diff = 0;
+        }
+        ti->now_at_prev_callback = uv_now(handle->loop) - diff;
+        uv_timer_start(handle, timer_cb, ti->repeat - diff, 0);
+    }
 }
 
 /* Sets the timer up on the event loop. */
@@ -38,7 +65,9 @@ static void setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, 
     ti->work_idx     = MVM_io_eventloop_add_active_work(tc, async_task);
     ti->tc           = tc;
     ti->handle->data = ti;
-    uv_timer_start(ti->handle, timer_cb, ti->timeout, ti->repeat);
+    /* Instead of libuv's own repeating timer functionality, we take care of
+     * restarting the timer on every tick, so that we can correct for drift */
+    uv_timer_start(ti->handle, timer_cb, ti->timeout, 0);
 }
 
 /* Stops the timer. */
@@ -93,6 +122,7 @@ MVMObject * MVM_io_timer_create(MVMThreadContext *tc, MVMObject *queue,
     timer_info          = MVM_malloc(sizeof(TimerInfo));
     timer_info->timeout = timeout;
     timer_info->repeat  = repeat;
+    timer_info->now_at_prev_callback = 0;
     task->body.data     = timer_info;
 
     /* Hand the task off to the event loop, which will set up the timer on the
