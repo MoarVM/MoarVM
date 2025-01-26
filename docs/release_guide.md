@@ -27,6 +27,8 @@ be made, they should be numbered as `2014.01`**.1**, `2014.01`**.2**, etc.
 
 4. Do a checkout to a new branch name, which equals to the release version
    (e.g. `git checkout -b 2014.01`, substituting the correct version).
+   **NOTE** - Most recent release branches have used an extra trailing 0.
+   For now, continue to follow this convention.
 
 5. Update the `docs/ChangeLog` file with any significant changes since the previous release.
    To do so, write down commits from the previous release merge commit to latest ones (using
