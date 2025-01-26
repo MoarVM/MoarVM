@@ -202,6 +202,13 @@ if ($^O eq 'darwin') {
     }
 }
 
+# MSVC requires the /experimental:c11atomics flag to work with c11 atomics.
+# We conditionally add this flag since it would cause an unrecognized option
+# error on older MSVCs.
+if ( $config{cc} eq 'cl' && $config{use_c11_atomics} ) {
+    $config{ccmiscflags} .= ' /experimental:c11atomics';
+}
+
 # Probe the compiler.
 build::probe::compiler_usability(\%config, \%defaults);
 
