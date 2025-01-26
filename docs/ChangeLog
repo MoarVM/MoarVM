@@ -1,29 +1,29 @@
 New in 2025.01
 
 Core:
-   * [caf97bf0] Fix MVM_setjmp on 32bit Windows
-   * [df1715d6] Micro-optimize P6opaque's get_attribute() (#1884)
-   * [7d15fcab] Remove temporary define for migrating Rakudo extops (#1671)
-   * [4f183bc0] Fix OS-is-windows check that doesn't work in this file
-   * [9a1aebb3] Use correct fallthrough annotation (#1885)
-   * [fa5bfd92] Port over "cache devshell dll location" from rakudo CI
-   * [1c2ea87e] Install gdb extension (#1848)
++ Fix MVM_setjmp on 32bit Windows [caf97bf0]
++ Micro-optimize P6opaque's get_attribute() (#1884) [df1715d6]
++ Remove temporary define for migrating Rakudo extops (#1671) [7d15fcab]
++ Fix OS-is-windows check that doesn't work in this file [4f183bc0]
++ Use correct fallthrough annotation (#1885) [9a1aebb3]
++ Port over "cache devshell dll location" from rakudo CI [fa5bfd92]
++ Install gdb extension (#1848) [1c2ea87e]
 
 Documentation:
-   * [8102c510] beautify release_guide.md
++ beautify release_guide.md [8102c510]
 
 JIT:
-   * [dd98cb2e] Don't try to enable the JIT unless it's possible (#1887)
++ Don't try to enable the JIT unless it's possible (#1887) [dd98cb2e]
 
 Spesh:
-   * [52d3452e] Guard against out-of-bounds jumps in spesh arg guard program.
++ Guard against out-of-bounds jumps in spesh arg guard program. [52d3452e]
 
 CI:
-   * [777294c4] Maybe the order jobs are started is alphabetical?
-   * [c1d1f60e] Fix format specifiers clang on OSX complains about
-   * [1f5bf409] GH Actions: Remove the deprecated macos-12 runner
-   * [afc8354b] Do not persist tokens in CI artifacts
-   * [6f3f53c4] Change comment style because gcc complains
++ Maybe the order jobs are started is alphabetical? [777294c4]
++ Fix format specifiers clang on OSX complains about [c1d1f60e]
++ GH Actions: Remove the deprecated macos-12 runner [1f5bf409]
++ Do not persist tokens in CI artifacts [afc8354b]
++ Change comment style because gcc complains [6f3f53c4]
 
 New in 2024.12
 
