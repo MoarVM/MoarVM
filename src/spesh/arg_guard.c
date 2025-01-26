@@ -655,6 +655,6 @@ void MVM_spesh_arg_guard_discard(MVMThreadContext *tc, MVMStaticFrame *sf) {
     MVMStaticFrameSpesh *spesh = sf->body.spesh;
     if (spesh && spesh->body.spesh_arg_guard) {
         MVM_spesh_arg_guard_destroy(tc, (MVMSpeshArgGuard *)MVM_load(&spesh->body.spesh_arg_guard), 1);
-        MVM_store(spesh->body.spesh_arg_guard, NULL);
+        MVM_store(&spesh->body.spesh_arg_guard, NULL);
     }
 }
