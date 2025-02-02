@@ -26,6 +26,9 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
 
     tc->instance->speshworker_thread_id = tc->thread_obj->body.thread_id;
 
+    MVMuint8 *tuples_used_buffer = MVM_calloc(128, 1);
+    MVMuint32 tuples_used_alloc = 128;
+
     MVMROOT3(tc, updated_static_frames, newly_seen_static_frames, previous_static_frames) {
         size_t log_tell_before = 0;
         while (1) {
@@ -128,7 +131,13 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
 
                     /* Form a specialization plan. */
                     start_time = uv_hrtime();
-                    tc->instance->spesh_plan = MVM_spesh_plan(tc, updated_static_frames, &certain_spesh, &observed_spesh, &osr_spesh);
+
+                    /* Make sure to re-use the allocation for tuples_used. */
+                    tc->instance->spesh_plan = MVM_calloc(1, sizeof(MVMSpeshPlan));
+                    tc->instance->spesh_plan->alloc_tuples_used = tuples_used_alloc;
+                    tc->instance->spesh_plan->tuples_used = tuples_used_buffer;
+
+                    tc->instance->spesh_plan = MVM_spesh_plan_reuse(tc, tc->instance->spesh_plan, updated_static_frames, &certain_spesh, &observed_spesh, &osr_spesh);
                     if (MVM_spesh_debug_enabled(tc)) {
                         n = tc->instance->spesh_plan->num_planned;
                         MVM_spesh_debug_printf(tc,
@@ -171,6 +180,11 @@ static void worker(MVMThreadContext *tc, MVMArgs arg_info) {
                             log_tell_before = before_print + 1;
                         }
                     }
+
+                    tuples_used_buffer = tc->instance->spesh_plan->tuples_used;
+                    tuples_used_alloc = tc->instance->spesh_plan->alloc_tuples_used;
+                    tc->instance->spesh_plan->tuples_used = NULL;
+
                     MVM_spesh_plan_destroy(tc, tc->instance->spesh_plan);
                     tc->instance->spesh_plan = NULL;
 

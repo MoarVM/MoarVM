@@ -26,6 +26,13 @@ struct MVMSpeshPlan {
 
     /* The number of specialization plans space is allocated for. */
     MVMuint32 alloc_planned;
+
+    /* Little buffer to hold bits for use only inside of plan_for_cs.
+     * We hang it off the SpeshPlan because the SpeshPlan is already passed
+     * down through the function that uses the buffer from the worker. */
+    MVMuint8 *tuples_used;
+
+    MVMuint32 alloc_tuples_used;
 };
 
 /* Kinds of specializations we might decide to produce. */
@@ -74,6 +81,7 @@ struct MVMSpeshPlanned {
     MVMuint32 num_type_stats;
 };
 
+MVMSpeshPlan * MVM_spesh_plan_reuse(MVMThreadContext *tc, MVMSpeshPlan *to_reuse, MVMObject *updated_static_frames, MVMuint64 *certain_specialization, MVMuint64 *observed_specialization, MVMuint64 *osr_specialization);
 MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_frames, MVMuint64 *certain_specialization, MVMuint64 *observed_specialization, MVMuint64 *osr_specialization);
 void MVM_spesh_plan_gc_mark(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMGCWorklist *worklist);
 void MVM_spesh_plan_gc_describe(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSpeshPlan *plan);

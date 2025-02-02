@@ -91,6 +91,9 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
                         MVMSpeshStatsByCallsite *by_cs,
                         MVMuint64 *in_certain_specialization, MVMuint64 *in_observed_specialization,
                         MVMuint64 *in_osr_specialization) {
+    MVMuint32 allocated_chosen_position = 0;
+    MVMuint8 *chosen_position = NULL;
+
     /* First, make sure it even is possible to specialize something by type
      * in this code. */
     MVMuint32 specializations = 0;
@@ -98,7 +101,12 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
         /* It is. We'll try and produce some specializations, looping until
          * no tuples that remain give us anything significant. */
         MVMuint32 required_hits = (PERCENT_RELEVANT * (by_cs->hits + by_cs->osr_hits)) / 100;
-        MVMuint8 tuples_used[512];
+        if (by_cs->num_by_type > plan->alloc_tuples_used) {
+            plan->alloc_tuples_used = by_cs->num_by_type;
+            plan->tuples_used = MVM_realloc(plan->tuples_used, plan->alloc_tuples_used);
+        }
+        memset(plan->tuples_used, 0, by_cs->num_by_type);
+        MVMuint8 *tuples_used = plan->tuples_used;
         MVMuint32 num_obj_args = 0, i;
         for (i = 0; i < by_cs->cs->flag_count; i++)
             if (by_cs->cs->arg_flags[i] & MVM_CALLSITE_ARG_OBJ)
@@ -113,7 +121,11 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
              * argument, but a lot in the second. */
             MVMSpeshStatsType *chosen_tuple = MVM_calloc(by_cs->cs->flag_count,
                     sizeof(MVMSpeshStatsType));
-            MVMuint8 chosen_position[32] = {0};
+            if (by_cs->cs->flag_count > allocated_chosen_position) {
+                allocated_chosen_position = by_cs->cs->flag_count;
+                chosen_position = MVM_realloc(chosen_position, allocated_chosen_position);
+            }
+            memset(chosen_position, 0, allocated_chosen_position);
             MVMuint32 param_idx, j, k, have_chosen;
             MVM_VECTOR_DECL(ParamTypeCount, type_counts);
             MVM_VECTOR_INIT(type_counts, by_cs->num_by_type);
@@ -218,6 +230,10 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
         }
     }
 
+    if (chosen_position) {
+        MVM_free(chosen_position);
+    }
+
     /* If we get here, and found no specializations to produce, we can add
      * a certain specializaiton instead. */
     if (!specializations)
@@ -298,10 +314,13 @@ static void sort_plan(MVMThreadContext *tc, MVMSpeshPlanned *planned, MVMuint32 
 
 /* Forms a specialization plan from considering all frames whose statics have
  * changed. */
-MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_frames, MVMuint64 *in_certain_specialization, MVMuint64 *in_observed_specialization, MVMuint64 *in_osr_specialization) {
-    MVMSpeshPlan *plan = MVM_calloc(1, sizeof(MVMSpeshPlan));
+MVMSpeshPlan * MVM_spesh_plan_reuse(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMObject *updated_static_frames, MVMuint64 *in_certain_specialization, MVMuint64 *in_observed_specialization, MVMuint64 *in_osr_specialization) {
     MVMint64 updated = MVM_repr_elems(tc, updated_static_frames);
     MVMint64 i;
+    if (plan->alloc_tuples_used == 0) {
+        plan->alloc_tuples_used = 128;
+        plan->tuples_used = MVM_calloc(plan->alloc_tuples_used, 1);
+    }
 #if MVM_GC_DEBUG
     tc->in_spesh = 1;
 #endif
@@ -314,6 +333,20 @@ MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_fr
 #if MVM_GC_DEBUG
     tc->in_spesh = 0;
 #endif
+    return plan;
+}
+
+
+/* Forms a specialization plan from considering all frames whose statics have
+ * changed. */
+MVMSpeshPlan * MVM_spesh_plan(MVMThreadContext *tc, MVMObject *updated_static_frames, MVMuint64 *in_certain_specialization, MVMuint64 *in_observed_specialization, MVMuint64 *in_osr_specialization) {
+    MVMSpeshPlan *plan = MVM_calloc(1, sizeof(MVMSpeshPlan));
+    MVM_spesh_plan_reuse(tc, plan, updated_static_frames, in_certain_specialization, in_observed_specialization, in_osr_specialization);
+    if (plan->tuples_used) {
+        MVM_free(plan->tuples_used);
+        plan->tuples_used = NULL;
+        plan->alloc_tuples_used = 0;
+    }
     return plan;
 }
 
@@ -371,6 +404,8 @@ void MVM_spesh_plan_destroy(MVMThreadContext *tc, MVMSpeshPlan *plan) {
         MVM_free(plan->planned[i].type_stats);
         MVM_free(plan->planned[i].type_tuple);
     }
+    if (plan->tuples_used)
+        MVM_free(plan->tuples_used);
     MVM_free(plan->planned);
     MVM_free(plan);
 }
