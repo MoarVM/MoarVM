@@ -1,4 +1,4 @@
-#!/usr/bin/env perl6
+#!/usr/bin/env raku
 use v6;
 my %counts;
 my $logfile = @*ARGS ?? shift @*ARGS !! %*ENV<MVM_JIT_LOG>;

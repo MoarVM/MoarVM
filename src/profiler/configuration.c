@@ -11,7 +11,7 @@
  *
  * There is a Rakudo module that offers a confprog compiler named
  * App::MoarVM::ConfprogCompiler, and nqp's src/vm/moar/HLL/Backend.nqp
- * has a corresponding loader. The nqp and perl6 commandline programs
+ * has a corresponding loader. The nqp and raku commandline programs
  * recognize a --confprog flag.
  */
 

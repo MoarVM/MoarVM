@@ -1,4 +1,4 @@
-#!/usr/bin/env perl6
+#!/usr/bin/env raku
 
 use v6;
 
@@ -496,4 +496,4 @@ my $*tablesort-number = q:to/TABLESORT-NUMBER/;
 }());
 TABLESORT-NUMBER
 
-# vim: ft=perl6 expandtab sw=4
+# vim: ft=raku expandtab sw=4

@@ -56,7 +56,7 @@ of the Rakudo sanity tests, and passes more spectests than any other
 Rakudo backend.
 
 Unlike the JVM or JS backend of NQP, the MoarVM repo is not integrated into the
-[NQP source repo](http://github.com/perl6/nqp) but instead can be pulled
+[NQP source repo](http://github.com/Raku/nqp) but instead can be pulled
 in by running `Configure.pl --gen-moar` configure script in the NQP repo.
 
 ## Feature overview

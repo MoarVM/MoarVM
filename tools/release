@@ -49,7 +49,7 @@ sub MAIN($release, Bool :$update-changelog = True, Bool :$update-version = True,
 
     %*ENV<TEST_JOBS> = $*KERNEL.cpu-cores;
     indir $builddir, {
-        run <git clone https://github.com/perl6/nqp.git>;
+        run <git clone https://github.com/Raku/nqp.git>;
         indir "nqp".IO, {
             run <<perl Configure.pl --backends=moar "--with-moar=$builddir/install/bin/moar" "--prefix=$builddir/install">>;
             run <make test>;
