@@ -115,15 +115,15 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
                     sizeof(MVMSpeshStatsType));
             MVMuint8 chosen_position[32] = {0};
             MVMuint32 param_idx, j, k, have_chosen;
-            MVM_VECTOR_DECL(ParamTypeCount, type_counts);
-            MVM_VECTOR_INIT(type_counts, by_cs->num_by_type);
+            ParamTypeCount type_counts[512];
+            size_t type_counts_idx = 0;
             for (param_idx = 0; param_idx < by_cs->cs->flag_count; param_idx++) {
                 /* Skip over non-object types. */
                 if (!(by_cs->cs->arg_flags[param_idx] & MVM_CALLSITE_ARG_OBJ))
                     continue;
 
                 /* Sum up the counts of this parameter's types. */
-                MVM_VECTOR_CLEAR(type_counts);
+                type_counts_idx = 0;
                 for (j = 0; j < by_cs->num_by_type; j++) {
                     /* Make sure that the prefix matches what we've already decided
                      * to focus on, and that the tuple wasn't already covered. */
@@ -144,7 +144,7 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
 
                     /* Otherwise, assemble its counts. */
                     found = 0;
-                    for (k = 0; k < MVM_VECTOR_ELEMS(type_counts); k++) {
+                    for (k = 0; k < type_counts_idx; k++) {
                         if (memcmp(&(type_counts[k].type), &(by_type->arg_types[param_idx]),
                                     sizeof(MVMSpeshStatsType)) == 0) {
                             type_counts[k].count += by_type->hits + by_type->osr_hits;
@@ -156,13 +156,13 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
                         ParamTypeCount ptc;
                         ptc.type = by_type->arg_types[param_idx];
                         ptc.count = by_type->hits + by_type->osr_hits;
-                        MVM_VECTOR_PUSH(type_counts, ptc);
+                        type_counts[type_counts_idx++] = ptc;
                     }
                 }
 
                 /* Go through those hits and find an entry that meets the
                  * threshold if we are to specialize on it. */
-                for (j = 0; j < MVM_VECTOR_ELEMS(type_counts); j++) {
+                for (j = 0; j < type_counts_idx; j++) {
                     if (type_counts[j].count >= required_hits) {
                         /* Yes, found; copy into the type tuple and mark chosen. */
                         chosen_tuple[param_idx] = type_counts[j].type;
@@ -171,7 +171,6 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
                     }
                 }
             }
-            MVM_VECTOR_DESTROY(type_counts);
 
             /* By this point, we may well have a tuple to specialize on. Check
              * if that is the case. */
