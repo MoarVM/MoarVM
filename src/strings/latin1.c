@@ -1,5 +1,16 @@
 #include "moar.h"
 
+#define DECODE_BODY                                                          \
+    for (i = 0; i < bytes; i++) {                                            \
+        if (latin1[i] == '\r' && i + 1 < bytes && latin1[i + 1] == '\n') {   \
+            storage[result_graphs++] = MVM_nfg_crlf_grapheme(tc);            \
+            i++;                                                             \
+        }                                                                    \
+        else {                                                               \
+            storage[result_graphs++] = latin1[i];                            \
+        }                                                                    \
+    }                                                                        \
+
 /* Decodes the specified number of bytes of latin1 into an NFG string,
  * creating a result of the specified type. The type must have the MVMString
  * REPR. */
@@ -35,15 +46,7 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, const MVMObject *resu
             result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
             storage = result->body.storage.blob_32;
         }
-        for (i = 0; i < bytes; i++) {
-            if (latin1[i] == '\r' && i + 1 < bytes && latin1[i + 1] == '\n') {
-                storage[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
-                i++;
-            }
-            else {
-                storage[result_graphs++] = latin1[i];
-            }
-        }
+        DECODE_BODY
     }
     else {
         MVMint8 *storage;
@@ -56,15 +59,7 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, const MVMObject *resu
             result->body.storage.blob_8 = MVM_malloc(sizeof(MVMint8) * bytes);
             storage = result->body.storage.blob_8;
         }
-        for (i = 0; i < bytes; i++) {
-            if (latin1[i] == '\r' && i + 1 < bytes && latin1[i + 1] == '\n') {
-                storage[result_graphs++] = MVM_nfg_crlf_grapheme(tc);
-                i++;
-            }
-            else {
-                storage[result_graphs++] = latin1[i];
-            }
-        }
+        DECODE_BODY
     }
 
     result->body.num_graphs = result_graphs;
