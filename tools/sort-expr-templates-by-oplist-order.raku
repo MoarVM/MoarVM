@@ -1,4 +1,4 @@
-#!/usr/bin/env perl6
+#!/usr/bin/env raku
 # This script parses the expression templates and orders it based on the
 # oplist order. It attaches any text between two template definitions
 # (i.e. comments) with the following op so that comments are preserved.

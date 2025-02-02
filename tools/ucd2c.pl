@@ -2303,4 +2303,4 @@ sub register_enumerated_property {
 
 main();
 
-# vim: ft=perl6 expandtab sw=4
+# vim: ft=raku expandtab sw=4

@@ -1,4 +1,4 @@
-#!/usr/bin/env perl6
+#!/usr/bin/env raku
 # This script is meant to automate part of the creation of the ChangeLog.
 #
 use Git::Log;

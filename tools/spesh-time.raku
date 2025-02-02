@@ -1,4 +1,4 @@
-#!/usr/bin/env perl6
+#!/usr/bin/env raku
 
 sub MAIN($spesh-log) {
     with slurp($spesh-log) {
