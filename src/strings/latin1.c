@@ -25,11 +25,9 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, const MVMObject *resu
     }
 
     MVMuint8 writing_32bit = 0;
+    MVM_VECTORIZE_LOOP
     for (i = 0; i < bytes; i++) {
-        if (latin1[i] > 127) {
-            writing_32bit = 1;
-            break;
-        }
+        writing_32bit |= (latin1[i] > 127);
     }
 
     result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
