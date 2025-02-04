@@ -11,6 +11,11 @@
         }                                                                    \
     }                                                                        \
 
+#define DECODE_BODY_NO_CRLF                                                  \
+    for (i = 0; i < bytes; i++) {                                            \
+        storage[result_graphs++] = latin1[i];                                \
+    }                                                                        \
+
 /* Decodes the specified number of bytes of latin1 into an NFG string,
  * creating a result of the specified type. The type must have the MVMString
  * REPR. */
@@ -25,10 +30,14 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, const MVMObject *resu
     }
 
     MVMuint8 writing_32bit = 0;
+    MVMuint8 has_crlf = 0;
     MVM_VECTORIZE_LOOP
-    for (i = 0; i < bytes; i++) {
+    for (i = 0; i < bytes - 1; i++) {
         writing_32bit |= (latin1[i] > 127);
+        has_crlf |= (latin1[i] == '\r' && latin1[i + 1] == '\n');
     }
+    writing_32bit |= (latin1[i] > 127);
+    has_crlf |= (latin1[i - 1] == '\r' && latin1[i] == '\n');
 
     result = (MVMString *)REPR(result_type)->allocate(tc, STABLE(result_type));
 
@@ -44,7 +53,13 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, const MVMObject *resu
             result->body.storage.blob_32 = MVM_malloc(sizeof(MVMGrapheme32) * bytes);
             storage = result->body.storage.blob_32;
         }
-        DECODE_BODY
+        if (has_crlf) {
+            DECODE_BODY
+        }
+        else {
+            MVM_VECTORIZE_LOOP
+            DECODE_BODY_NO_CRLF
+        }
     }
     else {
         MVMint8 *storage;
@@ -57,7 +72,13 @@ MVMString * MVM_string_latin1_decode(MVMThreadContext *tc, const MVMObject *resu
             result->body.storage.blob_8 = MVM_malloc(sizeof(MVMint8) * bytes);
             storage = result->body.storage.blob_8;
         }
-        DECODE_BODY
+        if (has_crlf) {
+            DECODE_BODY
+        }
+        else {
+            MVM_VECTORIZE_LOOP
+            DECODE_BODY_NO_CRLF
+        }
     }
 
     result->body.num_graphs = result_graphs;
