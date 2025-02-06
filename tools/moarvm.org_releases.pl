@@ -85,7 +85,7 @@ sub beginning_text {
 <!DOCTYPE html>
 <html lang="en-US">
   <head>
-    <title>MoarVM - A VM for NQP and Rakudo Perl 6</title>
+    <title>MoarVM - A VM for Rakudo and NQP</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link href="css/bootstrap.min.css" rel="stylesheet">
@@ -105,7 +105,7 @@ sub beginning_text {
 
       <div class="page-header" id="banner">
         <h1>MoarVM</h1>
-        <p class="lead">A VM for NQP And Rakudo Perl 6</p>
+        <p class="lead">A VM for Rakudo and NQP</p>
       </div>
       <nav class="navbar navbar-default" role="navigation">
         <ul class="nav navbar-nav">

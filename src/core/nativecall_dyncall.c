@@ -698,7 +698,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
                 }
                 case MVM_NATIVECALL_ARG_CALLBACK:
                     /* TODO: A callback -return- value means that we have a C method
-                    * that needs to be wrapped similarly to a is native(...) Perl 6
+                    * that needs to be wrapped similarly to a is native(...) Rakudo
                     * sub. */
                     dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
@@ -1240,7 +1240,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
                 }
                 case MVM_NATIVECALL_ARG_CALLBACK:
                     /* TODO: A callback -return- value means that we have a C method
-                    * that needs to be wrapped similarly to a is native(...) Perl 6
+                    * that needs to be wrapped similarly to a is native(...) Rakudo
                     * sub. */
                     dcCallPointer(vm, entry_point);
                     MVM_gc_mark_thread_unblocked(tc);
