@@ -247,16 +247,13 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
     MVMint32 state = 0;
     MVMint32 bufsize = bytes;
     MVMGrapheme32 *buffer = MVM_malloc(sizeof(MVMGrapheme32) * bufsize);
-    size_t orig_bytes;
-    const char *orig_utf8;
+    size_t orig_bytes = bytes;
+    const char *orig_utf8 = utf8;
     MVMint32 ready;
 
     /* Need to normalize to NFG as we decode. */
     MVMNormalizer norm;
     MVM_unicode_normalizer_init(tc, &norm, MVM_NORMALIZE_NFG);
-
-    orig_bytes = bytes;
-    orig_utf8 = utf8;
 
     for (; bytes; ++utf8, --bytes) {
         switch(MVM_EXPECT(decode_utf8_byte(&state, &codepoint, (MVMuint8)*utf8), UTF8_ACCEPT)) {
