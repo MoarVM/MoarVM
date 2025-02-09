@@ -197,11 +197,6 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
             MVMGrapheme32 g;
             ready = MVM_unicode_normalizer_process_codepoint_to_grapheme(tc, &norm, codepoint, &g);
             if (ready) {
-                while (count + ready > bufsize) { /* if the buffer's full make a bigger one */
-                    buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (
-                        bufsize >= UTF8_MAXINC ? (bufsize += UTF8_MAXINC) : (bufsize *= 2)
-                    ));
-                }
                 buffer[count++] = g;
                 while (--ready > 0) {
                     buffer[count++] = MVM_unicode_normalizer_get_grapheme(tc, &norm);
@@ -274,9 +269,6 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
     MVM_unicode_normalizer_eof(tc, &norm);
     ready = MVM_unicode_normalizer_available(tc, &norm);
     if (ready) {
-        if (count + ready > bufsize) {
-            buffer = MVM_realloc(buffer, sizeof(MVMGrapheme32) * (count + ready));
-        }
         while (ready--) {
             buffer[count++] =  MVM_unicode_normalizer_get_grapheme(tc, &norm);
         }
