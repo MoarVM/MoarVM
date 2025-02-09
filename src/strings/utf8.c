@@ -277,20 +277,17 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
 
     /* If we're lucky, we can fit our string in 8 bits per grapheme. */
     if (MVM_string_buf32_can_fit_into_8bit(buffer, count)) {
+        MVMGrapheme8 *storage;
         if (count <= 8) {
-            MVM_VECTORIZE_LOOP
-            for (ready = 0; ready < count; ready++) {
-                result->body.storage.in_situ_8[ready] = buffer[ready];
-            }
+            storage = result->body.storage.in_situ_8;
             result->body.storage_type    = MVM_STRING_IN_SITU_8;
         } else {
-            MVMGrapheme8 *new_buffer = MVM_malloc(sizeof(MVMGrapheme8) * count);
-            MVM_VECTORIZE_LOOP
-            for (ready = 0; ready < count; ready++) {
-                new_buffer[ready] = buffer[ready];
-            }
-            result->body.storage.blob_8  = new_buffer;
+            storage = result->body.storage.blob_8 = MVM_malloc(sizeof(MVMGrapheme8) * count);
             result->body.storage_type    = MVM_STRING_GRAPHEME_8;
+        }
+        MVM_VECTORIZE_LOOP
+        for (ready = 0; ready < count; ready++) {
+            storage[ready] = buffer[ready];
         }
         MVM_free(buffer);
     } else {
