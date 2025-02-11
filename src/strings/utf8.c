@@ -277,6 +277,11 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
             break;
         }
     }
+    if (state != UTF8_ACCEPT) {
+        MVM_unicode_normalizer_cleanup(tc, &norm);
+        MVM_free(buffer);
+        MVM_exception_throw_adhoc(tc, "Malformed termination of UTF-8 string");
+    }
 
     /* Get any final graphemes from the normalizer, and clean it up. */
     MVM_unicode_normalizer_eof(tc, &norm);
