@@ -171,27 +171,27 @@ static void encoding_error(MVMThreadContext *tc, const MVMuint8 *bytes, int erro
                      * we print as much context as possible */
     if (error_pos >= 3) {
         MVMuint8 a = bytes[error_pos - 2], b = bytes[error_pos - 1], c = bytes[error_pos];
-	if (line >= 0)
+	if (line < 0)
             MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx %02hhx", a, b, c);
         else
 	    MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx %02hhx at line %u col %u", a, b, c, line, col);
     }
     else if (error_pos == 2) {
         MVMuint8 a = bytes[error_pos - 1], b = bytes[error_pos];
-	if (line >= 0)
+	if (line < 0)
             MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx", a, b);
         else
             MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx at line %u col %u", a, b, line, col);
     }
     else if (error_pos == 1) {
         MVMuint8 a = bytes[error_pos];
-	if (line >= 0)
+	if (line < 0)
             MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near byte %02hhx", a);
         else
             MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near byte %02hhx at line %u col %u", a, line, col);
     }
     else {
-	if (line >= 0)
+	if (line < 0)
             MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
         else
             MVM_exception_throw_adhoc(tc, "Malformed UTF-8 at line %u col %u", line, col);
@@ -276,6 +276,11 @@ MVMString * MVM_string_utf8_decode(MVMThreadContext *tc, const MVMObject *result
             utf8_decode_errors(tc, orig_utf8, orig_bytes);
             break;
         }
+    }
+    if (state != UTF8_ACCEPT) {
+        MVM_unicode_normalizer_cleanup(tc, &norm);
+        MVM_free(buffer);
+        MVM_exception_throw_adhoc(tc, "Malformed termination of UTF-8 string");
     }
 
     /* Get any final graphemes from the normalizer, and clean it up. */
