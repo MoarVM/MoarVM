@@ -169,32 +169,24 @@ static MVMint32 utf8_encode(MVMuint8 *bp, MVMCodepoint cp) {
 static void encoding_error(MVMThreadContext *tc, const MVMuint8 *bytes, int error_pos, int line, int col) {
                     /* Different error messages for the first few bytes, so that
                      * we print as much context as possible */
+    char location[sizeof(" at line  col ") + 2 * (3 * sizeof(int) * CHAR_BIT/8 + 2)] = "";
+    if (line >= 0)
+        sprintf(location, " at line %u col %u", line, col);
+
     if (error_pos >= 3) {
         MVMuint8 a = bytes[error_pos - 2], b = bytes[error_pos - 1], c = bytes[error_pos];
-	if (line < 0)
-            MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx %02hhx", a, b, c);
-        else
-	    MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx %02hhx at line %u col %u", a, b, c, line, col);
+        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx %02hhx%s", a, b, c, location);
     }
     else if (error_pos == 2) {
         MVMuint8 a = bytes[error_pos - 1], b = bytes[error_pos];
-	if (line < 0)
-            MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx", a, b);
-        else
-            MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx at line %u col %u", a, b, line, col);
+        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near bytes %02hhx %02hhx%s", a, b, location);
     }
     else if (error_pos == 1) {
         MVMuint8 a = bytes[error_pos];
-	if (line < 0)
-            MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near byte %02hhx", a);
-        else
-            MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near byte %02hhx at line %u col %u", a, line, col);
+        MVM_exception_throw_adhoc(tc, "Malformed UTF-8 near byte %02hhx%s", a, location);
     }
     else {
-	if (line < 0)
-            MVM_exception_throw_adhoc(tc, "Malformed UTF-8");
-        else
-            MVM_exception_throw_adhoc(tc, "Malformed UTF-8 at line %u col %u", line, col);
+        MVM_exception_throw_adhoc(tc, "Malformed UTF-8%s", location);
     }
 }
 
