@@ -2852,14 +2852,16 @@ MVMint64 MVM_string_find_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString
             switch (cclass) {
                 case MVM_CCLASS_WHITESPACE:
                     for (pos = offset; pos < end; pos++) {
-                        MVMCodepoint cp = (MVMCodepoint)s->body.storage.in_situ_8[pos];
+                        MVMGrapheme32 g = (MVMGrapheme32)s->body.storage.in_situ_8[pos];
+                        MVMCodepoint cp = 0 <= g ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
                         if (MVM_CP_is_White_Space(cp))
                             return pos;
                     }
                     break;
                 case MVM_CCLASS_NEWLINE:
                     for (pos = offset; pos < end; pos++) {
-                        MVMCodepoint cp = (MVMCodepoint)s->body.storage.in_situ_8[pos];
+                        MVMGrapheme32 g = (MVMGrapheme32)s->body.storage.in_situ_8[pos];
+                        MVMCodepoint cp = 0 <= g ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
                         if (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
                             cp == 0x85 || MVM_CP_is_gencat_name_Zl(cp) || MVM_CP_is_gencat_name_Zp(cp))
                             return pos;
@@ -2878,14 +2880,16 @@ MVMint64 MVM_string_find_cclass(MVMThreadContext *tc, MVMint64 cclass, MVMString
             switch (cclass) {
                 case MVM_CCLASS_WHITESPACE:
                     for (pos = offset; pos < end; pos++) {
-                        MVMCodepoint cp = (MVMCodepoint)s->body.storage.blob_8[pos];
+                        MVMGrapheme32 g = (MVMGrapheme32)s->body.storage.blob_8[pos];
+                        MVMCodepoint cp = 0 <= g ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
                         if (MVM_CP_is_White_Space(cp))
                             return pos;
                     }
                     break;
                 case MVM_CCLASS_NEWLINE:
                     for (pos = offset; pos < end; pos++) {
-                        MVMCodepoint cp = (MVMCodepoint)s->body.storage.blob_8[pos];
+                        MVMGrapheme32 g = (MVMGrapheme32)s->body.storage.blob_8[pos];
+                        MVMCodepoint cp = 0 <= g ? g : MVM_nfg_get_synthetic_info(tc, g)->codes[0];
                         if (cp == '\n' || cp == 0x0b || cp == 0x0c || cp == '\r' ||
                             cp == 0x85 || MVM_CP_is_gencat_name_Zl(cp) || MVM_CP_is_gencat_name_Zp(cp))
                             return pos;
