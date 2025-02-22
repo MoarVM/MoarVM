@@ -5,7 +5,7 @@ VERSION=$1
 {
     echo MANIFEST
     git ls-files | perl -ne "print unless /^3rdparty\/\w+$/"
-    for submod in 3rdparty/libatomicops/ 3rdparty/dyncall/ 3rdparty/libuv/ 3rdparty/dynasm/ 3rdparty/libtommath/ 3rdparty/cmp/ 3rdparty/ryu/ 3rdparty/mimalloc/; do
+    for submod in 3rdparty/libatomicops/ 3rdparty/dyncall/ 3rdparty/libuv/ 3rdparty/dynasm/ 3rdparty/libtommath/ 3rdparty/cmp/ 3rdparty/ryu/ 3rdparty/mimalloc/ 3rdparty/rapidhash/; do
         cd $submod
         git ls-files | perl -pe "s{^}{$submod}"
         cd ../..;
