@@ -11,8 +11,6 @@
 #include <string.h>
 #include <sys/types.h>
 #include <sys/stat.h>
-#include <sys/ioctl.h>
-#include <termios.h>
 
 /* concatenating with "" ensures that only literal strings are accepted as argument. */
 #define STR_WITH_LEN(str)  ("" str ""), (sizeof(str) - 1)
@@ -21,6 +19,8 @@
  * see http://msdn.microsoft.com/en-us//library/vstudio/stxk41x1.aspx */
 #ifndef _WIN32
 #include <unistd.h>
+#include <sys/ioctl.h>
+#include <termios.h>
 #  ifdef __APPLE_CC__
 #    include <crt_externs.h>
 #    define environ (*_NSGetEnviron())
@@ -34,123 +34,6 @@ extern char **environ;
 
 
 #ifndef _WIN32
-typedef long (*PFNCREATEPSEUDOCONSOLE)(COORD c, HANDLE hIn, HANDLE hOut, DWORD dwFlags, void** phpcon);
-typedef long (*PFNRESIZEPSEUDOCONSOLE)(void* hpc, COORD newSize);
-typedef long (*PFNCLEARPSEUDOCONSOLE)(void* hpc);
-typedef void (*PFNCLOSEPSEUDOCONSOLE)(void* hpc);
-
-char *make_pty(int cols, int rows, HANDLE *in_write, HANDLE *out_read, void **pty) {
-    unsigned long errno;
-    char *error_str;
-    HANDLE hLibrary = LoadLibraryExW(L"kernel32.dll", 0, 0);
-    if (hLibrary == NULL) {
-        errno = GetLastError();
-        error_str = MVM_malloc(128);
-        snprintf(error_str, 127, "Error loading kernel32.dll: (error code %i)",
-                errno);
-        return error_str;
-    }
-
-    PFNCREATEPSEUDOCONSOLE pfnCreate = (PFNCREATEPSEUDOCONSOLE)GetProcAddress((HMODULE)hLibrary,"CreatePseudoConsole");
-    if (!pfnCreate) {
-        error_str = MVM_malloc(128);
-        snprintf(error_str, 127, "ConPTY not available on this Windows version.");
-        return error_str;
-    }
-
-    COORD size = {cols, rows};
-
-    HANDLE in_read, out_write;
-
-    if (!CreatePipe(&in_read, in_write, NULL, 0)) {
-        errno = GetLastError();
-        error_str = MVM_malloc(128);
-        snprintf(error_str, 127, "Error creating in pipe: (error code %i)",
-                errno);
-        return error_str;
-    }
-
-    if (!CreatePipe(out_read, &out_write, NULL, 0)) {
-        errno = GetLastError();
-        error_str = MVM_malloc(128);
-        snprintf(error_str, 127, "Error creating out pipe: (error code %i)",
-                errno);
-        return error_str;
-    }
-
-    hr = pfnCreate(size, in_read, out_write, 0, pty);
-    if (FAILED(hr)) {
-        errno = GetLastError();
-        error_str = MVM_malloc(128);
-        snprintf(error_str, 127, "Failed to create PTY device: (error code %i)",
-                errno);
-        return error_str;
-    }
-
-    return NULL;
-}
-
-char *create_pty_child_proc(void* pty_handle, char *prog) {
-    unsigned long errno;
-    STARTUPINFOEXW si;
-    ZeroMemory(&si, sizeof(si));
-    si.StartupInfo.cb = sizeof(STARTUPINFOEXW);
-
-    size_t attr_list_size;
-    InitializeProcThreadAttributeList(NULL, 1, 0, &attr_list_size);
-    si.lpAttributeList = MVM_malloc(attr_list_size);
-
-    if (!InitializeProcThreadAttributeList(si.lpAttributeList, 1, 0, &attr_list_size)) {
-        errno = GetLastError();
-        MVM_free(si.lpAttributeList);
-        error_str = MVM_malloc(128);
-        snprintf(error_str, 127, "Failed to init proc thread attribute list. (error code %i)", errno);
-        return error_str;
-    }
-
-    if (!UpdateProcThreadAttribute(si.lpAttributeList,
-                                   0,
-                                   PROC_THREAD_ATTRIBUTE_PSEUDOCONSOLE,
-                                   pty_handle,
-                                   sizeof(pty_handle),
-                                   NULL,
-                                   NULL)) {
-        errno = GetLastError();
-        MVM_free(si.lpAttributeList);
-        error_str = MVM_malloc(128);
-        snprintf(error_str, 127, "Failed to update proc thread attribute list. (error code %i)", errno);
-        return error_str;
-    }
-
-    wchar_t *wprog = ANSIToUnicode(CP_UTF8, prog);
-
-    PROCESS_INFORMATION pi;
-    ZeroMemory(&pi, sizeof(pi));
-
-    // TODO: Put together a usable args string and put it here as the second arg. Luckily it's only verbatim args we need to do.
-    // TODO: Pass CWD and env.
-    if (!CreateProcessW(wprog,
-                        wprog,
-                        NULL,
-                        NULL,
-                        FALSE,
-                        EXTENDED_STARTUPINFO_PRESENT,
-                        NULL,
-                        NULL,
-                        &siEx.StartupInfo,
-                        &pi)) {
-        errno = GetLastError();
-        MVM_free(si.lpAttributeList);
-        MVM_free(wprog);
-        error_str = MVM_malloc(128);
-        snprintf(error_str, 127, "Failed to call child process. (error code %i)", errno);
-        return error_str;
-    }
-
-    return NULL;
-}
-#endif
-
 char *resize_pty_fd(int fd_pty, int cols, int rows) {
     struct winsize winp;
     winp.ws_col = cols;
@@ -233,6 +116,8 @@ char *make_pty(int *fd_pty, int *fd_tty, int cols, int rows) {
 
     return NULL;
 }
+#endif
+
 
 
 
@@ -898,13 +783,8 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
-    
-    int pty_mode = MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty);
-    
-#ifdef _WIN32
-    void *pty;
-    HANDLE in, out;
-#else
+
+#ifndef _WIN32
     int fd_pty, fd_tty;
 #endif
 
@@ -916,6 +796,8 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 
     unsigned int interval_id = MVM_telemetry_interval_start(tc, "procasync.spawn_setup");
 
+    int pty_mode = MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty);
+
     /* Create input/output handles as needed. */
     if (pty_mode) {
         MVMint64 cols = 80;
@@ -926,23 +808,24 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty_rows))
             rows = MVM_repr_get_int(tc,
                 MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.pty_rows));
-#ifdef _WIN32
-        error_str = make_pty(cols, rows, &in, &out, &pty);
-        if (error_str)
-            goto spawn_setup_error;
 
+#ifdef _WIN32
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(loop, pipe, 0);
-        uv_pipe_open(pipe, in);
         pipe->data = si;
-        si->stdin_handle             = (uv_stream_t *)pipe;
-        si->had_stdin_handle         = 1;
+        si->stdin_handle     = (uv_stream_t *)pipe;
+        si->had_stdin_handle = 1;
 
         si->pipe_stdout = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(loop, si->pipe_stdout, 0);
-        uv_pipe_open(si->pipe_stdout, out);
         si->pipe_stdout->data = si;
         si->using++;
+
+        process_stdio[0].flags   = UV_CREATE_PIPE | UV_READABLE_PIPE;
+        process_stdio[0].data.stream = (uv_stream_t *)pipe;
+        process_stdio[1].flags   = UV_CREATE_PIPE | UV_READABLE_PIPE;
+        process_stdio[1].data.stream = (uv_stream_t *)si->pipe_stdout;
+        process_stdio[2].flags   = UV_IGNORE;
 #else
         error_str = make_pty(&fd_pty, &fd_tty, cols, rows);
         if (error_str)
@@ -1085,44 +968,37 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         }
     }
 
-#ifdef _WIN32
-    if (pty_mode) {
-        error_str = create_pty_child_proc(pty, si->prog);
-        if (error_str) {
-            // TODO: Cleanup
-            goto spawn_setup_error;
-        }
-    }
-    else {
+    /* Set up process start info. */
+    process_options.stdio       = process_stdio;
+    process_options.file        = si->prog;
+    process_options.args        = si->args;
+    process_options.cwd         = si->cwd;
+    process_options.flags       = UV_PROCESS_WINDOWS_HIDE | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+    if (pty_mode)
+        process_options.flags   = process_options.flags | UV_PROCESS_PTY;
+    process_options.env         = si->env;
+    process_options.stdio_count = 3;
+    process_options.exit_cb     = async_spawn_on_exit;
+
+    /* Attach data, spawn, report any error. */
+    process->data = si;
+    spawn_result  = uv_spawn(loop, process, &process_options);
+
+#ifndef _WIN32
+    if (pty_mode)
+        close(fd_tty);
 #endif
-        /* Set up process start info. */
-        process_options.stdio       = process_stdio;
-        process_options.file        = si->prog;
-        process_options.args        = si->args;
-        process_options.cwd         = si->cwd;
-        process_options.flags       = UV_PROCESS_WINDOWS_HIDE | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
-        process_options.env         = si->env;
-        process_options.stdio_count = 3;
-        process_options.exit_cb     = async_spawn_on_exit;
 
-        /* Attach data, spawn, report any error. */
-        process->data = si;
-        spawn_result  = uv_spawn(loop, process, &process_options);
-
+    if (spawn_result) {
+#ifndef _WIN32
         if (pty_mode)
-            close(fd_tty);
-
-        if (spawn_result) {
-            if (pty_mode)
-                close(fd_pty);
-            error_str = MVM_malloc(128);
-            snprintf(error_str, 127, "Failed to spawn process %s: %s (error code %"PRId64")",
-                    si->prog, uv_strerror(spawn_result), spawn_result);
-            goto spawn_setup_error;
-        }
-#ifdef _WIN32
-    }
+            close(fd_pty);
 #endif
+        error_str = MVM_malloc(128);
+        snprintf(error_str, 127, "Failed to spawn process %s: %s (error code %"PRId64")",
+                si->prog, uv_strerror(spawn_result), spawn_result);
+        goto spawn_setup_error;
+    }
 
     if (error_str) {
 spawn_setup_error:
@@ -1192,7 +1068,6 @@ spawn_setup_error:
         MVMIOAsyncProcessData *apd = (MVMIOAsyncProcessData *)handle->body.data;
         MVMObject *ready_cb = MVM_repr_at_key_o(tc, si->callbacks,
             tc->instance->str_consts.ready);
-        // TODO: add a win/pty alternative to process to the MVMIOAsyncProcessData, fill it here.
         apd->handle = process;
         si->state = STATE_STARTED;
 
@@ -1211,7 +1086,6 @@ spawn_setup_error:
                         : -1);
                     MVM_repr_push_o(tc, arr, ready_cb);
                     MVM_repr_push_o(tc, arr, handle_arr);
-        // TODO: add a win/pty alternative to process->pid
                     pid = MVM_repr_box_int(tc, tc->instance->boot_types.BOOTInt, process->pid);
                     MVM_repr_push_o(tc, arr, pid);
                     MVM_repr_push_o(tc, ((MVMAsyncTask *)async_task)->body.queue, arr);
@@ -1657,6 +1531,12 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
 
 }
 
+#ifdef _WIN32
+char *MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h, int cols, int rows) {
+    // TODO
+    return NULL;
+}
+#else
 char *MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h, int cols, int rows) {
     MVMIOAsyncProcessData *handle_data = (MVMIOAsyncProcessData *)h->body.data;
     MVMAsyncTask          *spawn_task  = (MVMAsyncTask *)handle_data->async_task;
@@ -1711,3 +1591,4 @@ void MVM_proc_pty_spawn(char *prog, char *argv[]) {
     fprintf(stderr, "Spawn helper failed to spawn process %s: %s (error code %i)\n",
             prog, strerror(errno), errno);
 }
+#endif
