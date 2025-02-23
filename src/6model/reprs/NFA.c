@@ -884,6 +884,7 @@ MVMObject * MVM_nfa_run_proto(MVMThreadContext *tc, MVMObject *nfa, MVMString *t
 
     /* Copy results into an integer array. */
     MVMObject *fateres = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIntArray);
+    /* No need to pre-size the array, since total_fates never seems to get higher than 5 when building Rakudo. */
     for (i = 0; i < total_fates; i++)
         MVM_repr_bind_pos_i(tc, fateres, i, fates[i]);
 
@@ -900,14 +901,21 @@ void MVM_nfa_run_alt(MVMThreadContext *tc, MVMObject *nfa, MVMString *target,
     MVMint64  total_fates, i;
     MVMint64 *fates = nqp_nfa_run(tc, (MVMNFABody *)OBJECT_BODY(nfa), target, offset, &total_fates);
 
-    /* Push the results onto the bstack. */
-    MVMint64 caps = cstack && IS_CONCRETE(cstack)
-        ? MVM_repr_elems(tc, cstack)
-        : 0;
-    for (i = 0; i < total_fates; i++) {
-        MVM_repr_push_i(tc, bstack, MVM_repr_at_pos_i(tc, labels, fates[i]));
-        MVM_repr_push_i(tc, bstack, offset);
-        MVM_repr_push_i(tc, bstack, 0);
-        MVM_repr_push_i(tc, bstack, caps);
+    if (total_fates > 0) {
+        /* Push the results onto the bstack. */
+        MVMint64 caps = cstack && IS_CONCRETE(cstack)
+            ? MVM_repr_elems(tc, cstack)
+            : 0;
+        MVMint64 belems = bstack && IS_CONCRETE(bstack)
+            ? MVM_repr_elems(tc, bstack)
+            : 0;
+        REPR(bstack)->pos_funcs.set_elems(tc, STABLE(bstack), bstack,
+                        OBJECT_BODY(bstack), belems + 4*total_fates);
+        for (i = 0; i < total_fates; i++) {
+            MVM_repr_bind_pos_i(tc, bstack, belems + 4*i + 0, MVM_repr_at_pos_i(tc, labels, fates[i]));
+            MVM_repr_bind_pos_i(tc, bstack, belems + 4*i + 1, offset);
+            MVM_repr_bind_pos_i(tc, bstack, belems + 4*i + 2, 0);
+            MVM_repr_bind_pos_i(tc, bstack, belems + 4*i + 3, caps);
+        }
     }
 }
