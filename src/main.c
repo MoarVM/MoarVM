@@ -51,8 +51,9 @@ enum {
     OPT_EXECNAME,
     OPT_LIBPATH,
     OPT_DEBUGPORT,
-
+#ifndef _WIN32
     OPT_PTY_SPAWN_HELPER
+#endif
 };
 
 /* FLAGS needs to be sorted alphabetically. */
@@ -134,8 +135,10 @@ static int parse_flag(const char *arg)
         return OPT_EXECNAME;
     else if (starts_with(arg, "--debug-port="))
         return OPT_DEBUGPORT;
+#ifndef _WIN32
     else if (starts_with(arg, "--pty-spawn-helper="))
         return OPT_PTY_SPAWN_HELPER;
+#endif
     else
         return UNKNOWN_FLAG;
 }
@@ -246,7 +249,7 @@ int wmain(int argc, wchar_t *wargv[])
                 debugserverport = (MVMuint32)port;
                 break;
             }
-
+#ifndef _WIN32
             case OPT_PTY_SPAWN_HELPER: {
                 char *prog = argv[argi] + strlen("--pty-spawn-helper=");
                 char **args = calloc(argc - argi + 1, sizeof(char *));
@@ -258,7 +261,7 @@ int wmain(int argc, wchar_t *wargv[])
                 MVM_proc_pty_spawn(prog, args);
                 return EXIT_FAILURE;
             }
-
+#endif
             default:
             fprintf(stderr, "ERROR: Unknown flag %s.\n\n%s\n", argv[argi], USAGE);
             return EXIT_FAILURE;
