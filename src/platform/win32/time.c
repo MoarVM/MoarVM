@@ -12,7 +12,7 @@
 MVMuint64 MVM_platform_now(void)
 {
     union { FILETIME ft; MVMuint64 u; } now;
-    GetSystemTimeAsFileTime(&now.ft);
+    GetSystemTimePreciseAsFileTime(&now.ft);
     return (now.u - OFFSET) * 100;
 }
 
