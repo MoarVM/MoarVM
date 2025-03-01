@@ -472,18 +472,19 @@ MVMString * MVM_string_decodestream_get_until_sep_eof(MVMThreadContext *tc, MVMD
 /* Produces a string consisting of the characters available now in all decdoed
  * buffers. */
 static MVMString * get_all_in_buffer(MVMThreadContext *tc, MVMDecodeStream *ds) {
-    MVMString *result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
-    result->body.storage_type = MVM_STRING_GRAPHEME_32;
+    MVMString *result;
 
     /* If there's no codepoint buffer, then return the empty string. */
     if (!ds->chars_head) {
-        result->body.storage.blob_32 = NULL;
-        result->body.num_graphs      = 0;
+        return tc->instance->str_consts.empty;
     }
+
+    result = (MVMString *)MVM_repr_alloc_init(tc, tc->instance->VMString);
+    result->body.storage_type = MVM_STRING_GRAPHEME_32;
 
     /* If there's exactly one resulting codepoint buffer and we swallowed none
      * of it, just use it. */
-    else if (ds->chars_head == ds->chars_tail && ds->chars_head_pos == 0) {
+    if (ds->chars_head == ds->chars_tail && ds->chars_head_pos == 0) {
         /* Set up result string. */
         result->body.storage.blob_32 = ds->chars_head->chars;
         result->body.num_graphs      = ds->chars_head->length;
