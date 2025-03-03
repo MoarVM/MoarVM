@@ -157,7 +157,7 @@ void MVM_VMArray_at_pos_s(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
     /* Go by type. */
     if (repr_data->slot_type != MVM_ARRAY_STR)
         MVM_exception_throw_adhoc(tc, "MVMArray: atpos expected a string register, but %u is not MVM_ARRAY_STR", repr_data->slot_type);
-    if (index >= body->elems)
+    if ((MVMuint64)index >= body->elems)
         value->s = NULL;
     else
         value->s = body->slots.s[body->start + index];
@@ -174,7 +174,7 @@ void MVM_VMArray_at_pos_i(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
     }
 
     /* Go by type. */
-    if (index >= body->elems)
+    if ((MVMuint64)index >= body->elems)
         value->i64 = 0;
     else
         value->i64 = (MVMint64)body->slots.i64[body->start + index];
@@ -191,7 +191,7 @@ void MVM_VMArray_at_pos_u(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
     }
 
     /* Go by type. */
-    if (index >= body->elems)
+    if ((MVMuint64)index >= body->elems)
         value->u64 = 0;
     else
         value->u64 = (MVMuint64)body->slots.u64[body->start + index];
@@ -208,7 +208,7 @@ void MVM_VMArray_at_pos_n(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
     }
 
     /* Go by type. */
-    if (index >= body->elems)
+    if ((MVMuint64)index >= body->elems)
         value->n64 = 0;
     else
         value->n64 = (MVMnum64)body->slots.n64[body->start + index];
@@ -228,7 +228,7 @@ void MVM_VMArray_at_pos_o(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
     /* Go by type. */
     if (repr_data->slot_type != MVM_ARRAY_OBJ)
         MVM_exception_throw_adhoc(tc, "MVMArray: atpos with an object register, but array type %u is not MVM_ARRAY_OBJ", repr_data->slot_type);
-    if (index >= body->elems) {
+    if ((MVMuint64)index >= body->elems) {
         value->o = tc->instance->VMNull;
     }
     else {
