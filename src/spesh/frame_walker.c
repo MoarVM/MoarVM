@@ -228,6 +228,8 @@ MVMuint32 MVM_spesh_frame_walker_get_lex(MVMThreadContext *tc, MVMSpeshFrameWalk
     MVMStaticFrame *sf;
     MVMuint32 base_index;
     find_lex_info(tc, fw, &cur_frame, &sf, &base_index);
+    if (sf->body.num_lexicals == 0)
+        return 0;
     MVMuint32 idx = MVM_get_lexical_by_name(tc, sf, name);
     if (idx != MVM_INDEX_HASH_NOT_FOUND) {
         MVMint32 index = base_index + idx;
@@ -425,6 +427,8 @@ MVMint64 MVM_spesh_frame_walker_get_lexical_primspec(MVMThreadContext *tc,
     MVMStaticFrame *sf;
     MVMuint32 base_index;
     find_lex_info(tc, fw, &cur_frame, &sf, &base_index);
+    if (sf->body.num_lexicals == 0)
+        return -1;
     MVMuint32 idx = MVM_get_lexical_by_name(tc, sf, name);
     if (idx != MVM_INDEX_HASH_NOT_FOUND)
         return MVM_frame_translate_to_primspec(tc, sf->body.lexical_types[idx]);
