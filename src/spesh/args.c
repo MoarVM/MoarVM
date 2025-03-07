@@ -261,12 +261,12 @@ static void slurp_positional_arg(MVMThreadContext *tc, MVMSpeshGraph *g, MVMSpes
     /* Look up arg flags and name, and compute index. */
     MVMCallsiteFlags flags = g->cs->arg_flags[pos_idx];
 
-    /* Allocate temporary registers for the key and value. */
+    /* Allocate temporary registers for the index and value. */
     MVMSpeshOperand index_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_int64);
     MVMSpeshOperand value_temp = MVM_spesh_manipulate_get_temp_reg(tc, g, MVM_reg_obj);
 
-    /* Insert bind key instruction after slurpy hash creation instruction (we
-     * do it first as below we prepend instructions to obtain the key and the
+    /* Insert bind pos instruction after slurpy array creation instruction (we
+     * do it first as below we prepend instructions to obtain the index and the
      * value. */
     MVMSpeshIns *bindpos_ins = MVM_spesh_alloc(tc, g, sizeof(MVMSpeshIns));
     bindpos_ins->info = MVM_op_get_op(MVM_OP_bindpos_o);
@@ -1080,8 +1080,8 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
             }
         }
 
-        /* If we have a slurpy hash... */
-        if (param_sn_ins) {
+        /* If we have a slurpy hash and it's not too huge ... */
+        if (param_sn_ins && named_passed < 2000) {
             /* Construct it as a hash. */
             MVMObject *hash_type = g->sf->body.cu->body.hll_config->slurpy_hash_type;
             if (REPR(hash_type)->ID == MVM_REPR_ID_MVMHash && !REPR(hash_type)->initialize) {
@@ -1105,11 +1105,14 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                     if (!(named_used_bit_field & ((MVMuint64)1 << i)))
                         slurp_named_arg(tc, g, param_sn_bb, param_sn_ins, i);
         }
+        else if (named_passed >= 2000) {
+            MVM_spesh_graph_add_comment(tc, g, param_sn_ins, "argument spesh: refused to optimize with %d > 2000 named args", named_passed);
+        }
 
-        /* If we have a slurpy array ... */
-        if (param_sp_ins) {
+        /* If we have a slurpy array and it's not too huge ... */
+        if (param_sp_ins && cs->num_pos < 2000) {
             MVMint32 start_slurping_at = param_sp_ins->operands[1].lit_i16;
-            /* Construct it as a hash. */
+            /* Construct it as an array. */
             MVMObject *array_type = g->sf->body.cu->body.hll_config->slurpy_array_type;
             if (REPR(array_type)->ID == MVM_REPR_ID_VMArray && !REPR(array_type)->initialize) {
                 MVMSpeshOperand target    = param_sp_ins->operands[0];
@@ -1128,6 +1131,9 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
             /* Populate it with all args after the numeral argument */
             for (i = cs->num_pos - 1; i >= start_slurping_at; i--)
                 slurp_positional_arg(tc, g, param_sp_bb, param_sp_ins, i, i - start_slurping_at);
+        }
+        else if (cs->num_pos >= 2000) {
+            MVM_spesh_graph_add_comment(tc, g, param_sp_ins, "argument spesh: refused to optimize with %d > 2000 positional args", cs->num_pos);
         }
 
         /* Stash the named used bit field in the graph; will need to make it
