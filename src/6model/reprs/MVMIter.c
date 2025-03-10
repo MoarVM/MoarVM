@@ -49,12 +49,15 @@ static const MVMStorageSpec * get_storage_spec(MVMThreadContext *tc, MVMSTable *
 static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data, MVMRegister *value, MVMuint16 kind) {
     MVMIterBody *body = (MVMIterBody *)data;
     MVMObject *target = body->target;
+    MVMArrayBody *abody;
     switch (body->mode) {
         case MVM_ITER_MODE_ARRAY:
             body->array_state.index++;
             if (body->array_state.index >= body->array_state.limit)
                 MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
-            REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, value, kind);
+            abody = (MVMArrayBody *)OBJECT_BODY(target);
+            MVMObject *found = abody->slots.o[abody->start + body->array_state.index];
+            value->o = found ? found : tc->instance->VMNull;
             return;
         case MVM_ITER_MODE_ARRAY_INT:
             body->array_state.index++;
@@ -92,13 +95,13 @@ static void shift(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *da
             body->array_state.index++;
             if (body->array_state.index >= body->array_state.limit)
                 MVM_exception_throw_adhoc(tc, "Iteration past end of iterator");
+            abody = (MVMArrayBody *)OBJECT_BODY(target);
+            MVMString *str = abody->slots.s[abody->start + body->array_state.index];
             if (kind == MVM_reg_str) {
-                REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, value, kind);
+                value->s = str;
             }
             else if (kind == MVM_reg_obj) {
-                MVMRegister tmp;
-                REPR(target)->pos_funcs.at_pos(tc, STABLE(target), target, OBJECT_BODY(target), body->array_state.index, &tmp, MVM_reg_str);
-                value->o = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, tmp.s);
+                value->o = MVM_repr_box_str(tc, MVM_hll_current(tc)->str_box_type, str);
             }
             else {
                 MVM_exception_throw_adhoc(tc, "Wrong register kind in iteration");
