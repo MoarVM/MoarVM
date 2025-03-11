@@ -162,7 +162,7 @@ void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *bu
         output = (char *)(((MVMArray *)buffer)->body.slots.i64 + ((MVMArray *)buffer)->body.start);
     }
     else
-        MVM_exception_throw_adhoc(tc, "write_fhb requires a native array of uint8, int8, uint16 or int16");
+        MVM_exception_throw_adhoc(tc, "write_fhb requires a native array of (u)int8/16/32/64");
 
     if (handle->body.ops->sync_writable) {
         MVMROOT(tc, handle) {
