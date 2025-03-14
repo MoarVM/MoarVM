@@ -608,6 +608,11 @@ void MVM_vm_exit(MVMInstance *instance) {
     MVM_thread_join_foreground(instance->main_thread);
     MVM_io_flush_standard_handles(instance->main_thread);
 
+    /* Make sure eventloop thread doesn't keep running, so cleanup inside of
+     * atexit handlers (like mimalloc has) won't interfere and cause a crash */
+    MVM_io_eventloop_stop(instance->main_thread);
+    MVM_io_eventloop_join(instance->main_thread);
+
     /* Close any spesh or jit log. */
     if (instance->spesh_log_fh) {
         /* Need to properly shut down spesh, otherwise we may segfault trying
