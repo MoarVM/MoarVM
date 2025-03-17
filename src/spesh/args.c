@@ -397,10 +397,20 @@ void MVM_spesh_args(MVMThreadContext *tc, MVMSpeshGraph *g, MVMCallsite *cs,
                 num_named++;
                 break;
             case MVM_OP_param_sp:
+                if (param_sp_ins) { /* Dupe; weird. */
+                    MVM_spesh_graph_add_comment(tc, g, ins,
+                            "bailed argument spesh: duplicate slurpy positional argument");
+                    goto cleanup;
+                }
                 param_sp_ins = ins;
                 param_sp_bb = bb;
                 break;
             case MVM_OP_param_sn:
+                if (param_sn_ins) { /* Dupe; weird. */
+                    MVM_spesh_graph_add_comment(tc, g, ins,
+                            "bailed argument spesh: duplicate slurpy named argument");
+                    goto cleanup;
+                }
                 param_sn_ins = ins;
                 param_sn_bb = bb;
                 break;
