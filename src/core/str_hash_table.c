@@ -496,6 +496,41 @@ void *MVM_str_hash_lvalue_fetch_nocheck(MVMThreadContext *tc,
     return result;
 }
 
+void *MVM_str_hash_lvalue_fetch_nocheck_blame(MVMThreadContext *tc,
+                                        MVMStrHashTable *hashtable,
+                                        MVMString *key, MVMObject *blame) {
+    struct MVMStrHashTableControl *control = hashtable->table;
+    if (MVM_UNLIKELY(!control)) {
+        MVM_oops_with_blame(tc, blame, "Attempting insert on MVM_str_hash without first calling MVM_str_hash_build");
+    }
+    else if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops_with_blame(tc, blame, "MVM_str_hash_lvalue_fetch_nocheck called with a stale hashtable pointer");
+    }
+    else if (MVM_UNLIKELY(control->cur_items >= control->max_items)) {
+        struct MVMStrHashHandle *entry = MVM_str_hash_fetch_nocheck(tc, hashtable, key);
+        if (entry) {
+            if (MVM_UNLIKELY(control->stale)) {
+                MVM_oops_with_blame(tc, blame, "MVM_str_hash_lvalue_fetch_nocheck called with a hashtable pointer that turned stale");
+            }
+            return entry;
+        }
+
+        struct MVMStrHashTableControl *new_control = maybe_grow_hash(tc, control);
+        if (new_control) {
+            if (!MVM_trycas(&(hashtable->table), control, new_control)) {
+                MVM_oops_with_blame(tc, blame, "MVM_str_hash_lvalue_fetch_nocheck called concurrently on the same hash");
+            }
+            control = new_control;
+        }
+    }
+
+    void *result = hash_insert_internal(tc, control, key);
+    if (MVM_UNLIKELY(control->stale)) {
+        MVM_oops_with_blame(tc, blame, "MVM_str_hash_lvalue_fetch_nocheck called with a hashtable pointer that turned stale");
+    }
+    return result;
+}
+
 /* UNCONDITIONALLY creates a new hash entry with the given key and value.
  * Doesn't check if the key already exists. Use with care.
  * (well that's the official line. As you can see, the exception suggests we
@@ -515,6 +550,7 @@ void *MVM_str_hash_insert_nocheck(MVMThreadContext *tc,
     }
     return new_entry;
 }
+
 
 
 void MVM_str_hash_delete_nocheck(MVMThreadContext *tc,
