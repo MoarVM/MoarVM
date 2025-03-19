@@ -671,6 +671,8 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
         t = MVM_io_eventloop_get_active_work(tc, si->work_idx);
     }
     MVM_repr_push_o(tc, arr, callback);
+    
+    fprintf(stderr, "Reading bytes: %Ii\n", nread);
     if (nread >= 0) {
         MVM_telemetry_interval_annotate((uintptr_t)nread, interval_id, "number bytes read");
         MVMROOT2(tc, t, arr) {
@@ -702,6 +704,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
                 (*permit)--;
                 MVM_telemetry_interval_annotate((uintptr_t)*permit, interval_id, "permits are now");
                 if (*permit == 0) {
+                    fprintf(stderr, "Calling uv_read_stop in async_read\n");
                     uv_read_stop(handle);
                     if (handle == (uv_stream_t *)si->pipe_stdout)
                         si->reading_stdout = 0;
@@ -749,6 +752,7 @@ static void async_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf, 
     MVM_repr_push_o(tc, t->body.queue, arr);
 }
 static void async_spawn_stdout_bytes_read(uv_stream_t *handle, ssize_t nread, const uv_buf_t *buf) {
+    fprintf(stderr, "async_spawn_stdout_bytes_read is called\n");
     SpawnInfo *si = (SpawnInfo *)handle->data;
     MVMObject *cb = MVM_repr_at_key_o(si->tc, si->callbacks,
         si->tc->instance->str_consts.stdout_bytes);
@@ -816,9 +820,9 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         si->pipe_stdout->data = si;
         si->using++;
 
-        process_stdio[0].flags   = UV_CREATE_PIPE | UV_READABLE_PIPE;
+        process_stdio[0].flags   = UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE;
         process_stdio[0].data.stream = (uv_stream_t *)pipe;
-        process_stdio[1].flags   = UV_CREATE_PIPE | UV_READABLE_PIPE;
+        process_stdio[1].flags   = UV_CREATE_PIPE | UV_READABLE_PIPE | UV_WRITABLE_PIPE;
         process_stdio[1].data.stream = (uv_stream_t *)si->pipe_stdout;
         process_stdio[2].flags   = UV_IGNORE;
     }
@@ -1055,11 +1059,13 @@ static void spawn_permit(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async
         else
             si->permit_stdout += permits;
         if (!si->reading_stdout && si->permit_stdout) {
+            fprintf(stderr, "Calling out uv_read_start\n");
             uv_read_start((uv_stream_t *)si->pipe_stdout, on_alloc,
                 async_spawn_stdout_bytes_read);
             si->reading_stdout = 1;
         }
         else if (si->reading_stdout && !si->permit_stdout) {
+            fprintf(stderr, "Calling out uv_read_stop\n");
             uv_read_stop((uv_stream_t *)si->pipe_stdout);
             si->reading_stdout = 0;
         }
