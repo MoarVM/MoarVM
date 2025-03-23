@@ -1,3 +1,19 @@
+New in 2025.03
+
+Core:
++ Safely handle filenameless CUs in throw_closure_serialization_error [3ecde0a0f]
++ In regular vm exit, stop and join eventloop (#1924) [4ae74411e]
++ Don't turn slurpies into huge amounts of code (#1921) [282254418]
++ Only look for lexicals in frames that have any [c153f9f70]
++ Save allocating a string in decodestream for empty string [3edbf6db7]
++ MVM_platform_sleep takes no tc argument (#1918) [0416a0974]
++ use GetSystemTimePreciseAsFileTime instead of GetSystemTimeAsFileTime [49b013ed8]
++ Pre-size bstack for exact amount getting added [597a8ba82]
+GC:
++ Avoid segfault in GC with nqp::objectid [ccfe7ebad]
+Spesh:
++ Avoid mis-spesh of routines with multiple slurpies of the same kind [455eae34f]
+
 New in 2025.02
 
 Core:
