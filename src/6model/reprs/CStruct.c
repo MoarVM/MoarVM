@@ -22,10 +22,13 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&mro);
 
     flat_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&flat_list);
 
     class_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&class_list);
 
     attr_map_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_map_list);
 
     /* Walk through the parents list. */
     while (mro_idx)
@@ -46,7 +49,9 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
             MVMObject *attr_map = NULL;
 
             if (MVM_iter_istrue(tc, attr_iter)) {
-                attr_map = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
+                MVMROOT(tc, attr_iter) {
+                    attr_map = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
+                }
             }
 
             while (MVM_iter_istrue(tc, attr_iter)) {
@@ -84,7 +89,7 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
         MVM_gc_root_temp_pop(tc); /* current_class */
     }
 
-    MVM_gc_root_temp_pop_n(tc, 2); /* mro, st */
+    MVM_gc_root_temp_pop_n(tc, 5); /* mro, st, flat_list, class_list, attr_map_list */
 
     /* We can now form the name map. */
     num_classes = MVM_repr_elems(tc, class_list);

@@ -18,11 +18,17 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
 
     MVMint32 mro_idx = MVM_repr_elems(tc, mro);
 
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&st);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&mro);
+
     flat_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&flat_list);
 
     class_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&class_list);
 
     attr_map_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
+    MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_map_list);
 
     /* Walk through the parents list. */
     while (mro_idx)
@@ -34,6 +40,8 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
         /* Get its local parents; make sure we're not doing MI. */
         MVMObject *parents     = MVM_repr_at_pos_o(tc, type_info, 2);
         MVMint32  num_parents = MVM_repr_elems(tc, parents);
+
+        MVM_gc_root_temp_push(tc, (MVMCollectable **)&current_class);
         if (num_parents <= 1) {
             /* Get attributes and iterate over them. */
             MVMObject *attributes     = MVM_repr_at_pos_o(tc, type_info, 1);
@@ -41,7 +49,9 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
             MVMObject *attr_map = NULL;
 
             if (MVM_iter_istrue(tc, attr_iter)) {
-                attr_map = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
+                MVMROOT(tc, attr_iter) {
+                    attr_map = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
+                }
             }
 
             while (MVM_iter_istrue(tc, attr_iter)) {
@@ -75,7 +85,11 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
             MVM_exception_throw_adhoc(tc,
                 "CPPStruct representation does not support multiple inheritance");
         }
+
+        MVM_gc_root_temp_pop(tc); /* current_class */
     }
+
+    MVM_gc_root_temp_pop_n(tc, 5); /* mro, st, flat_list, class_list, attr_map_list */
 
     /* We can now form the name map. */
     num_classes = MVM_repr_elems(tc, class_list);

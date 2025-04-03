@@ -22,8 +22,11 @@ static MVMObject * type_object_for(MVMThreadContext *tc, MVMObject *HOW) {
 static void initialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, void *data) {
     /* We're only ever called with tc->allocate_in_gen2 set, so no need to MVMROOT */
     MVMCompUnit *cu = (MVMCompUnit *)root;
-    MVMObject *rm = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTReentrantMutex);
-    MVM_ASSIGN_REF(tc, &(root->header), cu->body.deserialize_frame_mutex, rm);
+    MVMROOT(tc, cu) {
+        MVMObject *rm = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTReentrantMutex);
+        MVM_ASSIGN_REF(tc, &(root->header), cu->body.deserialize_frame_mutex, rm);
+    }
+
     cu->body.inline_tweak_mutex = MVM_malloc(sizeof(uv_mutex_t));
     uv_mutex_init(cu->body.inline_tweak_mutex);
 }
