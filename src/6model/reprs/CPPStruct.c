@@ -21,14 +21,12 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&st);
     MVM_gc_root_temp_push(tc, (MVMCollectable **)&mro);
 
+    /* We're only ever called with tc->allocate_in_gen2 set, so no need to MVMROOT here. */
     flat_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&flat_list);
 
     class_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&class_list);
 
     attr_map_list = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_array_type);
-    MVM_gc_root_temp_push(tc, (MVMCollectable **)&attr_map_list);
 
     /* Walk through the parents list. */
     while (mro_idx)
@@ -40,18 +38,19 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
         /* Get its local parents; make sure we're not doing MI. */
         MVMObject *parents     = MVM_repr_at_pos_o(tc, type_info, 2);
         MVMint32  num_parents = MVM_repr_elems(tc, parents);
-
-        MVM_gc_root_temp_push(tc, (MVMCollectable **)&current_class);
         if (num_parents <= 1) {
             /* Get attributes and iterate over them. */
             MVMObject *attributes     = MVM_repr_at_pos_o(tc, type_info, 1);
-            MVMIter * const attr_iter = (MVMIter *)MVM_iter(tc, attributes);
             MVMObject *attr_map = NULL;
+            MVMIter   *attr_iter;
+
+            /* Add to class list firstly, so we can avoid a MVMROOT. */
+            MVM_repr_push_o(tc, class_list, current_class);
+
+            attr_iter = (MVMIter *)MVM_iter(tc, attributes);
 
             if (MVM_iter_istrue(tc, attr_iter)) {
-                MVMROOT(tc, attr_iter) {
-                    attr_map = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
-                }
+                attr_map = MVM_repr_alloc_init(tc, MVM_hll_current(tc)->slurpy_hash_type);
             }
 
             while (MVM_iter_istrue(tc, attr_iter)) {
@@ -76,8 +75,7 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
                 MVM_repr_push_o(tc, flat_list, attr);
             }
 
-            /* Add to class list and map list. */
-            MVM_repr_push_o(tc, class_list, current_class);
+            /* Add to map list. */
             MVM_repr_push_o(tc, attr_map_list, attr_map);
         }
         else {
@@ -85,11 +83,9 @@ static MVMObject * index_mapping_and_flat_list(MVMThreadContext *tc, MVMObject *
             MVM_exception_throw_adhoc(tc,
                 "CPPStruct representation does not support multiple inheritance");
         }
-
-        MVM_gc_root_temp_pop(tc); /* current_class */
     }
 
-    MVM_gc_root_temp_pop_n(tc, 5); /* mro, st, flat_list, class_list, attr_map_list */
+    MVM_gc_root_temp_pop_n(tc, 2); /* mro, st */
 
     /* We can now form the name map. */
     num_classes = MVM_repr_elems(tc, class_list);
