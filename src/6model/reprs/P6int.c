@@ -96,6 +96,10 @@ MVMint64 MVMP6int_get_int(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, 
     }
 }
 
+MVMint16 MVMP6int_is_unsigned(MVMSTable *st) {
+    return ((MVMP6intREPRData *)st->REPR_data)->is_unsigned;
+}
+
 /* Marks the representation data in an STable.*/
 static void gc_free_repr_data(MVMThreadContext *tc, MVMSTable *st) {
     MVM_free(st->REPR_data);
