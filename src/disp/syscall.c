@@ -1197,7 +1197,6 @@ static MVMDispSysCall set_cur_hll_config_key = {
     .expected_concrete = { 1, 0 },
 };
 
-
 /* code-bytecode-size */
 static void code_bytecode_size_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     MVMObject *obj = get_obj_arg(arg_info, 0);
@@ -1212,25 +1211,6 @@ static MVMDispSysCall code_bytecode_size = {
     .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
     .expected_reprs = { MVM_REPR_ID_MVMCode },
     .expected_concrete = { 1 },
-};
-
-/* set-compunit-resolver */
-static void set_compunit_resolver_impl(MVMThreadContext *tc, MVMArgs arg_info) {
-    MVMCompUnit *comp_unit    = (MVMCompUnit*)get_obj_arg(arg_info, 0);
-    MVMCode *resolver         = (MVMCode*)    get_obj_arg(arg_info, 1);
-    MVMCode *dynamic_resolver = (MVMCode*)    get_obj_arg(arg_info, 2);
-    MVM_ASSIGN_REF(tc, &comp_unit->common.header, comp_unit->body.resolver, resolver);
-    MVM_ASSIGN_REF(tc, &comp_unit->common.header, comp_unit->body.dynamic_resolver, dynamic_resolver);
-    MVM_args_set_result_obj(tc, tc->instance->VMNull, MVM_RETURN_CURRENT_FRAME);
-}
-static MVMDispSysCall set_compunit_resolver = {
-    .c_name = "set-compunit-resolver",
-    .implementation = set_compunit_resolver_impl,
-    .min_args = 3,
-    .max_args = 3,
-    .expected_kinds = { MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ, MVM_CALLSITE_ARG_OBJ },
-    .expected_reprs = { MVM_REPR_ID_MVMCompUnit, MVM_REPR_ID_MVMCode, MVM_REPR_ID_MVMCode },
-    .expected_concrete = { 1, 1, 1 },
 };
 
 /* async-linux-connect */
@@ -1733,7 +1713,6 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &code_is_stub);
     add_to_hash(tc, &set_cur_hll_config_key);
     add_to_hash(tc, &code_bytecode_size);
-    add_to_hash(tc, &set_compunit_resolver);
     add_to_hash(tc, &async_unix_connect);
     add_to_hash(tc, &async_unix_listen);
     add_to_hash(tc, &handle_open_mode);

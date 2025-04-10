@@ -7,9 +7,6 @@ static MVMCallsite   zero_arity_callsite = { NULL, 0, 0, 0, 0, 0, NULL };
 static MVMCallsiteEntry obj_arg_flags[] = { MVM_CALLSITE_ARG_OBJ };
 static MVMCallsite     obj_callsite = { obj_arg_flags, 1, 1, 1, 0, 0, NULL };
 
-static MVMCallsiteEntry str_arg_flags[] = { MVM_CALLSITE_ARG_STR };
-static MVMCallsite     str_callsite = { str_arg_flags, 1, 1, 1, 0, 0, NULL };
-
 static MVMCallsiteEntry int_arg_flags[] = { MVM_CALLSITE_ARG_INT };
 static MVMCallsite     int_callsite = { int_arg_flags, 1, 1, 1, 0, 0, NULL };
 
@@ -61,8 +58,6 @@ void MVM_callsite_initialize_common(MVMThreadContext *tc) {
     MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &obj_callsite;
     MVM_callsite_intern(tc, &ptr, 0, 1);
-    ptr = &str_callsite;
-    MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &int_callsite;
     MVM_callsite_intern(tc, &ptr, 0, 1);
     ptr = &obj_obj_callsite;
@@ -90,8 +85,6 @@ MVM_PUBLIC MVMCallsite * MVM_callsite_get_common(MVMThreadContext *tc, MVMCommon
             return &zero_arity_callsite;
         case MVM_CALLSITE_ID_OBJ:
             return &obj_callsite;
-        case MVM_CALLSITE_ID_STR:
-            return &str_callsite;
         case MVM_CALLSITE_ID_INT:
             return &int_callsite;
         case MVM_CALLSITE_ID_OBJ_OBJ:
@@ -335,7 +328,6 @@ void MVM_callsite_mark_interns(MVMThreadContext *tc, MVMGCWorklist *worklist,
 static int is_common(MVMCallsite *cs) {
     return cs == &zero_arity_callsite   ||
            cs == &obj_callsite          ||
-           cs == &str_callsite          ||
            cs == &int_callsite          ||
            cs == &obj_obj_callsite      ||
            cs == &obj_str_callsite      ||

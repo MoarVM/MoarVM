@@ -83,38 +83,40 @@
 (template: getlex (copy $1))
 (template: bindlex! (store \$0 $1 reg_sz))
 
-(template: getlex_ni!
-  (callv (^func &MVM_frame_find_lexical_by_name)
-    (arglist
-      (carg (tc) ptr)
-      (carg (^cu_string $1) ptr)
-      (carg (^reg_int) int)
-      (carg \$0 ptr))))
-
-(template: getlex_nn!
-  (callv (^func &MVM_frame_find_lexical_by_name)
-    (arglist
-      (carg (tc) ptr)
-      (carg (^cu_string $1) ptr)
-      (carg (^reg_num) int)
-      (carg \$0 ptr))))
-
-(template: getlex_ns!
-    (callv (^func &MVM_frame_find_lexical_by_name)
+(template: getlex_ni
+  (load
+    (call (^func &MVM_frame_find_lexical_by_name)
       (arglist
         (carg (tc) ptr)
         (carg (^cu_string $1) ptr)
-        (carg (^reg_str) int)
-        (carg \$0 ptr))))
+        (carg (^reg_int) int)) int_sz)
+    int_sz))
 
-(template: getlex_no!
-  (letv: (($found (call (^func &MVM_frame_find_lexical_by_name)
+(template: getlex_nn
+  (load_num
+    (call (^func &MVM_frame_find_lexical_by_name)
+      (arglist
+        (carg (tc) ptr)
+        (carg (^cu_string $1) ptr)
+        (carg (^reg_num) int)) int_sz)
+    num_sz))
+
+(template: getlex_ns
+  (load
+    (call (^func &MVM_frame_find_lexical_by_name)
+      (arglist
+        (carg (tc) ptr)
+        (carg (^cu_string $1) ptr)
+        (carg (^reg_str) int)) int_sz)
+    ptr_sz))
+
+(template: getlex_no
+  (let: (($found (call (^func &MVM_frame_find_lexical_by_name)
                    (arglist
                      (carg (tc) ptr)
                      (carg (^cu_string $1) ptr)
-                     (carg (^reg_obj) int)
-                     (carg \$0 ptr)) int_sz)))
-    (when (zr $found) (store \$0 (^vmnull) ptr_sz))))
+                     (carg (^reg_obj) int)) ptr_sz)))
+    (if (nz $found) (load $found ptr_sz) (^vmnull))))
 
 (template: bindlex_ni
   (callv (^func &MVM_frame_bind_lexical_by_name)
@@ -148,13 +150,12 @@
       (carg (^reg_obj) int)
       (carg $1 ptr))))
 
-(template: getdynlex!
-  (callv (^func &MVM_frame_getdynlex)
+(template: getdynlex
+  (call (^func &MVM_frame_getdynlex)
     (arglist
       (carg (tc) ptr)
       (carg $1 ptr)
-      (carg (^caller) ptr)
-      (carg \$0 ptr))))
+      (carg (^caller) ptr)) ptr_sz))
 
 (template: binddynlex
   (callv (^func &MVM_frame_binddynlex)
@@ -2234,12 +2235,11 @@
     (arglist
       (carg (tc) ptr)) ptr_sz))
 
-(template: getlexouter!
-  (callv (^func &MVM_frame_find_lexical_by_name_outer)
+(template: getlexouter
+  (call (^func &MVM_frame_find_lexical_by_name_outer)
     (arglist
       (carg (tc) ptr)
-      (carg $1   ptr)
-      (carg \$0  ptr))))
+      (carg $1   ptr)) ptr_sz))
 
 (template: getlexcaller
   (let: (($res (call (^func &MVM_frame_find_lexical_by_name_rel_caller)
@@ -2482,14 +2482,13 @@
       (carg $4   ptr)
       (carg $5   ptr)) ptr_sz))
 
-(template: getlexperinvtype_o!
-  (letv: (($found (call (^func &MVM_frame_find_lexical_by_name)
+(template: getlexperinvtype_o
+  (let: (($found (call (^func &MVM_frame_find_lexical_by_name)
                    (arglist
                      (carg (tc) ptr)
                      (carg $1   ptr)
-                     (carg (^reg_obj) int)
-                     (carg \$0 ptr)) int_sz)))
-    (when (zr $found) (store \$0 (^vmnull) ptr_sz))))
+                     (carg (^reg_obj) int)) ptr_sz)))
+    (if (nz $found) (load $found ptr_sz) (^vmnull))))
 
 (template: execname
   (call (^func &MVM_executable_name)

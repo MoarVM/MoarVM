@@ -30,8 +30,8 @@ struct MVMDispInlineCache {
 /* We always invoke an action using the cache by calling a function pointer.
  * These are the kinds of pointer we have: one for getlexstatic, another for
  * dispatch. */
-typedef int MVMDispInlineCacheRunGetLexStatic(MVMThreadContext *tc,
-        MVMDispInlineCacheEntry **entry_ptr, MVMString *name, MVMRegister *r);
+typedef MVMObject * MVMDispInlineCacheRunGetLexStatic(MVMThreadContext *tc,
+        MVMDispInlineCacheEntry **entry_ptr, MVMString *name);
 typedef void MVMDispInlineCacheRunDispatch(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMDispInlineCacheEntry *seen,
         MVMString *id, MVMCallsite *cs, MVMuint16 *arg_indices,

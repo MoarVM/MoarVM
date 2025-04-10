@@ -89,17 +89,17 @@ ne_u                w(int64) r(uint64) r(uint64) :pure :confprog
 jumplist         :j int64 r(int64)
 getlex              w(`1) rl(`1) :pure :deoptonepoint :logged
 bindlex             wl(`1) r(`1)
-getlex_ni           w(int64) str :pure :noinline :invokish :throwish :deoptallpoint
-getlex_nn           w(num64) str :pure :noinline :invokish :throwish :deoptallpoint
-getlex_ns           w(str) str :pure :noinline :invokish :throwish :deoptallpoint
-getlex_no           w(obj) str :pure :deoptonepoint :logged :noinline :invokish :throwish :deoptallpoint
+getlex_ni           w(int64) str :pure :noinline
+getlex_nn           w(num64) str :pure :noinline
+getlex_ns           w(str) str :pure :noinline
+getlex_no           w(obj) str :pure :deoptonepoint :logged :noinline
 bindlex_ni          str r(int64) :noinline
 bindlex_nn          str r(num64) :noinline
 bindlex_ns          str r(str) :noinline
 bindlex_no          str r(obj) :noinline
 getlex_ng           w(obj) r(str) :pure :noinline :useshll
 bindlex_ng          r(str) r(obj) :noinline :useshll
-getdynlex           w(obj) r(str) :pure :noinline :useshll :invokish :throwish :deoptallpoint
+getdynlex           w(obj) r(str) :pure :noinline :useshll
 binddynlex          r(str) r(obj) :noinline
 setlexvalue         r(obj) str r(obj) int16
 lexprimspec         w(int64) r(obj) r(str) :pure
@@ -573,9 +573,9 @@ findsym             w(obj) r(str) r(str)
 dropsym             r(obj)
 loadext             r(str) r(str)
 backendconfig       w(obj) :pure :confprog
-getlexouter         w(obj) r(str) :pure :noinline :useshll :invokish :throwish :deoptallpoint
+getlexouter         w(obj) r(str) :pure :noinline :useshll
 getlexrel           w(obj) r(obj) r(str) :pure :useshll
-getlexreldyn        w(obj) r(obj) r(str) :pure :useshll :invokish :throwish :deoptallpoint
+getlexreldyn        w(obj) r(obj) r(str) :pure :useshll
 getlexrelcaller     w(obj) r(obj) r(str) :pure :useshll
 getlexcaller        w(obj) r(str) :pure :noinline :useshll
 bitand_s            w(str) r(str) r(str) :pure
@@ -648,7 +648,7 @@ asyncwritebytes     w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 bindpos3d_u         r(obj) r(int64) r(int64) r(int64) r(uint64) :specializable
 asyncreadbytes      w(obj) r(obj) r(obj) r(obj) r(obj) r(obj)
 getlexstatic_o      w(obj) r(str) :pure :noinline :specializable :cache
-getlexperinvtype_o  w(obj) r(str) :pure :logged :specializable :invokish :throwish :deoptallpoint
+getlexperinvtype_o  w(obj) r(str) :pure :logged :specializable
 execname            w(str)
 const_i64_16        w(int64) int16 :pure :confprog
 const_i64_32        w(int64) int32 :pure :confprog
@@ -937,7 +937,7 @@ sp_rebless       .s w(obj) r(obj) r(obj) uint32 :noinline :maycausedeopt
 sp_decont        .s w(obj) r(obj) :pure :invokish :maycausedeopt
 sp_getlex_o      .s w(obj) rl(obj) :pure
 sp_getlex_ins    .s w(`1) rl(`1) :pure
-sp_getlex_no     .s w(obj) str :pure :noinline :invokish :throwish
+sp_getlex_no     .s w(obj) str :pure :noinline
 
 # Specialized forms of bindlex, avoiding the need to check for register type
 # (`_in` has no write batter, `_os` has the barrier).
