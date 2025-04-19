@@ -1,3 +1,17 @@
+New in 2025.04
+
+Core:
++ Add 32bit/64bit native int write support [14f4f2a93]
++ Bump mimalloc to v2.2.3 [03e4fee65]
++ Initialize variable before it is used [2352ae280]
++ Use right signedness for comparison [c7ca550e8]A
++ Only add bytes from a decoder if there are any [a68dddeda]
++ Cleanup some compiler warnings and one ubsan runtime errors [5f399c640]
++ Missing rooting in C[PP]Struct and MVMCompUnit.c [6d3fceeb9]
++ Remove a useless rooting [778b5d309]
++ Add/Avoid MVMROOT in C[PP]Struct and MVMCompUnit [d1661b98f]
++ Revert fallback resolver, this is not used anymore [b405e940e]
+
 New in 2025.03
 
 Core:
