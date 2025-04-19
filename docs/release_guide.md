@@ -43,8 +43,7 @@ be made, they should be numbered as `2014.01`**.1**, `2014.01`**.2**, etc.
 7. Commit the changes.  Typically the message is just "Update changelog and
    version".
 
-8. Run `make release VERSION=2014.01`, substituting the correct version. Note: you may need
-to alias your 'tar' command to an installed `bsdtar` version, depending on your OS. 
+8. Run `make release VERSION=2014.01`, substituting the correct version.
 
 Note:
 the version here must match the branch name or this command errors out. However, this means
