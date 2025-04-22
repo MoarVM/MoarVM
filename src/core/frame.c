@@ -958,6 +958,7 @@ typedef struct {
 static void mark_unwind_data(MVMThreadContext *tc, void *sr_data, MVMGCWorklist *worklist) {
     MVMUnwindData *ud  = (MVMUnwindData *)sr_data;
     MVM_gc_worklist_add(tc, worklist, &(ud->frame));
+    MVM_gc_worklist_add(tc, worklist, &(ud->payload));
 }
 static void continue_unwind(MVMThreadContext *tc, void *sr_data) {
     MVMUnwindData *ud  = (MVMUnwindData *)sr_data;
