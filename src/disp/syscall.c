@@ -3,6 +3,8 @@
 #include <unistd.h>
 #endif
 
+#include <yyjson.h>
+
 /* Since the boot-syscall dispatcher verifies the argument count and register
  * types, we can pull arguments out of the MVMArgs directly, without going via
  * the usual argument handling functions. */
@@ -1627,6 +1629,132 @@ static MVMDispSysCall is_debugserver_running = {
     .expected_concrete = { 0 },
 };
 
+static MVMObject *yy_to_mvm(MVMThreadContext *tc, yyjson_val *val) {
+    MVMHLLConfig *hllc = tc->cur_frame->static_info->body.cu->body.hll_config;
+
+    switch (yyjson_get_type(val)) {
+        case YYJSON_TYPE_OBJ: {
+            MVMObject *result = MVM_repr_alloc_init(tc, hllc->slurpy_hash_type);
+
+            MVMROOT(tc, result) {
+                yyjson_obj_iter iter;
+                yyjson_obj_iter_init(val, &iter);
+
+                yyjson_val *key;
+                while ((key = yyjson_obj_iter_next(&iter))) {
+                    yyjson_val *val = yyjson_obj_iter_get_val(key);
+                    const char *key_cstr = yyjson_get_str(key);
+                    MVMString *keystr = MVM_string_utf8_decode(tc, tc->instance->VMString, key_cstr, strlen(key_cstr));
+                    MVMROOT(tc, keystr) {
+                        MVMObject *val_obj = yy_to_mvm(tc, val);
+                        MVM_repr_bind_key_o(tc, result, keystr, val_obj);
+                    }
+                }
+            }
+            return result;
+        }
+        case YYJSON_TYPE_ARR: {
+            MVMObject *result = MVM_repr_alloc_init(tc, hllc->slurpy_array_type);
+
+            MVMROOT(tc, result) {
+                yyjson_arr_iter iter = yyjson_arr_iter_with(val);
+
+                yyjson_val *item_val;
+                while ((item_val = yyjson_arr_iter_next(&iter))) {
+                    MVMObject *val_obj = yy_to_mvm(tc, item_val);
+                    MVM_repr_push_o(tc, result, val_obj);
+                }
+            }
+            return result;
+        }
+        case YYJSON_TYPE_NULL: {
+            MVMObject *null_obj = hllc->null_value;
+            return null_obj;
+        }
+        case YYJSON_TYPE_BOOL:
+            if (yyjson_get_bool(val))
+                return hllc->true_value;
+            else
+                return hllc->false_value;
+        case YYJSON_TYPE_STR: {
+            const char *val_str = yyjson_get_str(val);
+            MVMString *valstr = MVM_string_utf8_decode(tc, tc->instance->VMString, val_str, strlen(val_str));
+            MVMObject *result = NULL;
+            MVMROOT(tc, valstr) {
+                result = MVM_repr_box_str(tc, hllc->str_box_type, valstr);
+            }
+            return result;
+        }
+        case YYJSON_TYPE_NUM:
+            if (yyjson_get_subtype(val) == YYJSON_SUBTYPE_SINT) {
+            }
+            else if (yyjson_get_subtype(val) == YYJSON_SUBTYPE_UINT) {
+            }
+            else if (yyjson_get_subtype(val) == YYJSON_SUBTYPE_REAL) {
+            }
+            break;
+        case YYJSON_TYPE_RAW: {
+            /* figure out if it's a num that would overflow a double, or if it's a huge integer */
+        }
+        break;
+    }
+    MVM_exception_throw_adhoc(tc, "should not happen, blabla");
+}
+
+/* */
+static void parse_json_impl(MVMThreadContext *tc, MVMArgs arg_info) {
+// void decode_json_str_to_mvmhash(MVMThreadContext *tc, MVMSTable *st, void *jsonBuf) {
+    MVMObject *buffer = get_obj_arg(arg_info, 0);
+
+    /* TODO passing a configured decoder for strings may be a good idea? */
+
+    /* check slot type and error out */
+    MVMArray *buf_arr = (MVMArray *)buffer;
+    MVMArrayREPRData *arr_repr_data = (MVMArrayREPRData *)buf_arr->common.st->REPR_data;
+    // TODO errorNULLs
+
+    char *jsonContent = (char *)&buf_arr->body.slots.u8[buf_arr->body.start];
+    uint64_t jsonSize = (uint64_t) buf_arr->body.elems;
+    yyjson_read_flag readFlags = YYJSON_READ_ALLOW_INF_AND_NAN | YYJSON_READ_BIGNUM_AS_RAW;
+
+    yyjson_doc *doc = yyjson_read(jsonContent, jsonSize, readFlags);
+
+    if (!doc) {
+       /* MVM_exception_throw_adhoc(tc, "error %s at pos %d bla bla", ...); */
+       /* printf("read error (%u): %s at position: %ld\n", err.code, err.msg, err.pos); */
+    }
+
+    // MVMHLLConfig *hllc = tc->cur_frame->static_info->body.cu->body.hll_config;
+
+    yyjson_val *root = yyjson_doc_get_root(doc);
+
+    MVMObject *result = tc->instance->VMNull;
+
+    if (yyjson_get_type(root) == YYJSON_TYPE_OBJ) {
+        /* TODO check if tc->cur_frame->static_info->body.cu is the correct cu to look at for the hll list and hash types */
+        /* the cu of tc->cur_frame will depend on what the syscall is called from, could be nqp or raku */
+
+        result = yy_to_mvm(tc, root);
+    } else if (yyjson_get_type(root) == YYJSON_TYPE_ARR) {
+        result = yy_to_mvm(tc, root);
+    } else {
+        MVM_exception_throw_adhoc(tc, "this impl only handles arr or obj json documents, not %s", yyjson_get_type_desc(root));
+    }
+
+    yyjson_doc_free(doc);
+
+    MVM_args_set_result_obj(tc, result, MVM_RETURN_CURRENT_FRAME);
+}
+static MVMDispSysCall parse_json = {
+    .c_name = "parse-json",
+    .implementation = parse_json_impl,
+    .min_args = 1,
+    .max_args = 1,
+    .expected_kinds = { MVM_CALLSITE_ARG_OBJ },
+    .expected_reprs = { MVM_REPR_ID_VMArray },
+    .expected_concrete = { 1 },
+};
+
 /* Add all of the syscalls into the hash. */
 MVM_STATIC_INLINE void add_to_hash(MVMThreadContext *tc, MVMDispSysCall *syscall) {
     MVMString *name = MVM_string_ascii_decode_nt(tc, tc->instance->VMString, syscall->c_name);
@@ -1728,6 +1856,7 @@ void MVM_disp_syscall_setup(MVMThreadContext *tc) {
     add_to_hash(tc, &telemetry_interval_stop);
     add_to_hash(tc, &telemetry_interval_annotate);
     add_to_hash(tc, &is_debugserver_running);
+    add_to_hash(tc, &parse_json);
     MVM_gc_allocate_gen2_default_clear(tc);
 }
 
