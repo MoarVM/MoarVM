@@ -1685,16 +1685,23 @@ static MVMObject *yy_to_mvm(MVMThreadContext *tc, yyjson_val *val) {
             }
             return result;
         }
-        case YYJSON_TYPE_NUM:
-            if (yyjson_get_subtype(val) == YYJSON_SUBTYPE_SINT) {
+        case YYJSON_TYPE_NUM: {
+            yyjson_subtype subtype = yyjson_get_subtype(val);
+            if (subtype == YYJSON_SUBTYPE_REAL) {
+                MVMnum64 valnum = (MVMnum64) yyjson_get_real(val);
+                return MVM_repr_box_num(tc, hllc->num_box_type, valnum);
             }
-            else if (yyjson_get_subtype(val) == YYJSON_SUBTYPE_UINT) {
+            else {
+                MVMint64 valint = subtype == YYJSON_SUBTYPE_SINT
+                            ? (MVMint64) yyjson_get_sint(val)
+                            : (MVMint64) yyjson_get_uint(val);
+                return MVM_repr_box_int(tc, hllc->int_box_type, valint);
             }
-            else if (yyjson_get_subtype(val) == YYJSON_SUBTYPE_REAL) {
-            }
-            break;
+        }
         case YYJSON_TYPE_RAW: {
             /* figure out if it's a num that would overflow a double, or if it's a huge integer */
+            MVMObject *null_obj = hllc->null_value;
+            return null_obj;
         }
         break;
     }
