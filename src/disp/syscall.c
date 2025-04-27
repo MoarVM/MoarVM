@@ -1629,81 +1629,192 @@ static MVMDispSysCall is_debugserver_running = {
     .expected_concrete = { 0 },
 };
 
-static MVMObject *yy_to_mvm(MVMThreadContext *tc, yyjson_val *val) {
+struct json_frame
+{
+    yyjson_val  *yy_val;
+    yyjson_type parent_type;
+
+    MVMObject   *parent;
+    MVMObject   *result;
+    const char  *key;
+
+    bool set;
+};
+
+static struct json_frame* init_json_frame_hash(
+    yyjson_val  *yyv,
+    MVMObject   *object,
+    MVMObject   *parent,
+    yyjson_type parent_type,
+    const char  *key
+) {
+    struct json_frame *frame = MVM_malloc(sizeof(struct json_frame));
+    frame->yy_val = yyv;
+    frame->result = object;
+    frame->key    = key;
+    frame->set    = false;
+    frame->parent = parent;
+    frame->parent_type = parent_type;
+    return frame;
+}
+
+static struct json_frame* init_json_frame(
+    yyjson_val  *yyv,
+    MVMObject   *object,
+    MVMObject   *parent,
+    yyjson_type parent_type
+) {
+    return init_json_frame_hash(yyv, object, parent, parent_type, "");
+}
+
+static MVMObject *yy_to_mvm(MVMThreadContext *tc, yyjson_val *root) {
     MVMHLLConfig *hllc = tc->cur_frame->static_info->body.cu->body.hll_config;
 
-    switch (yyjson_get_type(val)) {
-        case YYJSON_TYPE_OBJ: {
-            MVMObject *result = MVM_repr_alloc_init(tc, hllc->slurpy_hash_type);
+    struct json_frame* frames[1024];
+    int i = 0; // XXX: Can it be so simple?
+    // Only object and array should be valid root "nodes"
+   frames[i++] = init_json_frame(root, hllc->null_value, hllc->null_value, YYJSON_TYPE_NONE);
 
-            MVMROOT(tc, result) {
-                yyjson_obj_iter iter;
-                yyjson_obj_iter_init(val, &iter);
+    while (0 < i) {
+        struct json_frame* frame = frames[--i];
 
-                yyjson_val *key;
-                while ((key = yyjson_obj_iter_next(&iter))) {
-                    yyjson_val *val = yyjson_obj_iter_get_val(key);
-                    const char *key_cstr = yyjson_get_str(key);
-                    MVMString *keystr = MVM_string_utf8_decode(tc, tc->instance->VMString, key_cstr, strlen(key_cstr));
-                    MVMROOT(tc, keystr) {
-                        MVMObject *val_obj = yy_to_mvm(tc, val);
-                        MVM_repr_bind_key_o(tc, result, keystr, val_obj);
+        fprintf(stderr, "++++ frame #%d is set: %d\n", i+1, frame->set);
+
+        if (frame->set) {
+            switch (frame->parent_type) {
+                case YYJSON_TYPE_OBJ: {
+                    MVMROOT(tc, frame->result) {
+                        MVMString *keystr = MVM_string_utf8_decode(tc, tc->instance->VMString, frame->key, strlen(frame->key));
+                        MVMROOT(tc, keystr) {
+                            MVM_repr_bind_key_o(tc, frame->parent, keystr, frame->result);
+                        }
                     }
+                    MVM_free(frame);
+                    continue;
+                }
+                case YYJSON_TYPE_ARR: {
+                    MVMROOT(tc, frame->result) {
+                        MVM_repr_push_o(tc, frame->parent, frame->result);
+                    }
+                    MVM_free(frame);
+                    continue;
+                }
+                // Below should not be necessary
+//                case YYJSON_TYPE_NONE: {
+//                    continue;
+//                }
+                default: fprintf(stderr, "This should be impossible...\n");
+            }
+        } else {
+            switch (yyjson_get_type(frame->yy_val)) {
+                case YYJSON_TYPE_OBJ: {
+                    MVMObject *result = MVM_repr_alloc_init(tc, hllc->slurpy_hash_type);
+
+                    MVMROOT(tc, result) {
+                        yyjson_obj_iter iter;
+                        yyjson_obj_iter_init(frame->yy_val, &iter);
+
+                        yyjson_val *key;
+                        while ((key = yyjson_obj_iter_next(&iter))) {
+                            yyjson_val *val = yyjson_obj_iter_get_val(key);
+                            const char *key_cstr = yyjson_get_str(key);
+                            frames[i++] = init_json_frame_hash(val, hllc->null_value, result, YYJSON_TYPE_OBJ, key_cstr);
+                        }
+                    }
+
+                    // Mark current frame as 'set' so that it is processed properly
+                    frame->result = result;
+                    frame->set = true;
+                    continue;
+                }
+                case YYJSON_TYPE_ARR: {
+                    MVMObject *result = MVM_repr_alloc_init(tc, hllc->slurpy_array_type);
+
+                    MVMROOT(tc, result) {
+                        yyjson_arr_iter iter = yyjson_arr_iter_with(frame->yy_val);
+
+                        yyjson_val *item_val;
+                        while ((item_val = yyjson_arr_iter_next(&iter))) {
+                            frames[i++] = init_json_frame(item_val, hllc->null_value, result, YYJSON_TYPE_ARR);
+                        }
+                    }
+
+                    frame->result = result;
+                    frame->set = true;
+                    continue;
+                }
+                case YYJSON_TYPE_NULL: {
+                    MVMObject *null_obj = hllc->null_value;
+                    frame->result = null_obj;
+                    frame->set    = true;
+                    frames[i++]   = frame;
+
+                    continue;
+                }
+                case YYJSON_TYPE_BOOL: {
+                    frame->result = yyjson_get_bool(frame->yy_val)
+                            ? hllc->true_value
+                            : hllc->false_value;
+                    frame->set    = true;
+                    frames[i++]   = frame;
+
+                    continue;
+                }
+                case YYJSON_TYPE_STR: {
+                    const char *val_cstr = yyjson_get_str(frame->yy_val);
+                    MVMString *valstr = MVM_string_utf8_decode(tc, tc->instance->VMString, val_cstr, strlen(val_cstr));
+
+                    MVMROOT(tc, valstr) {
+                        frame->result = MVM_repr_box_str(tc, hllc->str_box_type, valstr);
+                    }
+                    frame->set  = true;
+                    frames[i++] = frame;
+
+                    continue;
+                }
+
+                case YYJSON_TYPE_NUM: {
+                    yyjson_subtype subtype = yyjson_get_subtype(frame->yy_val);
+
+                    if (subtype == YYJSON_SUBTYPE_SINT ||  subtype == YYJSON_SUBTYPE_UINT) {
+                        MVMint64 valint = yyjson_get_subtype(frame->yy_val) == YYJSON_SUBTYPE_SINT
+                                            ? (MVMint64) yyjson_get_sint(frame->yy_val)
+                                            : (MVMint64) yyjson_get_uint(frame->yy_val);
+                        MVMROOT(tc, valint) {
+                            frame->result = MVM_repr_box_int(tc, hllc->int_box_type, valint);
+                        }
+                        frame->set  = true;
+                        frames[i++] = frame;
+                    }
+                    else {
+                        MVMObject *null_obj = hllc->null_value;
+                        frame->result = null_obj;
+                        frame->set    = true;
+                        frames[i++]   = frame;
+                    }
+
+                    continue;
+                }
+                case YYJSON_TYPE_RAW: {
+                    MVMObject *null_obj = hllc->null_value;
+                    frame->result = null_obj;
+                    frame->set    = true;
+                    frames[i++]   = frame;
+                    continue;
+                    /* figure out if it's a num that would overflow a double, or if it's a huge integer */
                 }
             }
-            return result;
         }
-        case YYJSON_TYPE_ARR: {
-            MVMObject *result = MVM_repr_alloc_init(tc, hllc->slurpy_array_type);
-
-            MVMROOT(tc, result) {
-                yyjson_arr_iter iter = yyjson_arr_iter_with(val);
-
-                yyjson_val *item_val;
-                while ((item_val = yyjson_arr_iter_next(&iter))) {
-                    MVMObject *val_obj = yy_to_mvm(tc, item_val);
-                    MVM_repr_push_o(tc, result, val_obj);
-                }
-            }
-            return result;
-        }
-        case YYJSON_TYPE_NULL: {
-            MVMObject *null_obj = hllc->null_value;
-            return null_obj;
-        }
-        case YYJSON_TYPE_BOOL:
-            if (yyjson_get_bool(val))
-                return hllc->true_value;
-            else
-                return hllc->false_value;
-        case YYJSON_TYPE_STR: {
-            const char *val_str = yyjson_get_str(val);
-            MVMString *valstr = MVM_string_utf8_decode(tc, tc->instance->VMString, val_str, strlen(val_str));
-            MVMObject *result = NULL;
-            MVMROOT(tc, valstr) {
-                result = MVM_repr_box_str(tc, hllc->str_box_type, valstr);
-            }
-            return result;
-        }
-        case YYJSON_TYPE_NUM:
-            if (yyjson_get_subtype(val) == YYJSON_SUBTYPE_SINT) {
-            }
-            else if (yyjson_get_subtype(val) == YYJSON_SUBTYPE_UINT) {
-            }
-            else if (yyjson_get_subtype(val) == YYJSON_SUBTYPE_REAL) {
-            }
-            break;
-        case YYJSON_TYPE_RAW: {
-            /* figure out if it's a num that would overflow a double, or if it's a huge integer */
-        }
-        break;
     }
-    MVM_exception_throw_adhoc(tc, "should not happen, blabla");
+
+    MVMObject *final_result = frames[0]->result;
+    MVM_free(frames[0]);
+
+    return final_result;
 }
 
 /* */
 static void parse_json_impl(MVMThreadContext *tc, MVMArgs arg_info) {
-// void decode_json_str_to_mvmhash(MVMThreadContext *tc, MVMSTable *st, void *jsonBuf) {
     MVMObject *buffer = get_obj_arg(arg_info, 0);
 
     /* TODO passing a configured decoder for strings may be a good idea? */
@@ -1720,11 +1831,10 @@ static void parse_json_impl(MVMThreadContext *tc, MVMArgs arg_info) {
     yyjson_doc *doc = yyjson_read(jsonContent, jsonSize, readFlags);
 
     if (!doc) {
-       /* MVM_exception_throw_adhoc(tc, "error %s at pos %d bla bla", ...); */
-       /* printf("read error (%u): %s at position: %ld\n", err.code, err.msg, err.pos); */
+    // TODO: Get err so this actually works
+//       MVM_exception_throw_adhoc(tc, "read error (%u): %s at position: %ld\n", err.code, err.msg, err.pos);
+       return;
     }
-
-    // MVMHLLConfig *hllc = tc->cur_frame->static_info->body.cu->body.hll_config;
 
     yyjson_val *root = yyjson_doc_get_root(doc);
 
