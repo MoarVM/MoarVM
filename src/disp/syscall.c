@@ -1671,14 +1671,13 @@ static MVMObject *yy_to_mvm(MVMThreadContext *tc, yyjson_val *root) {
     MVMHLLConfig *hllc = tc->cur_frame->static_info->body.cu->body.hll_config;
 
     struct json_frame* frames[1024];
-    int i = 0; // XXX: Can it be so simple?
-    // Only object and array should be valid root "nodes"
-   frames[i++] = init_json_frame(root, hllc->null_value, hllc->null_value, YYJSON_TYPE_NONE);
+    int i = 0;
+    int max_frames = 0;
+    frames[i++] = init_json_frame(root, hllc->null_value, hllc->null_value, YYJSON_TYPE_NONE);
 
     while (0 < i) {
+        max_frames = i < max_frames ? max_frames : i;
         struct json_frame* frame = frames[--i];
-
-        fprintf(stderr, "++++ frame #%d is set: %d\n", i+1, frame->set);
 
         if (frame->set) {
             switch (frame->parent_type) {
@@ -1699,16 +1698,22 @@ static MVMObject *yy_to_mvm(MVMThreadContext *tc, yyjson_val *root) {
                     MVM_free(frame);
                     continue;
                 }
-                // Below should not be necessary
-//                case YYJSON_TYPE_NONE: {
-//                    continue;
-//                }
+                // Below should not be necessary... as this should only apply to the first element
+                // which is excluded by the while's guard expression
+                case YYJSON_TYPE_NONE: {
+                    continue;
+                }
                 default: fprintf(stderr, "This should be impossible...\n");
             }
         } else {
             switch (yyjson_get_type(frame->yy_val)) {
                 case YYJSON_TYPE_OBJ: {
                     MVMObject *result = MVM_repr_alloc_init(tc, hllc->slurpy_hash_type);
+
+                    // Mark current frame as 'set' so that it is processed properly
+                    frame->result = result;
+                    frame->set = true;
+                    i++; // Preserve this frame index (only needed for container types)
 
                     MVMROOT(tc, result) {
                         yyjson_obj_iter iter;
@@ -1722,13 +1727,15 @@ static MVMObject *yy_to_mvm(MVMThreadContext *tc, yyjson_val *root) {
                         }
                     }
 
-                    // Mark current frame as 'set' so that it is processed properly
-                    frame->result = result;
-                    frame->set = true;
                     continue;
                 }
                 case YYJSON_TYPE_ARR: {
                     MVMObject *result = MVM_repr_alloc_init(tc, hllc->slurpy_array_type);
+
+                    // Mark current frame as 'set' so that it is processed properly
+                    frame->result = result;
+                    frame->set = true;
+                    i++; // Preserve this frame index (only needed for container types)
 
                     MVMROOT(tc, result) {
                         yyjson_arr_iter iter = yyjson_arr_iter_with(frame->yy_val);
@@ -1739,8 +1746,6 @@ static MVMObject *yy_to_mvm(MVMThreadContext *tc, yyjson_val *root) {
                         }
                     }
 
-                    frame->result = result;
-                    frame->set = true;
                     continue;
                 }
                 case YYJSON_TYPE_NULL: {
@@ -1780,15 +1785,13 @@ static MVMObject *yy_to_mvm(MVMThreadContext *tc, yyjson_val *root) {
                         MVMint64 valint = yyjson_get_subtype(frame->yy_val) == YYJSON_SUBTYPE_SINT
                                             ? (MVMint64) yyjson_get_sint(frame->yy_val)
                                             : (MVMint64) yyjson_get_uint(frame->yy_val);
-                        MVMROOT(tc, valint) {
-                            frame->result = MVM_repr_box_int(tc, hllc->int_box_type, valint);
-                        }
+                        frame->result = MVM_repr_box_int(tc, hllc->int_box_type, valint);
                         frame->set  = true;
                         frames[i++] = frame;
                     }
                     else {
-                        MVMObject *null_obj = hllc->null_value;
-                        frame->result = null_obj;
+                        MVMnum64 valnum = (MVMnum64) yyjson_get_real(frame->yy_val);
+                        frame->result = MVM_repr_box_num(tc, hllc->num_box_type, valnum);
                         frame->set    = true;
                         frames[i++]   = frame;
                     }
@@ -1808,6 +1811,11 @@ static MVMObject *yy_to_mvm(MVMThreadContext *tc, yyjson_val *root) {
     }
 
     MVMObject *final_result = frames[0]->result;
+
+    fprintf(stderr, "Max frames: %d\n", max_frames);
+//    for (int x=0; x < max_frames; x++) {
+//        MVM_free(frames[x]);
+//    }
     MVM_free(frames[0]);
 
     return final_result;
