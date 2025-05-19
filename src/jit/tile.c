@@ -36,17 +36,21 @@ struct TreeTiler {
  * int32. Used primarily for making 'synthetic' tiles introduced by the
  * compiler */
 MVMJitTile* MVM_jit_tile_make(MVMThreadContext *tc, MVMJitCompiler *compiler,
-                              void *emit, MVMint32 num_args, MVMint32 num_values, ...) {
+                              void *emit, MVMuint32 num_args, MVMuint32 num_values, ...) {
     MVMJitTile *tile;
-    MVMint32 i;
+    MVMuint32 i;
     va_list arglist;
     va_start(arglist, num_values);
     tile = MVM_spesh_alloc(tc, compiler->graph->sg, sizeof(MVMJitTile));
     tile->emit = emit;
     tile->num_refs = num_values;
+    if (num_args > sizeof(tile->args))
+        MVM_panic(1, "Too many args (%u) in jit tile, max allowed is %lu\n", num_args, sizeof(tile->args));
     for (i = 0; i < num_args; i++) {
         tile->args[i] = va_arg(arglist, MVMint32);
     }
+    if (num_values > sizeof(tile->values))
+        MVM_panic(1, "Too many values (%u) in jit tile, max allowed is %lu\n", num_values, sizeof(tile->values));
     for (i = 0; i < num_values; i++) {
         tile->values[i] = (MVMint8)va_arg(arglist, MVMint32);
     }
