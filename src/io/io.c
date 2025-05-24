@@ -126,11 +126,19 @@ void MVM_io_read_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *res
     else
         MVM_exception_throw_adhoc(tc, "Cannot read characters from this kind of handle");
 
+    MVMArrayBody *result_body = &((MVMArray *)result)->body;
+
+    /* Free any existing data first. */
+    if (result_body->slots.any)
+        MVM_free(result_body->slots.any);
+
     /* Stash the data in the VMArray. */
-    ((MVMArray *)result)->body.slots.i8 = (MVMint8 *)buf;
-    ((MVMArray *)result)->body.start    = 0;
-    ((MVMArray *)result)->body.ssize    = bytes_read;
-    ((MVMArray *)result)->body.elems    = bytes_read;
+    result_body->slots.i8 = (MVMint8 *)buf;
+    result_body->start    = 0;
+    /* Note that the actual size of the allocated buffer may be
+     * bigger than bytes_read. It's not the end of the world, though. */
+     result_body->ssize    = bytes_read;
+     result_body->elems    = bytes_read;
 }
 
 void MVM_io_write_bytes(MVMThreadContext *tc, MVMObject *oshandle, MVMObject *buffer) {
