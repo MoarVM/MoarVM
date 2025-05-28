@@ -823,7 +823,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 
         process_stdio[0].flags   = UV_CREATE_PIPE | UV_READABLE_PIPE;
         process_stdio[0].data.stream = (uv_stream_t *)pipe;
-        process_stdio[1].flags   = UV_CREATE_PIPE | UV_READABLE_PIPE;
+        process_stdio[1].flags   = UV_CREATE_PIPE | UV_WRITABLE_PIPE;
         process_stdio[1].data.stream = (uv_stream_t *)si->pipe_stdout;
         process_stdio[2].flags   = UV_IGNORE;
 #else
@@ -973,9 +973,11 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     process_options.file        = si->prog;
     process_options.args        = si->args;
     process_options.cwd         = si->cwd;
-    process_options.flags       = UV_PROCESS_WINDOWS_HIDE | UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+    process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
     if (pty_mode)
         process_options.flags   = process_options.flags | UV_PROCESS_PTY;
+    else
+        process_options.flags   = UV_PROCESS_WINDOWS_HIDE;
     process_options.env         = si->env;
     process_options.stdio_count = 3;
     process_options.exit_cb     = async_spawn_on_exit;
