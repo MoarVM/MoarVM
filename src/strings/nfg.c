@@ -1,8 +1,7 @@
 #include "moar.h"
 
-/* Number of extra elements we add to the synthetics table each time we need
- * to grow it. */
-#define MVM_SYNTHETIC_GROW_ELEMS 32
+/* Factor of growth for the synthetics table. */
+#define MVM_SYNTHETIC_GROW_FACTOR 1.2f
 
 /* Finds the index of a given codepoint within a trie node. Returns it if
  * there is one, or negative if there is not (note 0 is a valid index). */
@@ -144,9 +143,13 @@ static MVMGrapheme32 add_synthetic(MVMThreadContext *tc, MVMCodepoint *codes, MV
     MVMGrapheme32    result;
 
     /* Grow the synthetics table if needed. */
-    if (nfg->num_synthetics % MVM_SYNTHETIC_GROW_ELEMS == 0) {
+    if (nfg->num_synthetics >= nfg->alloc_synthetics) {
+        nfg->alloc_synthetics = (MVMuint32)(nfg->alloc_synthetics * MVM_SYNTHETIC_GROW_FACTOR);
+        if (nfg->alloc_synthetics == 0) {
+            nfg->alloc_synthetics = 32;
+        }
         size_t orig_size = nfg->num_synthetics * sizeof(MVMNFGSynthetic);
-        size_t new_size  = (nfg->num_synthetics + MVM_SYNTHETIC_GROW_ELEMS) * sizeof(MVMNFGSynthetic);
+        size_t new_size  = nfg->alloc_synthetics * sizeof(MVMNFGSynthetic);
         MVMNFGSynthetic *new_synthetics = MVM_malloc(new_size);
         if (orig_size) {
             memcpy(new_synthetics, nfg->synthetics, orig_size);

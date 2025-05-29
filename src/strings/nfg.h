@@ -20,6 +20,9 @@ struct MVMNFGState {
     /* Number of synthetics we have. */
     MVMuint32 num_synthetics;
 
+    /* Number of entries we have allocated for synthetics. */
+    MVMuint32 alloc_synthetics;
+
     /* Cached CRLF grapheme index, since we need it so often. */
     MVMGrapheme32 crlf_grapheme;
 };
