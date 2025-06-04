@@ -182,7 +182,7 @@ sub add_unicode_sequence {
 
     my $is_emoji = $basename =~ / emoji /x;
 
-    for_each_line($basename, sub {
+    for_each_line $basename, sub {
         my $line = shift;
 
         # Handle both sequence file formats
@@ -208,21 +208,25 @@ sub add_unicode_sequence {
             my $chr = chr hex($1);
             $name =~ s/ \\x \{ $1 \} /$chr/xg;
         }
-        # Make sure it's uppercase since the Emoji sequences are not all in
-        # uppercase.
+
+        # Make sure the name is uppercased as Raku expects since the emoji
+        # sequence names are not all in uppercase in the data files.
         $name = uc $name;
-        # Emoji sequences have commas in some and these cannot be included
-        # since they seperate seperate named items in ISO notation that Raku uses
+
+        # Some emoji sequence names contain commas which cannot be included
+        # since they separate named items in the ISO notation that Raku uses.
         $name =~ s/,//xg;
+
+        # Store sequence info for this name
         $named_sequences->{$name}->{'type'} = $type;
+
         # Only push if we haven't seen this already
         if (!$named_sequences->{$name}->{'ords'}) {
             for my $hex (split ' ', $hex_ords) {
                 push @{$named_sequences->{$name}->{'ords'}}, hex $hex;
             }
         }
-    } );
-    return $named_sequences;
+    }
 }
 
 # Build uni_seq DB section
