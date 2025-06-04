@@ -1,117 +1,277 @@
 #!/usr/bin/env perl
+# Make C versions of the Unicode tables.
+
+# NOTE: Before running this program, run tools/UCD-download.raku from the top
+# level of your MoarVM checkout to download all of the Unicode data files and
+# extract them into a UNIDATA directory, which that script will create for you.
+
 use 5.014;
-use warnings; use strict;
+use strict;
+use warnings;
 use utf8;
 use feature 'unicode_strings';
 use Data::Dumper;
-use Carp qw(cluck croak carp);
-$Data::Dumper::Maxdepth = 1;
-# Make C versions of the Unicode tables.
+use Carp qw(cluck croak);
 
-# Before running, downloading UNIDATA.zip from http://www.unicode.org/Public/zipped/
-# and extract them into UNIDATA in the root of this repository.
 
-# Download allkeys.txt from http://www.unicode.org/Public/UCA/latest/
-# and place into a folder named UCA under the UNIDATA directory.
-
-my $have_rakudo = `rakudo -e 'say "Hello world"'`;
-die "You need rakudo in your path to run this script\n"
-    unless $have_rakudo =~ /\AHello world/;
-
-my $DEBUG = $ENV{UCD2CDEBUG} // 0;
-
-binmode STDOUT, ':encoding(UTF-8)';
-binmode STDERR, ':encoding(UTF-8)';
-my $LOG;
-# All globals should use UPPERCASE
-my $DB_SECTIONS = {};
-my $H_SECTIONS = {};
-my @POINTS_SORTED;
-my $POINTS_BY_CODE = {};
-my $ALIASES = {};
-my $ALIAS_TYPES = {};
-my $PROP_NAMES = {};
-my $BITFIELD_TABLE = [];
-my $ALL_PROPERTIES = {};
-my $ENUMERATED_PROPERTIES = {};
-my $BINARY_PROPERTIES = {};
-my $GENERAL_CATEGORIES = {};
-my $PROPERTY_INDEX = 0;
-# Estimated total bytes is only calculated for bitfield and names
-my $ESTIMATED_TOTAL_BYTES = 0;
-my $TOTAL_BYTES_SAVED = 0;
-# Constants
-my $WRAP_TO_COLUMNS = 120;
-my $COMPRESS_CODEPOINTS = 1;
-my $GAP_LENGTH_THRESHOLD = 1000;
-my $SPAN_LENGTH_THRESHOLD = 100;
-my $SKIP_MOST_MODE = 0;
+### CONFIG
+my $SKIP_MOST_MODE         = 0;
+my $WRAP_TO_COLUMNS        = 120;
+my $COMPRESS_CODEPOINTS    = 1;
+my $GAP_LENGTH_THRESHOLD   = 1000;
+my $SPAN_LENGTH_THRESHOLD  = 100;
 my $BITFIELD_CELL_BITWIDTH = 32;
 
+### DEBUG/LOGGING
+my $DEBUG                  = $ENV{UCD2CDEBUG} // 0;
+my $LOG;
+
+### METRIC GLOBALS
+my $ESTIMATED_TOTAL_BYTES  = 0;  # XXXX: Only calculated for bitfield and names
+my $TOTAL_BYTES_SAVED      = 0;
+
+### DATA STRUCTURE ROOTS
+my $DB_SECTIONS            = {};
+my $H_SECTIONS             = {};
+my @POINTS_SORTED;
+my $POINTS_BY_CODE         = {};
+my $ALIASES                = {};
+my $ALIAS_TYPES            = {};
+my $PROP_NAMES             = {};
+my $BITFIELD_TABLE         = [];
+my $ALL_PROPERTIES         = {};
+my $ENUMERATED_PROPERTIES  = {};
+my $BINARY_PROPERTIES      = {};
+my $GENERAL_CATEGORIES     = {};
+my $PROPERTY_INDEX         = 0;
+
+
+### MAIN PROGRAM
+
+sub main {
+    init();
+
+    progress("Building header\n");
+    $DB_SECTIONS->{'AAA_header'} = header();
+
+    progress("\nProcessing sequences\n");
+    my ($emoji_versions, $hout) = process_sequences();
+    my  $highest_emoji_version  = $emoji_versions->[-1];
+    print "\n-- Highest emoji version found was $highest_emoji_version\n\n";
+
+    # XXXX: Not yet refactored portion
+    rest_of_main($highest_emoji_version, $hout);
+}
+
+# Startup checks and init
+sub init {
+    my $have_rakudo = `rakudo -e 'say "Hello world"'`;
+    die "You need rakudo in your path to run this script\n"
+        unless $have_rakudo =~ /\AHello world/;
+
+    die "Please run `rakudo tools/USD-download.raku` to build UNIDATA directory\n"
+        unless -d 'UNIDATA' && -r _ && -x _;
+
+    $Data::Dumper::Maxdepth = 1;
+
+    binmode STDOUT, ':encoding(UTF-8)';
+    binmode STDERR, ':encoding(UTF-8)';
+}
+
+
+### UTILITY ROUTINES
+
+# Show progress messages, forcing autoflush
+sub progress {
+    local $| = 1;
+    print @_;
+}
+
+# Trim both leading and trailing whitespace from a string
 sub trim {
     my ($str) = @_;
     $str =~ s/   \s+ $ //xmsg;
     $str =~ s/ ^ \s+   //xmsg;
     return $str;
 }
+
+# Trim only trailing whitespace from a string
 sub trim_trailing {
     my ($str) = @_;
     $str =~ s/ [ \t]+ $ //xmsg;
     return $str;
 }
-# Get the highest version number from the supplied array. Iterate and compare
-# each segment. Ensures if there ever are subversions like 5.0.5 then it will work.
-sub get_highest_version {
-    my ($versions) = @_;
-    my @highest_ver;
-    for my $ver_str (@$versions) {
-        my @ver = split / [.] /x, $ver_str;
-        if (!@highest_ver) {
-            @highest_ver = @ver;
-            next;
-        }
-        for (my $i = 0; $i < @ver; $i++) {
-            if ($highest_ver[$i] < $ver[$i]) {
-                @highest_ver = @ver;
-            }
-            elsif ($highest_ver[$i] == $ver[$i]) {
-                next;
-            }
-            last;
-        }
-    }
-    return join '.', @highest_ver;
+
+# Add commas every 3 decimal digits; ironically ignores the fact that digit
+# separation is very locale-specific.  But since we don't have the CLDR yet ...
+sub commify_thousands {
+    my $in = shift;
+    $in = reverse "$in"; # stringify or copy the string
+    $in =~ s/ (\d\d\d) (?= \d) /$1,/xg;
+    return reverse($in);
 }
 
+# Sort .-separated version strings into correct order by major/minor/revision
+sub sort_versions {
+    # Schwartzian transform FTW
+    map  $_->[0],
+    sort {    ($a->[1] || 0) <=> ($b->[1] || 0)
+           || ($a->[2] || 0) <=> ($b->[2] || 0)
+           || ($a->[3] || 0) <=> ($b->[3] || 0) }
+    map  [$_, split(/ [.] /x, $_)], @_;
+}
+
+# Call a function on each line of a UNIDATA file specified by file basename,
+# skipping blank and comment lines unless $force is true.
+sub for_each_line {
+    my ($basename, $fn, $force) = @_;
+
+    my $filename = "UNIDATA/$basename.txt";
+    progress("Processing $basename.txt\n");
+
+    for my $line (@{read_file($filename)}) {
+        chomp $line;
+        $fn->($line) if $force || $line !~ / ^ (?: [#] | \s* $ ) /x;
+    }
+}
+
+
+### SEQUENCE PROCESSING
+
+# Process emoji and standard sequences
+sub process_sequences {
+    my $named_sequences = {};
+
+    my $emoji_versions = add_emoji_sequences($named_sequences);
+    add_unicode_sequence('NamedSequences', $named_sequences);
+
+    my $hout = emit_unicode_sequence_keypairs($named_sequences);
+
+    return ($emoji_versions, $hout);
+}
+
+# Find all emoji versions and process sequence information for each
 sub add_emoji_sequences {
     my ($named_sequences) = @_;
-    my $directory = "UNIDATA";
-    # Find all the emoji dirs
-    opendir my $UNIDATA_DIR, $directory or croak $!;
+
+    # Find all the versioned emoji dirs
     my @versions;
-    while (my $file = readdir $UNIDATA_DIR) {
-        push @versions, $file if -d "$directory/$file" && $file =~ s/ ^ emoji- //x;
+    opendir my $UNIDATA_DIR, 'UNIDATA' or croak $!;
+    while (my $entry = readdir $UNIDATA_DIR) {
+        push @versions, $entry if -r "UNIDATA/$entry/emoji-sequences.txt"
+                               && $entry =~ s/ ^ emoji- //x;
     }
-    croak "Couldn't find any emoji folders. Please run UCD-download.raku again"
+    die "Couldn't find any emoji folders. Please run UCD-download.raku again.\n"
         if !@versions;
-    my $highest_emoji_version = get_highest_version(\@versions);
-    say "Highest emoji version found is $highest_emoji_version";
+
+    @versions = sort_versions(@versions);
+
+    # Add sequence info for all emoji versions into $named_sequences
     for my $version (@versions) {
         add_unicode_sequence("emoji-$version/emoji-sequences", $named_sequences);
         add_unicode_sequence("emoji-$version/emoji-zwj-sequences", $named_sequences);
     }
-    return $highest_emoji_version;
+
+    # Return processed emoji versions
+    return \@versions;
 }
 
-sub main {
-    $DB_SECTIONS->{'AAA_header'} = header();
-    # For adding Emoji and standard sequences to
-    my $named_sequences = {};
-    my $highest_emoji_version = add_emoji_sequences($named_sequences);
-    add_unicode_sequence('NamedSequences', $named_sequences);
-    my $hout = emit_unicode_sequence_keypairs($named_sequences);
+# Load unicode sequence info from a particular sequence file
+sub add_unicode_sequence {
+    my ($basename, $named_sequences) = @_;
+
+    my $is_emoji = $basename =~ / emoji /x;
+
+    for_each_line($basename, sub {
+        my $line = shift;
+
+        # Handle both sequence file formats
+        my ($hex_ords, $type, $name);
+        my  @list = map trim($_), split / ; | \s{3}[#] /x, $line;
+
+        if ($is_emoji) {
+            ($hex_ords, $type, $name) = @list;
+
+            # Don't process non-sequences
+            return if $hex_ords =~ /\.\./;
+            return if $hex_ords !~ / /;
+        }
+        else {
+            ($name, $hex_ords) = @list;
+            $type = 'NamedSequences';
+        }
+
+        #\x{23} => chr 0x24
+        # It's possible there could be hex unicode digits. In that case convert
+        # to the actual codepoints
+        while ($name =~ / \\x \{ (\d+) \} /x ) {
+            my $chr = chr hex($1);
+            $name =~ s/ \\x \{ $1 \} /$chr/xg;
+        }
+        # Make sure it's uppercase since the Emoji sequences are not all in
+        # uppercase.
+        $name = uc $name;
+        # Emoji sequences have commas in some and these cannot be included
+        # since they seperate seperate named items in ISO notation that Raku uses
+        $name =~ s/,//xg;
+        $named_sequences->{$name}->{'type'} = $type;
+        # Only push if we haven't seen this already
+        if (!$named_sequences->{$name}->{'ords'}) {
+            for my $hex (split ' ', $hex_ords) {
+                push @{$named_sequences->{$name}->{'ords'}}, hex $hex;
+            }
+        }
+    } );
+    return $named_sequences;
+}
+
+# Build uni_seq DB section
+sub emit_unicode_sequence_keypairs {
+    my ($named_sequences) = @_;
+    my $count = 0;
+    my $seq_c_hash_str = '';
+    my @seq_c_hash_array;
+    my $enum_table = '';
+    my $string_seq = "/* Unicode sequences such as Emoji sequences */\n";
+    for my $thing ( sort keys %$named_sequences ) {
+        my $seq_name = "uni_seq_$count";
+        $string_seq .=  "static const MVMint32 $seq_name\[] = {";
+        $seq_c_hash_str .= '{"' . $thing . '",' . $count . '},';
+        my $ord_data;
+        for my $ord ( @{$named_sequences->{$thing}->{'ords'}} ) {
+            $ord_data .= sprintf "0x%X,", $ord;
+        }
+        $ord_data = scalar @{$named_sequences->{$thing}->{'ords'}} . ',' . $ord_data;
+        $string_seq .= $ord_data;
+        $ord_data   =~ s/ , $ //x;
+        $string_seq =~ s/ , $ //x;
+        $string_seq = $string_seq . "}; " . "/* $thing */ /*" . $named_sequences->{$thing}->{'type'} . " */\n";
+        $enum_table .= "$seq_name,\n";
+        $count++;
+        if ( length $seq_c_hash_str > 80 ) {
+            push @seq_c_hash_array, $seq_c_hash_str . "\n";
+            $seq_c_hash_str = '';
+        }
+    }
+    push @seq_c_hash_array, $seq_c_hash_str . "\n";
+    $seq_c_hash_str = join '    ', @seq_c_hash_array;
+    $seq_c_hash_str =~ s/ \s* , \s* $ //x;
+    $seq_c_hash_str .= "\n};";
+    $seq_c_hash_str = "static const MVMUnicodeNamedValue uni_seq_pairs[$count] = {\n    $seq_c_hash_str";
+
+    $enum_table =~ s/ \s* , \s* $ /};/x;
+    $enum_table = "static const MVMint32 * uni_seq_enum[$count] = {\n" . $enum_table;
+    $DB_SECTIONS->{uni_seq} = $seq_c_hash_str . $string_seq . $enum_table;
+    return "#define num_unicode_seq_keypairs $count \n";
+}
+
+
+sub rest_of_main {
+    my ($highest_emoji_version, $hout) = @_;
+
     NameAliases();
     $hout .= gen_name_alias_keypairs();
+
     # Load all the things
     UnicodeData(
         derived_property('BidiClass', 'Bidi_Class', { L => 0 }, 0),
@@ -201,9 +361,9 @@ sub main {
     write_file('src/strings/unicode_db.c', join_sections($DB_SECTIONS));
     write_file('src/strings/unicode_gen.h', join_sections($H_SECTIONS));
     print "\nEstimated bytes demand paged from disk: ".
-        thousands($ESTIMATED_TOTAL_BYTES).
+        commify_thousands($ESTIMATED_TOTAL_BYTES).
         ".\nEstimated bytes saved by various compressions: ".
-        thousands($TOTAL_BYTES_SAVED).".\n";
+        commify_thousands($TOTAL_BYTES_SAVED).".\n";
     if ($DEBUG) {
         write_file("ucd2c_extents.log", $LOG);
     }
@@ -243,12 +403,6 @@ sub find_quick_prop_data {
         push @result, ("#define MVM_CP_is_$pname(cp) (" . join(' || ', @text) . ')');
     }
     write_file("src/strings/unicode_prop_macros.h", (join("\n", @result) . "\n"));
-}
-sub thousands {
-    my $in = shift;
-    $in = reverse "$in"; # stringify or copy the string
-    $in =~ s/ (\d\d\d) (?= \d) /$1,/xg;
-    return reverse($in);
 }
 
 sub stack_lines {
@@ -371,17 +525,10 @@ sub apply_to_range {
     return;
 }
 
-sub progress {
-    my ($txt) = @_;
-    local $| = 1;
-    print $txt;
-    return;
-}
-
 sub binary_props {
     # process a file, extracting binary properties and applying them to ranges
     my ($fname) = @_; # filename
-    each_line($fname, sub { $_ = shift;
+    for_each_line($fname, sub { $_ = shift;
         my ($range, $pname) = split / \s* [;#] \s* /x; # range, property name
         register_binary_property($pname); # define the property
         apply_to_range($range, sub {
@@ -436,7 +583,7 @@ sub derived_property {
     my $num_keys = scalar keys %{$base};
     # wrap the provided object as the enum key in a new one
     $base = { enum => $base, name => $pname };
-    each_line("extracted/Derived$fname", sub { $_ = shift;
+    for_each_line("extracted/Derived$fname", sub { $_ = shift;
         my ($range, $class) = split / \s* [;#] \s* /x;
         unless (exists $base->{enum}->{$class}) {
             # haven't seen this property's value before
@@ -476,7 +623,7 @@ sub enumerated_property {
     my $num_keys = scalar keys %{$base};
     $type = 'string' unless $type;
     $base = { enum => $base, name => $pname, type => $type };
-    each_line($fname, sub { $_ = shift;
+    for_each_line($fname, sub { $_ = shift;
         my @vals = split / \s* [#;] \s* /x;
         my $range = $vals[0];
         my $value = ref $value_index
@@ -501,17 +648,6 @@ sub enumerated_property {
 
 sub least_int_ge_lg2 {
     return int(log(shift)/log(2) - 0.00001) + 1;
-}
-
-sub each_line {
-    my ($fname, $fn, $force) = @_;
-    progress("done.\nprocessing $fname.txt...");
-    for my $line (@{read_file("UNIDATA/$fname.txt")}) {
-        chomp $line;
-        # If it's forced, or it is a proper line (line is not blank and doesn't start with a #)
-        $fn->($line) if $force || $line !~ / ^ (?: [#] | \s* $ ) /x;
-    }
-    return;
 }
 
 sub allocate_bitfield {
@@ -763,7 +899,7 @@ sub emit_codepoints_and_planes {
         $point->{main_index} = $index;
         $last_point = $point;
     }
-    print "\nSaved " . thousands($bytes_saved) . " bytes by compressing big gaps into a binary search lookup.\n";
+    print "\nSaved " . commify_thousands($bytes_saved) . " bytes by compressing big gaps into a binary search lookup.\n";
     $TOTAL_BYTES_SAVED += $bytes_saved;
     $ESTIMATED_TOTAL_BYTES += $bytes;
     # jnthn: Would it still use the same amount of memory to combine these tables? XXX
@@ -1063,7 +1199,7 @@ END
 
 sub emit_block_lookup {
     my @blocks;
-    each_line('Blocks', sub {
+    for_each_line('Blocks', sub {
         my $line = shift;
         my ($from, $to, $block_name) = $line =~ / ^ (\w+) .. (\w+) ; \s (.+) /x;
         if ($from && $to && $block_name) {
@@ -1209,7 +1345,7 @@ END
 sub emit_unicode_property_keypairs {
     my $prop_codes = {};
     # Add property name aliases to $PROP_NAMES
-    each_line('PropertyAliases', sub { $_ = shift;
+    for_each_line('PropertyAliases', sub { $_ = shift;
         my @aliases = split / \s* [#;] \s* /x;
         for my $name (@aliases) {
             if (exists $PROP_NAMES->{$name}) {
@@ -1226,7 +1362,7 @@ sub emit_unicode_property_keypairs {
     my %aliases;
     my %lines_h;
     # Get the aliases to put into Property Name Keypairs
-    each_line('PropertyValueAliases', sub { $_ = shift;
+    for_each_line('PropertyValueAliases', sub { $_ = shift;
         # Capture heading lines: `# Bidi_Control (Bidi_C)`
         # TODO maybe best to get this data from PropertyAliases?
         # emit_unicode_property_keypairs() in general can be simplified more
@@ -1322,88 +1458,6 @@ END
     $DB_SECTIONS->{BBB_unicode_property_keypairs} = $out;
     $H_SECTIONS->{MVMUnicodeNamedValue} = $hout;
     return $prop_codes;
-}
-sub add_unicode_sequence {
-    my ($filename, $named_sequences) = @_;
-    each_line($filename, sub { my $line = shift;
-        return if $line =~ /^ [#] /x or $line =~ /^ \s* $/x;
-        my (@list, $hex_ords, $type, $name);
-        @list = split / ; | \s{3}[#] /x, $line;
-        if ($filename =~ / emoji /x) {
-            $hex_ords = trim shift @list;
-            $type     = trim shift @list;
-            $name     = trim shift @list;
-            # Don't process non sequences
-            return if $hex_ords =~ /\.\./;
-            return if $hex_ords !~ / /;
-        }
-        else {
-            $name     = trim shift @list;
-            $hex_ords = trim shift @list;
-            $type     = 'NamedSequences';
-        }
-
-
-        #\x{23} => chr 0x24
-        # It's possible there could be hex unicode digits. In that case convert
-        # to the actual codepoints
-        while ($name =~ / \\x \{ (\d+) \} /x ) {
-            my $chr = chr hex($1);
-            $name =~ s/ \\x \{ $1 \} /$chr/xg;
-        }
-        # Make sure it's uppercase since the Emoji sequences are not all in
-        # uppercase.
-        $name = uc $name;
-        # Emoji sequences have commas in some and these cannot be included
-        # since they seperate seperate named items in ISO notation that Raku uses
-        $name =~ s/,//xg;
-        $named_sequences->{$name}->{'type'} = $type;
-        # Only push if we haven't seen this already
-        if (!$named_sequences->{$name}->{'ords'}) {
-            for my $hex (split ' ', $hex_ords) {
-                push @{$named_sequences->{$name}->{'ords'}}, hex $hex;
-            }
-        }
-    } );
-    return $named_sequences;
-}
-sub emit_unicode_sequence_keypairs {
-    my ($named_sequences) = @_;
-    my $count = 0;
-    my $seq_c_hash_str = '';
-    my @seq_c_hash_array;
-    my $enum_table = '';
-    my $string_seq = "/* Unicode sequences such as Emoji sequences */\n";
-    for my $thing ( sort keys %$named_sequences ) {
-        my $seq_name = "uni_seq_$count";
-        $string_seq .=  "static const MVMint32 $seq_name\[] = {";
-        $seq_c_hash_str .= '{"' . $thing . '",' . $count . '},';
-        my $ord_data;
-        for my $ord ( @{$named_sequences->{$thing}->{'ords'}} ) {
-            $ord_data .= sprintf "0x%X,", $ord;
-        }
-        $ord_data = scalar @{$named_sequences->{$thing}->{'ords'}} . ',' . $ord_data;
-        $string_seq .= $ord_data;
-        $ord_data   =~ s/ , $ //x;
-        $string_seq =~ s/ , $ //x;
-        $string_seq = $string_seq . "}; " . "/* $thing */ /*" . $named_sequences->{$thing}->{'type'} . " */\n";
-        $enum_table .= "$seq_name,\n";
-        $count++;
-        if ( length $seq_c_hash_str > 80 ) {
-            push @seq_c_hash_array, $seq_c_hash_str . "\n";
-            $seq_c_hash_str = '';
-        }
-    }
-    push @seq_c_hash_array, $seq_c_hash_str . "\n";
-    $seq_c_hash_str = join '    ', @seq_c_hash_array;
-    $seq_c_hash_str =~ s/ \s* , \s* $ //x;
-    $seq_c_hash_str .= "\n};";
-    $seq_c_hash_str = "static const MVMUnicodeNamedValue uni_seq_pairs[$count] = {\n    $seq_c_hash_str";
-
-    $enum_table =~ s/ \s* , \s* $ /};/x;
-    $enum_table = "static const MVMint32 * uni_seq_enum[$count] = {\n" . $enum_table;
-    $DB_SECTIONS->{uni_seq} = $seq_c_hash_str . $string_seq . $enum_table;
-    return "#define num_unicode_seq_keypairs $count \n";
 }
 sub gen_name_alias_keypairs {
     my $count = 0;
@@ -1501,7 +1555,7 @@ sub emit_unicode_property_value_keypairs {
     }
     croak "lines didn't get anything in it" if !%lines;
     my %done;
-    each_line('PropertyValueAliases', sub { $_ = shift;
+    for_each_line('PropertyValueAliases', sub { $_ = shift;
         if (/ ^ [#] \s (\w+) \s [(] (\w+) [)] /x) {
             $aliases{$2} = $1;
             return
@@ -1687,7 +1741,7 @@ sub compute_bitfield {
         $point = $point->{next_point};
     }
     $TOTAL_BYTES_SAVED += $bytes_saved;
-    print "\nSaved ".thousands($bytes_saved)." bytes by uniquing the bitfield table.\n";
+    print "\nSaved ".commify_thousands($bytes_saved)." bytes by uniquing the bitfield table.\n";
     return;
 }
 
@@ -1782,7 +1836,7 @@ sub UnicodeData {
     $GENERAL_CATEGORIES = $general_categories;
     register_binary_property('Any');
     my @gc_alias_checkers;
-    each_line('PropertyValueAliases', sub { $_ = shift;
+    for_each_line('PropertyValueAliases', sub { $_ = shift;
         my @pv_alias_parts = split / \s* [#;] \s* /x;
         # Make sure everything is trimmed
         for my $part (@pv_alias_parts) {
@@ -1937,7 +1991,7 @@ sub UnicodeData {
             $point->{name} = "<CJK COMPATIBILITY IDEOGRAPH>";
         }
     };
-    each_line('UnicodeData', $s);
+    for_each_line('UnicodeData', $s);
     $s->("110000;Out of Range;Cn;0;L;;;;;N;;;;;");
 
     register_enumerated_property('Case_Change_Index', {
@@ -1976,7 +2030,7 @@ sub CaseFolding {
     my $grows_count = 1;
     my @simple;
     my @grows;
-    each_line('CaseFolding', sub { $_ = shift;
+    for_each_line('CaseFolding', sub { $_ = shift;
         my ($left_str, $type, $right) = split / \s* ; \s* /x;
         my $left_code = hex $left_str;
         return if $type eq 'S' || $type eq 'T';
@@ -2010,7 +2064,7 @@ sub CaseFolding {
 sub SpecialCasing {
     my $count = 1;
     my @entries;
-    each_line('SpecialCasing', sub { $_ = shift;
+    for_each_line('SpecialCasing', sub { $_ = shift;
         s/ [#] .+ //x;
         my ($code_str, $lower, $title, $upper, $cond) = split / \s* ; \s* /x;
         my $code = hex $code_str;
@@ -2058,7 +2112,7 @@ sub DerivedNormalizationProps {
         bit_width => 2,
         'keys' => ['N','Y','M']
     }) for sort keys %$trinary;
-    each_line('DerivedNormalizationProps', sub { $_ = shift;
+    for_each_line('DerivedNormalizationProps', sub { $_ = shift;
         my ($range, $property_name, $value) = split / \s* [;#] \s* /x;
         if (exists $binary->{$property_name}) {
             $value = 1;
@@ -2095,7 +2149,7 @@ sub DerivedNormalizationProps {
 
 sub Jamo {
     my $propname = 'Jamo_Short_Name';
-    each_line('Jamo', sub { $_ = shift;
+    for_each_line('Jamo', sub { $_ = shift;
         my ($code_str, $name) = split / \s* [#;] \s* /x;
         apply_to_range($code_str, sub {
             my $point = shift;
@@ -2151,7 +2205,7 @@ sub collation {
     ## Sample line from allkeys.txt
     #1D4FF ; [.1EE3.0020.0005] # MATHEMATICAL BOLD SCRIPT SMALL V
     my $line_no = 0;
-    each_line('UCA/allkeys', sub { $_ = shift;
+    for_each_line('UCA/allkeys', sub { $_ = shift;
         my $line = $_;
         $line_no++;
         my ($code, $temp);
@@ -2228,7 +2282,7 @@ sub collation {
 }
 
 sub NameAliases {
-    each_line('NameAliases', sub { $_ = shift;
+    for_each_line('NameAliases', sub { $_ = shift;
         my ($code_str, $name, $type) = split / \s* [;#] \s* /x;
         $ALIASES->{$name} = hex $code_str;
         $ALIAS_TYPES->{$name}->{'code'} = hex $code_str;
