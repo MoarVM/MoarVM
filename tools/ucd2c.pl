@@ -201,10 +201,10 @@ sub add_unicode_sequence {
             $type = 'NamedSequences';
         }
 
-        #\x{23} => chr 0x24
-        # It's possible there could be hex unicode digits. In that case convert
-        # to the actual codepoints
-        while ($name =~ / \\x \{ (\d+) \} /x ) {
+        # There could be hex-encoded unicode codepoint numbers in the name. In
+        # that case convert to the actual codepoints, so '\\x{23}' is replaced
+        # with chr(0x23), '#'.
+        while ($name =~ / \\x \{ ([[:xdigit:]]+) \} /x ) {
             my $chr = chr hex($1);
             $name =~ s/ \\x \{ $1 \} /$chr/xg;
         }
