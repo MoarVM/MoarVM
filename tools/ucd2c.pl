@@ -1927,7 +1927,8 @@ sub UnicodeData {
              || $point->{name} eq '<CJK Ideograph Extension E>'
              || $point->{name} eq '<CJK Ideograph Extension F>'
              || $point->{name} eq '<CJK Ideograph Extension G>'
-             || $point->{name} eq '<CJK Ideograph Extension H>')
+             || $point->{name} eq '<CJK Ideograph Extension H>'
+             || $point->{name} eq '<CJK Ideograph Extension I>')
             {
                 $point->{name} = '<CJK UNIFIED IDEOGRAPH>'
             }
