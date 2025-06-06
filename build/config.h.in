@@ -105,6 +105,10 @@
 #define MVM_HAS_SIGNBIT
 #endif
 
+#if @has_libuv_pty@
+#define MVM_HAS_LIBUV_PTY
+#endif
+
 #if @use_mimalloc@
 #define MVM_USE_MIMALLOC
 #endif
