@@ -33,8 +33,9 @@ extern char **environ;
 
 
 
+#ifndef MVM_HAS_LIBUV_PTY
 #ifndef _WIN32
-char *resize_pty_fd(int fd_pty, int cols, int rows) {
+char *resize_pty_fd(int fd_pty, unsigned short cols, unsigned short rows) {
     struct winsize winp;
     winp.ws_col = cols;
     winp.ws_row = rows;
@@ -117,9 +118,7 @@ char *make_pty(int *fd_pty, int *fd_tty, int cols, int rows) {
     return NULL;
 }
 #endif
-
-
-
+#endif
 
 #ifdef _WIN32
 static wchar_t * ANSIToUnicode(MVMuint16 acp, const char *str)
@@ -800,14 +799,18 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 
     /* Create input/output handles as needed. */
     if (pty_mode) {
-        MVMint64 cols = 80;
-        MVMint64 rows = 24;
-        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty_cols))
-            cols = MVM_repr_get_int(tc,
-                MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.pty_cols));
-        if (MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty_rows))
-            rows = MVM_repr_get_int(tc,
-                MVM_repr_at_key_o(tc, si->callbacks, tc->instance->str_consts.pty_rows));
+        process_options.pty_cols =
+            MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty_cols)
+            ? MVM_repr_get_int(tc, MVM_repr_at_key_o(tc,
+                                                     si->callbacks,
+                                                     tc->instance->str_consts.pty_cols))
+            : 80;
+        process_options.pty_rows =
+            MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty_rows)
+            ? MVM_repr_get_int(tc, MVM_repr_at_key_o(tc,
+                                                     si->callbacks,
+                                                     tc->instance->str_consts.pty_rows))
+            : 24;
 
 #ifdef _WIN32
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
@@ -1533,13 +1536,28 @@ MVMint64 MVM_proc_fork(MVMThreadContext *tc) {
 
 }
 
-#ifdef _WIN32
-char *MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h, int cols, int rows) {
-    // TODO
+#ifdef MVM_HAS_LIBUV_PTY
+char *MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h, unsigned short cols, unsigned short rows) {
+    MVMIOAsyncProcessData *handle_data = (MVMIOAsyncProcessData *)h->body.data;
+    MVMAsyncTask          *spawn_task  = (MVMAsyncTask *)handle_data->async_task;
+    SpawnInfo             *si          = spawn_task ? (SpawnInfo *)spawn_task->body.data : NULL;
+    if (!si || !MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty)) {
+        char *error_str = MVM_malloc(128);
+        snprintf(error_str, 127, "The given OS handle is not a PTY.");
+        return error_str;
+    }
+    int ret;
+    if (ret = uv_pty_resize(handle_data->handle, cols, rows)) {
+        char *error_str = MVM_malloc(128);
+        snprintf(error_str, 127, "Failed to resize the PTY: %s (error code %i)",
+                uv_strerror(ret), ret);
+        return error_str;
+    }
     return NULL;
 }
 #else
-char *MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h, int cols, int rows) {
+#ifndef _WIN32
+char *MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h, unsigned short cols, unsigned short rows) {
     MVMIOAsyncProcessData *handle_data = (MVMIOAsyncProcessData *)h->body.data;
     MVMAsyncTask          *spawn_task  = (MVMAsyncTask *)handle_data->async_task;
     SpawnInfo             *si          = spawn_task ? (SpawnInfo *)spawn_task->body.data : NULL;
@@ -1593,4 +1611,5 @@ void MVM_proc_pty_spawn(char *prog, char *argv[]) {
     fprintf(stderr, "Spawn helper failed to spawn process %s: %s (error code %i)\n",
             prog, strerror(errno), errno);
 }
+#endif
 #endif
