@@ -778,12 +778,18 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     MVMint64 spawn_result;
     char *error_str = NULL;
 
+#if !defined(MVM_HAS_LIBUV_PTY) && defined(_WIN32)
+    error_str = MVM_malloc(128);
+    snprintf(error_str, 127, "PTYs are not supported on Windows with a too old libuv.");
+    goto spawn_setup_error;
+#endif
+
     /* Process info setup. */
     uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
 
-#ifndef _WIN32
+#if !defined(MVM_HAS_LIBUV_PTY) && !defined(_WIN32)
     int fd_pty, fd_tty;
 #endif
 
@@ -1610,6 +1616,12 @@ void MVM_proc_pty_spawn(char *prog, char *argv[]) {
 
     fprintf(stderr, "Spawn helper failed to spawn process %s: %s (error code %i)\n",
             prog, strerror(errno), errno);
+}
+#else
+char *MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h, unsigned short cols, unsigned short rows) {
+    char *error_str = MVM_malloc(128);
+    snprintf(error_str, 127, "PTYs are not supported on Windows with a too old libuv.");
+    return error_str;
 }
 #endif
 #endif
