@@ -232,39 +232,47 @@ sub add_unicode_sequence {
 # Build uni_seq DB section
 sub emit_unicode_sequence_keypairs {
     my ($named_sequences) = @_;
-    my $count = 0;
+
+    my @seq_c_hash_wrapped;
     my $seq_c_hash_str = '';
-    my @seq_c_hash_array;
-    my $enum_table = '';
-    my $string_seq = "/* Unicode sequences such as Emoji sequences */\n";
+    my $enum_table     = '';
+    my $string_seq     = "/* Unicode sequences such as Emoji sequences */\n";
+    my $count          = 0;
+
     for my $thing ( sort keys %$named_sequences ) {
-        my $seq_name = "uni_seq_$count";
-        $string_seq .=  "static const MVMint32 $seq_name\[] = {";
-        $seq_c_hash_str .= '{"' . $thing . '",' . $count . '},';
-        my $ord_data;
-        for my $ord ( @{$named_sequences->{$thing}->{'ords'}} ) {
-            $ord_data .= sprintf "0x%X,", $ord;
-        }
-        $ord_data = scalar @{$named_sequences->{$thing}->{'ords'}} . ',' . $ord_data;
-        $string_seq .= $ord_data;
-        $ord_data   =~ s/ , $ //x;
-        $string_seq =~ s/ , $ //x;
-        $string_seq = $string_seq . "}; " . "/* $thing */ /*" . $named_sequences->{$thing}->{'type'} . " */\n";
-        $enum_table .= "$seq_name,\n";
-        $count++;
-        if ( length $seq_c_hash_str > 80 ) {
-            push @seq_c_hash_array, $seq_c_hash_str . "\n";
+        # Set C constant name for this sequence and add to enumerant table
+        my $seq_c_name = "uni_seq_$count";
+        $enum_table   .= "$seq_c_name,\n";
+
+        # Add to sequence name => sequence number hash, wrapping entries
+        $seq_c_hash_str .= '{"' . $thing . '",' . $count++ . '},';
+        if (length $seq_c_hash_str > 80) {
+            push @seq_c_hash_wrapped, $seq_c_hash_str . "\n";
             $seq_c_hash_str = '';
         }
-    }
-    push @seq_c_hash_array, $seq_c_hash_str . "\n";
-    $seq_c_hash_str = join '    ', @seq_c_hash_array;
-    $seq_c_hash_str =~ s/ \s* , \s* $ //x;
-    $seq_c_hash_str .= "\n};";
-    $seq_c_hash_str = "static const MVMUnicodeNamedValue uni_seq_pairs[$count] = {\n    $seq_c_hash_str";
 
+        # Add codepoint info for this sequence
+        my $seq_info = $named_sequences->{$thing};
+        my $ords     = $seq_info->{'ords'};
+        my $type     = $seq_info->{'type'};
+        my $ord_data = join ',', scalar(@$ords), map sprintf("0x%X", $_), @$ords;
+        $string_seq .= "static const MVMint32 $seq_c_name\[] = {$ord_data};"
+                    .  " /* $thing */ /* $type */\n";
+    }
+
+    # Catch last partial line of hash data and finish formatting seq_c_hash
+    push @seq_c_hash_wrapped, $seq_c_hash_str;
+    $seq_c_hash_str = join '    ',
+                      "static const MVMUnicodeNamedValue uni_seq_pairs[$count] = {\n",
+                      @seq_c_hash_wrapped;
+    $seq_c_hash_str =~ s/ \s* , \s* $ /\n};\n/x;
+
+    # Finish formatting enum table
+    # XXXX: Should we wrap the enum table?
     $enum_table =~ s/ \s* , \s* $ /};/x;
     $enum_table = "static const MVMint32 * uni_seq_enum[$count] = {\n" . $enum_table;
+
+    # Emit the uni_seq DB section and provide a macro for the sequence count
     $DB_SECTIONS->{uni_seq} = $seq_c_hash_str . $string_seq . $enum_table;
     return "#define num_unicode_seq_keypairs $count \n";
 }
