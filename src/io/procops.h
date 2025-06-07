@@ -28,6 +28,11 @@ MVMString * MVM_executable_name(MVMThreadContext *tc);
 void MVM_proc_getrusage(MVMThreadContext *tc, MVMObject *result);
 MVMint64 MVM_proc_fork(MVMThreadContext *tc);
 
+char *MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h, unsigned short cols, unsigned short rows);
+#ifndef _WIN32
+void MVM_proc_pty_spawn(char *prog, char *argv[]);
+#endif
+
 #ifdef _WIN32
 #include <wchar.h>
 MVM_PUBLIC char ** MVM_UnicodeToUTF8_argv(const int argc, wchar_t **argv);
