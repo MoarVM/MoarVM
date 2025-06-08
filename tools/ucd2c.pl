@@ -113,6 +113,12 @@ sub trim_trailing {
     return $str;
 }
 
+# Compute least integer greater than or equal to the binary log of a number
+sub least_int_ge_lg2 {
+    # XXXX: This looks really suspect and hacky
+    return int(log(shift)/log(2) - 0.00001) + 1;
+}
+
 # Add commas every 3 decimal digits; ironically ignores the fact that digit
 # separation is very locale-specific.  But since we don't have the CLDR yet ...
 sub commify_thousands {
@@ -359,6 +365,129 @@ typedef struct MVMUnicodeNamedAlias MVMUnicodeNamedAlias;
 END
 }
 
+
+### PROPERTY PROCESSING
+
+# Process a derived property file
+sub derived_property {
+    # filename, property name, enumeration base (generally entry 0)
+    my ($fname, $pname, $base) = @_;
+
+    # If we provided some property values already, start the enum counter there
+    my $num_keys = scalar keys %$base;
+
+    # Wrap the provided enumeration base as the enum key in a higher level struct
+    my $property = { enum => $base, name => $pname };
+
+    # Scan derived property file for unknown property values
+    for_each_line "extracted/Derived$fname", sub {
+        $_ = shift;
+        my ($range, $class) = split / \s* [;#] \s* /x;
+
+        # If we haven't seen this class value for this property before,
+        # add it to the property enum with the correct enum value
+        unless (exists $property->{enum}->{$class}) {
+            printf "\n  adding derived property value for %s: %4d %s", $pname, $num_keys, $class if $DEBUG;
+            $property->{enum}->{$class} = $num_keys++;
+        }
+    };
+
+    # Register enum keys, calculate bit width, and register property with globals
+    register_keys_and_set_bit_width($property, $num_keys);
+    return register_enumerated_property($pname, $property);
+}
+
+# Set enumerant field bit width based on discovered enumerant keys
+sub register_keys_and_set_bit_width {
+    my ($property, $num_keys) = @_;
+
+    # Register (order and cache) property enumerant keys
+    my $registered = register_keys($property);
+
+    # Check whether derived_property() and register_keys()
+    # produced the same number of property value keys
+    croak "The number of property value keys do not match. Registered: $registered, parsed: $num_keys"
+        if defined $num_keys and $registered != $num_keys;
+
+    # Determine minimum bit width of fields storing the enumerant value
+    $property->{bit_width} = least_int_ge_lg2($registered);
+    printf "\n    bitwidth: %d\n", $property->{bit_width} if $DEBUG;
+}
+
+# Order and cache property enumerant keys
+sub register_keys {
+    my ($property) = @_;
+
+    # Stash the property enum keys in an ordered array
+    # so they can be put in a table later
+    my @keys;
+    for my $key (keys %{$property->{enum}}) {
+        $keys[$property->{enum}->{$key}] = $key;
+    }
+    $property->{keys} = \@keys;
+
+    print "\n    keys = @keys" if $DEBUG;
+
+    # Return count of keys found
+    return scalar @keys;
+}
+
+# Validate property and add to property globals if valid
+sub register_enumerated_property {
+    my ($pname, $property) = @_;
+
+    # Ensure property is new (never before processed)
+    croak "Property '$pname' has been processed already."
+        if exists $ALL_PROPERTIES->{$pname}
+        || exists $ENUMERATED_PROPERTIES->{$pname};
+
+    # Ensure property name set correctly
+    if (!$property->{name}) {
+        $property->{name} = $pname;
+    }
+    elsif ($pname ne $property->{name}) {
+        croak("Property name doesn't match. Argument was '$pname' but was already set to '" . $property->{name} . "'");
+    }
+
+    # Check that property value enumeration is well formed
+    ensure_property_enum_is_well_formed($property);
+
+    # Register property into property globals and set property index
+    $ALL_PROPERTIES->{$pname} = $ENUMERATED_PROPERTIES->{$pname} = $property;
+    $property->{property_index} = $PROPERTY_INDEX++;
+    return $property;
+}
+
+# Make sure we don't assign twice to the same pvalue or skip any pvalues
+sub ensure_property_enum_is_well_formed {
+    my ($property) = @_;
+    my $enum = $property->{enum};
+    my $name = $property->{name};
+
+    # Check for duplicate property values
+    my %seen;
+    for my $key (keys %$enum) {
+        if (defined $seen{ $enum->{$key} }) {
+            croak("\nError: Assigned twice to the same property value code "
+                . "for property '$name'.  Both $key and $seen{ $enum->{$key} }"
+                . " are assigned to pvalue code $enum->{$key}.\n"
+                . Dumper $enum);
+        }
+        $seen{ $enum->{$key} } = $key;
+    }
+
+    # Check for skipped property values
+    my $start = 0;
+    for my $key (sort { $enum->{$a} <=> $enum->{$b} } keys %{$enum}) {
+        croak("\nError: property value code is not sequential for property '$name'."
+            . " Expected $start but saw $enum->{$key}\n" . Dumper $enum)
+            if $enum->{$key} != $start;
+        $start++;
+    }
+}
+
+
+### NOT YET REFACTORED
 
 sub rest_of_main {
     my ($highest_emoji_version, $hout) = @_;
@@ -645,69 +774,6 @@ sub grapheme_cluster_break {
         }, 1);
     return;
 }
-# Make sure we don't assign twice to the same pvalue code
-sub check_base_for_duplicates {
-    my ($base) = @_;
-    my %seen;
-    for my $key (keys %{$base->{enum}}) {
-        if ($seen{ $base->{enum}->{$key} }) {
-            croak("\nError: assigned twice to the same property value code "
-                . "(Property $base->{name} Both $key and $seen{ $base->{enum}->{$key} }"
-                . " are assigned to pvalue code $base->{enum}->{$key}\n"
-                . Dumper $base->{enum});
-        }
-        $seen{ ($base->{enum}->{$key}) } = $key;
-    }
-    my $start = 0;
-    for my $key (sort { $base->{enum}->{$a} <=> $base->{enum}->{$b} } keys %{$base->{enum}}) {
-        croak("\nError: property value code is not sequential for property '$base->{name}'."
-            . " Expected $start but saw $base->{enum}->{$key}\n" . Dumper $base->{enum})
-            if $base->{enum}->{$key} != $start;
-        $start++;
-    }
-    return;
-}
-sub derived_property {
-    # filename, property name, property object
-    my ($fname, $pname, $base) = @_;
-    # If we provided some property values already, add that number to the counter
-    my $num_keys = scalar keys %{$base};
-    # wrap the provided object as the enum key in a new one
-    $base = { enum => $base, name => $pname };
-    for_each_line("extracted/Derived$fname", sub { $_ = shift;
-        my ($range, $class) = split / \s* [;#] \s* /x;
-        unless (exists $base->{enum}->{$class}) {
-            # haven't seen this property's value before
-            # add it, and give it an index.
-            print "\n  adding derived property for $pname: $num_keys $class" if $DEBUG;
-            $base->{enum}->{$class} = $num_keys++;
-        }
-    });
-    register_keys_and_set_bit_width($base, $num_keys);
-    return register_enumerated_property($pname, $base);
-}
-sub register_keys {
-    my ($base) = @_;
-    my @keys = ();
-    # stash the keys in an array so they can be put in a table later
-    for my $key (keys %{$base->{enum}}) {
-        $keys[$base->{enum}->{$key}] = $key;
-    }
-    print "\n    keys = @keys" if $DEBUG;
-    $base->{keys} = \@keys;
-    return scalar(@keys);
-}
-
-sub register_keys_and_set_bit_width {
-    my ($base, $num_keys) = @_;
-    my $reg = register_keys($base);
-    $base->{bit_width} = least_int_ge_lg2($reg);
-    print "\n    bitwidth: ", $base->{bit_width}, "\n" if $DEBUG;
-
-    croak "The number of keys and the number of \$num_keys do not match. Keys: $reg \$num_keys: $num_keys"
-        if (defined $num_keys and $reg != $num_keys);
-    return;
-}
 
 sub enumerated_property {
     my ($fname, $pname, $base, $value_index, $type, $is_hex) = @_;
@@ -735,10 +801,6 @@ sub enumerated_property {
     register_keys_and_set_bit_width($base, $num_keys);
     register_enumerated_property($pname, $base);
     return;
-}
-
-sub least_int_ge_lg2 {
-    return int(log(shift)/log(2) - 0.00001) + 1;
 }
 
 sub allocate_bitfield {
@@ -2383,22 +2445,6 @@ sub register_int_property {
         bit_width => least_int_ge_lg2($elems)
     } unless exists $BINARY_PROPERTIES->{$name};
     return;
-}
-
-sub register_enumerated_property {
-    my ($pname, $base) = @_;
-    if (!defined $base->{name} || !$base->{name}) {
-        $base->{name} = $pname;
-        #croak("\n\$base->{name} not set for property '$pname'");
-    }
-    elsif ($pname ne $base->{name}) {
-        croak("name doesn't match. Argument was '$pname' but was already set to '" . $base->{name});
-    }
-    check_base_for_duplicates($base);
-    croak if exists $ENUMERATED_PROPERTIES->{$pname};
-    $ALL_PROPERTIES->{$pname} = $ENUMERATED_PROPERTIES->{$pname} = $base;
-    $base->{property_index} = $PROPERTY_INDEX++;
-    return $base
 }
 
 main();
