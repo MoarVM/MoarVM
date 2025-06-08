@@ -40,7 +40,6 @@
  */
 #include <uv.h>
 
-#ifdef MVM_USE_C11_ATOMICS
 #include <stdatomic.h>
 typedef atomic_uintptr_t AO_t;
 
@@ -69,13 +68,6 @@ typedef atomic_uintptr_t AO_t;
 /* clang also refuses to cast as (AO_t)(v), but doing this works for gcc and
  * clang (and hopefully other compilers, when we get there) */
 #define AO_CAST(v) (uintptr_t)(v)
-#else
-/* libatomic_ops */
-#define AO_REQUIRE_CAS
-#include <atomic_ops.h>
-#define AO_READ(v) (v)
-#define AO_CAST(v) (AO_t)(v)
-#endif
 
 /* libffi or dynload/dyncall/dyncallback */
 #ifdef HAVE_LIBFFI
@@ -143,15 +135,11 @@ typedef double   MVMnum64;
 #endif
 
 /* Returns non-zero for success. Use for both AO_t numbers and pointers. */
-#ifdef MVM_USE_C11_ATOMICS
 MVM_STATIC_INLINE int
 MVM_trycas_AO(volatile AO_t *addr, uintptr_t old, const uintptr_t new) {
     return atomic_compare_exchange_strong(addr, &old, new);
 }
 #define MVM_trycas(addr, old, new) MVM_trycas_AO((volatile AO_t *)(addr), AO_CAST(old), AO_CAST(new))
-#else
-#define MVM_trycas(addr, old, new) AO_compare_and_swap_full((volatile AO_t *)(addr), (AO_t)(old), (AO_t)(new))
-#endif
 
 /* Hashes */
 #define HASH_DEBUG_ITER 0
@@ -329,8 +317,6 @@ MVM_PUBLIC int MVM_exepath(char* buffer, size_t* size);
 MVM_PUBLIC int MVM_set_std_handles_to_nul(void);
 #endif
 
-#ifdef MVM_USE_C11_ATOMICS
-
 #define MVM_incr(addr) atomic_fetch_add((volatile AO_t *)(addr), 1)
 #define MVM_decr(addr) atomic_fetch_sub((volatile AO_t *)(addr), 1)
 #define MVM_add(addr, add) atomic_fetch_add((volatile AO_t *)(addr), (add))
@@ -362,34 +348,3 @@ MVM_cas(volatile AO_t *addr, uintptr_t old, const uintptr_t new) {
 #define MVM_store(addr, new) atomic_store((volatile AO_t *)(addr), AO_CAST(new))
 #define MVM_load(addr) atomic_load((volatile AO_t *)(addr))
 
-#else
-
-/* libatomic_ops */
-
-/* Seems that both 32 and 64 bit sparc need this crutch */
-#if defined(__s390__) || defined(__sparc__)
-AO_t AO_fetch_compare_and_swap_emulation(volatile AO_t *addr, AO_t old_val, AO_t new_val);
-# define AO_fetch_compare_and_swap_full(addr, old, newval) \
-    AO_fetch_compare_and_swap_emulation(addr, old, newval)
-#endif
-
-/* Returns original. Use only on AO_t-sized values (including pointers). */
-#define MVM_incr(addr) AO_fetch_and_add1_full((volatile AO_t *)(addr))
-#define MVM_decr(addr) AO_fetch_and_sub1_full((volatile AO_t *)(addr))
-#define MVM_add(addr, add) AO_fetch_and_add_full((volatile AO_t *)(addr), (AO_t)(add))
-
-/* Returns the old value dereferenced at addr. */
-#define MVM_cas(addr, old, new) AO_fetch_compare_and_swap_full((addr), (old), (new))
-
-/* Returns the old pointer value dereferenced at addr. Provided for a tiny bit of type safety. */
-#define MVM_casptr(addr, old, new) ((void *)MVM_cas((AO_t *)(addr), (AO_t)(old), (AO_t)(new)))
-
-/* Full memory barrier. */
-#define MVM_barrier() AO_nop_full()
-
-/* Need to use these to assign to or read from any memory locations on
- * which the other atomic operation macros are used... */
-#define MVM_store(addr, new) AO_store_full((volatile AO_t *)(addr), (AO_t)(new))
-#define MVM_load(addr) AO_load_full((volatile AO_t *)(addr))
-
-#endif

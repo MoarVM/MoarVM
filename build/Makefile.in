@@ -705,10 +705,6 @@ tools/repr_size_table@exe@: tools/repr_size_table@obj@ @moarlib@ $(DLL_LIBS)
 	$(MSG) linking $@
 	$(CMD)@uvrule@ $(NOOUT)
 
-@laolib@:
-	$(MSG) linking $@
-	$(CMD)@laorule@ $(NOOUT)
-
 @tomlib@: $(TOM_OBJECTS)
 	$(MSG) linking $@
 	$(CMD)@tomrule@ $(NOOUT)
@@ -742,8 +738,6 @@ realclean: clean
 	-$(CMD)@auxclean@ $(NOOUT) $(NOERR)
 	$(MSG) remove 3rdparty files
 	-$(CMD)@uvclean@ $(NOOUT) $(NOERR)
-	-$(CMD)@laoclean@ $(NOOUT) $(NOERR)
-	-$(RM) @laolib@ $(NOOUT) $(NOERR)
 	-$(CMD)@tomclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@shaclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@dcclean@ $(NOOUT) $(NOERR)
@@ -755,7 +749,7 @@ distclean: realclean
 	-$(CMD)$(RM) moar@exe@ @moarlib@ @moardll@ $(NOOUT) $(NOERR)
 	$(MSG) remove configuration and generated files
 	-$(CMD)$(RM) Makefile src/gen/config.h src/gen/config.c \
-	    tools/check.mk 3rdparty/libatomicops/config.log 3rdparty/libatomicops/config.status $(NOOUT) $(NOERR)
+	    tools/check.mk $(NOOUT) $(NOERR)
 	-$(CMD)$(RM_RF) build/mk-moar-pc.pl pkgconfig/ $(NOOUT) $(NOERR)
 
 release:

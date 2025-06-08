@@ -7,13 +7,6 @@ my $devnull = devnull();
 
 # 3rdparty library configuration
 
-my %TP_LAO = (
-    name  => 'atomic_ops',
-    path  => '3rdparty/libatomicops/src',
-    rule  => 'cd 3rdparty/libatomicops && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' MAKE=\'$(MAKE)\' ./configure @crossconf@ && cd src && $(MAKE) && cd ..',
-    clean => 'cd 3rdparty/libatomicops/src && $(MAKE) distclean',
-);
-
 my %TP_SHA = (
     name => 'sha1',
     path => '3rdparty/sha1',
@@ -68,7 +61,6 @@ my %TP_UV = (
 );
 
 our %THIRDPARTY = (
-    lao => { %TP_LAO },
     tom => { %TP_TOM },
     sha => { %TP_SHA },
     dc  => { %TP_DC },
@@ -478,9 +470,6 @@ my %OS_WIN32 = (
     translate_newline_output => 1,
 
     -thirdparty => {
-        # header only, no need to build anything
-        lao => undef,
-
         uv => {
             %TP_UVDUMMY,
             src => [ qw( 3rdparty/libuv/src 3rdparty/libuv/src/win ) ],
