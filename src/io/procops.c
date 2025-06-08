@@ -79,13 +79,13 @@ char *make_pty(int *fd_pty, int *fd_tty, int cols, int rows) {
     }
 
     int path_tty_size = 40;
-    char *path_tty = MVM_calloc(path_tty_size, sizeof(char *));
+    char *path_tty = MVM_calloc(path_tty_size, sizeof(char));
     // Apple and linux both have ptsname_r.
     // Use TIOCGPTPEER. (see man ioctl_tty) Where is that available?
     // There is no ptsname_r on OpenBSD.
     while ((ret = ptsname_r(*fd_pty, path_tty, path_tty_size)) == ERANGE) {
         path_tty_size *= 2;
-        path_tty = MVM_realloc(path_tty, path_tty_size * sizeof(char *));
+        path_tty = MVM_realloc(path_tty, path_tty_size * sizeof(char));
     }
     if (ret != 0) {
         MVM_free(path_tty);
