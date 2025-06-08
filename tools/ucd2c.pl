@@ -155,9 +155,9 @@ sub process_sequences {
     my $emoji_versions = add_emoji_sequences($named_sequences);
     add_unicode_sequence('NamedSequences', $named_sequences);
 
-    my $hout = emit_unicode_sequence_keypairs($named_sequences);
+    my $h_chunk = emit_unicode_sequence_keypairs($named_sequences);
 
-    return ($emoji_versions, $hout);
+    return ($emoji_versions, $h_chunk);
 }
 
 # Find all emoji versions and process sequence information for each
@@ -282,7 +282,7 @@ sub emit_unicode_sequence_keypairs {
     $enum_table =~ s/ \s* , \s* $ /};/x;
     $enum_table = "static const MVMint32 * uni_seq_enum[$count] = {\n" . $enum_table;
 
-    # Emit the uni_seq DB section and provide a macro for the sequence count
+    # Emit the uni_seq DB section and provide a header macro for the sequence count
     $DB_SECTIONS->{uni_seq} = $seq_c_hash_str . $string_seq . $enum_table;
     return "#define num_unicode_seq_keypairs $count \n";
 }
