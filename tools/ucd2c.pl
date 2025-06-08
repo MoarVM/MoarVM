@@ -36,8 +36,6 @@ my $DB_SECTIONS            = {};
 my $H_SECTIONS             = {};
 my @POINTS_SORTED;
 my $POINTS_BY_CODE         = {};
-my $ALIASES                = {};
-my $ALIAS_TYPES            = {};
 my $PROP_NAMES             = {};
 my $BITFIELD_TABLE         = [];
 my $ALL_PROPERTIES         = {};
@@ -59,6 +57,9 @@ sub main {
     my ($emoji_versions, $hout) = process_sequences();
     my  $highest_emoji_version  = $emoji_versions->[-1];
     print "\n-- Highest emoji version found was $highest_emoji_version\n";
+
+    progress_header('Processing aliases');
+    $hout .= process_aliases();
 
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
@@ -288,11 +289,79 @@ sub emit_unicode_sequence_keypairs {
 }
 
 
+### NAMES ALIAS PROCESSING
+
+# Process and emit alias info
+sub process_aliases {
+    my $alias_info = add_name_aliases();
+    my $h_chunk    = emit_name_alias_keypairs($alias_info);
+
+    return $h_chunk;
+}
+
+# Gather type and code info for each alias name
+sub add_name_aliases {
+    my %alias_info;
+
+    for_each_line 'NameAliases', sub {
+        $_ = shift;
+        my ($code_str, $name, $type) = split / \s* [;#] \s* /x;
+        $alias_info{$name}->{'code'} = hex $code_str;
+        $alias_info{$name}->{'type'} = $type;
+    };
+
+    return \%alias_info;
+}
+
+sub emit_name_alias_keypairs {
+    my ($alias_info) = @_;
+
+    my @seq_c_hash_wrapped;
+    my $seq_c_hash_str = '';
+    my $count          = 0;
+
+    for my $name ( sort keys %$alias_info ) {
+        # Update count and format codepoint in C-style hex
+        $count++;
+        my $ord = $alias_info->{$name}->{'code'};
+        my $ord_data = sprintf '0x%X', $ord;
+
+        # Add to character alias name => codepoint hash, wrapping entries
+        $seq_c_hash_str .= qq({"$name", $ord_data) . ',' . length($name) . '},';
+        if ( length $seq_c_hash_str > 80 ) {
+            push @seq_c_hash_wrapped, $seq_c_hash_str . "\n";
+            $seq_c_hash_str = '';
+        }
+    }
+
+    # Catch last partial line of hash data and finish formatting seq_c_hash
+    push @seq_c_hash_wrapped, "$seq_c_hash_str\n";
+    $seq_c_hash_str = join '    ', @seq_c_hash_wrapped;
+    $seq_c_hash_str =~ s/ \s* , \s* $ //x;
+
+    # Emit the Auni_namealias DB section
+    chomp($DB_SECTIONS->{Auni_namealias} = <<"END");
+/* Unicode Name Aliases */
+static const MVMUnicodeNamedAlias uni_namealias_pairs[$count] = {
+    $seq_c_hash_str
+};
+END
+
+    # Return a header chunk defining MVMUnicodeNamedAlias and the keypair count
+    return <<"END"
+#define num_unicode_namealias_keypairs $count
+struct MVMUnicodeNamedAlias {
+    char *name;
+    MVMGrapheme32 codepoint;
+    MVMint16 strlen;
+};
+typedef struct MVMUnicodeNamedAlias MVMUnicodeNamedAlias;
+END
+}
+
+
 sub rest_of_main {
     my ($highest_emoji_version, $hout) = @_;
-
-    NameAliases();
-    $hout .= gen_name_alias_keypairs();
 
     # Load all the things
     UnicodeData(
@@ -1481,42 +1550,6 @@ END
     $H_SECTIONS->{MVMUnicodeNamedValue} = $hout;
     return $prop_codes;
 }
-sub gen_name_alias_keypairs {
-    my $count = 0;
-    my $seq_c_hash_str;
-    my @seq_c_hash_array;
-    for my $thing ( sort keys %$ALIAS_TYPES ) {
-        my $ord_data;
-        my $ord = $ALIAS_TYPES->{$thing}->{'code'};
-        $ord_data .= sprintf '0x%X,', $ord;
-        $seq_c_hash_str .= qq({"$thing",$ord_data) . length($thing) . '},';
-        $ord_data =~ s/ , $ //x;
-        my $type = $ALIAS_TYPES->{$thing}->{'type'};
-        $count++;
-        if ( length $seq_c_hash_str > 80 ) {
-            push @seq_c_hash_array, $seq_c_hash_str . "\n";
-            $seq_c_hash_str = '';
-        }
-    }
-    push @seq_c_hash_array, "$seq_c_hash_str\n";
-    $seq_c_hash_str = join '    ', @seq_c_hash_array;
-    $seq_c_hash_str =~ s/ \s* , \s* $ //x;
-    chomp($DB_SECTIONS->{Auni_namealias} = <<"END");
-/* Unicode Name Aliases */
-static const MVMUnicodeNamedAlias uni_namealias_pairs[$count] = {
-    $seq_c_hash_str
-};
-END
-    return <<"END"
-#define num_unicode_namealias_keypairs $count
-struct MVMUnicodeNamedAlias {
-    char *name;
-    MVMGrapheme32 codepoint;
-    MVMint16 strlen;
-};
-typedef struct MVMUnicodeNamedAlias MVMUnicodeNamedAlias;
-END
-}
 
 sub set_lines_for_each_case {
     my ($default, $propname, $prop_val, $hash, $maybe_propcode) = @_;
@@ -2301,16 +2334,6 @@ sub collation {
             if $maxes->{$base->{name}} < 1;
     }
     register_binary_property('MVM_COLLATION_QC');
-    return;
-}
-
-sub NameAliases {
-    for_each_line('NameAliases', sub { $_ = shift;
-        my ($code_str, $name, $type) = split / \s* [;#] \s* /x;
-        $ALIASES->{$name} = hex $code_str;
-        $ALIAS_TYPES->{$name}->{'code'} = hex $code_str;
-        $ALIAS_TYPES->{$name}->{'type'} = $type;
-    });
     return;
 }
 
