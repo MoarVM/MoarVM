@@ -17,6 +17,7 @@ use Carp qw(cluck croak);
 ### CONFIG
 my $SKIP_MOST_MODE         = 0;
 my $WRAP_TO_COLUMNS        = 120;
+my $COLORED_PROGRESS       = 1;
 my $COMPRESS_CODEPOINTS    = 1;
 my $GAP_LENGTH_THRESHOLD   = 1000;
 my $SPAN_LENGTH_THRESHOLD  = 100;
@@ -51,15 +52,16 @@ my $PROPERTY_INDEX         = 0;
 sub main {
     init();
 
-    progress("Building header\n");
+    progress_header('Building header');
     $DB_SECTIONS->{'AAA_header'} = header();
 
-    progress("\nProcessing sequences\n");
+    progress_header('Processing sequences');
     my ($emoji_versions, $hout) = process_sequences();
     my  $highest_emoji_version  = $emoji_versions->[-1];
-    print "\n-- Highest emoji version found was $highest_emoji_version\n\n";
+    print "\n-- Highest emoji version found was $highest_emoji_version\n";
 
     # XXXX: Not yet refactored portion
+    progress_header('Processing rest of original main program');
     rest_of_main($highest_emoji_version, $hout);
 }
 
@@ -80,6 +82,14 @@ sub init {
 
 
 ### UTILITY ROUTINES
+
+# Output a section header progress message
+sub progress_header {
+    my $formatted = uc("@_");
+    $formatted = "\e[1;33m" . $formatted . "\e[0m" if $COLORED_PROGRESS;
+
+    progress("\n$formatted\n");
+}
 
 # Show progress messages, forcing autoflush
 sub progress {
