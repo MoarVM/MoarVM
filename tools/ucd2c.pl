@@ -61,6 +61,9 @@ sub main {
     progress_header('Processing aliases');
     $hout .= process_aliases();
 
+    progress_header('Processing UnicodeData');
+    process_UnicodeData();
+
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
     rest_of_main($highest_emoji_version, $hout);
@@ -486,6 +489,302 @@ sub ensure_property_enum_is_well_formed {
     }
 }
 
+# Register a binary (single bit wide) property if it hasn't already been
+sub register_binary_property {
+    my $name = shift;
+
+    $ALL_PROPERTIES->{$name} = $BINARY_PROPERTIES->{$name} = {
+        name           => $name,
+        bit_width      => 1,
+        property_index => $PROPERTY_INDEX++
+    } unless exists $BINARY_PROPERTIES->{$name};
+}
+
+# Register a union property
+sub register_union {
+    my ($unionname, $unionof, $gc_alias_checkers) = @_;
+
+    # Register a binary property for the union
+    register_binary_property($unionname);
+
+    # Add a general category alias checker to be run later
+    push @$gc_alias_checkers, sub {
+        return ((shift) =~ /^(?:$unionof)$/) ? $unionname : 0;
+    };
+}
+
+
+### PROCESS PRIMARY UnicodeData FILE
+
+# Process the prerequisite derived properties and then the UnicodeData file
+sub process_UnicodeData {
+    UnicodeData(
+        derived_property('BidiClass',       'Bidi_Class',       { L  => 0 }),
+        derived_property('GeneralCategory', 'General_Category', { Cn => 0 }),
+        derived_property('CombiningClass',  'Canonical_Combining_Class',
+                         { Not_Reordered => 0 })
+    );
+}
+
+# Process primary UnicodeData file given known BDC, GC, and CCC enumerations
+sub UnicodeData {
+    my ($bidi_classes, $general_categories, $ccclasses) = @_;
+    $GENERAL_CATEGORIES = $general_categories;
+
+    # Register the 'Any' binary property
+    register_binary_property('Any');
+
+    # Register the property value unions and collect the alias checker routines
+    my $gc_alias_checkers = register_pvalue_alias_unions();
+
+    # State variables needed for parser routine below
+    my $ideograph_start;
+    my $case_count   = 1;
+    my $decomp_index = 1;
+    my $decomp_keys  = [ '' ];
+
+    # Define the parser/data cleanup routine to be applied to UnicodeData lines
+    my $UnicodeDataParser = sub {
+        # Split apart the codepoint info fields
+        $_ = shift;
+        my ($code_str, $name, $gencat, $ccclass, $bidiclass, $decmpspec,
+            $num1, $num2, $num3, $bidimirrored, $u1name, $isocomment,
+            $suc, $slc, $stc) = split ';';
+
+        # Decode the hex codepoint and determine its Unicode plane
+        my $code      = hex $code_str;
+        my $plane_num = $code >> 16;
+
+        # Start building the point info structure for this code
+        my $point = get_point_info_for_code($code, 1);
+
+        # Fill in some point info entries from the codepoint info fields
+        # XXXX: Unicode_1_Name is not used yet; we should make sure
+        #       it ends up in some data structure eventually
+        $point->{Unicode_1_Name}   = $u1name;
+        $point->{name}             = $name;
+        $point->{gencat_name}      = $gencat;
+        $point->{General_Category} = $general_categories->{enum}->{$gencat};
+        $point->{Canonical_Combining_Class} = $ccclasses->{enum}->{$ccclass};
+        $point->{Bidi_Class}       = $bidi_classes->{enum}->{$bidiclass};
+        $point->{Bidi_Mirrored}    = 1 if $bidimirrored eq 'Y';
+
+        # Run the general category alias checkers and mark any found
+        for my $checker (@$gc_alias_checkers) {
+            my $res = $checker->($gencat);
+            $point->{$res} = 1 if $res;
+        }
+
+        # Track letter case changes
+        # XXXX: What does the 's' in these field names stand for?
+        $point->{suc} = $suc;
+        $point->{slc} = $slc;
+        $point->{stc} = $stc;
+        if ($suc || $slc || $stc) {
+            $point->{Case_Change_Index} = $case_count++;
+        }
+
+        # Clean and assign Decomp Spec if any
+        if ($decmpspec) {
+            $decmpspec =~ s/ [<] \w+ [>] \s+ //x;
+            $point->{Decomp_Spec} = $decomp_index;
+            $decomp_keys->[$decomp_index++] = $decmpspec;
+        }
+
+        # Process First/Last range pairs for points with computed names
+        if ($name =~ /(Ideograph|Syllable|Private|Surrogate) (\s|.)*? First/x) {
+            # 'First' entry for known range type; start the range
+            $point->{name}   =~ s/, First//;
+            $ideograph_start = $point;
+        }
+        elsif ($name =~ / First/) {
+            # Unknown range type; croak
+            croak "Looks like support for a new thing needs to be added: $name";
+        }
+        elsif ($ideograph_start) {
+            # Range already started, so this must be the 'Last' entry for the
+            # range; fill in all the intermediate points using the start point
+            # as a template
+            $point->{name} = $ideograph_start->{name};
+            for (my $code = $ideograph_start->{code} + 1; $code < $point->{code}; $code++) {
+                my $current = get_point_info_for_code($code, 1);
+                for (keys %$ideograph_start) {
+                    next if $_ eq "code" || $_ eq "code_str";
+                    $current->{$_} = $ideograph_start->{$_};
+                }
+            }
+
+            # This range is now finished, make sure start marker is falsey
+            $ideograph_start = 0;
+        }
+
+        # Set correct names for computed range names
+        if (substr($point->{name}, 0, 1) eq '<') {
+            if ($point->{name} eq '<CJK Ideograph>'
+             || $point->{name} eq '<CJK Ideograph Extension A>'
+             || $point->{name} eq '<CJK Ideograph Extension B>'
+             || $point->{name} eq '<CJK Ideograph Extension C>'
+             || $point->{name} eq '<CJK Ideograph Extension D>'
+             || $point->{name} eq '<CJK Ideograph Extension E>'
+             || $point->{name} eq '<CJK Ideograph Extension F>'
+             || $point->{name} eq '<CJK Ideograph Extension G>'
+             || $point->{name} eq '<CJK Ideograph Extension H>'
+             || $point->{name} eq '<CJK Ideograph Extension I>') {
+                $point->{name} = '<CJK UNIFIED IDEOGRAPH>'
+            }
+            elsif ($point->{name} eq '<Tangut Ideograph>'
+                || $point->{name} eq '<Tangut Ideograph Supplement>') {
+                $point->{name} = '<TANGUT IDEOGRAPH>';
+            }
+            elsif ($point->{name} eq '<Hangul Syllable>') {
+                $point->{name} = '<HANGUL SYLLABLE>';
+            }
+            elsif ($point->{name} eq '<Private Use>'
+                || $point->{name} =~ /^<Plane \d+ Private Use>$/)
+            {
+                croak "Unexpected private use name for general category '$gencat'"
+                    unless $gencat eq 'Co';
+                $point->{name} = '<private-use>';
+            }
+            elsif ($point->{name} eq '<Non Private Use High Surrogate>'
+                || $point->{name} eq '<Private Use High Surrogate>'
+                || $point->{name} eq '<Low Surrogate>')
+            {
+                croak "Unexpected surrogate name for general category '$gencat'"
+                    unless $gencat eq 'Cs';
+                $point->{name} = '<surrogate>';
+            }
+
+            # Check for unexpected special angle bracketed names
+            my $instructions_line_no = __LINE__;
+            my $instructions = <<~'END';
+              Don't add any cases above *unless* Unicode has added a new
+              "Name Derivation Rule Prefix String" in the right format!
+
+              For example if a new CJK Unified Ideograph extension is added
+              named <CJK Ideograph Extension X> **AND** the range for that
+              extension has been added to the Name Derivation Rule Prefix
+              String table with the prefix 'CJK UNIFIED IDEOGRAPH-',
+              **ONLY THEN** you can add a case for it above.
+
+              Extensions to *existing* prefixes should be normalized from
+              their format in the data file to the correct prefix string.
+              END
+
+            if ($point->{name} eq '<control>'
+             || $point->{name} eq '<surrogate>'
+             || $point->{name} eq '<private-use>'
+             || $point->{name} eq '<HANGUL SYLLABLE>'
+             || $point->{name} eq '<TANGUT IDEOGRAPH>'
+             || $point->{name} eq '<CJK UNIFIED IDEOGRAPH>') {
+                # No error, these are all fine
+            }
+            else {
+                die <<~"END";
+                ##############################
+                Error: Special name '$point->{name}' encountered at code $code_str
+                ##############################
+                IMPORTANT: READ BELOW
+
+                Make sure to check Table 4-8. Name Derivation Rule Prefix Strings at
+                https://www.unicode.org/versions/latest/core-spec/chapter-4/#G144161
+                and use this table as a reference to decide whether a new case needs
+                to be added for codepoint range names.
+
+                Read more about this on comment line $instructions_line_no of ucd2c.pl.
+
+                You will likely have to make a change to MVM_unicode_get_name() and
+                add a test to nqp.
+                END
+            }
+        }
+
+        # Fix name for CJK COMPATIBILITY IDEOGRAPHs
+        if ($point->{name} =~ /^CJK COMPATIBILITY IDEOGRAPH-([A-F0-9]+)$/) {
+            croak "CJK CI with mismatched hex code, $code versus $1"
+                unless sprintf('%.4X', $code) eq $1;
+            $point->{name} = "<CJK COMPATIBILITY IDEOGRAPH>";
+        }
+    };
+
+    # Parse each line of the UnicodeData file, plus a special 'Out of Range' marker
+    for_each_line('UnicodeData', $UnicodeDataParser);
+    $UnicodeDataParser->("110000;Out of Range;Cn;0;L;;;;;N;;;;;");
+
+    # Register enumerated properties for Case_Change_Index and Decomp_Spec
+    register_enumerated_property('Case_Change_Index', {
+        name      => 'Case_Change_Index',
+        bit_width => least_int_ge_lg2($case_count)
+    });
+    register_enumerated_property('Decomp_Spec', {
+        name      => 'Decomp_Spec',
+        'keys'    => $decomp_keys,
+        bit_width => least_int_ge_lg2($decomp_index)
+    });
+}
+
+
+# Register property value alias unions
+sub register_pvalue_alias_unions {
+    # Scan PropertyValueAliases for unions and register them
+    my @gc_alias_checkers;
+    for_each_line 'PropertyValueAliases', sub {
+        # Trim the property value alias fields and shift off the property name
+        $_ = shift;
+        my @pv_alias_parts = map trim($_), split / [#;] /x;
+        my $propname = shift @pv_alias_parts;
+
+        # Nothing to do for basic boolean aliases
+        return if ($pv_alias_parts[0] eq 'Y'   || $pv_alias_parts[0] eq 'N')
+               && ($pv_alias_parts[1] eq 'Yes' || $pv_alias_parts[1] eq 'No');
+
+        # If it's a union, decode and register it
+        if ($pv_alias_parts[-1] =~ /[|]/x) {
+            my $unionname = $pv_alias_parts[0];
+            my $unionof   = pop @pv_alias_parts;
+            $unionof      =~ s/ \s+ //xg;
+            register_union($unionname, $unionof, \@gc_alias_checkers);
+        }
+    };
+
+    # Register a special 'Assigned' union for assigned general categories
+    register_union('Assigned',
+                   'C[cfosn]|L[lmotu]|M[cen]|N[dlo]|P[cdefios]|S[ckmo]|Z[lps]',
+                   \@gc_alias_checkers);
+
+    # Return collected general category alias checkers
+    return \@gc_alias_checkers;
+}
+
+# Search for codepoint info for a given code, or create it if missing
+sub get_point_info_for_code {
+    my ($code, $add_to_points_by_code) = @_;
+
+    my  $point = $POINTS_BY_CODE->{$code};
+    if ($point) {
+        croak "$code is already defined" if $add_to_points_by_code;
+    }
+    else {
+        $point = {
+            name             => '',
+            code             => $code,
+            code_str         => sprintf('%.4X', $code),
+            gencat_name      => "Cn",
+            General_Category => $GENERAL_CATEGORIES->{enum}->{Cn},
+
+            Any              => 1,
+            NFD_QC           => 1, # these are defaults (inverted)
+            NFC_QC           => 1, # which will be unset as appropriate
+            NFKD_QC          => 1,
+            NFKC_QC          => 1,
+            NFG_QC           => 1,
+            MVM_COLLATION_QC => 1,
+        };
+        $POINTS_BY_CODE->{$code} = $point if $add_to_points_by_code;
+    }
+    return $point;
+}
+
 
 ### NOT YET REFACTORED
 
@@ -493,12 +792,6 @@ sub rest_of_main {
     my ($highest_emoji_version, $hout) = @_;
 
     # Load all the things
-    UnicodeData(
-        derived_property('BidiClass', 'Bidi_Class', { L => 0 }, 0),
-        derived_property('GeneralCategory', 'General_Category', { Cn => 0 }, 0),
-        derived_property('CombiningClass',
-            'Canonical_Combining_Class', { Not_Reordered => 0 }, 1)
-    );
     enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { 0 => 0 }, 1, 'int', 1);
     collation();
     Jamo();
@@ -696,31 +989,6 @@ sub set_next_points {
     }
     return $first_point;
 }
-sub get_next_point {
-    my ($code, $add_to_points_by_code) = @_;
-    my $point = $POINTS_BY_CODE->{$code};
-    if (!$point) {
-        $point = {
-            code => $code,
-            code_str => sprintf ("%.4X", $code),
-            Any => 1,
-            NFD_QC => 1, # these are defaults (inverted)
-            NFC_QC => 1, # which will be unset as appropriate
-            NFKD_QC => 1,
-            NFKC_QC => 1,
-            NFG_QC => 1,
-            MVM_COLLATION_QC => 1,
-            name => "",
-            gencat_name => "Cn",
-            General_Category => $GENERAL_CATEGORIES->{enum}->{Cn}
-        };
-        croak "$code is already defined" if defined $POINTS_BY_CODE->{$code};
-        if ($add_to_points_by_code) {
-             $POINTS_BY_CODE->{$code} = $point;
-        }
-    }
-    return $point;
-}
 
 sub apply_to_range {
     # apply a function to a range of codepoints. The starting and
@@ -738,7 +1006,7 @@ sub apply_to_range {
     my $curr_code = $first_code;
     my $point;
     while ($curr_code <= $last_code) {
-        $point = get_next_point($curr_code);
+        $point = get_point_info_for_code($curr_code);
         $fn->($point);
         $curr_code++;
     }
@@ -1937,191 +2205,6 @@ sub write_file {
     close $FILE;
     return;
 }
-
-sub register_union {
-    my ($unionname, $unionof, $gc_alias_checkers) = @_;
-    register_binary_property($unionname);
-    push @$gc_alias_checkers, sub {
-        return ((shift) =~ /^(?:$unionof)$/)
-            ? "$unionname" : 0;
-    };
-    return;
-}
-
-sub UnicodeData {
-    my ($bidi_classes, $general_categories, $ccclasses) = @_;
-    $GENERAL_CATEGORIES = $general_categories;
-    register_binary_property('Any');
-    my @gc_alias_checkers;
-    for_each_line('PropertyValueAliases', sub { $_ = shift;
-        my @pv_alias_parts = split / \s* [#;] \s* /x;
-        # Make sure everything is trimmed
-        for my $part (@pv_alias_parts) {
-            $part = trim $part;
-        }
-        my $propname = shift @pv_alias_parts;
-        return if ($pv_alias_parts[0] eq 'Y'   || $pv_alias_parts[0] eq 'N')
-               && ($pv_alias_parts[1] eq 'Yes' || $pv_alias_parts[1] eq 'No');
-        if ($pv_alias_parts[-1] =~ /[|]/x) { # it's a union
-            my $unionname = $pv_alias_parts[0];
-            my $unionof   = pop @pv_alias_parts;
-            $unionof      =~ s/ \s+ //xg;
-            register_union($unionname, $unionof, \@gc_alias_checkers);
-        }
-    });
-    register_union('Assigned', 'C[cfosn]|L[lmotu]|M[cen]|N[dlo]|P[cdefios]|S[ckmo]|Z[lps]', \@gc_alias_checkers);
-    my $ideograph_start;
-    my $case_count   = 1;
-    my $decomp_keys  = [ '' ];
-    my $decomp_index = 1;
-    my $s = sub {
-        $_ = shift;
-        my ($code_str, $name, $gencat, $ccclass, $bidiclass, $decmpspec,
-            $num1, $num2, $num3, $bidimirrored, $u1name, $isocomment,
-            $suc, $slc, $stc) = split ';';
-
-        my $code = hex $code_str;
-        my $plane_num = $code >> 16;
-        my $point = get_next_point($code, 1);
-        my $hashy = {
-            # Unicode_1_Name is not used yet. We should make sure it ends up
-            # in some data structure eventually
-            Unicode_1_Name => $u1name,
-            name => $name,
-            gencat_name => $gencat,
-            General_Category => $general_categories->{enum}->{$gencat},
-            Canonical_Combining_Class => $ccclasses->{enum}->{$ccclass},
-            Bidi_Class => $bidi_classes->{enum}->{$bidiclass},
-            suc => $suc,
-            slc => $slc,
-            stc => $stc,
-        };
-        for my $key (sort keys %$hashy) {
-            $point->{$key} = $hashy->{$key};
-        }
-        $point->{Bidi_Mirrored} = 1 if $bidimirrored eq 'Y';
-        if ($decmpspec) {
-            $decmpspec =~ s/ [<] \w+ [>] \s+ //x;
-            $point->{Decomp_Spec} = $decomp_index;
-            $decomp_keys->[$decomp_index++] = $decmpspec;
-        }
-        if ($suc || $slc || $stc) {
-            $point->{Case_Change_Index} = $case_count++;
-        }
-        for my $checker (@gc_alias_checkers) {
-            my $res = $checker->($gencat);
-            $point->{$res} = 1 if $res;
-        }
-        if ($name =~ /(Ideograph|Syllable|Private|Surrogate) (\s|.)*? First/x) {
-            $ideograph_start = $point;
-            $point->{name}   =~ s/, First//;
-        }
-        elsif ($name =~ / First/) {
-          die "Looks like support for a new thing needs to be added: $name"
-        }
-        elsif ($ideograph_start) {
-            $point->{name} = $ideograph_start->{name};
-            my $current    = $ideograph_start;
-            for (my $count = $ideograph_start->{code} + 1; $count < $point->{code}; $count++) {
-                $current = get_next_point($count, 1);
-                for (sort keys %$ideograph_start) {
-                    next if $_ eq "code" || $_ eq "code_str";
-                    $current->{$_} = $ideograph_start->{$_};
-                }
-            }
-            $ideograph_start = 0;
-        }
-        if (substr($point->{name}, 0, 1) eq '<') {
-            if ($point->{name} eq '<CJK Ideograph Extension A>'
-             || $point->{name} eq '<CJK Ideograph>'
-             || $point->{name} eq '<CJK Ideograph Extension B>'
-             || $point->{name} eq '<CJK Ideograph Extension C>'
-             || $point->{name} eq '<CJK Ideograph Extension D>'
-             || $point->{name} eq '<CJK Ideograph Extension E>'
-             || $point->{name} eq '<CJK Ideograph Extension F>'
-             || $point->{name} eq '<CJK Ideograph Extension G>'
-             || $point->{name} eq '<CJK Ideograph Extension H>'
-             || $point->{name} eq '<CJK Ideograph Extension I>')
-            {
-                $point->{name} = '<CJK UNIFIED IDEOGRAPH>'
-            }
-            elsif ($point->{name} eq '<Tangut Ideograph>') {
-                $point->{name} = '<TANGUT IDEOGRAPH>';
-            }
-            elsif ($point->{name} eq '<Tangut Ideograph Supplement>') {
-                $point->{name} = '<TANGUT IDEOGRAPH>';
-            }
-            elsif ($point->{name} eq '<Hangul Syllable>') {
-                $point->{name} = '<HANGUL SYLLABLE>';
-            }
-            elsif ($point->{name} eq '<Private Use>'
-                || $point->{name} =~ /^<Plane \d+ Private Use>$/)
-            {
-                die unless $gencat eq 'Co';
-                $point->{name} = '<private-use>';
-            }
-            elsif ($point->{name} eq '<Non Private Use High Surrogate>'
-                || $point->{name} eq '<Private Use High Surrogate>'
-                || $point->{name} eq '<Low Surrogate>')
-            {
-                die unless $gencat eq 'Cs';
-                $point->{name} = '<surrogate>';
-            }
-            my $instructions_line_no = __LINE__;
-            my $instructions_1 = <<~'END';
-              Don't add anything here *unless*
-              Unicode has added a new "Name Derevation Rule Prefix String".
-              Extensions to *existing* prefixes should be normalized from their
-              format in the data file to the correct prefix string.
-              For example: if a new CJK Unified Ideograph extension is added
-              <CJK Ideograph Extension X> **AND** the "Name Derivation Rule Prefix Strings"
-              END
-            my $instructions_2 = <<~'END';
-              the table in the unicode ch04 documentation specifies the codepoint
-              in question results in prefix is CJK UNIFIED IDEOGRAPH then you can
-              modify the normalizing code above to change <CJK Ideograph Extension X>
-              into <CJK UNIFIED IDEOGRAPH>, which is already whitelisted
-              END
-            if ($point->{name} eq '<HANGUL SYLLABLE>'
-             || $point->{name} eq '<control>'
-             || $point->{name} eq '<CJK UNIFIED IDEOGRAPH>'
-             || $point->{name} eq '<private-use>'
-             || $point->{name} eq '<surrogate>'
-             || $point->{name} eq '<TANGUT IDEOGRAPH>') {
-            }
-            else {
-                die <<~"END";
-                $point->{name} encountered. code_str: '$code_str'
-                ##############################
-                IMPORTANT: READ BELOW
-                Make sure to check
-                https://www.unicode.org/versions/latest/bookmarks.html
-                and click the link for Table 4-8. Name Derivation Rule Prefix Strings,
-                using this table as a reference along with
-                $instructions_2
-                Read more about this on comment line $instructions_line_no
-                You will likely have to make a change to MVM_unicode_get_name() and add a test to nqp
-                END
-            }
-        }
-        if ($point->{name} =~ /^CJK COMPATIBILITY IDEOGRAPH-([A-F0-9]+)$/) {
-            die unless sprintf("%.4X", $code) eq $1;
-            $point->{name} = "<CJK COMPATIBILITY IDEOGRAPH>";
-        }
-    };
-    for_each_line('UnicodeData', $s);
-    $s->("110000;Out of Range;Cn;0;L;;;;;N;;;;;");
-
-    register_enumerated_property('Case_Change_Index', {
-        name => 'Case_Change_Index', bit_width => least_int_ge_lg2($case_count)
-    });
-    register_enumerated_property('Decomp_Spec', {
-        name => 'Decomp_Spec',
-        'keys' => $decomp_keys,
-        bit_width => least_int_ge_lg2($decomp_index)
-    });
-    return;
-}
 sub is_same {
     my ($point_1, $point_2) = @_;
     my %things;
@@ -2423,16 +2506,6 @@ sub tweak_nfg_qc {
             $point->{'NFG_QC'} = 0;
         }
     }
-    return;
-}
-
-sub register_binary_property {
-    my $name = shift;
-    $ALL_PROPERTIES->{$name} = $BINARY_PROPERTIES->{$name} = {
-        property_index => $PROPERTY_INDEX++,
-        name => $name,
-        bit_width => 1
-    } unless exists $BINARY_PROPERTIES->{$name};
     return;
 }
 
