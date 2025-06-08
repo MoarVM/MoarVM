@@ -792,11 +792,11 @@ sub rest_of_main {
     my ($highest_emoji_version, $hout) = @_;
 
     # Load all the things
-    enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { 0 => 0 }, 1, 'int', 1);
     collation();
     Jamo();
-    #BidiMirroring();
+
     goto skip_most if $SKIP_MOST_MODE;
+
     binary_props('extracted/DerivedBinaryProperties');
     if (-e "emoji-$highest_emoji_version/emoji-data") {
         binary_props("emoji-$highest_emoji_version/emoji-data") # v12.1 and earlier
@@ -804,6 +804,7 @@ sub rest_of_main {
     else {
         binary_props("emoji/emoji-data"); # v13.0 and later
     }
+    enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { 0 => 0 }, 1, 'int', 1);
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 3);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1);
     # sub Jamo sets names properly. Though at the moment Jamo_Short_Name likely
@@ -841,6 +842,7 @@ sub rest_of_main {
     # XXX StandardizedVariants.txt # no clue what this is
     grapheme_cluster_break('Grapheme', 'Grapheme_Cluster_Break');
     break_property('Sentence', 'Sentence_Break');
+
   skip_most:
     break_property('Word', 'Word_Break');
     tweak_nfg_qc();
