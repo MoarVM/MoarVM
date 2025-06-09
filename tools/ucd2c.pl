@@ -67,6 +67,9 @@ sub main {
     progress_header('Computing Collation Weights');
     compute_collation_weights();
 
+    progress_header('Setting Hangul syllable Jamo names');
+    set_hangul_syllable_jamo_names();
+
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
     rest_of_main($highest_emoji_version, $hout);
@@ -980,12 +983,52 @@ sub collation_get_check_index {
 }
 
 
+### JAMO PROCESSING
+
+# Use Jamo file to build up correct Hangul syllable codepoint names
+sub set_hangul_syllable_jamo_names {
+    # Set Jamo_Short_Name property for each Jamo codepoint
+    for_each_line 'Jamo', sub {
+        $_ = shift;
+        my ($code_str, $name) = split / \s* [#;] \s* /x;
+        apply_to_cp_range $code_str, sub {
+            my $point = shift;
+            $point->{Jamo_Short_Name} = $name;
+        };
+    };
+
+    # Collect known Hangul syllables
+    my @hangul_syllables;
+    for my $code (sort keys %$POINTS_BY_CODE) {
+        my $name = $POINTS_BY_CODE->{$code}->{name};
+        push @hangul_syllables, $code if $name and $name eq '<HANGUL SYLLABLE>';
+    }
+
+    # Use existing rakudo to convert syllable codepoints to NFD form
+    my $hs = join ',', @hangul_syllables;
+    my $out = `rakudo -e 'my \@cps = $hs; for \@cps -> \$cp { \$cp.chr.NFD.list.join(",").say };'`;
+    die "Problem running rakudo to process Hangul syllables: \$? was $?" if $?;
+
+    # Process NFD Jamo lists to build up full Hangul syllable names
+    my $i = 0;
+    for my $line (split "\n", $out) {
+        my $final_name = 'HANGUL SYLLABLE ';
+        my $hs_cps = $hangul_syllables[$i++];
+
+        for my $cp (split ',', $line) {
+            my $jamo_name = $POINTS_BY_CODE->{$cp}->{Jamo_Short_Name};
+            $final_name .= $jamo_name if defined $jamo_name;
+        }
+
+        $POINTS_BY_CODE->{$hs_cps}->{name} = $final_name;
+    }
+}
+
+
 ### NOT YET REFACTORED
 
 sub rest_of_main {
     my ($highest_emoji_version, $hout) = @_;
-
-    Jamo();
 
     goto skip_most if $SKIP_MOST_MODE;
 
@@ -2516,41 +2559,6 @@ sub DerivedNormalizationProps {
             };
         }
     };
-    return;
-}
-
-sub Jamo {
-    my $propname = 'Jamo_Short_Name';
-    for_each_line 'Jamo', sub { $_ = shift;
-        my ($code_str, $name) = split / \s* [#;] \s* /x;
-        apply_to_cp_range $code_str, sub {
-            my $point = shift;
-            $point->{Jamo_Short_Name} = $name;
-        };
-    };
-    my @hangul_syllables;
-    for my $key (sort keys %{$POINTS_BY_CODE}) {
-        if ($POINTS_BY_CODE->{$key}->{name} and $POINTS_BY_CODE->{$key}->{name} eq '<HANGUL SYLLABLE>') {
-            push @hangul_syllables, $key;
-        }
-    }
-    my $hs = join ',', @hangul_syllables;
-    my $out = `rakudo -e 'my \@cps = $hs; for \@cps -> \$cp { \$cp.chr.NFD.list.join(",").say };'`;
-    die "Problem running rakudo to process Hangul syllables: \$? was $?"
-        if $?;
-    my @out_lines = split "\n", $out;
-    my $i = 0;
-    for my $line (@out_lines) {
-        my $final_name = 'HANGUL SYLLABLE ';
-        my $hs_cps = $hangul_syllables[$i++];
-        my @a = split ',', $line;
-        for my $cp (@a) {
-            if (exists %{$POINTS_BY_CODE}{$cp}->{Jamo_Short_Name}) {
-                $final_name .= %{$POINTS_BY_CODE}{$cp}->{Jamo_Short_Name};
-            }
-        }
-        %{$POINTS_BY_CODE}{$hs_cps}->{name} = $final_name;
-    }
     return;
 }
 
