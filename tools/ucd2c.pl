@@ -82,7 +82,7 @@ sub init {
         unless $have_rakudo =~ /\AHello world/;
 
     die "Please run `rakudo tools/USD-download.raku` to build UNIDATA directory\n"
-        unless -d 'UNIDATA' && -r _ && -x _;
+        unless rxd_paths('UNIDATA', 'UNIDATA/UCA', 'UNIDATA/extracted');
 
     $Data::Dumper::Maxdepth = 1;
 
@@ -92,6 +92,14 @@ sub init {
 
 
 ### GENERAL UTILITY ROUTINES
+
+# Determine if a set of paths ALL refer to Readable and eXectuable Directories
+sub rxd_paths {
+    for (@_) {
+        return 0 unless -d $_ && -r _ && -x _;
+    }
+    return 1;
+}
 
 # Output a section header progress message
 sub progress_header {
