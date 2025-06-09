@@ -87,6 +87,9 @@ sub main {
         binary_props("emoji/emoji-data");
     }
 
+    progress_header('Processing enumerated property files');
+    process_basic_enumerated_properties();
+
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
     rest_of_main($highest_emoji_version, $hout);
@@ -470,6 +473,43 @@ END
 
 ### PROPERTY PROCESSING
 
+# Process the pile of enumerated property files that don't need special treatment
+# Note: Some must be processed more than once to pull out different enumerations
+sub process_basic_enumerated_properties {
+    enumerated_property('ArabicShaping',      'Joining_Group', {}, 3);
+    enumerated_property('ArabicShaping',      'Joining_Type', { U => 0 }, 2);
+
+    enumerated_property('BidiMirroring',      'Bidi_Mirroring_Glyph',
+                        { 0 => 0 }, 1, 'int', 1);
+    enumerated_property('Blocks',             'Block', { No_Block => 0 }, 1);
+    enumerated_property('DerivedAge',         'Age', { Unassigned => 0 }, 1);
+    enumerated_property('HangulSyllableType', 'Hangul_Syllable_Type',
+                        { Not_Applicable => 0 }, 1);
+    enumerated_property('LineBreak',          'Line_Break', { XX => 0 }, 1);
+    enumerated_property('Scripts',            'Script', { Unknown => 0 }, 1);
+
+    enumerated_property('extracted/DerivedDecompositionType',
+                        'Decomposition_Type', { None => 0 }, 1);
+    enumerated_property('extracted/DerivedEastAsianWidth',
+                        'East_Asian_Width', { N => 0 }, 1);
+
+    enumerated_property('extracted/DerivedNumericType',
+                        'Numeric_Type', { None => 0 }, 1);
+    enumerated_property('extracted/DerivedNumericValues',
+                        'Numeric_Value', { NaN => 0 }, 1);
+
+    enumerated_property('extracted/DerivedNumericValues',
+                        'Numeric_Value_Numerator', { NaN => 0 }, sub {
+                            my @fraction = split('/', (shift->[3]));
+                            return $fraction[0];
+                        });
+    enumerated_property('extracted/DerivedNumericValues',
+                        'Numeric_Value_Denominator', { NaN => 0 }, sub {
+                            my @fraction = split('/', (shift->[3]));
+                            return $fraction[1] || '1';
+                        });
+}
+
 # Process a derived property file
 sub derived_property {
     # filename, property name, enumeration base (generally entry 0)
@@ -497,6 +537,47 @@ sub derived_property {
     # Register enum keys, calculate bit width, and register property with globals
     register_keys_and_set_bit_width($property, $num_keys);
     return register_enumerated_property($pname, $property);
+}
+
+# Process an enumerated property file (of which there are many!)
+sub enumerated_property {
+    my ($fname, $pname, $base, $value_index, $type, $is_hex) = @_;
+    $type = 'string' unless $type;
+
+    my $num_keys = scalar keys %$base;
+    my $property = { enum => $base, name => $pname, type => $type };
+
+    for_each_line $fname, sub {
+        # Determine codepoint range and relevant values to process
+        $_ = shift;
+        my @vals  = split / \s* [#;] \s* /x;
+        my $range = $vals[0];
+
+        # $value_index may be either a normal integer index into @vals
+        # or a coderef that computes the value using the @vals array
+        my $value = ref $value_index ? $value_index->(\@vals)
+                                     : $vals[$value_index];
+
+        # Convert hex values to normal integers if requested
+        $value = hex $value if $is_hex;
+
+        # Determine enumeration index for the value, creating a new one if needed
+        my $index = $base->{$value};
+        if (not defined $index) {
+            print("\n  adding enum property for $pname: $num_keys $value") if $DEBUG;
+            $base->{$value} = $index = $num_keys++;
+        }
+
+        # Apply this enumerant index to all codepoints in range
+        apply_to_cp_range $range, sub {
+            my $point = shift;
+            $point->{$pname} = $index;
+        };
+    };
+
+    # Register enum keys, calculate bit width, and register property with globals
+    register_keys_and_set_bit_width($property, $num_keys);
+    register_enumerated_property($pname, $property);
 }
 
 # Set enumerant field bit width based on discovered enumerant keys
@@ -1085,39 +1166,13 @@ sub rest_of_main {
 
     goto skip_most if $SKIP_MOST_MODE;
 
-    enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { 0 => 0 }, 1, 'int', 1);
-    enumerated_property('ArabicShaping', 'Joining_Group', {}, 3);
-    enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1);
     # sub Jamo sets names properly. Though at the moment Jamo_Short_Name likely
     # will not need to be a property since it's only used for programatically
     # creating Jamo's Codepoint Names
     #enumerated_property('Jamo', 'Jamo_Short_Name', {  }, 1, 1);
-    enumerated_property('extracted/DerivedDecompositionType', 'Decomposition_Type', { None => 0 }, 1);
-    enumerated_property('extracted/DerivedEastAsianWidth', 'East_Asian_Width', { N => 0 }, 1);
-    enumerated_property('ArabicShaping', 'Joining_Type', { U => 0 }, 2);
     CaseFolding();
     SpecialCasing();
-    enumerated_property('DerivedAge',
-        'Age', { Unassigned => 0 }, 1);
     DerivedNormalizationProps();
-    enumerated_property('extracted/DerivedNumericValues',
-        'Numeric_Value', { NaN => 0 }, 1);
-    enumerated_property('extracted/DerivedNumericValues',
-        'Numeric_Value_Numerator', { NaN => 0 }, sub {
-            my @fraction = split('/', (shift->[3]));
-            return $fraction[0];
-        });
-    enumerated_property('extracted/DerivedNumericValues',
-        'Numeric_Value_Denominator', { NaN => 0 }, sub {
-            my @fraction = split('/', (shift->[3]));
-            return $fraction[1] || '1';
-        });
-    enumerated_property('extracted/DerivedNumericType',
-        'Numeric_Type', { None => 0 }, 1);
-    enumerated_property('HangulSyllableType',
-        'Hangul_Syllable_Type', { Not_Applicable => 0 }, 1);
-    enumerated_property('LineBreak', 'Line_Break', { XX => 0 }, 1);
-    enumerated_property('Scripts', 'Script', { Unknown => 0 }, 1);
     # XXX StandardizedVariants.txt # no clue what this is
     grapheme_cluster_break('Grapheme', 'Grapheme_Cluster_Break');
     break_property('Sentence', 'Sentence_Break');
@@ -1284,34 +1339,6 @@ sub grapheme_cluster_break {
             # Should not be set to Other for this one ?
             Other => 0,
         }, 1);
-    return;
-}
-
-sub enumerated_property {
-    my ($fname, $pname, $base, $value_index, $type, $is_hex) = @_;
-    my $num_keys = scalar keys %{$base};
-    $type = 'string' unless $type;
-    $base = { enum => $base, name => $pname, type => $type };
-    for_each_line $fname, sub { $_ = shift;
-        my @vals = split / \s* [#;] \s* /x;
-        my $range = $vals[0];
-        my $value = ref $value_index
-            ? $value_index->(\@vals)
-            : $vals[$value_index];
-        $value = hex $value if $is_hex;
-        my $index = $base->{enum}->{$value};
-        if (not defined $index) {
-            # Haven't seen this property value before. Add it, and give it an index.
-            print("\n  adding enum property for $pname: $num_keys $value") if $DEBUG;
-            ($base->{enum}->{$value} = $index = $num_keys++);
-        }
-        apply_to_cp_range $range, sub {
-            my $point = shift;
-            $point->{$pname} = $index; # set the property's value index
-        };
-    };
-    register_keys_and_set_bit_width($base, $num_keys);
-    register_enumerated_property($pname, $base);
     return;
 }
 
