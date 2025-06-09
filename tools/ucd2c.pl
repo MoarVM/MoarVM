@@ -508,6 +508,12 @@ sub process_basic_enumerated_properties {
                             my @fraction = split('/', (shift->[3]));
                             return $fraction[1] || '1';
                         });
+
+    # set_hangul_syllable_jamo_names() currently processes the Jamo names
+    # into Hangul syllables, but does not save Jamo_Short_Name as a property
+    # of its own.  Leaving this here in case it is needed in the future.
+
+    # enumerated_property('Jamo', 'Jamo_Short_Name', {  }, 1, 1);
 }
 
 # Process a derived property file
@@ -1166,10 +1172,6 @@ sub rest_of_main {
 
     goto skip_most if $SKIP_MOST_MODE;
 
-    # sub Jamo sets names properly. Though at the moment Jamo_Short_Name likely
-    # will not need to be a property since it's only used for programatically
-    # creating Jamo's Codepoint Names
-    #enumerated_property('Jamo', 'Jamo_Short_Name', {  }, 1, 1);
     CaseFolding();
     SpecialCasing();
     DerivedNormalizationProps();
