@@ -564,6 +564,18 @@ sub register_binary_property {
     } unless exists $BINARY_PROPERTIES->{$name};
 }
 
+# Register a plain int property
+sub register_int_property {
+    my ($name, $elems) = @_;
+
+    # XXXX: Add to binary_properties for now
+    $ALL_PROPERTIES->{$name} = $BINARY_PROPERTIES->{$name} = {
+        name           => $name,
+        bit_width      => least_int_ge_lg2($elems),
+        property_index => $PROPERTY_INDEX++,
+    } unless exists $BINARY_PROPERTIES->{$name};
+}
+
 # Register a union property
 sub register_union {
     my ($unionname, $unionof, $gc_alias_checkers) = @_;
@@ -2569,16 +2581,6 @@ sub tweak_nfg_qc {
     return;
 }
 
-sub register_int_property {
-    my ( $name, $elems ) = @_;
-    # add to binary_properties for now
-    $ALL_PROPERTIES->{$name} = $BINARY_PROPERTIES->{$name} = {
-        property_index => $PROPERTY_INDEX++,
-        name => $name,
-        bit_width => least_int_ge_lg2($elems)
-    } unless exists $BINARY_PROPERTIES->{$name};
-    return;
-}
 
 main();
 
