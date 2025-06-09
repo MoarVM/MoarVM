@@ -10,6 +10,7 @@ use strict;
 use warnings;
 use utf8;
 use feature 'unicode_strings';
+use Time::HiRes 'time';
 use Data::Dumper;
 use Carp qw(cluck croak);
 
@@ -30,6 +31,7 @@ my $LOG;
 ### METRIC GLOBALS
 my $ESTIMATED_TOTAL_BYTES  = 0;  # XXXX: Only calculated for bitfield and names
 my $TOTAL_BYTES_SAVED      = 0;
+my $PREV_START_TIME        = 0;
 
 ### DATA STRUCTURE ROOTS
 my $DB_SECTIONS            = {};
@@ -103,10 +105,16 @@ sub rxd_paths {
 
 # Output a section header progress message
 sub progress_header {
+    my $ms_spent = int(1000 * (time - $PREV_START_TIME));
+    my $time_msg = "Completed in $ms_spent ms";
+    $time_msg = "\e[34m" . $time_msg . "\e[0m" if $COLORED_PROGRESS;
+    $time_msg = $PREV_START_TIME ? "$time_msg\n" : '';
+
     my $formatted = uc("@_");
     $formatted = "\e[1;33m" . $formatted . "\e[0m" if $COLORED_PROGRESS;
 
-    progress("\n$formatted\n");
+    progress("$time_msg\n$formatted\n");
+    $PREV_START_TIME = time;
 }
 
 # Show progress messages, forcing autoflush
