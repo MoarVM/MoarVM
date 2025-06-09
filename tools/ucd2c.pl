@@ -66,7 +66,7 @@ sub main {
     progress_header('Processing UnicodeData');
     process_UnicodeData();
 
-    progress_header('Computing Collation Weights');
+    progress_header('Computing collation weights');
     compute_collation_weights();
 
     progress_header('Setting Hangul syllable Jamo names');
@@ -2226,7 +2226,7 @@ sub emit_unicode_property_value_keypairs {
             my $key   = $prop_codes->{$propname};
             my $found = 0;
             my $enum  = $ALL_PROPERTIES->{$key}->{'enum'};
-            croak $propname unless $enum;
+            croak "ALL_PROPERTIES has no enum for property '$propname'" unless $enum;
             my $value;
             for (@pv_alias_parts) {
                 my $alias = $_;
