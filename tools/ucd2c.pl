@@ -64,6 +64,9 @@ sub main {
     progress_header('Processing UnicodeData');
     process_UnicodeData();
 
+    progress_header('Computing Collation Weights');
+    compute_collation_weights();
+
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
     rest_of_main($highest_emoji_version, $hout);
@@ -818,13 +821,158 @@ sub register_pvalue_alias_unions {
 }
 
 
+### COLLATION WEIGHT COMPUTATION
+
+# Build collation tables based on UCA/allkeys.txt
+sub compute_collation_weights {
+    # Set up base enums and state for collation properties
+    my ($index, $maxes, $bases) = ( {}, {}, {} );
+    my ($name_primary, $name_secondary, $name_tertiary)
+        = ('MVM_COLLATION_PRIMARY', 'MVM_COLLATION_SECONDARY', 'MVM_COLLATION_TERTIARY');
+
+    for my $name ($name_primary, $name_secondary, $name_tertiary) {
+        my $base = { enum => { 0 => 0 }, name => $name, type => 'int' };
+
+        $bases->{$name} = $base;
+        $maxes->{$name} = 0;
+        $index->{$name}->{j} = keys %{$base->{enum}};
+    }
+
+    # Parse the lines of allkeys; sample line:
+    #1D4FF ; [.1EE3.0020.0005] # MATHEMATICAL BOLD SCRIPT SMALL V
+    my $line_no = 0;
+    for_each_line 'UCA/allkeys', sub {
+        # Track current line number
+        my $line = shift;
+        $line_no++;
+
+        # Skip blank/comment lines and @implicitweights lines
+        # Implicit weights are handled in tools/Generate-Collation-Data.raku
+        # XXXX: Is blank/comment skipping necessary since for_each_line does this?
+        # XXXX: Should other @ lines be considered comments?
+
+        return if $line =~ s/ ^ \@implicitweights \s+ //xms;
+        return if $line =~ / ^ \s* [#@] /x or $line =~ / ^ \s* $ /x;
+
+        # Extract code and weight list from line
+        my ($code, $weight_list) = split / [;#]+ /x, $line;
+        $code = trim $code;
+
+        # Collation for multiple codepoints is handled in tools/Generate-Collation-Data.raku
+        my @codes = split ' ', $code;
+        if (1 < @codes) {
+            # For now set MVM_COLLATION_QC = 0 for the starting codepoint and return
+            apply_to_cp_range $codes[0], sub {
+                my $point = shift;
+                $point->{'MVM_COLLATION_QC'} = 0;
+            };
+            return;
+        }
+
+        # Process the weight list
+        #
+        # We capture the `.` or `*` before each weight.  Currently we do
+        # not use this information, but it may be of use later (we currently
+        # don't put their values into the data structure).
+        #
+        # When multiple tables are specified for a character, it is because
+        # those are the composite values for the decomposed character. Since
+        # we compare in NFC form not NFD, let's add these together.
+
+        my $weights = {};
+        while ($weight_list =~ / (:? \[ ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) \] ) /xmsg) {
+            $weights->{$name_primary}   += hex $3;
+            $weights->{$name_secondary} += hex $5;
+            $weights->{$name_tertiary}  += hex $7;
+        }
+
+        # Verify we've parsed the line sensibly
+        if (   !defined $code
+            || !defined $weights->{$name_primary}
+            || !defined $weights->{$name_secondary}
+            || !defined $weights->{$name_tertiary}) {
+            my $str;
+            for my $name ($name_primary, $name_secondary, $name_tertiary) {
+                $str .= ", \$weights->{$name} = " . $weights->{$name};
+            }
+            croak "Line no $line_no: \$line = $line$str";
+        }
+
+        # Apply total weights to codepoint
+        apply_to_cp_range $code, sub {
+            my $point = shift;
+            my $raws  = {};
+            for my $base ($bases->{$name_primary},
+                          $bases->{$name_secondary},
+                          $bases->{$name_tertiary}) {
+                my $name = $base->{name};
+
+                # Add one to the value so we can distinguish between specified
+                # values of zero for collation weight and null values.
+                $raws->{$name} = 1;
+                if ($weights->{$name}) {
+                    $raws->{$name} += $weights->{$name};
+                    $maxes->{$name} = $weights->{$name} if $weights->{$name} > $maxes->{$name};
+                }
+
+                # $point->{$name} = collation_get_check_index($index, $name, $base, $raws->{$name}); # Uncomment to make it an int enum
+                $point->{$name} = $raws->{$name}; # Comment to make it an int enum
+            }
+        };
+    };
+
+    # Add 0 to a non-character just to make sure it ends up assigned to some codepoint
+    # (or it may not properly end up in the enum)
+    apply_to_cp_range "FFFF", sub {
+        my $point = shift;
+        $point->{$name_tertiary} = 0;
+    };
+
+    for my $base ($bases->{$name_primary},
+                  $bases->{$name_secondary},
+                  $bases->{$name_tertiary}) {
+        my $name = $base->{name};
+
+        # Check for nonsensical max collation numbers
+        croak "Oh no! One of the highest collation numbers I saw is less than 1. " .
+              " Primary max: "   . $maxes->{$name_primary} .
+              " secondary max: " . $maxes->{$name_secondary} .
+              " tertiary max: "  . $maxes->{$name_tertiary}
+            if $maxes->{$name} < 1;
+
+        # Register a property for the max collation values
+        # register_enumerated_property($name, $base); # Uncomment to make an int enum
+        # register_keys_and_set_bit_width($base, $index->{$name}->{j}); # Uncomment to make an int enum
+        register_int_property($name, $maxes->{$name}); # Comment to make an int enum
+    }
+
+    # Register a binary property for COLLATION_QC
+    register_binary_property('MVM_COLLATION_QC');
+}
+
+# XXXX: Only used if collations will be an enum (call currently commented out)
+sub collation_get_check_index {
+    my ($index, $property, $base, $value) = @_;
+
+    my $indexy = $base->{enum}->{$value};
+
+    if (!defined $indexy) {
+        # Haven't seen this property value before; add it and give it an index
+        print("\n  adding enum property for property: $property j: " .
+              $index->{$property}->{j} . " value: $value") if $DEBUG;
+
+        $base->{enum}->{$value} = $indexy = ($index->{$property}->{j}++);
+    }
+
+    return $indexy;
+}
+
+
 ### NOT YET REFACTORED
 
 sub rest_of_main {
     my ($highest_emoji_version, $hout) = @_;
 
-    # Load all the things
-    collation();
     Jamo();
 
     goto skip_most if $SKIP_MOST_MODE;
@@ -2391,108 +2539,6 @@ sub Jamo {
         }
         %{$POINTS_BY_CODE}{$hs_cps}->{name} = $final_name;
     }
-    return;
-}
-
-sub collation_get_check_index {
-    my ($index, $property, $base, $value) = @_;
-    my $indexy = $base->{enum}->{$value};
-    # haven't seen this property value before
-    # add it, and give it an index.
-    print("\n  adding enum property for property: $property j: " . $index->{$property}->{j} . "value: $value")
-        if $DEBUG and not defined $indexy;
-    ($base->{enum}->{$value} = $indexy
-        = ($index->{$property}->{j}++)) unless defined $indexy;
-    return $indexy;
-}
-sub collation {
-    my ($index, $maxes, $bases) = ( {}, {}, {} );
-    my ($name_primary, $name_secondary, $name_tertiary)
-        = ('MVM_COLLATION_PRIMARY', 'MVM_COLLATION_SECONDARY', 'MVM_COLLATION_TERTIARY');
-    for my $name ($name_primary, $name_secondary, $name_tertiary) {
-        my $base = $bases->{$name} = { enum => { 0 => 0 }, name => $name, type => 'int' };
-        $index->{$base->{name}}->{j} = keys(%{$base->{enum}});
-        $maxes->{$base->{name}} = 0;
-    }
-    ## Sample line from allkeys.txt
-    #1D4FF ; [.1EE3.0020.0005] # MATHEMATICAL BOLD SCRIPT SMALL V
-    my $line_no = 0;
-    for_each_line('UCA/allkeys', sub { $_ = shift;
-        my $line = $_;
-        $line_no++;
-        my ($code, $temp);
-        my $weights = {};
-        # implicit weights are handled in ./tools/Generate-Collation-Data.raku
-        return if $line =~ s/ ^ \@implicitweights \s+ //xms;
-        return if $line =~ / ^ \s* [#@] /x or $line =~ / ^ \s* $ /x; # Blank/comment lines
-        ($code, $temp) = split / [;#]+ /x, $line;
-        $code = trim $code;
-        my @codes = split ' ', $code;
-        # We support collation for multiple codepoints in ./tools/Generate-Collation-Data.raku
-        if (1 < @codes) {
-            # For now set MVM_COLLATION_QC = 0 for the starting codepoint and return
-            apply_to_cp_range $codes[0], sub {
-                my $point = shift;
-                $point->{'MVM_COLLATION_QC'} = 0;
-            };
-            return;
-        }
-        # We capture the `.` or `*` before each weight. Currently we do
-        # not use this information, but it may be of use later (we currently
-        # don't put their values into the data structure.
-
-        # When multiple tables are specified for a character, it is because those
-        # are the composite values for the decomposed character. Since we compare
-        # in NFC form not NFD, let's add these together.
-
-        while ($temp =~ / (:? \[ ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) ([.*]) (\p{AHex}+) \] ) /xmsg) {
-            $weights->{$name_primary}   += hex $3;
-            $weights->{$name_secondary} += hex $5;
-            $weights->{$name_tertiary}  += hex $7;
-        }
-        if (!defined $code || !defined $weights->{$name_primary} || !defined $weights->{$name_secondary} || !defined $weights->{$name_tertiary}) {
-            my $str;
-            for my $name ($name_primary, $name_secondary, $name_tertiary) {
-                $str .= "\$weights->{$name} = " . $weights->{$name} . ", ";
-            }
-            croak "Line no $line_no: \$line = $line, $str";
-        }
-
-        # Apply total weights to codepoint
-        apply_to_cp_range $code, sub {
-            my $point = shift;
-            my $raws = {};
-            for my $base ($bases->{$name_primary}, $bases->{$name_secondary}, $bases->{$name_tertiary}) {
-                my $name = $base->{name};
-                # Add one to the value so we can distinguish between specified values
-                # of zero for collation weight and null values.
-                $raws->{$name} = 1;
-                if ($weights->{$name}) {
-                    $raws->{$name} += $weights->{$name};
-                    $maxes->{$name} = $weights->{$name} if $weights->{$name} > $maxes->{$name};
-                }
-                #$point->{$base->{name}} = collation_get_check_index($index, $base->{name}, $base, $raws->{$base->{name}}); # Uncomment to make it an int enum
-                $point->{$base->{name}} = $raws->{$base->{name}}; # Comment to make it an int enum
-            }
-        };
-    };
-
-    # Add 0 to a non-character just to make sure it ends up assigned to some codepoint
-    # (or it may not properly end up in the enum)
-    apply_to_cp_range "FFFF", sub {
-        my $point = shift;
-        $point->{$name_tertiary} = 0;
-    };
-
-    for my $base ($bases->{$name_primary}, $bases->{$name_secondary}, $bases->{$name_tertiary}) {
-        #register_enumerated_property($base->{name}, $base); # Uncomment to make an int enum
-        #register_keys_and_set_bit_width($base, $index->{$base->{name}}->{j}); # Uncomment to make an int enum
-        register_int_property($base->{name}, $maxes->{$base->{name}}); # Comment to make an int enum
-        croak("Oh no! One of the highest collation numbers I saw is less than 1. Something is wrong" .
-              "Primary max: " . $maxes->{$name_primary} . " secondary max: " . $maxes->{$name_secondary} . " tertiary_max: " . $maxes->{$name_tertiary})
-            if $maxes->{$base->{name}} < 1;
-    }
-    register_binary_property('MVM_COLLATION_QC');
     return;
 }
 
