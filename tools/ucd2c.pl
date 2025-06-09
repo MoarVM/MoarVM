@@ -188,6 +188,7 @@ sub for_each_line {
 
     for my $line (@{read_file($filename)}) {
         chomp $line;
+        # XXXX: Should this skip comment lines with leading whitespace?
         $fn->($line) if $force || $line !~ / ^ (?: [#] | \s* $ ) /x;
     }
 }
@@ -1056,7 +1057,7 @@ sub set_hangul_syllable_jamo_names {
         push @hangul_syllables, $code if $name and $name eq '<HANGUL SYLLABLE>';
     }
 
-    # Use existing rakudo to convert syllable codepoints to NFD form
+    # XXXX: Use existing rakudo to convert syllable codepoints to NFD form
     my $hs = join ',', @hangul_syllables;
     my $out = `rakudo -e 'my \@cps = $hs; for \@cps -> \$cp { \$cp.chr.NFD.list.join(",").say };'`;
     die "Problem running rakudo to process Hangul syllables: \$? was $?" if $?;
