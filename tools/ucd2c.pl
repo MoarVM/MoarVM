@@ -85,7 +85,7 @@ sub init {
 }
 
 
-### UTILITY ROUTINES
+### GENERAL UTILITY ROUTINES
 
 # Output a section header progress message
 sub progress_header {
@@ -152,6 +152,67 @@ sub for_each_line {
     for my $line (@{read_file($filename)}) {
         chomp $line;
         $fn->($line) if $force || $line !~ / ^ (?: [#] | \s* $ ) /x;
+    }
+}
+
+
+### CODEPOINT UTILITY ROUTINES
+
+# Search for codepoint info for a given code, or create it if missing
+sub get_point_info_for_code {
+    my ($code, $add_to_points_by_code) = @_;
+
+    my  $point = $POINTS_BY_CODE->{$code};
+    if ($point) {
+        croak "$code is already defined" if $add_to_points_by_code;
+    }
+    else {
+        $point = {
+            name             => '',
+            code             => $code,
+            code_str         => sprintf('%.4X', $code),
+            gencat_name      => "Cn",
+            General_Category => $GENERAL_CATEGORIES->{enum}->{Cn},
+
+            Any              => 1,
+            NFD_QC           => 1, # these are defaults (inverted)
+            NFC_QC           => 1, # which will be unset as appropriate
+            NFKD_QC          => 1,
+            NFKC_QC          => 1,
+            NFG_QC           => 1,
+            MVM_COLLATION_QC => 1,
+        };
+        $POINTS_BY_CODE->{$code} = $point if $add_to_points_by_code;
+    }
+    return $point;
+}
+
+# Apply a function to a range of codepoints. The starting and ending
+# codepoint of the range need not exist; the function will be applied
+# to all/any in between.
+sub apply_to_cp_range {
+    my ($range, $fn) = @_;
+
+    # Check for undefined range info
+    if (!defined $range) {
+        cluck "Did not get a defined range in apply_to_cp_range";
+    }
+
+    # Determine code endpoints of range, defaulting as needed
+    chomp($range);
+    my ($first_str,  $last_str)  = split '\\.\\.', $range;
+    $first_str                 ||= $range;
+    $last_str                  ||= $first_str;
+    my ($first_code, $last_code) = (hex $first_str, hex $last_str);
+
+    # Apply function to all codepoints in the range in increasing order
+    my $curr_code = $first_code;
+    while ($curr_code <= $last_code) {
+        # This might apply the function to a stub codepoint,
+        # which will then be dropped on the floor at end of scope
+        my $point = get_point_info_for_code($curr_code);
+        $fn->($point);
+        $curr_code++;
     }
 }
 
@@ -756,35 +817,6 @@ sub register_pvalue_alias_unions {
     return \@gc_alias_checkers;
 }
 
-# Search for codepoint info for a given code, or create it if missing
-sub get_point_info_for_code {
-    my ($code, $add_to_points_by_code) = @_;
-
-    my  $point = $POINTS_BY_CODE->{$code};
-    if ($point) {
-        croak "$code is already defined" if $add_to_points_by_code;
-    }
-    else {
-        $point = {
-            name             => '',
-            code             => $code,
-            code_str         => sprintf('%.4X', $code),
-            gencat_name      => "Cn",
-            General_Category => $GENERAL_CATEGORIES->{enum}->{Cn},
-
-            Any              => 1,
-            NFD_QC           => 1, # these are defaults (inverted)
-            NFC_QC           => 1, # which will be unset as appropriate
-            NFKD_QC          => 1,
-            NFKC_QC          => 1,
-            NFG_QC           => 1,
-            MVM_COLLATION_QC => 1,
-        };
-        $POINTS_BY_CODE->{$code} = $point if $add_to_points_by_code;
-    }
-    return $point;
-}
-
 
 ### NOT YET REFACTORED
 
@@ -992,40 +1024,17 @@ sub set_next_points {
     return $first_point;
 }
 
-sub apply_to_range {
-    # apply a function to a range of codepoints. The starting and
-    # ending codepoint of the range need not exist; the function will
-    # be applied to all/any in between.
-    my ($range, $fn) = @_;
-    chomp($range);
-    if ( !defined $range ) {
-        cluck "Did not get any range in apply_to_range";
-    }
-    my ($first_str, $last_str) = split '\\.\\.', $range;
-    $first_str ||= $range;
-    $last_str ||= $first_str;
-    my ($first_code, $last_code) = (hex $first_str, hex $last_str);
-    my $curr_code = $first_code;
-    my $point;
-    while ($curr_code <= $last_code) {
-        $point = get_point_info_for_code($curr_code);
-        $fn->($point);
-        $curr_code++;
-    }
-    return;
-}
-
 sub binary_props {
     # process a file, extracting binary properties and applying them to ranges
     my ($fname) = @_; # filename
-    for_each_line($fname, sub { $_ = shift;
+    for_each_line $fname, sub { $_ = shift;
         my ($range, $pname) = split / \s* [;#] \s* /x; # range, property name
         register_binary_property($pname); # define the property
-        apply_to_range($range, sub {
+        apply_to_cp_range $range, sub {
             my $point = shift;
             $point->{$pname} = 1; # set the property
-        });
-    });
+        };
+    };
     return;
 }
 
@@ -1050,7 +1059,7 @@ sub enumerated_property {
     my $num_keys = scalar keys %{$base};
     $type = 'string' unless $type;
     $base = { enum => $base, name => $pname, type => $type };
-    for_each_line($fname, sub { $_ = shift;
+    for_each_line $fname, sub { $_ = shift;
         my @vals = split / \s* [#;] \s* /x;
         my $range = $vals[0];
         my $value = ref $value_index
@@ -1063,11 +1072,11 @@ sub enumerated_property {
             print("\n  adding enum property for $pname: $num_keys $value") if $DEBUG;
             ($base->{enum}->{$value} = $index = $num_keys++);
         }
-        apply_to_range($range, sub {
+        apply_to_cp_range $range, sub {
             my $point = shift;
             $point->{$pname} = $index; # set the property's value index
-        });
-    });
+        };
+    };
     register_keys_and_set_bit_width($base, $num_keys);
     register_enumerated_property($pname, $base);
     return;
@@ -2315,7 +2324,7 @@ sub DerivedNormalizationProps {
         bit_width => 2,
         'keys' => ['N','Y','M']
     }) for sort keys %$trinary;
-    for_each_line('DerivedNormalizationProps', sub { $_ = shift;
+    for_each_line 'DerivedNormalizationProps', sub { $_ = shift;
         my ($range, $property_name, $value) = split / \s* [;#] \s* /x;
         if (exists $binary->{$property_name}) {
             $value = 1;
@@ -2333,32 +2342,32 @@ sub DerivedNormalizationProps {
         else {
             return; # deprecated
         }
-        apply_to_range($range, sub {
+        apply_to_cp_range $range, sub {
             my $point = shift;
             $point->{$property_name} = $value;
-        });
+        };
 
         # If it's the NFC_QC property, then use this as the default value for
         # NFG_QC also.
         if ($property_name eq 'NFC_QC') {
-            apply_to_range($range, sub {
+            apply_to_cp_range $range, sub {
                 my $point = shift;
                 $point->{'NFG_QC'} = $value;
-            });
+            };
         }
-    });
+    };
     return;
 }
 
 sub Jamo {
     my $propname = 'Jamo_Short_Name';
-    for_each_line('Jamo', sub { $_ = shift;
+    for_each_line 'Jamo', sub { $_ = shift;
         my ($code_str, $name) = split / \s* [#;] \s* /x;
-        apply_to_range($code_str, sub {
+        apply_to_cp_range $code_str, sub {
             my $point = shift;
             $point->{Jamo_Short_Name} = $name;
-        });
-    });
+        };
+    };
     my @hangul_syllables;
     for my $key (sort keys %{$POINTS_BY_CODE}) {
         if ($POINTS_BY_CODE->{$key}->{name} and $POINTS_BY_CODE->{$key}->{name} eq '<HANGUL SYLLABLE>') {
@@ -2421,11 +2430,11 @@ sub collation {
         my @codes = split ' ', $code;
         # We support collation for multiple codepoints in ./tools/Generate-Collation-Data.raku
         if (1 < @codes) {
-            # For now set MVM_COLLATION_QC = 0 for these cp
-            apply_to_range($codes[0], sub {
+            # For now set MVM_COLLATION_QC = 0 for the starting codepoint and return
+            apply_to_cp_range $codes[0], sub {
                 my $point = shift;
                 $point->{'MVM_COLLATION_QC'} = 0;
-            });
+            };
             return;
         }
         # We capture the `.` or `*` before each weight. Currently we do
@@ -2448,7 +2457,9 @@ sub collation {
             }
             croak "Line no $line_no: \$line = $line, $str";
         }
-        apply_to_range($code, sub {
+
+        # Apply total weights to codepoint
+        apply_to_cp_range $code, sub {
             my $point = shift;
             my $raws = {};
             for my $base ($bases->{$name_primary}, $bases->{$name_secondary}, $bases->{$name_tertiary}) {
@@ -2463,14 +2474,15 @@ sub collation {
                 #$point->{$base->{name}} = collation_get_check_index($index, $base->{name}, $base, $raws->{$base->{name}}); # Uncomment to make it an int enum
                 $point->{$base->{name}} = $raws->{$base->{name}}; # Comment to make it an int enum
             }
-        });
-    });
+        };
+    };
+
     # Add 0 to a non-character just to make sure it ends up assigned to some codepoint
     # (or it may not properly end up in the enum)
-    apply_to_range("FFFF", sub {
+    apply_to_cp_range "FFFF", sub {
         my $point = shift;
         $point->{$name_tertiary} = 0;
-    });
+    };
 
     for my $base ($bases->{$name_primary}, $bases->{$name_secondary}, $bases->{$name_tertiary}) {
         #register_enumerated_property($base->{name}, $base); # Uncomment to make an int enum
