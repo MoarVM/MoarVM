@@ -51,8 +51,8 @@ enum {
     OPT_EXECNAME,
     OPT_LIBPATH,
     OPT_DEBUGPORT,
-#ifndef _WIN32
-    OPT_PTY_SPAWN_HELPER
+#ifdef MVM_DO_PTY_OURSELF
+    OPT_PTY_SPAWN_HELPER,
 #endif
 };
 
@@ -135,7 +135,7 @@ static int parse_flag(const char *arg)
         return OPT_EXECNAME;
     else if (starts_with(arg, "--debug-port="))
         return OPT_DEBUGPORT;
-#ifndef _WIN32
+#ifdef MVM_DO_PTY_OURSELF
     else if (starts_with(arg, "--pty-spawn-helper="))
         return OPT_PTY_SPAWN_HELPER;
 #endif
@@ -249,7 +249,7 @@ int wmain(int argc, wchar_t *wargv[])
                 debugserverport = (MVMuint32)port;
                 break;
             }
-#ifndef _WIN32
+#ifdef MVM_DO_PTY_OURSELF
             case OPT_PTY_SPAWN_HELPER: {
                 char *prog = argv[argi] + strlen("--pty-spawn-helper=");
                 char **args = calloc(argc - argi + 1, sizeof(char *));
