@@ -33,8 +33,7 @@ extern char **environ;
 
 
 
-#ifndef MVM_HAS_LIBUV_PTY
-#ifndef _WIN32
+#ifdef MVM_DO_PTY_OURSELF
 char *resize_pty_fd(int fd_pty, unsigned short cols, unsigned short rows) {
     struct winsize winp;
     winp.ws_col = cols;
@@ -117,7 +116,6 @@ char *make_pty(int *fd_pty, int *fd_tty, int cols, int rows) {
 
     return NULL;
 }
-#endif
 #endif
 
 #ifdef _WIN32
@@ -778,18 +776,12 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     MVMint64 spawn_result;
     char *error_str = NULL;
 
-#if !defined(MVM_HAS_LIBUV_PTY) && defined(_WIN32)
-    error_str = MVM_malloc(128);
-    snprintf(error_str, 127, "PTYs are not supported on Windows with a too old libuv.");
-    goto spawn_setup_error;
-#endif
-
     /* Process info setup. */
     uv_process_t *process = MVM_calloc(1, sizeof(uv_process_t));
     uv_process_options_t process_options = {0};
     uv_stdio_container_t process_stdio[3];
 
-#if !defined(MVM_HAS_LIBUV_PTY) && !defined(_WIN32)
+#ifdef MVM_DO_PTY_OURSELF
     int fd_pty, fd_tty;
 #endif
 
@@ -805,6 +797,12 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
 
     /* Create input/output handles as needed. */
     if (pty_mode) {
+#if !defined(MVM_HAS_LIBUV_PTY) && !defined(MVM_DO_PTY_OURSELF)
+        error_str = MVM_malloc(128);
+        snprintf(error_str, 127, "PTY support is missing on this platform.")
+        goto spawn_setup_error;
+#endif
+
         process_options.pty_cols =
             MVM_repr_exists_key(tc, si->callbacks, tc->instance->str_consts.pty_cols)
             ? MVM_repr_get_int(tc, MVM_repr_at_key_o(tc,
@@ -818,7 +816,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
                                                      tc->instance->str_consts.pty_rows))
             : 24;
 
-#ifdef _WIN32
+#ifdef MVM_HAS_LIBUV_PTY
         uv_pipe_t *pipe = MVM_malloc(sizeof(uv_pipe_t));
         uv_pipe_init(loop, pipe, 0);
         pipe->data = si;
@@ -836,6 +834,7 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
         process_stdio[1].data.stream = (uv_stream_t *)si->pipe_stdout;
         process_stdio[2].flags   = UV_IGNORE;
 #else
+// MVM_DO_PTY_OURSELF
         error_str = make_pty(&fd_pty, &fd_tty, cols, rows);
         if (error_str)
             goto spawn_setup_error;
@@ -983,9 +982,11 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     process_options.args        = si->args;
     process_options.cwd         = si->cwd;
     process_options.flags       = UV_PROCESS_WINDOWS_VERBATIM_ARGUMENTS;
+#ifdef MVM_HAS_LIBUV_PTY
     if (pty_mode)
         process_options.flags   = process_options.flags | UV_PROCESS_PTY;
     else
+#endif
         process_options.flags   = UV_PROCESS_WINDOWS_HIDE;
     process_options.env         = si->env;
     process_options.stdio_count = 3;
@@ -995,13 +996,13 @@ static void spawn_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     process->data = si;
     spawn_result  = uv_spawn(loop, process, &process_options);
 
-#ifndef _WIN32
+#ifdef MVM_DO_PTY_OURSELF
     if (pty_mode)
         close(fd_tty);
 #endif
 
     if (spawn_result) {
-#ifndef _WIN32
+#ifdef MVM_DO_PTY_OURSELF
         if (pty_mode)
             close(fd_pty);
 #endif
@@ -1553,7 +1554,7 @@ char *MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h, unsigned short c
         return error_str;
     }
     int ret;
-    if (ret = uv_pty_resize(handle_data->handle, cols, rows)) {
+    if ((ret = uv_pty_resize(handle_data->handle, cols, rows))) {
         char *error_str = MVM_malloc(128);
         snprintf(error_str, 127, "Failed to resize the PTY: %s (error code %i)",
                 uv_strerror(ret), ret);
@@ -1561,8 +1562,8 @@ char *MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h, unsigned short c
     }
     return NULL;
 }
-#else
-#ifndef _WIN32
+#endif
+#ifdef MVM_DO_PTY_OURSELF
 char *MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h, unsigned short cols, unsigned short rows) {
     MVMIOAsyncProcessData *handle_data = (MVMIOAsyncProcessData *)h->body.data;
     MVMAsyncTask          *spawn_task  = (MVMAsyncTask *)handle_data->async_task;
@@ -1586,7 +1587,16 @@ char *MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h, unsigned short c
     }
     return NULL;
 }
+#endif
+#if !defined(MVM_HAS_LIBUV_PTY) && !defined(MVM_DO_PTY_OURSELF)
+char *MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h, unsigned short cols, unsigned short rows) {
+    char *error_str = MVM_malloc(128);
+    snprintf(error_str, 127, "PTY support is missing on this platform.")
+    return error_str;
+}
+#endif
 
+#ifdef MVM_DO_PTY_OURSELF
 void MVM_proc_pty_spawn(char *prog, char *argv[]) {
     // When this is called, we can assume that the STDIO handles have already all been
     // mapped to the pseudo TTY FD.
@@ -1617,11 +1627,4 @@ void MVM_proc_pty_spawn(char *prog, char *argv[]) {
     fprintf(stderr, "Spawn helper failed to spawn process %s: %s (error code %i)\n",
             prog, strerror(errno), errno);
 }
-#else
-char *MVM_proc_resize_pty(MVMThreadContext *tc, MVMOSHandle *h, unsigned short cols, unsigned short rows) {
-    char *error_str = MVM_malloc(128);
-    snprintf(error_str, 127, "PTYs are not supported on Windows with a too old libuv.");
-    return error_str;
-}
-#endif
 #endif
