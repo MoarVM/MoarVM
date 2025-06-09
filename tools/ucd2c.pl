@@ -72,6 +72,21 @@ sub main {
     progress_header('Setting Hangul syllable Jamo names');
     set_hangul_syllable_jamo_names();
 
+    progress_header('Processing binary property files');
+    binary_props('extracted/DerivedBinaryProperties');  # Bidi_Mirrored
+    binary_props('DerivedCoreProperties');
+    binary_props('PropList');
+
+    # The emoji binary properties file moved between v12.1 and v13.0
+    if (-e "emoji-$highest_emoji_version/emoji-data") {
+        # Directory layout in v12.1 and earlier
+        binary_props("emoji-$highest_emoji_version/emoji-data")
+    }
+    else {
+        # Directory layout in v13.0 and later
+        binary_props("emoji/emoji-data");
+    }
+
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
     rest_of_main($highest_emoji_version, $hout);
@@ -572,6 +587,27 @@ sub ensure_property_enum_is_well_formed {
     }
 }
 
+# Process a file containing multiple binary properties and apply them
+# to specified ranges
+sub binary_props {
+    my ($fname) = @_;
+
+    for_each_line $fname, sub {
+        # Determine codepoint range and property name to apply
+        $_ = shift;
+        my ($range, $pname) = split / \s* [;#] \s* /x;
+
+        # Ensure property has been registered
+        register_binary_property($pname);
+
+        # Actually apply the property to every point in the range
+        apply_to_cp_range $range, sub {
+            my $point = shift;
+            $point->{$pname} = 1;
+        };
+    };
+}
+
 # Register a binary (single bit wide) property if it hasn't already been
 sub register_binary_property {
     my $name = shift;
@@ -1048,13 +1084,6 @@ sub rest_of_main {
 
     goto skip_most if $SKIP_MOST_MODE;
 
-    binary_props('extracted/DerivedBinaryProperties');
-    if (-e "emoji-$highest_emoji_version/emoji-data") {
-        binary_props("emoji-$highest_emoji_version/emoji-data") # v12.1 and earlier
-    }
-    else {
-        binary_props("emoji/emoji-data"); # v13.0 and later
-    }
     enumerated_property('BidiMirroring', 'Bidi_Mirroring_Glyph', { 0 => 0 }, 1, 'int', 1);
     enumerated_property('ArabicShaping', 'Joining_Group', {}, 3);
     enumerated_property('Blocks', 'Block', { No_Block => 0 }, 1);
@@ -1069,7 +1098,6 @@ sub rest_of_main {
     SpecialCasing();
     enumerated_property('DerivedAge',
         'Age', { Unassigned => 0 }, 1);
-    binary_props('DerivedCoreProperties');
     DerivedNormalizationProps();
     enumerated_property('extracted/DerivedNumericValues',
         'Numeric_Value', { NaN => 0 }, 1);
@@ -1088,7 +1116,6 @@ sub rest_of_main {
     enumerated_property('HangulSyllableType',
         'Hangul_Syllable_Type', { Not_Applicable => 0 }, 1);
     enumerated_property('LineBreak', 'Line_Break', { XX => 0 }, 1);
-    binary_props('PropList');
     enumerated_property('Scripts', 'Script', { Unknown => 0 }, 1);
     # XXX StandardizedVariants.txt # no clue what this is
     grapheme_cluster_break('Grapheme', 'Grapheme_Cluster_Break');
@@ -1241,20 +1268,6 @@ sub set_next_points {
         $previous = $code;
     }
     return $first_point;
-}
-
-sub binary_props {
-    # process a file, extracting binary properties and applying them to ranges
-    my ($fname) = @_; # filename
-    for_each_line $fname, sub { $_ = shift;
-        my ($range, $pname) = split / \s* [;#] \s* /x; # range, property name
-        register_binary_property($pname); # define the property
-        apply_to_cp_range $range, sub {
-            my $point = shift;
-            $point->{$pname} = 1; # set the property
-        };
-    };
-    return;
 }
 
 sub break_property {
