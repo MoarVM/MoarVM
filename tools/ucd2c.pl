@@ -1548,8 +1548,7 @@ sub allocate_property_bitfield {
 
     # Save total bitfield width to first point info
     my $first_point = $POINTS_SORTED[0];
-    # XXXX: Is this correct if packer ends exactly on a word boundary?
-    $first_point->{bitfield_width} = $word_offset + 1;
+    $first_point->{bitfield_width} = $word_offset + ($bit_offset != 0);
 
     # Add property code count to header sections and return allocated array
     $H_SECTIONS->{num_property_codes} = "#define MVM_NUM_PROPERTY_CODES $index\n";
