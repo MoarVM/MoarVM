@@ -94,6 +94,9 @@ sub main {
     CaseFolding();
     SpecialCasing();
 
+    progress_header('Processing derived normalization properties');
+    DerivedNormalizationProps();
+
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
     rest_of_main($highest_emoji_version, $hout);
@@ -1285,6 +1288,92 @@ sub SpecialCasing {
 }
 
 
+### DERIVED NORMALIZATION PROPERTIES
+
+# Process the DerivedNormalizationProps file, skipping over deprecated properties
+sub DerivedNormalizationProps {
+    # Register the binary and inverted binary normalization properties
+    my $binary = {
+        Full_Composition_Exclusion   => 1,
+        Changes_When_NFKC_Casefolded => 1
+    };
+    my $inverted_binary = {
+        NFD_QC  => 1,
+        NFKD_QC => 1
+    };
+    register_binary_property($_) for ((sort keys %$binary),
+                                      (sort keys %$inverted_binary));
+
+    # Register the trinary normalization properties as enumerated properties
+    my $trinary = {
+        NFC_QC  => 1,
+        NFKC_QC => 1,
+        NFG_QC  => 1
+    };
+    my $trinary_values = { 'N' => 0, 'Y' => 1, 'M' => 2 };
+    register_enumerated_property($_, {
+        enum      => $trinary_values,
+        bit_width => 2,
+        'keys'    => ['N','Y','M']
+    }) for sort keys %$trinary;
+
+    # Make use of registered properties above to process the
+    # DerivedNormalizationProps file
+    for_each_line 'DerivedNormalizationProps', sub {
+        $_ = shift;
+        my ($range, $property_name, $value) = split / \s* [;#] \s* /x;
+
+        # Figure out what actual value to use based on property type
+        # and handle deprecated/unknown properties
+        if (exists $binary->{$property_name}) {
+            $value = 1;
+        }
+        elsif (exists $inverted_binary->{$property_name}) {
+            $value = undef;
+        }
+        elsif (exists $trinary->{$property_name}) {
+            $value = $trinary_values->{$value};
+        }
+        elsif ($property_name eq 'NFKC_Casefold') {
+            # XXXX: see how this differs from CaseFolding.txt
+            # my @parts = split ' ', $value;
+            # $value = \@parts;
+        }
+        elsif (   $property_name eq 'FC_NFKC'
+               || $property_name eq 'Expands_On_NFD'
+               || $property_name eq 'Expands_On_NFC'
+               || $property_name eq 'Expands_On_NFKD'
+               || $property_name eq 'Expands_On_NFKC')
+        {
+            # All of these are deprecated as of Unicode 6.0.0, so skip silently
+            return;
+        }
+        elsif (   $property_name eq 'NFKC_CF'
+               || $property_name eq 'NFKC_SCF') {
+            # XXXX: NOT HANDLED
+        }
+        else {
+            croak "Unknown DerivedNormalizationProps property '$property_name'"
+        }
+
+        # Apply property's computed value to all points in range
+        apply_to_cp_range $range, sub {
+            my $point = shift;
+            $point->{$property_name} = $value;
+        };
+
+        # If it's the NFC_QC property, then use this as the default value for
+        # NFG_QC also, and apply that to the range as well.
+        if ($property_name eq 'NFC_QC') {
+            apply_to_cp_range $range, sub {
+                my $point = shift;
+                $point->{'NFG_QC'} = $value;
+            };
+        }
+    };
+}
+
+
 ### NOT YET REFACTORED
 
 sub rest_of_main {
@@ -1292,7 +1381,6 @@ sub rest_of_main {
 
     goto skip_most if $SKIP_MOST_MODE;
 
-    DerivedNormalizationProps();
     # XXX StandardizedVariants.txt # no clue what this is
     grapheme_cluster_break('Grapheme', 'Grapheme_Cluster_Break');
     break_property('Sentence', 'Sentence_Break');
@@ -2616,61 +2704,6 @@ sub is_same {
         }
     }
     return 1;
-}
-sub DerivedNormalizationProps {
-    my $binary = {
-        Full_Composition_Exclusion => 1,
-        Changes_When_NFKC_Casefolded => 1
-    };
-    my $inverted_binary = {
-        NFD_QC => 1,
-        NFKD_QC => 1
-    };
-    register_binary_property($_) for ((sort keys %$binary),(sort keys %$inverted_binary));
-    my $trinary = {
-        NFC_QC => 1,
-        NFKC_QC => 1,
-        NFG_QC => 1,
-    };
-    my $trinary_values = { 'N' => 0, 'Y' => 1, 'M' => 2 };
-    register_enumerated_property($_, {
-        enum => $trinary_values,
-        bit_width => 2,
-        'keys' => ['N','Y','M']
-    }) for sort keys %$trinary;
-    for_each_line 'DerivedNormalizationProps', sub { $_ = shift;
-        my ($range, $property_name, $value) = split / \s* [;#] \s* /x;
-        if (exists $binary->{$property_name}) {
-            $value = 1;
-        }
-        elsif (exists $inverted_binary->{$property_name}) {
-            $value = undef;
-        }
-        elsif (exists $trinary->{$property_name}) {
-            $value = $trinary_values->{$value};
-        }
-        elsif ($property_name eq 'NFKC_Casefold') { # XXX see how this differs from CaseFolding.txt
-        #    my @parts = split ' ', $value;
-        #    $value = \@parts;
-        }
-        else {
-            return; # deprecated
-        }
-        apply_to_cp_range $range, sub {
-            my $point = shift;
-            $point->{$property_name} = $value;
-        };
-
-        # If it's the NFC_QC property, then use this as the default value for
-        # NFG_QC also.
-        if ($property_name eq 'NFC_QC') {
-            apply_to_cp_range $range, sub {
-                my $point = shift;
-                $point->{'NFG_QC'} = $value;
-            };
-        }
-    };
-    return;
 }
 
 sub tweak_nfg_qc {
