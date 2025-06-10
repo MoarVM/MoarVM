@@ -109,7 +109,7 @@ sub main {
 
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
-    rest_of_main($highest_emoji_version, $hout);
+    rest_of_main($hout);
 }
 
 # Startup checks and init
@@ -1494,7 +1494,7 @@ sub write_file {
 ### NOT YET REFACTORED
 
 sub rest_of_main {
-    my ($highest_emoji_version, $hout) = @_;
+    my ($hout) = @_;
 
     # XXX StandardizedVariants.txt # no clue what this is
 
