@@ -16,7 +16,6 @@ use Carp qw(cluck croak);
 
 
 ### CONFIG
-my $SKIP_MOST_MODE         = 0;
 my $WRAP_TO_COLUMNS        = 120;
 my $COLORED_PROGRESS       = 1;
 my $COMPRESS_CODEPOINTS    = 1;
@@ -96,6 +95,11 @@ sub main {
 
     progress_header('Processing derived normalization properties');
     DerivedNormalizationProps();
+
+    progress_header('Processing break properties');
+    grapheme_cluster_break('Grapheme', 'Grapheme_Cluster_Break');
+    break_property('Sentence', 'Sentence_Break');
+    break_property('Word', 'Word_Break');
 
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
@@ -1374,19 +1378,31 @@ sub DerivedNormalizationProps {
 }
 
 
+### GRAPHEME/WORD/SENTENCE BREAK PROPERTIES
+
+# Wrapper for enumerated_property for general break properties
+sub break_property {
+    my ($fname, $pname) = @_;
+    enumerated_property("auxiliary/${fname}BreakProperty",
+                        $pname, { Other => 0 }, 1);
+}
+
+# Wrapper for enumerated_property for grapheme cluster break properties
+sub grapheme_cluster_break {
+    my ($fname, $pname) = @_;
+    enumerated_property("auxiliary/${fname}BreakProperty",
+                        # XXXX: Should not be set to Other for this one ?
+                        $pname, { Other => 0 }, 1);
+}
+
+
 ### NOT YET REFACTORED
 
 sub rest_of_main {
     my ($highest_emoji_version, $hout) = @_;
 
-    goto skip_most if $SKIP_MOST_MODE;
-
     # XXX StandardizedVariants.txt # no clue what this is
-    grapheme_cluster_break('Grapheme', 'Grapheme_Cluster_Break');
-    break_property('Sentence', 'Sentence_Break');
 
-  skip_most:
-    break_property('Word', 'Word_Break');
     tweak_nfg_qc();
     find_quick_prop_data();
     # Allocate all the things
@@ -1532,22 +1548,6 @@ sub set_next_points {
         $previous = $code;
     }
     return $first_point;
-}
-
-sub break_property {
-    my ($fname, $pname) = @_;
-    enumerated_property("auxiliary/${fname}BreakProperty",
-        $pname, { Other => 0 }, 1);
-    return;
-}
-sub grapheme_cluster_break {
-    my ($fname, $pname) = @_;
-    enumerated_property("auxiliary/${fname}BreakProperty",
-        $pname, {
-            # Should not be set to Other for this one ?
-            Other => 0,
-        }, 1);
-    return;
 }
 
 sub allocate_bitfield {
