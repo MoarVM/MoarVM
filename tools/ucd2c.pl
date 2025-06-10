@@ -108,8 +108,9 @@ sub main {
     sort_points();
     set_next_points();
 
-    progress_header('Allocating property bitfield');
+    progress_header('Allocating and packing property bitfields');
     my $allocated_bitfield_properties = allocate_property_bitfield();
+    pack_codepoint_properties($allocated_bitfield_properties);
 
     progress_header('Writing quick property macro header');
     macroize_quick_props();
@@ -1555,6 +1556,52 @@ sub allocate_property_bitfield {
     return $allocated;
 }
 
+# Pack bitfield-encoded property values into each point's actual bitfield
+sub pack_codepoint_properties {
+    my ($fields) = @_;
+
+    # Make a bitmask covering a bitfield cell without overflowing
+    # the calculation if the cell width is a full machine word
+    my $bit  = 0;
+    my $mask = 0;
+    while ($bit < $BITFIELD_CELL_BITWIDTH) {
+        $mask |= 1 << $bit++;
+    }
+
+    my $word = 0;
+    for my $field (@$fields) {
+        my $bit_offset = $field->{bit_offset};
+        my $bit_width  = $field->{bit_width};
+
+        if ($bit_offset + $bit_width > $BITFIELD_CELL_BITWIDTH) {
+            # XXXX: The algorithm will need to be fixed if this ever triggers
+            croak "Word setting algorithm doesn't handle fields that cross between cells";
+        }
+
+        if ($DEBUG) {
+            # Display word packings as fields are handled
+            local $| = 1;
+            printf "\n        -- WORD %2d -----------", $word++ unless $bit_offset;
+            printf "\n        %2d bit%s at offset %2d - %s",
+                $bit_width, $bit_width == 1 ? ' ' : 's', $bit_offset, $field->{name};
+        }
+
+        # For all points with a defined value for this property,
+        # pack each point's property value into that point's bitfield
+        for my $point (@POINTS_SORTED) {
+            my $pvalue = $point->{$field->{name}};
+            if (defined $pvalue) {
+                # $point has a value for this field, so OR that value into place
+                # within the point's packed bitfield (in $point->{bytes})
+                my $word_offset = $field->{word_offset};
+                my $field_shift = $BITFIELD_CELL_BITWIDTH - $bit_offset - $bit_width;
+                # XXXX: bytes should probably be called words
+                $point->{bytes}->[$word_offset] |= $pvalue << $field_shift;
+            }
+        }
+    }
+}
+
 
 ### WRITING FILES
 
@@ -1625,11 +1672,8 @@ sub rest_of_main {
 
     # XXX StandardizedVariants.txt # no clue what this is
 
-    # Compute all the things
-    progress("done.\ncomputing all properties...");
-    compute_properties($allocated_bitfield_properties);
     # Make the things less
-    progress("...done.\ncomputing collapsed properties table...");
+    progress("\ncomputing collapsed properties table...");
     my $first_point = $POINTS_SORTED[0];
     compute_bitfield($first_point);
     # Emit all the things
@@ -1714,49 +1758,6 @@ sub join_sections {
         $done{$sec} = 1;
     }
     return $content;
-}
-
-sub compute_properties {
-    my ($fields) = @_;
-    local $| = 1;
-    for my $field (@$fields) {
-        my $bit_offset = $field->{bit_offset};
-        my $bit_width = $field->{bit_width};
-        print "\n        $field->{name} bit width:$bit_width";
-        my $i = 0;
-        my $bit = 0;
-        my $mask = 0;
-        while ($bit < $BITFIELD_CELL_BITWIDTH) {
-            $mask |= 2 ** $bit++;
-        }
-        for my $point (@POINTS_SORTED) {
-            if (defined $point->{$field->{name}}) {
-                my $word_offset = $field->{word_offset};
-                # $x is one less than the number of words required to hold the field
-                my $x = int(($bit_width - 1) / $BITFIELD_CELL_BITWIDTH);
-                # move us over to the last word
-                $word_offset += $x;
-                # loop until we fill all the words, starting with the most
-                # significant byte portion.
-                while ($x + 1) {
-
-                    $point->{bytes}->[
-                        $word_offset - $x
-                    ] |=
-                        (
-                            (
-                                ($point->{$field->{name}} <<
-                                    ($BITFIELD_CELL_BITWIDTH - $bit_offset - $bit_width)
-                                )
-                                #>> ($BITFIELD_CELL_BITWIDTH * $x)
-                            ) & $mask
-                        );
-                    $x--;
-                }
-            }
-        }
-    }
-    return;
 }
 
 sub emit_binary_search_algorithm {
