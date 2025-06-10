@@ -155,15 +155,15 @@ sub progress {
     print @_;
 }
 
-# Trim both leading and trailing whitespace from a string
+# Trim both leading and trailing whitespace from each line of a string
 sub trim {
     my ($str) = @_;
-    $str =~ s/   \s+ $ //xmsg;
     $str =~ s/ ^ \s+   //xmsg;
+    $str =~ s/   \s+ $ //xmsg;
     return $str;
 }
 
-# Trim only trailing whitespace from a string
+# Trim only trailing spaces/tabs from each line a string
 sub trim_trailing {
     my ($str) = @_;
     $str =~ s/ [ \t]+ $ //xmsg;
