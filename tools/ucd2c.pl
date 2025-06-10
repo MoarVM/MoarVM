@@ -101,6 +101,9 @@ sub main {
     break_property('Sentence', 'Sentence_Break');
     break_property('Word', 'Word_Break');
 
+    progress_header('Tweaking NFG rules');
+    tweak_nfg_qc();
+
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
     rest_of_main($highest_emoji_version, $hout);
@@ -1292,7 +1295,7 @@ sub SpecialCasing {
 }
 
 
-### DERIVED NORMALIZATION PROPERTIES
+### NORMALIZATION AND BREAK RULES
 
 # Process the DerivedNormalizationProps file, skipping over deprecated properties
 sub DerivedNormalizationProps {
@@ -1367,7 +1370,8 @@ sub DerivedNormalizationProps {
         };
 
         # If it's the NFC_QC property, then use this as the default value for
-        # NFG_QC also, and apply that to the range as well.
+        # NFG_QC also, and apply that to the range as well.  See tweak_nfg_qc()
+        # for the other half of this.
         if ($property_name eq 'NFC_QC') {
             apply_to_cp_range $range, sub {
                 my $point = shift;
@@ -1376,9 +1380,6 @@ sub DerivedNormalizationProps {
         }
     };
 }
-
-
-### GRAPHEME/WORD/SENTENCE BREAK PROPERTIES
 
 # Wrapper for enumerated_property for general break properties
 sub break_property {
@@ -1395,6 +1396,34 @@ sub grapheme_cluster_break {
                         $pname, { Other => 0 }, 1);
 }
 
+# Tweak NFG_QC values that differ from NFC_QC (as set in DerivedNormalizationProps)
+sub tweak_nfg_qc {
+    # See http://www.unicode.org/reports/tr29/tr29-27.html#Grapheme_Cluster_Boundary_Rules
+    for my $point (values %$POINTS_BY_CODE) {
+        my $code    =  $point->{'code'};
+        my $special =  $code >= 0x1F1E6 && $code <= 0x1F1FF # Regional indicators
+                    || $code == 0x0D    # CARRIAGE RETURN (CR, \r)
+                    || $code == 0x200D  # ZERO WIDTH JOINER
+                    || $code == 0x0E33  # THAI CHARACTER SARA AM (<compat>)
+                    || $code == 0x0EB3; # LAO VOWEL SIGN AM (<compat>)
+
+        if ($special
+        || $point->{'Hangul_Syllable_Type'}         # Hangul
+        || $point->{'Grapheme_Extend'}              # Grapheme_Extend
+        || $point->{'Grapheme_Cluster_Break'}       # Grapheme_Cluster_Break
+        || $point->{'Prepended_Concatenation_Mark'} # Prepended_Concatenation_Mark
+        || $point->{'gencat_name'} && $point->{'gencat_name'} eq 'Mc' # Spacing_Mark
+        ) {
+            $point->{'NFG_QC'} = 0;
+        }
+        # XXXX: For now set all Emoji to NFG_QC = 0; eventually we will only
+        #       want to set the ones that are NOT specified as ZWJ sequences
+        elsif ($point->{'Emoji'}) {
+            $point->{'NFG_QC'} = 0;
+        }
+    }
+}
+
 
 ### NOT YET REFACTORED
 
@@ -1403,7 +1432,6 @@ sub rest_of_main {
 
     # XXX StandardizedVariants.txt # no clue what this is
 
-    tweak_nfg_qc();
     find_quick_prop_data();
     # Allocate all the things
     progress("done.\nsetting next_point for codepoints");
@@ -2704,33 +2732,6 @@ sub is_same {
         }
     }
     return 1;
-}
-
-sub tweak_nfg_qc {
-    # See http://www.unicode.org/reports/tr29/tr29-27.html#Grapheme_Cluster_Boundary_Rules
-    for my $point (values %$POINTS_BY_CODE) {
-        my $code = $point->{'code'};
-
-        if ($code == 0x0D                           # \r
-        || $point->{'Hangul_Syllable_Type'}         # Hangul
-        || ($code >= 0x1F1E6 && $code <= 0x1F1FF)   # Regional indicators
-        || $code == 0x200D                          # Zero Width Joiner
-        || $point->{'Grapheme_Extend'}              # Grapheme_Extend
-        || $point->{'Grapheme_Cluster_Break'}       # Grapheme_Cluster_Break
-        || $point->{'Prepended_Concatenation_Mark'} # Prepended_Concatenation_Mark
-        || $point->{'gencat_name'} && $point->{'gencat_name'} eq 'Mc' # Spacing_Mark
-        || $code == 0x0E33 || $code == 0x0EB3                         # Some specials
-        ) {
-            $point->{'NFG_QC'} = 0;
-        }
-        # For now set all Emoji to NFG_QC 0
-        # Eventually we will only want to set the ones that are NOT specified
-        # as ZWJ sequences XXX
-        elsif ($point->{'Emoji'}) {
-            $point->{'NFG_QC'} = 0;
-        }
-    }
-    return;
 }
 
 
