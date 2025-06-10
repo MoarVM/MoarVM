@@ -1581,8 +1581,8 @@ sub pack_codepoint_properties {
         if ($DEBUG) {
             # Display word packings as fields are handled
             local $| = 1;
-            printf "\n        -- WORD %2d -----------", $word++ unless $bit_offset;
-            printf "\n        %2d bit%s at offset %2d - %s",
+            printf "        -- WORD %2d -----------\n", $word++ unless $bit_offset;
+            printf "        %2d bit%s at offset %2d - %s\n",
                 $bit_width, $bit_width == 1 ? ' ' : 's', $bit_offset, $field->{name};
         }
 
