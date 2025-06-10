@@ -104,12 +104,16 @@ sub main {
     progress_header('Tweaking NFG rules');
     tweak_nfg_qc();
 
+    progress_header('Postprocessing codepoint structures');
+    sort_points();
+    my $first_point = set_next_points();
+
     progress_header('Writing quick property macro header');
     macroize_quick_props();
 
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
-    rest_of_main($hout);
+    rest_of_main($first_point, $hout);
 }
 
 # Startup checks and init
@@ -1166,6 +1170,7 @@ sub set_hangul_syllable_jamo_names {
 
     # Collect known Hangul syllables
     my @hangul_syllables;
+    # XXXX: Can we use @POINTS_SORTED here yet?
     for my $code (sort keys %$POINTS_BY_CODE) {
         my $name = $POINTS_BY_CODE->{$code}->{name};
         push @hangul_syllables, $code if $name and $name eq '<HANGUL SYLLABLE>';
@@ -1428,6 +1433,29 @@ sub tweak_nfg_qc {
 }
 
 
+### POSTPROCESS CODEPOINTS
+
+# Sort all known points by code
+sub sort_points {
+    @POINTS_SORTED = map  $POINTS_BY_CODE->{$_},
+                     sort { $a <=> $b }
+                     keys %$POINTS_BY_CODE;
+}
+
+# Set next_point for all points (allowing gap skips)
+sub set_next_points {
+    my $previous;
+    my $first_point = {};
+
+    for my $point (@POINTS_SORTED) {
+        $POINTS_BY_CODE->{$previous}->{next_point} = $point if defined $previous;
+        $previous = $point->{code};
+    }
+
+    return $POINTS_SORTED[0];
+}
+
+
 ### WRITING FILES
 
 # Write a C header file for macros for quick lookup properties
@@ -1442,10 +1470,11 @@ sub macroize_quick_props {
 
     # Determine which codepoints have each wanted property and value
     my %gencat_wanted_h;
-    for my $code (sort { $a <=> $b } keys %{$POINTS_BY_CODE}) {
+    for my $point (@POINTS_SORTED) {
+        my $code = $point->{code};
         for my $cat_data (@wanted_val_str) {
             my $propname = $cat_data->[0];
-            my $cp_value = $POINTS_BY_CODE->{$code}->{$propname};
+            my $cp_value = $point->{$propname};
 
             for (my $i = 1; $i < @$cat_data; $i++) {
                 my $pval = $cat_data->[$i];
@@ -1455,8 +1484,7 @@ sub macroize_quick_props {
         }
         for my $cat_data (@wanted_val_bool) {
             my $propname = $cat_data->[0];
-            push @{$gencat_wanted_h{$propname}}, $code
-                if $POINTS_BY_CODE->{$code}->{$propname};
+            push @{$gencat_wanted_h{$propname}}, $code if $point->{$propname};
         }
     }
 
@@ -1493,13 +1521,11 @@ sub write_file {
 ### NOT YET REFACTORED
 
 sub rest_of_main {
-    my ($hout) = @_;
+    my ($first_point, $hout) = @_;
 
     # XXX StandardizedVariants.txt # no clue what this is
 
     # Allocate all the things
-    progress("done.\nsetting next_point for codepoints");
-    my $first_point = set_next_points();
     progress("done.\nallocating bitfield...");
     my $allocated_bitfield_properties = allocate_bitfield($first_point);
     # Compute all the things
@@ -1590,23 +1616,6 @@ sub join_sections {
         $done{$sec} = 1;
     }
     return $content;
-}
-
-sub set_next_points {
-    my $previous;
-    my $first_point = {};
-    for my $code (sort { $a <=> $b } keys %{$POINTS_BY_CODE}) {
-        push @POINTS_SORTED, $POINTS_BY_CODE->{$code};
-        $POINTS_BY_CODE->{$previous}->{next_point} = $POINTS_BY_CODE->{$code}
-            if defined $previous;
-        # The first code we encounter will be the lowest, so set $first_point
-        if (!defined $previous) {
-            say "setting first point to $code";
-            $first_point = $POINTS_BY_CODE->{$code};
-        }
-        $previous = $code;
-    }
-    return $first_point;
 }
 
 sub allocate_bitfield {
@@ -2563,6 +2572,7 @@ sub emit_composition_lookup {
     # first codepoint of the decomposition of a primary composite, mapped to
     # an array of [second codepoint, primary composite].
     my @lookup;
+    # XXXX: Can we use @POINTS_SORTED here?
     for my $point_code (sort { $a <=> $b } keys %$POINTS_BY_CODE) {
         # Not interested in anything in the set of full composition exclusions.
         my $point = $POINTS_BY_CODE->{$point_code};
