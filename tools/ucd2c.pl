@@ -106,14 +106,17 @@ sub main {
 
     progress_header('Postprocessing codepoint structures');
     sort_points();
-    my $first_point = set_next_points();
+    set_next_points();
+
+    progress_header('Allocating property bitfield');
+    my $allocated_bitfield_properties = allocate_property_bitfield();
 
     progress_header('Writing quick property macro header');
     macroize_quick_props();
 
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
-    rest_of_main($first_point, $hout);
+    rest_of_main($allocated_bitfield_properties, $hout);
 }
 
 # Startup checks and init
@@ -1455,6 +1458,96 @@ sub set_next_points {
     return $POINTS_SORTED[0];
 }
 
+# Pack bitfield properties as tightly as possible into word cells
+sub allocate_property_bitfield {
+    # Sort enumerated and binary properties by bit_width and then property name
+    my @biggest = map  { $ENUMERATED_PROPERTIES->{$_} }
+                  sort { $ENUMERATED_PROPERTIES->{$b}->{bit_width}
+                     <=> $ENUMERATED_PROPERTIES->{$a}->{bit_width} }
+                  sort # Default, by name
+                  keys  %$ENUMERATED_PROPERTIES;
+
+    for (sort keys %$BINARY_PROPERTIES) {
+        push @biggest, $BINARY_PROPERTIES->{$_};
+    }
+
+    # State for packing algorithm
+    my $word_offset = 0;
+    my $bit_offset  = 0;
+    my $allocated   = [];
+    my $index       = 1;
+
+    # While there are still properties to pack ...
+    while (@biggest) {
+        # Scan for biggest remaining property that will fit in current word cell
+        my $i = -1;
+        for(;;) {
+            my $prop = $biggest[++$i];
+
+            # If out of available properties that will fit *within* words,
+            # scan again for remaining large (wide) properties and pack them
+            # *across* words; this acts as a last resort pass for the packer
+            if (!$prop) {
+                while (@biggest) {
+                    # Shift next property off @biggest
+                    $prop = shift @biggest;
+
+                    # Set word and bit offsets for current property
+                    $prop->{word_offset} = $word_offset;
+                    $prop->{bit_offset}  = $bit_offset;
+
+                    # Update bit offset and normalize for crossing word boundaries
+                    $bit_offset += $prop->{bit_width};
+                    while ($BITFIELD_CELL_BITWIDTH <= $bit_offset) {
+                        $word_offset++;
+                        $bit_offset -= $BITFIELD_CELL_BITWIDTH;
+                    }
+
+                    # Update property's field index and add it to allocated list
+                    $prop->{field_index} = $index++;
+                    push @$allocated, $prop;
+                }
+
+                # Finished this final pass; bail out
+                last;
+            }
+
+            # If current property will fit in remaining current cell ...
+            if ($bit_offset + $prop->{bit_width} <= $BITFIELD_CELL_BITWIDTH) {
+                # Remove this property from middle of @biggest
+                splice(@biggest, $i, 1);
+
+                # Set word and bit offsets for current property
+                $prop->{word_offset} = $word_offset;
+                $prop->{bit_offset}  = $bit_offset;
+
+                # Update bit offset and check for reaching word boundary
+                $bit_offset += $prop->{bit_width};
+                if ($bit_offset == $BITFIELD_CELL_BITWIDTH) {
+                    $bit_offset = 0;
+                    $word_offset++;
+                }
+
+                # Update property's field index and add it to allocated list
+                $prop->{field_index} = $index++;
+                push @$allocated, $prop;
+
+                # Done with most recent fitting property, exit current scan
+                last;
+            }
+        }
+    }
+
+    # Save total bitfield width to first point info
+    my $first_point = $POINTS_SORTED[0];
+    # XXXX: Is this correct if packer ends exactly on a word boundary?
+    $first_point->{bitfield_width} = $word_offset + 1;
+
+    # Add property code count to header sections and return allocated array
+    $H_SECTIONS->{num_property_codes} = "#define MVM_NUM_PROPERTY_CODES $index\n";
+    return $allocated;
+}
+
 
 ### WRITING FILES
 
@@ -1521,18 +1614,16 @@ sub write_file {
 ### NOT YET REFACTORED
 
 sub rest_of_main {
-    my ($first_point, $hout) = @_;
+    my ($allocated_bitfield_properties, $hout) = @_;
 
     # XXX StandardizedVariants.txt # no clue what this is
 
-    # Allocate all the things
-    progress("done.\nallocating bitfield...");
-    my $allocated_bitfield_properties = allocate_bitfield($first_point);
     # Compute all the things
     progress("done.\ncomputing all properties...");
     compute_properties($allocated_bitfield_properties);
     # Make the things less
     progress("...done.\ncomputing collapsed properties table...");
+    my $first_point = $POINTS_SORTED[0];
     compute_bitfield($first_point);
     # Emit all the things
     progress("...done.\nemitting unicode_db.c...");
@@ -1616,59 +1707,6 @@ sub join_sections {
         $done{$sec} = 1;
     }
     return $content;
-}
-
-sub allocate_bitfield {
-    my ($first_point) = @_;
-    my @biggest = map { $ENUMERATED_PROPERTIES->{$_} }
-        sort { $ENUMERATED_PROPERTIES->{$b}->{bit_width}
-            <=> $ENUMERATED_PROPERTIES->{$a}->{bit_width} }
-            sort keys %$ENUMERATED_PROPERTIES;
-    for (sort keys %$BINARY_PROPERTIES) {
-        push @biggest, $BINARY_PROPERTIES->{$_};
-    }
-    my $word_offset = 0;
-    my $bit_offset = 0;
-    my $allocated = [];
-    my $index = 1;
-    while (@biggest) {
-        my $i = -1;
-        for(;;) {
-            my $prop = $biggest[++$i];
-            if (!$prop) {
-                while (@biggest) {
-                    # ones bigger than 1 byte :(.  Don't prefer these.
-                    $prop = shift @biggest;
-                    $prop->{word_offset} = $word_offset;
-                    $prop->{bit_offset} = $bit_offset;
-                    $bit_offset += $prop->{bit_width};
-                    while ($BITFIELD_CELL_BITWIDTH <= $bit_offset) {
-                        $word_offset++;
-                        $bit_offset -= $BITFIELD_CELL_BITWIDTH;
-                    }
-                    push @$allocated, $prop;
-                    $prop->{field_index} = $index++;
-                }
-                last;
-            }
-            if ($bit_offset + $prop->{bit_width} <= $BITFIELD_CELL_BITWIDTH) {
-                $prop->{word_offset} = $word_offset;
-                $prop->{bit_offset} = $bit_offset;
-                $bit_offset += $prop->{bit_width};
-                if ($bit_offset == $BITFIELD_CELL_BITWIDTH) {
-                    $word_offset++;
-                    $bit_offset = 0;
-                }
-                push @$allocated, $prop;
-                splice(@biggest, $i, 1);
-                $prop->{field_index} = $index++;
-                last;
-            }
-        }
-    }
-    $first_point->{bitfield_width}    = $word_offset + 1;
-    $H_SECTIONS->{num_property_codes} = "#define MVM_NUM_PROPERTY_CODES $index\n";
-    return $allocated;
 }
 
 sub compute_properties {
