@@ -90,6 +90,10 @@ sub main {
     progress_header('Processing enumerated property files');
     process_basic_enumerated_properties();
 
+    progress_header('Building case folding tables');
+    CaseFolding();
+    SpecialCasing();
+
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
     rest_of_main($highest_emoji_version, $hout);
@@ -194,6 +198,16 @@ sub for_each_line {
         # XXXX: Should this skip comment lines with leading whitespace?
         $fn->($line) if $force || $line !~ / ^ (?: [#] | \s* $ ) /x;
     }
+}
+
+# Helper sub for reformatting hex lists that must be at least 3 entries long
+sub hex_triplet {
+    my ($spaced, $sep) = @_;
+    $sep //= ', ';
+
+    my @hex = split ' ', $spaced;
+    push @hex, 0 while @hex < 3;
+    return join $sep, map "0x$_", @hex;
 }
 
 
@@ -1165,6 +1179,112 @@ sub set_hangul_syllable_jamo_names {
 }
 
 
+### CASE FOLDING AND SPECIAL CASE HANDLING
+
+# Build case folding tables for folding types C and F (Common and Full)
+sub CaseFolding {
+    my $simple_count = 1;
+    my $grows_count  = 1;
+    my @simple;
+    my @grows;
+
+    for_each_line 'CaseFolding', sub {
+        $_ = shift;
+        my ($code_str, $type, $mapping) = split / \s* ; \s* /x;
+
+        # Ignore Simple folding maps that differ from Full folding
+        # XXXX: Also ignore Turkic handling of uppercase I / dotted uppercase I
+        return if $type eq 'S' || $type eq 'T';
+
+        # Grab the codepoint to be mapped *from*
+        my $code  = hex $code_str;
+        my $point = $POINTS_BY_CODE->{$code};
+
+        # Common entries are valid for *both* Simple and Full mappings;
+        # otherwise we choose the Full mapping where S and F both exist
+        # but are different.
+        if ($type eq 'C') {
+            push @simple, "0x$mapping";
+            $point->{Case_Folding} = $simple_count++;
+            $point->{Case_Folding_simple} = 1;
+        }
+        else {
+            push @grows, '{' . hex_triplet($mapping, ',') . '}';
+            $point->{Case_Folding} = $grows_count++;
+        }
+    };
+
+    # Finish formatting simple casefolding table and add it to DB_SECTIONS
+    my $simple_out = "static const MVMint32 CaseFolding_simple_table[$simple_count] = {\n"
+                   . "    0x0,\n    "
+                   . stack_lines(\@simple, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)
+                   . "\n};";
+    $DB_SECTIONS->{BBB_CaseFolding_simple} = $simple_out;
+
+    # Finish formatting full (growing) casefolding table and add to DB_SECTIONS
+    my $grows_out = "static const MVMint32 CaseFolding_grows_table[$grows_count][3] = {\n"
+                  . "    {0x0,0x0,0x0},\n    "
+                  . stack_lines(\@grows, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)
+                  . "\n};";
+    $DB_SECTIONS->{BBB_CaseFolding_grows}  = $grows_out;
+
+    # Add to estimate of total bytes required by C tables/structures
+    # XXXX: Where do 8 and 32 come from?  And are they bytes or *bits*?
+    $ESTIMATED_TOTAL_BYTES += $simple_count * 8 + $grows_count * 32;
+
+    # Determine bitfield width required for both folding tables
+    my $max_count = $simple_count >= $grows_count ? $simple_count : $grows_count;
+    my $bit_width = least_int_ge_lg2($max_count);
+
+    # Register an enumerated property for Case_Folding
+    # and a binary property for Case_Folding_simple
+    my $index_base = { name => 'Case_Folding', bit_width => $bit_width };
+    register_enumerated_property('Case_Folding', $index_base);
+    register_binary_property('Case_Folding_simple');
+}
+
+# Process *unconditional* mappings in SpecialCasing file
+sub SpecialCasing {
+    my $count = 1;
+    my @entries;
+    for_each_line 'SpecialCasing', sub {
+        # Parse line into fields
+        $_ = shift;
+        s/ [#] .+ //x;
+        my ($code_str, $lower, $title, $upper, $cond) = split / \s* ; \s* /x;
+
+        # XXXX: Skip processing if mapping is conditional
+        #       (contextual or language-specific)
+        return if $cond;
+
+        # Add a C-formatted entry to the SpecialCasing table
+        push @entries, "{ { "   . hex_triplet($upper) .
+                       " }, { " . hex_triplet($lower) .
+                       " }, { " . hex_triplet($title) .
+                       " } }";
+
+        # Track which SpecialCasing entry matches this codepoint
+        my $code = hex $code_str;
+        $POINTS_BY_CODE->{$code}->{Special_Casing} = $count++;
+    };
+
+    # Finish formatting the C SpecialCasing table and add it to DB_SECTIONS
+    my $out = "static const MVMint32 SpecialCasing_table[$count][3][3] = {\n"
+            . "{0x0,0x0,0x0},\n    "
+            . stack_lines(\@entries, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)
+            . "\n};";
+    $DB_SECTIONS->{BBB_SpecialCasing} = $out;
+
+    # Add to estimate of total bytes required by C tables/structures
+    $ESTIMATED_TOTAL_BYTES += $count * 4 * 3 * 3;
+
+    # Register an enumerated property for Special_Casing
+    my $bit_width  = least_int_ge_lg2($count);
+    my $index_base = { name => 'Special_Casing', bit_width => $bit_width };
+    register_enumerated_property('Special_Casing', $index_base);
+}
+
+
 ### NOT YET REFACTORED
 
 sub rest_of_main {
@@ -1172,8 +1292,6 @@ sub rest_of_main {
 
     goto skip_most if $SKIP_MOST_MODE;
 
-    CaseFolding();
-    SpecialCasing();
     DerivedNormalizationProps();
     # XXX StandardizedVariants.txt # no clue what this is
     grapheme_cluster_break('Grapheme', 'Grapheme_Cluster_Break');
@@ -2499,72 +2617,6 @@ sub is_same {
     }
     return 1;
 }
-sub CaseFolding {
-    my $simple_count = 1;
-    my $grows_count = 1;
-    my @simple;
-    my @grows;
-    for_each_line('CaseFolding', sub { $_ = shift;
-        my ($left_str, $type, $right) = split / \s* ; \s* /x;
-        my $left_code = hex $left_str;
-        return if $type eq 'S' || $type eq 'T';
-        if ($type eq 'C') {
-            push @simple, $right;
-            $POINTS_BY_CODE->{$left_code}->{Case_Folding} = $simple_count;
-            $simple_count++;
-            $POINTS_BY_CODE->{$left_code}->{Case_Folding_simple} = 1;
-        }
-        else {
-            my @parts = split ' ', $right;
-            push @grows, "{0x".($parts[0]).",0x".($parts[1] || 0).",0x".($parts[2] || 0)."}";
-            $POINTS_BY_CODE->{$left_code}->{Case_Folding} = $grows_count;
-            $grows_count++;
-        }
-    });
-    my $simple_out = "static const MVMint32 CaseFolding_simple_table[$simple_count] = {\n    0x0,\n    0x"
-        .stack_lines(\@simple, ",0x", ",\n    0x", 0, $WRAP_TO_COLUMNS)."\n};";
-    my $grows_out = "static const MVMint32 CaseFolding_grows_table[$grows_count][3] = {\n    {0x0,0x0,0x0},\n    "
-        .stack_lines(\@grows, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."\n};";
-    my $bit_width = least_int_ge_lg2($simple_count); # XXX surely this will always be greater?
-    my $index_base = { name => 'Case_Folding', bit_width => $bit_width };
-    register_enumerated_property('Case_Folding', $index_base);
-    register_binary_property('Case_Folding_simple');
-    $ESTIMATED_TOTAL_BYTES += $simple_count * 8 + $grows_count * 32; # XXX guessing 32 here?
-    $DB_SECTIONS->{BBB_CaseFolding_simple} = $simple_out;
-    $DB_SECTIONS->{BBB_CaseFolding_grows}  = $grows_out;
-    return;
-}
-
-sub SpecialCasing {
-    my $count = 1;
-    my @entries;
-    for_each_line('SpecialCasing', sub { $_ = shift;
-        s/ [#] .+ //x;
-        my ($code_str, $lower, $title, $upper, $cond) = split / \s* ; \s* /x;
-        my $code = hex $code_str;
-        return if $cond;
-        sub threesome {
-            my @things = split ' ', shift;
-            push @things, 0 while @things < 3;
-            return join(", ", map { "0x$_" } @things);
-        }
-        push @entries, "{ { " . threesome($upper) .
-                       " }, { " . threesome($lower) .
-                       " }, { " . threesome($title) .
-                       " } }";
-        $POINTS_BY_CODE->{$code}->{Special_Casing} = $count;
-        $count++;
-    });
-    my $out = "static const MVMint32 SpecialCasing_table[$count][3][3] = {\n    {0x0,0x0,0x0},\n    "
-        .stack_lines(\@entries, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."\n};";
-    my $bit_width = least_int_ge_lg2($count);
-    my $index_base = { name => 'Special_Casing', bit_width => $bit_width };
-    register_enumerated_property('Special_Casing', $index_base);
-    $ESTIMATED_TOTAL_BYTES += $count * 4 * 3 * 3;
-    $DB_SECTIONS->{BBB_SpecialCasing} = $out;
-    return;
-}
-
 sub DerivedNormalizationProps {
     my $binary = {
         Full_Composition_Exclusion => 1,
