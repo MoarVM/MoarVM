@@ -112,6 +112,9 @@ sub main {
     my $allocated_bitfield_properties = allocate_property_bitfield();
     pack_codepoint_properties($allocated_bitfield_properties);
 
+    progress_header('Uniquing bitfields to save memory');
+    uniquify_bitfields();
+
     progress_header('Writing quick property macro header');
     macroize_quick_props();
 
@@ -1601,6 +1604,48 @@ sub pack_codepoint_properties {
     }
 }
 
+# Save bitfield space by uniquing and storing just index for each point
+sub uniquify_bitfields {
+    my $index      = 0;
+    my $prophash   = {};
+    my $references = 0;
+    my $last_point = undef;
+
+    for my $point (@POINTS_SORTED) {
+        # Compute uniquing key
+        my $key = join '.', '', map { $_ // 0 } @{$point->{bytes}};
+
+        if (defined(my $refer = $prophash->{$key})) {
+            # If key already seen, just use the original point's index
+            $point->{bitfield_index} = $refer->{bitfield_index};
+            $references++;
+        }
+        else {
+            # Otherwise, set this point as the primary for a new index
+            # XXXX: Why does the index start at 1?
+            $point->{bitfield_index} = ++$index;
+            $prophash->{$key} = $point;
+
+            # Chain together bitfield emitting points
+            $last_point->{next_emit_point} = $point if $last_point;
+            $last_point = $point;
+        }
+    }
+
+    # Compute savings from uniqued structure:
+    #     (size_of_unneeded_bitfields - cost_of_indirection_indexes)
+    my $cell_width = $BITFIELD_CELL_BITWIDTH / 8;
+    my $bf_cells   = $POINTS_SORTED[0]->{bitfield_width};
+    my $bf_size    = $cell_width * $bf_cells;
+    my $index_size = 2; # Indexes packed as MVMuint16 array
+    my $savings    = $bf_size * $references
+                   - $index_size * ($index + $references);
+
+    $TOTAL_BYTES_SAVED += $savings;
+    print "Saved " . commify_thousands($savings)
+        . " bytes by uniquing the bitfield table.\n";
+}
+
 
 ### WRITING FILES
 
@@ -1671,12 +1716,9 @@ sub rest_of_main {
 
     # XXX StandardizedVariants.txt # no clue what this is
 
-    # Make the things less
-    progress("\ncomputing collapsed properties table...");
-    my $first_point = $POINTS_SORTED[0];
-    compute_bitfield($first_point);
     # Emit all the things
-    progress("...done.\nemitting unicode_db.c...");
+    progress("\nemitting unicode_db.c...");
+    my $first_point = $POINTS_SORTED[0];
     emit_bitfield($first_point);
     my $extents = emit_codepoints_and_planes($first_point);
     $DB_SECTIONS->{BBB_case_changes} = emit_case_changes($first_point);
@@ -2693,33 +2735,6 @@ sub emit_composition_lookup {
     # Put it all together and emit.
     my $tables = "$entries\n$l_tables\n$u_tables\n$p_table";
     $DB_SECTIONS->{composition_lookup} = "\n/* Canonical composition lookup tables. */\n$tables";
-    return;
-}
-
-sub compute_bitfield {
-    my $point = shift;
-    my $index = 1;
-    my $prophash = {};
-    my $last_point = undef;
-    my $bytes_saved = 0;
-    while ($point) {
-        my $line = '';
-        $line .= '.'.(defined $_ ? $_ : 0) for @{$point->{bytes}};
-        my $refer;
-        if (defined($refer = $prophash->{$line})) {
-            $bytes_saved += 20;
-            $point->{bitfield_index} = $refer->{bitfield_index};
-        }
-        else {
-            $point->{bitfield_index} = $index++;
-            $prophash->{$line} = $point;
-            $last_point->{next_emit_point} = $point if $last_point;
-            $last_point = $point;
-        }
-        $point = $point->{next_point};
-    }
-    $TOTAL_BYTES_SAVED += $bytes_saved;
-    print "\nSaved ".commify_thousands($bytes_saved)." bytes by uniquing the bitfield table.\n";
     return;
 }
 
