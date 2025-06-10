@@ -104,6 +104,9 @@ sub main {
     progress_header('Tweaking NFG rules');
     tweak_nfg_qc();
 
+    progress_header('Writing quick property macro header');
+    macroize_quick_props();
+
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
     rest_of_main($highest_emoji_version, $hout);
@@ -1425,6 +1428,69 @@ sub tweak_nfg_qc {
 }
 
 
+### WRITING FILES
+
+# Write a C header file for macros for quick lookup properties
+sub macroize_quick_props {
+    # Configure categories to be turned into quick macros
+    my @wanted_val_str = (
+        [ 'gencat_name', 'Zl', 'Zp' ],
+    );
+    my @wanted_val_bool = (
+        [ 'White_Space', 1 ]
+    );
+
+    # Determine which codepoints have each wanted property and value
+    my %gencat_wanted_h;
+    for my $code (sort { $a <=> $b } keys %{$POINTS_BY_CODE}) {
+        for my $cat_data (@wanted_val_str) {
+            my $propname = $cat_data->[0];
+            my $cp_value = $POINTS_BY_CODE->{$code}->{$propname};
+
+            for (my $i = 1; $i < @$cat_data; $i++) {
+                my $pval = $cat_data->[$i];
+                push @{$gencat_wanted_h{$propname . '_' . $pval}}, $code
+                    if $cp_value eq $pval;
+            }
+        }
+        for my $cat_data (@wanted_val_bool) {
+            my $propname = $cat_data->[0];
+            push @{$gencat_wanted_h{$propname}}, $code
+                if $POINTS_BY_CODE->{$code}->{$propname};
+        }
+    }
+    say Dumper(%gencat_wanted_h);
+
+    # Build up array of test macros (MVM_CP_is_*)
+    my @result;
+    for my $pname (sort keys %gencat_wanted_h) {
+        my @text = map "((cp) == $_)", @{$gencat_wanted_h{$pname}};
+
+        # XXXX: Possibly inefficient for White_Space property, which includes ranges
+        push @result, ("#define MVM_CP_is_$pname(cp) (" . join(' || ', @text) . ')');
+    }
+
+    # Write test macros to special C header file
+    write_file("src/strings/unicode_prop_macros.h", (join("\n", @result) . "\n"));
+}
+
+# Spurt UTF-8 contents to a file
+sub write_file {
+    my ($fname, $contents) = @_;
+
+    # Ensure generated files always end with a newline.
+    $contents .= "\n" unless $contents =~ /\n\z/;
+
+    # Open the file for writing with UTF-8 encoding
+    open my $FILE, '>', $fname or croak "Couldn't open file '$fname': $!";
+    binmode $FILE, ':encoding(UTF-8)';
+
+    # Clean up trailing horizontal whitespace, spurt the contents, and close
+    print $FILE trim_trailing($contents);
+    close $FILE;
+}
+
+
 ### NOT YET REFACTORED
 
 sub rest_of_main {
@@ -1432,7 +1498,6 @@ sub rest_of_main {
 
     # XXX StandardizedVariants.txt # no clue what this is
 
-    find_quick_prop_data();
     # Allocate all the things
     progress("done.\nsetting next_point for codepoints");
     my $first_point = set_next_points();
@@ -1471,39 +1536,6 @@ sub rest_of_main {
     print "\nDONE!!!\n\n";
     print "Make sure you update tests in roast by following docs/unicode-generated-tests.asciidoc in the roast repo\n";
     return 1;
-}
-sub find_quick_prop_data {
-    my @wanted_val_str = (
-        [ 'gencat_name', 'Zl', 'Zp' ],
-    );
-    my @wanted_val_bool = (
-        [ 'White_Space', 1 ]
-    );
-    my %gencat_wanted_h;
-    my @result;
-    for my $code (sort { $a <=> $b } keys %{$POINTS_BY_CODE}) {
-        for my $cat_data (@wanted_val_str) {
-            my $propname = $cat_data->[0];
-            my $i;
-            for ($i = 1; $i < @$cat_data; $i++) {
-                my $pval = $cat_data->[$i];
-                push @{$gencat_wanted_h{$propname . "_" . $pval}}, $code if $POINTS_BY_CODE->{$code}->{$propname} eq $pval;
-            }
-        }
-        for my $cat_data (@wanted_val_bool) {
-            my $propname = $cat_data->[0];
-            push @{$gencat_wanted_h{$propname}}, $code if $POINTS_BY_CODE->{$code}->{$propname};
-        }
-    }
-    say Dumper(%gencat_wanted_h);
-    for my $pname (sort keys %gencat_wanted_h) {
-        my @text;
-        for my $cp (@{$gencat_wanted_h{$pname}}) {
-            push @text, "((cp) == $cp)";
-        }
-        push @result, ("#define MVM_CP_is_$pname(cp) (" . join(' || ', @text) . ')');
-    }
-    write_file("src/strings/unicode_prop_macros.h", (join("\n", @result) . "\n"));
 }
 
 sub stack_lines {
@@ -2701,17 +2733,6 @@ sub read_file {
     return \@lines;
 }
 
-sub write_file {
-    my ($fname, $contents) = @_;
-    open my $FILE, '>', $fname or croak "Couldn't open file '$fname': $!";
-    binmode $FILE, ':encoding(UTF-8)';
-    # Ensure generated files always end with a newline.
-    $contents .= "\n"
-        unless $contents =~ /\n\z/;
-    print $FILE trim_trailing($contents);
-    close $FILE;
-    return;
-}
 sub is_same {
     my ($point_1, $point_2) = @_;
     my %things;
