@@ -1459,7 +1459,6 @@ sub macroize_quick_props {
                 if $POINTS_BY_CODE->{$code}->{$propname};
         }
     }
-    say Dumper(%gencat_wanted_h);
 
     # Build up array of test macros (MVM_CP_is_*)
     my @result;
