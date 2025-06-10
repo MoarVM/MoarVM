@@ -1467,8 +1467,15 @@ sub allocate_property_bitfield {
                   sort # Default, by name
                   keys  %$ENUMERATED_PROPERTIES;
 
+    # XXXX: Because int properties are added to BINARY_PROPERTIES in
+    #       register_int_property(), a few larger properties are mixed in here
     for (sort keys %$BINARY_PROPERTIES) {
         push @biggest, $BINARY_PROPERTIES->{$_};
+    }
+
+    if ($DEBUG) {
+        # Display (hopefully) sorted properties
+        printf("-- %2d  %s\n", $_->{bit_width}, $_->{name}) for @biggest;
     }
 
     # State for packing algorithm
