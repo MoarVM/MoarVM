@@ -115,6 +115,9 @@ sub main {
     progress_header('Uniquing bitfields to save memory');
     uniquify_bitfields();
 
+    progress_header('Emitting unicode_db.c chunks');
+    emit_bitfield();
+
     progress_header('Writing quick property macro header');
     macroize_quick_props();
 
@@ -1651,6 +1654,50 @@ sub uniquify_bitfields {
 }
 
 
+### EMITTING UNICODE_DB.C SECTIONS
+
+# Build props_bitfield C table and emit to DB_SECTIONS
+sub emit_bitfield {
+    # Determine starting point and expected bitfield table row width in cells
+    my $point = $POINTS_SORTED[0];
+    my $width = $point->{bitfield_width};
+
+    # Initialize with a starting line of all 0 cells
+    my $line  = join ',', (0) x $width;
+    my @lines = ("{$line}");
+
+    # Build bitfield cell rows and add to bitfield table
+    my $rows  = 1;
+    while ($point) {
+        $line = "/*$rows*/{";
+        my $first = 1;
+        for (my $i = 0; $i < $width; ++$i) {
+            $_ = $point->{bytes}->[$i];
+            $line .= "," unless $first;
+            $first = 0;
+            $line .= defined $_ ? $_."u" : 0;
+        }
+
+        push @$BITFIELD_TABLE, $point;
+        push @lines, ($line . "}/* $point->{code_str} */");
+        $point = $point->{next_emit_point};
+        $rows++;
+    }
+
+    # Calculate worst case packing for bitfield table
+    # (each bitfield padded to the next power of two bytes)
+    my $bytes_wide  = 2;
+       $bytes_wide *= 2 while $bytes_wide < $width;
+    $ESTIMATED_TOTAL_BYTES += $rows * $bytes_wide;
+
+    # Finish formatting props_bitfield table and add to DB_SECTIONS
+    my $val_type = 'MVMuint' . $BITFIELD_CELL_BITWIDTH;
+    my $out = "static const $val_type props_bitfield[$rows][$width] = {\n    "
+            . stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."\n};";
+    $DB_SECTIONS->{BBB_main_bitfield} = $out;
+}
+
+
 ### WRITING FILES
 
 # Write a C header file for macros for quick lookup properties
@@ -1721,9 +1768,7 @@ sub rest_of_main {
     # XXX StandardizedVariants.txt # no clue what this is
 
     # Emit all the things
-    progress("\nemitting unicode_db.c...");
     my $first_point = $POINTS_SORTED[0];
-    emit_bitfield($first_point);
     my $extents = emit_codepoints_and_planes($first_point);
     $DB_SECTIONS->{BBB_case_changes} = emit_case_changes($first_point);
     $DB_SECTIONS->{codepoint_row_lookup} = emit_codepoint_row_lookup($extents);
@@ -2037,47 +2082,6 @@ sub emit_case_changes {
     return $out;
 }
 
-sub emit_bitfield {
-    my $point = shift;
-    my $wide = $point->{bitfield_width};
-    my @lines = ();
-    my $out = '';
-    my $rows = 1;
-    my $line = "{";
-    my $first = 1;
-    my $i = 0;
-    for (; $i < $wide; ++$i) {
-        $line .= "," unless $first;
-        $first = '0';
-        $line .= '0';
-    }
-    push @lines, "$line}";
-    while ($point) {
-        $line = "/*$rows*/{";
-        $first = 1;
-        for ($i = 0; $i < $wide; ++$i) {
-            $_ = $point->{bytes}->[$i];
-            $line .= "," unless $first;
-            $first = 0;
-            $line .= (defined $_ ? $_."u" : 0);
-        }
-        push @$BITFIELD_TABLE, $point;
-        push @lines, ($line . "}/* $point->{code_str} */");
-        $point = $point->{next_emit_point};
-        $rows++;
-    }
-    my $bytes_wide = 2;
-    $bytes_wide *= 2 while $bytes_wide < $wide; # assume the worst
-    $ESTIMATED_TOTAL_BYTES += $rows * $bytes_wide; # we hope it's all laid out with no gaps...
-    my $val_type = ($BITFIELD_CELL_BITWIDTH == 8 || $BITFIELD_CELL_BITWIDTH == 16
-        || $BITFIELD_CELL_BITWIDTH == 32 || $BITFIELD_CELL_BITWIDTH == 64)
-        ? ("MVMuint" . $BITFIELD_CELL_BITWIDTH)
-        : croak("Unknown value of \$BITFIELD_CELL_BITWIDTH: $BITFIELD_CELL_BITWIDTH");
-    $out = "static const $val_type props_bitfield[$rows][$wide] = {\n    ".
-        stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."\n};";
-    $DB_SECTIONS->{BBB_main_bitfield} = $out;
-    return;
-}
 sub is_str_enum {
     my ($prop) = @_;
     return exists $prop->{keys} && (!defined $prop->{type} || $prop->{type} ne 'int');
