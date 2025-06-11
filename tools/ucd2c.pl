@@ -1755,6 +1755,120 @@ sub emit_case_changes {
     $DB_SECTIONS->{BBB_case_changes} = $out;
 }
 
+# Emit entire MVM_codepoint_to_row_index() search routine
+sub emit_codepoint_row_lookup {
+    my $extents = shift;
+
+    # Find first extent past BMP codepoint range
+    my $SMP_start;
+    my $i = 0;
+    for (@$extents) {
+        if (0x10000 <= $_->{code}) {
+            $SMP_start = $i;
+            last;
+        }
+        $i++;
+    }
+
+    # Make first search split at BMP/SMP border to optimize for BMP lookups
+    # being more common, then perform further splits using normal binary search
+    my $upper_split  = int(($SMP_start + @$extents - 1) / 2);
+    my $plane_0      = emit_binary_search_algorithm($extents,
+                           0, 1, $SMP_start - 1, "        ");
+    my $other_planes = emit_binary_search_algorithm($extents,
+                           $SMP_start, $upper_split, @$extents - 1, "            ");
+
+    # Outer template code for MVM_codepoint_to_row_index() C routine
+    # XXXX: It looks like SMP plane tests are just redundant with the codepoint tests
+    chomp(my $out = <<'END');
+static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepoint) {
+
+    MVMint32 plane = codepoint >> 16;
+
+    if (MVM_UNLIKELY(codepoint < 0)) {
+        MVM_exception_throw_adhoc(tc,
+            "Internal Error: MVM_codepoint_to_row_index call requested a synthetic codepoint that does not exist.\n"
+            "Requested synthetic %%"PRId64" when only %%"PRId32" have been created.",
+            -codepoint, tc->instance->nfg->num_synthetics);
+    }
+
+    if (MVM_LIKELY(plane == 0)) {%s
+    }
+    else {
+        if (MVM_UNLIKELY(plane < 0 || plane > 16 || codepoint > 0x10FFFD)) {
+            return -1;
+        }
+        else {%s
+        }
+    }
+}
+END
+
+    # Emit the entire MVM_codepoint_to_row_index() C routine to DB_SECTIONS
+    $DB_SECTIONS->{codepoint_row_lookup} = sprintf $out, $plane_0, $other_planes;
+}
+
+# Recursively emit a (hard coded) binary search across codepoint extents
+# Recursion protocol: start output with a newline; don't end with a newline or indent
+sub emit_binary_search_algorithm {
+    # $extents:   array of heads of gaps, spans, and normal stretches of codepoints
+    # $low/$high: indexes into $extents we're supposed to subdivide
+    my ($extents, $low, $mid, $high, $indent) = @_;
+
+    # Base case: emit the apropriate fate code when low and high meet
+    return emit_extent_fate($extents->[$low], $indent) if $low == $high;
+
+    # Make sure ($mid - 1 >= $low) to avoid incorrect calculations below
+    $mid = $high if $low == $mid;
+
+    # Compute midpoints of low and high sub-ranges
+    my $new_mid_high = int(($high + $mid) / 2);
+    my $new_mid_low  = int(($mid - 1 + $low) / 2);
+
+    # Recurse and collect search code from each sub-range
+    my $high_str = emit_binary_search_algorithm(
+                       $extents, $mid, $new_mid_high, $high,    "    $indent");
+    my $low_str  = emit_binary_search_algorithm(
+                       $extents, $low, $new_mid_low,  $mid - 1, "    $indent");
+
+    # Wrap sub-range code chunks in this level's binary search test
+    my $rtrn = sprintf( <<"END", $extents->[$mid]->{code}, ($extents->[$mid]->{name} || 'NULL'));
+
+${indent}if (codepoint >= 0x%X) { /* %s */$high_str
+${indent}}
+${indent}else {$low_str
+${indent}}
+END
+
+    # chomp before returning to maintain output protocol
+    chomp  $rtrn;
+    return $rtrn;
+}
+
+# Constants
+my $FATE_NORMAL = 0;
+my $FATE_NULL   = 1;
+my $FATE_SPAN   = 2;
+
+# Emit base case fate code for emit_binary_search_algorithm()
+sub emit_extent_fate {
+    my ($fate, $indent) = @_;
+    my $type = $fate->{fate_type};
+
+    if    ($type == $FATE_NULL) {
+        return "\n${indent}return -1;";
+    }
+    elsif ($type == $FATE_SPAN) {
+        return "\n${indent}return " . ($fate->{code} - $fate->{fate_offset}) . "; /*".
+            " $BITFIELD_TABLE->[$fate->{bitfield_index}]->{code_str}" .
+            " $BITFIELD_TABLE->[$fate->{bitfield_index}]->{name} */";
+    }
+    else { # $FATE_NORMAL
+        return "\n${indent}return codepoint - $fate->{fate_offset};" .
+            ($fate->{fate_offset} == 0 ? " /* the fast path */ " : "");
+    }
+}
+
 
 ### WRITING FILES
 
@@ -1828,7 +1942,7 @@ sub rest_of_main {
     # Emit all the things
     my $first_point = $POINTS_SORTED[0];
     my $extents = emit_codepoints_and_planes();
-    $DB_SECTIONS->{codepoint_row_lookup} = emit_codepoint_row_lookup($extents);
+    emit_codepoint_row_lookup($extents);
 
     $hout .= emit_property_value_lookup($allocated_bitfield_properties);
     emit_names_hash_builder($extents);
@@ -1906,47 +2020,6 @@ sub join_sections {
         $done{$sec} = 1;
     }
     return $content;
-}
-
-sub emit_binary_search_algorithm {
-    # $extents is arrayref to the heads of the gaps, spans, and
-    # normal stretches of codepoints. $low and $high are the
-    # indexes into $extents we're supposed to subdivide.
-    # protocol: start output with a newline; don't end with a newline or indent
-    my ($extents, $low, $mid, $high, $indent) = @_;
-    #${indent} /* got  $low  $mid  $high  */\n";
-    return emit_extent_fate($extents->[$low], $indent) if $low == $high;
-    $mid = $high if $low == $mid;
-    my $new_mid_high = int(($high + $mid) / 2);
-    my $new_mid_low = int(($mid - 1 + $low) / 2);
-    my $high_str = emit_binary_search_algorithm($extents, $mid, $new_mid_high,
-        $high, "    $indent");
-    my $low_str = emit_binary_search_algorithm($extents, $low, $new_mid_low,
-        $mid - 1, "    $indent");
-    my $rtrn = sprintf( <<"END", $extents->[$mid]->{code}, ($extents->[$mid]->{name} || 'NULL'));
-
-${indent}if (codepoint >= 0x%X) { /* %s */$high_str
-${indent}}
-${indent}else {$low_str
-${indent}}
-END
-    chomp $rtrn;
-    return $rtrn;
-}
-# Constants
-my $FATE_NORMAL = 0;
-my $FATE_NULL   = 1;
-my $FATE_SPAN   = 2;
-
-sub emit_extent_fate {
-    my ($fate, $indent) = @_;
-    my $type = $fate->{fate_type};
-    return "\n${indent}return -1;" if $type == $FATE_NULL;
-    return "\n${indent}return " . ($fate->{code} - $fate->{fate_offset}) . "; /* ".
-        "$BITFIELD_TABLE->[$fate->{bitfield_index}]->{code_str}".
-        " $BITFIELD_TABLE->[$fate->{bitfield_index}]->{name} */" if $type == $FATE_SPAN;
-    return "\n${indent}return codepoint - $fate->{fate_offset};"
-        . ($fate->{fate_offset} == 0 ? " /* the fast path */ " : "");
 }
 
 sub add_extent {
@@ -2073,52 +2146,11 @@ sub emit_codepoints_and_planes {
         "static const MVMuint16 codepoint_bitfield_indexes[$index] = {\n    ".
             stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS).
             "\n};";
+
     $H_SECTIONS->{codepoint_names_count} = "#define MVM_CODEPOINT_NAMES_COUNT $index";
-    if ($DEBUG) {
-        $LOG =~ s/ ( 'fate_really' \s => \s ) (\d+) /$1$name_lines[$2]/xg;
-    }
-    return $extents
-}
 
-sub emit_codepoint_row_lookup {
-    my $extents = shift;
-    my $SMP_start;
-    my $i = 0;
-    for (@$extents) {
-        # handle the first recursion specially to optimize for most common BMP lookups
-        if (0x10000 <= $_->{code}) {
-            $SMP_start = $i;
-            last;
-        }
-        $i++;
-    }
-    my $plane_0      = emit_binary_search_algorithm($extents, 0, 1, $SMP_start - 1, "        ");
-    my $other_planes = emit_binary_search_algorithm($extents, $SMP_start,
-        int(($SMP_start + @$extents - 1)/2), @$extents - 1, "            ");
-    chomp(my $out = <<'END');
-static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepoint) {
-
-    MVMint32 plane = codepoint >> 16;
-
-    if (MVM_UNLIKELY(codepoint < 0)) {
-        MVM_exception_throw_adhoc(tc,
-            "Internal Error: MVM_codepoint_to_row_index call requested a synthetic codepoint that does not exist.\n"
-            "Requested synthetic %%"PRId64" when only %%"PRId32" have been created.",
-            -codepoint, tc->instance->nfg->num_synthetics);
-    }
-
-    if (MVM_LIKELY(plane == 0)) {%s
-    }
-    else {
-        if (MVM_UNLIKELY(plane < 0 || plane > 16 || codepoint > 0x10FFFD)) {
-            return -1;
-        }
-        else {%s
-        }
-    }
-}
-END
-    return sprintf $out, $plane_0, $other_planes;
+    $LOG =~ s/ ( 'fate_really' \s => \s ) (\d+) /$1$name_lines[$2]/xg if $DEBUG;
+    return $extents;
 }
 
 sub is_str_enum {
