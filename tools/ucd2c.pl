@@ -135,7 +135,7 @@ sub init {
     die "Please run `rakudo tools/USD-download.raku` to build UNIDATA directory\n"
         unless rxd_paths('UNIDATA', 'UNIDATA/UCA', 'UNIDATA/extracted');
 
-    die "Unknown value of \$BITFIELD_CELL_BITWIDTH: $BITFIELD_CELL_BITWIDTH"
+    die "Unknown value of \$BITFIELD_CELL_BITWIDTH: $BITFIELD_CELL_BITWIDTH\n"
         unless $BITFIELD_CELL_BITWIDTH == 8  || $BITFIELD_CELL_BITWIDTH == 16
             || $BITFIELD_CELL_BITWIDTH == 32 || $BITFIELD_CELL_BITWIDTH == 64;
 
