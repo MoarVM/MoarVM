@@ -117,6 +117,7 @@ sub main {
 
     progress_header('Emitting unicode_db.c chunks');
     emit_bitfield();
+    emit_case_changes();
 
     progress_header('Writing quick property macro header');
     macroize_quick_props();
@@ -1697,6 +1698,27 @@ sub emit_bitfield {
     $DB_SECTIONS->{BBB_main_bitfield} = $out;
 }
 
+# Emit suc/slc/stc values at codepoint locations of case changes
+sub emit_case_changes {
+    my @lines = ();
+    my $rows  = 1;
+    for my $point (@POINTS_SORTED) {
+        next unless $point->{Case_Change_Index};
+
+        push @lines, "/*$rows*/{0x" . ($point->{suc} || 0) .
+                              ",0x" . ($point->{slc} || 0) .
+                              ",0x" . ($point->{stc} || 0) .
+                              "}/* $point->{code_str} */";
+        $rows++;
+    }
+
+    my $out = "static const MVMint32 case_changes[$rows][3] = {\n" .
+              "    {0x0,0x0,0x0},\n    " .
+              stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS) .
+              "\n};";
+    $DB_SECTIONS->{BBB_case_changes} = $out;
+}
+
 
 ### WRITING FILES
 
@@ -1769,9 +1791,9 @@ sub rest_of_main {
 
     # Emit all the things
     my $first_point = $POINTS_SORTED[0];
-    my $extents = emit_codepoints_and_planes($first_point);
-    $DB_SECTIONS->{BBB_case_changes} = emit_case_changes($first_point);
+    my $extents = emit_codepoints_and_planes();
     $DB_SECTIONS->{codepoint_row_lookup} = emit_codepoint_row_lookup($extents);
+
     $hout .= emit_property_value_lookup($allocated_bitfield_properties);
     emit_names_hash_builder($extents);
     my $prop_codes = emit_unicode_property_keypairs();
@@ -2061,25 +2083,6 @@ static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepo
 }
 END
     return sprintf $out, $plane_0, $other_planes;
-}
-
-sub emit_case_changes {
-    my $point = shift;
-    my @lines = ();
-    my $out = '';
-    my $rows = 1;
-    while ($point) {
-        unless ($point->{Case_Change_Index}) {
-            $point = $point->{next_point};
-            next;
-        }
-        push @lines, "/*$rows*/{0x".($point->{suc}||0).",0x".($point->{slc}||0).",0x".($point->{stc}||0)."}/* $point->{code_str} */";
-        $point = $point->{next_point};
-        $rows++;
-    }
-    $out = "static const MVMint32 case_changes[$rows][3] = {\n    {0x0,0x0,0x0},\n    ".
-        stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."\n};";
-    return $out;
 }
 
 sub is_str_enum {
