@@ -303,6 +303,42 @@ sub apply_to_cp_range {
     }
 }
 
+# Determine whether two points are the same aside from ignorable keys
+sub points_are_same {
+    my ($point_1, $point_2) = @_;
+
+    # Return 0 early by simply checking the name. If the names match or don't
+    # exist, we'll need to do more work to determine if the points are equal
+    return 0 if defined $point_1->{name}
+             && defined $point_2->{name}
+             && $point_1->{name} ne $point_2->{name};
+
+    # Find union of point structure keys
+    my %things;
+    for my $key (keys %$point_1, keys %$point_2) {
+        $things{$key} = 1;
+    }
+
+    # For each key in union, either purposely ignore or verify identical values
+    for my $key (keys %things) {
+        # Ignorable keys
+        # XXXX: If bitfield_index is ignorable, why does the caller
+        #       (emit_codepoints_and_planes()) compare it explicitly?
+        next if $key eq 'code'  || $key eq 'code_str'  || $key eq 'next_point'
+             || $key eq 'bytes' || $key eq 'main_index'|| $key eq 'bitfield_index'
+             || $key eq 'fate_type' || $key eq 'fate_really' || $key eq 'fate_offset'
+             || $key eq 'next_emit_point';
+
+        # Return false if no match on non-ignorable key
+        return 0 unless defined $point_1->{$key}
+                     && defined $point_2->{$key}
+                     && $point_1->{$key} eq $point_2->{$key};
+    }
+
+    # No non-ignorable mismatches; return true
+    return 1;
+}
+
 
 ### SEQUENCE PROCESSING
 
@@ -2811,28 +2847,6 @@ sub read_file {
     my @lines = <$FILE>;
     close $FILE;
     return \@lines;
-}
-
-sub is_same {
-    my ($point_1, $point_2) = @_;
-    my %things;
-    # Return early by simply checking the name. If the names match or don't
-    # exist, we need to do more work to determine if the points are equal
-    if (defined $point_1->{name} and defined $point_2->{name} and $point_1->{name} ne $point_2->{name}) {
-        return 0;
-    }
-    for my $key (keys %$point_1, keys %$point_2) {
-        $things{$key} = 1;
-    }
-    for my $key (keys %things) {
-        next if $key eq 'code' || $key eq 'code_str' || $key eq 'next_point' || $key eq 'main_index'
-        || $key eq 'next_emit_point' || $key eq 'bytes' || $key eq 'bitfield_index'
-        || $key eq 'fate_type' || $key eq 'fate_really' || $key eq 'fate_offset';
-        unless (defined $point_1->{$key} && defined $point_2->{$key} && $point_1->{$key} eq $point_2->{$key}) {
-            return 0;
-        }
-    }
-    return 1;
 }
 
 
