@@ -118,13 +118,15 @@ sub main {
     progress_header('Emitting unicode_db.c chunks');
     emit_bitfield();
     emit_case_changes();
+    my $extents = emit_codepoint_extents_and_indexes();
+    emit_codepoint_row_lookup($extents);
 
     progress_header('Writing quick property macro header');
     macroize_quick_props();
 
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
-    rest_of_main($allocated_bitfield_properties, $hout);
+    rest_of_main($allocated_bitfield_properties, $hout, $extents);
 }
 
 # Startup checks and init
@@ -323,7 +325,7 @@ sub points_are_same {
     for my $key (keys %things) {
         # Ignorable keys
         # XXXX: If bitfield_index is ignorable, why does the caller
-        #       (emit_codepoints_and_planes()) compare it explicitly?
+        #       (emit_codepoint_extents_and_indexes()) compare it explicitly?
         next if $key eq 'code'  || $key eq 'code_str'  || $key eq 'next_point'
              || $key eq 'bytes' || $key eq 'main_index'|| $key eq 'bitfield_index'
              || $key eq 'fate_type' || $key eq 'fate_really' || $key eq 'fate_offset'
@@ -1755,6 +1757,218 @@ sub emit_case_changes {
     $DB_SECTIONS->{BBB_case_changes} = $out;
 }
 
+# Constants for codepoint extent fates
+my $FATE_NORMAL = 0;
+my $FATE_NULL   = 1;
+my $FATE_SPAN   = 2;
+
+# Determine matching codepoint span/gap extents and emit name/bitfield indexes
+sub emit_codepoint_extents_and_indexes {
+    # Initialize emitter state
+    my $index       = 0;
+    my $bytes       = 0;
+    my $bytes_saved = 0;
+    my $code_offset = 0;
+    my $span_length = 0;
+    my $last_code   = -1; # trick
+    my $last_point  = undef;
+    my $point_toadd = undef;
+
+    # Helper routine to set fate-related keys on a point
+    # (unusual syntax used to keep $code_offset shared properly)
+    *set_point_fate = sub {
+        my ($point, $fate)    = @_;
+        $point->{fate_type}   = $fate;
+        $point->{fate_offset} = $code_offset;
+        $point->{fate_really} = $point->{code} - $code_offset;
+    };
+
+    # Collected array entries filled with ecap_push_name_line()
+    my @bitfield_index_lines;
+    my @name_lines;
+
+    # The first codepoint is normal
+    my $first_point = $POINTS_SORTED[0];
+    $first_point->{fate_type}   = $FATE_NORMAL;
+    $first_point->{fate_offset} = $code_offset;
+
+    # Extents begin with the first point
+    my $extents = [];
+    add_extent($extents, $first_point);
+
+    # Work through points in order, building up extents and setting fates
+    for my $point (@POINTS_SORTED) {
+        # Extremely simplistic compression of identical neighbors and gaps; we
+        # have a possibly compressible span if the current point is identical
+        # to the previous point (transitive back to last_point, the span start)
+        if ($COMPRESS_CODEPOINTS
+            && $last_point
+            && $last_code == $point->{code} - 1
+            && $last_point->{bitfield_index} == $point->{bitfield_index}
+            && points_are_same($last_point, $point)) {
+
+            # Extend the current span or create a new one
+            ++$last_code;
+            $span_length += 1 + !$span_length;
+
+            # Continue checking for span extension with next point
+            next;
+        }
+
+        # If a span was started but has now ended ...
+        if ($span_length) {
+            # ... check if the span length was enough to compress
+            if ($SPAN_LENGTH_THRESHOLD <= $span_length) {
+                # If the span turned out long enough, encode it as a real span
+
+                # If last_point doesn't have a fate yet, it starts a new extent
+                add_extent($extents, $last_point) if !defined($last_point->{fate_type});
+
+                # Update code_offset to correct value to set in last_point
+                $code_offset = $last_point->{code} - @name_lines + 1;
+                set_point_fate($last_point, $FATE_SPAN);
+
+                # Skip forward over span
+                $code_offset += $span_length - 1;
+
+                # 10 = 8 (64-bit pointer) + 2 (bitfield index), per skipped entry
+                $bytes_saved += 10 * ($span_length - 1);
+
+                # Remember the current point to add below, since it broke the span
+                $point_toadd = $point;
+            }
+            else {
+                # Otherwise the span turned out too short, so just treat
+                # the undersized span as normal (uncompressed) codepoints
+                for (; 1 < $span_length; $span_length--) {
+                    # Catch last_point up to last_code one point at a time,
+                    # emitting each point's name and bitfield individually
+                    $last_point = $last_point->{next_point};
+                    $bytes += ecap_push_name_line(\@name_lines, $last_point->{name},
+                                                  $last_point, \@bitfield_index_lines,
+                                                  \$index);
+                }
+            }
+
+            # Reset to be ready for next span
+            $span_length = 0;
+        }
+
+        # If there is a gap that either crosses a plane boundary or is
+        # longer than GAP_LENGTH_THRESHOLD, compress as a FATE_NULL extent
+        if ($COMPRESS_CODEPOINTS
+            && $last_code < $point->{code} - ($point->{code} % 0x10000 ? $GAP_LENGTH_THRESHOLD : 1)) {
+            # 10 = 8 (64-bit pointer) + 2 (bitfield index), per skipped entry
+            $bytes_saved += 10 * ($point->{code} - $last_code - 1);
+
+            # Add a gap extent with FATE_NULL starting just after last_code
+            add_extent($extents, { fate_type => $FATE_NULL,
+                                   code => $last_code + 1 });
+
+            # Update code_offset and last_code to jump over the gap
+            $code_offset += $point->{code} - $last_code - 1;
+            $last_code    = $point->{code} - 1;
+
+            # Remember to add the current point below, since it ended the gap
+            $point_toadd  = $point;
+        }
+
+        # If last_code is not caught up (== only 1 code behind) point->{code},
+        # catch up by emitting a series of unnamed codepoint entries
+        for (; $last_code < $point->{code} - 1; $last_code++) {
+            $bytes += ecap_push_name_line(\@name_lines, undef, $point,
+                                          \@bitfield_index_lines, \$index);
+        }
+
+        # Verify the algorithm above has gotten us to a synced position
+        croak "last_code $last_code != point->{code} - 1; Point: " . Dumper($point)
+            unless $last_code == $point->{code} - 1;
+
+        # If there is a pending point from the end of a span or gap compression
+        # and it doesn't have a fate yet, it should have FATE_NORMAL and start
+        # a new extent
+        if ($point_toadd && !exists($point_toadd->{fate_type})) {
+            set_point_fate($point_toadd, $FATE_NORMAL);
+            add_extent($extents, $point_toadd);
+        }
+        $point_toadd = undef;
+
+        # A normal codepoint that we don't want to compress; it needs lines
+        # in the names and bitfield index tables
+        $bytes += ecap_push_name_line(\@name_lines, $point->{name}, $point,
+                                      \@bitfield_index_lines, \$index);
+
+        # XXXX: Is this still used?
+        $point->{main_index} = $index;
+
+        # Update last_point and last_code to the point we just processed
+        $last_point = $point;
+        $last_code  = $point->{code};
+    }
+
+    print "Saved " . commify_thousands($bytes_saved) .
+          " bytes by compressing big spans and gaps into a binary search lookup.\n";
+
+    # Update global bytes saved and spent totals
+    $TOTAL_BYTES_SAVED     += $bytes_saved;
+    $ESTIMATED_TOTAL_BYTES += $bytes;
+
+    # Finish formatting names and bitfield_indexes tables and add to DB_SECTIONS
+    $DB_SECTIONS->{BBB_codepoint_names} =
+        "static const char *codepoint_names[$index] = {\n    ".
+            stack_lines(\@name_lines, ",", ",\n    ", 0, 0).
+            "\n};";
+    $DB_SECTIONS->{BBB_codepoint_bitfield_indexes} =
+        "static const MVMuint16 codepoint_bitfield_indexes[$index] = {\n    ".
+            stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS).
+            "\n};";
+
+    # Emit count of codepoint names to header file
+    $H_SECTIONS->{codepoint_names_count} = "#define MVM_CODEPOINT_NAMES_COUNT $index";
+
+    # Convert indexes to names in DEBUG log
+    $LOG =~ s/ ( 'fate_really' \s => \s ) (\d+) /$1$name_lines[$2]/xg if $DEBUG;
+
+    # Return extents for further processing
+    return $extents;
+}
+
+# Debug logging hook for extent-push operation
+sub add_extent {
+    my ($extents, $extent) = @_;
+    if ($DEBUG) {
+        $LOG .= "\n" . join '',
+            grep { / code | fate | name | bitfield /x }
+                sort(split / ^ /xm, "EXTENT " . Dumper($extent));
+    }
+    push @$extents, $extent;
+}
+
+# Used in emit_codepoint_extents_and_indexes() to push the codepoint's name and index
+sub ecap_push_name_line {
+    my ($name_lines, $name, $point, $bitfield_index_lines, $index_rw) = @_;
+
+    my $bytes;
+    if (!defined $name) {
+        # No name string, so null pointer (accounted below) is only cost of name
+        $bytes = 0;
+        push @$name_lines,           "NULL";
+        push @$bitfield_index_lines, "0";
+    }
+    else {
+        # Name string present, costing length + 1 (for the trailing NULL byte) bytes
+        # itself, and the pointer will be accounted below
+        $bytes = length($point->{name}) + 1;
+        push @$name_lines, "/*$$index_rw*/\"$point->{name}\"/* $point->{code_str} */";
+        push @$bitfield_index_lines, "/*$$index_rw*/$point->{bitfield_index}/* $point->{code_str} */";
+    }
+    ++$$index_rw;
+
+    $bytes += 2; # Assuming indexes compacted since they are trivially aligned
+    $bytes += 8; # 64-bit pointer to actual name string (or null pointer)
+    return $bytes;
+}
+
 # Emit entire MVM_codepoint_to_row_index() search routine
 sub emit_codepoint_row_lookup {
     my $extents = shift;
@@ -1845,11 +2059,6 @@ END
     return $rtrn;
 }
 
-# Constants
-my $FATE_NORMAL = 0;
-my $FATE_NULL   = 1;
-my $FATE_SPAN   = 2;
-
 # Emit base case fate code for emit_binary_search_algorithm()
 sub emit_extent_fate {
     my ($fate, $indent) = @_;
@@ -1935,15 +2144,11 @@ sub write_file {
 ### NOT YET REFACTORED
 
 sub rest_of_main {
-    my ($allocated_bitfield_properties, $hout) = @_;
+    my ($allocated_bitfield_properties, $hout, $extents) = @_;
 
     # XXX StandardizedVariants.txt # no clue what this is
 
     # Emit all the things
-    my $first_point = $POINTS_SORTED[0];
-    my $extents = emit_codepoints_and_planes();
-    emit_codepoint_row_lookup($extents);
-
     $hout .= emit_property_value_lookup($allocated_bitfield_properties);
     emit_names_hash_builder($extents);
     my $prop_codes = emit_unicode_property_keypairs();
@@ -2021,138 +2226,6 @@ sub join_sections {
     }
     return $content;
 }
-
-sub add_extent {
-    my ($extents, $extent) = @_;
-    if ($DEBUG) {
-        $LOG .= "\n" . join '',
-            grep { / code | fate | name | bitfield /x }
-                sort(split / ^ /xm, "EXTENT " . Dumper($extent));
-    }
-    push @$extents, $extent;
-    return;
-}
-# Used in emit_codepoints_and_planes to push the codepoints name onto bitfield_index_lines
-sub ecap_push_name_line {
-    my ($name_lines, $name, $point, $bitfield_index_lines, $index) = @_;
-    my $bytes;
-    if (!defined $name) {
-        push @$bitfield_index_lines, "0";
-        push @$name_lines, "NULL";
-    }
-    else {
-        $bytes = length($point->{name}) + 1; # length + 1 for the NULL
-        push @$bitfield_index_lines, "/*$$index*/$point->{bitfield_index}/* $point->{code_str} */";
-        push @$name_lines, "/*$$index*/\"$point->{name}\"/* $point->{code_str} */";
-    }
-    ++$$index;
-    $bytes += 2; # hopefully these are compacted since they are trivially aligned being two bytes
-    $bytes += 8; # 8 for the pointer
-    return $bytes;
-}
-sub emit_codepoints_and_planes {
-    my ($first_point) = @_;
-    my @bitfield_index_lines;
-    my $index = 0;
-    my $bytes = 0;
-    my $bytes_saved = 0;
-    my $code_offset = 0;
-    my $extents = [];
-    my $last_code = -1; # trick
-    my $last_point = undef;
-    $first_point->{fate_type} = $FATE_NORMAL;
-    $first_point->{fate_offset} = $code_offset;
-    add_extent $extents, $first_point;
-    my $span_length = 0;
-
-    # a bunch of spaghetti code.  Yes.
-    my $toadd = undef;
-    my @name_lines;
-    for my $point (@POINTS_SORTED) {
-        # extremely simplistic compression of identical neighbors and gaps
-        # this point is identical to the previous point
-        if ($COMPRESS_CODEPOINTS && $last_point
-                && $last_code == $point->{code} - 1
-                && is_same($last_point, $point)
-                && $last_point->{bitfield_index} == $point->{bitfield_index}) {
-            # create a or extend the current span
-            ++$last_code;
-            if ($span_length) {
-                ++$span_length;
-            }
-            else {
-                $span_length = 2;
-            }
-            next;
-        }
-
-        # the span ended, either bridge it or skip it
-        if ($span_length) {
-            if ($SPAN_LENGTH_THRESHOLD <= $span_length) {
-                $bytes_saved += 10 * ($span_length - 1);
-                add_extent $extents, $last_point if !defined($last_point->{fate_type});
-                $code_offset = $last_point->{code} - @name_lines + 1;
-                $last_point->{fate_type}   = $FATE_SPAN;
-                $last_point->{fate_offset} = $code_offset;
-                $last_point->{fate_really} = $last_point->{code} - $code_offset;
-                $code_offset += $span_length - 1;
-                $toadd = $point;
-                $span_length = 0;
-            }
-            for (; 1 < $span_length; $span_length--) {
-                # catch up to last code
-                $last_point = $last_point->{next_point};
-                $bytes += ecap_push_name_line(\@name_lines, $last_point->{name}, $last_point, \@bitfield_index_lines, \$index);
-            }
-            $span_length = 0;
-        }
-
-        if ($COMPRESS_CODEPOINTS
-                && $last_code < $point->{code} - ($point->{code} % 0x10000 ? $GAP_LENGTH_THRESHOLD : 1)) {
-            $bytes_saved += 10 * ($point->{code} - $last_code - 1);
-            add_extent $extents, { fate_type => $FATE_NULL,
-                code => $last_code + 1 };
-            $code_offset += ($point->{code} - $last_code - 1);
-            $last_code = $point->{code} - 1;
-            $toadd = $point;
-        }
-        for (; $last_code < $point->{code} - 1; $last_code++) {
-            $bytes += ecap_push_name_line(\@name_lines, undef, $point, \@bitfield_index_lines, \$index);
-        }
-
-        croak "$last_code  " . Dumper($point) unless $last_code == $point->{code} - 1;
-        if ($toadd && !exists($point->{fate_type})) {
-            $point->{fate_type}   = $FATE_NORMAL;
-            $point->{fate_offset} = $code_offset;
-            $point->{fate_really} = $point->{code} - $code_offset;
-            add_extent $extents, $point;
-        }
-        $toadd = undef;
-        # a normal codepoint that we don't want to compress
-        $bytes += ecap_push_name_line(\@name_lines, $point->{name}, $point, \@bitfield_index_lines, \$index);
-        $last_code = $point->{code};
-        $point->{main_index} = $index;
-        $last_point = $point;
-    }
-    print "\nSaved " . commify_thousands($bytes_saved) . " bytes by compressing big gaps into a binary search lookup.\n";
-    $TOTAL_BYTES_SAVED += $bytes_saved;
-    $ESTIMATED_TOTAL_BYTES += $bytes;
-    # jnthn: Would it still use the same amount of memory to combine these tables? XXX
-    $DB_SECTIONS->{BBB_codepoint_names} =
-        "static const char *codepoint_names[$index] = {\n    ".
-            stack_lines(\@name_lines, ",", ",\n    ", 0, 0).
-            "\n};";
-    $DB_SECTIONS->{BBB_codepoint_bitfield_indexes} =
-        "static const MVMuint16 codepoint_bitfield_indexes[$index] = {\n    ".
-            stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS).
-            "\n};";
-
-    $H_SECTIONS->{codepoint_names_count} = "#define MVM_CODEPOINT_NAMES_COUNT $index";
-
-    $LOG =~ s/ ( 'fate_really' \s => \s ) (\d+) /$1$name_lines[$2]/xg if $DEBUG;
-    return $extents;
-}
-
 sub is_str_enum {
     my ($prop) = @_;
     return exists $prop->{keys} && (!defined $prop->{type} || $prop->{type} ne 'int');
