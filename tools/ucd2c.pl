@@ -244,6 +244,59 @@ sub hex_triplet {
     return join $sep, map "0x$_", @hex;
 }
 
+# Simplified wrapper for stack_lines_general()
+sub stack_lines {
+    my ($lines, $wrap) = @_;
+    $wrap //= $WRAP_TO_COLUMNS;
+
+    return stack_lines_general($lines, ',', ",\n    ", 0, $wrap);
+}
+
+# Interleave @$lines with separator $sep, using a different
+# separator $break every $num lines or when $wrap columns is reached
+#
+# Despite an attempt to overgeneralize, this was originally called with
+# *identical* magical configuration in all but one case.  This is now called
+# via a simplification wrapper as just stack_lines($array_ref).
+sub stack_lines_general {
+    my ($lines, $sep, $break, $num, $wrap) = @_;
+
+    my $i          = 1;
+    my $out        = '';
+    my $first      = 1;
+    my $length     = 0;
+    my $sep_length = length($sep);
+
+    # Iterate over lines, joining with $sep or $break as appropriate
+    for (@$lines) {
+        my $line_length = length($_);
+
+        # On the very first iteration, don't add a separator of any kind
+        if ($first) {
+            $first = 0;
+            $length = $line_length;
+        }
+        else {
+            # Check whether the rules allow a $sep; otherwise use a $break
+            if (   $num  && ($i++ % $num)
+                || $wrap && $length + $sep_length + $line_length <= $wrap) {
+                $out    .= $sep;
+                $length += $sep_length + $line_length;
+            }
+            else {
+                $out .= $break;
+                $length = $line_length;
+            }
+        }
+
+        # Then just append the actual original line
+        $out .= $_;
+    }
+
+    # Return the stacked lines as a single long string
+    return $out;
+}
+
 
 ### CODEPOINT UTILITY ROUTINES
 
@@ -2160,47 +2213,6 @@ sub rest_of_main {
     print "\nDONE!!!\n\n";
     print "Make sure you update tests in roast by following docs/unicode-generated-tests.asciidoc in the roast repo\n";
     return 1;
-}
-
-# Simplified wrapper for stack_lines_general()
-sub stack_lines {
-    my ($lines, $wrap) = @_;
-    $wrap //= $WRAP_TO_COLUMNS;
-
-    return stack_lines_general($lines, ',', ",\n    ", 0, $wrap);
-}
-
-# Despite an attempt to overgeneralize, this was originally called with
-# identical magical configuration in all but one case.  This is now called
-# via a simplification wrapper as just stack_lines($array_ref).
-sub stack_lines_general {
-    # interleave @$lines with separator $sep, using a different
-    # separator $break every $num lines or when $wrap columns is reached
-    my ($lines, $sep, $break, $num, $wrap) = @_;
-    my $i = 1;
-    my $out = "";
-    my $first = 1;
-    my $length = 0;
-    my $sep_length = length($sep);
-    for (@$lines) {
-        my $line_length = length($_);
-        if ($first) {
-            $first = 0;
-            $length = $line_length;
-        }
-        else {
-            if ($num && ($i++ % $num) || $wrap && $length + $sep_length + $line_length <= $wrap) {
-                $out .= $sep;
-                $length += $sep_length + $line_length;
-            }
-            else {
-                $out .= $break;
-                $length = $line_length;
-            }
-        }
-        $out .= $_;
-    }
-    return $out;
 }
 
 sub join_sections {
