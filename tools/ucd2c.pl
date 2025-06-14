@@ -1287,16 +1287,12 @@ sub CaseFolding {
 
     # Finish formatting simple casefolding table and add it to DB_SECTIONS
     my $simple_out = "static const MVMint32 CaseFolding_simple_table[$simple_count] = {\n"
-                   . "    0x0,\n    "
-                   . stack_lines(\@simple, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)
-                   . "\n};";
+                   . "    0x0,\n    " . stack_lines(\@simple) . "\n};";
     $DB_SECTIONS->{BBB_CaseFolding_simple} = $simple_out;
 
     # Finish formatting full (growing) casefolding table and add to DB_SECTIONS
     my $grows_out = "static const MVMint32 CaseFolding_grows_table[$grows_count][3] = {\n"
-                  . "    {0x0,0x0,0x0},\n    "
-                  . stack_lines(\@grows, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)
-                  . "\n};";
+                  . "    {0x0,0x0,0x0},\n    "  . stack_lines(\@grows) . "\n};";
     $DB_SECTIONS->{BBB_CaseFolding_grows}  = $grows_out;
 
     # Add to estimate of total bytes required by C tables/structures
@@ -1341,9 +1337,7 @@ sub SpecialCasing {
 
     # Finish formatting the C SpecialCasing table and add it to DB_SECTIONS
     my $out = "static const MVMint32 SpecialCasing_table[$count][3][3] = {\n"
-            . "{0x0,0x0,0x0},\n    "
-            . stack_lines(\@entries, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)
-            . "\n};";
+            . "{0x0,0x0,0x0},\n    " . stack_lines(\@entries) . "\n};";
     $DB_SECTIONS->{BBB_SpecialCasing} = $out;
 
     # Add to estimate of total bytes required by C tables/structures
@@ -1732,7 +1726,7 @@ sub emit_bitfield {
     # Finish formatting props_bitfield table and add to DB_SECTIONS
     my $val_type = 'MVMuint' . $BITFIELD_CELL_BITWIDTH;
     my $out = "static const $val_type props_bitfield[$rows][$width] = {\n    "
-            . stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS)."\n};";
+            . stack_lines(\@lines) . "\n};";
     $DB_SECTIONS->{BBB_main_bitfield} = $out;
 }
 
@@ -1751,9 +1745,7 @@ sub emit_case_changes {
     }
 
     my $out = "static const MVMint32 case_changes[$rows][3] = {\n" .
-              "    {0x0,0x0,0x0},\n    " .
-              stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS) .
-              "\n};";
+              "    {0x0,0x0,0x0},\n    " . stack_lines(\@lines) . "\n};";
     $DB_SECTIONS->{BBB_case_changes} = $out;
 }
 
@@ -1916,12 +1908,10 @@ sub emit_codepoint_extents_and_indexes {
     # Finish formatting names and bitfield_indexes tables and add to DB_SECTIONS
     $DB_SECTIONS->{BBB_codepoint_names} =
         "static const char *codepoint_names[$index] = {\n    ".
-            stack_lines(\@name_lines, ",", ",\n    ", 0, 0).
-            "\n};";
+            stack_lines(\@name_lines, 0) . "\n};";
     $DB_SECTIONS->{BBB_codepoint_bitfield_indexes} =
         "static const MVMuint16 codepoint_bitfield_indexes[$index] = {\n    ".
-            stack_lines(\@bitfield_index_lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS).
-            "\n};";
+            stack_lines(\@bitfield_index_lines) . "\n};";
 
     # Emit count of codepoint names to header file
     $H_SECTIONS->{codepoint_names_count} = "#define MVM_CODEPOINT_NAMES_COUNT $index";
@@ -2172,7 +2162,18 @@ sub rest_of_main {
     return 1;
 }
 
+# Simplified wrapper for stack_lines_general()
 sub stack_lines {
+    my ($lines, $wrap) = @_;
+    $wrap //= $WRAP_TO_COLUMNS;
+
+    return stack_lines_general($lines, ',', ",\n    ", 0, $wrap);
+}
+
+# Despite an attempt to overgeneralize, this was originally called with
+# identical magical configuration in all but one case.  This is now called
+# via a simplification wrapper as just stack_lines($array_ref).
+sub stack_lines_general {
     # interleave @$lines with separator $sep, using a different
     # separator $break every $num lines or when $wrap columns is reached
     my ($lines, $sep, $break, $num, $wrap) = @_;
@@ -2659,9 +2660,9 @@ struct MVMUnicodeNamedValue {
 
 END
     $hout .= "#define num_unicode_property_keypairs " . scalar(@lines) . "\n";
-    my $out = "\nstatic const MVMUnicodeNamedValue unicode_property_keypairs[" . scalar(@lines) . "] = {\n" .
-    "    " . stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS) . "\n" .
-    "};";
+    my $out = "\nstatic const MVMUnicodeNamedValue unicode_property_keypairs["
+            . scalar(@lines) . "] = {\n"
+            . "    " . stack_lines(\@lines) . "\n};";
     $DB_SECTIONS->{BBB_unicode_property_keypairs} = $out;
     $H_SECTIONS->{MVMUnicodeNamedValue} = $hout;
     return $prop_codes;
@@ -2798,10 +2799,9 @@ sub emit_unicode_property_value_keypairs {
             $done{"$propname$_"} ||= push @lines, $lines{$propname}->{$_};
         }
     }
-    my $out = "\n" .
-    "static const MVMUnicodeNamedValue unicode_property_value_keypairs[" . scalar(@lines) . "] = {\n" .
-    "    " . stack_lines(\@lines, ",", ",\n    ", 0, $WRAP_TO_COLUMNS) . "\n" .
-    "};";
+    my $out = "\nstatic const MVMUnicodeNamedValue unicode_property_value_keypairs["
+            . scalar(@lines) . "] = {\n"
+            . "    " . stack_lines(\@lines) . "\n};";
     $DB_SECTIONS->{BBB_unicode_property_value_keypairs} = $out;
     return "\n#define num_unicode_property_value_keypairs " . scalar(@lines) . "\n";
 }
