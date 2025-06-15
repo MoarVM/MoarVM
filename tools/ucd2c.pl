@@ -51,9 +51,6 @@ my $PROPERTY_INDEX         = 0;
 sub main {
     init();
 
-    progress_header('Building header');
-    $DB_SECTIONS->{'AAA_header'} = header();
-
     progress_header('Processing sequences');
     my ($emoji_versions, $hout) = process_sequences();
     my  $highest_emoji_version  = $emoji_versions->[-1];
@@ -116,6 +113,7 @@ sub main {
     uniquify_bitfields();
 
     progress_header('Emitting unicode_db.c chunks');
+    $DB_SECTIONS->{'AAA_header'} = header();
     emit_bitfield();
     emit_case_changes();
     my $extents = emit_codepoint_extents_and_indexes();
