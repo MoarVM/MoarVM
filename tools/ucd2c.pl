@@ -118,6 +118,7 @@ sub main {
     emit_case_changes();
     my $extents = emit_codepoint_extents_and_indexes();
     emit_codepoint_row_lookup($extents);
+    $hout .= emit_property_value_lookup($allocated_bitfield_properties);
 
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
@@ -889,6 +890,24 @@ sub register_union {
     push @$gc_alias_checkers, sub {
         return ((shift) =~ /^(?:$unionof)$/) ? $unionname : 0;
     };
+}
+
+# Check if a property is an enumeration of any sort
+sub is_enum {
+    my ($prop) = @_;
+    return exists $prop->{keys};
+}
+
+# Check if a property is an int enumeration
+sub is_int_enum {
+    my ($prop) = @_;
+    return exists $prop->{keys} && defined $prop->{type} && $prop->{type} eq 'int';
+}
+
+# Check if a property is a string enumeration (enum + !int)
+sub is_str_enum {
+    my ($prop) = @_;
+    return exists $prop->{keys} && !(defined $prop->{type} && $prop->{type} eq 'int');
 }
 
 
@@ -2143,6 +2162,246 @@ sub emit_extent_fate {
     }
 }
 
+# Emit property value lookups based on allocated bitfield properties
+sub emit_property_value_lookup {
+    my ($allocated) = @_;
+
+    # Emit hardcoded section of MVM_unicode_get_property_str()
+    chomp(my $str_out = <<'END');
+
+static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepoint);
+
+static const char *bogus = "<BOGUS>"; /* only for table too short; return null string for no mapping */
+
+static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
+    MVMuint32 switch_val = (MVMuint32)property_code;
+    MVMint32 result_val = 0; /* we'll never have negatives, but so */
+    MVMint32 codepoint_row;
+    MVMuint16 bitfield_row = 0;
+
+    if (switch_val == MVM_UNICODE_PROPERTY_BLOCK) {
+        MVMint32 ord = codepoint;
+        struct UnicodeBlock *block = bsearch(&ord, unicode_blocks, sizeof(unicode_blocks) / sizeof(struct UnicodeBlock), sizeof(struct UnicodeBlock), block_compare);
+        int num = ((char*)block - (char*)unicode_blocks) / sizeof(struct UnicodeBlock);
+        if (block) {
+            return block ? Block_enums[num+1] : Block_enums[0];
+        }
+    }
+    codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
+    if (codepoint_row == -1) { /* non-existent codepoint; XXX should throw? */
+        if (0x10FFFF < codepoint)
+            return "";
+        result_val = -1;
+    }
+    else {
+        bitfield_row = codepoint_bitfield_indexes[codepoint_row];
+    }
+
+    switch (switch_val) {
+        case 0: return "";
+END
+
+    # Emit hardcoded section of MVM_unicode_get_property_int()
+    chomp(my $int_out = <<'END');
+
+static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
+    MVMint32 result_val = 0; /* we'll never have negatives, but so */
+    MVMint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
+    MVMuint16 bitfield_row;
+    /* If codepoint is not found in bitfield rows */
+    if (codepoint_row == -1) {
+        /* Unassigned codepoints have General Category Cn. Since this returns 0
+         * for unknowns, unless we return 1 for property C then these unknows
+         * won't match with <:C> */
+        return property_code == MVM_UNICODE_PROPERTY_C ? 1 : 0;
+    }
+    bitfield_row = codepoint_bitfield_indexes[codepoint_row];
+
+    switch (MVM_EXPECT(property_code, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY)) {
+        case 0: return 0;
+END
+
+    # Start enumeration and typedef chunks
+    my $enumtables = "\n\n";
+    my $hout = "typedef enum {\n";
+
+    # Process all bitfield-allocated properties
+    for my $prop (@$allocated) {
+        # Determine property type and variation
+        my $name    = $prop->{name};
+        my $is_enum = is_enum($prop);
+        my $is_int  = is_int_enum($prop);
+        my $is_str  = is_str_enum($prop);
+
+        if ($DEBUG && $is_enum) {
+            my $type = $is_int ? 'an integer' : 'a string';
+            printf "%s is %s enum property\n", $name, $type;
+        }
+
+        # Format enumeration table for this property
+        my $enum  = '';
+        my $esize = 0;
+        if ($is_enum) {
+            $enum  = $name . "_enums";
+            $esize = scalar @{$prop->{keys}};
+
+            $enumtables .= $is_int ? "static const int " : "static const char *";
+            $enumtables .= "$enum\[$esize] = {";
+
+            my $format = $is_int ? "\n    %s," : "\n    \"%s\",";
+            for (@{$prop->{keys}}) {
+                $enumtables .= sprintf($format, $_);
+            }
+
+            $enumtables .= "\n};\n\n";
+        }
+
+        # Add enumeration value for property's name
+        $hout .= "    " . uc("MVM_unicode_property_$name") . " = $prop->{field_index},\n";
+        $PROP_NAMES->{$name} = $prop->{field_index};
+
+        # Add switch cases for looking up this property
+        my $case = "\n        case " . uc("MVM_unicode_property_$name") . ":";
+        $int_out .= $case;
+        $str_out .= $case if $is_str;
+
+        # Determine bitfield location and add C comments for same
+        my $bit_width   = $prop->{bit_width};
+        my $bit_offset  = $prop->{bit_offset}  // 0;
+        my $word_offset = $prop->{word_offset} // 0;
+
+        $int_out .= " /* $name bits:$bit_width offset:$bit_offset */";
+        $str_out .= " /* $name bits:$bit_width offset:$bit_offset */" if $is_str;
+
+        # Verify that bitfield only touches a single bitfield cell/word
+        my $one_word_only = $bit_offset + $bit_width <= $BITFIELD_CELL_BITWIDTH;
+        croak "Bitfield $name crosses bitfield cell boundaries!"
+            . "  Please fix the code to handle this correctly."
+            unless $one_word_only;
+
+        while ($bit_width > 0) {
+            # Format mask expressions
+            # XXXX: Why isn't this just a couple sprintf's?
+
+            # Add leading '0's to stringified mask
+            my $binary_string = '';
+            my $pos = 0;
+            while ($bit_offset--) {
+                $binary_string .= '0';
+                $pos++;
+            }
+
+            # Add bitfield's '1's to binary and stringified masks
+            my $binary_mask = 0;
+            while ($pos < $BITFIELD_CELL_BITWIDTH && $bit_width--) {
+                $binary_string .= '1';
+                $binary_mask   += 2 ** ($BITFIELD_CELL_BITWIDTH - 1 - $pos++);
+            }
+
+            # Add trailing '0's to stringified mask
+            my $shift = $BITFIELD_CELL_BITWIDTH - $pos;
+            while ($pos++ < $BITFIELD_CELL_BITWIDTH) {
+                $binary_string .= '0';
+            }
+
+            # Convert mask value to hex
+            my $hex_binary_mask = sprintf("%x", $binary_mask);
+
+            # Generate masking expression line fragment
+            my $props_bitfield_line =
+                "((props_bitfield[bitfield_row][$word_offset] & 0x$hex_binary_mask) >> $shift); /* mask: $binary_string */";
+
+            # If it's an int based enum we use the same return code as we do
+            # for string enums below (the function just returns an int from the
+            # enum instead of a char *)
+            if ($is_int) {
+                chomp($int_out .= <<"END");
+
+                result_val = $props_bitfield_line
+                return result_val < $esize ? (result_val == -1
+                    ? $enum\[0] : $enum\[result_val]) : 0;
+END
+            }
+            else {
+                $int_out .= "\n                return $props_bitfield_line";
+                $str_out .= "\n            result_val = $props_bitfield_line";
+            }
+
+            # XXXX: This code was meant to handle bitfield cell crossings,
+            #       but it's missing other needed code above.
+            $word_offset++;
+            $bit_offset = 0;
+        }
+
+        # Finish switch case for this property
+        $int_out .= "\n            ";
+        $int_out .= "return result_val;" unless $one_word_only;
+
+        if ($is_str) {
+            $str_out .= "\n            ";
+            $str_out .= "return result_val < $esize ? (result_val == -1\n"
+                     .  "        ? $enum\[0] : $enum\[result_val]) : bogus;";
+        }
+    }
+
+    # Add default return cases to int and str lookup switch statements
+    my $default_return = <<'END';
+
+        default:
+            return %s;
+    }
+}
+END
+    $int_out .= sprintf $default_return, 0;
+    $str_out .= sprintf $default_return, q("");
+
+    # Close out definition of MVM_unicode_property_codes header typedef
+    $hout    .= "} MVM_unicode_property_codes;";
+
+    # Emit completed .c and .h sections
+    $DB_SECTIONS->{MVM_unicode_get_property_int} = $enumtables . $str_out . $int_out;
+    $H_SECTIONS->{property_code_definitions}     = $hout;
+
+    # Generate and emit property value macro definition chunks
+    my $pvalue_defines
+        = EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_GENERAL_CATEGORY',
+                                  'General_Category', 'GC')
+        . EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK',
+                                  'Grapheme_Cluster_Break', 'GCB')
+        . EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE',
+                                  'Decomposition_Type', 'DT')
+        . EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS',
+                                  'Canonical_Combining_Class', 'CCC')
+        . EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_NUMERIC_TYPE',
+                                  'Numeric_Type', 'Numeric_Type');
+    return $pvalue_defines;
+}
+
+# Generate a chunk of property value definition macros
+sub EPVL_gen_pvalue_defines {
+    my ($property_name_mvm, $property_name, $short_pval_name) = @_;
+
+    my $enum  = $ENUMERATED_PROPERTIES->{$property_name}->{'enum'};
+    my $GCB_h = "\n\n/* $property_name_mvm */\n";
+    my %seen;
+
+    foreach my $key (sort keys %$enum) {
+        # Convert property enum key name to full macro name
+        my $macro_name = 'MVM_UNICODE_PVALUE_' . $short_pval_name . '_' . uc $key;
+        $macro_name =~ tr/\./_/;
+
+        # Fail if already emitted
+        croak "Attempted to re-emit enum define '$macro_name'"
+            if $seen{$macro_name}++;
+
+        # Grab enum value and emit #define line
+        my $value = $enum->{$key};
+        $GCB_h   .= "#define $macro_name $value\n";
+    }
+
+    return $GCB_h;
+}
+
 
 ### WRITING FILES
 
@@ -2251,190 +2510,12 @@ sub rest_of_main {
     # XXX StandardizedVariants.txt # no clue what this is
 
     # Emit all the things
-    $hout .= emit_property_value_lookup($allocated_bitfield_properties);
     emit_names_hash_builder($extents);
     my $prop_codes = emit_unicode_property_keypairs();
     $H_SECTIONS->{num_unicode_property_value_keypairs} = $hout .
         emit_unicode_property_value_keypairs($prop_codes);
     emit_block_lookup();
     emit_composition_lookup();
-}
-sub is_str_enum {
-    my ($prop) = @_;
-    return exists $prop->{keys} && (!defined $prop->{type} || $prop->{type} ne 'int');
-}
-sub EPVL_gen_pvalue_defines {
-    my ( $property_name_mvm, $property_name, $short_pval_name ) = @_;
-    my $GCB_h;
-    $GCB_h .= "\n\n/* $property_name_mvm */\n";
-    my %seen;
-    foreach my $key (sort keys % {$ENUMERATED_PROPERTIES->{$property_name}->{'enum'} }  ) {
-        next if $seen{$key};
-        my $value = $ENUMERATED_PROPERTIES->{$property_name}->{'enum'}->{$key};
-        $key = 'MVM_UNICODE_PVALUE_' . $short_pval_name . '_' . uc $key;
-        $key =~ tr/\./_/;
-        $GCB_h .= "#define $key $value\n";
-        $seen{$key} = 1;
-    }
-    return $GCB_h;
-}
-sub emit_property_value_lookup {
-    my $allocated = shift;
-    my $enumtables = "\n\n";
-    my $hout = "typedef enum {\n";
-    chomp(my $int_out = <<'END');
-
-static MVMint32 MVM_unicode_get_property_int(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
-    MVMint32 result_val = 0; /* we'll never have negatives, but so */
-    MVMint32 codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
-    MVMuint16 bitfield_row;
-    /* If codepoint is not found in bitfield rows */
-    if (codepoint_row == -1) {
-        /* Unassigned codepoints have General Category Cn. Since this returns 0
-         * for unknowns, unless we return 1 for property C then these unknows
-         * won't match with <:C> */
-        return property_code == MVM_UNICODE_PROPERTY_C ? 1 : 0;
-    }
-    bitfield_row = codepoint_bitfield_indexes[codepoint_row];
-
-    switch (MVM_EXPECT(property_code, MVM_UNICODE_PROPERTY_GENERAL_CATEGORY)) {
-        case 0: return 0;
-END
-
-    chomp(my $str_out = <<'END');
-
-static MVMint32 MVM_codepoint_to_row_index(MVMThreadContext *tc, MVMint64 codepoint);
-
-static const char *bogus = "<BOGUS>"; /* only for table too short; return null string for no mapping */
-
-static const char* MVM_unicode_get_property_str(MVMThreadContext *tc, MVMint64 codepoint, MVMint64 property_code) {
-    MVMuint32 switch_val = (MVMuint32)property_code;
-    MVMint32 result_val = 0; /* we'll never have negatives, but so */
-    MVMint32 codepoint_row;
-    MVMuint16 bitfield_row = 0;
-
-    if (switch_val == MVM_UNICODE_PROPERTY_BLOCK) {
-        MVMint32 ord = codepoint;
-        struct UnicodeBlock *block = bsearch(&ord, unicode_blocks, sizeof(unicode_blocks) / sizeof(struct UnicodeBlock), sizeof(struct UnicodeBlock), block_compare);
-        int num = ((char*)block - (char*)unicode_blocks) / sizeof(struct UnicodeBlock);
-        if (block) {
-            return block ? Block_enums[num+1] : Block_enums[0];
-        }
-    }
-    codepoint_row = MVM_codepoint_to_row_index(tc, codepoint);
-    if (codepoint_row == -1) { /* non-existent codepoint; XXX should throw? */
-        if (0x10FFFF < codepoint)
-            return "";
-        result_val = -1;
-    }
-    else {
-        bitfield_row = codepoint_bitfield_indexes[codepoint_row];
-    }
-
-    switch (switch_val) {
-        case 0: return "";
-END
-    # Checks if it is a 'str' type enum
-    for my $prop (@$allocated) {
-        my $enum = exists $prop->{keys};
-        my $esize = 0;
-        my $is_int = 0;
-        $is_int = 1 if (defined $prop->{type} and ($prop->{type} eq 'int'));
-        print("\n" . $prop->{name} . " is an integer enum property") if $is_int;
-        if ($enum) {
-            $enum = $prop->{name} . "_enums";
-            $esize = scalar @{$prop->{keys}};
-            $enumtables .= $is_int ? "static const int " : "static const char *";
-            $enumtables .= "$enum\[$esize] = {";
-            my $format = $is_int ? "\n    %s," : "\n    \"%s\",";
-            for (@{$prop->{keys}}) {
-                $enumtables .= sprintf($format, $_);
-            }
-            $enumtables .= "\n};\n\n";
-        }
-        $hout .= "    " . uc("MVM_unicode_property_$prop->{name}") . " = $prop->{field_index},\n";
-        $PROP_NAMES->{$prop->{name}} = $prop->{field_index};
-        my $case = "\n        case " . uc("MVM_unicode_property_$prop->{name}") . ":";
-        $int_out .= $case;
-        $str_out .= $case if is_str_enum($prop);
-
-        my $bit_width = $prop->{bit_width};
-        my $bit_offset = $prop->{bit_offset} // 0;
-        my $word_offset = $prop->{word_offset} // 0;
-
-        $int_out .= " /* $prop->{name} bits:$bit_width offset:$bit_offset */";
-        $str_out .= " /* $prop->{name} bits:$bit_width offset:$bit_offset */" if is_str_enum($prop);
-
-        my $one_word_only = $bit_offset + $bit_width <= $BITFIELD_CELL_BITWIDTH ? 1 : 0;
-        while ($bit_width > 0) {
-            my $original_bit_offset = $bit_offset;
-            my $binary_mask = 0;
-            my $binary_string = "";
-            my $pos = 0;
-            while ($bit_offset--) {
-                $binary_string .= "0";
-                $pos++;
-            }
-            while ($pos < $BITFIELD_CELL_BITWIDTH && $bit_width--) {
-                $binary_string .= "1";
-                $binary_mask += 2 ** ($BITFIELD_CELL_BITWIDTH - 1 - $pos++);
-            }
-            my $shift = $BITFIELD_CELL_BITWIDTH - $pos;
-            while ($pos++ < $BITFIELD_CELL_BITWIDTH) {
-                $binary_string .= "0";
-            }
-            my $hex_binary_mask     = sprintf("%x", $binary_mask);
-            my $props_bitfield_line =
-                "((props_bitfield[bitfield_row][$word_offset] & 0x$hex_binary_mask) >> $shift); /* mask: $binary_string */";
-            # If it's an int based enum we use the same code as we do for strings
-            # (the function just returns an int from the enum instead of a char *)
-            if ($enum && defined($prop->{type}) && ($prop->{type} eq 'int')) {
-                # XXX todo, remove unneeded variables and jank
-                chomp($int_out .= <<"END");
-
-                result_val = $props_bitfield_line
-                return result_val < $esize ? (result_val == -1
-                    ? $enum\[0] : $enum\[result_val]) : 0;
-END
-                next;
-            }
-            else {
-                my $return_or_resultval = $one_word_only ? 'return' : 'result_val |=';
-                $int_out .= "\n                $return_or_resultval $props_bitfield_line";
-            }
-            $str_out .= "\n            result_val |= $props_bitfield_line"
-                if is_str_enum($prop);
-
-            $word_offset++;
-            $bit_offset = 0;
-        }
-
-        $int_out  .= "\n            ";
-        $str_out  .= "\n            " if is_str_enum($prop);
-
-        $int_out .= "return result_val;" unless $one_word_only;
-        $str_out .= "return result_val < $esize ? (result_val == -1\n" .
-            "        ? $enum\[0] : $enum\[result_val]) : bogus;" if is_str_enum($prop);
-    }
-    my $default_return = <<'END'
-
-        default:
-            return %s;
-    }
-}
-END
-;
-    $int_out  .= sprintf $default_return, 0;
-    $str_out  .= sprintf $default_return, q("");
-    $hout     .= "} MVM_unicode_property_codes;";
-
-    $DB_SECTIONS->{MVM_unicode_get_property_int} = $enumtables . $str_out . $int_out;
-    $H_SECTIONS->{property_code_definitions} = $hout;
-    return EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_GENERAL_CATEGORY', 'General_Category', 'GC') .
-        EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_GRAPHEME_CLUSTER_BREAK', 'Grapheme_Cluster_Break', 'GCB') .
-        EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_DECOMPOSITION_TYPE', 'Decomposition_Type', 'DT') .
-        EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_CANONICAL_COMBINING_CLASS', 'Canonical_Combining_Class', 'CCC') .
-        EPVL_gen_pvalue_defines('MVM_UNICODE_PROPERTY_NUMERIC_TYPE', 'Numeric_Type', 'Numeric_Type');
 }
 
 sub emit_block_lookup {
