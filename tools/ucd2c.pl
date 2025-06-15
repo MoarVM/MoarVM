@@ -119,10 +119,11 @@ sub main {
     my $extents = emit_codepoint_extents_and_indexes();
     emit_codepoint_row_lookup($extents);
     $hout .= emit_property_value_lookup($allocated_bitfield_properties);
+    emit_names_hash_builder($extents);
 
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
-    rest_of_main($allocated_bitfield_properties, $hout, $extents);
+    rest_of_main($hout);
 
     progress_header('Join and write out .c/.h file sections');
     write_file('src/strings/unicode_db.c', join_sections($DB_SECTIONS));
@@ -2402,6 +2403,89 @@ sub EPVL_gen_pvalue_defines {
     return $GCB_h;
 }
 
+# Emit the codepoint_extents table and generate_codepoints_by_name() routine
+sub emit_names_hash_builder {
+    my ($extents) = @_;
+
+    # Count extents and emit header macro for it
+    my $num_extents = scalar @$extents;
+    $H_SECTIONS->{MVM_NUM_UNICODE_EXTENTS} =
+        "#define MVM_NUM_UNICODE_EXTENTS $num_extents\n";
+
+    # Emit the codepoint_extents table
+    my $out = "\nstatic const MVMint32 codepoint_extents[".($num_extents + 1)."][3] = {\n";
+    $ESTIMATED_TOTAL_BYTES += 4 * 2 * ($num_extents + 1);
+    for my $extent (@$extents) {
+        # XXXX: Why isn't this stacked with stack_lines()?
+        $out .= sprintf("    {0x%04x,%d,%d},\n",
+                        $extent->{code},
+                        $extent->{fate_type},
+                        $extent->{fate_really} // 0);
+    }
+    $out .= <<"END";
+    {0x10FFFE,0,0}
+};
+END
+
+    # Add hardcoded C function generated_codepoints_by_name()
+    $out .= <<"END";
+
+static void generate_codepoints_by_name(MVMThreadContext *tc) {
+    MVMint32 extent_index = 0;
+    MVMint32 codepoint = 0;
+    MVMint32 codepoint_table_index = 0;
+    MVMint16 i = num_unicode_namealias_keypairs - 1;
+
+    for (; extent_index < MVM_NUM_UNICODE_EXTENTS; extent_index++) {
+        MVMint32 length;
+        codepoint = codepoint_extents[extent_index][0];
+        length = codepoint_extents[extent_index + 1][0] - codepoint_extents[extent_index][0];
+        if (codepoint_table_index >= MVM_CODEPOINT_NAMES_COUNT)
+            continue;
+        switch (codepoint_extents[extent_index][1]) {
+            /* Fate Normal */
+            case $FATE_NORMAL: {
+                MVMint32 extent_span_index = 0;
+                codepoint_table_index = codepoint_extents[extent_index][2];
+                for (; extent_span_index < length
+                    && codepoint_table_index < MVM_CODEPOINT_NAMES_COUNT; extent_span_index++) {
+                    const char *name = codepoint_names[codepoint_table_index];
+                    /* We want to skip various placeholder names that are duplicated:
+                     * <control> <CJK UNIFIED IDEOGRAPH> <CJK COMPATIBILITY IDEOGRAPH>
+                     * <surrogate> <TANGUT IDEOGRAPH> <private-use> */
+                    if (name && *name != '<') {
+                        MVM_uni_hash_insert(tc, &tc->instance->codepoints_by_name, name, codepoint);
+                    }
+                    codepoint++;
+                    codepoint_table_index++;
+                }
+                break;
+            }
+            /* Fate NULL */
+            case $FATE_NULL:
+                break;
+            /* Fate Span */
+            case $FATE_SPAN: {
+                const char *name = codepoint_names[codepoint_table_index];
+                if (name && *name != '<') {
+                    MVM_uni_hash_insert(tc, &tc->instance->codepoints_by_name, name, codepoint);
+                }
+                codepoint_table_index++;
+                break;
+            }
+        }
+    }
+    for (; i >= 0; i--) {
+        MVM_uni_hash_insert(tc, &tc->instance->codepoints_by_name, uni_namealias_pairs[i].name, uni_namealias_pairs[i].codepoint);
+    }
+
+}
+END
+
+    # Emit accumulated chunk to DB_SECTIONS
+    $DB_SECTIONS->{names_hash_builder} = $out;
+}
+
 
 ### WRITING FILES
 
@@ -2505,15 +2589,15 @@ sub write_file {
 ### NOT YET REFACTORED
 
 sub rest_of_main {
-    my ($allocated_bitfield_properties, $hout, $extents) = @_;
+    my ($hout) = @_;
 
     # XXX StandardizedVariants.txt # no clue what this is
 
     # Emit all the things
-    emit_names_hash_builder($extents);
     my $prop_codes = emit_unicode_property_keypairs();
-    $H_SECTIONS->{num_unicode_property_value_keypairs} = $hout .
-        emit_unicode_property_value_keypairs($prop_codes);
+    $hout .= emit_unicode_property_value_keypairs($prop_codes);
+    $H_SECTIONS->{num_unicode_property_value_keypairs} = $hout;
+
     emit_block_lookup();
     emit_composition_lookup();
 }
@@ -2589,77 +2673,6 @@ END
 
     $DB_SECTIONS->{block_lookup} = $out;
     $H_SECTIONS->{block_lookup}  = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block_name);\n";
-    return;
-}
-
-sub emit_names_hash_builder {
-    my ($extents) = @_;
-    my $num_extents = scalar(@$extents);
-    my $out = "\nstatic const MVMint32 codepoint_extents[".($num_extents + 1)."][3] = {\n";
-    $ESTIMATED_TOTAL_BYTES += 4 * 2 * ($num_extents + 1);
-    for my $extent (@$extents) {
-        $out .= sprintf("    {0x%04x,%d,%d},\n",
-                                $extent->{code},
-                                     $extent->{fate_type},
-                                          ($extent->{fate_really}//0));
-    }
-    $H_SECTIONS->{MVM_NUM_UNICODE_EXTENTS} = "#define MVM_NUM_UNICODE_EXTENTS $num_extents\n";
-    $out .= <<"END";
-    {0x10FFFE,0}
-};
-
-static void generate_codepoints_by_name(MVMThreadContext *tc) {
-    MVMint32 extent_index = 0;
-    MVMint32 codepoint = 0;
-    MVMint32 codepoint_table_index = 0;
-    MVMint16 i = num_unicode_namealias_keypairs - 1;
-
-    for (; extent_index < MVM_NUM_UNICODE_EXTENTS; extent_index++) {
-        MVMint32 length;
-        codepoint = codepoint_extents[extent_index][0];
-        length = codepoint_extents[extent_index + 1][0] - codepoint_extents[extent_index][0];
-        if (codepoint_table_index >= MVM_CODEPOINT_NAMES_COUNT)
-            continue;
-        switch (codepoint_extents[extent_index][1]) {
-            /* Fate Normal */
-            case $FATE_NORMAL: {
-                MVMint32 extent_span_index = 0;
-                codepoint_table_index = codepoint_extents[extent_index][2];
-                for (; extent_span_index < length
-                    && codepoint_table_index < MVM_CODEPOINT_NAMES_COUNT; extent_span_index++) {
-                    const char *name = codepoint_names[codepoint_table_index];
-                    /* We want to skip various placeholder names that are duplicated:
-                     * <control> <CJK UNIFIED IDEOGRAPH> <CJK COMPATIBILITY IDEOGRAPH>
-                     * <surrogate> <TANGUT IDEOGRAPH> <private-use> */
-                    if (name && *name != '<') {
-                        MVM_uni_hash_insert(tc, &tc->instance->codepoints_by_name, name, codepoint);
-                    }
-                    codepoint++;
-                    codepoint_table_index++;
-                }
-                break;
-            }
-            /* Fate NULL */
-            case $FATE_NULL:
-                break;
-            /* Fate Span */
-            case $FATE_SPAN: {
-                const char *name = codepoint_names[codepoint_table_index];
-                if (name && *name != '<') {
-                    MVM_uni_hash_insert(tc, &tc->instance->codepoints_by_name, name, codepoint);
-                }
-                codepoint_table_index++;
-                break;
-            }
-        }
-    }
-    for (; i >= 0; i--) {
-        MVM_uni_hash_insert(tc, &tc->instance->codepoints_by_name, uni_namealias_pairs[i].name, uni_namealias_pairs[i].codepoint);
-    }
-
-}
-END
-    $DB_SECTIONS->{names_hash_builder} = $out;
     return;
 }
 
