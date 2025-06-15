@@ -243,6 +243,21 @@ sub sort_versions {
     map  [$_, split(/ [.] /x, $_)], @_;
 }
 
+# Call a function on all different supported casing-style variants of a string,
+# avoiding repeated calls where different variants happen to be the same
+sub for_each_case {
+    my ($str, $fn) = @_;
+
+    my $has_uc = $str =~ /\p{Lu}/;
+
+    $fn->($str);                     # Foo_Bar - Title_Case (original)
+    $fn->(lc $str) if $has_uc;       # foo_bar - snake_case
+    if ($str =~ s/_//xg) {
+        $fn->($str);                 # FooBar  - PascalCase
+        $fn->(lc $str) if $has_uc;   # foobar  - flatcase
+    }
+}
+
 # Call a function on each line of a UNIDATA file specified by file basename,
 # skipping blank and comment lines unless $force is true.
 sub for_each_line {
@@ -2763,7 +2778,7 @@ sub emit_unicode_property_keypairs {
             if (exists $PROP_NAMES->{$name}) {
                 for my $al (@aliases) {
                     $prop_codes->{$al} = $name;
-                    do_for_each_case($al, sub { $_ = shift;
+                    for_each_case($al, sub { $_ = shift;
                         $PROP_NAMES->{$_} = $PROP_NAMES->{$name};
                     });
                 }
@@ -2792,7 +2807,7 @@ sub emit_unicode_property_keypairs {
             if (($pv_alias_parts[0] eq 'Y'   || $pv_alias_parts[0] eq 'N') &&
                 ($pv_alias_parts[1] eq 'Yes' || $pv_alias_parts[1] eq 'No')) {
                 for my $name ($propname, @{$aliases{$propname} // []}) {
-                    do_for_each_case($name, sub { $_ = shift;
+                    for_each_case($name, sub { $_ = shift;
                         return if exists $PROP_NAMES->{$_}; # return because we'll already add
                         # the ones from $PROP_NAMES later
                         $lines_h{$propname}->{$_} = "{\"$_\",$prop_val}";
@@ -2809,7 +2824,7 @@ sub emit_unicode_property_keypairs {
                     unless exists $BINARY_PROPERTIES->{$unionname};
                 $prop_val = $BINARY_PROPERTIES->{$unionname}->{field_index};
                 for my $alias_part (@pv_alias_parts) {
-                    do_for_each_case($alias_part, sub { $_ = shift;
+                    for_each_case($alias_part, sub { $_ = shift;
                         return if exists $PROP_NAMES->{$_};
                         $lines_h{$propname}->{$_} = "{\"$_\",$prop_val}";
                     });
@@ -2832,7 +2847,7 @@ sub emit_unicode_property_keypairs {
     my %done;
     # Copy the keys in $PROP_NAMES first
     for my $key (sort keys %$PROP_NAMES) {
-        do_for_each_case($key, sub { $_ = shift;
+        for_each_case($key, sub { $_ = shift;
             $done{$_} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}";
         });
     }
@@ -2848,7 +2863,7 @@ sub emit_unicode_property_keypairs {
     for my $key (qw(gc sc), sort keys %$PROP_NAMES) {
         for (@{ $aliases{$key} }) {
             next if $PROP_NAMES->{$_};
-            do_for_each_case($_, sub { $_ = shift;
+            for_each_case($_, sub { $_ = shift;
                 $done{$_} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}";
             });
         }
@@ -2878,19 +2893,10 @@ sub set_lines_for_each_case {
     # Workaround to 'space' not getting added here
     $hash->{$propname}->{space} = "{\"$propcode-space\",$prop_val}"
         if $default eq 'White_Space' and $propname eq '_custom_';
-    do_for_each_case($default, sub { $_ = shift;
+    for_each_case($default, sub { $_ = shift;
         $hash->{$propname}->{$_} = "{\"$propcode-$_\",$prop_val}";
     });
     return $propcode;
-}
-sub do_for_each_case {
-    my ($str, $sub) = @_;
-    my $str2 = $str;
-    $sub->($str);                         # Foo_Bar (original)
-    $sub->($str)  if $str  =~ s/_//xg;    # FooBar
-    $sub->($str)  if $str  =~ y/A-Z/a-z/; # foobar
-    $sub->($str2) if $str2 =~ y/A-Z/a-z/; # foo_bar
-    return $str;
 }
 sub emit_unicode_property_value_keypairs {
     my ($prop_codes) = @_;
@@ -2962,7 +2968,7 @@ sub emit_unicode_property_value_keypairs {
                     my $value    = $BINARY_PROPERTIES->{$unionname}->{bit_width};
                     for my $i (@pv_alias_parts) {
                         set_lines_for_each_case($i, $propname, $prop_val + $value, \%lines);
-                        do_for_each_case($i, sub { $_ = shift;
+                        for_each_case($i, sub { $_ = shift;
                             $done{"$propname$_"} = push @lines, $lines{$propname}->{$_};
                         });
                         $_ = $i; # For the conditional / ^ letter $ /x below
