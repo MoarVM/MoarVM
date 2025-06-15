@@ -2167,6 +2167,43 @@ sub macroize_quick_props {
     write_file("src/strings/unicode_prop_macros.h", (join("\n", @result) . "\n"));
 }
 
+# Join file sections, respecting prereqs and sorting order
+sub join_sections {
+    # %prereq_sections is a list of sections that need to come before others.
+    # The value array lists sections that need to come before the key section.
+    # So: C => [ 'A', 'B' ] would result in the join order A . B . C;
+    my %prereq_sections = (
+        MVM_unicode_get_property_int => ['block_lookup']
+    );
+
+    my ($sections) = @_;
+    my $content = '';
+    my %done;
+
+    # Sections are named to be "mostly ordered" by sorting on name
+    for my $sec (sort keys %{$sections}) {
+        # If there are prerequisites for the current section, join them in first
+        if (my $prereqs = $prereq_sections{$sec}) {
+            for my $prereq (@$prereqs) {
+                # Skip if the prereq was already joined previously
+                next if $done{$prereq}++;
+
+                # Otherwise join with a blank line
+                $content .= "\n" . $sections->{$prereq};
+            }
+        }
+
+        # Skip if the current section was already joined, such as by a prereq
+        next if $done{$sec};
+
+        # Otherwise join with a blank line, and mark section done
+        $content .= "\n" . $sections->{$sec};
+        $done{$sec} = 1;
+    }
+
+    return $content;
+}
+
 # Spurt UTF-8 contents to a file
 sub write_file {
     my ($fname, $contents) = @_;
@@ -2215,30 +2252,6 @@ sub rest_of_main {
     return 1;
 }
 
-sub join_sections {
-    # %prefs is a list of sections that need to come before others
-    # The values are sections that need to come before the key.
-    # So: C => [ 'A', 'B' ] would result in A, B, C;
-    my %prefs = (
-        MVM_unicode_get_property_int => ['block_lookup']
-    );
-    my %done;
-    my ($sections) = @_;
-    my $content = "";
-    for my $sec (sort keys %{$sections}) {
-        if ($prefs{$sec}) {
-            for my $sec_before (@{$prefs{$sec}}) {
-                next if $done{$sec_before};
-                $content .= "\n".$sections->{$sec_before};
-                $done{$sec_before} = 1;
-            }
-        }
-        next if $done{$sec};
-        $content .= "\n".$sections->{$sec};
-        $done{$sec} = 1;
-    }
-    return $content;
-}
 sub is_str_enum {
     my ($prop) = @_;
     return exists $prop->{keys} && (!defined $prop->{type} || $prop->{type} ne 'int');
