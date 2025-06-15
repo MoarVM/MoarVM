@@ -119,12 +119,19 @@ sub main {
     my $extents = emit_codepoint_extents_and_indexes();
     emit_codepoint_row_lookup($extents);
 
-    progress_header('Writing quick property macro header');
-    macroize_quick_props();
-
     # XXXX: Not yet refactored portion
     progress_header('Processing rest of original main program');
     rest_of_main($allocated_bitfield_properties, $hout, $extents);
+
+    progress_header('Join and write out .c/.h file sections');
+    write_file('src/strings/unicode_db.c', join_sections($DB_SECTIONS));
+    write_file('src/strings/unicode_gen.h', join_sections($H_SECTIONS));
+
+    progress_header('Writing quick property macro header');
+    macroize_quick_props();
+
+    progress_header('Finishing up');
+    finish();
 }
 
 # Startup checks and init
@@ -144,6 +151,23 @@ sub init {
 
     binmode STDOUT, ':encoding(UTF-8)';
     binmode STDERR, ':encoding(UTF-8)';
+}
+
+# Finish up, output summary metrics, and give user final reminders
+sub finish {
+    # Write accumulated debug log to file if requested
+    write_file("ucd2c_extents.log", $LOG) if $DEBUG;
+
+    # Output bytes used/saved totals
+    print "\nEstimated bytes demand paged from disk: "
+        . commify_thousands($ESTIMATED_TOTAL_BYTES)
+        . ".\nEstimated bytes saved by various compressions: "
+        . commify_thousands($TOTAL_BYTES_SAVED) . ".\n";
+
+    # We're done!  Remind user to update tests
+    print "\nDONE!!!\n\n";
+    print "Make sure you update tests in roast by following\n";
+    print "docs/unicode-generated-tests.asciidoc in the roast repo.\n";
 }
 
 
@@ -2234,22 +2258,7 @@ sub rest_of_main {
         emit_unicode_property_value_keypairs($prop_codes);
     emit_block_lookup();
     emit_composition_lookup();
-
-    print "done!";
-    write_file('src/strings/unicode_db.c', join_sections($DB_SECTIONS));
-    write_file('src/strings/unicode_gen.h', join_sections($H_SECTIONS));
-    print "\nEstimated bytes demand paged from disk: ".
-        commify_thousands($ESTIMATED_TOTAL_BYTES).
-        ".\nEstimated bytes saved by various compressions: ".
-        commify_thousands($TOTAL_BYTES_SAVED).".\n";
-    if ($DEBUG) {
-        write_file("ucd2c_extents.log", $LOG);
-    }
-    print "\nDONE!!!\n\n";
-    print "Make sure you update tests in roast by following docs/unicode-generated-tests.asciidoc in the roast repo\n";
-    return 1;
 }
-
 sub is_str_enum {
     my ($prop) = @_;
     return exists $prop->{keys} && (!defined $prop->{type} || $prop->{type} ne 'int');
