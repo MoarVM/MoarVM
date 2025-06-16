@@ -2563,6 +2563,194 @@ END
     $DB_SECTIONS->{names_hash_builder} = $out;
 }
 
+# Emit unicode property keypairs with all different supported case styles
+sub emit_unicode_property_keypairs {
+    # XXXX: Original comment: emit_unicode_property_keypairs() in general can be simplified more
+
+    # Add property name aliases to $PROP_NAMES
+    my $prop_codes = {};
+    for_each_line 'PropertyAliases', sub {
+        $_ = shift;
+        my @aliases = split / \s* [#;] \s* /x;
+
+        # Find the alias that already exists in PROP_NAMES, and copy from there
+        for my $name (@aliases) {
+            if (exists $PROP_NAMES->{$name}) {
+                for my $alias (@aliases) {
+                    $prop_codes->{$alias} = $name;
+
+                    # Support multiple case style variants of each alias
+                    for_each_case $alias, sub {
+                        $PROP_NAMES->{$_[0]} = $PROP_NAMES->{$name};
+                    };
+                }
+                last;
+            }
+        }
+    };
+
+    # Get the property value aliases to put into header file
+    my %aliases;
+    my %lines_h;
+    for_each_line('PropertyValueAliases', sub {
+        $_ = shift;
+
+        # Capture aliases in heading comment lines, e.g. `# Bidi_Control (Bidi_C)`
+        #
+        # This requires forcing for_each_line() to send ALL lines, and thus
+        # handling comment and blank lines manually.
+        #
+        # XXXX TODO maybe best to get this data from PropertyAliases?
+        if (/ ^ [#] \s (\w+) \s [(] (\w+) [)] /x) {
+            $aliases{$2} = [$1];
+            return;
+        }
+
+        # Skip other comment or empty lines since we've forced them to appear
+        return if / ^ (?: [#] | \s* $ ) /x;
+
+        # Since it's the first field in each line, $propname is actually the
+        # short property name.  So 'sc' or 'gc' for example, which are Script
+        # and General_Category respectively.
+        my @pv_alias_parts = split / \s* [#;] \s* /x;
+        my $propname       = shift @pv_alias_parts;
+
+        if (defined(my $prop_val = $PROP_NAMES->{$propname})) {
+
+            # Boolean values
+            # Example original line: `AHex; N ; No ; F ; False`
+            if (($pv_alias_parts[0] eq 'Y'   || $pv_alias_parts[0] eq 'N') &&
+                ($pv_alias_parts[1] eq 'Yes' || $pv_alias_parts[1] eq 'No')) {
+                for my $name ($propname, @{$aliases{$propname} // []}) {
+                    for_each_case $name, sub {
+                        $_ = shift;
+
+                        # Skip this name case if it's already in $PROP_NAMES
+                        # because we add the ones from $PROP_NAMES elsewhere
+                        # XXXX: Where?
+                        return if exists $PROP_NAMES->{$_};
+
+                        # Add a name/value pair for this case variant
+                        $lines_h{$propname}->{$_} = "{\"$_\",$prop_val}";
+                    };
+                }
+            }
+
+            # Union values
+            # Example original line: `gc ; C ; Other  # Cc | Cf | Cn | Co | Cs`
+            elsif ($pv_alias_parts[-1] =~ / [|] /x) {
+                # Pop the part after the `#` in the original line off
+                pop @pv_alias_parts; # i.e. `Cc | Cf | Cn | Co | Cs`
+
+                # First field after property short name is the union name
+                my $unionname = $pv_alias_parts[0]; # i.e. `C`
+                croak "Couldn't find Binary Property (union) `$unionname`"
+                    unless exists $BINARY_PROPERTIES->{$unionname};
+
+                $prop_val = $BINARY_PROPERTIES->{$unionname}->{field_index};
+                for my $alias_part (@pv_alias_parts) {
+                    for_each_case $alias_part, sub {
+                        $_ = shift;
+
+                        # Skip this name case if it's already in $PROP_NAMES
+                        # because we add the ones from $PROP_NAMES elsewhere
+                        # XXXX: Where?
+                        return if exists $PROP_NAMES->{$_};
+
+                        # Add a name/value pair for this case variant
+                        $lines_h{$propname}->{$_} = "{\"$_\",$prop_val}";
+                    };
+                }
+            }
+
+            # XXXX: What about Canonical Combining Class lines?
+            # Example original line: `ccc; 200; ATBL ; Attached_Below_Left`
+
+            # Normal enumerant values
+            # Example original line: `dt ; Can ; Canonical ; can`
+            else {
+                # XXXX: Why doesn't this do for_each_case()?
+                for my $alias_part (@pv_alias_parts) {
+                    # If the property alias name conflicts with a Property Name
+                    # don't put it in %lines_h or it will cause conflicts
+                    # XXXX: This is a different explanation than above?
+                    next if exists $PROP_NAMES->{$alias_part};
+
+                    # Add a name/value pair for this case variant and add this
+                    # alias to %aliases for this property name
+                    $lines_h{$propname}->{$alias_part} = "{\"$alias_part\",$prop_val}";
+                    push @{ $aliases{$propname} }, $alias_part;
+                }
+            }
+        }
+    }, 1);
+
+    # Fix to ensure space has the same propcode as White_Space
+    $PROP_NAMES->{space} = $PROP_NAMES->{White_Space};
+
+    # Collect property values for C file
+
+    # These two collections work together; because we use the idiom
+    # `$done{$_} ||= push @lines, ...` in the loops below, we will
+    # only push to @lines if the key is not in %done already.
+    my @lines;
+    my %done;
+
+    # Copy the keys in $PROP_NAMES first
+    for my $key (sort keys %$PROP_NAMES) {
+        for_each_case($key, sub {
+            $_ = shift;
+            $done{$_} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}";
+        });
+    }
+
+    # Then copy the rest, including special properties and %lines_h properties
+    for my $propname (qw(_custom_ gc sc), sort keys %lines_h) {
+        for (sort keys %{$lines_h{$propname}}) {
+            $done{$_} ||= push @lines, $lines_h{$propname}->{$_};
+        }
+    }
+
+    # XXXX: What does 'first' mean in the following comment?
+    # Make sure General_Category and Script Property values are added first.
+    # These are the only ones (iirc) that are guaranteed in Rakudo.
+    for my $key (qw(gc sc), sort keys %$PROP_NAMES) {
+        for (@{ $aliases{$key} }) {
+            next if $PROP_NAMES->{$_};
+
+            for_each_case($_, sub {
+                $_ = shift;
+                $done{$_} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}";
+            });
+        }
+    }
+
+    # Sort the @lines array so it always appears in the same order
+    @lines = sort @lines;
+
+    # Add structure definition for MVMUnicodeNamedValue to header chunk
+    chomp(my $hout = <<'END');
+
+struct MVMUnicodeNamedValue {
+    const char *name;
+    MVMint32 value;
+};
+
+END
+    # Add macro for keypair count to header chunk and emit to H_SECTIONS
+    $hout .= "#define num_unicode_property_keypairs " . scalar(@lines) . "\n";
+    $H_SECTIONS->{MVMUnicodeNamedValue} = $hout;
+
+    # Finish formatting unicode_property_keypairs array and emit to DB_SECTIONS
+    my $out = "\nstatic const MVMUnicodeNamedValue unicode_property_keypairs["
+            . scalar(@lines) . "] = {\n"
+            . "    " . stack_lines(\@lines) . "\n};";
+    $DB_SECTIONS->{BBB_unicode_property_keypairs} = $out;
+
+    # Return collected property codes
+    return $prop_codes;
+}
+
 
 ### WRITING FILES
 
@@ -2767,124 +2955,6 @@ END
     $DB_SECTIONS->{block_lookup} = $out;
     $H_SECTIONS->{block_lookup}  = "MVMint32 MVM_unicode_is_in_block(MVMThreadContext *tc, MVMString *str, MVMint64 pos, MVMString *block_name);\n";
     return;
-}
-
-sub emit_unicode_property_keypairs {
-    my $prop_codes = {};
-    # Add property name aliases to $PROP_NAMES
-    for_each_line('PropertyAliases', sub { $_ = shift;
-        my @aliases = split / \s* [#;] \s* /x;
-        for my $name (@aliases) {
-            if (exists $PROP_NAMES->{$name}) {
-                for my $al (@aliases) {
-                    $prop_codes->{$al} = $name;
-                    for_each_case($al, sub { $_ = shift;
-                        $PROP_NAMES->{$_} = $PROP_NAMES->{$name};
-                    });
-                }
-                last;
-            }
-        }
-    });
-    my %aliases;
-    my %lines_h;
-    # Get the aliases to put into Property Name Keypairs
-    for_each_line('PropertyValueAliases', sub { $_ = shift;
-        # Capture heading lines: `# Bidi_Control (Bidi_C)`
-        # TODO maybe best to get this data from PropertyAliases?
-        # emit_unicode_property_keypairs() in general can be simplified more
-        if (/ ^ [#] \s (\w+) \s [(] (\w+) [)] /x) {
-            $aliases{$2} = [$1];
-            return;
-        }
-        return if / ^ (?: [#] | \s* $ ) /x; # Return if comment or empty line
-        my @pv_alias_parts = split / \s* [#;] \s* /x;
-        # Since it's the first field in the file, $propname is actually the short
-        # property name. So 'sc' or 'gc' for example (Script, General_Category respectively).
-        my $propname = shift @pv_alias_parts;
-        if (exists $PROP_NAMES->{$propname}) {
-            my $prop_val = $PROP_NAMES->{$propname};
-            if (($pv_alias_parts[0] eq 'Y'   || $pv_alias_parts[0] eq 'N') &&
-                ($pv_alias_parts[1] eq 'Yes' || $pv_alias_parts[1] eq 'No')) {
-                for my $name ($propname, @{$aliases{$propname} // []}) {
-                    for_each_case($name, sub { $_ = shift;
-                        return if exists $PROP_NAMES->{$_}; # return because we'll already add
-                        # the ones from $PROP_NAMES later
-                        $lines_h{$propname}->{$_} = "{\"$_\",$prop_val}";
-                    });
-                }
-                return
-            }
-            # Orig Line: `gc ; C ; Other  # Cc | Cf | Cn | Co | Cs`
-            if ($pv_alias_parts[-1] =~ / [|] /x) { # it's a union
-                # Pop the part after the `#` in the original line off
-                pop @pv_alias_parts; # i.e. `Cc | Cf | Cn | Co | Cs`
-                my $unionname = $pv_alias_parts[0]; # i.e. `C`
-                croak "Couldn't find Binary Property (union) `$unionname`"
-                    unless exists $BINARY_PROPERTIES->{$unionname};
-                $prop_val = $BINARY_PROPERTIES->{$unionname}->{field_index};
-                for my $alias_part (@pv_alias_parts) {
-                    for_each_case($alias_part, sub { $_ = shift;
-                        return if exists $PROP_NAMES->{$_};
-                        $lines_h{$propname}->{$_} = "{\"$_\",$prop_val}";
-                    });
-                }
-            }
-            else {
-                for my $alias_part (@pv_alias_parts) {
-                    # If the property alias name conflicts with a Property Name
-                    # don't put it in %lines_h or it will cause conflicts
-                    next if exists $PROP_NAMES->{$alias_part};
-                    $lines_h{$propname}->{$alias_part} = "{\"$alias_part\",$prop_val}";
-                    push @{ $aliases{$propname} }, $alias_part;
-                }
-            }
-        }
-    }, 1);
-    # Fix to ensure space has the same propcode as White_Space
-    $PROP_NAMES->{space} = $PROP_NAMES->{White_Space};
-    my @lines;
-    my %done;
-    # Copy the keys in $PROP_NAMES first
-    for my $key (sort keys %$PROP_NAMES) {
-        for_each_case($key, sub { $_ = shift;
-            $done{$_} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}";
-        });
-    }
-    # Then copy the rest. Because we use `$done{} ||= push @lines` it will only
-    # push to @lines if it is not in %done already.
-    for my $propname (qw(_custom_ gc sc), sort keys %lines_h) {
-        for (sort keys %{$lines_h{$propname}}) {
-            $done{$_} ||= push @lines, $lines_h{$propname}->{$_};
-        }
-    }
-    # Make sure General_Category and Script Property values are added first.
-    # These are the only ones (iirc) that are guaranteed in Rakudo.
-    for my $key (qw(gc sc), sort keys %$PROP_NAMES) {
-        for (@{ $aliases{$key} }) {
-            next if $PROP_NAMES->{$_};
-            for_each_case($_, sub { $_ = shift;
-                $done{$_} ||= push @lines, "{\"$_\",$PROP_NAMES->{$key}}";
-            });
-        }
-    }
-    # Sort the @lines array so it always appears in the same order
-    @lines = sort @lines;
-    chomp(my $hout = <<'END');
-
-struct MVMUnicodeNamedValue {
-    const char *name;
-    MVMint32 value;
-};
-
-END
-    $hout .= "#define num_unicode_property_keypairs " . scalar(@lines) . "\n";
-    my $out = "\nstatic const MVMUnicodeNamedValue unicode_property_keypairs["
-            . scalar(@lines) . "] = {\n"
-            . "    " . stack_lines(\@lines) . "\n};";
-    $DB_SECTIONS->{BBB_unicode_property_keypairs} = $out;
-    $H_SECTIONS->{MVMUnicodeNamedValue} = $hout;
-    return $prop_codes;
 }
 
 sub set_lines_for_each_case {
