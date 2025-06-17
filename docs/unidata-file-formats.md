@@ -301,87 +301,124 @@ a given parsing type have been processed.
 
 ### Alias files
 
-* NameAliases
-* PropertyAliases
-* PropertyValueAliases - will also require multiformat parsing
+* NameAliases          - +
+* PropertyAliases      - + (as part of `emit_unicode_property_keypairs`)
+* PropertyValueAliases - + (as part of `emit_unicode_property_keypairs` and `register_pvalue_alias_unions` and `emit_unicode_property_value_keypairs`)
 
 
 ### Binary properties
 
-* PropList
+* PropList                          - +
 
-* emoji/emoji-data
+* emoji/emoji-data                  - +
 
-* extracted/DerivedBinaryProperties
+* extracted/DerivedBinaryProperties - +
 
 
 ### Enumerated properties
 
-* ArabicShaping - use for Joining_Group only
-* Blocks
-* DerivedAge
-* EastAsianWidth - XXXX: what about derived version?
-* HangulSyllableType
-* IndicPositionalCategory
-* IndicSyllabicCategory
-* LineBreak
-* Scripts
-* VerticalOrientation
+* ArabicShaping - use for Joining_Group only? (XXXX: or just ignore?)
+* Blocks                           - + (directly and in `emit_block_lookup`)
+* DerivedAge                       - +
+* EastAsianWidth - skipped in favor of derived version - XXXX: Is that correct?
+* HangulSyllableType               - +
+* IndicPositionalCategory          - XXXX
+* IndicSyllabicCategory            - XXXX
+* LineBreak                        - +
+* Scripts                          - +
+* VerticalOrientation              - XXXX
 
-* auxiliary/GraphemeBreakProperty
-* auxiliary/SentenceBreakProperty
-* auxiliary/WordBreakProperty
+* auxiliary/GraphemeBreakProperty  - + (as grapheme_cluster_break)
+* auxiliary/SentenceBreakProperty  - + (as break_property)
+* auxiliary/WordBreakProperty      - + (as break_property)
 
-* extracted/DerivedBidiClass
-* extracted/DerivedCombiningClass
-* extracted/DerivedCompositionType
-* extracted/DerivedEastAsianWidth
-* extracted/DerivedGeneralCategory
-* extracted/DerivedJoiningGroup
-* extracted/DerivedJoiningType
-* extracted/DerivedLineBreak
-* extracted/DerivedNumericType
-
-
-### Ignored files
-
-* CompositionExclusions    - replaced with property in DerivedNormalizationProps
-* Index                    - intended for humans
-* NamedSequencesProv       - for provisional sequences; currently empty
-* NamesList                - intended for humans
-* NormalizationCorrections - historical
-* ReadMe                   - intended for humans
-* StandardizedVariants     - only affects fonts and shaping algorithms
-
-* emoji/ReadMe             - intended for humans
-* emoji-ver/ReadMe         - intended for humans
+* extracted/DerivedBidiClass       - + (as derived_property)
+* extracted/DerivedCombiningClass  - + (as derived_property)
+* extracted/DerivedCompositionType - XXXX
+* extracted/DerivedEastAsianWidth  - + - seems preferred over EastAsianWidth file?
+* extracted/DerivedGeneralCategory - + (as derived_property)
+* extracted/DerivedJoiningGroup    - XXXX: Replace ArabicShaping?
+* extracted/DerivedJoiningType     - XXXX: Replace ArabicShaping?
+* extracted/DerivedLineBreak       - XXXX: Ignored in favor of LineBreak?
+* extracted/DerivedNumericType     - +
 
 
 ### Mapping files
 
-* BidiBrackets
-* BidiMirroring
-* CaseFolding
-* CJKRadicals
-* DoNotEmit
-* EquivalentUnifiedIdeograph
-* SpecialCasing
+* BidiBrackets               - XXXX
+* BidiMirroring              - + (as enumerated_property with int option)
+* CaseFolding                - +
+* CJKRadicals                - XXXX
+* DoNotEmit                  - XXXX
+* EquivalentUnifiedIdeograph - XXXX
+* SpecialCasing              - +
 
-* CODETABLES/CP1251
-* CODETABLES/CP1252
-* CODETABLES/index-jis0208 - uses mixed whitespace for layout
+* CODETABLES/CP1251          - ???
+* CODETABLES/CP1252          - ???
+* CODETABLES/index-jis0208   - ??? - uses mixed whitespace for layout
 
 
 ### Sequences files
 
-* NamedSequences
+* NamedSequences                  - +
 
-* emoji/emoji-variation-sequences
-* emoji-ver/emoji-sequences
-* emoji-ver/emoji-zwj-sequences
+* emoji/emoji-variation-sequences - XXXX
+* emoji-ver/emoji-sequences       - +
+* emoji-ver/emoji-zwj-sequences   - +
+
+
+### Multiformat parsing required
+
+* DerivedCoreProperties     - XXXX: Currently handled incorrectly!
+* DerivedNormalizationProps - +
+
+
+### Bespoke parsing required
+
+* Jamo             - + - feeds Hangul syllable names; XXXX: also create `Jamo_Short_Name`?
+* ScriptExtensions - XXXX
+* UnicodeData      - + - XXXX: But some fields ignored?
+
+* extracted/DerivedName          - XXXX: Calculated using our own algorithms?
+* extracted/DerivedNumericValues - + - treated as a special kind of enumeration
+
+* UCA/allkeys      - +
+
+
+## Ignored Files
+
+These sections list the _intentionally_ ignored files in `UNIDATA/`,
+sorted by reason they are ignored.
+
+
+### Human-targeted files
+
+All of these are **ignored** because they are intended only for human
+consumption, not for machine parsing.
+
+* Index
+* NamesList
+* ReadMe
+
+* emoji/ReadMe
+* emoji-ver/ReadMe
+
+
+### Misc ignored files
+
+These files are all **ignored**, for various miscellaneous reasons.
+
+* CompositionExclusions    - replaced with property in DerivedNormalizationProps
+* NamedSequencesProv       - for provisional sequences; currently empty
+* NormalizationCorrections - historical
+* StandardizedVariants     - only affects fonts and shaping algorithms
 
 
 ### Sources files
+
+All of these are currently **ignored** by `ucd2c.pl` since they carry character
+source data (and in the case of UniKemet, additional descriptive tags).  It's
+not clear if we want to process these at all.
 
 * EmojiSources
 * NushuSources
@@ -391,6 +428,9 @@ a given parsing type have been processed.
 
 
 ### Test files
+
+All of these are **ignored** by `ucd2c.pl` as test files (rather than normative
+files), but might be used in other programs.
 
 * BidiCharacterTest
 * BidiTest
@@ -404,22 +444,3 @@ a given parsing type have been processed.
 * emoji-ver/emoji-test
 
 * UCA/CollationTest/*
-
-
-### Multiformat parsing required
-
-* DerivedCoreProperties
-* DerivedNormalizationProps
-* PropertyValueAliases - also one of the alias definition files
-
-
-### Bespoke parsing required
-
-* Jamo - feeds Hangul syllable naming algorithm
-* ScriptExtensions
-* UnicodeData
-
-* extracted/DerivedName
-* extracted/DerivedNumericValues
-
-* UCA/allkeys
