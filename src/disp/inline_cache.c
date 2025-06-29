@@ -15,7 +15,7 @@ static MVMObject * getlexstatic_resolved(MVMThreadContext *tc,
         MVMDispInlineCacheEntry **entry_ptr, MVMString *name);
 
 /* Unlinked node. */
-static MVMDispInlineCacheEntry unlinked_getlexstatic = { getlexstatic_initial };
+static const MVMDispInlineCacheEntry unlinked_getlexstatic = { getlexstatic_initial };
 
 /* Initial unlinked handler. */
 static MVMObject * getlexstatic_initial(MVMThreadContext *tc,
@@ -29,7 +29,7 @@ static MVMObject * getlexstatic_initial(MVMThreadContext *tc,
     MVMDispInlineCacheEntryResolvedGetLexStatic *new_entry = MVM_malloc(sizeof(MVMDispInlineCacheEntryResolvedGetLexStatic));
     new_entry->base.run_getlexstatic = getlexstatic_resolved;
     MVM_ASSIGN_REF(tc, &(sf->common.header), new_entry->result, result);
-    try_update_cache_entry(tc, entry_ptr, &unlinked_getlexstatic, &(new_entry->base));
+    try_update_cache_entry(tc, entry_ptr, (MVMDispInlineCacheEntry*)&unlinked_getlexstatic, &(new_entry->base));
 
     return result;
 }
@@ -541,7 +541,7 @@ void MVM_disp_inline_cache_setup(MVMThreadContext *tc, MVMStaticFrame *sf) {
                 MVM_panic(1, "Inline cache slot overlap");
             switch (cacheable_ins[i].op) {
                 case MVM_OP_getlexstatic_o:
-                    entries[slot] = &unlinked_getlexstatic;
+                    entries[slot] = (MVMDispInlineCacheEntry*)&unlinked_getlexstatic;
                     break;
                 case MVM_OP_dispatch_v:
                 case MVM_OP_dispatch_i:
