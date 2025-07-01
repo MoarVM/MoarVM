@@ -147,8 +147,11 @@ void MVM_frame_setup_deopt(MVMThreadContext *tc, MVMFrame *frame, MVMStaticFrame
         MVMCode *code_ref);
 MVM_PUBLIC MVMuint64 MVM_frame_try_return(MVMThreadContext *tc);
 MVM_PUBLIC MVMuint64 MVM_frame_try_return_no_exit_handlers(MVMThreadContext *tc);
+MVMint8 MVM_frame_continue_conflicting_unwind(MVMThreadContext *tc, MVMFrame *up_to,
+        MVMuint8 exceptional);
 void MVM_frame_unwind_to(MVMThreadContext *tc, MVMFrame *frame, MVMuint8 *abs_addr,
-                         MVMuint32 rel_addr, MVMObject *return_value, void *jit_return_label);
+                         MVMuint32 rel_addr, MVMObject *return_value,
+                         void *jit_return_label, MVMuint8 exceptional);
 MVM_PUBLIC void MVM_frame_destroy(MVMThreadContext *tc, MVMFrame *frame);
 MVM_PUBLIC MVMObject * MVM_frame_get_code_object(MVMThreadContext *tc, MVMCode *code);
 MVM_PUBLIC void MVM_frame_capturelex(MVMThreadContext *tc, MVMObject *code);
