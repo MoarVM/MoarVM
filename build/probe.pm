@@ -1132,12 +1132,11 @@ EOT
                 else {
                     print "YES\n";
                 }
-                $config->{has_stdatomic} = 1;
                 return;
             }
         }
     }
-    print "NO\n";
+    die "Can't find C11 atomics";
     return;
 }
 
