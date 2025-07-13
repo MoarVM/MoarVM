@@ -250,6 +250,9 @@ static MVMuint64 unmanaged_size(MVMThreadContext *tc, MVMSTable *st, void *data)
              * number of handlers in instrumented version. should be, though. */
             size += sizeof(MVMFrameHandler) * body->num_handlers * 2;
         }
+
+        /* Size of Inline Cache and contained data. */
+        size += MVM_disp_inline_cache_unmanaged_size(tc, &body->inline_cache);
     }
 
     return size;

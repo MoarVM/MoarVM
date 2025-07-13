@@ -718,6 +718,102 @@ void MVM_disp_inline_cache_mark(MVMThreadContext *tc, MVMDispInlineCache *cache,
     }
 }
 
+static void MVM_disp_inline_cache_describe_refs(MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, MVMDispInlineCache *cache) {
+    static MVMuint64 cache_1 = 0;
+
+    MVMuint32 i;
+    for (i = 0; i < cache->num_entries; i++) {
+        MVMDispInlineCacheEntry *entry = cache->entries[i];
+        if (entry) {
+            if (entry->run_getlexstatic == getlexstatic_initial) {
+                /* Nothing to mark. */
+            }
+            else if (entry->run_getlexstatic == getlexstatic_resolved) {
+                MVM_profile_heap_add_collectable_rel_const_cstr_cached(tc, ss,
+                    (MVMCollectable *)(((MVMDispInlineCacheEntryResolvedGetLexStatic *)entry)->result), "Resolved getlexstatic", &cache_1);
+
+            }
+            else if (entry->run_dispatch == dispatch_initial ||
+                    entry->run_dispatch == dispatch_initial_flattening) {
+                /* Nothing to mark. */
+            }
+            else if (entry->run_dispatch == dispatch_monomorphic) {
+                MVMDispInlineCacheEntryMonomorphicDispatch *mono =
+                    (MVMDispInlineCacheEntryMonomorphicDispatch *)entry;
+                MVM_disp_program_mark(tc, mono->dp, NULL, ss);
+            }
+            else if (entry->run_dispatch == dispatch_monomorphic_flattening) {
+                MVMDispInlineCacheEntryMonomorphicDispatchFlattening *mono =
+                    (MVMDispInlineCacheEntryMonomorphicDispatchFlattening *)entry;
+                MVM_disp_program_mark(tc, mono->dp, NULL, ss);
+            }
+            else if (entry->run_dispatch == dispatch_polymorphic) {
+                MVMDispInlineCacheEntryPolymorphicDispatch *poly =
+                    (MVMDispInlineCacheEntryPolymorphicDispatch *)entry;
+                MVMuint32 i;
+                for (i = 0; i < poly->num_dps; i++)
+                    MVM_disp_program_mark(tc, poly->dps[i], NULL, ss);
+            }
+            else if (entry->run_dispatch == dispatch_polymorphic_flattening) {
+                MVMDispInlineCacheEntryPolymorphicDispatchFlattening *poly =
+                    (MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry;
+                MVMuint32 i;
+                for (i = 0; i < poly->num_dps; i++)
+                    MVM_disp_program_mark(tc, poly->dps[i], NULL, ss);
+            }
+            else {
+                MVM_panic(1, "Unimplemented case of inline cache GC describe refs");
+            }
+        }
+    }
+}
+
+/* Count up the not-GC-managed memory usage of the given inline cache. */
+MVMuint64 MVM_disp_inline_cache_unmanaged_size(MVMThreadContext *tc, MVMDispInlineCache *cache) {
+    MVMuint32 i;
+    MVMuint64 total = 0;
+    total += cache->num_entries * sizeof(MVMDispInlineCacheEntry);
+
+    for (i = 0; i < cache->num_entries; i++) {
+        MVMDispInlineCacheEntry *entry = cache->entries[i];
+        if (entry) {
+            if (entry->run_getlexstatic == getlexstatic_initial) {
+                /* No extra memory used. */
+            }
+            else if (entry->run_getlexstatic == getlexstatic_resolved) {
+                total += sizeof(MVMDispInlineCacheEntryResolvedGetLexStatic);
+            }
+            else if (entry->run_dispatch == dispatch_initial ||
+                    entry->run_dispatch == dispatch_initial_flattening) {
+                /* No extra memory used. */
+            }
+            else if (entry->run_dispatch == dispatch_monomorphic) {
+                total += sizeof(MVMDispInlineCacheEntryMonomorphicDispatch);
+            }
+            else if (entry->run_dispatch == dispatch_monomorphic_flattening) {
+                total += sizeof(MVMDispInlineCacheEntryMonomorphicDispatchFlattening);
+            }
+            else if (entry->run_dispatch == dispatch_polymorphic) {
+                MVMDispInlineCacheEntryPolymorphicDispatch *poly =
+                    (MVMDispInlineCacheEntryPolymorphicDispatch *)entry;
+                total += sizeof(MVMDispInlineCacheEntryPolymorphicDispatch);
+                total += sizeof(void *) * poly->num_dps;
+            }
+            else if (entry->run_dispatch == dispatch_polymorphic_flattening) {
+                MVMDispInlineCacheEntryPolymorphicDispatchFlattening *poly =
+                    (MVMDispInlineCacheEntryPolymorphicDispatchFlattening *)entry;
+                total += sizeof(MVMDispInlineCacheEntryPolymorphicDispatch);
+                total += sizeof(void *) * poly->num_dps * 2;
+            }
+            else {
+                MVM_panic(1, "Unimplemented case of inline cache GC unmanaged size accounting");
+            }
+        }
+    }
+    return total;
+}
+
+
 /* Clear up the memory associated with an inline cache. */
 void MVM_disp_inline_cache_destroy(MVMThreadContext *tc, MVMDispInlineCache *cache) {
     MVMuint32 i;
