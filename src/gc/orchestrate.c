@@ -353,6 +353,14 @@ void MVM_gc_mark_thread_unblocked(MVMThreadContext *tc) {
                         return;
                     }
                 }
+            } else if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPENDED) {
+                /* This happens if we ran into mark_thread_unblocked from
+                 * gc_enter_from_interrupt while we were stolen | suspended
+                 * and the debugserver told us to clear our STOLEN state.
+                 * Our caller in that case would be stop_point_hit, which would
+                 * make sure we keep waiting for the suspend request to clear.
+                 */
+                 return;
             } else if (MVM_load(&tc->gc_status) == MVMGCStatus_NONE) {
                 if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
                     fprintf(stderr, "marking thread %d unblocked, but its status is already NONE.\n", tc->thread_id);
@@ -667,7 +675,6 @@ static int react_to_debugserver_request(MVMThreadContext *tc) {
 void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
     GCDEBUG_LOG(tc, MVM_GC_DEBUG_ORCHESTRATE, "Thread %d run %d : Entered from interrupt\n");
 
-
     if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_SUSPEND_REQUEST) {
         if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "thread %d reacting to suspend request\n", tc->thread_id);
@@ -676,10 +683,30 @@ void MVM_gc_enter_from_interrupt(MVMThreadContext *tc) {
             uv_mutex_lock(&tc->instance->debugserver->mutex_cond);
             uv_cond_wait(&tc->instance->debugserver->tell_threads, &tc->instance->debugserver->mutex_cond);
             uv_mutex_unlock(&tc->instance->debugserver->mutex_cond);
-            if ((MVM_load(&tc->gc_status) & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_NONE) {
+            AO_t gc_status = MVM_load(&tc->gc_status);
+            if ((gc_status & MVMSUSPENDSTATUS_MASK) == MVMSuspendState_NONE) {
                 if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
                     fprintf(stderr, "thread %d got un-suspended\n", tc->thread_id);
                 break;
+            } else if ((gc_status & MVMGCSTATUS_MASK) == MVMGCStatus_STOLEN) {
+                uv_mutex_lock(&tc->instance->mutex_gc_orchestrate);
+                if (MVM_load(&tc->instance->gc_start) == 0) {
+                    if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
+                        fprintf(stderr, "thread %d was stolen meanwhile. no GC work is starting or ongoing, so will unblock and continue waiting.\n", tc->thread_id);
+                    if (MVM_cas(&tc->gc_status, MVMGCStatus_STOLEN | MVMSuspendState_SUSPENDED, MVMGCStatus_UNABLE | MVMSuspendState_SUSPENDED)
+                            == (MVMGCStatus_STOLEN | MVMSuspendState_SUSPENDED)) {
+                        uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
+                    }
+                    else {
+                        fprintf(stderr, "thread %d could not swap itself from MVMGCStatus_STOLEN | MVMSuspendState_SUSPENDED to MVMGCStatus_UNABLE | MVMSuspendState_SUSPEND_REQUEST and is still at %ld somehow.\n", tc->thread_id, MVM_load(&tc->gc_status));
+                    }
+                }
+                else {
+                    if (tc->instance->debugserver && tc->instance->debugserver->debugspam_protocol)
+                        fprintf(stderr, "thread %d was stolen meanwhile. GC work is starting or ongoing, so will unblock and join if possible.\n", tc->thread_id);
+                    uv_mutex_unlock(&tc->instance->mutex_gc_orchestrate);
+                    break;
+                }
             } else {
                 if (tc->instance->debugserver && tc->instance->debugserver->request_data.target_tc == tc) {
                     if (react_to_debugserver_request(tc)) {

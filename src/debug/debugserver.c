@@ -8,6 +8,7 @@
 
 #include "cmp.h"
 #include "platform/socket.h"
+#include "platform/time.h"
 
 #define cmp_write_conststr(ctx, string) cmp_write_str(ctx, string, strlen(string))
 
@@ -753,6 +754,43 @@ static MVMThread *find_thread_by_id(MVMInstance *vm, MVMuint32 id) {
     return cur_thread;
 }
 
+
+static int debugserver_ensure_thread_in_unable_state(MVMThreadContext *dtc, MVMThreadContext *tc) {
+    MVMInstance *vm = dtc->instance;
+    MVMDebugServerData *debugserver = vm->debugserver;
+
+    AO_t gc_status = MVM_load(&tc->gc_status);
+
+    if ((gc_status & MVMGCSTATUS_MASK) == MVMGCStatus_STOLEN) {
+        /* Give the thread a gentle nudge. */
+        uv_mutex_lock(&debugserver->mutex_cond);
+        uv_cond_broadcast(&debugserver->tell_threads);
+        uv_mutex_unlock(&debugserver->mutex_cond);
+        for (MVMuint64 attempts = 0; attempts < 10000; attempts++) {
+            if ((MVM_load(&tc->gc_status) & MVMGCSTATUS_MASK) == MVMGCStatus_UNABLE) {
+                if (vm->debugserver->debugspam_protocol) {
+                    gc_status = MVM_load(&tc->gc_status);
+                    fprintf(stderr, "target thread went from 'STOLEN' to 'UNABLE' status, waited for %ld rounds. (is %zu | %zu)\n", attempts, gc_status & MVMGCSTATUS_MASK, gc_status & MVMSUSPENDSTATUS_MASK);
+                }
+                return 1;
+            }
+            MVM_platform_nanosleep(1000);
+        }
+        gc_status = MVM_load(&tc->gc_status);
+        if (vm->debugserver->debugspam_protocol)
+            fprintf(stderr, "after nudging, target thread is still not in 'UNABLE' status (is %zu | %zu)\n", gc_status & MVMGCSTATUS_MASK, gc_status & MVMSUSPENDSTATUS_MASK);
+        return 0;
+    }
+    else if ((gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
+        if (vm->debugserver->debugspam_protocol)
+            fprintf(stderr, "target thread is not in 'UNABLE' status (is %zu | %zu)\n", gc_status & MVMGCSTATUS_MASK, gc_status & MVMSUSPENDSTATUS_MASK);
+        return 0;
+    }
+    else {
+        return 1;
+    }
+}
+
 MVMint32 MVM_debugserver_request_thread_suspends(MVMThreadContext *requester_tc, MVMThread *to_do, MVMuint64 limit_attempts) {
     MVM_gc_mark_thread_blocked(requester_tc);
     MVMThreadContext *tc = to_do->body.tc;
@@ -1127,7 +1165,7 @@ static MVMint32 request_thread_stacktrace(MVMThreadContext *dtc, cmp_ctx_t *ctx,
     if (!to_do)
         return -1;
 
-    if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
+    if (!debugserver_ensure_thread_in_unable_state(dtc, to_do->body.tc)) {
         return -1;
     }
 
@@ -1241,7 +1279,8 @@ static MVMuint8 setup_step(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *
         return 1;
     }
 
-    if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
+
+    if (!debugserver_ensure_thread_in_unable_state(dtc, to_do->body.tc)) {
         if (dtc->instance->debugserver->debugspam_protocol)
             fprintf(stderr, "Setting up step failed: thread has wrong status\n");
         return 1;
@@ -1820,7 +1859,6 @@ static void debugserver_invocation_special_unwind(MVMThreadContext *tc, void *da
     MVM_panic(1, "Debugserver: Handling exceptions thrown in invoked code NYI.");
 }
 
-
 static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, request_data *argument) {
     MVMInstance *vm = dtc->instance;
     MVMThread *to_do = find_thread_by_id(vm, argument->thread_id);
@@ -1838,9 +1876,9 @@ static MVMuint64 request_invoke_code(MVMThreadContext *dtc, cmp_ctx_t *ctx, requ
 
     tc = to_do->body.tc;
 
-    if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
+    if (!debugserver_ensure_thread_in_unable_state(dtc, tc)) {
         if (vm->debugserver->debugspam_protocol)
-            fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %zu)\n", to_do->body.tc->gc_status);
+            fprintf(stderr, "while trying to request code invocation: can only retrieve a context or code obj handle if thread is 'UNABLE' (is %zu)\n", to_do->body.tc->gc_status & MVMGCSTATUS_MASK);
         return 1;
     }
 
@@ -1988,9 +2026,9 @@ static MVMuint64 request_object_decontainerize(MVMThreadContext *dtc, cmp_ctx_t 
         return 1;
     }
 
-    if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
-        if (dtc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %zu)\n", to_do->body.tc->gc_status);
+    if (!debugserver_ensure_thread_in_unable_state(dtc, to_do->body.tc)) {
+        if (vm->debugserver->debugspam_protocol)
+            fprintf(stderr, "while trying to request object decont: can only retrieve a context or code obj handle if thread is 'UNABLE' (is %zu)\n", to_do->body.tc->gc_status & MVMGCSTATUS_MASK);
         return 1;
     }
 
@@ -2020,9 +2058,9 @@ static MVMint32 create_context_or_code_obj_debug_handle(MVMThreadContext *dtc, c
         return 1;
     }
 
-    if ((to_do->body.tc->gc_status & MVMGCSTATUS_MASK) != MVMGCStatus_UNABLE) {
-        if (dtc->instance->debugserver->debugspam_protocol)
-            fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %zu)\n", to_do->body.tc->gc_status);
+    if (!debugserver_ensure_thread_in_unable_state(dtc, to_do->body.tc)) {
+        if (vm->debugserver->debugspam_protocol)
+            fprintf(stderr, "can only retrieve a context or code obj handle if thread is 'UNABLE' (is %zu)\n", to_do->body.tc->gc_status & MVMGCSTATUS_MASK);
         return 1;
     }
 
