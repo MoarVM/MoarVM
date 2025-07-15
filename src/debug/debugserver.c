@@ -672,7 +672,7 @@ void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_le
              * length than what the null byte tells us, then there's no
              * module name in the filename and then there is no point in
              * sending the "full name" on top. */
-	    if (strlen(filename) != filename_len) {
+	        if (strlen(filename) != filename_len) {
                 cmp_write_map(ctx, 2);
 
                 cmp_write_conststr(ctx, "full_name");
