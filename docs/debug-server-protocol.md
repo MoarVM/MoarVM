@@ -1087,6 +1087,14 @@ Filename entries that were created not from a corresponding annotation being
 encountered but from requesting a breakpoint to be installed will have the
 "pending" key in addition to the "path" key.
 
+In the notification, there may be a `full_path` key in the objects in the
+filenames array. This happens for files from a module where moarvm will strip
+off anything starting at the space and parenthesis for the purposes of what
+filename you need to pass to set a breakpoint. The `full_path` key will give
+the path including the parenthesised part, so that it can be displayed to the
+user, but setting a breakpoint on the `full_path` will not result in the
+breakpoint being hit.
+
 Creating a file by requesting a breakpoint does not cause a notification to
 be sent out, but the same file later being encountered will cause such a
 notification.

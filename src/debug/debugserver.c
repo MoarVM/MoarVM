@@ -666,9 +666,23 @@ void notify_new_file(MVMThreadContext *tc, char *filename, MVMuint32 filename_le
             cmp_write_conststr(ctx, "filenames");
 
             cmp_write_array(ctx, 1);
-            cmp_write_map(ctx, 1);
+
+            /* If the code that finds the " (" didn't give us a shorter
+             * length than what the null byte tells us, then there's no
+             * module name in the filename and then there is no point in
+             * sending the "full name" on top. */
+	    if (strlen(filename) != filename_len) {
+                cmp_write_map(ctx, 2);
+
+                cmp_write_conststr(ctx, "full_name");
+                cmp_write_str(ctx, filename, strlen(filename));
+            }
+            else {
+                cmp_write_map(ctx, 1);
+            }
             cmp_write_conststr(ctx, "path");
             cmp_write_str(ctx, filename, filename_len);
+
 
             if (debugserver->backtrace_on_new_file) {
                 cmp_write_conststr(ctx, "frames");

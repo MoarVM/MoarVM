@@ -48,7 +48,7 @@ jobs:
   build_Windows_MoarVM:
     strategy:
       matrix:
-        windows-os: [windows-2019, windows-2022]
+        windows-os: [windows-2022]
         
     runs-on: ${{ matrix.windows-os }}
     if: github.event.ref_type == 'tag'

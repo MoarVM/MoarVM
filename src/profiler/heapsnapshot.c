@@ -958,7 +958,7 @@ void string_heap_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollect
     ZSTD_inBuffer inbuf;
     ZSTD_outBuffer outbuf;
 
-    char typename[8] = "strings\0";
+    char typename[9] = "strings\0";
     MVMuint64 size = 0;
 
     MVMuint64 size_position = 0;
@@ -990,7 +990,7 @@ void string_heap_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCollect
     }
 
     size_position = ftell(fh);
-    fwrite(&typename, sizeof(char), 8, fh);
+    fwrite(&typename, sizeof(char), sizeof(typename) - 1, fh);
     /* If the stream is seekable, we could go back here to write the size,
      * but only if we don't write everything in one go anyway */
 
@@ -1719,7 +1719,7 @@ static void filemeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCol
     MVMuint64 size;
     FILE *fh = col->fh;
 
-    char typename[8] = "filemeta";
+    char typename[9] = "filemeta";
 
     snprintf(metadata, 1023,
             "{ "
@@ -1743,7 +1743,7 @@ static void filemeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCol
     size = strlen(metadata) + 1;
 
     size_position = ftell(fh);
-    fwrite(&typename, sizeof(char), 8, fh);
+    fwrite(&typename, sizeof(char), sizeof(typename) - 1, fh);
     fwrite(&size, sizeof(MVMuint64), 1, fh);
 
     fputs(metadata, fh);
@@ -1768,7 +1768,7 @@ static void snapmeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCol
     MVMuint64 size;
     FILE *fh = col->fh;
 
-    char typename[8] = "snapmeta";
+    char typename[9] = "snapmeta";
 
     snprintf(metadata, 1023,
             "{ "
@@ -1795,7 +1795,7 @@ static void snapmeta_to_filehandle_ver3(MVMThreadContext *tc, MVMHeapSnapshotCol
     size = strlen(metadata) + 1;
 
     size_position = ftell(fh);
-    fwrite(&typename, sizeof(char), 8, fh);
+    fwrite(&typename, sizeof(char), sizeof(typename) - 1, fh);
     fwrite(&size, sizeof(MVMuint64), 1, fh);
 
     fputs(metadata, fh);

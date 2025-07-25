@@ -78,10 +78,17 @@ void MVM_unicode_normalize_codepoints(MVMThreadContext *tc, const MVMObject *in,
         result[result_pos++] = MVM_unicode_normalizer_get_codepoint(tc, &norm);
     MVM_unicode_normalizer_cleanup(tc, &norm);
 
+    MVMArrayBody *out_body = &((MVMArray *)out)->body;
+    /* Free previous slots array if it exists. */
+    if (out_body->slots.any)
+        MVM_free(out_body->slots.any);
+
     /* Put result into array body. */
-    ((MVMArray *)out)->body.slots.u32 = (MVMuint32 *) result;
-    ((MVMArray *)out)->body.start     = 0;
-    ((MVMArray *)out)->body.elems     = result_pos;
+    out_body->slots.u32 = (MVMuint32 *)result;
+    out_body->start     = 0;
+    out_body->elems     = result_pos;
+    out_body->ssize     = result_pos * sizeof(MVMuint32);
+
 }
 MVMString * MVM_unicode_codepoints_c_array_to_nfg_string(MVMThreadContext *tc, MVMCodepoint * cp_v, MVMint64 cp_count) {
     MVMNormalizer  norm;
