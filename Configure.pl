@@ -452,6 +452,10 @@ else {
     $config{mimalloc_object} = "";
 }
 
+# TODO error handling or something
+setup_native_library('yyjson'); # if $config{pkgconfig_works};
+unshift @{$config{usrlibs}}, 'yyjson';
+
 # mangle library names
 $config{ldlibs} = join ' ',
     $config{lincludes},
