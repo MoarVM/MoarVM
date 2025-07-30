@@ -264,6 +264,8 @@ $config{cincludes} = '' unless defined $config{cincludes};
 $config{moar_cincludes} = '' unless defined $config{moar_cincludes};
 $config{lincludes} = '' unless defined $config{lincludes};
 $config{install}   = '' unless defined $config{install};
+$config{has_libuv_pty} = !$args{'has-libuv'} ? 1 : 0;
+$config{do_pty_ourself} = (!$config{has_libuv_pty} && $^O ne 'MSWin32') ? 1 : 0;
 if ($args{'has-libuv'}) {
     $defaults{-thirdparty}->{uv} = undef;
     unshift @{$config{usrlibs}}, 'uv';
