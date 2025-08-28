@@ -1,3 +1,21 @@
+New in 2025.08
+
+Core:
++ Implement return prioritization [57093187]
++ Fix MVM_platform_lseek() on win32 [8233d287]
+
+Documentation:
+
+GC:
+
+JIT:
+
+Spesh:
+
+Strings:
+
+CI:
+
 New in 2025.06
 
 Core:
