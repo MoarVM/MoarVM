@@ -12,7 +12,7 @@ jobs:
     # Check https://github.com/actions/runner-images#available-images for available GihHub runners
     strategy:
       matrix:
-        posix-os: [ubuntu-22.04, ubuntu-24.04, macos-13, macos-14]
+        posix-os: [ubuntu-22.04, ubuntu-24.04, macos-13, macos-14, macos-15-large]
         
     runs-on: ${{ matrix.posix-os }}
     if: github.event.ref_type == 'tag'
@@ -48,7 +48,7 @@ jobs:
   build_Windows_MoarVM:
     strategy:
       matrix:
-        windows-os: [windows-2022]
+        windows-os: [windows-2022, windows-2025]
         
     runs-on: ${{ matrix.windows-os }}
     if: github.event.ref_type == 'tag'
