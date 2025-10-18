@@ -1,3 +1,7 @@
+New in 2025.10
+Core:
++ Fix https://github.com/rakudo/rakudo/issues/5954 [f7d6a0828]
+
 New in 2025.08
 
 Core:
