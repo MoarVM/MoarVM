@@ -2,8 +2,8 @@
 
 ## Versions
 
-MoarVM currently has a **monthly release cycle**, with releases made in time for
-the month's **NQP** and **Rakudo** release.
+MoarVM's release cycle currently tracks Rakudo & NQP's release cycle. This is
+*typically* monthly. Releases are done by the Rakudo Release Manager.
 
 Version numbers are simply `YYYY.MM`. For example, the **January 2014 release** is
 `2014.01`.
