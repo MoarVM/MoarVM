@@ -58,6 +58,37 @@ static void gc_free(MVMThreadContext *tc, MVMObject *obj) {
     MVM_free(code_obj->body.state_vars);
 }
 
+static void describe_refs (MVMThreadContext *tc, MVMHeapSnapshotState *ss, MVMSTable *st, void *data) {
+    MVMCodeBody *body = (MVMCodeBody *)data;
+
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->outer, "Outer");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->code_object, "Code Object");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->sf, "Static Frame");
+    MVM_profile_heap_add_collectable_rel_const_cstr(tc, ss,
+        (MVMCollectable *)body->name, "Name");
+
+    if (body->state_vars) {
+        MVMuint8 *flags  = body->sf->body.static_env_flags;
+        MVMuint16 *types = body->sf->body.lexical_types;
+        MVMint64 numlex  = body->sf->body.num_lexicals;
+        MVMint64 i;
+        for (i = 0; i < numlex; i++) {
+            if (flags[i] == 2) {
+                if (types[i] == MVM_reg_obj)
+                    MVM_profile_heap_add_collectable_rel_idx(tc, ss,
+                        (MVMCollectable *)body->state_vars[i].o, i);
+                else if (types[i] == MVM_reg_str)
+                    MVM_profile_heap_add_collectable_rel_idx(tc, ss,
+                        (MVMCollectable *)body->state_vars[i].s, i);
+            }
+        }
+    }
+}
+
+
 static const MVMStorageSpec storage_spec = {
     MVM_STORAGE_SPEC_REFERENCE, /* inlineable */
     0,                          /* bits */
@@ -110,7 +141,7 @@ static const MVMREPROps MVMCode_this_repr = {
     "MVMCode", /* name */
     MVM_REPR_ID_MVMCode,
     NULL, /* unmanaged_size */
-    NULL, /* describe_refs */
+    describe_refs,
 };
 
 MVM_PUBLIC MVMObject * MVM_code_location(MVMThreadContext *tc, MVMObject *code) {
