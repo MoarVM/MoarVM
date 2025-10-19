@@ -68,28 +68,23 @@ stages:
            MOAR_OPTIONS: '--relocatable'
 
          Mac_MVM:
-           IMAGE_NAME: 'macOS-14'
+           IMAGE_NAME: 'macOS-15'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
          Mac_MVM_reloc:
-           IMAGE_NAME: 'macOS-14'
+           IMAGE_NAME: 'macOS-15'
            RELOCATABLE: 'yes'
            RAKUDO_OPTIONS: '--relocatable'
            NQP_OPTIONS: '--backends=moar --relocatable'
            MOAR_OPTIONS: '--relocatable'
          Mac_MVM_no_C11_atomics:
-           IMAGE_NAME: 'macOS-14'
+           IMAGE_NAME: 'macOS-15'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-c11-atomics'
-         Mac_13_MVM:
-           IMAGE_NAME: 'macOS-13'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: ''
-         Mac_15_MVM:
-           IMAGE_NAME: 'macOS-15'
+         Mac_14_MVM:
+           IMAGE_NAME: 'macOS-14'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
