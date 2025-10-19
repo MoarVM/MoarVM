@@ -12,11 +12,11 @@ jobs:
     # Check https://github.com/actions/runner-images#available-images for available GihHub runners
     strategy:
       matrix:
-        posix-os: [ubuntu-22.04, ubuntu-24.04, macos-13, macos-14, macos-15-large]
-        
+        posix-os: [ubuntu-22.04, ubuntu-24.04, macos-14, macos-15]
+
     runs-on: ${{ matrix.posix-os }}
     if: github.event.ref_type == 'tag'
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -33,26 +33,26 @@ jobs:
 
       - name: Create TAR.GZ file
         run: tar -cvzf MoarVM.${{matrix.posix-os}}.tar.gz MoarVM.${{matrix.posix-os}}
-        
+
       - name: List my stuff
         run: ls -l MoarVM.${{matrix.posix-os}}.tar.gz
-        
+
       - name: Upload MoarVM ${{matrix.posix-os}} artifact
         uses: actions/upload-artifact@v4
         with:
           name: MoarVM.${{matrix.posix-os}}
           path: MoarVM.${{matrix.posix-os}}.tar.gz
           if-no-files-found: error
-          
- 
+
+
   build_Windows_MoarVM:
     strategy:
       matrix:
         windows-os: [windows-2022, windows-2025]
-        
+
     runs-on: ${{ matrix.windows-os }}
     if: github.event.ref_type == 'tag'
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -60,7 +60,7 @@ jobs:
           fetch-tags: 'true'
           persist-credentials: false
           ref: ${{ github.event.ref }}
-        
+
       - name: Setup VS Dev Environment
         uses: compnerd/gha-setup-vsdevenv@v6
 
@@ -74,7 +74,7 @@ jobs:
 
       - name: Create TAR.GZ file
         run: tar -cvzf MoarVM.${{matrix.windows-os}}.tar.gz MoarVM.${{matrix.windows-os}}
-        
+
       - name: List my stuff
         run: Get-ChildItem MoarVM.${{matrix.windows-os}}.tar.gz
 
@@ -84,21 +84,21 @@ jobs:
           name: MoarVM.${{matrix.windows-os}}
           path: MoarVM.${{matrix.windows-os}}.tar.gz
           if-no-files-found: error
-          
-    
+
+
   release_MoarVM_artifacts:
     needs: [build_POSIX_MoarVM, build_Windows_MoarVM]
     runs-on: ubuntu-latest
-    
+
     steps:
-    
+
     - uses: actions/download-artifact@v4
       with:
         path: MoarVM_artifacts
-        
+
     - name: List my stuff
       run: ls -lAR
-      
+
     - name: Release MoarVM releases
       uses: ncipollo/release-action@v1
       with:
@@ -109,4 +109,4 @@ jobs:
         artifactErrorsFailBuild: true
         artifacts: "MoarVM_artifacts/MoarVM*/MoarVM*"
         token: ${{ secrets.GITHUB_TOKEN }}
-        
+
