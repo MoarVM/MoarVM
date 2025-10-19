@@ -2,8 +2,8 @@
 
 ## Versions
 
-MoarVM currently has a **monthly release cycle**, with releases made in time for
-the month's **NQP** and **Rakudo** release.
+MoarVM's release cycle currently tracks Rakudo & NQP's release cycle. This is
+*typically* monthly. Releases are done by the Rakudo Release Manager.
 
 Version numbers are simply `YYYY.MM`. For example, the **January 2014 release** is
 `2014.01`.
@@ -119,7 +119,7 @@ but recreate it with the correct internal folder name so you can follow the rema
 
 20. If both look good, push with `git push origin master`
 
-21. Merge the release Pull Request.
+21. Merge the release Pull Request. DO NOT SQUASH.
 
 22. There is a [github workflow](.github/workflows/build_release.yml) (commit 2a60bd07bd3b90d6d5c5d30311bdb5cb2f0f2a59, added on Mar 16, 2024) that creates the github
     release after a `git tag` was pushed.  You just have to wait a few minutes for it to happen after the
