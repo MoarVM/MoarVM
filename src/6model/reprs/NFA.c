@@ -469,8 +469,6 @@ MVMObject * MVM_nfa_from_statelist(MVMThreadContext *tc, MVMObject *states, MVMO
     return nfa_obj;
 }
 
-/* Does a run of the NFA. Produces a list of integers indicating the
- * chosen ordering. */
 static MVMint32 in_done(MVMuint32 *done, MVMuint32 numdone, MVMuint32 st) {
     MVMuint32 i = 0;
     for (i = 0; i < numdone; i++)
@@ -479,19 +477,74 @@ static MVMint32 in_done(MVMuint32 *done, MVMuint32 numdone, MVMuint32 st) {
     return 0;
 }
 
+/* Does a run of the NFA. Produces a list of integers indicating the
+ * chosen ordering. */
 static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *target, MVMint64 offset, MVMint64 *total_fates_out) {
     MVMint64  eos     = MVM_string_graphs(tc, target);
+
+    /* donc, curst, and nextst are stacks of state indices.
+     * done records a set of states that have already been handled this step.
+     * curst is a stack of state indices that are still to be handled this step.
+     * nextst is a stack of state indices that will become curst in the
+     * following step.
+     */
+    MVMint64  numdone = 0;
     MVMint64  numcur  = 0;
     MVMint64  numnext = 0;
-    MVMint64  numdone = 0;
+
     MVMuint32 *done, *curst, *nextst;
-    MVMint64  *fates, *longlit;
-    MVMint64  i, fate_arr_len, num_states, total_fates, prev_fates, usedlonglit;
+
+    /* fates records the list of activated fates. The fates are sorted by the
+     * offset they have been activated at, with later offsets giving a "better"
+     * score (but see also longlit) and lower fate numbers mean earlier
+     * definition order, so are also better.
+     *
+     * total_fates is the number of fates in the "fates" array, and prev_fates
+     * is used to differentiate which fates were just added this step, and
+     * therefore need to be compared against when activating new states in a
+     * step. Fates that were added in an earlier step remain in the order they
+     * were at the end of the last step.
+     *
+     * When fates are activated, a previous entry for the same fate is thrown
+     * away, so it can get a new spot in the "new fates this step" portion of
+     * the array.
+     */
+    MVMint64  *fates;
+
+    /* Longlit is an array of zeroes of the length of all fates (often longer,
+     * as the arrays are not destroyed in between runs).
+     * In the position longlit[fate-index] we record the offset from start-of-
+     * match where an _LL edge with the fate encoded in its "act" attribute was
+     * matched.
+     * When a "fate edge" of the same fate-idx (in that case in the "v"
+     * attribute) is matched, we take the corresponding value in "longlit" (if
+     * one is present) and reduce the number we put into the fate array by the
+     * longlit value shifted 24 bits up. This gives us a negative number, so
+     * that simple comparison will give a fate with a higher longlit a better
+     * spot.
+     * We use "usedlonglit" to zero out spots in the longlit array when they
+     * are first passed by a higher fate getting a longlit entry. */
+    MVMint64  *longlit;
+
+    MVMint64  fate_arr_len, total_fates, prev_fates, usedlonglit;
+
+    /* Number of states total that the NFA has. */
+    MVMint64 num_states;
+
+    /* The index into the array of edges of the state that is currently being
+     * handled. */
+    MVMint64 i;
+
+    /* Offset into the string that we started matching at. */
     MVMint64  orig_offset = offset;
+
     /* We used a cached grapheme iterator since we often request the same
      * grapheme multiple times, most common after that is requesting the next
      * grapheme. */
     MVMGraphemeIter_cached gic;
+
+    /* Settable through an environment variable, this outputs information about
+     * an NFA run as it unfolds. */
     int nfadeb = tc->instance->nfa_debug_enabled;
 
     /* Obtain or (re)allocate "done states", "current states" and "next
@@ -515,7 +568,9 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         tc->nfa_fates_len = fate_arr_len;
     }
     fates = tc->nfa_fates;
+
     total_fates = 0;
+
     if (MVM_UNLIKELY(nfadeb)) fprintf(stderr,"======================================\nStarting with %d fates in %d states\n", (int)fate_arr_len, (int)num_states) ;
 
     /* longlit will be updated on a fate whenever NFA passes through final char of a literal. */
@@ -527,7 +582,10 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
     longlit = tc->nfa_longlit;
     usedlonglit = 0;
 
+    /* Install the starting state of the NFA, which is just "1" by convention.
+     */
     nextst[numnext++] = 1;
+
     /* In NFA could be called with a string that has 0 graphemes in it. Guard
      * against this so we don't init for the empty string. */
     if (target->body.num_graphs) MVM_string_gi_cached_init(tc, &gic, target, 0);
@@ -538,6 +596,9 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
         curst   = nextst;
         nextst  = temp;
         numcur  = numnext;
+
+        /* We start with an empty array of states for the upcoming step,
+         * and an empty set of states marked as "already handled". */
         numnext = 0;
         numdone = 0;
 
@@ -553,21 +614,33 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                 fprintf(stderr,"EOS with %"PRId64"s\n", numcur);
             }
         }
+
+        /* Keep handling states until there are no more active states on
+         * the "curst" stack. */
         while (numcur) {
             MVMNFAStateInfo *edge_info;
             MVMint64         edge_info_elems;
 
+            /* st is a state index relative to the array used to create the
+             * NFA, which has in its 0th slot the fates array.
+             * For the nfa->states array on the other hand, we don't include
+             * an entry at index 0 for the fates. That means that in order to
+             * access nfa->states, we have to use st - 1. */
             MVMint64 st = curst[--numcur];
             if (st <= num_states) {
+                /* An already handled state doesn't need to be handled again */
                 if (in_done(done, numdone, st))
                     continue;
+                /* We can already add it to the done "stack" */
                 done[numdone++] = st;
             }
 
             edge_info = nfa->states[st - 1];
             edge_info_elems = nfa->num_state_edges[st - 1];
+
             if (MVM_UNLIKELY(nfadeb))
                 fprintf(stderr,"\t%"PRIi64"\t%"PRIi64"\t", st, edge_info_elems);
+
             for (i = 0; i < edge_info_elems; i++) {
                 MVMint64 act = edge_info[i].act;
                 MVMint64 to  = edge_info[i].to;
@@ -587,17 +660,33 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                         MVMint64 found_fate = 0;
                         if (MVM_UNLIKELY(nfadeb))
                             fprintf(stderr, "fate(%016llx) ", (long long unsigned int)arg);
+
+                        /* We go backwards through the entire fates array, which
+                         * is conceptually made up of two parts, indicated by
+                         * the prev_fates number. */
                         for (j = 0; j < total_fates; j++) {
+                            /* If we're past the spot where we found the fate,
+                             * we start shifting everything to the left. */
                             if (found_fate)
                                 fates[j - found_fate] = fates[j];
+                            /* Fates with a longlit encoded need the longlit
+                             * value masked for the comparison. */
                             if ((fates[j] & 0xffffff) == arg) {
                                 found_fate++;
+                                /* Move the separation point back one step as
+                                 * well, if needed. */
                                 if (j < prev_fates)
                                     prev_fates--;
                             }
                         }
+
+                        /* Adjust total_fates to the new number */
                         total_fates -= found_fate;
+
+                        /* If there has possibly already been a longlit
+                         * recorded for this fate */
                         if (arg < usedlonglit)
+                            /* Encode longlit in the "arg" value. */
                             arg -= longlit[arg] << 24;
                         if (MVM_UNLIKELY(++total_fates > fate_arr_len)) {
                             /* should never happen if nfa->fates is correct and dedup above works right */
@@ -621,6 +710,8 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                     }
                     else if (act == MVM_NFA_EDGE_EPSILON && to <= num_states &&
                             !in_done(done, numdone, to)) {
+                        /* An epsilon edge immediately goes into curst, instead
+                         * of nextst like non-epsilon edges. */
                         if (to)
                             curst[numcur++] = to;
                         else if (MVM_UNLIKELY(nfadeb))  /* XXX should turn into a "can't happen" after rebootstrap */
@@ -640,6 +731,8 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             if (MVM_string_gi_cached_get_grapheme(tc, &gic, offset) == arg) {
                                 MVMint64 fate = (edge_info[i].act >> 8) & 0xfffff;
                                 nextst[numnext++] = to;
+                                /* Fill up longlit array with zeroes if
+                                 * necessary */
                                 while (usedlonglit <= fate)
                                     longlit[usedlonglit++] = 0;
                                 longlit[fate] = offset - orig_offset + 1;
@@ -706,6 +799,8 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             MVMGrapheme32 uc_arg = edge_info[i].arg.uclc.uc;
                             MVMGrapheme32 lc_arg = edge_info[i].arg.uclc.lc;
                             MVMGrapheme32 ord    = MVM_string_gi_cached_get_grapheme(tc, &gic, offset);
+                            /* CODEPOINT_I is used for case-insensitive matches.
+                             * However, the uc and lc arg can be arbitrary. */
                             if (ord == lc_arg || ord == uc_arg)
                                 nextst[numnext++] = to;
                             continue;
@@ -735,6 +830,14 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                             continue;
                         }
                         case MVM_NFA_EDGE_SUBRULE:
+                            /* SUBRULE edges are only needed for NFAs that will
+                             * be stored and used together with other parts of
+                             * a grammar. The form with subrules in it is
+                             * "translated" to a form with everything looked up
+                             * and merged, and then cached. The cache is
+                             * cleared whenever a mixin into a Grammar class
+                             * happens.
+                             * See NQP's mergesubrule and mergesubstates */
                             if (MVM_UNLIKELY(nfadeb))
                                 fprintf(stderr, "IGNORING SUBRULE\n");
                             continue;
@@ -849,6 +952,8 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
                                     }
                                     found++;
                                 }
+                                /* Skip past all the edges that belong to the
+                                 * binary search "synthetic" edge. */
                                 i += num_possibilities;
                             }
                             break;
