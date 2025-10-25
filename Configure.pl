@@ -349,9 +349,7 @@ if ($args{'has-libffi'}) {
     $config{nativecall_backend} = 'libffi';
     unshift @{$config{usrlibs}}, 'ffi';
     push @{$config{defs}}, 'HAVE_LIBFFI';
-    $defaults{-thirdparty}->{dc}  = undef;
-    $defaults{-thirdparty}->{dcb} = undef;
-    $defaults{-thirdparty}->{dl}  = undef;
+    $defaults{-thirdparty}->{libffi}  = undef;
     if ($config{pkgconfig_works}) {
         setup_native_library('libffi');
     }
@@ -366,31 +364,15 @@ if ($args{'has-libffi'}) {
         }
     }
 }
-elsif ($args{'has-dyncall'}) {
-    unshift @{$config{usrlibs}}, 'dyncall_s', 'dyncallback_s', 'dynload_s';
-    $defaults{-thirdparty}->{dc}  = undef;
-    $defaults{-thirdparty}->{dcb} = undef;
-    $defaults{-thirdparty}->{dl}  = undef;
-    $config{nativecall_backend} = 'dyncall';
-    if (not $config{crossconf}) {
-        if (index($config{cincludes}, '-I/usr/local/include') == -1) {
-            $config{cincludes} = join(' ', $config{cincludes}, '-I/usr/local/include');
-        }
-        if (index($config{lincludes}, '-L/usr/local/lib') == -1) {
-            $config{lincludes} = join(' ', $config{lincludes}, '-L/usr/local/lib');
-        }
-    }
-}
 else {
-    $config{nativecall_backend} = 'dyncall';
-    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/dyncall/dynload'
-                             . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncall'
-                             . ' ' . $defaults{ccinc} . '3rdparty/dyncall/dyncallback';
-    $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n"
-                        . "\t\$(CP) 3rdparty/dyncall/dynload/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n"
-                        . "\t\$(CP) 3rdparty/dyncall/dyncall/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n"
-                        . "\t\$(CP) 3rdparty/dyncall/dyncallback/*.h \"\$(DESTDIR)\$(PREFIX)/include/dyncall\"\n";
-    push @hllincludes, 'dyncall';
+    push @{$config{defs}}, 'HAVE_LIBFFI';
+    $config{nativecall_backend} = 'libffi';
+    $config{moar_cincludes} .= ' ' . $defaults{ccinc} . '3rdparty/libffi/install/include';
+    $config{install}   .= "\t\$(MKPATH) \"\$(DESTDIR)\$(PREFIX)/include/libffi\"\n"
+                        . "\t\$(CP) 3rdparty/libffi/install/include/*.h \"\$(DESTDIR)\$(PREFIX)/include/libffi\"\n";
+    $config{libffi_include} = '@ccincsystem@3rdparty/libffi/install/include';
+    $config{libffi_object} = '3rdparty/libffi/install/lib/@obj@';
+    push @hllincludes, 'ffi';
 }
 
 # The ZSTD_CStream API is only exposed starting at version 1.0.0
