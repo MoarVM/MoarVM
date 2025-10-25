@@ -627,13 +627,18 @@ static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *
              * an entry at index 0 for the fates. That means that in order to
              * access nfa->states, we have to use st - 1. */
             MVMint64 st = curst[--numcur];
-            if (st <= num_states) {
-                /* An already handled state doesn't need to be handled again */
-                if (in_done(done, numdone, st))
-                    continue;
-                /* We can already add it to the done "stack" */
-                done[numdone++] = st;
+
+            /* There is not really a reason for a number above num_states to
+             * get into the curst stack, but better to throw than to crash. */
+            if (MVM_UNLIKELY(st > num_states)) {
+                MVM_exception_throw_adhoc(tc, "Invalid state index %"PRId64" (allowed up to %"PRId64") got into the active states list.", st, num_states);
             }
+
+            /* An already handled state doesn't need to be handled again */
+            if (in_done(done, numdone, st))
+                continue;
+            /* We can already add it to the done "stack" */
+            done[numdone++] = st;
 
             edge_info = nfa->states[st - 1];
             edge_info_elems = nfa->num_state_edges[st - 1];
