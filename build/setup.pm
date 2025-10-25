@@ -51,7 +51,7 @@ my %TP_UV = (
 my %TP_LF = (
     name  => 'ffi/install/lib/libffi',
     path  => '3rdparty',
-    rule  => 'cd 3rdparty/libffi && ./autogen.sh && ./configure --disable-docs --prefix=' . catdir(rel2abs(), '3rdparty', 'libffi', 'install') . ' && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS) -fPIC\' $(MAKE) install',
+    rule  => 'cd 3rdparty/libffi && ./autogen.sh && ./configure --enable-pic --disable-docs --prefix=' . catdir(rel2abs(), '3rdparty', 'libffi', 'install') . ' && CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) install',
     clean => 'cd 3rdparty/libffi && $(MAKE) clean',
 );
 
