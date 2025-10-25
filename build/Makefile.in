@@ -721,12 +721,9 @@ tools/repr_size_table@exe@: tools/repr_size_table@obj@ @moarlib@ $(DLL_LIBS)
 	$(MSG) linking $@
 	$(CMD)@cmprule@ $(NOOUT)
 
-@dclib@:
-	$(MSG) building dyncall...
-	$(CMD)@dcrule@ $(NOOUT)
-	$(MSG) done.
-
-@dcblib@ @dllib@: @dclib@
+@lflib@: @lfobjects@
+	$(MSG) linking $@
+	$(CMD)@lfrule@ $(NOOUT)
 
 pkgconfig/moar.pc: build/mk-moar-pc.pl
 	$(PERL) build/mk-moar-pc.pl $@
@@ -746,7 +743,6 @@ realclean: clean
 	-$(RM) @laolib@ $(NOOUT) $(NOERR)
 	-$(CMD)@tomclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@shaclean@ $(NOOUT) $(NOERR)
-	-$(CMD)@dcclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@cmpclean@ $(NOOUT) $(NOERR)
 	-$(RM) $(MINILUA) $(NOOUT) $(NOERR)
 
