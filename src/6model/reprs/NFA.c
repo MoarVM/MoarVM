@@ -482,7 +482,7 @@ static MVMint32 in_done(MVMuint32 *done, MVMuint32 numdone, MVMuint32 st) {
 static MVMint64 * nqp_nfa_run(MVMThreadContext *tc, MVMNFABody *nfa, MVMString *target, MVMint64 offset, MVMint64 *total_fates_out) {
     MVMint64  eos     = MVM_string_graphs(tc, target);
 
-    /* donc, curst, and nextst are stacks of state indices.
+    /* done, curst, and nextst are stacks of state indices.
      * done records a set of states that have already been handled this step.
      * curst is a stack of state indices that are still to be handled this step.
      * nextst is a stack of state indices that will become curst in the
