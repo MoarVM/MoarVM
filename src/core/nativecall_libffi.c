@@ -112,7 +112,6 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMCode *callback, MVMObj
         void *cb;
         ffi_cif *cif;
         ffi_closure *closure;
-        ffi_status status;
 
         num_info = MVM_repr_elems(tc, sig_info);
 
@@ -175,8 +174,11 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMCode *callback, MVMObj
         callback_data->instance  = tc->instance;
         callback_data->cs        = cs;
         callback_data->target    = callback;
-        status                   = ffi_prep_cif(cif, callback_data->convention, (unsigned int)cs->arg_count,
+        ffi_status status        = ffi_prep_cif(cif, callback_data->convention, (unsigned int)cs->arg_count,
             callback_data->ffi_ret_type, callback_data->ffi_arg_types);
+        if (status != FFI_OK) {
+            MVM_exception_throw_adhoc(tc, "Internal error: failed to prepare libffi calling conventions");
+        }
 
         closure                  = ffi_closure_alloc(sizeof(ffi_closure), &cb);
         if (!closure)
@@ -501,6 +503,9 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
 
     ffi_cif cif;
     ffi_status status  = ffi_prep_cif(&cif, body->convention, (unsigned int)num_args, body->ffi_ret_type, body->ffi_arg_types);
+    if (status != FFI_OK) {
+        MVM_exception_throw_adhoc(tc, "Internal error: failed to prepare libffi calling conventions");
+    }
 
     interval_id = MVM_telemetry_interval_start(tc, "nativecall invoke");
     MVM_telemetry_interval_annotate((uintptr_t)entry_point, interval_id, "nc entrypoint");
@@ -874,6 +879,9 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
 
     ffi_cif cif;
     ffi_status status  = ffi_prep_cif(&cif, body->convention, (unsigned int)num_args, body->ffi_ret_type, body->ffi_arg_types);
+    if (status != FFI_OK) {
+        MVM_exception_throw_adhoc(tc, "Internal error: failed to prepare libffi calling conventions");
+    }
 
     interval_id = MVM_telemetry_interval_start(tc, "nativecall invoke");
     MVM_telemetry_interval_annotate((uintptr_t)entry_point, interval_id, "nc entrypoint");
