@@ -112,7 +112,6 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMCode *callback, MVMObj
         void *cb;
         ffi_cif *cif;
         ffi_closure *closure;
-        ffi_status status;
 
         num_info = MVM_repr_elems(tc, sig_info);
 
@@ -175,7 +174,7 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMCode *callback, MVMObj
         callback_data->instance  = tc->instance;
         callback_data->cs        = cs;
         callback_data->target    = callback;
-        status                   = ffi_prep_cif(cif, callback_data->convention, (unsigned int)cs->arg_count,
+        ffi_status status        = ffi_prep_cif(cif, callback_data->convention, (unsigned int)cs->arg_count,
             callback_data->ffi_ret_type, callback_data->ffi_arg_types);
         if (status != FFI_OK)
             MVM_exception_throw_adhoc(tc, "Failure to set up FFI call interface");
