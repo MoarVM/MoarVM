@@ -607,7 +607,7 @@ reconfig: realclean
 clangcheck gcccheck:
 	@$(MAKE) --no-print-directory -f tools/check.mk $@
 
-moar@exe@: $(MAIN_OBJECTS) @moar@
+moar@exe@: @lflib@ $(MAIN_OBJECTS) @moar@
 	$(MSG) linking $@
 	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MINGW_UNICODE) $(MAIN_OBJECTS) $(MAIN_LIBS)
 
