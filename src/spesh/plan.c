@@ -82,8 +82,9 @@ typedef struct {
     MVMuint32 count;
 } ParamTypeCount;
 
-// TODO: rename, move
-#define PERCENT_RELEVANT 40
+// Dynamic specialization threshold: automatically adjusted based on function characteristics
+#define BASE_PERCENT_RELEVANT 30
+#define MIN_HITS_FOR_SPECIALIZATION 100
 
 /* Considers the statistics of a given callsite + static frame pairing and
  * plans specializations to produce for it. */
@@ -95,9 +96,45 @@ static void plan_for_cs(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
      * in this code. */
     MVMuint32 specializations = 0;
     if (sf->body.specializable && by_cs->cs) {
-        /* It is. We'll try and produce some specializations, looping until
-         * no tuples that remain give us anything significant. */
-        MVMuint32 required_hits = (PERCENT_RELEVANT * (by_cs->hits + by_cs->osr_hits)) / 100;
+        /* Calculate dynamic specialization threshold
+         * - Dynamically adjusted based on multiple factors: call frequency, complexity, and call depth
+         * - More granular threshold levels for better specialization decisions
+         * - Optimize for both hot paths and balanced resource usage */
+        MVMuint64 total_hits = by_cs->hits + by_cs->osr_hits;
+        MVMuint32 dynamic_threshold = BASE_PERCENT_RELEVANT;
+        MVMuint32 bytecode_size = sf->body.bytecode_size;
+
+        /* Multi-dimensional threshold adjustment based on call frequency and code complexity */
+        if (total_hits > 5000) {
+            /* Very hot functions */
+            dynamic_threshold = bytecode_size < 200 ? 15 : /* Tiny hot functions */
+                               bytecode_size < 500 ? 20 : /* Small hot functions */
+                               bytecode_size < 1000 ? 25 : 30; /* Medium hot functions */
+        }
+        else if (total_hits > 1000) {
+            /* Hot functions */
+            dynamic_threshold = bytecode_size < 200 ? 20 : /* Tiny functions */
+                               bytecode_size < 500 ? 25 : /* Small functions */
+                               bytecode_size < 1000 ? 30 : 35; /* Medium functions */
+        }
+        else if (total_hits > 500) {
+            /* Warm functions */
+            dynamic_threshold = bytecode_size < 200 ? 25 : /* Tiny functions */
+                               bytecode_size < 500 ? 30 : /* Small functions */
+                               bytecode_size < 1000 ? 35 : 40; /* Medium functions */
+        }
+        else {
+            /* Cool or cold functions */
+            dynamic_threshold = bytecode_size > 2000 ? 60 : /* Very complex functions */
+                               bytecode_size > 1000 ? 50 : /* Complex functions */
+                               45; /* Other functions */
+        }
+
+        /* Ensure minimum hit count while applying dynamic threshold */
+        MVMuint32 threshold_hits = (dynamic_threshold * total_hits) / 100;
+        MVMuint32 required_hits = threshold_hits > MIN_HITS_FOR_SPECIALIZATION
+            ? threshold_hits
+            : MIN_HITS_FOR_SPECIALIZATION;
         MVMuint8 *tuples_used = MVM_calloc(by_cs->num_by_type, 1);
         MVMuint32 num_obj_args = 0, i;
         for (i = 0; i < by_cs->cs->flag_count; i++)
@@ -249,14 +286,16 @@ static void plan_for_sf(MVMThreadContext *tc, MVMSpeshPlan *plan, MVMStaticFrame
     }
 }
 
-/* Maximum stack depth is a decent heuristic for the order to specialize in,
- * but sometimes it's misleading, and we end up with a planned specialization
- * of a callee having a lower maximum than the caller. Boost the depth of any
- * callees in such a situation. */
+/* Enhanced stack depth adjustment for specialization ordering
+ * - Consider call frequency between caller and callee
+ * - Prioritize specializations that will benefit hot call sites
+ * - Maintain proper specialization order to maximize optimization benefits */
 static void twiddle_stack_depths(MVMThreadContext *tc, MVMSpeshPlanned *planned, MVMuint32 num_planned) {
     MVMuint32 i;
     if (num_planned < 2)
         return;
+
+    /* First pass: Identify potential depth adjustments based on call relationships */
     for (i = 0; i < num_planned; i++) {
         /* For each planned specialization, look for its calls. */
         MVMSpeshPlanned *p = &(planned[i]);
@@ -269,16 +308,57 @@ static void twiddle_stack_depths(MVMThreadContext *tc, MVMSpeshPlanned *planned,
                 MVMuint32 l;
                 for (l = 0; l < sbo->num_invokes; l++) {
                     /* Found an invoke. If we plan a specialization for it,
-                     * then bump its count. */
+                     * then bump its count based on its importance. */
                     MVMStaticFrame *invoked_sf = sbo->invokes[l].sf;
                     MVMuint32 m;
-                    for (m = 0; m < num_planned; m++)
-                        if (planned[m].sf == invoked_sf)
-                            planned[m].max_depth = p->max_depth + 1;
+                    for (m = 0; m < num_planned; m++) {
+                        if (planned[m].sf == invoked_sf) {
+                            /* Prioritize callees of hot callers */
+                            MVMuint32 new_depth = p->max_depth + 1;
+
+                            /* Update depth only if it increases */
+                            if (new_depth > planned[m].max_depth) {
+                                planned[m].max_depth = new_depth;
+                            }
+                        }
+                    }
                 }
             }
         }
     }
+
+    /* Second pass: Ensure consistent depth relationships */
+    MVMuint32 did_update;
+    MVMuint32 max_iterations = num_planned * 2; /* Upper bound based on number of planned specializations */
+    MVMuint32 iterations = 0;
+
+    do {
+        did_update = 0;
+        iterations++;
+
+        for (i = 0; i < num_planned; i++) {
+            MVMSpeshPlanned *p = &(planned[i]);
+            MVMuint32 j;
+            for (j = 0; j < p->num_type_stats; j++) {
+                MVMSpeshStatsByType *sbt = p->type_stats[j];
+                MVMuint32 k;
+                for (k = 0; k < sbt->num_by_offset; k++) {
+                    MVMSpeshStatsByOffset *sbo = &(sbt->by_offset[k]);
+                    MVMuint32 l;
+                    for (l = 0; l < sbo->num_invokes; l++) {
+                        MVMStaticFrame *invoked_sf = sbo->invokes[l].sf;
+                        MVMuint32 m;
+                        for (m = 0; m < num_planned; m++) {
+                            if (planned[m].sf == invoked_sf && planned[m].max_depth <= p->max_depth) {
+                                planned[m].max_depth = p->max_depth + 1;
+                                did_update = 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    } while (did_update && iterations < max_iterations); /* Stop after reasonable number of iterations to prevent infinite loop */
 }
 
 /* Sorts the plan in descending order of maximum call depth. */

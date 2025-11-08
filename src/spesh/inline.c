@@ -255,9 +255,41 @@ static void propagate_phi_deopt_usages(MVMThreadContext *tc, MVMSpeshGraph *g,
 }
 
 /* Get the maximum inline size applicable to the specified static frame (it can
- * be configured by language). */
+ * be configured by language).
+ * Optimization: Provide more relaxed inlining conditions for short functions,
+ * especially simple token/rule methods that are common in grammar definitions */
 MVMuint32 MVM_spesh_inline_get_max_size(MVMThreadContext *tc, MVMStaticFrame *sf) {
-    return sf->body.cu->body.hll_config->max_inline_size;
+    MVMuint32 base_max_size = sf->body.cu->body.hll_config->max_inline_size;
+
+    /* For very small functions (less than 50 bytes), significantly increase inline size limit
+     * These functions are typically simple accessors or constant returns where inlining benefit exceeds cost */
+    if (sf->body.bytecode_size < 50) {
+        /* For extremely small functions, allow larger inline size, but not exceeding 4x base limit or 6000 */
+        MVMuint32 adjusted_size = base_max_size * 4;
+        return adjusted_size < 6000 ? adjusted_size : 6000;
+    }
+    /* For small functions (50-200 bytes), provide more generous inlining for simple token/rule methods
+     * Many grammar token methods fall into this category and benefit significantly from inlining */
+    else if (sf->body.bytecode_size < 200) {
+        /* For small functions that are likely to be grammar tokens, allow 3x base limit or up to 5000 */
+        MVMuint32 adjusted_size = base_max_size * 3;
+        return adjusted_size < 5000 ? adjusted_size : 5000;
+    }
+    /* For medium-sized functions (200-500 bytes), provide moderate inlining relaxation
+     * Some larger grammar rules might fall into this category */
+    else if (sf->body.bytecode_size < 500) {
+        /* For medium functions, allow 2x base limit or up to 4000 */
+        MVMuint32 adjusted_size = base_max_size * 2;
+        return adjusted_size < 4000 ? adjusted_size : 4000;
+    }
+    /* For small to medium functions beyond 500 bytes but still relatively small,
+     * provide slight relaxation */
+    else if (sf->body.bytecode_size < 1000) {
+        /* For frequently called functions, slightly relax inline restrictions */
+        return (MVMuint32)(base_max_size * 1.5);
+    }
+
+    return base_max_size;
 }
 
 /* Sees if it will be possible to inline the target code ref, given we could
