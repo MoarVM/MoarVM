@@ -255,9 +255,61 @@ static void propagate_phi_deopt_usages(MVMThreadContext *tc, MVMSpeshGraph *g,
 }
 
 /* Get the maximum inline size applicable to the specified static frame (it can
- * be configured by language). */
+ * be configured by language).
+ * Optimization: Provide more relaxed inlining conditions for short functions,
+ * especially simple token/rule methods that are common in grammar definitions */
 MVMuint32 MVM_spesh_inline_get_max_size(MVMThreadContext *tc, MVMStaticFrame *sf) {
-    return sf->body.cu->body.hll_config->max_inline_size;
+    MVMuint32 base_max_size = sf->body.cu->body.hll_config->max_inline_size;
+
+    /* Priority optimization for very small functions that are likely token/rule methods
+     * These tiny functions benefit tremendously from inlining and are common in grammar parsing */
+    if (sf->body.bytecode_size < 50) {
+        /* For extremely small functions, allow significantly larger inline size
+         * This helps simple token methods with small bytecode but may have larger inlined content */
+        MVMuint32 adjusted_size = base_max_size * 8;  /* Increased from 4x to 8x for tiny functions */
+        return adjusted_size < 8000 ? adjusted_size : 8000;
+    }
+    /* For small functions that may be token/rule methods */
+    else if (sf->body.bytecode_size < 200) {
+        /* Provide very generous inlining for small functions
+         * Most simple grammar tokens fall into this category and benefit from aggressive inlining */
+        MVMuint32 adjusted_size = base_max_size * 6;  /* Increased from 3x to 6x */
+        return adjusted_size < 7000 ? adjusted_size : 7000;
+    }
+    /* For medium-sized functions that might be more complex rules */
+    else if (sf->body.bytecode_size < 500) {
+        /* Still provide significant relaxation for medium functions that may be grammar rules */
+        MVMuint32 adjusted_size = base_max_size * 4;  /* Increased from 2x to 4x */
+        return adjusted_size < 6000 ? adjusted_size : 6000;
+    }
+    /* For functions that are still relatively small but larger than 500 bytes */
+    else if (sf->body.bytecode_size < 800) {
+        /* Special case for grammar-related functions like block-when that are slightly larger
+         * but still benefit greatly from inlining */
+        MVMuint32 adjusted_size = base_max_size * 5;  /* More aggressive multiplier for grammar functions */
+        return adjusted_size < 6000 ? adjusted_size : 6000;
+    }
+    /* For functions between 800-900 bytes */
+    else if (sf->body.bytecode_size < 900) {
+        /* Special case for functions like !cursor_start that are slightly larger
+         * but still benefit significantly from inlining */
+        MVMuint32 adjusted_size = base_max_size * 4;  /* Higher multiplier for 800-900 byte functions */
+        return adjusted_size < 5500 ? adjusted_size : 5500;
+    }
+    /* For functions between 900-1000 bytes */
+    else if (sf->body.bytecode_size < 1000) {
+        /* Provide moderate relaxation for these potentially useful functions */
+        MVMuint32 adjusted_size = base_max_size * 3;  /* Increased from 1.5x to 3x */
+        return adjusted_size < 5000 ? adjusted_size : 5000;
+    }
+    /* For functions up to 2000 bytes that might be complex grammar rules */
+    else if (sf->body.bytecode_size < 2000) {
+        /* Even for larger functions that might be complex grammar rules, provide some relaxation */
+        MVMuint32 adjusted_size = base_max_size * 2;
+        return adjusted_size < 4000 ? adjusted_size : 4000;
+    }
+
+    return base_max_size;
 }
 
 /* Sees if it will be possible to inline the target code ref, given we could
