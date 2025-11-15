@@ -1,3 +1,8 @@
+New in 2025.11
+Core:
++ Bump rapidhash to v3
++ Throw exception in known bad state
+
 New in 2025.10
 Core:
 + Fix https://github.com/rakudo/rakudo/issues/5954 [f7d6a0828]
