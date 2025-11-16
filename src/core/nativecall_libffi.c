@@ -177,6 +177,8 @@ static void * unmarshal_callback(MVMThreadContext *tc, MVMCode *callback, MVMObj
         callback_data->target    = callback;
         status                   = ffi_prep_cif(cif, callback_data->convention, (unsigned int)cs->arg_count,
             callback_data->ffi_ret_type, callback_data->ffi_arg_types);
+        if (status != FFI_OK)
+            MVM_exception_throw_adhoc(tc, "Failure to set up FFI call interface");
 
         closure                  = ffi_closure_alloc(sizeof(ffi_closure), &cb);
         if (!closure)
@@ -483,7 +485,7 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
     MVMint16    i;
 
     /* Get native call body, so we can locate the call info. Read out all we
-     * shall need, since later we may allocate a result and and move it. */
+     * shall need, since later we may allocate a result and move it. */
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
     if (MVM_UNLIKELY(!body->lib_handle)) {
         MVMROOT3(tc, site, args, res_type) {
@@ -501,6 +503,8 @@ MVMObject * MVM_nativecall_invoke(MVMThreadContext *tc, MVMObject *res_type,
 
     ffi_cif cif;
     ffi_status status  = ffi_prep_cif(&cif, body->convention, (unsigned int)num_args, body->ffi_ret_type, body->ffi_arg_types);
+    if (status != FFI_OK)
+        MVM_exception_throw_adhoc(tc, "Failure to set up FFI call interface");
 
     interval_id = MVM_telemetry_interval_start(tc, "nativecall invoke");
     MVM_telemetry_interval_annotate((uintptr_t)entry_point, interval_id, "nc entrypoint");
@@ -856,7 +860,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
     MVMint16    i;
 
     /* Get native call body, so we can locate the call info. Read out all we
-     * shall need, since later we may allocate a result and and move it. */
+     * shall need, since later we may allocate a result and move it. */
     MVMNativeCallBody *body = MVM_nativecall_get_nc_body(tc, site);
     if (MVM_UNLIKELY(!body->lib_handle)) {
         MVMROOT2(tc, site, res_type) {
@@ -864,19 +868,50 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
         }
         body = MVM_nativecall_get_nc_body(tc, site);
     }
-    MVMint16  num_args    = body->num_args;
-    MVMint16 *arg_types   = body->arg_types;
+    MVMuint64 variadic_rw_bitfield;
+
     MVMint16  ret_type    = body->ret_type;
     void     *entry_point = body->entry_point;
-    void    **values      = alloca(sizeof(void *) * (num_args ? num_args : 1));
 
     unsigned int interval_id;
 
-    ffi_cif cif;
-    ffi_status status  = ffi_prep_cif(&cif, body->convention, (unsigned int)num_args, body->ffi_ret_type, body->ffi_arg_types);
-
     interval_id = MVM_telemetry_interval_start(tc, "nativecall invoke");
     MVM_telemetry_interval_annotate((uintptr_t)entry_point, interval_id, "nc entrypoint");
+
+    ffi_cif cif;
+
+    MVMuint16 num_args;
+    MVMint16 *arg_types;
+    ffi_type **ffi_arg_types;
+    if (body->variadic) {
+        MVMint16 num_fixed_args = body->num_args;
+        num_args = args.callsite->num_pos - 2;
+        // First element is the return type, last element is the bitfield.
+        // Num_args accounts for that, thus need to add 1 to reach the last bitfield element.
+        variadic_rw_bitfield = MVM_repr_get_uint(tc, args.source[args.map[num_args + 1]].o);
+
+        arg_types = MVM_malloc(sizeof(MVMint16) * num_args);
+        for (i = 0; i < num_fixed_args; i++)
+            arg_types[i] = body->arg_types[i];
+        MVM_nativecall_fill_var_arg_types(tc, args, variadic_rw_bitfield, arg_types, i, num_args, interval_id);
+
+        ffi_arg_types = MVM_malloc(sizeof(ffi_type*) * num_args);
+
+        for (i = 0; i < num_args; i++)
+            ffi_arg_types[i] = MVM_nativecall_get_ffi_type(tc, arg_types[i]);
+        ffi_status status  = ffi_prep_cif_var(&cif, body->convention, (unsigned int)num_fixed_args, (unsigned int)num_args, body->ffi_ret_type, ffi_arg_types);
+        if (status != FFI_OK)
+            MVM_exception_throw_adhoc(tc, "Failure to set up FFI call interface");
+    }
+    else {
+        num_args = body->num_args;
+        ffi_status status  = ffi_prep_cif(&cif, body->convention, (unsigned int)num_args, body->ffi_ret_type, body->ffi_arg_types);
+        if (status != FFI_OK)
+            MVM_exception_throw_adhoc(tc, "Failure to set up FFI call interface");
+        arg_types = body->arg_types;
+    }
+
+    void    **values      = alloca(sizeof(void *) * (num_args ? num_args : 1));
 
     /* Process arguments. */
     for (i = 0; i < num_args; i++) {
@@ -1245,6 +1280,11 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
     }
 
     /* Free any memory that we need to. */
+    if (body->variadic) {
+        MVM_free(arg_types);
+        MVM_free(ffi_arg_types);
+    }
+
     if (free_strs)
         for (i = 0; i < num_strs; i++)
 #ifdef MVM_USE_MIMALLOC

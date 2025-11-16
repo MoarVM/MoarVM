@@ -56,6 +56,7 @@ static void copy_to(MVMThreadContext *tc, MVMSTable *st, void *src, MVMObject *d
 #endif
     dest_body->resolve_lib_name = src_body->resolve_lib_name;
     dest_body->resolve_lib_name_arg = src_body->resolve_lib_name_arg;
+    dest_body->variadic = src_body->variadic;
 }
 
 
@@ -100,6 +101,7 @@ static void serialize(MVMThreadContext *tc, MVMSTable *st, void *data, MVMSerial
     }
     MVM_serialization_write_ref(tc, writer, (MVMObject*)body->resolve_lib_name);
     MVM_serialization_write_ref(tc, writer, (MVMObject*)body->resolve_lib_name_arg);
+    MVM_serialization_write_int(tc, writer, body->variadic);
 }
 static void deserialize_stable_size(MVMThreadContext *tc, MVMSTable *st, MVMSerializationReader *reader) {
     st->size = sizeof(MVMNativeCall);
@@ -123,6 +125,7 @@ static void deserialize(MVMThreadContext *tc, MVMSTable *st, MVMObject *root, vo
     }
     body->resolve_lib_name = (MVMCode *)MVM_serialization_read_ref(tc, reader);
     body->resolve_lib_name_arg = MVM_serialization_read_ref(tc, reader);
+    body->variadic = MVM_serialization_read_int(tc, reader);
 #ifdef HAVE_LIBFFI
     body->ffi_arg_types = MVM_malloc(sizeof(ffi_type *) * (body->num_args ? body->num_args : 1));
     for (i = 0; i < body->num_args; i++) {
