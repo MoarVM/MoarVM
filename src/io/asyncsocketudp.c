@@ -484,8 +484,18 @@ static const MVMIOOps op_table = {
 /* Info we convey about a socket setup task. */
 typedef struct {
     struct sockaddr  *bind_addr;
+    char             *host_addr;
     MVMint64          flags;
 } SocketSetupInfo;
+
+typedef struct {
+    uv_udp_t  *udp_handle;
+    char *host;
+    MVMint64 port;
+    MVMint64 iface;
+    MVMint64 flags;
+    char *ssm_host;
+} MulticastSetupInfo;
 
 /* Initilalize the UDP socket on the event loop. */
 static void setup_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
@@ -495,9 +505,21 @@ static void setup_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     int r;
     if ((r = uv_udp_init(loop, udp_handle)) >= 0) {
         if (ssi->bind_addr)
-            r = uv_udp_bind(udp_handle, ssi->bind_addr, 0);
-        if (r >= 0 && (ssi->flags & 1))
-            r = uv_udp_set_broadcast(udp_handle, 1);
+            r = uv_udp_bind(udp_handle, ssi->bind_addr, (ssi->flags & 0b10) ? UV_UDP_REUSEADDR : 0);
+        switch (ssi->flags & 0b11) {
+            case 0: /* Unicast */
+                break;
+            case 1: /* Broadcast */
+                if (r >= 0)
+                    r = uv_udp_set_broadcast(udp_handle, 1);
+                break;
+            case 2: /* Multicast */
+            	if (r >= 0)
+                    r = uv_udp_set_membership(udp_handle, ssi->host_addr, NULL, UV_JOIN_GROUP);
+                break;
+            default: /* Bad flag */
+                r = UV_EINVAL;
+        }
     }
 
     if (r >= 0) {
@@ -539,13 +561,127 @@ static void setup_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_
     }
 }
 
+/* Initilalize the UDP socket on the event loop. */
+static void setup_multi_setup(MVMThreadContext *tc, uv_loop_t *loop, MVMObject *async_task, void *data) {
+    /* Set up the UDP handle. */
+    MulticastSetupInfo *msi = (MulticastSetupInfo *)data;
+    struct sockaddr *bind_addr = NULL;
+    char * iface_str = NULL;
+
+    /* Cheap check if IPv6; either way, going to localhost */
+    if (strchr(msi->host,'.') == NULL) {
+        unsigned int iface_idx = 0;
+        struct sockaddr *iface_addr = NULL;
+        size_t iface_len = UV_IF_NAMESIZE;
+
+        bind_addr = MVM_calloc(1, sizeof(struct sockaddr_in6));
+        uv_ip6_addr("::",(int) msi->port,(struct sockaddr_in6*) bind_addr);
+
+        /* Interface address is only accepted as char[], calculate from multicast host */
+        iface_str = MVM_calloc(1, sizeof(char) * (UV_IF_NAMESIZE + 4));
+        strcpy(iface_str,"::%0\0");
+        uv_interface_address_t *info;
+    	int count,i;
+        uv_interface_addresses(&info, &count);
+        /* XXX Should we bomb on a bad interface or just go default? */
+		for(i=0; i<count; i++) {
+			if (info[i].address.address6.sin6_family == AF_INET6
+			&& info[i].address.address6.sin6_scope_id == msi->iface) {
+				iface_idx = info[i].address.address6.sin6_scope_id;
+				strncpy(iface_str + 3, info[i].name, UV_IF_NAMESIZE);
+				break;
+			}
+		}
+		uv_free_interface_addresses(info,count);
+    } else {
+        bind_addr = MVM_calloc(1, sizeof(struct sockaddr_in));
+        uv_ip4_addr("0.0.0.0",msi->port,(struct sockaddr_in*) bind_addr);
+    }
+
+    uv_udp_t *udp_handle = MVM_malloc(sizeof(uv_udp_t));
+    int r;
+
+    if ((r = uv_udp_init(loop, udp_handle)) >= 0) {
+        if (bind_addr)
+            /* UV_UDP_REUSEADDR as multiple subscribers is common/expected */
+            r = uv_udp_bind(udp_handle, bind_addr, UV_UDP_REUSEADDR);
+        if (r >= 0) {
+            if (msi->flags & 0b100) {
+                r = uv_udp_set_source_membership(udp_handle, msi->host, iface_str, msi->ssm_host, UV_JOIN_GROUP);
+            } else {
+                r = uv_udp_set_membership(udp_handle, msi->host, iface_str, UV_JOIN_GROUP);
+            }
+        }
+        if (r >= 0)
+            r = uv_udp_set_multicast_loop(udp_handle, (msi->flags & 0b100) ? 1 : 0);
+    }
+
+    if (iface_str)
+        MVM_free(iface_str);
+    if (bind_addr)
+        MVM_free(bind_addr);
+
+    if (r >= 0) {
+        /* UDP handle initialized; wrap it up in an I/O handle and send. */
+        MVMAsyncTask *t   = (MVMAsyncTask *)async_task;
+        MVMObject    *arr;
+        MVMROOT(tc, t) {
+            arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+            MVM_repr_push_o(tc, arr, t->body.schedulee);
+            MVMROOT(tc, arr) {
+                MVMOSHandle          *result = (MVMOSHandle *)MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTIO);
+                MVMIOAsyncUDPSocketData *data   = MVM_calloc(1, sizeof(MVMIOAsyncUDPSocketData));
+                data->handle                 = udp_handle;
+                result->body.ops             = &op_table;
+                result->body.data            = data;
+                MVM_repr_push_o(tc, arr, (MVMObject *)result);
+            }
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTStr);
+        }
+        MVM_repr_push_o(tc, t->body.queue, arr);
+    }
+    else {
+        /* Something failed; need to notify. */
+        MVMROOT(tc, async_task) {
+            MVMObject    *arr = MVM_repr_alloc_init(tc, tc->instance->boot_types.BOOTArray);
+            MVMAsyncTask *t   = (MVMAsyncTask *)async_task;
+            MVM_repr_push_o(tc, arr, t->body.schedulee);
+            MVM_repr_push_o(tc, arr, tc->instance->boot_types.BOOTIO);
+            MVMROOT2(tc, arr, t) {
+                MVMString *msg_str = MVM_string_ascii_decode_nt(tc,
+                    tc->instance->VMString, uv_strerror(r));
+                MVMObject *msg_box = MVM_repr_box_str(tc,
+                    tc->instance->boot_types.BOOTStr, msg_str);
+                MVM_repr_push_o(tc, arr, msg_box);
+            }
+            MVM_repr_push_o(tc, t->body.queue, arr);
+            uv_close((uv_handle_t *)udp_handle, free_on_close_cb);
+        }
+    }
+}
+
+
 /* Frees info for a connection task. */
 static void setup_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
     if (data) {
         SocketSetupInfo *ssi = (SocketSetupInfo *)data;
         if (ssi->bind_addr)
             MVM_free(ssi->bind_addr);
+        if (ssi->host_addr)
+            MVM_free(ssi->host_addr);
         MVM_free(ssi);
+    }
+}
+
+/* Frees info for a multicast connection task. */
+static void setup_multi_gc_free(MVMThreadContext *tc, MVMObject *t, void *data) {
+    if (data) {
+        MulticastSetupInfo *msi = (MulticastSetupInfo *)data;
+        if (msi->host)
+            MVM_free(msi->host);
+        if (msi->ssm_host)
+            MVM_free(msi->ssm_host);
+        MVM_free(msi);
     }
 }
 
@@ -558,9 +694,18 @@ static const MVMAsyncTaskOps setup_op_table = {
     setup_gc_free
 };
 
+/* Operations table for async multi connect task. */
+static const MVMAsyncTaskOps setup_multi_op_table = {
+    setup_multi_setup,
+    NULL,
+    NULL,
+    NULL,
+    setup_multi_gc_free
+};
+
 /* Creates a UDP socket and binds it to the specified host/port. */
 MVMObject * MVM_io_socket_udp_async(MVMThreadContext *tc, MVMObject *queue,
-                                    MVMObject *schedulee, MVMString *host,
+                                    MVMObject *schedulee, MVMString *mc_host,
                                     MVMint64 port, MVMint64 flags,
                                     MVMObject *async_type) {
     MVMAsyncTask    *task;
@@ -574,11 +719,14 @@ MVMObject * MVM_io_socket_udp_async(MVMThreadContext *tc, MVMObject *queue,
     if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
         MVM_exception_throw_adhoc(tc,
             "asyncudp result type must have REPR AsyncTask");
+    if ((flags & 0b10) == 2)
+        MVM_exception_throw_adhoc(tc,
+            "asyncudp flags must not indicate multicast to call MVM_io_socket_udp_async");
 
     /* Resolve hostname. (Could be done asynchronously too.) */
-    if (host && IS_CONCRETE(host)) {
+    if (mc_host && IS_CONCRETE(mc_host)) {
         MVMROOT3(tc, queue, schedulee, async_type) {
-            bind_addr = MVM_io_resolve_host_name(tc, host, port, MVM_SOCKET_FAMILY_UNSPEC, MVM_SOCKET_TYPE_DGRAM, MVM_SOCKET_PROTOCOL_ANY, 1);
+            bind_addr = MVM_io_resolve_host_name(tc, mc_host, port, MVM_SOCKET_FAMILY_UNSPEC, MVM_SOCKET_TYPE_DGRAM, MVM_SOCKET_PROTOCOL_ANY, 1);
         }
     }
 
@@ -593,6 +741,82 @@ MVMObject * MVM_io_socket_udp_async(MVMThreadContext *tc, MVMObject *queue,
     ssi->bind_addr  = bind_addr;
     ssi->flags      = flags;
     task->body.data = ssi;
+
+    /* Hand the task off to the event loop. */
+    MVMROOT(tc, task) {
+        MVM_io_eventloop_queue_work(tc, (MVMObject *)task);
+    }
+
+    return (MVMObject *)task;
+}
+
+
+/* Creates a UDP socket as with MVM_io_socket_udp_async, but also
+ * subscribes to the specified multicast. */
+MVMObject * MVM_io_socket_udp_async_multicast(MVMThreadContext *tc, MVMObject *queue,
+                                    MVMObject *schedulee, MVMString *host,
+                                    MVMint64 port, MVMint64 flags, MVMint64 iface,
+                                    MVMString *ssm_host, MVMObject *async_type) {
+    MVMAsyncTask       *task;
+    MulticastSetupInfo *msi;
+    struct sockaddr    *host_addr = NULL;
+    struct sockaddr    *bind_addr = NULL;
+    struct sockaddr    *ssm_addr  = NULL;
+    char               *host_str  = NULL;
+    char               *ssm_str   = NULL;
+
+    /* Validate REPRs. */
+    if (REPR(queue)->ID != MVM_REPR_ID_ConcBlockingQueue)
+        MVM_exception_throw_adhoc(tc,
+            "asyncudp target queue must have ConcBlockingQueue REPR");
+    if (REPR(async_type)->ID != MVM_REPR_ID_MVMAsyncTask)
+        MVM_exception_throw_adhoc(tc,
+            "asyncudp result type must have REPR AsyncTask");
+    if ((flags & 0b11) != 2)
+        MVM_exception_throw_adhoc(tc,
+            "asyncudp flags must indicate multicast to call MVM_io_socket_udp_async_multicast");
+
+    /* Resolve hostnames. (Could be done asynchronously too.) */
+    if (host && IS_CONCRETE(host)) {
+        MVMROOT3(tc, queue, schedulee, async_type) {
+            /* Resolve for multicast for consistency, these will almost always be IP-num based */
+            host_addr = MVM_io_resolve_host_name(tc, host, port, MVM_SOCKET_FAMILY_UNSPEC, MVM_SOCKET_TYPE_DGRAM, MVM_SOCKET_PROTOCOL_ANY, 1);
+
+            /* Convert the addresses. Multicast routines in libuv require char[] */
+            /* XXX Handle case if host_addr.sin6_scope_id != 0 && host_addr.sin6_scope_id != iface */
+            host_str = (char*) MVM_calloc(1, sizeof(char) * UV_MAXHOSTNAMESIZE);
+            uv_ip_name((const struct sockaddr*) host_addr, host_str, UV_MAXHOSTNAMESIZE - 1);
+            MVM_free(host_addr);
+        }
+    }
+
+    /* Resolve the SSM name, if we're in SSM mode */
+    if ((flags & 0b100) && ssm_host && IS_CONCRETE(ssm_host)) {
+        MVMROOT3(tc, queue, schedulee, async_type) {
+            /* XXX Handle case if ssm_addr.sin6_scope_id != 0 && ssm_addr.sin6_scope_id != iface */
+            ssm_addr  = MVM_io_resolve_host_name(tc, ssm_host, port, MVM_SOCKET_FAMILY_UNSPEC, MVM_SOCKET_TYPE_DGRAM, MVM_SOCKET_PROTOCOL_ANY, 1);
+            ssm_str = (char*) MVM_calloc(1, sizeof(char) * UV_MAXHOSTNAMESIZE);
+            uv_ip_name((const struct sockaddr*) ssm_addr, ssm_str, UV_MAXHOSTNAMESIZE - 1);
+            MVM_free(ssm_addr);
+        }
+    }
+
+    /* Create async task handle. */
+    MVMROOT2(tc, queue, schedulee) {
+        task = (MVMAsyncTask *)MVM_repr_alloc_init(tc, async_type);
+    }
+
+    MVM_ASSIGN_REF(tc, &(task->common.header), task->body.queue, queue);
+    MVM_ASSIGN_REF(tc, &(task->common.header), task->body.schedulee, schedulee);
+    task->body.ops  = &setup_multi_op_table;
+    msi             = MVM_calloc(1, sizeof(MulticastSetupInfo));
+    msi->udp_handle = NULL;
+    msi->host       = host_str;
+    msi->ssm_host   = ssm_str;
+    msi->iface      = iface;
+    msi->flags      = flags;
+    msi->port       = port;
+    task->body.data = msi;
 
     /* Hand the task off to the event loop. */
     MVMROOT(tc, task) {
