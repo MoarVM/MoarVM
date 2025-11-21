@@ -68,40 +68,35 @@ stages:
            MOAR_OPTIONS: '--relocatable'
 
          Mac_MVM:
-           IMAGE_NAME: 'macOS-14'
+           IMAGE_NAME: 'macOS-15'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
          Mac_MVM_reloc:
-           IMAGE_NAME: 'macOS-14'
+           IMAGE_NAME: 'macOS-15'
            RELOCATABLE: 'yes'
            RAKUDO_OPTIONS: '--relocatable'
            NQP_OPTIONS: '--backends=moar --relocatable'
            MOAR_OPTIONS: '--relocatable'
          Mac_MVM_no_C11_atomics:
-           IMAGE_NAME: 'macOS-14'
+           IMAGE_NAME: 'macOS-15'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-c11-atomics'
-         Mac_13_MVM:
-           IMAGE_NAME: 'macOS-13'
-           RAKUDO_OPTIONS: ''
-           NQP_OPTIONS: '--backends=moar'
-           MOAR_OPTIONS: ''
-         Mac_15_MVM:
-           IMAGE_NAME: 'macOS-15'
+         Mac_14_MVM:
+           IMAGE_NAME: 'macOS-14'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: ''
 
          Lin_MVM:
-           IMAGE_NAME: 'ubuntu-22.04'
+           IMAGE_NAME: 'ubuntu-24.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--debug=3'
            CHECK_LEAKS: 'yes'
          Lin_MVM_reloc:
-           IMAGE_NAME: 'ubuntu-22.04'
+           IMAGE_NAME: 'ubuntu-24.04'
            RELOCATABLE: 'yes'
            RAKUDO_OPTIONS: '--relocatable'
            NQP_OPTIONS: '--backends=moar --relocatable'
@@ -109,49 +104,49 @@ stages:
            CHECK_LEAKS: 'yes'
 
          MVM_gcc_njit:
-           IMAGE_NAME: 'ubuntu-22.04'
+           IMAGE_NAME: 'ubuntu-24.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-jit --cc=gcc --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_gcc:
-           IMAGE_NAME: 'ubuntu-22.04'
+           IMAGE_NAME: 'ubuntu-24.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=gcc --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_clang_njit:
-           IMAGE_NAME: 'ubuntu-22.04'
+           IMAGE_NAME: 'ubuntu-24.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--no-jit --cc=clang --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_clang:
-           IMAGE_NAME: 'ubuntu-22.04'
+           IMAGE_NAME: 'ubuntu-24.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_gcc_njit_libffi:
-           IMAGE_NAME: 'ubuntu-22.04'
+           IMAGE_NAME: 'ubuntu-24.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --no-jit --cc=gcc --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_gcc_libffi:
-           IMAGE_NAME: 'ubuntu-22.04'
+           IMAGE_NAME: 'ubuntu-24.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --cc=gcc --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_clang_njit_libffi:
-           IMAGE_NAME: 'ubuntu-22.04'
+           IMAGE_NAME: 'ubuntu-24.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --no-jit --cc=clang --debug=3'
            CHECK_LEAKS: 'yes'
          MVM_clang_libffi:
-           IMAGE_NAME: 'ubuntu-22.04'
+           IMAGE_NAME: 'ubuntu-24.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--has-libffi --cc=clang --debug=3'
@@ -169,38 +164,38 @@ stages:
 #           COVERAGE: 'yes'
 
          MVM_gcc_malloc:
-           IMAGE_NAME: 'ubuntu-22.04'
+           IMAGE_NAME: 'ubuntu-24.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=gcc --debug=3 --no-mimalloc'
            CHECK_LEAKS: 'yes'
          MVM_clang_malloc:
-           IMAGE_NAME: 'ubuntu-22.04'
+           IMAGE_NAME: 'ubuntu-24.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang --debug=3 --no-mimalloc'
            CHECK_LEAKS: 'yes'
          MVM_gcc_no_c11_atomics:
-           IMAGE_NAME: 'ubuntu-22.04'
+           IMAGE_NAME: 'ubuntu-24.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=gcc --debug=3 --no-c11-atomics'
            CHECK_LEAKS: 'yes'
          MVM_clang_no_c11_atomics:
-           IMAGE_NAME: 'ubuntu-22.04'
+           IMAGE_NAME: 'ubuntu-24.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang --debug=3 --no-c11-atomics'
            CHECK_LEAKS: 'yes'
 
          # Backwards compatability jobs, using the oldest OS version that GH actions support
-         MVM_Ub_20_gcc:
-           IMAGE_NAME: 'ubuntu-20.04'
+         MVM_Ub_22_gcc:
+           IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=gcc --debug=3'
-         MVM_Ub_20_clang:
-           IMAGE_NAME: 'ubuntu-20.04'
+         MVM_Ub_22_clang:
+           IMAGE_NAME: 'ubuntu-22.04'
            RAKUDO_OPTIONS: ''
            NQP_OPTIONS: '--backends=moar'
            MOAR_OPTIONS: '--cc=clang --debug=3'
