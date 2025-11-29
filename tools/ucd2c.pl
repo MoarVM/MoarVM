@@ -2972,23 +2972,22 @@ sub set_lines_for_each_case {
 
 sub emit_unicode_property_value_keypairs {
     my ($prop_codes) = @_;
-    my @lines = ();
-    my $property;
+
+    my %stuff = (
+        c => ['Other'],
+        l => ['Letter'],
+        m => ['Mark', 'Combining_Mark'],
+        n => ['Number'],
+        p => ['Punctuation', 'punct'],
+        s => ['Symbol'],
+        z => ['Separator']
+        );
+
     my %lines;
-    my %aliases;
     for my $property (sort keys %$BINARY_PROPERTIES) {
         my $prop_val = ($PROP_NAMES->{$property} << 24) + 1;
         my $propcode = set_lines_for_each_case($property, '_custom_', $prop_val, \%lines);
         my $lc_thing = lc $property;
-        my %stuff = (
-            c => ['Other'],
-            l => ['Letter'],
-            m => ['Mark', 'Combining_Mark'],
-            n => ['Number'],
-            p => ['Punctuation', 'punct'],
-            s => ['Symbol'],
-            z => ['Separator']
-            );
         if (defined $stuff{$lc_thing}) {
             for my $t (@{$stuff{$lc_thing}}) {
                 set_lines_for_each_case($t, '_custom_', $prop_val, \%lines, $propcode)
@@ -3008,6 +3007,9 @@ sub emit_unicode_property_value_keypairs {
         }
     }
     croak "lines didn't get anything in it" if !%lines;
+
+    my %aliases;
+    my @lines;
     my %done;
     for_each_line('PropertyValueAliases', sub {
         $_ = shift;
