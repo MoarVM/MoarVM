@@ -70,7 +70,7 @@ sub main {
 
     progress_header('Processing binary property files');
     binary_props('extracted/DerivedBinaryProperties');  # Bidi_Mirrored
-    binary_props('DerivedCoreProperties');
+    derived_core_props('DerivedCoreProperties');
     binary_props('PropList');
 
     # The emoji binary properties file moved between v12.1 and v13.0
@@ -873,6 +873,67 @@ sub binary_props {
     };
 }
 
+# similar to binary_props, but handles binary and enumerated property
+# assignments. For now, this file is specific to DerivedCoreProperties.txt, but
+# should be generalizable if need be.
+sub derived_core_props {
+    my ($fname) = @_;
+
+    my $incb_name = 'Indic_Conjunct_Break';
+    my $incb_prop = { enum => { None => 0 }, name => $incb_name, type => 'string' };
+    my $incb_key_count = 1;
+
+    for_each_line $fname, sub {
+        # Determine codepoint range and property name to apply
+        $_ = shift;
+        my ($realstring) = split / \s* [#] \s*/x;
+        my @parts = split(/ \s* [;#] \s* /x, $realstring);
+
+        # binary properties are simply "range;property" (implied value True),
+        # while enum properties are "range;property;value", so we can easily
+        # decide on the number of parts we just got.
+        if (scalar(@parts) == 2) {
+            my $range = $parts[0];
+            my $pname = $parts[1];
+            # Ensure property has been registered
+            register_binary_property($pname);
+
+            # Actually apply the property to every point in the range
+            apply_to_cp_range $range, sub {
+                my $point = shift;
+                $point->{$pname} = 1;
+            };
+        } elsif (scalar(@parts) == 3) {
+            my $range = $parts[0];
+            my $pkey = $parts[1];
+            my $pval = $parts[2];
+
+            if ($pkey ne 'InCB') {
+                croak "Unexpected enumerated property $pkey in $fname";
+            }
+
+            # XXX duplicating the work of enumerated_property, but we can't use
+            # it since it expects every entry in its file to contain a relevant
+            # enum value; there's no option to filter out irrelevant data lines.
+            my $index = $incb_prop->{enum}->{$pval};
+            if (not defined $index) {
+                print("\n  adding enum property for $incb_name: $incb_key_count $pval") if $DEBUG;
+                $incb_prop->{enum}->{$pval} = $index = $incb_key_count++;
+            }
+
+            apply_to_cp_range $range, sub {
+                my $point = shift;
+                $point->{$incb_name} = $index;
+            };
+        } else {
+            croak "Unexpected number of parts in file $fname; new type of entry must've been added.";
+        }
+    };
+
+    register_keys_and_set_bit_width($incb_prop, $incb_key_count);
+    register_enumerated_property($incb_name, $incb_prop);
+}
+
 # Register a binary (single bit wide) property if it hasn't already been
 sub register_binary_property {
     my $name = shift;
@@ -1043,7 +1104,8 @@ sub UnicodeData {
              || $point->{name} eq '<CJK Ideograph Extension F>'
              || $point->{name} eq '<CJK Ideograph Extension G>'
              || $point->{name} eq '<CJK Ideograph Extension H>'
-             || $point->{name} eq '<CJK Ideograph Extension I>') {
+             || $point->{name} eq '<CJK Ideograph Extension I>'
+             || $point->{name} eq '<CJK Ideograph Extension J>') {
                 $point->{name} = '<CJK UNIFIED IDEOGRAPH>'
             }
             elsif ($point->{name} eq '<Tangut Ideograph>'
