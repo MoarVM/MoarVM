@@ -11,7 +11,7 @@ my @CODETABLES  =
     'VENDORS/MICSFT/WINDOWS/CP1251.TXT';
 my $JIS-url     = "https://encoding.spec.whatwg.org/index-jis0208.txt";
 
-sub MAIN {
+sub MAIN(Bool :$allow-draft) {
     quit "Must run in the top level of a checked-out MoarVM git repo."
         unless '.git'.IO.d;
 
@@ -34,7 +34,7 @@ sub MAIN {
             download-files($JIS-url);
         }
 
-        get-emoji;
+        get-emoji(:$allow-draft);
     }
 }
 
@@ -69,7 +69,7 @@ sub download-zip-file(Str:D $url, Str:D $dir = '.') {
     }
 }
 
-sub get-emoji {
+sub get-emoji(Bool :$allow-draft) {
     # Since emoji sequence names are not canonical and unchangeable, we get
     # all of them starting with the first the feature was added in
     my $first-emoji-ver = <4.0>;
@@ -89,15 +89,14 @@ sub get-emoji {
         my $readme = read-url("$emoji-data-url/ReadMe.txt").chomp;
         if $readme.match(/draft|PRELIMINARY/, :i) {
             say "Looks like this version is a draft. ReadMe.txt text: <<$readme>>";
-            next;
+            next unless $allow-draft;
         }
-        else {
-            my @urls = @to-download.map({ "$emoji-data-url/$_" });
-            say "Fetching: @to-download[]";
 
-            my $emoji-folder = "emoji-$version".IO;
-            $emoji-folder.mkdir;
-            indir $emoji-folder, { download-files(@urls) };
-        }
+        my @urls = @to-download.map({ "$emoji-data-url/$_" });
+        say "Fetching: @to-download[]";
+
+        my $emoji-folder = "emoji-$version".IO;
+        $emoji-folder.mkdir;
+        indir $emoji-folder, { download-files(@urls) };
     }
 }
