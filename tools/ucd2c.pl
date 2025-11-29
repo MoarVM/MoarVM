@@ -657,6 +657,7 @@ sub process_basic_enumerated_properties {
 
     enumerated_property('BidiMirroring',      'Bidi_Mirroring_Glyph',
                         { 0 => 0 }, 1, 'int', 1);
+
     enumerated_property('Blocks',             'Block', { No_Block => 0 }, 1);
     enumerated_property('DerivedAge',         'Age', { Unassigned => 0 }, 1);
     enumerated_property('HangulSyllableType', 'Hangul_Syllable_Type',
@@ -2968,6 +2969,7 @@ sub set_lines_for_each_case {
     });
     return $propcode;
 }
+
 sub emit_unicode_property_value_keypairs {
     my ($prop_codes) = @_;
     my @lines = ();
@@ -3007,21 +3009,27 @@ sub emit_unicode_property_value_keypairs {
     }
     croak "lines didn't get anything in it" if !%lines;
     my %done;
-    for_each_line('PropertyValueAliases', sub { $_ = shift;
+    for_each_line('PropertyValueAliases', sub {
+        $_ = shift;
+
         if (/ ^ [#] \s (\w+) \s [(] (\w+) [)] /x) {
             $aliases{$2} = $1;
             return
         }
+
         return if / ^ (?: [#] | \s* $ ) /x;
+
         my @pv_alias_parts = split(/ \s* [#;] \s* /x);
         for my $part (@pv_alias_parts) {
             $part = trim($part);
             croak if $part =~ / [;] /x;
         }
+
         my $propname = shift @pv_alias_parts;
         $propname = trim $propname;
         if (exists $PROP_NAMES->{$propname}) {
             my $prop_val = $PROP_NAMES->{$propname} << 24;
+
             # emit binary properties
             if (($pv_alias_parts[0] eq 'Y' || $pv_alias_parts[0] eq 'N') && ($pv_alias_parts[1] eq 'Yes' || $pv_alias_parts[1] eq 'No')) {
                 $prop_val++; # one bit width
@@ -3061,10 +3069,12 @@ sub emit_unicode_property_value_keypairs {
                     last;
                 }
             }
+
             unless (defined $value) {
                 print "\nNote: couldn't resolve property $propname property value alias (you can disregard this for now).";
                 return;
             }
+
             for (@pv_alias_parts) {
                 s/[-\s]/./xg;
                 next if /[.|]/x;
@@ -3079,10 +3089,12 @@ sub emit_unicode_property_value_keypairs {
             $done{"$propname$_"} ||= push @lines, $lines{$propname}->{$_};
         }
     }
+
     my $out = "\nstatic const MVMUnicodeNamedValue unicode_property_value_keypairs["
             . scalar(@lines) . "] = {\n"
             . "    " . stack_lines(\@lines) . "\n};";
     $DB_SECTIONS->{BBB_unicode_property_value_keypairs} = $out;
+
     return "\n#define num_unicode_property_value_keypairs " . scalar(@lines) . "\n";
 }
 
