@@ -2958,15 +2958,27 @@ END
     return;
 }
 
+# Set property keypairs, using several defaults to find the propcode
 sub set_lines_for_each_case {
     my ($default, $propname, $prop_val, $hash, $maybe_propcode) = @_;
-    my $propcode = $maybe_propcode // $PROP_NAMES->{$propname} // $PROP_NAMES->{$default} // croak;
-    # Workaround to 'space' not getting added here
+
+    # Try three different ways of choosing propcode, or croak if none worked
+    my $propcode = $maybe_propcode
+                // $PROP_NAMES->{$propname}
+                // $PROP_NAMES->{$default}
+                // croak;
+
+    # Workaround for 'space' not getting added here
     $hash->{$propname}->{space} = "{\"$propcode-space\",$prop_val}"
         if $default eq 'White_Space' and $propname eq '_custom_';
-    for_each_case($default, sub { $_ = shift;
+
+    # Add keypairs for each different supported case style of $default
+    for_each_case $default, sub {
+        $_ = shift;
         $hash->{$propname}->{$_} = "{\"$propcode-$_\",$prop_val}";
-    });
+    };
+
+    # Return the propcode actually used
     return $propcode;
 }
 
@@ -3033,7 +3045,8 @@ sub emit_unicode_property_value_keypairs {
             my $prop_val = $PROP_NAMES->{$propname} << 24;
 
             # emit binary properties
-            if (($pv_alias_parts[0] eq 'Y' || $pv_alias_parts[0] eq 'N') && ($pv_alias_parts[1] eq 'Yes' || $pv_alias_parts[1] eq 'No')) {
+            if (($pv_alias_parts[0] eq 'Y'   || $pv_alias_parts[0] eq 'N')
+             && ($pv_alias_parts[1] eq 'Yes' || $pv_alias_parts[1] eq 'No')) {
                 $prop_val++; # one bit width
                 for ($propname, ($aliases{$propname} // ())) {
                     set_lines_for_each_case($_, $propname, $prop_val, \%lines);
