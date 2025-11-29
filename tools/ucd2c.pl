@@ -3006,6 +3006,11 @@ sub emit_unicode_property_value_keypairs {
             }
         }
     }
+
+    # Something went terribly wrong if %lines is still empty
+    croak "lines didn't get anything in it" if !%lines;
+
+    # Add flat.dotted.case variants for all enumerated property enum keys
     for (sort keys %$ENUMERATED_PROPERTIES) {
         my $enum = $ENUMERATED_PROPERTIES->{$_}->{enum};
         my $toadd = {};
@@ -3018,7 +3023,6 @@ sub emit_unicode_property_value_keypairs {
             $enum->{$_} = $toadd->{$_};
         }
     }
-    croak "lines didn't get anything in it" if !%lines;
 
     my %aliases;
     my @lines;
@@ -3070,10 +3074,11 @@ sub emit_unicode_property_value_keypairs {
                 }
                 return
             }
-            my $key   = $prop_codes->{$propname};
-            my $found = 0;
-            my $enum  = $ALL_PROPERTIES->{$key}->{'enum'};
-            croak "ALL_PROPERTIES has no enum for property '$propname'" unless $enum;
+
+            my $key  = $prop_codes->{$propname};
+            my $enum = $ALL_PROPERTIES->{$key}->{'enum'}
+                    or croak "ALL_PROPERTIES has no enum for property '$propname'";
+
             my $value;
             for (@pv_alias_parts) {
                 my $alias = $_;
