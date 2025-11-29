@@ -47,6 +47,10 @@ sub read-url($url) {
     qqx{curl --ftp-method nocwd -s "$url"}
 }
 
+sub ftp-dir-entries($url) {
+    read-url($url).lines.map(*.split(/' '+/)[8])
+}
+
 sub download-files(+@urls) {
     if @urls == 1 {
         my $filename = @urls[0].subst(/^.*\//, '');
