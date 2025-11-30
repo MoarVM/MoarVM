@@ -607,7 +607,7 @@ reconfig: realclean
 clangcheck gcccheck:
 	@$(MAKE) --no-print-directory -f tools/check.mk $@
 
-moar@exe@: @lflib@ $(MAIN_OBJECTS) @moar@
+moar@exe@: $(MAIN_OBJECTS) @moar@
 	$(MSG) linking $@
 	$(CMD)$(LD) @ldout@$@ $(LDFLAGS) $(MINGW_UNICODE) $(MAIN_OBJECTS) $(MAIN_LIBS)
 
@@ -659,6 +659,8 @@ switch no-tracing no-cgoto:
 src/main@obj@: src/main.c
 	$(MSG) compiling $@
 	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @mainflags@ $(CINCLUDES) @ccout@$@ $*.c
+
+src/main.c: @lflib@
 
 src/strings/unicode@obj@: src/strings/unicode_db.c src/strings/unicode_uca.c src/strings/unicode_ops.c
 
