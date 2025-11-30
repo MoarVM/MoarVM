@@ -662,8 +662,14 @@ sub process_basic_enumerated_properties {
     enumerated_property('DerivedAge',         'Age', { Unassigned => 0 }, 1);
     enumerated_property('HangulSyllableType', 'Hangul_Syllable_Type',
                         { Not_Applicable => 0 }, 1);
+    enumerated_property('IndicPositionalCategory', 'Indic_Positional_Category',
+                        { Not_Applicable => 0 }, 1);
+    enumerated_property('IndicSyllabicCategory', 'Indic_Syllabic_Category',
+                        { Other => 0 }, 1);
     enumerated_property('LineBreak',          'Line_Break', { XX => 0 }, 1);
     enumerated_property('Scripts',            'Script', { Unknown => 0 }, 1);
+    enumerated_property('VerticalOrientation', 'Vertical_Orientation',
+                        { R => 0 }, 1);
 
     enumerated_property('extracted/DerivedDecompositionType',
                         'Decomposition_Type', { None => 0 }, 1);

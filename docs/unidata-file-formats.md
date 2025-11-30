@@ -322,11 +322,11 @@ a given parsing type have been processed.
 * DerivedAge                       - +
 * EastAsianWidth - skipped in favor of derived version - XXXX: Is that correct?
 * HangulSyllableType               - +
-* IndicPositionalCategory          - XXXX
-* IndicSyllabicCategory            - XXXX
+* IndicPositionalCategory          - +
+* IndicSyllabicCategory            - +
 * LineBreak                        - +
 * Scripts                          - +
-* VerticalOrientation              - XXXX
+* VerticalOrientation              - +
 
 * auxiliary/GraphemeBreakProperty  - + (as grapheme_cluster_break)
 * auxiliary/SentenceBreakProperty  - + (as break_property)
@@ -369,7 +369,7 @@ a given parsing type have been processed.
 
 ### Multiformat parsing required
 
-* DerivedCoreProperties     - XXXX: Currently handled incorrectly!
+* DerivedCoreProperties     - +
 * DerivedNormalizationProps - +
 
 
