@@ -660,6 +660,8 @@ src/main@obj@: src/main.c
 	$(MSG) compiling $@
 	$(CMD)$(CC) @ccswitch@ $(CFLAGS) @mainflags@ $(CINCLUDES) @ccout@$@ $*.c
 
+src/main.c: @lflib@
+
 src/strings/unicode@obj@: src/strings/unicode_db.c src/strings/unicode_uca.c src/strings/unicode_ops.c
 
 # Minilua requires only -lm, no libraries
@@ -721,12 +723,9 @@ tools/repr_size_table@exe@: tools/repr_size_table@obj@ @moarlib@ $(DLL_LIBS)
 	$(MSG) linking $@
 	$(CMD)@cmprule@ $(NOOUT)
 
-@dclib@:
-	$(MSG) building dyncall...
-	$(CMD)@dcrule@ $(NOOUT)
-	$(MSG) done.
-
-@dcblib@ @dllib@: @dclib@
+@lflib@: @lfobjects@
+	$(MSG) linking $@
+	$(CMD)@lfrule@ $(NOOUT)
 
 pkgconfig/moar.pc: build/mk-moar-pc.pl
 	$(PERL) build/mk-moar-pc.pl $@
@@ -746,7 +745,6 @@ realclean: clean
 	-$(RM) @laolib@ $(NOOUT) $(NOERR)
 	-$(CMD)@tomclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@shaclean@ $(NOOUT) $(NOERR)
-	-$(CMD)@dcclean@ $(NOOUT) $(NOERR)
 	-$(CMD)@cmpclean@ $(NOOUT) $(NOERR)
 	-$(RM) $(MINILUA) $(NOOUT) $(NOERR)
 

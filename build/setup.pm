@@ -2,7 +2,7 @@ package main;
 use strict;
 use warnings;
 
-use File::Spec::Functions qw(devnull);
+use File::Spec::Functions qw(devnull catdir rel2abs);
 my $devnull = devnull();
 
 # 3rdparty library configuration
@@ -24,25 +24,6 @@ my %TP_TOM = (
     name => 'tommath',
     path => '3rdparty/libtommath',
     src  => [ '3rdparty/libtommath' ],
-);
-
-my %TP_DC = (
-    name  => 'dyncall_s',
-    path  => '3rdparty/dyncall/dyncall',
-    rule  => 'cd 3rdparty/dyncall &&  ./configure && CC=\'$(CC)\' CFLAGS=\'-fPIC\' $(MAKE) -f Makefile ',
-    clean => 'cd 3rdparty/dyncall && $(MAKE) -f Makefile clean',
-);
-
-my %TP_DCB = (
-    name  => 'dyncallback_s',
-    path  => '3rdparty/dyncall/dyncallback',
-    dummy => 1, # created as part of dyncall build
-);
-
-my %TP_DL = (
-    name  => 'dynload_s',
-    path  => '3rdparty/dyncall/dynload',
-    dummy => 1, # created as part of dyncall build
 );
 
 my %TP_CMP = (
@@ -67,15 +48,20 @@ my %TP_UV = (
     # the OS needs to provide a C<src> or C<objects> setting
 );
 
+my %TP_LF = (
+    name  => 'ffi/install/lib/libffi',
+    path  => '3rdparty',
+    rule  => 'cd 3rdparty/libffi && ./autogen.sh && ./configure --disable-builddir --disable-docs --prefix=' . catdir(rel2abs(), '3rdparty', 'libffi', 'install') . ' CC=\'$(CC)\' CFLAGS=\'$(CFLAGS) -Wno-error=pointer-arith\' && $(MAKE) install',
+    clean => 'cd 3rdparty/libffi && $(MAKE) clean',
+);
+
 our %THIRDPARTY = (
     lao => { %TP_LAO },
     tom => { %TP_TOM },
     sha => { %TP_SHA },
-    dc  => { %TP_DC },
-    dcb => { %TP_DCB },
-    dl  => { %TP_DL },
     uv  => { %TP_UVDUMMY },
     cmp => { %TP_CMP },
+    lf  => { %TP_LF },
 );
 
 # shell configuration
@@ -262,18 +248,6 @@ TERM
     dlllocal  => '',
 
     -auxfiles => [ qw( @name@.ilk @name@.pdb @moardll@.lib @moardll@.exp vc100.pdb ) ],
-
-    -thirdparty => {
-        dc => {
-            %TP_DC,
-            name  => 'libdyncall_s',
-            rule  => 'cd 3rdparty/dyncall && configure.bat /target-x86 && $(MAKE) -f Nmakefile',
-            clean => '$(RM) 3rdparty/dyncall/ConfigVars @dclib@ @dcblib@ @dllib@ 3rdparty/dyncall/dyncall/*@obj@ 3rdparty/dyncall/dyncallback/*@obj@ 3rdparty/dyncall/dynload/*@obj@',
-        },
-
-        dcb => { %TP_DCB, name => 'libdyncallback_s' },
-        dl  => { %TP_DL, name => 'libdynload_s' },
-    },
 );
 
 my %TC_MINGW32 = (
@@ -296,14 +270,6 @@ my %TC_MINGW32 = (
     dllimport => '__declspec(dllimport)',
     dllexport => '__declspec(dllexport)',
     dlllocal  => '',
-
-    -thirdparty => {
-        dc => {
-            %TP_DC,
-            rule  => 'cd 3rdparty/dyncall && ./configure.bat /target-x86 /tool-gcc && $(MAKE) -f Makefile.embedded mingw32',
-            clean => $TC_MSVC{-thirdparty}->{dc}->{clean},
-        },
-    },
 );
 
 my %TC_CYGWIN = (
@@ -588,10 +554,6 @@ my %OS_SOLARIS = (
     mknoisy => '',
 
     -thirdparty => {
-        dc => { %TP_DC,
-            rule  => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS) -U_FILE_OFFSET_BITS\' $(MAKE) -f Makefile.embedded sun',
-            clean => 'cd 3rdparty/dyncall &&  CC=\'$(CC)\' CFLAGS=\'$(CFLAGS)\' $(MAKE) -f Makefile.embedded clean',
-        },
         uv => { %TP_UVDUMMY, objects => '$(UV_SOLARIS)' },
     },
 );
