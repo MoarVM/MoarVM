@@ -881,7 +881,7 @@ void MVM_nativecall_dispatch(MVMThreadContext *tc, MVMObject *res_type,
 
     MVMuint16 num_args;
     MVMint16 *arg_types;
-    ffi_type **ffi_arg_types;
+    ffi_type **ffi_arg_types = NULL;
     if (body->variadic) {
         MVMint16 num_fixed_args = body->num_args;
         num_args = args.callsite->num_pos - 2;
